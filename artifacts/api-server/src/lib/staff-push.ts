@@ -76,6 +76,8 @@ export async function enqueueStaffPush() {
     SELECT s.id AS subscription_id,'event:'||v.id::text AS event_key,CASE WHEN v.kind='enquiry_received' THEN 'enquiries' ELSE 'bookings' END AS category,v.enquiry_id,CASE WHEN v.kind='enquiry_received' THEN NULL::integer ELSE e.appointment_revision END AS revision,NULL::timestamptz AS due_at,least(v.occurred_at+interval '24 hours',now()+interval '1 hour') AS expires_at
       FROM devices s JOIN enquiry_events v ON v.dealer_id=s.dealer_id JOIN enquiries e ON e.id=v.enquiry_id AND e.dealer_id=s.dealer_id
       WHERE (v.kind<>'enquiry_received' OR e.merged_into_id IS NULL) AND v.occurred_at>=s.event_since AND v.occurred_at>now()-interval '24 hours' AND ((v.kind='enquiry_received' AND e.appointment_at IS NULL AND s.pref_enquiries) OR (v.kind IN ('viewing_booked','viewing_rescheduled','viewing_cancelled') AND s.pref_bookings AND NOT EXISTS (SELECT 1 FROM enquiry_events newer WHERE newer.dealer_id=v.dealer_id AND newer.enquiry_id=v.enquiry_id AND newer.kind IN ('viewing_booked','viewing_rescheduled','viewing_cancelled') AND (newer.occurred_at>v.occurred_at OR (newer.occurred_at=v.occurred_at AND newer.id>v.id)))))
+    UNION ALL SELECT s.id,'reply:'||r.id::text,'enquiries',r.enquiry_id,NULL::integer,NULL::timestamptz,least(r.received_at+interval '24 hours',now()+interval '1 hour')
+      FROM devices s JOIN enquiry_email_replies r ON r.dealer_id=s.dealer_id WHERE s.role IN ('owner','salesperson') AND s.pref_enquiries AND r.resolved_at IS NULL AND r.status IN ('received','review') AND r.received_at>=s.event_since AND r.received_at>now()-interval '24 hours'
     UNION ALL SELECT s.id,'reminder:'||e.id::text||':'||e.appointment_revision::text,'reminders',e.id,e.appointment_revision,e.appointment_at,e.appointment_at
       FROM devices s JOIN enquiries e ON e.dealer_id=s.dealer_id WHERE s.pref_reminders AND e.status<>'closed' AND e.appointment_status='confirmed' AND e.appointment_cancelled_at IS NULL AND e.attendance='scheduled' AND e.appointment_at>now() AND e.appointment_at>=s.created_at AND e.appointment_at<=now()+s.lead*interval '1 minute'
     UNION ALL SELECT s.id,'followup:'||e.id::text||':'||e.follow_up_revision::text,'followups',e.id,e.follow_up_revision,e.follow_up_at,e.follow_up_at+interval '24 hours'
@@ -91,8 +93,9 @@ export async function enqueueStaffPush() {
 }
 const bodies:Record<PushCategory,string>={enquiries:'A new customer enquiry needs attention.',bookings:'A test-drive booking has been added or changed.',reminders:'A confirmed appointment is coming up.',followups:'A customer follow-up is due.',emailFailures:'A customer email needs attention.',test:'Notifications are working on this device.'};
 export function pushMessage(id:string,category:PushCategory,key:string,enquiryId:string|null):PushMessage {
-  const url=enquiryId ? `/portal?section=notifications&${category==='emailFailures'?'workView=email':category==='bookings'||category==='reminders'?'workView=test-drives':'workView=customers'}&enquiryId=${encodeURIComponent(enquiryId)}` : '/portal?section=notifications';
-  return {title:'Dealership update',body:bodies[category],url,eventId:id,category,tag:key};
+  const reply=key.startsWith('reply:');
+  const url=enquiryId ? `/portal?section=notifications&${category==='emailFailures'||reply?'workView=email':category==='bookings'||category==='reminders'?'workView=test-drives':'workView=customers'}&enquiryId=${encodeURIComponent(enquiryId)}` : '/portal?section=notifications';
+  return {title:'Dealership update',body:reply?'A customer email reply needs attention.':bodies[category],url,eventId:id,category,tag:key};
 }
 function errorStatus(error:unknown) { return error && typeof error==='object' && 'statusCode' in error ? Number(error.statusCode) : 0; }
 /** No customer identity, endpoint, crypto key or provider error body enters logs. */
@@ -155,6 +158,10 @@ export async function processStaffPush(log:Pick<Logger,'warn'>,sender:PushSender
           if(!parent.merged_into_id)break;primary=String(parent.merged_into_id);
         }
       }
+    }
+    if(String(job.event_key).startsWith('reply:')) {
+      const receipt=(await db.execute(sql`SELECT id FROM enquiry_email_replies WHERE id=${String(job.event_key).slice(6)}::uuid AND dealer_id=${dealer} AND resolved_at IS NULL`)).rows[0];
+      allowed=allowed&&Boolean(receipt)&&Boolean(emailAccess);
     }
     if(!allowed || !device) {
       await db.execute(sql`UPDATE staff_push_deliveries SET status='cancelled',finished_at=now(),error_code=${category!=='test' && !preferences[category]?'preference_disabled':'no_longer_applicable'} WHERE id=${id}::uuid AND dealer_id=${dealer}`);continue;

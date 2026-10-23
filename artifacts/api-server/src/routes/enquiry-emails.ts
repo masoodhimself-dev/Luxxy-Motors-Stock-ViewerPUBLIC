@@ -722,7 +722,7 @@ export function createEnquiryEmailRouter(
         ...(await readEmailDraft(enquiry.dealerId, enquiry.id)),
         templates,
         invoices,
-        email: enquiry.email || "",
+        email: enquiry.email || String((await db.execute(sql`SELECT recipient FROM enquiry_email_reply_routes WHERE dealer_id=${enquiry.dealerId} AND enquiry_id=${enquiry.id}::uuid ORDER BY created_at DESC,id DESC LIMIT 1`)).rows[0]?.recipient || ""),
         customerName: enquiry.customerName,
         vehicleId: enquiry.vehicleId,
         vehicleTitle: enquiry.vehicleTitle,

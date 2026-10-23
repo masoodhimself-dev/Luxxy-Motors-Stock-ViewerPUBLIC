@@ -35,7 +35,7 @@ import { customerHistoryHref } from "./history-links";
 import "./email-workspace.css";
 type Message = {
   key: string;
-  kind: "enquiry" | "sale" | "notification" | "reminder";
+  kind: "enquiry" | "sale" | "notification" | "reminder" | "reply";
   customer_name: string;
   recipient: string;
   subject: string;
@@ -71,6 +71,7 @@ type EmailHistory = {
   messages: Message[];
   hasMore: boolean;
   replyTo?: string | null;
+  repliesConnected?: boolean;
 };
 // Compare instants, not serialisations (PostgreSQL, UTC and explicit offsets can mix).
 const emailTimestamp = (value: string) => {
@@ -134,6 +135,9 @@ const labels: Record<string, string> = {
   sent: "Submitted to Resend",
   prepared: "Prepared · not sent",
   sending: "Sending",
+  reply_needed: "Reply needed",
+  review: "Needs review",
+  handled: "Handled",
   unknown: "Acceptance unconfirmed",
   failed: "Failed",
   delivered: "Delivered",
@@ -153,7 +157,7 @@ export function emailStatusTone(value: string) {
   if (["delivered", "opened", "clicked"].includes(value)) return "success";
   if (["failed", "bounced", "complained", "suppressed"].includes(value))
     return "danger";
-  if (["unknown", "delivery_delayed"].includes(value)) return "warning";
+  if (["unknown", "delivery_delayed", "review", "reply_needed"].includes(value)) return "warning";
   if (value === "prepared") return "violet";
   if (["sent", "sending", "scheduled", "queued"].includes(value)) return "info";
   return "neutral";
@@ -232,6 +236,7 @@ export function EmailWorkspace({
         `/api/staff/email?q=${encodeURIComponent(query)}&offset=${offset}${scopedEnquiryId ? `&enquiryId=${encodeURIComponent(scopedEnquiryId)}` : ""}`,
       ),
     retry: false,
+    refetchInterval: 30000,
   });
   const conversations = useMemo(() => {
     const entries = enquiries.data ?? [],
@@ -281,6 +286,7 @@ export function EmailWorkspace({
     getNextPageParam: (last, pages) =>
       last.hasMore ? pages.length * 50 : undefined,
     retry: false,
+    refetchInterval: 30000,
   });
   const threadMessages = useMemo(() => {
     const rows =
@@ -334,6 +340,8 @@ export function EmailWorkspace({
       customFetch<{
         message: {
           message: string;
+          sender?: string;
+          error_code?: string;
           attachments?: { id: string; filename: string; byteSize: number }[];
         };
       }>(`/api/staff/email/message/${encodeURIComponent(selected!.key)}`),
@@ -621,13 +629,13 @@ export function EmailWorkspace({
             <p className="email-inbox-note">
               <Mail size={16} aria-hidden="true" />
               <span>
-                Replies go to{" "}
+                {history.data?.repliesConnected ? "Reply routing is connected. Previous emails still use " : "Replies go to "}
                 {history.data?.replyTo ? (
                   <strong>{history.data.replyTo}</strong>
                 ) : (
                   "your email inbox"
                 )}
-                . Inbox replies are not connected here yet.
+                . {history.data?.repliesConnected ? "Customer replies to new emails appear in the same conversation and on Home." : "Inbox replies are not connected here yet."}
               </span>
             </p>
             <div
@@ -916,11 +924,12 @@ export function EmailWorkspace({
                             status = active
                               ? currentStatus
                               : (message.last_event ?? message.status);
-                          const summary = message.kind !== "enquiry";
+                          const incoming = message.kind === "reply";
+                          const summary = message.kind !== "enquiry" && !incoming;
                           return (
                             <li
                               key={item.key}
-                              className="email-timeline-item is-outgoing"
+                              className={`email-timeline-item ${incoming ? "is-customer" : "is-outgoing"}`}
                             >
                               {newDay && (
                                 <p className="email-day-divider">
@@ -936,22 +945,23 @@ export function EmailWorkspace({
                                 </p>
                               )}
                               <article
-                                className={`email-bubble email-bubble-outgoing${active ? " is-active" : ""}`}
+                                className={`email-bubble ${incoming ? "email-bubble-original" : "email-bubble-outgoing"}${active ? " is-active" : ""}`}
                                 data-tone={emailStatusTone(status)}
-                                aria-label={`${message.subject}, email from your dealership`}
+                                aria-label={`${message.subject}, email ${incoming ? "from customer" : "from your dealership"}`}
                               >
                                 <header>
                                   <span>
                                     <Send size={14} aria-hidden="true" />
-                                    Your dealership
+                                    {incoming ? status === "review" ? "Incoming email — check sender" : message.customer_name : "Your dealership"}
                                   </span>
                                   <small>
-                                    {summary
+                                    {incoming ? "Customer email reply" : summary
                                       ? "Email record summary"
                                       : "Email to customer"}
                                   </small>
                                 </header>
                                 <h4>{message.subject}</h4>
+                                {incoming && status === "review" && <p role="status" className="email-note">This reply needs checking before you treat it as a customer message. Confirm the sender and details. No booking or sale has been changed.</p>}
                                 {body ? (
                                   <p className="email-bubble-text">{body}</p>
                                 ) : active && detail.isLoading ? (
@@ -973,9 +983,7 @@ export function EmailWorkspace({
                                     <Paperclip size={14} aria-hidden="true" />
                                     {message.attachment_count} attachment
                                     {message.attachment_count === 1 ? "" : "s"}
-                                    {message.kind === "sale"
-                                      ? " · Sales document"
-                                      : ""}
+                                    {incoming ? " · Stored in Resend; attachment downloads are not available here yet" : message.kind === "sale" ? " · Sales document" : ""}
                                   </p>
                                 )}
                                 <footer>
@@ -1010,7 +1018,7 @@ export function EmailWorkspace({
                                     ) : (
                                       <Clock3 size={14} aria-hidden="true" />
                                     )}
-                                    {emailStatusLabel(status)}
+                                    {incoming ? status === "handled" ? "Handled" : status === "review" ? "Needs review" : "Reply needed" : emailStatusLabel(status)}
                                   </span>
                                 </footer>
                                 <Button
@@ -1031,19 +1039,22 @@ export function EmailWorkspace({
                                   <div className="email-bubble-details">
                                     <dl>
                                       <div>
-                                        <dt>To</dt>
-                                        <dd>{message.recipient}</dd>
+                                        <dt>{incoming ? "Customer" : "To"}</dt>
+                                        <dd>{incoming && detail.data?.message.sender ? detail.data.message.sender : message.recipient}</dd>
                                       </div>
                                     </dl>
                                     <Button
                                       variant="outline"
-                                      disabled={busy || !message.provider_id}
-                                      onClick={() => void checkStatus()}
+                                      disabled={busy || (!incoming && !message.provider_id)}
+                                      onClick={() => void (async()=>{
+                                        if(!incoming){await checkStatus();return;}
+                                        try{setBusy(true);await customFetch(`/api/staff/email/replies/${encodeURIComponent(message.key.slice(6))}/handled`,{method:'POST'});await cache.invalidateQueries({queryKey:['staff-notifications']});await history.refetch();await thread.refetch();setSelected(null);}catch(cause){setError(workspaceError(cause));}finally{setBusy(false);}
+                                      })()}
                                     >
                                       <RefreshCw size={15} aria-hidden="true" />
                                       {busy
                                         ? "Checking…"
-                                        : "Check delivery status"}
+                                        : incoming ? "Mark handled" : "Check delivery status"}
                                     </Button>
                                     {selected?.checked_at && (
                                       <p className="email-note">
@@ -1078,7 +1089,7 @@ export function EmailWorkspace({
                                                 aria-hidden="true"
                                               />
                                               {a.filename} ·{" "}
-                                              {Math.ceil(a.byteSize / 1024)} KB
+                                              {incoming ? "Stored in Resend" : `${Math.ceil(a.byteSize / 1024)} KB`}
                                             </p>
                                           ),
                                         )}

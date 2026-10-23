@@ -30,6 +30,8 @@ export class EmailProviderError extends Error {
 }
 
 export type EmailRequest = {
+  replyTo?: string;
+  replyHeaders?: { "In-Reply-To": string; References: string };
   to: string;
   subject: string;
   html: string;
@@ -44,6 +46,7 @@ export type EmailEnvelope = {
   html: string;
   text?: string;
   reply_to?: string;
+  headers?: Record<string,string>;
   attachments?: Array<{ filename: string; content: string }>;
 };
 export const emailAccountHash = (config: Pick<ResendSettings, "apiKey">) =>
@@ -193,7 +196,8 @@ export async function prepareEmailWithSettings(
     subject: request.subject,
     html: request.html,
     ...(request.text ? { text: request.text } : {}),
-    ...(config.replyTo ? { reply_to: config.replyTo } : {}),
+    ...(request.replyTo || config.replyTo ? { reply_to: request.replyTo || config.replyTo } : {}),
+    ...(request.replyHeaders ? { headers: request.replyHeaders } : {}),
     ...(request.attachments?.length
       ? { attachments: request.attachments }
       : {}),

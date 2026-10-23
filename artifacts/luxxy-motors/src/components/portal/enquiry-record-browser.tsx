@@ -1,3 +1,5 @@
+import { useQuery } from '@tanstack/react-query';
+import { customFetch } from '@workspace/api-client-react';
 import { ShareQr } from "@/components/share-qr";
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'wouter';
@@ -43,6 +45,8 @@ function ClaimEnquiry({ entry }: { entry: Enquiry }) {
 }
 
 function EnquiryDetail({ entry, car, actions }: { entry: Enquiry; car?: Car; actions: EnquiryRecordActions }) {
+  const replyAttention=useQuery({queryKey:['reply-attention',entry.id,entry.workspaceRevision],enabled:Boolean(actions.onEmail),queryFn:()=>customFetch<{pending:number;review:number}>(`/api/staff/email/reply-attention?enquiryId=${encodeURIComponent(entry.id)}`),refetchInterval:30000,retry:false});
+  const pendingReply=(replyAttention.data?.pending ?? 0)>0;
   const presentation = enquiryPresentation(entry);
   const [emailOpen, setEmailOpen] = useState(false);
   const showAppointmentEmail = Boolean(actions.onAppointmentFollowUp && canFollowUpAppointment(entry));
@@ -72,13 +76,14 @@ function EnquiryDetail({ entry, car, actions }: { entry: Enquiry; car?: Car; act
       <p>{enquiryRequestText(entry) || 'No message recorded. Check the conversation notes or contact the customer.'}</p>
       <small>{entry.createdAt ? `Received ${appointmentLabel(entry.createdAt)}` : ''}{entry.preferredContact ? ` · Prefers ${entry.preferredContact}` : ''}</small>
     </section>
-    <section className="enquiry-action-plan" data-tone={presentation.tone} aria-label="Recommended next action">
+    {pendingReply && <section className="enquiry-action-plan" data-tone="warning" aria-label="Customer email reply"><div><span className="enquiry-action-label">Next step</span><h4>{replyAttention.data?.review ? 'Incoming email needs review' : 'Customer replied'}</h4><p>Open the conversation, read their reply and respond or mark it handled.</p></div><Button size="sm" asChild><Link href={`/portal?section=notifications&workView=email&enquiryId=${encodeURIComponent(entry.id)}`}>Read reply</Link></Button></section>}
+    {!pendingReply && <section className="enquiry-action-plan" data-tone={presentation.tone} aria-label="Recommended next action">
       <div><span className="enquiry-action-label">Next step</span><h4>{presentation.nextAction}</h4><p>{presentation.reason}</p>{presentation.dueAt && <time dateTime={presentation.dueAt}>{appointmentLabel(presentation.dueAt)}</time>}</div>
       {showVisitControls && <AttendanceControls entry={entry} />}
       {presentation.action === 'appointment' && entry.appointmentStatus === 'pending'
         ? <Button size="sm" asChild><Link href={`/portal?section=notifications&workView=test-drives&enquiryId=${encodeURIComponent(entry.id)}`}>Review test drive</Link></Button>
         : action && <Button size="sm" onClick={action}>{presentation.action === 'appointment' ? 'Manage appointment' : actionLabel}</Button>}
-    </section>
+    </section>}
     <div className="enquiry-detail-actions" aria-label="Selected enquiry actions">
       {!(presentation.action === "conversation" || (presentation.action === "respond" && actionLabel === "Record the response")) && <Button size="sm" variant="outline" onClick={() => actions.onConversation(entry)}>Log another conversation</Button>}
       {showAppointmentEmail && <Button size="sm" variant="outline" onClick={() => actions.onAppointmentFollowUp?.(entry)}>Follow-up email</Button>}

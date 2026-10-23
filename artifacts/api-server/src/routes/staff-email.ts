@@ -1,3 +1,4 @@
+import { replyConfiguration } from '../lib/customer-email-replies';
 import {
   Router,
   type Request,
@@ -77,6 +78,10 @@ export function createStaffEmailRouter(
   );
   async function find(key: string) {
     const dealer = currentDealerId();
+    if (key.startsWith("reply:")) {
+      const id=key.slice(6); if(!z.string().uuid().safeParse(id).success)return null;
+      return (await db.execute(sql`SELECT m.id,NULL::text AS provider_id,r.recipient,m.sender,m.error_code,m.subject,m.message,(SELECT coalesce(jsonb_agg(jsonb_build_object('id',ordinality::text,'filename',value,'byteSize',0)),'[]'::jsonb) FROM jsonb_array_elements_text(m.attachment_names) WITH ORDINALITY) AS attachments,m.status,m.received_at AS created_at,m.enquiry_id,e.customer_name,e.reference,e.vehicle_id,e.vehicle_title,jsonb_array_length(m.attachment_names) AS attachment_count FROM enquiry_email_replies m JOIN enquiry_email_reply_routes r ON r.id=m.route_id AND r.dealer_id=m.dealer_id JOIN enquiries e ON e.id=m.enquiry_id AND e.dealer_id=m.dealer_id WHERE m.id=${id}::uuid AND m.dealer_id=${dealer}`)).rows[0] ?? null;
+    }
     if (key.startsWith("enquiry:")) {
       const id = key.slice(8);
       if (!z.string().uuid().safeParse(id).success) return null;
@@ -149,6 +154,8 @@ export function createStaffEmailRouter(
     const rows = await db.execute(sql`WITH messages AS (
     SELECT 'enquiry:'||m.id::text AS key,'enquiry' AS kind,m.created_at,e.customer_name,m.recipient,m.subject,m.status,m.provider_id,e.id::text AS enquiry_id,NULL::text AS sale_id,NULL::text AS document_id,e.vehicle_id::text AS vehicle_id,e.vehicle_title,e.reference,CASE WHEN jsonb_array_length(m.attachment_manifest)>0 THEN jsonb_array_length(m.attachment_manifest) ELSE jsonb_array_length(m.photo_ids)+jsonb_array_length(m.document_ids) END AS attachment_count,${includeBody ? sql`coalesce(m.rendered_text,m.message)` : sql`NULL::text`} AS message FROM enquiry_emails m JOIN enquiries e ON e.id=m.enquiry_id AND e.dealer_id=m.dealer_id WHERE m.dealer_id=${dealer}
     UNION ALL
+    SELECT 'reply:'||m.id::text,'reply',m.received_at,e.customer_name,r.recipient,coalesce(m.subject,'Customer reply'),CASE WHEN m.resolved_at IS NOT NULL THEN 'handled' WHEN m.status='received' THEN 'reply_needed' ELSE 'review' END,NULL::text,e.id::text,NULL::text,NULL::text,e.vehicle_id::text,e.vehicle_title,e.reference,jsonb_array_length(m.attachment_names),${includeBody ? sql`coalesce(m.message,'Reply is awaiting retrieval. Please check again shortly.')` : sql`NULL::text`} FROM enquiry_email_replies m JOIN enquiry_email_reply_routes r ON r.id=m.route_id AND r.dealer_id=m.dealer_id JOIN enquiries e ON e.id=m.enquiry_id AND e.dealer_id=m.dealer_id WHERE m.dealer_id=${dealer}
+    UNION ALL
     SELECT n.kind||':'||e.id::text,n.kind,n.attempted_at,e.customer_name,e.email,n.subject,n.status,n.provider_id,e.id::text,NULL::text,NULL::text,e.vehicle_id::text,e.vehicle_title,e.reference,0,${includeBody ? sql`'This is the latest automated email recorded for this enquiry. Open the enquiry to review the appointment details.'::text` : sql`NULL::text`} FROM enquiries e CROSS JOIN LATERAL (VALUES ('notification',e.customer_notification_attempted_at,'Customer confirmation'||CASE WHEN nullif(e.vehicle_title,'') IS NOT NULL THEN ' — '||e.vehicle_title ELSE '' END,e.customer_notification_status,e.customer_notification_provider_id),('reminder',e.reminder_attempted_at,'Appointment reminder'||CASE WHEN nullif(e.vehicle_title,'') IS NOT NULL THEN ' — '||e.vehicle_title ELSE '' END,e.reminder_status,e.reminder_provider_id)) n(kind,attempted_at,subject,status,provider_id) WHERE e.dealer_id=${dealer} AND n.attempted_at IS NOT NULL
     UNION ALL
     SELECT 'sale:'||s.id::text||':'||(d->>'id'),'sale',coalesce((d->>'attemptedAt')::timestamptz,s.updated_at),s.state#>>'{draft,customer}',d->>'to',coalesce(doc->>'title','Sales document')||' '||coalesce(doc->>'number',''),d->>'status',d->>'providerId',s.state#>>'{draft,sourceEnquiryId}',s.id::text,d->>'documentId',s.state#>>'{draft,vehicleId}',s.state#>>'{draft,vehicle}',s.reference,1,${includeBody ? sql`'The original saved document was attached to this email.'::text` : sql`NULL::text`} FROM sale_workspace s CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(s.state->'emailDeliveries')='array' THEN s.state->'emailDeliveries' ELSE '[]'::jsonb END) d LEFT JOIN LATERAL (SELECT doc FROM jsonb_array_elements(CASE WHEN jsonb_typeof(s.state->'documents')='array' THEN s.state->'documents' ELSE '[]'::jsonb END) doc WHERE doc->>'id'=d->>'documentId' LIMIT 1) details ON true WHERE s.dealer_id=${dealer}
@@ -160,6 +167,7 @@ export function createStaffEmailRouter(
     } catch {}
     res.json({
       replyTo,
+      repliesConnected: Boolean(replyConfiguration()),
       messages: rows.rows.slice(0, 50).map((row) => {
         const normalized: Record<string, unknown> = { ...row, created_at: emailTimestamp(row.created_at), checked_at: emailTimestamp(row.checked_at) };
         if (includeBody) return normalized;
@@ -169,6 +177,13 @@ export function createStaffEmailRouter(
       hasMore: rows.rows.length > 50,
     });
   });
+  router.get('/staff/email/reply-attention',async(req,res)=>{
+    const id=String(req.query.enquiryId||'');if(!z.string().uuid().safeParse(id).success){res.sendStatus(400);return;}
+    const ids=await enquiryCaseIds(currentDealerId(),id);
+    if(!ids.length){res.sendStatus(404);return;}
+    const row=(await db.execute(sql`SELECT count(*)::int AS pending,count(*) FILTER(WHERE status<>'received')::int AS review FROM enquiry_email_replies WHERE dealer_id=${currentDealerId()} AND enquiry_id IN (${sql.join(ids.map(i=>sql`${i}::uuid`),sql`,`)}) AND resolved_at IS NULL`)).rows[0];
+    res.json(row);
+  });
   router.get("/staff/email/message/:key", async (req, res) => {
     const row = await find(String(req.params.key));
     if (!row) {
@@ -177,6 +192,11 @@ export function createStaffEmailRouter(
     }
     res.json({ message: row });
   });
+  router.post('/staff/email/replies/:id/handled', async(req,res)=>{
+    const id=String(req.params.id);if(!z.string().uuid().safeParse(id).success){res.sendStatus(400);return;}
+    const rows=await db.execute(sql`UPDATE enquiry_email_replies SET resolved_at=now(),resolved_by=${req.staff!.authUserId} WHERE id=${id}::uuid AND dealer_id=${currentDealerId()} AND status IN ('received','review') RETURNING id`);
+    if(!rows.rows.length){res.sendStatus(404);return;}res.json({handled:true});
+  });
   router.post("/staff/email/message/:key/status", async (req, res) => {
     const key = String(req.params.key),
       row = await find(key);
@@ -184,6 +204,7 @@ export function createStaffEmailRouter(
       res.status(404).json({ error: "Email not found." });
       return;
     }
+    if (key.startsWith("reply:")) { res.status(400).json({error:"Incoming replies do not have outgoing delivery status."});return; }
     if (!row.provider_id) {
       res.status(409).json({
         error:

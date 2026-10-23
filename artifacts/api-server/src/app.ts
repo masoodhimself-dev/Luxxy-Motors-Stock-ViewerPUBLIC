@@ -1,3 +1,4 @@
+import { createCustomerEmailWebhook } from './routes/customer-email-webhook';
 import accountInvitationsRouter from './routes/account-invitations';
 import demoOnboardingRouter from './routes/demo-onboarding';
 import platformDealersRouter from "./routes/platform-dealers";
@@ -48,6 +49,8 @@ app.use(
 protectPrivateCapabilityPages(app);
 // Mounted before the body parsers: the Clerk proxy streams raw bytes.
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
+
+app.use('/api/webhooks/customer-email', createCustomerEmailWebhook());
 
 app.use(cors({ credentials: true, origin: true }));
 app.use(importAdmission.middleware);

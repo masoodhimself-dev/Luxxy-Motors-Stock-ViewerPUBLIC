@@ -8,7 +8,7 @@
     "build": "node ./build.mjs",
     "start": "exec node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "pnpm run test:safety && pnpm run test:stock && pnpm run test:stock-feed && pnpm run test:sales && pnpm run test:leads && pnpm run test:portal && pnpm run test:settings && pnpm run test:brochure && pnpm run test:reservations && pnpm run test:portability && pnpm run test:retired-sales && pnpm run test:bookings && pnpm run test:staff-enquiries && pnpm run test:enquiry-merges && pnpm run test:callback-conversations && pnpm run test:sale-workspace && pnpm run test:dealer-improvements && pnpm run test:relationships && pnpm run test:chat && pnpm run test:tenancy && pnpm run test:platform && pnpm run test:domain && pnpm run test:email-workspace && pnpm run test:push && pnpm run test:ai-drafts && pnpm run test:email-design && pnpm run test:capacity:guards && pnpm run test:shutdown && pnpm run test:history && pnpm run test:email-recovery && pnpm run test:quick-enquiry && pnpm run test:declarations && pnpm run test:features && pnpm run test:share-origin && pnpm run test:staff-origin && pnpm run test:vehicle-descriptions && pnpm run test:stock-changes && pnpm run test:sold-follow-ups && pnpm run test:email-website-branding && pnpm run test:platform-stock-source && pnpm run test:website-assets && pnpm run test:seo && pnpm run test:search-visibility && pnpm run test:media-sharing && pnpm run test:invitations",
+    "test": "pnpm run test:safety && pnpm run test:stock && pnpm run test:stock-feed && pnpm run test:sales && pnpm run test:leads && pnpm run test:portal && pnpm run test:settings && pnpm run test:brochure && pnpm run test:reservations && pnpm run test:portability && pnpm run test:retired-sales && pnpm run test:bookings && pnpm run test:staff-enquiries && pnpm run test:enquiry-merges && pnpm run test:callback-conversations && pnpm run test:sale-workspace && pnpm run test:dealer-improvements && pnpm run test:relationships && pnpm run test:chat && pnpm run test:tenancy && pnpm run test:platform && pnpm run test:domain && pnpm run test:email-workspace && pnpm run test:push && pnpm run test:ai-drafts && pnpm run test:email-design && pnpm run test:capacity:guards && pnpm run test:shutdown && pnpm run test:history && pnpm run test:email-recovery && pnpm run test:quick-enquiry && pnpm run test:declarations && pnpm run test:features && pnpm run test:share-origin && pnpm run test:staff-origin && pnpm run test:vehicle-descriptions && pnpm run test:stock-changes && pnpm run test:sold-follow-ups && pnpm run test:email-website-branding && pnpm run test:platform-stock-source && pnpm run test:website-assets && pnpm run test:seo && pnpm run test:search-visibility && pnpm run test:media-sharing && pnpm run test:invitations && pnpm run test:customer-replies",
     "test:reservations": "node ./test-build.mjs src/online-reservations.test.ts && node --enable-source-maps --test ./dist-test/online-reservations.test.mjs",
     "test:reservations:integration": "node ./test-build.mjs src/reservations.integration.test.ts && node --enable-source-maps --test ./dist-test/reservations.integration.test.mjs",
     "test:brochure": "node ./test-build.mjs src/vehicle-brochure.test.ts && node --enable-source-maps --test ./dist-test/vehicle-brochure.test.mjs",
@@ -57,7 +57,8 @@
     "test:seo": "node test-seo-crawl-build.mjs && node --test .cache/seo-crawl-tests/seo-crawl.test.mjs .cache/seo-crawl-tests/indexnow.test.mjs && node test-public-page-seo-build.mjs && node --test .cache/public-page-seo-tests/public-page-seo.test.mjs",
     "test:search-visibility": "node test-search-visibility-build.mjs && node --test .cache/search-visibility-tests/search-visibility.test.mjs",
     "test:media-sharing": "node test-media-sharing-build.mjs && node --test .cache/media-sharing-tests/media-sharing.test.mjs",
-    "test:invitations": "node test-invitations-build.mjs && node --test .cache/invitation-tests/account-invitations.test.mjs"
+    "test:invitations": "node test-invitations-build.mjs && node --test .cache/invitation-tests/account-invitations.test.mjs",
+    "test:customer-replies": "node test-customer-replies-build.mjs && node --test .cache/reply-tests/customer-email-replies.test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1100.0",
@@ -73,10 +74,12 @@
     "express": "^5.2.1",
     "ffmpeg-static": "5.3.0",
     "ffprobe-static": "3.1.0",
+    "html-to-text": "^10.0.1",
     "http-proxy-middleware": "^4.2.0",
     "jspdf": "4.2.1",
     "pino": "^9.14.0",
     "pino-http": "^10.5.0",
+    "svix": "^2.8.0",
     "web-push": "^3.6.7",
     "zod": "catalog:"
   },
@@ -85,6 +88,7 @@
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/html-to-text": "^9.0.4",
     "@types/node": "catalog:",
     "@types/web-push": "^3.6.4",
     "esbuild": "0.27.3",

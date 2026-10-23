@@ -772,3 +772,20 @@ it("keeps normal delivery progress distinct from uncertain or failed delivery", 
   expect(emailStatusTone("canceled")).toBe("neutral");
   expect(emailStatusTone("not-a-known-event")).toBe("neutral");
 });
+it('shows incoming customer replies as customer bubbles and only resolves them on staff action', async()=>{
+  const incoming={...message,key:'reply:reply-one',kind:'reply',status:'reply_needed',subject:'Re: Your Ford Focus',message:'Can I visit tomorrow?',attachment_count:0,provider_id:null};
+  state.fetch.mockImplementation(async(url:string,options:any)=>{
+    if(url.startsWith('/api/staff/email/message/'))return{message:{message:incoming.message,sender:'alex@example.test'}};
+    if(url.includes('/handled'))return{handled:true};
+    if(url.startsWith('/api/staff/email?'))return{messages:[incoming,message],hasMore:false,repliesConnected:true};
+    if(url==='/api/enquiries')return state.enquiries;
+    return{drafts:[],hasMore:false};
+  });
+  mount();fireEvent.click(await screen.findByRole('button',{name:/Re: Your Ford Focus/}));
+  await screen.findByText('Can I visit tomorrow?');
+  expect(screen.getByRole('article',{name:'Re: Your Ford Focus, email from customer'}).closest('li')).toHaveClass('is-customer');
+  expect(state.fetch.mock.calls.some(([url])=>url.includes('/handled'))).toBe(false);
+  await screen.findByRole('button',{name:'Mark handled'});fireEvent.click(screen.getByRole('button',{name:'Mark handled'}));
+  await waitFor(()=>expect(state.fetch).toHaveBeenCalledWith('/api/staff/email/replies/reply-one/handled',{method:'POST'}));
+  expect(state.fetch.mock.calls.some(([url])=>url.endsWith('/status'))).toBe(false);
+});

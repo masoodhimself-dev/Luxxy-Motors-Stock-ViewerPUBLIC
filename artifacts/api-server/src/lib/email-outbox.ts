@@ -1,3 +1,4 @@
+import { routeCustomerReply } from './customer-email-replies';
 import { createHash, randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
@@ -97,7 +98,7 @@ export async function enqueueEmailOutbox(
     now = input.now ?? new Date();
   const prepared = await prepareEmailWithSettings(
       input.config,
-      input.request,
+      input.kind === "dealer" ? input.request : await routeCustomerReply(input.request, input.enquiryId, executor),
       executor,
     ),
     payload = JSON.stringify(prepared.body);
@@ -156,6 +157,7 @@ async function syncTarget(row: EmailOutbox, executor: Executor = db) {
   const error =
     status === "sent" ? null : row.status === "sending" ? null : message(row);
   if (row.kind === "staff") {
+    if (row.status === "sent") await executor.execute(sql`UPDATE enquiry_email_replies SET resolved_at=now(),resolved_by='email_reply' WHERE dealer_id=${row.dealer_id} AND enquiry_id=${row.enquiry_id}::uuid AND status='received' AND resolved_at IS NULL AND received_at<=${row.created_at} AND lower(sender)=(SELECT lower(recipient) FROM enquiry_emails WHERE id=${row.delivery_id}::uuid AND dealer_id=${row.dealer_id})`);
     await executor.execute(
       sql`UPDATE enquiry_emails SET status=${status},provider_id=${row.provider_id},error=${error},finished_at=${status === "sending" ? null : new Date()} WHERE id=${row.delivery_id}::uuid AND dealer_id=${row.dealer_id} AND enquiry_id=${row.enquiry_id}::uuid`,
     );
@@ -353,7 +355,7 @@ export function deliverEmailOutbox(
           const request = await (
             options.rebuild ?? ((row) => rebuildEmail(row, config))
           )(claimed);
-          const prepared = await prepareEmailWithSettings(config, request);
+          const prepared = await prepareEmailWithSettings(config, claimed.kind === "dealer" ? request : await routeCustomerReply(request, claimed.enquiry_id, db, false));
           if (
             emailAccountHash(prepared.config) !== claimed.account_hash ||
             emailValidationHash(prepared.body) !== claimed.validation_hash

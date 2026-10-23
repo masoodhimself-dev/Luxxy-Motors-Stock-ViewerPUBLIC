@@ -86,7 +86,8 @@ export function createStaffNotificationsRouter() {
         emailAccess = req.staff!.permissions?.includes("sales.manage") ?? false;
       // Actionable work, not "read receipts": opening an item never completes an enquiry.
       const rows = await db.execute(sql`WITH tasks AS (
-        SELECT 'enquiries' AS category,e.id::text AS id,e.customer_name AS customer,e.vehicle_title AS vehicle,e.reference,e.created_at AS at,'Awaiting a reply' AS detail FROM enquiries e WHERE e.dealer_id=${dealer} AND e.merged_into_id IS NULL AND e.status='new' AND e.call_outcome IS NULL AND NOT EXISTS (SELECT 1 FROM enquiry_emails sent WHERE sent.dealer_id=e.dealer_id AND sent.enquiry_id=e.id AND sent.status='sent')
+        SELECT 'enquiries' AS category,e.id::text AS id,e.customer_name AS customer,e.vehicle_title AS vehicle,e.reference,e.created_at AS at,'Awaiting a reply' AS detail FROM enquiries e WHERE e.dealer_id=${dealer} AND e.merged_into_id IS NULL AND NOT EXISTS (SELECT 1 FROM enquiry_email_replies r WHERE r.dealer_id=e.dealer_id AND r.enquiry_id=e.id AND r.resolved_at IS NULL) AND e.status='new' AND e.call_outcome IS NULL AND NOT EXISTS (SELECT 1 FROM enquiry_emails sent WHERE sent.dealer_id=e.dealer_id AND sent.enquiry_id=e.id AND sent.status='sent')
+        UNION ALL SELECT CASE WHEN bool_or(r.status<>'received') THEN 'email' ELSE 'enquiries' END,e.id::text,e.customer_name,e.vehicle_title,e.reference,min(r.received_at),CASE WHEN bool_or(r.status<>'received') THEN 'Incoming reply needs review' ELSE 'Customer replied — reply needed' END FROM enquiry_email_replies r JOIN enquiries e ON e.id=r.enquiry_id AND e.dealer_id=r.dealer_id WHERE r.dealer_id=${dealer} AND ${emailAccess} AND r.resolved_at IS NULL GROUP BY e.id
         UNION ALL SELECT 'followups',e.id::text,e.customer_name,e.vehicle_title,e.reference,e.follow_up_at,'Follow-up due' FROM enquiries e WHERE e.dealer_id=${dealer} AND e.merged_into_id IS NULL AND e.status<>'closed' AND e.follow_up_at<=now() AND e.follow_up_completed_at IS NULL
         UNION ALL SELECT 'appointments',e.id::text,e.customer_name,e.vehicle_title,e.reference,e.appointment_at,CASE WHEN e.appointment_status='pending' THEN 'Booking needs approval' ELSE 'Appointment today' END FROM enquiries e WHERE e.dealer_id=${dealer} AND e.merged_into_id IS NULL AND e.status<>'closed' AND e.appointment_cancelled_at IS NULL AND e.attendance='scheduled' AND ((e.appointment_status='pending' AND e.appointment_at>=now()) OR (e.appointment_at AT TIME ZONE 'Europe/London')::date=(now() AT TIME ZONE 'Europe/London')::date)
         UNION ALL SELECT 'drafts',e.id::text,e.customer_name,e.vehicle_title,e.reference,d.updated_at,CASE WHEN d.status='draft' THEN 'Draft ready to continue' WHEN d.status='sending' THEN 'Sending — check before resending' ELSE 'Email acceptance unconfirmed' END FROM enquiry_email_drafts d JOIN enquiries e ON e.id=d.enquiry_id AND e.dealer_id=d.dealer_id WHERE d.dealer_id=${dealer} AND ${emailAccess} AND d.status IN ('draft','sending','unknown') AND e.merged_into_id IS NULL
@@ -105,7 +106,8 @@ export function createStaffNotificationsRouter() {
         counts[String(row.category)] = Number(row.total);
         const category = String(row.category),
           enquiryId = String(row.id).split(":")[0];
-        const href =
+        const href = String(row.detail).startsWith("Customer replied") || String(row.detail).startsWith("Incoming reply")
+          ? `/portal?section=notifications&workView=email&enquiryId=${enquiryId}` :
           category === "drafts"
             ? `/portal?section=email&draft=${enquiryId}`
             : category === "email"

@@ -1,3 +1,4 @@
+import { startCustomerReplyWorker } from './lib/customer-email-replies';
 import { startStaffPushWorker } from './lib/staff-push';
 import { startDemoCompletionWorker } from './lib/demo-completion-jobs';
 import { startDomainSetupWorker } from './lib/domain-setup-jobs';
@@ -46,6 +47,7 @@ const server = app.listen(port, (err) => {
     startDomainSetupWorker(logger),
     startReminderWorker(logger),
     startEmailOutboxWorker(logger),
+    startCustomerReplyWorker(logger),
     startStaffPushWorker(logger),
     startStripeReservationWorker(logger),
   );
