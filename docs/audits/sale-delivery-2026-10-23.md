@@ -1,6 +1,14 @@
 # Collection and delivery — 23 October 2026
 
-Implemented locally on `codex/sale-delivery-handover`. Not deployed.
+Implemented on `codex/sale-delivery-handover` and deployed with user approval.
+
+## Release verification
+
+- Commit `a67be724d8f26ecccaafcf98e8397c9b89e03b7f`, pushed as a fast-forward to `codex/multi-tenant-foundation`.
+- Render service `srv-db4jfhk9v7es73a4qhrg`; deploy `dep-dbdq6qbrjlhs7380uj00` reached `live` on 23 October 2026 at 18:14:55 UTC (19:14:55 UK).
+- Luxxy and Shore Drive `/api/healthz` both returned `{"status":"ok"}`. No error-level runtime logs were returned for the release interval checked.
+- Opened Shore Drive's existing saved sale in the live browser and verified the new collection/delivery panel, enabled manual email/WhatsApp buttons, and unchanged displayed paid/balance totals. This was read-only: no live handover, payment or message action was performed.
+- Physical iPhone/iPad testing remains for the operator. No new migration, credentials, environment changes or automatic customer messaging were added.
 
 ## Behaviour
 
