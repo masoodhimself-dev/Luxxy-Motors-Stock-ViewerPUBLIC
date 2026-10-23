@@ -7,7 +7,8 @@ export function applyReplyAttention(entries: readonly Enquiry[], attention: read
   return entries.map(entry => ({ ...entry, pendingEmailReplies: byId.get(entry.id)?.pending ?? 0, emailRepliesToReview: byId.get(entry.id)?.review ?? 0, staffEmailSent: byId.get(entry.id)?.responded ?? false, latestReplyText: byId.get(entry.id)?.latestReplyText }));
 }
 export function useReplyAttention(enabled: boolean) {
-  return useQuery({ queryKey: ['reply-attention'], enabled,
+  const query = useQuery({ queryKey: ['reply-attention'], enabled,
     queryFn: () => customFetch<{ enquiries: ReplyAttention[] }>('/api/staff/email/reply-attention'),
     refetchInterval: 30000, retry: false });
+  return { ...query, data: enabled ? query.data : undefined };
 }
