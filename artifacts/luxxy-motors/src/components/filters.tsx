@@ -23,9 +23,6 @@ export interface FilterState {
   transmission: string;
   bodyType?: string;
   search: string;
-  catS: boolean;
-  catN: boolean;
-  noWriteOff: boolean;
   /** Optional for compatibility with saved searches created before benefit filters. */
   ulez?: boolean;
   lowMileage?: boolean;
@@ -53,9 +50,6 @@ const emptyFilters: FilterState = {
   transmission: '',
   bodyType: '',
   search: '',
-  catS: false,
-  catN: false,
-  noWriteOff: false,
   ulez: false,
   lowMileage: false,
   lowAnnualTax: false,
@@ -149,7 +143,6 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
     ...(filters.fuel ? [{ key: 'fuel' as const, label: filters.fuel }] : []),
     ...(filters.bodyType ? [{ key: 'bodyType' as const, label: filters.bodyType }] : []),
     ...(filters.transmission ? [{ key: 'transmission' as const, label: filters.transmission }] : []),
-    ...(['catS', 'catN', 'noWriteOff'] as const).filter((key) => filters[key]).map((key) => ({ key, label: key === 'catS' ? 'Category S' : key === 'catN' ? 'Category N' : 'No recorded write-off' })),
     ...([
       ['ulez', 'ULEZ compliant'],
       ['lowMileage', 'Up to 30,000 miles'],
@@ -201,9 +194,6 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
     Number(Boolean(filters.fuel)) +
     Number(Boolean(filters.transmission)) +
     Number(Boolean(filters.bodyType)) +
-    Number(filters.noWriteOff) +
-    Number(filters.catS) +
-    Number(filters.catN) +
     Number(Boolean(filters.ulez)) +
     Number(Boolean(filters.lowMileage)) +
     Number(Boolean(filters.lowAnnualTax)) +
@@ -394,27 +384,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
             </Field>
           </div>
           {quickFilters && <div className="stock-quick-choices mt-5 border-t border-border pt-4"><p className="mb-2 text-xs font-medium text-muted-foreground">Other preferences</p>{quickFilters}</div>}
-          <fieldset className="stock-insurance-filters mt-8 border-t border-primary/10 pt-6">
-             <legend className="text-sm font-semibold text-primary">Insurance history</legend>
-            <div className="mt-3 flex flex-wrap gap-3">
-              {[
-                ['noWriteOff', 'No recorded write-off'],
-                ['catS', 'Category S'],
-                ['catN', 'Category N'],
-              ].map(([key, label]) => (
-                 <label key={key} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-border bg-background p-3 text-sm font-medium text-primary transition-colors hover:bg-secondary">
-                  <input
-                    type="checkbox"
-                    checked={filters[key as 'noWriteOff' | 'catS' | 'catN']}
-                    onChange={(event) => setFilters((current) => ({ ...current, [key]: event.target.checked }))}
-                    className="h-5 w-5 accent-accent flex-shrink-0"
-                  />
-                  {label}
-                </label>
-              ))}
-            </div>
-            <details className="stock-history-help mt-3 text-sm text-muted-foreground"><summary className="cursor-pointer">What do the categories mean?</summary><p className="mt-2 leading-relaxed">Category S records structural damage; Category N records non-structural damage. Ask for available repair and inspection records. Unknown history is not included in “No recorded write-off”.</p></details>
-          </fieldset>
+
         </section>
         <div className="stock-filter-footer flex shrink-0 items-center justify-between gap-4 border-t pt-4"><button type="button" className="min-h-11 underline underline-offset-4" onClick={resetFilters}>Reset filters</button><button type="button" className="stock-search-submit min-h-12 px-6" onClick={() => {setShowAdvanced(false); handleSearchClick();}}>Show {matchCount ?? vehicleCount} {(matchCount ?? vehicleCount) === 1 ? 'car' : 'cars'}</button></div>
       </DialogContent></Dialog>

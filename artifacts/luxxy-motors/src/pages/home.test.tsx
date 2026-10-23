@@ -256,15 +256,13 @@ describe('showroom data resilience', () => {
     expect(resultTitles()).toEqual(['Ford Fiesta']);
   });
 
-  it('does not include unknown insurance history in the clear-history filter', () => {
-    stockFixture.cars[0] = { ...originalCars[0], writeOffCategory: 'None' };
+  it('does not offer insurance-history search filters', () => {
     renderHome();
     fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'No recorded write-off' }));
-    expect(resultTitles()).toEqual(['BMW 1 Series']);
-    fireEvent.click(screen.getByRole('checkbox', { name: 'No recorded write-off' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Category N' }));
-    expect(resultTitles()).toEqual(['Ford Fiesta']);
+    expect(screen.queryByText('Insurance history')).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'No recorded write-off' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Category S' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Category N' })).not.toBeInTheDocument();
   });
 });
 
@@ -474,16 +472,11 @@ describe('showroom search filters', () => {
     expect(resultTitles()).toEqual(['BMW 3 Series', 'Ford Fiesta']);
   });
 
-  it('exposes explained insurance-history filters and counts each active choice', () => {
+  it('ignores retired insurance-history search parameters', () => {
+    window.history.replaceState({}, '', '/stock?catS=true&catN=true&noWriteOff=true');
     renderHome();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
-    expect(screen.getByText(/Category S records structural damage/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Category S' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Category N' }));
-
-    expect(resultTitles()).toEqual(['BMW 3 Series', 'Ford Fiesta']);
-    expect(screen.getByRole('button', { name: 'Advanced search', hidden: true })).toHaveTextContent('(2)');
+    expect(resultTitles()).toHaveLength(5);
+    expect(window.location.search).not.toMatch(/catS|catN|noWriteOff/);
   });
 
   it('sorts the live results and resets every shared filter value', () => {
@@ -512,7 +505,7 @@ describe('showroom search filters', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
     expect((screen.getByLabelText('Make') as HTMLSelectElement).value).toBe('');
     expect((screen.getByLabelText('Sort results') as HTMLSelectElement).value).toBe('');
-    expect(screen.getAllByRole('checkbox')).toHaveLength(3);
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
   });
 
   it('invokes the existing results-scroll callback when viewing matching cars', async () => {
@@ -696,7 +689,7 @@ describe('supplied vehicle benefit searches', () => {
 
   it('keeps older saved filter sessions usable when they have no benefit fields', () => {
     window.sessionStorage.setItem('luxxy.browse.v1', JSON.stringify({ filters: {
-      make: 'BMW', model: '', minPrice: '', maxPrice: '', fuel: '', transmission: '', search: '', catS: false, catN: false, noWriteOff: false, sort: '',
+      make: 'BMW', model: '', minPrice: '', maxPrice: '', fuel: '', transmission: '', search: '', sort: '',
     } }));
     renderHome();
     expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series']);
@@ -810,10 +803,7 @@ it('keeps explicit advert category wording visible without treating it as struct
   stockFixture.cars = [{...originalCars[0], writeOffCategory: null, sourceExtras: {description: 'This car was recorded as Cat S. Ask us for repair records.'}}];
   renderHome();
   expect(screen.getByText('Advert states Category S')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', {name:'Advanced search'}));
-  fireEvent.click(screen.getByRole('checkbox', {name:'Category S'}));
-  expect(screen.queryByTestId('card-vehicle-bmw-1-series')).not.toBeInTheDocument();
-  expect(screen.getByText('No matches')).toBeInTheDocument();
+  expect(screen.getByTestId('card-vehicle-bmw-1-series')).toBeInTheDocument();
 });
 
 
@@ -826,9 +816,7 @@ it('shows a supplied structured insurance category in stock without inferring it
   expect(within(screen.getByTestId('card-vehicle-bmw-1-series')).getByText('Category S recorded')).toBeInTheDocument();
   expect(within(screen.getByTestId('card-vehicle-bmw-3-series')).queryByText(/Category N recorded/)).not.toBeInTheDocument();
   expect(within(screen.getByTestId('card-vehicle-bmw-3-series')).queryByText(/Category S recorded/)).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
-  fireEvent.click(screen.getByRole('checkbox', { name: 'Category S' }));
-  expect(resultTitles()).toEqual(['BMW 1 Series']);
+  expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series']);
 });
 
 describe('homepage browse buttons and body types', () => {

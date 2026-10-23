@@ -28,7 +28,6 @@ import { CarCard } from '@/components/car-card';
 import { Filters, type FilterState } from '@/components/filters';
 import { cn, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
 import { getContactHref } from '@/lib/cta-helpers';
-import { hasExplicitClearHistory, recordedWriteOffCategory, vehicleWriteOffCategory } from '@/lib/vehicle-history';
 import { vehicleBenefits } from '@/lib/vehicle-benefits';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import {
@@ -53,9 +52,6 @@ const defaultFilters: FilterState = {
   transmission: '',
   bodyType: '',
   search: '',
-  catS: false,
-  catN: false,
-  noWriteOff: false,
   ulez: false,
   lowMileage: false,
   lowAnnualTax: false,
@@ -124,7 +120,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
           (saved[key as keyof FilterState] === undefined && (key === 'bodyType' || benefitChoices.some(choice => choice.key === key))) ||
           typeof saved[key as keyof FilterState] === typeof defaultFilters[key as keyof FilterState],
       )
-      ? { ...defaultFilters, ...saved }
+      ? { ...defaultFilters, ...Object.fromEntries(Object.entries(saved).filter(([key]) => key in defaultFilters)) }
       : defaultFilters;
   });
 
@@ -196,22 +192,6 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     if (filters.maxPrice) {
       const max = parseFloat(filters.maxPrice);
       if (!isNaN(max)) result = result.filter((c) => c.price && c.price <= max);
-    }
-
-    if (filters.noWriteOff || filters.catS || filters.catN) {
-      result = result.filter((c) => {
-        const history = vehicleWriteOffCategory(c);
-        const cat = recordedWriteOffCategory(history);
-        const isS = cat === 'S';
-        const isN = cat === 'N';
-        const isClear = hasExplicitClearHistory(history);
-
-        if (filters.noWriteOff && isClear) return true;
-        if (filters.catS && isS) return true;
-        if (filters.catN && isN) return true;
-
-        return false;
-      });
     }
 
     if (filters.sort) {
@@ -494,9 +474,6 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                   filters.transmission,
                   filters.bodyType,
                   filters.search,
-                  filters.noWriteOff,
-                  filters.catS,
-                  filters.catN,
                   filters.ulez,
                   filters.lowMileage,
                   filters.lowAnnualTax,
@@ -504,7 +481,6 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                 ].filter(Boolean).length,
                 search_used: Boolean(filters.search),
                 budget_used: Boolean(filters.minPrice || filters.maxPrice),
-                insurance_filter_used: filters.noWriteOff || filters.catS || filters.catN,
                 sort: filters.sort || 'recommended',
                 result_count: filteredCars.length,
               });
