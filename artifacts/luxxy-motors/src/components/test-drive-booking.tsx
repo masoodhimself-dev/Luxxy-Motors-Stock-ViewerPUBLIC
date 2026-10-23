@@ -394,9 +394,9 @@ export function TestDriveBooking({
           )}
         </div>
       </div>
-      {step === 1 && !mutation.isSuccess && <div className="booking-car-speech" aria-label={`A little hello from your ${vehicleDisplayTitle(currentCar)}`}>
-        <span className="booking-car-speech-speaker">A little hello from your {vehicleDisplayTitle(currentCar)}</span>
-        <p>“Can’t wait to meet you. You bring the licence, I’ll bring the personality.”</p>
+      {step === 1 && !mutation.isSuccess && <div className="booking-car-speech" aria-label="Before your test drive">
+        <span className="booking-car-speech-speaker">Before your test drive</span>
+        <p>Please bring your driving licence. If you have any questions before your visit, contact our team.</p>
       </div>}
     </div>
   );

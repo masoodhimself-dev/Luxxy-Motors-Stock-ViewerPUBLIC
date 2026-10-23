@@ -371,3 +371,24 @@
 .inbox-attention-error { padding:10px; border-left:3px solid #b7791f; background:#fff8e8; font-size:13px; }
 
 @media(min-width:640px) { .customer-workspace-views { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+
+/* All three destinations fit on phones; none should look like a hidden tool. */
+@media (max-width: 760px) {
+  .customer-notifications-workspace > .customer-workspace-views {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: visible;
+  }
+  .customer-notifications-workspace > .customer-workspace-views > button {
+    min-width: 0;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    padding: 7px 3px;
+    gap: 4px;
+  }
+  .customer-notifications-workspace > .customer-workspace-views strong {
+    white-space: normal;
+    line-height: 1.3;
+  }
+}

@@ -168,7 +168,7 @@ it("returns an embedded invoice to the sales list and keeps the unsaved-change g
     expect(onExit).not.toHaveBeenCalled();
     confirm.mockReturnValue(true);
     fireEvent.click(screen.getByRole("button", { name: "Back to sales" }));
-    expect(screen.getByRole("heading", { name: "Simple paperwork. Clear records." })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Sales & invoices" })).toBeInTheDocument();
     expect(onExit).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Back to workspace" }));
     expect(onExit).toHaveBeenCalledOnce();

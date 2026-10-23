@@ -161,16 +161,16 @@ it('explains background rechecks on details and review and resumes once the chec
   expect(screen.getByTestId('button-submit-enquiry')).toBeEnabled();
 });
 
-it('keeps the playful introduction on the first step and a compact car on later steps', () => {
+it('keeps practical visit guidance on the first step and a compact car on later steps', () => {
   render(booking());
-  expect(screen.getByLabelText('A little hello from your Ford Fiesta')).toBeInTheDocument();
+  expect(screen.getByLabelText('Before your test drive')).toBeInTheDocument();
   fireEvent.click(within(screen.getByTestId('group-viewing-slots')).getByRole('button'));
   fireEvent.click(screen.getByTestId('button-continue-to-details'));
-  expect(screen.queryByLabelText('A little hello from your Ford Fiesta')).not.toBeInTheDocument();
+  expect(screen.queryByLabelText('Before your test drive')).not.toBeInTheDocument();
   expect(screen.getByTestId('card-enquiry-vehicle')).toHaveClass('booking-car-compact');
   expect(screen.getByTestId('card-enquiry-vehicle')).toHaveTextContent('Ford Fiesta');
   fireEvent.click(screen.getByRole('button', { name: 'Change time' }));
-  expect(screen.getByLabelText('A little hello from your Ford Fiesta')).toBeInTheDocument();
+  expect(screen.getByLabelText('Before your test drive')).toBeInTheDocument();
 });
 
 it('offers the next permitted date and direct contact when a day has no slots', () => {

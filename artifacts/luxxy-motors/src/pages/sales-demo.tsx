@@ -646,7 +646,7 @@ export function SalesWorkspace({
         <main className="invoice-builder-list">
           <div className="invoice-list-heading">
             <div>
-              <h1>Simple paperwork. Clear records.</h1>
+              <h1>Sales & invoices</h1>
               <p>
                 Create a deposit invoice or a full sales invoice in five short
                 steps.

@@ -53,7 +53,7 @@
 .portal-settings-premium .settings-field-label { display: grid; gap: 3px; margin-bottom: 0; color: var(--portal-ink); font-size: 13px; font-weight: 500; line-height: 1.5; }
 .portal-settings-premium .settings-field-hint { color: var(--portal-muted); font-size: 12px; font-weight: 400; line-height: 1.5; }
 .portal-settings-premium .settings-field-error { color: #9b3933; font-size: 12px; font-weight: 500; line-height: 1.6; }
-.portal-settings-premium :is(input:not([type="checkbox"]):not([type="color"]), select, textarea) { width: 100%; min-width: 0; min-height: 46px; height: auto; padding: 11px 13px; border: 1px solid #bdcbcf; border-radius: 8px; background: var(--portal-panel); color: var(--portal-ink); font-size: 14px; font-weight: 400; line-height: 1.5; box-shadow: none; }
+.portal-settings-premium :is(input:not([type="checkbox"]):not([type="color"]):not([type="radio"]):not([type="file"]), select, textarea) { width: 100%; min-width: 0; min-height: 46px; height: auto; padding: 11px 13px; border: 1px solid #bdcbcf; border-radius: 8px; background: var(--portal-panel); color: var(--portal-ink); font-size: 14px; font-weight: 400; line-height: 1.5; box-shadow: none; }
 .settings-studio.portal-settings-premium .settings-editor .settings-field input.pl-10 { padding-left: 40px; }
 .portal-settings-premium :is(input, textarea)::placeholder { color: #7b8992; font-weight: 400; }
 .portal-settings-premium textarea { min-height: 108px; resize: vertical; }
@@ -135,7 +135,7 @@
   .portal-settings-premium .settings-section-heading { gap: 10px; margin-bottom: 20px; padding-bottom: 18px; }
   .portal-settings-premium .settings-section-title { font-size: 19px; }
   .portal-settings-premium .settings-section-icon { width: 30px; height: 30px; }
-  .portal-settings-premium :is(input:not([type="checkbox"]):not([type="color"]), select, textarea) { min-height: 48px; font-size: 16px; }
+  .portal-settings-premium :is(input:not([type="checkbox"]):not([type="color"]):not([type="radio"]):not([type="file"]), select, textarea) { min-height: 48px; font-size: 16px; }
   .portal-settings-premium :is(.settings-subsection, .settings-service-card) { padding: 16px; }
   .portal-settings-premium .settings-service-heading { gap: 10px; }
   .portal-settings-premium .settings-service-heading > div { gap: 6px; }
