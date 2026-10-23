@@ -1,3 +1,5 @@
+import { createStaffNotificationsRouter } from './routes/staff-notifications';
+import { PostgresSaleWorkspaceStore } from './lib/sale-workspace-store';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { promisify } from "node:util";
@@ -341,6 +343,7 @@ test("isolated real HTTP media and QR workflow", async (t) => {
   });
   app.use("/api", videos);
   app.use("/api", shares);
+  app.use("/api", createStaffNotificationsRouter());
   app.use("/api", enquiryPhotos);
   app.use("/api", integrationSettings);
   const sentEmails: any[] = [];
@@ -698,6 +701,29 @@ test("isolated real HTTP media and QR workflow", async (t) => {
       "INSERT INTO sale_workspace(id,dealer_id,reference,revision,state)VALUES($1,$2,$3,1,$4::jsonb)",
       [saleId, a.dealerId, "FICTIONAL-QR", JSON.stringify(frozen)],
     );
+    await t.test('post-sale review reminders save one dealer-scoped buyer follow-up atomically without sending or changing invoices', async () => {
+      const id=randomUUID(), saved={...structuredClone(frozen),id,reference:'REVIEW-TEST',draft:{...structuredClone(document.snapshot.draft),price:"10000",exchanges:[],adjustments:[]},revision:1,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),completedAt:new Date().toISOString(),payments:[],events:[]};
+      await pool.query('INSERT INTO sale_workspace(id,dealer_id,reference,revision,state)VALUES($1,$2,$3,1,$4::jsonb)',[id,a.dealerId,'REVIEW-TEST',JSON.stringify(saved)]);
+      const store=new PostgresSaleWorkspaceStore(a.dealerId,async()=>({branding:document.snapshot.branding as any}),pool);
+      const before=sentEmails.length;
+      const command={action:'review-reminder' as const,at:new Date(Date.now()+7*86400000).toISOString(),url:'https://g.page/r/fictional/review'};
+      const input={id,expectedRevision:1,requestId:randomUUID(),command,actor:'Staff'};
+      const first=await store.mutate(input),retry=await store.mutate(input);
+      assert.equal(retry.replayed,true);
+      const reminder=first.sale.reviewReminder!;
+      const rows=(await pool.query('SELECT * FROM enquiries WHERE id=$1 AND dealer_id=$2',[reminder.enquiryId,a.dealerId])).rows;
+      assert.equal(rows.length,1);assert.equal(rows[0].source,'sale_review');assert.equal(rows[0].email,'buyer@example.test');assert.equal(rows[0].vehicle_id,carA);assert.equal(rows[0].customer_name,'Fictional buyer');assert.match(rows[0].follow_up_note,/Google review request/);
+      assert.deepEqual(first.sale.documents,saved.documents);assert.equal(sentEmails.length,before);
+      const context=await call(`/staff/enquiries/${reminder.enquiryId}/email-context`);
+      assert.equal(context.status,200,JSON.stringify(context.json));assert.equal(context.json.reviewRequest,true);assert.match(context.json.defaults.message,/honest Google review/);assert.match(context.json.defaults.message,/https:\/\/g.page/);
+      await pool.query("UPDATE enquiries SET follow_up_at=now()-interval '1 minute' WHERE id=$1",[reminder.enquiryId]);
+      const home=await call('/staff/notifications');assert.equal(home.status,200,JSON.stringify(home.json));assert.ok(home.json.items.some((item:any)=>item.enquiryId===reminder.enquiryId&&item.detail==='Google review request'));
+
+      await assert.rejects(new PostgresSaleWorkspaceStore(b.dealerId,async()=>({branding:document.snapshot.branding as any}),pool).mutate({...input,requestId:randomUUID()}),/Sale not found/);
+      const cancelled=await store.mutate({id,expectedRevision:first.sale.revision,requestId:randomUUID(),command:{action:'cancel-review-reminder'},actor:'Staff'});
+      assert.ok(cancelled.sale.reviewReminder?.cancelledAt);assert.equal((await pool.query('SELECT follow_up_at FROM enquiries WHERE id=$1',[reminder.enquiryId])).rows[0].follow_up_at,null);
+      assert.equal(sentEmails.length,before);
+    });
     const input = {
       requestId: randomUUID(),
       token: "cd".repeat(32),

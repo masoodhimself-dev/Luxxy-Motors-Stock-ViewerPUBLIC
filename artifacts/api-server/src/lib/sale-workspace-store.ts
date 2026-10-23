@@ -1,3 +1,4 @@
+import { reviewReminderNote } from '@workspace/vehicle-meta';
 import { currentTenant } from './tenant-context';
 import { dealerIntegrationsStore } from './dealer-integrations-store';
 import { createHash, randomUUID } from 'node:crypto';
@@ -185,6 +186,18 @@ export class PostgresSaleWorkspaceStore {
         if (input.command?.action === 'handover') {
           await this.stock(mutation.sale, 'sold', client, input.actor);
           mutation.sale.lifecycle = { status: 'sold', vehicleId: mutation.sale.draft.vehicleId, changedAt: now };
+        }
+        if (input.command?.action === 'review-reminder' || input.command?.action === 'cancel-review-reminder') {
+          const reminder = mutation.sale.reviewReminder!, buyer = mutation.sale.draft;
+          if (input.command.action === 'review-reminder') {
+            // A dedicated buyer thread avoids modifying an unrelated/shared-contact enquiry.
+            await client.query(`INSERT INTO enquiries (id,dealer_id,type,status,customer_name,email,phone,vehicle_id,vehicle_title,message,source,call_outcome,follow_up_at,follow_up_note)
+              VALUES ($1::uuid,$2,'general','contacted',$3,$4,$5,$6::uuid,$7,'Post-sale feedback reminder. No email sent.','sale_review','information_given',$8,$9)
+              ON CONFLICT (id) DO UPDATE SET follow_up_at=EXCLUDED.follow_up_at,follow_up_note=EXCLUDED.follow_up_note,follow_up_completed_at=NULL,follow_up_revision=enquiries.follow_up_revision+1,updated_at=now()
+              WHERE enquiries.dealer_id=EXCLUDED.dealer_id`, [reminder.enquiryId,this.dealerId,buyer.customer,buyer.email,buyer.phone,buyer.vehicleId || null,buyer.vehicle,reminder.at,reviewReminderNote(reminder.url)]);
+          } else {
+            await client.query('UPDATE enquiries SET follow_up_at=NULL,follow_up_revision=follow_up_revision+1,updated_at=now() WHERE dealer_id=$1 AND id=$2::uuid', [this.dealerId,reminder.enquiryId]);
+          }
         }
         for (const document of mutation.sale.documents.filter(d => !current?.documents.some(old => old.id === d.id))) {
           if (document.type === 'invoice') attachInvoiceVerification(document, mutation.sale.id, siteOrigin());

@@ -1,0 +1,38 @@
+import {test,expect} from '@playwright/test';
+test.skip(process.env.LUXXY_LOCAL_PREVIEW!=='1','Fictional local preview only.');
+for(const width of [390,834,1440]) test(`optional review reminder and buyer email at ${width}px`,async({page})=>{
+ await page.setViewportSize({width,height:1000});
+ const id='00000000-0000-4000-8000-000000000831',enquiryId='00000000-0000-4000-8000-000000000832';
+ const draft={id:'draft',customer:'Fictional Review Buyer',email:'review@example.test',phone:'07700900123',address:'',vehicleId:'',vehicle:'Toyota Yaris',registration:'',price:'10000',partExchange:false,pxRegistration:'',pxDescription:'',pxValue:'',deposit:'',paymentMethod:'',notes:'',collection:'',preparation:false,documents:false,handover:false,exchanges:[],adjustments:[]};
+ let sale:any={id,reference:'TEST-ONLY',revision:1,draft,payments:[],documents:[],events:[],createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),completedAt:new Date().toISOString()};
+ const writes:string[]=[],errors:string[]=[];
+ page.on('pageerror',error=>errors.push(error.message));
+ await page.route('**/api/**',route=>['GET','HEAD'].includes(route.request().method())?route.continue():(writes.push(route.request().url()),route.abort()));
+ await page.route(/\/api\/enquiries(?:\?.*)?$/,route=>route.fulfill({json:[{id:enquiryId,type:'general',status:'contacted',customerName:draft.customer,email:draft.email,phone:draft.phone,vehicleId:null,vehicleTitle:draft.vehicle,message:'Post-sale feedback reminder. No email sent.',source:'phone',workspaceRevision:0,followUpRevision:0,createdAt:new Date().toISOString(),events:[]}]}));
+ await page.route(`**/api/staff/sold-vehicle-follow-ups/${id}`,route=>route.fulfill({json:{saleId:id,vehicleId:null,vehicleTitle:draft.vehicle,sold:true,remaining:0,upcomingAppointments:0,customers:[]}}));
+ await page.route('**/api/sale-workspace',route=>route.fulfill({json:{sales:[sale],preview:true}}));
+ await page.route(`**/api/sale-workspace/${id}/review-reminder`,route=>{
+  writes.push(route.request().url());const input=route.request().postDataJSON();
+  expect(input.url).toBe('https://g.page/r/fictional/review');expect(input.expectedRevision).toBe(1);
+  sale={...sale,revision:2,reviewReminder:{enquiryId,at:input.at,url:input.url}};
+  return route.fulfill({json:{sale}});
+ });
+ await page.route(`**/api/staff/enquiries/${enquiryId}/email-context`,route=>route.fulfill({json:{version:0,savedDraft:null,email:draft.email,customerName:draft.customer,vehicleId:null,vehicleTitle:draft.vehicle,reference:'TEST-ONLY',revision:0,vehicleAvailable:true,appointmentAvailable:false,reviewRequest:true,defaults:{subject:'How are you getting on with your car?',message:'Hi Fictional Review Buyer,\n\nIf you’d like to share your experience, you can leave an honest Google review here:\nhttps://g.page/r/fictional/review'},ready:false,templates:[],invoices:[],photos:[],deliveries:[]}}));
+ await page.goto(`/portal?section=sales&saleId=${id}`);
+ const panel=page.getByRole('region',{name:'Customer review reminder'});
+ await expect(panel.getByRole('heading',{name:'Ask for a Google review'})).toBeVisible();
+ await expect(panel.getByRole('button',{name:'Save review reminder'})).toHaveCount(0);
+ await panel.getByRole('checkbox',{name:'Remind staff to ask this customer for a review'}).check();
+ await panel.getByLabel('Google review link',{exact:true}).fill('https://g.page/r/fictional/review');
+ await panel.getByRole('button',{name:'Save review reminder'}).click();
+ await expect(panel.getByRole('status')).toContainText('Reminder saved');
+ expect(sale.draft).toEqual(draft);expect(sale.documents).toEqual([]);expect(sale.payments).toEqual([]);
+ expect(writes).toHaveLength(1);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await panel.screenshot({path:`/private/tmp/sale-review-reminder-${width}.png`});
+ await panel.getByRole('link',{name:'Review email'}).click();
+ await expect(page.getByRole('textbox',{name:'Customer email',exact:true})).toHaveValue(draft.email);
+ await expect(page.getByRole('textbox',{name:'Message',exact:true})).toHaveValue(/honest Google review/);
+ await expect(page.getByRole('checkbox',{name:'Vehicle details and current price'})).not.toBeChecked();
+ expect(writes).toHaveLength(1);expect(errors).toEqual([]);
+});

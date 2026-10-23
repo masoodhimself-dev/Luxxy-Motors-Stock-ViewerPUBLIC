@@ -1,3 +1,4 @@
+import { reviewReminderEmail } from '@workspace/vehicle-meta';
 import { readEmailDraft } from "../lib/email-drafts";
 import { checkSavedAiDraftFresh, AiDraftError } from "../lib/ai-drafts";
 import { archiveSaleDocument } from "../lib/sale-document-pdf";
@@ -730,7 +731,8 @@ export function createEnquiryEmailRouter(
         revision: enquiry.workspaceRevision,
         vehicleAvailable: Boolean(enquiry.vehicleTitle || enquiry.vehicleId),
         appointmentAvailable: Boolean(enquiry.appointmentAt),
-        defaults: { subject: defaults.subject, message: defaults.bodyText },
+        reviewRequest: Boolean(reviewReminderEmail(enquiry.followUpNote, enquiry.customerName, enquiry.vehicleTitle || '', profile.identity.name)),
+        defaults: reviewReminderEmail(enquiry.followUpNote, enquiry.customerName, enquiry.vehicleTitle || '', profile.identity.name) || { subject: defaults.subject, message: defaults.bodyText },
         ready,
         photos,
         ...(await enquiryMediaContext(enquiry)),

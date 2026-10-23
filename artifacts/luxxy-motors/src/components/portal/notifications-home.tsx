@@ -146,7 +146,7 @@ export function NotificationsHome({
       const timing = actionTiming(item, data!.generatedAt);
       return <li key={`${item.category}:${item.id}`} data-tone={groups[item.category].tone}>
         <div className="notifications-record">
-          <div className="notifications-record-heading"><span className="notifications-type">{kind === "contacts" ? item.category === "followups" ? "Call today" : "Reply needed" : kind === "email" ? "Check email history before sending again" : item.detail}</span>{timing && <span className="notifications-timing" data-urgent={item.category === "followups"}>{timing}</span>}</div>
+          <div className="notifications-record-heading"><span className="notifications-type">{kind === "contacts" ? item.category === "followups" ? item.detail === "Google review request" ? "Google review request" : "Follow up today" : "Reply needed" : kind === "email" ? "Check email history before sending again" : item.detail}</span>{timing && <span className="notifications-timing" data-urgent={item.category === "followups"}>{timing}</span>}</div>
           <h4><Link href={href}>{item.customer}<ArrowUpRight size={15} aria-hidden="true" /></Link></h4>
           <p>{item.vehicle || "General enquiry"}</p>
           {kind === "visits" && <time dateTime={item.at}>{new Date(item.at).toLocaleString("en-GB", {timeZone:"Europe/London",dateStyle:"medium",timeStyle:"short"})}</time>}

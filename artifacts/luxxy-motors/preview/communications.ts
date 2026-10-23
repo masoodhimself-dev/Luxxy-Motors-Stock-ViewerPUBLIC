@@ -1,3 +1,4 @@
+import { reviewReminderEmail } from '@workspace/vehicle-meta';
 // Isolated local review only. Drafts live in memory; this module has no email transport.
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { z } from "zod/v4";
@@ -147,7 +148,7 @@ export async function communicationsPreview(
           e.status !== "closed" &&
           Date.parse(e.followUpAt) <= Date.now()
         )
-          add("followups", "Follow-up due", e.followUpAt);
+          add("followups", e.followUpNote?.startsWith("Google review request") ? "Google review request" : "Follow-up due", e.followUpAt);
         if (
           e.appointmentAt &&
           !e.appointmentCancelledAt &&
@@ -250,10 +251,8 @@ export async function communicationsPreview(
         revision: entry.workspaceRevision ?? 0,
         vehicleAvailable: !!entry.vehicleTitle,
         appointmentAvailable: !!entry.appointmentAt,
-        defaults: {
-          subject: defaults.subject,
-          message: defaults.bodyText,
-        },
+        reviewRequest: Boolean(reviewReminderEmail(entry.followUpNote,entry.customerName,entry.vehicleTitle || '',settings.identity.name)),
+        defaults: reviewReminderEmail(entry.followUpNote,entry.customerName,entry.vehicleTitle || '',settings.identity.name) || {subject:defaults.subject,message:defaults.bodyText},
         ready: false,
         templates: availableTemplates.map(template => { const rendered = renderEmailTemplate(template, variables, [], { ...appearance, heading: '', footer: '' }); return { id: template.id, label: template.label, subject: rendered.subject, message: rendered.bodyText }; }),
         invoices: [],

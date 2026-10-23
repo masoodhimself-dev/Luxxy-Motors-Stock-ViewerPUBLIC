@@ -1016,3 +1016,13 @@ it('uses a supplied stable follow-up request ID across a lost response and retry
   expect(calls('/email')).toHaveLength(2);
   expect(calls('/email').map(call => JSON.parse(call[1].body).requestId)).toEqual(['00000000-0000-4000-8000-000000000995', '00000000-0000-4000-8000-000000000995']);
 });
+
+it("opens review-request defaults without reattaching car or appointment facts",async()=>{
+  const defaults={subject:'How is your new car?',message:'Leave an honest review: https://g.page/r/example/review'};
+  state.fetch.mockImplementation(async(url:string)=>url.endsWith('/email-context')?{...context(),reviewRequest:true,defaults}:config);
+  render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><EnquiryEmailComposer entry={entry} onClose={state.close}/></QueryClientProvider>);
+  expect(await screen.findByRole('textbox',{name:'Message'})).toHaveValue(defaults.message);
+  expect(screen.getByRole('checkbox',{name:'Vehicle details and current price'})).not.toBeChecked();
+  expect(screen.getByRole('checkbox',{name:'Appointment details'})).not.toBeChecked();
+  expect(state.fetch.mock.calls.every(([url])=>!String(url).endsWith('/email'))).toBe(true);
+});

@@ -97,7 +97,7 @@ function ConversationHistoryView({ entry, total, status, footer }: { entry: Enqu
     })}
     {status}{footer}
     {entry.staffNote && <article className="enquiry-conversation-entry" data-kind="internal"><header><span className="enquiry-history-type">Internal note</span></header><p className="enquiry-history-copy">{entry.staffNote}</p></article>}
-    {entry.message && <article className="enquiry-conversation-entry" data-kind="original"><header><span className="enquiry-history-type">Original {entry.source === 'website_callback' ? 'website callback request' : entry.source === 'phone' ? 'call' : 'enquiry'}</span>{entry.createdAt && <time dateTime={entry.createdAt}>{appointmentLabel(entry.createdAt)}</time>}</header><p className="enquiry-history-copy">{entry.message}</p></article>}
+    {entry.message && <article className="enquiry-conversation-entry" data-kind="original"><header><span className="enquiry-history-type">Original {entry.source === 'sale_review' ? 'post-sale reminder' : entry.source === 'website_callback' ? 'website callback request' : entry.source === 'phone' ? 'call' : 'enquiry'}</span>{entry.createdAt && <time dateTime={entry.createdAt}>{appointmentLabel(entry.createdAt)}</time>}</header><p className="enquiry-history-copy">{entry.message}</p></article>}
     {!status && !conversations.length && !entry.message && !entry.staffNote && <p className="enquiry-history-empty">No conversation notes recorded yet.</p>}
   </section>;
 }

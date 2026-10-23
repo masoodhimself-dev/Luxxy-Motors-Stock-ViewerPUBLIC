@@ -1,3 +1,4 @@
+import { googleReviewUrl } from './review-reminder.ts';
 /** Shared sale ledger contract and deterministic business rules. No payment processor is called here. */
 export type SaleWorkspaceExchange = { registration: string; description: string; value: string };
 export type SaleWorkspaceAdjustment = { description: string; amount: string; kind: 'fee' | 'discount' };
@@ -140,6 +141,7 @@ export type SaleWorkspaceRecord = {
   /** Server-private retry records. Responses omit these entries. */
   requests?: Record<string, { fingerprint: string; documentId?: string }>;
   completedAt?: string; packDocumentIds?: string[];
+  reviewReminder?: { enquiryId: string; at: string; url: string; cancelledAt?: string };
   lifecycle?: { status: "draft" | "reserved" | "sold" | "released"; vehicleId: string; changedAt: string };
   customerAccess?: { tokenHash: string; expiresAt: string; revokedAt?: string };
   documentArchives?: Record<string, { content: string; sha256: string }>;
@@ -167,6 +169,8 @@ export type SaleWorkspaceCommand =
   | { action: 'lifecycle'; status: 'reserved' | 'sold' | 'released' }
   | { action: 'customer-link'; tokenHash: string; expiresAt: string }
   | { action: 'customer-revoke' }
+  | { action: 'review-reminder'; at: string; url: string }
+  | { action: 'cancel-review-reminder' }
   | { action: 'link-email-status'; delivery: NonNullable<SaleWorkspaceRecord['customerLinkEmail']> }
   | { action: 'email-status'; delivery: NonNullable<SaleWorkspaceRecord['emailDeliveries']>[number] }
   | { action: 'handover'; recipient: string; completedAt?: string; acknowledgeOutstanding?: boolean };
@@ -436,6 +440,18 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     if (command.status === 'sold') requireCompletedSaleChecklists(record);
     record.lifecycle = { status: command.status, vehicleId: record.draft.vehicleId, changedAt: context.now };
     event(record, context, 'stock-' + command.status, command.status === 'released' ? 'Vehicle reservation released' : 'Vehicle marked ' + command.status);
+  } else if (command.action === 'review-reminder') {
+    if (!record.completedAt && record.lifecycle?.status !== 'sold') throw new SaleWorkspaceError('Complete the sale before scheduling a review reminder.', 409);
+    const url = googleReviewUrl(command.url), at = Date.parse(command.at);
+    if (!url) throw new SaleWorkspaceError('Enter a valid HTTPS Google review link.');
+    if (!Number.isFinite(at) || at <= Date.parse(context.now) || at > Date.parse(context.now) + 365 * 86400000) throw new SaleWorkspaceError('Choose a future reminder within the next year.');
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(record.draft.email)) throw new SaleWorkspaceError('A customer email is needed for a review reminder.');
+    record.reviewReminder = { enquiryId: record.reviewReminder?.enquiryId || context.nextId(), at: new Date(at).toISOString(), url };
+    event(record, context, 'review-reminder-scheduled', 'Google review reminder scheduled; no email sent');
+  } else if (command.action === 'cancel-review-reminder') {
+    if (!record.reviewReminder) throw new SaleWorkspaceError('No review reminder is scheduled.', 409);
+    record.reviewReminder.cancelledAt = context.now;
+    event(record, context, 'review-reminder-cancelled', 'Google review reminder cancelled');
   } else if (command.action === 'customer-link') {
     ready(record);
     if (!/^[a-f0-9]{64}$/.test(command.tokenHash) || !Number.isFinite(Date.parse(command.expiresAt)) || Date.parse(command.expiresAt) <= Date.parse(context.now) || Date.parse(command.expiresAt) > Date.parse(context.now) + 90 * 86400000) throw new SaleWorkspaceError('Choose an access duration between one and 90 days.');

@@ -34,6 +34,7 @@ type Delivery = {
   attempts?: number;
 };
 type EmailContext = {
+  reviewRequest?: boolean;
   version?: number;
   savedDraft?: {
     version: number;
@@ -256,8 +257,8 @@ function EnquiryEmailEditor({
       ...(suggestedContent?.templateId ? { templateId: suggestedContent.templateId } : {}),
       to: initialRecipient && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(initialRecipient.trim()) ? initialRecipient.trim() : data.email,
       ...(initialContent ? { subject: initialContent.subject, message: initialContent.message } : suggestedContent ? { subject: suggestedContent.subject, message: suggestedContent.message } : data.defaults),
-      includeVehicle: suggestedContent?.includeVehicle === false ? false : data.vehicleAvailable,
-      includeAppointment: suggestedContent ? false : data.appointmentAvailable,
+      includeVehicle: data.reviewRequest || suggestedContent?.includeVehicle === false ? false : data.vehicleAvailable,
+      includeAppointment: suggestedContent || data.reviewRequest ? false : data.appointmentAvailable,
       photoIds: [],
       documentIds: [],
       expectedRevision: data.revision,

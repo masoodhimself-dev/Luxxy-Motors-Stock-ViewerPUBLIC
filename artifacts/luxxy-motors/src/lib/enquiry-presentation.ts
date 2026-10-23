@@ -41,6 +41,7 @@ export function enquiryRequestText(entry: Enquiry): string {
 }
 
 export function enquiryPurpose(entry: Enquiry): string {
+  if (entry.source === 'sale_review') return 'Review request';
   if (entry.source === 'website_callback') return 'Callback request';
   switch (entry.type) {
     case 'viewing': return 'Test drive';
@@ -53,6 +54,7 @@ export function enquiryPurpose(entry: Enquiry): string {
 
 export function enquirySourceLabel(entry: Enquiry): string {
   switch (entry.source) {
+    case 'sale_review': return 'Post-sale';
     case 'phone': return 'Phone';
     case 'phone_ad_hoc': return 'Phone';
     case 'website_callback': return 'Website callback';

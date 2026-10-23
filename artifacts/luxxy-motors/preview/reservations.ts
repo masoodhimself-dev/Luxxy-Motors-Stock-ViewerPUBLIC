@@ -1,3 +1,4 @@
+import { reviewReminderNote, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 // Local-only durable reservation sandbox. Never imported by the production entry point.
 import { randomUUID, randomBytes } from 'node:crypto';
 import type { Enquiry } from '@workspace/api-client-react';
@@ -97,6 +98,22 @@ export async function upsertPreviewChatEnquiry(input: import('../../api-server/s
       preferredContact: input.callbackRequested ? 'phone' : input.email ? 'email' : 'phone',
       staffNote: input.callbackRequested && !entry.staffNote?.includes('Customer requested a callback in website chat.') ? [entry.staffNote, 'Customer requested a callback in website chat.'].filter(Boolean).join('\n') : entry.staffNote ?? 'Customer shared contact details in website chat.', updatedAt: new Date().toISOString() });
     state.enquiries = enquiries; await save(state, options.stateFile);
+  });
+}
+
+/** Local preview counterpart only; never sends email. */
+export async function savePreviewReviewReminder(sale: SaleWorkspaceRecord) {
+  await serial(async () => {
+    const state = await load(), reminder = sale.reviewReminder!;
+    const enquiries = state.enquiries ?? (previewResponse('/api/enquiries', new URLSearchParams()) as PreviewEnquiry[] ?? []);
+    let entry = enquiries.find(row => row.id === reminder.enquiryId);
+    if (!entry && !reminder.cancelledAt) {
+      entry = {id:reminder.enquiryId,dealerId:'local-preview',reference:'PREVIEW-REVIEW',type:'general',status:'contacted',customerName:sale.draft.customer,email:sale.draft.email,phone:sale.draft.phone,vehicleId:sale.draft.vehicleId,vehicleTitle:sale.draft.vehicle,message:'Post-sale feedback reminder. No email sent.',source:'sale_review',callOutcome:'information_given',workspaceRevision:0,followUpRevision:0,appointmentAt:null,appointmentCancelledAt:null,appointmentRevision:0,attendance:'scheduled',createdAt:new Date().toISOString(),events:[]} as PreviewEnquiry;
+      enquiries.unshift(entry);
+    }
+    if (entry && entry.followUpAt === (reminder.cancelledAt ? null : reminder.at) && entry.followUpNote === reviewReminderNote(reminder.url)) return;
+    if (entry) Object.assign(entry,{followUpAt:reminder.cancelledAt?null:reminder.at,followUpNote:reviewReminderNote(reminder.url),followUpCompletedAt:null,followUpRevision:(entry.followUpRevision??0)+1,updatedAt:new Date().toISOString()});
+    state.enquiries=enquiries;await save(state);
   });
 }
 

@@ -52,6 +52,9 @@ async function mutate(req: Request, res: Response, command: SaleWorkspaceCommand
   } catch (error) { failure(req, res, error); }
 }
 router.put('/sale-workspace/:id', requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'update', draft: req.body?.draft }); });
+router.post('/sale-workspace/:id/review-reminder', requirePermission('sales.manage'), async (req, res) => {
+  await mutate(req, res, req.body?.cancel === true ? { action: 'cancel-review-reminder' } : { action: 'review-reminder', at: req.body?.at, url: req.body?.url });
+});
 router.post('/sale-workspace/:id/checklists', requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'checklists', completion: req.body?.completion, partExchanges: req.body?.partExchanges }); });
 router.post('/sale-workspace/:id/payments', requirePermission('payments.record'), async (req, res) => { await mutate(req, res, { action: 'payment', payment: req.body?.payment }); });
 router.post('/sale-workspace/:id/payments/:paymentId/confirm', requirePermission('payments.record'), (req, res, next) => req.body?.reserveVehicle === true ? requirePermission('sales.manage')(req, res, next) : next(), async (req, res) => { await mutate(req, res, { action: 'confirm', paymentId: String(req.params.paymentId), date: req.body?.date, reserveVehicle: req.body?.reserveVehicle === true }); });

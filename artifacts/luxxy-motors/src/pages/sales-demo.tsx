@@ -1,3 +1,4 @@
+import { SaleReviewReminder } from '@/components/portal/sale-review-reminder';
 import { ShareQr } from '@/components/share-qr';
 import { RoadTaxGuide } from "@/components/sales-demo/road-tax-guide";
 import { SaleChecklists } from '@/components/sales-demo/sale-checklists';
@@ -820,7 +821,7 @@ export function SalesWorkspace({
                   </div>
                   {rows.length > 0 && <section className="invoice-summary-payments" aria-label="Recorded payments"><ul>{rows.map(row => <li key={row.id} data-status={row.status}><div><strong>{saleMoney(row.signedAmountPence)}</strong><span>{paymentDate(row.date)} · {row.method}</span></div><small>{row.status === "confirmed" ? row.signedAmountPence < 0 ? "Returned / reversed" : "Received" : row.status}{row.reference && ` · ${row.reference}`}</small></li>)}</ul></section>}
                   <div className="invoice-resume-edit"><span>{record.completedAt ? "Completed details are locked. Issued invoices remain unchanged." : "Need to correct something?"}</span><Button variant="ghost" disabled={busy} onClick={() => resumeAt(0)}>{record.completedAt ? "View vehicle details" : "Edit vehicle & price"}</Button><Button variant="ghost" disabled={busy} onClick={() => resumeAt(1)}>{record.completedAt ? "View customer details" : "Edit customer details"}</Button></div>
-                  {(record.completedAt || record.lifecycle?.status === 'sold') && <SoldVehicleCustomerReview saleId={record.id} />}
+                  {(record.completedAt || record.lifecycle?.status === 'sold') && <><SaleReviewReminder key={record.id} sale={record} suggestedUrl={sales.data?.sales.find(sale => sale.reviewReminder?.url)?.reviewReminder?.url} onSaved={setRecord} /><SoldVehicleCustomerReview saleId={record.id} /></>}
                   {record.documents.length > 1 && <details className="invoice-resume-paperwork"><summary>All saved paperwork ({record.documents.length})</summary>{[...record.documents].reverse().map(document => <div key={document.id}><span>{document.title}<small>{document.number}</small></span><Button variant="outline" size="sm" disabled={busy} onClick={() => documentAction(document, "print")}>Open {document.number}</Button></div>)}</details>}
                 </section>
               ) : issued ? (
@@ -863,6 +864,7 @@ export function SalesWorkspace({
                     </Button>
                     {record && <ShareQr disabled={busy} source={{kind:'document',saleId:record.id,documentId:issued.id}} whatsapp label="WhatsApp QR" onEmailFallback={() => prepareDocumentEmail(issued)} />}
                   </div>
+                  {issued.invoiceKind === 'full' && record && <SaleReviewReminder key={record.id} sale={record} suggestedUrl={sales.data?.sales.find(sale => sale.reviewReminder?.url)?.reviewReminder?.url} onSaved={setRecord} />}
                   {issued.invoiceKind === 'full' && record && <SoldVehicleCustomerReview key={`${record.id}:${record.lifecycle?.status ?? 'draft'}`} saleId={record.id} />}
                   {issued.invoiceKind === "full" &&
                     !record?.completedAt &&

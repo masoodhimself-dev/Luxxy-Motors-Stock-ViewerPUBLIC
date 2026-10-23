@@ -67,6 +67,7 @@ vi.mock("@workspace/api-client-react", () => ({
 vi.mock("@/components/sales-demo/sales-document", () => ({
   openSaleDocumentPdf: (...args: unknown[]) => state.pdf(...args),
 }));
+vi.mock('@/components/portal/sale-review-reminder', () => ({ SaleReviewReminder: () => null }));
 vi.mock('@/components/portal/sold-vehicle-customer-review', () => ({ SoldVehicleCustomerReview: () => null }));
 vi.mock('@/components/share-qr',()=>({ShareQr:({source,onEmailFallback,disabled}:{source?:{documentId?:string};onEmailFallback?:()=>void;disabled?:boolean})=><button disabled={disabled} data-document-id={source?.documentId} onClick={onEmailFallback}>Use email instead</button>}));
 import { SalesWorkspace } from "./sales-demo";

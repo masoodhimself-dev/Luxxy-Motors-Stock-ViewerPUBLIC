@@ -482,3 +482,24 @@ test('two part-exchange rows cannot share one attestation under equivalent regis
   assert.throws(() => changeSaleWorkspace(checked, { action: 'lifecycle', status: 'sold' }, { expectedRevision: checked.revision, requestId: 'duplicate-px-sold' }, context()), /different registration/);
   assert.equal(saleWorkspaceTotals(checked.draft, checked.payments).allowance, 30000);
 });
+
+test('review reminders are optional post-sale metadata with safe retries and immutable finances', () => {
+  const current = create();
+  const command = {action:'review-reminder' as const, at:'2026-10-11T09:00:00Z',url:'https://g.page/r/fictional/review'};
+  const input={expectedRevision:current.revision,requestId:'review-reminder-one'};
+  assert.throws(()=>changeSaleWorkspace(current,command,input,context()),/Complete the sale/);
+  const sold={...current,completedAt:context().now,draft:{...current.draft,email:'buyer@example.test'}};
+  const scheduled=changeSaleWorkspace(sold,command,input,context());
+  assert.ok(scheduled.sale.reviewReminder?.enquiryId);
+  assert.deepEqual(scheduled.sale.payments,sold.payments);
+  assert.deepEqual(scheduled.sale.documents,sold.documents);
+  assert.deepEqual(scheduled.sale.draft,sold.draft);
+  assert.equal(changeSaleWorkspace(scheduled.sale,command,input,context()).replayed,true);
+  const rescheduled=changeSaleWorkspace(scheduled.sale,{...command,at:'2026-10-12T09:00:00Z'},{expectedRevision:scheduled.sale.revision,requestId:'review-reminder-two'},context());
+  assert.equal(rescheduled.sale.reviewReminder?.enquiryId,scheduled.sale.reviewReminder?.enquiryId);
+  const cancelled=changeSaleWorkspace(rescheduled.sale,{action:'cancel-review-reminder'},{expectedRevision:rescheduled.sale.revision,requestId:'review-reminder-cancel'},context());
+  assert.equal(cancelled.sale.reviewReminder?.cancelledAt,context().now);
+  assert.deepEqual(cancelled.sale.documents,sold.documents);
+  for (const invalid of [{...command,url:'javascript:alert(1)'},{...command,url:'https://google.com.evil.test/review'},{...command,at:'2026-10-01'},{...command,at:'2028-10-01'}]) assert.throws(()=>changeSaleWorkspace(sold,invalid,input,context()));
+  assert.throws(()=>changeSaleWorkspace({...sold,draft:{...sold.draft,email:''}},command,input,context()),/customer email/);
+});
