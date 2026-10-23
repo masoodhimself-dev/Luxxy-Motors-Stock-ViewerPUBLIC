@@ -14,6 +14,7 @@ export type SaleWorkspaceFulfilment = {
   address: string; recipient: string; phone: string; scheduledDate: string;
   timeWindow: string; instructions: string; completedAt?: string; completedBy?: string;
   completedRecipient?: string;
+  driver?: string; stage?: 'to_arrange' | 'booked' | 'on_way' | 'unsuccessful'; failureReason?: string;
 };
 export type SaleWorkspaceDraft = {
   id: string; customer: string; email: string; phone: string; address: string;
@@ -173,6 +174,7 @@ export type SaleWorkspaceCommand =
   | { action: 'cancel-review-reminder' }
   | { action: 'link-email-status'; delivery: NonNullable<SaleWorkspaceRecord['customerLinkEmail']> }
   | { action: 'email-status'; delivery: NonNullable<SaleWorkspaceRecord['emailDeliveries']>[number] }
+  | { action: 'fulfilment'; fulfilment: SaleWorkspaceFulfilment }
   | { action: 'handover'; recipient: string; completedAt?: string; acknowledgeOutstanding?: boolean };
 export type SaleWorkspaceContext = {
   now: string; actor: string; nextId: () => string;
@@ -282,8 +284,11 @@ export function cleanSaleWorkspaceDraft(input: unknown, reference: string, ledge
       method: fulfilment.method as SaleWorkspaceFulfilment['method'], viewed: fulfilment.viewed as SaleWorkspaceFulfilment['viewed'],
       address: text(fulfilment.address ?? '', 2000, 'delivery address'), recipient: text(fulfilment.recipient ?? '', 200, 'recipient'), phone: text(fulfilment.phone ?? '', 80, 'delivery phone'),
       scheduledDate: text(fulfilment.scheduledDate ?? '', 10, 'handover date'), timeWindow: text(fulfilment.timeWindow ?? '', 100, 'time window'), instructions: text(fulfilment.instructions ?? '', 2000, 'delivery instructions'),
+      ...(fulfilment.driver !== undefined ? { driver: text(fulfilment.driver, 200, 'delivery driver') } : {}),
+      ...(previous?.fulfilment?.stage ? { stage: previous.fulfilment.stage } : {}),
+      ...(previous?.fulfilment?.failureReason ? { failureReason: previous.fulfilment.failureReason } : {}),
     };
-    if (draft.fulfilment.scheduledDate) validDate(draft.fulfilment.scheduledDate);
+    if (draft.fulfilment.scheduledDate) { try { validDate(draft.fulfilment.scheduledDate); } catch { throw new SaleWorkspaceError('Choose a valid collection or delivery date.'); } }
   } else draft.fulfilment = previous?.fulfilment ?? { method: 'collection', viewed: 'not-yet-viewed', address: '', recipient: '', phone: '', scheduledDate: draft.collection.slice(0, 10), timeWindow: '', instructions: '' };
   if (previous?.fulfilment?.completedAt) draft.fulfilment = clone(previous.fulfilment);
   draft.payments = clone(ledger);
@@ -440,6 +445,24 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     if (command.status === 'sold') requireCompletedSaleChecklists(record);
     record.lifecycle = { status: command.status, vehicleId: record.draft.vehicleId, changedAt: context.now };
     event(record, context, 'stock-' + command.status, command.status === 'released' ? 'Vehicle reservation released' : 'Vehicle marked ' + command.status);
+  } else if (command.action === 'fulfilment') {
+    if (!command.fulfilment || typeof command.fulfilment !== 'object' || Array.isArray(command.fulfilment)) throw new SaleWorkspaceError('Check the collection or delivery details.');
+    if (record.draft.fulfilment?.completedAt) throw new SaleWorkspaceError('Handover is already recorded. Its details cannot be replaced.', 409);
+    const value = cleanSaleWorkspaceDraft({ ...record.draft, fulfilment: command.fulfilment }, record.reference, record.payments, record.draft).fulfilment!;
+    const stage = command.fulfilment?.stage ?? (value.scheduledDate ? 'booked' : 'to_arrange');
+    if (!['to_arrange','booked','on_way','unsuccessful'].includes(stage)) throw new SaleWorkspaceError('Choose a valid handover status.');
+    if (stage === 'booked' && value.method === 'delivery' && !value.address.trim()) throw new SaleWorkspaceError('Confirm the delivery address before marking it booked.');
+    if (stage === 'booked' && !value.scheduledDate) throw new SaleWorkspaceError('Choose a planned date before marking it booked.');
+    if (stage === 'on_way' || stage === 'unsuccessful') {
+      if (value.method !== 'delivery' || (!record.completedAt && record.lifecycle?.status !== 'sold')) throw new SaleWorkspaceError('Complete the sale before recording a delivery attempt.', 409);
+      if (stage === 'on_way' && !value.scheduledDate) throw new SaleWorkspaceError('Choose the delivery date before marking it on the way.');
+      if (!value.address.trim()) throw new SaleWorkspaceError('Confirm the delivery address first.');
+    }
+    const failureReason = stage === 'unsuccessful' ? text(command.fulfilment.failureReason ?? '', 2000, 'delivery problem') : '';
+    if (stage === 'unsuccessful' && !failureReason.trim()) throw new SaleWorkspaceError('Record why delivery was unsuccessful.');
+    record.draft.fulfilment = { ...value, stage, failureReason };
+    resetUpdatedSaleChecks(record, current.draft, context);
+    event(record, context, 'handover-arranged', `${value.method === 'delivery' ? 'Delivery' : 'Collection'}: ${stage.replaceAll('_',' ')}${value.scheduledDate ? `, ${value.scheduledDate}` : ''}${failureReason ? ` — ${failureReason}` : ''}`);
   } else if (command.action === 'review-reminder') {
     if (!record.completedAt && record.lifecycle?.status !== 'sold') throw new SaleWorkspaceError('Complete the sale before scheduling a review reminder.', 409);
     const url = googleReviewUrl(context.reviewUrl ?? command.url ?? ''), at = Date.parse(command.at);

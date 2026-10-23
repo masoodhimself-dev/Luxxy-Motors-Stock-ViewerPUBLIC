@@ -1,3 +1,4 @@
+import saleWorkspaceRoutes from './routes/sale-workspace';
 import { createStaffNotificationsRouter } from './routes/staff-notifications';
 import { PostgresSaleWorkspaceStore } from './lib/sale-workspace-store';
 import test from "node:test";
@@ -343,6 +344,7 @@ test("isolated real HTTP media and QR workflow", async (t) => {
   });
   app.use("/api", videos);
   app.use("/api", shares);
+  app.use("/api", saleWorkspaceRoutes);
   app.use("/api", createStaffNotificationsRouter());
   app.use("/api", enquiryPhotos);
   app.use("/api", integrationSettings);
@@ -701,6 +703,22 @@ test("isolated real HTTP media and QR workflow", async (t) => {
       "INSERT INTO sale_workspace(id,dealer_id,reference,revision,state)VALUES($1,$2,$3,1,$4::jsonb)",
       [saleId, a.dealerId, "FICTIONAL-QR", JSON.stringify(frozen)],
     );
+    await t.test('delivery routes isolate dealers and roles, preserve invoices and keep unfinished tasks on Home', async()=>{
+      const id=randomUUID(),value={...structuredClone(frozen),id,reference:'DELIVERY-TEST',draft:{...structuredClone(document.snapshot.draft),price:'10000',exchanges:[],adjustments:[],fulfilment:{method:'delivery',viewed:'not-yet-viewed',address:'Confirmed delivery address',recipient:'Buyer',phone:'07700900123',scheduledDate:'2026-10-24',timeWindow:'14:00–16:00',instructions:''}},revision:1,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),completedAt:new Date().toISOString(),payments:[],events:[]};
+      await pool.query('INSERT INTO sale_workspace(id,dealer_id,reference,revision,state)VALUES($1,$2,$3,1,$4::jsonb)',[id,a.dealerId,value.reference,JSON.stringify(value)]);
+      assert.equal((await call('/sale-workspace/delivery-tasks',{user:''})).status,401);
+      assert.equal((await call('/sale-workspace/delivery-tasks',{user:'accounts'})).status,403);
+      const tasks=await call('/sale-workspace/delivery-tasks',{user:'salesperson'});assert.equal(tasks.status,200,JSON.stringify(tasks.json));assert.ok(tasks.json.tasks.some((r:any)=>r.id===id));assert.equal(JSON.stringify(tasks.json).includes('documentArchives'),false);
+      const other=await call('/sale-workspace/delivery-tasks',{host:'b.example.test',user:b.dealerId});assert.equal(other.status,200,JSON.stringify(other.json));assert.equal(other.json.tasks.some((r:any)=>r.id===id),false);
+      const input={requestId:randomUUID(),expectedRevision:1,fulfilment:{...value.draft.fulfilment,stage:'on_way'}};
+      assert.equal((await call(`/sale-workspace/${id}/fulfilment`,{method:'POST',user:'accounts',body:input})).status,403);
+      assert.equal((await call(`/sale-workspace/${id}/fulfilment`,{method:'POST',host:'b.example.test',user:b.dealerId,body:input})).status,404);
+      const result=await call(`/sale-workspace/${id}/fulfilment`,{method:'POST',user:'salesperson',body:input});assert.equal(result.status,200,JSON.stringify(result.json));assert.equal(result.json.sale.draft.fulfilment.stage,'on_way');assert.deepEqual(result.json.sale.payments,[]);assert.deepEqual(result.json.sale.documents,value.documents);
+      assert.equal((await call(`/sale-workspace/${id}/fulfilment`,{method:'POST',body:input})).json.replayed,true);
+      assert.equal((await call(`/sale-workspace/${id}/fulfilment`,{method:'POST',body:{...input,requestId:randomUUID()}})).status,409);
+      const after=await call('/sale-workspace/delivery-tasks');assert.equal(after.json.tasks.find((r:any)=>r.id===id).stage,'On the way');
+      await pool.query('DELETE FROM sale_workspace WHERE dealer_id=$1 AND id=$2',[a.dealerId,id]);
+    });
     await t.test('post-sale review reminders save one dealer-scoped buyer follow-up atomically without sending or changing invoices', async () => {
       const id=randomUUID(), saved={...structuredClone(frozen),id,reference:'REVIEW-TEST',draft:{...structuredClone(document.snapshot.draft),price:"10000",exchanges:[],adjustments:[]},revision:1,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),completedAt:new Date().toISOString(),payments:[],events:[]};
       await pool.query('INSERT INTO sale_workspace(id,dealer_id,reference,revision,state)VALUES($1,$2,$3,1,$4::jsonb)',[id,a.dealerId,'REVIEW-TEST',JSON.stringify(saved)]);

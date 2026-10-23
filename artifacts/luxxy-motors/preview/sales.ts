@@ -1,3 +1,4 @@
+import { saleDeliveryTask } from '@workspace/vehicle-meta';
 import { invoiceEmailAttachments } from '../../api-server/src/lib/invoice-email-attachments';
 import { loadBrochurePhotos } from '../../api-server/src/lib/vehicle-brochure-images';
 // Local network sandbox only. The production entry never imports this file.
@@ -214,7 +215,8 @@ export async function salesPreview(req: IncomingMessage, res: ServerResponse, ur
       send(res, 200, { ...mutation, ...(token ? { customerUrl: `/my-purchase/${token}`, expiresAt: mutation.sale.customerAccess?.expiresAt } : {}) }); return true;
     }
     if (req.method === 'GET' && url.pathname === '/api/sale-workspace/paperwork') { const p = await previewIntegrationsStore.readSalesPaperwork(); send(res, 200, { saleTerms: p.saleTerms, reservationTerms: p.reservationTerms, invoiceSettings: p.invoiceSettings }); return true; }
-    const route = /^\/api\/sale-workspace(?:\/([^/]+))?(?:\/(payments|documents|handover|take-deposit|complete-sale|invoice-payments|issue-invoice|finish-invoice-sale|checklists|review-reminder))?(?:\/([^/]+)\/(confirm|reverse))?$/.exec(url.pathname);
+    if (req.method === 'GET' && url.pathname === '/api/sale-workspace/delivery-tasks') { const tasks = (await store.list()).map(saleDeliveryTask).filter(Boolean); send(res,200,{tasks,total:tasks.length}); return true; }
+    const route = /^\/api\/sale-workspace(?:\/([^/]+))?(?:\/(payments|documents|handover|fulfilment|take-deposit|complete-sale|invoice-payments|issue-invoice|finish-invoice-sale|checklists|review-reminder))?(?:\/([^/]+)\/(confirm|reverse))?$/.exec(url.pathname);
     if (!route) throw new SaleWorkspaceError('Sale action not found.', 404);
     const [, id, section, paymentId, action] = route;
     if (req.method === 'GET' && !section) { send(res, 200, id ? { sale: await store.get(id), preview: true } : { sales: await store.list(), preview: true }); return true; }
@@ -223,6 +225,7 @@ export async function salesPreview(req: IncomingMessage, res: ServerResponse, ur
     let command: SaleWorkspaceCommand | undefined;
     if (req.method === 'PUT' && id && !section) command = { action: 'update', draft: input.draft };
     if (req.method === 'POST' && id) {
+      if (section === 'fulfilment') command = { action:'fulfilment',fulfilment:input.fulfilment };
       if (section === 'review-reminder') command = input.cancel === true ? {action:'cancel-review-reminder'} : {action:'review-reminder',at:input.at};
       if (section === 'checklists') command = { action: 'checklists', completion: input.completion, partExchanges: input.partExchanges };
       if (section === 'payments' && !paymentId) command = { action: 'payment', payment: input.payment };

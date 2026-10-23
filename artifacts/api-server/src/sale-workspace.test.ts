@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { changeSaleWorkspace, createSaleWorkspace, saleWorkspacePence, saleWorkspaceTotals, saleCompletionChecklistItems, partExchangeChecklistItems, saleWorkspaceExchanges, saleWorkspaceChecklistProgress, SaleWorkspaceError, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
+import { customerSaleView, changeSaleWorkspace, createSaleWorkspace, saleWorkspacePence, saleWorkspaceTotals, saleCompletionChecklistItems, partExchangeChecklistItems, saleWorkspaceExchanges, saleWorkspaceChecklistProgress, SaleWorkspaceError, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 import { PostgresSaleWorkspaceStore, readSaleWorkspaceAssets, type SaleWorkspaceDatabase } from './lib/sale-workspace-store';
 
 let sequence = 0;
@@ -512,4 +512,57 @@ test('review reminders use the dealership setting rather than any per-sale URL',
  assert.equal(first.sale.reviewReminder?.url,'https://g.page/r/dealer/review');
  assert.equal(changeSaleWorkspace(first.sale,command,input,{...context(),reviewUrl:'https://g.page/r/updated/review'}).replayed,true);
  assert.throws(()=>changeSaleWorkspace(sold,command,input,{...context(),reviewUrl:''}),/Settings/);
+});
+
+test('delivery arrangements progress independently of immutable invoices, payments and sale status', () => {
+  let sale=create();
+  sale=changeSaleWorkspace(sale,payment('12000','final-payment'),{expectedRevision:sale.revision,requestId:'delivery-payment'},context()).sale;
+  sale=changeSaleWorkspace(sale,{action:'issue-invoice',kind:'full',acknowledge:true},{expectedRevision:sale.revision,requestId:'delivery-invoice'},context()).sale;
+  sale=changeSaleWorkspace(sale,{action:'finish-invoice-sale',acknowledge:true},{expectedRevision:sale.revision,requestId:'delivery-sold'},context()).sale;
+  const ledger=JSON.stringify(sale.payments), documents=JSON.stringify(sale.documents), totals=saleWorkspaceTotals(sale.draft,sale.payments);
+  const plan={...sale.draft.fulfilment!,method:'delivery' as const,address:'25 Confirmed Road',recipient:'Buyer',phone:'07700900123',driver:'Alex',scheduledDate:'2026-10-06',timeWindow:'14:00–16:00',stage:'booked' as const};
+  const booked=changeSaleWorkspace(sale,{action:'fulfilment',fulfilment:plan},{expectedRevision:sale.revision,requestId:'delivery-booked'},context());
+  assert.equal(booked.sale.draft.fulfilment?.stage,'booked');
+  assert.equal(JSON.stringify(booked.sale.payments),ledger);assert.equal(JSON.stringify(booked.sale.documents),documents);assert.deepEqual(saleWorkspaceTotals(booked.sale.draft,booked.sale.payments),totals);assert.deepEqual(booked.sale.lifecycle,sale.lifecycle);
+  assert.equal(changeSaleWorkspace(booked.sale,{action:'fulfilment',fulfilment:plan},{expectedRevision:sale.revision,requestId:'delivery-booked'},context()).replayed,true);
+  assert.throws(()=>changeSaleWorkspace(booked.sale,{action:'fulfilment',fulfilment:{...plan,driver:'Other'}},{expectedRevision:sale.revision,requestId:'delivery-booked'},context()),/already been used/);
+  assert.throws(()=>changeSaleWorkspace(booked.sale,{action:'fulfilment',fulfilment:plan},{expectedRevision:sale.revision,requestId:'delivery-stale'},context()),/another device/);
+  const away=changeSaleWorkspace(booked.sale,{action:'fulfilment',fulfilment:{...plan,stage:'on_way'}},{expectedRevision:booked.sale.revision,requestId:'delivery-away'},context()).sale;
+  assert.throws(()=>changeSaleWorkspace(away,{action:'fulfilment',fulfilment:{...plan,stage:'unsuccessful'}},{expectedRevision:away.revision,requestId:'delivery-no-reason'},context()),/why delivery/);
+  const failed=changeSaleWorkspace(away,{action:'fulfilment',fulfilment:{...plan,stage:'unsuccessful',failureReason:'Customer unavailable'}},{expectedRevision:away.revision,requestId:'delivery-failed'},context()).sale;
+  assert.equal(failed.draft.fulfilment?.failureReason,'Customer unavailable');assert.equal(failed.draft.handover,false);
+  const delivered=changeSaleWorkspace(failed,{action:'handover',recipient:'Buyer'},{expectedRevision:failed.revision,requestId:'delivery-done'},context()).sale;
+  assert.ok(delivered.draft.fulfilment?.completedAt);assert.equal(delivered.draft.handover,true);assert.equal(JSON.stringify(delivered.payments),ledger);assert.equal(JSON.stringify(delivered.documents.slice(0,-1)),documents);
+  assert.throws(()=>changeSaleWorkspace(delivered,{action:'fulfilment',fulfilment:plan},{expectedRevision:delivered.revision,requestId:'delivery-edit-complete'},context()),/already recorded/);
+});
+
+test('delivery progress refuses invalid stages, dates and a dispatch before the sale is completed',()=>{
+  const sale=create(),plan={...sale.draft.fulfilment!,method:'delivery' as const,address:'Confirmed address',scheduledDate:'2026-10-06',stage:'booked' as const};
+  for(const fulfilment of [{...plan,stage:'delivered' as never},{...plan,stage:'booked' as const,scheduledDate:''},{...plan,scheduledDate:'2026-02-30'},{...plan,stage:'on_way' as const}]) {
+    assert.throws(()=>changeSaleWorkspace(sale,{action:'fulfilment',fulfilment},{expectedRevision:sale.revision,requestId:'invalid-delivery'},context()));
+  }
+  assert.equal(sale.draft.fulfilment?.method,'collection');assert.equal(sale.payments.length,0);
+});
+
+test('Home delivery query is dealer scoped, bounded and excludes document archives and payment data',async()=>{
+  let query='',parameters:unknown[]=[];
+  const database={query:async(sql:string,values:unknown[])=>{query=sql;parameters=values;return {rows:[{id:'sale-a',draft:{customer:'Buyer',vehicle:'Toyota',fulfilment:{scheduledDate:'2026-10-23',timeWindow:'14:00–16:00',stage:'on_way',driver:'Alex'}},total:1}]};}} as unknown as SaleWorkspaceDatabase;
+  const store=new PostgresSaleWorkspaceStore('dealer-a',async()=>({branding:context().branding}),database);
+  const result=await store.deliveryTasks();
+  assert.deepEqual(parameters,['dealer-a']);assert.match(query,/dealer_id=\$1/);assert.match(query,/LIMIT 100/);assert.match(query,/completedAt/);assert.match(query,/released/);assert.doesNotMatch(query,/SELECT state FROM|documentArchives|payments/);
+  assert.deepEqual(result,{total:1,tasks:[{id:'sale-a',customer:'Buyer',vehicle:'Toyota',date:'2026-10-23',timeWindow:'14:00–16:00',stage:'On the way',driver:'Alex'}]});
+});
+
+test('a reserved deposit sale may arrange delivery without changing the balance or becoming sold',()=>{
+  let sale=create();sale=changeSaleWorkspace(sale,{action:'invoice-payment',payment:{amount:'500',kind:'deposit',status:'confirmed',method:'Cash',date:'2026-10-04',reference:''}},{expectedRevision:sale.revision,requestId:'deposit-delivery'},context()).sale;
+  const before=JSON.stringify(sale.payments),balance=saleWorkspaceTotals(sale.draft,sale.payments).balance;
+  const plan={...sale.draft.fulfilment!,method:'delivery' as const,address:'Confirmed address',stage:'to_arrange' as const,completedAt:'2026-10-04T12:00:00Z'};
+  const planned=changeSaleWorkspace(sale,{action:'fulfilment',fulfilment:plan},{expectedRevision:sale.revision,requestId:'deposit-arrange'},context()).sale;
+  assert.equal(planned.lifecycle?.status,'reserved');assert.equal(planned.completedAt,undefined);assert.equal(planned.draft.fulfilment?.completedAt,undefined);assert.equal(planned.draft.handover,false);assert.equal(JSON.stringify(planned.payments),before);assert.equal(saleWorkspaceTotals(planned.draft,planned.payments).balance,balance);
+});
+
+
+test('customer delivery status excludes internal driver names, notes and failed-attempt reasons',()=>{
+ const sale=create();sale.draft.fulfilment={...sale.draft.fulfilment!,method:'delivery',stage:'unsuccessful',driver:'PRIVATE DRIVER',instructions:'PRIVATE NOTES',failureReason:'PRIVATE REASON'};
+ const view=customerSaleView(sale,context().branding);assert.equal(view.fulfilment?.stage,'unsuccessful');assert.doesNotMatch(JSON.stringify(view),/PRIVATE DRIVER|PRIVATE NOTES|PRIVATE REASON/);
 });

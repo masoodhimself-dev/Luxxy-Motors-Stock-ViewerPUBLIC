@@ -1,4 +1,4 @@
-import { reviewReminderNote } from '@workspace/vehicle-meta';
+import { reviewReminderNote, saleHandoverStatus } from '@workspace/vehicle-meta';
 import { currentTenant } from './tenant-context';
 import { dealerIntegrationsStore } from './dealer-integrations-store';
 import { createHash, randomUUID } from 'node:crypto';
@@ -39,6 +39,14 @@ export class PostgresSaleWorkspaceStore {
     // ledgers. Exclude those inside Postgres, before crossing the connection.
     const result = await this.database.query("SELECT state - 'documentArchives' - 'requests' - 'providerPayments' AS state FROM sale_workspace WHERE dealer_id = $1 ORDER BY updated_at DESC", [this.dealerId]);
     return result.rows.map(row => publicSaleWorkspace(row.state));
+  }
+  async deliveryTasks() {
+    const result = await this.database.query(`SELECT id::text, jsonb_build_object('customer',state#>>'{draft,customer}','vehicle',state#>>'{draft,vehicle}','fulfilment',state#>'{draft,fulfilment}') AS draft, count(*) OVER()::int AS total
+      FROM sale_workspace WHERE dealer_id=$1 AND state#>>'{draft,fulfilment,method}'='delivery'
+      AND coalesce(state#>>'{draft,fulfilment,completedAt}','')='' AND coalesce(state#>>'{lifecycle,status}','')<>'released'
+      ORDER BY CASE WHEN state#>>'{draft,fulfilment,stage}'='unsuccessful' THEN 0 WHEN coalesce(state#>>'{draft,fulfilment,scheduledDate}','')='' THEN 1 ELSE 2 END,
+      state#>>'{draft,fulfilment,scheduledDate}',updated_at,id LIMIT 100`, [this.dealerId]);
+    return { tasks: result.rows.map(row => ({ id: row.id, customer: row.draft.customer, vehicle: row.draft.vehicle, date: row.draft.fulfilment.scheduledDate || '', timeWindow: row.draft.fulfilment.timeWindow || '', driver: row.draft.fulfilment.driver || '', stage: saleHandoverStatus(row.draft.fulfilment) })), total: result.rows[0]?.total ?? 0 };
   }
   async get(id: string): Promise<SaleWorkspaceRecord> {
     const result = await this.database.query('SELECT state FROM sale_workspace WHERE dealer_id = $1 AND id = $2::uuid', [this.dealerId, id]);

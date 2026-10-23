@@ -49,3 +49,10 @@ describe('private purchase summary', () => {
     expect(screen.getByText(/20 October 2026/)).toBeInTheDocument();
   });
 });
+
+it('does not present an unsuccessful delivery as an upcoming confirmed visit',async()=>{
+ fetchSale.mockResolvedValue({sale:{...sale,fulfilment:{method:'delivery',stage:'unsuccessful',scheduledDate:'2026-10-20',timeWindow:'10:00–11:00',address:'Confirmed address'}}});renderSale();expect(await screen.findByText(/Delivery needs rearranging/)).toBeVisible();expect(screen.queryByText(/20 October 2026/)).not.toBeInTheDocument();
+});
+it('shows delivery in progress separately from the paid-in-full status',async()=>{
+ fetchSale.mockResolvedValue({sale:{...sale,fulfilment:{method:'delivery',stage:'on_way',scheduledDate:'2026-10-20',address:'Confirmed address'}}});renderSale();expect(await screen.findByText(/Your car is on its way/)).toBeVisible();expect(screen.getByText('Paid in full')).toBeVisible();
+});

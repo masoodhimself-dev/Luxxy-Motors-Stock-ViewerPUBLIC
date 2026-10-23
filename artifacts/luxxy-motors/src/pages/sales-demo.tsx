@@ -1,3 +1,4 @@
+import { SaleHandover, SaleHandoverFields, handoverDefaults } from '@/components/portal/sale-handover';
 import { SaleReviewReminder } from '@/components/portal/sale-review-reminder';
 import { ShareQr } from '@/components/share-qr';
 import { RoadTaxGuide } from "@/components/sales-demo/road-tax-guide";
@@ -435,6 +436,7 @@ export function SalesWorkspace({
       setProblem("Record the received deposit before creating its invoice.");
       return;
     }
+    if (step === 3 && draft && !draft.fulfilment?.recipient && !record?.draft.fulfilment?.completedAt) setDraft({...draft,fulfilment:{...handoverDefaults(draft),recipient:draft.customer,phone:draft.fulfilment?.phone||draft.phone,address:draft.fulfilment?.address||draft.address}});
     setStep(Math.min(4, step + 1));
     setProblem("");
     setReviewed(false);
@@ -583,7 +585,7 @@ export function SalesWorkspace({
     : total.balance < 0 || total.pending > 0
       ? { label: "Review payments", note: total.balance < 0 ? "Review the customer’s credit before continuing." : "Pending payments are not included in the amount received.", run: () => resumeAt(2) }
     : record?.completedAt && total.balance === 0 && latestInvoice && invoiceIsCurrent
-      ? { label: "Open latest invoice", note: "The sale is complete and the balance is settled.", run: () => documentAction(latestInvoice, "print") }
+      ? { label: "Open latest invoice", note: draft.fulfilment?.method === "delivery" && !draft.fulfilment.completedAt ? "The balance is settled. Delivery is still outstanding." : "The sale is complete and the balance is settled.", run: () => documentAction(latestInvoice, "print") }
     : latestInvoice?.invoiceKind === "full" && invoiceIsCurrent && !record?.completedAt
       ? { label: "Review sale completion", note: "The full invoice is saved. Review it and choose whether to mark the car sold.", run: reviewSavedInvoice }
     : total.balance > 0
@@ -814,6 +816,7 @@ export function SalesWorkspace({
                   </div>
                   {dirty && <p className="invoice-resume-unsaved" role="status">Your unsaved entries are still here. Save details or return to the payment form to record them.</p>}
                   <dl className="invoice-resume-totals" aria-label="Sale amounts"><div><dt>Agreed total</dt><dd>{saleMoney(total.totalDue)}</dd></div><div><dt>Paid</dt><dd>{saleMoney(total.confirmedPaid)}</dd></div><div data-balance={total.balance === 0 ? "settled" : "due"}><dt>{total.balance < 0 ? "Customer credit" : "Balance due"}</dt><dd>{saleMoney(Math.abs(total.balance))}</dd></div></dl>
+                  <SaleHandover key={record.id} sale={record} onSaved={sale => accept({sale})} />
                   {resumeAction && <div className="invoice-resume-next"><div><strong>Pick up where you left off</strong><p>{resumeAction.note}</p></div><Button disabled={busy} onClick={resumeAction.run}>{resumeAction.label}<ArrowRight size={16} aria-hidden="true" /></Button></div>}
                   <div className="invoice-resume-records">
                     <section aria-labelledby="resume-payments-heading"><h2 id="resume-payments-heading">Payment history</h2><p>{rows.length ? `${rows.length} ${rows.length === 1 ? "entry" : "entries"} recorded` : "No payments recorded yet."}</p>{latestPayment && <small>Latest: {saleMoney(latestPayment.signedAmountPence)} · {paymentDate(latestPayment.date)} · {latestPayment.method}</small>}{total.pending > 0 && <small>{saleMoney(total.pending)} pending — not yet received.</small>}<Button variant="outline" disabled={busy} onClick={() => resumeAt(2)}>Record payment</Button></section>
@@ -864,6 +867,7 @@ export function SalesWorkspace({
                     </Button>
                     {record && <ShareQr disabled={busy} source={{kind:'document',saleId:record.id,documentId:issued.id}} whatsapp label="WhatsApp QR" onEmailFallback={() => prepareDocumentEmail(issued)} />}
                   </div>
+                  {record && <SaleHandover key={record.id} sale={record} onSaved={sale => accept({sale})} />}
                   {issued.invoiceKind === 'full' && record && <SaleReviewReminder key={record.id} sale={record} reviewUrl={settings.contact.googleReviewUrl || ''} onSaved={setRecord} />}
                   {issued.invoiceKind === 'full' && record && <SoldVehicleCustomerReview key={`${record.id}:${record.lifecycle?.status ?? 'draft'}`} saleId={record.id} />}
                   {issued.invoiceKind === "full" &&
@@ -1584,6 +1588,7 @@ export function SalesWorkspace({
                         reference={taxReference} onReferenceChange={setTaxReference}
                         onChange={enabled => update("roadTaxGuide", enabled)} />
                       </section>}
+                      <SaleHandoverFields draft={draft} value={handoverDefaults(draft)} onChange={value => update('fulfilment',value)} disabled={Boolean(record?.draft.fulfilment?.completedAt)} />
                       {kind === 'full' && checklistPanel()}
                       <label className="invoice-check">
                         <input

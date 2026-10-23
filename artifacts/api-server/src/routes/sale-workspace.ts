@@ -34,6 +34,7 @@ router.get('/sale-workspace', async (req, res) => {
   try { res.json({ sales: await store().list(), preview: false }); } catch (error) { failure(req, res, error); }
 });
 router.get('/sale-workspace/paperwork', async (req, res) => { try { const p = await dealerIntegrationsStore.readSalesPaperwork(); res.json({ saleTerms: p.saleTerms, reservationTerms: p.reservationTerms, invoiceSettings: p.invoiceSettings }); } catch (error) { failure(req, res, error); } });
+router.get('/sale-workspace/delivery-tasks', requirePermission('sales.manage'), async (req, res) => { try { res.json(await store().deliveryTasks()); } catch (error) { failure(req, res, error); } });
 router.get('/sale-workspace/:id', async (req, res) => {
   try { if (!uuid(req.params.id)) throw new SaleWorkspaceError('Sale not found.', 404); res.json({ sale: await store().get(req.params.id), preview: false }); } catch (error) { failure(req, res, error); }
 });
@@ -65,6 +66,7 @@ router.post('/sale-workspace/:id/issue-invoice', requirePermission('payments.rec
 router.post('/sale-workspace/:id/finish-invoice-sale', requirePermission('payments.record'), requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'finish-invoice-sale', acknowledge: req.body?.acknowledge, acknowledgeOutstanding: req.body?.acknowledgeOutstanding === true }); });
 router.post('/sale-workspace/:id/take-deposit', requirePermission('payments.record'), requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'take-deposit', payment: req.body?.payment }); });
 router.post('/sale-workspace/:id/complete-sale', requirePermission('payments.record'), requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'complete-sale', acknowledge: req.body?.acknowledge }); });
+router.post('/sale-workspace/:id/fulfilment', requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'fulfilment', fulfilment: req.body?.fulfilment }); });
 router.post('/sale-workspace/:id/handover', requirePermission('sales.handover'), async (req, res) => { await mutate(req, res, { action: 'handover', recipient: req.body?.recipient, completedAt: req.body?.completedAt, acknowledgeOutstanding: req.body?.acknowledgeOutstanding }); });
 router.post('/sale-workspace/:id/lifecycle', requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'lifecycle', status: req.body?.status }); });
 router.post('/sale-workspace/:id/customer-links', requirePermission('sales.manage'), async (req, res) => {

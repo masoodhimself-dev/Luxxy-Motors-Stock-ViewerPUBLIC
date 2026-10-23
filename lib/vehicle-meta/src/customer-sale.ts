@@ -6,7 +6,7 @@ export type CustomerSaleView = {
   totals: ReturnType<typeof saleWorkspaceTotals>;
   payments: Array<Pick<SaleWorkspacePayment, 'id' | 'amountPence' | 'signedAmountPence' | 'method' | 'date' | 'kind' | 'status' | 'receiptId'>>;
   documents: Array<Pick<SaleWorkspaceDocument, 'id' | 'number' | 'title' | 'type' | 'issuedAt'>>;
-  fulfilment?: Pick<NonNullable<SaleWorkspaceDraft['fulfilment']>, 'method' | 'address' | 'recipient' | 'phone' | 'scheduledDate' | 'timeWindow' | 'completedAt' | 'completedRecipient'>;
+  fulfilment?: Pick<NonNullable<SaleWorkspaceDraft['fulfilment']>, 'method' | 'address' | 'recipient' | 'phone' | 'scheduledDate' | 'timeWindow' | 'stage' | 'completedAt' | 'completedRecipient'>;
   appointment?: SaleWorkspaceDraft['appointment'];
   dealer: SaleWorkspaceBranding; expiresAt: string;
 };
@@ -17,7 +17,7 @@ export function customerSaleView(record: SaleWorkspaceRecord, branding: SaleWork
     status: record.lifecycle?.status ?? (record.draft.handover ? 'sold' : 'draft'), totals: saleWorkspaceTotals(record.draft, record.payments),
     payments: record.payments.filter(p => p.status !== 'cancelled').map(p => ({ id: p.id, amountPence: p.amountPence, signedAmountPence: p.signedAmountPence, method: p.method, date: p.date, kind: p.kind, status: p.status, ...(p.receiptId ? { receiptId: p.receiptId } : {}) })),
     documents: record.documents.filter(d => d.snapshot.draft.customer === record.draft.customer && d.snapshot.draft.email === record.draft.email).map(d => ({ id: d.id, number: d.number, title: d.title, type: d.type, issuedAt: d.issuedAt })),
-    ...(f ? { fulfilment: { method: f.method, address: f.address, recipient: f.recipient, phone: f.phone, scheduledDate: f.scheduledDate, timeWindow: f.timeWindow, ...(f.completedAt ? { completedAt: f.completedAt, completedRecipient: f.completedRecipient } : {}) } } : {}),
+    ...(f ? { fulfilment: { method: f.method, address: f.address, recipient: f.recipient, phone: f.phone, scheduledDate: f.scheduledDate, timeWindow: f.timeWindow, ...(f.stage ? {stage:f.stage} : {}), ...(f.completedAt ? { completedAt: f.completedAt, completedRecipient: f.completedRecipient } : {}) } } : {}),
     ...(record.draft.appointment ? { appointment: record.draft.appointment } : {}), dealer: saleWorkspaceBranding(branding), expiresAt: record.customerAccess?.expiresAt ?? '' });
 }
 

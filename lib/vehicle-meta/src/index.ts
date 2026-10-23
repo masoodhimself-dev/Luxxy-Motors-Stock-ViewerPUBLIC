@@ -230,3 +230,5 @@ export * from './brand-colour.ts';
 export * from './vehicle-sheet-branding.ts';
 
 export * from './review-reminder.ts';
+
+export * from "./sale-delivery.ts";

@@ -1,3 +1,4 @@
+import { DeliveryHomeTasks, deliveryTasksKey } from './sale-handover';
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
@@ -129,6 +130,7 @@ export function NotificationsHome({
       disabled={query.isFetching || stockChanges.isFetching || soldFollowUps.isFetching}
       onClick={() => {
         void query.refetch();
+        void client.invalidateQueries({queryKey:deliveryTasksKey});
         void stockChanges.refetch();
         void soldFollowUps.refetch();
         void client.invalidateQueries({ queryKey: ["dealer-operations"] });
@@ -164,6 +166,7 @@ export function NotificationsHome({
   return <section className="notifications-home compact-dealer-desk" aria-label="Workspace notifications">
     {!embedded && <header className="notifications-heading"><h2>Your day</h2></header>}
     <DealerDashboard compact>
+      {filter === "all" && <DeliveryHomeTasks />}
       {query.isLoading && <p role="status">Loading your day…</p>}
       {query.isError && <p className="notifications-error" role="alert">Notifications could not be refreshed. Use Refresh to try again.{data && " The last loaded actions are shown below."}</p>}
       {query.isError && !data && !stockChanges.data && !soldFollowUps.data && refresh}
