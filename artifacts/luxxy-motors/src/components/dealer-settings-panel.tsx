@@ -1,3 +1,4 @@
+import { googleReviewUrl } from '@workspace/vehicle-meta';
 import { WebsiteContentEditor } from "./website-content-editor";
 import { customerFeaturePolicy } from '@workspace/vehicle-meta';
 import { vehicleSheetAccent, vehicleSheetUsesWebsiteColour } from '@/lib/vehicle-sheet-branding';
@@ -115,6 +116,7 @@ const fallbackSettings: DealerSettings = {
     phone: dealerConfig.contact.phone || '',
     whatsapp: dealerConfig.contact.whatsapp || '',
     email: dealerConfig.contact.email || '',
+    googleReviewUrl: '',
   },
   address: {
     street: dealerConfig.address?.street || '',
@@ -518,6 +520,7 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
         if (value && !installedLogo && !/^https?:\/\/[^\s]+$/.test(value)) errors[`${group}.${key}`] = 'Use a full HTTP or HTTPS address.';
       }
     }
+    if (form.contact.googleReviewUrl && !googleReviewUrl(form.contact.googleReviewUrl)) errors['contact.googleReviewUrl'] = 'Use the HTTPS Google review link from your Business Profile.';
     if (form.contact.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contact.email)) errors['contact.email'] = 'Enter a valid email address.';
     if (!form.identity.name.trim()) errors['identity.name'] = 'Add the dealership name.';
     if (!form.hero.copy.trim()) errors['hero.copy'] = 'Add a homepage headline.';
@@ -743,6 +746,12 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
             <Field label="Email">
               <Input type="email" className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={form.contact.email} onChange={(event) => updateNested('contact', 'email', event.target.value)} data-testid="input-contact-email" />
             </Field>
+          </div>
+          <div className="mt-5">
+            <Field label="Google review link">
+              <Input type="url" maxLength={1000} className="h-12 w-full" value={form.contact.googleReviewUrl || ''} onChange={event => updateNested('contact','googleReviewUrl',event.target.value)} placeholder="https://g.page/r/…/review" data-testid="input-google-review-link" />
+            </Field>
+            <p className="mt-2 text-sm text-muted-foreground">Enter your Google Business Profile’s “Ask for reviews” link once. Sale reminders use this dealership link. Staff still review and send each email manually.</p>
           </div>
           <div className="mt-8 grid gap-5 sm:grid-cols-2">
             <Field label="Street address">

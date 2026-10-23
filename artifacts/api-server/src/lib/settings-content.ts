@@ -54,3 +54,11 @@ export function preserveTestDriveBooking<T extends { testDriveBooking?: object }
   const policy = previous && typeof previous === "object" && "testDriveBooking" in previous ? previous.testDriveBooking : undefined;
   return policy && typeof policy === "object" && !Array.isArray(policy) ? { ...incoming, testDriveBooking: policy } : incoming;
 }
+
+/** Older settings clients must not erase the shared review link by omitting it. Empty explicitly clears it. */
+export function preserveGoogleReviewUrl<T extends {contact: {googleReviewUrl?: string}}>(incoming:T,previous:unknown):T {
+  if (incoming.contact.googleReviewUrl !== undefined) return incoming;
+  const old = previous && typeof previous === 'object' && 'contact' in previous ? previous.contact : null;
+  const url = old && typeof old === 'object' && 'googleReviewUrl' in old ? old.googleReviewUrl : undefined;
+  return typeof url === 'string' ? {...incoming,contact:{...incoming.contact,googleReviewUrl:url}} : incoming;
+}

@@ -143,3 +143,20 @@ it('keeps an installed demo logo usable when publishing unrelated edits', async 
   expect(writes[0].identity.logoAsset).toBe('/api/demo-logo');
   client.clear();
 });
+
+it('publishes the dealership Google review link once with the shared contact settings',async()=>{
+ const {client,writes,go}=setup();go('dealership','contact');
+ fireEvent.change(await screen.findByTestId('input-google-review-link'),{target:{value:'https://g.page/r/test-motors/review'}});
+ fireEvent.click(screen.getByRole('button',{name:'Review changes'}));
+ fireEvent.click(await screen.findByRole('button',{name:'Publish showroom'}));
+ await screen.findByText('Published to the showroom. Your changes are live.');
+ expect(writes[0].contact.googleReviewUrl).toBe('https://g.page/r/test-motors/review');client.clear();
+});
+
+it('rejects non-Google review links before publishing',async()=>{
+ const {client,writes,go}=setup();go('dealership','contact');
+ fireEvent.change(await screen.findByTestId('input-google-review-link'),{target:{value:'https://google.com.example.test/review'}});
+ fireEvent.click(screen.getByRole('button',{name:'Review changes'}));
+ await waitFor(()=>expect(screen.getByTestId('settings-error-summary')).toHaveTextContent('HTTPS Google review link'));
+ expect(writes).toHaveLength(0);client.clear();
+});

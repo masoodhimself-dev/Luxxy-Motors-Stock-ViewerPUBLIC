@@ -1,7 +1,8 @@
+import { googleReviewUrl } from '@workspace/vehicle-meta';
 import { currentDealerId, multiTenantEnabled } from "../lib/tenant-context";
 import { applyCustomerFeaturePolicy } from '@workspace/vehicle-meta';
 import { bookingPolicyError, defaultBookingPolicy } from "../lib/booking-slots";
-import { preserveTestDriveBooking, preserveBrochure, preserveOnlineReservation, preservePresentation, reservationSettingsError } from "../lib/settings-content";
+import { preserveGoogleReviewUrl, preserveTestDriveBooking, preserveBrochure, preserveOnlineReservation, preservePresentation, reservationSettingsError } from "../lib/settings-content";
 import { Router, type IRouter } from "express";
 import { requirePermission, requireStaff, staffLabel } from "../middlewares/staff-auth";
 import { eq } from "drizzle-orm";
@@ -146,7 +147,8 @@ async function validatePublication(incoming: Record<string, unknown>, previous: 
   if (!parsed.success) {
     throw new SettingsVersionError(parsed.error.message, 400);
   }
-  const compatible = UpdateDealerSettingsBody.parse(preserveTestDriveBooking(preserveBrochure(preserveOnlineReservation(preservePresentation(parsed.data, previous), previous), previous), previous));
+  const compatible = UpdateDealerSettingsBody.parse(preserveTestDriveBooking(preserveBrochure(preserveOnlineReservation(preservePresentation(preserveGoogleReviewUrl(parsed.data, previous), previous), previous), previous), previous));
+  if (compatible.contact.googleReviewUrl && !googleReviewUrl(compatible.contact.googleReviewUrl)) throw new SettingsVersionError('Use a valid HTTPS Google review link from your Business Profile.',400);
   const reservationError = reservationSettingsError(compatible.onlineReservation) ?? bookingPolicyError(compatible.testDriveBooking);
   if (reservationError) throw new SettingsVersionError(reservationError, 400);
   return await cleanFeaturedVehicles(compatible, client) as Record<string, unknown>;

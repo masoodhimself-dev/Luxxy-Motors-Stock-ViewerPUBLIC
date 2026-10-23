@@ -2160,6 +2160,7 @@ components:
         phone: { type: string, maxLength: 40 }
         whatsapp: { type: string, maxLength: 40 }
         email: { type: string, maxLength: 160 }
+        googleReviewUrl: { type: string, maxLength: 1000, description: "Dealership Google review link used for staff-reviewed post-sale requests. Empty disables new requests." }
       required: [phone, whatsapp, email]
     DealerAddress:
       type: object

@@ -1,3 +1,4 @@
+import {preserveGoogleReviewUrl} from './lib/settings-content';
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
@@ -187,4 +188,15 @@ test('vehicle-sheet website inheritance survives validation, compatibility merge
   assert.equal(returnToCustom.brochure?.useWebsiteColour,false);
   assert.equal(returnToCustom.brochure?.accentColour,'#123456');
   assert.equal(UpdateDealerSettingsBody.safeParse({...legacy,brochure:{useWebsiteColour:'yes'}}).success,false);
+});
+
+test('shared Google review links survive older clients but explicit empty clears them',()=>{
+ const old={contact:{googleReviewUrl:'https://g.page/r/example/review'}};
+ assert.equal(preserveGoogleReviewUrl({contact:{googleReviewUrl:undefined}},old).contact.googleReviewUrl,old.contact.googleReviewUrl);
+ assert.equal(preserveGoogleReviewUrl({contact:{googleReviewUrl:''}},old).contact.googleReviewUrl,'');
+});
+
+test('shared review link survives the published settings schema round-trip',()=>{
+ const config={...legacy,contact:{...legacy.contact,googleReviewUrl:'https://g.page/r/example/review'}};
+ assert.equal(GetDealerSettingsResponse.parse(UpdateDealerSettingsBody.parse(config)).contact.googleReviewUrl,config.contact.googleReviewUrl);
 });

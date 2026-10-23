@@ -3489,6 +3489,8 @@ export const getDealerSettingsResponseContactWhatsappMax = 40;
 
 export const getDealerSettingsResponseContactEmailMax = 160;
 
+export const getDealerSettingsResponseContactGoogleReviewUrlMax = 1000;
+
 export const getDealerSettingsResponseAddressStreetMax = 160;
 
 export const getDealerSettingsResponseAddressCityMax = 80;
@@ -3727,7 +3729,8 @@ export const GetDealerSettingsResponse = zod.object({
   "contact": zod.object({
   "phone": zod.string().max(getDealerSettingsResponseContactPhoneMax),
   "whatsapp": zod.string().max(getDealerSettingsResponseContactWhatsappMax),
-  "email": zod.string().max(getDealerSettingsResponseContactEmailMax)
+  "email": zod.string().max(getDealerSettingsResponseContactEmailMax),
+  "googleReviewUrl": zod.string().max(getDealerSettingsResponseContactGoogleReviewUrlMax).optional().describe('Dealership Google review link used for staff-reviewed post-sale requests. Empty disables new requests.')
 }),
   "address": zod.object({
   "street": zod.string().max(getDealerSettingsResponseAddressStreetMax),
@@ -4008,6 +4011,8 @@ export const updateDealerSettingsBodyOneContactWhatsappMax = 40;
 
 export const updateDealerSettingsBodyOneContactEmailMax = 160;
 
+export const updateDealerSettingsBodyOneContactGoogleReviewUrlMax = 1000;
+
 export const updateDealerSettingsBodyOneAddressStreetMax = 160;
 
 export const updateDealerSettingsBodyOneAddressCityMax = 80;
@@ -4246,7 +4251,8 @@ export const UpdateDealerSettingsBody = zod.object({
   "contact": zod.object({
   "phone": zod.string().max(updateDealerSettingsBodyOneContactPhoneMax),
   "whatsapp": zod.string().max(updateDealerSettingsBodyOneContactWhatsappMax),
-  "email": zod.string().max(updateDealerSettingsBodyOneContactEmailMax)
+  "email": zod.string().max(updateDealerSettingsBodyOneContactEmailMax),
+  "googleReviewUrl": zod.string().max(updateDealerSettingsBodyOneContactGoogleReviewUrlMax).optional().describe('Dealership Google review link used for staff-reviewed post-sale requests. Empty disables new requests.')
 }),
   "address": zod.object({
   "street": zod.string().max(updateDealerSettingsBodyOneAddressStreetMax),
@@ -4522,6 +4528,8 @@ export const updateDealerSettingsResponseContactWhatsappMax = 40;
 
 export const updateDealerSettingsResponseContactEmailMax = 160;
 
+export const updateDealerSettingsResponseContactGoogleReviewUrlMax = 1000;
+
 export const updateDealerSettingsResponseAddressStreetMax = 160;
 
 export const updateDealerSettingsResponseAddressCityMax = 80;
@@ -4760,7 +4768,8 @@ export const UpdateDealerSettingsResponse = zod.object({
   "contact": zod.object({
   "phone": zod.string().max(updateDealerSettingsResponseContactPhoneMax),
   "whatsapp": zod.string().max(updateDealerSettingsResponseContactWhatsappMax),
-  "email": zod.string().max(updateDealerSettingsResponseContactEmailMax)
+  "email": zod.string().max(updateDealerSettingsResponseContactEmailMax),
+  "googleReviewUrl": zod.string().max(updateDealerSettingsResponseContactGoogleReviewUrlMax).optional().describe('Dealership Google review link used for staff-reviewed post-sale requests. Empty disables new requests.')
 }),
   "address": zod.object({
   "street": zod.string().max(updateDealerSettingsResponseAddressStreetMax),

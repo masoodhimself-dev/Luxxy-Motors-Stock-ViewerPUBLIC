@@ -704,13 +704,13 @@ test("isolated real HTTP media and QR workflow", async (t) => {
     await t.test('post-sale review reminders save one dealer-scoped buyer follow-up atomically without sending or changing invoices', async () => {
       const id=randomUUID(), saved={...structuredClone(frozen),id,reference:'REVIEW-TEST',draft:{...structuredClone(document.snapshot.draft),price:"10000",exchanges:[],adjustments:[]},revision:1,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),completedAt:new Date().toISOString(),payments:[],events:[]};
       await pool.query('INSERT INTO sale_workspace(id,dealer_id,reference,revision,state)VALUES($1,$2,$3,1,$4::jsonb)',[id,a.dealerId,'REVIEW-TEST',JSON.stringify(saved)]);
-      const store=new PostgresSaleWorkspaceStore(a.dealerId,async()=>({branding:document.snapshot.branding as any}),pool);
+      const store=new PostgresSaleWorkspaceStore(a.dealerId,async()=>({reviewUrl:'https://g.page/r/fictional/review',branding:document.snapshot.branding as any}),pool);
       const before=sentEmails.length;
-      const command={action:'review-reminder' as const,at:new Date(Date.now()+7*86400000).toISOString(),url:'https://g.page/r/fictional/review'};
+      const command={action:'review-reminder' as const,at:new Date(Date.now()+7*86400000).toISOString(),url:'https://g.page/r/incorrect-per-sale/review'};
       const input={id,expectedRevision:1,requestId:randomUUID(),command,actor:'Staff'};
       const first=await store.mutate(input),retry=await store.mutate(input);
       assert.equal(retry.replayed,true);
-      const reminder=first.sale.reviewReminder!;
+      const reminder=first.sale.reviewReminder!;assert.equal(reminder.url,'https://g.page/r/fictional/review');
       const rows=(await pool.query('SELECT * FROM enquiries WHERE id=$1 AND dealer_id=$2',[reminder.enquiryId,a.dealerId])).rows;
       assert.equal(rows.length,1);assert.equal(rows[0].source,'sale_review');assert.equal(rows[0].email,'buyer@example.test');assert.equal(rows[0].vehicle_id,carA);assert.equal(rows[0].customer_name,'Fictional buyer');assert.match(rows[0].follow_up_note,/Google review request/);
       assert.deepEqual(first.sale.documents,saved.documents);assert.equal(sentEmails.length,before);

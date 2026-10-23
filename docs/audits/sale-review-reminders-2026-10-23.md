@@ -37,3 +37,13 @@ Commit `06b70e14283230036c4ebbc03bd78d0ccdc1a586` deployed successfully through 
 Opened the existing completed Shore Drive sale in the signed-in browser. Verified the reminder is unchecked by default. Toggling it locally exposed the 30 October 2026 10:00 UK default, Google review URL input and disabled Save until a link is supplied. Checked live layouts at 390 and 834 CSS pixels with no horizontal overflow. Returned the checkbox to unchecked and restored the viewport. No reminder was saved, no buyer enquiry was created, no Google link was fabricated, and no review email was sent.
 
 Staff must explicitly save a reminder and later review/send the email through the normal composer. Deployment does not enable automatic review sending. The full reminder persistence/send-preview flow remains covered by the isolated tests; physical iPhone/iPad testing is for the operator.
+
+## Shared dealership review-link change (local, not deployed)
+
+Branch `codex/dealership-review-link` moves the URL to `contact.googleReviewUrl`, edited once in Settings → Dealership details → Contact & hours. Use the normal Review changes / Publish showroom workflow. The optional schema field requires no migration and remains dealer-scoped. Publication validates a Google HTTPS URL; omission by an older client preserves the existing link, while an explicit empty string clears it.
+
+Sale screens read the current dealership setting, show a read-only check link and collect only the reminder date/time. Missing settings provide an owner-Settings link instead of a per-sale URL input. The reminder endpoint ignores any per-sale URL supplied by a client, and sale assets read the authoritative dealership setting. The saved reminder retains its approved URL; previously reviewed drafts and existing reminder snapshots are not silently rewritten. Retry identities stay stable even if settings change. Sending remains staff-reviewed and manual.
+
+The new scheduling request is `{requestId, expectedRevision, at}`; cancellation remains unchanged. Pure model tests retain legacy internal URL inputs for compatibility but production requests always use the loaded dealership setting.
+
+Validation: 50 frontend settings/reminder/sales checks, 33 sale-workspace checks, 14 settings contract/compatibility checks, 34 isolated sharing/HTTP/database checks and 3 responsive browser scenarios. The workspace build and typecheck passed. No real review email was sent and no live settings were edited.

@@ -503,3 +503,13 @@ test('review reminders are optional post-sale metadata with safe retries and imm
   for (const invalid of [{...command,url:'javascript:alert(1)'},{...command,url:'https://google.com.evil.test/review'},{...command,at:'2026-10-01'},{...command,at:'2028-10-01'}]) assert.throws(()=>changeSaleWorkspace(sold,invalid,input,context()));
   assert.throws(()=>changeSaleWorkspace({...sold,draft:{...sold.draft,email:''}},command,input,context()),/customer email/);
 });
+
+test('review reminders use the dealership setting rather than any per-sale URL',()=>{
+ const sold={...create(),completedAt:context().now};sold.draft.email='buyer@example.test';
+ const command={action:'review-reminder' as const,at:'2026-10-11T09:00:00Z',url:'https://g.page/r/wrong/review'};
+ const input={expectedRevision:sold.revision,requestId:'configured-review'};
+ const first=changeSaleWorkspace(sold,command,input,{...context(),reviewUrl:'https://g.page/r/dealer/review'});
+ assert.equal(first.sale.reviewReminder?.url,'https://g.page/r/dealer/review');
+ assert.equal(changeSaleWorkspace(first.sale,command,input,{...context(),reviewUrl:'https://g.page/r/updated/review'}).replayed,true);
+ assert.throws(()=>changeSaleWorkspace(sold,command,input,{...context(),reviewUrl:''}),/Settings/);
+});

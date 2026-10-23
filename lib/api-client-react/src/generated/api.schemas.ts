@@ -189,6 +189,11 @@ export interface DealerContact {
   whatsapp: string;
   /** @maxLength 160 */
   email: string;
+  /**
+     * Dealership Google review link used for staff-reviewed post-sale requests. Empty disables new requests.
+     * @maxLength 1000
+     */
+  googleReviewUrl?: string;
 }
 
 export interface DealerAddress {

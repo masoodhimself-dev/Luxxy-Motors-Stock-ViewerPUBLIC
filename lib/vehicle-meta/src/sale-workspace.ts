@@ -169,7 +169,7 @@ export type SaleWorkspaceCommand =
   | { action: 'lifecycle'; status: 'reserved' | 'sold' | 'released' }
   | { action: 'customer-link'; tokenHash: string; expiresAt: string }
   | { action: 'customer-revoke' }
-  | { action: 'review-reminder'; at: string; url: string }
+  | { action: 'review-reminder'; at: string; url?: string }
   | { action: 'cancel-review-reminder' }
   | { action: 'link-email-status'; delivery: NonNullable<SaleWorkspaceRecord['customerLinkEmail']> }
   | { action: 'email-status'; delivery: NonNullable<SaleWorkspaceRecord['emailDeliveries']>[number] }
@@ -177,7 +177,7 @@ export type SaleWorkspaceCommand =
 export type SaleWorkspaceContext = {
   now: string; actor: string; nextId: () => string;
   nextNumber: (type: SaleWorkspaceDocument['type']) => string;
-  branding: SaleWorkspaceBranding; vehicle?: SaleWorkspaceVehicleSnapshot;
+  reviewUrl?: string; branding: SaleWorkspaceBranding; vehicle?: SaleWorkspaceVehicleSnapshot;
   paperwork?: { saleTerms: string; reservationTerms: string };
 };
 
@@ -442,8 +442,8 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     event(record, context, 'stock-' + command.status, command.status === 'released' ? 'Vehicle reservation released' : 'Vehicle marked ' + command.status);
   } else if (command.action === 'review-reminder') {
     if (!record.completedAt && record.lifecycle?.status !== 'sold') throw new SaleWorkspaceError('Complete the sale before scheduling a review reminder.', 409);
-    const url = googleReviewUrl(command.url), at = Date.parse(command.at);
-    if (!url) throw new SaleWorkspaceError('Enter a valid HTTPS Google review link.');
+    const url = googleReviewUrl(context.reviewUrl ?? command.url ?? ''), at = Date.parse(command.at);
+    if (!url) throw new SaleWorkspaceError('Add a valid Google review link in dealership Settings first.');
     if (!Number.isFinite(at) || at <= Date.parse(context.now) || at > Date.parse(context.now) + 365 * 86400000) throw new SaleWorkspaceError('Choose a future reminder within the next year.');
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(record.draft.email)) throw new SaleWorkspaceError('A customer email is needed for a review reminder.');
     record.reviewReminder = { enquiryId: record.reviewReminder?.enquiryId || context.nextId(), at: new Date(at).toISOString(), url };

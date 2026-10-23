@@ -18,11 +18,11 @@ export type PreviewSalesState = { schemaVersion: 1; sales: SaleWorkspaceRecord[]
 const defaultFilename = fileURLToPath(new URL('../../../.local/sales-workspace-preview.json', import.meta.url));
 export class PreviewSaleWorkspaceStore {
   private queue: Promise<unknown> = Promise.resolve();
-  constructor(private filename = defaultFilename, private assets: (draft: SaleWorkspaceDraft) => Promise<{ branding: SaleWorkspaceBranding; vehicle?: SaleWorkspaceVehicleSnapshot; paperwork?: { saleTerms: string; reservationTerms: string } }> = async (draft: SaleWorkspaceDraft) => {
+  constructor(private filename = defaultFilename, private assets: (draft: SaleWorkspaceDraft) => Promise<{ reviewUrl?: string; branding: SaleWorkspaceBranding; vehicle?: SaleWorkspaceVehicleSnapshot; paperwork?: { saleTerms: string; reservationTerms: string } }> = async (draft: SaleWorkspaceDraft) => {
     const settings = await readPreviewSettings();
     const vehicle = previewStock.cars.find(car => car.id === draft?.vehicleId);
     const paperwork = await previewIntegrationsStore.readSalesPaperwork();
-    return { paperwork, branding: invoiceBranding(saleWorkspaceBranding(settings), paperwork.invoiceSettings), ...(vehicle ? { vehicle: { id: vehicle.id, title: vehicle.title ?? '', registration: vehicle.plate || vehicle.vrm || vehicle.registration, engineSize: vehicle.engineSize, bodyType: vehicle.bodyType, doors: vehicle.doors, seats: vehicle.seats, emissionClass: vehicle.emissionClass, imageUrl: vehicle.heroImage, year: vehicle.year, fuel: vehicle.fuel, transmission: vehicle.transmission, mileage: vehicle.mileage, colour: vehicle.colour, owners: vehicle.owners, writeOffCategory: vehicle.writeOffCategory, description: typeof vehicle.sourceExtras?.description === 'string' ? vehicle.sourceExtras.description : null, serviceHistory: typeof vehicle.sourceExtras?.serviceHistory === 'string' ? vehicle.sourceExtras.serviceHistory : null } } : {}) };
+    return { reviewUrl: settings.contact.googleReviewUrl || '', paperwork, branding: invoiceBranding(saleWorkspaceBranding(settings), paperwork.invoiceSettings), ...(vehicle ? { vehicle: { id: vehicle.id, title: vehicle.title ?? '', registration: vehicle.plate || vehicle.vrm || vehicle.registration, engineSize: vehicle.engineSize, bodyType: vehicle.bodyType, doors: vehicle.doors, seats: vehicle.seats, emissionClass: vehicle.emissionClass, imageUrl: vehicle.heroImage, year: vehicle.year, fuel: vehicle.fuel, transmission: vehicle.transmission, mileage: vehicle.mileage, colour: vehicle.colour, owners: vehicle.owners, writeOffCategory: vehicle.writeOffCategory, description: typeof vehicle.sourceExtras?.description === 'string' ? vehicle.sourceExtras.description : null, serviceHistory: typeof vehicle.sourceExtras?.serviceHistory === 'string' ? vehicle.sourceExtras.serviceHistory : null } } : {}) };
   }) {}
   private serial<T>(work: () => Promise<T>): Promise<T> {
     const next = this.queue.then(work, work); this.queue = next.catch(() => {}); return next;
@@ -223,7 +223,7 @@ export async function salesPreview(req: IncomingMessage, res: ServerResponse, ur
     let command: SaleWorkspaceCommand | undefined;
     if (req.method === 'PUT' && id && !section) command = { action: 'update', draft: input.draft };
     if (req.method === 'POST' && id) {
-      if (section === 'review-reminder') command = input.cancel === true ? {action:'cancel-review-reminder'} : {action:'review-reminder',at:input.at,url:input.url};
+      if (section === 'review-reminder') command = input.cancel === true ? {action:'cancel-review-reminder'} : {action:'review-reminder',at:input.at};
       if (section === 'checklists') command = { action: 'checklists', completion: input.completion, partExchanges: input.partExchanges };
       if (section === 'payments' && !paymentId) command = { action: 'payment', payment: input.payment };
       if (section === 'payments' && paymentId && action === 'confirm') command = { action: 'confirm', paymentId, date: input.date, reserveVehicle: input.reserveVehicle === true };

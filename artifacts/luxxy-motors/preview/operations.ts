@@ -1,3 +1,4 @@
+import { googleReviewUrl } from '@workspace/vehicle-meta';
 // Local review service. No production account, import, email or payment is changed.
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
@@ -7,7 +8,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 import { UpdateDealerSettingsBody } from '../../../lib/api-zod/src/generated/api';
 import { bookingPolicyError } from '../../api-server/src/lib/booking-slots';
-import { preserveBrochure, preserveOnlineReservation, preservePresentation, preserveTestDriveBooking, reservationSettingsError } from '../../api-server/src/lib/settings-content';
+import { preserveGoogleReviewUrl, preserveBrochure, preserveOnlineReservation, preservePresentation, preserveTestDriveBooking, reservationSettingsError } from '../../api-server/src/lib/settings-content';
 import { expectedSettingsRevision, nextSettingsVersion, SettingsVersionError, type SettingsVersion } from '../../api-server/src/lib/settings-versions';
 import { saleWorkspaceFingerprint } from '@workspace/vehicle-meta';
 import { dealerOperationsSummary, paymentLedgerCsv, stockHealth, type OperationEnquiry } from '../../api-server/src/lib/dealer-operations';
@@ -64,7 +65,8 @@ function send(res:ServerResponse,status:number,value:unknown) { res.statusCode=s
 async function body(req:IncomingMessage) { let value=''; for await(const chunk of req) { value+=chunk; if(Buffer.byteLength(value)>256_000) throw new SettingsVersionError('Request is too large.',413); } try{return JSON.parse(value);}catch{throw new SettingsVersionError('Check the request details.',400);} }
 function validatedSettings(config:Record<string,unknown>,previous:Record<string,unknown>) {
   const parsed=UpdateDealerSettingsBody.safeParse(config); if(!parsed.success) throw new SettingsVersionError('Please check your settings.',400);
-  const compatible=UpdateDealerSettingsBody.parse(preserveTestDriveBooking(preserveBrochure(preserveOnlineReservation(preservePresentation(parsed.data,previous),previous),previous),previous));
+  const compatible=UpdateDealerSettingsBody.parse(preserveTestDriveBooking(preserveBrochure(preserveOnlineReservation(preservePresentation(preserveGoogleReviewUrl(parsed.data,previous),previous),previous),previous),previous));
+  if (compatible.contact.googleReviewUrl && !googleReviewUrl(compatible.contact.googleReviewUrl)) throw new SettingsVersionError('Use a valid HTTPS Google review link from your Business Profile.',400);
   const error=reservationSettingsError(compatible.onlineReservation)??bookingPolicyError(compatible.testDriveBooking);
   if(error) throw new SettingsVersionError(error,400); return compatible as Record<string,unknown>;
 }
