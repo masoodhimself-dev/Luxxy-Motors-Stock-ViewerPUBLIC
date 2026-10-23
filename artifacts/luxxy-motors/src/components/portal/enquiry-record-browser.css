@@ -180,3 +180,32 @@
  .inbox-primary-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
  .inbox-primary-actions button { min-width:0; width:100%; }
 }
+
+/* A compact queue beside one clear customer workspace. */
+@media(min-width:1100px) {
+ .enquiries-premium-workspace .enquiry-record-browser { grid-template-columns:minmax(260px,320px) minmax(0,1fr); align-items:start; }
+}
+.enquiries-premium-workspace .enquiry-record-select { gap:5px; padding:12px 14px; }
+.enquiries-premium-workspace .enquiry-record-row-message { -webkit-line-clamp:1; }
+.enquiries-premium-workspace .enquiry-record-row-meta { font-size:11px; }
+.enquiries-premium-workspace .enquiry-detail-customer { grid-template-columns:minmax(0,1fr) auto; gap:6px 16px; padding-bottom:12px; border-bottom:1px solid var(--portal-border); }
+.enquiries-premium-workspace .enquiry-detail-heading { grid-column:1/-1; }
+.enquiries-premium-workspace .enquiry-detail-owner { justify-content:flex-end; }
+.enquiries-premium-workspace .enquiry-detail-owner p { font-size:11px; }
+.enquiries-premium-workspace .enquiry-detail-owner button { min-height:36px; padding:6px 10px; }
+.enquiries-premium-workspace .enquiry-detail-car-copy h4 { font-size:14px; }
+.enquiries-premium-workspace .enquiry-action-plan { gap:8px; padding:10px 12px; border-radius:6px 6px 0 0; margin-bottom:-12px; }
+.enquiries-premium-workspace .enquiry-action-plan > div { flex-basis:180px; }
+.enquiries-premium-workspace .inbox-primary-actions { padding:8px 10px; border:1px solid var(--portal-border); border-top:0; border-radius:0 0 6px 6px; gap:6px; background:#fafbfc; }
+.enquiries-premium-workspace .inbox-primary-actions button { min-height:40px; padding:7px 12px; }
+.enquiries-premium-workspace .enquiry-history-heading { margin-top:4px; }
+.enquiries-premium-workspace .enquiry-history-heading > p { font-size:11px; }
+.enquiries-premium-workspace .enquiry-detail-more, .enquiries-premium-workspace .enquiry-email-records { border-top:1px solid var(--portal-border); }
+@media(max-width:700px) {
+ .enquiries-premium-workspace .enquiry-detail-customer { grid-template-columns:minmax(0,1fr); }
+ .enquiries-premium-workspace .enquiry-detail-owner { justify-content:flex-start; }
+ .enquiries-premium-workspace .enquiry-action-plan { align-items:start; }
+ .enquiries-premium-workspace .enquiry-action-plan > button { width:auto; }
+ .enquiries-premium-workspace .inbox-primary-actions { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .enquiries-premium-workspace .inbox-primary-actions button { min-height:44px; }
+}

@@ -55,3 +55,15 @@
 .enquiry-conversation-history .enquiry-conversation-entry[data-kind="whatsapp"] { background:#f0f8f2; border-left:3px solid #387b4b; }
 .conversation-original summary { cursor:pointer; min-height:44px; align-content:center; font-size:12px; text-decoration:underline; }
 .conversation-original > p { border-left:2px solid #d5dce2; padding-left:10px; color:var(--portal-muted,#586976); }
+
+.enquiry-original-summary { display:grid; gap:12px; min-width:0; }
+.enquiry-exchange-summary { border:1px solid var(--portal-border,#dce3e8); border-radius:6px; padding:12px; background:#fff; }
+.enquiry-exchange-summary h5 { margin-bottom:8px; font-size:13px; }
+.enquiry-exchange-summary dl { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 20px; }
+.enquiry-exchange-summary dl > div { min-width:0; }
+.enquiry-exchange-summary dt { color:var(--portal-muted,#586976); font-size:11px; }
+.enquiry-exchange-summary dd { margin:2px 0 0; font-weight:500; overflow-wrap:anywhere; white-space:pre-wrap; }
+.enquiry-exchange-summary dl > div:last-child, .enquiry-exchange-note { grid-column:1/-1; }
+.enquiry-exchange-extra { font-size:12px; color:var(--portal-muted,#586976); }
+.enquiry-original-summary .conversation-original { border-top:1px solid var(--portal-border,#dce3e8); }
+@media(max-width:420px) { .enquiry-exchange-summary dl { grid-template-columns:minmax(0,1fr); } }

@@ -65,9 +65,10 @@ function EnquiryDetail({ entry, car, actions }: { entry: Enquiry; car?: Car; act
   return <>
     <header className="enquiry-detail-customer">
       <div className="enquiry-detail-heading"><div><p className="enquiry-detail-eyebrow">{presentation.purpose} / {presentation.source}</p><h3>{entry.customerName}</h3></div><span className="enquiry-state-label" data-tone={presentation.tone}>{presentation.state}</span></div>
-      <div className="enquiry-detail-contact">{entry.phone ? <a href={`tel:${entry.phone.replace(/[^+\d]/g, '')}`}><Phone aria-hidden className="h-4 w-4" />{entry.phone}</a> : <p className="text-sm text-muted-foreground">No phone supplied</p>}{entry.email && <a href={`mailto:${entry.email}`}>{entry.email}</a>}<ShareQr templateVariables={{vehicle_title:entry.vehicleTitle || "",vehicle_registration:entry.vehicleRegistration || ""}} whatsapp label="WhatsApp QR" enquiryId={entry.id} customerName={entry.customerName} customerEmail={entry.email || ""} customerPhone={entry.phone || ""} message={`Hello ${entry.customerName}, thanks for your interest${entry.vehicleTitle ? ` in ${entry.vehicleTitle}` : ""}. How can we help?`} /></div>
+      <div className="enquiry-detail-contact">{entry.phone ? <a href={`tel:${entry.phone.replace(/[^+\d]/g, '')}`}><Phone aria-hidden className="h-4 w-4" />{entry.phone}</a> : <p className="text-sm text-muted-foreground">No phone supplied</p>}{entry.email && <a href={`mailto:${entry.email}`}>{entry.email}</a>}</div>
 
-      <div className="enquiry-detail-owner"><p className="text-xs text-muted-foreground">Assigned to <strong>{entry.assignedToName || 'Unassigned'}</strong></p><ClaimEnquiry entry={entry} /></div>
+
+    <div className="enquiry-detail-owner"><p className="text-xs text-muted-foreground">Assigned to <strong>{entry.assignedToName || 'Unassigned'}</strong></p><ClaimEnquiry entry={entry} /></div>
     </header>
     <section className="enquiry-detail-car" aria-label="Enquiry vehicle">
       {car && <EnquiryPhotoPeek car={car} className="enquiry-detail-car-photo" />}
@@ -76,7 +77,7 @@ function EnquiryDetail({ entry, car, actions }: { entry: Enquiry; car?: Car; act
     </section>
     {pendingReply && <section className="enquiry-action-plan" data-tone="warning" aria-label="Customer email reply"><div><span className="enquiry-action-label">Next step</span><h4>{(entry as InboxEnquiry).emailRepliesToReview ? 'Incoming email needs review' : 'Customer replied'}</h4><p>Open the conversation, read their reply and respond or mark it handled.</p></div><Button size="sm" asChild><Link href={`/portal?section=notifications&workView=email&enquiryId=${encodeURIComponent(entry.id)}`}>Read reply</Link></Button></section>}
     {!pendingReply && <section className="enquiry-action-plan" data-tone={presentation.tone} aria-label="Recommended next action">
-      <div><span className="enquiry-action-label">Next step</span><h4>{presentation.nextAction}</h4><p>{presentation.reason}</p>{presentation.dueAt && <time dateTime={presentation.dueAt}>{appointmentLabel(presentation.dueAt)}</time>}</div>
+      <div><span className="enquiry-action-label">Next step</span><h4>{presentation.nextAction}</h4>{presentation.action !== 'respond' && <p>{presentation.reason}</p>}{presentation.dueAt && <time dateTime={presentation.dueAt}>{appointmentLabel(presentation.dueAt)}</time>}</div>
       {showVisitControls && <AttendanceControls entry={entry} />}
       {presentation.action === 'appointment' && entry.appointmentStatus === 'pending'
         ? <Button size="sm" asChild><Link href={`/portal?section=notifications&workView=test-drives&enquiryId=${encodeURIComponent(entry.id)}`}>Review test drive</Link></Button>
@@ -86,7 +87,7 @@ function EnquiryDetail({ entry, car, actions }: { entry: Enquiry; car?: Car; act
       {entry.followUpAt && !entry.followUpCompletedAt && <p>Follow-up: {appointmentLabel(entry.followUpAt)}</p>}
       {entry.appointmentAt && !entry.appointmentCancelledAt && !visitFinished && <p>Test drive: {appointmentLabel(entry.appointmentAt)} · {entry.appointmentStatus === 'pending' ? 'Awaiting approval' : 'Confirmed'}</p>}
     </div>}
-    <div className="inbox-primary-actions"><div className="enquiry-detail-actions" aria-label="Selected enquiry actions">
+    <div className="inbox-primary-actions"><ShareQr templateVariables={{vehicle_title:entry.vehicleTitle || "",vehicle_registration:entry.vehicleRegistration || ""}} whatsapp label="WhatsApp" enquiryId={entry.id} customerName={entry.customerName} customerEmail={entry.email || ""} customerPhone={entry.phone || ""} message={`Hello ${entry.customerName}, thanks for your interest${entry.vehicleTitle ? ` in ${entry.vehicleTitle}` : ""}. How can we help?`} /><div className="enquiry-detail-actions" aria-label="Selected enquiry actions">
       {(pendingReply || !(presentation.action === "conversation" || (presentation.action === "respond" && actionLabel === "Record the response"))) && <Button size="sm" variant="outline" onClick={() => actions.onConversation(entry)}>Add call note</Button>}
       {showAppointmentEmail && <Button size="sm" variant="outline" onClick={() => actions.onAppointmentFollowUp?.(entry)}>Follow-up email</Button>}
       {actions.onEmail && (!showAppointmentEmail || pendingReply) && (pendingReply || actionLabel !== 'Reply') && <Button size="sm" variant="outline" onClick={() => actions.onEmail?.(entry)}>Reply</Button>}
@@ -136,7 +137,7 @@ export function EnquiryRecordBrowser({ entries, allEntries = entries, cars, sele
         <span className="enquiry-record-row-purpose">{summary.purpose} <span>{summary.source}</span></span>
         <span className="enquiry-record-row-car">{entry.vehicleTitle || 'General showroom enquiry'}{entry.vehicleRegistration ? ` · ${entry.vehicleRegistration}` : ''}</span>
         {((entry as InboxEnquiry).latestReplyText || entry.message) && <span className="enquiry-record-row-message">{(entry as InboxEnquiry).latestReplyText ? `Latest reply: ${(entry as InboxEnquiry).latestReplyText}` : enquiryRequestText(entry)}</span>}
-        <span className="enquiry-record-row-meta">{entry.assignedToName || 'Unassigned'}{callbacks && entry.source === 'website_callback' ? ' · Website request' : ''}{!callbacks && enquiryGroup(entry, allEntries).length > 1 ? ` · ${enquiryGroup(entry, allEntries).length} merged records` : ''}</span>
+        <span className="enquiry-record-row-meta">{entry.assignedToName || 'Not assigned'}{callbacks && entry.source === 'website_callback' ? ' · Website request' : ''}{!callbacks && enquiryGroup(entry, allEntries).length > 1 ? ` · ${enquiryGroup(entry, allEntries).length} merged records` : ''}</span>
         {callbacks && <span className="enquiry-record-row-meta">{entry.phone || entry.email || 'Contact not supplied'}{entry.createdAt ? ` · Requested ${appointmentLabel(entry.createdAt)}` : ''}</span>}
         {urgentOriginal.id !== entry.id && summary.priority < ownSummary.priority && <span className="enquiry-record-row-meta">Next step is on a linked enquiry</span>}
         <span className="enquiry-record-row-next">{callbacks && entry.followUpAt ? `Due ${appointmentLabel(entry.followUpAt)}` : summary.nextAction}</span>
