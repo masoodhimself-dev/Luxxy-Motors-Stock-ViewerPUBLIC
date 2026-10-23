@@ -48,3 +48,9 @@ The full invoice fix has not been verified on Render because it is not deployed.
 The invoice fix was published to the Render release branch and deployment `dep-dbdmmauq1p3s7394vib0` was triggered for commit `16804f442db1093ed5d56e33fdda5ef2cbd318d3`.
 
 Expanded component coverage: 116 passed (Quick Enquiry, phone sharing, internal email fallback, sales and ShareQr). Expanded browser coverage: 20 passed, covering booking retries, duplicate submission prevention, changed cars/dates, approval status, unavailable slots and responsive Inbox/booking screens. Existing test assumptions were updated for reference-free calendar filenames, current recovery wording and available fictional stock. These are test-only changes; booking eligibility rules remain unchanged.
+
+### Live release verification completed
+
+Render deployment `dep-dbdmmauq1p3s7394vib0` reached live. Shore Drive health returned `{"status":"ok"}`; no error-level app logs were present during the initial post-release check. Reloaded the portal and opened the existing completed sale. The full-invoice WhatsApp button is enabled without a green-slip reference. Preparation correctly selected the existing customer, normalized phone and issued full invoice, with a 24-hour attachment link and one PDF. Opened the private customer-sharing page and successfully downloaded the PDF. “Use email instead” returned to internal invoice email controls and retained the existing green-slip requirement for emailing a Road Tax guide. No email or WhatsApp invoice message was sent or confirmed, and no sale/payment/invoice content was changed.
+
+Actual WhatsApp delivery and physical iOS/iPadOS testing remain outside this handoff-only audit.
