@@ -18,7 +18,8 @@ for (const width of [375, 820]) {
   test(`selected vehicle stays identifiable through booking at ${width}px`, async ({ page, request }) => {
     await page.setViewportSize({ width, height: width < 640 ? 812 : 1180 });
     const stock = await (await request.get('/api/stock')).json();
-    const car = stock.cars[0];
+    const car = stock.cars.find((car: {inventoryStatus?: string}) => car.inventoryStatus === 'available');
+    expect(car).toBeTruthy();
     await page.route('**/api/enquiries', route => route.abort());
     await page.goto(`/enquire?type=viewing&vehicleId=${car.id}`);
     const selection = page.getByTestId('card-enquiry-vehicle');
@@ -39,7 +40,8 @@ for (const width of [375, 820]) {
 
 test('unavailable selected-car photo disappears and short desktop sidebar scrolls normally', async ({ page, request }) => {
   const stock = await (await request.get('/api/stock')).json();
-  const car = stock.cars[0];
+  const car = stock.cars.find((car: {inventoryStatus?: string}) => car.inventoryStatus === 'available');
+  expect(car).toBeTruthy();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route('**/*', route => route.request().resourceType() === 'image' ? route.abort() : route.continue());
   await page.goto(`/enquire?type=viewing&vehicleId=${car.id}`);

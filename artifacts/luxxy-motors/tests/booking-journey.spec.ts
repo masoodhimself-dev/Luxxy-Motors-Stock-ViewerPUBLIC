@@ -46,7 +46,7 @@ test.beforeEach(async ({ page }) => {
     ? route.continue() : route.fulfill({ status: 403, json: { error: 'Test blocked this write.' } }));
   const stock = await (await page.request.get('/api/stock')).json();
   const cars = stock.cars.filter((car: { inventoryStatus?: string }) => !['sold', 'archived', 'hidden'].includes(car.inventoryStatus ?? '')).slice(0, 2)
-    .map((car: Record<string, unknown>, index: number) => ({ ...car, id: `preview-${index + 1}` }));
+    .map((car: Record<string, unknown>, index: number) => ({ ...car, id: `preview-${index + 1}`, inventoryStatus: 'available' }));
   expect(cars).toHaveLength(2);
   await page.route('**/api/stock', route => route.fulfill({ json: { ...stock, count: cars.length, cars } }));
   await mockSettings(page);
@@ -96,7 +96,7 @@ for (const width of [390, 820, 1440]) {
     await expect(success.getByRole('heading', { name: 'Your test drive is booked' })).toBeFocused();
     await expect(success).toContainText(policy.instructions);
     await expect(page.getByRole('link', { name: 'Manage test drive', exact: true })).toHaveAttribute('href', '/viewing/booking-test');
-    await expect(page.getByTestId('link-download-calendar')).toHaveAttribute('download', 'test-drive-BOOKING-TEST.ics');
+    await expect(page.getByTestId('link-download-calendar')).toHaveAttribute('download', 'test-drive.ics');
     expect(payload).toMatchObject({ type: 'viewing', vehicleId: 'preview-2', customerName: 'Booking Customer', email: 'booking@example.test', phone: '07700900123' });
     expect(payload!.appointmentAt).toBeTruthy();
     expect(await page.evaluate(() => sessionStorage.getItem('luxxy.enquiry-draft.viewing:preview-2'))).toBeNull();
@@ -172,7 +172,7 @@ test('no available times offers help without accepting an appointment', async ({
   await page.route('**/api/enquiries/availability?*', route => route.fulfill({ json: { date: new URL(route.request().url()).searchParams.get('date'), timezone: 'Europe/London', slots: [] } }));
   await page.goto('/enquire?type=viewing&vehicleId=preview-2');
   await expect(page.getByTestId('button-continue-to-details')).toBeDisabled();
-  await expect(page.getByText('Can’t find a suitable time?', { exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Ask us about a time', exact: true })).toBeVisible();
   await expect(page.getByTestId('button-submit-enquiry')).toHaveCount(0);
 });
 

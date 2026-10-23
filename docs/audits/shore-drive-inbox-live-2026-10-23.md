@@ -42,3 +42,9 @@ WhatsApp now shares the existing archived PDF only, without a green-slip referen
 ## Limits
 
 The full invoice fix has not been verified on Render because it is not deployed. Real WhatsApp delivery and physical iPhone/iPad behavior were not tested; automated responsive checks use Chrome. The test appointment and enquiry remain clearly labelled as audit history; no permanent deletion was performed. Private sharing URLs and reply-routing tokens are intentionally omitted.
+
+## Follow-up release audit
+
+The invoice fix was published to the Render release branch and deployment `dep-dbdmmauq1p3s7394vib0` was triggered for commit `16804f442db1093ed5d56e33fdda5ef2cbd318d3`.
+
+Expanded component coverage: 116 passed (Quick Enquiry, phone sharing, internal email fallback, sales and ShareQr). Expanded browser coverage: 20 passed, covering booking retries, duplicate submission prevention, changed cars/dates, approval status, unavailable slots and responsive Inbox/booking screens. Existing test assumptions were updated for reference-free calendar filenames, current recovery wording and available fictional stock. These are test-only changes; booking eligibility rules remain unchanged.
