@@ -8,6 +8,7 @@
 - Latest pending accepted customer reply preview on the list; sender-review messages retain explicit review status.
 - One primary conversation history with existing email, phone and staff-confirmed WhatsApp events. Known quoted email chains fold behind Show original message; originals remain intact.
 - Compact contact/car summary and simpler action wording. Appointment/customer history, delivery details and occasional record tools expand on demand. Existing appointment actions and scheduled tasks remain accessible.
+- Focused conversation mode on phones/portrait tablets hides list controls while a customer is open. Back restores search, filters and navigation; main actions form a compact two-column grid.
 - Compact selected-car summary on phones in Quick Enquiry, with full details still available.
 - Failed reply-count requests visibly warn and offer Retry. Opening a case never marks replies handled or sends anything.
 
@@ -16,7 +17,7 @@
 - Production build, including workspace typechecking: passed.
 - Focused frontend tests: 180 passed; additional WhatsApp/QR, booking, Home, merge/navigation tests: 104 passed (includes four overlapping reply-attention tests; plus two permission/cache regression tests; 282 unique tests across 18 files).
 - Backend receiving/reply integration suite: 12 passed, including dealer isolation, new aggregate counts, original reply handling, idempotency, authentication and sending behaviour.
-- New responsive browser checks: 3 passed at 390, 834 and 1440px, blocking all writes. Validates reply and no-task counts, selection, quoted-history folding, visible actions and no horizontal document overflow.
+- New responsive browser checks: 3 passed at 390, 834 and 1440px, blocking all writes. Validates reply and no-task counts, selection, quoted-history folding, visible actions, focused phone/tablet detail with Back restoration, and no horizontal document overflow. One Chrome launch timeout was retried successfully with one browser worker.
 - Browser inspection of local rendered Inbox and compact contact/car/actions at desktop, tablet and phone viewports.
 
 Physical iPhone/iPad hardware, actual keyboard and actual email/WhatsApp sends are not part of this release's responsive checks. Existing send paths are covered by component/backend regression tests; no customer messages or live bookings were created for this release.

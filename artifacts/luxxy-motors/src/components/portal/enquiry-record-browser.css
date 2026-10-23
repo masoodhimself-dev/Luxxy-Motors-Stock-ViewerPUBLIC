@@ -171,3 +171,12 @@
 .enquiries-premium-workspace .enquiry-action-plan h4 { font-size:14px; }
 .enquiries-premium-workspace .enquiry-context-details > summary { cursor:pointer; min-height:44px; align-content:center; font-size:13px; font-weight:600; }
 .enquiries-premium-workspace .enquiry-context-details[open] { display:grid; gap:12px; }
+
+.inbox-primary-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.enquiries-premium-workspace .inbox-primary-actions > .enquiry-detail-actions { display:contents; }
+@media(max-width:899px) {
+ .customer-notifications-workspace:has(.enquiry-record-browser[data-selected="true"]) > :is(.customer-workspace-heading,.customer-workspace-views,.inbox-mode-nav),
+ .enquiries-premium-workspace:has(.enquiry-record-browser[data-selected="true"]) :is(.enquiry-simple-toolbar,.enquiry-queue-nav) { display:none; }
+ .inbox-primary-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .inbox-primary-actions button { min-width:0; width:100%; }
+}

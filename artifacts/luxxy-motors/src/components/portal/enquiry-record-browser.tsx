@@ -86,14 +86,14 @@ function EnquiryDetail({ entry, car, actions }: { entry: Enquiry; car?: Car; act
       {entry.followUpAt && !entry.followUpCompletedAt && <p>Follow-up: {appointmentLabel(entry.followUpAt)}</p>}
       {entry.appointmentAt && !entry.appointmentCancelledAt && !visitFinished && <p>Test drive: {appointmentLabel(entry.appointmentAt)} · {entry.appointmentStatus === 'pending' ? 'Awaiting approval' : 'Confirmed'}</p>}
     </div>}
-    <div className="enquiry-detail-actions" aria-label="Selected enquiry actions">
+    <div className="inbox-primary-actions"><div className="enquiry-detail-actions" aria-label="Selected enquiry actions">
       {(pendingReply || !(presentation.action === "conversation" || (presentation.action === "respond" && actionLabel === "Record the response"))) && <Button size="sm" variant="outline" onClick={() => actions.onConversation(entry)}>Add call note</Button>}
       {showAppointmentEmail && <Button size="sm" variant="outline" onClick={() => actions.onAppointmentFollowUp?.(entry)}>Follow-up email</Button>}
       {actions.onEmail && (!showAppointmentEmail || pendingReply) && (pendingReply || actionLabel !== 'Reply') && <Button size="sm" variant="outline" onClick={() => actions.onEmail?.(entry)}>Reply</Button>}
       {presentation.action !== 'follow_up' && <Button size="sm" variant="outline" onClick={() => actions.onFollowUp(entry)}>{outstanding ? 'Manage follow-up' : 'Set follow-up'}</Button>}
     </div>
       <div className="enquiry-detail-actions" aria-label="Appointment actions">{future && !visitFinished && <Button variant="outline" size="sm" onClick={() => actions.onAppointment(entry)}><CalendarDays aria-hidden className="mr-1 h-4 w-4" />Change appointment</Button>}{canBook && <Button variant="outline" size="sm" disabled={actions.canBook === false} onClick={() => actions.onBook(entry)}>{entry.appointmentAt ? 'Book another test drive' : 'Book test drive'}</Button>}</div>
-    <ConversationHistory entry={entry} loadOnDemand />
+    </div><ConversationHistory entry={entry} loadOnDemand />
     <details className="enquiry-detail-more enquiry-context-details"><summary>Appointments &amp; customer history</summary>    <section className="enquiry-detail-next-step" aria-label="Customer next step">
       {entry.followUpAt && <div className="enquiry-detail-followup"><p className="font-medium text-sm">{entry.followUpCompletedAt ? 'Follow-up completed' : callbackTiming(entry) === 'overdue' ? 'Follow-up overdue' : 'Upcoming follow-up'}</p>{entry.followUpCompletedAt && <p className="text-sm">{appointmentLabel(entry.followUpAt)}</p>}{entry.followUpNote && <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{entry.followUpNote}</p>}</div>}
       {entry.appointmentAt && <section className="enquiry-detail-appointment"><p className="text-sm font-medium">Appointment · {appointmentLabel(entry.appointmentAt)}</p><AppointmentExceptionLabels booking={entry} />{!showVisitControls && <AttendanceControls entry={entry} />}</section>}

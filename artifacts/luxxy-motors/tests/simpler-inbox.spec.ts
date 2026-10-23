@@ -29,6 +29,11 @@ for(const width of [390,834,1440]) {
   await expect(detail.getByRole('button',{name:'Reply',exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:`/private/tmp/luxxy-inbox-${width}.png`,fullPage:true});
+  if(width<900) {
+   await expect(filters).not.toBeVisible();
+   await detail.getByRole('button',{name:'Back to enquiries',exact:true}).click();
+   await expect(filters).toBeVisible();
+  }
   expect(writes).toEqual([]);expect(errors).toEqual([]);
  });
 }
