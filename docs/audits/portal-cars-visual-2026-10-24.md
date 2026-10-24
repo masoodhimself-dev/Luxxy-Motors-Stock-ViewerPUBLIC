@@ -1,6 +1,14 @@
 # Portal and Cars visual audit — 24 October 2026
 
-Branch: `codex/portal-cars-visual-audit`. Local only; no deployment.
+Branch: `codex/portal-cars-visual-audit`. Deployed with user approval.
+
+## Live release
+
+- Commit `0de3b98841a98776139105a57b6761cfe7c118d3` fast-forwarded to `codex/multi-tenant-foundation`.
+- Render deployment `dep-dbe11vbrjlhs738m2q30` reached `live` on 24 October 2026 at 02:03:55 UTC (03:03:55 UK).
+- Shore Drive and Luxxy health endpoints both returned `status: ok`. No error-level logs were returned for the checked release interval.
+- Verified Shore Drive's live Cars list has no preparation controls or progress. Opened a car and switched through Photos & video, Description and Customers successfully, then returned to the list. This was read-only; no record, stock or customer-message changes were made.
+- No new migration, environment variable or credential was required. Physical iPhone/iPad testing remains for the operator.
 
 ## Inspected
 
