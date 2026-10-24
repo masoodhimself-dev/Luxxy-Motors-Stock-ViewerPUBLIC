@@ -265,10 +265,34 @@ it('the dealer switch disables new WhatsApp sharing while leaving phone recordin
  render(<QueryClientProvider client={client}><ShareQr whatsapp label="WhatsApp QR" source={{kind:'document',saleId:'sale',documentId:'doc'}}/><ShareQr purpose="record-video" label="Record on phone" url="/portal?recordVideo=1"/></QueryClientProvider>);
  expect(screen.getByRole('button',{name:'WhatsApp QR'})).toBeDisabled();
  expect(screen.getByRole('button',{name:'WhatsApp QR'})).toHaveAttribute('title',expect.stringContaining('Settings'));
+ expect(screen.getByRole('button',{name:'WhatsApp QR'})).toHaveAccessibleDescription('WhatsApp QR is turned off in Settings → Emails & documents → WhatsApp & QR. Use email instead.');
+ expect(screen.getByText(/WhatsApp QR is turned off in Settings/)).toBeVisible();
  expect(screen.getByRole('button',{name:'Record on phone'})).toBeEnabled();
  expect(api).not.toHaveBeenCalled();
  await act(async()=>{client.setQueryData(phoneSharingSettingsQueryKey,{revision:2,enabled:true});});
  await waitFor(()=>expect(screen.getByRole('button',{name:'WhatsApp QR'})).toBeEnabled());
+});
+
+it('explains a failed settings check and lets staff retry without preparing or sending a customer message', async()=>{
+ const client=new QueryClient({defaultOptions:{queries:{retry:false}}});
+ let rejectLookup:(error:Error)=>void=()=>{};
+ const lookup=new Promise<never>((_resolve,reject)=>{rejectLookup=reject;});
+ let checks=0;
+ api.mockImplementation(async(path:string)=>{
+  if(path==='/api/staff/phone-sharing-settings')return ++checks===1?lookup:{revision:2,enabled:true};
+  throw new Error(`Unexpected request: ${path}`);
+ });
+ const view=render(<QueryClientProvider client={client}><ShareQr whatsapp label="WhatsApp confirmation" customerPhone="07700900123" source={{kind:'document',saleId:'sale',documentId:'doc'}}/></QueryClientProvider>);
+ expect(screen.getByRole('button',{name:'WhatsApp confirmation'})).toBeDisabled();
+ expect(screen.getByRole('button',{name:'WhatsApp confirmation'})).toHaveAccessibleDescription('Checking WhatsApp sharing settings…');
+ await act(async()=>rejectLookup(new Error('Temporarily unavailable')));
+ await screen.findByText('WhatsApp sharing could not be checked. Retry the settings check, or use email instead.');
+ expect(screen.getByRole('button',{name:'WhatsApp confirmation'})).toBeDisabled();
+ fireEvent.click(screen.getByRole('button',{name:'Retry WhatsApp settings'}));
+ await waitFor(()=>expect(screen.getByRole('button',{name:'WhatsApp confirmation'})).toBeEnabled());
+ expect(api.mock.calls.map(([path])=>path)).toEqual(['/api/staff/phone-sharing-settings','/api/staff/phone-sharing-settings']);
+ expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+ view.unmount();client.clear();
 });
 
 it('turning sharing off still lets staff reopen a prepared pack to confirm or revoke it',async()=>{

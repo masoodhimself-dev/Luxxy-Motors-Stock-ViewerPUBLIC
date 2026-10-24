@@ -10,7 +10,9 @@ function Fixture({known=true,initialPhone,onReadyChange,children,document=false}
 }
 beforeEach(()=>{api.mockReset().mockImplementation(async(url:string)=>url.includes('/enquiries?')?{enquiries:[{id:'customer-one',customerName:'Fictional Alex',phone:'07700 900123',email:'alex@example.test'}],canCreate:true}:{enquiryId:'customer-one',confirmedAt:'2026-10-21T12:00:00Z'});});
 it('does not record anything until staff explicitly confirm, then saves the complete message',async()=>{
- render(<Fixture/>);await screen.findByText('Save against Fictional Alex.');
+ render(<Fixture/>);
+ expect(api).toHaveBeenCalledWith('/api/staff/phone-shares/enquiries?id=customer-one');
+ await screen.findByText('Save against Fictional Alex.');
  expect(api.mock.calls.filter(([url])=>url.endsWith('/confirm-whatsapp'))).toHaveLength(0);
  fireEvent.click(screen.getByRole('button',{name:'I’ve sent it'}));
  expect(await screen.findByText('WhatsApp sent — staff confirmed')).toBeVisible();
@@ -153,3 +155,15 @@ it('summarises the selected customer and allows a deliberate change without repl
  expect(screen.getByRole('button',{name:'I’ve sent it'})).toBeDisabled();
  expect(screen.queryByRole('checkbox',{name:'Create a new enquiry instead'})).toBeNull();
  });
+
+
+it('uses the canonical customer thread when a saved sale references a merged enquiry',async()=>{
+ api.mockImplementation(async(url:string)=>url.includes('/enquiries?')?{enquiries:[{id:'customer-merged',requestedEnquiryId:'customer-one',customerName:'Current Alex',phone:'07700 900123',email:'current@example.test'}],canCreate:true}:{enquiryId:'customer-merged',confirmedAt:'2026-10-21T12:00:00Z'});
+ render(<Fixture/>);await screen.findByText('Save against Current Alex.');
+ expect(screen.getByRole('button',{name:'I’ve sent it'})).toBeEnabled();
+ expect(api.mock.calls.filter(([url])=>url.endsWith('/confirm-whatsapp'))).toHaveLength(0);
+ fireEvent.click(screen.getByRole('button',{name:'I’ve sent it'}));
+ await screen.findByText('WhatsApp sent — staff confirmed');
+ expect(JSON.parse(api.mock.calls.find(([url])=>url.endsWith('/confirm-whatsapp'))![1].body)).toMatchObject({enquiryId:'customer-merged',confirmed:true});
+ expect(screen.getByRole('link',{name:'Open customer enquiry'})).toHaveAttribute('href',expect.stringContaining('enquiryId=customer-merged'));
+});

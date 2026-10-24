@@ -17,6 +17,7 @@ beforeEach(() => {
 
 it("opens the reviewed internal email composer with the exact message and document links, without sending", async () => {
   const view = render(<InternalShareEmail open onOpenChange={() => {}} enquiryId="enquiry" customerPhone="07700 900123" grantId="pack" subject="Your invoice" message={message}/>);
+  expect(state.api).toHaveBeenCalledWith('/api/staff/phone-shares/enquiries?id=enquiry');
   await waitFor(() => expect(screen.getByRole("textbox", { name: "Customer email" })).toHaveValue("alex@example.test"));
   await waitFor(() => expect(screen.getByRole("button", { name: "Continue to email" })).toBeEnabled());
   expect(writes()).toHaveLength(0);
@@ -89,4 +90,19 @@ it("rechecks protected signing links before opening an internal email draft", as
   expect(check).toHaveBeenCalledOnce();
   expect(writes()).toHaveLength(0);
   expect(state.composer).not.toHaveBeenCalled();
+});
+
+
+it('prepares email against the canonical thread after the sale enquiry has been merged',async()=>{
+ const canonical={...customer,id:'enquiry-merged',customerName:'Current Alex',requestedEnquiryId:'enquiry',email:'current@example.test'};
+ state.api.mockImplementation(async(path:string)=>path.includes('/enquiries?')?{enquiries:[canonical],canCreate:true}:{enquiry:canonical,customerEmail:canonical.email});
+ render(<InternalShareEmail open onOpenChange={()=>{}} enquiryId="enquiry" subject="Delivery details" message={message}/>);
+ await waitFor(()=>expect(screen.getByRole('button',{name:'Continue to email'})).toBeEnabled());
+ expect(screen.getByText('Save the email against Current Alex.')).toBeVisible();
+ expect(writes()).toHaveLength(0);fireEvent.click(screen.getByRole('button',{name:'Continue to email'}));
+ await screen.findByRole('region',{name:'Internal email composer'});
+ expect(JSON.parse(writes()[0][1].body)).toMatchObject({enquiryId:'enquiry-merged',email:'current@example.test'});
+ expect(JSON.parse(writes()[0][1].body)).not.toHaveProperty('newCustomer');
+ expect(state.composer.mock.calls.at(-1)![0].entry.id).toBe('enquiry-merged');
+ expect(state.api.mock.calls.some(([path])=>path.endsWith('/email')||path.endsWith('/confirm-whatsapp'))).toBe(false);
 });

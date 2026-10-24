@@ -1,5 +1,5 @@
 import { WhatsAppConfirmation, type WhatsAppConfirmationRequest, type WhatsAppConfirmationResult } from "./whatsapp-confirmation";
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useId, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { QueryClientContext } from "@tanstack/react-query";
 import { type WhatsAppTemplateId, type WhatsAppTemplateVariable } from "@workspace/vehicle-meta";
@@ -56,6 +56,7 @@ export function ShareQr({
   beforeGenerate?: () => Promise<void>;
 }) {
   const cache = useContext(QueryClientContext);
+  const availabilityId = useId();
   const sharingSettings = usePhoneSharingSettings(whatsapp);
   const sharingUnavailable = whatsapp && !sharingSettings.enabled;
   const [open, setOpen] = useState(false),
@@ -234,6 +235,14 @@ export function ShareQr({
   const directQr = whatsappUrl && new TextEncoder().encode(whatsappUrl).length <= 2000;
   const qrUrl = whatsapp ? (whatsappUrl ? (directQr ? whatsappUrl : grant?.id ? `${grant!.url}?wa=${encodeURIComponent(phone)}` : null) : null) : grant?.url;
   const expired = Boolean(grant?.expiresAt && Date.parse(grant.expiresAt) <= now);
+  const sharingBlocked = sharingUnavailable && (!grant || expired);
+  const settingsFailed = sharingBlocked && sharingSettings.data === undefined && sharingSettings.isError;
+  const sharingReason = sharingBlocked ? sharingSettings.data?.enabled === false
+    ? "WhatsApp QR is turned off in Settings → Emails & documents → WhatsApp & QR. Use email instead."
+    : settingsFailed
+      ? "WhatsApp sharing could not be checked. Retry the settings check, or use email instead."
+      : "Checking WhatsApp sharing settings…"
+    : undefined;
   const localRecording = purpose === "record-video" && Boolean(grant?.url && ["localhost","127.0.0.1","[::1]"].includes(new URL(grant.url).hostname));
   async function useEmail() {
     if(onEmailFallback){try{await onEmailFallback(grant?.messageBody);setOpen(false);}catch{setError("Could not prepare the email. Your message is kept here.");}}
@@ -267,8 +276,9 @@ export function ShareQr({
     </div>
     {whatsapp && grant.expiresAt && <p className="phone-share-step-note">Attachment link expires {new Date(grant.expiresAt).toLocaleString("en-GB")}. Keep the link private.</p>}
   </div>;
+  const trigger = <Button type="button" variant="outline" disabled={disabled || sharingBlocked} aria-describedby={sharingBlocked ? availabilityId : undefined} title={sharingReason} onClick={()=>void generate()}><QrCode size={17} aria-hidden="true"/>{label}</Button>;
   return <>
-    <Button type="button" variant="outline" disabled={disabled || (sharingUnavailable && (!grant || expired))} title={sharingUnavailable && (!grant || expired) ? "WhatsApp QR sharing is unavailable. Check Settings → Emails & documents → WhatsApp & QR." : undefined} onClick={()=>void generate()}><QrCode size={17} aria-hidden="true"/>{label}</Button>
+    {sharingBlocked ? <span className="phone-share-unavailable">{trigger}<span id={availabilityId} className="phone-share-availability" role="status">{sharingReason}{settingsFailed && <Button type="button" variant="ghost" disabled={sharingSettings.isFetching} onClick={()=>void sharingSettings.refetch()}>{sharingSettings.isFetching ? "Checking settings…" : "Retry WhatsApp settings"}</Button>}</span></span> : trigger}
     <Dialog open={open} onOpenChange={setOpen}><DialogContent className={`phone-share-dialog ${whatsapp?"phone-share-whatsapp-dialog":""}`}><DialogHeader>
       <DialogTitle>{purpose==="record-video"?"Record on your phone":whatsapp?"Send on WhatsApp":"Share from your phone"}</DialogTitle>
       <DialogDescription>{purpose==="record-video"?"Scan, sign in and record this car. Your video stays private until you review and publish it.":whatsapp?"Choose the customer, scan to send from your phone, then record that you’ve sent it.":"Scan to open the message and documents on your phone. You choose how to share them. Nothing sends automatically."}</DialogDescription>

@@ -69,7 +69,8 @@ vi.mock("@/components/sales-demo/sales-document", () => ({
 }));
 vi.mock('@/components/portal/sale-review-reminder', () => ({ SaleReviewReminder: () => null }));
 vi.mock('@/components/portal/sold-vehicle-customer-review', () => ({ SoldVehicleCustomerReview: () => null }));
-vi.mock('@/components/share-qr',()=>({ShareQr:({source,onEmailFallback,disabled}:{source?:{documentId?:string};onEmailFallback?:()=>void;disabled?:boolean})=><button disabled={disabled} data-document-id={source?.documentId} onClick={onEmailFallback}>Use email instead</button>}));
+vi.mock('@/components/portal/dealer-administration', () => ({useStaffAccess: () => ({data:{permissions:['sales.manage','sales.handover']}})}));
+vi.mock('@/components/share-qr',()=>({ShareQr:({source,onEmailFallback,disabled,label}:{source?:{documentId?:string};onEmailFallback?:()=>void;disabled?:boolean;label?:string})=><button disabled={disabled} data-document-id={source?.documentId} onClick={onEmailFallback}>{label === 'WhatsApp confirmation' ? label : 'Use email instead'}</button>}));
 import { SalesWorkspace } from "./sales-demo";
 import { emptyDraft } from "@/components/sales-demo/model";
 const initialStockCars = structuredClone(state.stock.cars);
@@ -712,6 +713,33 @@ it("returns document WhatsApp sharing to its internal invoice email controls wit
   expect(mutations()).toHaveLength(0);
   expect(state.sales[0]).toEqual(snapshot);
   expect(state.fetch.mock.calls.some(([path])=>String(path).includes("/phone-shares/email-enquiry"))).toBe(false);
+});
+
+it.each(['full','deposit'] as const)('keeps one collection/delivery panel when opening, emailing and reopening a saved %s invoice', async kind => {
+  const warnings = vi.spyOn(console,'error').mockImplementation(()=>{});
+  try {
+  let sale = fixturePayment(savedSale({fulfilment:{method:'delivery',viewed:'viewed',address:'25 Test Road',recipient:'Jamie Taylor',phone:'07700900123',scheduledDate:'2026-10-27',timeWindow:'Afternoon',instructions:'',driver:'',stage:'booked'}}),kind === 'full' ? '10000' : '500',kind === 'full' ? 'final-payment' : 'deposit');
+  sale = fixtureCommand(sale,{action:'issue-invoice',kind,acknowledge:true});
+  const frozenDocuments = structuredClone(sale.documents), frozenPayments = structuredClone(sale.payments);
+  await mountSaved(sale);
+  expect(screen.getAllByRole('region',{name:'Collection and delivery'})).toHaveLength(1);
+  for (let pass=0;pass<2;pass++) {
+    fireEvent.click(screen.getByRole('button',{name:'Use email instead'}));
+    await screen.findByRole('heading',{name:'Your invoice is ready.'});
+    expect(screen.getAllByRole('region',{name:'Collection and delivery'})).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button',{name:'Email customer'}));
+    await waitFor(()=>expect(screen.getByRole('status')).toHaveTextContent('Invoice emailed to the customer.'));
+    expect(screen.getAllByRole('region',{name:'Collection and delivery'})).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button',{name:'Return to this sale'}));
+    fireEvent.click(screen.getByRole('button',{name:'Sale summary'}));
+    await screen.findByRole('heading',{name:'Sale summary'});
+    expect(screen.getAllByRole('region',{name:'Collection and delivery'})).toHaveLength(1);
+  }
+  expect(state.sales[0].documents).toEqual(frozenDocuments);
+  expect(state.sales[0].payments).toEqual(frozenPayments);
+  expect(state.pdf).not.toHaveBeenCalled();
+  expect(warnings.mock.calls.filter(args=>String(args[0]).includes('same key'))).toHaveLength(0);
+  } finally {warnings.mockRestore();}
 });
 
 it('shows reminders and marks a paid car sold without final checklist writes', async () => {

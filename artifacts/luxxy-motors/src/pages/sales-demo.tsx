@@ -816,7 +816,7 @@ export function SalesWorkspace({
                   </div>
                   {dirty && <p className="invoice-resume-unsaved" role="status">Your unsaved entries are still here. Save details or return to the payment form to record them.</p>}
                   <dl className="invoice-resume-totals" aria-label="Sale amounts"><div><dt>Agreed total</dt><dd>{saleMoney(total.totalDue)}</dd></div><div><dt>Paid</dt><dd>{saleMoney(total.confirmedPaid)}</dd></div><div data-balance={total.balance === 0 ? "settled" : "due"}><dt>{total.balance < 0 ? "Customer credit" : "Balance due"}</dt><dd>{saleMoney(Math.abs(total.balance))}</dd></div></dl>
-                  <SaleHandover key={record.id} sale={record} onSaved={sale => accept({sale})} />
+                  <SaleHandover key={`handover:${record.id}`} sale={record} onSaved={sale => accept({sale})} />
                   {resumeAction && <div className="invoice-resume-next"><div><strong>Pick up where you left off</strong><p>{resumeAction.note}</p></div><Button disabled={busy} onClick={resumeAction.run}>{resumeAction.label}<ArrowRight size={16} aria-hidden="true" /></Button></div>}
                   <div className="invoice-resume-records">
                     <section aria-labelledby="resume-payments-heading"><h2 id="resume-payments-heading">Payment history</h2><p>{rows.length ? `${rows.length} ${rows.length === 1 ? "entry" : "entries"} recorded` : "No payments recorded yet."}</p>{latestPayment && <small>Latest: {saleMoney(latestPayment.signedAmountPence)} · {paymentDate(latestPayment.date)} · {latestPayment.method}</small>}{total.pending > 0 && <small>{saleMoney(total.pending)} pending — not yet received.</small>}<Button variant="outline" disabled={busy} onClick={() => resumeAt(2)}>Record payment</Button></section>
@@ -824,7 +824,7 @@ export function SalesWorkspace({
                   </div>
                   {rows.length > 0 && <section className="invoice-summary-payments" aria-label="Recorded payments"><ul>{rows.map(row => <li key={row.id} data-status={row.status}><div><strong>{saleMoney(row.signedAmountPence)}</strong><span>{paymentDate(row.date)} · {row.method}</span></div><small>{row.status === "confirmed" ? row.signedAmountPence < 0 ? "Returned / reversed" : "Received" : row.status}{row.reference && ` · ${row.reference}`}</small></li>)}</ul></section>}
                   <div className="invoice-resume-edit"><span>{record.completedAt ? "Completed details are locked. Issued invoices remain unchanged." : "Need to correct something?"}</span><Button variant="ghost" disabled={busy} onClick={() => resumeAt(0)}>{record.completedAt ? "View vehicle details" : "Edit vehicle & price"}</Button><Button variant="ghost" disabled={busy} onClick={() => resumeAt(1)}>{record.completedAt ? "View customer details" : "Edit customer details"}</Button></div>
-                  {(record.completedAt || record.lifecycle?.status === 'sold') && <><SaleReviewReminder key={record.id} sale={record} reviewUrl={settings.contact.googleReviewUrl || ''} onSaved={setRecord} /><SoldVehicleCustomerReview saleId={record.id} /></>}
+                  {(record.completedAt || record.lifecycle?.status === 'sold') && <><SaleReviewReminder key={`review-reminder:${record.id}`} sale={record} reviewUrl={settings.contact.googleReviewUrl || ''} onSaved={setRecord} /><SoldVehicleCustomerReview saleId={record.id} /></>}
                   {record.documents.length > 1 && <details className="invoice-resume-paperwork"><summary>All saved paperwork ({record.documents.length})</summary>{[...record.documents].reverse().map(document => <div key={document.id}><span>{document.title}<small>{document.number}</small></span><Button variant="outline" size="sm" disabled={busy} onClick={() => documentAction(document, "print")}>Open {document.number}</Button></div>)}</details>}
                 </section>
               ) : issued ? (
@@ -867,9 +867,9 @@ export function SalesWorkspace({
                     </Button>
                     {record && <ShareQr disabled={busy} source={{kind:'document',saleId:record.id,documentId:issued.id}} whatsapp label="WhatsApp QR" onEmailFallback={() => prepareDocumentEmail(issued)} />}
                   </div>
-                  {record && <SaleHandover key={record.id} sale={record} onSaved={sale => accept({sale})} />}
-                  {issued.invoiceKind === 'full' && record && <SaleReviewReminder key={record.id} sale={record} reviewUrl={settings.contact.googleReviewUrl || ''} onSaved={setRecord} />}
-                  {issued.invoiceKind === 'full' && record && <SoldVehicleCustomerReview key={`${record.id}:${record.lifecycle?.status ?? 'draft'}`} saleId={record.id} />}
+                  {record && <SaleHandover key={`handover:${record.id}`} sale={record} onSaved={sale => accept({sale})} />}
+                  {issued.invoiceKind === 'full' && record && <SaleReviewReminder key={`review-reminder:${record.id}`} sale={record} reviewUrl={settings.contact.googleReviewUrl || ''} onSaved={setRecord} />}
+                  {issued.invoiceKind === 'full' && record && <SoldVehicleCustomerReview key={`sold-customers:${record.id}:${record.lifecycle?.status ?? 'draft'}`} saleId={record.id} />}
                   {issued.invoiceKind === "full" &&
                     !record?.completedAt &&
                     !soldChoice && (

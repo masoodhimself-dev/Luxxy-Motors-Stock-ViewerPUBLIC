@@ -49,3 +49,31 @@ it('keeps editable arrangements after validation errors so staff can correct the
 it('does not replace a different sale after staff leave while a save is in flight',async()=>{
  let finish:(value:unknown)=>void=()=>{};state.fetch.mockImplementation(()=>new Promise(resolve=>{finish=resolve}));const view=show();fireEvent.click(screen.getByRole('button',{name:'Mark on the way'}));view.unmount();await act(async()=>{finish({sale:sale()});await Promise.resolve()});expect(state.saved).not.toHaveBeenCalled();
 });
+
+
+it('keeps delivery sharing on the sale enquiry and uses the confirmed delivery contact', async()=>{
+ const record=sale();record.draft.sourceEnquiryId='enquiry-original';record.draft.fulfilment!.phone='07958539535';
+ state.fetch.mockResolvedValue({sale:record});show(record);
+ expect(state.share).toMatchObject({customerPhone:'07958539535',customerName:'Buyer',customerEmail:'buyer@example.test',enquiryId:'enquiry-original',vehicleId:'car-a'});
+ expect(state.share.source).toMatchObject({kind:'message',enquiryId:'enquiry-original',vehicleId:'car-a'});
+ await state.share.beforeGenerate();
+ expect(state.fetch).toHaveBeenCalledExactlyOnceWith('/api/sale-workspace/sale-a');
+ await act(async()=>{await state.share.onEmailFallback('Staff reviewed delivery wording');});
+ expect(state.email).toMatchObject({message:'Staff reviewed delivery wording',enquiryId:'enquiry-original',customerPhone:'07958539535',customerEmail:'buyer@example.test',vehicleId:'car-a',createNew:false});
+ expect(state.fetch.mock.calls.every(([,options])=>!options?.method)).toBe(true);
+});
+
+it('rechecks current arrangements before the internal email composer can prepare its customer record', async()=>{
+ const record=sale();state.fetch.mockResolvedValue({sale:{...record,revision:record.revision+1}});show(record);
+ fireEvent.click(screen.getByRole('button',{name:'Email confirmation'}));
+ expect(state.fetch).not.toHaveBeenCalled();
+ await expect(state.email.verifyBeforePrepare()).rejects.toThrow(/arrangements changed/);
+ expect(state.fetch).toHaveBeenCalledExactlyOnceWith('/api/sale-workspace/sale-a');
+});
+
+it('does not allow a sharing preflight to finish after staff leave the sale',async()=>{
+ let finish:(value:unknown)=>void=()=>{};state.fetch.mockImplementation(()=>new Promise(resolve=>{finish=resolve}));const view=show();
+ const verified=state.share.beforeGenerate();view.unmount();finish({sale:sale()});
+ await expect(verified).rejects.toThrow(/arrangements changed/);
+ expect(state.fetch.mock.calls.every(([,options])=>!options?.method)).toBe(true);
+});

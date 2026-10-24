@@ -9,7 +9,7 @@ import { customerWhatsAppNumber } from "@/lib/customer-whatsapp";
 // Public car galleries also use ShareQr; load the staff composer only on demand.
 const EnquiryEmailComposer = lazy(() => import("@/components/portal/enquiry-email-composer").then(module => ({ default: module.EnquiryEmailComposer })));
 
-type Customer = { id: string; customerName: string; phone?: string; email?: string; vehicleTitle?: string };
+type Customer = { id: string; requestedEnquiryId?: string; customerName: string; phone?: string; email?: string; vehicleTitle?: string };
 type Preparation = {
   requestId: string; enquiryId?: string; newCustomer?: { name: string; email?: string };
   vehicleId?: string; grantId?: string; phone?: string; email: string;
@@ -45,24 +45,26 @@ export function InternalShareEmail({ open, onOpenChange, subject, message, enqui
     if (!open || prepared) return;
     let current = true;
     setLoading(true); setLookupError("");
-    const timer = setTimeout(() => {
+    const lookup = () => {
       void customFetch<{ enquiries: Customer[]; canCreate?: boolean }>(`/api/staff/phone-shares/enquiries?${enquiryId ? `id=${encodeURIComponent(enquiryId)}` : `q=${encodeURIComponent(search)}`}`)
         .then(data => {
           if (!current) return;
           const rows = data.enquiries || [];
           setCustomers(rows); setCanCreate(data.canCreate === true);
-          const customer = enquiryId ? rows.find(item => item.id === enquiryId) : undefined;
+          const customer = enquiryId ? rows.find(item => item.id === enquiryId || item.requestedEnquiryId === enquiryId) : undefined;
           if (customer?.email && !currentEmail.current.trim()) setEmail(customer.email);
           if (enquiryId && !customer) setLookupError("This enquiry could not be found. Reopen the current customer record.");
         })
         .catch(() => { if (current) setLookupError("Customer details could not be checked. Try again."); })
         .finally(() => { if (current) setLoading(false); });
-    }, 200);
+    };
+    const timer = enquiryId ? (lookup(), undefined) : setTimeout(lookup, 200);
     return () => { current = false; clearTimeout(timer); };
   }, [open, prepared, enquiryId, search, lookupRetry]);
   const locked = Boolean(attempt.current);
-  const selectedId = enquiryId || selected;
-  const customer = customers.find(item => item.id === selectedId);
+  const requestedId = enquiryId || selected;
+  const customer = customers.find(item => item.id === requestedId || item.requestedEnquiryId === requestedId);
+  const selectedId = customer?.id || requestedId;
   const expired = Boolean(expiresAt && Date.parse(expiresAt) <= Date.now());
   const ready = !expired && validEmail(email) && !loading && !lookupError && (create ? canCreate && name.trim().length >= 2 : Boolean(customer));
   async function begin() {

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 
-type Customer = {id:string;customerName:string;phone?:string;email?:string;vehicleTitle?:string;vehicleId?:string};
+type Customer = {id:string;requestedEnquiryId?:string;customerName:string;phone?:string;email?:string;vehicleTitle?:string;vehicleId?:string};
 export type WhatsAppConfirmationRequest = {requestId:string;enquiryId?:string;newCustomer?:{name:string;email?:string};vehicleId?:string;grantId?:string;phone:string;message:string;confirmed:true};
 export type WhatsAppConfirmationResult = {enquiryId:string;confirmedAt:string;preview?:boolean};
 export function WhatsAppConfirmation({enquiryId,customerName='',customerEmail='',preferKnownCustomer=false,disabled=false,phone,message,grantId,vehicleId,attempt,result,onConfirmed,onLock,onPhone,onEmail,onReadyChange,onCustomerChange,children}: {
@@ -26,11 +26,11 @@ export function WhatsAppConfirmation({enquiryId,customerName='',customerEmail=''
   useEffect(()=>{
     let current=true;
     setLoading(true);setLookupError('');
-    const timer=setTimeout(()=>{
+    const lookup=()=>{
       void customFetch<{enquiries:Customer[];canCreate?:boolean}>(`/api/staff/phone-shares/enquiries?${enquiryId?`id=${encodeURIComponent(enquiryId)}`:`q=${encodeURIComponent(search)}`}`)
         .then(data=>{
           if(!current)return;
-          const rows=data?.enquiries||[],customer=enquiryId?rows.find(item=>item.id===enquiryId):undefined;
+          const rows=data?.enquiries||[],customer=enquiryId?rows.find(item=>item.id===enquiryId||item.requestedEnquiryId===enquiryId):undefined;
           setCustomers(rows);setCanCreate(data?.canCreate===true);
           // Documents already identify the customer and vehicle. Never attach an
           // invoice to another car merely because its enquiry shares a phone.
@@ -48,10 +48,14 @@ export function WhatsAppConfirmation({enquiryId,customerName='',customerEmail=''
         })
         .catch(()=>{if(current)setLookupError('Customer enquiries could not be checked. Try again before sharing.');})
         .finally(()=>{if(current)setLoading(false);});
-    },200);
+    };
+    // An exact customer link is ready to verify immediately; only typing a
+    // search needs a debounce. This also keeps invoice QR handoffs responsive.
+    const timer=enquiryId ? (lookup(),undefined) : setTimeout(lookup,200);
     return()=>{current=false;clearTimeout(timer);};
   },[enquiryId,search,lookupRetry]);
-  const selectedId=enquiryId||selected,customer=customers.find(item=>item.id===selectedId);
+  const requestedId=enquiryId||selected,customer=customers.find(item=>item.id===requestedId||item.requestedEnquiryId===requestedId);
+  const selectedId=customer?.id||requestedId;
   const number=customerWhatsAppNumber(phone),savedNumber=customerWhatsAppNumber(customer?.phone||'');
   const mismatch=!create&&number&&savedNumber&&number!==savedNumber;
   const mismatchKey=mismatch?JSON.stringify([selectedId,number,savedNumber]):'';

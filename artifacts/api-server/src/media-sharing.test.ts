@@ -1022,6 +1022,53 @@ test("isolated real HTTP media and QR workflow", async (t) => {
       assert.equal(owned.json.enquiries.length,0);
       assert.equal(Number((await pool.query('SELECT count(*) FROM enquiry_emails')).rows[0].count),0);
     });
+    await t.test('saved-sale customer lookup resolves merged enquiry chains and confirmation stays on the canonical thread',async()=>{
+      const original=randomUUID(),intermediate=randomUUID(),canonical=randomUUID();
+      for(const [id,name] of [[original,'Original sale buyer'],[intermediate,'Intermediate buyer'],[canonical,'Current buyer']])await db.insert(enquiriesTable).values({id,dealerId:a.dealerId,type:'general',customerName:name,email:'current@example.test',phone:'07700 900123',vehicleId:carA,message:'Fictional merged sharing test'});
+      await pool.query('UPDATE enquiries SET merged_into_id=$1 WHERE id=$2',[intermediate,original]);
+      await pool.query('UPDATE enquiries SET merged_into_id=$1 WHERE id=$2',[canonical,intermediate]);
+      const emailsBefore=Number((await pool.query('SELECT count(*) FROM enquiry_emails')).rows[0].count);
+      const lookup=await call('/staff/phone-shares/enquiries?id='+original);
+      assert.equal(lookup.status,200,JSON.stringify(lookup.json));
+      assert.deepEqual(lookup.json.enquiries,[{id:canonical,requestedEnquiryId:original,customerName:'Current buyer',phone:'07700 900123',email:'current@example.test',vehicleTitle:null,vehicleId:carA}]);
+      assert.equal(Number((await pool.query('SELECT count(*) FROM enquiry_events WHERE enquiry_id=ANY($1::uuid[])',[[original,intermediate,canonical]])).rows[0].count),0);
+      const prepared=await call('/staff/phone-shares/email-enquiry',{method:'POST',body:{requestId:randomUUID(),enquiryId:original,email:'current@example.test'}});
+      assert.equal(prepared.status,201,JSON.stringify(prepared.json));assert.equal(prepared.json.enquiry.id,canonical);
+      const confirmed=await call('/staff/phone-shares/confirm-whatsapp',{method:'POST',body:{requestId:randomUUID(),enquiryId:lookup.json.enquiries[0].id,phone:'07700 900123',message:'Fictional delivery confirmation reviewed by staff.',confirmed:true}});
+      assert.equal(confirmed.status,201,JSON.stringify(confirmed.json));assert.equal(confirmed.json.enquiryId,canonical);
+      const events=(await pool.query('SELECT enquiry_id,detail FROM enquiry_events WHERE enquiry_id=ANY($1::uuid[])',[[original,intermediate,canonical]])).rows;
+      assert.equal(events.length,1);assert.equal(events[0].enquiry_id,canonical);assert.equal(events[0].detail.deliveryVerified,false);
+      assert.equal(Number((await pool.query('SELECT count(*) FROM enquiry_emails')).rows[0].count),emailsBefore);
+    });
+    await t.test('invoice sharing keeps its authorised car in vehicle history after the customer case is merged into another car',async()=>{
+      const original=randomUUID(),canonical=randomUUID(),otherCar=randomUUID(),sentBefore=sentEmails.length;
+      await db.insert(vehiclesTable).values({id:otherCar,dealerId:a.dealerId,source:'autotrader',advertId:'merged-case-other-car',title:'Another fictional car',sourcePrice:11000});
+      for(const [id,vehicleId] of [[original,carA],[canonical,otherCar]])await db.insert(enquiriesTable).values({id,dealerId:a.dealerId,type:'general',customerName:'Fictional buyer',email:'buyer@example.test',phone:'07700 900123',vehicleId,message:'Fictional same customer, different car'});
+      const before=(await pool.query('SELECT state FROM sale_workspace WHERE id=$1',[saleId])).rows[0].state;
+      const pack=await call('/staff/phone-shares',{method:'POST',body:{...input,requestId:randomUUID(),token:createHash('sha256').update(randomUUID()).digest('hex')}});
+      assert.equal(pack.status,201,JSON.stringify(pack.json));assert.equal(pack.json.vehicleId,carA);
+      await pool.query('UPDATE enquiries SET merged_into_id=$1 WHERE id=$2',[canonical,original]);
+      const lookup=await call('/staff/phone-shares/enquiries?id='+original);assert.equal(lookup.json.enquiries[0].id,canonical);assert.equal(lookup.json.enquiries[0].vehicleId,otherCar);
+      const confirmation={requestId:randomUUID(),enquiryId:lookup.json.enquiries[0].id,grantId:pack.json.id,vehicleId:carB,phone:'07700 900123',message:pack.json.message,confirmed:true};
+      const saved=await call('/staff/phone-shares/confirm-whatsapp',{method:'POST',body:confirmation});assert.equal(saved.status,201,JSON.stringify(saved.json));assert.equal(saved.json.enquiryId,canonical);
+      const event=(await pool.query('SELECT enquiry_id,vehicle_id,vehicle_title,vehicle_url,detail FROM enquiry_events WHERE id=$1',[confirmation.requestId])).rows[0];
+      assert.equal(event.enquiry_id,canonical);assert.equal(event.vehicle_id,carA);assert.equal(event.vehicle_title,'Fictional car');assert.equal(event.vehicle_url,a.canonicalOrigin+'/vehicle/'+carA);assert.equal(event.detail.grantId,pack.json.id);assert.deepEqual(event.detail.attachmentNames,['INV-TEST.pdf']);
+      assert.equal((await call('/staff/phone-shares/confirm-whatsapp',{method:'POST',body:{...confirmation,requestId:randomUUID()},user:b.dealerId,host:'b.example.test'})).status,409);
+      // Even a malformed legacy pack cannot attribute history to another dealer's car.
+      await pool.query("UPDATE customer_phone_shares SET payload=jsonb_set(payload,'{vehicleId}',to_jsonb($1::text)) WHERE id=$2",[carB,pack.json.id]);
+      const foreign=await call('/staff/phone-shares/confirm-whatsapp',{method:'POST',body:{...confirmation,requestId:randomUUID()}});assert.equal(foreign.status,404);
+      assert.equal(Number((await pool.query('SELECT count(*) FROM enquiry_events WHERE enquiry_id=$1',[canonical])).rows[0].count),1);
+      assert.deepEqual((await pool.query('SELECT state FROM sale_workspace WHERE id=$1',[saleId])).rows[0].state,before);assert.equal(sentEmails.length,sentBefore);
+    });
+    await t.test('merged sharing lookup cannot follow another dealership or loop forever',async()=>{
+      const own=randomUUID(),foreign=randomUUID(),cycleA=randomUUID(),cycleB=randomUUID();
+      for(const [id,dealerId] of [[own,a.dealerId],[foreign,b.dealerId],[cycleA,a.dealerId],[cycleB,a.dealerId]])await db.insert(enquiriesTable).values({id,dealerId,type:'general',customerName:'Fictional protected buyer',message:'Fictional lookup test'});
+      await pool.query('UPDATE enquiries SET merged_into_id=$1 WHERE id=$2',[foreign,own]);
+      const hidden=await call('/staff/phone-shares/enquiries?id='+own);assert.equal(hidden.status,200);assert.deepEqual(hidden.json.enquiries,[]);
+      const foreignLookup=await call('/staff/phone-shares/enquiries?id='+own,{user:b.dealerId,host:'b.example.test'});assert.equal(foreignLookup.status,200);assert.deepEqual(foreignLookup.json.enquiries,[]);
+      await pool.query('UPDATE enquiries SET merged_into_id=$1 WHERE id=$2',[cycleB,cycleA]);await pool.query('UPDATE enquiries SET merged_into_id=$1 WHERE id=$2',[cycleA,cycleB]);
+      const blocked=await call('/staff/phone-shares/enquiries?id='+cycleA);assert.equal(blocked.status,409);assert.match(blocked.json.error,/merged enquiry needs review/);
+    });
     await t.test("explicit new-customer confirmation creates one enquiry and does not affect appointments or money",async()=>{
       const input={requestId:randomUUID(),newCustomer:{name:'Fictional new video customer'},vehicleId:carA,phone:'+447700900999',message:'Here is your video: https://a.example.test/vehicle/'+carA,confirmed:true};
       const created=await call('/staff/phone-shares/confirm-whatsapp',{method:'POST',body:input});

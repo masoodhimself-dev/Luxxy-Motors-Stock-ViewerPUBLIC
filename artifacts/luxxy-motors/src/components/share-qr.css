@@ -4,6 +4,9 @@
   max-height: 90dvh;
   overflow: auto;
 }
+.phone-share-unavailable { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 6px; max-width: 320px; min-width: 0; }
+.phone-share-availability { display: block; color: #536b7a; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.phone-share-availability .db-btn { display: inline-flex; min-height: 44px; padding: 6px 0; margin: 0; font-size: 12px; text-decoration: underline; }
 .phone-share-qr {
   display: flex;
   justify-content: center;
