@@ -29,7 +29,7 @@ const prep = {
   notes: "",
 };
 for (const width of [390, 820, 1440])
-  test(`staff inventory opens a car, preparation and a scoped QR at ${width}`, async ({
+  test(`staff inventory opens clear car sections and a scoped QR at ${width}`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 950 });
@@ -48,21 +48,9 @@ for (const width of [390, 820, 1440])
     await page.route("**/api/staff/inventory", (r) =>
       r.fulfill({ json: { cars: [car] } }),
     );
-    let preparation = { ...prep };
     await page.route(`**/api/staff/inventory/${id}`, (r) =>
-      r.fulfill({ json: { car, preparation, photos: [] } }),
+      r.fulfill({ json: { car, preparation: prep, photos: [] } }),
     );
-    await page.route(`**/api/staff/inventory/${id}/preparation`, (r) => {
-      const b = r.request().postDataJSON();
-      expect(b.tasks.cleaning).toBe("done");
-      preparation = {
-        ...preparation,
-        revision: 1,
-        tasks: b.tasks,
-        notes: b.notes,
-      };
-      return r.fulfill({ json: { saved: true } });
-    });
     await page.route(`**/api/staff/inventory/${id}/upload-session`, (r) =>
       r.fulfill({
         status: 201,
@@ -74,17 +62,18 @@ for (const width of [390, 820, 1440])
       }),
     );
     await page.goto("/portal?section=inventory");
-    await page.getByRole("button", { name: /2019 Ford Focus/ }).click();
-    await expect(
-      page.getByRole("heading", { name: "Private vehicle photos" }),
-    ).toBeVisible();
-    await page.getByLabel("Cleaning & presentation").selectOption("done");
-    await page.getByRole("button", { name: "Save preparation" }).click();
-    await expect(page.getByRole("status")).toContainText("Preparation saved");
+    await expect(page.getByRole("combobox", { name: "Preparation" })).toHaveCount(0);
+    await expect(page.getByRole("progressbar")).toHaveCount(0);
+    await page.getByRole("button", { name: "Open 2019 Ford Focus, AB19 XYZ", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Photos & video", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "Save preparation" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Private photos" })).toBeVisible();
     await page.getByRole("button", { name: "Upload from phone" }).click();
     await expect(
       page.getByRole("link", { name: "Open upload page on this device" }),
     ).toHaveAttribute("href", /staff-upload#fictional-upload-token/);
+    await page.getByRole("button", { name: "Customers", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Private photos" })).toBeHidden();
     await expect(
       page.getByRole("link", { name: "Open vehicle activity" }),
     ).toHaveAttribute(

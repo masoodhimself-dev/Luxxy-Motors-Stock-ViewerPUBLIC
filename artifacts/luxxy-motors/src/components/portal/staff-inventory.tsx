@@ -2,17 +2,15 @@ import { ShareQr } from '@/components/share-qr';
 import { VehicleVideoEditor } from './vehicle-video';
 import { VehicleDescriptionEditor } from './vehicle-description-editor';
 import { UKNumberPlate } from '@/components/uk-number-plate';
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { customFetch, useGetStaffDirectory } from "@workspace/api-client-react";
+import { customFetch } from "@workspace/api-client-react";
 import { useSearch, useLocation, Link } from "wouter";
 import { QRCodeSVG } from "qrcode.react";
 import {
   ArrowLeft,
   Camera,
   CarFront,
-  ClipboardCheck,
-  Clock3,
   Copy,
   ExternalLink,
   History,
@@ -22,9 +20,6 @@ import {
   RefreshCw,
   Search,
   ScanLine,
-  SlidersHorizontal,
-  UserRound,
-  X,
 } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,12 +90,6 @@ type Customer = {
   email: string | null;
 };
 type Grant = { id: string; url: string; expiresAt: string; category?: string };
-const taskLabels = {
-  cleaning: "Cleaning & presentation",
-  inspection: "Vehicle inspection",
-  mot: "MOT paperwork check",
-  servicing: "Service preparation",
-};
 const send = <T,>(path: string, method = "GET", body?: unknown) =>
   customFetch<T>(path, {
     method,
@@ -119,10 +108,6 @@ const price = (v: number | null) =>
         currency: "GBP",
         maximumFractionDigits: 0,
       }).format(v);
-const clearedTasks = (tasks: Tasks | null | undefined) =>
-  (Object.keys(taskLabels) as (keyof Tasks)[]).filter(
-    (key) => tasks?.[key] === "done" || tasks?.[key] === "not_required",
-  ).length;
 const carRegistration = (car: Car) =>
   car.plate?.trim() ||
   car.vrm?.trim() ||
@@ -139,22 +124,10 @@ const hasNumberPlate = (car: Car) => {
     /\d/.test(registration)
   );
 };
-const londonDate = () => {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date());
-  return ["year", "month", "day"]
-    .map((type) => parts.find((part) => part.type === type)?.value)
-    .join("-");
-};
-type AttentionFilter = "all" | "missing-plate" | "missing-service" | "overdue";
+type AttentionFilter = "all" | "missing-plate" | "missing-service";
 const attentionLabels: Record<Exclude<AttentionFilter, "all">, string> = {
   "missing-plate": "Missing number plate",
   "missing-service": "No service-book photos",
-  overdue: "Overdue preparation",
 };
 const carFacts = (car: Car) =>
   [
@@ -280,18 +253,15 @@ export function StaffInventory({
   selectedRef.current = selected;
   const [term, setTerm] = useState(""),
     [filter, setFilter] = useState("all"),
-    [draft, setDraft] = useState<Prep>(),
     [grant, setGrant] = useState<Grant>(),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false);
-  const filterPanelId = useId();
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [preparationFilter, setPreparationFilter] = useState("all");
   const [attentionFilter, setAttentionFilter] =
     useState<AttentionFilter>("all");
   const [customerLink, setCustomerLink] = useState("");
   const [sort, setSort] = useState("latest");
+  const [detailSection, setDetailSection] = useState("media");
   const [searchTerm, setSearchTerm] = useState("");
   const [plateQueue, setPlateQueue] = useState<PlateEntryCar[] | null>(null);
   useEffect(() => {
@@ -309,8 +279,7 @@ export function StaffInventory({
         `/api/staff/inventory/${selected}/customers`,
       ),
   });
-  const access = useStaffAccess(),
-    directory = useGetStaffDirectory();
+  const access = useStaffAccess();
   const scope = filter === "archived" ? "archived" : "current";
   const list = useInfiniteQuery({
     queryKey: ["staff-inventory", "list", scope, searchTerm],
@@ -349,15 +318,12 @@ export function StaffInventory({
     setPlateDraft(null);
     setEmailCustomer(null);
     setPhotoCategory("service_book");
-    setDraft(undefined);
+    setDetailSection("media");
     setGrant(undefined);
     setError("");
     setNotice("");
     setCustomerLink("");
   }, [selected]);
-  useEffect(() => {
-    if (details.data && !draft) setDraft(details.data.preparation);
-  }, [details.data, draft]);
   async function act(work: () => Promise<unknown>, message: string) {
     const vehicleId = selected;
     setBusy(true);
@@ -373,39 +339,10 @@ export function StaffInventory({
       setBusy(false);
     }
   }
-  async function save() {
-    if (!draft || !selected) return;
-    const vehicleId = selected;
-    await act(async () => {
-      await send(`/api/staff/inventory/${vehicleId}/preparation`, "PUT", {
-        revision: draft.revision,
-        tasks: draft.tasks,
-        assignedToId: draft.assigned_to_id,
-        dueDate: draft.due_date,
-        notes: draft.notes,
-      });
-      if (selectedRef.current !== vehicleId) return;
-      const fresh = await details.refetch();
-      if (selectedRef.current === vehicleId && fresh.data?.car.id === vehicleId)
-        setDraft(fresh.data.preparation);
-    }, "Preparation saved.");
-  }
-  function canLeavePreparation() {
-    if (
-      draft &&
-      details.data &&
-      JSON.stringify(draft) !== JSON.stringify(details.data.preparation) &&
-      !window.confirm("Leave unsaved preparation changes?")
-    )
-      return false;
-    return true;
-  }
   function open(id: string | null) {
-    if (!canLeavePreparation()) return;
     navigate(`/portal?section=inventory${id ? `&vehicleId=${id}` : ""}`);
   }
   function openActivity(id: string) {
-    if (!canLeavePreparation()) return;
     navigate(`/portal?section=history&view=vehicles&vehicleId=${id}`);
   }
   async function copyCustomerLink(id: string) {
@@ -473,32 +410,12 @@ export function StaffInventory({
   }
   const loadedCars = (list.data?.pages.flatMap((page) => page.cars) ?? []).map(vehicle => ({ ...vehicle, title: vehicleDisplayTitle(vehicle) }));
   const counts = list.data?.pages[0].counts;
-  const today = londonDate();
-  const isOverdue = (vehicle: Car) =>
-    Boolean(
-      vehicle.due_date &&
-      vehicle.due_date < today &&
-      clearedTasks(vehicle.tasks) < 4 &&
-      vehicle.inventory_status !== "sold",
-    );
-  const needsAttention = (vehicle: Car, attention: AttentionFilter) =>
-    attention === "all" ||
-    (attention === "missing-plate" && !hasNumberPlate(vehicle)) ||
-    (attention === "missing-service" &&
-      (vehicle.service_photo_count ?? 0) === 0) ||
-    (attention === "overdue" && isOverdue(vehicle));
+  const needsAttention = (vehicle: Car, attention: AttentionFilter) => attention === "all" || (attention === "missing-plate" && !hasNumberPlate(vehicle)) || (attention === "missing-service" && (vehicle.service_photo_count ?? 0) === 0);
   const currentCars = loadedCars.filter(
     (vehicle) =>
       !vehicle.archived_at &&
       vehicle.inventory_status !== "archived" &&
-      (filter === "all" || vehicle.inventory_status === filter) &&
-      (preparationFilter === "all" ||
-        (preparationFilter === "pending" && clearedTasks(vehicle.tasks) < 4) ||
-        (preparationFilter === "cleared" &&
-          clearedTasks(vehicle.tasks) === 4) ||
-        (preparationFilter === "unassigned" && !vehicle.assigned_to_id) ||
-        (preparationFilter === "mine" &&
-          vehicle.assigned_to_id === directory.data?.currentUserId)),
+      (filter === "all" || vehicle.inventory_status === filter),
   );
   const cars =
     scope === "archived"
@@ -510,9 +427,7 @@ export function StaffInventory({
     cars.sort((a, b) =>
       sort === "name"
         ? a.title.localeCompare(b.title)
-        : sort === "preparation"
-          ? clearedTasks(a.tasks) - clearedTasks(b.tasks)
-          : a.price == null
+        : a.price == null
             ? b.price == null
               ? 0
               : 1
@@ -741,95 +656,12 @@ export function StaffInventory({
                   </p>
                 )}
               </div>
-              <div className="inventory-workspace-grid">
-                <VehicleVideoEditor key={`video-${car.id}`} vehicleId={car.id} vehicleTitle={vehicleDisplayTitle(car)} writable={Boolean(writable)} />
-                <VehicleDescriptionEditor key={car.id} vehicleId={car.id} writable={Boolean(writable || (details.data?.descriptionPreview && access.data?.permissions.includes("sales.manage")))} />
-                <section className="inventory-card inventory-preparation-card">
-                  <h3>
-                    <ClipboardCheck aria-hidden size={18} />
-                    Preparation
-                  </h3>
-                  <p>
-                    Internal work tracking; these checks do not certify
-                    condition or change public vehicle facts.
-                  </p>
-                  {draft && (
-                    <>
-                      <fieldset disabled={!writable || busy}>
-                        {(Object.keys(taskLabels) as (keyof Tasks)[]).map(
-                          (key) => (
-                            <div className="inventory-prep-task" key={key}>
-                              <label><input type="checkbox" checked={draft.tasks[key] === "done"} disabled={draft.tasks[key] === "not_required"} onChange={event => setDraft({...draft,tasks:{...draft.tasks,[key]:event.target.checked ? "done" : "pending"}})} />{taskLabels[key]}</label>
-                              <button type="button" aria-label={`${draft.tasks[key] === "not_required" ? "Require" : "Not required:"} ${taskLabels[key]}`} aria-pressed={draft.tasks[key] === "not_required"} onClick={() => setDraft({...draft,tasks:{...draft.tasks,[key]:draft.tasks[key] === "not_required" ? "pending" : "not_required"}})}>{draft.tasks[key] === "not_required" ? "Not required · undo" : "Not required"}</button>
-                            </div>
-                          ),
-                        )}
-                        <label>
-                          Assigned to
-                          <NativeSelect
-                            value={draft.assigned_to_id ?? ""}
-                            onChange={(e) =>
-                              setDraft({
-                                ...draft,
-                                assigned_to_id: e.target.value || null,
-                              })
-                            }
-                          >
-                            <option value="">Unassigned</option>
-                            {draft.assigned_to_id &&
-                              !directory.data?.members.some(
-                                (m) => m.id === draft.assigned_to_id,
-                              ) && (
-                                <option value={draft.assigned_to_id}>
-                                  Previously assigned staff member
-                                </option>
-                              )}
-                            {directory.data?.members.map((m) => (
-                              <option key={m.id} value={m.id}>
-                                {m.name}
-                              </option>
-                            ))}
-                          </NativeSelect>
-                        </label>
-                        <label>
-                          Target date
-                          <Input
-                            type="date"
-                            value={draft.due_date ?? ""}
-                            onChange={(e) =>
-                              setDraft({
-                                ...draft,
-                                due_date: e.target.value || null,
-                              })
-                            }
-                          />
-                        </label>
-                        <label>
-                          Internal notes
-                          <textarea
-                            maxLength={2000}
-                            rows={3}
-                            value={draft.notes}
-                            onChange={(e) =>
-                              setDraft({ ...draft, notes: e.target.value })
-                            }
-                          />
-                        </label>
-                      </fieldset>
-                      {directory.isError && (
-                        <p role="alert">
-                          Staff list unavailable. Refresh before assigning work.
-                        </p>
-                      )}
-                      {writable && (
-                        <Button disabled={busy} onClick={() => void save()}>
-                          {busy ? "Saving…" : "Save preparation"}
-                        </Button>
-                      )}
-                    </>
-                  )}
-                </section>
-                <section className="inventory-card inventory-private-photos">
+              <div className="inventory-detail-sections" role="group" aria-label="Car detail sections">
+                {([['media','Photos & video'],['description','Description'],['customers','Customers']] as const).map(([value,label]) => <Button key={value} variant="ghost" aria-pressed={detailSection === value} onClick={() => setDetailSection(value)}>{label}</Button>)}
+              </div>
+              <div className="inventory-workspace-grid" data-section={detailSection}>
+                <div className="inventory-detail-editor" hidden={detailSection !== 'description'}><VehicleDescriptionEditor key={car.id} vehicleId={car.id} writable={Boolean(writable || (details.data?.descriptionPreview && access.data?.permissions.includes("sales.manage")))} /></div>
+                <section className="inventory-card inventory-private-photos" hidden={detailSection !== "media"}>
                   <h3>
                     <Camera aria-hidden size={18} />
                     Private photos
@@ -961,7 +793,8 @@ export function StaffInventory({
                     </div>
                   )}
                 </section>
-                <section className="inventory-card inventory-customer-email">
+                <div className="inventory-detail-editor" hidden={detailSection !== 'media'}><VehicleVideoEditor key={`video-${car.id}`} vehicleId={car.id} vehicleTitle={vehicleDisplayTitle(car)} writable={Boolean(writable)} /></div>
+                <section className="inventory-card inventory-customer-email" hidden={detailSection !== "customers"}>
                   <h3>
                     <Mail aria-hidden size={18} />
                     Message a customer
@@ -974,7 +807,7 @@ export function StaffInventory({
                   <NativeSelect
                     aria-label="Choose customer to email"
                     value=""
-                    disabled={busy || previewReadOnly}
+                    disabled={busy || previewReadOnly || customers.isLoading || customers.isError}
                     onChange={(e) =>
                       setEmailCustomer(
                         customers.data?.customers.find(
@@ -990,8 +823,9 @@ export function StaffInventory({
                       </option>
                     ))}
                   </NativeSelect>
+                  {customers.isError && <div role="alert"><p>Customer enquiries could not be loaded.</p><Button variant="outline" onClick={() => void customers.refetch()}>Retry customer enquiries</Button></div>}
                   {!previewReadOnly &&
-                    !customers.isLoading &&
+                    !customers.isLoading && !customers.isError &&
                     !customers.data?.customers.length && (
                       <p className="inventory-muted">
                         Log a customer enquiry for this car first.{" "}
@@ -1025,9 +859,9 @@ export function StaffInventory({
                     Open vehicle activity
                   </Link>
                 </Button>
-                <Button asChild variant="ghost">
+                {isAdvertisedCar(car) && <Button asChild variant="ghost">
                   <Link href={`/vehicle/${car.id}`}>Customer vehicle page</Link>
-                </Button>
+                </Button>}
               </section>
             </>
           )}
@@ -1057,46 +891,10 @@ export function StaffInventory({
                   </button>
                 )}
               </label>
-              {scope === "current" && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="inventory-filter-toggle"
-                  aria-label="Filters"
-                  aria-expanded={filtersOpen}
-                  aria-controls={filterPanelId}
-                  onClick={() => setFiltersOpen((open) => !open)}
-                >
-                  <SlidersHorizontal aria-hidden size={16} />
-                  Filters
-                  {preparationFilter !== "all" && (
-                    <span className="inventory-filter-count">1</span>
-                  )}
-                </Button>
-              )}
+
             </div>
             {scope === "current" && (
-              <div
-                className="inventory-work-filters"
-                id={filterPanelId}
-                data-collapsed={!filtersOpen}
-              >
-                <label>
-                  <span>Preparation</span>
-                  <NativeSelect
-                    aria-label="Preparation"
-                    value={preparationFilter}
-                    onChange={(e) => setPreparationFilter(e.target.value)}
-                  >
-                    <option value="all">All preparation</option>
-                    <option value="pending">Work to do</option>
-                    <option value="cleared">Checks cleared</option>
-                    <option value="unassigned">Unassigned</option>
-                    {directory.data?.currentUserId && (
-                      <option value="mine">Assigned to me</option>
-                    )}
-                  </NativeSelect>
-                </label>
+              <div className="inventory-work-filters">
                 <label>
                   <span>Sort</span>
                   <NativeSelect
@@ -1105,7 +903,6 @@ export function StaffInventory({
                     onChange={(e) => setSort(e.target.value)}
                   >
                     <option value="latest">Newest in stock</option>
-                    <option value="preparation">Preparation remaining</option>
                     <option value="price-low">Price: low to high</option>
                     <option value="price-high">Price: high to low</option>
                     <option value="name">Make / model</option>
@@ -1145,7 +942,7 @@ export function StaffInventory({
             <p className="inventory-result-count" aria-live="polite">
               {list.isFetching && !list.isFetchingNextPage
                 ? "Searching…"
-                : `${cars.length} ${cars.length === 1 ? "car" : "cars"}${term.trim() || preparationFilter !== "all" || attentionFilter !== "all" || (filter !== "all" && scope !== "archived") ? " shown" : ""}`}
+                : `${cars.length} ${cars.length === 1 ? "car" : "cars"}${term.trim() || attentionFilter !== "all" || (filter !== "all" && scope !== "archived") ? " shown" : ""}`}
             </p>
           </div>
           {scope === "current" && !list.isLoading && !list.isError && (
@@ -1158,7 +955,6 @@ export function StaffInventory({
                 [
                   ["missing-plate", ScanLine],
                   ["missing-service", Camera],
-                  ["overdue", Clock3],
                 ] as const
               ).map(([value, Icon]) => {
                 const count = currentCars.filter((vehicle) =>
@@ -1189,38 +985,6 @@ export function StaffInventory({
               })}
             </div>
           )}
-          {scope === "current" &&
-            (preparationFilter !== "all" || attentionFilter !== "all") && (
-              <div className="inventory-active-filters">
-                {preparationFilter !== "all" && (
-                  <button
-                    type="button"
-                    onClick={() => setPreparationFilter("all")}
-                    aria-label="Clear preparation filter"
-                  >
-                    Preparation:{" "}
-                    {preparationFilter === "pending"
-                      ? "Work to do"
-                      : preparationFilter === "cleared"
-                        ? "Checks cleared"
-                        : preparationFilter === "mine"
-                          ? "Assigned to me"
-                          : "Unassigned"}
-                    <X aria-hidden size={13} />
-                  </button>
-                )}
-                {attentionFilter !== "all" && (
-                  <button
-                    type="button"
-                    onClick={() => setAttentionFilter("all")}
-                    aria-label="Clear car check filter"
-                  >
-                    {attentionLabels[attentionFilter]}{" "}
-                    <X aria-hidden size={13} />
-                  </button>
-                )}
-              </div>
-            )}
           {list.isLoading && <p role="status">Loading cars…</p>}
           {list.isError && (
             <p role="alert" className="inventory-error">
@@ -1229,7 +993,7 @@ export function StaffInventory({
           )}
           <div className="inventory-car-list">
             {cars.map((c) => (
-              <article className="inventory-car" key={c.id}>
+              <article className="inventory-car" data-status={c.inventory_status} key={c.id}>
                 <StockPhoto car={c} onOpen={() => open(c.id)} />
                 <button
                   type="button"
@@ -1258,35 +1022,6 @@ export function StaffInventory({
                     </div>
                   </div>
                   <div className="inventory-row-work">
-                    <span
-                      className="inventory-prep-summary"
-                      data-preparation={
-                        clearedTasks(c.tasks) === 4
-                          ? "complete"
-                          : clearedTasks(c.tasks) > 0
-                            ? "in-progress"
-                            : "empty"
-                      }
-                    >
-                      <ClipboardCheck aria-hidden size={14} />
-                      <span>
-                        {c.tasks
-                          ? clearedTasks(c.tasks) === 4 ? "Preparation complete" : `${4 - clearedTasks(c.tasks)} preparation checks to do`
-                          : "Preparation not started"}
-                      </span>
-                      <span
-                        className="inventory-prep-track"
-                        role="progressbar"
-                        aria-label={`${c.title} preparation checks cleared`}
-                        aria-valuemin={0}
-                        aria-valuemax={4}
-                        aria-valuenow={clearedTasks(c.tasks)}
-                      >
-                        <span
-                          style={{ width: `${clearedTasks(c.tasks) * 25}%` }}
-                        />
-                      </span>
-                    </span>
                     {(c.service_photo_count ?? 0) > 0 && <span
                       className="inventory-service-photos"
                       data-has-photos={(c.service_photo_count ?? 0) > 0}
@@ -1295,27 +1030,6 @@ export function StaffInventory({
                       <Camera aria-hidden size={14} />
                       {c.service_photo_count} service photos
                     </span>}
-                    {c.assigned_to_id && (
-                      <span>
-                        <UserRound aria-hidden size={14} />
-                        {directory.data?.members.find(
-                          (member) => member.id === c.assigned_to_id,
-                        )?.name ?? "Assigned"}
-                      </span>
-                    )}
-                    {c.due_date && (
-                      <span
-                        className={
-                          isOverdue(c) ? "inventory-work-overdue" : undefined
-                        }
-                      >
-                        {isOverdue(c) ? "Overdue" : "Due"}{" "}
-                        {new Date(`${c.due_date}T12:00:00`).toLocaleDateString(
-                          "en-GB",
-                          { day: "numeric", month: "short" },
-                        )}
-                      </span>
-                    )}
                     {c.source_status === "missing" && (
                       <span className="inventory-source-missing">
                         Absent from source
@@ -1354,14 +1068,12 @@ export function StaffInventory({
                   : "No cars match these filters."}
               </p>
               {(term ||
-                preparationFilter !== "all" ||
                 attentionFilter !== "all" ||
                 (filter !== "all" && scope !== "archived")) && (
                 <Button
                   variant="outline"
                   onClick={() => {
                     setTerm("");
-                    setPreparationFilter("all");
                     setAttentionFilter("all");
                     if (scope === "current") setFilter("all");
                   }}

@@ -1,7 +1,7 @@
 .device-alerts { margin:-6px 0 19px; color:#203747; }
 .device-alerts-toggle { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:8px 12px; border:1px solid #dbe4eb; border-radius:10px; background:#fff; font-size:13px; font-weight:600; }
 .device-alerts-toggle > svg:last-child { transition:transform .15s ease; }.device-alerts-toggle > .is-open { transform:rotate(180deg); }
-.device-alerts-toggle:focus-visible,.device-alerts-panel input:focus-visible,.device-alerts-panel select:focus-visible,.device-alerts-other summary:focus-visible { outline:3px solid #7299af; outline-offset:3px; }
+.device-alerts-toggle:focus-visible,.device-alerts-panel input:focus-visible,.device-alerts-panel select:focus-visible,.device-alerts-other summary:focus-visible { outline:3px solid var(--portal-accent, #215a7e); outline-offset:3px; }
 .device-alerts-panel { max-width:760px; margin-top:9px; padding:20px; background:white; border:1px solid #dbe4eb; border-radius:13px; box-shadow:0 2px 6px #17354a08; }
 .device-alerts-intro { display:flex; align-items:flex-start; gap:13px; }.device-alerts-intro > svg { flex-shrink:0; margin-top:3px; color:#537789; }.device-alerts-intro h3 { margin:0 0 5px; font-size:16px; font-weight:650; }.device-alerts-intro p { margin:0; font-size:13px; line-height:1.6; color:#516b7b; }.device-alerts-intro small { display:block; margin-top:7px; color:#657987; font-size:12px; line-height:1.5; }
 .device-alerts-warning,.device-alerts-notice { padding:11px 13px; border-radius:8px; margin-top:13px; font-size:13px; line-height:1.6; background:#fff6e6; color:#775113; }.device-alerts-notice { background:#eaf6f0; color:#256044; }.device-alerts-warning button { margin-left:8px; }

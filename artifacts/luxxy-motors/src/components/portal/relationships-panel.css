@@ -218,7 +218,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 6px 8px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--portal-muted, #586976);
 }
 .relationship-registration {
@@ -237,7 +237,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 3px 8px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--portal-muted, #586976);
 }
@@ -247,9 +247,9 @@
   color: #94a6b2;
 }
 .relationship-last-activity {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
-  color: #71828e;
+  color: var(--portal-muted, #586976);
 }
 .relationship-row-image {
   width: 64px;
@@ -373,7 +373,7 @@
   border: 1px solid #dce5ec;
   border-radius: 4px;
   color: #4b6475;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.7;
   overflow-wrap: anywhere;
 }
@@ -400,6 +400,7 @@
   align-items: center;
   gap: 7px;
   max-width: 100%;
+  min-height: 44px;
   overflow-wrap: anywhere;
   color: var(--portal-muted, #586976);
   font-size: 13px;
@@ -558,7 +559,7 @@
 }
 .relationship-timeline-heading > span {
   color: var(--portal-muted, #586976);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.6;
   text-align: right;
 }
@@ -571,7 +572,7 @@
 }
 .relationship-filters > button {
   padding: 8px 11px;
-  min-height: 38px;
+  min-height: 44px;
   border: 1px solid #dce3e8;
   border-radius: 4px !important;
   background: #fff;
@@ -650,15 +651,15 @@
   min-height: 30px;
 }
 .relationship-kind {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: #4e6a7d;
 }
 .relationship-event-meta time {
   margin-left: auto;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.65;
-  color: #71828e;
+  color: var(--portal-muted, #586976);
 }
 .relationship-event-title {
   display: flex;
@@ -702,7 +703,7 @@
   overflow-wrap: anywhere;
 }
 .relationship-description > button {
-  min-height: 38px;
+  min-height: 44px;
   font-size: 12px;
   color: var(--portal-accent, #215a7e);
   text-decoration: underline;
@@ -715,7 +716,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 38px;
+  min-height: 44px;
   margin-top: 6px;
   font-size: 12px;
   font-weight: 500;
@@ -731,9 +732,9 @@
 }
 .relationship-time-note {
   padding: 0 24px 20px !important;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.65;
-  color: #71828e;
+  color: var(--portal-muted, #586976);
 }
 .relationship-empty {
   display: grid;
@@ -825,8 +826,8 @@
   margin-top: 5px;
 }
 .relationship-updated {
-  font-size: 11px;
-  color: #71828e;
+  font-size: 12px;
+  color: var(--portal-muted, #586976);
   line-height: 1.7;
 }
 .relationship-refreshing {
@@ -987,7 +988,7 @@
   .relationship-match-note {
     margin: 0 16px 20px !important;
     padding: 11px 12px;
-    font-size: 11px;
+    font-size: 12px;
   }
   .relationship-counts {
     padding: 17px 16px !important;
@@ -1018,7 +1019,7 @@
     gap: 6px;
   }
   .relationship-filters > button {
-    min-height: 40px;
+    min-height: 44px;
     padding: 8px 10px;
     font-size: 11px;
   }
@@ -1113,7 +1114,7 @@
 .relationship-timeline-order { font-size: 12px; color: var(--portal-muted, #586976); margin-top: 3px !important; }
 .relationship-filters { padding: 0 20px 14px; gap: 6px; }
 .relationship-filters > button { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; }
-.relationship-filter-count { font-size: 11px; color: #596d7b; }
+.relationship-filter-count { font-size: 12px; color: var(--portal-muted, #586976); }
 .relationship-events { padding-inline: 20px !important; }
 .relationship-event { padding-block: 17px; gap: 12px; }
 .relationship-event:not(:last-child):before { top: 48px; bottom: -11px; }

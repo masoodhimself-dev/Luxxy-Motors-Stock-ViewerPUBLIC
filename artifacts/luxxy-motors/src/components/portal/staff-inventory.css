@@ -1097,3 +1097,51 @@
 .inventory-preparation-card .inventory-prep-task input { width:20px; min-height:20px; height:20px; accent-color:#247456; }
 .inventory-prep-task > button { font-size:11px; color:#61717c; min-height:36px; padding:6px; text-decoration:underline; }
 .inventory-prep-task > button[aria-pressed=true] { color:#245e80; }
+
+/* Clear stock status, fewer controls and readable touch layouts. */
+.inventory-heading-actions { display:flex; align-items:center; flex-wrap:wrap; justify-content:flex-end; gap:8px; }
+.inventory-work-filters { grid-template-columns:minmax(170px,210px); }
+.inventory-attention-filters > button { color:var(--inventory-check-ink); border-color:var(--inventory-check-border); }
+.inventory-attention-filters > button > span { font-size:12px; font-weight:600; }
+.inventory-attention-filters > button[aria-pressed="true"] { outline:2px solid var(--inventory-check-ink); outline-offset:1px; box-shadow:none; }
+.inventory-car { border-left:3px solid var(--portal-neutral-border,#d5dde4); }
+.inventory-car[data-status="available"] { border-left-color:var(--portal-success-border,#bfdfcf); }
+.inventory-car[data-status="reserved"] { border-left-color:var(--portal-warning-border,#ead2a5); }
+.inventory-row-work:not(:has(> span)) { display:none; }
+.inventory-row-work { font-size:12px; }
+.inventory-detail-sections { display:flex; flex-wrap:wrap; gap:6px; border-bottom:1px solid var(--inventory-border); margin:16px 0; padding-bottom:8px; }
+.inventory-detail-sections button { min-height:44px; padding:9px 15px; color:var(--inventory-muted); border:1px solid transparent; }
+.inventory-detail-sections button[aria-pressed="true"] { color:var(--portal-teal,#116773); background:var(--portal-teal-soft,#eaf7f7); border-color:var(--portal-teal-border,#b8dddd); font-weight:600; }
+.inventory-detail-editor { min-width:0; }
+.inventory-detail-editor > .inventory-card { margin:0; }
+.inventory-workspace-grid > [hidden] { display:none !important; }
+.inventory-workspace-grid .inventory-private-photos { order:0; }
+.inventory-workspace-grid .inventory-detail-editor { order:1; }
+.inventory-workspace-grid[data-section="description"] > .inventory-detail-editor,
+.inventory-workspace-grid[data-section="customers"] > .inventory-customer-email { grid-column:1/-1; }
+.inventory-card h3 > svg { color:var(--portal-teal,#116773); }
+.inventory-private-photos { border-top:3px solid var(--portal-info-border,#c9d9ef); }
+.inventory-customer-email { border-top:3px solid var(--portal-violet-border,#d9d0f0); }
+.inventory-customer-email h3 > svg { color:var(--portal-violet,#6754a3); }
+@media(max-width:639px) {
+ .inventory-heading { align-items:flex-start; flex-wrap:wrap; }
+ .inventory-heading-actions { justify-content:flex-start; }
+ .inventory-work-filters { grid-template-columns:minmax(0,1fr); }
+ .inventory-row-registration,.inventory-row-facts,.inventory-photo-original { font-size:12px; }
+ .inventory-row-work { font-size:12px; gap:7px; }
+ .inventory-car { grid-template-columns:76px minmax(0,1fr) 44px; gap:8px; }
+ .inventory-hover-photo,.inventory-no-photo { width:76px; height:72px; }
+ .inventory-detail-sections { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; }
+ .inventory-detail-sections button { padding:8px 6px; min-width:0; font-size:12px; }
+}
+@media(min-width:700px) {
+ .inventory-vehicle-heading { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:14px; align-items:start; }
+ .inventory-detail-actions { margin-top:0; }
+ .inventory-vehicle-controls,.inventory-vehicle-heading > .inventory-muted { grid-column:1/-1; }
+}
+@media(max-width:600px) {
+ .inventory-attention-filters { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); overflow:visible; gap:6px; }
+ .inventory-attention-filters > button { min-width:0; white-space:normal; text-align:left; font-size:12px; line-height:1.4; }
+ .inventory-attention-filters > button > svg { flex-shrink:0; }
+ .inventory-attention-filters > button > span { margin-left:auto; flex-shrink:0; }
+}
