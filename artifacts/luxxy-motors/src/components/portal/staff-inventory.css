@@ -1145,3 +1145,36 @@
  .inventory-attention-filters > button > svg { flex-shrink:0; }
  .inventory-attention-filters > button > span { margin-left:auto; flex-shrink:0; }
 }
+
+/* Use the row's middle column for recorded facts, instead of empty space. */
+.inventory-row-variant { margin:4px 0; font-size:12px; color:var(--inventory-muted); line-height:1.5; overflow-wrap:anywhere; }
+.inventory-specs { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px 18px; min-width:0; margin:0; text-align:left; }
+.inventory-specs > div { min-width:0; }
+.inventory-specs dt { font-size:11px; font-weight:400; color:var(--inventory-muted); }
+.inventory-specs dd { margin:2px 0 0; font-size:13px; font-weight:500; line-height:1.4; color:var(--inventory-ink); overflow-wrap:anywhere; }
+.inventory-row-main > .inventory-specs { grid-column:1/-1; }
+.inventory-row-main > .inventory-row-price { grid-column:2; grid-row:1; }
+.inventory-selected-copy > .inventory-specs { margin:10px 0; }
+@media(min-width:1100px) {
+ .inventory-row-main { grid-template-columns:minmax(180px,.9fr) minmax(360px,1.6fr) auto; gap:20px; }
+ .inventory-row-main > .inventory-specs { grid-column:2; grid-row:1; }
+ .inventory-row-main > .inventory-row-price { grid-column:3; }
+ .inventory-car { padding-block:16px; }
+}
+@media(max-width:699px) {
+ .inventory-specs { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 12px; }
+ .inventory-specs dt { font-size:12px; }
+ .inventory-row-main > .inventory-row-price { grid-column:1; grid-row:auto; }
+ .inventory-row-main > .inventory-specs { padding:8px 0; border-block:1px solid var(--inventory-border); }
+ .inventory-row-main { gap:8px; }
+}
+@media(max-width:699px) {
+ .inventory-car { position:relative; display:block; padding:12px; }
+ .inventory-car > :is(.inventory-hover-photo,.inventory-no-photo) { position:absolute; top:12px; left:12px; width:76px; height:72px; z-index:1; }
+ .inventory-car > .inventory-car-actions { position:absolute; right:7px; top:7px; z-index:2; }
+ .inventory-car-open { display:block; width:100%; }
+ .inventory-row-main { display:flex; flex-direction:column; align-items:stretch; }
+ .inventory-row-identity { padding-left:86px; padding-right:32px; min-height:84px; }
+ .inventory-row-main > .inventory-specs { grid-template-columns:repeat(3,minmax(0,1fr)); padding-block:10px; gap:8px; }
+ .inventory-row-price { padding-top:2px; }
+}

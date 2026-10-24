@@ -17,6 +17,7 @@ test('local operations enforce roles, require publication revisions and preserve
     const inventory=await(await fetch(`${base}/api/staff/inventory`)).json();assert.equal(inventory.previewReadOnly,true);assert.equal(inventory.nextCursor,null);assert.equal(inventory.counts.archived,0);assert.ok(inventory.cars.length>0);assert.equal(inventory.matchedCount,inventory.cars.length);
     const sample=previewStock.cars[0]!,listed=inventory.cars.find((car:{id:string})=>car.id===sample.id);
     assert.deepEqual({year:listed.year,mileage:listed.mileage,fuel:listed.fuel,transmission:listed.transmission},{year:sample.year??null,mileage:sample.mileage??null,fuel:sample.fuel??null,transmission:sample.transmission??null});
+    assert.deepEqual({variant:listed.variant,trim:listed.trim,body_type:listed.body_type,engine_size:listed.engine_size,engine_cc:listed.engine_cc,colour:listed.colour,doors:listed.doors,seats:listed.seats},{variant:sample.variant??null,trim:sample.trim??null,body_type:sample.bodyType??null,engine_size:sample.engineSize??null,engine_cc:sample.engineCC??null,colour:sample.colour??null,doors:sample.doors??null,seats:sample.seats??null});
     assert.ok(inventory.cars.every((car:Record<string,unknown>)=>!['images','rawSourceData','raw_source_data','photo_bytes'].some(key=>key in car)));
     const detail=await(await fetch(`${base}/api/staff/inventory/${sample.id}`)).json();
     assert.equal(detail.previewReadOnly,true);assert.deepEqual(detail.car,listed);assert.deepEqual(detail.photos,[]);

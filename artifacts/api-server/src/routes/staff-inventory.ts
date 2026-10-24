@@ -36,7 +36,7 @@ router.use("/staff/inventory", requireStaff, (req, res, next) => {
 });
 const vehicle = (id: string) =>
   db.execute(
-    sql`SELECT id,title,make,model,coalesce(website_title_override,title) AS display_title,coalesce(website_price_override,source_price) AS price,plate,vrm,registration,year,mileage,fuel,transmission,inventory_status,source_status,missing_count,archived_at,coalesce(website_hero_image_override,source_hero_image) AS photo FROM vehicles WHERE id=${id}::uuid AND dealer_id=${currentDealerId()}`,
+    sql`SELECT id,title,make,model,variant,trim,coalesce(website_title_override,title) AS display_title,coalesce(website_price_override,source_price) AS price,plate,vrm,registration,year,mileage,fuel,transmission,body_type,engine_size,engine_cc,colour,doors,seats,inventory_status,source_status,missing_count,archived_at,coalesce(website_hero_image_override,source_hero_image) AS photo FROM vehicles WHERE id=${id}::uuid AND dealer_id=${currentDealerId()}`,
   );
 router.get("/staff/inventory", async (req, res) => {
   const input = z.object({ scope: z.enum(["current", "archived"]).default("current"), q: z.string().trim().max(200).default(""), cursor: z.string().max(250).optional() }).safeParse(req.query);

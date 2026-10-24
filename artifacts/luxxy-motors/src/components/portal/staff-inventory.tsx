@@ -63,6 +63,14 @@ type Car = {
   mileage?: number | null;
   fuel?: string | null;
   transmission?: string | null;
+  variant?: string | null;
+  trim?: string | null;
+  body_type?: string | null;
+  engine_size?: string | null;
+  engine_cc?: number | null;
+  colour?: string | null;
+  doors?: number | null;
+  seats?: number | null;
 };
 type Prep = {
   revision: number;
@@ -129,15 +137,24 @@ const attentionLabels: Record<Exclude<AttentionFilter, "all">, string> = {
   "missing-plate": "Missing number plate",
   "missing-service": "No service-book photos",
 };
-const carFacts = (car: Car) =>
-  [
-    car.year,
-    car.mileage != null ? `${car.mileage.toLocaleString("en-GB")} miles` : null,
-    car.fuel,
-    car.transmission,
-  ]
-    .filter((value) => value !== null && value !== undefined && value !== "")
-    .join(" · ");
+function InventorySpecs({ car }: { car: Car }) {
+  const facts = [
+    ['Year', car.year],
+    ['Mileage', car.mileage != null ? `${car.mileage.toLocaleString('en-GB')} miles` : null],
+    ['Fuel', car.fuel],
+    ['Gearbox', car.transmission],
+    ['Body', car.body_type],
+    ['Colour', car.colour],
+    ['Engine', car.engine_size?.trim() || (car.engine_cc && car.engine_cc > 0 ? `${car.engine_cc.toLocaleString('en-GB')} cc` : null)],
+    ['Doors / seats', [car.doors && car.doors > 0 ? `${car.doors} doors` : null, car.seats && car.seats > 0 ? `${car.seats} seats` : null].filter(Boolean).join(' / ')],
+  ].filter(([,value]) => value !== null && value !== undefined && value !== '');
+  if (!facts.length) return null;
+  return <dl className="inventory-specs" aria-label="Vehicle specifications">{facts.map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>;
+}
+function carVariant(car: Car) {
+  const variant = car.variant?.trim() || '', trim = car.trim?.trim() || '';
+  return variant && trim && !variant.toLowerCase().includes(trim.toLowerCase()) ? `${variant} / ${trim}` : variant || trim;
+}
 const isAdvertisedCar = (car: Car) =>
   !car.archived_at &&
   ["available", "reserved"].includes(car.inventory_status) &&
@@ -565,9 +582,8 @@ export function StaffInventory({
                       <InventoryStatus car={car} />
                     </div>
                     <p className="inventory-plate">{carRegistration(car)}</p>
-                    {carFacts(car) && (
-                      <p className="inventory-muted">{carFacts(car)}</p>
-                    )}
+                    {carVariant(car) && <p className="inventory-row-variant">{carVariant(car)}</p>}
+                    <InventorySpecs car={car} />
                     <strong className="inventory-price">
                       {price(car.price)}
                     </strong>
@@ -1004,6 +1020,7 @@ export function StaffInventory({
                   <div className="inventory-row-main">
                     <div className="inventory-row-identity">
                       <h3>{c.title}</h3>
+                      {carVariant(c) && <p className="inventory-row-variant">{carVariant(c)}</p>}
                       <p className="inventory-row-registration">
                         {hasNumberPlate(c) ? <UKNumberPlate value={carRegistration(c)} variant="front" size="sm" testId={`inventory-plate-${c.id}`} /> : carRegistration(c)}
                         {!hasNumberPlate(c) && (
@@ -1012,10 +1029,8 @@ export function StaffInventory({
                           </span>
                         )}
                       </p>
-                      {carFacts(c) && (
-                        <p className="inventory-row-facts">{carFacts(c)}</p>
-                      )}
                     </div>
+                    <InventorySpecs car={c} />
                     <div className="inventory-row-price">
                       <strong>{price(c.price)}</strong>
                       <InventoryStatus car={c} />

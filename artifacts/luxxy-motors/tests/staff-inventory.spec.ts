@@ -10,6 +10,7 @@ const car = {
   title: "2019 Ford Focus",
   display_title: "2019 Ford Focus",
   price: 10995,
+  year:2019,mileage:32000,fuel:'Petrol',transmission:'Manual',variant:'1.0 EcoBoost Titanium',trim:'Titanium',body_type:'Hatchback',colour:'Blue',engine_size:'1.0L',doors:5,seats:5,
   plate: "AB19 XYZ",
   inventory_status: "available",
   source_status: "live",
@@ -64,7 +65,11 @@ for (const width of [390, 820, 1440])
     await page.goto("/portal?section=inventory");
     await expect(page.getByRole("combobox", { name: "Preparation" })).toHaveCount(0);
     await expect(page.getByRole("progressbar")).toHaveCount(0);
-    await page.getByRole("button", { name: "Open 2019 Ford Focus, AB19 XYZ", exact: true }).click();
+    const row=page.locator('.inventory-car').first();
+    await expect(row.getByText('Blue',{exact:true})).toBeVisible();
+    await expect(row.getByText('32,000 miles',{exact:true})).toBeVisible();
+    await expect(row.getByText('1.0 EcoBoost Titanium',{exact:true})).toBeVisible();
+    await page.getByRole("button", { name: "Open Ford Focus, AB19 XYZ", exact: true }).click();
     await expect(page.getByRole("button", { name: "Photos & video", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("button", { name: "Save preparation" })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Private photos" })).toBeVisible();

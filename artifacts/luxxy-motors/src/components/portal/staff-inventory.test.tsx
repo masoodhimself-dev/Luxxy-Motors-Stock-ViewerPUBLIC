@@ -274,7 +274,7 @@ it("keeps car identity, price, photos and availability clear without preparation
   state.selected = false;
   state.fetch.mockResolvedValue({
     cars: [
-      { ...car, year: 2020, mileage: 52000, fuel: "Petrol", transmission: "Manual", tasks: {cleaning: "done", inspection: "pending", mot: "not_required", servicing: "pending"}, service_photo_count: 2, assigned_to_id: "staff-one", due_date: "2000-01-01" },
+      { ...car, year: 2020, mileage: 52000, fuel: "Petrol", transmission: "Manual", variant:"1.0 EcoBoost Titanium", trim:"Titanium", body_type:"Hatchback", engine_size:"1.0L", colour:"Blue", doors:5, seats:5, tasks: {cleaning: "done", inspection: "pending", mot: "not_required", servicing: "pending"}, service_photo_count: 2, assigned_to_id: "staff-one", due_date: "2000-01-01" },
       { ...car, id: "second", title: "BMW 1 Series", price: 5000, plate: "ZX22ABC", inventory_status: "available" },
       { ...car, id: "third", title: "Toyota Yaris", price: null, plate: null, vrm: null, registration: null, photo: null, inventory_status: "hidden" },
     ],
@@ -283,7 +283,9 @@ it("keeps car identity, price, photos and availability clear without preparation
   mount();
   expect(await screen.findByRole("heading", { name: "Ford Focus" })).toBeVisible();
   expect(screen.getByRole("heading", { name: "Cars", level: 2 })).toBeVisible();
-  expect(screen.getByText("2020 · 52,000 miles · Petrol · Manual")).toBeVisible();
+  const row = screen.getByRole('heading',{name:'Ford Focus'}).closest('article')!;
+  for (const value of ['2020','52,000 miles','Petrol','Manual','Hatchback','Blue','1.0L','5 doors / 5 seats']) expect(within(row).getByText(value)).toBeVisible();
+  expect(within(row).getByText('1.0 EcoBoost Titanium')).toBeVisible();
   expect(screen.getByText("2 service photos")).toBeVisible();
   expect(screen.queryByRole("combobox", { name: "Preparation" })).not.toBeInTheDocument();
   expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
@@ -637,4 +639,16 @@ it("starts with photos and keeps other work in focused sections without preparat
   fireEvent.click(screen.getByRole("button", { name: "Photos & video" }));
   expect(screen.getByRole("heading", { name: "Private photos" })).toBeVisible();
   expect(state.fetch.mock.calls.every(([, options]) => !options?.method || options.method === "GET")).toBe(true);
+});
+
+it('keeps zero mileage, uses recorded engine capacity and omits unavailable details', async () => {
+ state.selected = false;
+ state.fetch.mockResolvedValue({cars:[{...car,mileage:0,engine_size:null,engine_cc:1498,variant:'SE',trim:'SE',colour:null,body_type:null}],counts:{current:1,archived:0}});
+ mount();
+ const row = (await screen.findByRole('heading',{name:'Ford Focus'})).closest('article')!;
+ expect(within(row).getByText('0 miles')).toBeVisible();
+ expect(within(row).getByText('1,498 cc')).toBeVisible();
+ expect(within(row).getByText('SE')).toBeVisible();
+ expect(within(row).queryByText('Colour')).not.toBeInTheDocument();
+ expect(within(row).queryByText('Body')).not.toBeInTheDocument();
 });

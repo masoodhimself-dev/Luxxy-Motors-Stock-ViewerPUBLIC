@@ -60,7 +60,7 @@ test("private inventory: two-dealer permissions, limited QR upload, exact retrie
       advertId: d,
       title: `Car ${d}`,
       sourcePrice: 9000,
-      ...(d === "a" ? { year: 2019, mileage: 52000, fuel: "Petrol", transmission: "Manual", rawSourceData: { privateSource: "PRIVATE-SOURCE-BULK".repeat(1000) } } : {}),
+      ...(d === "a" ? { year: 2019, mileage: 52000, fuel: "Petrol", transmission: "Manual", variant: "1.2 SE Euro 6", trim: "SE", bodyType: "Hatchback", engineSize: "1.2L", engineCC: 1197, colour: "Blue", doors: 5, seats: 5, rawSourceData: { privateSource: "PRIVATE-SOURCE-BULK".repeat(1000) } } : {}),
     });
   }
   await db
@@ -135,8 +135,8 @@ test("private inventory: two-dealer permissions, limited QR upload, exact retrie
     );
     const listed = (await call("/api/staff/inventory")).data;
     assert.equal(listed.cars.length, 1);
-    const identifyingFacts = (car: Record<string, unknown>) => ({ year: car.year, mileage: car.mileage, fuel: car.fuel, transmission: car.transmission });
-    assert.deepEqual(identifyingFacts(listed.cars[0]), { year: 2019, mileage: 52000, fuel: "Petrol", transmission: "Manual" });
+    const identifyingFacts = (car: Record<string, unknown>) => Object.fromEntries(['year','mileage','fuel','transmission','variant','trim','body_type','engine_size','engine_cc','colour','doors','seats'].map(key => [key, car[key]]));
+    assert.deepEqual(identifyingFacts(listed.cars[0]), { year: 2019, mileage: 52000, fuel: "Petrol", transmission: "Manual", variant: "1.2 SE Euro 6", trim: "SE", body_type: "Hatchback", engine_size: "1.2L", engine_cc: 1197, colour: "Blue", doors: 5, seats: 5 });
     const ownDetail = (await call(`/api/staff/inventory/${carA}`)).data;
     assert.deepEqual(ownDetail.vehiclePhotos, [{ url: "https://images.example.test/front.jpg", caption: "Front" }]);
     assert.deepEqual(identifyingFacts(ownDetail.car), identifyingFacts(listed.cars[0]));

@@ -96,7 +96,7 @@ export async function operationsPreview(req:IncomingMessage,res:ServerResponse,u
         const scope=url.searchParams.get('scope')??'current',q=(url.searchParams.get('q')??'').trim().toLowerCase();
         if(!detail&&(!['current','archived'].includes(scope)||q.length>200||url.searchParams.has('cursor')))throw new SettingsVersionError('Check the inventory search.',400);
         const {readPreviewSaleInventory}=await import('./sales');const statuses=await readPreviewSaleInventory();
-        const all=previewStock.cars.map(car=>({id:car.id,title:car.title,price:car.price,plate:car.plate,vrm:car.vrm,registration:car.registration,year:car.year??null,mileage:car.mileage??null,fuel:car.fuel??null,transmission:car.transmission??null,inventory_status:statuses[car.id]??car.inventoryStatus??'available',source_status:'live',missing_count:0,archived_at:null,photo:car.heroImage,service_photo_count:0,tasks:null}));
+        const all=previewStock.cars.map(car=>({id:car.id,title:car.title,price:car.price,plate:car.plate,vrm:car.vrm,registration:car.registration,year:car.year??null,mileage:car.mileage??null,fuel:car.fuel??null,transmission:car.transmission??null,variant:car.variant??null,trim:car.trim??null,body_type:car.bodyType??null,engine_size:car.engineSize??null,engine_cc:car.engineCC??null,colour:car.colour??null,doors:car.doors??null,seats:car.seats??null,inventory_status:statuses[car.id]??car.inventoryStatus??'available',source_status:'live',missing_count:0,archived_at:null,photo:car.heroImage,service_photo_count:0,tasks:null}));
         if(detail) {
           const car=all.find(car=>car.id===detail[1]);
           if(!car) { send(res,404,{error:'Car not found.',previewReadOnly:true});return true; }
