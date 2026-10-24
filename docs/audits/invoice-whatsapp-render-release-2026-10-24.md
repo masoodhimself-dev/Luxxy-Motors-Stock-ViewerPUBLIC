@@ -25,4 +25,16 @@ Verification after correction:
 
 No schema migration, payment calculation, issued document, automatic sending or service configuration change is included. The browser fixtures initially changed an enquiry ID after invoice issue and correctly triggered the existing stale-invoice protection; moving that fixture setup before issue resolved the test failure without changing application rules. Sandbox localhost binding failures were rerun successfully with the required local-server permission.
 
-Final deployment and live verification will be recorded after the follow-up correction is live. Physical iPhone/iPad hardware and actual customer message delivery are not claimed as verified.
+## Final deployment and live verification
+
+- Correction commit: `a8bc747faf954ba6fe89665c5b99b7230b5103d1`.
+- Render deploy: `dep-dbe726jrjlhs73em0ki0`, live at 08:52:39 UTC (09:52:39 UK).
+- Luxxy and Shore Drive `/api/healthz` and `/api/readyz` all returned HTTP 200 with the expected `ok`/`ready` status.
+- Reopened the original Luxxy invoice after refreshing. It retains exactly one Collection & delivery panel after opening/closing both sharing flows. Its invoice number, delivery booking and saved financial summary remain unchanged.
+- Invoice WhatsApp QR preparation is ready with the invoice recipient normalized to the UK international format, the correct PDF filename and a temporary private document link.
+- Delivery WhatsApp preparation now succeeds for the original walk-in sale. Staff must choose the existing customer enquiry or the explicit new-enquiry option before its QR appears. Selecting the latter in the modal produced the correct prefilled customer number and delivery wording; no enquiry was created because sent confirmation was not pressed.
+- The delivery share's email fallback opens the internal Prepare customer email dialog with the reviewed wording/contact details. The dialog was closed without continuing or sending.
+- Recent Render error/fatal log query returned no entries after the final release.
+- Live proof: `/tmp/luxxy-invoice-render-release-2026-10-24.png`.
+
+No actual email or WhatsApp message was sent; no sent confirmation, sale save/completion, delivery update or payment write was performed. Private sharing links were prepared only and retain their normal expiry. Physical iPhone/iPad hardware and actual customer message delivery are not claimed as verified. Browser runs cover the viewport sizes above.
