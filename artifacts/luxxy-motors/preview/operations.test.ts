@@ -10,17 +10,19 @@ import { previewStock } from './stock';
 test('local operations enforce roles, require publication revisions and preserve concurrent edits in history',async()=>{
   const folder=await mkdtemp(join(tmpdir(),'luxxy-operations-test-'));
   let settings=structuredClone(previewSettings) as unknown as Record<string,unknown>;
-  const server=createServer((req,res)=>{void operationsPreview(req,res,new URL(req.url??'/',`http://${req.headers.host}`),{stateFile:join(folder,'operations.json'),readSettings:async()=>settings,writeSettings:async config=>{settings=config;},readEnquiries:async()=>[],readSales:async()=>[]}).then(handled=>{if(!handled){res.statusCode=200;res.end('allowed');}});});
+  let enquiries:Array<{id:string,status:string,vehicleId:string,appointmentAt?:string,attendance?:string,mergedIntoId?:string,appointmentCancelledAt?:string,appointmentStatus?:string}>=[];
+  const server=createServer((req,res)=>{void operationsPreview(req,res,new URL(req.url??'/',`http://${req.headers.host}`),{stateFile:join(folder,'operations.json'),readSettings:async()=>settings,writeSettings:async config=>{settings=config;},readEnquiries:async()=>enquiries,readSales:async()=>[]}).then(handled=>{if(!handled){res.statusCode=200;res.end('allowed');}});});
   await new Promise<void>((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
   const address=server.address();assert.ok(address&&typeof address!=='string');const base=`http://127.0.0.1:${address.port}`;
   try {
     const inventory=await(await fetch(`${base}/api/staff/inventory`)).json();assert.equal(inventory.previewReadOnly,true);assert.equal(inventory.nextCursor,null);assert.equal(inventory.counts.archived,0);assert.ok(inventory.cars.length>0);assert.equal(inventory.matchedCount,inventory.cars.length);
+    assert.equal(inventory.dealerId,'local-preview');
     const sample=previewStock.cars[0]!,listed=inventory.cars.find((car:{id:string})=>car.id===sample.id);
     assert.deepEqual({year:listed.year,mileage:listed.mileage,fuel:listed.fuel,transmission:listed.transmission},{year:sample.year??null,mileage:sample.mileage??null,fuel:sample.fuel??null,transmission:sample.transmission??null});
     assert.deepEqual({variant:listed.variant,trim:listed.trim,body_type:listed.body_type,engine_size:listed.engine_size,engine_cc:listed.engine_cc,colour:listed.colour,doors:listed.doors,seats:listed.seats},{variant:sample.variant??null,trim:sample.trim??null,body_type:sample.bodyType??null,engine_size:sample.engineSize??null,engine_cc:sample.engineCC??null,colour:sample.colour??null,doors:sample.doors??null,seats:sample.seats??null});
     assert.ok(inventory.cars.every((car:Record<string,unknown>)=>!['images','rawSourceData','raw_source_data','photo_bytes'].some(key=>key in car)));
     const detail=await(await fetch(`${base}/api/staff/inventory/${sample.id}`)).json();
-    assert.equal(detail.previewReadOnly,true);assert.deepEqual(detail.car,listed);assert.deepEqual(detail.photos,[]);
+    assert.equal(detail.dealerId,'local-preview');assert.equal(detail.previewReadOnly,true);assert.deepEqual(detail.car,listed);assert.deepEqual(detail.photos,[]);
     assert.deepEqual(detail.preparation,{revision:0,tasks:{cleaning:'pending',inspection:'pending',mot:'pending',servicing:'pending'},assigned_to_id:null,due_date:null,notes:''});
     assert.deepEqual(await(await fetch(`${base}/api/staff/inventory/${sample.id}/customers`)).json(),{customers:[],previewReadOnly:true});
     assert.equal((await fetch(`${base}/api/staff/inventory/00000000-0000-4000-8000-000000000099`)).status,404);
@@ -29,6 +31,21 @@ test('local operations enforce roles, require publication revisions and preserve
     assert.equal((await fetch(`${base}/api/staff/inventory/${sample.id}/photos/00000000-0000-4000-8000-000000000099`)).status,405);
     // Opening a sample must not manufacture or persist preparation/customer data.
     await assert.rejects(readFile(join(folder,'operations.json')),{code:'ENOENT'});
+    assert.equal(listed.enquiry_count,0);assert.equal(listed.upcoming_test_drive_count,0);assert.deepEqual(listed.stock_changes.items,[]);
+    const visit=new Date(Date.now()+86400000).toISOString();
+    enquiries=[
+      {id:'active',status:'new',vehicleId:sample.id,appointmentAt:visit,appointmentStatus:'confirmed',attendance:'scheduled'},
+      {id:'pending',status:'contacted',vehicleId:sample.id,appointmentAt:visit,appointmentStatus:'pending'},
+      {id:'cancelled',status:'new',vehicleId:sample.id,appointmentAt:visit,appointmentCancelledAt:visit},
+      {id:'completed',status:'contacted',vehicleId:sample.id,appointmentAt:visit,attendance:'completed'},
+      {id:'merged',status:'new',vehicleId:sample.id,appointmentAt:visit,mergedIntoId:'active'},
+      {id:'closed',status:'closed',vehicleId:sample.id,appointmentAt:visit},
+      {id:'other-car',status:'new',vehicleId:'other-car',appointmentAt:visit},
+    ];
+    const actual=(await(await fetch(`${base}/api/staff/inventory`)).json()).cars.find((car:{id:string})=>car.id===sample.id);
+    assert.equal(actual.enquiry_count,4);assert.equal(actual.upcoming_test_drive_count,2);assert.equal(actual.next_test_drive_at,visit);assert.deepEqual(actual.stock_changes.items,[]);
+    assert.deepEqual((await(await fetch(`${base}/api/staff/inventory/${sample.id}`)).json()).car,actual);
+    enquiries=[];
     const archives=await(await fetch(`${base}/api/staff/inventory?scope=archived`)).json();assert.deepEqual(archives.cars,[]);assert.equal(archives.matchedCount,0);
     const invalidScope=await fetch(`${base}/api/staff/inventory?scope=everything`);assert.equal(invalidScope.status,400);
     const original=await fetch(`${base}/api/dealer-settings`);assert.equal(original.headers.get('x-settings-revision'),'0');const config=await original.json();

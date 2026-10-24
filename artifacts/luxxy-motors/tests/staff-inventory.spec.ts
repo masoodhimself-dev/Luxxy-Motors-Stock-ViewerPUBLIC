@@ -16,6 +16,14 @@ const car = {
   source_status: "live",
   service_photo_count: 0,
   tasks: null,
+  enquiry_count: 3,
+  upcoming_test_drive_count: 1,
+  next_test_drive_at: '2026-10-26T14:30:00Z',
+  stock_changes: { checkedAt:'2026-10-24T09:00:00Z', items:[
+    { kind:'price',changedAt:'2026-10-24T09:00:00Z',previousPrice:11995,currentPrice:10995 },
+    { kind:'photos',changedAt:'2026-10-24T09:00:00Z',previousPhotoCount:12,currentPhotoCount:15 },
+    { kind:'details',changedAt:'2026-10-24T09:00:00Z',fields:['Description','Mileage'] },
+  ] },
 };
 const prep = {
   revision: 0,
@@ -42,15 +50,15 @@ for (const width of [390, 820, 1440])
         json: {
           role: "owner",
           permissions: ["sales.manage", "settings.publish"],
-          user: { name: "Test owner" },
+          user: { authUserId:'fictional-owner', name: "Test owner" },
         },
       }),
     );
     await page.route("**/api/staff/inventory", (r) =>
-      r.fulfill({ json: { cars: [car] } }),
+      r.fulfill({ json: { dealerId:'fictional-dealer', cars: [car] } }),
     );
     await page.route(`**/api/staff/inventory/${id}`, (r) =>
-      r.fulfill({ json: { car, preparation: prep, photos: [] } }),
+      r.fulfill({ json: { dealerId:'fictional-dealer', car, preparation: prep, photos: [] } }),
     );
     await page.route(`**/api/staff/inventory/${id}/upload-session`, (r) =>
       r.fulfill({
@@ -69,6 +77,9 @@ for (const width of [390, 820, 1440])
     await expect(row.getByText('Blue',{exact:true})).toBeVisible();
     await expect(row.getByText('32,000 miles',{exact:true})).toBeVisible();
     await expect(row.getByText('1.0 EcoBoost Titanium',{exact:true})).toBeVisible();
+    await expect(row.getByText('3 open enquiries',{exact:true})).toBeVisible();
+    await expect(row.getByText('1 upcoming test drive',{exact:true})).toBeVisible();
+    await expect(row.getByText('Price reduced: £11,995 → £10,995',{exact:true})).toBeVisible();
     await page.getByRole("button", { name: "Open Ford Focus, AB19 XYZ", exact: true }).click();
     await expect(page.getByRole("button", { name: "Photos & video", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("button", { name: "Save preparation" })).toHaveCount(0);
@@ -92,6 +103,14 @@ for (const width of [390, 820, 1440])
       path: `/tmp/staff-inventory-${width}.png`,
       fullPage: true,
     });
+    await page.getByRole('button',{name:'Back to cars',exact:true}).click();
+    const recent=page.getByRole('navigation',{name:'Recently viewed cars'});
+    await expect(recent).toBeVisible();
+    await expect(recent.getByRole('button',{name:'Reopen Ford Focus, AB19 XYZ'})).toBeVisible();
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.screenshot({path:`/tmp/luxxy-cars-updates-${width}.png`,fullPage:true});
+    await recent.getByRole('button',{name:'Clear recent cars'}).click();
+    await expect(recent).toHaveCount(0);
   });
 test("phone QR upload compresses and reviews actual pixels, sends no EXIF or token URL, and stops after success", async ({
   page,

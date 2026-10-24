@@ -19,7 +19,7 @@ import { customerFeaturePolicy } from '@workspace/vehicle-meta';
 import './dealer-administration.css';
 
 type Role = 'owner' | 'salesperson' | 'accounts';
-type Access = { role: Role; permissions: string[]; user: { name?: string; email?: string } };
+type Access = { role: Role; permissions: string[]; user: { authUserId?: string; name?: string; email?: string } };
 export function useStaffAccess(enabled = true) { return useQuery({ queryKey: ['staff-access'], queryFn: () => customFetch<Access>('/api/staff/access'), enabled, retry: false, staleTime: 60000 }); }
 const request = <T,>(url: string, method = 'GET', body?: unknown) => customFetch<T>(url, { method, ...(body ? { body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } } : {}) });
 const money = (pence: number) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(pence / 100);

@@ -7,7 +7,7 @@ import { requireStaff, requirePermission } from "../middlewares/staff-auth";
 import { currentDealerId } from "../lib/tenant-context";
 import { siteOrigin } from "../lib/enquiry-links";
 import { serviceBookJpeg } from "../lib/service-book-jpeg";
-import { inventoryHistory } from "../lib/inventory-history";
+import { inventoryHistory, inventoryActivityFields, inventoryActivityJoins } from "../lib/inventory-history";
 import { HistoryCursorError, parseHistoryCursor } from "../lib/history-cursor";
 const router = Router();
 const hash = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -36,7 +36,7 @@ router.use("/staff/inventory", requireStaff, (req, res, next) => {
 });
 const vehicle = (id: string) =>
   db.execute(
-    sql`SELECT id,title,make,model,variant,trim,coalesce(website_title_override,title) AS display_title,coalesce(website_price_override,source_price) AS price,plate,vrm,registration,year,mileage,fuel,transmission,body_type,engine_size,engine_cc,colour,doors,seats,inventory_status,source_status,missing_count,archived_at,coalesce(website_hero_image_override,source_hero_image) AS photo FROM vehicles WHERE id=${id}::uuid AND dealer_id=${currentDealerId()}`,
+    sql`SELECT v.id,v.title,v.make,v.model,v.variant,v.trim,coalesce(v.website_title_override,v.title) AS display_title,coalesce(v.website_price_override,v.source_price) AS price,v.plate,v.vrm,v.registration,v.year,v.mileage,v.fuel,v.transmission,v.body_type,v.engine_size,v.engine_cc,v.colour,v.doors,v.seats,v.inventory_status,v.source_status,v.missing_count,v.archived_at,coalesce(v.website_hero_image_override,v.source_hero_image) AS photo,${inventoryActivityFields} FROM vehicles v ${inventoryActivityJoins} WHERE v.id=${id}::uuid AND v.dealer_id=${currentDealerId()}`,
   );
 router.get("/staff/inventory", async (req, res) => {
   const input = z.object({ scope: z.enum(["current", "archived"]).default("current"), q: z.string().trim().max(200).default(""), cursor: z.string().max(250).optional() }).safeParse(req.query);
@@ -69,6 +69,7 @@ router.get("/staff/inventory/:id", async (req, res) => {
     sql`SELECT i.source_url AS url,i.caption FROM vehicle_images i JOIN vehicles v ON v.id=i.vehicle_id WHERE v.id=${req.params.id}::uuid AND v.dealer_id=${currentDealerId()} AND i.is_active=true ORDER BY i.is_hero DESC,i.sort_order,i.id LIMIT 100`,
   );
   res.json({
+    dealerId: currentDealerId(),
     car,
     vehiclePhotos: vehiclePhotos.rows,
     preparation: prep.rows[0] ?? {

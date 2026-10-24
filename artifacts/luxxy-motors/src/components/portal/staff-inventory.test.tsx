@@ -12,6 +12,8 @@ const state = vi.hoisted(() => ({
   writable: true,
   selected: true,
   vehicleId: "11111111-1111-4111-8111-111111111111",
+  staffId: 'staff-one',
+  dealerId: 'dealer-one',
   navigate: vi.fn(),
 }));
 vi.mock("wouter", () => ({
@@ -31,7 +33,7 @@ vi.mock("@workspace/api-client-react", () => ({
 }));
 vi.mock("./dealer-administration", () => ({
   useStaffAccess: () => ({
-    data: { permissions: state.writable ? ["sales.manage"] : [] },
+    data: { permissions: state.writable ? ["sales.manage"] : [], user: { authUserId: state.staffId } },
   }),
 }));
 vi.mock("./enquiry-email-composer", () => ({
@@ -43,6 +45,7 @@ vi.mock("./enquiry-workspace-tools", () => ({
   workspaceError: (e: any) => e.data?.error || e.message,
 }));
 import { StaffInventory } from "./staff-inventory";
+import { staffRecentCarsKey } from '@/lib/staff-recent-cars';
 const id = "11111111-1111-4111-8111-111111111111";
 const car = {
   id,
@@ -56,6 +59,9 @@ const car = {
   photo: "https://images.example.test/car.jpg",
 };
 beforeEach(() => {
+  sessionStorage.clear();
+  state.staffId = 'staff-one';
+  state.dealerId = 'dealer-one';
   state.writable = true;
   state.selected = true;
   state.vehicleId = id;
@@ -84,8 +90,9 @@ beforeEach(() => {
             },
           ],
         };
-      if (url === "/api/staff/inventory") return { cars: [car] };
+      if (url === "/api/staff/inventory") return { dealerId: state.dealerId, cars: [car] };
       return {
+        dealerId: state.dealerId,
         car,
         preparation: {
           revision: 0,
@@ -104,7 +111,7 @@ beforeEach(() => {
     });
 });
 function mount(props: Parameters<typeof StaffInventory>[0] = {}) {
-  render(
+  return render(
     <QueryClientProvider
       client={
         new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -651,4 +658,85 @@ it('keeps zero mileage, uses recorded engine capacity and omits unavailable deta
  expect(within(row).getByText('SE')).toBeVisible();
  expect(within(row).queryByText('Colour')).not.toBeInTheDocument();
  expect(within(row).queryByText('Body')).not.toBeInTheDocument();
+});
+
+it('reopens only accessible recent cars, uses fresh titles and clears staff history without touching public history', async () => {
+ const key = staffRecentCarsKey(state.dealerId, state.staffId)!;
+ const view = mount();
+ await screen.findByRole('textbox', {name:'Number plate'});
+ await waitFor(() => expect(JSON.parse(sessionStorage.getItem(key)!)).toEqual([id]));
+ view.unmount();
+ sessionStorage.setItem(key, JSON.stringify([id, 'foreign-dealer-car']));
+ sessionStorage.setItem('luxxy:recently-viewed', 'public-history');
+ state.selected = false;
+ mount();
+ const recent = await screen.findByRole('navigation', {name:'Recently viewed cars'});
+ expect(within(recent).getByRole('button', {name:'Reopen Ford Focus, AB12CDE'})).toBeVisible();
+ expect(within(recent).queryByText('foreign-dealer-car')).not.toBeInTheDocument();
+ fireEvent.click(within(recent).getByRole('button', {name:'Reopen Ford Focus, AB12CDE'}));
+ expect(state.navigate).toHaveBeenCalledWith(`/portal?section=inventory&vehicleId=${id}`);
+ fireEvent.click(within(recent).getByRole('button', {name:'Clear recent cars'}));
+ expect(screen.queryByRole('navigation', {name:'Recently viewed cars'})).not.toBeInTheDocument();
+ expect(sessionStorage.getItem(key)).toBeNull();
+ expect(sessionStorage.getItem('luxxy:recently-viewed')).toBe('public-history');
+ expect(state.fetch.mock.calls.every(([, options]) => !options?.method || options.method === 'GET')).toBe(true);
+});
+
+it.each(['staff', 'dealer'])('does not show recent history from a different %s account', async change => {
+ sessionStorage.setItem(staffRecentCarsKey(state.dealerId, state.staffId)!, JSON.stringify([id]));
+ if (change === 'staff') state.staffId = 'staff-two'; else state.dealerId = 'dealer-two';
+ state.selected = false;
+ mount();
+ await screen.findByRole('heading', {name:'Ford Focus'});
+ expect(screen.queryByRole('navigation', {name:'Recently viewed cars'})).not.toBeInTheDocument();
+});
+
+it('does not record a failed car lookup, and browser storage failure never blocks the car workspace', async () => {
+ const normal = state.fetch.getMockImplementation()!;
+ state.fetch.mockImplementation(async (url: string, options: unknown) => {
+   if (url === `/api/staff/inventory/${id}`) throw new Error('Access denied');
+   return normal(url, options);
+ });
+ const failed = mount();
+ await screen.findByText('Could not load this car. Refresh to retry.');
+ expect(sessionStorage.getItem(staffRecentCarsKey(state.dealerId, state.staffId)!)).not.toContain(id);
+ failed.unmount();
+ state.fetch.mockImplementation(normal);
+ const read = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {throw new Error('Storage blocked');});
+ const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {throw new Error('Storage blocked');});
+ try {
+   mount();
+   expect(await screen.findByRole('heading', {name:'Private photos'})).toBeVisible();
+ } finally { read.mockRestore(); write.mockRestore(); }
+});
+
+it('shows open enquiry and future visit counts with verified latest import changes', async () => {
+ const enriched = {...car, enquiry_count:3, upcoming_test_drive_count:1, next_test_drive_at:'2026-10-26T14:30:00Z', stock_changes:{checkedAt:'2026-10-24T09:00:00Z', items:[
+   {kind:'price', changedAt:'2026-10-24T09:00:00Z', previousPrice:9500, currentPrice:9000},
+   {kind:'photos', changedAt:'2026-10-24T09:00:00Z', previousPhotoCount:12, currentPhotoCount:15},
+   {kind:'details', changedAt:'2026-10-24T09:00:00Z', fields:['Mileage','Description']},
+ ]}};
+ state.selected = false;
+ state.fetch.mockResolvedValue({dealerId:state.dealerId, cars:[enriched]});
+ const list = mount();
+ const row = (await screen.findByRole('heading',{name:'Ford Focus'})).closest('article')!;
+ expect(within(row).getByText('open enquiries')).toBeVisible();
+ expect(within(row).getByText('upcoming test drive')).toHaveAttribute('title', 'Next test drive: 26 Oct, 14:30 (UK time)');
+ expect(within(row).getByText('Price reduced: £9,500 → £9,000')).toBeVisible();
+ expect(within(row).getByText('Photos updated: 12 → 15')).toBeVisible();
+ expect(within(row).getByText('Details updated')).toBeVisible();
+ list.unmount();
+ state.selected = true;
+ state.fetch.mockResolvedValue({dealerId:state.dealerId, car:enriched, cars:[enriched], preparation:{}, photos:[], customers:[]});
+ mount();
+ expect(await screen.findByText('Checked 24 Oct, 10:00 (UK time)')).toBeVisible();
+ expect(screen.getByText('Details updated: Mileage, Description')).toBeVisible();
+ expect(screen.getByText('Next test drive: 26 Oct, 14:30 (UK time)')).toBeVisible();
+});
+
+it('keeps unknown counts blank instead of pretending there are no customers', async () => {
+ state.selected = false;
+ mount();
+ const row = (await screen.findByRole('heading',{name:'Ford Focus'})).closest('article')!;
+ expect(within(row).queryByText(/open enquiries|upcoming test drives|Price reduced/)).not.toBeInTheDocument();
 });

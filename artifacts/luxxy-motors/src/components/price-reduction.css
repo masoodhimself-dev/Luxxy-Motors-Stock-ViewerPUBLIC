@@ -1,0 +1,19 @@
+.price-reduction {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+  min-width: 0;
+  margin-top: 4px;
+  border-left: 2px solid hsl(var(--contact));
+  padding-left: 8px;
+  color: hsl(var(--muted-foreground));
+  font-size: .8125rem;
+  line-height: 1.6;
+}
+.price-reduction-label,
+.price-reduction-saving { color: hsl(var(--contact)); font-weight: 600; }
+.price-reduction-date { flex-basis: 100%; font-size: .75rem; }
+.dark .price-reduction-label,
+.dark .price-reduction-saving { color: hsl(var(--foreground)); }

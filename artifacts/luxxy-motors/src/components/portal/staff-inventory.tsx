@@ -36,6 +36,7 @@ import { EnquiryEmailComposer } from "./enquiry-email-composer";
 import { workspaceError } from "./enquiry-workspace-tools";
 import { BulkPlateEntry, type PlateEntryCar } from "./bulk-plate-entry";
 import { vehicleDisplayTitle } from "@/lib/utils";
+import { parseStaffRecentCars, rememberStaffCar, staffRecentCarsKey } from '@/lib/staff-recent-cars';
 type Tasks = Record<
   "cleaning" | "inspection" | "mot" | "servicing",
   "pending" | "done" | "not_required"
@@ -71,6 +72,13 @@ type Car = {
   colour?: string | null;
   doors?: number | null;
   seats?: number | null;
+  enquiry_count?: number;
+  upcoming_test_drive_count?: number;
+  next_test_drive_at?: string | null;
+  stock_changes?: {
+    checkedAt: string | null;
+    items: { kind: 'price' | 'photos' | 'details'; changedAt: string; previousPrice?: number; currentPrice?: number; previousPhotoCount?: number; currentPhotoCount?: number; fields?: string[] }[];
+  };
 };
 type Prep = {
   revision: number;
@@ -80,6 +88,7 @@ type Prep = {
   notes: string;
 };
 type Details = {
+  dealerId?: string;
   descriptionPreview?: boolean;
   previewReadOnly?: boolean;
   car: Car;
@@ -154,6 +163,28 @@ function InventorySpecs({ car }: { car: Car }) {
 function carVariant(car: Car) {
   const variant = car.variant?.trim() || '', trim = car.trim?.trim() || '';
   return variant && trim && !variant.toLowerCase().includes(trim.toLowerCase()) ? `${variant} / ${trim}` : variant || trim;
+}
+function stockDate(value?: string | null) {
+  return value && Number.isFinite(Date.parse(value)) ? new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' }).format(new Date(value)) : null;
+}
+function InventoryInterest({ car }: { car: Car }) {
+  return <div className="inventory-interest" aria-label="Customer interest">
+    {car.enquiry_count !== undefined && <span data-tone={car.enquiry_count > 0 ? 'info' : 'neutral'}><strong>{car.enquiry_count}</strong> open {car.enquiry_count === 1 ? 'enquiry' : 'enquiries'}</span>}
+    {car.upcoming_test_drive_count !== undefined && <span data-tone={car.upcoming_test_drive_count > 0 ? 'visit' : 'neutral'} title={car.next_test_drive_at ? `Next test drive: ${stockDate(car.next_test_drive_at)} (UK time)` : undefined}><strong>{car.upcoming_test_drive_count}</strong> upcoming test {car.upcoming_test_drive_count === 1 ? 'drive' : 'drives'}</span>}
+  </div>;
+}
+function InventoryChanges({ car, detailed = false }: { car: Car; detailed?: boolean }) {
+  const changes = car.stock_changes;
+  if (!changes || (!detailed && !changes.items.length)) return null;
+  return <div className="inventory-stock-changes" data-detailed={detailed} aria-label="Latest stock update">
+    {detailed && <div className="inventory-update-heading"><strong>Latest stock update</strong>{stockDate(changes.checkedAt) && <span>Checked {stockDate(changes.checkedAt)} (UK time)</span>}</div>}
+    {changes.items.map((change, index) => <span key={`${change.kind}-${index}`} data-kind={change.kind} data-reduced={change.kind === 'price' && (change.currentPrice ?? 0) < (change.previousPrice ?? 0)}>
+      {change.kind === 'price' && <>{(change.currentPrice ?? 0) < (change.previousPrice ?? 0) ? 'Price reduced' : 'Price changed'}: {price(change.previousPrice ?? null)} → {price(change.currentPrice ?? null)}</>}
+      {change.kind === 'photos' && <>Photos updated: {change.previousPhotoCount} → {change.currentPhotoCount}</>}
+      {change.kind === 'details' && <>Details updated{detailed && change.fields?.length ? `: ${change.fields.join(', ')}` : ''}</>}
+    </span>)}
+    {detailed && !changes.items.length && <p>{changes.checkedAt ? 'No price, photo or detail changes recorded in this update.' : 'No completed stock update recorded.'}</p>}
+  </div>;
 }
 const isAdvertisedCar = (car: Car) =>
   !car.archived_at &&
@@ -307,6 +338,7 @@ export function StaffInventory({
       if (searchTerm) params.set("q", searchTerm);
       if (pageParam) params.set("cursor", pageParam);
       return customFetch<{
+        dealerId?: string;
         cars: Car[];
         counts?: { current: number; archived: number };
         matchedCount?: number;
@@ -326,6 +358,26 @@ export function StaffInventory({
     refetchInterval: () =>
       grant && Date.parse(grant.expiresAt) > Date.now() ? 5000 : false,
   });
+  const recentKey = staffRecentCarsKey(list.data?.pages[0].dealerId ?? details.data?.dealerId, access.data?.user?.authUserId);
+  const [recent, setRecent] = useState<{ key: string | null; ids: string[] }>({ key: null, ids: [] });
+  const recentRef = useRef(recent);
+  const viewedId = details.data?.car.id === selected && !details.isError ? selected : null;
+  useEffect(() => {
+    if (!recentKey) return;
+    let ids = recentRef.current.key === recentKey ? recentRef.current.ids : [];
+    if (recentRef.current.key !== recentKey) {
+      try { ids = parseStaffRecentCars(sessionStorage.getItem(recentKey)); } catch { /* Tab memory still works if browser storage is blocked. */ }
+    }
+    if (viewedId) ids = rememberStaffCar(ids, viewedId);
+    recentRef.current = { key: recentKey, ids };
+    setRecent(recentRef.current);
+    try { sessionStorage.setItem(recentKey, JSON.stringify(ids)); } catch { /* Never prevent opening a car. */ }
+  }, [recentKey, viewedId]);
+  function clearRecent() {
+    recentRef.current = { key: recentKey, ids: [] };
+    setRecent(recentRef.current);
+    if (recentKey) { try { sessionStorage.removeItem(recentKey); } catch { /* Memory was cleared. */ } }
+  }
   const previewReadOnly = Boolean(
     list.data?.pages[0].previewReadOnly || details.data?.previewReadOnly,
   );
@@ -426,6 +478,7 @@ export function StaffInventory({
     );
   }
   const loadedCars = (list.data?.pages.flatMap((page) => page.cars) ?? []).map(vehicle => ({ ...vehicle, title: vehicleDisplayTitle(vehicle) }));
+  const recentCars = recent.key === recentKey && !list.isError ? recent.ids.flatMap(id => { const vehicle = loadedCars.find(item => item.id === id); return vehicle ? [vehicle] : []; }) : [];
   const counts = list.data?.pages[0].counts;
   const needsAttention = (vehicle: Car, attention: AttentionFilter) => attention === "all" || (attention === "missing-plate" && !hasNumberPlate(vehicle)) || (attention === "missing-service" && (vehicle.service_photo_count ?? 0) === 0);
   const currentCars = loadedCars.filter(
@@ -587,6 +640,8 @@ export function StaffInventory({
                     <strong className="inventory-price">
                       {price(car.price)}
                     </strong>
+                    <InventoryInterest car={car} />
+                    {stockDate(car.next_test_drive_at) && <p className="inventory-next-visit">Next test drive: {stockDate(car.next_test_drive_at)} (UK time)</p>}
                     {car.photo && (
                       <a
                         className="inventory-photo-original"
@@ -672,6 +727,7 @@ export function StaffInventory({
                   </p>
                 )}
               </div>
+              <InventoryChanges car={car} detailed />
               <div className="inventory-detail-sections" role="group" aria-label="Car detail sections">
                 {([['media','Photos & video'],['description','Description'],['customers','Customers']] as const).map(([value,label]) => <Button key={value} variant="ghost" aria-pressed={detailSection === value} onClick={() => setDetailSection(value)}>{label}</Button>)}
               </div>
@@ -884,6 +940,10 @@ export function StaffInventory({
         </>
       ) : (
         <>
+          {recentCars.length > 0 && <nav className="inventory-recent" aria-label="Recently viewed cars">
+            <div className="inventory-recent-label"><strong>Recently viewed</strong><span>This browser tab</span><button type="button" onClick={clearRecent}>Clear recent cars</button></div>
+            <div className="inventory-recent-cars">{recentCars.map(vehicle => <button type="button" key={vehicle.id} onClick={() => open(vehicle.id)} aria-label={`Reopen ${vehicle.title}, ${carRegistration(vehicle)}`}><strong>{vehicle.title}</strong><span>{carRegistration(vehicle)}</span></button>)}</div>
+          </nav>}
           <div className="inventory-toolbar">
             <div className="inventory-search-row">
               <label
@@ -1036,6 +1096,8 @@ export function StaffInventory({
                       <InventoryStatus car={c} />
                     </div>
                   </div>
+                  <InventoryInterest car={c} />
+                  <InventoryChanges car={c} />
                   <div className="inventory-row-work">
                     {(c.service_photo_count ?? 0) > 0 && <span
                       className="inventory-service-photos"

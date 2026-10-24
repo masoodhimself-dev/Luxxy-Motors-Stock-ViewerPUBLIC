@@ -16,3 +16,19 @@ it('hides the claim when price changes or evidence is absent', () => {
   expect(priceReduction({...car, sourceExtras: null}, start)).toBeNull();
   expect(priceReduction({...car, sourceExtras: {websitePriceReduction: {previousPrice: 2000, currentPrice: 3975, detectedAt}}}, start)).toBeNull();
 });
+it('honours an earlier server expiry without extending the fourteen-day window', () => {
+  const value = car.sourceExtras.websitePriceReduction;
+  const withExpiry = (expiresAt: unknown) => ({...car, sourceExtras: {websitePriceReduction: {...value, expiresAt}}});
+  expect(priceReduction(withExpiry(new Date(start + 1000).toISOString()), start + 999)).not.toBeNull();
+  expect(priceReduction(withExpiry(new Date(start + 1000).toISOString()), start + 1000)).toBeNull();
+  expect(priceReduction(withExpiry('2099-01-01T00:00:00Z'), start + 14 * 86400000)).toBeNull();
+  for (const expiry of ['not a date', detectedAt, new Date(start - 1).toISOString(), null, 5]) {
+    expect(priceReduction(withExpiry(expiry), start)).toBeNull();
+  }
+});
+it('does not relabel recorded GBP evidence as a different currency or accept malformed evidence', () => {
+  expect(priceReduction({...car, currency: 'EUR'}, start)).toBeNull();
+  expect(priceReduction({...car, currency: 'GBP'}, start)).not.toBeNull();
+  expect(priceReduction({...car, sourceExtras: {websitePriceReduction: []}}, start)).toBeNull();
+  expect(priceReduction({...car, sourceExtras: {websitePriceReduction: {...car.sourceExtras.websitePriceReduction, previousPrice: Infinity}}}, start)).toBeNull();
+});

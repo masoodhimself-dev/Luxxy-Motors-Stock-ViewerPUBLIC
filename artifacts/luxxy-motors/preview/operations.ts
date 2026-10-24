@@ -21,7 +21,7 @@ export type PreviewOperationsState = { schemaVersion: 1; versions: SettingsVersi
 export type PreviewOperationsOptions = {
   readSettings?: () => Promise<Record<string, unknown>>;
   writeSettings?: (config: Record<string, unknown>) => Promise<void>;
-  readEnquiries?: () => Promise<OperationEnquiry[]>;
+  readEnquiries?: () => Promise<Array<OperationEnquiry & { vehicleId?: string | null; mergedIntoId?: string | null; attendance?: string | null }>>;
   readSales?: () => Promise<SaleWorkspaceRecord[]>;
   stateFile?: string;
 };
@@ -96,17 +96,19 @@ export async function operationsPreview(req:IncomingMessage,res:ServerResponse,u
         const scope=url.searchParams.get('scope')??'current',q=(url.searchParams.get('q')??'').trim().toLowerCase();
         if(!detail&&(!['current','archived'].includes(scope)||q.length>200||url.searchParams.has('cursor')))throw new SettingsVersionError('Check the inventory search.',400);
         const {readPreviewSaleInventory}=await import('./sales');const statuses=await readPreviewSaleInventory();
-        const all=previewStock.cars.map(car=>({id:car.id,title:car.title,price:car.price,plate:car.plate,vrm:car.vrm,registration:car.registration,year:car.year??null,mileage:car.mileage??null,fuel:car.fuel??null,transmission:car.transmission??null,variant:car.variant??null,trim:car.trim??null,body_type:car.bodyType??null,engine_size:car.engineSize??null,engine_cc:car.engineCC??null,colour:car.colour??null,doors:car.doors??null,seats:car.seats??null,inventory_status:statuses[car.id]??car.inventoryStatus??'available',source_status:'live',missing_count:0,archived_at:null,photo:car.heroImage,service_photo_count:0,tasks:null}));
+        const enquiries=await(options.readEnquiries?.()??Promise.resolve([]));
+        const activity=(id:string)=>{const open=enquiries.filter(entry=>entry.vehicleId===id&&entry.status!=='closed'&&!entry.mergedIntoId);const upcoming=open.filter(entry=>!entry.appointmentCancelledAt&&entry.appointmentAt&&new Date(entry.appointmentAt).getTime()>=Date.now()&&['scheduled','arrived'].includes(entry.attendance??'scheduled')&&[null,undefined,'pending','confirmed'].includes(entry.appointmentStatus));return {enquiry_count:open.length,upcoming_test_drive_count:upcoming.length,next_test_drive_at:upcoming.map(entry=>new Date(entry.appointmentAt!).toISOString()).sort()[0]??null,stock_changes:{checkedAt:previewStock.scrapedAt??null,items:[]}};};
+        const all=previewStock.cars.map(car=>({...activity(car.id),id:car.id,title:car.title,price:car.price,plate:car.plate,vrm:car.vrm,registration:car.registration,year:car.year??null,mileage:car.mileage??null,fuel:car.fuel??null,transmission:car.transmission??null,variant:car.variant??null,trim:car.trim??null,body_type:car.bodyType??null,engine_size:car.engineSize??null,engine_cc:car.engineCC??null,colour:car.colour??null,doors:car.doors??null,seats:car.seats??null,inventory_status:statuses[car.id]??car.inventoryStatus??'available',source_status:'live',missing_count:0,archived_at:null,photo:car.heroImage,service_photo_count:0,tasks:null}));
         if(detail) {
           const car=all.find(car=>car.id===detail[1]);
           if(!car) { send(res,404,{error:'Car not found.',previewReadOnly:true});return true; }
           if(detail[2])send(res,200,{customers:[],previewReadOnly:true});
-          else send(res,200,{descriptionPreview:process.env.VEHICLE_DESCRIPTION_PREVIEW==='true',car,vehiclePhotos:previewStock.cars.find(c=>c.id===car.id)?.images??[],preparation:{revision:0,tasks:{cleaning:'pending',inspection:'pending',mot:'pending',servicing:'pending'},assigned_to_id:null,due_date:null,notes:''},photos:[],previewReadOnly:true});
+          else send(res,200,{dealerId:'local-preview',descriptionPreview:process.env.VEHICLE_DESCRIPTION_PREVIEW==='true',car,vehiclePhotos:previewStock.cars.find(c=>c.id===car.id)?.images??[],preparation:{revision:0,tasks:{cleaning:'pending',inspection:'pending',mot:'pending',servicing:'pending'},assigned_to_id:null,due_date:null,notes:''},photos:[],previewReadOnly:true});
           return true;
         }
         const archived=all.filter(car=>car.inventory_status==='archived'),current=all.filter(car=>car.inventory_status!=='archived');
         const cars=(scope==='archived'?archived:current).filter(car=>`${car.title} ${car.plate??car.vrm??car.registration??''}`.toLowerCase().includes(q));
-        send(res,200,{cars,scope,counts:{current:current.length,archived:archived.length},matchedCount:cars.length,nextCursor:null,previewReadOnly:true});return true;
+        send(res,200,{dealerId:'local-preview',cars,scope,counts:{current:current.length,archived:archived.length},matchedCount:cars.length,nextCursor:null,previewReadOnly:true});return true;
       }
       if(path==='/staff/access'&&req.method==='GET'){send(res,200,{role:staff.role,permissions:permissionsForRole(staff.role),user:{authUserId:staff.authUserId,name:staff.name,email:staff.email}});return true;}
       if(path==='/staff/team'&&req.method==='GET'){send(res,200,{members:state.members});return true;}

@@ -260,7 +260,7 @@ export default function CarDetail() {
       </>}
       <div className="vehicle-price-block mt-3 border-b border-border pb-3 lg:mt-5 lg:pb-5">
         <p className="luxxy-price text-[2rem]">{car.price ? formatPrice(car.price, car.currency) : 'Price on application'}</p>
-        <PriceReduction car={car} />
+        <PriceReduction car={car} showRecordedDate />
         {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <p className="text-sm text-muted-foreground">{car.priceType}</p>}
         {damageDisclosure && <a href="#vehicle-history" className="vehicle-insurance-disclosure"><VehicleFactIcon label="Insurance history" /><span>{damageDisclosure.summary}</span><ArrowRight className="h-4 w-4" /></a>}
       </div>
