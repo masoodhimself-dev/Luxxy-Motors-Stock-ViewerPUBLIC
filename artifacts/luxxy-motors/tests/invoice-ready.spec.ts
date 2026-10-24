@@ -13,7 +13,7 @@ for(const width of [390,834,1440])for(const kind of ['full','deposit'] as const)
   const enquiryId='88888888-8888-4888-8888-888888888888';
   let serial=0;
   const context:SaleWorkspaceContext={now:new Date().toISOString(),actor:'Fictional invoice tester',branding:saleWorkspaceBranding(settings),nextId:()=>crypto.randomUUID(),nextNumber:type=>`TEST-${type}-${++serial}`};
-  let sale=createSaleWorkspace({requestId:'fictional-ready-create',draft:{customer:'Fictional Invoice Buyer',phone:'07700900123',email:'buyer@example.test',vehicleId:car.id,vehicle:car.title,registration:'AB20XYZ',price:'10000',sourceEnquiryId:enquiryId,fulfilment:{method:'delivery',viewed:'viewed',address:'25 Test Road\nLondon\nHA2 8LY',recipient:'Fictional Invoice Buyer',phone:'07700900123',scheduledDate:'2026-10-27',timeWindow:'Afternoon',instructions:'PRIVATE STAFF NOTE',driver:'PRIVATE DRIVER',stage:'booked'}}},context,'TEST-SALE').sale;
+  let sale=createSaleWorkspace({requestId:'fictional-ready-create',draft:{customer:'Fictional Invoice Buyer',phone:'07700900123',email:'buyer@example.test',vehicleId:car.id,vehicle:car.title,registration:'AB20XYZ',price:'10000',sourceEnquiryId:kind==='full'?'':enquiryId,fulfilment:{method:'delivery',viewed:'viewed',address:'25 Test Road\nLondon\nHA2 8LY',recipient:'Fictional Invoice Buyer',phone:'07700900123',scheduledDate:'2026-10-27',timeWindow:'Afternoon',instructions:'PRIVATE STAFF NOTE',driver:'PRIVATE DRIVER',stage:'booked'}}},context,'TEST-SALE').sale;
   function change(command:SaleWorkspaceCommand){sale=changeSaleWorkspace(sale,command,{requestId:crypto.randomUUID(),expectedRevision:sale.revision},context).sale;}
   change({action:'invoice-payment',payment:{amount:kind==='full'?'10000':'500',method:'Bank transfer',date:'2026-10-24',reference:'Fictional payment',kind:kind==='full'?'final-payment':'deposit',status:'confirmed'}});
   change({action:'issue-invoice',kind,acknowledge:true});
@@ -38,6 +38,7 @@ for(const width of [390,834,1440])for(const kind of ['full','deposit'] as const)
     if(path==='/api/staff/phone-shares/enquiries')return route.fulfill({json:{enquiries:[buyer],canCreate:true}});
     if(path==='/api/staff/phone-shares'&&req.method()==='POST'){
       shareBody=req.postDataJSON();
+      if(shareBody.source.kind==='message'&&['enquiryId','vehicleId'].some(key=>key in shareBody.source&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(shareBody.source[key])))return route.fulfill({status:400,json:{error:'Check the sharing request.'}});
       return route.fulfill({json:{id:'fictional-pack',url:`http://127.0.0.1:4210/phone-share#${shareBody.token}`,message:shareBody.source.kind==='document'?'Hello, here is your saved invoice.':shareBody.source.message,customerPhone:buyer.phone,customerEmail:buyer.email,customerName:buyer.customerName,enquiryId,vehicleId:car.id,hasAttachments:shareBody.source.kind==='document',expiresAt:new Date(Date.now()+900000).toISOString(),preview:true}});
     }
     if(path==='/api/staff/phone-shares/confirm-whatsapp'){history.push(req.postDataJSON());return route.fulfill({json:{enquiryId,confirmedAt:context.now,preview:true}});}

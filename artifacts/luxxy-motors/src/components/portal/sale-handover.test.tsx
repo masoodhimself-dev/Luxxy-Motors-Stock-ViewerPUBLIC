@@ -71,6 +71,16 @@ it('rechecks current arrangements before the internal email composer can prepare
  expect(state.fetch).toHaveBeenCalledExactlyOnceWith('/api/sale-workspace/sale-a');
 });
 
+it('omits empty optional enquiry and vehicle IDs when sharing a walk-in sale',()=>{
+ const record=sale();record.draft.sourceEnquiryId='';record.draft.vehicleId='';show(record);
+ const source=JSON.parse(JSON.stringify(state.share.source));
+ expect(source).toEqual({kind:'message',message:state.share.message});
+ expect(state.share.enquiryId).toBeUndefined();expect(state.share.vehicleId).toBeUndefined();
+ fireEvent.click(screen.getByRole('button',{name:'Email confirmation'}));
+ expect(state.email).toMatchObject({createNew:true,enquiryId:undefined,vehicleId:undefined});
+ expect(state.fetch).not.toHaveBeenCalled();
+});
+
 it('does not allow a sharing preflight to finish after staff leave the sale',async()=>{
  let finish:(value:unknown)=>void=()=>{};state.fetch.mockImplementation(()=>new Promise(resolve=>{finish=resolve}));const view=show();
  const verified=state.share.beforeGenerate();view.unmount();finish({sale:sale()});
