@@ -209,6 +209,7 @@ export function buildShowroomMeta(
 }
 
 export * from "./sale-workspace.ts";
+export * from './sale-draft-deletion.ts';
 export * from "./registration.ts";
 export * from './customer-sale.ts';
 export * from "./email-templates.ts";

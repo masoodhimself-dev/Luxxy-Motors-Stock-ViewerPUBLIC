@@ -1,4 +1,4 @@
-import { reviewReminderNote, saleHandoverStatus } from '@workspace/vehicle-meta';
+import { canDeleteEmptySaleDraft, reviewReminderNote, saleHandoverStatus } from '@workspace/vehicle-meta';
 import { currentTenant } from './tenant-context';
 import { dealerIntegrationsStore } from './dealer-integrations-store';
 import { createHash, randomUUID } from 'node:crypto';
@@ -14,6 +14,7 @@ export type SaleWorkspaceAssets = { reviewUrl?: string; branding: SaleWorkspaceB
 export type SaleWorkspaceReadClient = { query: (text: string, parameters?: any[]) => Promise<{ rows: Record<string, any>[] }> };
 export type SaleWorkspaceTransactionClient = SaleWorkspaceReadClient & { release: () => void };
 export type SaleWorkspaceDatabase = SaleWorkspaceReadClient & { connect: () => Promise<SaleWorkspaceTransactionClient> };
+const staffSaleWorkspace = (record: SaleWorkspaceRecord): SaleWorkspaceRecord => ({ ...publicSaleWorkspace(record), emptyDraftDeletable: canDeleteEmptySaleDraft(record, true) });
 
 /** Use the already-held transaction client; never acquire another pool connection while holding the dealer lock. */
 export async function readSaleWorkspaceAssets(draft: SaleWorkspaceDraft, dealerId: string, client: SaleWorkspaceReadClient): Promise<SaleWorkspaceAssets> {
@@ -35,10 +36,10 @@ export async function readSaleWorkspaceAssets(draft: SaleWorkspaceDraft, dealerI
 export class PostgresSaleWorkspaceStore {
   constructor(private dealerId: string, private assets: (draft: SaleWorkspaceDraft, client: SaleWorkspaceReadClient) => Promise<SaleWorkspaceAssets>, private database: SaleWorkspaceDatabase) {}
   async list(): Promise<SaleWorkspaceRecord[]> {
-    // List screens never need PDF bytes, provider receipts or mutation replay
-    // ledgers. Exclude those inside Postgres, before crossing the connection.
-    const result = await this.database.query("SELECT state - 'documentArchives' - 'requests' - 'providerPayments' AS state FROM sale_workspace WHERE dealer_id = $1 ORDER BY updated_at DESC", [this.dealerId]);
-    return result.rows.map(row => publicSaleWorkspace(row.state));
+    // Keep financial files compact. Only zero-document/payment candidates need
+    // private history to compute whether the Delete draft button is safe to show.
+    const result = await this.database.query("SELECT state - 'documentArchives' - 'requests' - 'providerPayments' AS state, CASE WHEN jsonb_array_length(coalesce(state->'documents', '[]'::jsonb))=0 AND jsonb_array_length(coalesce(state->'payments', '[]'::jsonb))=0 THEN jsonb_build_object('requests',state->'requests','documentArchives',state->'documentArchives','providerPayments',state->'providerPayments') END AS deletion_evidence FROM sale_workspace WHERE dealer_id = $1 ORDER BY updated_at DESC", [this.dealerId]);
+    return result.rows.map(row => ({ ...publicSaleWorkspace(row.state), emptyDraftDeletable: canDeleteEmptySaleDraft({ ...row.state, ...row.deletion_evidence }, true) }));
   }
   async deliveryTasks() {
     const result = await this.database.query(`SELECT id::text, jsonb_build_object('customer',state#>>'{draft,customer}','vehicle',state#>>'{draft,vehicle}','fulfilment',state#>'{draft,fulfilment}') AS draft, count(*) OVER()::int AS total
@@ -51,7 +52,29 @@ export class PostgresSaleWorkspaceStore {
   async get(id: string): Promise<SaleWorkspaceRecord> {
     const result = await this.database.query('SELECT state FROM sale_workspace WHERE dealer_id = $1 AND id = $2::uuid', [this.dealerId, id]);
     if (!result.rows[0]) throw new SaleWorkspaceError('Sale not found.', 404);
-    return publicSaleWorkspace(result.rows[0].state);
+    return staffSaleWorkspace(result.rows[0].state);
+  }
+  /** Remove only unused empty or clearly labelled test drafts; never cascade financial history. */
+  async deleteEmptyDraft(id: string, expectedRevision: unknown) {
+    if (!Number.isSafeInteger(expectedRevision) || Number(expectedRevision) < 1) throw new SaleWorkspaceError('Reload the saved draft before deleting it.', 409);
+    const client = await this.database.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`sale-workspace:${this.dealerId}`]);
+      const current = (await client.query('SELECT state, revision FROM sale_workspace WHERE dealer_id = $1 AND id = $2::uuid FOR UPDATE', [this.dealerId, id])).rows[0];
+      if (!current) throw new SaleWorkspaceError('Sale draft not found.', 404);
+      if (current.revision !== expectedRevision || current.state.revision !== expectedRevision) throw new SaleWorkspaceError('This sale changed on another device. Reload it before deleting.', 409);
+      if (!canDeleteEmptySaleDraft(current.state, true)) throw new SaleWorkspaceError('Only unused empty drafts or clearly labelled test drafts can be deleted. Real customer details, invoices, payments and sale history are protected.', 409);
+      // Check references that are outside the JSON ledger too. Never release stock or erase follow-ups.
+      const linked = await client.query(`SELECT EXISTS(SELECT 1 FROM vehicles WHERE dealer_id=$1 AND audit_metadata->>'saleWorkspaceId'=$2)
+        OR EXISTS(SELECT 1 FROM sold_vehicle_follow_ups WHERE dealer_id=$1 AND sale_id=$2::uuid) AS protected`, [this.dealerId, id]);
+      if (linked.rows[0]?.protected) throw new SaleWorkspaceError('This draft has linked stock or follow-up activity and must be kept.', 409);
+      const deleted = await client.query('DELETE FROM sale_workspace WHERE dealer_id=$1 AND id=$2::uuid AND revision=$3 RETURNING id', [this.dealerId, id, expectedRevision]);
+      if (!deleted.rows.length) throw new SaleWorkspaceError('This sale changed on another device. Reload it before deleting.', 409);
+      await client.query('COMMIT');
+      return { deleted: true, id };
+    } catch (error) { await client.query('ROLLBACK'); throw error; }
+    finally { client.release(); }
   }
   async verifyInvoice(saleId: string, documentId: string, token: string) {
     const result = await this.database.query('SELECT state FROM sale_workspace WHERE dealer_id = $1 AND id = $2::uuid', [this.dealerId, saleId]);
@@ -68,7 +91,7 @@ export class PostgresSaleWorkspaceStore {
       const context: SaleWorkspaceContext = { now: new Date().toISOString(), actor, nextId: randomUUID, nextNumber: () => { throw new Error('Email finalization cannot issue documents'); }, ...await this.assets(current.draft, client) };
       const result = changeSaleWorkspace(current, command, { requestId, expectedRevision: current.revision }, context);
       if (!result.replayed) await client.query('UPDATE sale_workspace SET revision = $3, state = $4::jsonb, updated_at = $5 WHERE dealer_id = $1 AND id = $2::uuid', [this.dealerId, id, result.sale.revision, JSON.stringify(result.sale), result.sale.updatedAt]);
-      await client.query('COMMIT'); return { ...result, sale: publicSaleWorkspace(result.sale) };
+      await client.query('COMMIT'); return { ...result, sale: staffSaleWorkspace(result.sale) };
     } catch (error) { await client.query('ROLLBACK'); throw error; }
     finally { client.release(); }
   }
@@ -164,7 +187,7 @@ export class PostgresSaleWorkspaceStore {
           const sale = replay.rows[0].state as SaleWorkspaceRecord;
           if (sale.requests?.[input.requestId]?.fingerprint !== saleWorkspaceFingerprint({ action: 'create', draft: input.draft })) throw new SaleWorkspaceError('This request reference has already been used for different details.', 409);
           await client.query('COMMIT');
-          return { sale: publicSaleWorkspace(sale), replayed: true };
+          return { sale: staffSaleWorkspace(sale), replayed: true };
         }
       }
       await client.query('INSERT INTO sale_workspace_counters (dealer_id, numbers) VALUES ($1, $2::jsonb) ON CONFLICT DO NOTHING', [this.dealerId, '{}']);
@@ -215,7 +238,7 @@ export class PostgresSaleWorkspaceStore {
         await client.query('UPDATE sale_workspace_counters SET numbers = $2::jsonb WHERE dealer_id = $1', [this.dealerId, JSON.stringify(numbers)]);
       }
       await client.query('COMMIT');
-      return { ...mutation, sale: publicSaleWorkspace(mutation.sale) };
+      return { ...mutation, sale: staffSaleWorkspace(mutation.sale) };
     } catch (error) { await client.query('ROLLBACK'); throw error; }
     finally { client.release(); }
   }

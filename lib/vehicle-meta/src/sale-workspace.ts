@@ -139,6 +139,8 @@ export type SaleWorkspaceRecord = {
   id: string; reference: string; revision: number; draft: SaleWorkspaceDraft;
   payments: SaleWorkspacePayment[]; documents: SaleWorkspaceDocument[]; events: SaleWorkspaceEvent[];
   createdAt: string; updatedAt: string;
+  /** Server-computed only; deletion rechecks the full private history transactionally. */
+  emptyDraftDeletable?: boolean;
   /** Server-private retry records. Responses omit these entries. */
   requests?: Record<string, { fingerprint: string; documentId?: string }>;
   completedAt?: string; packDocumentIds?: string[];

@@ -102,6 +102,11 @@ beforeEach(() => {
       async (url: string, options?: { method: string; body: string }) => {
         if (!options) return { sales: state.sales };
         const payload = JSON.parse(options.body);
+        if (options.method === 'DELETE') {
+          const id = url.split('/').at(-1);
+          state.sales = state.sales.filter(sale => sale.id !== id);
+          return { deleted: true, id };
+        }
         if (url === "/api/sale-workspace") {
           const result = createSaleWorkspace(
             { draft: payload.draft, requestId: payload.requestId },
@@ -157,6 +162,43 @@ function mount(props: Parameters<typeof SalesWorkspace>[0] = {}) {
     </QueryClientProvider>,
   );
 }
+it('deletes an eligible saved draft only after explicit confirmation and keeps other sales', async () => {
+  const testSale = createSaleWorkspace({draft:{...emptyDraft(),customer:'[TEST] Unissued sale',vehicle:'Ford Focus'},requestId:'test-draft-create'},context(),'TEST-DRAFT').sale;
+  testSale.emptyDraftDeletable=true;
+  const real = createSaleWorkspace({draft:{...emptyDraft(),customer:'Protected buyer',vehicle:'Ford Focus'},requestId:'real-draft-create'},context(),'REAL-DRAFT').sale;
+  real.emptyDraftDeletable=false;state.sales=[testSale,real];mount();
+  fireEvent.click(await screen.findByRole('button',{name:/\[TEST\] Unissued sale/}));
+  fireEvent.click(screen.getByRole('button',{name:'Delete draft'}));
+  const dialog=screen.getByRole('dialog',{name:'Delete this draft?'});
+  expect(state.fetch.mock.calls.some(([,options])=>options?.method==='DELETE')).toBe(false);
+  fireEvent.click(within(dialog).getByRole('button',{name:'Keep draft'}));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{name:'Delete draft'}));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button',{name:'Delete draft permanently'}));
+  await screen.findByRole('heading',{name:'Sales & invoices'});
+  expect(state.sales.map(sale=>sale.id)).toEqual([real.id]);
+  const deletion=state.fetch.mock.calls.find(([,options])=>options?.method==='DELETE');
+  expect(deletion?.[0]).toBe(`/api/sale-workspace/${testSale.id}`);
+  expect(JSON.parse(deletion?.[1].body)).toEqual({confirm:true,expectedRevision:1});
+  expect(screen.getByRole('status')).toHaveTextContent('Draft deleted.');
+  fireEvent.click(screen.getByRole('button',{name:/Protected buyer/}));
+  expect(screen.queryByRole('button',{name:'Delete draft'})).not.toBeInTheDocument();
+});
+
+it('keeps the draft when deletion fails and reloads protected changes before another attempt', async()=>{
+  const sale=createSaleWorkspace({draft:{...emptyDraft(),customer:'[TEST] Stale draft'},requestId:'stale-create'},context(),'TEST-STALE').sale;
+  sale.emptyDraftDeletable=true;state.sales=[sale];
+  const original=state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async(url,options)=>{if(options?.method==='DELETE')throw new Error('This sale changed on another device. Reload it before deleting.');return original(url,options);});
+  mount();fireEvent.click(await screen.findByRole('button',{name:/\[TEST\] Stale draft/}));
+  fireEvent.click(screen.getByRole('button',{name:'Delete draft'}));fireEvent.click(within(screen.getByRole('dialog')).getByRole('button',{name:'Delete draft permanently'}));
+  await waitFor(()=>expect(within(screen.getByRole('dialog')).getByRole('alert')).toHaveTextContent('another device'));
+  expect(state.sales).toHaveLength(1);
+  state.sales=[{...sale,revision:2,emptyDraftDeletable:false}];
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button',{name:'Reload saved sales'}));
+  await waitFor(()=>expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(screen.queryByRole('button',{name:'Delete draft'})).not.toBeInTheDocument();
+});
 it("returns an embedded invoice to the sales list and keeps the unsaved-change guard", async () => {
   const onExit = vi.fn();
   const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);

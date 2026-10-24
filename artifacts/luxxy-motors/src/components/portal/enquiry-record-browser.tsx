@@ -20,8 +20,10 @@ import { canFollowUpAppointment } from '@/lib/appointment-follow-up-email';
 import type { InboxEnquiry } from '@/lib/enquiry-reply-attention';
 import { enquiryPresentation, enquiryRequestText } from '@/lib/enquiry-presentation';
 import './enquiry-record-browser.css';
+import { DeleteTestEnquiry } from './delete-test-enquiry';
 
 export type EnquiryRecordActions = {
+  onDeletedEnquiry?: (id: string) => void;
   onUpdate: (entry: Enquiry) => void;
   onConversation: (entry: Enquiry) => void;
   onFollowUp: (entry: Enquiry) => void;
@@ -113,6 +115,7 @@ function EnquiryDetail({ entry, car, actions }: { entry: Enquiry; car?: Car; act
       <Button size="sm" variant="outline" onClick={() => actions.onUpdate(entry)}>Update enquiry</Button>
       <Button size="sm" variant="outline" asChild><Link href={`/portal?section=sales&enquiryId=${entry.id}`}>Start sale</Link></Button>
       {actions.onMerge && <Button size="sm" variant="outline" onClick={() => actions.onMerge?.(entry)}>Merge records</Button>}
+      <DeleteTestEnquiry key={entry.id} entry={entry} onDeleted={actions.onDeletedEnquiry} />
     </div></details>
 
   </>;

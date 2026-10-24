@@ -794,7 +794,7 @@ export function EnquiriesPanel({ canEmail = false, embedded = false, initialView
     ...(features.isError ? { retry: () => { void features.refetch(); } } : {}),
   };
   const routeSearch = useSearch();
-  const [,navigate] = useLocation();
+  const [location,navigate] = useLocation();
   const requestedEnquiry = new URLSearchParams(routeSearch).get('enquiryId');
   const requestedDeskView = new URLSearchParams(routeSearch).get('deskView');
   const openedEnquiry = useRef<string | null>(null);
@@ -938,6 +938,20 @@ export function EnquiriesPanel({ canEmail = false, embedded = false, initialView
   function openEntry(entry: Enquiry) { const primary = primaryEnquiry(entry, allEntries); if (onOpenCustomer) { onOpenCustomer(primary.id); return; } setGlobalSearch(""); setMode("history"); setSearch(primary.customerName); setFilter("all"); selectRecord(primary.id); }
   const callbackCount = callbackEntries.filter(isOutstandingCallback).length;
   const recordActions: EnquiryRecordActions = {
+    onDeletedEnquiry: id => {
+      // Remove only the deleted record immediately, even if the follow-up refresh fails.
+      openedEnquiry.current = null;
+      if (requestedEnquiry === id) { const params = new URLSearchParams(routeSearch); params.delete('enquiryId'); navigate(`${location || '/portal'}?${params}`); }
+      client.setQueriesData<Enquiry[]>({ queryKey: getGetEnquiriesQueryKey() }, current => Array.isArray(current) ? current.filter(entry => entry.id !== id) : current);
+      setSelectedEnquiryId(null); setSearch(''); setGlobalSearch('');
+      setWorkspaceEntry(null); setConversationEntry(null); setEmailEntry(null); setMergeEntry(null); setFollowUpEntry(null); setEditing(null); setHistoryContact(null);
+      if (initial?.id === id) { setInitial(undefined); setSelection(undefined); setFormKey(key => key + 1); }
+      setNotice('Test enquiry deleted.');
+      void client.invalidateQueries({ predicate: query => {
+        const key = String(query.queryKey[0]);
+        return /enquir|customer|history|phone-share|reply-attention|staff-notifications|dealer-operations|test-drive-bookings/.test(key);
+      } }).catch(() => {});
+    },
     canBook: bookingAccess.enabled,
     onUpdate: setWorkspaceEntry, onConversation: setConversationEntry, onMerge: entry => setMergeEntry(primaryEnquiry(entry, allEntries)), onFollowUp: entry => setFollowUpEntry({ ...entry }),
     onEmail: canEmail ? entry => { setAppointmentEmail(false); setEmailEntry(entry); } : undefined,

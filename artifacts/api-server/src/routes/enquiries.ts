@@ -73,8 +73,10 @@ import { readAppointmentDiary } from "../lib/appointment-diary";
 import { enquiryConversationPage } from "../lib/enquiry-conversation-history";
 import { HistoryCursorError, parseHistoryCursor } from "../lib/history-cursor";
 import { quickEnquiryCapture } from "../lib/quick-enquiry-capture";
+import { testEnquiryDeletionRouter } from "../lib/test-enquiry-deletion";
 
 const router: IRouter = Router();
+router.use(testEnquiryDeletionRouter());
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const settings = () => ({

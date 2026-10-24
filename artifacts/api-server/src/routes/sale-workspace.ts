@@ -53,6 +53,13 @@ async function mutate(req: Request, res: Response, command: SaleWorkspaceCommand
   } catch (error) { failure(req, res, error); }
 }
 router.put('/sale-workspace/:id', requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'update', draft: req.body?.draft }); });
+router.delete('/sale-workspace/:id', requirePermission('sales.manage'), async (req, res) => {
+  try {
+    if (!uuid(req.params.id)) throw new SaleWorkspaceError('Sale draft not found.', 404);
+    if (req.body?.confirm !== true) throw new SaleWorkspaceError('Confirm deletion of this empty sale draft first.');
+    res.json(await store().deleteEmptyDraft(req.params.id, req.body?.expectedRevision));
+  } catch (error) { failure(req, res, error); }
+});
 router.post('/sale-workspace/:id/review-reminder', requirePermission('sales.manage'), async (req, res) => {
   await mutate(req, res, req.body?.cancel === true ? { action: 'cancel-review-reminder' } : { action: 'review-reminder', at: req.body?.at });
 });

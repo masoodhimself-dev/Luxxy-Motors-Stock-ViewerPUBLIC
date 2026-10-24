@@ -49,6 +49,8 @@ import {
 import { openSaleDocumentPdf } from "@/components/sales-demo/sales-document";
 import { RecentCustomerFields, type RecentCustomer } from "@/components/portal/recent-customer-fields";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { useStaffAccess } from '@/components/portal/dealer-administration';
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -61,6 +63,7 @@ import {
   Download,
   Mail,
   Car,
+  Trash2,
 } from "@/components/icons";
 import "@/sales-workspace.css";
 import "./invoice-builder.css";
@@ -96,6 +99,7 @@ export function SalesWorkspace({
   const enquiries = useGetEnquiries();
   const reservations = useListReservations();
   const client = useQueryClient();
+  const access = useStaffAccess();
   const sales = useQuery({
     queryKey: ["sale-workspace"],
     queryFn: () =>
@@ -103,6 +107,7 @@ export function SalesWorkspace({
     retry: false,
   });
   const [record, setRecord] = useState<SaleWorkspaceRecord | null>(null);
+  const [deleteDraftOpen, setDeleteDraftOpen] = useState(false);
   const [draft, setDraft] = useState<SaleDraft | null>(null);
   const [taxReference, setTaxReference] = useState("");
   const [kind, setKind] = useState<"deposit" | "full">("full");
@@ -137,6 +142,7 @@ export function SalesWorkspace({
   );
   const checklistReady = Boolean(record && !detailsDirty && saleWorkspaceChecklistProgress(record).ready);
   const dirty = detailsDirty || Boolean(payment.amount.trim());
+  const canDeleteDraft = Boolean(record?.emptyDraftDeletable && access.data?.permissions.includes('sales.manage'));
   const rows = record?.payments ?? [];
   const total = draft
     ? saleWorkspaceTotals(draft as SaleWorkspaceDraft, rows)
@@ -208,6 +214,7 @@ export function SalesWorkspace({
     if (lock.current) return;
     if (dirty && !window.confirm("Leave your unsaved invoice details?")) return;
     setTaxReference("");
+    setDeleteDraftOpen(false);
     setRecord(saved ?? null);
     setDraft(initial ?? (saved ? structuredClone(saved.draft) : emptyDraft()));
     setStep(0);
@@ -391,6 +398,20 @@ export function SalesWorkspace({
       await saveInternal();
       setMessage("Details saved.");
     });
+  function deleteSavedDraft() {
+    if (!record || !canDeleteDraft || dirty) return;
+    const deleting = record;
+    run(async () => {
+      const result = await customFetch<{ deleted: boolean; id: string }>(`/api/sale-workspace/${deleting.id}`, { method: 'DELETE', body: JSON.stringify({ expectedRevision: deleting.revision, confirm: true }) });
+      if (result.deleted !== true || result.id !== deleting.id) throw new Error('Could not confirm deletion. Reload the saved sales before trying again.');
+      client.setQueryData<{ sales: SaleWorkspaceRecord[] }>(['sale-workspace'], previous => ({ sales: (previous?.sales ?? []).filter(sale => sale.id !== deleting.id) }));
+      setDeleteDraftOpen(false); setRecord(null); setDraft(null); setIssued(null); setShowSummary(false);
+      if (embedded) navigate('/portal?section=sales');
+      setMessage('Draft deleted.');
+      // A failed background refresh must not make a completed deletion look like a failure.
+      void client.invalidateQueries({ queryKey: ['sale-workspace'] }).catch(() => {});
+    });
+  }
   const saveChecks = (input: SaleWorkspaceChecklistInput) => run(async () => {
     await command('/checklists', input);
     setMessage('Checks saved.');
@@ -673,6 +694,7 @@ export function SalesWorkspace({
               </Button>
             </p>
           )}
+          {message && <p className="invoice-message" role="status">{message}</p>}
           <div className="invoice-sale-list">
             {matchingSales.map((sale) => (
                 <button key={sale.id} data-sale-status={sale.completedAt ? 'sold' : sale.lifecycle?.status === 'reserved' ? 'reserved' : 'in-progress'} onClick={() => open(sale)}>
@@ -824,6 +846,7 @@ export function SalesWorkspace({
                   </div>
                   {rows.length > 0 && <section className="invoice-summary-payments" aria-label="Recorded payments"><ul>{rows.map(row => <li key={row.id} data-status={row.status}><div><strong>{saleMoney(row.signedAmountPence)}</strong><span>{paymentDate(row.date)} · {row.method}</span></div><small>{row.status === "confirmed" ? row.signedAmountPence < 0 ? "Returned / reversed" : "Received" : row.status}{row.reference && ` · ${row.reference}`}</small></li>)}</ul></section>}
                   <div className="invoice-resume-edit"><span>{record.completedAt ? "Completed details are locked. Issued invoices remain unchanged." : "Need to correct something?"}</span><Button variant="ghost" disabled={busy} onClick={() => resumeAt(0)}>{record.completedAt ? "View vehicle details" : "Edit vehicle & price"}</Button><Button variant="ghost" disabled={busy} onClick={() => resumeAt(1)}>{record.completedAt ? "View customer details" : "Edit customer details"}</Button></div>
+                  {canDeleteDraft && <div className="invoice-draft-delete"><div><strong>{record.draft.customer ? 'Test sale draft' : 'Unused sale draft'}</strong><p>No invoice or payment has been recorded. {dirty ? 'Save or discard your unsaved changes before deleting.' : 'You can remove this draft if it is no longer needed.'}</p></div><Button variant="outline" disabled={busy || dirty} onClick={() => { setProblem(''); setDeleteDraftOpen(true); }}><Trash2 size={16} aria-hidden="true" />Delete draft</Button></div>}
                   {(record.completedAt || record.lifecycle?.status === 'sold') && <><SaleReviewReminder key={`review-reminder:${record.id}`} sale={record} reviewUrl={settings.contact.googleReviewUrl || ''} onSaved={setRecord} /><SoldVehicleCustomerReview saleId={record.id} /></>}
                   {record.documents.length > 1 && <details className="invoice-resume-paperwork"><summary>All saved paperwork ({record.documents.length})</summary>{[...record.documents].reverse().map(document => <div key={document.id}><span>{document.title}<small>{document.number}</small></span><Button variant="outline" size="sm" disabled={busy} onClick={() => documentAction(document, "print")}>Open {document.number}</Button></div>)}</details>}
                 </section>
@@ -1673,6 +1696,21 @@ export function SalesWorkspace({
           )}
         </>
       )}
+      {deleteDraftOpen && record && <Dialog open onOpenChange={open => { if (!busy && !open) { setDeleteDraftOpen(false); setProblem(''); } }}>
+        <DialogContent className="z-[90]" overlayClassName="z-[89]" onOpenAutoFocus={event => { event.preventDefault(); document.getElementById('keep-sale-draft')?.focus(); }}>
+          <DialogHeader><DialogTitle>Delete this draft?</DialogTitle><DialogDescription>This permanently removes only this unused or clearly labelled test draft. Invoices, payments, stock and customer enquiry records are kept.</DialogDescription></DialogHeader>
+          <p>{record.draft.customer || 'No customer added'}{record.draft.vehicle ? ` — ${record.draft.vehicle}` : ''}</p>
+          {problem && <div><p role="alert">{problem}</p><Button variant="outline" disabled={busy} onClick={() => run(async () => {
+            const refreshed = await sales.refetch();
+            if (refreshed.error) throw refreshed.error;
+            const latest = refreshed.data?.sales.find(sale => sale.id === record.id);
+            setDeleteDraftOpen(false);
+            if (latest) { accept({ sale: latest }); setMessage('Latest draft loaded. Review it before deleting.'); }
+            else { setRecord(null); setDraft(null); setShowSummary(false); setMessage('This draft is no longer in your saved sales.'); }
+          })}>Reload saved sales</Button></div>}
+          <DialogFooter className="gap-2 sm:gap-0"><Button id="keep-sale-draft" variant="outline" disabled={busy} onClick={() => { setDeleteDraftOpen(false); setProblem(''); }}>Keep draft</Button><Button variant="destructive" disabled={busy || !canDeleteDraft || dirty || Boolean(problem)} onClick={deleteSavedDraft}>{busy ? 'Deleting…' : 'Delete draft permanently'}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>}
       {reverse && record && (
         <ReversePaymentDialog
           invoiceOnly

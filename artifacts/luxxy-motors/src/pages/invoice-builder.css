@@ -151,6 +151,10 @@ body:has(.invoice-builder.is-editing) { overflow: hidden; }
 .invoice-list-heading { display: flex; justify-content: space-between; align-items: center; gap: 24px; margin-bottom: 24px; }
 .invoice-list-heading p { margin-top: 10px; color: var(--invoice-muted); font-size: 13px; }
 .invoice-sale-list { margin-top: 20px; }
+.invoice-draft-delete { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:20px; padding-top:20px; border-top:1px solid var(--invoice-line); }
+.invoice-draft-delete p { margin:4px 0 0; color:var(--invoice-muted); font-size:13px; }
+.invoice-draft-delete button { flex-shrink:0; }
+@media(max-width:600px) { .invoice-draft-delete { align-items:stretch; flex-direction:column; } }
 .invoice-sale-list > button { display: flex; align-items: center; width: 100%; margin-bottom: 10px; padding: 18px 20px; gap: 20px; border: 1px solid var(--invoice-line); border-radius: 10px; background: #fff; text-align: left; }
 .invoice-sale-list > button:hover { border-color: #8da5b5; background: #fcfdfe; }
 .invoice-sale-list > button > span:first-child { min-width: 0; flex: 1; overflow-wrap: anywhere; }

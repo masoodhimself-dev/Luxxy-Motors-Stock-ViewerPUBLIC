@@ -66,9 +66,10 @@ test('the production SPA and API preserve private invoice and viewing response h
     for(const route of ['/verify-invoice/example','/viewing/example','/viewing/example/change','/api/viewings/example']){
       const response=await fetch(base+route,{headers:{Accept:'text/html'}});
       assert.equal(response.status,route.startsWith('/api/')?404:200);
-      assert.equal(response.headers.get('cache-control'),'no-store');assert.equal(response.headers.get('referrer-policy'),'no-referrer');assert.equal(response.headers.get('x-robots-tag'),'noindex, nofollow');
+      assert.equal(response.headers.get('cache-control'),'no-store');assert.equal(response.headers.get('referrer-policy'),'no-referrer');assert.equal(response.headers.get('x-robots-tag'),route.startsWith('/api/')?'noindex, nofollow':'noindex, nofollow, noarchive');
     }
-    const publicResponse=await fetch(base+'/',{headers:{Accept:'text/html'}});assert.equal(publicResponse.headers.get('cache-control'),'no-cache');
+    // Server-rendered HTML already uses no-store so current stock/prices are never served stale.
+    const publicResponse=await fetch(base+'/',{headers:{Accept:'text/html'}});assert.equal(publicResponse.headers.get('cache-control'),'no-store');
   } finally {server.closeAllConnections();server.close();await rm(dir,{recursive:true,force:true});}
 });
 test('private viewing and invoice tokens are removed from request log URLs',()=>{

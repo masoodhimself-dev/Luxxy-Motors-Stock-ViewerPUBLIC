@@ -284,6 +284,11 @@ router.post(
         await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
           `phone-shares:${dealer}`,
         ]);
+        // Preparation happens before this transaction. A test enquiry may have
+        // been deleted meanwhile; never create a fresh capability for that row.
+        if (payload.enquiryId && !(await client.query('SELECT id FROM enquiries WHERE dealer_id=$1 AND id=$2::uuid FOR KEY SHARE', [dealer, payload.enquiryId])).rows.length) {
+          throw new PhoneShareError('Enquiry not found. Refresh before sharing.', 404);
+        }
         const concurrent = (
           await client.query(
             "SELECT id,token_hash,fingerprint,expires_at,revoked_at,payload FROM customer_phone_shares WHERE dealer_id=$1 AND request_id=$2",

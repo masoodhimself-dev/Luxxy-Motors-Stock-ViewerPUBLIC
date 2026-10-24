@@ -29,7 +29,7 @@ vi.mock('./enquiry-calendar', () => ({ EnquiryCalendar: ({ onAdd }: { onAdd?: (d
 vi.mock('./enquiry-stock-desk', () => ({ EnquiryStockDesk: () => null }));
 vi.mock('./enquiry-workspace-tools', () => ({ OwnerSelect: () => null, WorkspaceEditor: () => null, TodayDesk: () => null, CustomerHistory: () => null }));
 vi.mock('./enquiry-record-browser', () => ({
-  EnquiryRecordBrowser: ({ entries, selectedId, actions }: { entries: Enquiry[]; selectedId: string | null; actions: { onAppointment: (entry: Enquiry) => void } }) => <section aria-label="Customer records"><p data-testid="selected-enquiry">{selectedId ?? 'none'}</p>{entries.map(entry => <div key={entry.id}><p>{entry.customerName} · {entry.reference}</p>{entry.appointmentAt && <button onClick={() => actions.onAppointment(entry)}>Change appointment for {entry.customerName}</button>}</div>)}</section>,
+  EnquiryRecordBrowser: ({ entries, selectedId, actions }: { entries: Enquiry[]; selectedId: string | null; actions: { onAppointment: (entry: Enquiry) => void; onDeletedEnquiry?: (id: string) => void } }) => <section aria-label="Customer records"><p data-testid="selected-enquiry">{selectedId ?? 'none'}</p>{entries.map(entry => <div key={entry.id}><p>{entry.customerName} · {entry.reference}</p>{entry.appointmentAt && <button onClick={() => actions.onAppointment(entry)}>Change appointment for {entry.customerName}</button>}{entry.customerName.startsWith('TEST') && <button onClick={() => actions.onDeletedEnquiry?.(entry.id)}>Simulate confirmed test deletion</button>}</div>)}</section>,
 }));
 import { EnquiriesPanel } from './enquiries-panel';
 
@@ -69,6 +69,22 @@ it('keeps the first edited search value when clearing a selected customer and it
   const query = new URL(location.history!.at(-1)!, 'https://dealer.example').searchParams;
   expect(query.get('workView')).toBe('customers');
   expect(query.has('enquiryId')).toBe(false);
+});
+
+it('removes the exact deleted test from caches and route while preserving real contact matches even if refresh fails', async () => {
+  const test = { ...alex, id: 'test-delete', customerName: 'TEST — duplicate contact', reference: 'TEST' };
+  state.fetchEnquiries.mockRejectedValue(new Error('Refresh temporarily unavailable'));
+  const { client, location } = mount('section=notifications&workView=customers&enquiryId=test-delete', [test, alex, jordan]);
+  client.setQueryData(['enquiries'], [test, alex, jordan]);
+  const original = JSON.stringify([alex, jordan]);
+  fireEvent.click(await screen.findByRole('button', { name: 'Simulate confirmed test deletion' }));
+  await waitFor(() => expect(client.getQueryData(['enquiries', 'timeline-omitted'])).toEqual([alex, jordan]));
+  expect(client.getQueryData(['enquiries'])).toEqual([alex, jordan]);
+  expect(screen.getByRole('status')).toHaveTextContent('Test enquiry deleted.');
+  expect(screen.queryByText(/This enquiry could not be found/)).not.toBeInTheDocument();
+  expect(new URL(location.history!.at(-1)!, 'https://dealer.example').searchParams.has('enquiryId')).toBe(false);
+  expect(JSON.stringify([alex, jordan])).toBe(original);
+  expect(state.create).not.toHaveBeenCalled(); expect(state.change).not.toHaveBeenCalled();
 });
 
 it('shows a newly saved customer before the invalidated enquiry list finishes refreshing', async () => {

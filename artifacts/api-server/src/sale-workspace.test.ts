@@ -181,7 +181,8 @@ test('production store loads branding and vehicle facts on its held transaction 
     if (query.startsWith('SELECT id, coalesce')) { assert.equal(held, true); assetQueries.push(query); assert.equal(parameters[0], 'test-dealer'); return { rows: [{ id: parameters[1], title: 'Test car', year: 2016, fuel: 'Petrol', transmission: 'Manual', mileage: 38000 }] }; }
     if (query.startsWith('SELECT state')) {
       const candidates = [...records.values()];
-      return { rows: (query.includes("state->'requests'") ? candidates.filter(sale => sale.requests?.[parameters[1]]) : query.includes('id = $2') ? candidates.filter(sale => sale.id === parameters[1]) : candidates).map(state => ({ state: clone(state) })) };
+      const replayLookup = query.includes("WHERE dealer_id = $1 AND state->'requests' ? $2");
+      return { rows: (replayLookup ? candidates.filter(sale => sale.requests?.[parameters[1]]) : query.includes('id = $2') ? candidates.filter(sale => sale.id === parameters[1]) : candidates).map(state => ({ state: clone(state) })) };
     }
     if (query.startsWith('SELECT numbers')) return { rows: [{ numbers: clone(numbers) }] };
     if (query.startsWith('INSERT INTO sale_workspace (')) records.set(parameters[0], JSON.parse(parameters[4]));
@@ -213,7 +214,9 @@ test('production store loads branding and vehicle facts on its held transaction 
   const rejected = outcomes.find(outcome => outcome.status === 'rejected') as PromiseRejectedResult;
   assert.ok(rejected.reason instanceof SaleWorkspaceError); assert.equal(rejected.reason.status, 409);
   assert.equal(connectionCalls, 3); assert.equal(outsideQueries, 0); assert.equal(assetQueries.length, 6); assert.equal(held, false);
-  assert.equal((await store.list())[0].payments.length, 1); assert.equal(numbers['receipt-2026'], 1);
+  const listed = (await store.list())[0];
+  assert.equal(listed.payments.length, 1); assert.equal(listed.emptyDraftDeletable, false);
+  assert.equal(numbers['receipt-2026'], 1);
 });
 
 test('supplied reservation terms and required sale terms are frozen into their respective packs', () => {
