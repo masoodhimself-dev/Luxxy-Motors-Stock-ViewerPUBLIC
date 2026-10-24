@@ -26,3 +26,7 @@ No actual WhatsApp send, email send, new official invoice, payment, real sale co
 Retained for inspection: one labelled test invoice-history entry on Masood's existing enquiry, one labelled delivery draft, one labelled delivery enquiry and its history entry. Private share packs have their normal expiry; private URLs/tokens are deliberately excluded from this report.
 
 Live screenshot: `/tmp/shore-drive-delivery-whatsapp-history-2026-10-24.png`. No application code change was needed. Physical iPhone/iPad hardware was not used during this live browser test; the preceding release's automated viewport checks are documented separately.
+
+## Test-data cleanup
+
+Later on 24 October, the user requested removal and gave final confirmation. The single test draft, single test enquiry and two test messages above were removed, and their four temporary sharing packs were revoked. The retained real customer, issued invoices, payments, stock and all other dealership data were verified unchanged. See [the cleanup audit](shore-drive-test-cleanup-2026-10-24.md).
