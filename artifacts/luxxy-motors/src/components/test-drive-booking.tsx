@@ -47,7 +47,6 @@ import {
   bookingTimezone,
   defaultBookingSettings,
   londonDate,
-  nextDate,
 } from "@/lib/test-drive-dates";
 import { showroomHours } from '@/lib/showroom-hours';
 import { websiteText } from "@/lib/website-content";
@@ -154,7 +153,7 @@ export function TestDriveBooking({
   );
   // Keep the immediate choices short. Every later date remains in the selector,
   // and a selected later date replaces the last quick choice so it stays visible.
-  const quickDates = dates.slice(0, 7);
+  const quickDates = dates.slice(0, 5);
   if (dates.includes(selectedDate) && !quickDates.includes(selectedDate)) quickDates[quickDates.length - 1] = selectedDate;
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -394,10 +393,6 @@ export function TestDriveBooking({
           )}
         </div>
       </div>
-      {step === 1 && !mutation.isSuccess && <div className="booking-car-speech" aria-label="Before your test drive">
-        <span className="booking-car-speech-speaker">Before your test drive</span>
-        <p>Please bring your driving licence. If you have any questions before your visit, contact our team.</p>
-      </div>}
     </div>
   );
   const visitDetails = (
@@ -441,7 +436,7 @@ export function TestDriveBooking({
 
   return (
     <div className="booking-page bg-background px-4 pb-14 pt-5 sm:px-6 sm:py-10">
-      <div className="mx-auto max-w-[760px]">
+      <div className="booking-shell mx-auto">
         <Link
           href={currentCar ? `/vehicle/${currentCar.id}` : "/stock"}
           className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-primary"
@@ -449,7 +444,7 @@ export function TestDriveBooking({
           <ArrowLeft size={16} aria-hidden="true" />
           {currentCar ? "Back to the car" : "Browse Stock"}
         </Link>
-        <header className="mb-6 mt-3 sm:mb-8">
+        <header className="booking-intro mb-6 mt-3 sm:mb-8">
           <p className="luxxy-kicker">Visit {settings.identity.name}</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
             {websiteText(settings, "viewingTitle")}
@@ -458,6 +453,11 @@ export function TestDriveBooking({
             {websiteText(settings, "viewingDescription")}
           </p>
         </header>
+        <div className={`booking-layout ${!pickingCar && !mutation.isSuccess && !isLoading && !settingsLoading && !error && !settingsError && config.enabled ? 'booking-layout-active' : ''}`}>
+          {!pickingCar && !mutation.isSuccess && !isLoading && !settingsLoading && !error && !settingsError && config.enabled && <aside className="booking-context" aria-label="Your selected car and showroom">
+            {selectedCarCard}
+            <details className="booking-showroom"><summary>Showroom details & before your visit</summary><p className="mb-3 text-sm leading-6">Please bring your driving licence. Contact our team if you have any questions before your visit.</p>{visitDetails}</details>
+          </aside>}
         <div className="booking-panel rounded-sm border border-border bg-card p-5 sm:p-8">
           {isLoading || settingsLoading ? (
             <div role="status" className="space-y-4 py-8">
@@ -689,12 +689,11 @@ export function TestDriveBooking({
             </section>
           ) : (
             <>
-              {selectedCarCard}
               <ol
                 aria-label="Booking progress"
-                className="my-6 grid grid-cols-3 gap-3 border-b border-border pb-5 text-xs sm:text-sm"
+                className="booking-progress grid grid-cols-3 gap-3 border-b border-border text-xs sm:text-sm"
               >
-                {["Choose a time", "Your details", "Confirm"].map(
+                {["Choose a time", "Your details", "Review and submit"].map(
                   (label, index) => (
                     <li
                       key={label}
@@ -706,7 +705,7 @@ export function TestDriveBooking({
                       >
                         {step > index + 1 ? <Check size={13} /> : index + 1}
                       </span>
-                      {label}
+                      <span className="booking-progress-label">{label}</span>
                     </li>
                   ),
                 )}
@@ -717,7 +716,7 @@ export function TestDriveBooking({
                 className="booking-step-heading scroll-mt-24 text-2xl font-semibold outline-none"
               >
                 {step === 1
-                  ? "When would you like to come?"
+                  ? "Choose a time"
                   : step === 2
                     ? "How can we reach you?"
                     : "Everything look right?"}
@@ -756,6 +755,7 @@ export function TestDriveBooking({
                     {config.durationMinutes}-minute appointments · London time
                     {approval ? " · We’ll confirm your request" : ""}
                   </p>
+                  <div className="booking-date-heading"><h3 className="font-semibold">Choose a date</h3><label><span className="sr-only">Choose a test-drive date</span><NativeSelect data-testid="select-viewing-date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)}>{dates.map(date => <option key={date} value={date}>{bookingDateLabel(date)}</option>)}</NativeSelect></label></div>
                   <div
                     role="group"
                     aria-label="Choose a test-drive date"
@@ -773,14 +773,7 @@ export function TestDriveBooking({
                         className={`min-h-20 min-w-[100px] shrink-0 rounded-sm border px-3 py-3 text-left ${selectedDate === date ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}
                       >
                         <span className="block text-sm font-semibold">
-                          {date === londonDate()
-                            ? "Today"
-                            : date === nextDate(londonDate(), 1)
-                              ? "Tomorrow"
-                              : new Intl.DateTimeFormat("en-GB", {
-                                  timeZone: bookingTimezone,
-                                  weekday: "short",
-                                }).format(new Date(`${date}T12:00:00Z`))}
+                          {new Intl.DateTimeFormat("en-GB", { timeZone: bookingTimezone, weekday: "short" }).format(new Date(`${date}T12:00:00Z`))}
                         </span>
                         <span className="mt-1 block text-xs">
                           {new Intl.DateTimeFormat("en-GB", {
@@ -792,32 +785,7 @@ export function TestDriveBooking({
                       </button>
                     ))}
                   </div>
-                  {dates.length > 7 && (
-                    <details className="mb-5">
-                      <summary className="flex min-h-11 cursor-pointer items-center text-sm underline underline-offset-4">
-                        Choose another date
-                      </summary>
-                      <label>
-                        <span className="sr-only">
-                          Choose a test-drive date
-                        </span>
-                        <NativeSelect
-                          data-testid="select-viewing-date"
-                          value={selectedDate}
-                          onChange={(event) =>
-                            setSelectedDate(event.target.value)
-                          }
-                        >
-                          {dates.map((date) => (
-                            <option key={date} value={date}>
-                              {bookingDateLabel(date)}
-                            </option>
-                          ))}
-                        </NativeSelect>
-                      </label>
-                    </details>
-                  )}
-                  <p className="mb-3 text-sm font-semibold">Available times</p>
+                  <p className="booking-times-heading mb-3 text-sm font-semibold">{bookingDateLabel(selectedDate)}<span>London time</span></p>
                   {availability.isLoading || availability.isFetching ? (
                     <div
                       role="status"
@@ -887,7 +855,7 @@ export function TestDriveBooking({
                     disabled={
                       !selectedTime || availability.isFetching || availability.isError || !dates.length
                     }
-                    className="mt-5 min-h-12 w-full"
+                    className="booking-continue mt-5 min-h-12 w-full"
                     data-testid="button-continue-to-details"
                     onClick={() => setStep(2)}
                   >
@@ -1171,6 +1139,7 @@ export function TestDriveBooking({
               )}
             </>
           )}
+        </div>
         </div>
       </div>
     </div>

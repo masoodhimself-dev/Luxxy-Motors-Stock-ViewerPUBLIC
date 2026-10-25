@@ -104,7 +104,7 @@ it('stops on the details step when a selected slot disappears and offers a direc
   fireEvent.submit(screen.getByTestId('button-review-booking').closest('form')!);
   expect(screen.queryByTestId('booking-review')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Choose another time' }));
-  expect(screen.getByRole('heading', { name: 'When would you like to come?' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Choose a time' })).toBeInTheDocument();
   state.empty = false;
   view.rerender(booking());
   fireEvent.click(within(screen.getByTestId('group-viewing-slots')).getByRole('button'));
@@ -128,7 +128,7 @@ it('explains a failed availability recheck before review and keeps the customer 
   expect(screen.queryByTestId('booking-review')).not.toBeInTheDocument();
   expect(screen.getByTestId('input-customer-name')).toHaveValue('Fictional Customer');
   fireEvent.click(screen.getByRole('button', { name: 'Check available times' }));
-  expect(screen.getByRole('heading', { name: 'When would you like to come?' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Choose a time' })).toBeInTheDocument();
   expect(state.mutate).not.toHaveBeenCalled();
 });
 
@@ -163,14 +163,14 @@ it('explains background rechecks on details and review and resumes once the chec
 
 it('keeps practical visit guidance on the first step and a compact car on later steps', () => {
   render(booking());
-  expect(screen.getByLabelText('Before your test drive')).toBeInTheDocument();
+  expect(screen.getByText('Showroom details & before your visit')).toBeInTheDocument();
   fireEvent.click(within(screen.getByTestId('group-viewing-slots')).getByRole('button'));
   fireEvent.click(screen.getByTestId('button-continue-to-details'));
-  expect(screen.queryByLabelText('Before your test drive')).not.toBeInTheDocument();
+  expect(screen.getByText('Showroom details & before your visit')).toBeInTheDocument();
   expect(screen.getByTestId('card-enquiry-vehicle')).toHaveClass('booking-car-compact');
   expect(screen.getByTestId('card-enquiry-vehicle')).toHaveTextContent('Ford Fiesta');
   fireEvent.click(screen.getByRole('button', { name: 'Change time' }));
-  expect(screen.getByLabelText('Before your test drive')).toBeInTheDocument();
+  expect(screen.getByText('Showroom details & before your visit')).toBeInTheDocument();
 });
 
 it('offers the next permitted date and direct contact when a day has no slots', () => {

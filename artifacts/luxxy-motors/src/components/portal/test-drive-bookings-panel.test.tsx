@@ -40,7 +40,7 @@ function mount(props: { canEmail?: boolean; enquiryId?: string } = {}) {
 const declarationCalls = () => state.fetch.mock.calls.filter(([url]) => String(url).endsWith('/test-drive-declarations'));
 it('links a booking to its customer and prepares email only with permission', () => {
   mount({ canEmail: true, enquiryId: 'enquiry-one' });
-  expect(screen.getByText('Alex')).toBeVisible();
+  expect(within(screen.getByTestId('staff-test-drive-enquiry-one')).getByText('Alex')).toBeVisible();
   expect(screen.queryByText('Jordan')).not.toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Open customer' })).toHaveAttribute('href', '/portal?section=notifications&workView=customers&enquiryId=enquiry-one');
   expect(screen.getByRole('link', { name: 'Prepare email' })).toHaveAttribute('href', '/portal?section=notifications&workView=email&compose=enquiry-one');
@@ -73,7 +73,7 @@ it('finds appointments on explicitly merged originals when opening the primary e
     { ...state.bookings[1], createdAt: '2026-10-16T10:00:00Z' },
   ];
   mount({ enquiryId: 'primary' });
-  expect(screen.getByText('Ford Focus')).toBeVisible();
+  expect(within(screen.getByTestId('staff-test-drive-enquiry-one')).getByText('Ford Focus')).toBeVisible();
   expect(screen.queryByText('Vauxhall Corsa')).not.toBeInTheDocument();
   expect(screen.getByText('Showing this enquiry and its merged records.')).toBeVisible();
 });
@@ -101,25 +101,27 @@ it('refreshes the notifications, enquiry and booking views after a decision', as
   expect(invalidate).toHaveBeenCalledWith({ queryKey: ['enquiries'] });
   expect(invalidate).toHaveBeenCalledWith({ queryKey: ['staff-notifications'] });
 });
-it('checks only the next eight visible preparations and loads later bookings on request', async () => {
+it('loads only the selected preparation and switches to the correct customer', async () => {
   state.bookings = Array.from({ length: 12 }, (_, index) => ({
     ...state.bookings[1], id: `booking-${index}`, customerName: `Customer ${index}`, vehicleId: 'car-one',
     appointmentAt: new Date(Date.UTC(2099, 9, 18, index)).toISOString(),
   }));
   mount();
-  await waitFor(() => expect(declarationCalls()).toHaveLength(8));
-  expect(declarationCalls().map(([url]) => url)).toEqual(Array.from({ length: 8 }, (_, index) => `/api/staff/enquiries/booking-${index}/test-drive-declarations`));
+  await waitFor(() => expect(declarationCalls()).toHaveLength(1));
+  expect(declarationCalls()[0][0]).toBe('/api/staff/enquiries/booking-0/test-drive-declarations');
+  fireEvent.click(screen.getByRole('button', { name: /Customer 10/ }));
   const later = screen.getByTestId('staff-test-drive-booking-10');
+  expect(screen.queryByTestId('staff-test-drive-booking-0')).not.toBeInTheDocument();
   fireEvent.click(within(later).getByRole('button', { name: 'Check preparation' }));
   expect(await within(later).findByText('Declaration needed')).toBeVisible();
-  expect(declarationCalls()).toHaveLength(9);
+  expect(declarationCalls()).toHaveLength(2);
   expect(state.fetch.mock.calls.every(([, options]) => !options?.method)).toBe(true);
 });
 it('keeps booking records readable for accounts without declaration controls or denied declaration requests', () => {
   state.permissions = ['sales.view', 'finance.export'];
   state.bookings = [{ ...state.bookings[1], vehicleId: 'car-one' }];
   mount();
-  expect(screen.getByText('Jordan')).toBeVisible();
+  expect(within(screen.getByTestId('staff-test-drive-enquiry-other')).getByText('Jordan')).toBeVisible();
   expect(screen.getByRole('link', { name: 'Open customer' })).toBeVisible();
   expect(screen.queryByRole('button', { name: 'Declaration & QR' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Check preparation' })).not.toBeInTheDocument();

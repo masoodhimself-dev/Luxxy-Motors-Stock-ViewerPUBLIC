@@ -1,0 +1,22 @@
+.booking-workspace { display: grid; grid-template-columns: minmax(220px,30%) minmax(0,1fr); }
+.booking-appointment-list { border-right: 1px solid hsl(var(--border)); min-width: 0; }
+.booking-desktop-list { display: grid; gap: 0; }
+.booking-desktop-list > button { display: grid; gap: 7px; width: 100%; text-align: left; padding: 18px; border-bottom: 1px solid hsl(var(--border)); border-left: 3px solid transparent; font-size: 13px; }
+.booking-desktop-list > button > span { color: hsl(var(--muted-foreground)); }
+.booking-desktop-list > button[aria-pressed=true] { background: hsl(var(--secondary)); border-left-color: hsl(var(--primary)); }
+.booking-desktop-list > button:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: -3px; }
+.booking-detail-header { grid-template-columns: minmax(0,1fr) auto; }
+.booking-detail-header > div:first-child { grid-column: 1 / -1; }
+.booking-detail-header > div:nth-child(2) { grid-row: 1; }
+.booking-detail-header > div:nth-child(3) { grid-row: 1; grid-column: 2; }
+.booking-detail-header > div:nth-child(2) > p { font-size: 22px; }
+.booking-detail-header > div:first-child { grid-row: 2; border-top: 1px solid hsl(var(--border)); padding-top: 16px; }
+.booking-mobile-picker { display: none; }
+@media(max-width:767px) {
+ .booking-workspace { display: block; }
+ .booking-appointment-list { border: 0; border-bottom: 1px solid hsl(var(--border)); padding: 12px 16px; }
+ .booking-desktop-list { display: none; }
+ .booking-mobile-picker { display: grid; gap: 6px; font-size: 12px; font-weight: 600; }
+ .booking-mobile-picker select { width: 100%; font-size: 16px; }
+ .booking-detail-header { gap: 10px; }
+}

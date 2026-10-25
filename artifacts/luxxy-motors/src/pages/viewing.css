@@ -1,0 +1,17 @@
+/* Match the guided booking sheet while retaining the token-private manage flow. */
+.viewing-page { background: hsl(var(--background)); }
+.viewing-page > div { max-width: 1000px; }
+.viewing-page > div > div { border-radius: 4px; }
+.viewing-summary { position: relative; }
+.viewing-summary > div[role=status] { border-radius: 4px; }
+.viewing-summary > .aspect-\[16\/9\] { max-height: 200px; object-fit: contain; }
+@media(min-width:768px) {
+ .viewing-summary:has(> .aspect-\[16\/9\]) { min-height: 320px; padding-right: 340px; }
+ .viewing-summary > .aspect-\[16\/9\] { position: absolute; right: 32px; top: 32px; width: 270px; margin: 0; }
+}
+@media(max-width:639px) {
+ .viewing-page > div { padding-top: 12px; }
+ .viewing-summary { padding: 20px; }
+ .viewing-summary > .aspect-\[16\/9\] { max-height: 140px; }
+ .viewing-page [data-testid=group-viewing-slots] { grid-template-columns:repeat(3,minmax(0,1fr)); }
+}

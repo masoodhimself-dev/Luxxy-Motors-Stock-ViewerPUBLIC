@@ -1,3 +1,4 @@
+import './test-drive-bookings-panel.css';
 import { ShareQr } from "@/components/share-qr";
 import { useEnquirySummaries as useGetEnquiries } from "@/lib/enquiry-summary-query";
 import { useEffect, useState } from 'react';
@@ -70,8 +71,8 @@ function BookingRow({ booking, now, onDecision, onMerge, canEmail, canBook, chec
   const openDecision = (next: Decision) => { mutation.reset(); setReview({ decision: next, booking: { ...booking } }); };
 
   return (
-    <li className="portal-record-row p-4 sm:p-5" data-testid={`staff-test-drive-${booking.id}`}>
-      <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr_1fr]">
+    <li className="portal-record-row booking-selected-detail p-4 sm:p-5" data-testid={`staff-test-drive-${booking.id}`}>
+      <div className="booking-detail-header grid gap-4">
         <div className="min-w-0">
           <p className="font-semibold text-primary">{booking.vehicleTitle || 'Vehicle to be arranged'}</p>
           <p className="mt-1 text-sm font-medium">{booking.appointmentAt ? formatDateTime(booking.appointmentAt) : 'Time to be arranged'} <span className="font-normal text-muted-foreground">(UK time)</span></p>
@@ -139,6 +140,7 @@ export function TestDriveBookingsPanel({ canEmail = false, enquiryId }: { canEma
   const [status, setStatus] = useState(enquiryId ? 'all' : 'active');
   useEffect(() => setStatus(enquiryId ? 'all' : 'active'), [enquiryId]);
   const [notice, setNotice] = useState('');
+  const [selectedBookingId, setSelectedBookingId] = useState('');
   const [mergeEntry, setMergeEntry] = useState<Enquiry | null>(null);
   const client = useQueryClient();
   const enquiries = useGetEnquiries(undefined, { query: { queryKey: getGetEnquiriesQueryKey(), enabled: Boolean(mergeEntry || enquiryId), staleTime: 0 } });
@@ -153,6 +155,7 @@ export function TestDriveBookingsPanel({ canEmail = false, enquiryId }: { canEma
   const contextFailed = Boolean(enquiryId && enquiries.isError);
   const bookings = (query.data ?? []).filter(booking => !enquiryId || relatedIds.has(booking.id)).filter(booking => status === 'all' || (status === 'active' ? bookingStatus(booking) !== 'cancelled' && isFutureAppointment(booking, now) : bookingStatus(booking) === status))
     .sort((a, b) => (a.appointmentAt ?? '').localeCompare(b.appointmentAt ?? ''));
+  const selectedBooking = bookings.find(booking => booking.id === selectedBookingId) ?? bookings[0];
   // Keep the overview inexpensive: load the next eight preparations, then read others on demand.
   const preparationIds = new Set(bookings.filter(booking => booking.appointmentStatus === 'confirmed' && booking.vehicleId && bookingNeedsPreparation(booking, now)).slice(0, 8).map(booking => booking.id));
 
@@ -182,7 +185,15 @@ export function TestDriveBookingsPanel({ canEmail = false, enquiryId }: { canEma
       {contextFailed ? <div role="alert" className="p-6 text-sm"><p className="mb-3 text-destructive">Customer records could not be loaded, so linked test drives cannot be checked.</p><Button type="button" variant="outline" onClick={() => enquiries.refetch()}>Retry customer records</Button></div>
         : query.isLoading || contextLoading ? <p role="status" className="flex items-center gap-2 p-6 text-sm text-muted-foreground"><LoaderCircle className="h-4 w-4 animate-spin" />{contextLoading ? 'Loading customer appointments…' : 'Loading appointments…'}</p>
         : query.isError ? <div role="alert" className="p-6 text-sm"><p className="mb-3 text-destructive">Test-drive appointments could not be loaded.</p><Button type="button" variant="outline" onClick={() => query.refetch()}>Try again</Button></div>
-        : bookings.length ? <ul className="divide-y divide-border">{bookings.map(booking => <BookingRow key={booking.id} booking={booking} now={now} onDecision={setNotice} onMerge={setMergeEntry} canEmail={canEmail} canBook={features.enabled('testDriveBookings')} checkPreparation={preparationIds.has(booking.id)} canDeclare={canDeclare} />)}</ul>
+        : bookings.length ? <div className="booking-workspace">
+          <nav className="booking-appointment-list" aria-label="Choose an appointment">
+            <label className="booking-mobile-picker">Selected appointment<NativeSelect value={selectedBooking.id} onChange={event => setSelectedBookingId(event.target.value)}>{bookings.map(booking => <option key={booking.id} value={booking.id}>{booking.customerName} · {booking.appointmentAt ? formatDateTime(booking.appointmentAt) : 'Time to be arranged'}</option>)}</NativeSelect></label>
+            <div className="booking-desktop-list">{bookings.map(booking => <button key={booking.id} type="button" aria-pressed={selectedBooking.id === booking.id} onClick={() => setSelectedBookingId(booking.id)}>
+              <strong>{booking.customerName}</strong><span>{booking.vehicleTitle || 'Vehicle to be arranged'}</span><span>{booking.appointmentAt ? formatDateTime(booking.appointmentAt) : 'Time to be arranged'}</span><Chip tone={bookingStatus(booking) === 'pending' ? 'warning' : 'muted'}>{statusLabels[bookingStatus(booking)]}</Chip>
+            </button>)}</div>
+          </nav>
+          <ul className="min-w-0" aria-label="Selected appointment details"><BookingRow key={selectedBooking.id} booking={selectedBooking} now={now} onDecision={setNotice} onMerge={setMergeEntry} canEmail={canEmail} canBook={features.enabled('testDriveBookings')} checkPreparation={preparationIds.has(selectedBooking.id)} canDeclare={canDeclare} /></ul>
+        </div>
         : <div className="p-4"><EmptyState icon={CalendarClock} title={enquiryId ? 'No matching appointment for this customer' : status === 'pending' ? 'No requests awaiting approval' : 'No appointments to show'} body={enquiryId ? 'Open the customer record to arrange a test drive or check their enquiry.' : status === 'active' ? 'New test-drive bookings will appear here with the car, time and customer details.' : 'Choose another status to see other appointments.'} />{enquiryId && <Button variant="outline" asChild><Link href={`/portal?section=notifications&workView=customers&enquiryId=${encodeURIComponent(enquiryId)}`}>Open customer</Link></Button>}</div>}
       {mergeEntry && enquiries.isLoading && <p role="status" className="p-4 text-sm">Loading records to merge…</p>}
       {mergeEntry && enquiries.isError && !enquiries.data && <div role="alert" className="p-4 text-sm"><p>Records could not be loaded for merging.</p><Button variant="outline" onClick={() => enquiries.refetch()}>Retry records</Button><Button variant="ghost" onClick={() => setMergeEntry(null)}>Cancel</Button></div>}

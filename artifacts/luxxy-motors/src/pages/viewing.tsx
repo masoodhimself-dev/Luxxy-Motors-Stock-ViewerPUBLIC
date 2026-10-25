@@ -1,3 +1,4 @@
+import './viewing.css';
 import { useStock } from '@/lib/stock-context';
 import { ShowroomPhoto } from '@/components/showroom-photo';
 import { getThumbnailUrl } from '@/lib/utils';
@@ -90,7 +91,7 @@ export default function Viewing() {
   const phoneHref = getPhoneHref(dealerConfig);
   const whatsAppHref = getWhatsAppHref(undefined, dealerConfig);
   const shell = (children: ReactNode) => (
-    <div className="luxxy-shell min-h-[60vh] bg-background">
+    <div className="viewing-page luxxy-shell min-h-[60vh] bg-background">
       <div className="mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6 sm:pt-10">
         <Link href="/" className="text-link mb-6 inline-flex min-h-11 items-center gap-2" data-testid="link-back-to-showroom"><ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back to showroom</Link>
         <div className="overflow-hidden rounded-sm border border-border bg-card">{children}</div>
@@ -125,7 +126,7 @@ export default function Viewing() {
   const address = [dealerConfig.address?.street, dealerConfig.address?.city, dealerConfig.address?.region, dealerConfig.address?.postcode].filter(Boolean).join(', ');
 
   return shell(<>
-    <div className="p-6 sm:p-10">
+    <div className="viewing-summary p-6 sm:p-10">
       <h1 className="font-display text-2xl font-semibold tracking-tight text-primary sm:text-3xl">{isCancelled ? 'Test drive cancelled' : isPending ? 'Your test-drive request' : 'Your test drive'}</h1>
       <p className="mt-3 text-sm text-muted-foreground" data-testid="text-viewing-customer">Hello, {booking.customerName}.</p>
       {isPending && !isCancelled && <p className="mt-4 rounded-lg bg-secondary p-4 text-sm leading-6 text-primary" data-testid="status-viewing-pending">We’ve received your request. We’ll email you when your requested time is confirmed.</p>}
