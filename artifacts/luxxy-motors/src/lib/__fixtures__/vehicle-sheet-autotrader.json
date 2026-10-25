@@ -1,0 +1,723 @@
+{
+  "advertId": "202608104974999",
+  "title": "2015 Jeep Renegade",
+  "variant": "1.6 MultiJetII Limited Euro 5 (s/s) 5dr",
+  "make": "Jeep",
+  "model": "Renegade",
+  "trim": "Limited",
+  "year": 2015,
+  "price": 4958,
+  "priceType": null,
+  "currency": "GBP",
+  "mileage": 71600,
+  "mileageText": "71,600 miles",
+  "registration": "2015 (15 reg)",
+  "registrationBand": "15 reg",
+  "plate": null,
+  "vrm": null,
+  "vrmVerified": false,
+  "fuel": "Diesel",
+  "transmission": "Manual",
+  "bodyType": "SUV",
+  "engineSize": "1.6L",
+  "engineCC": 1598,
+  "doors": 5,
+  "seats": 5,
+  "colour": "Black",
+  "emissionClass": "Euro 5",
+  "drivetrain": "Front Wheel Drive",
+  "owners": null,
+  "writeOffCategory": null,
+  "advertUrl": "https://www.autotrader.co.uk/car-details/202608104974999",
+  "dealerName": "LUXXY MOTORS LIMITED",
+  "dealerLocation": "Harrow",
+  "imageCount": 58,
+  "heroImage": "https://m.atcdn.co.uk/a/media/0c7e43566af348d9b5ee5a3caaa722e5.jpg",
+  "images": [
+    {
+      "url": "https://m.atcdn.co.uk/a/media/0c7e43566af348d9b5ee5a3caaa722e5.jpg",
+      "caption": "Front Right"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/49077abd42a94356a613fd1b2d8c7f19.jpg",
+      "caption": "Front Left"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/c6dc2864acda4e66b71feb598281f303.jpg",
+      "caption": "Front"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/fcb6d1668ee948648bc1d421368f7601.jpg",
+      "caption": "Lights Front"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/dfd52d107d914cfaa2e043c92b1caf84.jpg",
+      "caption": "Rear Left"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/0df7d9b6c7014fb0882e6f358fde15de.jpg",
+      "caption": "Side Left"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/ec70fb5b2ab44a5e993fa1c13c45f40d.jpg",
+      "caption": "Side Left"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/6ba14ce0bb354011a50c39a866396eb0.jpg",
+      "caption": "Wheel"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/09cac5aa3bca4c898eb3e71336b73af9.jpg",
+      "caption": "Wheel"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/2e378cc34996453b8d517199bea2ef02.jpg",
+      "caption": "Rear"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/3d20e76dbcc7465480450c3049f08a6b.jpg",
+      "caption": "Side Right"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/5972b6d5745145dfb7c871747e6ef1b9.jpg",
+      "caption": "Side Right"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/b5cdf11312684512ad6d221560f82a1b.jpg",
+      "caption": "Rear Right"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/ea4260d1f38248c9aecca40a850bb0dc.jpg",
+      "caption": "Lights Rear"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/5d46cccf13d348fcb7d68babdc6471eb.jpg",
+      "caption": "vehicle image"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/a0906cc6f3634065ad4f9ee751c575d4.jpg",
+      "caption": "Side Left"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/e9f2dd69fe3f4922a187d1c8809ed457.jpg",
+      "caption": "Wheel"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/988d25bb2d754032a569cd53a71dedce.jpg",
+      "caption": "Wheel"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/7fb08a65cc3742fb8eb5561782789cad.jpg",
+      "caption": "Wheel"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/734f3a291640455f86da9c175af3e5e5.jpg",
+      "caption": "Wheel"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/10342b4921c24f2e9155c69c332a2c23.jpg",
+      "caption": "Interior Front"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/cdb6f22c021c4c8ab3bde07c329cb4fc.jpg",
+      "caption": "Seat Driver"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/97251bf248b84208bf3abb6e8da570ff.jpg",
+      "caption": "Seat Front Passenger"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/d3596f0b8dc14979a0339ccb6319082a.jpg",
+      "caption": "Seat Driver"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/c6865cf54e654640a90b25272047ad6f.jpg",
+      "caption": "Seat Front Passenger"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/ea98e3b56ee34b138fdb065bb7a0ac18.jpg",
+      "caption": "Seats Rear"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/a714b514ed2645488cb3d48080764667.jpg",
+      "caption": "Seats Rear"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/b110559e4c9849a1b2f8339ad2d271f1.jpg",
+      "caption": "Seats Rear"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/a2408585a0154453baaeaec4b5e9a532.jpg",
+      "caption": "Seats Rear"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/657e95be71614edaa18bd31f5b0d68ef.jpg",
+      "caption": "Steering Wheel"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/b3e7756f5ce74717acd8f9637ad4cd7a.jpg",
+      "caption": "Misc Controls"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/144eca0350604142b0fca7de7c894b0f.jpg",
+      "caption": "Steering Wheel"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/99c6186c2cf640f5b81a813972a06f85.jpg",
+      "caption": "Misc Controls"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/5264b76bc8554802b79d699adfe60c5d.jpg",
+      "caption": "Misc Controls"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/6d77d6b854324efd97a587ec564e9e57.jpg",
+      "caption": "Misc Controls"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/d6b429663a6f41aeac49cdae2092c708.jpg",
+      "caption": "Misc Controls"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/559ae828cc7e411fa9d1cbb63eb67cb2.jpg",
+      "caption": "Driver Instruments"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/dd39ebed5b4747648acb95d6583cb714.jpg",
+      "caption": "Driver Instruments"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/e467d6b8cd3e4cf993f64ef6587dd9ef.jpg",
+      "caption": "Interior Front"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/ab072bacd3d74ef5824f211eaac70327.jpg",
+      "caption": "Misc Controls"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/35e692b18ea14d9eac6411778eaa5455.jpg",
+      "caption": "Interior Front"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/5c3c1bbe51e944509ea83a3b5eab7187.jpg",
+      "caption": "Misc Controls"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/4fd9fff6c5eb44259dfab5015af960d1.jpg",
+      "caption": "Interior Front"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/d12e7cd772b749f0b6a6d5757fc66c21.jpg",
+      "caption": "Misc Controls"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/c68074171e03450ab766df6390e76296.jpg",
+      "caption": "vehicle image"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/07073cc5cc1344bca78e9fec8a1d7a0d.jpg",
+      "caption": "Infotainment System"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/076890a1d24e4aceb2c4e2a2438cf5a8.jpg",
+      "caption": "Infotainment System"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/a4f7db4094a04d43956308fa2911db70.jpg",
+      "caption": "Infotainment System"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/592dec8540374463b81ca7b7e0f0d40e.jpg",
+      "caption": "Infotainment System"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/1a9270fb07c142c595064f31b720d13b.jpg",
+      "caption": "vehicle image"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/4d9ae7a9bc2d41fcab7600a965a1e640.jpg",
+      "caption": "Misc Controls"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/a8ebb6ba6ba4433ca1d09aa7c3ec2e75.jpg",
+      "caption": "Misc Controls"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/453ec965cb714ff2b03fbf76721e31a1.jpg",
+      "caption": "Misc Controls"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/6ed77acc0e40471293fb68da9b44211f.jpg",
+      "caption": "Door Interior"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/50f4c766a8054aaa9dee968103e1856a.jpg",
+      "caption": "Door Interior"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/2f9746aeea6542b7bf581522a989602e.jpg",
+      "caption": "Door Interior"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/0d4147329d0744b98a1305d0ad120889.jpg",
+      "caption": "Door Interior"
+    },
+    {
+      "url": "https://m.atcdn.co.uk/a/media/c0a1158b98674548bdaf04e9e37657bd.jpg",
+      "caption": "Misc Controls"
+    }
+  ],
+  "specifications": {
+    "DOORS": "5",
+    "SEATS": "5",
+    "GEARBOX": "Manual",
+    "MILEAGE": "71,600 miles",
+    "BODYTYPE": "SUV",
+    "FUELTYPE": "Diesel",
+    "BODYCOLOUR": "Black",
+    "REGISTRATION": "2015 (15 reg)",
+    "EMISSIONCLASS": "Euro 5",
+    "SERVICEHISTORY": "Full",
+    "ENGINESIZELITRES": "1.6L"
+  },
+  "sourceExtras": {
+    "engineCC": 1598,
+    "features": [
+      "Please note:",
+      "Audio and Communications",
+      "12V Power Socket",
+      "12V Power Socket - Luggage Compartment",
+      "Aux-in",
+      "Satellite Navigation System",
+      "Speakers x6",
+      "Touchscreen - 6.5in",
+      "UConnect Bluetooth",
+      "USB Connectivity",
+      "Uconnect DAB Radio",
+      "Uconnect Live",
+      "Drivers Assistance",
+      "Cruise Control",
+      "EcoDrive - Drive Monitoring System",
+      "Forward Collision Warning Plus",
+      "Lane Departure Warning Plus",
+      "Parking Sensors - Rear",
+      "Trip Computer",
+      "Tyre Pressure Monitoring - Warning Display",
+      "Exterior",
+      "18in Alloy Wheels - Aluminium Two Tone",
+      "18in Alloy Wheels - Silver Painted",
+      "Adaptive Rear Brake Lights",
+      "Black exterior colour",
+      "Body Coloured Door Handles",
+      "Door Mirrors - Electric and Heated",
+      "Door Mirrors - Silver",
+      "Electric Windows",
+      "Exhaust Tailpipes - Chrome",
+      "Grille - Front in Silver",
+      "Privacy Glass",
+      "Roof Rails - Silver",
+      "Illumination",
+      "Daytime Running Lights",
+      "Front Fog Lights",
+      "Interior",
+      "Air Conditioning - Dual Zone with Automatic Temperature Control",
+      "Ambient LED Interior Lighting",
+      "Armrest - Rear",
+      "Heated Front Seats",
+      "Heated Steering Wheel",
+      "Instrument Cluster - 7in TFT Colour Display",
+      "Leather - Black Leather with Satin Silver Bezel Accents and Stitching",
+      "Leather Wrapped Steering Wheel",
+      "Pollen Filter",
+      "Seats - 40-20-40 Split Folding Rear",
+      "Seats - Drivers Electric Lumbar Adjustment",
+      "Steering Column - Tilt and Telescopic",
+      "Steering Wheel - Mounted Audio Controls",
+      "Trunk Pass-thru",
+      "Paint",
+      "Black",
+      "Performance",
+      "Power Steering",
+      "Speed Limiter",
+      "Safety and Security",
+      "ABS - Anti-Lock Brakes",
+      "Airbags - Drivers Advanced Multi Stage",
+      "Airbags - Front Curtain",
+      "Airbags - Passenger Advanced Multi Stage",
+      "Airbags - Rear Curtain",
+      "Airbags - Seat-Mounted Front Side Thorax",
+      "Alarm - Premium",
+      "Autonomous Emergency Braking",
+      "ERM - Electronic Roll Mitigation",
+      "ESC - Electronic Stability Control",
+      "Electric Park Brake",
+      "Hill Start Assist",
+      "ISOFIX Child Seat Restraint System",
+      "Passenger Airbags Deactivation",
+      "Remote Central Locking",
+      "Traction Control",
+      "Trailer Sway Damping - Control"
+    ],
+    "plateNote": "tesseract unavailable",
+    "dealerTown": "HARROW",
+    "dealerPhone": "(07537) 165326",
+    "description": "Full service history, MOT, two keys. This 2015 Jeep Renegade Limited is a practical choice for those seeking a reliable vehicle with a 1.6 litre diesel engine. Having covered 71,600 miles, this example shows low mileage for its age and remains a well-maintained option in the current market. \n\nAs a Limited trim model, it offers a balance of comfort and utility, making it suitable for a variety of driving needs.\n\nThe vehicle is designed with efficiency and comfort in mind, offering an impressive fuel economy of 61 mpg alongside low CO2 emissions, which helps to keep running costs manageable. It also sits in a low insurance group, further contributing to its overall affordability. \n\nInside, the cabin is equipped with dual zone automatic climate control to maintain a comfortable temperature, while the heated front seats and heated steering wheel provide extra warmth during colder months. The exterior is finished with 18 inch two tone aluminium alloy wheels, and the luggage compartment includes a 12V power socket for added convenience.\n\nDent on the passener side front door and bit on passenger rear door and minor dent on rear tailgate .\n\nVIEWING BY APPOINTMENT ONLY, NATIONWIDE DELIVERY AVAILABLE AT AN EXTRA COST, We do part exchange with your old car.",
+    "featureList": [
+      "Please note:",
+      "Audio and Communications",
+      "12V Power Socket",
+      "12V Power Socket - Luggage Compartment",
+      "Aux-in",
+      "Satellite Navigation System",
+      "Speakers x6",
+      "Touchscreen - 6.5in",
+      "UConnect Bluetooth",
+      "USB Connectivity",
+      "Uconnect DAB Radio",
+      "Uconnect Live",
+      "Drivers Assistance",
+      "Cruise Control",
+      "EcoDrive - Drive Monitoring System",
+      "Forward Collision Warning Plus",
+      "Lane Departure Warning Plus",
+      "Parking Sensors - Rear",
+      "Trip Computer",
+      "Tyre Pressure Monitoring - Warning Display",
+      "Exterior",
+      "18in Alloy Wheels - Aluminium Two Tone",
+      "18in Alloy Wheels - Silver Painted",
+      "Adaptive Rear Brake Lights",
+      "Black exterior colour",
+      "Body Coloured Door Handles",
+      "Door Mirrors - Electric and Heated",
+      "Door Mirrors - Silver",
+      "Electric Windows",
+      "Exhaust Tailpipes - Chrome",
+      "Grille - Front in Silver",
+      "Privacy Glass",
+      "Roof Rails - Silver",
+      "Illumination",
+      "Daytime Running Lights",
+      "Front Fog Lights",
+      "Interior",
+      "Air Conditioning - Dual Zone with Automatic Temperature Control",
+      "Ambient LED Interior Lighting",
+      "Armrest - Rear",
+      "Heated Front Seats",
+      "Heated Steering Wheel",
+      "Instrument Cluster - 7in TFT Colour Display",
+      "Leather - Black Leather with Satin Silver Bezel Accents and Stitching",
+      "Leather Wrapped Steering Wheel",
+      "Pollen Filter",
+      "Seats - 40-20-40 Split Folding Rear",
+      "Seats - Drivers Electric Lumbar Adjustment",
+      "Steering Column - Tilt and Telescopic",
+      "Steering Wheel - Mounted Audio Controls",
+      "Trunk Pass-thru",
+      "Paint",
+      "Black",
+      "Performance",
+      "Power Steering",
+      "Speed Limiter",
+      "Safety and Security",
+      "ABS - Anti-Lock Brakes",
+      "Airbags - Drivers Advanced Multi Stage",
+      "Airbags - Front Curtain",
+      "Airbags - Passenger Advanced Multi Stage",
+      "Airbags - Rear Curtain",
+      "Airbags - Seat-Mounted Front Side Thorax",
+      "Alarm - Premium",
+      "Autonomous Emergency Braking",
+      "ERM - Electronic Roll Mitigation",
+      "ESC - Electronic Stability Control",
+      "Electric Park Brake",
+      "Hill Start Assist",
+      "ISOFIX Child Seat Restraint System",
+      "Passenger Airbags Deactivation",
+      "Remote Central Locking",
+      "Traction Control",
+      "Trailer Sway Damping - Control"
+    ],
+    "plateSource": "ocr",
+    "derivativeId": "7ca42baca5444d1390e1721276ea9150",
+    "engineLitres": 1.6,
+    "generationId": "62571b7e7759454a9dae696f5e0e7d3b",
+    "runningCosts": {
+      "items": [
+        {
+          "key": "Emission",
+          "label": "CO\u2082 emissions",
+          "value": "120g/km"
+        },
+        {
+          "key": "Insurance",
+          "label": "Insurance group",
+          "value": "12E"
+        },
+        {
+          "key": "Tax",
+          "label": "Tax per year",
+          "value": "\u00a335"
+        },
+        {
+          "key": "FUEL_URBAN",
+          "label": "Urban",
+          "value": "51.4mpg"
+        },
+        {
+          "key": "FUEL_EXTRA_URBAN",
+          "label": "Extra Urban",
+          "value": "70.6mpg"
+        },
+        {
+          "key": "FUEL_AVERAGE",
+          "label": "Average",
+          "value": "61.4mpg"
+        }
+      ],
+      "title": "Running Costs"
+    },
+    "stockListUrl": "https://www.autotrader.co.uk/cars/retailer/stock?advertising-location=at_cars&advertising-location=at_profile_cars&onesearchad=Used&onesearchad=Nearly%20New&onesearchad=New&postcode=HA0%204GP&retailerId=10040438&sort=price-asc",
+    "dealerAddress": "18 Village Way East",
+    "historyExtras": {
+      "ownersData": {
+        "key": "UNKNOWN",
+        "title": "Owners",
+        "value": "Contact seller"
+      },
+      "historyItems": [
+        {
+          "key": "OWNERS",
+          "label": "Owners",
+          "value": "Contact seller"
+        },
+        {
+          "key": "KEYS",
+          "label": "Keys",
+          "value": "Contact seller"
+        },
+        {
+          "key": "SERVICE_HISTORY",
+          "label": "Service history",
+          "value": "Full"
+        }
+      ],
+      "serviceHistory": {
+        "label": "Service history",
+        "description": "Full service history",
+        "historyType": "FULL",
+        "additionalItems": [
+          {
+            "label": "Last service:",
+            "value": "10/02/2026"
+          },
+          {
+            "label": "Miles at last service:",
+            "value": "70,000"
+          }
+        ]
+      }
+    },
+    "plateImageUrl": null,
+    "writeOffCheck": {
+      "id": "WRITE_OFF",
+      "label": "Never been written off",
+      "status": "PASSED"
+    },
+    "dealerPostcode": "HA2 7LU",
+    "insuranceGroup": null,
+    "plateCheckedAt": "2026-10-24T19:03:05.115320Z",
+    "serviceHistory": "Full",
+    "sourcePlatform": "autotrader",
+    "specCategories": [
+      {
+        "count": 7,
+        "items": [
+          {
+            "name": "0-60mph",
+            "value": "9.8 seconds"
+          },
+          {
+            "name": "Top speed",
+            "value": "111mph"
+          },
+          {
+            "name": "Cylinders",
+            "value": "4"
+          },
+          {
+            "name": "Valves",
+            "value": "16"
+          },
+          {
+            "name": "Engine power",
+            "value": "118BHP"
+          },
+          {
+            "name": "Engine torque",
+            "value": "320NM"
+          },
+          {
+            "name": "Miles per gallon",
+            "value": "61.4mpg"
+          }
+        ],
+        "category": "Performance"
+      },
+      {
+        "count": 9,
+        "items": [
+          {
+            "name": "Height",
+            "value": "1,667mm"
+          },
+          {
+            "name": "Length",
+            "value": "4,236mm"
+          },
+          {
+            "name": "Width",
+            "value": "1,805mm"
+          },
+          {
+            "name": "Ground clearance",
+            "value": "175mm"
+          },
+          {
+            "name": "Wheelbase",
+            "value": "2,570mm"
+          },
+          {
+            "name": "Seats",
+            "value": "5"
+          },
+          {
+            "name": "Fuel tank capacity",
+            "value": "48L"
+          },
+          {
+            "name": "Boot space (seats up)",
+            "value": "351L"
+          },
+          {
+            "name": "Minimum kerb weight",
+            "value": "1,404kg"
+          }
+        ],
+        "category": "Size and dimensions"
+      }
+    ],
+    "vehicleCheckId": "393bfcfd6f4b4d08bcffb13595a6e8e8",
+    "engineFormatted": "1.6L",
+    "attentionGrabber": "Full Service History, Warranty",
+    "detailCapturedAt": "2026-10-24T19:03:05.115320Z",
+    "advertDescription": "Full service history, MOT, two keys. This 2015 Jeep Renegade Limited is a practical choice for those seeking a reliable vehicle with a 1.6 litre diesel engine. Having covered 71,600 miles, this example shows low mileage for its age and remains a well-maintained option in the current market. \n\nAs a Limited trim model, it offers a balance of comfort and utility, making it suitable for a variety of driving needs.\n\nThe vehicle is designed with efficiency and comfort in mind, offering an impressive fuel economy of 61 mpg alongside low CO2 emissions, which helps to keep running costs manageable. It also sits in a low insurance group, further contributing to its overall affordability. \n\nInside, the cabin is equipped with dual zone automatic climate control to maintain a comfortable temperature, while the heated front seats and heated steering wheel provide extra warmth during colder months. The exterior is finished with 18 inch two tone aluminium alloy wheels, and the luggage compartment includes a 12V power socket for added convenience.\n\nDent on the passener side front door and bit on passenger rear door and minor dent on rear tailgate .\n\nVIEWING BY APPOINTMENT ONLY, NATIONWIDE DELIVERY AVAILABLE AT AN EXTRA COST, We do part exchange with your old car.",
+    "marketPriceRating": {
+      "label": "Lower price",
+      "value": "LOW",
+      "goodPriceLowerBound": "\u00a35,281",
+      "goodPriceUpperBound": "\u00a35,551",
+      "comparisonDescription": "\u00a3431 below market average"
+    },
+    "vehicleHighlights": [
+      {
+        "key": "MileageLow",
+        "title": "Lower mileage",
+        "descriptionList": [
+          "14,438 miles below average\n\nThis vehicle's mileage is below average compared to similar vehicles."
+        ],
+        "linkDescription": "How mileage compares",
+        "vehicleHighlightContext": {
+          "index": 1,
+          "quantifier": "LOW",
+          "highlightName": "MILEAGE"
+        }
+      },
+      {
+        "key": "FeaturesHasVeryRare",
+        "badge": "Top 10%",
+        "title": "1 rare feature",
+        "descriptionList": [
+          "18in Alloy Wheels - Aluminium Two Tone"
+        ],
+        "linkDescription": "Show all features",
+        "vehicleHighlightContext": {
+          "index": 2,
+          "quantifier": "HAS_VERY_RARE",
+          "highlightName": "FEATURES_RARE"
+        }
+      },
+      {
+        "key": "FuelEconomyVeryHigh",
+        "badge": "Top 25%",
+        "title": "Better fuel economy",
+        "descriptionList": [
+          "61.4mpg\n\nThis vehicle's MPG is in the top 25% compared to vehicles of similar age and body type."
+        ],
+        "linkDescription": "More about running costs",
+        "vehicleHighlightContext": {
+          "index": 3,
+          "quantifier": "VERY_HIGH",
+          "highlightName": "FUEL_ECONOMY"
+        }
+      }
+    ],
+    "featuresHighlights": [
+      {
+        "count": "2",
+        "title": "Rare features",
+        "category": "RARE",
+        "featureItems": [
+          {
+            "items": [
+              {
+                "name": "18in Alloy Wheels - Aluminium Two Tone"
+              }
+            ],
+            "description": "Very rare features are only found on 10% of cars similar to this one. This car\u2019s very rare features:"
+          },
+          {
+            "items": [
+              {
+                "name": "12V Power Socket - Luggage Compartment"
+              }
+            ],
+            "description": "Rare features are features that aren\u2019t often found on cars similar to this one. This car\u2019s rare features:"
+          }
+        ]
+      },
+      {
+        "count": "3",
+        "title": "Added extras",
+        "category": "OPTIONAL",
+        "featureItems": [
+          {
+            "items": [
+              {
+                "name": "18in Alloy Wheels - Aluminium Two Tone"
+              },
+              {
+                "name": "Black"
+              },
+              {
+                "name": "Leather - Black Leather with Satin Silver Bezel Accents and Stitching"
+              }
+            ],
+            "description": "Added extras are additional features that previous owners have invested in. These improve the driving experience of this car and may have been fitted when the car was first purchased or at a later date. This car\u2019s added extras:"
+          }
+        ]
+      }
+    ],
+    "vehicleCheckStatus": "PASSED",
+    "retailerDescription": {
+      "title": "Buying with LUXXY MOTORS LIMITED"
+    },
+    "vehicleRegisteredText": "Vehicle registered: 31/03/2015",
+    "vehicleCheckStatusText": "10 checks passed",
+    "writeOffStatusExplicit": "Never been written off",
+    "detailSource": "cached",
+    "lastCheckedAt": "2026-10-25T08:03:35.043184Z"
+  },
+  "id": "4069147c-2f0c-41bc-acba-007100ec4dfe",
+  "inventoryStatus": "available"
+}

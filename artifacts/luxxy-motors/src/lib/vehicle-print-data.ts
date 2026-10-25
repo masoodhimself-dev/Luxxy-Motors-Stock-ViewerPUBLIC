@@ -32,6 +32,19 @@ const featureKey = (value: string) => normalise(value).toLowerCase().replace(/[�
 const valueKey = (value: string) => value.toLowerCase().replace(/[\s,]/g, '');
 const comparableValue = (key: string, value: string) => ['keys', 'owners', 'seats', 'doors'].includes(key)
   ? valueKey(value).replace(/(?:keys?|owners?|seats?|doors?)$/, '') : valueKey(value);
+/** Rounded imperial/metric torque figures describe the same supplied measurement. */
+const equivalentFact = (key: string, a: string, b: string) => {
+  if (comparableValue(key, a) === comparableValue(key, b)) return true;
+  if (key !== 'enginetorque') return false;
+  const parse = (value: string) => {
+    const match = value.trim().match(/^(\d+(?:\.\d+)?)\s*(nm|n[ .-]?m|lbs?[ .-]?ft|lb[ .-]?f[ .-]?ft)$/i);
+    if (!match) return null;
+    const factor = /^n/i.test(match[2]) ? 1 : 1.355817948;
+    return { value: Number(match[1]) * factor, tolerance: factor * (match[1].includes('.') ? .05 : .5) };
+  };
+  const left = parse(a), right = parse(b);
+  return !!left && !!right && Math.abs(left.value - right.value) <= left.tolerance + right.tolerance;
+};
 const semanticKey = (label: string) => {
   const key = label.toLowerCase().replace(/[^a-z0-9]/g, '');
   const aliases: Record<string, string> = {
@@ -78,7 +91,7 @@ export function vehiclePrintData(car: Car, suppliedFeatures: string[] = [], supp
     if (!value || finance.test(label)) return;
     const key = semanticKey(label);
     const existing = seenRows.get(key);
-    if (existing && comparableValue(key, existing.value) === comparableValue(key, value)) return;
+    if (existing && equivalentFact(key, existing.value, value)) return;
     if (existing && key !== 'historynote') sourceNotes.push(`Please ask us to confirm ${existing.label.toLowerCase()}: our records show “${existing.value}” and “${value}”.`);
     else seenRows.set(key, { label, value });
     rows.push({ label, value });

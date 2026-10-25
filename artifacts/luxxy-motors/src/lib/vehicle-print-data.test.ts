@@ -75,3 +75,11 @@ it('uses supplied make and model when the original title is a placeholder', () =
   expect(vehiclePrintData(car({ title: 'Unknown', make: 'N/A', model: 'Focus', year: 2015 })).title).toBe('2015 Focus');
   expect(vehiclePrintData(car({ title: 'Not provided', make: 'Unknown', model: 'Contact seller' })).title).toBe('');
 });
+
+
+it('does not report equivalent metric and imperial torque as a conflict', () => {
+  const car = { id:'torque', title:'Mercedes', sourceExtras:{specCategories:[{category:'Performance',items:[{name:'Engine torque',value:'258 LBS.FT'},{name:'Engine torque',value:'350 NM'}]}]} } as unknown as Car;
+  expect(vehiclePrintData(car).sourceNotes).toEqual([]);
+  const different = {...car, sourceExtras:{specCategories:[{category:'Performance',items:[{name:'Engine torque',value:'258 LBS.FT'},{name:'Engine torque',value:'450 NM'}]}]}};
+  expect(vehiclePrintData(different).sourceNotes).toHaveLength(1);
+});

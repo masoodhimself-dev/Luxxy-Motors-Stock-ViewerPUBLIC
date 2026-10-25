@@ -1,0 +1,926 @@
+{
+  "advertId": "80238245",
+  "title": "2019 Ford Mondeo",
+  "variant": "2.0 Hybrid Titanium Edition 4dr Auto",
+  "make": "Ford",
+  "model": "Mondeo",
+  "trim": null,
+  "year": 2019,
+  "price": 7990,
+  "priceType": null,
+  "currency": "GBP",
+  "mileage": 75000,
+  "mileageText": "75,000 miles",
+  "registration": null,
+  "registrationBand": "68",
+  "plate": null,
+  "vrm": null,
+  "vrmVerified": false,
+  "fuel": "Hybrid",
+  "transmission": "Automatic",
+  "bodyType": "Saloon",
+  "engineSize": "2.0L",
+  "engineCC": null,
+  "doors": 4,
+  "seats": 5,
+  "colour": "Grey",
+  "emissionClass": null,
+  "drivetrain": "Front Wheel Drive",
+  "owners": 1,
+  "writeOffCategory": null,
+  "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/80238245/",
+  "dealerName": "Multi Choice Motors",
+  "dealerLocation": "36a Coldharbour Lane, Hayes, UB3 3EP",
+  "imageCount": 9,
+  "heroImage": "https://cdn.images.autoexposure.co.uk/AETA22820/AETV99130943_1.jpg",
+  "images": [
+    {
+      "url": "https://cdn.images.autoexposure.co.uk/AETA22820/AETV99130943_1.jpg",
+      "caption": null
+    },
+    {
+      "url": "https://cdn.images.autoexposure.co.uk/AETA22820/AETV99130943_2.jpg",
+      "caption": null
+    },
+    {
+      "url": "https://cdn.images.autoexposure.co.uk/AETA22820/AETV99130943_3.jpg",
+      "caption": null
+    },
+    {
+      "url": "https://cdn.images.autoexposure.co.uk/AETA22820/AETV99130943_4.jpg",
+      "caption": null
+    },
+    {
+      "url": "https://cdn.images.autoexposure.co.uk/AETA22820/AETV99130943_5.jpg",
+      "caption": null
+    },
+    {
+      "url": "https://cdn.images.autoexposure.co.uk/AETA22820/AETV99130943_6.jpg",
+      "caption": null
+    },
+    {
+      "url": "https://cdn.images.autoexposure.co.uk/AETA22820/AETV99130943_7.jpg",
+      "caption": null
+    },
+    {
+      "url": "https://cdn.images.autoexposure.co.uk/AETA22820/AETV99130943_8.jpg",
+      "caption": null
+    },
+    {
+      "url": "https://cdn.images.autoexposure.co.uk/AETA22820/AETV99130943_9.jpg",
+      "caption": null
+    }
+  ],
+  "specifications": {
+    "GEARBOX": "Automatic",
+    "MILEAGE": "75,000 miles",
+    "FUELTYPE": "Hybrid",
+    "features": [
+      "'Ford Power' starter button",
+      "'Quickclear' heated windscreen/heated washer jets",
+      "10 way electric power front seats",
+      "ABS+EBA",
+      "Active city stop",
+      "Auto dimming rear view mirror",
+      "Bluetooth connectivity with voice control",
+      "Centre console with armrest",
+      "Driver seat memory function",
+      "Driver's lumbar support",
+      "Dual zone automatic climate control",
+      "ESP + traction control",
+      "Easy fuel capless refuelling system",
+      "Electric adjustable door mirrors",
+      "Electric front windows",
+      "Electric rear windows with global open and close",
+      "Electronic parking brake",
+      "Folding rear seats",
+      "Ford SYNC 3 with 8\" colour touch screen",
+      "Front and rear parking sensors",
+      "Front headrests",
+      "Heated front seats",
+      "Height adjustable passenger seat with lumbar support",
+      "Hill start assist",
+      "Isofix on 2nd row rear seats",
+      "Lane keeping aid with traffic sign recognition",
+      "Leather steering wheel",
+      "PAS",
+      "Power folding door mirrors with puddle lights",
+      "Premium leather upholstery",
+      "Rain sensing front windscreen wipers",
+      "Rake/reach adjustable steering wheel",
+      "Rear armrest",
+      "Rear headrests",
+      "Rear wiper",
+      "SYNC Emergency Assistance",
+      "Service indicator",
+      "Ski hatch",
+      "Trip computer",
+      "Radio/CD",
+      "USB socket",
+      "18\" Alloy wheels",
+      "Automatic headlights with auto high/low beam",
+      "Body colour rocker mouldings",
+      "Body coloured bumpers",
+      "Chrome window surround",
+      "Front fog lights with chrome surrounds",
+      "Halogen projector headlights",
+      "LED daytime running lights",
+      "LED tail lights",
+      "Tyre repair kit",
+      "Upper front grille chrome surround",
+      "3x3 point rear seatbelts",
+      "Curtain airbags",
+      "Driver/front passenger airbag",
+      "Drivers knee airbag",
+      "Immobiliser",
+      "Intelligent Protection System (IPS)",
+      "Keyless entry and start",
+      "Remote central double locking",
+      "Thatcham Cat.1 alarm",
+      "Tyre pressure monitoring system"
+    ]
+  },
+  "sourceExtras": {
+    "features": [
+      "'Ford Power' starter button",
+      "'Quickclear' heated windscreen/heated washer jets",
+      "10 way electric power front seats",
+      "ABS+EBA",
+      "Active city stop",
+      "Auto dimming rear view mirror",
+      "Bluetooth connectivity with voice control",
+      "Centre console with armrest",
+      "Driver seat memory function",
+      "Driver's lumbar support",
+      "Dual zone automatic climate control",
+      "ESP + traction control",
+      "Easy fuel capless refuelling system",
+      "Electric adjustable door mirrors",
+      "Electric front windows",
+      "Electric rear windows with global open and close",
+      "Electronic parking brake",
+      "Folding rear seats",
+      "Ford SYNC 3 with 8\" colour touch screen",
+      "Front and rear parking sensors",
+      "Front headrests",
+      "Heated front seats",
+      "Height adjustable passenger seat with lumbar support",
+      "Hill start assist",
+      "Isofix on 2nd row rear seats",
+      "Lane keeping aid with traffic sign recognition",
+      "Leather steering wheel",
+      "PAS",
+      "Power folding door mirrors with puddle lights",
+      "Premium leather upholstery",
+      "Rain sensing front windscreen wipers",
+      "Rake/reach adjustable steering wheel",
+      "Rear armrest",
+      "Rear headrests",
+      "Rear wiper",
+      "SYNC Emergency Assistance",
+      "Service indicator",
+      "Ski hatch",
+      "Trip computer",
+      "Radio/CD",
+      "USB socket",
+      "18\" Alloy wheels",
+      "Automatic headlights with auto high/low beam",
+      "Body colour rocker mouldings",
+      "Body coloured bumpers",
+      "Chrome window surround",
+      "Front fog lights with chrome surrounds",
+      "Halogen projector headlights",
+      "LED daytime running lights",
+      "LED tail lights",
+      "Tyre repair kit",
+      "Upper front grille chrome surround",
+      "3x3 point rear seatbelts",
+      "Curtain airbags",
+      "Driver/front passenger airbag",
+      "Drivers knee airbag",
+      "Immobiliser",
+      "Intelligent Protection System (IPS)",
+      "Keyless entry and start",
+      "Remote central double locking",
+      "Thatcham Cat.1 alarm",
+      "Tyre pressure monitoring system"
+    ],
+    "wasPrice": null,
+    "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+    "dealerTown": "Hayes",
+    "description": "Insurance Group 27E, Only 1 owner from new, excellent condition and drives amazingly well, comes with full service history and 2 remote keys. Heated leather seats reverse camera parking sensors cruise control etc. HPI clear ULEZ compliant and MOT until April 2027. Finance and nationwide delivery service is available.",
+    "featureList": [
+      "'Ford Power' starter button",
+      "'Quickclear' heated windscreen/heated washer jets",
+      "10 way electric power front seats",
+      "ABS+EBA",
+      "Active city stop",
+      "Auto dimming rear view mirror",
+      "Bluetooth connectivity with voice control",
+      "Centre console with armrest",
+      "Driver seat memory function",
+      "Driver's lumbar support",
+      "Dual zone automatic climate control",
+      "ESP + traction control",
+      "Easy fuel capless refuelling system",
+      "Electric adjustable door mirrors",
+      "Electric front windows",
+      "Electric rear windows with global open and close",
+      "Electronic parking brake",
+      "Folding rear seats",
+      "Ford SYNC 3 with 8\" colour touch screen",
+      "Front and rear parking sensors",
+      "Front headrests",
+      "Heated front seats",
+      "Height adjustable passenger seat with lumbar support",
+      "Hill start assist",
+      "Isofix on 2nd row rear seats",
+      "Lane keeping aid with traffic sign recognition",
+      "Leather steering wheel",
+      "PAS",
+      "Power folding door mirrors with puddle lights",
+      "Premium leather upholstery",
+      "Rain sensing front windscreen wipers",
+      "Rake/reach adjustable steering wheel",
+      "Rear armrest",
+      "Rear headrests",
+      "Rear wiper",
+      "SYNC Emergency Assistance",
+      "Service indicator",
+      "Ski hatch",
+      "Trip computer",
+      "Radio/CD",
+      "USB socket",
+      "18\" Alloy wheels",
+      "Automatic headlights with auto high/low beam",
+      "Body colour rocker mouldings",
+      "Body coloured bumpers",
+      "Chrome window surround",
+      "Front fog lights with chrome surrounds",
+      "Halogen projector headlights",
+      "LED daytime running lights",
+      "LED tail lights",
+      "Tyre repair kit",
+      "Upper front grille chrome surround",
+      "3x3 point rear seatbelts",
+      "Curtain airbags",
+      "Driver/front passenger airbag",
+      "Drivers knee airbag",
+      "Immobiliser",
+      "Intelligent Protection System (IPS)",
+      "Keyless entry and start",
+      "Remote central double locking",
+      "Thatcham Cat.1 alarm",
+      "Tyre pressure monitoring system"
+    ],
+    "imagesSource": "autoexposure-cdn",
+    "priceReduced": false,
+    "runningCosts": {
+      "items": [
+        {
+          "label": "Average",
+          "value": "58.9 mpg"
+        },
+        {
+          "label": "Tax per year",
+          "value": "\u00a3200"
+        },
+        {
+          "label": "Insurance group",
+          "value": "27E"
+        },
+        {
+          "label": "CO\u2082 emissions",
+          "value": "108 g/km"
+        }
+      ],
+      "title": "Running costs \u00b7 EC combined",
+      "capturedAt": "2026-10-24T21:59:37+01:00",
+      "sourcePlatform": "cazoo",
+      "fuelEconomyTestBasis": "EC Combined",
+      "sourceInsuranceGroupSummary": "27"
+    },
+    "sourceReport": {
+      "ulez": {
+        "status": "compliant",
+        "sourceText": "Yes"
+      },
+      "history": {
+        "caveat": "Our vehicle history check is provided for guidance only. Data provided by CAP HPI. Please check all details with the seller before purchasing.",
+        "checks": [
+          {
+            "name": "Not stolen",
+            "status": "passed",
+            "sourceText": "All passed"
+          },
+          {
+            "name": "Not scrapped",
+            "status": "passed",
+            "sourceText": "All passed"
+          },
+          {
+            "name": "No colour change",
+            "status": "passed",
+            "sourceText": "All passed"
+          },
+          {
+            "name": "Not imported / exported",
+            "status": "passed",
+            "sourceText": "All passed"
+          },
+          {
+            "name": "Not written off",
+            "status": "passed",
+            "sourceText": "All passed"
+          },
+          {
+            "name": "No number plate change",
+            "status": "passed",
+            "sourceText": "All passed"
+          }
+        ]
+      },
+      "version": 1,
+      "platform": "cazoo",
+      "sourceUrl": "https://www.cazoo.co.uk/cars-for-sale/80238245/",
+      "capturedAt": "2026-10-24T21:59:37+01:00"
+    },
+    "stockListUrl": "https://www.cazoo.co.uk/dealers/multi-choice-motors-75497/",
+    "cazooDealerId": "75497",
+    "dealerAddress": "36a Coldharbour Lane, Hayes, UB3 3EP",
+    "sourceCapture": {
+      "url": "https://www.cazoo.co.uk/cars-for-sale/80238245/",
+      "price": "\u00a37,990",
+      "title": "Ford Mondeo 2019 (68) 2.0 Hybrid Titanium Edition 4dr Auto",
+      "dealer": {
+        "name": "Multi Choice Motors",
+        "address": "36a Coldharbour Lane, Hayes, UB3 3EP"
+      },
+      "method": "rendered-text",
+      "photos": {
+        "urls": [
+          "https://cdn.images.autoexposure.co.uk/AETA22820/AETV99130943_1.jpg",
+          "https://cdn.images.autoexposure.co.uk/AETA22820/AETV99130943_2.jpg",
+          "https://cdn.images.autoexposure.co.uk/AETA22820/AETV99130943_3.jpg",
+          "https://cdn.images.autoexposure.co.uk/AETA22820/AETV99130943_4.jpg",
+          "https://cdn.images.autoexposure.co.uk/AETA22820/AETV99130943_5.jpg",
+          "https://cdn.images.autoexposure.co.uk/AETA22820/AETV99130943_6.jpg",
+          "https://cdn.images.autoexposure.co.uk/AETA22820/AETV99130943_7.jpg",
+          "https://cdn.images.autoexposure.co.uk/AETA22820/AETV99130943_8.jpg",
+          "https://cdn.images.autoexposure.co.uk/AETA22820/AETV99130943_9.jpg"
+        ],
+        "count": 9
+      },
+      "tagline": "1 owner from new Hybrid Petrol",
+      "equipment": {
+        "Entertainment": [
+          "Radio/CD",
+          "USB socket"
+        ],
+        "Safety / Security": [
+          "3x3 point rear seatbelts",
+          "Curtain airbags",
+          "Driver/front passenger airbag",
+          "Drivers knee airbag",
+          "Immobiliser",
+          "Intelligent Protection System (IPS)",
+          "Keyless entry and start",
+          "Remote central double locking",
+          "Thatcham Cat.1 alarm",
+          "Tyre pressure monitoring system"
+        ],
+        "Exterior / Styling": [
+          "18\" Alloy wheels",
+          "Automatic headlights with auto high/low beam",
+          "Body colour rocker mouldings",
+          "Body coloured bumpers",
+          "Chrome window surround",
+          "Front fog lights with chrome surrounds",
+          "Halogen projector headlights",
+          "LED daytime running lights",
+          "LED tail lights",
+          "Tyre repair kit",
+          "Upper front grille chrome surround"
+        ],
+        "Comfort / Convenience": [
+          "'Ford Power' starter button",
+          "'Quickclear' heated windscreen/heated washer jets",
+          "10 way electric power front seats",
+          "ABS+EBA",
+          "Active city stop",
+          "Auto dimming rear view mirror",
+          "Bluetooth connectivity with voice control",
+          "Centre console with armrest",
+          "Driver seat memory function",
+          "Driver's lumbar support",
+          "Dual zone automatic climate control",
+          "ESP + traction control",
+          "Easy fuel capless refuelling system",
+          "Electric adjustable door mirrors",
+          "Electric front windows",
+          "Electric rear windows with global open and close",
+          "Electronic parking brake",
+          "Folding rear seats",
+          "Ford SYNC 3 with 8\" colour touch screen",
+          "Front and rear parking sensors",
+          "Front headrests",
+          "Heated front seats",
+          "Height adjustable passenger seat with lumbar support",
+          "Hill start assist",
+          "Isofix on 2nd row rear seats",
+          "Lane keeping aid with traffic sign recognition",
+          "Leather steering wheel",
+          "PAS",
+          "Power folding door mirrors with puddle lights",
+          "Premium leather upholstery",
+          "Rain sensing front windscreen wipers",
+          "Rake/reach adjustable steering wheel",
+          "Rear armrest",
+          "Rear headrests",
+          "Rear wiper",
+          "SYNC Emergency Assistance",
+          "Service indicator",
+          "Ski hatch",
+          "Trip computer"
+        ]
+      },
+      "capturedAt": "2026-10-24T21:59:37+01:00",
+      "description": "Insurance Group 27E, Only 1 owner from new, excellent condition and drives amazingly well, comes with full service history and 2 remote keys. Heated leather seats reverse camera parking sensors cruise control etc. HPI clear ULEZ compliant and MOT until April 2027. Finance and nationwide delivery service is available.",
+      "disclosures": {
+        "mot": null,
+        "damage": null,
+        "service": null,
+        "writeOffCategory": null
+      },
+      "runningCosts": {
+        "ULEZ": "Compliant",
+        "Annual road tax": "\u00a3200",
+        "Insurance group": "27",
+        "Miles per gallon": "58.9",
+        "Fuel tank capacity": "62.5L"
+      },
+      "historyChecks": {
+        "caveat": "Our vehicle history check is provided for guidance only. Data provided by CAP HPI. Please check all details with the seller before purchasing.",
+        "checks": {
+          "Not stolen": "All passed",
+          "Not scrapped": "All passed",
+          "Not written off": "All passed",
+          "No colour change": "All passed",
+          "No number plate change": "All passed",
+          "Not imported / exported": "All passed"
+        }
+      },
+      "specifications": {
+        "General": [
+          [
+            "Insurance Group",
+            "27E"
+          ],
+          [
+            "Manufacturers Corrosion Perforation Guarantee",
+            "12 years"
+          ],
+          [
+            "Manufacturers Paintwork Guarantee",
+            "1 years"
+          ],
+          [
+            "Service Interval Frequency",
+            "12 months"
+          ]
+        ],
+        "summary": [
+          [
+            "Mileage",
+            "75,000 miles"
+          ],
+          [
+            "Year",
+            "2019 (68 reg)"
+          ],
+          [
+            "History check",
+            "All passed"
+          ],
+          [
+            "Previous owners",
+            "1"
+          ],
+          [
+            "Engine",
+            "2.0L"
+          ],
+          [
+            "Fuel type",
+            "Hybrid - Petrol/Electric"
+          ],
+          [
+            "Gearbox",
+            "Automatic"
+          ],
+          [
+            "Body Type",
+            "Saloon"
+          ],
+          [
+            "EV range",
+            "-"
+          ],
+          [
+            "Doors",
+            "4"
+          ],
+          [
+            "Seats",
+            "5"
+          ],
+          [
+            "Colour",
+            "Grey"
+          ],
+          [
+            "ULEZ compliant",
+            "Yes"
+          ],
+          [
+            "Drive type",
+            "Front Wheel Drive"
+          ],
+          [
+            "MOT",
+            "Check mileage history"
+          ]
+        ],
+        "Emissions": [
+          [
+            "CO2",
+            "108 g/km"
+          ]
+        ],
+        "Dimensions": [
+          [
+            "Height",
+            "1482 mm"
+          ],
+          [
+            "Length",
+            "4871 mm"
+          ],
+          [
+            "Wheelbase",
+            "2850 mm"
+          ],
+          [
+            "Width (including mirrors)",
+            "2121 mm"
+          ]
+        ],
+        "Performance": [
+          [
+            "0 to 62 mph",
+            "9.2 seconds"
+          ],
+          [
+            "Engine Power",
+            "187 BHP"
+          ],
+          [
+            "Engine Torque",
+            "128 LBS.FT"
+          ],
+          [
+            "Engine Torque",
+            "173 NM"
+          ],
+          [
+            "Top Speed",
+            "116 mph"
+          ]
+        ],
+        "Wheels & tyres": [
+          [
+            "Wheel Type",
+            "18\" ALLOY"
+          ]
+        ],
+        "Fuel consumption": [
+          [
+            "EC Combined",
+            "58.9 mpg"
+          ],
+          [
+            "EC Extra Urban",
+            "74.3 mpg"
+          ],
+          [
+            "EC Urban",
+            "57.7 mpg"
+          ]
+        ],
+        "Weight & capacities": [
+          [
+            "Fuel Tank Capacity",
+            "62.5 litres"
+          ],
+          [
+            "Max. Roof Load",
+            "75 kg"
+          ],
+          [
+            "No. of Seats",
+            "5"
+          ],
+          [
+            "Turning Circle - Kerb to Kerb",
+            "11.6 m"
+          ]
+        ],
+        "Engine & drive train": [
+          [
+            "Camshaft",
+            "DOHC"
+          ],
+          [
+            "Cylinder Layout",
+            "In-line"
+          ],
+          [
+            "Cylinders",
+            "4"
+          ],
+          [
+            "Drive Type",
+            "Front Wheel Drive"
+          ],
+          [
+            "Engine Layout",
+            "Front transverse"
+          ],
+          [
+            "Fuel Delivery",
+            "TURBO DIRECT INJECTION"
+          ],
+          [
+            "Gears",
+            "6 SPEED"
+          ],
+          [
+            "Gearbox",
+            "Automatic"
+          ]
+        ]
+      }
+    },
+    "cazooListingId": "80238245",
+    "dealerPostcode": "UB3 3EP",
+    "insuranceGroup": "27E",
+    "sourcePlatform": "cazoo",
+    "specCategories": [
+      {
+        "items": [
+          {
+            "name": "Service Interval Frequency",
+            "value": "12 months"
+          }
+        ],
+        "category": "General"
+      },
+      {
+        "items": [
+          {
+            "name": "0 to 62 mph",
+            "value": "9.2 seconds"
+          },
+          {
+            "name": "Engine Power",
+            "value": "187 BHP"
+          },
+          {
+            "name": "Engine Torque",
+            "value": "128 LBS.FT"
+          },
+          {
+            "name": "Engine Torque",
+            "value": "173 NM"
+          },
+          {
+            "name": "Top Speed",
+            "value": "116 mph"
+          }
+        ],
+        "category": "Performance"
+      },
+      {
+        "items": [
+          {
+            "name": "EC Combined",
+            "value": "58.9 mpg"
+          },
+          {
+            "name": "EC Extra Urban",
+            "value": "74.3 mpg"
+          },
+          {
+            "name": "EC Urban",
+            "value": "57.7 mpg"
+          }
+        ],
+        "category": "Fuel consumption"
+      },
+      {
+        "items": [
+          {
+            "name": "CO2",
+            "value": "108 g/km"
+          }
+        ],
+        "category": "Emissions"
+      },
+      {
+        "items": [
+          {
+            "name": "Camshaft",
+            "value": "DOHC"
+          },
+          {
+            "name": "Cylinder Layout",
+            "value": "In-line"
+          },
+          {
+            "name": "Cylinders",
+            "value": "4"
+          },
+          {
+            "name": "Engine Layout",
+            "value": "Front transverse"
+          },
+          {
+            "name": "Fuel Delivery",
+            "value": "TURBO DIRECT INJECTION"
+          },
+          {
+            "name": "Gears",
+            "value": "6 SPEED"
+          }
+        ],
+        "category": "Engine & drive train"
+      },
+      {
+        "items": [
+          {
+            "name": "Wheel Type",
+            "value": "18\" ALLOY"
+          }
+        ],
+        "category": "Wheels & tyres"
+      },
+      {
+        "items": [
+          {
+            "name": "Fuel Tank Capacity",
+            "value": "62.5 litres"
+          },
+          {
+            "name": "Max. Roof Load",
+            "value": "75 kg"
+          },
+          {
+            "name": "Turning Circle - Kerb to Kerb",
+            "value": "11.6 m"
+          }
+        ],
+        "category": "Weight & capacities"
+      },
+      {
+        "items": [
+          {
+            "name": "Height",
+            "value": "1482 mm"
+          },
+          {
+            "name": "Length",
+            "value": "4871 mm"
+          },
+          {
+            "name": "Wheelbase",
+            "value": "2850 mm"
+          },
+          {
+            "name": "Width (including mirrors)",
+            "value": "2121 mm"
+          }
+        ],
+        "category": "Dimensions"
+      }
+    ],
+    "cazooDealerSlug": "multi-choice-motors-75497",
+    "equipmentGroups": [
+      {
+        "items": [
+          "'Ford Power' starter button",
+          "'Quickclear' heated windscreen/heated washer jets",
+          "10 way electric power front seats",
+          "ABS+EBA",
+          "Active city stop",
+          "Auto dimming rear view mirror",
+          "Bluetooth connectivity with voice control",
+          "Centre console with armrest",
+          "Driver seat memory function",
+          "Driver's lumbar support",
+          "Dual zone automatic climate control",
+          "ESP + traction control",
+          "Easy fuel capless refuelling system",
+          "Electric adjustable door mirrors",
+          "Electric front windows",
+          "Electric rear windows with global open and close",
+          "Electronic parking brake",
+          "Folding rear seats",
+          "Ford SYNC 3 with 8\" colour touch screen",
+          "Front and rear parking sensors",
+          "Front headrests",
+          "Heated front seats",
+          "Height adjustable passenger seat with lumbar support",
+          "Hill start assist",
+          "Isofix on 2nd row rear seats",
+          "Lane keeping aid with traffic sign recognition",
+          "Leather steering wheel",
+          "PAS",
+          "Power folding door mirrors with puddle lights",
+          "Premium leather upholstery",
+          "Rain sensing front windscreen wipers",
+          "Rake/reach adjustable steering wheel",
+          "Rear armrest",
+          "Rear headrests",
+          "Rear wiper",
+          "SYNC Emergency Assistance",
+          "Service indicator",
+          "Ski hatch",
+          "Trip computer"
+        ],
+        "category": "Comfort / Convenience"
+      },
+      {
+        "items": [
+          "Radio/CD",
+          "USB socket"
+        ],
+        "category": "Entertainment"
+      },
+      {
+        "items": [
+          "18\" Alloy wheels",
+          "Automatic headlights with auto high/low beam",
+          "Body colour rocker mouldings",
+          "Body coloured bumpers",
+          "Chrome window surround",
+          "Front fog lights with chrome surrounds",
+          "Halogen projector headlights",
+          "LED daytime running lights",
+          "LED tail lights",
+          "Tyre repair kit",
+          "Upper front grille chrome surround"
+        ],
+        "category": "Exterior / Styling"
+      },
+      {
+        "items": [
+          "3x3 point rear seatbelts",
+          "Curtain airbags",
+          "Driver/front passenger airbag",
+          "Drivers knee airbag",
+          "Immobiliser",
+          "Intelligent Protection System (IPS)",
+          "Keyless entry and start",
+          "Remote central double locking",
+          "Thatcham Cat.1 alarm",
+          "Tyre pressure monitoring system"
+        ],
+        "category": "Safety / Security"
+      }
+    ],
+    "browserDependent": true,
+    "detailCapturedAt": "2026-10-24T21:59:37+01:00",
+    "advertDescription": "Insurance Group 27E, Only 1 owner from new, excellent condition and drives amazingly well, comes with full service history and 2 remote keys. Heated leather seats reverse camera parking sensors cruise control etc. HPI clear ULEZ compliant and MOT until April 2027. Finance and nationwide delivery service is available.",
+    "descriptionOrigin": "source",
+    "sourceDisclosures": {
+      "mot": null,
+      "damage": null,
+      "service": null,
+      "writeOffCategory": null
+    },
+    "descriptionTemplateVersion": null,
+    "originalAdvertDescriptions": [
+      "Insurance Group 27E, Only 1 owner from new, excellent condition and drives amazingly well, comes with full service history and 2 remote keys. Heated leather seats reverse camera parking sensors cruise control etc. HPI clear ULEZ compliant and MOT until April 2027. Finance and nationwide delivery service is available."
+    ],
+    "lastListingCheckVerifiedFields": [
+      "priceGbp",
+      "mileage",
+      "wasPriceGbp",
+      "headline"
+    ],
+    "detailSource": "cazoo-rendered-text",
+    "lastCheckedAt": "2026-10-25T06:42:49Z"
+  },
+  "id": "8affcc4f-df58-425d-bbbf-cc82f978fe33",
+  "inventoryStatus": "available"
+}

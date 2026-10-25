@@ -1,127 +1,63 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { Printer } from '@/components/icons';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { Car } from '@/lib/stock-context';
 import type { DealerConfig } from '@/config/dealer';
-import { formatPhoneDisplay, vehicleDisplayTitle } from '@/lib/utils';
-import { vehicleSheetAccent } from '@/lib/vehicle-sheet-branding';
-import { vehiclePrintData, type VehiclePrintFact } from '@/lib/vehicle-print-data';
+import { vehicleDisplayTitle } from '@/lib/utils';
+import { buildVehicleSheetData, vehicleSheetLocation } from '@/lib/vehicle-sheet-data';
 
-const supplied = (value?: string) => {
-  const text = value?.trim();
-  return text && !/^(not supplied|not provided|unknown|n\/a|your dealership|your address|enter .+|\[.+\])$|\b(?:sample (?:address|postcode|phone|email)|example (?:road|street|address)|placeholder)\b/i.test(text) ? text : '';
-};
-const nextFrame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
-
-function Facts({ facts }: { facts: VehiclePrintFact[] }) {
-  return <dl>{facts.map(({ label, value }) => <div key={`${label}:${value}`} className={value.length > 60 ? 'vehicle-print-wide-fact' : undefined}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>;
-}
-
-/** Full supplied information, measured at its physical print size before opening the print dialog. */
+/** An isolated A4 document: its fonts and print rules cannot reach invoices. */
 export function VehiclePrint({ car, dealer, features, description }: { car: Car; dealer: DealerConfig; features: string[]; description?: string }) {
-  const sheet = useRef<HTMLElement>(null);
-  const [preparing, setPreparing] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [status, setStatus] = useState<'preparing'|'ready'|'error'>('preparing');
   const [error, setError] = useState('');
-  const [failedPhotos, setFailedPhotos] = useState<string[]>([]);
-  const [failedLogo, setFailedLogo] = useState(false);
-  const data = useMemo(() => vehiclePrintData(car, features, description), [car, features, description]);
-  const photos = data.photos.filter(photo => !failedPhotos.includes(photo.src));
-  const heroGallery = !data.description && !data.features.length && photos.length === 3;
-  const name = supplied(dealer.identity.name);
-  const phone = supplied(dealer.contact.phone);
-  const email = supplied(dealer.contact.email);
-  const printedEmail = email && !/@(?:example\.(?:com|org|net)|[^@]+\.(?:test|invalid))$/i.test(email) ? email : '';
-  const address = [dealer.address?.street, dealer.address?.city, dealer.address?.region, dealer.address?.postcode].map(supplied).filter(Boolean).join(', ');
-  const url = `${window.location.origin}/vehicle/${encodeURIComponent(car.id)}`;
-  const accent = vehicleSheetAccent(dealer.identity.brandColors?.primaryHsl, dealer.brochure?.accentColour, dealer.brochure?.useWebsiteColour);
-  const legal = [supplied(dealer.legal.companyNumber) ? `Company no. ${dealer.legal.companyNumber}` : '', supplied(dealer.legal.vatNumber) ? `VAT no. ${dealer.legal.vatNumber}` : ''].filter(Boolean).join(' · ');
-
-  const fit = useCallback(() => {
-    const element = sheet.current;
-    const page = element?.querySelector<HTMLElement>('.vehicle-print-page');
-    if (!element || !page) return false;
-    // Compact whitespace and photographs before reducing type; never clip or truncate content.
-    for (const density of ['comfortable', 'compact', 'catalogue', 'dense', 'extra-dense']) {
-      element.dataset.printDensity = density;
-      if (page.getBoundingClientRect().height <= element.clientHeight + 1) {
-        element.dataset.printReady = 'true';
-        return true;
-      }
-    }
-    element.dataset.printReady = 'false';
-    return false;
-  }, []);
-
+  const frame = useRef<HTMLIFrameElement | null>(null);
+  // A stable ref callback starts preparation after the dialog portal has mounted.
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
   useEffect(() => {
-    setFailedLogo(false);
-  }, [dealer.identity.logoAsset]);
-
-  useEffect(() => {
-    setFailedPhotos([]);
-    setError('');
-    const beforePrint = () => { if (sheet.current) { sheet.current.dataset.measuring = 'true'; fit(); delete sheet.current.dataset.measuring; } };
-    window.addEventListener('beforeprint', beforePrint);
-    return () => window.removeEventListener('beforeprint', beforePrint);
-  }, [car.id, fit]);
-
-  const print = async () => {
-    if (!sheet.current) return;
-    setPreparing(true);
-    setError('');
-    sheet.current.dataset.measuring = 'true';
-    try {
-      // This sheet uses local Arial/Helvetica; unrelated website font downloads must not delay printing.
-      await Promise.race([
-        Promise.allSettled(Array.from(sheet.current.querySelectorAll('img')).map(img => img.decode())),
-        new Promise(resolve => setTimeout(resolve, 6000)),
-      ]);
-      // Decode failures remove the photograph entirely, including its frame and caption.
-      setFailedPhotos(current => [...new Set([...current, ...Array.from(sheet.current!.querySelectorAll<HTMLImageElement>('.vehicle-print-photo img')).filter(img => !img.complete || !img.naturalWidth).map(img => img.getAttribute('src') || img.src)])]);
-      await nextFrame();
-      await nextFrame();
-      if (!fit()) {
-        setError('These details exceed one readable A4 page. Please contact us for a complete vehicle sheet.');
-        return;
+    if (!open || !container) return;
+    const controller = new AbortController();
+    const element = document.createElement('iframe');
+    element.title = 'Printable vehicle details';
+    Object.assign(element.style, { width: '210mm', height: '297mm', border: '0', transformOrigin: 'top left', position: 'absolute', top: '0', left: '0', background: 'white' });
+    container.appendChild(element); frame.current = element;
+    const size = () => {
+      const scale = Math.min(1, container.clientWidth / (210 * 96 / 25.4));
+      element.style.transform = `scale(${scale})`;
+      container.style.height = `${297 * 96 / 25.4 * scale}px`;
+    };
+    const observer = new ResizeObserver(size); observer.observe(container); size();
+    setStatus('preparing'); setError('');
+    void (async () => {
+      try {
+        const doc = element.contentDocument!;
+        doc.open(); doc.write('<!doctype html><html><head><meta charset="utf-8"><title>Vehicle details</title><style>html,body{margin:0;padding:0;background:white}</style></head><body><main></main></body></html>'); doc.close();
+        const { origin, url } = vehicleSheetLocation(car.id);
+        const data = buildVehicleSheetData(car, dealer, features, description, url);
+        if (data.dealer?.logoUrl) data.dealer.logoUrl = new URL(data.dealer.logoUrl, window.location.origin).href;
+        const { prepareVehicleSheet } = await import('@/lib/vehicle-sheet/controller');
+        if (controller.signal.aborted) return;
+        const result = await prepareVehicleSheet(doc.querySelector('main')!, data, { dealerWebsiteOrigin: origin, vehiclePathPrefix: '/vehicle/' }, controller.signal);
+        if (controller.signal.aborted) return;
+        setStatus(result.status === 'ready' ? 'ready' : 'error');
+        if (result.status !== 'ready') setError(result.message || 'The vehicle sheet could not be prepared. Please try again.');
+      } catch {
+        if (!controller.signal.aborted) { setStatus('error'); setError('The vehicle sheet could not be prepared. Please try again.'); }
       }
-      delete sheet.current.dataset.measuring;
-      window.print();
-    } finally {
-      if (sheet.current) delete sheet.current.dataset.measuring;
-      setPreparing(false);
-    }
-  };
-
+    })();
+    return () => { controller.abort(); observer.disconnect(); element.remove(); if (frame.current === element) frame.current = null; };
+  }, [open, container, car, dealer, features, description]);
   return <>
-    <button id="print-vehicle-details" type="button" className="text-link min-h-11 text-sm" onClick={print} disabled={preparing} data-testid="button-print-vehicle" aria-label={`Print vehicle details for ${vehicleDisplayTitle(car)}`}><Printer aria-hidden="true" className="h-4 w-4" />{preparing ? 'Preparing print…' : 'Print vehicle details'}</button>
-    {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-    {createPortal(<article ref={sheet} className="vehicle-print-sheet" data-print-density="comfortable" data-print-gallery={heroGallery ? 'hero' : 'strip'} aria-label="Printable vehicle details" style={{ '--vehicle-print-accent': accent } as CSSProperties}>
-      <div className="vehicle-print-page">
-        <header className="vehicle-print-brand">
-          <div className="vehicle-print-identity">
-            {dealer.identity.logoAsset && !failedLogo ? <img src={dealer.identity.logoAsset} alt={name} onError={() => setFailedLogo(true)} /> : name && <strong>{name}</strong>}
-            <span>Vehicle details</span>
-          </div>
-          {(phone || printedEmail) && <div className="vehicle-print-contact">{phone && <p>{formatPhoneDisplay(phone)}</p>}{printedEmail && <p>{printedEmail}</p>}</div>}
-        </header>
-        <section className="vehicle-print-title"><div>{data.title && <h1>{data.title}</h1>}{data.variant && <p>{data.variant}</p>}</div>{data.price && <div className="vehicle-print-price"><span>Vehicle price</span><strong>{data.price}</strong>{data.priceNote && <small>{data.priceNote}</small>}</div>}</section>
-        {photos.length > 0 && <div className="vehicle-print-photos" style={{ gridTemplateColumns: heroGallery ? '2fr 1fr' : `repeat(${photos.length}, minmax(0, 1fr))` }}>{photos.map(({ src, caption }) => <figure key={src} className="vehicle-print-photo"><img src={src} alt={caption || ''} referrerPolicy="no-referrer" onError={() => setFailedPhotos(current => current.includes(src) ? current : [...current, src])} />{caption && <figcaption>{caption}</figcaption>}</figure>)}</div>}
-        {data.facts.length > 0 && <section className="vehicle-print-facts" aria-label="Vehicle at a glance"><Facts facts={data.facts} /></section>}
-        {data.description && <section className="vehicle-print-description"><h2>About this car</h2><p>{data.description}</p></section>}
-        {data.features.length > 0 && <section className="vehicle-print-features"><h2>Features & equipment</h2><ul>{data.features.map(feature => <li key={feature}>{feature}</li>)}</ul></section>}
-        {(data.specificationGroups.length > 0 || data.runningCosts.length > 0) && <div className="vehicle-print-specifications">
-          {data.specificationGroups.map(group => <section key={group.title}><h2>{group.title}</h2><Facts facts={group.facts} /></section>)}
-          {data.runningCosts.length > 0 && <section><h2>Running costs</h2><Facts facts={data.runningCosts} /></section>}
-        </div>}
-        {data.history.length > 0 && <section className="vehicle-print-history"><h2>Service & ownership history</h2><Facts facts={data.history} /></section>}
-        {data.sourceNotes.length > 0 && <aside className="vehicle-print-source-notes"><h2>Details to confirm with us</h2>{data.sourceNotes.map(note => <p key={note}>{note}</p>)}</aside>}
-        <footer className="vehicle-print-footer">
-          {address && <strong>{address}</strong>}
-          <a href={url}>{url}</a>
-          {legal && <p>{legal}</p>}
-          {supplied(dealer.brochure?.footerNote) && <p>{dealer.brochure!.footerNote}</p>}
-          <small>Printed {new Date().toLocaleDateString('en-GB')} · Please confirm price, availability and vehicle details with us before purchase.</small>
-        </footer>
-      </div>
-    </article>, document.body)}
+    <button id="print-vehicle-details" type="button" className="text-link min-h-11 text-sm" onClick={() => { setStatus('preparing'); setOpen(true); }} data-testid="button-print-vehicle" aria-label={`Print vehicle details for ${vehicleDisplayTitle(car)}`}><Printer aria-hidden="true" className="h-4 w-4" />Print vehicle details</button>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="max-w-4xl p-4 sm:p-6">
+        <DialogHeader><DialogTitle>Vehicle details</DialogTitle><DialogDescription>One A4 page. Scan the QR code for the full description, equipment and photos.</DialogDescription></DialogHeader>
+        <Button type="button" className="min-h-11 justify-self-start" disabled={status !== 'ready'} onClick={() => { frame.current?.contentWindow?.focus(); frame.current?.contentWindow?.print(); }}><Printer className="h-4 w-4" aria-hidden="true" />Print A4 sheet</Button>
+        {status === 'preparing' && <p role="status">Preparing your sheet…</p>}
+        {status === 'error' && <p role="alert" className="text-destructive">{error}</p>}
+        <div className="min-w-0 overflow-hidden bg-muted" aria-busy={status === 'preparing'}><div ref={setContainer} className="relative w-full max-w-[794px] mx-auto" /></div>
+      </DialogContent>
+    </Dialog>
   </>;
 }
