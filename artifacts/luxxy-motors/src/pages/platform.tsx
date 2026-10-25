@@ -89,6 +89,9 @@ export default function Platform() {
   const [view, setView] = useState<'overview' | 'dealers' | 'new' | 'activity' | 'workspace' | 'demos' | 'features'>('overview');
   const [data, setData] = useState<{ dealers: Dealer[]; activity: Run[] }>({ dealers: [], activity: [] });
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const workspaceId = useRef<string | null>(null);
+  workspaceId.current = workspace?.dealer.id ?? null;
+  const [refreshingWorkspace, setRefreshingWorkspace] = useState(false);
   const [tab, setTab] = useState('Setup');
   const navigationRef = useRef<HTMLElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -122,8 +125,8 @@ export default function Platform() {
   }
   async function load() {
     setLoading(true); setNow(Date.now());
-    try { setData(await call('/overview')); setAllowed(true); setError(''); }
-    catch { setAllowed(false); setError('Platform administrator access is required on the approved administration domain. Refresh to try again.'); }
+    try { setData(await call('/overview')); setAllowed(true); setError(''); return true; }
+    catch { setAllowed(false); setError('Platform administrator access is required on the approved administration domain. Refresh to try again.'); return false; }
     finally { setLoading(false); }
   }
   useEffect(() => { if (isSignedIn) void load(); else { setAllowed(false); setExpandedRun(null); setRunDetails({}); setData({ dealers: [], activity: [] }); setWorkspace(null); setIssuedKey(null); } }, [isSignedIn]);
@@ -138,8 +141,21 @@ export default function Platform() {
   }
   async function refreshDealerWorkspace() {
     if (!workspace) return;
-    try { setWorkspace(await call<Workspace>(`/dealers/${encodeURIComponent(workspace.dealer.id)}/workspace`)); }
-    catch { setError('Domain connection completed. Refresh the dealership to see its updated domains.'); }
+    const dealerId = workspace.dealer.id;
+    try {
+      const latest = await call<Workspace>(`/dealers/${encodeURIComponent(dealerId)}/workspace`);
+      if (workspaceId.current === dealerId) setWorkspace(latest);
+    }
+    catch { if (workspaceId.current === dealerId) setError('Could not refresh this dealership. The last loaded details are still shown. Try Refresh again.'); }
+  }
+  async function refreshCurrentView() {
+    if (loading || busy || refreshingWorkspace) return;
+    if (view !== 'workspace' || !workspace) { await load(); return; }
+    setRefreshingWorkspace(true);
+    setNotice('');
+    try {
+      if (await load()) await refreshDealerWorkspace();
+    } finally { setRefreshingWorkspace(false); }
   }
   async function mutate(path: string, method: string, body?: unknown) {
     setBusy(true); setError(''); setNotice('');
@@ -232,7 +248,7 @@ export default function Platform() {
   }
   return <div className="platform-shell">
     <aside className="platform-sidebar"><a href="/platform" className="platform-brand"><span><Building2 size={22}/></span><div>Dealer Platform<small>Management console</small></div></a><nav ref={navigationRef} aria-label="Platform navigation">{([{ key:'overview', label:'Overview', icon:LayoutDashboard }, { key:'dealers', label:'Dealerships', icon:Building2 }, { key:'new', label:'Add dealership', icon:Plus }, { key:'activity', label:'Import activity', icon:Activity }, { key:'demos', label:'Demo dealerships', icon:Demo }, { key:'features', label:'Feature defaults', icon:ShieldCheck }] as const).map(n => <button key={n.key} className={view === n.key || (n.key === 'dealers' && view === 'workspace') ? 'is-active' : ''} aria-current={view === n.key || (n.key === 'dealers' && view === 'workspace') ? 'page' : undefined} disabled={!allowed || busy} onClick={() => navigate(n.key)}><n.icon size={18}/>{n.label}</button>)}</nav><div className="platform-sidebar-note"><ShieldCheck size={19}/><p>Platform administration<small>Dealer websites and staff portals stay separate.</small></p></div></aside>
-    <main className="platform-main"><header className="platform-header"><div><p>Platform administration</p><h1>{view === 'workspace' ? workspace?.dealer.name : view === 'features' ? 'Feature defaults' : view === 'demos' ? 'Demo dealerships' : view === 'new' ? 'Add a dealership' : view === 'activity' ? 'Import activity' : view === 'dealers' ? 'Dealerships' : 'Your dealership network'}</h1></div>{allowed && <div className="platform-header-actions"><Button variant="outline" disabled={loading || busy} onClick={() => void load()}><RefreshCw size={16}/>Refresh</Button>{view !== 'new' && <Button disabled={busy} onClick={() => navigate('new')}><Plus size={16}/>Add dealership</Button>}</div>}</header>
+    <main className="platform-main"><header className="platform-header"><div><p>Platform administration</p><h1>{view === 'workspace' ? workspace?.dealer.name : view === 'features' ? 'Feature defaults' : view === 'demos' ? 'Demo dealerships' : view === 'new' ? 'Add a dealership' : view === 'activity' ? 'Import activity' : view === 'dealers' ? 'Dealerships' : 'Your dealership network'}</h1></div>{allowed && <div className="platform-header-actions"><Button variant="outline" disabled={loading || busy || refreshingWorkspace} aria-busy={loading || refreshingWorkspace} onClick={() => void refreshCurrentView()}><RefreshCw size={16} className={loading || refreshingWorkspace ? 'animate-spin' : undefined}/>Refresh</Button>{view !== 'new' && <Button disabled={busy} onClick={() => navigate('new')}><Plus size={16}/>Add dealership</Button>}</div>}</header>
       {!isSignedIn ? <section className="platform-panel platform-login"><ShieldCheck size={36}/><h2>Manage your dealerships</h2><p>Sign in with your authorised platform administrator account.</p><SignInButton mode="modal" forceRedirectUrl={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/platform`} signUpForceRedirectUrl={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/platform`}><Button>Sign in as platform administrator</Button></SignInButton></section> : <>
         {error && <p role="alert" className="platform-alert">{error}</p>}{notice && <p role="status" className="platform-notice">{notice}</p>}
         {loading && !allowed && <p role="status">Loading your dealerships…</p>}

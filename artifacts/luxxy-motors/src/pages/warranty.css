@@ -1,3 +1,4 @@
+.friendly-warranty .warranty-introduction { border-bottom: 0; margin-bottom: 0; }
 .friendly-warranty .warranty-enquiry-panel select { min-height: 48px; font-size: 16px; }
 .friendly-warranty .warranty-policy-checklist summary { list-style: none; }
 .friendly-warranty .warranty-policy-checklist summary::-webkit-details-marker { display: none; }

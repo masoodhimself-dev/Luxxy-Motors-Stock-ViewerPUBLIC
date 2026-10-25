@@ -10,6 +10,65 @@ afterEach(()=>clients.splice(0).forEach(client=>client.clear()));
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); auth.signedIn = true; });
 const dealer = { id:'example-dealer', name:'Example Dealer', canonicalOrigin:'https://dealer.example.test', status:'draft', stockPlatform:'autotrader', retailerId:'example', sourceUrl:'https://www.autotrader.co.uk/example', domains:[], activeKeyCount:0, latestImport:null,lastSuccessfulImport:null };
 const workspace = { dealer, domains:[{hostname:'dealer.example.test',verified:false,verificationToken:'fixture-token'}],members:[],imports:[],keys:[] };
+
+it('refreshes the selected dealership credentials, staff and status without changing its current tab', async () => {
+  let current = structuredClone(workspace) as Record<string, unknown>;
+  const fetch = vi.fn(async (path: RequestInfo | URL, _init?: RequestInit) => String(path).endsWith('/workspace') ? Response.json(current) : Response.json({dealers:[dealer],activity:[]}));
+  vi.stubGlobal('fetch', fetch);
+  render(<Platform/>);
+  fireEvent.click(await screen.findByRole('button',{name:/Example Dealer/}));
+  fireEvent.click(await screen.findByRole('tab',{name:'Stock connection'}));
+  expect(screen.getByText('Active credentials').parentElement).toHaveTextContent('0');
+  current = {...workspace,dealer:{...dealer,status:'active'},keys:[{id:'new-key',createdAt:'2026-10-25T08:00:00Z',disabledAt:null}],members:[{id:'owner',name:'Updated owner',email:'owner@example.test',role:'owner',disabledAt:null}]};
+  fireEvent.click(screen.getByRole('button',{name:/^Refresh$/}));
+  await waitFor(()=>expect(screen.getByText('Active credentials').parentElement).toHaveTextContent('1'));
+  expect(screen.getByRole('tab',{name:'Stock connection',selected:true})).toBeInTheDocument();
+  expect(screen.getByText('active',{exact:true})).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('tab',{name:'Staff'}));
+  expect(await screen.findByText('Updated owner')).toBeInTheDocument();
+  expect(fetch.mock.calls.every(([,init])=>!init || !init.method || init.method==='GET')).toBe(true);
+});
+
+it('keeps the last workspace details on a refresh failure and prevents overlapping refreshes', async () => {
+  let pending = false;
+  let finish: ((response: Response) => void) | undefined;
+  const fetch = vi.fn(async path => {
+    if (String(path).endsWith('/workspace')) return pending ? new Promise<Response>(resolve=>{finish=resolve;}) : Response.json(workspace);
+    return Response.json({dealers:[dealer],activity:[]});
+  });
+  vi.stubGlobal('fetch', fetch);
+  render(<Platform/>);
+  fireEvent.click(await screen.findByRole('button',{name:/Example Dealer/}));
+  fireEvent.click(await screen.findByRole('tab',{name:'Stock connection'}));
+  pending = true;
+  fireEvent.click(screen.getByRole('button',{name:/^Refresh$/}));
+  await waitFor(()=>expect(finish).toBeDefined());
+  expect(screen.getByRole('button',{name:/^Refresh$/})).toBeDisabled();
+  fireEvent.click(screen.getByRole('button',{name:/^Refresh$/}));
+  expect(fetch.mock.calls.filter(([path])=>String(path).endsWith('/workspace'))).toHaveLength(2);
+  finish!(Response.json({error:'Temporary failure'},{status:503}));
+  expect(await screen.findByRole('alert')).toHaveTextContent('The last loaded details are still shown.');
+  expect(screen.getByText('Active credentials').parentElement).toHaveTextContent('0');
+  expect(screen.getByRole('tab',{name:'Stock connection',selected:true})).toBeInTheDocument();
+  await waitFor(()=>expect(screen.getByRole('button',{name:/^Refresh$/})).toBeEnabled());
+  pending = false;
+  fireEvent.click(screen.getByRole('button',{name:/^Refresh$/}));
+  await waitFor(()=>expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+});
+
+it('does not reload or show the workspace after refreshed platform access is denied', async () => {
+  let denied = false;
+  const fetch = vi.fn(async path => String(path).endsWith('/workspace') ? Response.json(workspace) : denied ? Response.json({error:'Forbidden'},{status:403}) : Response.json({dealers:[dealer],activity:[]}));
+  vi.stubGlobal('fetch', fetch);
+  render(<Platform/>);
+  fireEvent.click(await screen.findByRole('button',{name:/Example Dealer/}));
+  await screen.findByRole('tab',{name:'Stock connection'});
+  denied = true;
+  fireEvent.click(screen.getByRole('button',{name:/^Refresh$/}));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Platform administrator access is required');
+  expect(screen.queryByRole('tab',{name:'Stock connection'})).not.toBeInTheDocument();
+  expect(fetch.mock.calls.filter(([path])=>String(path).endsWith('/workspace'))).toHaveLength(1);
+});
 it('shows the effective stock source and retains a different registered URL as reference only', async () => {
   const effectiveStockConnection={status:'known',platform:'autotrader',retailerId:'example',sourceUrl:dealer.sourceUrl+'?sort=price-asc',enabled:false,usesOverride:true};
   vi.stubGlobal('fetch',vi.fn(async path=>String(path).endsWith('/workspace')?Response.json({...workspace,effectiveStockConnection}):Response.json({dealers:[dealer],activity:[]})));

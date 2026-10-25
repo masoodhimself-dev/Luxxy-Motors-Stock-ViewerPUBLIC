@@ -74,6 +74,26 @@ test('private/capability routes and demos remain noindex and emit no structured 
   const demo = seo('/vehicle/car-one', { vehicle, demo: true });
   assert.match(demo.robots, /^noindex/); assert.deepEqual(demo.structuredData, []);
 });
+test('unknown pages are real 404s while supported staff and customer routes retain private SPA status', () => {
+  for (const path of ['/unknown', '/stock/not-a-page', '/vehicle/car-one/extra', '/portal/not-a-page', '/sign-in-extra', '/viewing/private-token/extra']) {
+    const result = seo(path);
+    assert.equal(result.status, 404, path);
+    assert.match(result.title, /^Page not found/);
+    assert.match(result.robots, /^noindex/);
+    assert.equal(result.canonical, null);
+    assert.deepEqual(result.structuredData, []);
+  }
+  for (const path of ['/enquire', '/saved', '/compare', '/portal', '/portal/leads/lead-id', '/platform', '/join', '/phone-share', '/staff-upload', '/enquiry-photo-upload', '/reserve/payment-return', '/my-purchase/private-token', '/viewing/private-token', '/sign/private-token', '/customer-details/private-token', '/sign-in', '/sign-in/sso-callback', '/sign-up/verify-email-address', '/verify-invoice', '/verify-invoice/sale/document/private-token', '/test-drive-declaration/private-token']) {
+    const result = seo(path);
+    assert.equal(result.status, 200, path);
+    assert.match(result.robots, /^noindex/);
+    assert.equal(result.canonical, null);
+    assert.deepEqual(result.structuredData, []);
+    assert.doesNotMatch(result.title + result.description, /private-token/);
+  }
+  assert.equal(seo('/unknown', { demo: true }).status, 404);
+  assert.equal(seo('/unknown', { canonicalOrigin: undefined }).status, 404);
+});
 test('markup replaces owned metadata exactly once and hostile text cannot escape JSON or HTML', () => {
   const hostile = '</script><script>alert("x")</script> & </title>';
   const result = seo('/vehicle/car-one', { settings: { ...settings, identity: { name: hostile } }, vehicle: { ...vehicle, specifications: { description: hostile } } });
@@ -102,6 +122,7 @@ test('HTTP metadata reads tenant data for each request, fresh prices, correct 40
     const tenant: TenantContext = { dealerId, canonicalOrigin: dealerId === 'dealer-two' ? 'https://second.example.test' : origin, platform: 'autotrader', retailerId: 'fictional', sourceUrl: 'https://market.example.test', demo: dealerId === 'demo' };
     runWithTenant(tenant, next);
   });
+  app.get('/api/fixture', (_req, res) => res.json({ existingApi: true }));
   serveFrontend(app, directory, { loadPageData: async (path, tenant) => {
     lookups.push(`${tenant!.dealerId}:${path}`);
     return { settings: { ...settings, identity: { name: tenant!.dealerId } }, vehicle: tenant!.dealerId === 'dealer-one' && path === '/vehicle/car-one' ? { ...vehicle, price } : null };
@@ -109,6 +130,8 @@ test('HTTP metadata reads tenant data for each request, fresh prices, correct 40
   const server = app.listen(0, '127.0.0.1'); await once(server, 'listening');
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
   try {
+    const api = await fetch(`${base}/api/fixture`);
+    assert.equal(api.status, 200); assert.deepEqual(await api.json(), { existingApi: true });
     let response = await fetch(`${base}/vehicle/car-one?tracking=secret`), html = await response.text();
     assert.equal(response.status, 200); assert.match(html, /£4,750/); assert.match(html, /https:\/\/dealer\.example\.test\/vehicle\/car-one/); assert.doesNotMatch(html, /tracking=secret/);
     assert.equal(response.headers.get('cache-control'), 'no-store');
@@ -116,7 +139,25 @@ test('HTTP metadata reads tenant data for each request, fresh prices, correct 40
     response = await fetch(`${base}/vehicle/car-one`, { headers: { 'x-test-dealer': 'dealer-two' } }); html = await response.text();
     assert.equal(response.status, 404); assert.doesNotMatch(html, /Toyota|4,500|4,750/); assert.equal(response.headers.get('x-robots-tag'), 'noindex, nofollow, noarchive');
     response = await fetch(`${base}/stock`, { headers: { 'x-test-dealer': 'dealer-two' } }); html = await response.text(); assert.match(html, /https:\/\/second\.example\.test\/stock/); assert.doesNotMatch(html, /https:\/\/dealer\.example\.test/);
-    const before = lookups.length; response = await fetch(`${base}/my-purchase/private-token`); html = await response.text(); assert.equal(lookups.length, before); assert.doesNotMatch(html, /private-token|application\/ld\+json/);
+    const before = lookups.length; response = await fetch(`${base}/my-purchase/private-token`); html = await response.text(); assert.equal(response.status, 200); assert.equal(lookups.length, before); assert.doesNotMatch(html, /private-token|application\/ld\+json/);
+    for (const path of ['/unknown', '/stock/not-a-page', '/portal/not-a-page']) {
+      response = await fetch(`${base}${path}`); html = await response.text();
+      assert.equal(response.status, 404, path);
+      assert.equal(response.headers.get('cache-control'), 'no-store');
+      assert.equal(response.headers.get('x-robots-tag'), 'noindex, nofollow, noarchive');
+      assert.match(html, /<title>Page not found/);
+      assert.doesNotMatch(html, /rel="canonical"|application\/ld\+json/);
+      assert.match(html, /src="\/assets\/main.js"/);
+      assert.equal(lookups.length, before);
+    }
+    for (const path of ['/portal', '/portal/leads/lead-id', '/phone-share', '/verify-invoice/sale/document/private-token', '/test-drive-declaration/private-token', '/sign-in/sso-callback']) {
+      response = await fetch(`${base}${path}`); html = await response.text();
+      assert.equal(response.status, 200, path);
+      assert.equal(response.headers.get('cache-control'), 'no-store');
+      assert.equal(response.headers.get('x-robots-tag'), 'noindex, nofollow, noarchive');
+      assert.doesNotMatch(html, /private-token|rel="canonical"|application\/ld\+json/);
+      assert.equal(lookups.length, before);
+    }
     response = await fetch(`${base}/stock`, { headers: { 'x-test-dealer': 'demo' } }); html = await response.text(); assert.match(response.headers.get('x-robots-tag')!, /noindex/); assert.doesNotMatch(html, /application\/ld\+json/);
     response = await fetch(`${base}/assets/missing.js`); assert.equal(response.status, 404); assert.doesNotMatch(await response.text(), /<html/);
   } finally { await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); await rm(directory, { recursive: true, force: true }); }

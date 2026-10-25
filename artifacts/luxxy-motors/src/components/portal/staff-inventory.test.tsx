@@ -38,7 +38,7 @@ vi.mock("./dealer-administration", () => ({
 }));
 vi.mock("./enquiry-email-composer", () => ({
   EnquiryEmailComposer: ({ entry }: any) => (
-    <div>Email customer {entry.customerName}</div>
+    <div data-testid="inventory-selected-enquiry" data-enquiry-id={entry.id}>Email customer {entry.customerName}</div>
   ),
 }));
 vi.mock("./enquiry-workspace-tools", () => ({
@@ -157,10 +157,31 @@ it("creates a pre-accident QR and opens the existing email review for a linked c
   );
   fireEvent.click(screen.getByRole("button", { name: "Customers" }));
   fireEvent.change(
-    screen.getByRole("combobox", { name: "Choose customer to email" }),
+    screen.getByRole("combobox", { name: "Choose customer or enquiry" }),
     { target: { value: "customer" } },
   );
   expect(screen.getByText("Email customer Alex")).toBeInTheDocument();
+});
+it('distinguishes same-name enquiries and opens the exact selected customer thread', async () => {
+  const normal = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options: unknown) => url.endsWith('/customers') ? {
+    customers: [
+      { id: 'enquiry-first', customerName: 'Alex Taylor', reference: 'ENQ-001', email: 'alex.first@example.test' },
+      { id: 'enquiry-second', customerName: 'Alex Taylor', reference: 'ENQ-002', email: 'alex.second@example.test' },
+      { id: 'enquiry-phone', customerName: 'Alex Taylor', reference: 'ENQ-003', email: null },
+    ],
+  } : normal(url, options));
+  mount();
+  fireEvent.click(await screen.findByRole('button', { name: 'Customers' }));
+  const selector = screen.getByRole('combobox', { name: 'Choose customer or enquiry' });
+  expect(within(selector).getByRole('option', { name: 'Alex Taylor · ENQ-001 · alex.first@example.test' })).toHaveValue('enquiry-first');
+  expect(within(selector).getByRole('option', { name: 'Alex Taylor · ENQ-002 · alex.second@example.test' })).toHaveValue('enquiry-second');
+  expect(within(selector).getByRole('option', { name: 'Alex Taylor · ENQ-003' })).toHaveValue('enquiry-phone');
+  fireEvent.change(selector, { target: { value: 'enquiry-second' } });
+  expect(screen.getByTestId('inventory-selected-enquiry')).toHaveAttribute('data-enquiry-id', 'enquiry-second');
+  fireEvent.change(selector, { target: { value: 'enquiry-phone' } });
+  expect(screen.getByTestId('inventory-selected-enquiry')).toHaveAttribute('data-enquiry-id', 'enquiry-phone');
+  expect(state.fetch.mock.calls.some(([, options]) => options?.method && options.method !== 'GET')).toBe(false);
 });
 it("requires confirmation to unreserve and hides editing from read-only staff", async () => {
   const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
@@ -365,7 +386,7 @@ it("lets preview cards open while keeping every mutation and email action disabl
   ).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Customers" }));
   expect(
-    screen.getByRole("combobox", { name: "Choose customer to email" }),
+    screen.getByRole("combobox", { name: "Choose customer or enquiry" }),
   ).toBeDisabled();
   expect(screen.queryByText("Email customer Alex")).not.toBeInTheDocument();
   expect(
@@ -607,8 +628,8 @@ it("shows a failed customer lookup honestly and retries without suggesting dupli
   expect(screen.queryByText(/Log a customer enquiry for this car first/)).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Retry customer enquiries" }));
   await waitFor(() => expect(screen.queryByText("Customer enquiries could not be loaded.")).not.toBeInTheDocument());
-  expect(screen.getByRole("combobox", { name: "Choose customer to email" })).toBeEnabled();
-  fireEvent.change(screen.getByRole("combobox", { name: "Choose customer to email" }), { target: { value: "customer" } });
+  expect(screen.getByRole("combobox", { name: "Choose customer or enquiry" })).toBeEnabled();
+  fireEvent.change(screen.getByRole("combobox", { name: "Choose customer or enquiry" }), { target: { value: "customer" } });
   expect(screen.getByText("Email customer Alex")).toBeVisible();
   expect(customerReads).toBe(2);
   expect(state.fetch.mock.calls.every(([, options]) => !options?.method || options.method === "GET")).toBe(true);
@@ -639,9 +660,9 @@ it("starts with photos and keeps other work in focused sections without preparat
   expect(screen.queryByRole("checkbox", { name: "Cleaning & presentation" })).not.toBeInTheDocument();
   expect(screen.queryByRole("textbox", { name: "Internal notes" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Save preparation" })).not.toBeInTheDocument();
-  expect(screen.queryByRole("combobox", { name: "Choose customer to email" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("combobox", { name: "Choose customer or enquiry" })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Customers" }));
-  expect(screen.getByRole("combobox", { name: "Choose customer to email" })).toBeVisible();
+  expect(screen.getByRole("combobox", { name: "Choose customer or enquiry" })).toBeVisible();
   expect(screen.queryByRole("heading", { name: "Private photos" })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Photos & video" }));
   expect(screen.getByRole("heading", { name: "Private photos" })).toBeVisible();

@@ -39,7 +39,7 @@ const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false 
 
 function PreviewLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  return location === '/join' || location === '/phone-share' || location === '/platform' || location === '/staff-upload' || location === '/enquiry-photo-upload' || location.startsWith('/verify-invoice/') || location.startsWith('/test-drive-declaration/') ? <>{children}</> : <Layout>{children}</Layout>;
+  return location === '/join' || location === '/phone-share' || location === '/platform' || location === '/staff-upload' || location === '/enquiry-photo-upload' || location === '/verify-invoice' || location.startsWith('/verify-invoice/') || location.startsWith('/test-drive-declaration/') ? <>{children}</> : <Layout>{children}</Layout>;
 }
 
 captureInvitationToken();
@@ -73,7 +73,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="/warranty" component={Warranty} />
                   <Route path="/reserve/payment-return" component={ReservationPaymentReturn} />
                   <Route path="/my-purchase/:token" component={CustomerSale} />
-                  <Route path="/verify-invoice/:saleId/:documentId/:token" component={InvoiceVerification}/>
+                  <Route path="/verify-invoice/*?" component={InvoiceVerification}/>
                   <Route path="/viewing/:token" component={Viewing} />
                   <Route path="/test-drive-declaration/:token" component={TestDriveDeclaration}/>
                   <Route path="/sign/:token" component={RetiredSalesPage} />

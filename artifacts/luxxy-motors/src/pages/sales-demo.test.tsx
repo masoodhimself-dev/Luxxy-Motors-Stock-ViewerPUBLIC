@@ -17,6 +17,9 @@ const state = vi.hoisted(() => ({
   reservations: [] as StaffOnlineReservation[],
   search: "",
   enquiriesError: false,
+  customerEmails: true,
+  featuresLoading: false,
+  featuresError: false,
   fetch: vi.fn(),
   pdf: vi.fn(),
   stock: {
@@ -52,6 +55,10 @@ vi.mock("@/lib/dealer-settings-context", () => ({
     },
   }),
 }));
+vi.mock('@/lib/dealer-features', () => ({ useDealerFeatures: () => ({
+  enabled: (feature: string) => feature !== 'customerEmails' || state.customerEmails,
+  isLoading: state.featuresLoading, isError: state.featuresError, isFetching: false, refetch: vi.fn(),
+}) }));
 vi.mock("wouter", () => ({
   useLocation: () => ["", vi.fn()],
   useSearch: () => state.search,
@@ -93,6 +100,9 @@ beforeEach(() => {
   state.reservations = [];
   state.search = "";
   state.enquiriesError = false;
+  state.customerEmails = true;
+  state.featuresLoading = false;
+  state.featuresError = false;
   state.stock.cars = structuredClone(initialStockCars);
   state.pdf.mockReset();
   serial = 0;
@@ -660,7 +670,10 @@ async function mountSaved(sale: SaleWorkspaceRecord) {
   state.sales = [sale];
   state.search = `?saleId=${sale.id}`;
   mount();
-  await screen.findByRole("heading", { name: "Sale summary" });
+  // This fixture intentionally exercises query loading followed by the URL's
+  // saved-sale effect. Give both React commits time under the parallel suite;
+  // still require the actual summary before any workflow assertions begin.
+  await screen.findByRole("heading", { name: "Sale summary" }, { timeout: 3000 });
 }
 function mutations() { return state.fetch.mock.calls.filter(([, options]) => options); }
 
@@ -755,6 +768,27 @@ it("returns document WhatsApp sharing to its internal invoice email controls wit
   expect(mutations()).toHaveLength(0);
   expect(state.sales[0]).toEqual(snapshot);
   expect(state.fetch.mock.calls.some(([path])=>String(path).includes("/phone-shares/email-enquiry"))).toBe(false);
+});
+
+it.each(['paused', 'loading', 'error'] as const)('does not offer or submit invoice email while effective availability is %s', async status => {
+  state.customerEmails = false;
+  state.featuresLoading = status === 'loading';
+  state.featuresError = status === 'error';
+  const sale = fixtureCommand(savedSale(), { action: 'issue-invoice', kind: 'full', acknowledge: true });
+  const snapshot = structuredClone(sale);
+  await mountSaved(sale);
+  fireEvent.click(screen.getByRole('button', { name: 'Use email instead' }));
+  const email = screen.getByRole('button', { name: 'Email customer' });
+  expect(email).toBeDisabled();
+  expect(email).toHaveAccessibleDescription(status === 'loading' ? /Checking email availability/ : status === 'error' ? /Email availability could not be checked/ : /switched off by platform administration/);
+  fireEvent.click(email);
+  expect(screen.getByRole('button', { name: 'Open & print invoice' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Download PDF' })).toBeEnabled();
+  for (const share of screen.getAllByRole('button', { name: 'Use email instead' })) expect(share).toBeEnabled();
+  expect(state.fetch.mock.calls.filter(([path, options]) => options?.method === 'POST' && String(path).endsWith('/email'))).toHaveLength(0);
+  expect(mutations()).toHaveLength(0);
+  expect(state.sales[0]).toEqual(snapshot);
+  if (status === 'error') expect(screen.getByRole('button', { name: 'Retry email availability' })).toBeEnabled();
 });
 
 it.each(['full','deposit'] as const)('keeps one collection/delivery panel when opening, emailing and reopening a saved %s invoice', async kind => {

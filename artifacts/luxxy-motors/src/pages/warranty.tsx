@@ -1,4 +1,4 @@
-import { websiteText } from "@/lib/website-content";
+import { customerDefaultCopy, websiteText } from "@/lib/website-content";
 import './warranty.css';
 import { useEffect, useState } from 'react';
 import { Link, useSearch } from 'wouter';
@@ -36,6 +36,9 @@ export default function Warranty() {
     : getWhatsAppHref(`Hello ${settings.identity.name}, I’d like to ask about warranty options.`, settings);
   const configuredTitle = settings.warranty?.title?.trim();
   const title = configuredTitle || 'Warranty';
+  // The old template action describes entering this page from the homepage.
+  // Here the action opens an enquiry, so retain that intent unless customized.
+  const enquiryActionLabel = customerDefaultCopy(settings.warranty?.ctaLabel, 'Send a warranty enquiry', ['Learn About Warranty']);
   usePageMeta({
     title: `Warranty information | ${settings.identity.name}`,
     description: `Ask ${settings.identity.name} about warranty options for your chosen vehicle, policy terms and how to get help.`,
@@ -78,7 +81,7 @@ export default function Warranty() {
               <p id="warranty-vehicle-help" className="mt-3 text-xs leading-6 text-muted-foreground" role={stockLoading ? 'status' : stockError || unavailableVehicle ? 'alert' : undefined}>
                 {stockLoading ? 'Loading current stock. You can still send a general enquiry.' : stockError ? 'We couldn’t load the vehicle list. You can still ask a general warranty question.' : unavailableVehicle ? 'That car is no longer listed. Tell us which vehicle you mean in your enquiry.' : 'We’ll confirm the cover, cost and terms for your car.'}
               </p>
-              <Button asChild className="mt-5 w-full"><Link href={getEnquiryHref('warranty', vehicle)} data-testid="warranty-enquiry-link">{vehicle ? 'Enquire About This Car' : 'Send a warranty enquiry'}<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>
+              <Button asChild className="mt-5 w-full"><Link href={getEnquiryHref('warranty', vehicle)} data-testid="warranty-enquiry-link">{vehicle ? 'Enquire About This Car' : enquiryActionLabel}<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>
               <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
                 {phoneHref && <a href={phoneHref} className="text-link inline-flex min-h-11 items-center gap-2"><Phone className="h-4 w-4" aria-hidden="true" />{formatPhoneDisplay(settings.contact.phone!)}</a>}
                 {whatsappHref && <a href={whatsappHref} target="_blank" rel="noopener noreferrer" data-testid="warranty-whatsapp" className="text-link inline-flex min-h-11 items-center gap-2"><MessageCircle className="h-4 w-4" aria-hidden="true" />WhatsApp</a>}
@@ -87,7 +90,8 @@ export default function Warranty() {
           </header>
 
           <details className="warranty-policy-checklist border-y border-border py-3">
-            <summary className="flex min-h-12 cursor-pointer items-center justify-between gap-4 text-sm font-semibold">What to check in the policy<span aria-hidden="true">+</span></summary>
+            <summary className="flex min-h-12 cursor-pointer items-center justify-between gap-4 text-sm font-semibold">{websiteText(settings, 'warrantyDetailsHeading')}<span aria-hidden="true">+</span></summary>
+            <p className="pb-4 text-sm leading-6 text-muted-foreground">{websiteText(settings, 'warrantyDetailsIntroduction')}</p>
             <dl className="grid min-w-0 gap-x-10 sm:grid-cols-2">{policyQuestions.map(([label, question]) => <div key={label} className="border-t border-border py-4"><dt className="text-sm font-semibold">{label}</dt><dd className="mt-1 text-sm leading-6 text-muted-foreground">{question}</dd></div>)}</dl>
           </details>
           <p className="mt-6 text-sm leading-6 text-muted-foreground">Already bought a car? <Link href="/enquire?type=warranty" className="inline-flex min-h-11 items-center text-primary underline underline-offset-4">Ask us for help</Link> with your registration and warranty documents to hand.</p>

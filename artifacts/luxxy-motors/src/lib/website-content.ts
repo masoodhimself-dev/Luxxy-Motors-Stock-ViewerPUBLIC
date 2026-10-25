@@ -256,6 +256,27 @@ export const websiteFields = [
 
 export type WebsiteTextKey = typeof websiteFields[number]["key"];
 
+// These sections were removed from the customer pages. Keep their stored keys
+// readable for old publications without offering edits that cannot appear.
+const retiredWebsiteTextKeys = new Set<WebsiteTextKey>([
+  'servicesEyebrow',
+  'contactVisitHeading', 'contactVisitDescription',
+  'contactMessageHeading', 'contactMessageDescription',
+  'warrantySupportingCopy',
+]);
+
+export const editableWebsiteFields = websiteFields.filter(field => field.group !== 'Navigation' && !retiredWebsiteTextKeys.has(field.key));
+
+export const websiteFieldHelp: Partial<Record<WebsiteTextKey, string>> = {
+  servicesHeading: 'Accessible section heading for screen readers. Service cards use their own titles in Services.',
+  teamHeading: 'Shown in the visit section when a team photograph or introduction is supplied.',
+  reviewsHeading: 'Used on the homepage and vehicle pages when customer reviews are enabled.',
+  viewingTitle: 'Shown at the top of the customer test-drive booking form.',
+  viewingDescription: 'Shown below the title of the customer test-drive booking form.',
+  contactBeforeHeading: 'Shown when Appointments & visiting information has been supplied.',
+  contactParkingHeading: 'Shown when Parking & arrival instructions have been supplied.',
+};
+
 // Only known, unchanged template defaults are refreshed. Dealer-written copy,
 // including copy that happens to mention a team or showroom, stays untouched.
 const previousWebsiteDefaults: Partial<Record<WebsiteTextKey, readonly string[]>> = {

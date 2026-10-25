@@ -1,5 +1,5 @@
-import { useEffect, useId, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useId, useRef, useState } from "react";
+import { skipToken, useQuery, useQueryClient } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { workspaceError } from "./enquiry-workspace-tools";
@@ -21,6 +21,16 @@ export type DescriptionView = {
   aiAvailable: boolean;
   facts: { facts: Record<string, string | number>; features: string[] };
 };
+type RetainedDescriptionEdits = {
+  data: DescriptionView;
+  body: string;
+  saved: string;
+  placement: "inline" | "separate";
+  annualTax: string;
+  taxSource: string;
+  updatedAt: number;
+};
+const retainedEditsLifetime = 24 * 60 * 60 * 1000;
 export function VehicleDescriptionEditor({
   vehicleId,
   writable,
@@ -28,16 +38,23 @@ export function VehicleDescriptionEditor({
   vehicleId: string;
   writable: boolean;
 }) {
-  const [open, setOpen] = useState(false),
-    [data, setData] = useState<DescriptionView>(),
-    [body, setBody] = useState(""),
-    [saved, setSaved] = useState(""),
+  const client = useQueryClient();
+  const retainedKey = ["vehicle-description-unsaved", vehicleId];
+  const retained = useRef(writable ? client.getQueryData<RetainedDescriptionEdits>(retainedKey) : undefined);
+  if (retained.current && Date.now() - retained.current.updatedAt > retainedEditsLifetime) retained.current = undefined;
+  // Memory only: the app clears this authenticated query client when staff
+  // identity changes. No browser storage, automatic draft save or publication.
+  useQuery<RetainedDescriptionEdits>({ queryKey: retainedKey, queryFn: skipToken, gcTime: retainedEditsLifetime });
+  const [open, setOpen] = useState(Boolean(retained.current)),
+    [data, setData] = useState<DescriptionView | undefined>(retained.current?.data),
+    [body, setBody] = useState(retained.current?.body ?? ""),
+    [saved, setSaved] = useState(retained.current?.saved ?? ""),
+    [recovered, setRecovered] = useState(Boolean(retained.current)),
     [reviewed, setReviewed] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
   const id = useId(),
-    client = useQueryClient(),
     path = `/api/staff/vehicle-descriptions/${vehicleId}`;
   const query = useQuery({
     queryKey: ["vehicle-description", vehicleId],
@@ -45,11 +62,11 @@ export function VehicleDescriptionEditor({
     retry: false,
     queryFn: () => customFetch<DescriptionView>(path),
   });
-  const [placement, setPlacement] = useState<"inline" | "separate">("inline"),
-    [annualTax, setAnnualTax] = useState(""),
+  const [placement, setPlacement] = useState<"inline" | "separate">(retained.current?.placement ?? "inline"),
+    [annualTax, setAnnualTax] = useState(retained.current?.annualTax ?? ""),
     [taxConfirmed, setTaxConfirmed] = useState(false),
     [taxSource, setTaxSource] = useState(
-      "https://www.gov.uk/vehicle-tax-rate-tables",
+      retained.current?.taxSource ?? "https://www.gov.uk/vehicle-tax-rate-tables",
     );
   const contextDirty = Boolean(
     data &&
@@ -62,7 +79,9 @@ export function VehicleDescriptionEditor({
       taxConfirmed),
   );
   const dirty = body !== saved || contextDirty;
+  const newerVersion = Boolean(dirty && query.data && data && query.data.version !== data.version);
   function accept(value: DescriptionView) {
+    setRecovered(false);
     setData(value);
     setPlacement(value.context?.placement ?? "inline");
     setAnnualTax(
@@ -82,9 +101,16 @@ export function VehicleDescriptionEditor({
       accept(query.data);
   }, [query.data, data?.version, dirty, busy]);
   useEffect(() => {
+    const key = ["vehicle-description-unsaved", vehicleId];
+    if (dirty && data) {
+      client.setQueryData<RetainedDescriptionEdits>(key, { data, body, saved, placement, annualTax, taxSource, updatedAt: Date.now() });
+    } else if (data) client.removeQueries({ queryKey: key, exact: true });
+  }, [client, vehicleId, dirty, data, body, saved, placement, annualTax, taxSource]);
+  useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => {
       event.preventDefault();
+      event.returnValue = "";
     };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
@@ -106,6 +132,7 @@ export function VehicleDescriptionEditor({
     action: "generate" | "save-draft" | "publish" | "restore" | "save-context",
   ) {
     if (!data || busy) return;
+    if (newerVersion) { setError("Reload the latest car details before saving or publishing. Your unsaved text is kept here."); return; }
     if (
       (action === "generate" || action === "restore") &&
       dirty &&
@@ -243,6 +270,8 @@ export function VehicleDescriptionEditor({
           )}
           {data && (
             <>
+              {recovered && dirty && <p role="status" className="vehicle-copy-notice">Your unsaved description edits were kept in this staff session. Nothing was saved or published. Review them before continuing.</p>}
+              {newerVersion && <div role="alert" className="vehicle-copy-error"><p>The saved car details changed while you were editing. Your text is kept here. Copy any wording you want to retain, then reload the latest details before saving or publishing.</p><Button type="button" variant="outline" disabled={busy} onClick={() => void reload()}>Reload latest details</Button></div>}
               {data.previewExample && (
                 <p role="note" className="vehicle-copy-disclosures">
                   Local example only · sample wording from archived car details.
@@ -281,7 +310,7 @@ export function VehicleDescriptionEditor({
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={busy || !data.aiAvailable || contextDirty}
+                  disabled={busy || !data.aiAvailable || contextDirty || newerVersion}
                   onClick={() => void act("generate")}
                 >
                   {busy
@@ -399,7 +428,7 @@ export function VehicleDescriptionEditor({
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={busy || !contextDirty}
+                  disabled={busy || !contextDirty || newerVersion}
                   onClick={() => void act("save-context")}
                 >
                   Save description options
@@ -480,6 +509,7 @@ export function VehicleDescriptionEditor({
                     !reviewed ||
                     body.trim().length < 20 ||
                     contextDirty ||
+                    newerVersion ||
                     data.draftStale
                   }
                   onClick={() => void act("publish")}
@@ -489,7 +519,7 @@ export function VehicleDescriptionEditor({
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={busy || contextDirty || body.trim().length < 20}
+                  disabled={busy || contextDirty || newerVersion || body.trim().length < 20}
                   onClick={() => void act("save-draft")}
                 >
                   Save draft
@@ -498,7 +528,7 @@ export function VehicleDescriptionEditor({
                   <Button
                     type="button"
                     variant="ghost"
-                    disabled={busy}
+                    disabled={busy || newerVersion}
                     onClick={() => void act("restore")}
                   >
                     Restore original advert

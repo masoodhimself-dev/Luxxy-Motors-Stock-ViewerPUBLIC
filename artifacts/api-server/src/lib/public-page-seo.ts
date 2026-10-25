@@ -26,6 +26,21 @@ export type PublicPageSeo = {
   structuredData: ObjectValue[];
 };
 export const stablePublicPagePaths = ['/', '/stock', '/contact', '/warranty'] as const;
+// Match the non-indexable pages actually mounted by the SPA. An unknown path
+// still receives its NotFound UI, but must not look like a valid page to crawlers.
+const nonIndexablePagePaths = new Set([
+  '/enquire', '/saved', '/compare', '/portal', '/platform', '/join',
+  '/phone-share', '/staff-upload', '/enquiry-photo-upload', '/reserve/payment-return',
+]);
+function isNonIndexablePage(pathname: string): boolean {
+  return nonIndexablePagePaths.has(pathname)
+    || /^\/portal\/leads\/[^/]+$/.test(pathname)
+    || /^\/(?:my-purchase|viewing|sign|customer-details)\/[^/]+$/.test(pathname)
+    // Clerk owns its OAuth subroutes. These capability screens also validate
+    // their complete URL in the page/API; route status must not reveal tokens.
+    || /^\/(?:sign-in|sign-up|verify-invoice)(?:\/|$)/.test(pathname)
+    || /^\/test-drive-declaration\//.test(pathname);
+}
 const object = (value: unknown): ObjectValue => value && typeof value === 'object' && !Array.isArray(value) ? value as ObjectValue : {};
 const text = (value: unknown): string => typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
 const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -139,7 +154,15 @@ export function buildPublicPageSeo(input: { pathname: string; canonicalOrigin?: 
   const normalisedPath = pathname === '/' ? '/' : pathname.replace(/\/$/, '');
   const isPublic = stablePublicPagePaths.includes(normalisedPath as typeof stablePublicPagePaths[number]) || isVehicle;
   const result: PublicPageSeo = { pathname: normalisedPath, siteName: name, siteIndexable: Boolean(origin && !input.demo), title: name, description: '', canonical: null, origin, image: null, type: 'website', robots: noindex, status: 200, structuredData: [] };
-  if (!isPublic) { result.title = `Staff and customer access | ${name}`; return result; }
+  if (!isPublic) {
+    if (isNonIndexablePage(normalisedPath)) result.title = `Staff and customer access | ${name}`;
+    else {
+      result.status = 404;
+      result.title = `Page not found | ${name}`;
+      result.description = `This page could not be found. Browse the current cars or contact ${name}.`;
+    }
+    return result;
+  }
   result.canonical = origin ? `${origin}${normalisedPath}` : null;
   result.robots = input.demo || !origin ? noindex : 'index, follow';
   let label = 'Home';

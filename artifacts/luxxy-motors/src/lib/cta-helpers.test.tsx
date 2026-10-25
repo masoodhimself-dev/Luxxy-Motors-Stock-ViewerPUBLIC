@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getVehicleContactMessage } from './cta-helpers';
+import { getVehicleContactMessage, getWhatsAppHref } from './cta-helpers';
 import type { Car } from './stock-context';
 
 describe('vehicle contact message', () => {
@@ -18,6 +18,21 @@ describe('vehicle contact message', () => {
     expect(message).toContain('Year / plate: 2024 (24 REG)');
     expect(message).not.toContain('Registration:');
     expect(getVehicleContactMessage({ ...car, plate: null, registrationBand: null }, 'ask')).toContain('Year / plate: 2024 (24 REG)');
+  });
+});
+
+describe('dealer WhatsApp settings', () => {
+  it.each(['07700 900123', '+44 7700 900123', '0044 7700 900123', '+44 (0)7700 900123', '447700900123'])('uses international digits for %s', whatsapp => {
+    const config = { identity: { name: 'Example Motors' }, contact: { whatsapp } };
+    expect(getWhatsAppHref(undefined, config)).toBe('https://wa.me/447700900123');
+    const message = 'Hello & thanks\nPlease tell me more.';
+    const href = new URL(getWhatsAppHref(message, config)!);
+    expect(href.pathname).toBe('/447700900123');
+    expect(href.searchParams.get('text')).toBe(message);
+  });
+
+  it.each(['', '12345', '07700 900123 ext 4', '++447700900123', '7700900123'])('does not expose a broken link for %s', whatsapp => {
+    expect(getWhatsAppHref(undefined, { identity: { name: 'Example Motors' }, contact: { whatsapp } })).toBeUndefined();
   });
 });
 

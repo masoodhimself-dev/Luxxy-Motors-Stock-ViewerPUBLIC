@@ -8,7 +8,7 @@ import { soldVehicleFollowUpsQueryKey } from '@/lib/sold-vehicle-follow-ups';
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import { useEnquirySummaries as useGetEnquiries } from "@/lib/enquiry-summary-query";
 import { SaleVehiclePhoto,saleVehicleChoiceLabel } from '@/components/sales-demo/vehicle-choice';
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useSearch } from "wouter";
 import { customFetch, HttpApiError } from "@workspace/api-client-react";
@@ -30,6 +30,7 @@ import {
 } from "@workspace/vehicle-meta";
 import { useStock } from "@/lib/stock-context";
 import { useDealerSettings } from "@/lib/dealer-settings-context";
+import { useDealerFeatures } from "@/lib/dealer-features";
 import {
   vehicleDisplayTitle,
   vehicleRegistration,
@@ -96,6 +97,14 @@ export function SalesWorkspace({
   const search = useSearch();
   const { stock } = useStock();
   const { settings } = useDealerSettings();
+  const features = useDealerFeatures();
+  const canEmailCustomer = features.enabled('customerEmails');
+  const emailAvailabilityId = useId();
+  const emailUnavailableReason = features.isLoading
+    ? 'Checking email availability…'
+    : features.isError
+      ? 'Email availability could not be checked. Retry the availability check before sending. Your invoice is saved.'
+      : 'Customer email sending is switched off by platform administration. You can still print or download the saved invoice. WhatsApp sharing follows your sharing settings.';
   const enquiries = useGetEnquiries();
   const reservations = useListReservations();
   const client = useQueryClient();
@@ -525,6 +534,7 @@ export function SalesWorkspace({
     });
   }
   function email(doc: SaleWorkspaceDocument) {
+    if (!canEmailCustomer) { setProblem(emailUnavailableReason); return; }
     run(async () => {
       const withTaxGuide = doc.type === 'invoice' && doc.invoiceKind === 'full' && doc.snapshot.draft.roadTaxGuide === true;
       const result = await command(`/documents/${doc.id}/email`, withTaxGuide ? { taxGuide: { reference: taxReference } } : {});
@@ -544,7 +554,7 @@ export function SalesWorkspace({
   function prepareDocumentEmail(doc: SaleWorkspaceDocument) {
     setIssued(doc);
     setShowSummary(false);
-    setMessage("Review this saved document, then choose Email customer to send it through the dealership email system.");
+    setMessage(canEmailCustomer ? "Review this saved document, then choose Email customer to send it through the dealership email system." : `Review this saved document. ${emailUnavailableReason}`);
   }
   function leave() {
     if (
@@ -883,13 +893,15 @@ export function SalesWorkspace({
                     </Button>
                     <Button
                       variant="outline"
-                      disabled={busy || !issued.snapshot.draft.email || (issued.invoiceKind === 'full' && issued.snapshot.draft.roadTaxGuide === true && !/^\d{12}$/.test(taxReference))}
+                      disabled={busy || !canEmailCustomer || !issued.snapshot.draft.email || (issued.invoiceKind === 'full' && issued.snapshot.draft.roadTaxGuide === true && !/^\d{12}$/.test(taxReference))}
+                      aria-describedby={!canEmailCustomer ? emailAvailabilityId : undefined}
                       onClick={() => email(issued)}
                     >
                       <Mail size={17} /> {issued.invoiceKind === 'full' && issued.snapshot.draft.roadTaxGuide ? 'Email invoice & tax guide' : 'Email customer'}
                     </Button>
                     {record && <ShareQr disabled={busy} source={{kind:'document',saleId:record.id,documentId:issued.id}} whatsapp label="WhatsApp QR" onEmailFallback={() => prepareDocumentEmail(issued)} />}
                   </div>
+                  {!canEmailCustomer && <div id={emailAvailabilityId} role="status" className="invoice-note"><p>{emailUnavailableReason}</p>{features.isError && <Button variant="outline" disabled={features.isFetching} onClick={() => void features.refetch()}>Retry email availability</Button>}</div>}
                   {record && <SaleHandover key={`handover:${record.id}`} sale={record} onSaved={sale => accept({sale})} />}
                   {issued.invoiceKind === 'full' && record && <SaleReviewReminder key={`review-reminder:${record.id}`} sale={record} reviewUrl={settings.contact.googleReviewUrl || ''} onSaved={setRecord} />}
                   {issued.invoiceKind === 'full' && record && <SoldVehicleCustomerReview key={`sold-customers:${record.id}:${record.lifecycle?.status ?? 'draft'}`} saleId={record.id} />}

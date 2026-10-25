@@ -224,6 +224,23 @@ beforeEach(() => {
 });
 
 describe('showroom data resilience', () => {
+  it('matches automatic shortcut results to its count when supplied labels vary', () => {
+    stockFixture.cars = [
+      { ...originalCars[0], transmission: 'automatic' },
+      { ...originalCars[1], transmission: 'Automatic (DCT)' },
+      { ...originalCars[2], transmission: 'Manual' },
+    ];
+    renderHome(false);
+    expect(screen.getByRole('link', { name: 'Automatic · 2 cars' })).toHaveAttribute('href', '/stock?transmission=Automatic');
+    cleanup();
+    window.history.replaceState({}, '', '/stock?transmission=Automatic');
+    renderHome();
+    expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series']);
+    expect(screen.getByTestId('text-filtered-stock-count')).toHaveTextContent('2 cars match your search');
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+    expect(screen.getByRole('combobox', { name: 'Transmission' })).toHaveValue('Automatic');
+  });
+
   it('keeps browsing and view controls usable when browser storage is blocked', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new DOMException('Blocked', 'SecurityError'); });
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('Blocked', 'QuotaExceededError'); });
@@ -267,6 +284,33 @@ describe('showroom data resilience', () => {
 });
 
 describe('showroom search filters', () => {
+  it('uses saved featured order for homepage and recommended stock while keeping reserved cars last', () => {
+    overrideSettings = { ...dealerConfigFixture, featuredVehicleIds: ['bmw-1-series', 'audi-a3', 'bmw-3-series', 'removed-id'] };
+    stockFixture.cars[0] = { ...originalCars[0], inventoryStatus: 'reserved' };
+    renderHome(false);
+    expect(screen.getAllByTestId(/^card-vehicle-/).map(card => card.getAttribute('data-testid'))).toEqual([
+      'card-vehicle-audi-a3', 'card-vehicle-bmw-3-series', 'card-vehicle-ford-fiesta', 'card-vehicle-vw-golf', 'card-vehicle-bmw-1-series',
+    ]);
+    cleanup();
+    renderHome();
+    expect(resultTitles()).toEqual(['Audi A3', 'BMW 3 Series', 'Ford Fiesta', 'VW Golf', 'BMW 1 Series']);
+    fireEvent.change(screen.getByLabelText('Sort results'), { target: { value: 'price-asc' } });
+    expect(resultTitles()).toEqual(['VW Golf', 'Audi A3', 'BMW 1 Series', 'Ford Fiesta', 'BMW 3 Series']);
+  });
+
+  it('uses the dealership service titles without showing disabled services', () => {
+    overrideSettings = {
+      ...dealerConfigFixture,
+      warranty: { ...dealerConfigFixture.warranty, title: 'Our warranty cover' },
+      delivery: { ...dealerConfigFixture.delivery, title: 'Delivery to your door' },
+      partExchange: { ...dealerConfigFixture.partExchange, enabled: false, title: 'Value your current car' },
+    };
+    renderHome(false);
+    expect(screen.getByRole('heading', { name: 'Our warranty cover' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Delivery to your door' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Value your current car' })).not.toBeInTheDocument();
+  });
+
   it('uses Luxxy brand artwork behind search without attaching a vehicle price', () => {
     overrideSettings = { ...dealerConfigFixture, identity: { ...dealerConfigFixture.identity, name: 'Luxxy Motors' } };
     renderHome(false);

@@ -36,7 +36,7 @@ export function buyerInformation(car: Car) {
     { label: "Previous keepers", value: records.find(item => item.label === "Previous keepers")?.value ?? null },
     { label: "Service history", value: records.find(item => item.label === "Service history")?.value ?? text(["serviceHistory"]) },
     { label: "MOT expiry", value: text(["motExpiry", "motExpiryDate"]) },
-    { label: "Keys", value: keyCount || records.find(item => item.label === "Keys supplied")?.value || text(["keys"]) },
+    { label: "Keys", value: keyCount || records.find(item => item.label === "Keys included")?.value || text(["keys"]) },
     { label: "Insurance history", value: history ? insuranceHistoryLabel(history) : null },
     { label: "Condition", value: text(["conditionNotes", "condition"]) },
     { label: "Warranty", value: text(["warrantyDetails", "warranty"]) },

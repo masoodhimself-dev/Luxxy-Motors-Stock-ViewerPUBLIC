@@ -361,7 +361,7 @@ export function EnquiryForm({
             {!additionalContact && !(preferredContact === 'email' ? phone : email) && <button type="button" className="customer-enquiry-add-contact text-link" onClick={() => setAdditionalContact(true)}>{preferredContact === 'email' ? 'Add a phone number (optional)' : 'Add an email address (optional)'}</button>}
           </fieldset>
 
-        {selectedVehicle && features.enabled('partExchange') && <div className="customer-enquiry-exchange">
+        {selectedVehicle && features.enabled('partExchange') && (dealerConfig.partExchange?.enabled || hasPartExchange) && <div className="customer-enquiry-exchange">
           {!hasPartExchange ? <button type="button" className="customer-enquiry-exchange-add" onClick={() => setHasPartExchange(true)}>Add a part exchange (optional)</button> : <fieldset className="space-y-4 border-t border-border pt-4">
           <legend className="sr-only">Part-exchange details</legend>
           <div className="space-y-4" data-testid="enquiry-part-exchange-details">
@@ -409,7 +409,11 @@ export function EnquiryForm({
       {!embedded && <details key={type} className="customer-enquiry-topic">
         <summary>Need something else?</summary>
         <div className="flex flex-wrap gap-x-5 gap-y-1 pb-3" aria-label="Other enquiries">
-          {(Object.entries(typeLabels) as Array<[EnquiryType, string]>).filter(([value]) => value !== type && (value !== 'part_exchange' || features.enabled('partExchange')) && (value !== 'viewing' || features.enabled('testDriveBookings'))).map(([value, label]) =>
+          {(Object.entries(typeLabels) as Array<[EnquiryType, string]>).filter(([value]) => value !== type
+            && (value !== 'part_exchange' || (dealerConfig.partExchange?.enabled && features.enabled('partExchange')))
+            && (value !== 'warranty' || dealerConfig.warranty?.enabled)
+            && (value !== 'delivery' || dealerConfig.delivery?.enabled)
+            && (value !== 'viewing' || features.enabled('testDriveBookings'))).map(([value, label]) =>
             <Link key={value} href={`/enquire?type=${value}${vehicle ? `&vehicleId=${encodeURIComponent(vehicle.id)}` : ''}`} onClick={event => { event.preventDefault(); changeType(value); }} className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">{label}</Link>
           )}
         </div>

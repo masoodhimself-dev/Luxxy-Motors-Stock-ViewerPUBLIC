@@ -2,6 +2,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { dealerConfig } from '@/config/dealer';
 import { Layout } from './layout';
+import { hslColourToHex } from '@/lib/brand-colour';
 
 const state = vi.hoisted(() => ({ path: '/', settings: {} as typeof dealerConfig }));
 vi.mock('wouter', () => ({
@@ -63,5 +64,41 @@ describe('header artwork follows the background', () => {
     state.settings.presentation = { ...state.settings.presentation, footerLogoUrl: '' };
     render(<Layout><p>Showroom</p></Layout>);
     expect(logo()).toHaveAttribute('src', '/header-logo.png');
+  });
+
+  it.each(['07700 900123', '+44 7700 900123', '0044 7700 900123'])('uses the configured WhatsApp recipient correctly for %s', whatsapp => {
+    state.settings.contact = { ...state.settings.contact, whatsapp };
+    render(<Layout><p>Showroom</p></Layout>);
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation menu' }));
+    expect(screen.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute('href', 'https://wa.me/447700900123');
+  });
+
+  it('hides an invalid WhatsApp destination rather than offering a broken customer action', () => {
+    state.settings.contact = { ...state.settings.contact, whatsapp: '07700 900123 ext 4' };
+    render(<Layout><p>Showroom</p></Layout>);
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation menu' }));
+    expect(screen.queryByRole('link', { name: 'WhatsApp' })).toBeNull();
+  });
+
+  it.each(['190 86% 44%', '42 82% 49%', '30.000 40.659% 35.686%'])('retains the dealer-selected accent hue for %s', accentHsl => {
+    state.settings.identity.brandColors = { primaryHsl: '161.538 16.883% 15.098%', accentHsl };
+    const { container } = render(<Layout><p>Showroom</p></Layout>);
+    const shell = container.querySelector<HTMLElement>('.luxxy-shell')!;
+    const [expectedHue] = accentHsl.match(/[\d.]+/g)!.map(Number);
+    const [actualHue] = shell.style.getPropertyValue('--accent').match(/[\d.]+/g)!.map(Number);
+    expect(Math.abs(actualHue - expectedHue)).toBeLessThan(2);
+    expect(shell.style.getPropertyValue('--customer-footer-background')).toBe(hslColourToHex('161.538 16.883% 15.098%'));
+  });
+
+  it('keeps dealer colours on body-rendered popups and restores the prior values on exit', () => {
+    document.body.style.setProperty('--dealer-page', '#010203');
+    state.settings.presentation = { ...state.settings.presentation, pageColour: '#e8f4f5', panelColour: '#fff4e6' };
+    const { unmount } = render(<Layout><p>Showroom</p></Layout>);
+    expect(document.body.style.getPropertyValue('--dealer-page')).toBe('#e8f4f5');
+    expect(document.body.style.getPropertyValue('--dealer-panel')).toBe('#fff4e6');
+    unmount();
+    expect(document.body.style.getPropertyValue('--dealer-page')).toBe('#010203');
+    expect(document.body.style.getPropertyValue('--dealer-panel')).toBe('');
+    document.body.style.removeProperty('--dealer-page');
   });
 });

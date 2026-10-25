@@ -2,6 +2,9 @@ import { customerFeaturePolicy } from '@workspace/vehicle-meta';
 import { editableShowroomWeek } from '@/lib/settings-simplification';
 import type { DealerSettings } from '@workspace/api-client-react';
 import { ShowroomPhoto } from './showroom-photo';
+import { readableAccentForHsl } from '@/lib/brand-colour';
+import { customerThemeVariables } from '@/lib/customer-theme';
+import { websiteText } from '@/lib/website-content';
 
 export function launchChecks(settings: DealerSettings) {
   const sample = (value: unknown) => /sample|example road|replace (this|these)|tell customers|template/i.test(JSON.stringify(value || ''));
@@ -26,17 +29,19 @@ export function LaunchReadiness({ settings }: { settings: DealerSettings }) {
 export function SettingsPreview({ settings }: { settings: DealerSettings }) {
   const photo = settings.presentation?.heroImageUrl;
   const review = settings.presentation?.reviewsEnabled && settings.presentation.reviews?.[0];
+  const theme = customerThemeVariables({ ...settings.presentation, ...settings.identity.brandColors, accentHsl: readableAccentForHsl(settings.identity.brandColors.accentHsl) });
+  const panel = { background: theme['--dealer-panel'], color: theme['--dealer-panel-ink'] };
   return <details className="settings-review-details settings-appearance-preview mb-6 border border-border bg-card p-4">
     <summary className="min-h-11 cursor-pointer py-2 font-semibold">Preview your draft appearance</summary>
     <div className="settings-review-content">
-    <p className="mb-4 text-sm text-muted-foreground">A small preview of your content and brand colours. Changes are not published until you save.</p>
-    <div className="grid gap-5 md:grid-cols-2">
-      <div className="settings-preview-card overflow-hidden border border-border">
-        <div className="settings-preview-card-header p-4 text-white" style={{background: `hsl(${settings.identity.brandColors.primaryHsl})`}}>{settings.identity.name}</div>
-        {photo && /^https?:\/\//.test(photo) && <ShowroomPhoto src={photo} alt="Draft homepage photograph" position={settings.presentation?.heroImagePosition} className="aspect-video" />}
-        <div className="settings-preview-card-body p-4"><p className="text-lg font-semibold">{settings.hero.copy}</p><p className="mt-2 text-sm">{settings.hero.subcopy}</p><span className="mt-4 inline-block px-4 py-2 text-sm" style={{borderLeft: `4px solid hsl(${settings.identity.brandColors.accentHsl})`, background: "#f3f4f4", color: "#172126"}}>{settings.hero.primaryCta}</span></div>
+    <p className="mb-4 text-sm text-muted-foreground">A small content and colour preview, not a full page layout. Text contrast uses the same adjustments as your customer website. Changes are not published until you save.</p>
+    <div className="grid gap-5 p-3 md:grid-cols-2" style={{ background: theme['--dealer-page'] }} data-testid="settings-theme-preview">
+      <div className="settings-preview-card overflow-hidden border border-border" style={panel}>
+        <div className="settings-preview-card-header p-4" style={{background: theme['--customer-footer-background'], color: theme['--customer-footer-foreground']}}>{settings.identity.name}</div>
+        {photo && /^https?:\/\//.test(photo) && <ShowroomPhoto src={photo} alt={settings.presentation?.heroImageAlt || 'Draft homepage photograph'} position={settings.presentation?.heroImagePosition} className="aspect-video" />}
+        <div className="settings-preview-card-body p-4"><p className="text-lg font-semibold">{settings.hero.copy}</p>{settings.presentation?.showHeroDescription === true && <p className="mt-2 text-sm" data-testid="settings-hero-introduction-preview">{settings.hero.subcopy}</p>}<span className="mt-4 inline-block px-4 py-2 text-sm" style={{background: `hsl(${theme['--dealer-panel-primary-hsl']})`, color: `hsl(${theme['--dealer-panel-primary-foreground-hsl']})`}}>{settings.hero.primaryCta}</span>{!settings.presentation?.showHeroDescription && <p className="mt-4 text-xs">The homepage introduction is turned off.</p>}</div>
       </div>
-      <div className="settings-preview-card border border-border p-4"><h3 className="font-semibold">Customer review preview</h3>{review ? <><p className="mt-3" aria-label={`${review.rating} stars`}>{'★'.repeat(review.rating)}</p><blockquote className="mt-3 text-sm leading-6">{review.review}</blockquote><p className="mt-4 text-sm font-medium">{review.name}{review.verified ? ' · Verified review' : ''}{review.invited ? ' · Invited' : ''}</p></> : <p className="mt-3 text-sm text-muted-foreground">No reviews enabled. This section will stay hidden.</p>}</div>
+      <div className="settings-preview-card border border-border p-4" style={panel}><h3 className="font-semibold">{websiteText(settings, 'reviewsHeading')}</h3>{review ? <><p className="mt-3" aria-label={`${review.rating} stars`}>{'★'.repeat(review.rating)}</p><blockquote className="mt-3 text-sm leading-6">{review.review}</blockquote><p className="mt-4 text-sm font-medium">{review.name}{review.verified ? ' · Verified review' : ''}{review.invited ? ' · Invited' : ''}</p></> : <p className="mt-3 text-sm">{settings.presentation?.reviewsEnabled ? 'No reviews added.' : 'Customer reviews are turned off.'} This section will stay hidden.</p>}</div>
     </div>
     </div>
   </details>;

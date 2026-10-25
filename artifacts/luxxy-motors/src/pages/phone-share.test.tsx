@@ -1,5 +1,5 @@
 import { beforeEach, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { act, render, screen, fireEvent } from "@testing-library/react";
 import PhoneShare, { sharedFile } from "./phone-share";
 beforeEach(() => {
   window.history.replaceState({}, "", `/phone-share#${"a".repeat(64)}`);
@@ -108,4 +108,61 @@ it('uses the exact reviewed message including attachment expiry wording for What
  expect(new URL(link.getAttribute('href')!).searchParams.get('text')).toBe(expected);
  fireEvent.click(screen.getByRole('button',{name:'Copy message'}));
  expect(copied).toHaveBeenCalledWith(expected);
+});
+
+function openQrInSameTab(hash: string) {
+  act(() => {
+    window.history.replaceState({}, '', `/phone-share#${hash}`);
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+  });
+}
+function sharingResponse(title: string, message: string, customerPhone: string): Response {
+  return { ok: true, json: async () => ({ title, message, customerPhone, expiresAt: '2030-11-01T12:00:00Z', files: [] }) } as Response;
+}
+
+it('clears the previous customer before checking another QR and shows only the new recipient', async () => {
+  let resolveNext!: (response: Response) => void;
+  const next = new Promise<Response>(resolve => { resolveNext = resolve; });
+  vi.mocked(fetch).mockResolvedValueOnce(sharingResponse('First invoice', 'First customer message', '447700900111')).mockReturnValueOnce(next);
+  render(<PhoneShare />);
+  expect(await screen.findByRole('heading', { name: 'First invoice' })).toBeVisible();
+  expect(screen.getByRole('link', { name: 'Open WhatsApp' })).toHaveAttribute('href', expect.stringContaining('/447700900111?'));
+
+  openQrInSameTab(`${'b'.repeat(64)}?wa=447700900222`);
+  expect(screen.queryByText('First customer message')).not.toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'First invoice' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Open WhatsApp' })).not.toBeInTheDocument();
+  expect(screen.getByRole('status')).toHaveTextContent('Opening sharing pack');
+  expect(vi.mocked(fetch).mock.calls[1][1]?.headers).toEqual({ 'x-phone-share-token': 'b'.repeat(64) });
+  await act(async () => { resolveNext(sharingResponse('Second invoice', 'Second customer message', '447700900333')); });
+  expect(await screen.findByRole('heading', { name: 'Second invoice' })).toBeVisible();
+  expect(screen.getByRole('link', { name: 'Open WhatsApp' })).toHaveAttribute('href', expect.stringContaining('/447700900222?'));
+  expect(screen.getByText('Second customer message')).toBeVisible();
+  expect(screen.queryByText('First customer message')).not.toBeInTheDocument();
+});
+
+it('never restores the old files or customer when the second QR fails', async () => {
+  vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => ({ title: 'First invoice', message: 'Old private message', customerPhone: '447700900111', expiresAt: '2030-11-01T12:00:00Z', files: [{ filename: 'first.pdf', content: btoa('pdf'), contentType: 'application/pdf' }] }) } as Response)
+    .mockResolvedValueOnce({ ok: false, json: async () => ({ error: 'This second link has expired.' }) } as Response);
+  render(<PhoneShare />);
+  expect(await screen.findByRole('button', { name: 'Download first.pdf' })).toBeVisible();
+  openQrInSameTab('b'.repeat(64));
+  expect(await screen.findByRole('alert')).toHaveTextContent('This second link has expired.');
+  expect(screen.queryByText('Old private message')).not.toBeInTheDocument();
+  expect(screen.queryByText('+447700900111')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Download first.pdf' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Open WhatsApp' })).not.toBeInTheDocument();
+});
+
+it('ignores a late response for an old QR after the next customer has loaded', async () => {
+  let resolveOld!: (response: Response) => void;
+  vi.mocked(fetch).mockReturnValueOnce(new Promise<Response>(resolve => { resolveOld = resolve; }))
+    .mockResolvedValueOnce(sharingResponse('Current customer', 'Current message', '447700900222'));
+  render(<PhoneShare />);
+  openQrInSameTab('b'.repeat(64));
+  expect(await screen.findByRole('heading', { name: 'Current customer' })).toBeVisible();
+  await act(async () => { resolveOld(sharingResponse('Old customer', 'Old message', '447700900111')); });
+  expect(screen.getByRole('heading', { name: 'Current customer' })).toBeVisible();
+  expect(screen.queryByText('Old message')).not.toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Open WhatsApp' })).toHaveAttribute('href', expect.stringContaining('/447700900222?'));
 });

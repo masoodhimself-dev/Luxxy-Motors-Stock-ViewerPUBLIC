@@ -182,8 +182,11 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
     cars.forEach((car) => {
       if (car.transmission) transmissionSet.add(car.transmission);
     });
+    // Linked shortcuts may use the canonical Automatic label while supplied
+    // stock uses a case variant or a more detailed label such as Automatic DCT.
+    if (filters.transmission) transmissionSet.add(filters.transmission);
     return Array.from(transmissionSet).sort();
-  }, [cars]);
+  }, [cars, filters.transmission]);
 
   const bodyTypes = useMemo(() => stockBodyTypes(cars), [cars]);
   const activeFilterCount =

@@ -32,7 +32,29 @@ it('shows configured warranty copy without expanding a second generic FAQ', () =
   expect(screen.getByRole('heading', { name: 'Our warranty options' })).toBeInTheDocument();
   expect(screen.getByText('Ask for the policy terms for this vehicle.')).toBeInTheDocument();
   expect(screen.queryByText('Your warranty questions.')).not.toBeInTheDocument();
-  expect(screen.getByText('What to check in the policy').closest('details')).not.toHaveAttribute('open');
+  expect(screen.getByText('The details worth checking.').closest('details')).not.toHaveAttribute('open');
+});
+
+it('uses the saved warranty action and policy wording while keeping the selected-car action contextual', () => {
+  state.settings.presentation = { ...state.settings.presentation, websiteCopy: {
+    warrantyDetailsHeading: 'Check your cover',
+    warrantyDetailsIntroduction: 'Ask us to confirm the claim limit and servicing conditions.',
+  } };
+  render(<Warranty />);
+  expect(screen.getByTestId('warranty-enquiry-link')).toHaveTextContent('Ask about warranty');
+  const policy = screen.getByText('Check your cover').closest('details')!;
+  fireEvent.click(screen.getByText('Check your cover'));
+  expect(policy).toHaveTextContent('Ask us to confirm the claim limit and servicing conditions.');
+  fireEvent.change(screen.getByLabelText(/Which car are you asking about/), { target: { value: 'car-a' } });
+  expect(screen.getByTestId('warranty-enquiry-link')).toHaveTextContent('Enquire About This Car');
+  expect(screen.getByTestId('warranty-enquiry-link')).toHaveAttribute('href', '/enquire?type=warranty&vehicleId=car-a');
+});
+
+it.each(['Learn About Warranty', '  Learn About Warranty  ', ''])('keeps the enquiry action clear for an unchanged template CTA (%s)', ctaLabel => {
+  state.settings.warranty!.ctaLabel = ctaLabel;
+  render(<Warranty />);
+  expect(screen.getByTestId('warranty-enquiry-link')).toHaveTextContent('Send a warranty enquiry');
+  expect(screen.getByTestId('warranty-enquiry-link')).toHaveAttribute('href', '/enquire?type=warranty');
 });
 
 it('keeps a general warranty enquiry available when the stock request fails', () => {

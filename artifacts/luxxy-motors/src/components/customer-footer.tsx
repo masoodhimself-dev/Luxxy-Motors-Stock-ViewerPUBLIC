@@ -30,7 +30,7 @@ export function CustomerFooter({ settings, testDriveHref }: { settings: DealerCo
           <h3>Our cars & services</h3>
           <Link href="/stock">Browse our cars</Link>
           <Link href="/saved">Your saved cars</Link>
-          <Link href={testDriveHref}>Book a Test Drive</Link>
+          <Link href={testDriveHref}>{settings.bookViewing.ctaLabel}</Link>
           {settings.partExchange?.enabled && <Link href="/enquire?type=part_exchange">Part exchange</Link>}
           {settings.warranty?.enabled && <Link href="/warranty">Warranty options</Link>}
           {settings.delivery?.enabled && <Link href="/enquire?type=delivery">Delivery options</Link>}

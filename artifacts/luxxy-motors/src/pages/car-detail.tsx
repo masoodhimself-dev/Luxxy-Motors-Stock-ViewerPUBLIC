@@ -89,6 +89,7 @@ export default function CarDetail() {
   const car = stock?.cars?.find((candidate) => candidate.id === params?.id);
 
   useEffect(() => { if (car?.id) rememberVehicle(car.id); }, [car?.id]);
+  useEffect(() => { setShareMessage(''); }, [car?.id]);
 
   useEffect(() => {
     if (!car?.id) return;

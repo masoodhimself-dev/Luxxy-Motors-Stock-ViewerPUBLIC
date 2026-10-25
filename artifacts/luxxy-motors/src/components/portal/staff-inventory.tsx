@@ -877,7 +877,7 @@ export function StaffInventory({
                     your own phone.
                   </p>
                   <NativeSelect
-                    aria-label="Choose customer to email"
+                    aria-label="Choose customer or enquiry"
                     value=""
                     disabled={busy || previewReadOnly || customers.isLoading || customers.isError}
                     onChange={(e) =>
@@ -891,7 +891,7 @@ export function StaffInventory({
                     <option value="">Choose customer / enquiry</option>
                     {(customers.data?.customers ?? []).map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.customerName}
+                        {[c.customerName, c.reference, c.email].filter(Boolean).join(' · ')}
                       </option>
                     ))}
                   </NativeSelect>

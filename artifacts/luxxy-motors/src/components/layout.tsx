@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link, useLocation, useRoute } from 'wouter';
 import { Menu, X, Phone, MessageCircle, ArrowRight, Heart, CalendarDays } from '@/components/icons';
 import { navigateToHomeTarget } from '@/lib/home-navigation';
-import { getEnquiryHref } from '@/lib/cta-helpers';
+import { getEnquiryHref, getWhatsAppHref } from '@/lib/cta-helpers';
 import { Button } from '@/components/ui/button';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { useStockHeader } from '@/hooks/use-stock-header';
@@ -35,6 +35,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isPremiumShowroom = location === '/' || location === '/stock' || /^\/vehicle\/[^/]+\/?$/.test(location);
   const isBrowsingPage = location === '/stock' || /^\/vehicle\/[^/]+\/?$/.test(location);
   const { settings: dealerConfig } = useDealerSettings();
+  const whatsAppHref = getWhatsAppHref(undefined, dealerConfig);
   const { savedCount } = useSavedCars();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -48,10 +49,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const mobileMenuRef = useRef<HTMLElement>(null);
   const hasEditedFormRef = useRef(false);
 
-  // Adopt the current palette for the original template defaults; preserve bespoke colours.
-  const brandPrimary = dealerConfig.identity.brandColors?.primaryHsl === '161.538 16.883% 15.098%' ? '195 22% 13%' : dealerConfig.identity.brandColors?.primaryHsl;
-  const brandAccent = dealerConfig.identity.brandColors?.accentHsl === '30.000 40.659% 35.686%' ? '190 86% 44%' : dealerConfig.identity.brandColors?.accentHsl;
-  const customerAccent = readableAccentForHsl(brandAccent && !['190 86% 44%', '42 82% 49%'].includes(brandAccent) ? brandAccent : '203.226 58.491% 31.176%');
+  // Dealer-selected colours must agree with Settings. Adjust text contrast,
+  // retaining the supplied hue rather than silently substituting a template.
+  const brandPrimary = dealerConfig.identity.brandColors?.primaryHsl;
+  const brandAccent = dealerConfig.identity.brandColors?.accentHsl;
+  const customerAccent = readableAccentForHsl(brandAccent ?? '203.226 58.491% 31.176%');
   const accent = isStaff ? brandAccent : customerAccent;
   const brandStyle = useMemo(() => ({
     '--premium-accent': `hsl(${customerAccent})`,
@@ -334,9 +336,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <span className="flex items-center gap-2 text-sm font-medium"><Phone className="h-4 w-4" /> Call Us</span>
                 </a>
               )}
-              {dealerConfig.contact.whatsapp && (
+              {whatsAppHref && (
                 <a
-                  href={`https://wa.me/${dealerConfig.contact.whatsapp.replace(/[^0-9+]/g, '')}`}
+                  href={whatsAppHref}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex min-h-11 items-center justify-center rounded-md border border-border px-3 text-primary hover:bg-secondary"

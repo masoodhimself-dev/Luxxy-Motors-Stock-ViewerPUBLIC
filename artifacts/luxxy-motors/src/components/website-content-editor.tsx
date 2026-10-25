@@ -1,15 +1,15 @@
 import { customerFeaturePolicy } from '@workspace/vehicle-meta';
 import { useState } from 'react';
 import type { DealerPresentation } from '@workspace/api-client-react';
-import { websiteFields } from '@/lib/website-content';
+import { editableWebsiteFields, websiteFieldHelp } from '@/lib/website-content';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 
 export function WebsiteContentEditor({ value, onChange }: { value: DealerPresentation; onChange: (value: DealerPresentation) => void }) {
   const [search, setSearch] = useState('');
-  const visibleFields = websiteFields.filter(field => field.group !== 'Navigation' && (field.group !== 'Comparison' || customerFeaturePolicy.vehicleComparison));
+  const visibleFields = editableWebsiteFields.filter(field => field.group !== 'Comparison' || customerFeaturePolicy.vehicleComparison);
   const groups = [...new Set(visibleFields.map(field => field.group))];
-  const filtered = visibleFields.filter(field => `${field.group} ${field.label} ${field.defaultValue}`.toLowerCase().includes(search.toLowerCase()));
+  const filtered = visibleFields.filter(field => `${field.group} ${field.label} ${field.defaultValue} ${value.websiteCopy?.[field.key] ?? ''}`.toLowerCase().includes(search.trim().toLowerCase()));
   return <div className="space-y-5">
     <p className="text-sm leading-6 text-muted-foreground">Choose a page and edit its wording. Navigation uses consistent standard labels. Leave a field empty to use the standard text shown underneath. Vehicle facts, prices, payment messages and validation remain controlled by the application.</p>
     <label className="block text-sm font-medium">Find a page or phrase<Input className="mt-2" value={search} onChange={event => setSearch(event.target.value)} placeholder="For example: contact, stock, reviews" /></label>
@@ -20,6 +20,7 @@ export function WebsiteContentEditor({ value, onChange }: { value: DealerPresent
         <summary className="cursor-pointer py-2 text-base font-semibold">{group}<span className="ml-2 text-xs font-normal text-muted-foreground">{fields.length} {fields.length === 1 ? "field" : "fields"}</span></summary>
         <div className="mt-4 grid gap-5">{fields.map(field => <label key={field.key} className="block text-sm font-medium">
           {field.label}
+          {websiteFieldHelp[field.key] && <span className="mt-1 block text-xs font-normal leading-5 text-muted-foreground">{websiteFieldHelp[field.key]}</span>}
           <Textarea className="mt-2" rows={field.defaultValue.length > 90 ? 3 : 2} maxLength={1000} value={value.websiteCopy?.[field.key] || ''} onChange={event => onChange({ ...value, websiteCopy: { ...value.websiteCopy, [field.key]: event.target.value } })} data-testid={`input-copy-${field.key}`} />
           <span className="mt-2 block text-xs font-normal leading-5 text-muted-foreground">Standard: {field.defaultValue}</span>
         </label>)}</div>

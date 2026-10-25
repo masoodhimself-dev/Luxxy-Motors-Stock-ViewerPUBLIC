@@ -39,7 +39,7 @@ export function VehicleListingHighlights({ car }: { car: Car }) {
 export function VehicleSpecificationDetails({ car }: { car: Car }) {
   const groups = vehicleSpecificationGroups(car);
   if (!groups.length) return null;
-  return <div className="mt-5 divide-y divide-border">{groups.map(group => <details key={group.title} className="py-2"><summary className="flex min-h-12 cursor-pointer items-center text-sm font-semibold">{group.title} · {group.facts.length} details</summary><dl className="grid gap-x-7 sm:grid-cols-2">{group.facts.map(fact => <div key={fact.label} className="flex justify-between gap-4 border-t border-border py-3 text-sm"><dt className="text-muted-foreground"><VehicleTerm label={fact.label} value={fact.value}>{fact.label}</VehicleTerm></dt><dd className="text-right font-medium">{fact.value}</dd></div>)}</dl></details>)}</div>;
+  return <div className="mt-5 divide-y divide-border">{groups.map(group => <details key={group.title} className="py-2"><summary className="flex min-h-12 cursor-pointer items-center text-sm font-semibold">{group.title} · {group.facts.length} {group.facts.length === 1 ? 'detail' : 'details'}</summary><dl className="grid gap-x-7 sm:grid-cols-2">{group.facts.map(fact => <div key={fact.label} className="flex justify-between gap-4 border-t border-border py-3 text-sm"><dt className="text-muted-foreground"><VehicleTerm label={fact.label} value={fact.value}>{fact.label}</VehicleTerm></dt><dd className="text-right font-medium">{fact.value}</dd></div>)}</dl></details>)}</div>;
 }
 
 function RunningCostBar({ label, value, cars, car }: { label: string; value: string; cars: Car[]; car: Car }) {

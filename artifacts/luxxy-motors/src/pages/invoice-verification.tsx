@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link, useParams } from 'wouter';
+import { Link, useRoute } from 'wouter';
 import { ShieldCheck, FileCheck2, RefreshCw } from '@/components/icons';
 import { customFetch } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
@@ -13,17 +13,19 @@ export type InvoiceProof = {
 };
 const money = (v: number) => new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format(v/100);
 export default function InvoiceVerification() {
-  const { saleId='', documentId='', token='' } = useParams<{saleId:string;documentId:string;token:string}>();
+  const [, params] = useRoute<{saleId:string;documentId:string;token:string}>('/verify-invoice/:saleId/:documentId/:token');
+  const { saleId='', documentId='', token='' } = params ?? {};
+  const incompleteLink = !saleId || !documentId || !token;
   useEffect(() => {
     const previous=document.title; document.title='Verify invoice';
     const meta=document.createElement('meta'); meta.name='robots';meta.content='noindex, nofollow';document.head.appendChild(meta);
     const referrer=document.createElement('meta');referrer.name='referrer';referrer.content='no-referrer';document.head.appendChild(referrer);
     return()=>{ document.title=previous;meta.remove();referrer.remove(); };
   },[]);
-  const query=useQuery({queryKey:['invoice-proof',saleId,documentId,token],queryFn:()=>customFetch<InvoiceProof>(`/api/invoice-verification/${encodeURIComponent(saleId)}/${encodeURIComponent(documentId)}/${encodeURIComponent(token)}`,{cache:'no-store'}),retry:false,gcTime:0,staleTime:0});
+  const query=useQuery({queryKey:['invoice-proof',saleId,documentId,token],queryFn:()=>customFetch<InvoiceProof>(`/api/invoice-verification/${encodeURIComponent(saleId)}/${encodeURIComponent(documentId)}/${encodeURIComponent(token)}`,{cache:'no-store'}),enabled:!incompleteLink,retry:false,gcTime:0,staleTime:0});
   const p=query.data;
   const status = query.error && typeof query.error === 'object' && 'status' in query.error ? Number(query.error.status) : undefined;
-  const unavailable = status !== undefined && [400, 401, 403, 404, 410].includes(status);
+  const unavailable = incompleteLink || status !== undefined && [400, 401, 403, 404, 410].includes(status);
   return <main className="invoice-proof"><article>
     <div className="invoice-proof-icon"><ShieldCheck size={28}/></div>
     {query.isLoading ? <><h1>Checking your invoice</h1><p role="status">Looking up the dealership’s saved record…</p></> : !p ? <>

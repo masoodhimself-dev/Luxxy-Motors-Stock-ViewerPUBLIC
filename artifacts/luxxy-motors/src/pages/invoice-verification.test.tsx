@@ -4,13 +4,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import InvoiceVerification from './invoice-verification';
 
 const fetchProof = vi.hoisted(() => vi.fn());
+const route = vi.hoisted(() => ({ params: { saleId: 'sale-1', documentId: 'doc-1', token: 'private-proof' } as { saleId?: string; documentId?: string; token?: string } | null }));
 vi.mock('@workspace/api-client-react', () => ({ customFetch: fetchProof }));
-vi.mock('wouter', () => ({ useParams: () => ({ saleId: 'sale-1', documentId: 'doc-1', token: 'private-proof' }), Link: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => <a href={href} {...props}>{children}</a> }));
+vi.mock('wouter', () => ({ useRoute: () => [Boolean(route.params), route.params], Link: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => <a href={href} {...props}>{children}</a> }));
 const proof = { verified: true, number: 'INV-1', title: 'Sales invoice', issuedAt: '2026-10-17T12:00:00Z', dealer: 'Example Motors', vehicle: 'Ford Focus', registration: 'AB12 CDE', saleTotalPence: 700000, paymentsReceivedPence: 700000, balanceAtIssuePence: 0, paymentCount: 2, supersededBy: null };
 const renderProof = () => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><InvoiceVerification /></QueryClientProvider>);
-beforeEach(() => { fetchProof.mockReset(); });
+beforeEach(() => { fetchProof.mockReset(); route.params = { saleId: 'sale-1', documentId: 'doc-1', token: 'private-proof' }; });
 
 describe('invoice proof recovery', () => {
+  it.each([null, {}, { saleId: 'sale-1' }, { saleId: 'sale-1', documentId: 'doc-1' }])('explains a truncated verification route without fetching or showing a blank page (%j)', params => {
+    route.params = params;
+    renderProof();
+    expect(screen.getByRole('heading', { name: 'This invoice link is unavailable' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Contact the dealership' })).toHaveAttribute('href', '/contact');
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+    expect(fetchProof).not.toHaveBeenCalled();
+  });
   it('treats a service outage as temporary and allows a successful retry', async () => {
     fetchProof.mockRejectedValueOnce({ status: 503 }).mockResolvedValueOnce(proof);
     renderProof();

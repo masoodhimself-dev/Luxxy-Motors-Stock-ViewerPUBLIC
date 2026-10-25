@@ -6,16 +6,52 @@ import { partExchangeDraftKey } from '@/lib/part-exchange-draft';
 import { enquiryDraftKey, saveEnquiryDraft } from '@/lib/enquiry-draft';
 import { PartExchangeForm } from './part-exchange-form';
 
-const featureState = vi.hoisted(() => ({ allowed: true, isLoading: false, isError: false, refetch: vi.fn() }));
+const featureState = vi.hoisted(() => ({ allowed: true, isLoading: false, isError: false, refetch: vi.fn(), whatsapp: '447700900123' }));
 vi.mock('@/lib/dealer-features', () => ({ useDealerFeatures: () => ({ ...featureState, enabled: () => featureState.allowed }) }));
 const mutation = vi.hoisted(() => ({ mutate: vi.fn(), reset: vi.fn(), isPending: false, isSuccess: false, isError: false, data: undefined }));
 vi.mock('@workspace/api-client-react', () => ({ useCreateEnquiry: () => mutation }));
-vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({ settings: { ...dealerConfig, contact: { ...dealerConfig.contact, whatsapp: '447700900123' } } }) }));
+vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({ settings: { ...dealerConfig, contact: { ...dealerConfig.contact, whatsapp: featureState.whatsapp } } }) }));
 vi.mock('@/lib/visitor', () => ({ getVisitorId: () => 'test-visitor' }));
 const car = { id: 'stock-1', title: 'Ford Focus', make: 'Ford', model: 'Focus', price: 7490, year: 2019, images: [] } as unknown as Car;
-beforeEach(() => { sessionStorage.clear(); vi.clearAllMocks(); mutation.isSuccess = false; featureState.allowed = true; featureState.isError = false; featureState.isLoading = false; });
+beforeEach(() => { sessionStorage.clear(); vi.clearAllMocks(); mutation.isSuccess = false; featureState.allowed = true; featureState.isError = false; featureState.isLoading = false; featureState.whatsapp = '447700900123'; });
 
 describe('short part exchange journey', () => {
+  it('keeps the website flow usable without promising an unavailable WhatsApp photo handoff', () => {
+    featureState.whatsapp = '';
+    const view = render(<PartExchangeForm vehicle={car} stockCars={[car]} />);
+    fireEvent.change(screen.getByTestId('input-part-exchange-registration'), { target: { value: 'AB12 CDE' } });
+    fireEvent.change(screen.getByTestId('input-part-exchange-mileage'), { target: { value: '45000' } });
+    fireEvent.click(screen.getByTestId('button-part-exchange-continue'));
+    fireEvent.click(screen.getByTestId('button-part-exchange-continue'));
+    expect(screen.queryByRole('radio', { name: /Send everything on WhatsApp/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/Send your details here. We’ll contact you about your part exchange/)).toBeInTheDocument();
+    fireEvent.change(screen.getByTestId('input-customer-name'), { target: { value: 'Alex Buyer' } });
+    fireEvent.change(screen.getByTestId('input-customer-phone'), { target: { value: '07700 900123' } });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByTestId('button-part-exchange-continue'));
+    expect(mutation.mutate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ preferredContact: 'phone', type: 'part_exchange', vehicleId: car.id }) }));
+    mutation.isSuccess = true;
+    view.rerender(<PartExchangeForm vehicle={car} stockCars={[car]} />);
+    expect(screen.getByRole('heading', { name: 'We’ve received your part-exchange enquiry.' })).toBeInTheDocument();
+    expect(screen.queryByTestId('link-part-exchange-photos')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Send the prefilled message/)).not.toBeInTheDocument();
+  });
+
+  it('falls back to the website if the showroom WhatsApp number disappears before review', () => {
+    const view = render(<PartExchangeForm vehicle={car} stockCars={[car]} />);
+    fireEvent.change(screen.getByTestId('input-part-exchange-registration'), { target: { value: 'AB12 CDE' } });
+    fireEvent.change(screen.getByTestId('input-part-exchange-mileage'), { target: { value: '45000' } });
+    fireEvent.click(screen.getByTestId('button-part-exchange-continue'));
+    fireEvent.click(screen.getByTestId('button-part-exchange-continue'));
+    fireEvent.click(screen.getByRole('radio', { name: /Send everything on WhatsApp/ }));
+    expect(screen.getByTestId('button-part-exchange-continue')).toHaveTextContent('Open WhatsApp');
+    featureState.whatsapp = '';
+    view.rerender(<PartExchangeForm vehicle={car} stockCars={[car]} />);
+    expect(screen.getByTestId('button-part-exchange-continue')).toHaveTextContent('Send my details');
+    expect(screen.getByTestId('part-exchange-message-preview')).toHaveTextContent('AB12 CDE');
+    expect(mutation.mutate).not.toHaveBeenCalled();
+  });
+
   it('matches follow-up photos with customer and vehicle details instead of an internal reference', () => {
     const view = render(<PartExchangeForm vehicle={car} stockCars={[car]} />);
     fireEvent.change(screen.getByTestId('input-part-exchange-registration'), { target: { value: 'AB12 CDE' } });

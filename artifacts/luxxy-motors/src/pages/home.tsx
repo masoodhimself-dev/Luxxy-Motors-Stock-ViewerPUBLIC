@@ -80,6 +80,12 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   const { stock, isLoading, error } = useStock();
   const publicCars = useMemo(() => (stock?.cars ?? []).filter(car => !['sold', 'archived', 'hidden'].includes(String(car.inventoryStatus).toLowerCase())), [stock?.cars]);
   const { settings: dealerConfig } = useDealerSettings();
+  const recommendedCars = useMemo(() => {
+    const order = new Map((dealerConfig.featuredVehicleIds ?? []).map((id, index) => [id, index]));
+    return [...publicCars].sort((a, b) =>
+      Number(a.inventoryStatus === 'reserved') - Number(b.inventoryStatus === 'reserved') ||
+      (order.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.id) ?? Number.MAX_SAFE_INTEGER));
+  }, [publicCars, dealerConfig.featuredVehicleIds]);
   const recentHandoversQuery = useGetRecentHandovers({
     query: {
       queryKey: getGetRecentHandoversQueryKey(),
@@ -158,7 +164,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   }, [browseStock]);
 
   const filteredCars = useMemo(() => {
-    let result = [...publicCars];
+    let result = [...recommendedCars];
 
     const q = filters.search.trim().toLowerCase();
     if (q) {
@@ -178,8 +184,14 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     if (filters.model) result = result.filter((c) => c.model === filters.model);
     if (filters.fuel) result = result.filter((c) => c.fuel === filters.fuel);
     if (filters.bodyType) result = result.filter(car => bodyTypeKey(car.bodyType) === bodyTypeKey(filters.bodyType));
-    if (filters.transmission)
-      result = result.filter((c) => c.transmission === filters.transmission);
+    if (filters.transmission) {
+      const transmission = filters.transmission.trim().toLowerCase();
+      // The Automatic shortcut counts supplied automatic variants too. Its
+      // results must use the same match rather than an exact display label.
+      result = result.filter((c) => transmission === 'automatic'
+        ? /automatic/i.test(c.transmission || '')
+        : c.transmission?.trim().toLowerCase() === transmission);
+    }
 
     for (const { key } of benefitChoices) {
       if (filters[key]) result = result.filter(car => Boolean(benefitsByCar.get(car.id)?.[key]));
@@ -217,9 +229,10 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
       });
     }
 
-    // Explicit sorts stay truthful; only the default stock order groups reserved cars last.
-    return filters.sort ? result : result.sort((a,b) => Number(a.inventoryStatus === "reserved") - Number(b.inventoryStatus === "reserved"));
-  }, [publicCars, filters, benefitsByCar]);
+    // The recommended source already honours featured order and reserves last.
+    // An explicit customer sort overrides that order across the complete result.
+    return result;
+  }, [recommendedCars, filters, benefitsByCar]);
 
   // A benefit refines the current search, so its count must describe that subset.
   // Homepage shortcuts still introduce the complete stock collection.
@@ -389,7 +402,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
 
       {!browseStock && isLoading && <section className="home-stock-loading container mx-auto px-4 sm:px-6 lg:px-8" aria-label="Loading featured cars" aria-busy="true"><p role="status">Loading cars…</p><div className="home-stock-skeletons" aria-hidden="true">{[1, 2, 3, 4].map(n => <div key={n} className="animate-pulse bg-muted" />)}</div></section>}
       {!browseStock && !isLoading && (dealerConfig.presentation?.featuredEnabled !== false || (!error && publicCars.length > 0)) && <RollingStock
-        cars={[...publicCars].sort((a, b) => Number(a.inventoryStatus === 'reserved') - Number(b.inventoryStatus === 'reserved'))}
+        cars={recommendedCars}
         unavailable={Boolean(error)}
         showVehicles={dealerConfig.presentation?.featuredEnabled !== false}
         shortcuts={!error && publicCars.length > 0 ? <div className="home-shopping-shortcuts container mx-auto px-4 sm:px-6 lg:px-8">
@@ -634,7 +647,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                       tabIndex={-1}
                       className="font-display text-xl font-semibold leading-snug"
                     >
-                      {id === 'part-exchange' ? 'Part exchange' : id === 'delivery' ? 'Delivery' : 'Warranty'}
+                      {service.title?.trim() || (id === 'part-exchange' ? 'Part exchange' : id === 'delivery' ? 'Delivery' : 'Warranty')}
                     </h3>
                     <p className="mt-3 flex-1 text-sm leading-relaxed text-muted-foreground">
                       {id === 'delivery' ? customerDefaultCopy(service.description, 'Ask us about delivery options for your next car.', ['Customers may be able to have their vehicle delivered.']) : id === 'warranty' ? customerDefaultCopy(service.description, 'Ask us about warranty options for your chosen car.', ['Warranty options are available on eligible vehicles.']) : service.description}

@@ -65,7 +65,7 @@ it('removes unused editing controls without removing their saved content or lega
   fireEvent.click(screen.getByRole('tab',{name:'Homepage'}));
   expect(screen.queryByTestId('input-viewing-title')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('tab',{name:'Services'}));
-  expect(screen.queryByTestId('input-warranty-title')).not.toBeInTheDocument();
+  expect(screen.getByTestId('input-warranty-title')).toHaveValue(settings.warranty.title);
   fireEvent.click(screen.getByRole('tab',{name:'Selling points'}));
   expect(screen.getByRole('textbox',{name:'Selling point 1 title'})).toHaveValue(settings.whyBuy[0].title);
   expect(screen.queryByRole('textbox',{name:'Trust point 1'})).not.toBeInTheDocument();
@@ -159,4 +159,55 @@ it('rejects non-Google review links before publishing',async()=>{
  fireEvent.click(screen.getByRole('button',{name:'Review changes'}));
  await waitFor(()=>expect(screen.getByTestId('settings-error-summary')).toHaveTextContent('HTTPS Google review link'));
  expect(writes).toHaveLength(0);client.clear();
+});
+
+it('edits actual service titles and enforces the API text limits before publishing', async () => {
+  const { client, writes, go } = setup();
+  await screen.findByTestId('input-identity-name');
+  go('website', 'services');
+  const title = await screen.findByTestId('input-warranty-title');
+  expect(title).toHaveAttribute('maxlength', '120');
+  expect(screen.getByTestId('input-warranty-cta')).toHaveAttribute('maxlength', '80');
+  expect(screen.getByTestId('textarea-warranty-description')).toHaveAttribute('maxlength', '300');
+  fireEvent.change(title, { target: { value: 'Extended warranty options' } });
+  fireEvent.change(screen.getByTestId('input-warranty-cta'), { target: { value: '' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Review changes' }));
+  expect(await screen.findByTestId('settings-error-summary')).toHaveTextContent('Warranty button label must be between 1 and 80 characters.');
+  expect(writes).toHaveLength(0);
+  expect(screen.getByRole('tab', { name: 'Services', selected: true })).toBeInTheDocument();
+  fireEvent.change(screen.getByTestId('input-warranty-cta'), { target: { value: 'Ask about cover' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Review changes' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Publish showroom' }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0].warranty).toMatchObject({ title: 'Extended warranty options', ctaLabel: 'Ask about cover' });
+  client.clear();
+});
+
+it('blocks a broken WhatsApp contact link and accepts a formatted UK number without rewriting it', async () => {
+  const { client, writes, go } = setup();
+  go('dealership', 'contact');
+  fireEvent.change(await screen.findByTestId('input-contact-whatsapp'), { target: { value: 'hello world' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Review changes' }));
+  expect(await screen.findByTestId('settings-error-summary')).toHaveTextContent('Enter a valid UK WhatsApp number');
+  expect(writes).toHaveLength(0);
+  fireEvent.change(screen.getByTestId('input-contact-whatsapp'), { target: { value: '07388 831790' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Review changes' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Publish showroom' }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0].contact.whatsapp).toBe('07388 831790');
+  client.clear();
+});
+
+it('explains hidden homepage service cards without changing the individual service settings', async () => {
+  const settings = structuredClone(previewSettings);
+  settings.presentation = {...settings.presentation,servicesEnabled:false};
+  const { client, writes, go } = setup(settings);
+  await screen.findByTestId('input-identity-name');
+  go('website', 'services');
+  expect(await screen.findByText(/Your homepage services section is hidden/)).toBeInTheDocument();
+  expect(screen.getAllByText('Service enabled')).toHaveLength(3);
+  expect(screen.queryByText('Visible on your showroom')).not.toBeInTheDocument();
+  expect(screen.getByTestId('checkbox-service-warranty')).toBeChecked();
+  expect(writes).toHaveLength(0);
+  client.clear();
 });

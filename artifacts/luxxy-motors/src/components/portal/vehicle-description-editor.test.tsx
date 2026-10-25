@@ -35,14 +35,12 @@ const initial: DescriptionView = {
     features: ["Air conditioning", "Bluetooth"],
   },
 };
-function mount(writable = true) {
+function mount(writable = true, vehicleId = "car-one", client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   return render(
     <QueryClientProvider
-      client={
-        new QueryClient({ defaultOptions: { queries: { retry: false } } })
-      }
+      client={client}
     >
-      <VehicleDescriptionEditor vehicleId="car-one" writable={writable} />
+      <VehicleDescriptionEditor vehicleId={vehicleId} writable={writable} />
     </QueryClientProvider>,
   );
 }
@@ -220,4 +218,70 @@ it("keeps unsaved copy when saving separate-history options and a verified tax r
   expect(payload.action).toBe("save-context");
   expect(payload.context.placement).toBe("separate");
   expect(payload.context.annualTaxGbp).toBe(195);
+});
+
+it('keeps unsaved description and options across Cars navigation without saving or carrying review approval', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const page = mount(true, 'car-one', client);
+  fireEvent.click(screen.getByRole('button', { name: 'Write description' }));
+  const text = await screen.findByRole('textbox', { name: 'Website description' });
+  fireEvent.change(text, { target: { value: draft } });
+  fireEvent.change(screen.getByLabelText('History disclosure layout'), { target: { value: 'separate' } });
+  fireEvent.change(screen.getByLabelText('Confirmed full annual vehicle tax (£) · optional'), { target: { value: '195' } });
+  fireEvent.click(screen.getByRole('checkbox', { name: 'I checked today’s full annual rate for this car, including any applicable supplement.' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'I’ve checked the facts, equipment and important information.' }));
+  page.unmount();
+  mount(true, 'car-one', client);
+  expect(await screen.findByRole('textbox', { name: 'Website description' })).toHaveValue(draft);
+  expect(screen.getByLabelText('History disclosure layout')).toHaveValue('separate');
+  expect(screen.getByLabelText('Confirmed full annual vehicle tax (£) · optional')).toHaveValue(195);
+  expect(screen.getByRole('checkbox', { name: 'I checked today’s full annual rate for this car, including any applicable supplement.' })).not.toBeChecked();
+  expect(screen.getByRole('checkbox', { name: 'I’ve checked the facts, equipment and important information.' })).not.toBeChecked();
+  expect(screen.getByRole('button', { name: 'Publish description' })).toBeDisabled();
+  expect(screen.getByText(/unsaved description edits were kept in this staff session/)).toBeVisible();
+  expect(state.fetch.mock.calls.filter(([, options]) => options?.method)).toHaveLength(0);
+});
+
+it('scopes retained edits to the vehicle and clears them with the authenticated staff cache', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  let page = mount(true, 'car-one', client);
+  fireEvent.click(screen.getByRole('button', { name: 'Write description' }));
+  fireEvent.change(await screen.findByRole('textbox', { name: 'Website description' }), { target: { value: draft } });
+  page.unmount();
+  page = mount(true, 'car-two', client);
+  expect(screen.getByRole('button', { name: 'Write description' })).toBeEnabled();
+  expect(screen.queryByRole('textbox', { name: 'Website description' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Write description' }));
+  expect(await screen.findByRole('textbox', { name: 'Website description' })).toHaveValue('');
+  page.unmount();
+  client.clear(); // The app does this on staff identity changes.
+  mount(true, 'car-one', client);
+  expect(screen.getByRole('button', { name: 'Write description' })).toBeEnabled();
+  expect(screen.queryByRole('textbox', { name: 'Website description' })).toBeNull();
+  expect(state.fetch.mock.calls.filter(([, options]) => options?.method)).toHaveLength(0);
+});
+
+it('keeps recovered wording but blocks stale-version writes until staff explicitly reload', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  let page = mount(true, 'car-one', client);
+  fireEvent.click(screen.getByRole('button', { name: 'Write description' }));
+  fireEvent.change(await screen.findByRole('textbox', { name: 'Website description' }), { target: { value: draft } });
+  page.unmount();
+  state.fetch.mockResolvedValue({ ...initial, version: 'z'.repeat(64), draft: 'A newer saved description from another staff member.' });
+  page = mount(true, 'car-one', client);
+  await screen.findByText(/saved car details changed while you were editing/);
+  expect(screen.getByRole('textbox', { name: 'Website description' })).toHaveValue(draft);
+  expect(screen.getByRole('button', { name: 'Save draft' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Publish description' })).toBeDisabled();
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  fireEvent.click(screen.getByRole('button', { name: 'Reload latest details' }));
+  expect(screen.getByRole('textbox', { name: 'Website description' })).toHaveValue(draft);
+  confirm.mockReturnValue(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Reload latest details' }));
+  await waitFor(() => expect(screen.getByRole('textbox', { name: 'Website description' })).toHaveValue('A newer saved description from another staff member.'));
+  confirm.mockRestore();
+  expect(state.fetch.mock.calls.filter(([, options]) => options?.method)).toHaveLength(0);
+  page.unmount();
+  mount(true, 'car-one', client);
+  expect(screen.queryByRole('textbox', { name: 'Website description' })).toBeNull();
 });

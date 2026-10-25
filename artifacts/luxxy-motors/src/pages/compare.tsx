@@ -20,7 +20,7 @@ import { UKNumberPlate } from '@/components/uk-number-plate';
 import { vehicleLabelFor } from '@/components/saved-car-controls';
 import { trackEvent } from '@/lib/analytics';
 import { Button } from '@/components/ui/button';
-import { insuranceHistoryLabel } from '@/lib/vehicle-history';
+import { insuranceHistoryLabel, vehicleWriteOffCategory } from '@/lib/vehicle-history';
 
 type CompareRow = {
   label: string;
@@ -72,7 +72,10 @@ const rows: CompareRow[] = [
   { label: 'Emissions', render: (car) => car.emissionClass || 'Not supplied' },
   {
     label: 'History',
-    render: (car) => car.writeOffCategory ? insuranceHistoryLabel(car.writeOffCategory) : 'Not supplied',
+    render: (car) => {
+      const category = vehicleWriteOffCategory(car);
+      return category ? insuranceHistoryLabel(category) : 'Not supplied';
+    },
   },
   { label: 'Registration', render: (car) => vehicleRegistrationLabel(car) || 'Not supplied' },
 ];

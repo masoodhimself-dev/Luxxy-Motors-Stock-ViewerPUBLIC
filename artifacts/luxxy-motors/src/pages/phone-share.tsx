@@ -1,5 +1,5 @@
 import { customerWhatsAppNumber, customerWhatsAppUrl } from "@/lib/customer-whatsapp";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { customerPhoneMessage } from "@/lib/customer-phone-message";
 import { Button } from "@/components/ui/button";
 import "@/components/share-qr.css";
@@ -19,15 +19,32 @@ export function sharedFile(file: Pack["files"][number]) {
   );
 }
 export default function PhoneShare() {
+  const [shareHash, setShareHash] = useState(() => window.location.hash);
+  const currentHash = useRef(shareHash);
+  const activeRequest = useRef<AbortController | null>(null);
   const [pack, setPack] = useState<Pack | null>(null),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
   const [now,setNow]=useState(Date.now);
   useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),5000);return()=>clearInterval(timer);},[]);
   useEffect(() => {
+    const rescan = () => {
+      const nextHash = window.location.hash;
+      if (nextHash === currentHash.current) return;
+      // A new QR can reuse this browser tab. Clear the previous customer's
+      // content before checking the new link, including when that link fails.
+      activeRequest.current?.abort();
+      currentHash.current = nextHash;
+      setPack(null); setError(""); setNotice(""); setShareHash(nextHash);
+    };
+    window.addEventListener("hashchange", rescan);
+    return () => window.removeEventListener("hashchange", rescan);
+  }, []);
+  useEffect(() => {
     document.title = "Customer sharing preview";
-    const token = window.location.hash.slice(1).split("?")[0];
+    const token = shareHash.slice(1).split("?")[0];
     const controller = new AbortController();
+    activeRequest.current = controller;
     if (!/^[a-f0-9]{64}$/.test(token)) {
       setError("This sharing link is incomplete. Scan a fresh QR code.");
       return;
@@ -43,7 +60,7 @@ export default function PhoneShare() {
         const data = await response.json();
         if (!response.ok)
           throw new Error(data.error || "This sharing link is unavailable.");
-        setPack(data);
+        if (!controller.signal.aborted) setPack(data);
       })
       .catch((cause) => {
         if (!controller.signal.aborted)
@@ -53,10 +70,11 @@ export default function PhoneShare() {
               : "Unable to open the sharing pack.",
           );
       });
-    return () => controller.abort();
-  }, []);
+    return () => { controller.abort(); if (activeRequest.current === controller) activeRequest.current = null; };
+  }, [shareHash]);
   async function share() {
     if (!pack) return;
+    const requestHash = currentHash.current;
     try {
       const files = pack.files.map(sharedFile);
       if (files.length && navigator.canShare?.({ files })) {
@@ -70,15 +88,24 @@ export default function PhoneShare() {
         await navigator.clipboard.writeText(
           sharedMessage,
         );
-        setNotice("Message and link copied. Paste them into your chosen app.");
+        if (currentHash.current === requestHash) setNotice("Message and link copied. Paste them into your chosen app.");
         return;
       }
-      setNotice("Check the chosen app to confirm whether it was sent.");
+      if (currentHash.current === requestHash) setNotice("Check the chosen app to confirm whether it was sent.");
     } catch (cause) {
-      if (!(cause instanceof DOMException && cause.name === "AbortError"))
+      if (currentHash.current === requestHash && !(cause instanceof DOMException && cause.name === "AbortError"))
         setError(
           "Sharing is unavailable here. Download the files or copy the message instead.",
         );
+    }
+  }
+  async function copyMessage() {
+    const requestHash = currentHash.current;
+    try {
+      await navigator.clipboard.writeText(sharedMessage);
+      if (currentHash.current === requestHash) setNotice("Message copied.");
+    } catch {
+      if (currentHash.current === requestHash) setError("Copy is unavailable in this browser.");
     }
   }
   function download(file: Pack["files"][number]) {
@@ -89,10 +116,11 @@ export default function PhoneShare() {
     anchor.click();
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   }
-  const number = new URLSearchParams(window.location.hash.split('?')[1] || '').get('wa') || pack?.customerPhone || '';
+  const number = new URLSearchParams(shareHash.split('?')[1] || '').get('wa') || pack?.customerPhone || '';
   const expired=Boolean(pack && Date.parse(pack.expiresAt)<=now);
   const recipient=customerWhatsAppNumber(number);
-  const sharedMessage = pack ? customerPhoneMessage(pack.message, pack.files.length > 0, window.location.href.split('?wa=')[0]) : '';
+  const packUrl = `${window.location.origin}${window.location.pathname}${window.location.search}${shareHash}`;
+  const sharedMessage = pack ? customerPhoneMessage(pack.message, pack.files.length > 0, packUrl.split('?wa=')[0]) : '';
   const whatsappUrl = pack && !expired ? customerWhatsAppUrl(number, sharedMessage) : null;
   return (
     <main className="phone-share-page">
@@ -125,12 +153,7 @@ export default function PhoneShare() {
             <Button variant="outline" onClick={() => void share()}>Other sharing options</Button>
             <Button
               variant="outline"
-              onClick={() =>
-                void navigator.clipboard
-                  .writeText(sharedMessage)
-                  .then(() => setNotice("Message copied."))
-                  .catch(() => setError("Copy is unavailable in this browser."))
-              }
+              onClick={() => void copyMessage()}
             >
               Copy message
             </Button>

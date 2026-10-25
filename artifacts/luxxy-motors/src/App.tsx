@@ -73,7 +73,7 @@ if (!clerkPubKey) {
 
 function Router() {
   const [location] = useLocation();
-  if (location.startsWith('/verify-invoice/')) return <RoutedErrorBoundary><Suspense fallback={<RouteLoading/>}><Route path="/verify-invoice/:saleId/:documentId/:token" component={InvoiceVerification}/></Suspense></RoutedErrorBoundary>;
+  if (location === '/verify-invoice' || location.startsWith('/verify-invoice/')) return <RoutedErrorBoundary><Suspense fallback={<RouteLoading/>}><InvoiceVerification/></Suspense></RoutedErrorBoundary>;
   // Platform administration has its own identity and no dealership navigation or chat.
   if (location === '/phone-share') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><PhoneShare /></Suspense></RoutedErrorBoundary>;
   if (location === '/staff-upload') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><StaffUpload /></Suspense></RoutedErrorBoundary>;
@@ -145,7 +145,7 @@ function ClerkQueryClientCacheInvalidator() {
 
 function DealerProviders({ children }: { children: ReactNode }) {
   const [location] = useLocation();
-  return /^\/sign-(?:in|up)(?:\/|$)/.test(location) || location === '/join' || location === '/platform' || location === '/staff-upload' || location.startsWith('/verify-invoice/') ? <>{children}</> : <StockProvider><SavedCarsProvider>{children}</SavedCarsProvider></StockProvider>;
+  return /^\/sign-(?:in|up)(?:\/|$)/.test(location) || location === '/join' || location === '/platform' || location === '/staff-upload' || location === '/verify-invoice' || location.startsWith('/verify-invoice/') ? <>{children}</> : <StockProvider><SavedCarsProvider>{children}</SavedCarsProvider></StockProvider>;
 }
 
 function ClerkProviderWithRoutes() {

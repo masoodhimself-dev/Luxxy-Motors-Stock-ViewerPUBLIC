@@ -4,6 +4,7 @@ import type { Car } from '@/lib/stock-context';
 import { getVisitorId } from '@/lib/visitor';
 import { trackEvent } from '@/lib/analytics';
 import { formatPrice, vehicleRegistration, vehicleRegistrationLabel } from '@/lib/utils';
+import { customerWhatsAppNumber } from '@/lib/customer-whatsapp';
 
 type DealerContactDetails = {
   contact: {
@@ -16,7 +17,7 @@ type DealerContactDetails = {
 };
 
 function getWhatsAppNumber(config: DealerContactDetails = dealerConfig) {
-  return config.contact.whatsapp?.replace(/\D/g, '');
+  return customerWhatsAppNumber(config.contact.whatsapp ?? '');
 }
 
 function getPhoneNumber(config: DealerContactDetails = dealerConfig) {

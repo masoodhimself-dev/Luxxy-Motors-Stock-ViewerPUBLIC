@@ -5,9 +5,13 @@ import { enquiryDraftKey, readEnquiryDraft, saveEnquiryDraft } from '@/lib/enqui
 import type { Car } from '@/lib/stock-context';
 import { EnquiryForm } from './enquiry-form';
 
-const state = vi.hoisted(() => ({ mutate: vi.fn(), reset: vi.fn(), navigate: vi.fn(), enabled: true }));
+const state = vi.hoisted(() => ({ mutate: vi.fn(), reset: vi.fn(), navigate: vi.fn(), enabled: true, servicesEnabled: true }));
 vi.mock('@workspace/api-client-react', () => ({ useCreateEnquiry: () => ({ mutate: state.mutate, reset: state.reset, isPending: false, isSuccess: false, isError: false }) }));
-vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({ settings: { ...dealerConfig, onlineReservation: { enabled: false } } }) }));
+vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({ settings: { ...dealerConfig, onlineReservation: { enabled: false },
+  warranty: { ...dealerConfig.warranty, enabled: state.servicesEnabled },
+  delivery: { ...dealerConfig.delivery, enabled: state.servicesEnabled },
+  partExchange: { ...dealerConfig.partExchange, enabled: state.servicesEnabled },
+} }) }));
 vi.mock('@/lib/dealer-features', () => ({ useDealerFeatures: () => ({ enabled: () => state.enabled }) }));
 vi.mock('@/lib/analytics', () => ({ trackEvent: vi.fn() }));
 vi.mock('wouter', () => ({
@@ -16,7 +20,19 @@ vi.mock('wouter', () => ({
   Redirect: () => null,
 }));
 const car = { id: 'fictional-car', title: 'Ford Fiesta', make: 'Ford', model: 'Fiesta', year: 2020, images: [], price: 6500 } as unknown as Car;
-beforeEach(() => { window.sessionStorage.clear(); state.mutate.mockClear(); state.navigate.mockClear(); state.enabled = true; });
+beforeEach(() => { window.sessionStorage.clear(); state.mutate.mockClear(); state.navigate.mockClear(); state.enabled = true; state.servicesEnabled = true; });
+
+it('does not promote dealer-disabled services but keeps direct customer questions available', () => {
+  state.servicesEnabled = false;
+  render(<EnquiryForm vehicle={car} initialType="warranty" />);
+  expect(screen.queryByRole('link', { name: 'Delivery enquiry' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Part exchange valuation' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Add a part exchange (optional)' })).not.toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'General enquiry' })).toHaveAttribute('href', '/enquire?type=general&vehicleId=fictional-car');
+  expect(screen.getByTestId('form-enquiry')).toBeInTheDocument();
+  expect(screen.getByRole('textbox', { name: 'Your question' })).toBeRequired();
+  expect(state.mutate).not.toHaveBeenCalled();
+});
 
 it.each([false, true])('uses the same question-first enquiry and contact choices (embedded=%s)', embedded => {
   render(<EnquiryForm embedded={embedded} vehicle={car} />);

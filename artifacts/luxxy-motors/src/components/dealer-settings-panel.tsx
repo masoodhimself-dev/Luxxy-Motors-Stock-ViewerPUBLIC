@@ -1,5 +1,6 @@
 import { googleReviewUrl } from '@workspace/vehicle-meta';
 import { WebsiteContentEditor } from "./website-content-editor";
+import { customerWhatsAppNumber } from '@/lib/customer-whatsapp';
 import { customerFeaturePolicy } from '@workspace/vehicle-meta';
 import { vehicleSheetAccent, vehicleSheetUsesWebsiteColour } from '@/lib/vehicle-sheet-branding';
 import { editableShowroomWeek, showroomWeekRows, showroomBookingCopy, settingsSectionGroup, type DealerSettingsGroup } from '@/lib/settings-simplification';
@@ -284,11 +285,13 @@ function ServiceEditor({
   label,
   icon,
   onChange,
+  errors,
 }: {
   service: DealerService;
   label: string;
   icon: ReactNode;
   onChange: (service: DealerService) => void;
+  errors: { title?: string; ctaLabel?: string; description?: string };
 }) {
   return (
     <div className={`settings-service-card rounded-md border p-6 transition-colors ${service.enabled ? 'border-primary/30 bg-primary/5' : 'bg-muted/10'}`} data-enabled={service.enabled}>
@@ -300,7 +303,7 @@ function ServiceEditor({
           <div>
             <p className="text-[13px] font-semibold text-primary">{label}</p>
             <p className="mt-0.5 text-[12px] text-primary/70">
-              {service.enabled ? 'Visible on your showroom' : 'Hidden from your showroom'}
+              {service.enabled ? 'Service enabled' : 'Service disabled'}
             </p>
           </div>
         </div>
@@ -320,12 +323,15 @@ function ServiceEditor({
         </label>
       </div>
       <div className="settings-service-fields mt-6 grid gap-5 sm:grid-cols-2">
-        <Field label="Button label">
-          <Input value={service.ctaLabel} onChange={(event) => onChange({ ...service, ctaLabel: event.target.value })} data-testid={`input-${label.toLowerCase().replace(/\s+/g, '-')}-cta`} />
+        <Field label={`${label} title`} hint="Up to 120 characters" error={errors.title}>
+          <Input maxLength={120} value={service.title} onChange={(event) => onChange({ ...service, title: event.target.value })} data-testid={`input-${label.toLowerCase().replace(/\s+/g, '-')}-title`} />
         </Field>
-        <Field label="Description" hint="Up to 300 characters">
-          <Textarea rows={3} value={service.description} onChange={(event) => onChange({ ...service, description: event.target.value })} data-testid={`textarea-${label.toLowerCase().replace(/\s+/g, '-')}-description`} />
+        <Field label="Button label" hint="Up to 80 characters" error={errors.ctaLabel}>
+          <Input maxLength={80} value={service.ctaLabel} onChange={(event) => onChange({ ...service, ctaLabel: event.target.value })} data-testid={`input-${label.toLowerCase().replace(/\s+/g, '-')}-cta`} />
         </Field>
+        <div className="sm:col-span-2"><Field label="Description" hint="Up to 300 characters" error={errors.description}>
+          <Textarea maxLength={300} rows={3} value={service.description} onChange={(event) => onChange({ ...service, description: event.target.value })} data-testid={`textarea-${label.toLowerCase().replace(/\s+/g, '-')}-description`} />
+        </Field></div>
       </div>
     </div>
   );
@@ -522,6 +528,13 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
     }
     if (form.contact.googleReviewUrl && !googleReviewUrl(form.contact.googleReviewUrl)) errors['contact.googleReviewUrl'] = 'Use the HTTPS Google review link from your Business Profile.';
     if (form.contact.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contact.email)) errors['contact.email'] = 'Enter a valid email address.';
+    if (form.contact.whatsapp.trim() && !customerWhatsAppNumber(form.contact.whatsapp)) errors['contact.whatsapp'] = 'Enter a valid UK WhatsApp number or an international number with its country code.';
+    for (const [key, label] of [['warranty', 'Warranty'], ['delivery', 'Delivery'], ['partExchange', 'Part exchange']] as const) {
+      for (const [field, fieldLabel, max] of [['title', 'title', 120], ['description', 'description', 300], ['ctaLabel', 'button label', 80]] as const) {
+        const value = form[key][field];
+        if (!value.trim() || value.length > max) errors[`${key}.${field}`] = `${label} ${fieldLabel} must be between 1 and ${max} characters.`;
+      }
+    }
     if (!form.identity.name.trim()) errors['identity.name'] = 'Add the dealership name.';
     if (!form.hero.copy.trim()) errors['hero.copy'] = 'Add a homepage headline.';
     if (!form.hero.subcopy.trim()) errors['hero.subcopy'] = 'Add a short supporting line.';
@@ -563,6 +576,7 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
       else if (first === 'hours' || first.startsWith('contact') || first.startsWith('address')) scrollToSection('contact');
       else if (first.startsWith('legal') || first.startsWith('social')) scrollToSection('legal');
       else if (first.startsWith('onlineReservation')) scrollToSection('services');
+      else if (/^(warranty|delivery|partExchange)\./.test(first)) scrollToSection('services');
       else scrollToSection('proof');
       return false;
     }
@@ -715,12 +729,12 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
               <Input className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={form.identity.logoText} onChange={(event) => updateNested('identity', 'logoText', event.target.value)} data-testid="input-identity-logo-text" />
             </Field>
             <WebsiteImageField label="Header logo" hint="Transparent PNG works well on a light header." value={form.identity.logoAsset} onChange={url => updateNested('identity', 'logoAsset', url)} testId="input-identity-logo-asset" error={validationErrors['identity.logoAsset']} disabled={updateSettings.isPending} onBusyChange={uploadBusyChanged} />
-            {([['footerLogoUrl', 'Footer logo'], ['faviconUrl', 'Browser-tab icon']] as const).map(([key, label]) => <WebsiteImageField key={key} label={label} hint={key === 'footerLogoUrl' ? 'Choose a version that reads clearly on the dark footer.' : 'A simple square PNG works best.'} kind={key === 'faviconUrl' ? 'icon' : 'logo'} value={form.presentation?.[key] || ''} onChange={url => updatePresentation(key, url)} testId={`input-${key}`} error={validationErrors[`presentation.${key}`]} disabled={updateSettings.isPending} onBusyChange={uploadBusyChanged} />)}
+            {([['footerLogoUrl', 'Footer logo'], ['faviconUrl', 'Browser-tab icon']] as const).map(([key, label]) => <WebsiteImageField key={key} label={label} hint={key === 'footerLogoUrl' ? 'Used on the dark footer and homepage header. Choose a version that reads clearly on dark backgrounds.' : 'A simple square PNG works best.'} kind={key === 'faviconUrl' ? 'icon' : 'logo'} value={form.presentation?.[key] || ''} onChange={url => updatePresentation(key, url)} testId={`input-${key}`} error={validationErrors[`presentation.${key}`]} disabled={updateSettings.isPending} onBusyChange={uploadBusyChanged} />)}
             <details className="sm:col-span-2"><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">Advanced design settings</summary><p className="mb-4 text-xs text-muted-foreground">Optional brand colour overrides. The defaults are ready to use.</p>            <div className="grid gap-4 sm:grid-cols-2">
               <ColourField label="Primary colour" value={form.identity.brandColors.primaryHsl} onChange={(primaryHsl) => updateNested('identity', 'brandColors', { ...form.identity.brandColors, primaryHsl })} testId="input-brand-primary" />
               <ColourField label="Accent colour" value={form.identity.brandColors.accentHsl} onChange={(accentHsl) => updateNested('identity', 'brandColors', { ...form.identity.brandColors, accentHsl })} testId="input-brand-accent" />
             </div></details>
-            <details className="sm:col-span-2"><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">Page and text colours</summary><p className="mb-4 text-xs text-muted-foreground">Keep text dark enough to read on your chosen backgrounds. Blank values retain the neutral design.</p><div className="grid gap-4 sm:grid-cols-2">{([['pageColour', 'Page background', '#f6f6f5'], ['panelColour', 'Cards and forms', '#ffffff'], ['headingColour', 'Headings and prices', '#202428'], ['linkColour', 'Links and accents', '#254e77']] as const).map(([key, label, fallback]) => <Field key={key} label={label} error={validationErrors[`presentation.${key}`]}><div className="flex gap-2"><input aria-label={`${label} colour picker`} type="color" value={form.presentation?.[key] || fallback} onChange={event => updatePresentation(key, event.target.value)} className="h-11 w-14" /><Input aria-label={`${label} hex value`} value={form.presentation?.[key] || ''} placeholder={fallback} maxLength={7} onChange={event => updatePresentation(key, event.target.value)} /></div></Field>)}</div></details>
+            <details className="sm:col-span-2"><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">Page and text colours</summary><p className="mb-4 text-xs text-muted-foreground">Keep text dark enough to read on your chosen backgrounds. Blank values retain the neutral design.</p><div className="grid gap-4 sm:grid-cols-2">{([['pageColour', 'Page background', '#f5f6f7'], ['panelColour', 'Cards and forms', '#ffffff'], ['headingColour', 'Headings and prices', '#192a36'], ['linkColour', 'Links and accents', '#215a7e']] as const).map(([key, label, fallback]) => <Field key={key} label={label} error={validationErrors[`presentation.${key}`]}><div className="flex gap-2"><input aria-label={`${label} colour picker`} type="color" value={form.presentation?.[key] || fallback} onChange={event => updatePresentation(key, event.target.value)} className="h-11 w-14" /><Input aria-label={`${label} hex value`} value={form.presentation?.[key] || ''} placeholder={fallback} maxLength={7} onChange={event => updatePresentation(key, event.target.value)} /></div></Field>)}</div></details>
             {validationErrors['identity.colours'] && <p role="alert" className="text-sm text-destructive sm:col-span-2">{validationErrors['identity.colours']}</p>}
           </div>
           <div className="settings-logo-previews mt-5 grid gap-3 sm:grid-cols-2">{form.identity.logoAsset && <div className="rounded-md border border-border bg-white p-4"><p className="mb-3 text-xs text-slate-600">Header logo · light background</p><img src={form.identity.logoAsset} alt="Header logo preview" className="max-h-16 max-w-full object-contain" /></div>}{form.presentation?.footerLogoUrl && <div className="rounded-md bg-[#1b2526] p-4 text-white"><p className="mb-3 text-xs text-white/80">Footer logo · dark background</p><img src={form.presentation.footerLogoUrl} alt="Footer logo preview" className="max-h-16 max-w-full object-contain" /></div>}</div>
@@ -740,15 +754,15 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
             <Field label="Phone">
               <Input type="tel" className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={form.contact.phone} onChange={(event) => updateNested('contact', 'phone', event.target.value)} data-testid="input-contact-phone" />
             </Field>
-            <Field label="WhatsApp">
+            <Field label="WhatsApp" hint="UK number or +country code" error={validationErrors['contact.whatsapp']}>
               <Input type="tel" className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={form.contact.whatsapp} onChange={(event) => updateNested('contact', 'whatsapp', event.target.value)} data-testid="input-contact-whatsapp" />
             </Field>
-            <Field label="Email">
+            <Field label="Email" error={validationErrors['contact.email']}>
               <Input type="email" className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={form.contact.email} onChange={(event) => updateNested('contact', 'email', event.target.value)} data-testid="input-contact-email" />
             </Field>
           </div>
           <div className="mt-5">
-            <Field label="Google review link">
+            <Field label="Google review link" error={validationErrors['contact.googleReviewUrl']}>
               <Input type="url" maxLength={1000} className="h-12 w-full" value={form.contact.googleReviewUrl || ''} onChange={event => updateNested('contact','googleReviewUrl',event.target.value)} placeholder="https://g.page/r/…/review" data-testid="input-google-review-link" />
             </Field>
             <p className="mt-2 text-sm text-muted-foreground">Enter your Google Business Profile’s “Ask for reviews” link once. Sale reminders use this dealership link. Staff still review and send each email manually.</p>
@@ -810,17 +824,17 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
           <div className="mb-6 grid gap-3 sm:grid-cols-2">{([['featuredEnabled', 'Show featured cars', true], ['visitEnabled', 'Show visit and dealership section', true], ['servicesEnabled', 'Show services section', true], ['showHeroDescription', 'Show introduction below hero headline', false]] as const).map(([key, label, fallback]) => <label key={key} className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="h-5 w-5" checked={form.presentation?.[key] ?? fallback} onChange={event => updatePresentation(key, event.target.checked)} />{label}</label>)}</div>
           <div className="grid gap-5">
             <Field label="Announcement strip" hint="Optional">
-              <Input className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={form.hero.announcement} onChange={(event) => updateNested('hero', 'announcement', event.target.value)} placeholder="New stock added this week" data-testid="input-hero-announcement" />
+              <Input className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" maxLength={160} value={form.hero.announcement} onChange={(event) => updateNested('hero', 'announcement', event.target.value)} placeholder="New stock added this week" data-testid="input-hero-announcement" />
             </Field>
             <Field label="Homepage headline" error={validationErrors['hero.copy']}>
-              <Input required className="h-11 rounded-md font-display text-[15px] font-semibold focus-visible:border-accent" value={form.hero.copy} onChange={(event) => updateNested('hero', 'copy', event.target.value)} data-testid="input-hero-copy" />
+              <Input required maxLength={160} className="h-11 rounded-md font-display text-[15px] font-semibold focus-visible:border-accent" value={form.hero.copy} onChange={(event) => updateNested('hero', 'copy', event.target.value)} data-testid="input-hero-copy" />
             </Field>
-            <Field label="Dealership introduction" hint="Used in the footer. Optionally show it below the homepage headline too." error={validationErrors['hero.subcopy']}>
-              <Textarea required rows={3} className="rounded-md text-base focus-visible:border-accent" value={form.hero.subcopy} onChange={(event) => updateNested('hero', 'subcopy', event.target.value)} data-testid="textarea-hero-subcopy" />
+            <Field label="Dealership introduction" hint="Shown below the homepage headline when Show introduction is enabled." error={validationErrors['hero.subcopy']}>
+              <Textarea required maxLength={300} rows={3} className="rounded-md text-base focus-visible:border-accent" value={form.hero.subcopy} onChange={(event) => updateNested('hero', 'subcopy', event.target.value)} data-testid="textarea-hero-subcopy" />
             </Field>
             <div className="grid gap-5 sm:grid-cols-2">
               <Field label="Browse cars button" error={validationErrors['hero.primaryCta']}>
-                <Input required className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={form.hero.primaryCta} onChange={(event) => updateNested('hero', 'primaryCta', event.target.value)} data-testid="input-hero-primary-cta" />
+                <Input required className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" maxLength={80} value={form.hero.primaryCta} onChange={(event) => updateNested('hero', 'primaryCta', event.target.value)} data-testid="input-hero-primary-cta" />
               </Field>
             </div>
           </div>
@@ -946,7 +960,7 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
               </Field>
             </div>
           </div>}
-          <details className="mt-6 border-t border-border pt-3"><summary className="cursor-pointer py-3 text-sm font-medium">Test-drive button wording</summary><Field label="Button label" error={validationErrors['bookViewing.ctaLabel']}><Input value={form.bookViewing.ctaLabel} onChange={event => updateNested('bookViewing', 'ctaLabel', event.target.value)} data-testid="input-viewing-cta" /></Field></details>
+          <details className="mt-6 border-t border-border pt-3"><summary className="cursor-pointer py-3 text-sm font-medium">Test-drive button wording</summary><Field label="Button label" error={validationErrors['bookViewing.ctaLabel']}><Input maxLength={80} value={form.bookViewing.ctaLabel} onChange={event => updateNested('bookViewing', 'ctaLabel', event.target.value)} data-testid="input-viewing-cta" /></Field></details>
         </SectionCard>
 
         <SectionCard
@@ -986,7 +1000,7 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
                     data-testid={`input-${subject}-image-alt`}
                   />
                 </Field>
-                {/^https?:\/\//.test(form.presentation?.[`${subject}ImageUrl`] || '') && <ShowroomPhoto src={form.presentation![`${subject}ImageUrl`]!} alt={form.presentation?.[`${subject}ImageAlt`] || `${subject} photo preview`} className="aspect-video max-w-sm sm:col-span-2" />}
+                {/^https?:\/\//.test(form.presentation?.[`${subject}ImageUrl`] || '') && <ShowroomPhoto src={form.presentation![`${subject}ImageUrl`]!} alt={form.presentation?.[`${subject}ImageAlt`] || `${subject} photo preview`} position={subject === 'hero' ? form.presentation?.heroImagePosition : undefined} className="aspect-video max-w-sm sm:col-span-2" />}
               </div>
             ))}
             <Field label="Homepage photo focus" hint="Choose which part stays in view when the image is cropped"><select className="h-11 w-full rounded border border-input bg-card px-3" value={form.presentation?.heroImagePosition || 'center'} onChange={event => updatePresentation('heroImagePosition', event.target.value)}>{['center', 'left', 'right', 'top', 'bottom'].map(position => <option key={position} value={position}>{position[0].toUpperCase() + position.slice(1)}</option>)}</select></Field>
@@ -995,8 +1009,8 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
               For stock photography, start with a clear front three-quarter
               view, followed by exterior, cabin, boot, wheels and condition
               details. Use consistent lighting and framing. The gallery groups
-              captioned images automatically. Your first featured vehicle is
-              used when no homepage photograph is set.
+              captioned images automatically. When no homepage photograph is set, the website uses its brand image
+              or the first available stock photograph. Featured selections only order the stock list.
             </p>
             <div className="grid gap-5 sm:grid-cols-2">
               {(
@@ -1060,16 +1074,17 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
             {!vehicleSheetUsesWebsiteColour(form.brochure) && <Field label="Print accent colour" hint="Override for headings, price and dividing lines" error={validationErrors['brochure.accentColour']}><Input type="color" className="h-11 w-full" value={form.brochure?.accentColour ?? '#263c46'} onChange={event => updateGroup('brochure', { ...form.brochure, accentColour: event.target.value })} /></Field>}
             <Field label="Closing note" hint="Optional appointment instructions, up to 500 characters"><Textarea maxLength={500} rows={3} value={form.brochure?.footerNote ?? ''} placeholder="Useful information for customers who print this sheet." onChange={e=>updateGroup('brochure',{...form.brochure,footerNote:e.target.value})} /></Field>
           </div>
-          <p className="mt-5 text-sm leading-6 text-muted-foreground">The full description, equipment, specifications, running costs and history are included when supplied. Missing details and unavailable photographs are omitted. Up to three supplied photographs are shown; the layout adjusts to keep everything on one A4 page.</p>
+          <p className="mt-5 text-sm leading-6 text-muted-foreground">Supplied description, equipment, specifications, running costs and history are fitted onto one A4 page. Long sections are shortened with …; the vehicle QR code opens the complete details. Missing details and unavailable photographs are omitted. Up to three supplied photographs are shown.</p>
           <div className="mt-5 flex flex-wrap items-center gap-4 border-t border-border pt-5"><p className="max-w-lg text-sm text-muted-foreground">Publish your settings, open a vehicle and choose Print vehicle details to preview the sheet or save it as a PDF.</p>{stock?.cars[0] && <a className="text-link min-h-11 text-sm" href={`/vehicle/${encodeURIComponent(stock.cars[0].id)}#print-vehicle-details`} target="_blank" rel="noopener noreferrer">Open vehicle print option <ExternalLink className="h-4 w-4" /><span className="sr-only"> (opens in a new tab)</span></a>}</div>
         </SectionCard>
 
         <SectionCard id="services" eyebrow="Offer" title="Services" description="Turn customer-facing services on or off, then make the wording sound like your team." icon={<Truck className="h-5 w-5" />}>
+          {form.presentation?.servicesEnabled === false && <p role="status" className="mb-5 border-l-2 border-accent pl-3 text-sm leading-6 text-muted-foreground">Your homepage services section is hidden. Enabled services keep their existing customer links. Turn on Show services section in Homepage to display their cards.</p>}
           {customerFeaturePolicy.vehicleComparison && <label className="mb-6 flex items-start gap-3 border-b border-border pb-5"><input type="checkbox" className="mt-1 h-5 w-5" checked={form.presentation?.comparisonEnabled ?? false} onChange={event => updatePresentation('comparisonEnabled', event.target.checked)} data-testid="checkbox-vehicle-comparison" /><span><span className="block text-sm font-semibold">Vehicle comparison</span><span className="mt-1 block text-sm text-muted-foreground">Optional. Allow customers to compare two cars side by side. Saved cars remain available when this is off.</span></span></label>}
           <div className="grid gap-5">
-            <ServiceEditor label="Warranty" service={form.warranty} icon={<Check className="h-5 w-5" />} onChange={(service) => updateGroup('warranty', service)} />
-            <ServiceEditor label="Nationwide delivery" service={form.delivery} icon={<Truck className="h-5 w-5" />} onChange={(service) => updateGroup('delivery', service)} />
-            <ServiceEditor label="Part exchange" service={form.partExchange} icon={<Store className="h-5 w-5" />} onChange={(service) => updateGroup('partExchange', service)} />
+            <ServiceEditor label="Warranty" service={form.warranty} errors={{title:validationErrors['warranty.title'], description:validationErrors['warranty.description'], ctaLabel:validationErrors['warranty.ctaLabel']}} icon={<Check className="h-5 w-5" />} onChange={(service) => updateGroup('warranty', service)} />
+            <ServiceEditor label="Nationwide delivery" service={form.delivery} errors={{title:validationErrors['delivery.title'], description:validationErrors['delivery.description'], ctaLabel:validationErrors['delivery.ctaLabel']}} icon={<Truck className="h-5 w-5" />} onChange={(service) => updateGroup('delivery', service)} />
+            <ServiceEditor label="Part exchange" service={form.partExchange} errors={{title:validationErrors['partExchange.title'], description:validationErrors['partExchange.description'], ctaLabel:validationErrors['partExchange.ctaLabel']}} icon={<Store className="h-5 w-5" />} onChange={(service) => updateGroup('partExchange', service)} />
             {customerFeaturePolicy.onlineCardReservations && <div className="settings-subsection rounded-md border border-border p-6" data-testid="settings-online-reservation">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="max-w-xl">
