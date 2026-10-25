@@ -1,7 +1,9 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { useGetStock, getGetStockQueryKey } from '@workspace/api-client-react';
 import { createStockLoader } from './stock-refresh';
-import { useRefreshActive } from './refresh-policy';
+import { canRefreshNow, useRefreshActive } from './refresh-policy';
 import { useCustomerPreview } from './customer-preview-context';
 
 export type CarImage = { url: string; caption: string | null } | string;
@@ -89,14 +91,31 @@ function normalizeStock(data: unknown): StockData | null {
 }
 
 export function StockProvider({ children }: { children: ReactNode }) {
+  const [location] = useLocation();
+  const portal = /^\/portal(?:\/|$)/.test(location);
+  const cache = useQueryClient();
   const active = useRefreshActive();
   const preview = useCustomerPreview();
   const [loadStock] = useState(() => createStockLoader());
   const { data: apiStock, isLoading, error } = useGetStock({ query: {
     queryKey: getGetStockQueryKey(), queryFn: ({ signal }) => loadStock(signal),
-    enabled: active && !preview, staleTime: 30_000, refetchInterval: 5 * 60_000,
+    enabled: active && !preview, staleTime: portal ? 30_000 : 5 * 60_000,
+    refetchInterval: portal ? 5 * 60_000 : false,
     refetchIntervalInBackground: false, refetchOnWindowFocus: true, refetchOnReconnect: true,
   } });
+  useEffect(() => {
+    if (portal || preview) return;
+    // A desktop app switch may focus the window without a visibility change.
+    // Reuse fresh data, and let the query deduplicate any check already underway.
+    const onFocus = () => {
+      const queryKey = getGetStockQueryKey();
+      const state = cache.getQueryState(queryKey);
+      if (!canRefreshNow() || !state || state.fetchStatus === 'fetching' || Date.now() - state.dataUpdatedAt < 5 * 60_000) return;
+      void cache.refetchQueries({ queryKey, exact: true, type: 'active' }, { cancelRefetch: false });
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [cache, portal, preview]);
   const stock = useMemo(() => normalizeStock(apiStock), [apiStock]);
   const errorMessage = error instanceof Error ? error.message : error ? 'Unable to load current stock.' : null;
 
