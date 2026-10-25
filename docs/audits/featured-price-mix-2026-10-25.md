@@ -1,6 +1,6 @@
 # Homepage featured-car order — 25 October 2026
 
-Branch: `codex/featured-price-mix`. Local implementation and verification; not deployed.
+Branch: `codex/featured-price-mix`. Released as `65c44ae` on the existing shared Render service on 25 October 2026 at 22:22 GMT.
 
 ## Behaviour
 
@@ -29,3 +29,12 @@ No extra image requests, automatic refreshes, migrations, backend changes or dep
 | Restore automatic ordering | Removed the test selection, published locally and reloaded; £6,775 Nissan first, £2,750 Ford next, £6,375 MINI third |
 
 Browser checks used the real local React application inside frames with the stated CSS viewport sizes. Screenshots are under `output/featured-price-mix/`. Physical iPhone/iPad Safari testing was not performed. All changed Settings were in the loopback-only fictional preview and were restored; live dealerships and customer messages were untouched.
+
+## Verified Render release
+
+- User authorised pushing this update. Fast-forwarded the existing `codex/multi-tenant-foundation` source branch to `65c44ae14a60be6e411baf25b5f813fa537253a1`.
+- Existing confirmed My Workspace; service `luxxy-shared-staging` (`srv-db4jfhk9v7es73a4qhrg`). Auto-deploy remains off; triggered one manual deploy without clearing the cache.
+- Deploy `dep-dbf810nb9u1s73bv3ab0` started 22:19:46 GMT and became live at 22:22:54 GMT. Render's full workspace typecheck/build and existing pre-deploy step succeeded. No migrations were added by this release.
+- Both Shore Drive and Luxxy health endpoints returned `ok`. Their complete public Settings and stock responses exactly matched the before-release baseline (21 Shore Drive cars; 22 Luxxy cars). Saved featured IDs remain unchanged on both dealers.
+- Reopened the live Shore Drive homepage. Its first cars are MG HS £19,063, Hyundai ix35 £2,495 and MG ZS £9,195; all three thumbnails loaded. Next/previous carousel controls worked. Live screenshot: `output/featured-price-mix/live-shore-drive.png`.
+- No error-level Render logs were returned for the initial post-live window. No live Settings writes, customer messages, stock imports, credentials or schedules were changed.
