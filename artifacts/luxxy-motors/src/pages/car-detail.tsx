@@ -4,6 +4,9 @@ import './vehicle-redesign.css';
 import { VehicleFactIcon } from '@/components/vehicle-fact-icon';
 import { VehicleTerm } from '@/components/customer-help';
 import { VehicleEquipmentList } from '@/components/vehicle-equipment-list';
+import { VehicleSourceReport } from '@/components/vehicle-source-report';
+import { readVehicleSourceReport } from '@/lib/vehicle-source-report';
+import { vehicleChecksEnabledForHost } from '@/lib/vehicle-checks-rollout';
 import { VehicleSellingPoints } from '@/components/vehicle-selling-points';
 import { browseReturnHref, requestBrowseRestore } from '@/lib/browse-session';
 import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
@@ -91,7 +94,7 @@ export default function CarDetail() {
     if (!car?.id) return;
     const scrollToSection = () => {
       const id = window.location.hash.slice(1);
-      if (['vehicle-description-heading', 'features-heading', 'vehicle-enquiry'].includes(id)) {
+      if (['vehicle-description-heading', 'features-heading', 'vehicle-enquiry', 'vehicle-source-report-heading'].includes(id)) {
         const target = document.getElementById(id);
         target?.scrollIntoView({ block: 'start', behavior: 'instant' });
         if (id === 'vehicle-enquiry') document.getElementById('vehicle-enquiry-heading')?.focus({preventScroll: true});
@@ -153,6 +156,8 @@ export default function CarDetail() {
   const vehicleLabel = vehicleDisplayTitle(car);
   const vehicleRunningCostFacts = getVehicleRunningCosts(car);
   const vehicleHistoryRecordFacts = vehicleHistoryFacts(car);
+  const showVehicleChecks = vehicleChecksEnabledForHost(window.location.hostname, import.meta.env.DEV);
+  const sourceReport = showVehicleChecks ? readVehicleSourceReport(car) : null;
   const listingHighlights = vehicleListingHighlights(car);
 
   const overviewSpecs = [
@@ -348,6 +353,7 @@ export default function CarDetail() {
             {hasSpecifications && <a href="#vehicle-overview-heading">Specifications</a>}
             {vehicleRunningCostFacts.length > 0 && <a href="#vehicle-running-costs-heading">Running costs</a>}
             {(vehicleHistoryRecordFacts.length > 0 || hasHandoverInformation) && <a href={vehicleHistoryRecordFacts.length > 0 ? '#vehicle-records-heading' : '#buyer-information-heading'}>History & information</a>}
+            {sourceReport && <a href="#vehicle-source-report-heading">Vehicle checks</a>}
           </nav>
           {(description || features.length > 0) && <div className="vehicle-information-row vehicle-editorial-overview">
             {features.length > 0 && (
@@ -452,6 +458,7 @@ export default function CarDetail() {
             </section>}
             <a className="vehicle-service-record-request" href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}&question=service`}><VehicleFactIcon label="Service history" /><span>Request service records<span className="vehicle-service-record-note">Ask us to email the available service-book photos and records.</span></span><ArrowRight className="h-4 w-4" /></a>
           </div>
+          {showVehicleChecks && <VehicleSourceReport car={car} />}
         </div>
         <div className="vehicle-review-strip"><VehicleReviews /></div>
         <div className="vehicle-enquiry-visit-row">
