@@ -10,6 +10,7 @@ import { useSavedCars } from '@/lib/saved-cars-context';
 import { CustomerReviews } from '@/components/customer-reviews';
 import { arrivalTime } from '@/lib/stock-presentation';
 import { RollingStock } from '@/components/rolling-stock';
+import { homepageFeaturedCars } from '@/lib/homepage-featured-cars';
 import { HeroStockSearch } from '@/components/hero-stock-search';
 import { RecentlyViewed } from '@/components/recently-viewed';
 import { DealershipVisit } from "@/components/dealership-visit";
@@ -88,6 +89,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
       Number(a.inventoryStatus === 'reserved') - Number(b.inventoryStatus === 'reserved') ||
       (order.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.id) ?? Number.MAX_SAFE_INTEGER));
   }, [publicCars, dealerConfig.featuredVehicleIds]);
+  const featuredCars = useMemo(() => homepageFeaturedCars(publicCars, dealerConfig.featuredVehicleIds), [publicCars, dealerConfig.featuredVehicleIds]);
   const recentHandoversQuery = useGetRecentHandovers({
     query: {
       queryKey: getGetRecentHandoversQueryKey(),
@@ -406,9 +408,9 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
 
       {!browseStock && isLoading && <section className="home-stock-loading container mx-auto px-4 sm:px-6 lg:px-8" aria-label="Loading featured cars" aria-busy="true"><p role="status">Loading cars…</p><div className="home-stock-skeletons" aria-hidden="true">{[1, 2, 3, 4].map(n => <div key={n} className="animate-pulse bg-muted" />)}</div></section>}
       {!browseStock && !isLoading && (dealerConfig.presentation?.featuredEnabled !== false || (!error && publicCars.length > 0)) && <RollingStock
-        cars={recommendedCars}
+        cars={featuredCars}
         unavailable={Boolean(error)}
-        showVehicles={dealerConfig.presentation?.featuredEnabled !== false}
+        showVehicles={dealerConfig.presentation?.featuredEnabled !== false && (featuredCars.length > 0 || publicCars.length === 0)}
         shortcuts={!error && publicCars.length > 0 ? <div className="home-shopping-shortcuts container mx-auto px-4 sm:px-6 lg:px-8">
         {browseChoices.length > 0 && <nav className="home-browse-group" aria-label="Shop by preference">
           <h3>Quick filters</h3>

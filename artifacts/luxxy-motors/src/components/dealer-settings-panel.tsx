@@ -913,7 +913,7 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
               <div>
                 <p className="flex items-center gap-2 font-display text-[1.25rem] font-semibold tracking-[-.02em] text-primary">
                   <Image className="h-4 w-4 text-accent" /> Featured vehicles</p>
-                <p className="mt-1 text-[13px] leading-relaxed text-primary/70">Select up to 8 vehicles to lead the stock list. These selections do not change your homepage photograph. Choose that separately in Photos & visits.</p>
+                <p className="mt-1 text-[13px] leading-relaxed text-primary/70">Select up to 8 vehicles and set their order. Your choices lead the homepage and recommended stock list; reserved cars stay last. These selections do not change your homepage photograph. Choose that separately in Photos & visits.</p>
               </div>
             </div>
 
@@ -966,7 +966,7 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
                 <div className="flex flex-col items-center justify-center gap-2 border border-dashed border-border bg-secondary/10 p-8 text-center" data-testid="featured-empty-state">
                   <Image className="h-5 w-5 text-primary/70/60" />
                   <p className="text-[13px] font-semibold text-primary">No vehicles selected</p>
-                  <p className="text-[12px] text-primary/70">The most recent stock with photos will be shown instead.</p>
+                  <p className="text-[12px] text-primary/70">The most expensive available car with photos appears first, followed by a mix of prices.</p>
                 </div>
               )}
 

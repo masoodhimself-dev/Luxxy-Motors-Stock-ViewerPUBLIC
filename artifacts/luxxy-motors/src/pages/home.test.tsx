@@ -289,13 +289,35 @@ describe('showroom search filters', () => {
     stockFixture.cars[0] = { ...originalCars[0], inventoryStatus: 'reserved' };
     renderHome(false);
     expect(screen.getAllByTestId(/^card-vehicle-/).map(card => card.getAttribute('data-testid'))).toEqual([
-      'card-vehicle-audi-a3', 'card-vehicle-bmw-3-series', 'card-vehicle-ford-fiesta', 'card-vehicle-vw-golf', 'card-vehicle-bmw-1-series',
+      'card-vehicle-audi-a3', 'card-vehicle-bmw-3-series', 'card-vehicle-bmw-1-series',
     ]);
     cleanup();
     renderHome();
     expect(resultTitles()).toEqual(['Audi A3', 'BMW 3 Series', 'Ford Fiesta', 'VW Golf', 'BMW 1 Series']);
     fireEvent.change(screen.getByLabelText('Sort results'), { target: { value: 'price-asc' } });
     expect(resultTitles()).toEqual(['VW Golf', 'Audi A3', 'BMW 1 Series', 'Ford Fiesta', 'BMW 3 Series']);
+  });
+
+  it('defaults the homepage to expensive photographed stock without changing the stock-page order', () => {
+    stockFixture.cars = originalCars.map((car, index) => ({ ...car, heroImage: `https://cdn.example.com/car-${index}.jpg` }));
+    renderHome(false);
+    expect(screen.getAllByTestId(/^card-vehicle-/).map(card => card.getAttribute('data-testid'))).toEqual([
+      'card-vehicle-bmw-3-series', 'card-vehicle-vw-golf', 'card-vehicle-ford-fiesta', 'card-vehicle-bmw-1-series', 'card-vehicle-audi-a3',
+    ]);
+    cleanup();
+    renderHome();
+    expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series', 'Ford Fiesta', 'Audi A3', 'VW Golf']);
+  });
+
+  it('keeps full-stock browsing available when no automatic feature has a photo', () => {
+    stockFixture.cars = originalCars.map(car => ({ ...car, heroImage: null, images: [] }));
+    renderHome(false);
+    expect(screen.queryAllByTestId(/^card-vehicle-/)).toHaveLength(0);
+    expect(screen.getByRole('link', { name: 'View all stock' })).toHaveAttribute('href', '/stock?all=1');
+    expect(screen.queryByText('We have no cars online at the moment. Ask us about our stock.')).not.toBeInTheDocument();
+    cleanup();
+    renderHome();
+    expect(resultTitles()).toHaveLength(originalCars.length);
   });
 
   it('uses the dealership service titles without showing disabled services', () => {
@@ -435,7 +457,7 @@ describe('showroom search filters', () => {
     expect(screen.getByRole('link', { name: 'View all stock' })).toHaveAttribute('href', '/stock?all=1');
     expect(screen.queryByRole('button', { name: 'Auto-scroll cars' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Next featured cars' })).toBeInTheDocument();
-    expect(screen.getAllByTestId(/^card-vehicle-/)).toHaveLength(originalCars.length);
+    expect(screen.getAllByTestId(/^card-vehicle-/)).toHaveLength(2);
   });
 
   it('switches between full cards and the compact stock list', () => {
