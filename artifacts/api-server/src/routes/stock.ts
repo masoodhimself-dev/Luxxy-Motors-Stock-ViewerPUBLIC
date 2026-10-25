@@ -10,6 +10,7 @@ import { dealerIntegrationsStore } from "../lib/dealer-integrations-store";
 import { stockSourceData, projectedStockSourceData } from "../lib/stock-source-data";
 import { timingSafeEqual } from "node:crypto";
 import { canonicalJson, stockPayloadHash as hash, retainedStockPayloadHash } from "../lib/stock-payload-hash";
+import { sendConditionalStock } from '../lib/stock-http-cache';
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
 import { and, or, desc, eq, inArray, notInArray, isNull, isNotNull, lt, sql } from "drizzle-orm";
 import {
@@ -386,7 +387,7 @@ router.get("/stock", async (req, res): Promise<void> => {
   // Only the source label and check time are needed; don't transfer a whole
   // raw inventory snapshot from Postgres on every public stock page request.
   const [latest] = await db.select({ scrapedAt: stockImportRunsTable.scrapedAt, dealerName: sql<unknown>`${stockImportRunsTable.rawSnapshot} -> 'dealerName'` }).from(stockImportRunsTable).where(and(eq(stockImportRunsTable.dealerId, settings.dealerId), eq(stockImportRunsTable.status, "completed"), eq(stockImportRunsTable.source, settings.platform))).orderBy(desc(stockImportRunsTable.receivedAt)).limit(1);
-  res.json(GetStockResponse.parse({ schemaVersion: 1, dealerName: typeof latest?.dealerName === "string" ? latest.dealerName : null, dealerLocation: cars[0]?.dealerLocation ?? null, count: cars.length, scrapedAt: latest?.scrapedAt ?? null, cars }));
+  sendConditionalStock(req, res, { dealerId: settings.dealerId, source: settings.platform }, GetStockResponse.parse({ schemaVersion: 1, dealerName: typeof latest?.dealerName === "string" ? latest.dealerName : null, dealerLocation: cars[0]?.dealerLocation ?? null, count: cars.length, scrapedAt: latest?.scrapedAt ?? null, cars }));
 });
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

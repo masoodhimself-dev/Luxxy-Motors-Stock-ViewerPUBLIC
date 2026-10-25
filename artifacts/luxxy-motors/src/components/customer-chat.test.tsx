@@ -91,6 +91,20 @@ function createCalls() { return fetchMock.mock.calls.filter(([path]) => path ===
 function getCalls() { return fetchMock.mock.calls.filter(([path, init]) => String(path).startsWith('/api/chat/conversations/') && init?.method !== 'POST'); }
 
 describe('quiet customer chat', () => {
+  it('does not fetch configuration on a hidden or offline page and resumes when usable', async () => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    render(<CustomerChat />);
+    expect(fetchMock).not.toHaveBeenCalled();
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    expect(fetchMock).not.toHaveBeenCalled();
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+    act(() => window.dispatchEvent(new Event('online')));
+    await screen.findByRole('button', { name: 'Ask us' });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
   it('waits for a click and requires name and one contact channel before opening a conversation', async () => {
     render(<CustomerChat />);
     await screen.findByRole('button', { name: 'Ask us' });

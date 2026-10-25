@@ -13,6 +13,7 @@ import { CreateStaffEnquiryBody, ChangeStaffAppointmentBody, ChangeStaffFollowUp
 import { createOnlineReservation, reservationView, ReservationError, type ReservationRecord, type ReservationRepository } from '../../api-server/src/lib/online-reservations';
 import { previewSettings } from './settings';
 import { previewStock } from './stock';
+import { stockRepresentation } from '../../api-server/src/lib/stock-http-cache';
 import { leads, previewResponse } from './portal';
 import { LogEnquiryConversationBody, UpdateEnquiryStatusBody, UpdateEnquiryWorkspaceBody } from '../../../lib/api-zod/src/generated/api';
 import { attendanceError, outcomeError } from '../../api-server/src/lib/enquiry-workspace';
@@ -246,7 +247,15 @@ export async function reservationPreview(req: IncomingMessage, res: ServerRespon
       }
       return { status: 404, data: { error: 'This reservation service is unavailable.' } };
     });
-    send(res, result.status, result.data);
+    if (path === '/api/stock' && req.method === 'GET' && result.status === 200) {
+      // Include the real local price/reservation overrides in the validator too.
+      const { etag, json } = stockRepresentation('local-showroom-preview', 'preview', result.data);
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('ETag', etag);
+      res.statusCode = req.headers['if-none-match'] === etag ? 304 : 200;
+      res.end(res.statusCode === 304 ? undefined : json);
+    } else send(res, result.status, result.data);
   } catch (error) {
     send(res, error instanceof ReservationError ? error.status : 500, { error: error instanceof ReservationError ? error.message : 'The reservation could not be saved. Please try again.' });
   }

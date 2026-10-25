@@ -3,6 +3,7 @@ import { Link, useLocation, useRoute } from 'wouter';
 import { ArrowRight, Check, ChevronDown, MessageCircle, Send, X } from '@/components/icons';
 import { customerFeaturePolicy, formatVehicleName, type ChatConversationView, type ChatPublicConfig, type ChatSession } from '@workspace/vehicle-meta';
 import { useStock } from '@/lib/stock-context';
+import { canRefreshNow, useRefreshActive } from '@/lib/refresh-policy';
 import './customer-chat.css';
 
 interface SavedChat {
@@ -134,6 +135,7 @@ function availabilityCopy(config: ChatPublicConfig | null, view: ChatConversatio
 }
 
 export function CustomerChat() {
+  const refreshActive = useRefreshActive();
   const [location] = useLocation();
   const [, vehicleRoute] = useRoute<{ id: string }>('/vehicle/:id');
   const { stock } = useStock();
@@ -182,35 +184,31 @@ export function CustomerChat() {
 
   useEffect(() => {
     if (!allowedRoute) { setOpen(false); return; }
+    if (!refreshActive) return;
     const controller = new AbortController();
-    const refresh = () => {
-      void requestChat<ChatPublicConfig>('/config', { signal: controller.signal })
-        .then((next) => {
+    let inFlight = false;
+    const refresh = async () => {
+      if (inFlight || !canRefreshNow()) return;
+      inFlight = true;
+      try {
+        const next = await requestChat<ChatPublicConfig>('/config', { signal: controller.signal });
+        if (!controller.signal.aborted) {
           configRef.current = next;
           setConfig(next);
           if (!next.settings.enabled) setOpen(false);
-        }).catch(() => { /* An unavailable configuration must never open an unconfigured chat. */ });
+        }
+      } catch { /* Keep the last configuration through a temporary connection failure. */ }
+      finally { inFlight = false; }
     };
-    refresh();
+    void refresh();
+    const interval = open ? window.setInterval(() => void refresh(), 30_000) : undefined;
     window.addEventListener('dealer-chat-settings-saved', refresh);
-    return () => { controller.abort(); window.removeEventListener('dealer-chat-settings-saved', refresh); };
-  }, [allowedRoute, offline]);
-
-  useEffect(() => {
-    if (!open || offline) return;
-    const controller = new AbortController();
-    const refresh = () => {
-      if (document.visibilityState === 'hidden') return;
-      void requestChat<ChatPublicConfig>('/config', { signal: controller.signal }).then((next) => {
-        configRef.current = next;
-        setConfig(next);
-        if (!next.settings.enabled) setOpen(false);
-      }).catch(() => { /* The existing config remains usable through a temporary connection failure. */ });
+    return () => {
+      controller.abort();
+      window.clearInterval(interval);
+      window.removeEventListener('dealer-chat-settings-saved', refresh);
     };
-    refresh();
-    const interval = window.setInterval(refresh, 30_000);
-    return () => { controller.abort(); window.clearInterval(interval); };
-  }, [open, offline]);
+  }, [allowedRoute, open, refreshActive]);
 
   useEffect(() => {
     if (!storageKey) return;
@@ -275,13 +273,13 @@ export function CustomerChat() {
 
   // The panel never polls a customer's conversation until they choose to open it.
   useEffect(() => {
-    if (!open || !allowedRoute || !config?.settings.enabled || !active || offline) return;
+    if (!open || !allowedRoute || !config?.settings.enabled || !active || offline || !refreshActive) return;
     const controller = new AbortController();
     const generation = sessionGeneration.current;
     let inFlight = false;
     let disposed = false;
     const refresh = async () => {
-      if (disposed || inFlight || document.visibilityState === 'hidden' || busyRef.current) return;
+      if (disposed || inFlight || !canRefreshNow() || busyRef.current) return;
       inFlight = true;
       try {
         const next = await requestChat<ChatConversationView>(`/conversations/${encodeURIComponent(active.id)}`, { token: active.token, signal: controller.signal });
@@ -307,7 +305,7 @@ export function CustomerChat() {
     setLoading(!view || view.conversation.id !== active.id);
     void refresh();
     const interval = window.setInterval(() => void refresh(), POLL_INTERVAL);
-    const onVisible = () => { if (document.visibilityState !== 'hidden') void refresh(); };
+    const onVisible = () => { if (canRefreshNow()) void refresh(); };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       disposed = true;
@@ -317,7 +315,7 @@ export function CustomerChat() {
     };
     // A message revision does not restart the polling clock.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, allowedRoute, config?.settings.enabled, active?.id, active?.token, offline, acceptView, forget]);
+  }, [open, allowedRoute, config?.settings.enabled, active?.id, active?.token, offline, refreshActive, acceptView, forget]);
 
   useEffect(() => {
     if (!open) return;

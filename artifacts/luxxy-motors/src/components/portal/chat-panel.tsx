@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { NativeSelect } from '@/components/ui/native-select';
 import { HistoryLinks } from './history-links';
+import { canRefreshNow, useRefreshActive } from '@/lib/refresh-policy';
 import { Chip, formatDateTime, relativeTime } from './portal-ui';
 import './chat-panel.css';
 
@@ -26,16 +27,6 @@ const filters: { value: Filter; label: string }[] = [
   { value: 'all', label: 'All' }, { value: 'waiting', label: 'Waiting' }, { value: 'unread', label: 'Unread' },
   { value: 'open', label: 'Open' }, { value: 'resolved', label: 'Resolved' },
 ];
-
-function usePageVisible() {
-  const [visible, setVisible] = useState(() => !document.hidden);
-  useEffect(() => {
-    const update = () => setVisible(!document.hidden);
-    document.addEventListener('visibilitychange', update);
-    return () => document.removeEventListener('visibilitychange', update);
-  }, []);
-  return visible;
-}
 
 function errorStatus(error: unknown) {
   return error && typeof error === 'object' && 'status' in error ? error.status : null;
@@ -145,7 +136,7 @@ function ConversationThread({ view, directory, back, refresh, applyView, draft, 
 }
 
 export function ChatPanel() {
-  const visible = usePageVisible();
+  const visible = useRefreshActive();
   const search = useSearch();
   const [, navigate] = useLocation();
   const selectedId = new URLSearchParams(search).get('conversationId');
@@ -204,7 +195,7 @@ export function ChatPanel() {
     let active = true;
     let inFlight = false;
     const heartbeat = async () => {
-      if (inFlight) return;
+      if (inFlight || !canRefreshNow()) return;
       inFlight = true;
       try {
         const result = await request<{ staffOnline: boolean }>('/api/staff/chat/presence', 'POST', { available: true });
@@ -213,12 +204,15 @@ export function ChatPanel() {
         if (active) { setConfirmedOnline(false); setPresenceConfirmed(false); setPresenceError(true); setWantOnline(false); }
       } finally {
         inFlight = false;
-        if (!active) void request('/api/staff/chat/presence', 'POST', { available: false }).catch(() => {});
+        if (!active && navigator.onLine !== false) void request('/api/staff/chat/presence', 'POST', { available: false }).catch(() => {});
       }
     };
     void heartbeat();
     const timer = window.setInterval(heartbeat, 30_000);
-    const leave = () => { void customFetch('/api/staff/chat/presence', { method: 'POST', body: JSON.stringify({ available: false }), keepalive: true }).catch(() => {}); };
+    const leave = () => {
+      if (navigator.onLine === false) return;
+      void customFetch('/api/staff/chat/presence', { method: 'POST', body: JSON.stringify({ available: false }), keepalive: true }).catch(() => {});
+    };
     window.addEventListener('pagehide', leave);
     return () => { active = false; window.clearInterval(timer); window.removeEventListener('pagehide', leave); leave(); };
   }, [wantOnline, visible]);

@@ -16,8 +16,9 @@ export function useDealerFeatures() {
   const query = useQuery({
     queryKey: ["dealer-features"],
     queryFn: () => customFetch<DealerFeatures>("/api/features"),
-    staleTime: 0,
+    staleTime: 60_000,
     refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
     retry: false,
   });
   return {

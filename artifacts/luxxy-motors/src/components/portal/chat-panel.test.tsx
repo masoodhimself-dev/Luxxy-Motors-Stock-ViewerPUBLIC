@@ -30,6 +30,7 @@ let inboxFailure: boolean;
 let patchConflict: boolean;
 
 beforeEach(() => {
+  Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
   view = fixture();
   sendFailures = 0;
   readFailures = 0;
@@ -79,6 +80,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
   Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+  Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
 });
 
 function renderPanel(deepLink = false) {
@@ -301,6 +303,27 @@ it('renews confirmed availability every 30 seconds and keeps failures offline', 
   await act(async () => { await vi.advanceTimersByTimeAsync(30_050); });
   expect(screen.queryByRole('button', { name: 'You are available' })).not.toBeInTheDocument();
   expect(screen.getByText('Availability could not be confirmed. Try again.')).toBeInTheDocument();
+});
+
+it('pauses chat refresh and presence while disconnected then resumes without losing availability choice', async () => {
+  vi.useFakeTimers();
+  view.conversation.unreadCount = 0;
+  renderPanel(true);
+  await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+  fireEvent.click(screen.getByRole('button', { name: 'Go available' }));
+  await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+  expect(screen.getByRole('button', { name: 'You are available' })).toBeInTheDocument();
+  Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+  act(() => window.dispatchEvent(new Event('offline')));
+  const before = fetchMock.mock.calls.length;
+  await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+  expect(fetchMock).toHaveBeenCalledTimes(before);
+  expect(screen.queryByText('Availability could not be confirmed. Try again.')).not.toBeInTheDocument();
+  Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+  act(() => window.dispatchEvent(new Event('online')));
+  await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+  expect(screen.getByRole('button', { name: 'You are available' })).toBeInTheDocument();
+  expect(callsFor('/api/staff/chat/presence')).toHaveLength(2);
 });
 
 it('keeps a successful takeover when an earlier polling response arrives late', async () => {

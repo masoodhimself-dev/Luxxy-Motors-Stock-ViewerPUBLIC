@@ -1,5 +1,8 @@
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import { useGetStock, getGetStockQueryKey } from '@workspace/api-client-react';
+import { createStockLoader } from './stock-refresh';
+import { useRefreshActive } from './refresh-policy';
+import { useCustomerPreview } from './customer-preview-context';
 
 export type CarImage = { url: string; caption: string | null } | string;
 
@@ -86,8 +89,15 @@ function normalizeStock(data: unknown): StockData | null {
 }
 
 export function StockProvider({ children }: { children: ReactNode }) {
-  const { data: apiStock, isLoading, error } = useGetStock({ query: { queryKey: getGetStockQueryKey(), staleTime: 30_000, refetchInterval: 60_000, refetchOnWindowFocus: true } });
-  const stock = normalizeStock(apiStock);
+  const active = useRefreshActive();
+  const preview = useCustomerPreview();
+  const [loadStock] = useState(() => createStockLoader());
+  const { data: apiStock, isLoading, error } = useGetStock({ query: {
+    queryKey: getGetStockQueryKey(), queryFn: ({ signal }) => loadStock(signal),
+    enabled: active && !preview, staleTime: 30_000, refetchInterval: 60_000,
+    refetchIntervalInBackground: false, refetchOnWindowFocus: true, refetchOnReconnect: true,
+  } });
+  const stock = useMemo(() => normalizeStock(apiStock), [apiStock]);
   const errorMessage = error instanceof Error ? error.message : error ? 'Unable to load current stock.' : null;
 
   return (
