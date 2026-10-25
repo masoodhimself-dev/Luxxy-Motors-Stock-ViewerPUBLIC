@@ -1,6 +1,6 @@
 # Settings usability and regression audit — 25 October 2026
 
-Branch: `codex/settings-audit-2026-10-25`. Changes are local; this audit does not deploy them.
+Branch: `codex/settings-audit-2026-10-25`. Verified release: `d5b24f0`, deployed to the existing shared Render service on 25 October 2026 at 21:28 GMT.
 
 ## Scope and live result
 
@@ -73,4 +73,24 @@ The broad run exposed obsolete fixtures. Tests now assert the deliberately retir
 
 Responsive browser frames verify CSS/layout and visible controls; physical iPhone/iPad Safari testing remains outstanding. Real provider delivery, personal WhatsApp sending, camera capture, cloud credentials and external marketplace scheduling were not exercised or changed by this audit. The actual live Shore Drive booking availability was checked without sending a customer message.
 
-Only the live Shore Drive timetable/booking enablement has been published. The code changes, including invoice QR being off by default, await an explicit release. Existing issued invoices, amounts, payments and stock records were not rewritten. No automatic customer messaging was introduced.
+The code changes, including invoice QR being off by default, are now live after the user authorised deployment. Render completed its existing pre-deploy migration step successfully. Existing issued invoices, amounts, payments and stock records were not rewritten. No automatic customer messaging was introduced.
+
+
+## Verified Render release
+
+- Service: `luxxy-shared-staging` (`srv-db4jfhk9v7es73a4qhrg`), existing confirmed My Workspace.
+- Deploy: `dep-dbf77gg473hc73c3o6u0`; commit `d5b24f0a84e7bfb1a047568b0a149aef8e280702`.
+- Triggered 21:25 GMT; migrations successful 21:27 GMT; live 21:28:55 GMT on 25 October 2026.
+- Release includes the nine tested pending commits since `cf2c077`, including Settings/customer wiring, manual price follow-ups, verified watching, stock refresh reductions and invoice logo embedding. The Settings changes depend on this preceding work.
+- Existing pre-deploy command applied pending additive migrations 0053–0056. No direct database network access was opened; the database keeps its internal-only connection policy. No environment variables, schedules, stock credentials or other services were changed.
+- Shore Drive and Luxxy health/readiness returned 200. The deployed portal bundle contains the new booking save/timetable guidance and invoice-sharing preference.
+- Before/after checks: Shore Drive 21 cars and Luxxy 22 cars have exactly matching ID/price/status hashes. Initial public Settings and booking policies matched in full on both tenants.
+- Two consecutive Shore Drive publications exercised the real save flow using only phone spacing, then restored the exact original value. Revision advanced 12→14; the complete resulting Settings JSON exactly matched the original baseline. Luxxy stayed at revision 7 with identical Settings.
+- Customer Monday booking availability returned 16 usable Shore Drive slots and 11 Luxxy slots. Stock conditional requests returned 304 with zero response-body bytes; Watch availability returned ready. No bookings or watch signups were submitted.
+- Authenticated live UI: booking enabled with the confirmed timetable and the new **Save bookings** action; invoice WhatsApp QR preference off, other WhatsApp sharing enabled. An existing saved sale's invoice section has no invoice QR action and still offers **Open invoice**; all four existing archived paperwork entries remain listed. No sale, payment, invoice or handover was created/changed during this check.
+- No error-level application logs were returned in the initial post-release window. No customer messages or marketplace imports were sent during release verification.
+- Local proof: `output/settings-audit/release/shore-drive-invoice-qr-off.png`, `shore-drive-repeat-save-success.png`, and minimal before/after JSON summaries in the same directory. These screenshots are not committed to the public repository.
+
+### Existing dealership configuration requiring confirmation
+
+Shore Drive's saved Google review URL appears to target the Luxxy Motors profile. It was present before deployment and was preserved exactly. A confirmed Shore Drive Google review link is needed before staff use that review-request setting; no profile or replacement URL was guessed, and no review email was sent.
