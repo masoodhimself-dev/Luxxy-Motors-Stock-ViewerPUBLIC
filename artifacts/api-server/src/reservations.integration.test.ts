@@ -5,12 +5,11 @@ import "./test/setup";
  * unique dealer namespace. No migrations, schema changes or truncation run.
  */
 import assert from "node:assert/strict";
-import crypto, { randomUUID } from "node:crypto";
-import { syncBuiltinESMExports } from "node:module";
+import { randomUUID } from "node:crypto";
 import { createServer, type Server } from "node:http";
-import test, { after, beforeEach, mock } from "node:test";
+import test, { after, beforeEach } from "node:test";
 import { eq, inArray } from "drizzle-orm";
-import type { OnlineReservationInput, reservationView } from "./lib/online-reservations";
+import type { OnlineReservationInput } from "./lib/online-reservations";
 
 process.env.SESSION_SECRET = "reservation-integration-session-secret";
 process.env.STOCK_DEALER_ID = `reservations-test-${process.pid}-${randomUUID()}`;
@@ -32,9 +31,6 @@ const address = server.address();
 if (!address || typeof address === "string") throw new Error("Unable to start reservation test listener");
 const baseUrl = `http://127.0.0.1:${address.port}/api`;
 let vehicleId = "";
-
-type Reservation = ReturnType<typeof reservationView>;
-type StaffReservation = Reservation & { customerName: string; email: string; phone: string; leadId: string };
 
 async function request(path: string, init: RequestInit = {}, staff = false) {
   const headers = new Headers(init.headers);
@@ -112,154 +108,46 @@ after(async () => {
   }
 });
 
-test("persists an online hold and customer lead without recording received money; staff access is required", async () => {
-  const response = await reserve(payload({ partExchange: { registration: "AB12 CDE", mileage: 45000 } }));
-  assert.equal(response.status, 201, await response.clone().text());
-  assert.equal(response.headers.get("cache-control"), "no-store");
-  const created = await json<Reservation>(response);
-  assert.equal(created.status, "reserved");
-  assert.equal(created.paymentStatus, "simulated");
-  assert.equal(created.amountReceivedPence, 0);
-  assert.equal(created.depositPence, 10000);
-  for (const privateKey of ["customerName", "email", "phone", "idempotencyKey", "requestFingerprint", "terms"]) {
-    assert.equal(privateKey in created, false, `${privateKey} must not leak into the public response`);
+// Public card reservations are release-disabled. The supported reservation
+// business rules are exercised by test:reservations (18 isolated policy tests).
+test('release-disabled public reservations cannot create holds, leads, payments or change stock', async () => {
+  const before = await savedVehicle(), leads = await savedLeads(), events = await savedEvents();
+  const payments = await db.select().from(salePaymentsTable);
+  for (const path of ['/reservations', '/reservations/checkout']) {
+    for (const body of [payload(), payload({ expectedPricePence: 1 }), {}, { vehicleId: randomUUID() }]) {
+      const response = await request(path, { method: 'POST', body: JSON.stringify(body) });
+      assert.equal(response.status, 410); assert.match((await json<{ error: string }>(response)).error, /unavailable/);
+    }
   }
-  assert.equal((await savedVehicle()).inventoryStatus, "reserved");
-  const leads = await savedLeads();
-  assert.equal(leads.length, 1);
-  assert.equal(leads[0]!.id, created.id);
-  assert.equal(leads[0]!.stage, "reserved");
-  assert.equal(leads[0]!.depositPence, 0);
-  assert.equal(leads[0]!.depositMethod, null);
-  assert.equal(leads[0]!.depositTakenAt, null);
-  const events = await savedEvents();
-  assert.equal(events.length, 2);
-  assert.equal(events.some(({ event }) => event.type === "deposit_recorded"), false);
-  const snapshot = events.find(({ event }) => event.payload.kind === "online_reservation")!.event.payload.reservation as Record<string, unknown>;
-  assert.deepEqual(snapshot.partExchange, { registration: "AB12 CDE", mileage: 45000 });
-  assert.equal(snapshot.terms, terms);
-  assert.equal(snapshot.termsAccepted, true);
-  const payments = await db.select({ id: salePaymentsTable.id }).from(salePaymentsTable)
-    .innerJoin(salesTable, eq(salePaymentsTable.saleId, salesTable.id)).where(eq(salesTable.dealerId, dealerId));
-  assert.equal(payments.length, 0);
-  assert.equal((await request("/reservations")).status, 401);
-  assert.equal((await request("/reservations", { headers: { "x-portal-token": "wrong-token" } })).status, 401);
-  assert.equal((await cancel(created.id, false)).status, 401);
-  const staffResponse = await request("/reservations", {}, true);
-  assert.equal(staffResponse.status, 200);
-  assert.equal(staffResponse.headers.get("cache-control"), "no-store");
-  const listed = await json<{ reservations: StaffReservation[] }>(staffResponse);
-  assert.equal(listed.reservations.length, 1);
-  assert.equal(listed.reservations[0]!.leadId, created.id);
-  assert.equal(listed.reservations[0]!.email, "reservation@example.test");
-  const stock = await json<{ cars: Array<{ id: string; inventoryStatus: string }> }>(await request("/stock"));
-  assert.equal(stock.cars.find((car) => car.id === vehicleId)?.inventoryStatus, "reserved");
-
-  // The same authenticated machine must not read or cancel another deployment's records.
-  process.env.STOCK_DEALER_ID = `${dealerId}-empty-deployment`;
-  try {
-    assert.deepEqual(await json(await request("/reservations", {}, true)), { reservations: [] });
-    assert.equal((await cancel(created.id)).status, 404);
-  } finally { process.env.STOCK_DEALER_ID = dealerId; }
-  assert.equal((await savedVehicle()).inventoryStatus, "reserved");
+  assert.deepEqual(await savedVehicle(), before); assert.deepEqual(await savedLeads(), leads); assert.deepEqual(await savedEvents(), events);
+  assert.deepEqual(await db.select().from(salePaymentsTable), payments);
+  assert.equal((await db.select().from(salesTable).where(eq(salesTable.dealerId, dealerId))).length, 0);
 });
 
-test("concurrent retries return one reservation and reject a reused key with changed details", async () => {
-  const input = payload();
-  const responses = await Promise.all([reserve(input), reserve(input)]);
-  assert.deepEqual(responses.map((response) => response.status).sort(), [200, 201]);
-  const records = await Promise.all(responses.map((response) => json<Reservation>(response)));
-  assert.deepEqual(records[0], records[1]);
-  assert.equal((await savedLeads()).length, 1);
-  assert.equal((await savedEvents()).length, 2);
-  const changed = await reserve({ ...input, email: "another@example.test" });
-  assert.equal(changed.status, 409, await changed.clone().text());
-  assert.equal((await savedLeads())[0]!.email, input.email);
+test('public readiness and showroom settings stay disabled even when an old saved switch is enabled', async () => {
+  const readiness = await request('/reservations/payment-readiness'); assert.equal(readiness.status, 200);
+  assert.deepEqual(await readiness.json(), { enabled: false, mode: null, prepared: true });
+  const response = await request('/dealer-settings'); assert.equal(response.status, 200);
+  assert.equal((await json<{ onlineReservation: { enabled: boolean } }>(response)).onlineReservation.enabled, false);
+  const [saved] = await db.select().from(dealerSettingsTable).where(eq(dealerSettingsTable.dealerId, dealerId));
+  assert.equal((saved!.config.onlineReservation as { enabled: boolean }).enabled, true, 'the release guard does not overwrite saved preferences');
 });
 
-test("two buyers racing for one vehicle create exactly one hold and lead", async () => {
-  const responses = await Promise.all([
-    reserve(payload({ email: "first@example.test" })),
-    reserve(payload({ email: "second@example.test" })),
-  ]);
-  assert.deepEqual(responses.map((response) => response.status).sort(), [201, 409]);
-  assert.equal((await savedLeads()).length, 1);
-  assert.equal((await savedEvents()).length, 2);
-  assert.equal((await savedVehicle()).inventoryStatus, "reserved");
+test('staff reservation history and cancellation routes retain authorization while public creation is disabled', async () => {
+  assert.equal((await request('/reservations')).status, 401);
+  const listed = await request('/reservations', {}, true); assert.equal(listed.status, 200);
+  assert.ok(Array.isArray((await json<{ reservations: unknown[] }>(listed)).reservations));
+  const before = await savedVehicle();
+  assert.equal((await cancel(randomUUID(), false)).status, 401);
+  const cancelled = await cancel(randomUUID()); assert.equal(cancelled.status, 404);
+  assert.deepEqual(await savedVehicle(), before); assert.equal((await savedLeads()).length, 0);
 });
 
-test("turning reservations off in staff settings rejects a stale customer's request without writes", async () => {
-  const settings = await json<Record<string, unknown>>(await request("/dealer-settings"));
-  const updated = await request("/dealer-settings", { method: "PATCH", body: JSON.stringify({
-    ...settings, onlineReservation: { enabled: false, depositPence: 10000, terms },
-  }) }, true);
+test('publishing reservation settings uses the version header and cannot bypass the release guard', async () => {
+  const loaded = await request('/dealer-settings'); const config = await json<Record<string, any>>(loaded);
+  const updated = await request('/dealer-settings', { method: 'PATCH', headers: { 'If-Match': loaded.headers.get('x-settings-revision')! }, body: JSON.stringify({ ...config, onlineReservation: { ...config.onlineReservation, enabled: false } }) }, true);
   assert.equal(updated.status, 200, await updated.clone().text());
-  const response = await reserve();
-  assert.equal(response.status, 409, await response.clone().text());
-  assert.equal((await savedVehicle()).inventoryStatus, "available");
-  assert.equal((await savedLeads()).length, 0);
-  assert.equal((await savedEvents()).length, 0);
-});
-
-test("a stale vehicle price is rejected before a hold or lead is created", async () => {
-  const response = await reserve(payload({ expectedPricePence: 1849900 }));
-  assert.equal(response.status, 409, await response.clone().text());
-  assert.equal((await savedVehicle()).inventoryStatus, "available");
-  assert.equal((await savedLeads()).length, 0);
-});
-
-test("staff cancellation releases the hold once and preserves its audit history on retries", async () => {
-  const input = payload();
-  const response = await reserve(input);
-  assert.equal(response.status, 201, await response.clone().text());
-  const created = await json<Reservation>(response);
-  const cancelled = await cancel(created.id);
-  assert.equal(cancelled.status, 200, await cancelled.clone().text());
-  assert.equal((await json<Reservation>(cancelled)).status, "cancelled");
-  assert.equal((await savedVehicle()).inventoryStatus, "available");
-  assert.equal((await savedLeads())[0]!.stage, "qualifying");
-  assert.equal((await savedLeads())[0]!.depositPence, 0);
-  assert.equal((await savedEvents()).length, 4);
-  assert.equal((await cancel(created.id)).status, 200);
-  assert.equal((await savedEvents()).length, 4, "repeat cancellation must not append duplicate events");
-  const replay = await reserve(input);
-  assert.equal(replay.status, 200);
-  assert.equal((await json<Reservation>(replay)).status, "cancelled");
-  assert.equal((await savedVehicle()).inventoryStatus, "available", "a retry must not recreate the released hold");
-  const listed = await json<{ reservations: StaffReservation[] }>(await request("/reservations", {}, true));
-  assert.equal(listed.reservations[0]!.status, "cancelled");
-});
-
-test("cancellation cannot release a reservation after a real offline deposit was recorded", async () => {
-  const response = await reserve();
-  assert.equal(response.status, 201, await response.clone().text());
-  const created = await json<Reservation>(response);
-  await db.update(leadsTable).set({ depositPence: 5000, depositMethod: "bank_transfer", depositTakenAt: new Date() })
-    .where(eq(leadsTable.id, created.id));
-  const cancelled = await cancel(created.id);
-  assert.equal(cancelled.status, 409, await cancelled.clone().text());
-  assert.equal((await savedVehicle()).inventoryStatus, "reserved");
-  assert.equal((await savedLeads())[0]!.depositPence, 5000);
-  assert.equal((await savedEvents()).length, 2);
-});
-
-test("a database failure after the vehicle update rolls the whole reservation back", async () => {
-  const duplicateLeadId = randomUUID();
-  const input = payload();
-  await db.insert(leadsTable).values({ id: duplicateLeadId, dealerId, source: "phone", customerName: "Existing synthetic lead", stage: "qualifying" });
-  // Force the generated reservation UUID to collide with this suite's own lead.
-  // The resulting primary-key failure occurs after the stock update, exercising
-  // the actual PostgreSQL transaction rollback without changing the schema.
-  const random = mock.method(crypto, "randomUUID", () => duplicateLeadId);
-  syncBuiltinESMExports();
-  let response: Response;
-  try { response = await reserve(input); }
-  finally { random.mock.restore(); syncBuiltinESMExports(); }
-  assert.equal(response.status, 500, await response.clone().text());
-  assert.equal((await savedVehicle()).inventoryStatus, "available");
-  const leads = await savedLeads();
-  assert.equal(leads.length, 1);
-  assert.equal(leads[0]!.id, duplicateLeadId);
-  assert.equal(leads[0]!.customerName, "Existing synthetic lead");
-  assert.equal((await savedEvents()).length, 0);
+  assert.equal(Number(updated.headers.get('x-settings-revision')), Number(loaded.headers.get('x-settings-revision')) + 1);
+  const before = await savedVehicle(); const blocked = await reserve(); assert.equal(blocked.status, 410);
+  assert.deepEqual(await savedVehicle(), before); assert.equal((await savedLeads()).length, 0);
 });

@@ -506,109 +506,25 @@ test("a next action always carries a due date, and an owner can be assigned", as
   assert.equal(withoutAction.lead.nextActionDueAt, null);
 });
 
-test("creating a sale from a lead advances the lead and links the sale back", async () => {
+test("retired sale creation cannot advance or alter a lead or create financial records", async () => {
   const { lead } = await createManualLead({ vehicleId });
-
-  const saleResponse = await post("/sales", {
-    vehicleId,
-    leadId: lead.id,
-    customer: { name: "Phone Lead Customer", email: "phone-lead@example.test" },
-    agreedPricePence: 1850000,
-    depositPence: 50000,
-  });
-  assert.equal(saleResponse.status, 201, await saleResponse.clone().text());
-  const sale = (await saleResponse.json()) as {
-    id: string;
-    leadId: string | null;
-    balancePence: number;
-  };
-  assert.equal(sale.leadId, lead.id, "the sale links back to the lead it came from");
-  assert.equal(sale.balancePence, 1800000, "existing sale arithmetic is untouched");
-
-  const detailResponse = await request(`/leads/${lead.id}`);
-  const detail = (await detailResponse.json()) as LeadDetailBody;
-  assert.equal(detail.lead.stage, "sale_agreed", "the lead moves on when a sale is agreed");
-  assert.equal(detail.sales.length, 1);
-  assert.equal(detail.sales[0]!.id, sale.id);
-  assert.ok(detail.events.some((event) => event.type === "sale_created"));
-
-  // The sale keeps its own machinery: the checklist is still built for it.
-  const checklist = await db
-    .select()
-    .from(saleChecklistItemsTable)
-    .where(eq(saleChecklistItemsTable.saleId, sale.id));
-  assert.ok(checklist.length > 0, "sale checklist initialisation still runs");
-
-  // A closed lead cannot quietly become a sale.
-  const other = await createManualLead({ customerName: "Closed Before Sale" });
-  await post(`/leads/${other.lead.id}/outcome`, {
-    outcome: "lost",
-    reason: "Bought a van instead.",
-  });
-  const [secondVehicle] = await db
-    .insert(vehiclesTable)
-    .values({
-      dealerId,
-      source: "autotrader",
-      advertId: `leads-second-${process.pid}`,
-      title: "Second Synthetic Lead Vehicle",
-      make: "Testmaker",
-      model: "Pipeline",
-      year: 2020,
-      sourcePrice: 9500,
-      currency: "GBP",
-      inventoryStatus: "available",
-      sourceStatus: "live",
-    })
-    .returning({ id: vehiclesTable.id });
-  const blocked = await post("/sales", {
-    vehicleId: secondVehicle!.id,
-    leadId: other.lead.id,
-    customer: { name: "Closed Before Sale", email: "closed-lead@example.test" },
-    agreedPricePence: 950000,
-    depositPence: 0,
-  });
-
-  assert.equal(blocked.status, 409, await blocked.clone().text());
-  const strandedSales = await db.select().from(salesTable).where(eq(salesTable.vehicleId, secondVehicle!.id));
-  assert.equal(strandedSales.length, 0, "the rejected sale rolls back");
+  const before = await (await request(`/leads/${lead.id}`)).json() as LeadDetailBody;
+  const response = await post('/sales', { vehicleId, leadId: lead.id, customer: { name: 'Fictional lead buyer', email: 'retired@example.test' }, agreedPricePence: 1850000, depositPence: 50000 });
+  assert.equal(response.status, 410); assert.deepEqual(await response.json(), { error: 'The previous sales process has been removed.' });
+  assert.deepEqual(await (await request(`/leads/${lead.id}`)).json(), before);
+  assert.equal((await db.select().from(salesTable).where(eq(salesTable.dealerId, dealerId))).length, 0);
 });
 
-test("rejects contradictory lead and enquiry context without changing the lead", async () => {
+test("retired sale creation rejects contradictory context without changing either lead", async () => {
   const { lead } = await createManualLead({ vehicleId });
-  const [otherVehicle] = await db.insert(vehiclesTable).values({
-    dealerId, source: "autotrader", advertId: `leads-mismatch-${process.pid}`,
-    title: "Mismatched Synthetic Lead Vehicle", inventoryStatus: "available", sourceStatus: "live",
-  }).returning({ id: vehiclesTable.id });
-  const wrongVehicle = await post("/sales", {
-    vehicleId: otherVehicle!.id, leadId: lead.id,
-    customer: { name: "Wrong Vehicle Lead", email: "wrong-vehicle@example.test" },
-    agreedPricePence: 725000,
-  });
-  assert.equal(wrongVehicle.status, 409, await wrongVehicle.clone().text());
-  const enquiryResponse = await post("/enquiries", {
-    vehicleId, type: "general", customerName: "Separate Enquiry",
-    email: "separate-enquiry@example.test", preferredContact: "email", phone: null, appointmentAt: null,
-    message: "Is this still available?",
-  });
-  assert.equal(enquiryResponse.status, 201, await enquiryResponse.clone().text());
-  const separateEnquiry = await enquiryResponse.json() as { id: string };
-  const contradictory = await post("/sales", {
-    vehicleId, leadId: lead.id, enquiryId: separateEnquiry.id,
-    customer: { name: "Wrong Vehicle Lead", email: "wrong-vehicle@example.test" },
-    agreedPricePence: 1250000,
-  });
-  assert.equal(contradictory.status, 409, await contradictory.clone().text());
-  const untouched = await (await request(`/leads/${lead.id}`)).json() as LeadDetailBody;
-  assert.equal(untouched.lead.stage, "new");
-  assert.equal(untouched.sales.length, 0);
-  assert.equal(untouched.events.some(event => event.type === "sale_created"), false);
-  const strandedSales = await db.select().from(salesTable).where(eq(salesTable.vehicleId, otherVehicle!.id));
-  assert.equal(strandedSales.length, 0);
-  const accepted = await post("/sales", {
-    vehicleId, leadId: lead.id,
-    customer: { name: "Matching Buyer", email: "matching@example.test" },
-    agreedPricePence: 1250000,
-  });
-  assert.equal(accepted.status, 201, await accepted.clone().text());
+  const [otherVehicle] = await db.insert(vehiclesTable).values({ dealerId, source: 'autotrader', advertId: `retired-mismatch-${process.pid}`, title: 'Fictional other vehicle', inventoryStatus: 'available', sourceStatus: 'live' }).returning();
+  const before = await (await request(`/leads/${lead.id}`)).json() as LeadDetailBody;
+  const stock = await db.select().from(vehiclesTable).where(eq(vehiclesTable.dealerId, dealerId));
+  for (const body of [{ vehicleId: otherVehicle!.id, leadId: lead.id }, { vehicleId, leadId: lead.id, enquiryId: '00000000-0000-4000-8000-000000000001' }]) {
+    const response = await post('/sales', { ...body, customer: { name: 'Fictional mismatch', email: 'mismatch@example.test' }, agreedPricePence: 1250000 });
+    assert.equal(response.status, 410); assert.deepEqual(await response.json(), { error: 'The previous sales process has been removed.' });
+  }
+  assert.deepEqual(await (await request(`/leads/${lead.id}`)).json(), before);
+  assert.deepEqual(await db.select().from(vehiclesTable).where(eq(vehiclesTable.dealerId, dealerId)), stock);
+  assert.equal((await db.select().from(salesTable).where(eq(salesTable.dealerId, dealerId))).length, 0);
 });

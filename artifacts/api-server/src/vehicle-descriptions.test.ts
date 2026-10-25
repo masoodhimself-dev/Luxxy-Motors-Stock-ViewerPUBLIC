@@ -288,6 +288,7 @@ test("tenant-scoped generation, replay, stale facts, protected publishing, resto
       sourceUrl: "https://www.autotrader.co.uk/example",
     });
   const id = randomUUID();
+  const projectForDealer = (rows: Parameters<typeof projectVehicles>[0]) => runWithTenant({ dealerId: 'a', canonicalOrigin: 'https://a.example.test', platform: 'autotrader', retailerId: 'a', sourceUrl: 'https://www.autotrader.co.uk/example', kind: 'website' }, () => projectVehicles(rows));
   await db.insert(vehiclesTable).values({
     ...sample,
     id,
@@ -469,7 +470,7 @@ test("tenant-scoped generation, replay, stale facts, protected publishing, resto
         .select()
         .from(vehiclesTable)
         .where(eq(vehiclesTable.id, id));
-      const [publicCar] = await projectVehicles([row!]);
+      const [publicCar] = await projectForDealer([row!]);
       assert.equal(
         (publicCar!.specifications as Record<string, unknown>)?.description,
         current.current,
@@ -690,7 +691,7 @@ test("tenant-scoped generation, replay, stale facts, protected publishing, resto
         .select()
         .from(vehiclesTable)
         .where(eq(vehiclesTable.id, id));
-      const [projected] = await projectVehicles([row!]);
+      const [projected] = await projectForDealer([row!]);
       assert.equal(projected!.sourceExtras?.vehicleDescriptionBody, copy);
       assert.equal(
         projected!.sourceExtras?.vehicleDescriptionPlacement,
@@ -723,7 +724,7 @@ test("tenant-scoped generation, replay, stale facts, protected publishing, resto
         .select()
         .from(vehiclesTable)
         .where(eq(vehiclesTable.id, id));
-      const [unchanged] = await projectVehicles([unchangedRow!]);
+      const [unchanged] = await projectForDealer([unchangedRow!]);
       assert.match(
         String(unchanged!.sourceExtras?.vehicleDescriptionTax),
         /17.06/,

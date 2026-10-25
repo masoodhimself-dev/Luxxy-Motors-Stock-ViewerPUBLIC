@@ -471,6 +471,5 @@ export function DealerSettingsHub() {
       {selectedSection === 'chat' && <CustomerChatSettings />}
       </div>
     </div>
-    <p className="settings-save-help">Dealership details, website and booking edits share one draft: review and publish them together. Emails, documents and team access have their own save controls.</p>
   </section>;
 }

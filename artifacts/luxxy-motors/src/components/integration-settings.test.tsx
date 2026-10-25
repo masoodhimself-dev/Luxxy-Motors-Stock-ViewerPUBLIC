@@ -23,7 +23,7 @@ it('keeps entered keys out of browser storage and clears them after the private 
   expect(screen.getByText('Email and payment requests are disabled on this server.')).toBeInTheDocument();
   expect(request.mock.calls.filter(([, init]) => init?.method === 'PUT')).toHaveLength(1);
 });
-it('shows active templates first and keeps inactive templates available without changing delivery', async () => {
+it('shows only active templates while keeping previews separate from delivery', async () => {
   const response = { revision: 0, templates: defaultEmailTemplates, appearance: defaultEmailAppearance, variables: ['customer_name', 'dealer_name', 'portal_url'] };
   request.mockImplementation(async (path, init) => {
     if (path === '/api/email-templates') return Response.json(response);
@@ -33,8 +33,7 @@ it('shows active templates first and keeps inactive templates available without 
   render(<EmailTemplatesSettings />); const select = await screen.findByLabelText('Choose a message');
   for (const template of defaultEmailTemplates.filter(item=>item.category!=='Reservations')) expect(screen.getByRole('option', { name: template.label })).toBeInTheDocument();
   expect(screen.queryByRole('option',{name:'Reservation confirmation'})).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('checkbox',{name:'Show inactive reservation templates'}));
-  for (const template of defaultEmailTemplates) expect(screen.getByRole('option',{name:template.label})).toBeInTheDocument();
+  expect(screen.queryByRole('checkbox',{name:'Show inactive reservation templates'})).not.toBeInTheDocument();
   await screen.findByText('Preview is current');
   fireEvent.change(select, { target: { value: 'payment_receipt' } }); await screen.findByText('Preview is current'); fireEvent.change(screen.getByLabelText('Subject line'), { target: { value: 'A personal receipt' } }); fireEvent.click(screen.getByRole('tab', { name: 'Branding' })); fireEvent.change(screen.getByLabelText('Footer wording'), { target: { value: 'Call {{dealer_name}} for help.' } }); fireEvent.click(screen.getByRole('tab', { name: 'Messages' })); fireEvent.click(screen.getByRole('button', { name: 'Update preview' }));
   await screen.findByText('Preview is current');

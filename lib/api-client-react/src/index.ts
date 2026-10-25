@@ -1,5 +1,6 @@
 export * from "./generated/api";
 export * from "./generated/api.schemas";
+export { getGetDealerSettingsQueryOptions, useGetDealerSettings } from './dealer-settings-query';
 export {
   setBaseUrl,
   setAuthTokenGetter,

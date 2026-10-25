@@ -2,6 +2,7 @@ import { googleReviewUrl } from '@workspace/vehicle-meta';
 import { WebsiteContentEditor } from "./website-content-editor";
 import { customerWhatsAppNumber } from '@/lib/customer-whatsapp';
 import { SettingsChangeSummary } from './settings-change-summary';
+import { settingsChanges } from '@/lib/settings-changes';
 import { PlatformFeatureNotice, BookingHoursNotice } from './settings-availability-notices';
 import { customerFeaturePolicy } from '@workspace/vehicle-meta';
 import { vehicleSheetAccent, vehicleSheetUsesWebsiteColour } from '@/lib/vehicle-sheet-branding';
@@ -360,9 +361,15 @@ function TestDriveSettings({ value, onChange, errors, showroomHours }: {
 }) {
   const [copyPreview, setCopyPreview] = useState(false);
   const bookingCopy = showroomBookingCopy(showroomHours, value);
+  const needsHours = value.enabled && !value.weeklyHours.some(day => day.enabled);
   const [blockedDate, setBlockedDate] = useState('');
   const update = <K extends keyof DealerTestDriveBooking>(key: K, next: DealerTestDriveBooking[K]) => onChange({ ...value, [key]: next });
   const dateLabel = (date: string) => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/London' }).format(new Date(`${date}T12:00:00Z`));
+  const hoursCopy = <div className="settings-hours-copy mb-4 rounded-md border border-border bg-background p-3">
+    <Button type="button" variant="outline" disabled={!bookingCopy} onClick={() => setCopyPreview(!copyPreview)}>Use showroom hours…</Button>
+    <p className="mt-2 text-xs text-muted-foreground">{bookingCopy ? 'Preview your showroom timetable before applying it to appointments.' : 'Confirm all seven showroom days first, or choose appointment days below.'}</p>
+    {copyPreview && bookingCopy && <div className="mt-3 border-t border-border pt-3" data-testid="booking-hours-copy-preview"><p className="font-semibold">Proposed appointment hours</p><ul className="my-3 text-sm">{[1, 2, 3, 4, 5, 6, 0].map(day => { const proposed = bookingCopy.find(item => item.day === day)!; return <li key={day}>{weekdayNames[day]}: {proposed.enabled ? `${proposed.open}–${proposed.close}` : 'Closed'}</li>; })}</ul><div className="flex flex-wrap gap-2"><Button type="button" onClick={() => { update('weeklyHours', bookingCopy); setCopyPreview(false); }}>Apply these hours to draft</Button><Button type="button" variant="outline" onClick={() => setCopyPreview(false)}>Keep current hours</Button></div></div>}
+  </div>;
   return (
     <div className="settings-subsection settings-booking-settings rounded-md border border-border p-4 sm:p-6" data-testid="test-drive-settings">
       <div className="border-b border-border pb-5">
@@ -370,6 +377,12 @@ function TestDriveSettings({ value, onChange, errors, showroomHours }: {
         <label className="mt-3 flex min-h-11 items-center gap-3 text-sm font-medium"><input type="checkbox" className="h-5 w-5 accent-primary" checked={value.enabled} onChange={event => update('enabled', event.target.checked)} data-testid="checkbox-test-drive-enabled" />Accept online test-drive bookings</label>
         <PlatformFeatureNotice feature="testDriveBookings" />
       </div>
+      {needsHours && <aside role={errors['testDriveBooking.weeklyHours'] ? 'alert' : 'status'} className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950" data-testid="booking-hours-required">
+        <p className="font-semibold">No appointment hours are set</p>
+        <p className="mb-3 mt-1">Choose at least one available day before saving online booking.</p>
+        {hoursCopy}
+        <Button type="button" variant="link" className="px-0" onClick={() => { const target = document.getElementById('settings-appointment-hours'); target?.focus(); target?.scrollIntoView({block:'start'}); }}>Choose appointment days</Button>
+      </aside>}
       <div className="mt-5 grid gap-5 sm:grid-cols-2">
         <Field label="Booking confirmation" hint="What the customer sees">
           <NativeSelect value={value.confirmationMode} onChange={event => update('confirmationMode', event.target.value as DealerTestDriveBooking['confirmationMode'])} data-testid="select-test-drive-confirmation">
@@ -378,6 +391,11 @@ function TestDriveSettings({ value, onChange, errors, showroomHours }: {
           </NativeSelect>
         </Field>
         <p className="self-center text-sm leading-6 text-muted-foreground">{value.confirmationMode === 'approval' ? 'Customers receive a request acknowledgement. Review requests in the Test drives tab to confirm or decline the appointment.' : 'Available appointments are confirmed as soon as the customer completes their booking.'}</p>
+      </div>
+      <details className="mt-5 rounded-md border border-border p-4" open={Object.keys(errors).some(key => /^testDriveBooking\.(durationMinutes|bufferMinutes|minimumNoticeHours|dailyCapacity|daysAhead)$/.test(key)) || undefined}>
+        <summary className="cursor-pointer text-sm font-semibold">Appointment length, notice and daily limits</summary>
+        <p className="mt-2 text-xs text-muted-foreground">Currently {value.durationMinutes}-minute visits, {value.minimumNoticeHours} hours’ notice and up to {value.dailyCapacity} appointments a day.</p>
+        <div className="mt-4 grid gap-5 sm:grid-cols-2">
         {([
           ['durationMinutes', 'Appointment length (minutes)', '15–180 minutes', 15, 180],
           ['bufferMinutes', 'Preparation time between visits (minutes)', '0–120 minutes', 0, 120],
@@ -389,16 +407,13 @@ function TestDriveSettings({ value, onChange, errors, showroomHours }: {
             <Input type="number" inputMode="numeric" min={min} max={max} step={1} value={value[key]} onChange={event => update(key, Number(event.target.value))} data-testid={`input-test-drive-${key}`} />
           </Field>
         ))}
-      </div>
-      <fieldset className="mt-6 border-t border-border pt-5">
+        </div>
+      </details>
+      <fieldset id="settings-appointment-hours" tabIndex={-1} className="mt-6 scroll-mt-24 border-t border-border pt-5">
         <legend className="pr-3 text-sm font-semibold">Appointment hours</legend>
         <p className="mb-3 text-sm text-muted-foreground">These times control the booking calendar. Your public opening hours are managed in Dealership details. Appointment hours can be different.</p>
         <BookingHoursNotice hours={showroomHours} booking={value} />
-        <div className="settings-hours-copy mb-4 rounded-md border border-border bg-background p-3">
-          <Button type="button" variant="outline" disabled={!bookingCopy} onClick={() => setCopyPreview(!copyPreview)}>Use showroom hours…</Button>
-          <p className="mt-2 text-xs text-muted-foreground">{bookingCopy ? 'Preview the confirmed showroom timetable before replacing these appointment hours. Other booking rules stay the same.' : 'Confirm all seven showroom days first. Each open day must fit a full appointment. Your current appointment hours are unchanged.'}</p>
-          {copyPreview && bookingCopy && <div className="mt-3 border-t border-border pt-3" data-testid="booking-hours-copy-preview"><p className="font-semibold">Proposed appointment hours</p><ul className="my-3 text-sm">{[1, 2, 3, 4, 5, 6, 0].map(day => { const proposed = bookingCopy.find(item => item.day === day)!; return <li key={day}>{weekdayNames[day]}: {proposed.enabled ? `${proposed.open}–${proposed.close}` : 'Closed'}</li>; })}</ul><div className="flex flex-wrap gap-2"><Button type="button" onClick={() => { update('weeklyHours', bookingCopy); setCopyPreview(false); }}>Apply these hours to draft</Button><Button type="button" variant="outline" onClick={() => setCopyPreview(false)}>Keep current hours</Button></div></div>}
-        </div>
+        {!needsHours && hoursCopy}
         <div className="divide-y divide-border">
           {[1, 2, 3, 4, 5, 6, 0].map(dayNumber => {
             const day = value.weeklyHours.find(entry => entry.day === dayNumber)!;
@@ -412,7 +427,7 @@ function TestDriveSettings({ value, onChange, errors, showroomHours }: {
             );
           })}
         </div>
-        {errors['testDriveBooking.weeklyHours'] && <p role="alert" className="mt-2 text-sm text-destructive">{errors['testDriveBooking.weeklyHours']}</p>}
+        {errors['testDriveBooking.weeklyHours'] && !needsHours && <p role="alert" className="mt-2 text-sm text-destructive">{errors['testDriveBooking.weeklyHours']}</p>}
       </fieldset>
       <div className="mt-6 border-t border-border pt-5">
         <h4 className="text-sm font-semibold">Unavailable dates</h4>
@@ -455,7 +470,7 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
     return (stock?.cars || []).filter((car) => Boolean(getThumbnailUrl(car)));
   }, [stock?.cars]);
 
-  const settingsQuery = useGetDealerSettings({ query: { queryKey: getGetDealerSettingsQueryKey(), structuralSharing: false } });
+  const settingsQuery = useGetDealerSettings({ query: { queryKey: getGetDealerSettingsQueryKey() } });
   const queryClient = useQueryClient();
   const [savedRevision, setSavedRevision] = useState<number | null>(null);
   const updateSettings = useUpdateDealerSettings({ request: { headers: savedRevision === null ? {} : { 'If-Match': String(savedRevision) } } });
@@ -469,6 +484,15 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
   const [discardOpen, setDiscardOpen] = useState(false);
   const uploadBusyChanged = (busy: boolean) => setPendingUploads(count => Math.max(0, count + (busy ? 1 : -1)));
   const dirty = initialized && JSON.stringify(form) !== savedSnapshot;
+  const changes = useMemo(() => {
+    try { return savedSnapshot ? settingsChanges(JSON.parse(savedSnapshot), form) : []; }
+    catch { return []; }
+  }, [savedSnapshot, form]);
+  const onlyBookingChanges = changes.length > 0 && changes.every(change => change.section === 'bookings');
+  const bookingSave = activeSection === 'bookings' && (!dirty || onlyBookingChanges);
+  const publishedSnapshot = settingsQuery.data ? JSON.stringify(copySettings(settingsQuery.data)) : '';
+  const publicationChanged = dirty && !!publishedSnapshot && savedSnapshot !== publishedSnapshot;
+  const summaryErrors = Object.entries(validationErrors).filter(([key]) => activeSection !== 'bookings' || !key.startsWith('testDriveBooking.'));
 
   useEffect(() => {
     if (settingsQuery.data && !initialized) {
@@ -478,8 +502,20 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
       setSavedSnapshot(draft?.saved ?? JSON.stringify(saved));
       setSavedRevision(draft ? draft.revision ?? (draft.saved === JSON.stringify(saved) ? getSettingsRevision(settingsQuery.data) : null) : getSettingsRevision(settingsQuery.data));
       setInitialized(true);
+    } else if (settingsQuery.data && initialized && !updateSettings.isPending) {
+      const revision = getSettingsRevision(settingsQuery.data);
+      // Fresh publications are safe to adopt only while clean. An identical
+      // publication may advance its revision without overwriting any draft.
+      if (!dirty && (savedSnapshot !== publishedSnapshot || savedRevision !== revision)) {
+        setForm(copySettings(settingsQuery.data));
+        setSavedSnapshot(publishedSnapshot);
+        setSavedRevision(revision);
+        setValidationErrors({});
+      } else if (savedSnapshot === publishedSnapshot && savedRevision !== revision) {
+        setSavedRevision(revision);
+      }
     }
-  }, [initialized, settingsQuery.data]);
+  }, [initialized, settingsQuery.data, settingsQuery.dataUpdatedAt, dirty, publishedSnapshot, savedSnapshot, savedRevision, updateSettings.isPending]);
 
   useEffect(() => {
     if (!initialized) return;
@@ -505,6 +541,7 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
     setSavedRevision(getSettingsRevision(settingsQuery.data));
     setValidationErrors({});
     setSaveMessage('');
+    updateSettings.reset();
     clearSettingsDraft();
     setDiscardOpen(false);
   };
@@ -512,6 +549,8 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
   const updateGroup = <K extends keyof DealerSettings>(key: K, value: DealerSettings[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
     setSaveMessage('');
+    updateSettings.reset();
+    setValidationErrors(current => Object.fromEntries(Object.entries(current).filter(([field]) => field !== key && !field.startsWith(`${key}.`))));
   };
 
   const updateNested = <K extends keyof DealerSettings, P extends keyof DealerSettings[K]>(
@@ -524,6 +563,8 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
       [group]: { ...(current[group] as object), [property]: value },
     }));
     setSaveMessage('');
+    updateSettings.reset();
+    setValidationErrors(current => Object.fromEntries(Object.entries(current).filter(([field]) => field !== `${group}.${String(property)}`)));
   };
 
   const updatePresentation = (key: keyof DealerPresentation, value: string | boolean) =>
@@ -617,8 +658,9 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
     if (!initialized || !settingsQuery.data || !dirty || updateSettings.isPending || pendingUploads > 0) return;
     setSaveMessage('');
     if (savedRevision === null) { setValidationErrors({ revision: 'Your draft has no publication version. Discard the draft to reload published settings before saving.' }); return; }
+    if (publicationChanged) { setValidationErrors({ revision: 'Published settings changed while you were editing. Your draft is kept. Review the latest publication, or discard this draft to load it before saving.' }); scrollToSection('review'); return; }
     if (!validate()) return;
-    if (activeSection !== 'review') { scrollToSection('review'); return; }
+    if (activeSection !== 'review' && !bookingSave) { scrollToSection('review'); return; }
     updateSettings.mutate(
       { data: copySettings(form) },
       {
@@ -627,9 +669,12 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
           setSavedSnapshot(JSON.stringify(copySettings(saved)));
           setSavedRevision(getSettingsRevision(saved));
           clearSettingsDraft();
-          setSaveMessage('Published to the showroom. Your changes are live.');
+          setSaveMessage(bookingSave ? 'Booking settings saved. Your changes are live.' : 'Published to the showroom. Your changes are live.');
           queryClient.setQueryData(getGetDealerSettingsQueryKey(), saved);
           queryClient.invalidateQueries({ queryKey: getGetDealerSettingsQueryKey() });
+        },
+        onError: (error) => {
+          if (error && typeof error === 'object' && 'status' in error && error.status === 409) void settingsQuery.refetch();
         },
       },
     );
@@ -694,8 +739,8 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
     <section className="settings-studio portal-settings-premium settings-website-tabs mb-12" aria-labelledby="settings-heading">
       <div className="settings-studio-heading settings-compact-heading">
         <h2 id="settings-heading" className="sr-only">{sectionGroup === 'dealership' ? 'Dealership details' : sectionGroup === 'bookings' ? 'Bookings' : 'Your website'}</h2>
-        <p className="settings-draft-explainer">Changes stay in your draft until you publish.</p>
-        <Button type="button" variant="ghost" onClick={() => scrollToSection('review')} className="settings-check-link">Website checks <span>{readinessIssues.length ? `${readinessIssues.length} to review` : 'No missing details'}</span></Button>
+        <p className="settings-draft-explainer">{activeSection === 'bookings' ? 'Save changes to update your online bookings.' : 'Changes stay in your draft until you publish.'}</p>
+        {activeSection !== 'bookings' && <Button type="button" variant="ghost" onClick={() => scrollToSection('review')} className="settings-check-link">Website checks <span>{readinessIssues.length ? `${readinessIssues.length} to review` : 'No missing details'}</span></Button>}
       </div>
 
       {settingsQuery.isError && (
@@ -721,15 +766,15 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
         <div className="settings-draft-notice mb-6 flex flex-wrap items-center justify-between gap-3 border-l-2 border-accent bg-secondary/40 px-4 py-3" role="status">
           <div className="text-sm">
             <p className="font-semibold">Unpublished changes</p>
-            <p className="mt-1 text-muted-foreground">{draftStored ? 'All dealership, website and booking edits share this draft. It stays in this browser tab for 24 hours, including when you change areas.' : 'Your draft stays while this app is open. Browser storage is unavailable; keep this tab open until you publish.'}</p>
-            {settingsQuery.data && savedSnapshot !== JSON.stringify(copySettings(settingsQuery.data)) && <p className="mt-1">Published settings have changed since this draft started. Check them before publishing your draft.</p>}
+            <p className="mt-1 text-muted-foreground">{draftStored ? onlyBookingChanges ? 'Your booking edits are ready to save.' : 'Dealership, website and booking edits share one draft. Review all changes before publishing.' : 'Browser storage is unavailable. Keep this tab open until your changes are saved.'}</p>
+            {publicationChanged && <p className="mt-1">Published settings have changed since this draft started. Your edits are kept; review the latest publication before continuing.</p>}
           </div>
           <Button type="button" variant="outline" disabled={pendingUploads > 0 || updateSettings.isPending} onClick={() => setDiscardOpen(true)}>Discard draft</Button>
         </div>
       )}
-      {Object.keys(validationErrors).length > 0 && <div role="alert" className="mb-6 rounded-md border border-destructive/30 bg-destructive/5 p-4" data-testid="settings-error-summary">
+      {summaryErrors.length > 0 && <div role="alert" className="mb-6 rounded-md border border-destructive/30 bg-destructive/5 p-4" data-testid="settings-error-summary">
         <p className="font-semibold">Check these settings before publishing</p>
-        <ul className="mt-2 list-disc space-y-2 pl-5 text-sm">{Object.entries(validationErrors).map(([key, message]) => <li key={key}>{message}</li>)}</ul>
+        <ul className="mt-2 list-disc space-y-2 pl-5 text-sm">{summaryErrors.map(([key, message]) => <li key={key}>{message}</li>)}</ul>
       </div>}
       <ActiveSettingsSection.Provider value={activeSection}>
       <form role={groupTabs.length > 1 ? "tabpanel" : undefined} id={`website-settings-panel-${mainTab}`} aria-labelledby={groupTabs.length > 1 ? `website-settings-tab-${mainTab}` : undefined} aria-label={groupTabs.length === 1 ? "Booking settings" : undefined} tabIndex={0} onSubmit={save} data-preserves-draft="true" className="settings-editor space-y-6" noValidate onFocusCapture={event => {
@@ -743,6 +788,7 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
           }
         });
       }}>
+        <fieldset disabled={updateSettings.isPending} className="contents">
         <SectionCard id="identity" eyebrow="Brand" title="Brand identity" description="Your dealership name, logos and website colours." icon={<Palette className="h-5 w-5" />}>
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Dealership name" error={validationErrors['identity.name']}>
@@ -1213,10 +1259,10 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
             )}
             {Object.keys(validationErrors).length > 0 && !saveMessage && !updateSettings.isError && (
                 <p className="flex items-center gap-2 font-bold text-destructive" data-testid="status-settings-validation">
-                  <CircleAlert className="h-4 w-4" />{Object.values(validationErrors)[0]}</p>
+                  <CircleAlert className="h-4 w-4" />Check the fields marked above.</p>
               )}
             {!saveMessage && !updateSettings.isError && Object.keys(validationErrors).length === 0 && (
-                <p className="text-primary/70">{pendingUploads > 0 ? 'Wait for the image upload to finish before publishing.' : dirty ? 'Shared draft has unpublished changes.' : 'Saved — no unpublished changes.'}</p>
+                <p className="text-primary/70">{pendingUploads > 0 ? 'Wait for the image upload to finish before publishing.' : dirty ? bookingSave ? 'Saves booking settings only.' : 'Review the complete shared draft before publishing.' : 'Saved — no unpublished changes.'}</p>
               )}
           </div>
           <div className="settings-save-actions grid grid-cols-2 gap-2 sm:flex">
@@ -1224,10 +1270,11 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
               <ExternalLink className="h-3.5 w-3.5" /> View published showroom</Link>
             <Button type="submit" disabled={!dirty || updateSettings.isPending || pendingUploads > 0} className="min-h-11 px-2 sm:px-4 rounded-md font-display text-[12px] font-semibold tracking-normal shadow-none transition-all" data-testid="button-save-settings">
               <Save className="mr-2 h-4 w-4" />
-              {updateSettings.isPending ? 'Publishing…' : activeSection !== 'review' ? 'Review changes' : 'Publish showroom'}
+              {updateSettings.isPending ? 'Saving…' : bookingSave ? 'Save bookings' : activeSection !== 'review' ? 'Review changes' : 'Publish showroom'}
             </Button>
           </div>
         </div>
+        </fieldset>
       </form>
       </ActiveSettingsSection.Provider>
       </div>

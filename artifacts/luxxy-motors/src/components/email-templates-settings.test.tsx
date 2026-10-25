@@ -120,13 +120,11 @@ it('previews inherited website branding while retaining the custom override and 
  fireEvent.click(screen.getByRole('tab',{name:'Branding'}));fireEvent.click(screen.getByRole('checkbox',{name:'Use website logo and colour'}));
  expect(screen.getByLabelText('Logo image address')).toHaveValue('https://custom.example.test/logo.png');expect(screen.getByLabelText('Footer wording')).toHaveValue('Approved dealer footer');
 });
-it('hides inactive templates in one step after an approved wording discard',async()=>{
- api();vi.stubGlobal('confirm',vi.fn().mockReturnValue(true));render(<EmailTemplatesSettings/>);await screen.findByText('Preview is current');
- fireEvent.click(screen.getByRole('checkbox',{name:'Show inactive reservation templates'}));
- fireEvent.change(screen.getByLabelText('Choose a message'),{target:{value:'reservation_confirmation'}});await screen.findByText('Preview is current');
- fireEvent.change(screen.getByLabelText('Your message'),{target:{value:'Unsaved reservation message'}});
- fireEvent.click(screen.getByRole('checkbox',{name:'Show inactive reservation templates'}));
- await waitFor(()=>expect(screen.getByRole('checkbox',{name:'Show inactive reservation templates'})).not.toBeChecked());
- expect(screen.getByLabelText('Choose a message')).toHaveValue('enquiry_acknowledgement');expect(window.confirm).toHaveBeenCalledTimes(1);
+it('keeps unreleased reservation templates out of everyday email settings without changing saved templates',async()=>{
+ const {writes}=api();render(<EmailTemplatesSettings/>);await screen.findByText('Preview is current');
+ expect(screen.queryByRole('checkbox',{name:'Show inactive reservation templates'})).not.toBeInTheDocument();
  expect(screen.queryByRole('option',{name:'Reservation confirmation'})).not.toBeInTheDocument();
+ expect(screen.getByRole('option',{name:'Booking confirmed'})).toBeInTheDocument();
+ expect(screen.getByRole('option',{name:'Invoice'})).toBeInTheDocument();
+ expect(writes).toHaveLength(0);
 });

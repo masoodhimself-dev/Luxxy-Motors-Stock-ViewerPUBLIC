@@ -35,6 +35,7 @@ export function ShareQr({
   url,
   purpose,
   source,
+  documentType,
   label = "Share by QR",
   disabled = false,
   beforeGenerate,
@@ -51,6 +52,7 @@ export function ShareQr({
   url?: string;
   purpose?: "record-video";
   source?: PhoneShareSource;
+  documentType?: string;
   label?: string;
   disabled?: boolean;
   beforeGenerate?: () => Promise<void>;
@@ -58,7 +60,8 @@ export function ShareQr({
   const cache = useContext(QueryClientContext);
   const availabilityId = useId();
   const sharingSettings = usePhoneSharingSettings(whatsapp);
-  const sharingUnavailable = whatsapp && !sharingSettings.enabled;
+  const invoiceSharingOff = whatsapp && source?.kind === 'document' && documentType === 'invoice' && !sharingSettings.invoiceQrEnabled;
+  const sharingUnavailable = whatsapp && (!sharingSettings.enabled || invoiceSharingOff);
   const [open, setOpen] = useState(false),
     [grant, setGrant] = useState<{
       id?: string;
@@ -280,6 +283,7 @@ export function ShareQr({
     </div>
     {whatsapp && grant.expiresAt && <p className="phone-share-step-note">Private link expires {new Date(grant.expiresAt).toLocaleString("en-GB")}. Keep the link private.</p>}
   </div>;
+  if (invoiceSharingOff && (!grant || expired)) return null;
   const trigger = <Button type="button" variant="outline" disabled={disabled || sharingBlocked} aria-describedby={sharingBlocked ? availabilityId : undefined} title={sharingReason} onClick={()=>void generate()}><QrCode size={17} aria-hidden="true"/>{label}</Button>;
   return <>
     {sharingBlocked ? <span className="phone-share-unavailable">{trigger}<span id={availabilityId} className="phone-share-availability" role="status">{sharingReason}{settingsFailed && <Button type="button" variant="ghost" disabled={sharingSettings.isFetching} onClick={()=>void sharingSettings.refetch()}>{sharingSettings.isFetching ? "Checking settings…" : "Retry WhatsApp settings"}</Button>}</span></span> : trigger}

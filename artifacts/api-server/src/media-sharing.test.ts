@@ -420,15 +420,15 @@ test("isolated real HTTP media and QR workflow", async (t) => {
       const initial = await call(path, { user: 'salesperson' });
       assert.equal(initial.status, 200);
       assert.equal(initial.headers['cache-control'], 'no-store');
-      assert.deepEqual(initial.json, { revision: 0, enabled: true });
+      assert.deepEqual(initial.json, { revision: 0, enabled: true, invoiceQrEnabled: false });
       for (const user of ['salesperson', 'accounts']) {
         assert.equal((await call(path, { method: 'PUT', user, body: { expectedRevision: 0, enabled: false } })).status, 403);
       }
       assert.equal((await call(path, { method: 'PUT', headers: { origin: b.canonicalOrigin }, body: { expectedRevision: 0, enabled: false } })).status, 403);
       const saved = await call(path, { method: 'PUT', headers: { origin: a.canonicalOrigin }, body: { expectedRevision: 0, enabled: false } });
-      assert.equal(saved.status, 200); assert.deepEqual(saved.json, { revision: 1, enabled: false });
-      assert.deepEqual((await call(path, { user: 'accounts' })).json, { revision: 1, enabled: false });
-      assert.deepEqual((await call(path, { user: b.dealerId, host: 'b.example.test' })).json, { revision: 0, enabled: true });
+      assert.equal(saved.status, 200); assert.deepEqual(saved.json, { revision: 1, enabled: false, invoiceQrEnabled: false });
+      assert.deepEqual((await call(path, { user: 'accounts' })).json, { revision: 1, enabled: false, invoiceQrEnabled: false });
+      assert.deepEqual((await call(path, { user: b.dealerId, host: 'b.example.test' })).json, { revision: 0, enabled: true, invoiceQrEnabled: false });
       assert.equal((await call(path, { method: 'PUT', body: { expectedRevision: 0, enabled: true } })).status, 409);
       assert.equal((await call(path, { method: 'PUT', body: { expectedRevision: 1, enabled: true, expiryHours: 500 } })).status, 400);
       assert.equal((await call(path, { method: 'PUT', body: { expectedRevision: 1, enabled: true } })).status, 200);
@@ -748,6 +748,17 @@ test("isolated real HTTP media and QR workflow", async (t) => {
       source: { kind: "document", saleId, documentId: docId },
     };
     let grant: any;
+    await t.test('invoice QR defaults off without changing the issued invoice, payments or general sharing', async () => {
+      const before = (await pool.query('SELECT state FROM sale_workspace WHERE id=$1',[saleId])).rows[0].state;
+      const current = await call('/staff/phone-sharing-settings');
+      assert.equal(current.json.enabled,true); assert.equal(current.json.invoiceQrEnabled,false);
+      const blocked = await call('/staff/phone-shares',{method:'POST',body:input,user:'accounts'});
+      assert.equal(blocked.status,409,JSON.stringify(blocked.json));
+      assert.match(blocked.json.error,/Invoice WhatsApp QR sharing is turned off/);
+      assert.deepEqual((await pool.query('SELECT state FROM sale_workspace WHERE id=$1',[saleId])).rows[0].state,before);
+      const enabled = await call('/staff/phone-sharing-settings',{method:'PUT',body:{expectedRevision:current.json.revision,enabled:true,invoiceQrEnabled:true}});
+      assert.equal(enabled.status,200,JSON.stringify(enabled.json));assert.equal(enabled.json.invoiceQrEnabled,true);
+    });
     await t.test(
       "invoice with a Road Tax guide shares exactly the immutable PDF without a green-slip reference or sending",
       async () => {
@@ -804,6 +815,27 @@ test("isolated real HTTP media and QR workflow", async (t) => {
         );
       },
     );
+    await t.test('invoice-only switch keeps existing invoice links and receipt sharing available', async () => {
+      const current = await call('/staff/phone-sharing-settings');
+      await call('/staff/phone-sharing-settings',{method:'PUT',body:{expectedRevision:current.json.revision,enabled:true,invoiceQrEnabled:false}});
+      const receiptId=randomUUID();
+      const receipt={...structuredClone(document),id:receiptId,type:'receipt',title:'Payment receipt',number:'RCP-FICTIONAL',paymentAmountPence:10000};
+      const withReceipt={...frozen,documents:[...frozen.documents,receipt],documentArchives:{...frozen.documentArchives,[receiptId]:{content:pdf.toString('base64')}}};
+      try {
+        await pool.query('UPDATE sale_workspace SET state=$1::jsonb WHERE id=$2',[JSON.stringify(withReceipt),saleId]);
+        assert.equal((await call('/staff/phone-shares',{method:'POST',body:{...input,requestId:randomUUID(),token:'a7'.repeat(32)}})).status,409);
+        assert.equal((await call('/staff/phone-shares',{method:'POST',body:input})).json.replayed,true);
+        assert.equal((await call('/phone-shares',{user:'',headers:{'x-phone-share-token':input.token}})).status,200);
+        const shared=await call('/staff/phone-shares',{method:'POST',body:{requestId:randomUUID(),token:'a8'.repeat(32),source:{kind:'document',saleId,documentId:receiptId}},user:'accounts'});
+        assert.equal(shared.status,201,JSON.stringify(shared.json));
+        assert.equal(shared.json.hasAttachments,true);
+        assert.deepEqual((await pool.query('SELECT state FROM sale_workspace WHERE id=$1',[saleId])).rows[0].state,withReceipt);
+      } finally {
+        await pool.query('UPDATE sale_workspace SET state=$1::jsonb WHERE id=$2',[JSON.stringify(frozen),saleId]);
+        const latest=await call('/staff/phone-sharing-settings');
+        await call('/staff/phone-sharing-settings',{method:'PUT',body:{expectedRevision:latest.json.revision,enabled:true,invoiceQrEnabled:true}});
+      }
+    });
     await t.test('reviewed invoice wording preserves immutable facts and PDF, and template changes cannot rewrite an issued QR', async () => {
       const body = {...input,requestId:randomUUID(),token:createHash('sha256').update(randomUUID()).digest('hex'),templateId:'invoice',messageBody:'Hi Fictional buyer, here is your paperwork. Literal {{dealer_name}} stays as typed.'};
       const made = await call('/staff/phone-shares',{method:'POST',body,user:'accounts'});

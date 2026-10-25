@@ -509,7 +509,9 @@ test("quarantines or fails invalid snapshots without changing live stock", async
   assert.equal((await importStock(failed)).status, 422);
 
   const duplicate = snapshot("duplicate", [car(4), car(4)]);
-  assert.equal((await importStock(duplicate)).status, 400);
+  const duplicateResponse = await importStock(duplicate);
+  assert.equal(duplicateResponse.status, 422);
+  assert.equal(parseStockImportError(await duplicateResponse.json()).errors[0]?.code, 'duplicate_advert_id');
   assert.equal((await run("duplicate")).status, "failed");
   assert.equal((await db.select().from(vehiclesTable)).length, 1);
 

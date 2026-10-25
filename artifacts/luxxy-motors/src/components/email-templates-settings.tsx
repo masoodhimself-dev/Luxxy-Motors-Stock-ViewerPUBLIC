@@ -32,7 +32,6 @@ function messageVariables(template: EmailTemplate | undefined, available: string
 }
 export function EmailTemplatesSettings() {
   const [settingsTab, setSettingsTab] = useState('messages');
-  const [showInactive, setShowInactive] = useState(false);
   const [data, setData] = useState<TemplateResponse>(), [selected, setSelected] = useState('enquiry_acknowledgement');
   const [headline,setHeadline] = useState(''), [subject, setSubject] = useState(''), [body, setBody] = useState(''), [preview, setPreview] = useState<Preview>();
   const [renderedKey, setRenderedKey] = useState(''), [device, setDevice] = useState<'desktop'|'phone'>('desktop'), [previewMode,setPreviewMode] = useState<'design'|'text'>('design');
@@ -61,7 +60,7 @@ export function EmailTemplatesSettings() {
   useEffect(() => { void load(); }, []);
   const active = data?.templates.find(template => template.id === selected);
   const appearanceChanged = Boolean(data && savedAppearance !== brandingSnapshot(data));
-  const visibleTemplates = data?.templates.filter(template => customerFeaturePolicy.onlineCardReservations || showInactive || template.category !== 'Reservations') ?? [];
+  const visibleTemplates = data?.templates.filter(template => customerFeaturePolicy.onlineCardReservations || template.category !== 'Reservations') ?? [];
   const wordingChanged = Boolean(active && (subject !== active.subject || body !== active.body || headline !== (active.headline ?? '')));
   const previewStale = Boolean(data && preview && renderedKey !== previewKey(selected,subject,body,headline,resolvedAppearance(data)));
   const previewDocument = useMemo(() => preview ? emailPreviewDocument(preview.html) : '', [preview?.html]);
@@ -120,7 +119,7 @@ export function EmailTemplatesSettings() {
       <div className="email-studio-grid" data-view={settingsTab}>
       <div className="email-studio-editing" hidden={settingsTab === 'preview'}>
       <div role="tabpanel" id="email-settings-panel-messages" aria-labelledby="email-settings-tab-messages" hidden={settingsTab !== 'messages'} className="email-settings-panel">
-      <div className="email-studio-selector integration-field"><label htmlFor="email-template-select">Choose a message</label><NativeSelect id="email-template-select" value={selected} onChange={event => void selectTemplate(event.target.value)}>{categories.filter(category => visibleTemplates.some(template => template.category === category)).map(category => <optgroup label={category} key={category}>{visibleTemplates.filter(template => template.category === category).map(template => <option key={template.id} value={template.id}>{template.label}</option>)}</optgroup>)}</NativeSelect><small>{visibleTemplates.length} templates · saves affect future messages</small>{!customerFeaturePolicy.onlineCardReservations && <label className="integration-check email-inactive-templates"><input type="checkbox" checked={showInactive} onChange={async event => { const checked = event.target.checked; if (!checked && active?.category === 'Reservations' && !await selectTemplate('enquiry_acknowledgement')) return; setShowInactive(checked); }} />Show inactive reservation templates</label>}</div>
+      <div className="email-studio-selector integration-field"><label htmlFor="email-template-select">Choose a message</label><NativeSelect id="email-template-select" value={selected} onChange={event => void selectTemplate(event.target.value)}>{categories.filter(category => visibleTemplates.some(template => template.category === category)).map(category => <optgroup label={category} key={category}>{visibleTemplates.filter(template => template.category === category).map(template => <option key={template.id} value={template.id}>{template.label}</option>)}</optgroup>)}</NativeSelect><small>{visibleTemplates.length} templates · saves affect future messages</small></div>
         <div className="email-studio-editor integration-card"><header><p className="email-studio-kicker">{active?.category}</p><h3>{active?.label}</h3><span>{wordingChanged ? 'Unsaved wording' : 'Saved wording'}</span></header>
           <div className="integration-field"><label htmlFor="email-subject">Subject line</label><Input id="email-subject" maxLength={200} value={subject} onChange={event => setSubject(event.target.value)} /><small className="email-field-help"><span>Keep it clear and specific.</span><span>{subject.length.toLocaleString()} / 200</span></small></div>
           <div className="integration-field"><label htmlFor="email-title">Email title</label><Input id="email-title" maxLength={200} value={headline} onChange={event => setHeadline(event.target.value)} placeholder="Use the title for this type of message" /><small className="email-field-help"><span>Optional. Leave blank for the default title.</span><span>{headline.length.toLocaleString()} / 200</span></small></div>

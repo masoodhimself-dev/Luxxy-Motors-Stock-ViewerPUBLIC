@@ -31,7 +31,7 @@ it('saves only the sharing preference after an explicit save and updates all con
   expect(screen.getByRole('region', { name: 'WhatsApp and QR settings' })).toHaveAttribute('data-settings-dirty', 'true');
   fireEvent.click(screen.getByRole('button', { name: 'Save sharing settings' }));
   await screen.findByText('WhatsApp & QR settings saved.');
-  expect(fetch).toHaveBeenLastCalledWith('/api/staff/phone-sharing-settings', expect.objectContaining({ method: 'PUT', body: JSON.stringify({ expectedRevision: 7, enabled: false }) }));
+  expect(fetch).toHaveBeenLastCalledWith('/api/staff/phone-sharing-settings', expect.objectContaining({ method: 'PUT', body: JSON.stringify({ expectedRevision: 7, enabled: false, invoiceQrEnabled: false }) }));
   expect(client.getQueryData(phoneSharingSettingsQueryKey)).toEqual({ revision: 8, enabled: false });
   expect(screen.getByRole('button', { name: 'Save sharing settings' })).toBeDisabled();
   expect(screen.getByText(/existing links keep their original expiry/i)).toBeInTheDocument();
@@ -41,14 +41,14 @@ it('saves only the sharing preference after an explicit save and updates all con
 it('explains security limits without editable expiry or phone-number fields', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => Response.json({ revision: 0, enabled: true })));
   show();
-  await screen.findByRole('switch');
+  await screen.findByRole('switch', {name:'Allow WhatsApp QR sharing'});
   expect(screen.getByText(/expire after 24 hours/i)).toBeInTheDocument();
   expect(screen.getByText(/phone-upload links last 15 minutes/i)).toBeInTheDocument();
   expect(screen.getByText(/up to 30 seconds, landscape/i)).toBeInTheDocument();
   expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('switch'));
+  fireEvent.click(screen.getByRole('switch', {name:'Allow WhatsApp QR sharing'}));
   fireEvent.click(screen.getByRole('button', { name: 'Undo changes' }));
-  expect(screen.getByRole('switch')).toBeChecked();
+  expect(screen.getByRole('switch', {name:'Allow WhatsApp QR sharing'})).toBeChecked();
   expect(screen.getByRole('button', { name: 'Save sharing settings' })).toBeDisabled();
 });
 
@@ -59,13 +59,13 @@ it('keeps an unsaved preference after a conflict and reloads the current revisio
     return Response.json({ revision, enabled: true });
   }));
   const client = show();
-  fireEvent.click(await screen.findByRole('switch'));
+  fireEvent.click(await screen.findByRole('switch', {name:'Allow WhatsApp QR sharing'}));
   fireEvent.click(screen.getByRole('button', { name: 'Save sharing settings' }));
   await screen.findByRole('alert');
-  expect(screen.getByRole('switch')).not.toBeChecked();
+  expect(screen.getByRole('switch', {name:'Allow WhatsApp QR sharing'})).not.toBeChecked();
   fireEvent.click(screen.getByRole('button', { name: 'Reload settings' }));
   await waitFor(() => expect(client.getQueryData(phoneSharingSettingsQueryKey)).toEqual({ revision: 3, enabled: true }));
-  expect(screen.getByRole('switch')).toBeChecked();
+  expect(screen.getByRole('switch', {name:'Allow WhatsApp QR sharing'})).toBeChecked();
 });
 
 it('shows a load failure and offers a retry instead of displaying an enabled switch', async () => {
@@ -91,4 +91,22 @@ it('keeps isolated existing consumers usable without an application QueryClient 
   render(<Consumer />);
   expect(screen.getByText('Sharing enabled')).toBeInTheDocument();
   expect(fetch).not.toHaveBeenCalled();
+});
+
+
+it('keeps invoice QR off by default and saves an owner opt-in separately from general sharing', async () => {
+  const writes: unknown[] = [];
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    if (init?.method === 'PUT') { const body=JSON.parse(String(init.body)); writes.push(body); return Response.json({revision:2, enabled:true, invoiceQrEnabled:body.invoiceQrEnabled}); }
+    return Response.json({revision:1, enabled:true, invoiceQrEnabled:false});
+  }));
+  show();
+  const invoiceToggle=await screen.findByRole('switch',{name:'Share invoices by WhatsApp QR'});
+  expect(invoiceToggle).not.toBeChecked();
+  expect(screen.getByText('Edit message templates').closest('details')).not.toHaveAttribute('open');
+  fireEvent.click(invoiceToggle);
+  fireEvent.click(screen.getByRole('button',{name:'Save sharing settings'}));
+  await screen.findByText('WhatsApp & QR settings saved.');
+  expect(writes).toEqual([{expectedRevision:1,enabled:true,invoiceQrEnabled:true}]);
+  expect(invoiceToggle).toBeChecked();
 });

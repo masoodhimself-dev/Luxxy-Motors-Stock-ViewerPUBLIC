@@ -62,3 +62,43 @@ export function preserveGoogleReviewUrl<T extends {contact: {googleReviewUrl?: s
   const url = old && typeof old === 'object' && 'googleReviewUrl' in old ? old.googleReviewUrl : undefined;
   return typeof url === 'string' ? {...incoming,contact:{...incoming.contact,googleReviewUrl:url}} : incoming;
 }
+
+/** Validate the public link fields too: API clients must not bypass the editor's URL checks. */
+export function publicSettingsLinkError(settings: Record<string, unknown>): string | null {
+  const groups: Array<[string, string[], boolean]> = [
+    ['identity', ['logoAsset'], true], ['address', ['mapsUrl'], false],
+    ['legal', ['termsUrl', 'privacyUrl', 'cookieUrl'], true],
+    ['social', ['instagram', 'facebook', 'twitter'], false],
+  ];
+  for (const [name, fields, local] of groups) {
+    const group = settings[name];
+    if (!group || typeof group !== 'object' || Array.isArray(group)) continue;
+    for (const field of fields) {
+      const value = (group as Record<string, unknown>)[field];
+      if (value === undefined || value === '') continue;
+      if (typeof value !== 'string' || /[\s\u0000-\u001f\u007f\\]/.test(value)) return `Use a valid HTTP or HTTPS address for ${name}.${field}, or leave it empty.`;
+      if (local && /^\/(?!\/)/.test(value)) continue;
+      // Existing embedded raster logos remain supported. SVG/HTML data URLs cannot be published.
+      if (name === 'identity' && /^data:image\/(?:png|jpeg|jpg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value)) continue;
+      try {
+        const url = new URL(value);
+        if (['http:', 'https:'].includes(url.protocol) && url.hostname && !url.username && !url.password) continue;
+      } catch { /* Fall through to a human-readable validation message. */ }
+      return `Use a valid HTTP or HTTPS address for ${name}.${field}, or leave it empty.`;
+    }
+  }
+  const presentation = settings.presentation;
+  if (presentation && typeof presentation === 'object' && !Array.isArray(presentation)) {
+    for (const [field, value] of Object.entries(presentation)) {
+      if (!field.endsWith('Url') || value === undefined || value === '') continue;
+      if (typeof value === 'string' && !/[\s\u0000-\u001f\u007f\\]/.test(value)) {
+        try {
+          const url = new URL(value);
+          if (url.protocol === 'https:' && url.hostname && !url.username && !url.password) continue;
+        } catch { /* Invalid URL is rejected below. */ }
+      }
+      return `Use a valid HTTPS address for presentation.${field}, or leave it empty.`;
+    }
+  }
+  return null;
+}

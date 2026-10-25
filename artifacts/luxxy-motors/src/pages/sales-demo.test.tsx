@@ -18,6 +18,7 @@ const state = vi.hoisted(() => ({
   search: "",
   enquiriesError: false,
   customerEmails: true,
+  invoiceQrEnabled: true,
   featuresLoading: false,
   featuresError: false,
   fetch: vi.fn(),
@@ -77,7 +78,7 @@ vi.mock("@/components/sales-demo/sales-document", () => ({
 vi.mock('@/components/portal/sale-review-reminder', () => ({ SaleReviewReminder: () => null }));
 vi.mock('@/components/portal/sold-vehicle-customer-review', () => ({ SoldVehicleCustomerReview: () => null }));
 vi.mock('@/components/portal/dealer-administration', () => ({useStaffAccess: () => ({data:{permissions:['sales.manage','sales.handover']}})}));
-vi.mock('@/components/share-qr',()=>({ShareQr:({source,onEmailFallback,disabled,label}:{source?:{documentId?:string};onEmailFallback?:()=>void;disabled?:boolean;label?:string})=><button disabled={disabled} data-document-id={source?.documentId} onClick={onEmailFallback}>{label === 'WhatsApp confirmation' ? label : 'Use email instead'}</button>}));
+vi.mock('@/components/share-qr',()=>({ShareQr:({source,documentType,onEmailFallback,disabled,label}:{source?:{documentId?:string};documentType?:string;onEmailFallback?:()=>void;disabled?:boolean;label?:string})=>documentType==='invoice'&&!state.invoiceQrEnabled?null:<button disabled={disabled} data-document-id={source?.documentId} onClick={onEmailFallback}>{label === 'WhatsApp confirmation' ? label : 'Use email instead'}</button>}));
 import { SalesWorkspace } from "./sales-demo";
 import { emptyDraft } from "@/components/sales-demo/model";
 const initialStockCars = structuredClone(state.stock.cars);
@@ -101,6 +102,7 @@ beforeEach(() => {
   state.search = "";
   state.enquiriesError = false;
   state.customerEmails = true;
+  state.invoiceQrEnabled = true;
   state.featuresLoading = false;
   state.featuresError = false;
   state.stock.cars = structuredClone(initialStockCars);
@@ -755,6 +757,37 @@ it("offers the existing completion review for a current full invoice and still r
   expect(screen.getByRole("checkbox", { name: /I confirm the sale can proceed/ })).not.toBeChecked();
   expect(state.sales[0].completedAt).toBeUndefined();
   expect(mutations()).toHaveLength(0);
+});
+
+it("keeps invoice QR hidden on a resumed sale while print, download and manual email remain usable",async()=>{
+  state.invoiceQrEnabled=false;
+  const sale=fixtureCommand(fixturePayment(savedSale(),"10000","final-payment"),{action:"issue-invoice",kind:"full",acknowledge:true});
+  const frozenDocuments=structuredClone(sale.documents),frozenPayments=structuredClone(sale.payments);
+  await mountSaved(sale);
+  const summary=screen.getByRole("region",{name:"Saved sale summary"});
+  expect(within(summary).queryByRole("button",{name:"Use email instead"})).not.toBeInTheDocument();
+  fireEvent.click(within(summary).getByRole("button",{name:"Open invoice"}));
+  await waitFor(()=>expect(state.pdf).toHaveBeenCalledTimes(1));
+  expect(state.pdf.mock.calls[0][0].issuedDocument.id).toBe(sale.documents.at(-1)!.id);
+  expect(state.pdf.mock.calls[0][1]).toBe("print");
+  expect(mutations()).toHaveLength(0);
+  await waitFor(()=>expect(screen.getByRole("button",{name:"Review sale completion"})).toBeEnabled());
+  fireEvent.click(screen.getByRole("button",{name:"Review sale completion"}));
+  await screen.findByRole("heading",{name:"Your invoice is ready."});
+  expect(screen.queryByRole("button",{name:"Use email instead"})).not.toBeInTheDocument();
+  expect(screen.getByRole("button",{name:"Open & print invoice"})).toBeEnabled();
+  expect(screen.getByRole("button",{name:"Email customer"})).toBeEnabled();
+  fireEvent.click(screen.getByRole("button",{name:"Download PDF"}));
+  await waitFor(()=>expect(state.pdf).toHaveBeenCalledTimes(2));
+  expect(state.pdf.mock.calls[1][1]).toBe("download");
+  expect(mutations()).toHaveLength(0);
+  await waitFor(()=>expect(screen.getByRole("button",{name:"Email customer"})).toBeEnabled());
+  fireEvent.click(screen.getByRole("button",{name:"Email customer"}));
+  await screen.findByText("Invoice emailed to the customer.");
+  expect(state.fetch.mock.calls.filter(([url,options])=>options?.method==='POST'&&String(url).endsWith('/email'))).toHaveLength(1);
+  expect(state.fetch.mock.calls.some(([url])=>String(url).includes('/phone-shares'))).toBe(false);
+  expect(state.sales[0].documents).toEqual(frozenDocuments);
+  expect(state.sales[0].payments).toEqual(frozenPayments);
 });
 
 it("returns document WhatsApp sharing to its internal invoice email controls without sending automatically",async()=>{

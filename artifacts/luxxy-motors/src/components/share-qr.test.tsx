@@ -439,3 +439,17 @@ it('passes applied WhatsApp wording to the existing internal email fallback',asy
  await waitFor(()=>expect(fallback).toHaveBeenCalledWith('A personalised update for Alex.'));
  expect(api.mock.calls.some(([path])=>path.endsWith('/confirm-whatsapp')||path.endsWith('/email'))).toBe(false);
 });
+
+
+it('hides invoice QR when it is off without hiding receipt sharing or phone recording', async () => {
+ const client=new QueryClient({defaultOptions:{queries:{retry:false}}});
+ client.setQueryData(phoneSharingSettingsQueryKey,{revision:1,enabled:true,invoiceQrEnabled:false});
+ const view=render(<QueryClientProvider client={client}><ShareQr whatsapp label="Invoice WhatsApp QR" documentType="invoice" source={{kind:'document',saleId:'sale',documentId:'invoice'}}/><ShareQr whatsapp label="Receipt WhatsApp QR" documentType="receipt" source={{kind:'document',saleId:'sale',documentId:'receipt'}}/><ShareQr purpose="record-video" label="Record on phone" url="/portal?recordVideo=1"/></QueryClientProvider>);
+ expect(screen.queryByRole('button',{name:'Invoice WhatsApp QR'})).not.toBeInTheDocument();
+ expect(screen.getByRole('button',{name:'Receipt WhatsApp QR'})).toBeEnabled();
+ expect(screen.getByRole('button',{name:'Record on phone'})).toBeEnabled();
+ expect(api).not.toHaveBeenCalled();
+ await act(async()=>{client.setQueryData(phoneSharingSettingsQueryKey,{revision:2,enabled:true,invoiceQrEnabled:true});});
+ expect(await screen.findByRole('button',{name:'Invoice WhatsApp QR'})).toBeEnabled();
+ view.unmount();client.clear();
+});

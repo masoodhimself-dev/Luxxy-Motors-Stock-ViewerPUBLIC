@@ -143,7 +143,8 @@ router.post(
         res.json(result(previous, true));
         return;
       }
-      if (!(await dealerIntegrationsStore.readPhoneSharing()).enabled)
+      const sharingSettings = await dealerIntegrationsStore.readPhoneSharing();
+      if (!sharingSettings.enabled)
         throw new PhoneShareError('WhatsApp QR sharing is turned off in Settings → Emails & documents → WhatsApp & QR. Use email instead.', 409);
       let payload: PhoneSharePayload;
       if (data.source.kind === 'message') {
@@ -183,6 +184,8 @@ router.post(
           data.source.saleId,
           data.source.documentId,
         );
+        if (document.type === 'invoice' && !sharingSettings.invoiceQrEnabled)
+          throw new PhoneShareError('Invoice WhatsApp QR sharing is turned off. Use Email customer, Download PDF or Open & print invoice instead.', 409);
         // WhatsApp shares the issued PDF only. The Road Tax guide belongs to
         // the invoice email flow and must not block sharing an existing invoice.
         const attachments = [{ filename: `${document.number}.pdf`, content: archive.content }];

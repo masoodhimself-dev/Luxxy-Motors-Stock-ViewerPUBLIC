@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Textarea } from '@/components/ui/textarea';
 import { useWhatsAppTemplates, whatsappTemplatesQueryKey } from '@/lib/whatsapp-templates';
+import { privateSettingsSaved, usePrivateSettingsRefresh, type PrivateSettingsSave } from '@/lib/private-settings-sync';
 import './whatsapp-template-settings.css';
 
 type TemplateSettings = { revision: number; templates: Array<WhatsAppTemplate & { customised?: boolean }>; variables: readonly string[] };
@@ -25,20 +26,31 @@ export function WhatsAppTemplateSettings() {
   const cache = useQueryClient();
   // Keep the revision shown when editing began. A background refresh must not
   // silently authorise overwriting another owner's newer wording.
-  const [data, setData] = useState<TemplateSettings>();
-  const [selected, setSelected] = useState('enquiry');
-  const [body, setBody] = useState('');
+  const [draft,setDraft]=useState<{data?:TemplateSettings;selected:string;body:string}>({selected:'enquiry',body:''});
+  const {data,selected,body}=draft;
+  const setBody=(body:string)=>setDraft(current=>({...current,body}));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const editor = useRef<HTMLTextAreaElement>(null);
+  const ownRefresh=useRef<PrivateSettingsSave|undefined>(undefined);
   function apply(result: TemplateSettings, id = selected) {
-    setData(result);
-    setBody(result.templates.find(template => template.id === id)?.body ?? '');
+    setDraft({data:result,selected:id,body:result.templates.find(template=>template.id===id)?.body??''});
   }
-  useEffect(() => { if (!data && query.data) apply(query.data); }, [data, query.data]);
   const active = data?.templates.find(template => template.id === selected);
   const changed = Boolean(active && body !== active.body);
+  useEffect(() => {
+    if (!query.data || busy) return;
+    const loaded=query.data;
+    setDraft(current=>{
+      if(current.data===loaded)return current;
+      const previous=current.data?.templates.find(template=>template.id===current.selected);
+      const next=loaded.templates.find(template=>template.id===current.selected);
+      if(!current.data||current.body===previous?.body)return{...current,data:loaded,body:next?.body??''};
+      return current.data.revision===ownRefresh.current?.previousRevision&&loaded.revision===ownRefresh.current.savedRevision&&next?.body===previous?.body?{...current,data:loaded}:current;
+    });
+  }, [query.data,busy,body,selected]);
+  usePrivateSettingsRefresh('whatsapp-templates', saved => {ownRefresh.current=saved;return query.refetch();});
   let validation = '';
   let preview = '';
   if (active) {
@@ -70,13 +82,14 @@ export function WhatsAppTemplateSettings() {
       });
       cache.setQueryData(whatsappTemplatesQueryKey, result);
       apply(result);
+      await privateSettingsSaved('whatsapp-templates',data.revision,result.revision);
       setNotice(reset ? 'Default WhatsApp wording restored.' : 'WhatsApp template saved. Staff can choose it when preparing a message.');
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Your WhatsApp template could not be saved. Your edits are still here.'); }
     finally { setBusy(false); }
   }
   function select(id: string) {
     if (!data || id === selected || (changed && !window.confirm('Discard the unsaved wording for this WhatsApp template?'))) return;
-    setSelected(id); apply(data, id); setError(''); setNotice('');
+    apply(data, id); setError(''); setNotice('');
   }
   function insert(variable: string) {
     const field = editor.current;

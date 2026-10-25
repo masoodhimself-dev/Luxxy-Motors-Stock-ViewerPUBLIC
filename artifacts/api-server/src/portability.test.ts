@@ -4,12 +4,14 @@ import express from 'express';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { sendEmail } from './lib/email-provider';
+import { sendEmailWithSettings } from './lib/email-provider';
+import { effectiveResendSettings, type PrivateDealerSettings } from './lib/dealer-integrations-store';
+import { defaultEmailAppearance } from '@workspace/vehicle-meta';
 import { serveFrontend } from './lib/serve-frontend';
 import { siteUrl } from './lib/enquiry-links';
 
 const savedFetch = globalThis.fetch;
-const keys = ['RESEND_ENABLED', 'RESEND_API_KEY', 'RESEND_FROM_EMAIL', 'PUBLIC_SITE_URL', 'PUBLIC_SITE_BASE_PATH', 'NODE_ENV'] as const;
+const keys = ['RESEND_ENABLED', 'RESEND_API_KEY', 'RESEND_FROM_EMAIL', 'RESEND_REPLY_TO_EMAIL', 'MULTI_TENANT_ENABLED', 'PUBLIC_SITE_URL', 'PUBLIC_SITE_BASE_PATH', 'NODE_ENV'] as const;
 const original = Object.fromEntries(keys.map(key => [key, process.env[key]]));
 afterEach(() => {
   globalThis.fetch = savedFetch;
@@ -18,6 +20,14 @@ afterEach(() => {
     else process.env[key] = original[key];
   }
 });
+
+// Exercise environment portability at the injectable provider boundary. The
+// application's sendEmail wrapper also resolves database-backed website branding.
+const emptyPrivateSettings = (): PrivateDealerSettings => ({ version: 1, revision: 0, updatedAt: null, resend: { enabled: false, apiKey: '', from: '', replyTo: '' }, stripe: { enabled: false, mode: 'test', publishableKey: '', secretKey: '', webhookSecret: '' }, templates: {}, appearance: { ...defaultEmailAppearance } });
+function portableEmail(to: string, subject: string, html: string, idempotencyKey: string, attachments?: Array<{ filename: string; content: string }>, text?: string) {
+  process.env.MULTI_TENANT_ENABLED = 'false'; delete process.env.RESEND_REPLY_TO_EMAIL;
+  return sendEmailWithSettings(effectiveResendSettings(emptyPrivateSettings()), { to, subject, html, idempotencyKey, attachments, text });
+}
 
 test('direct email preserves sender, attachments and idempotency without any platform credentials', async () => {
   process.env.RESEND_ENABLED = 'true';
@@ -33,7 +43,7 @@ test('direct email preserves sender, attachments and idempotency without any pla
     assert.ok(init?.signal);
     return new Response(JSON.stringify({id:'email-test'}), {status:200});
   };
-  assert.equal(await sendEmail('buyer@example.test','Viewing','<p>Booked</p>','enquiry-test','Dealer',[{filename:'viewing.ics',content:'YQ=='}], 'Booked in plain text'), 'email-test');
+  assert.equal(await portableEmail('buyer@example.test','Viewing','<p>Booked</p>','enquiry-test',[{filename:'viewing.ics',content:'YQ=='}], 'Booked in plain text'), 'email-test');
   assert.ok(called);
 });
 
@@ -41,13 +51,13 @@ test('missing email credentials fail before any network request', async () => {
   process.env.RESEND_ENABLED = 'true';
   delete process.env.RESEND_API_KEY;
   globalThis.fetch = async () => { throw new Error('Unexpected network'); };
-  await assert.rejects(sendEmail('x','x','x','x','x'), /Configure RESEND/);
+  await assert.rejects(portableEmail('x','x','x','x'), /Configure RESEND/);
 });
 
 test('provider rejection does not leak response contents', async () => {
   process.env.RESEND_ENABLED = 'true'; process.env.RESEND_API_KEY = 're_syntheticIntegrationTestOnly'; process.env.RESEND_FROM_EMAIL = 'dealer@example.test';
   globalThis.fetch = async () => new Response('sensitive provider response', {status:429});
-  await assert.rejects(sendEmail('buyer@example.test','Receipt','<p>Confirmed</p>','receipt-test','Dealer'), (error: unknown) => error instanceof Error && error.message === 'Email provider returned HTTP 429.');
+  await assert.rejects(portableEmail('buyer@example.test','Receipt','<p>Confirmed</p>','receipt-test'), (error: unknown) => error instanceof Error && error.message === 'Email provider returned HTTP 429.');
 });
 
 test('production links require an explicit public URL and preserve base path', () => {
@@ -72,16 +82,17 @@ test('portable frontend serves deep links and assets without swallowing API or a
   const app = express();
   app.get('/api/healthz', (_req,res) => {res.json({status:'ok'});});
   app.use(['/api','/share'], (_req,res) => {res.status(404).json({error:'Not found'});});
-  serveFrontend(app, dir);
+  serveFrontend(app, dir, { loadPageData: async pathname => ({ settings: { identity: { name: 'Fictional portability dealer' } }, vehicle: pathname === '/vehicle/test' ? { id: 'test', title: 'Fictional vehicle', inventoryStatus: 'available', price: 5000 } : null }) });
   const server = app.listen(0, '127.0.0.1');
   await new Promise<void>(resolve => server.on('listening', resolve));
   const address = server.address(); assert.ok(address && typeof address !== 'string');
   const base = `http://127.0.0.1:${address.port}`;
   try {
-    for (const route of ['/', '/vehicle/test', '/portal/sales', '/sign/example']) {
+    for (const route of ['/', '/vehicle/test', '/portal?section=sales', '/sign/example']) {
       const response = await fetch(base+route);
       assert.equal(response.status,200); assert.match(await response.text(), /Standalone showroom/);
     }
+    for (const route of ['/vehicle/unknown', '/portal/sales']) assert.equal((await fetch(base+route)).status, 404);
     assert.equal((await fetch(base+'/app.js')).status,200);
     const worker = await fetch(base+'/portal-push-worker.js');
     assert.equal(worker.status, 200);

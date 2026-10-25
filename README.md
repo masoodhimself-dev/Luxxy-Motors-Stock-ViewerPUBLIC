@@ -33,7 +33,7 @@ LUXXY_LOCAL_PREVIEW=1 pnpm --filter @workspace/luxxy-motors test:mobile-layout
 
 On Node.js 25, run the unit tests with `NODE_OPTIONS=--no-experimental-webstorage` so jsdom supplies browser storage. Playwright needs its Chromium installation, or set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to an existing browser executable (on this Mac: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`).
 
-Run `PORT=4175 BASE_PATH=/ pnpm build` for full workspace typechecking and builds. Database integration suites delete fixture data and must use an isolated local test database through `LUXXY_TEST_DATABASE_URL`; see [migration/test safety](lib/db/MIGRATIONS.md). Current migration-test assertions still need updating from the earlier 0016 snapshot to the current journal before full migration verification can be claimed.
+Run `PORT=4175 BASE_PATH=/ pnpm build` for full workspace typechecking and builds. Database integration suites delete fixture data and must use an isolated local test database through `LUXXY_TEST_DATABASE_URL`; see [migration/test safety](lib/db/MIGRATIONS.md). Migration verification checks a legacy-data upgrade through the latest generated snapshot and current journal, the complete current schema, booking constraints and replay safety on a separate empty local database.
 
 ## Full application
 

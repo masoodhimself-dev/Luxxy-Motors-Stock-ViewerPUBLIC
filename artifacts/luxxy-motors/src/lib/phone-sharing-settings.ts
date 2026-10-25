@@ -2,7 +2,7 @@ import { useContext } from 'react';
 import { QueryClient, QueryClientContext, useQuery } from '@tanstack/react-query';
 import { customFetch } from '@workspace/api-client-react';
 
-export type PhoneSharingSettings = { revision: number; enabled: boolean };
+export type PhoneSharingSettings = { revision: number; enabled: boolean; invoiceQrEnabled?: boolean };
 export const phoneSharingSettingsQueryKey = ['phone-sharing-settings'] as const;
 export const readPhoneSharingSettings = () => customFetch<PhoneSharingSettings>('/api/staff/phone-sharing-settings');
 // Isolated components without an app provider retain their existing behaviour.
@@ -18,5 +18,5 @@ export function usePhoneSharingSettings(active = true) {
     staleTime: 30_000,
     retry: false,
   }, client ?? standaloneClient);
-  return { ...query, enabled: !client || query.data?.enabled === true };
+  return { ...query, enabled: !client || query.data?.enabled === true, invoiceQrEnabled: query.data?.invoiceQrEnabled === true };
 }

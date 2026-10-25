@@ -66,7 +66,11 @@ test("watch events observe fictional price and availability changes without send
       assert.deepEqual((await events(car.id)).map(e=>e.kind),["reserved"]);
       await status(car.id,"available");await status(car.id,"sold");
       const result=await events(car.id);assert.equal(result.length,3);assert.equal(result.filter(e=>e.status==="open").length,1);assert.equal(result.find(e=>e.status==="open")!.kind,"sold");
-      assert.deepEqual(result.map(e=>e.current_status),["reserved","available","sold"]);
+      // PGlite can give consecutive trigger writes the same millisecond; random
+      // UUID tie-breakers do not describe transition order. Check the transitions themselves.
+      for (const [kind,previous,current,eventStatus] of [["reserved","available","reserved","superseded"],["available_again","reserved","available","superseded"],["sold","available","sold","open"]]) {
+        const event=result.find(e=>e.kind===kind);assert.ok(event);assert.equal(event.previous_status,previous);assert.equal(event.current_status,current);assert.equal(event.status,eventStatus);
+      }
     });
     await t.test("price and currency edits invalidate a previously reviewed availability message",async()=>{
       const car=await seed();await watch(car.id);await status(car.id,"reserved");

@@ -327,6 +327,13 @@ export function getSettingsRevision(value: unknown): number | null {
   return value !== null && typeof value === 'object' ? settingsRevisions.get(value) ?? null : null;
 }
 
+/** React Query may reuse an equal JSON object; carry its HTTP revision with it. */
+export function retainSettingsRevision<T>(value: T, response: unknown): T {
+  const revision = getSettingsRevision(response);
+  if (value !== null && typeof value === 'object' && revision !== null) settingsRevisions.set(value, revision);
+  return value;
+}
+
 export async function customFetch<T = unknown>(
   input: RequestInfo | URL,
   options: CustomFetchOptions = {},
@@ -374,6 +381,6 @@ export async function customFetch<T = unknown>(
 
   const result = await parseSuccessBody(response, responseType, requestInfo);
   const revisionHeader = response.headers.get('x-settings-revision');
-  if (result !== null && typeof result === 'object' && revisionHeader !== null && /^\d+$/.test(revisionHeader)) settingsRevisions.set(result, Number(revisionHeader));
+  if (result !== null && typeof result === 'object' && revisionHeader !== null && /^\d+$/.test(revisionHeader) && Number.isSafeInteger(Number(revisionHeader))) settingsRevisions.set(result, Number(revisionHeader));
   return result as T;
 }

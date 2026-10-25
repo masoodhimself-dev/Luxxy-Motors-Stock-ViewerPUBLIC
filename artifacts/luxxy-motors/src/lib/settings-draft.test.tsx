@@ -39,6 +39,24 @@ describe('unpublished showroom drafts', () => {
     expect(writeSettingsDraft('{}', previewSettings)).toBe(false);
     expect(readSettingsDraft(previewSettings)?.form.identity.name).toBe(previewSettings.identity.name);
   });
+  it('keeps the stored draft independent of a caller that mutates its form while storage is unavailable', () => {
+    vi.stubGlobal('sessionStorage', {setItem:()=>{throw new Error('Disabled');},getItem:()=>{throw new Error('Disabled');}});
+    const form=structuredClone(previewSettings);form.identity.name='Draft name';
+    writeSettingsDraft(JSON.stringify(previewSettings),form,4);
+    form.identity.name='Later accidental mutation';
+    expect(readSettingsDraft(previewSettings)?.form.identity.name).toBe('Draft name');
+  });
+  it.each([-1, 1.5, '4', Number.MAX_SAFE_INTEGER+1])('rejects corrupt publication revisions %j rather than sending them in If-Match',revision=>{
+    sessionStorage.setItem('luxxy-showroom-draft-v1',JSON.stringify({saved:JSON.stringify(previewSettings),form:previewSettings,updatedAt:Date.now(),revision}));
+    expect(readSettingsDraft(previewSettings)).toBeNull();
+  });
+  it('rejects a draft tagged for a different dealership origin or an invalid future timestamp',()=>{
+    const draft={saved:JSON.stringify(previewSettings),form:previewSettings,updatedAt:Date.now(),revision:4,origin:'https://different-dealer.example.test'};
+    sessionStorage.setItem('luxxy-showroom-draft-v1',JSON.stringify(draft));
+    expect(readSettingsDraft(previewSettings)).toBeNull();
+    sessionStorage.setItem('luxxy-showroom-draft-v1',JSON.stringify({...draft,origin:window.location.origin,updatedAt:Date.now()+86_400_000}));
+    expect(readSettingsDraft(previewSettings)).toBeNull();
+  });
   it('retains old unpublished drafts and inherits the current reservation settings', () => {
     const form = structuredClone(previewSettings);
     delete form.onlineReservation;

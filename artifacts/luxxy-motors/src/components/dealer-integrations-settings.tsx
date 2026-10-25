@@ -1,12 +1,13 @@
 import { customerFeaturePolicy } from '@workspace/vehicle-meta';
 import { StockConnectionSettings } from "./stock-connection-settings";
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { customFetch } from '@workspace/api-client-react';
 import { KeyRound, Mail, CreditCard, RefreshCw, ShieldCheck } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { PlatformFeatureNotice } from '@/components/settings-availability-notices';
+import { privateSettingsSaved, usePrivateSettingsRefresh } from '@/lib/private-settings-sync';
 import './integration-settings.css';
 type Readiness = { resend: { ready: boolean; issues: string[] }; stripe: { ready: boolean; issues: string[] }; message: string };
 type Settings = { revision: number; preview?: boolean; resend: { enabled: boolean; apiKeyConfigured: boolean; from: string; replyTo: string }; stripe: { enabled: boolean; mode: 'test' | 'live'; publishableKeyConfigured: boolean; secretKeyConfigured: boolean; webhookSecretConfigured: boolean }; readiness: Readiness };
@@ -19,14 +20,22 @@ export function DealerIntegrationsSettings() {
   const connectionSnapshot = (value: Settings) => JSON.stringify([value.resend, value.stripe]);
   const [clear, setClear] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [error, setError] = useState('');
+  const changed = Boolean(settings && (connectionSnapshot(settings) !== savedConnection || apiKey || publishableKey || secretKey || webhookSecret || Object.values(clear).some(Boolean)));
+  const current = useRef({settings,savedConnection,changed});current.current={settings,savedConnection,changed};
   async function load() { setBusy(true); setError(''); try { const loaded = await request<Settings>('/api/dealer-integrations'); setSettings(loaded); setSavedConnection(connectionSnapshot(loaded)); setApiKey(''); setPublishableKey(''); setSecretKey(''); setWebhookSecret(''); setClear({}); } catch (cause) { setError(errorMessage(cause)); } finally { setBusy(false); } }
   useEffect(() => { void load(); }, []);
+  usePrivateSettingsRefresh('connections',async saved=>{
+    try {
+      const loaded=await request<Settings>('/api/dealer-integrations'), latest=current.current;
+      if(!latest.settings||!latest.changed){setSettings(loaded);setSavedConnection(connectionSnapshot(loaded));}
+      else if(latest.settings.revision===saved.previousRevision&&loaded.revision===saved.savedRevision&&connectionSnapshot(loaded)===latest.savedConnection)setSettings({...latest.settings,revision:loaded.revision,readiness:loaded.readiness});
+    }catch{setError('Could not refresh connection settings. Your edits are kept. Reload before saving.');}
+  });
   async function save() {
     if (!settings) return; setBusy(true); setError(''); setMessage('');
-    try { const response = await request<Settings>('/api/dealer-integrations', 'PUT', { expectedRevision: settings.revision, resend: { enabled: settings.resend.enabled, from: settings.resend.from, replyTo: settings.resend.replyTo, apiKey, clearApiKey: clear.apiKey ?? false }, stripe: { enabled: settings.stripe.enabled, mode: settings.stripe.mode, publishableKey, secretKey, webhookSecret, clearPublishableKey: clear.publishableKey ?? false, clearSecretKey: clear.secretKey ?? false, clearWebhookSecret: clear.webhookSecret ?? false } }); setSettings(response); setSavedConnection(connectionSnapshot(response)); setApiKey(''); setPublishableKey(''); setSecretKey(''); setWebhookSecret(''); setClear({}); setMessage('Private integration settings saved.'); } catch (cause) { setError(errorMessage(cause)); } finally { setBusy(false); }
+    try { const response = await request<Settings>('/api/dealer-integrations', 'PUT', { expectedRevision: settings.revision, resend: { enabled: settings.resend.enabled, from: settings.resend.from, replyTo: settings.resend.replyTo, apiKey, clearApiKey: clear.apiKey ?? false }, stripe: { enabled: settings.stripe.enabled, mode: settings.stripe.mode, publishableKey, secretKey, webhookSecret, clearPublishableKey: clear.publishableKey ?? false, clearSecretKey: clear.secretKey ?? false, clearWebhookSecret: clear.webhookSecret ?? false } }); setSettings(response); setSavedConnection(connectionSnapshot(response)); setApiKey(''); setPublishableKey(''); setSecretKey(''); setWebhookSecret(''); setClear({});await privateSettingsSaved('connections',settings.revision,response.revision);setMessage('Private integration settings saved.'); } catch (cause) { setError(errorMessage(cause)); } finally { setBusy(false); }
   }
   function secret(label: string, id: string, configured: boolean, value: string, setter: (value: string) => void) { return <div className="integration-field"><label htmlFor={id}>{label} <span className="integration-secret-status">{configured && !clear[id] ? 'Saved privately' : 'Not configured'}</span></label><Input id={id} type="password" autoComplete="new-password" value={value} onChange={event => setter(event.target.value)} placeholder={configured ? 'Leave blank to keep the saved key' : 'Add your key when ready'} /><label className="integration-check"><input type="checkbox" checked={clear[id] ?? false} onChange={event => setClear(current => ({ ...current, [id]: event.target.checked }))} /> Remove saved key</label></div>; }
-  const changed = Boolean(settings && (connectionSnapshot(settings) !== savedConnection || apiKey || publishableKey || secretKey || webhookSecret || Object.values(clear).some(Boolean)));
   return <section className="integration-settings" aria-label="API integration settings" data-settings-dirty={changed}><div className="integration-heading"><div><p className="integration-eyebrow">Private settings</p><h2>Connections</h2><p>Email delivery and stock import setup. These settings are usually managed by your platform operator.</p></div><ShieldCheck aria-hidden="true" /></div>
     {error && <p role="alert" className="integration-error">{error}</p>}{message && <p role="status" className="integration-notice">{message}</p>}
     {!settings ? <Button type="button" onClick={() => void load()} disabled={busy}><RefreshCw size={16} />{busy ? 'Loading settings…' : 'Reload settings'}</Button> : <>

@@ -2,7 +2,7 @@ import { googleReviewUrl } from '@workspace/vehicle-meta';
 import { currentDealerId, multiTenantEnabled } from "../lib/tenant-context";
 import { applyCustomerFeaturePolicy } from '@workspace/vehicle-meta';
 import { bookingPolicyError, defaultBookingPolicy } from "../lib/booking-slots";
-import { preserveGoogleReviewUrl, preserveTestDriveBooking, preserveBrochure, preserveOnlineReservation, preservePresentation, reservationSettingsError } from "../lib/settings-content";
+import { preserveGoogleReviewUrl, preserveTestDriveBooking, preserveBrochure, preserveOnlineReservation, preservePresentation, publicSettingsLinkError, reservationSettingsError } from "../lib/settings-content";
 import { Router, type IRouter } from "express";
 import { requirePermission, requireStaff, staffLabel } from "../middlewares/staff-auth";
 import { eq } from "drizzle-orm";
@@ -15,6 +15,7 @@ import {
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
+router.use(['/dealer-settings', '/staff/settings-history'], (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
 const dealerId = () => currentDealerId();
 
 export const defaultSettings = {
@@ -148,6 +149,8 @@ async function validatePublication(incoming: Record<string, unknown>, previous: 
     throw new SettingsVersionError(parsed.error.message, 400);
   }
   const compatible = UpdateDealerSettingsBody.parse(preserveTestDriveBooking(preserveBrochure(preserveOnlineReservation(preservePresentation(preserveGoogleReviewUrl(parsed.data, previous), previous), previous), previous), previous));
+  const linkError = publicSettingsLinkError(compatible);
+  if (linkError) throw new SettingsVersionError(linkError, 400);
   if (compatible.contact.googleReviewUrl && !googleReviewUrl(compatible.contact.googleReviewUrl)) throw new SettingsVersionError('Use a valid HTTPS Google review link from your Business Profile.',400);
   const reservationError = reservationSettingsError(compatible.onlineReservation) ?? bookingPolicyError(compatible.testDriveBooking);
   if (reservationError) throw new SettingsVersionError(reservationError, 400);
@@ -190,7 +193,8 @@ router.post('/staff/settings-history/:version/restore', requireStaff, requirePer
   try {
     if (!/^\d+$/.test(req.params.version)) throw new SettingsVersionError('Settings version not found.', 404);
     const result = await new PostgresSettingsVersionStore(dealerId(), pool).publish({ expectedRevision: expectedSettingsRevision(req.headers['if-match']), actor: staffLabel(req), restoredFrom: Number(req.params.version), validate: validatePublication });
-    res.setHeader('x-settings-revision', String(result.revision)); res.json({ revision: result.revision, config: UpdateDealerSettingsResponse.parse(result.config) });
+    res.setHeader('x-settings-revision', String(result.revision)); res.setHeader('ETag', `"${result.revision}"`);
+    res.json({ revision: result.revision, config: UpdateDealerSettingsResponse.parse(result.config) });
   } catch (error) { settingsFailure(req, res, error); }
 });
 

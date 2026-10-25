@@ -65,10 +65,14 @@ LUXXY_TEST_DATABASE_URL="$EMPTY_LOCAL_MIGRATION_TEST_DATABASE_URL" pnpm --filter
 ```
 
 The API stock suite truncates data, so its database must be disposable. The migration
-suite refuses a database containing public tables. It applies migrations 0000–0010,
-seeds synthetic stock and an enquiry, applies 0011, checks data preservation, all
-27 tables and their columns/indexes, booking uniqueness, and migration replay.
-It leaves the synthetic verification data in the disposable database for inspection.
+suite refuses a database containing public tables. It applies migrations through 0010,
+seeds synthetic stock and an enquiry, verifies the latest generated snapshot at its
+historical migration, then applies every entry in the current journal. It checks
+preserved stock and enquiry data, the complete current table/column sets and required
+indexes (including raw-SQL receiving-email tables), cancelled-slot and staff double-booking
+behaviour, and migration replay. At the 0056 journal this covers 57 migrations and 80
+public tables. It leaves the synthetic verification data in the disposable database
+for inspection.
 
 
 ## Migration 0016 — shared sale workspace

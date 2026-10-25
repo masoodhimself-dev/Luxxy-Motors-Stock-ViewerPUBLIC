@@ -1,7 +1,7 @@
 import type { DealerSettings } from '@workspace/api-client-react';
 
 const key = 'luxxy-showroom-draft-v1';
-type Draft = { saved: string; form: DealerSettings; updatedAt: number; revision?: number | null };
+type Draft = { saved: string; form: DealerSettings; updatedAt: number; revision?: number | null; origin?: string };
 let memoryDraft: Draft | null = null;
 
 function matchesShape(value: unknown, example: unknown, path = ''): boolean {
@@ -35,6 +35,8 @@ export function readSettingsDraft(saved: DealerSettings): Draft | null {
     if (raw) draft = JSON.parse(raw);
   } catch { /* Storage may be disabled; retain the in-memory draft. */ }
   if (!draft || !Number.isFinite(draft.updatedAt) || Date.now() - draft.updatedAt > 86_400_000) return null;
+  if (draft.updatedAt > Date.now() + 300_000 || (draft.origin !== undefined && draft.origin !== window.location.origin)) return null;
+  if (draft.revision !== undefined && draft.revision !== null && (!Number.isSafeInteger(draft.revision) || draft.revision < 0)) return null;
   // Retain unpublished changes made before online-reservation settings existed.
   if (draft.form && typeof draft.form === 'object' && !Array.isArray(draft.form) && draft.form.onlineReservation === undefined && saved.onlineReservation !== undefined) {
     draft = { ...draft, form: { ...draft.form, onlineReservation: { ...saved.onlineReservation } } };
@@ -54,7 +56,7 @@ export function readSettingsDraft(saved: DealerSettings): Draft | null {
 }
 
 export function writeSettingsDraft(saved: string, form: DealerSettings, revision?: number | null): boolean {
-  memoryDraft = { saved, form, updatedAt: Date.now(), revision };
+  memoryDraft = { saved, form: JSON.parse(JSON.stringify(form)), updatedAt: Date.now(), revision, origin: window.location.origin };
   try {
     sessionStorage.setItem(key, JSON.stringify(memoryDraft));
     return true;

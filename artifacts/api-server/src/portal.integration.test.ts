@@ -79,6 +79,45 @@ after(async () => {
   }
 });
 
+test('settings publish twice, reject stale/unsafe edits, and restore with usable current revision headers', async () => {
+  try {
+    const initial = await request('/dealer-settings');
+    assert.equal(initial.status, 200); assert.equal(initial.headers.get('cache-control'), 'no-store');
+    const revision = Number(initial.headers.get('x-settings-revision'));
+    assert.ok(Number.isSafeInteger(revision)); assert.equal(initial.headers.get('etag'), `"${revision}"`);
+    const config = await json<Record<string, any>>(initial);
+    const noVersion = await request('/dealer-settings', { method: 'PATCH', body: JSON.stringify(config) });
+    assert.equal(noVersion.status, 428); assert.equal(noVersion.headers.get('cache-control'), 'no-store');
+
+    const firstConfig = { ...config, hero: { ...config.hero, announcement: 'Fictional first settings edit' } };
+    const first = await request('/dealer-settings', { method: 'PATCH', headers: { 'If-Match': `"${revision}"` }, body: JSON.stringify(firstConfig) });
+    assert.equal(first.status, 200, await first.clone().text());
+    assert.equal(first.headers.get('x-settings-revision'), String(revision + 1)); assert.equal(first.headers.get('etag'), `"${revision + 1}"`);
+    const firstSaved = await json<Record<string, any>>(first);
+    const secondConfig = { ...firstSaved, hero: { ...firstSaved.hero, announcement: 'Fictional second settings edit' } };
+    const second = await request('/dealer-settings', { method: 'PATCH', headers: { 'If-Match': first.headers.get('x-settings-revision')! }, body: JSON.stringify(secondConfig) });
+    assert.equal(second.status, 200, await second.clone().text()); assert.equal(second.headers.get('x-settings-revision'), String(revision + 2));
+    const secondSaved = await json<Record<string, any>>(second);
+
+    const stale = await request('/dealer-settings', { method: 'PATCH', headers: { 'If-Match': String(revision) }, body: JSON.stringify(firstConfig) });
+    assert.equal(stale.status, 409); assert.equal(stale.headers.get('x-settings-revision'), String(revision + 2)); assert.equal(stale.headers.get('cache-control'), 'no-store');
+    assert.equal((await json<{ revision: number }>(stale)).revision, revision + 2);
+    const unsafe = await request('/dealer-settings', { method: 'PATCH', headers: { 'If-Match': String(revision + 2) }, body: JSON.stringify({ ...secondSaved, social: { ...secondSaved.social, instagram: 'javascript:alert(1)' } }) });
+    assert.equal(unsafe.status, 400); assert.match((await json<{ error: string }>(unsafe)).error, /valid HTTP or HTTPS/);
+    const unchanged = await request('/dealer-settings'); assert.equal(unchanged.headers.get('x-settings-revision'), String(revision + 2)); assert.deepEqual(await unchanged.json(), secondSaved);
+
+    const restored = await request(`/staff/settings-history/${revision}/restore`, { method: 'POST', headers: { 'If-Match': String(revision + 2) } });
+    assert.equal(restored.status, 200, await restored.clone().text()); assert.equal(restored.headers.get('etag'), `"${revision + 3}"`); assert.equal(restored.headers.get('cache-control'), 'no-store');
+    const restoredBody = await json<{ revision: number; config: Record<string, any> }>(restored);
+    assert.equal(restoredBody.revision, revision + 3);
+    const afterRestore = await request('/dealer-settings', { method: 'PATCH', headers: { 'If-Match': restored.headers.get('x-settings-revision')! }, body: JSON.stringify(restoredBody.config) });
+    assert.equal(afterRestore.status, 200, await afterRestore.clone().text()); assert.equal(afterRestore.headers.get('x-settings-revision'), String(revision + 4));
+  } finally {
+    await pool.query('DELETE FROM dealer_settings_versions WHERE dealer_id=$1', [dealerId]);
+    await pool.query('DELETE FROM dealer_settings WHERE dealer_id=$1', [dealerId]);
+  }
+});
+
 test("keeps the staff work queue safe across lead changes", async () => {
   const protectedRoutes: Array<[string, string, string?]> = [
     ["GET", "/portal/session"],
@@ -111,8 +150,8 @@ test("keeps the staff work queue safe across lead changes", async () => {
     );
     assert.equal(
       response.status,
-      401,
-      `signed-out ${method} ${path} must be rejected`,
+      path.startsWith('/sales') ? 410 : 401,
+      `signed-out ${method} ${path} must be rejected (retired sales remain unavailable)`,
     );
   }
 

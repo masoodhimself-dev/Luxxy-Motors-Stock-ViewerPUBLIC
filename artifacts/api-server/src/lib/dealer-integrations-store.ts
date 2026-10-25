@@ -11,7 +11,7 @@ import { type InvoiceSettings, defaultInvoiceSettings, currentInvoiceSettings, i
 export class IntegrationSettingsError extends Error { constructor(message: string, readonly status = 400) { super(message); this.name = 'IntegrationSettingsError'; } }
 export type ResendSettings = { enabled: boolean; apiKey: string; from: string; replyTo: string };
 export type StripeSettings = { enabled: boolean; mode: 'test' | 'live'; publishableKey: string; secretKey: string; webhookSecret: string };
-export type PrivateDealerSettings = { version: 1; revision: number; updatedAt: string | null; resend: ResendSettings; stripe: StripeSettings; templates: Record<string, Pick<EmailTemplate, 'subject' | 'body' | 'headline'>>; appearance: EmailAppearance; useWebsiteBranding?: boolean; resendConfigured?: boolean; salesPaperwork?: { saleTerms: string; reservationTerms: string; invoiceSettings?: InvoiceSettings }; stockConnection?: StockConnection; phoneSharing?: { enabled: boolean }; whatsappTemplates?: Partial<Record<WhatsAppTemplateId, { body: string }>> };
+export type PrivateDealerSettings = { version: 1; revision: number; updatedAt: string | null; resend: ResendSettings; stripe: StripeSettings; templates: Record<string, Pick<EmailTemplate, 'subject' | 'body' | 'headline'>>; appearance: EmailAppearance; useWebsiteBranding?: boolean; resendConfigured?: boolean; salesPaperwork?: { saleTerms: string; reservationTerms: string; invoiceSettings?: InvoiceSettings }; stockConnection?: StockConnection; phoneSharing?: { enabled: boolean; invoiceQrEnabled?: boolean }; whatsappTemplates?: Partial<Record<WhatsAppTemplateId, { body: string }>> };
 const empty = (): PrivateDealerSettings => ({ version: 1, revision: 0, updatedAt: null, resend: { enabled: false, apiKey: '', from: '', replyTo: '' }, stripe: { enabled: false, mode: 'test', publishableKey: '', secretKey: '', webhookSecret: '' }, templates: {}, appearance: { ...defaultEmailAppearance }, useWebsiteBranding: true });
 export function effectiveResendSettings(settings: PrivateDealerSettings): ResendSettings { if(currentTenant()?.demo){ const p=demoProvisioning(); return {enabled:p.emailReady,apiKey:process.env.DEMO_RESEND_API_KEY??'',from:p.emailDomain?`${currentDealerId()} Demo <${currentDealerId()}@${p.emailDomain}>`:'',replyTo:''}; } return multiTenantEnabled() || settings.resendConfigured || settings.resend.apiKey || settings.resend.from || settings.resend.replyTo || settings.resend.enabled ? settings.resend : { enabled: process.env.RESEND_ENABLED === 'true', apiKey: process.env.RESEND_API_KEY?.trim() ?? '', from: process.env.RESEND_FROM_EMAIL?.trim() ?? '', replyTo: process.env.RESEND_REPLY_TO_EMAIL?.trim() ?? '' }; }
 const clean = z.string().trim().max(512).refine(value => !/[\r\n\u0000-\u001f\u007f]/.test(value), 'Use a single line without control characters.');
@@ -149,7 +149,7 @@ export class DealerIntegrationsStore {
   /** Safe for staff consumers: no email credentials, branding lookup or customer data. */
   async readPhoneSharing() {
     const state = await this.serial(() => this.load());
-    return { revision: state.revision, enabled: state.phoneSharing?.enabled !== false };
+    return { revision: state.revision, enabled: state.phoneSharing?.enabled !== false, invoiceQrEnabled: state.phoneSharing?.invoiceQrEnabled === true };
   }
   /** Wording only. Staff never receive the private credentials held beside it. */
   async listWhatsAppTemplates() {
@@ -177,15 +177,15 @@ export class DealerIntegrationsStore {
     });
   }
   async updatePhoneSharing(raw: unknown) {
-    const parsed = z.object({ expectedRevision: z.number().int().nonnegative(), enabled: z.boolean() }).strict().safeParse(raw);
+    const parsed = z.object({ expectedRevision: z.number().int().nonnegative(), enabled: z.boolean(), invoiceQrEnabled: z.boolean().optional() }).strict().safeParse(raw);
     if (!parsed.success) throw new IntegrationSettingsError('Choose whether WhatsApp QR sharing is enabled.');
     return this.serial(async () => {
       const state = await this.load();
       if (state.revision !== parsed.data.expectedRevision) throw new IntegrationSettingsError('These settings changed in another session. Reload before saving.', 409);
-      state.phoneSharing = { enabled: parsed.data.enabled };
+      state.phoneSharing = { enabled: parsed.data.enabled, invoiceQrEnabled: parsed.data.invoiceQrEnabled ?? (state.phoneSharing?.invoiceQrEnabled === true) };
       state.revision++; state.updatedAt = new Date().toISOString();
       await this.save(state);
-      return { revision: state.revision, enabled: state.phoneSharing.enabled };
+      return { revision: state.revision, enabled: state.phoneSharing.enabled, invoiceQrEnabled: state.phoneSharing.invoiceQrEnabled === true };
     });
   }
   async updateSalesPaperwork(raw: unknown) {

@@ -83,3 +83,20 @@ it('keeps unsaved design, payment and terms edits between tabs and saves them to
  await waitFor(()=>expect(writes).toHaveLength(1));
  expect(writes[0]).toMatchObject({expectedRevision:4,saleTerms:'New approved terms',invoiceSettings:{logoSize:'large',referencePrefix:'ABCD',paymentInstructions:'Use the invoice reference when paying.'}});
 });
+
+
+it('only shows relevant colour and logo controls while preserving their saved values', async () => {
+ vi.stubGlobal('fetch',vi.fn(async()=>Response.json({revision:1,saleTerms:'',reservationTerms:'',invoiceSettings:defaultInvoiceSettings})));
+ render(<SalesPaperworkSettings/>);
+ await screen.findByRole('tab',{name:'Design'});
+ expect(screen.queryByLabelText('Invoice colour')).not.toBeInTheDocument();
+ fireEvent.click(screen.getByLabelText('Use website colour'));
+ expect(screen.getByLabelText('Invoice colour')).toHaveValue(defaultInvoiceSettings.accent);
+ fireEvent.change(screen.getByLabelText('Design style'),{target:{value:'understated'}});
+ expect(screen.queryByLabelText('Invoice colour')).not.toBeInTheDocument();
+ expect(screen.queryByLabelText('Use website colour')).not.toBeInTheDocument();
+ fireEvent.click(screen.getByLabelText('Show dealership logo'));
+ expect(screen.queryByLabelText('Logo size')).not.toBeInTheDocument();
+ fireEvent.click(screen.getByLabelText('Show dealership logo'));
+ expect(screen.getByLabelText('Logo size')).toHaveValue(defaultInvoiceSettings.logoSize);
+});
