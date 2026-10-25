@@ -14,7 +14,7 @@ type Preparation = {
   requestId: string; enquiryId?: string; newCustomer?: { name: string; email?: string };
   vehicleId?: string; grantId?: string; phone?: string; email: string;
 };
-type Prepared = { enquiry: { id: string; customerName: string; reference?: string }; customerEmail: string };
+type Prepared = { enquiry: { id: string; customerName: string; reference?: string }; customerEmail: string; stockChange?: { taskId: string; revision: number } };
 export type ShareEmailCustomer = { enquiryId?: string; customerName: string; createNew?: boolean };
 type Props = {
   open: boolean; onOpenChange: (open: boolean) => void;
@@ -83,7 +83,7 @@ export function InternalShareEmail({ open, onOpenChange, subject, message, enqui
   if (prepared) return <Suspense fallback={<p role="status">Opening email draft…</p>}><EnquiryEmailComposer
     entry={{ ...prepared.enquiry, reference: prepared.enquiry.reference || "" }}
     initialRecipient={prepared.customerEmail}
-    suggestedContent={{ label: "Shared message", subject, message, applyLabel: "Use this shared message", includeVehicle: false, templateId: "enquiry_message" }}
+    suggestedContent={{ label: "Shared message", subject, message, applyLabel: "Use this shared message", includeVehicle: false, templateId: "enquiry_message", ...(prepared.stockChange ? { stockChange: prepared.stockChange } : {}) }}
     verifyContext={async () => { await verifyBeforePrepare?.(); if (attempt.current) await prepare(attempt.current); }}
     onClose={() => { setPrepared(null); onOpenChange(false); }}
   /></Suspense>;

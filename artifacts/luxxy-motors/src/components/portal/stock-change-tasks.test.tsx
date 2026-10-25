@@ -6,8 +6,9 @@ import { useStockChangeTasks } from '@/lib/stock-change-tasks';
 import { StockChangeTasks } from './stock-change-tasks';
 import { NotificationsHome } from './notifications-home';
 
-const state = vi.hoisted(() => ({ fetch: vi.fn(), permissions: ['stock.manage'] as string[] }));
-vi.mock('@workspace/api-client-react', () => ({ customFetch: (...args: unknown[]) => state.fetch(...args) }));
+const state = vi.hoisted(() => ({ fetch: vi.fn(), permissions: ['stock.manage', 'sales.manage'] as string[] }));
+vi.mock('@workspace/api-client-react', () => ({ customFetch: (...args: unknown[]) => state.fetch(...args), getGetEnquiriesQueryKey: () => ['/api/enquiries'] }));
+vi.mock('./sale-handover', () => ({ DeliveryHomeTasks: () => null }));
 vi.mock('wouter', () => ({ Link: ({ href, children, ...rest }: any) => <a href={href} {...rest}>{children}</a> }));
 vi.mock('./dealer-administration', () => ({ DealerDashboard: ({ children }: any) => <div>{children}</div>, useStaffAccess: () => ({ data: { permissions: state.permissions } }) }));
 
@@ -22,6 +23,7 @@ function task(overrides: Partial<StockChangeTask> = {}): StockChangeTask {
     upcomingAppointments: 0, paidReservations: 0, ...overrides,
   };
 }
+const completedTask = () => task({ affectedCustomers: task().affectedCustomers.map(customer => ({ ...customer, outcome: { status: 'contacted', revision: 1, channel: 'call', followUpAt: null, note: null, updatedAt: '2026-10-20T11:00:00Z' } })) });
 const notifications = {
   generatedAt: '2026-10-20T11:00:00Z', emailAccess: true,
   counts: { enquiries: 1, followups: 0, appointments: 1, drafts: 1, email: 0 },
@@ -40,7 +42,7 @@ function show(content = <Harness />) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   return render(<QueryClientProvider client={client}>{content}</QueryClientProvider>);
 }
-beforeEach(() => { state.fetch.mockReset(); state.permissions = ['stock.manage']; backend(); });
+beforeEach(() => { state.fetch.mockReset(); state.permissions = ['stock.manage', 'sales.manage']; backend(); });
 
 it('puts customer commitments first, shows the real price reduction and never calls a missing car sold', async () => {
   backend([task(), task({ id: 'missing-one', kind: 'missing_stock', vehicleTitle: 'Honda Civic', revision: 4, missingCount: 2, previousPrice: null, currentPrice: 6000, reduction: null, publiclyVisible: false, upcomingAppointments: 1, paidReservations: 1, createdAt: '2026-10-19T11:00:00Z' })]);
@@ -58,37 +60,45 @@ it('puts customer commitments first, shows the real price reduction and never ca
   expect(state.fetch.mock.calls.every(([, options]) => !options?.method)).toBe(true);
 });
 
-it('opens the affected customers explicitly with draft-only links and sensible phone/no-email fallbacks', async () => {
+it('opens one contact action per customer and supports phone-only WhatsApp without email', async () => {
   backend([task({ affectedCustomers: [...task().affectedCustomers, { enquiryId: 'no-email', customerName: 'Fictional Jo', email: null, phone: '07700900456', preferredContact: 'phone', appointmentAt: '2026-10-22T10:00:00Z', appointmentStatus: 'confirmed' }] })]);
   show();
   const button = await screen.findByRole('button', { name: 'Review interested customers' });
   expect(screen.queryByText('Fictional Alex')).not.toBeInTheDocument();
   fireEvent.click(button);
   expect(button).toHaveAttribute('aria-expanded', 'true');
-  expect(screen.getByRole('link', { name: 'Prepare email draft' })).toHaveAttribute('href', '/portal?section=notifications&workView=email&compose=enquiry-one&stockChangeId=price-one');
   expect(screen.getByText(/Existing bookings, agreed prices and payments stay unchanged/)).toBeVisible();
   const customers = screen.getByRole('list', { name: 'Customers affected by Toyota Yaris' });
   const jo = within(customers).getByRole('link', { name: 'Fictional Jo' }).closest('li')!;
-  expect(within(jo).getByText('No email address')).toBeVisible();
-  expect(within(jo).queryByRole('link', { name: 'Prepare email draft' })).not.toBeInTheDocument();
-  expect(within(jo).getByRole('link', { name: 'Call' })).toHaveAttribute('href', 'tel:07700900456');
-  expect(within(jo).getByText(/Visit 22 Oct 2026, 11:00/)).toBeVisible();
+  fireEvent.click(within(jo).getByRole('button', { name: 'Contact customer' }));
+  const dialog = screen.getByRole('dialog');
+  expect(within(dialog).getByText('No email address')).toBeVisible();
+  expect(within(dialog).getByRole('link', { name: /WhatsApp QR/ })).toHaveAttribute('href', '/portal?section=notifications&workView=email&compose=no-email&stockChangeId=price-one&channel=whatsapp');
+  expect(within(dialog).getByRole('link', { name: /Call/ })).toHaveAttribute('href', 'tel:07700900456');
+  expect(within(dialog).queryByRole('link', { name: /^Email/ })).not.toBeInTheDocument();
   expect(state.fetch.mock.calls.every(([, options]) => !options?.method)).toBe(true);
 });
 
-it('does not expose compose actions to staff without email access', async () => {
+it('keeps WhatsApp and phone options available without email access and does not record contact on cancel', async () => {
   show(<Harness emailAccess={false} />);
   fireEvent.click(await screen.findByRole('button', { name: 'Review interested customers' }));
-  expect(screen.queryByRole('link', { name: 'Prepare email draft' })).not.toBeInTheDocument();
-  expect(screen.getByText('Email access required')).toBeVisible();
-  expect(screen.getByRole('link', { name: 'Call' })).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Contact customer' }));
+  const dialog = screen.getByRole('dialog');
+  expect(within(dialog).getByRole('button', { name: 'Save outcome' })).toBeDisabled();
+  expect(within(dialog).queryByRole('link', { name: /^Email/ })).not.toBeInTheDocument();
+  expect(within(dialog).getByText('Email access required')).toBeVisible();
+  expect(within(dialog).getByRole('link', { name: /WhatsApp QR/ })).toBeVisible();
+  expect(within(dialog).getByRole('link', { name: /Call/ })).toBeVisible();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(state.fetch.mock.calls.every(([, options]) => !options?.method)).toBe(true);
 });
 
 it('marks only the selected task reviewed with its revision, without stock, sales or email mutations', async () => {
   let reviewed = false;
   state.fetch.mockImplementation(async (url: string, options?: RequestInit) => {
     if (options?.method === 'PATCH') { reviewed = true; return { ...task(), status: 'reviewed', revision: 3 }; }
-    return { tasks: reviewed ? [] : [task()], total: reviewed ? 0 : 1, generatedAt: '2026-10-20T11:00:00Z' };
+    return { tasks: reviewed ? [] : [completedTask()], total: reviewed ? 0 : 1, generatedAt: '2026-10-20T11:00:00Z' };
   });
   show();
   fireEvent.click(await screen.findByRole('button', { name: 'Mark reviewed' }));
@@ -104,7 +114,7 @@ it('refreshes a revision conflict and requires another staff click before retryi
   let revision = 2;
   state.fetch.mockImplementation(async (_url: string, options?: RequestInit) => {
     if (options?.method === 'PATCH') { revision = 3; throw { status: 409 }; }
-    return { tasks: [task({ revision })], total: 1, generatedAt: '2026-10-20T11:00:00Z' };
+    return { tasks: [{ ...completedTask(), revision }], total: 1, generatedAt: '2026-10-20T11:00:00Z' };
   });
   show();
   fireEvent.click(await screen.findByRole('button', { name: 'Mark reviewed' }));
@@ -159,8 +169,9 @@ it('preserves stock tasks when notifications fail and does not mistake an unknow
   show(<NotificationsHome />);
   await screen.findByText('Toyota Yaris');
   fireEvent.click(screen.getByRole('button', { name: 'Review interested customers' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Contact customer' }));
   expect(screen.getByText('Email access required')).toBeVisible();
-  expect(screen.queryByRole('link', { name: 'Prepare email draft' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: /^Email/ })).not.toBeInTheDocument();
 });
 
 it('caps the initial task list and expands it only when requested', async () => {
@@ -176,7 +187,7 @@ it('caps the initial task list and expands it only when requested', async () => 
 it('keeps an unreviewed task visible after a failed write and explains the server page limit honestly', async () => {
   state.fetch.mockImplementation(async (_url: string, options?: RequestInit) => {
     if (options?.method === 'PATCH') throw { status: 503 };
-    return { tasks: [task()], total: 101, generatedAt: '2026-10-20T11:00:00Z' };
+    return { tasks: [completedTask()], total: 101, generatedAt: '2026-10-20T11:00:00Z' };
   });
   show();
   fireEvent.click(await screen.findByRole('button', { name: 'Mark reviewed' }));
@@ -203,4 +214,166 @@ it('keeps the bookings and payments history link available alongside interested 
   show();
   expect(await screen.findByRole('link', { name: 'Review bookings & payments' })).toHaveAttribute('href', '/portal?section=history&view=vehicles&vehicleId=vehicle-one');
   expect(screen.getByRole('button', { name: 'Review interested customers' })).toBeVisible();
+});
+
+it('does not let the whole price task hide undecided customers', async () => {
+  show();
+  expect(await screen.findByRole('button', { name: 'Mark reviewed' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Review interested customers' }));
+  expect(screen.getByText('1 of 1 customer remaining')).toBeVisible();
+  expect(screen.getByText(/Record each customer’s outcome/)).toBeVisible();
+});
+
+it('records a customer phone outcome with both revisions and keeps it separate from sending', async () => {
+  let complete = false;
+  state.fetch.mockImplementation(async (_url: string, options?: RequestInit) => {
+    if (options?.method === 'PATCH') { complete = true; return completedTask(); }
+    return { tasks: [complete ? completedTask() : task()], total: 1 };
+  });
+  show();
+  fireEvent.click(await screen.findByRole('button', { name: 'Review interested customers' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Contact customer' }));
+  const dialog = screen.getByRole('dialog');
+  fireEvent.change(within(dialog).getByLabelText('Outcome'), { target: { value: 'contacted' } });
+  fireEvent.change(within(dialog).getByLabelText('Private note (optional)'), { target: { value: 'Asked them to call back.' } });
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Save outcome' }));
+  expect(await screen.findByText('Contacted by phone')).toBeVisible();
+  expect(screen.getByText('0 of 1 customer remaining')).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Mark reviewed' })).toBeEnabled();
+  const writes = state.fetch.mock.calls.filter(([, options]) => options?.method);
+  expect(writes).toHaveLength(1);
+  expect(writes[0][0]).toBe('/api/staff/stock-change-tasks/price-one/customers/enquiry-one');
+  expect(JSON.parse(writes[0][1].body)).toEqual({ expectedRevision: 2, expectedCustomerRevision: 0, action: 'contacted', channel: 'call', note: 'Asked them to call back.' });
+});
+
+it('keeps a future follow-up visible and saves the chosen date without marking it contacted', async () => {
+  let result = task();
+  state.fetch.mockImplementation(async (_url: string, options?: RequestInit) => {
+    if (options?.method === 'PATCH') {
+      const body = JSON.parse(String(options.body));
+      result = task({ affectedCustomers: task().affectedCustomers.map(customer => ({ ...customer, outcome: { status: 'follow_up', revision: 1, channel: null, followUpAt: body.followUpAt, note: null, updatedAt: '2026-10-20T11:00:00Z' } })) });
+      return result;
+    }
+    return { tasks: [result], total: 1 };
+  });
+  show();
+  fireEvent.click(await screen.findByRole('button', { name: 'Review interested customers' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Contact customer' }));
+  fireEvent.change(screen.getByLabelText('Outcome'), { target: { value: 'follow_up' } });
+  fireEvent.change(screen.getByLabelText(/Follow-up date/), { target: { value: '2099-10-26T10:00' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save outcome' }));
+  expect(await screen.findByText(/Follow up 26 Oct 2099/)).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Mark reviewed' })).toBeDisabled();
+  const body = JSON.parse(state.fetch.mock.calls.find(([, options]) => options?.method === 'PATCH')![1].body);
+  expect(body.action).toBe('follow_up'); expect(body.channel).toBeUndefined();
+});
+
+it('keeps a failed outcome undecided, and reloads conflicts without retrying a write', async () => {
+  state.fetch.mockImplementation(async (_url: string, options?: RequestInit) => {
+    if (options?.method === 'PATCH') throw { status: 409 };
+    return { tasks: [task()], total: 1 };
+  });
+  show();
+  fireEvent.click(await screen.findByRole('button', { name: 'Review interested customers' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Contact customer' }));
+  fireEvent.change(screen.getByLabelText('Outcome'), { target: { value: 'not_needed' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save outcome' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('This car or customer follow-up has changed');
+  expect(screen.getByRole('dialog')).toBeVisible();
+  expect(state.fetch.mock.calls.filter(([, options]) => options?.method)).toHaveLength(1);
+  expect(screen.getByRole('button', { name: 'Save outcome' })).toBeEnabled();
+});
+
+it('does not allow duplicated outcome requests while saving', async () => {
+  let finish!: () => void;
+  state.fetch.mockImplementation(async (_url: string, options?: RequestInit) => {
+    if (options?.method === 'PATCH') return new Promise(resolve => { finish = () => resolve(completedTask()); });
+    return { tasks: [task()], total: 1 };
+  });
+  show();
+  fireEvent.click(await screen.findByRole('button', { name: 'Review interested customers' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Contact customer' }));
+  fireEvent.change(screen.getByLabelText('Outcome'), { target: { value: 'contacted' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save outcome' }));
+  expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+  expect(state.fetch.mock.calls.filter(([, options]) => options?.method)).toHaveLength(1);
+  finish(); await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+});
+
+it('records No contact needed without recording a channel or sending a message', async () => {
+  let saved = false;
+  state.fetch.mockImplementation(async (_url: string, options?: RequestInit) => {
+    if (options?.method === 'PATCH') { saved = true; return {}; }
+    return { tasks: [saved ? task({ affectedCustomers: task().affectedCustomers.map(customer => ({ ...customer, outcome: { status: 'not_needed', revision: 1, channel: null, followUpAt: null, note: 'Already chose another car.', updatedAt: '2026-10-20T11:00:00Z' } })) }) : task()], total: 1 };
+  });
+  show();
+  fireEvent.click(await screen.findByRole('button', { name: 'Review interested customers' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Contact customer' }));
+  fireEvent.change(screen.getByLabelText('Outcome'), { target: { value: 'not_needed' } });
+  fireEvent.change(screen.getByLabelText('Private note (optional)'), { target: { value: 'Already chose another car.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save outcome' }));
+  expect(await screen.findByText('Not needed')).toBeVisible();
+  expect(screen.getByText('Already chose another car.')).toBeVisible();
+  const writes = state.fetch.mock.calls.filter(([, options]) => options?.method);
+  expect(writes).toHaveLength(1);
+  expect(JSON.parse(writes[0][1].body)).toEqual({ expectedRevision: 2, expectedCustomerRevision: 0, action: 'not_needed', note: 'Already chose another car.' });
+});
+
+it('does not save a follow-up in the past', async () => {
+  show();
+  fireEvent.click(await screen.findByRole('button', { name: 'Review interested customers' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Contact customer' }));
+  fireEvent.change(screen.getByLabelText('Outcome'), { target: { value: 'follow_up' } });
+  fireEvent.change(screen.getByLabelText(/Follow-up date/), { target: { value: '2000-01-01T10:00' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save outcome' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Choose a future date and time');
+  expect(state.fetch.mock.calls.every(([, options]) => !options?.method)).toBe(true);
+});
+
+it('keeps call and outcome controls but hides price-message actions when the car is reserved', async () => {
+  backend([task({ availableForPriceUpdate: false })]);
+  show();
+  fireEvent.click(await screen.findByRole('button', { name: 'Review interested customers' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Contact customer' }));
+  const dialog = screen.getByRole('dialog');
+  expect(within(dialog).getByText('This car is reserved or unavailable. Review availability before sending a price update.')).toBeVisible();
+  expect(within(dialog).queryByRole('link', { name: /^Email/ })).not.toBeInTheDocument();
+  expect(within(dialog).queryByRole('link', { name: /WhatsApp/ })).not.toBeInTheDocument();
+  expect(within(dialog).getByRole('link', { name: /Call/ })).toBeVisible();
+  expect(within(dialog).getByLabelText('Outcome')).toBeEnabled();
+  expect(state.fetch.mock.calls.every(([, options]) => !options?.method)).toBe(true);
+});
+
+
+it('uses global customer counts and cannot hide unresolved customers beyond the displayed batch', async () => {
+  const completed = completedTask().affectedCustomers[0];
+  const displayed = Array.from({ length: 100 }, (_, index) => ({ ...completed, enquiryId: `finished-${index}`, customerName: `Finished customer ${index}` }));
+  backend([task({ affectedCustomers: displayed, customerTotal: 145, pendingCustomerTotal: 45 })]);
+  show();
+  expect(await screen.findByText('45 of 145 customers remaining')).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Mark reviewed' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Review interested customers' }));
+  expect(screen.getByText('Showing 100 of 145 customers. Remaining customers appear as you record outcomes.')).toBeVisible();
+  expect(screen.queryByText('0 of 100 customers remaining')).not.toBeInTheDocument();
+  expect(state.fetch.mock.calls.every(([, options]) => !options?.method)).toBe(true);
+});
+
+it('loads the next pending customer after a recorded outcome without pretending the first batch was everyone', async () => {
+  let saved = false;
+  const first = task().affectedCustomers[0];
+  const next = { ...first, enquiryId: 'next-customer', customerName: 'Fictional next customer' };
+  state.fetch.mockImplementation(async (_url: string, options?: RequestInit) => {
+    if (options?.method === 'PATCH') { saved = true; return {}; }
+    return { tasks: [task({ customerTotal: 2, pendingCustomerTotal: saved ? 1 : 2, affectedCustomers: [saved ? next : first] })], total: 1 };
+  });
+  show();
+  fireEvent.click(await screen.findByRole('button', { name: 'Review interested customers' }));
+  expect(screen.getByText('2 of 2 customers remaining')).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Contact customer' }));
+  fireEvent.change(screen.getByLabelText('Outcome'), { target: { value: 'not_needed' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save outcome' }));
+  expect(await screen.findByRole('link', { name: 'Fictional next customer' })).toBeVisible();
+  expect(screen.getByText('1 of 2 customers remaining')).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Mark reviewed' })).toBeDisabled();
 });

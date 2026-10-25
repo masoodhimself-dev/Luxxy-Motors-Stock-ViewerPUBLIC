@@ -144,6 +144,21 @@ it('keeps long WhatsApp messages intact using the secure phone preview', async (
  const open=new URL(screen.getByRole('link',{name:'Open WhatsApp'}).getAttribute('href')!);
  expect(open.searchParams.get('text')).toBe(message);
 });
+it('routes even short price updates through the checked phone preview instead of a static WhatsApp QR', async () => {
+ const stockChange={taskId:'00000000-0000-4000-8000-000000000456',revision:0};
+ api.mockImplementation(async(url:string)=>url.includes('/enquiries?')?{enquiries:[{id:'enquiry',customerName:'Alex',phone:'07700900123'}]}:{id:'pack',url:'https://dealer.test/phone-share#'+'a'.repeat(64),message:'The price is now £8,495.',customerPhone:'07700900123',hasAttachments:false,stockChange});
+ render(<ShareQr whatsapp label="WhatsApp QR" source={{kind:'enquiry-message',enquiryId:'enquiry',draft:{stockChange}}} />);
+ fireEvent.click(screen.getByRole('button',{name:'WhatsApp QR'}));
+ const qr=await screen.findByTestId('qr');
+ expect(qr.getAttribute('data-value')).toContain('https://dealer.test/phone-share#');
+ expect(qr.getAttribute('data-value')).not.toContain('wa.me');
+ expect(screen.getByRole('link',{name:'Open phone preview'})).toHaveAttribute('href',qr.getAttribute('data-value'));
+ expect(screen.queryByRole('link',{name:'Open WhatsApp'})).not.toBeInTheDocument();
+ expect(screen.getByText(/Scan to check the latest price/)).toBeVisible();
+ expect(screen.getByRole('textbox',{name:'Customer WhatsApp number'})).toHaveAttribute('readonly');
+ expect(screen.getByText(/To change their number, update the enquiry/)).toBeVisible();
+ expect(api.mock.calls.some(([url])=>url.endsWith('/email')||url.endsWith('/confirm-whatsapp'))).toBe(false);
+});
 it('rechecks a private signing link before creating its QR', async () => {
  const check=vi.fn().mockRejectedValue(new Error('Signing link expired'));
  render(<ShareQr whatsapp label="WhatsApp QR" url="/sign/private" message="Please sign" customerPhone="07700 900123" beforeGenerate={check} />);

@@ -372,6 +372,13 @@
       "when": 1792669200001,
       "tag": "0052_customer_email_replies",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1792886400000,
+      "tag": "0053_stock_change_customer_outcomes",
+      "breakpoints": true
     }
   ]
 }

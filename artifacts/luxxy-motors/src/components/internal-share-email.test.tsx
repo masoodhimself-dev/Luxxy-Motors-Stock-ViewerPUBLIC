@@ -46,6 +46,17 @@ it("requires an existing customer to be chosen before preparing a video email", 
   expect(JSON.parse(writes()[0][1].body)).not.toHaveProperty("newCustomer");
 });
 
+it('keeps server-verified price context when converting a WhatsApp pack into an email draft', async () => {
+  const stockChange = { taskId: '00000000-0000-4000-8000-000000000455', revision: 2 };
+  state.api.mockImplementation(async (path: string) => path.includes('/enquiries?') ? { enquiries: [customer], canCreate: true } : { enquiry: customer, customerEmail: customer.email, stockChange });
+  render(<InternalShareEmail open onOpenChange={() => {}} enquiryId="enquiry" grantId="price-pack" subject="Price update" message="The price is now £8,495." />);
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Continue to email' })).toBeEnabled());
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to email' }));
+  await screen.findByRole('region', { name: 'Internal email composer' });
+  expect(state.composer.mock.calls.at(-1)![0].suggestedContent.stockChange).toEqual(stockChange);
+  expect(state.api.mock.calls.some(([path]) => path.endsWith('/email'))).toBe(false);
+});
+
 it("only creates an email-only customer enquiry after an explicit preparation action", async () => {
   render(<InternalShareEmail open onOpenChange={() => {}} subject="Your car video" message="Watch the car."/>);
   fireEvent.click(await screen.findByRole("checkbox", { name: "Create a new enquiry instead" }));

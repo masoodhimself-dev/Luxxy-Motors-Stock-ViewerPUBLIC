@@ -34,6 +34,7 @@ vi.mock("wouter", () => ({
   useLocation: () => ["/portal", state.navigate],
   Link: ({ href, children }: any) => <a href={href}>{children}</a>,
 }));
+vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({ settings: { identity: { name: 'Example Motors' } } }) }));
 vi.mock("./enquiry-workspace-tools", () => ({
   workspaceError: (e: any) => e.data?.error || e.message,
   useRefreshDesk: () => vi.fn(),
@@ -125,15 +126,10 @@ beforeEach(() => {
     });
 });
 function mount(embedded = false) {
-  return render(
-    <QueryClientProvider
-      client={
-        new QueryClient({ defaultOptions: { queries: { retry: false } } })
-      }
-    >
-      <EmailWorkspace embedded={embedded} />
-    </QueryClientProvider>,
-  );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const content = () => <QueryClientProvider client={client}><EmailWorkspace embedded={embedded} /></QueryClientProvider>;
+  const result = render(content());
+  return { ...result, rerenderWorkspace: () => result.rerender(content()) };
 }
 it("links sent messages to their customer, enquiry and car without resending", async () => {
   mount();
@@ -788,4 +784,29 @@ it('shows incoming customer replies as customer bubbles and only resolves them o
   await screen.findByRole('button',{name:'Mark handled'});fireEvent.click(screen.getByRole('button',{name:'Mark handled'}));
   await waitFor(()=>expect(state.fetch).toHaveBeenCalledWith('/api/staff/email/replies/reply-one/handled',{method:'POST'}));
   expect(state.fetch.mock.calls.some(([url])=>url.endsWith('/status'))).toBe(false);
+});
+
+
+it('clears a closed price-update route so the next customer gets an ordinary email composer', async () => {
+  state.search = 'section=notifications&workView=email&compose=enquiry-1&stockChangeId=price-task&channel=whatsapp&customer=Alex';
+  state.enquiries = [{ ...enquiry, vehicleId: 'car-1' }, { ...enquiry, id: 'enquiry-2', customerName: 'Jo', email: 'jo@example.test', vehicleId: 'car-2' }];
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options: any) => url === '/api/staff/stock-change-tasks/price-task' ? {
+    id: 'price-task', kind: 'price_drop', status: 'open', revision: 1, vehicleId: 'car-1', vehicleTitle: 'Ford Focus',
+    publiclyVisible: true, availableForPriceUpdate: true, previousPrice: 8995, currentPrice: 8495,
+    affectedCustomers: [{ enquiryId: 'enquiry-1', email: enquiry.email, phone: '07700900123' }],
+  } : original(url, options));
+  const workspace = mount();
+  expect(await screen.findByRole('heading', { name: 'Prepare customer message' })).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+  expect(state.navigate).toHaveBeenCalledWith('/portal?section=notifications&workView=email&customer=Alex&view=drafts', { replace: true });
+  state.search = new URL(state.navigate.mock.calls[0][0], 'https://dealer.example').search.slice(1);
+  workspace.rerenderWorkspace();
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  fireEvent.click(screen.getByRole('button', { name: 'New email' }));
+  fireEvent.change(screen.getByRole('combobox', { name: 'Customer enquiry' }), { target: { value: 'enquiry-2' } });
+  expect(await screen.findByRole('heading', { name: 'Prepare customer email' })).toBeVisible();
+  expect(screen.queryByText(/Linked to a price update/)).not.toBeInTheDocument();
+  expect(state.fetch.mock.calls.filter(([url]) => url === '/api/staff/stock-change-tasks/price-task')).toHaveLength(1);
+  expect(state.fetch.mock.calls.some(([url, options]) => /\/email$/.test(url) && options?.method === 'POST')).toBe(false);
 });

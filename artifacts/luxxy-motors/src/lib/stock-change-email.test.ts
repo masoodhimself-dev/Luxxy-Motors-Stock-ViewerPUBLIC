@@ -15,7 +15,7 @@ const task: StockChangeTask = {
 it('prepares a truthful advertised-price update without promising a changed agreement', () => {
   const before = structuredClone(task);
   const result = stockChangeEmail(task, entry, 'Example Motors');
-  expect(result.content?.message).toContain('advertised price is now £8,495, down from £8,995');
+  expect(result.content?.message).toContain('has been reduced from £8,995 to £8,495');
   expect(result.content?.message).not.toMatch(/invoice|deposit|your agreed price|update-one|enquiry-one/);
   expect(result.content?.message).toContain('Example Motors');
   expect(task).toEqual(before);
@@ -39,4 +39,16 @@ it('does not use a task for another vehicle or a customer no longer eligible for
 });
 it('allows a reviewed but still-current update without creating another task', () => {
   expect(stockChangeEmail({ ...task, status: 'reviewed' }, entry, 'Example Motors').content?.label).toBe('Price update');
+});
+
+it('allows a phone-only WhatsApp draft while keeping email eligibility separate', () => {
+  const phoneOnly = { ...task, affectedCustomers: [{ ...task.affectedCustomers[0], email: null, phone: '07700900123' }] };
+  expect(stockChangeEmail(phoneOnly, entry, 'Example Motors', 'whatsapp').content?.message).toContain('has been reduced from £8,995 to £8,495');
+  expect(stockChangeEmail(phoneOnly, entry, 'Example Motors').error).toBeTruthy();
+  expect(stockChangeEmail({ ...phoneOnly, affectedCustomers: [{ ...phoneOnly.affectedCustomers[0], phone: '123' }] }, entry, 'Example Motors', 'whatsapp').error).toBeTruthy();
+});
+
+it('does not prepare a price update for a reserved or unavailable car, even when still publicly visible', () => {
+  expect(stockChangeEmail({ ...task, publiclyVisible: true, availableForPriceUpdate: false }, entry, 'Example Motors').error).toBeTruthy();
+  expect(stockChangeEmail({ ...task, publiclyVisible: true, availableForPriceUpdate: false, affectedCustomers: [{ ...task.affectedCustomers[0], phone: '07700900123' }] }, entry, 'Example Motors', 'whatsapp').error).toBeTruthy();
 });

@@ -12,7 +12,8 @@ import { videoRange } from "../../api-server/src/lib/media-storage";
 import { readPreviewEnquiries } from './reservations';
 import { renderWhatsAppTemplate, validateWhatsAppMessage, whatsappTemplateIds, type WhatsAppTemplateId } from '@workspace/vehicle-meta';
 import { previewIntegrationsStore } from './dealer-integrations';
-const packs = new Map<string, { id: string; expiresAt: string; message: string; messageBody: string; requiredText: string; templateId: WhatsAppTemplateId; templateVariables: Record<string, string>; messageLinkRequired: boolean; hasAttachments: boolean }>();
+import { readPreviewStockChangeTask, recordPreviewStockChangeContact } from './stock-changes';
+const packs = new Map<string, { id: string; expiresAt: string; message: string; messageBody: string; requiredText: string; templateId: WhatsAppTemplateId; templateVariables: Record<string, string>; messageLinkRequired: boolean; hasAttachments: boolean; stockChange?: { taskId: string; revision: number }; enquiryId?: string; customerPhone?: string; customerEmail?: string; customerName?: string; vehicleId?: string }>();
 const demoId = "00000000-0000-4000-8000-000000000048";
 export async function mediaSharingPreview(
   req: IncomingMessage,
@@ -128,12 +129,14 @@ export async function mediaSharingPreview(
       const data=JSON.parse(body),entry=(await readPreviewEnquiries()).find(entry=>entry.id===data.enquiryId&&!entry.mergedIntoId);
       if(!entry)return send(409,{error:'Save a fictional customer in Quick enquiry first, then select that enquiry for this local review.'});
       if(data.grantId&&![...packs.values()].some(pack=>pack.id===data.grantId&&Date.parse(pack.expiresAt)>Date.now()))return send(410,{error:'This sharing link has expired. Create a new one.'});
-      return send(200,{enquiry:{id:entry.id,customerName:entry.customerName,reference:entry.reference},customerEmail:data.email||entry.email||''});
+      const pack = [...packs.values()].find(pack=>pack.id===data.grantId);
+      if(pack?.stockChange && pack.enquiryId!==entry.id)return send(409,{error:'This price update belongs to a different customer.'});
+      return send(200,{enquiry:{id:entry.id,customerName:entry.customerName,reference:entry.reference},customerEmail:data.email||entry.email||'',...(pack?.stockChange?{stockChange:pack.stockChange}:{})});
     }catch{return send(400,{error:'Invalid preview request.'});}
   }
   if (url.pathname === "/api/staff/phone-shares/confirm-whatsapp" && req.method === "POST") {
     let body=""; for await (const part of req) {body+=String(part);if(body.length>65536)return send(413,{error:"Preview request too large."});}
-    try {const data=JSON.parse(body);if(data.confirmed!==true)return send(400,{error:"Confirm the message was sent."});return send(201,{enquiryId:data.enquiryId||demoId,confirmedAt:new Date().toISOString(),preview:true});}catch{return send(400,{error:"Invalid preview request."});}
+    try {const data=JSON.parse(body);if(data.confirmed!==true)return send(400,{error:"Confirm the message was sent."});const pack=[...packs.values()].find(pack=>pack.id===data.grantId);if(pack?.stockChange){if(pack.enquiryId!==data.enquiryId)return send(409,{error:'This price update belongs to a different customer.'});await recordPreviewStockChangeContact(pack.stockChange.taskId,data.enquiryId,'whatsapp');}return send(201,{enquiryId:data.enquiryId||demoId,confirmedAt:new Date().toISOString(),preview:true});}catch{return send(400,{error:"Invalid preview request."});}
   }
   if (url.pathname === "/api/staff/phone-shares" && req.method === "POST") {
     let body = "";
@@ -150,25 +153,32 @@ export async function mediaSharingPreview(
     }
     if (!/^[a-f0-9]{64}$/.test(data.token || ""))
       return send(400, { error: "Invalid preview token." });
+    const stockChange = data.source?.draft?.stockChange;
+    const entry = stockChange ? (await readPreviewEnquiries()).find(entry => entry.id === data.source.enquiryId) : undefined;
+    if (stockChange) {
+      const task = await readPreviewStockChangeTask(stockChange.taskId);
+      if (!task || task.status !== 'open' || task.revision !== stockChange.revision || !entry || !task.affectedCustomers.some(person=>person.enquiryId===entry.id)) return send(409,{error:'This price update has changed. Prepare a fresh message.'});
+    }
     const templateId: WhatsAppTemplateId = (whatsappTemplateIds as readonly string[]).includes(data.templateId) ? data.templateId : 'invoice';
     const templateVariables = { customer_name: 'Fictional customer', dealer_name: 'Local preview showroom', vehicle_title: 'Fictional preview car', vehicle_registration: 'AB12CDE', appointment_time: 'Friday at 10:00 (UK time)', message: 'Local visual test only. This is not a real invoice or customer message.' };
     let messageBody: string;
     try {
       const template = (await previewIntegrationsStore.listWhatsAppTemplates()).templates.find(item => item.id === templateId)!;
-      messageBody = data.messageBody !== undefined ? validateWhatsAppMessage(data.messageBody) : data.templateId ? renderWhatsAppTemplate(template, templateVariables) : templateVariables.message;
+      messageBody = data.messageBody !== undefined ? validateWhatsAppMessage(data.messageBody) : stockChange ? validateWhatsAppMessage(data.source.draft.message) : data.templateId ? renderWhatsAppTemplate(template, templateVariables) : templateVariables.message;
     } catch (error) { return send(400, {error: error instanceof Error ? error.message : 'Check the message.'}); }
-    const requiredText = data.source?.kind === 'message' ? data.source.url || 'FICTIONAL LOCAL PREVIEW ONLY' : 'FICTIONAL LOCAL PREVIEW ONLY\nVehicle: Fictional preview car\nAttachment: fictional-invoice.pdf';
+    const requiredText = stockChange ? 'FICTIONAL LOCAL PREVIEW ONLY' : data.source?.kind === 'message' ? data.source.url || 'FICTIONAL LOCAL PREVIEW ONLY' : 'FICTIONAL LOCAL PREVIEW ONLY\nVehicle: Fictional preview car\nAttachment: fictional-invoice.pdf';
     const saved = packs.get(data.token) || {
       id: randomUUID(),
       expiresAt: new Date(Date.now() + 86400000).toISOString(),
       messageBody, requiredText, templateId, templateVariables,
-      messageLinkRequired: data.source?.kind === 'message', hasAttachments: data.source?.kind !== 'message',
+      messageLinkRequired: data.source?.kind === 'message', hasAttachments: !stockChange && data.source?.kind !== 'message',
       message: [messageBody, requiredText].join('\n\n'),
+      ...(stockChange && entry ? { stockChange, enquiryId: entry.id, customerPhone: entry.phone || '', customerEmail: entry.email || '', customerName: entry.customerName, ...(entry.vehicleId ? {vehicleId:entry.vehicleId}:{}) } : {}),
     };
     packs.set(data.token, saved);
     return send(201, {
       ...saved,
-      customerPhone: "07700 900123",
+      customerPhone: saved.customerPhone || "07700 900123",
       url: `http://${req.headers.host}/phone-share#${data.token}`,
       preview: true,
     });
@@ -185,12 +195,17 @@ export async function mediaSharingPreview(
       return send(404, {
         error: "This fictional preview link is unavailable.",
       });
+    if (pack.stockChange) {
+      const task = await readPreviewStockChangeTask(pack.stockChange.taskId);
+      if (!task || task.status !== 'open' || task.revision !== pack.stockChange.revision) return send(409,{error:'This price update has changed. Ask staff for a fresh message.'});
+    }
     const pdf = new jsPDF();
     pdf.text("FICTIONAL LOCAL SHARING EXAMPLE", 18, 24);
     pdf.text("No real customer document or email was used.", 18, 40);
     return send(200, {
-      customerPhone: "07700 900123",
-      title: "Fictional invoice sharing example",
+      customerPhone: pack.customerPhone || "07700 900123",
+      title: pack.stockChange ? 'Fictional price update' : "Fictional invoice sharing example",
+      ...(pack.stockChange ? { stockChange: pack.stockChange } : {}),
       message: pack.message,
       expiresAt: pack.expiresAt,
       files: pack.hasAttachments ? [

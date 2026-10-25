@@ -69,6 +69,7 @@ type EmailContext = {
   deliveries: Delivery[];
 };
 type EmailDraft = {
+  stockChange?: { taskId: string; revision: number };
   templateId?: string;
   to: string;
   subject: string;
@@ -90,7 +91,7 @@ type EmailPreview = {
   previewHash: string;
   attachments: { id: string; filename: string; byteSize: number }[];
 };
-export type SuggestedEmailContent = { subject: string; message: string; label: string; applyLabel?: string; includeVehicle?: boolean; templateId?: "enquiry_message" };
+export type SuggestedEmailContent = { subject: string; message: string; label: string; applyLabel?: string; includeVehicle?: boolean; templateId?: "enquiry_message"; stockChange?: { taskId: string; revision: number } };
 export type InitialEmailContent = { subject: string; message: string; appendText: string; link: string };
 const request = <T,>(path: string, body?: unknown) =>
   customFetch<T>(
@@ -203,6 +204,7 @@ function EnquiryEmailEditor({
     } | null>(null);
   const cache = useQueryClient();
   const savedVersion = useRef(0);
+  const replaceStockChangeContext = useRef(false);
   const [suggestionApplied, setSuggestionApplied] = useState(false);
   const [dirty, setDirty] = useState(false),
     [saveNotice, setSaveNotice] = useState("");
@@ -255,6 +257,7 @@ function EnquiryEmailEditor({
     setSuggestionApplied(Boolean(suggestedContent));
     setDraft({
       ...(suggestedContent?.templateId ? { templateId: suggestedContent.templateId } : {}),
+      ...(suggestedContent?.stockChange ? { stockChange: suggestedContent.stockChange } : {}),
       to: initialRecipient && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(initialRecipient.trim()) ? initialRecipient.trim() : data.email,
       ...(initialContent ? { subject: initialContent.subject, message: initialContent.message } : suggestedContent ? { subject: suggestedContent.subject, message: suggestedContent.message } : data.defaults),
       includeVehicle: data.reviewRequest || suggestedContent?.includeVehicle === false ? false : data.vehicleAvailable,
@@ -290,9 +293,11 @@ function EnquiryEmailEditor({
     }>(`${base}/email-draft`, {
       expectedVersion: savedVersion.current,
       content: draft,
+      ...(replaceStockChangeContext.current ? { replaceStockChangeContext: true } : {}),
       ...(aiGenerationId ? { aiGenerationId } : {}),
     });
     savedVersion.current = result.version;
+    replaceStockChangeContext.current = false;
     await cache.cancelQueries({ queryKey: contextKey, exact: true });
     cache.setQueryData<EmailContext>(contextKey, (current) => {
       if (!current) return current;
@@ -426,6 +431,7 @@ function EnquiryEmailEditor({
       setDirty(false);
       await Promise.all([
         refresh(),
+        cache.invalidateQueries({ queryKey: ['staff-stock-change-tasks'] }),
         cache.invalidateQueries({ queryKey: ["staff-email-drafts"] }),
         cache.invalidateQueries({ queryKey: ["staff-notifications"] }),
         cache.invalidateQueries({ queryKey: ['reply-attention'] }),
@@ -467,6 +473,8 @@ function EnquiryEmailEditor({
     }
   }
   const data = initialized.current ? context.data : undefined;
+  const preparingMessage = messageMode || Boolean(draft.stockChange && !draft.to.trim());
+  const mediaAttachments = data && <EnquiryMediaAttachments enquiryId={entry.id} photos={data.customPhotos} vehiclePhotos={data.vehiclePhotos} videoAvailable={data.videoAvailable} selection={draft} disabled={busy || aiBusy} onChange={change} onBusyChange={setMediaBusy} onRefresh={() => context.refetch({ throwOnError: true })} />;
   const photoCategory =
     draft.templateId === "service_history"
       ? "service_book"
@@ -498,7 +506,7 @@ function EnquiryEmailEditor({
               ? deliveryLabel(delivery)
               : preview
                 ? "Review customer email"
-                : messageMode ? "Prepare customer message" : "Prepare customer email"}
+                : preparingMessage ? "Prepare customer message" : "Prepare customer email"}
           </DialogTitle>
           <DialogDescription>
             {entry.customerName}
@@ -554,6 +562,7 @@ function EnquiryEmailEditor({
             <>
               {!features.enabled('customerEmails') && <p className="enquiry-email-readiness" role="status">{features.isLoading ? 'Checking email availability…' : features.isError ? 'Email availability could not be checked. Sending is paused; your draft is safe.' : 'Email sending is switched off by platform administration. You can still prepare and save drafts.'}</p>}
               {sendBlockedReason && <p className="enquiry-email-readiness" role="status">{sendBlockedReason} Your text is kept here and can be saved as a draft.</p>}
+              {draft.stockChange && <p className="enquiry-email-readiness" role="status">Linked to a price update. The current car, price and customer are checked before email or WhatsApp sharing. If the price changes, prepare fresh wording from Home.</p>}
               {!data.ready && (
                 <p role="status" className="enquiry-email-readiness">
                   Email is not enabled for this dealership. Ask the owner to
@@ -665,16 +674,16 @@ function EnquiryEmailEditor({
                       }}
                       className="enquiry-email-form"
                     >
-                      {suggestedContent && <div className="enquiry-email-readiness" role="status"><p>{suggestionApplied ? `${suggestedContent.label} prepared. Edit the wording and review before sending.` : `Your saved draft has been kept. You can choose the ${suggestedContent.label.toLowerCase()} wording instead.`}</p>{!suggestionApplied && <Button type="button" variant="outline" disabled={busy || aiBusy} onClick={() => { change({ templateId: suggestedContent.templateId, subject: suggestedContent.subject, message: suggestedContent.message, includeAppointment: false, ...(suggestedContent.includeVehicle === false ? { includeVehicle: false } : {}) }); setSuggestionApplied(true); }}>{suggestedContent.applyLabel || `Use ${suggestedContent.label.toLowerCase()} wording`}</Button>}</div>}
+                      {suggestedContent && <div className="enquiry-email-readiness" role="status"><p>{suggestionApplied ? `${suggestedContent.label} prepared. Edit the wording and review before sending.` : `Your saved draft has been kept. You can choose the ${suggestedContent.label.toLowerCase()} wording instead.`}</p>{!suggestionApplied && <Button type="button" variant="outline" disabled={busy || aiBusy} onClick={() => { replaceStockChangeContext.current = Boolean(draft.stockChange && suggestedContent.stockChange && (draft.stockChange.taskId !== suggestedContent.stockChange.taskId || draft.stockChange.revision !== suggestedContent.stockChange.revision)); change({ templateId: suggestedContent.templateId, subject: suggestedContent.subject, message: suggestedContent.message, includeAppointment: false, ...(suggestedContent.stockChange ? { stockChange: suggestedContent.stockChange } : {}), ...(suggestedContent.includeVehicle === false ? { includeVehicle: false } : {}) }); setSuggestionApplied(true); }}>{suggestedContent.applyLabel || `Use ${suggestedContent.label.toLowerCase()} wording`}</Button>}</div>}
                       {initialContent && !draft.message.includes(initialContent.link) && <div className="enquiry-email-readiness"><p>Your saved message has been kept. Add the private declaration link when you are ready.</p><Button type="button" variant="outline" disabled={busy || aiBusy} onClick={() => change({ message: `${draft.message.trim()}\n\n${initialContent.appendText}`.trim() })}>Add declaration link</Button></div>}
                       <fieldset disabled={busy || aiBusy}>
                         {initialRecipient && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(initialRecipient.trim()) && draft.to !== initialRecipient.trim() && <div className="enquiry-email-readiness"><p>Your saved draft’s email address has been kept. The sharing window selected {initialRecipient.trim()}.</p><Button type="button" variant="outline" disabled={busy || aiBusy} onClick={() => change({ to: initialRecipient.trim() })}>Use email address {initialRecipient.trim()}</Button></div>}
                         <label>
-                          Customer email
+                          {preparingMessage ? 'Customer email (optional for WhatsApp)' : 'Customer email'}
                           <Input
                             autoFocus
                             type="email"
-                            required
+                            required={!preparingMessage}
                             maxLength={254}
                             value={draft.to}
                             onChange={(event) =>
@@ -757,7 +766,7 @@ function EnquiryEmailEditor({
                             </select>
                           </label>
                         )}
-                        {features.enabled('staffAiDrafts') && <AiDraftSuggestion
+                        {features.enabled('staffAiDrafts') && !draft.stockChange && <AiDraftSuggestion
                           key={`${entry.id}:${data.revision}:${savedVersion.current}`}
                           enquiryId={entry.id}
                           expectedRevision={draft.expectedRevision}
@@ -802,7 +811,7 @@ function EnquiryEmailEditor({
                             }
                           />
                         </label>
-                        <EnquiryMediaAttachments enquiryId={entry.id} photos={data.customPhotos} vehiclePhotos={data.vehiclePhotos} videoAvailable={data.videoAvailable} selection={draft} disabled={busy || aiBusy} onChange={change} onBusyChange={setMediaBusy} onRefresh={() => context.refetch({ throwOnError: true })} />
+                        {draft.stockChange ? <details className="enquiry-email-service-book"><summary>Photos & video (optional){Boolean(draft.customPhotoIds?.length || draft.vehiclePhotoIndices?.length || draft.includeVideo) && ' · selected'}</summary>{mediaAttachments}</details> : mediaAttachments}
                         {Boolean(data.invoices?.length) && (
                           <fieldset className="enquiry-email-service-book">
                             <legend>Saved invoices · optional</legend>
@@ -961,6 +970,7 @@ function EnquiryEmailEditor({
                             busy ||
                             aiBusy ||
                             draft.expectedRevision !== data.revision ||
+                            !draft.to.trim() ||
                             Boolean(missingAttachment)
                           }
                         >

@@ -996,6 +996,60 @@ it('rechecks stock before an explicitly reviewed send and never sends a stale up
   expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('Original staff message');
 });
 
+it('preserves a saved price context through ordinary Inbox edits and keeps the draft when the server blocks stale wording', async () => {
+  const stockChange = { taskId: '00000000-0000-4000-8000-000000000451', revision: 3 };
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options?: unknown) => {
+    if (url.endsWith('/email-context')) return { ...context(), savedDraft: { version: 4, status: 'draft', source: 'manual', content: { to: 'alex@example.test', subject: 'Price update', message: 'The price is £8,495.', stockChange, includeVehicle: false, includeAppointment: false, photoIds: [], documentIds: [], expectedRevision: 2 } } };
+    if (url.endsWith('/email-preview')) throw { status: 409, data: { error: 'The advertised price has changed. Prepare a fresh price update from Home.' } };
+    return original(url, options);
+  });
+  mount();
+  expect(await screen.findByRole('textbox', { name: 'Message' })).toHaveValue('The price is £8,495.');
+  fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Hi Alex, the price is £8,495.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Review email' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('The advertised price has changed');
+  expect(JSON.parse(calls('/email-draft')[0][1].body).content.stockChange).toEqual(stockChange);
+  expect(JSON.parse(calls('/email-preview')[0][1].body).stockChange).toEqual(stockChange);
+  expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('Hi Alex, the price is £8,495.');
+  expect(calls('/email')).toHaveLength(0);
+});
+
+it('carries price context into a phone-only WhatsApp draft and QR without a dummy email', async () => {
+  const stockChange = { taskId: '00000000-0000-4000-8000-000000000452', revision: 0 };
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options?: unknown) => {
+    if (url.endsWith('/email-context')) return { ...context(), email: '' };
+    if (url === '/api/staff/phone-shares') return { id: 'pack', url: `https://example.test/phone-share#${'a'.repeat(64)}`, message: 'The price is now £8,495.', customerPhone: '07700900123', hasAttachments: false, enquiryId: entry.id };
+    if (url.includes('/phone-shares/enquiries?')) return { enquiries: [{ id: entry.id, customerName: entry.customerName, phone: '07700900123' }] };
+    return original(url, options);
+  });
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><EnquiryEmailComposer entry={entry} messageMode suggestedContent={{ label: 'Price update', subject: 'Price update', message: 'The price is now £8,495.', stockChange }} onClose={state.close} /></QueryClientProvider>);
+  expect(await screen.findByRole('textbox', { name: 'Customer email (optional for WhatsApp)' })).toHaveValue('');
+  expect(screen.getByRole('button', { name: 'Review email' })).toBeDisabled();
+  await waitFor(() => expect(screen.getByRole('button', { name: 'WhatsApp QR' })).toBeEnabled());
+  fireEvent.click(screen.getByRole('button', { name: 'WhatsApp QR' }));
+  await waitFor(() => expect(calls('/phone-shares')).toHaveLength(1));
+  expect(JSON.parse(calls('/email-draft')[0][1].body).content).toMatchObject({ to: '', stockChange });
+  expect(JSON.parse(calls('/phone-shares')[0][1].body).source.draft).toMatchObject({ to: '', stockChange });
+  expect(calls('/email')).toHaveLength(0);
+  expect(calls('/confirm-whatsapp')).toHaveLength(0);
+});
+
+it('only requests replacement of old price provenance after staff explicitly use fresh price wording', async () => {
+  const stockChange = { taskId: '00000000-0000-4000-8000-000000000453', revision: 0 };
+  const latest = { taskId: '00000000-0000-4000-8000-000000000454', revision: 0 };
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options?: unknown) => url.endsWith('/email-context') ? { ...context(), savedDraft: { version: 4, status: 'draft', source: 'manual', content: { to: 'alex@example.test', subject: 'Old update', message: 'The old price is £8,995.', stockChange, includeVehicle: false, includeAppointment: false, photoIds: [], documentIds: [], expectedRevision: 2 } } } : original(url, options));
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><EnquiryEmailComposer entry={entry} suggestedContent={{ label: 'Price update', subject: 'Latest update', message: 'The current price is £8,495.', stockChange: latest }} onClose={state.close} /></QueryClientProvider>);
+  expect(await screen.findByRole('textbox', { name: 'Message' })).toHaveValue('The old price is £8,995.');
+  expect(calls('/email-draft')).toHaveLength(0);
+  fireEvent.click(screen.getByRole('button', { name: 'Use price update wording' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await screen.findByText('Draft saved · not sent');
+  expect(JSON.parse(calls('/email-draft')[0][1].body)).toMatchObject({ replaceStockChangeContext: true, content: { stockChange: latest, message: 'The current price is £8,495.' } });
+});
+
 it('uses a supplied stable follow-up request ID across a lost response and retry', async () => {
   const original = state.fetch.getMockImplementation()!;
   let failed = false;

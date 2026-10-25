@@ -59,6 +59,8 @@ import { dealerProfile } from "../lib/enquiry-notifications";
 import { siteOrigin } from "../lib/enquiry-links";
 import { enquiryMediaContext, selectedEnquiryMedia, EnquiryMediaError, mediaRequestIdentity } from "../lib/enquiry-media";
 
+import { stockChangeMessageSchema, requireSavedStockChangeContext, validateStockChangeMessage, StockChangeMessageError } from '../lib/stock-change-message-context';
+
 export const draftSchema = z
   .object({
     to: z.string().trim().toLowerCase().max(254).email(),
@@ -99,6 +101,7 @@ export const draftSchema = z
     vehiclePhotoIndices: z.array(z.number().int().min(0).max(99)).max(4).refine(v => new Set(v).size === v.length).default([]),
     includeVideo: z.boolean().default(false),
     expectedRevision: z.number().int().nonnegative(),
+    stockChange: stockChangeMessageSchema.optional(),
   })
   .strict();
 const sendSchema = draftSchema.extend({
@@ -212,12 +215,10 @@ async function preview(
   const input = {...rawInput, customPhotoIds: rawInput.customPhotoIds ?? [], vehiclePhotoIndices: rawInput.vehiclePhotoIndices ?? [], includeVideo: rawInput.includeVideo ?? false};
   return withEmailPreparation(async () => {
     const enquiry = await entry(id, executor);
-    await checkSavedAiDraftFresh(
-      executor,
-      enquiry.dealerId,
-      enquiry.id,
-      await readEmailDraft(enquiry.dealerId, enquiry.id, executor),
-    );
+    const saved = await readEmailDraft(enquiry.dealerId, enquiry.id, executor);
+    requireSavedStockChangeContext(input.stockChange, saved);
+    await validateStockChangeMessage(input.stockChange, {dealerId: enquiry.dealerId, enquiryId: enquiry.id, email: input.to}, executor);
+    await checkSavedAiDraftFresh(executor, enquiry.dealerId, enquiry.id, saved);
     if (enquiry.workspaceRevision !== input.expectedRevision)
       throw new EmailError(
         "This enquiry changed. Close and reopen the email before sending.",
@@ -445,6 +446,7 @@ async function preview(
     const previewHash = hash(
       JSON.stringify({
         to: input.to,
+        ...(input.stockChange ? {stockChange: input.stockChange} : {}),
         ...rendered,
         ...(media.videoId ? {videoId: media.videoId} : {}),
         attachments: attachments.map((a) => ({
@@ -569,7 +571,7 @@ export function createEnquiryEmailRouter(
       res.set("Retry-After", "15").status(503).json({ error: error.message });
       return;
     }
-    if (error instanceof EmailError || error instanceof AiDraftError || error instanceof EnquiryMediaError) {
+    if (error instanceof EmailError || error instanceof AiDraftError || error instanceof EnquiryMediaError || error instanceof StockChangeMessageError) {
       res.status(error.status).json({ error: error.message });
       return;
     }
@@ -933,6 +935,7 @@ export function createEnquiryEmailRouter(
               },
               validation: {
                 input: approvedInput,
+                ...(input.stockChange ? {stockChangeStaffName: staffLabel(req)} : {}),
                 layoutVersion: "correspondence-v1",
                 previewHash: input.previewHash,
                 ...(!multiTenantEnabled() && req.staff!.authUserId === "machine"

@@ -7,6 +7,8 @@ import { currentDealerId } from './tenant-context';
 import { siteOrigin } from './enquiry-links';
 import { staffHasPermission, staffLabel } from '../middlewares/staff-auth';
 import { PhoneShareError, phoneShareHash } from './phone-share';
+import { recordStockChangeContact } from './stock-change-tasks';
+import type { StockChangeMessageContext } from './stock-change-message-context';
 
 const confirmation = z.object({
   requestId:z.string().uuid(), enquiryId:z.string().uuid().optional(),
@@ -49,20 +51,30 @@ export function whatsappConfirmationRouter() {
     if(!parsed.success){res.status(400).json({error:'Choose a customer enquiry, check the number and confirm the message was sent.'});return;}
     const data=parsed.data,dealer=currentDealerId(),fingerprint=phoneShareHash(JSON.stringify(data));
     const client=await pool.connect();
+    let released=false;
+    const release=()=>{if(!released){released=true;client.release();}};
     try{
       await client.query('BEGIN');
       await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[`whatsapp-confirm:${data.requestId}`]);
       const existing=(await client.query('SELECT dealer_id,enquiry_id,detail,occurred_at FROM enquiry_events WHERE id=$1',[data.requestId])).rows[0];
       if(existing){
         if(existing.dealer_id!==dealer||existing.detail?.confirmationFingerprint!==fingerprint)throw new PhoneShareError('This confirmation was already used for a different message.',409);
-        await client.query('COMMIT');res.json({enquiryId:existing.enquiry_id,confirmedAt:existing.occurred_at,replayed:true});return;
+        await client.query('COMMIT');release();
+        if(existing.detail?.stockChange) await recordStockChangeContact({dealerId:dealer,taskId:existing.detail.stockChange.taskId,enquiryId:existing.enquiry_id,channel:'whatsapp',eventKey:`whatsapp:${data.requestId}`,staffName:staffLabel(req),now:new Date(existing.occurred_at)});
+        res.json({enquiryId:existing.enquiry_id,confirmedAt:existing.occurred_at,replayed:true});return;
       }
       let files:string[]=[];
+      let stockChange:StockChangeMessageContext|undefined;
+      let priceEnquiryId:string|undefined;
       let sharedVehicle:{id:string;title:string}|undefined;
       if(data.grantId){
         const grant=(await client.query('SELECT payload,expires_at,revoked_at FROM customer_phone_shares WHERE dealer_id=$1 AND id=$2',[dealer,data.grantId])).rows[0];
         if(!grant?.payload?.message)throw new PhoneShareError('This sharing pack is no longer available. Record the conversation manually instead.',409);
         if(!staffHasPermission(req,'sales.manage')&&grant.payload.confirmationScope!=='document')throw new PhoneShareError('You cannot record this type of message.',403);
+        stockChange=grant.payload.stockChange;
+        priceEnquiryId=stockChange ? grant.payload.enquiryId : undefined;
+        if(stockChange && (!data.enquiryId || data.enquiryId !== priceEnquiryId || canonicalCustomerPhone(data.phone) !== canonicalCustomerPhone(grant.payload.customerPhone || '')))
+          throw new PhoneShareError('Record this price update against its original customer and number. Use a fresh message for a different customer.',409);
         files=(grant.payload.files||[]).map((file:{filename:string})=>file.filename);
         if(grant.payload.vehicleId){
           // Merged customer cases can include several cars. Attribute this
@@ -89,11 +101,15 @@ export function whatsappConfirmationRouter() {
         entry=(await client.query(`INSERT INTO enquiries(id,dealer_id,customer_name,email,phone,type,status,message,source,preferred_contact,vehicle_id,vehicle_title) VALUES($1,$2,$3,$4,$5,'general','contacted','Staff-created enquiry for a WhatsApp conversation.','whatsapp','whatsapp',$6,$7) RETURNING *`,[randomUUID(),dealer,data.newCustomer!.name,data.newCustomer!.email||null,data.phone,vehicle?.id||null,vehicle?.title||null])).rows[0];
       }
       const note=`Staff confirmed sent on WhatsApp (delivery not verified).\nTo: ${canonicalCustomerPhone(data.phone)}\n${data.message}${files.length?`\nShared attachments: ${files.join(', ')}`:''}`;
-      const created=(await client.query(`INSERT INTO enquiry_events(id,dealer_id,enquiry_id,vehicle_id,vehicle_title,vehicle_url,kind,actor,summary,detail) VALUES($1,$2,$3,$4,$5,$6,'conversation_logged','dealer','WhatsApp sent — staff confirmed',$7::jsonb) RETURNING occurred_at`,[data.requestId,dealer,entry.id,sharedVehicle?sharedVehicle.id:entry.vehicle_id,sharedVehicle?sharedVehicle.title:entry.vehicle_title,sharedVehicle?`${siteOrigin()}/vehicle/${sharedVehicle.id}`:entry.vehicle_url,JSON.stringify({channel:'whatsapp',staffId:req.staff!.authUserId,staffName:staffLabel(req),note,recipientPhone:canonicalCustomerPhone(data.phone),message:data.message,attachmentNames:files,grantId:data.grantId||null,confirmationFingerprint:fingerprint,deliveryVerified:false})])).rows[0];
+      const created=(await client.query(`INSERT INTO enquiry_events(id,dealer_id,enquiry_id,vehicle_id,vehicle_title,vehicle_url,kind,actor,summary,detail) VALUES($1,$2,$3,$4,$5,$6,'conversation_logged','dealer','WhatsApp sent — staff confirmed',$7::jsonb) RETURNING occurred_at`,[data.requestId,dealer,entry.id,sharedVehicle?sharedVehicle.id:entry.vehicle_id,sharedVehicle?sharedVehicle.title:entry.vehicle_title,sharedVehicle?`${siteOrigin()}/vehicle/${sharedVehicle.id}`:entry.vehicle_url,JSON.stringify({channel:'whatsapp',staffId:req.staff!.authUserId,staffName:staffLabel(req),note,recipientPhone:canonicalCustomerPhone(data.phone),message:data.message,attachmentNames:files,grantId:data.grantId||null,...(stockChange?{stockChange}:{}),confirmationFingerprint:fingerprint,deliveryVerified:false})])).rows[0];
       await client.query("UPDATE enquiries SET status=CASE WHEN status='new' THEN 'contacted'::enquiry_status ELSE status END,workspace_revision=workspace_revision+1,updated_at=now() WHERE dealer_id=$1 AND id=$2",[dealer,entry.id]);
-      await client.query('COMMIT');res.status(201).json({enquiryId:entry.id,confirmedAt:created.occurred_at,replayed:false});
-    }catch(error){await client.query('ROLLBACK');res.status(error instanceof PhoneShareError?error.status:503).json({error:error instanceof PhoneShareError?error.message:'The sent confirmation could not be saved. Retry this confirmation; do not send the message again.'});}
-    finally{client.release();}
+      await client.query('COMMIT');release();
+      // The message is an already-completed staff action. Recording its outcome
+      // is idempotent, so a retry repairs a transient outcome-write failure.
+      if(stockChange) await recordStockChangeContact({dealerId:dealer,taskId:stockChange.taskId,enquiryId:entry.id,channel:'whatsapp',eventKey:`whatsapp:${data.requestId}`,staffName:staffLabel(req),now:new Date(created.occurred_at)});
+      res.status(201).json({enquiryId:entry.id,confirmedAt:created.occurred_at,replayed:false});
+    }catch(error){if(!released)await client.query('ROLLBACK');res.status(error instanceof PhoneShareError?error.status:503).json({error:error instanceof PhoneShareError?error.message:'The sent confirmation could not be saved. Retry this confirmation; do not send the message again.'});}
+    finally{release();}
   });
   return router;
 }

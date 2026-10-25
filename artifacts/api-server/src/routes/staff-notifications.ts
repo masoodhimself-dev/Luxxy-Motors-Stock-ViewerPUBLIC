@@ -8,6 +8,7 @@ import { siteOrigin } from "../lib/enquiry-links";
 import { enquiryCaseIds } from "../lib/enquiry-case-ids";
 import { readEmailDraft } from "../lib/email-drafts";
 import { draftSchema } from "./enquiry-emails";
+import { savedStockChangeContext, validateStockChangeMessage, StockChangeMessageError } from "../lib/stock-change-message-context";
 import { aiDraftFeature, checkAiGenerationForSave, checkSavedAiDraftFresh, AiDraftError } from '../lib/ai-drafts';
 
 const editableDraft = draftSchema.extend({
@@ -21,6 +22,7 @@ const saveSchema = z
   .object({
     expectedVersion: z.number().int().nonnegative(),
     aiGenerationId: z.string().uuid().optional(),
+    replaceStockChangeContext: z.literal(true).optional(),
     content: editableDraft.extend({
       subject: z
         .string()
@@ -197,7 +199,17 @@ export function createStaffNotificationsRouter() {
             error:
               "The enquiry changed. Reopen the draft and review the latest details.",
           };
-        const content = input.data.content;
+        // An ordinary edit cannot silently strip the saved price-update checks.
+        // Discarding the draft is the explicit way to start a new general message.
+        const previousContext = savedStockChangeContext(saved);
+        const replacesContext = Boolean(previousContext && input.data.content.stockChange && (previousContext.taskId !== input.data.content.stockChange.taskId || previousContext.revision !== input.data.content.stockChange.revision));
+        if (replacesContext && !input.data.replaceStockChangeContext)
+          throw new StockChangeMessageError('Choose Use price update wording to replace the saved price details, or discard this draft before starting a fresh message. Your text is still on screen.');
+        if (input.data.replaceStockChangeContext) {
+          if (!input.data.content.stockChange) throw new StockChangeMessageError('Choose the current price update before replacing these details.');
+          await validateStockChangeMessage(input.data.content.stockChange, {dealerId: dealer, enquiryId: id, email: input.data.content.to}, tx);
+        }
+        const content = {...input.data.content, ...(previousContext && !replacesContext ? {stockChange: previousContext} : {})};
         if (input.data.aiGenerationId && content.templateId) return { status: 400, error: 'Use the AI suggestion or a template, then review before saving.' };
         if (input.data.aiGenerationId) await checkAiGenerationForSave(tx, dealer, id, input.data.aiGenerationId, req.staff!.authUserId, content.expectedRevision, saved.version);
         const source = input.data.aiGenerationId ? 'ai' : content.templateId ? 'template' : saved.savedDraft?.source === 'ai' ? 'ai' : 'manual';
@@ -213,7 +225,7 @@ export function createStaffNotificationsRouter() {
       });
       res.status(result.status).json(result);
     } catch (error) {
-      if (error instanceof AiDraftError) { res.status(error.status).json({ error: error.message }); return; }
+      if (error instanceof AiDraftError || error instanceof StockChangeMessageError) { res.status(error.status).json({ error: error.message }); return; }
       res
         .status(503)
         .json({

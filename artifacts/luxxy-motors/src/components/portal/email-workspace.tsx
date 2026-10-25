@@ -178,6 +178,7 @@ export function EmailWorkspace({
   const [, navigate] = useLocation();
   const initial = new URLSearchParams(locationSearch);
   const stockChangeId = initial.get('stockChangeId');
+  const stockChangeChannel = initial.get('channel') === 'whatsapp' ? 'whatsapp' : 'email';
   const soldSaleId = initial.get('soldSaleId');
   const cache = useQueryClient();
   const [view, setView] = useState<"sent" | "drafts">(
@@ -589,8 +590,9 @@ export function EmailWorkspace({
       )}
       {compose && customer && (
         <StockAwareEmailComposer
-          key={`${customer.id}:${stockChangeId || ''}:${soldSaleId || ''}`}
+          key={`${customer.id}:${stockChangeId || ''}:${soldSaleId || ''}:${stockChangeChannel}`}
           taskId={stockChangeId}
+          stockChangeChannel={stockChangeChannel}
           soldSaleId={soldSaleId}
           entry={customer}
           onClose={(result) => {
@@ -598,6 +600,14 @@ export function EmailWorkspace({
             setEntryId("");
             setCompose(false);
             setOffset(0);
+            // A direct stock/sale draft is one composer request, not a mode for
+            // every customer subsequently chosen in this workspace.
+            const params = new URLSearchParams(locationSearch);
+            if (['compose', 'draft', 'stockChangeId', 'soldSaleId', 'channel'].some(key => params.has(key))) {
+              for (const key of ['compose', 'draft', 'stockChangeId', 'soldSaleId', 'channel']) params.delete(key);
+              params.set('view', result === 'sent' ? 'sent' : 'drafts');
+              navigate(`/portal?${params.toString()}`, { replace: true });
+            }
             void history.refetch();
             void cache.invalidateQueries({
               queryKey: ["staff-email-conversation"],
@@ -1146,6 +1156,6 @@ export function EmailWorkspace({
   );
 }
 
-function StockAwareEmailComposer({ taskId, soldSaleId, ...props }: Parameters<typeof EnquiryEmailComposer>[0] & { taskId: string | null; soldSaleId: string | null; entry: import('@workspace/api-client-react').Enquiry }) {
-  return soldSaleId ? <SoldVehicleEmailComposer {...props} saleId={soldSaleId} /> : taskId ? <StockChangeEmailComposer {...props} taskId={taskId} /> : <EnquiryEmailComposer {...props} />;
+function StockAwareEmailComposer({ taskId, soldSaleId, stockChangeChannel, ...props }: Parameters<typeof EnquiryEmailComposer>[0] & { taskId: string | null; soldSaleId: string | null; stockChangeChannel: 'email' | 'whatsapp'; entry: import('@workspace/api-client-react').Enquiry }) {
+  return soldSaleId ? <SoldVehicleEmailComposer {...props} saleId={soldSaleId} /> : taskId ? <StockChangeEmailComposer {...props} taskId={taskId} channel={stockChangeChannel} /> : <EnquiryEmailComposer {...props} />;
 }

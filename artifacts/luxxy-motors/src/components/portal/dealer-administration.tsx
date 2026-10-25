@@ -14,6 +14,7 @@ import { EmailTemplatesSettings } from '@/components/email-templates-settings';
 import { SalesPaperworkSettings } from '@/components/sales-paperwork-settings';
 import { CustomerChatSettings } from '@/components/customer-chat-settings';
 import { SearchVisibilitySettings } from '@/components/search-visibility-settings';
+import { StockChangeSettings } from '@/components/stock-change-settings';
 import { PhoneSharingSettings } from '@/components/phone-sharing-settings';
 import { customerFeaturePolicy } from '@workspace/vehicle-meta';
 import './dealer-administration.css';
@@ -414,11 +415,11 @@ export function DealerSettingsHub() {
   const [, navigate] = useLocation();
   const requested = new URLSearchParams(search).get('settingsTab') ?? 'dealership';
   const canTeam = access.data?.permissions.includes('team.manage') ?? false;
-  const allowed = ['dealership', 'website', 'bookings', 'emails', 'paperwork', 'sharing', 'team', 'integrations', 'search', 'history', ...(customerFeaturePolicy.websiteChat ? ['chat'] : [])];
+  const allowed = ['dealership', 'website', 'bookings', 'emails', 'paperwork', 'sharing', 'stock-updates', 'team', 'integrations', 'search', 'history', ...(customerFeaturePolicy.websiteChat ? ['chat'] : [])];
   const legacySection = new URLSearchParams(search).get('websiteSection');
   const selectedSection = requested === 'website' && ['contact','legal'].includes(legacySection ?? '') ? 'dealership' : requested === 'website' && legacySection === 'bookings' ? 'bookings' : allowed.includes(requested) ? requested : 'dealership';
   const dealerGroup = ['dealership', 'website', 'bookings'].includes(selectedSection);
-  const primary = ['emails', 'paperwork', 'sharing'].includes(selectedSection) ? 'documents' : selectedSection === 'history' ? 'website' : ['integrations', 'search', 'chat'].includes(selectedSection) ? 'advanced' : selectedSection;
+  const primary = ['emails', 'paperwork', 'sharing', 'stock-updates'].includes(selectedSection) ? 'documents' : selectedSection === 'history' ? 'website' : ['integrations', 'search', 'chat'].includes(selectedSection) ? 'advanced' : selectedSection;
   const primaryTabs = [
     { id: 'dealership', label: 'Dealership details', icon: Store },
     { id: 'website', label: 'Website', icon: Globe2 },
@@ -441,6 +442,7 @@ export function DealerSettingsHub() {
     { id: 'emails', label: 'Email templates', icon: Mail },
     { id: 'paperwork', label: 'Invoices & terms', icon: FileText },
     { id: 'sharing', label: 'WhatsApp & QR', icon: QrCode },
+    { id: 'stock-updates', label: 'Price updates', icon: CarFront },
   ] : primary === 'advanced' ? [
     { id: 'integrations', label: 'Connections', icon: PlugZap },
     { id: 'search', label: 'Search visibility', icon: Globe2 },
@@ -459,6 +461,7 @@ export function DealerSettingsHub() {
       {selectedSection === 'emails' && <EmailTemplatesSettings />}
       {selectedSection === 'paperwork' && <div className="integration-settings"><SalesPaperworkSettings /></div>}
       {selectedSection === 'sharing' && <PhoneSharingSettings />}
+      {selectedSection === 'stock-updates' && <StockChangeSettings />}
       {selectedSection === 'team' && (canTeam ? <TeamSettings /> : <div className="settings-access-note" role="status"><h3>Team access is managed by an authorised owner</h3><p>Your account cannot change staff access. Choose another settings tab to continue.</p></div>)}
       {selectedSection === 'integrations' && <DealerIntegrationsSettings />}
       {selectedSection === 'search' && <SearchVisibilitySettings />}

@@ -29,6 +29,7 @@ import { listStripeReservations } from "../lib/stripe-reservation-store";
 import { customerEmailPreparationRouter } from "../lib/customer-email-preparation";
 import { mediaRequestIdentity } from "../lib/enquiry-media";
 import { whatsappConfirmationRouter } from "../lib/whatsapp-confirmation";
+import { validateStockChangeMessage, StockChangeMessageError } from "../lib/stock-change-message-context";
 const router = Router();
 const input = z
   .object({
@@ -119,6 +120,7 @@ router.post(
         customerName: row.payload?.customerName || "",
         vehicleId: row.payload?.vehicleId || undefined,
         title: row.payload?.title || "Customer message",
+        ...(row.payload?.stockChange ? {stockChange: row.payload.stockChange} : {}),
       });
       if (previous) {
         if (
@@ -137,6 +139,7 @@ router.post(
             "This link expired or was revoked. Create a new one.",
             410,
           );
+        await validateStockChangeMessage(previous.payload?.stockChange, {dealerId: dealer, enquiryId: previous.payload?.enquiryId || '', phone: previous.payload?.customerPhone});
         res.json(result(previous, true));
         return;
       }
@@ -246,6 +249,7 @@ router.post(
           );
         payload = {
           enquiryId: prepared.enquiry.id,
+          ...(data.source.draft.stockChange ? {stockChange: data.source.draft.stockChange} : {}),
           customerEmail: prepared.enquiry.email || "",
           customerName: prepared.enquiry.customerName,
           vehicleId: prepared.enquiry.vehicleId || undefined,
@@ -277,6 +281,7 @@ router.post(
         payload.templateId = data.templateId ?? payload.templateId;
         payload.message = [payload.messageBody, payload.requiredText].filter(Boolean).join('\n\n');
       }
+      await validateStockChangeMessage(payload.stockChange, {dealerId: dealer, enquiryId: payload.enquiryId || '', phone: payload.customerPhone});
       validatePhoneSharePayload(payload);
       const client = await pool.connect();
       try {
@@ -419,6 +424,7 @@ router.get("/phone-shares", async (req, res) => {
         });
       return;
     }
+    await validateStockChangeMessage(row.payload.stockChange, {dealerId: currentDealerId(), enquiryId: row.payload.enquiryId || '', phone: row.payload.customerPhone});
     // The capability page gets only the approved customer-facing pack. Template
     // variables can retain source prose that staff deliberately edited out.
     res.json({
@@ -426,13 +432,14 @@ router.get("/phone-shares", async (req, res) => {
       title: row.payload.title,
       message: row.payload.message,
       files: row.payload.files,
+      ...(row.payload.stockChange ? {stockChange: row.payload.stockChange} : {}),
       expiresAt: row.expires_at,
     });
-  } catch {
+  } catch (error) {
     res
-      .status(503)
+      .status(error instanceof StockChangeMessageError ? error.status : 503)
       .json({
-        error: "The sharing pack is temporarily unavailable. Please try again.",
+        error: error instanceof StockChangeMessageError ? error.message : "The sharing pack is temporarily unavailable. Please try again.",
       });
   }
 });

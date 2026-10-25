@@ -70,6 +70,7 @@ export function ShareQr({
       hasAttachments?: boolean;
       messageBody?: string; requiredText?: string; templateId?: WhatsAppTemplateId; templateVariables?: Partial<Record<WhatsAppTemplateVariable, string>>; messageLinkRequired?: boolean;
       enquiryId?: string; customerEmail?: string; customerName?: string; vehicleId?: string; title?: string;
+      stockChange?: { taskId: string; revision: number };
     } | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
@@ -162,6 +163,7 @@ export function ShareQr({
         hasAttachments?: boolean;
       messageBody?: string; requiredText?: string; templateId?: WhatsAppTemplateId; templateVariables?: Partial<Record<WhatsAppTemplateVariable, string>>; messageLinkRequired?: boolean;
         enquiryId?: string; customerEmail?: string; customerName?: string; vehicleId?: string; title?: string;
+        stockChange?: { taskId: string; revision: number };
       }>("/api/staff/phone-shares", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -232,7 +234,9 @@ export function ShareQr({
   const whatsappUrl = grant && whatsapp ? customerWhatsAppUrl(phone, sharedMessage) : null;
   // Large emails cannot fit directly into a camera QR. The secure preview opens
   // the same full message on the phone instead of silently truncating it.
-  const directQr = whatsappUrl && new TextEncoder().encode(whatsappUrl).length <= 2000;
+  // Price updates must pass the server's current-price check when the phone
+  // opens them. A static wa.me QR would bypass that check after a later drop.
+  const directQr = !grant?.stockChange && whatsappUrl && new TextEncoder().encode(whatsappUrl).length <= 2000;
   const qrUrl = whatsapp ? (whatsappUrl ? (directQr ? whatsappUrl : grant?.id ? `${grant!.url}?wa=${encodeURIComponent(phone)}` : null) : null) : grant?.url;
   const expired = Boolean(grant?.expiresAt && Date.parse(grant.expiresAt) <= now);
   const sharingBlocked = sharingUnavailable && (!grant || expired);
@@ -265,16 +269,16 @@ export function ShareQr({
     {whatsapp && <details className="phone-share-message-preview"><summary>Review message</summary><pre className="phone-share-message">{sharedMessage}</pre></details>}
     {qrUrl && (!whatsapp || (recipientReady && !messageDirty)) && <>
       <div className="phone-share-qr"><QRCodeSVG value={qrUrl} size={220} marginSize={4} title={purpose==="record-video"?"Scan to record this car on your phone":whatsapp?"Scan to prepare the customer WhatsApp message":"Scan to open the sharing preview"}/></div>
-      {whatsapp && !directQr && <p>This message is too long for a direct QR. Scan to open the full message on your phone, then choose Open WhatsApp.</p>}
+      {whatsapp && !directQr && <p>{grant.stockChange ? 'Scan to check the latest price and open this message on your phone, then choose Open WhatsApp.' : 'This message is too long for a direct QR. Scan to open the full message on your phone, then choose Open WhatsApp.'}</p>}
     </>}
     {whatsapp && !recipientReady && !messageDirty && <p className="phone-share-step-note" role="status">Choose the customer enquiry and check the number to show the WhatsApp QR.</p>}
     {purpose==="record-video" && <p className="phone-share-step-note">Staff sign-in and permission to manage this car are required. This QR does not grant access.</p>}
     {localRecording && <p className="phone-share-step-note">This local preview link only opens on this computer. Use the live HTTPS website when scanning from a phone.</p>}
     {!whatsapp && purpose!=="record-video" && <p className="phone-share-step-note">{grant.expiresAt ? `Private link - expires ${new Date(grant.expiresAt).toLocaleString("en-GB")}. Anyone with the link can view the pack until then or until it is revoked.` : "Anyone with this link can open it. Check the recipient before forwarding."}</p>}
     <div className="phone-share-actions">
-      {(!whatsapp || (whatsappUrl && recipientReady && !messageDirty)) && <><Button variant="outline" onClick={()=>void navigator.clipboard.writeText(whatsappUrl||grant.url).then(()=>setNotice("Link copied.")).catch(()=>setError("Copy is unavailable. Use Open below instead."))}>{whatsapp?"Copy WhatsApp link":"Copy link"}</Button><a className="phone-share-open" href={whatsappUrl||grant.url} target="_blank" rel="noreferrer">{purpose==="record-video"?"Open recording page":whatsapp?"Open WhatsApp":"Open preview"}</a></>}
+      {(!whatsapp || (whatsappUrl && recipientReady && !messageDirty)) && <><Button variant="outline" onClick={()=>void navigator.clipboard.writeText(grant.stockChange ? qrUrl! : whatsappUrl||grant.url).then(()=>setNotice("Link copied.")).catch(()=>setError("Copy is unavailable. Use Open below instead."))}>{whatsapp?grant.stockChange?'Copy phone preview link':"Copy WhatsApp link":"Copy link"}</Button><a className="phone-share-open" href={grant.stockChange ? qrUrl! : whatsappUrl||grant.url} target="_blank" rel="noreferrer">{purpose==="record-video"?"Open recording page":whatsapp?grant.stockChange?'Open phone preview':"Open WhatsApp":"Open preview"}</a></>}
     </div>
-    {whatsapp && grant.expiresAt && <p className="phone-share-step-note">Attachment link expires {new Date(grant.expiresAt).toLocaleString("en-GB")}. Keep the link private.</p>}
+    {whatsapp && grant.expiresAt && <p className="phone-share-step-note">Private link expires {new Date(grant.expiresAt).toLocaleString("en-GB")}. Keep the link private.</p>}
   </div>;
   const trigger = <Button type="button" variant="outline" disabled={disabled || sharingBlocked} aria-describedby={sharingBlocked ? availabilityId : undefined} title={sharingReason} onClick={()=>void generate()}><QrCode size={17} aria-hidden="true"/>{label}</Button>;
   return <>
@@ -289,7 +293,8 @@ export function ShareQr({
     {expired && <div role="alert" className="phone-share-step-note">This sharing link has expired. Create a fresh link before sending it.</div>}
     {grant?.preview && <p className="phone-share-step-note">Fictional local preview. No real customer document is shared.</p>}
     {grant && !expired && (whatsapp ? <>
-      <label className="phone-share-recipient">Customer WhatsApp number<Input type="tel" autoComplete="tel" value={phone} disabled={confirmationLocked} onChange={event=>setPhone(event.target.value)} placeholder="07… or +country code"/></label>
+      <label className="phone-share-recipient">Customer WhatsApp number<Input type="tel" autoComplete="tel" value={phone} readOnly={Boolean(grant.stockChange)} disabled={confirmationLocked} onChange={event=>setPhone(event.target.value)} placeholder="07… or +country code"/></label>
+      {grant.stockChange && <p className="phone-share-step-note">This price update is linked to this customer. To change their number, update the enquiry and prepare a fresh message from Home.</p>}
       {!whatsappUrl && <p role="status">Enter a valid UK number, or an international number starting with + and its country code.</p>}
       {grant.messageBody !== undefined && <WhatsAppMessageEditor body={grant.messageBody} requiredText={grant.requiredText} variables={variables} disabled={busy || confirmationLocked || Boolean(confirmationResult)} onDirtyChange={setMessageDirty} onApply={updateMessage} />}
       <WhatsAppConfirmation disabled={messageDirty || busy} key={shareVersion} enquiryId={enquiryId||grant.enquiryId||(source&&'enquiryId' in source?source.enquiryId:undefined)} customerName={customerName || grant.customerName} customerEmail={email} preferKnownCustomer={source?.kind === "document"} vehicleId={vehicleId || grant.vehicleId} phone={phone} message={sharedMessage} grantId={grant.id} attempt={confirmationAttempt} result={confirmationResult} onConfirmed={setConfirmationResult} onLock={setConfirmationLocked} onPhone={setPhone} onEmail={setEmail} onReadyChange={setRecipientReady} onCustomerChange={setEmailCustomer}>{qrContent}</WhatsAppConfirmation>

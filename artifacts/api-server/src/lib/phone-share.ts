@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { WhatsAppTemplateId, WhatsAppTemplateVariable } from '@workspace/vehicle-meta';
+import type { StockChangeMessageContext } from './stock-change-message-context';
 export type PhoneShareFile = {
   filename: string;
   content: string;
@@ -7,6 +8,7 @@ export type PhoneShareFile = {
 };
 export type PhoneSharePayload = {
   confirmationScope?: "document";
+  stockChange?: StockChangeMessageContext;
   enquiryId?: string;
   customerEmail?: string;
   customerName?: string;

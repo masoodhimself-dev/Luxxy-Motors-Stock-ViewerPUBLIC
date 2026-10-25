@@ -1,11 +1,13 @@
 import { Router } from "express";
 import { z } from "zod/v4";
+import { activeStockPlatform } from "./stock-change-tasks";
 import { pool } from "@workspace/db";
 import { randomUUID } from "node:crypto";
 import { canonicalCustomerPhone } from "@workspace/vehicle-meta";
 import { currentDealerId } from "./tenant-context";
 import { staffHasPermission } from "../middlewares/staff-auth";
 import { PhoneShareError, phoneShareHash } from "./phone-share";
+import { validateStockChangeMessage, StockChangeMessageError, type StockChangeMessageContext } from "./stock-change-message-context";
 const email = z.union([
   z.literal(""),
   z.string().trim().toLowerCase().email().max(254),
@@ -53,12 +55,20 @@ export function customerEmailPreparationRouter() {
     const data = parsed.data,
       dealer = currentDealerId(),
       fingerprint = phoneShareHash(JSON.stringify(data));
-    const c = await pool.connect();
+    const connect = () => pool.connect();
+    let c: Awaited<ReturnType<typeof connect>> | undefined;
     try {
+      // Resolve the stock platform before holding a connection. All checks
+      // after BEGIN use that connection, including under a busy database pool.
+      const contextualGrant = data.grantId ? (await pool.query("SELECT payload->'stockChange' AS context FROM customer_phone_shares WHERE dealer_id=$1 AND id=$2", [dealer, data.grantId])).rows[0]?.context : undefined;
+      const pricePlatform = contextualGrant ? await activeStockPlatform() : undefined;
+      c = await pool.connect();
       await c.query("BEGIN");
       await c.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
         `email-preparation:${data.requestId}`,
       ]);
+      let stockChange: StockChangeMessageContext | undefined;
+      let priceEnquiryId: string | undefined;
       // Recheck access before replay too: a saved preparation never revives an expired document pack.
       if (data.grantId) {
         const grant = (
@@ -72,6 +82,12 @@ export function customerEmailPreparationRouter() {
             "This sharing pack expired or was revoked. Create a new sharing pack before preparing its email.",
             410,
           );
+        stockChange = grant.payload.stockChange;
+        priceEnquiryId = stockChange ? grant.payload.enquiryId : undefined;
+        if (stockChange && (!data.enquiryId || data.enquiryId !== priceEnquiryId))
+          throw new PhoneShareError('Keep this price update against its original customer enquiry. Start a fresh message for a different customer.', 409);
+        if (stockChange && !pricePlatform) throw new StockChangeMessageError('This price-update link changed. Create a fresh sharing pack.');
+        await validateStockChangeMessage(stockChange, {dealerId: dealer, enquiryId: priceEnquiryId || ''}, {query: c.query.bind(c), activePlatform: pricePlatform || ''});
       }
       const existing = (
         await c.query("SELECT * FROM customer_email_preparations WHERE id=$1", [
@@ -140,6 +156,7 @@ export function customerEmailPreparationRouter() {
           )
         ).rows[0];
       }
+      await validateStockChangeMessage(stockChange, {dealerId: dealer, enquiryId: entry.id, email: data.email || entry.email || ''}, {query: c.query.bind(c), activePlatform: pricePlatform || ''});
       if (!existing)
         await c.query(
           "INSERT INTO customer_email_preparations(id,dealer_id,enquiry_id,fingerprint,created_by) VALUES($1,$2,$3,$4,$5)",
@@ -156,17 +173,18 @@ export function customerEmailPreparationRouter() {
         enquiry: { id: entry.id, customerName: entry.customer_name },
         customerEmail: data.email || entry.email || "",
         replayed: Boolean(existing),
+        ...(stockChange ? {stockChange} : {}),
       });
     } catch (e) {
-      await c.query("ROLLBACK");
-      res.status(e instanceof PhoneShareError ? e.status : 503).json({
+      if (c) await c.query("ROLLBACK");
+      res.status(e instanceof PhoneShareError || e instanceof StockChangeMessageError ? e.status : 503).json({
         error:
-          e instanceof PhoneShareError
+          (e instanceof PhoneShareError || e instanceof StockChangeMessageError)
             ? e.message
             : "The customer email could not be prepared. Retry the same preparation; nothing was sent.",
       });
     } finally {
-      c.release();
+      c?.release();
     }
   });
   return router;

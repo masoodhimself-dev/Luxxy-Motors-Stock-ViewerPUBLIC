@@ -8,6 +8,7 @@ import { enquiryGroup } from "../src/lib/enquiry-groups";
 import { readPreviewEnquiries, readPreviewSettings } from "./reservations";
 import { previewStock } from './stock';
 import { previewEnquiryMedia } from './enquiry-media';
+import { readPreviewStockChangeTask } from './stock-changes';
 const drafts = new Map<
   string,
   {
@@ -31,6 +32,7 @@ const contentSchema = z
     vehiclePhotoIndices: z.array(z.number().int().min(0).max(99)).max(4).default([]),
     includeVideo: z.boolean().default(false),
     expectedRevision: z.number().int().nonnegative(),
+    stockChange: z.object({ taskId: z.string().uuid(), revision: z.number().int().nonnegative() }).strict().optional(),
   })
   .strict();
 export async function communicationsPreview(
@@ -273,10 +275,17 @@ export async function communicationsPreview(
       }
       const body = JSON.parse(raw);
       if (url.pathname.endsWith("/email-draft")) {
-        const parsed = contentSchema.safeParse(body.content);
+        const previous = saved?.status === 'draft' ? saved.content.stockChange : undefined;
+        const parsed = contentSchema.safeParse({ ...body.content, ...(!body.content?.stockChange && previous ? { stockChange: previous } : {}) });
         if (!parsed.success) {
           send(400, { error: "Check the draft." });
           return true;
+        }
+        if (previous && JSON.stringify(previous) !== JSON.stringify(parsed.data.stockChange)) {
+          const task = parsed.data.stockChange && await readPreviewStockChangeTask(parsed.data.stockChange.taskId);
+          if (body.replaceStockChangeContext !== true || !task || task.revision !== parsed.data.stockChange?.revision || task.status !== 'open' || !task.affectedCustomers.some(person => person.enquiryId === entry.id)) {
+            send(409, { error: 'Review the latest price update before replacing this saved price draft.' }); return true;
+          }
         }
         if (
           body.expectedVersion !== version ||
@@ -323,6 +332,10 @@ export async function communicationsPreview(
           return true;
         }
         if (parsed.data.expectedRevision !== (entry.workspaceRevision ?? 0)) { send(409, { error: 'The enquiry changed. Reopen the email before reviewing it.' }); return true; }
+        if (parsed.data.stockChange) {
+          const task = await readPreviewStockChangeTask(parsed.data.stockChange.taskId);
+          if (!task || task.status !== 'open' || task.revision !== parsed.data.stockChange.revision || !task.affectedCustomers.some(person => person.enquiryId === entry.id)) { send(409, { error: 'This price update has changed. Review the current car before sending.' }); return true; }
+        }
         if (parsed.data.templateId === 'invoice_copy' && !parsed.data.documentIds.length) { send(400, { error: 'Attach an invoice for this customer before reviewing this invoice email.' }); return true; }
         if (['service_history','pre_accident_photos'].includes(parsed.data.templateId ?? '') && !parsed.data.photoIds.length) { send(400, { error: 'Attach a matching approved vehicle photo before reviewing this email.' }); return true; }
         if (parsed.data.photoIds.length || parsed.data.documentIds.length) { send(409, { error: 'Private attachments need the authenticated backend. Local preview cannot validate or send them.' }); return true; }
@@ -349,7 +362,7 @@ export async function communicationsPreview(
           subject: rendered.subject,
           text: rendered.text,
           html: rendered.html,
-          previewHash: createHash('sha256').update(JSON.stringify({ to: parsed.data.to, ...rendered, attachments })).digest('hex'),
+          previewHash: createHash('sha256').update(JSON.stringify({ to: parsed.data.to, ...rendered, attachments, stockChange: parsed.data.stockChange })).digest('hex'),
           attachments,
         });
         return true;

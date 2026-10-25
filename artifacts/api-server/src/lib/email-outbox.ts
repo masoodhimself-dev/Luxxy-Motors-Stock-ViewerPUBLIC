@@ -1,3 +1,5 @@
+import { recordStockChangeContact } from "./stock-change-tasks";
+import { validateStockChangeMessage, StockChangeMessageError } from "./stock-change-message-context";
 import { routeCustomerReply } from './customer-email-replies';
 import { createHash, randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
@@ -135,6 +137,7 @@ export async function enqueueEmailOutbox(
 }
 
 function message(row: EmailOutbox) {
+  if (row.error_code === 'price_update_changed') return 'This price update was not sent because the price, availability or customer eligibility changed. Review the car and prepare a fresh message.';
   if (row.status === "queued")
     return "The email provider is temporarily busy. The same approved email is queued for a bounded retry.";
   if (row.status === "failed")
@@ -157,6 +160,7 @@ async function syncTarget(row: EmailOutbox, executor: Executor = db) {
   const error =
     status === "sent" ? null : row.status === "sending" ? null : message(row);
   if (row.kind === "staff") {
+    if (row.status === 'sent' && row.validation.input?.stockChange) await recordStockChangeContact({dealerId: row.dealer_id, taskId: row.validation.input.stockChange.taskId, enquiryId: row.enquiry_id, channel: 'email', eventKey: `email:${row.delivery_id}`, staffName: String(row.validation.stockChangeStaffName || 'Staff'), now: new Date(row.finished_at || row.created_at)}, executor as typeof db);
     if (row.status === "sent") await executor.execute(sql`UPDATE enquiry_email_replies SET resolved_at=now(),resolved_by='email_reply' WHERE dealer_id=${row.dealer_id} AND enquiry_id=${row.enquiry_id}::uuid AND status='received' AND resolved_at IS NULL AND received_at<=${row.created_at} AND lower(sender)=(SELECT lower(recipient) FROM enquiry_emails WHERE id=${row.delivery_id}::uuid AND dealer_id=${row.dealer_id})`);
     await executor.execute(
       sql`UPDATE enquiry_emails SET status=${status},provider_id=${row.provider_id},error=${error},finished_at=${status === "sending" ? null : new Date()} WHERE id=${row.delivery_id}::uuid AND dealer_id=${row.dealer_id} AND enquiry_id=${row.enquiry_id}::uuid`,
@@ -355,6 +359,9 @@ export function deliverEmailOutbox(
           const request = await (
             options.rebuild ?? ((row) => rebuildEmail(row, config))
           )(claimed);
+          // Recheck immediately before every provider attempt, including queued
+          // retries. The approved wording/bytes are never refreshed silently.
+          if (claimed.kind === 'staff') await validateStockChangeMessage(claimed.validation.input?.stockChange, {dealerId: claimed.dealer_id, enquiryId: claimed.enquiry_id, email: claimed.validation.input?.to});
           const prepared = await prepareEmailWithSettings(config, claimed.kind === "dealer" ? request : await routeCustomerReply(request, claimed.enquiry_id, db, false));
           if (
             emailAccountHash(prepared.config) !== claimed.account_hash ||
@@ -373,7 +380,7 @@ export function deliverEmailOutbox(
           const failure = classifyEmailFailure(error);
           const receivedAt = options.clock?.() ?? options.now ?? new Date();
           countAttempt = !(
-            error instanceof EmailProviderError && !error.attempted
+            (error instanceof EmailProviderError && !error.attempted) || error instanceof StockChangeMessageError
           );
           if (
             countAttempt &&
@@ -385,7 +392,10 @@ export function deliverEmailOutbox(
               receivedAt.getTime() +
                 Math.max(failure.retryAfterSeconds ?? 60, 1) * 1000,
             );
-          if (failure.kind === "permanent") {
+          if (error instanceof StockChangeMessageError) {
+            status = 'failed';
+            code = 'price_update_changed';
+          } else if (failure.kind === "permanent") {
             status = "failed";
             code = "provider_rejected";
           } else if (
