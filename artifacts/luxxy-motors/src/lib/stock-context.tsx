@@ -94,7 +94,7 @@ export function StockProvider({ children }: { children: ReactNode }) {
   const [loadStock] = useState(() => createStockLoader());
   const { data: apiStock, isLoading, error } = useGetStock({ query: {
     queryKey: getGetStockQueryKey(), queryFn: ({ signal }) => loadStock(signal),
-    enabled: active && !preview, staleTime: 30_000, refetchInterval: 60_000,
+    enabled: active && !preview, staleTime: 30_000, refetchInterval: 5 * 60_000,
     refetchIntervalInBackground: false, refetchOnWindowFocus: true, refetchOnReconnect: true,
   } });
   const stock = useMemo(() => normalizeStock(apiStock), [apiStock]);

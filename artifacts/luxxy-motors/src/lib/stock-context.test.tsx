@@ -34,6 +34,8 @@ it('quietly validates unchanged stock but immediately applies changed prices and
   vi.stubGlobal('fetch', request); mount(); await settle();
   expect(screen.getByTestId('price')).toHaveTextContent('9000');
   await act(async () => { await vi.advanceTimersByTimeAsync(60_000); }); await settle();
+  expect(request).toHaveBeenCalledTimes(1);
+  await act(async () => { await vi.advanceTimersByTimeAsync(4 * 60_000); }); await settle();
   expect(request).toHaveBeenCalledTimes(2);
   expect(request.mock.calls[1][1]?.headers).toMatchObject({ 'If-None-Match': '"v1"' });
   expect(screen.getByTestId('price')).toHaveTextContent('9000');
@@ -48,12 +50,12 @@ it('pauses hidden/offline stock refreshes and revalidates when the page returns'
   vi.stubGlobal('fetch', request); mount(); await settle();
   expect(request).toHaveBeenCalledTimes(1);
   hidden = true; act(() => document.dispatchEvent(new Event('visibilitychange')));
-  await act(async () => { await vi.advanceTimersByTimeAsync(180_000); });
+  await act(async () => { await vi.advanceTimersByTimeAsync(10 * 60_000); });
   expect(request).toHaveBeenCalledTimes(1);
   hidden = false; act(() => document.dispatchEvent(new Event('visibilitychange'))); await settle();
   expect(request).toHaveBeenCalledTimes(2);
   online = false; act(() => window.dispatchEvent(new Event('offline')));
-  await act(async () => { await vi.advanceTimersByTimeAsync(180_000); });
+  await act(async () => { await vi.advanceTimersByTimeAsync(10 * 60_000); });
   expect(request).toHaveBeenCalledTimes(2);
   online = true; act(() => window.dispatchEvent(new Event('online'))); await settle();
   expect(request).toHaveBeenCalledTimes(3);
