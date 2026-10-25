@@ -2,7 +2,7 @@ import { build } from 'esbuild';
 import path from 'node:path';
 const entry=process.argv[2] ?? 'src/dealer-capacity.test.ts';
 await build({ entryPoints:[entry], bundle:true,platform:'node',format:'esm',outfile:`dist-capacity/${path.basename(entry,'.ts')}.mjs`,
-  external:['@electric-sql/pglite','pino','pino-http'],
+  external:['@electric-sql/pglite','@napi-rs/canvas','pino','pino-http'],
   plugins:[{name:'isolated-capacity-fixtures',setup(builder){
     // These tests exercise a lazy pg pool/mocked query with fictional URLs and
     // never connect. Other fixtures use embedded Postgres and fake Clerk users.

@@ -7,7 +7,7 @@ await build({
   platform: "node",
   format: "esm",
   outfile: `dist-test/${path.basename(entry, ".ts")}.mjs`,
-  external: ["@electric-sql/pglite", "pino", "pino-http"],
+  external: ["@electric-sql/pglite", "@napi-rs/canvas", "pino", "pino-http"],
   plugins: [
     {
       name: "isolated-tenancy-database",

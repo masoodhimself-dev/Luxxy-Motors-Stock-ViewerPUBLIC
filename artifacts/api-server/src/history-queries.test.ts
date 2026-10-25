@@ -45,7 +45,7 @@ test("large sales and relationship chat reads exclude archive/retry/token bulk i
   const listed = await store.list();
   assert.equal(listed.length, 100);
   assert.deepEqual(listed.map(record => record.id).sort(), sales.map(record => record.id).sort());
-  for (const record of listed) assert.deepEqual(record, publicSaleWorkspace(sales.find(sale => sale.id === record.id)! as never));
+  for (const record of listed) assert.deepEqual(record, { ...publicSaleWorkspace(sales.find(sale => sale.id === record.id)! as never), emptyDraftDeletable: false });
   assert.ok(transferred < bytes(oldRows) / 10);
   const chatRecords = Array.from({ length: 100 }, (_, number) => ({ conversation: { id: `chat-${number}`, reference: `CHAT-${number}`, enquiryId: null, status: "with_staff" }, messages: [{ id: `message-${number}`, body: "Fictional customer history", createdAt: "2026-10-17T10:00:00Z" }], tokenHash: "PRIVATE-CHAT-HASH".repeat(200), tokenExpiresAt: "2027-01-01T00:00:00Z", requestId: `private-request-${number}` }));
   const state = { schemaVersion: 1, settings: { private: "PRIVATE-SETTING".repeat(1000) }, records: chatRecords, presence: {} };

@@ -4,6 +4,7 @@ import { dealerIntegrationsStore } from './dealer-integrations-store';
 import { createHash, randomUUID } from 'node:crypto';
 import { loadBrochurePhotos } from './vehicle-brochure-images';
 import { archiveSaleDocument } from './sale-document-pdf';
+import { embedInvoiceLogoAsset } from './invoice-logo-assets';
 import { attachInvoiceVerification, invoiceVerificationView } from './invoice-verification';
 import { siteOrigin } from './enquiry-links';
 import { createSoldVehicleFollowUps } from './sold-vehicle-follow-ups';
@@ -231,6 +232,7 @@ export class PostgresSaleWorkspaceStore {
           }
         }
         for (const document of mutation.sale.documents.filter(d => !current?.documents.some(old => old.id === d.id))) {
+          document.snapshot.branding = await embedInvoiceLogoAsset(document.snapshot.branding, this.dealerId, client, siteOrigin());
           if (document.type === 'invoice') attachInvoiceVerification(document, mutation.sale.id, siteOrigin());
           (mutation.sale.documentArchives ??= {})[document.id] = archiveSaleDocument(document);
         }
@@ -269,7 +271,10 @@ export async function recordStripeReservationDeposit(input: StripeReservationDep
   const mutation = changeSaleWorkspace(current, { action: 'payment', payment: { amount: (input.amountPence / 100).toFixed(2), method: 'Stripe', date: new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now)), reference: input.paymentIntentId, kind: 'deposit', status: 'confirmed' } }, { requestId: 'stripe-payment-' + input.paymentIntentId, expectedRevision: current.revision }, context);
   mutation.sale.lifecycle = { status: 'reserved', vehicleId: input.vehicleId, changedAt: now };
   (mutation.sale.providerPayments ??= {})[input.paymentIntentId] = { paymentId: mutation.sale.payments.at(-1)!.id, eventId: input.eventId };
-  if (mutation.document) (mutation.sale.documentArchives ??= {})[mutation.document.id] = archiveSaleDocument(mutation.document);
+  if (mutation.document) {
+    mutation.document.snapshot.branding = await embedInvoiceLogoAsset(mutation.document.snapshot.branding, input.dealerId, client, siteOrigin());
+    (mutation.sale.documentArchives ??= {})[mutation.document.id] = archiveSaleDocument(mutation.document);
+  }
   await client.query('INSERT INTO sale_workspace (id, dealer_id, reference, revision, state, created_at, updated_at) VALUES ($1::uuid, $2, $3, $4, $5::jsonb, $6, $7) ON CONFLICT (id) DO UPDATE SET revision = EXCLUDED.revision, state = EXCLUDED.state, updated_at = EXCLUDED.updated_at', [mutation.sale.id, input.dealerId, mutation.sale.reference, mutation.sale.revision, JSON.stringify(mutation.sale), mutation.sale.createdAt, mutation.sale.updatedAt]);
   await client.query('UPDATE sale_workspace_counters SET numbers = $2::jsonb WHERE dealer_id = $1', [input.dealerId, JSON.stringify(numbers)]);
   await client.query("UPDATE vehicles SET audit_metadata = audit_metadata || $3::jsonb WHERE dealer_id = $1 AND id = $2::uuid", [input.dealerId, input.vehicleId, JSON.stringify({ saleWorkspaceId: mutation.sale.id, saleWorkspaceStatus: 'reserved' })]);
@@ -308,7 +313,10 @@ export async function recordStripeReservationRefund(input: { dealerId: string; r
     : { action: 'provider-refund-correction', paymentId: original.id, amount: (-difference / 100).toFixed(2), reason: 'Stripe refund status changed: this previously recorded refund is no longer confirmed as returned. The original deposit remains received; no new payment was charged.', date };
   const mutation = changeSaleWorkspace(current, command, { expectedRevision: current.revision, requestId: 'stripe-refund-' + createHash('sha256').update(input.eventId).digest('hex') }, context);
   (mutation.sale.providerPayments![input.paymentIntentId].refundEvents ??= {})[input.eventId] = { amountRefundedPence: input.amountRefundedPence };
-  if (mutation.document) (mutation.sale.documentArchives ??= {})[mutation.document.id] = archiveSaleDocument(mutation.document);
+  if (mutation.document) {
+    mutation.document.snapshot.branding = await embedInvoiceLogoAsset(mutation.document.snapshot.branding, input.dealerId, client, siteOrigin());
+    (mutation.sale.documentArchives ??= {})[mutation.document.id] = archiveSaleDocument(mutation.document);
+  }
   await client.query('UPDATE sale_workspace SET revision = $3, state = $4::jsonb, updated_at = $5 WHERE dealer_id = $1 AND id = $2::uuid', [input.dealerId, current.id, mutation.sale.revision, JSON.stringify(mutation.sale), now]);
   await client.query('UPDATE sale_workspace_counters SET numbers = $2::jsonb WHERE dealer_id = $1', [input.dealerId, JSON.stringify(numbers)]);
   return publicSaleWorkspace(mutation.sale);

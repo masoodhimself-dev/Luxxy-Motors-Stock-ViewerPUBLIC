@@ -2,7 +2,7 @@ import { build } from 'esbuild';
 import path from 'node:path';
 await build({
   entryPoints: ['src/domain-automation.test.ts'], bundle: true, platform: 'node', format: 'esm',
-  outfile: 'dist-test/domain-automation.test.mjs', external: ['@electric-sql/pglite'],
+  outfile: 'dist-test/domain-automation.test.mjs', external: ['@electric-sql/pglite', '@napi-rs/canvas'],
   plugins: [{ name: 'isolated-domain-adapters', setup(b) {
     b.onResolve({ filter: /^@workspace\/db$/ }, () => ({ path: path.resolve('src/test/tenant-test-db.ts') }));
     b.onResolve({ filter: /^@clerk\/express$/ }, () => ({ path: path.resolve('src/test/platform-clerk.ts') }));

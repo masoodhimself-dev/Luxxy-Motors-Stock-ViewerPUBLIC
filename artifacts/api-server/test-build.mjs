@@ -21,7 +21,7 @@ await build({
   outExtension: { ".js": ".mjs" },
   logLevel: "info",
   // PGlite loads its adjacent WASM/data assets; bundling moves those lookups.
-  external: ["*.node", "pg-native", "@electric-sql/pglite"],
+  external: ["*.node", "pg-native", "@electric-sql/pglite", "@napi-rs/canvas"],
   sourcemap: "linked",
   plugins: [esbuildPluginPino({ transports: ["pino-pretty"] })],
   banner: {

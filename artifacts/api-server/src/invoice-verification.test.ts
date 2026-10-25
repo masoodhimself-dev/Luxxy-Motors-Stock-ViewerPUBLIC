@@ -65,7 +65,9 @@ test('the production SPA and API preserve private invoice and viewing response h
     const base=`http://127.0.0.1:${address.port}`;
     for(const route of ['/verify-invoice/example','/viewing/example','/viewing/example/change','/api/viewings/example']){
       const response=await fetch(base+route,{headers:{Accept:'text/html'}});
-      assert.equal(response.status,route.startsWith('/api/')?404:200);
+      // The SPA mounts /viewing/:token; an unknown nested path keeps its 404
+      // while still receiving the same capability privacy headers.
+      assert.equal(response.status,route.startsWith('/api/')||route.endsWith('/change')?404:200);
       assert.equal(response.headers.get('cache-control'),'no-store');assert.equal(response.headers.get('referrer-policy'),'no-referrer');assert.equal(response.headers.get('x-robots-tag'),route.startsWith('/api/')?'noindex, nofollow':'noindex, nofollow, noarchive');
     }
     // Server-rendered HTML already uses no-store so current stock/prices are never served stale.
