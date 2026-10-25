@@ -1,3 +1,5 @@
+import { lazy, Suspense, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { customerFeaturePolicy } from '@workspace/vehicle-meta';
 import { editableShowroomWeek } from '@/lib/settings-simplification';
 import type { DealerSettings } from '@workspace/api-client-react';
@@ -5,6 +7,8 @@ import { ShowroomPhoto } from './showroom-photo';
 import { readableAccentForHsl } from '@/lib/brand-colour';
 import { customerThemeVariables } from '@/lib/customer-theme';
 import { websiteText } from '@/lib/website-content';
+
+const CustomerPagePreview = lazy(() => import('./customer-page-preview'));
 
 export function launchChecks(settings: DealerSettings) {
   const sample = (value: unknown) => /sample|example road|replace (this|these)|tell customers|template/i.test(JSON.stringify(value || ''));
@@ -27,6 +31,7 @@ export function LaunchReadiness({ settings }: { settings: DealerSettings }) {
   </details>;
 }
 export function SettingsPreview({ settings }: { settings: DealerSettings }) {
+  const [fullPreviewOpen, setFullPreviewOpen] = useState(false);
   const photo = settings.presentation?.heroImageUrl;
   const review = settings.presentation?.reviewsEnabled && settings.presentation.reviews?.[0];
   const theme = customerThemeVariables({ ...settings.presentation, ...settings.identity.brandColors, accentHsl: readableAccentForHsl(settings.identity.brandColors.accentHsl) });
@@ -34,7 +39,9 @@ export function SettingsPreview({ settings }: { settings: DealerSettings }) {
   return <details className="settings-review-details settings-appearance-preview mb-6 border border-border bg-card p-4">
     <summary className="min-h-11 cursor-pointer py-2 font-semibold">Preview your draft appearance</summary>
     <div className="settings-review-content">
-    <p className="mb-4 text-sm text-muted-foreground">A small content and colour preview, not a full page layout. Text contrast uses the same adjustments as your customer website. Changes are not published until you save.</p>
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted-foreground">See your draft on actual customer pages with your current cars.</p><Button type="button" variant="outline" onClick={() => setFullPreviewOpen(true)}>Open full website preview</Button></div>
+    {fullPreviewOpen && <Suspense fallback={<p role="status">Loading website preview…</p>}><CustomerPagePreview settings={settings} onClose={() => setFullPreviewOpen(false)} /></Suspense>}
+    <p className="mb-4 text-sm text-muted-foreground">Below is a small content and colour preview, not a full page layout. Text contrast uses the same adjustments as your customer website. Changes are not published until you save.</p>
     <div className="grid gap-5 p-3 md:grid-cols-2" style={{ background: theme['--dealer-page'] }} data-testid="settings-theme-preview">
       <div className="settings-preview-card overflow-hidden border border-border" style={panel}>
         <div className="settings-preview-card-header p-4" style={{background: theme['--customer-footer-background'], color: theme['--customer-footer-foreground']}}>{settings.identity.name}</div>

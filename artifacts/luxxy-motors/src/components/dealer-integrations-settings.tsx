@@ -6,6 +6,7 @@ import { KeyRound, Mail, CreditCard, RefreshCw, ShieldCheck } from '@/components
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
+import { PlatformFeatureNotice } from '@/components/settings-availability-notices';
 import './integration-settings.css';
 type Readiness = { resend: { ready: boolean; issues: string[] }; stripe: { ready: boolean; issues: string[] }; message: string };
 type Settings = { revision: number; preview?: boolean; resend: { enabled: boolean; apiKeyConfigured: boolean; from: string; replyTo: string }; stripe: { enabled: boolean; mode: 'test' | 'live'; publishableKeyConfigured: boolean; secretKeyConfigured: boolean; webhookSecretConfigured: boolean }; readiness: Readiness };
@@ -30,7 +31,7 @@ export function DealerIntegrationsSettings() {
     {error && <p role="alert" className="integration-error">{error}</p>}{message && <p role="status" className="integration-notice">{message}</p>}
     {!settings ? <Button type="button" onClick={() => void load()} disabled={busy}><RefreshCw size={16} />{busy ? 'Loading settings…' : 'Reload settings'}</Button> : <>
     {settings.preview && <p className="integration-notice">Email and payment requests are disabled on this server.</p>}
-    <div className="integration-card"><h3>Email delivery</h3><p><strong>{settings.resend.enabled ? 'Enabled' : 'Disabled'}</strong> · {settings.resend.apiKeyConfigured ? 'Key saved privately' : 'No saved key'}</p><p className="integration-readiness">{settings.readiness.resend.ready ? 'Required settings are present. This is not a delivery test.' : settings.readiness.resend.issues.join(' ')}</p></div>
+    <div className="integration-card"><h3>Email delivery</h3><p><strong>{settings.resend.enabled ? 'Enabled' : 'Disabled'}</strong> · {settings.resend.apiKeyConfigured ? 'Key saved privately' : 'No saved key'}</p><p className="integration-readiness">{settings.readiness.resend.ready ? 'Required settings are present. This is not a delivery test.' : settings.readiness.resend.issues.join(' ')}</p><PlatformFeatureNotice feature="customerEmails" /></div>
     <details className="integration-connection-editor"><summary>Change connection setup</summary><p className="integration-footnote">Use verified provider details. Changes apply only when saved.</p>
     <fieldset disabled={busy} className="integration-grid"><div className="integration-card"><div className="integration-card-heading"><Mail /><div><h3>Resend</h3><p>Customer emails, receipts and staff notifications</p></div><span className="integration-badge">{settings.resend.enabled ? 'Enabled' : 'Disabled'}</span></div>
       {secret('API key', 'apiKey', settings.resend.apiKeyConfigured, apiKey, setApiKey)}

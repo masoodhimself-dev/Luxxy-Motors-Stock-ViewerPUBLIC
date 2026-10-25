@@ -453,3 +453,15 @@ it("still finds a reply when that same record also has a higher-priority follow-
  expect(screen.getByText("Reply needed")).toBeVisible();
  expect(screen.queryByRole("region",{name:"Today’s appointments"})).not.toBeInTheDocument();
 });
+
+it('makes email delivery problems visible above the collapsed history without retrying a send', async () => {
+  backend({ notifications: { ...data, counts: { ...data.counts, email: 1 }, items: [
+    ...data.items, { ...data.items[0], id: 'failed-email', category: 'email', customer: 'Failed email', detail: 'Email bounced' },
+  ] } });
+  show(<NotificationsHome />);
+  const attention = await screen.findByRole('link', { name: /Email needs attention.*Check delivery history/ });
+  expect(attention).toBeVisible();
+  expect(attention).toHaveAttribute('href', '/portal?section=notifications&workView=email');
+  expect(screen.getByText('Email issues · 1').closest('details')).not.toHaveAttribute('open');
+  expect(state.fetch.mock.calls.every(([, options]) => !options?.method || options.method === 'GET')).toBe(true);
+});

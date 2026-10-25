@@ -1,3 +1,4 @@
+import { useCustomerPreview } from './customer-preview-context';
 import type { Car } from './stock-context';
 import { rememberSavedCar, forgetSavedSnapshots } from './saved-car-snapshots';
 import {
@@ -70,8 +71,9 @@ function writeIds(key: string, ids: string[]) {
 }
 
 export function SavedCarsProvider({ children }: { children: ReactNode }) {
-  const [savedIds, setSavedIds] = useState<string[]>(() => readIds(SAVED_KEY));
-  const [compareIds, setCompareIds] = useState<string[]>(() => readIds(COMPARE_KEY, MAX_COMPARE));
+  const preview = useCustomerPreview();
+  const [savedIds, setSavedIds] = useState<string[]>(() => preview ? [] : readIds(SAVED_KEY));
+  const [compareIds, setCompareIds] = useState<string[]>(() => preview ? [] : readIds(COMPARE_KEY, MAX_COMPARE));
 
   useEffect(() => {
     writeIds(SAVED_KEY, savedIds);

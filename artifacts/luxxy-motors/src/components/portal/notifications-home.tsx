@@ -178,6 +178,7 @@ export function NotificationsHome({
           {(soldCount > 0 || filter === "sold") && <button type="button" data-tone="warning" aria-pressed={filter === "sold"} onClick={() => chooseFilter(filter === "sold" ? "all" : "sold")}>Sold car follow-ups <b>{soldCount}</b></button>}
           {refresh}
         </div>
+        {data?.emailAccess && (data.counts.email > 0 || issues.length > 0) && <Link className="desk-email-attention" href="/portal?section=notifications&workView=email"><MailWarning size={17} aria-hidden="true" /><span>Email needs attention<small>Check delivery history before sending again.</small></span><ArrowUpRight size={16} aria-hidden="true" /></Link>}
       </>}
       {(filter === "all" || filter === "sold") && <SoldVehicleFollowUpTasks query={soldFollowUps} showEmpty={filter === "sold"} />}
       {(filter === "all" || filter === "stock") && <StockChangeTasks query={stockChanges} emailAccess={data?.emailAccess === true} showEmpty={filter === "stock"} />}
@@ -197,7 +198,7 @@ export function NotificationsHome({
           {data.counts.drafts > 0 && <Link className="desk-drafts" href="/portal?section=notifications&workView=email&view=drafts"><FilePenLine size={17} aria-hidden="true"/>Open saved drafts<ArrowUpRight size={15} aria-hidden="true"/></Link>}
         </div>}
         {count === 0 && stockCount === 0 && soldCount === 0 && query.isSuccess && stockChanges.isSuccess && soldFollowUps.isSuccess && <p className="desk-clear" role="status">You’re up to date</p>}
-        {categories.some(key => data.counts[key] > 8) && <p className="notifications-footnote">Showing up to eight records per category. Open Customers & enquiries, Test drives or Email for the full list.</p>}
+        {categories.some(key => data.counts[key] > 8) && <p className="notifications-footnote">Home shows a summary. Open Inbox or Test drives for the full list.</p>}
         <p className="notifications-updated">Updated {new Date(data.generatedAt).toLocaleTimeString("en-GB", {timeZone:"Europe/London",hour:"2-digit",minute:"2-digit"})} · London time</p>
       </>}
     </DealerDashboard>

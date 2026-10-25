@@ -1,9 +1,9 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useSearch } from 'wouter';
 import { DealerSettingsPanel } from './dealer-settings-panel';
-import { clearSettingsDraft } from '@/lib/settings-draft';
+import { clearSettingsDraft, readSettingsDraft } from '@/lib/settings-draft';
 import type { DealerSettingsGroup } from '@/lib/settings-simplification';
 import { previewSettings } from '../../preview/settings';
 const device = vi.hoisted(() => ({ mobile: false }));
@@ -15,6 +15,7 @@ function setup(settings = structuredClone(previewSettings)) {
   HTMLElement.prototype.scrollIntoView = vi.fn();
   const writes: typeof settings[] = [];
   vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    if (String(_url).endsWith('/api/features')) return Response.json({features:{testDriveBookings:true,testDriveDeclarations:true,staffAiDrafts:true,customerEmails:true,publicEnquiries:true,partExchange:true},evaluatedAt:'2026-10-25T12:00:00Z'});
     if (init?.method === 'PATCH') { settings = JSON.parse(init.body); writes.push(settings); }
     return Response.json(settings, { headers: { 'x-settings-revision': writes.length ? '5' : '4' } });
   }));
@@ -35,11 +36,23 @@ it('shares the complete draft across dealership, website and booking areas and p
   expect(await screen.findByTestId('input-identity-name')).toHaveValue('Fictional Test Motors');
   fireEvent.click(screen.getByRole('button', { name:'Review changes' }));
   expect(writes).toHaveLength(0);
+  const summary=await screen.findByTestId('settings-change-summary');
+  expect(summary).toHaveTextContent('Dealership details');
+  expect(summary).toHaveTextContent('Website');
+  expect(summary).toHaveTextContent('Bookings');
+  expect(within(summary).getByTestId('change-published-contact.phone')).toHaveTextContent(previewSettings.contact.phone);
+  expect(within(summary).getByTestId('change-draft-contact.phone')).toHaveTextContent('07388831790');
+  fireEvent.click(within(summary).getByText('Public phone number'));
+  fireEvent.click(within(summary).getByRole('button',{name:'Edit Public phone number'}));
+  expect(await screen.findByTestId('input-contact-phone')).toHaveValue('07388831790');
+  expect(writes).toHaveLength(0);
+  fireEvent.click(screen.getByRole('button', { name:'Review changes' }));
   fireEvent.click(await screen.findByRole('button', { name:'Publish showroom' }));
   await screen.findByText('Published to the showroom. Your changes are live.');
   expect(writes).toHaveLength(1);
   expect(writes[0]).toMatchObject({ identity:{name:'Fictional Test Motors'}, contact:{phone:'07388831790'}, testDriveBooking:{durationMinutes:45} });
   expect(screen.getByRole('button', { name:'Publish showroom' })).toBeDisabled();
+  expect(screen.getByTestId('settings-change-summary')).toHaveTextContent('No changes from the loaded publication.');
   client.clear();
 });
 it('keeps legacy detail links usable and preserves company edits when moving between areas', async () => {
@@ -209,5 +222,37 @@ it('explains hidden homepage service cards without changing the individual servi
   expect(screen.queryByText('Visible on your showroom')).not.toBeInTheDocument();
   expect(screen.getByTestId('checkbox-service-warranty')).toBeChecked();
   expect(writes).toHaveLength(0);
+  client.clear();
+});
+
+it('uses an accessible discard confirmation, keeps cancellation safe and discards only the shared draft', async () => {
+  const settings=structuredClone(previewSettings);
+  const nativeConfirm=vi.spyOn(window,'confirm');
+  const {client,writes,go}=setup(settings);
+  sessionStorage.setItem('unrelated-settings-test','keep this');
+  fireEvent.change(await screen.findByTestId('input-identity-name'),{target:{value:'Unpublished dealership'}});
+  go('dealership','contact');
+  fireEvent.change(await screen.findByTestId('input-contact-phone'),{target:{value:'020 7946 9876'}});
+  expect(readSettingsDraft(settings)).not.toBeNull();
+  fireEvent.click(screen.getByRole('button',{name:'Discard draft'}));
+  let dialog=await screen.findByRole('alertdialog',{name:'Discard unpublished settings?'});
+  expect(dialog).toHaveTextContent('complete shared draft');
+  await waitFor(()=>expect(within(dialog).getByRole('button',{name:'Keep editing'})).toHaveFocus());
+  fireEvent.click(within(dialog).getByRole('button',{name:'Keep editing'}));
+  expect(screen.getByTestId('input-contact-phone')).toHaveValue('020 7946 9876');
+  expect(readSettingsDraft(settings)).not.toBeNull();
+  fireEvent.click(screen.getByRole('button',{name:'Discard draft'}));
+  dialog=await screen.findByRole('alertdialog');
+  fireEvent.click(within(dialog).getByRole('button',{name:'Discard draft'}));
+  await waitFor(()=>expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  expect(screen.getByTestId('input-contact-phone')).toHaveValue(settings.contact.phone);
+  go('website');
+  expect(await screen.findByTestId('input-identity-name')).toHaveValue(settings.identity.name);
+  expect(readSettingsDraft(settings)).toBeNull();
+  expect(sessionStorage.getItem('unrelated-settings-test')).toBe('keep this');
+  expect(writes).toHaveLength(0);
+  expect(nativeConfirm).not.toHaveBeenCalled();
+  expect(screen.getByRole('button',{name:'Review changes'})).toBeDisabled();
+  nativeConfirm.mockRestore();
   client.clear();
 });

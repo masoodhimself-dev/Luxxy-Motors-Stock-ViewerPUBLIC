@@ -131,7 +131,7 @@ export function EnquiryRecordBrowser({ entries, allEntries = entries, cars, sele
   const [openedOriginals, setOpenedOriginals] = useState<Set<string>>(() => new Set());
   const list = useRef<HTMLDivElement>(null);
   useEffect(() => { if (detail.current) detail.current.scrollTop = 0; if (explicitSelection && window.matchMedia('(max-width: 899px)').matches) { detail.current?.focus(); detail.current?.scrollIntoView({ block: 'start' }); } }, [selected?.id, selectedId, explicitSelection]);
-  if (!entries.length) return <p className="py-6 text-center text-muted-foreground">{emptyMessage}</p>;
+  if (!entries.length) return <p role="status" className="px-4 py-6 text-center text-sm text-muted-foreground">{!allEntries.length && !callbacks && emptyMessage === 'No matching enquiries. Try another name or phone number.' ? 'No enquiries yet. Use Quick enquiry to record a call; website enquiries will appear here.' : emptyMessage}</p>;
   return <div className="enquiry-record-browser" data-selected={explicitSelection ? 'true' : 'false'}>
     <div ref={list} tabIndex={-1} className="enquiry-record-list-pane" aria-label={callbacks ? 'Callback requests' : 'Enquiry records'}>
       <p className="enquiry-record-count">{entries.length} {callbacks ? entries.length === 1 ? 'callback' : 'callbacks' : entries.length === 1 ? 'enquiry' : 'enquiries'}</p>

@@ -1,3 +1,4 @@
+import { useCustomerPreview } from '@/lib/customer-preview-context';
 
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import './vehicle-redesign.css';
@@ -78,6 +79,7 @@ function LedgerRow({ label, value, testId }: { label: string; value: string; tes
 }
 
 export default function CarDetail() {
+  const preview = useCustomerPreview();
   const [shareMessage, setShareMessage] = useState('');
   // Keep identity above the gallery until the two-column layout starts.
   const isCompactLayout = useIsMobile(1100);
@@ -277,7 +279,7 @@ export default function CarDetail() {
     <div className="vehicle-page vehicle-redesigned vehicle-page-enter luxxy-shell min-h-screen">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="vehicle-browse-tools flex items-center">
-          <Link href={browseReturnHref()} onClick={() => requestBrowseRestore()} className="vehicle-return-link text-link min-h-11 text-muted-foreground">
+          <Link href={preview ? '/stock' : browseReturnHref()} onClick={() => requestBrowseRestore()} className="vehicle-return-link text-link min-h-11 text-muted-foreground">
             <ArrowLeft className="h-4 w-4" />
             Back to your results
           </Link>

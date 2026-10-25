@@ -12,6 +12,8 @@ Browser coverage comprises **37 page/state combinations at three widths: 111 dis
 
 The settings-to-customer matrix is in [Settings wiring audit](settings-customer-wiring-2026-10-25.md). Additional route and journey findings are in [Customer journey audit](customer-journeys-2026-10-25.md).
 
+The follow-up requested with “fix all” is recorded in [Audit follow-up](audit-follow-up-2026-10-25.md). It completes the four “Next” improvements below, refines the compact Inbox and resolves Shore Drive’s missing public contact details. Its later results supersede the initial setup and native-confirmation limitations recorded below. Code changes remain local; only the explicitly confirmed Shore Drive public settings were published live.
+
 ## Defects corrected
 
 | Area | Defect and effect | Correction |
@@ -94,22 +96,22 @@ The first broad runs encountered resource-related Sales test timing failures dur
 
 ## Setup issues and unverified boundaries
 
-1. **Shore Drive setup needs completion.** Its published contact phone/WhatsApp/email, showroom address and opening hours were blank/unconfirmed in the settings inspected. Website checks already flag setup omissions. Public booking was disabled. These are saved configuration choices or missing setup data, not failures to render supplied details. No values were invented or changed.
+1. **Shore Drive setup resolved in the follow-up.** The initial inspection found blank/unconfirmed public details. Masood subsequently confirmed phone/WhatsApp 07388831790, sales@shoredrive.uk, the Village Way East address and Monday–Saturday 10:00–18:00 / Sunday closed. These were published and verified on the live contact page, including the normalized WhatsApp destination. Public booking and private email connections were not changed. See the follow-up for the exact saved address.
 2. Physical iPhone/iPad Safari, camera permissions, orientation, native date/select controls and real video recording/compression were not tested on hardware in this audit.
 3. No real Resend delivery, incoming email reply, WhatsApp send, staff “I've sent it” production mutation, signature, payment or live sale/booking completion was performed. These paths have source and regression coverage, not a fresh external end-to-end send claim.
 4. Valid private purchase/upload/declaration links were not freshly issued for a live customer. Their recovery/authorization logic was reviewed. Existing invoice PDF calculation/printing logic was not redesigned.
 5. Live platform administration was signed out. The platform workspace refresh fix was tested locally, not against a signed-in production workspace.
-6. A native discard-draft confirmation stalled one browser automation tab. Further layout and recovery checks continued in fresh tabs. The local publication test title was restored; completion of that native confirmation is unverified. This is not treated as proof of an application defect.
+6. **Discard confirmation resolved in the follow-up.** The initial native confirmation stalled an automation tab. It has been replaced with the application’s accessible alert dialog; default focus, cancellation preserving the draft and confirmation restoring the loaded publication were verified in the browser and tests.
 7. External configured legal/social/directions destinations and actual email-client rendering are outside these responsive page checks. Ordinary browsing/contact analytics may record views; no customer messages or financial/stock records were intentionally changed.
 
 ## Recommended next improvements
 
-| Priority | Improvement | Practical benefit |
+| Status | Improvement | Practical benefit |
 | --- | --- | --- |
-| Next | Add a “Shown on” link beside conditional settings, opening the relevant customer section. | Staff can immediately see what a setting controls and why it is hidden. Extend the existing Website checks rather than adding a competing setup checklist. |
-| Next | Add a changed-field summary to the existing publish review. | Owners can review “phone changed, warranty hidden, booking hours changed” before publishing one shared draft. Keep current revision protection. |
-| Next | Build a full unpublished-page preview using real stock and the draft settings at phone/tablet/desktop sizes. | Avoid publishing merely to inspect a logo, title or featured order. Keep current small preview clearly labelled until then. |
-| Next | Show platform pauses and showroom/booking-hour differences directly beside affected controls. | Reduce confusion without merging two intentionally separate rules. |
+| Completed locally | “Shown on” links beside conditional settings, opening the relevant published customer section. | Staff can see what a setting controls and why it is hidden; full draft inspection is a separate preview. |
+| Completed locally | Changed-field summary in the existing publish review. | Owners can compare published and draft values before publishing one shared draft. Current revision protection remains. |
+| Completed locally | Full unpublished-page preview using current stock and draft settings at phone/tablet/desktop sizes. | Inspect Home, Stock, Vehicle, Contact and Warranty without publishing. Actions are disabled; native information sections can open. |
+| Completed locally | Effective feature availability and showroom/booking-hour differences beside affected controls. | Explain unavailable or unconfirmed access without guessing its cause or synchronizing intentionally separate rules. |
 | Later | Let customers add part-exchange photos directly after submitting their enquiry. | Remove an extra app handoff and match images to the correct conversation. Requires a separate upload/privacy/storage design, not added in this audit. |
 
-No feature suggestions above were silently introduced as new business rules. Imports, Grok delivery, schedules, customer-message automation, invoices and payments remain unchanged by this work.
+These presentation and review improvements introduce no new business rules. Direct customer part-exchange photo uploads remain a separate future feature proposal. Imports, Grok delivery, schedules, customer-message automation, invoices and payments remain unchanged by this work.

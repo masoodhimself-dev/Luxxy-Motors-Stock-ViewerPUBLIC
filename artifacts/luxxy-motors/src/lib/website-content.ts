@@ -275,7 +275,27 @@ export const websiteFieldHelp: Partial<Record<WebsiteTextKey, string>> = {
   viewingDescription: 'Shown below the title of the customer test-drive booking form.',
   contactBeforeHeading: 'Shown when Appointments & visiting information has been supplied.',
   contactParkingHeading: 'Shown when Parking & arrival instructions have been supplied.',
+  visitHeading: 'Shown when the homepage visit and dealership section is enabled.',
+  vehicleDescriptionHeading: 'Shown when the selected car has a published description.',
+  vehicleFeaturesHeading: 'Shown when equipment has been supplied for the selected car.',
+  vehicleSimilarHeading: 'Shown when other suitable cars are available.',
 };
+
+/** Links always open the published page; they never claim to preview a draft. */
+export function websiteFieldPage(key: WebsiteTextKey, vehiclePageHref?: string): { href: string; label: string } {
+  const field = websiteFields.find(field => field.key === key)!;
+  if (field.group === 'Contact') return { href:'/contact', label:'Contact page' };
+  if (field.group === 'Warranty') return { href:'/warranty', label:'Warranty page' };
+  if (field.group === 'Browse stock') return { href:'/stock', label:'Browse stock' };
+  if (field.group === 'Saved cars') return { href:'/saved', label:'Saved cars' };
+  if (field.group === 'Comparison') return { href:'/compare', label:'Compare cars' };
+  if (field.group === 'Vehicle page') return vehiclePageHref ? {href:vehiclePageHref,label:'Vehicle page'} : {href:'/stock',label:'Choose a vehicle from stock'};
+  if (field.group === 'Enquiry pages') {
+    const type = key.replace(/(?:Title|Description)$/, '');
+    return { href:`/enquire?type=${type}`, label:type === 'viewing' ? 'Test-drive booking form' : `${type === 'part_exchange' ? 'Part-exchange' : type[0].toUpperCase() + type.slice(1)} enquiry` };
+  }
+  return { href:'/', label:'Homepage' };
+}
 
 // Only known, unchanged template defaults are refreshed. Dealer-written copy,
 // including copy that happens to mention a team or showroom, stays untouched.

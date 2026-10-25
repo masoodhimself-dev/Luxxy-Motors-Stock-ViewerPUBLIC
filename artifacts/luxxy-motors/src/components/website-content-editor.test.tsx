@@ -36,3 +36,20 @@ it('finds the dealership’s saved phrase as well as the standard field labels',
   expect(screen.queryByText('No matching content fields. Try another phrase.')).not.toBeInTheDocument();
   expect(change).not.toHaveBeenCalled();
 });
+
+it('links each wording control to its published page and explains conditional content', () => {
+  render(<WebsiteContentEditor value={{}} onChange={vi.fn()} vehiclePageHref="/vehicle/fixture-car" />);
+  expect(screen.getByRole('link',{name:/Shown on published Test-drive booking form: Viewing title/})).toHaveAttribute('href','/enquire?type=viewing');
+  expect(screen.getByRole('link',{name:/Shown on published Vehicle page: Specification heading/})).toHaveAttribute('href','/vehicle/fixture-car');
+  const contact=screen.getByRole('link',{name:/Shown on published Contact page: Contact title/});
+  expect(contact).toHaveAttribute('href','/contact');
+  expect(contact).toHaveAttribute('target','_blank');
+  expect(contact).toHaveAttribute('rel','noopener noreferrer');
+  expect(screen.getByText('Shown when Parking & arrival instructions have been supplied.')).toBeInTheDocument();
+  expect(screen.getByText(/“Shown on” links open published pages/)).toBeInTheDocument();
+});
+
+it('uses published stock as the vehicle chooser when no sample car is available', () => {
+  render(<WebsiteContentEditor value={{}} onChange={vi.fn()} />);
+  expect(screen.getByRole('link',{name:/Shown on published Choose a vehicle from stock: Features heading/})).toHaveAttribute('href','/stock');
+});

@@ -521,7 +521,7 @@ function NewCall({
                   Change selected car
                 </Button>
                 </div>
-                <details className="enquiry-desk-more"><summary>Vehicle history and preparation</summary><VehicleDeskContext car={car} /></details>
+                <details className="enquiry-desk-more"><summary>Vehicle history</summary><VehicleDeskContext car={car} /></details>
               </div>
             )}
             <div

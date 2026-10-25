@@ -372,6 +372,39 @@
 
 @media(min-width:640px) { .customer-workspace-views { grid-template-columns:repeat(3,minmax(0,1fr)); } }
 
+/* Compact desk: keep the queue and selected customer close to the navigation. */
+@media (min-width: 900px) {
+  .customer-notifications-workspace:has(.enquiry-record-browser) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px 16px;
+    align-items: start;
+  }
+  .customer-notifications-workspace:has(.enquiry-record-browser) > .customer-workspace-heading {
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0;
+    min-height: 52px;
+    align-items: center;
+  }
+  .customer-notifications-workspace:has(.enquiry-record-browser) > .customer-workspace-heading > h2 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .customer-notifications-workspace:has(.enquiry-record-browser) > .customer-workspace-views {
+    grid-column: 1;
+    grid-row: 1;
+    margin: 0;
+  }
+  .customer-notifications-workspace:has(.enquiry-record-browser) > :is(.inbox-mode-nav, .customer-workspace-content, .device-alerts) {
+    grid-column: 1 / -1;
+    margin-block: 0;
+  }
+}
+
 /* All three destinations fit on phones; none should look like a hidden tool. */
 @media (max-width: 760px) {
   .customer-notifications-workspace > .customer-workspace-views {

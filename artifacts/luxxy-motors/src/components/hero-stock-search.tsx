@@ -1,3 +1,4 @@
+import { useCustomerPreview } from '@/lib/customer-preview-context';
 import { useEffect, useId, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { Search, ChevronDown, RotateCcw } from '@/components/icons';
@@ -10,9 +11,10 @@ export function HeroStockSearch({ cars, filters, setFilters, onSearch, onReset, 
   loading?: boolean; buttonLabel?: string; cars: Car[]; filters: FilterState; setFilters: Dispatch<SetStateAction<FilterState>>;
   onSearch: () => void; onReset: () => void; count: number;
 }) {
+  const preview = useCustomerPreview();
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const advancedId = useId();
-  const [mobile, setMobile] = useState(() => window.matchMedia?.('(max-width: 639px)').matches ?? false);
+  const [mobile, setMobile] = useState(() => preview ? preview.viewportWidth < 640 : window.matchMedia?.('(max-width: 639px)').matches ?? false);
   useEffect(() => {
     const media = window.matchMedia?.('(max-width: 639px)');
     if (!media) return;

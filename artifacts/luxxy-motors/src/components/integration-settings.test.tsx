@@ -3,8 +3,10 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { defaultEmailAppearance, defaultEmailTemplates } from '@workspace/vehicle-meta';
 import { DealerIntegrationsSettings } from './dealer-integrations-settings';
 import { EmailTemplatesSettings } from './email-templates-settings';
+const feature = vi.hoisted(() => ({ enabled: true, loading: false, error: false, refetch: vi.fn() }));
+vi.mock('@/lib/dealer-features', () => ({ useDealerFeatures: () => ({ data: { features: { customerEmails: feature.enabled } }, isLoading: feature.loading, isError: feature.error, isFetching: false, refetch: feature.refetch }) }));
 let request: ReturnType<typeof vi.fn>;
-beforeEach(() => { request = vi.fn(); vi.stubGlobal('fetch', request); });
+beforeEach(() => { request = vi.fn(); vi.stubGlobal('fetch', request); feature.enabled = true; feature.loading = false; feature.error = false; feature.refetch.mockReset(); });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 const settings = { revision: 0, preview: true, resend: { enabled: false, apiKeyConfigured: false, from: '', replyTo: '' }, stripe: { enabled: false, mode: 'test', publishableKeyConfigured: false, secretKeyConfigured: false, webhookSecretConfigured: false }, readiness: { resend: { ready: false, issues: ['Add a Resend key.'] }, stripe: { ready: false, issues: ['Add Stripe keys.'] }, message: 'Checked locally. No email or charge made.' } };
 it('keeps entered keys out of browser storage and clears them after the private save', async () => {
@@ -67,4 +69,24 @@ it('protects unsaved email wording on template changes and retains branding when
   fireEvent.click(screen.getByRole('tab', { name: 'Branding' }));
   expect(screen.getByLabelText('Footer wording')).toBeVisible();
   expect(screen.getByLabelText('Footer wording')).toHaveValue('Unsaved brand footer');
+});
+
+it.each(['unavailable', 'loading', 'error'] as const)('distinguishes the saved email connection from %s effective availability without changing it', async status => {
+  feature.enabled = status !== 'unavailable'; feature.loading = status === 'loading'; feature.error = status === 'error';
+  request.mockImplementation(async path => {
+    if (path !== '/api/dealer-integrations') throw new Error('Unexpected request');
+    return Response.json({ ...settings, preview: false, resend: { ...settings.resend, enabled: true, apiKeyConfigured: true }, readiness: { ...settings.readiness, resend: { ready: true, issues: [] } } });
+  });
+  render(<DealerIntegrationsSettings />);
+  await screen.findByRole('heading', { name: 'Email delivery' });
+  expect(screen.getByRole('checkbox', { name: 'Enable email delivery' })).toBeChecked();
+  expect(screen.getByRole('button', { name: 'Save private settings' })).toBeDisabled();
+  if (status === 'unavailable') expect(screen.getByRole('status', { name: 'Customer email sending availability' })).toHaveTextContent('Customer email sending is currently unavailable for this dealership.');
+  else if (status === 'loading') expect(screen.getByText('Checking customer email sending availability…')).toBeVisible();
+  else {
+    expect(screen.getByRole('status', { name: 'Customer email sending availability' })).toHaveTextContent('availability could not be confirmed');
+    fireEvent.click(screen.getByRole('button', { name: 'Retry availability check' }));
+    expect(feature.refetch).toHaveBeenCalledOnce();
+  }
+  expect(request.mock.calls.some(([, init]) => init?.method && init.method !== 'GET')).toBe(false);
 });

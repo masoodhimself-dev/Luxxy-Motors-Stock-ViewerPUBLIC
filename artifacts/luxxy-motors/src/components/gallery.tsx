@@ -1,3 +1,4 @@
+import { useCustomerPreview } from '@/lib/customer-preview-context';
 import { VehicleCall } from '@/components/vehicle-call';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { responsiveVehicleImage, retryOriginalImage } from "@/lib/responsive-vehicle-image";
@@ -26,6 +27,7 @@ function imageCaption(image: CarImage | string | undefined) {
 }
 
 export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', customerView = false, customerActions, video, initialVideo = false }: GalleryProps) {
+  const preview = useCustomerPreview();
   const [videoSelected, setVideoSelected] = useState(initialVideo);
   const showingVideo = Boolean(video && videoSelected);
   const reduceMotion = useReducedMotion();
@@ -214,11 +216,12 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
     sizes = eager ? "(max-width: 1023px) 100vw, 900px" : "120px",
   ) => {
     const url = getSafeImageUrl(allImages[imageIndex]);
-    const ImageElement = eager ? motion.img : 'img';
+    const ImageElement = eager && !preview ? motion.img : 'img';
     const content = (
       <ImageElement
-        {...(eager ? { initial: { opacity: reduceMotion ? 1 : 0, scale: reduceMotion ? 1 : 1.025 }, animate: { opacity: 1, scale: 1 }, exit: { opacity: 0, scale: 1 }, transition: { duration: reduceMotion ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] } } : {})}
+        {...(eager && !preview ? { initial: { opacity: reduceMotion ? 1 : 0, scale: reduceMotion ? 1 : 1.025 }, animate: { opacity: 1, scale: 1 }, exit: { opacity: 0, scale: 1 }, transition: { duration: reduceMotion ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] } } : {})}
         key={url}
+        style={preview && eager ? { opacity: 1 } : undefined}
         src={url}
         {...responsiveVehicleImage(url, sizes)}
         decoding="async"
@@ -241,7 +244,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
         }}}
       />
     );
-    return eager ? <AnimatePresence initial={false} mode="popLayout">{content}</AnimatePresence> : content;
+    return eager && !preview ? <AnimatePresence initial={false} mode="popLayout">{content}</AnimatePresence> : content;
   };
   const arrowClass =
     'photo-glass-control grid shrink-0 place-items-center';
@@ -299,7 +302,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
             "gallery-photo absolute inset-0 h-full w-full object-contain",
             true,
           )}
-          {allImages.length > 0 && loadedUrl !== activeUrl && <span className="pointer-events-none absolute left-3 top-3 rounded bg-black/60 px-3 py-2 text-xs text-white" role="status">Loading photo…</span>}
+          {!preview && allImages.length > 0 && loadedUrl !== activeUrl && <span className="pointer-events-none absolute left-3 top-3 rounded bg-black/60 px-3 py-2 text-xs text-white" role="status">Loading photo…</span>}
           {allImages.length > 0 && !(interestOpen && !open) && <DialogTrigger asChild>
             <button
               type="button"

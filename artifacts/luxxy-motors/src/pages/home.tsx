@@ -1,3 +1,4 @@
+import { useCustomerPreview } from '@/lib/customer-preview-context';
 import { bodyTypeKey, stockBodyTypes } from '@/lib/body-types';
 import { VehicleFactIcon } from "@/components/vehicle-fact-icon";
 import { CompareSelectionLink } from '@/components/saved-car-controls';
@@ -67,6 +68,7 @@ const benefitChoices = [
 const STOCK_VIEW_KEY = 'luxxy.stock-view.v1';
 
 export default function Home({ browseStock = false }: { browseStock?: boolean }) {
+  const preview = useCustomerPreview();
   const demoSite = useDemoStatus();
   const [, setLocation] = useLocation();
   useEffect(() => {
@@ -93,9 +95,10 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     },
   });
   const [showAll, setShowAll] = useState(
-    () => browseStock || readBrowseSession().showAll === true,
+    () => browseStock || (!preview && readBrowseSession().showAll === true),
   );
   const [stockView, setStockView] = useState<'cards' | 'compact'>(() => {
+    if (preview) return 'cards';
     try {
       return window.localStorage.getItem(STOCK_VIEW_KEY) === 'compact' ? 'compact' : 'cards';
     } catch {
@@ -108,8 +111,9 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   const { savedCount } = useSavedCars();
   const [copyNotice, setCopyNotice] = useState('');
   const [stockOptionsOpen, setStockOptionsOpen] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(() => readBrowseSession().visibleCount || 12);
+  const [visibleCount, setVisibleCount] = useState(() => preview ? 12 : readBrowseSession().visibleCount || 12);
   const [filters, setFilters] = useState<FilterState>(() => {
+    if (preview) return { ...defaultFilters };
     if (browseStock && window.location.search) {
       const params = new URLSearchParams(window.location.search);
       const next = { ...defaultFilters };

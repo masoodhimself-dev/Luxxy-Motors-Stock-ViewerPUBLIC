@@ -1,3 +1,4 @@
+import { useCustomerPreview } from '@/lib/customer-preview-context';
 import { FeatureUnavailable } from './feature-unavailable';
 import { useDealerFeatures } from '@/lib/dealer-features';
 import { showroomHours } from '@/lib/showroom-hours';
@@ -73,6 +74,7 @@ export function EnquiryForm({
   onTypeChange?: (type: EnquiryType) => void;
   onChangeCar?: () => void;
 }) {
+  const preview = useCustomerPreview();
   const { settings: dealerConfig } = useDealerSettings();
   const features = useDealerFeatures();
   const [, navigate] = useLocation();
@@ -81,8 +83,8 @@ export function EnquiryForm({
   const [unavailableVehiclePhoto, setUnavailableVehiclePhoto] = useState('');
   const nameInputRef = useRef<HTMLInputElement>(null);
   const successHeadingRef = useRef<HTMLHeadingElement>(null);
-  const [hasPartExchange, setHasPartExchange] = useState(() => Boolean(readVehicleExchange(vehicle?.id)));
-  const [exchange, setExchange] = useState(() => readVehicleExchange(vehicle?.id) ?? { registration: '', mileage: '', notes: '' });
+  const [hasPartExchange, setHasPartExchange] = useState(() => !preview && Boolean(readVehicleExchange(vehicle?.id)));
+  const [exchange, setExchange] = useState(() => (preview ? null : readVehicleExchange(vehicle?.id)) ?? { registration: '', mileage: '', notes: '' });
   useEffect(() => {
     const draft = readVehicleExchange(vehicle?.id);
     if (draft) { setExchange(draft); setHasPartExchange(true); }
