@@ -714,7 +714,7 @@ body:has(.stock-refined) header { background: #fff; color: #202428; }
 .vehicle-review-card { background: #f5f5f4; border: 1px solid #d7dadd; }
 /* A page and its cards may use different dealer colours. Text, controls and
    links follow the surface they are actually drawn on. */
-.customer-site :is(.bg-card, .bg-popover, .surface, .customer-enquiry-form, .enquiry-form-panel, .booking-panel, .saved-car-list > div, .customer-purchase-card, .friendly-contact .contact-talk-panel > .divide-y, .friendly-contact #contact-message > div:last-child, .friendly-contact [aria-label="Before your visit"], .friendly-enquire [data-testid="enquiry-vehicle-summary"], .friendly-warranty #warranty-enquiry, .friendly-warranty [aria-labelledby="warranty-details-heading"] dl) {
+.customer-site :is(.bg-card, .bg-popover, .surface, .customer-enquiry-form, .enquiry-form-panel, .booking-page, .booking-panel, .saved-car-list > div, .customer-purchase-card, .friendly-contact .contact-talk-panel > .divide-y, .friendly-contact #contact-message > div:last-child, .friendly-contact [aria-label="Before your visit"], .friendly-enquire [data-testid="enquiry-vehicle-summary"], .friendly-warranty #warranty-enquiry, .friendly-warranty [aria-labelledby="warranty-details-heading"] dl) {
   --background: var(--card);
   --foreground: var(--dealer-panel-ink-hsl);
   --muted-foreground: var(--dealer-panel-muted-hsl);
