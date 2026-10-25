@@ -151,10 +151,10 @@ export function TestDriveBooking({
   const [selectedDate, setSelectedDate] = useState(
     () => dates[0] ?? londonDate(),
   );
-  // Keep the immediate choices short. Every later date remains in the selector,
-  // and a selected later date replaces the last quick choice so it stays visible.
-  const quickDates = dates.slice(0, 5);
-  if (dates.includes(selectedDate) && !quickDates.includes(selectedDate)) quickDates[quickDates.length - 1] = selectedDate;
+  // Keep five consecutive permitted dates around the selected date. The selector
+  // always retains every date allowed by the existing booking policy.
+  const dateWindowStart = Math.min(Math.max(dates.indexOf(selectedDate) - 2, 0), Math.max(dates.length - 5, 0));
+  const quickDates = dates.slice(dateWindowStart, dateWindowStart + 5);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const nameInput = useRef<HTMLInputElement>(null);
@@ -755,7 +755,7 @@ export function TestDriveBooking({
                     {config.durationMinutes}-minute appointments · London time
                     {approval ? " · We’ll confirm your request" : ""}
                   </p>
-                  <div className="booking-date-heading"><h3 className="font-semibold">Choose a date</h3><label><span className="sr-only">Choose a test-drive date</span><NativeSelect data-testid="select-viewing-date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)}>{dates.map(date => <option key={date} value={date}>{bookingDateLabel(date)}</option>)}</NativeSelect></label></div>
+                  <div className="booking-date-heading"><h3 className="font-semibold">Choose a date</h3><label><span className="sr-only">Choose a test-drive date</span><NativeSelect data-testid="select-viewing-date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)}>{dates.map(date => <option key={date} value={date}>{new Intl.DateTimeFormat("en-GB", { timeZone: bookingTimezone, weekday: "short", day: "numeric", month: "short" }).format(new Date(`${date}T12:00:00Z`))}</option>)}</NativeSelect></label></div>
                   <div
                     role="group"
                     aria-label="Choose a test-drive date"

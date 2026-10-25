@@ -4,7 +4,7 @@ import type { Car } from '@/lib/stock-context';
 import { defaultBookingSettings } from '@/lib/test-drive-dates';
 import { TestDriveBooking } from './test-drive-booking';
 
-const state = vi.hoisted(() => ({ failed: false, empty: false, fetching: false, mutate: vi.fn(), reset: vi.fn() }));
+const state = vi.hoisted(() => ({ failed: false, empty: false, fetching: false, daysAhead: 3, mutate: vi.fn(), reset: vi.fn() }));
 vi.mock('@workspace/api-client-react', () => ({
   useCreateEnquiry: () => ({ isPending: false, isSuccess: false, isError: false, mutate: state.mutate, reset: state.reset }),
   getGetEnquiryAvailabilityQueryKey: (params: unknown) => [params],
@@ -17,7 +17,7 @@ vi.mock('@workspace/api-client-react', () => ({
 vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({
   settings: {
     identity: { name: 'Test Motors' }, address: {}, contact: { phone: '07700900123', whatsapp: '447700900123' }, hours: [],
-    testDriveBooking: { ...defaultBookingSettings, daysAhead: 3, weeklyHours: Array.from({ length: 7 }, (_, day) => ({ day, enabled: true, open: '09:00', close: '18:00' })) },
+    testDriveBooking: { ...defaultBookingSettings, daysAhead: state.daysAhead, weeklyHours: Array.from({ length: 7 }, (_, day) => ({ day, enabled: true, open: '09:00', close: '18:00' })) },
   },
   isLoading: false, isError: false,
 }) }));
@@ -28,6 +28,7 @@ beforeEach(() => {
   state.failed = false;
   state.empty = false;
   state.fetching = false;
+  state.daysAhead = 3;
   state.mutate.mockClear();
   window.sessionStorage.clear();
   window.history.replaceState({}, '', '/enquire?type=viewing&vehicleId=booking-car');
@@ -218,4 +219,20 @@ it('adds part exchange once and keeps typed answers when removed and added again
   expect(draft.data.hasPartExchange).toBe(false);
   expect(draft.data.exchange.registration).toBe('AB12 CDE');
   expect(draft.data.exchange.mileage).toBe('42000');
+});
+
+it('uses readable compact date options and keeps later choices in one consecutive window', () => {
+  state.daysAhead = 30;
+  render(booking());
+  const select = screen.getByTestId('select-viewing-date');
+  expect(within(select).getByRole('option', { name: 'Fri 16 Oct' })).toBeInTheDocument();
+  expect(within(select).getAllByRole('option')).toHaveLength(31);
+  fireEvent.change(select, { target: { value: '2026-11-12' } });
+  const dateButtons = within(screen.getByTestId('group-viewing-dates')).getAllByRole('button');
+  expect(dateButtons.map(button => button.getAttribute('data-testid'))).toEqual([
+    'button-viewing-date-2026-11-10', 'button-viewing-date-2026-11-11', 'button-viewing-date-2026-11-12',
+    'button-viewing-date-2026-11-13', 'button-viewing-date-2026-11-14',
+  ]);
+  expect(screen.getByTestId('button-viewing-date-2026-11-12')).toHaveAttribute('aria-pressed', 'true');
+  expect(within(screen.getByTestId('group-viewing-slots')).getByRole('button')).toHaveAttribute('data-testid', 'button-viewing-slot-2026-11-12T09:00:00.000Z');
 });

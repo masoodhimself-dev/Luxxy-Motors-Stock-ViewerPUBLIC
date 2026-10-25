@@ -17,14 +17,17 @@
   .booking-page .booking-car-compact { gap: 12px; }
 }
 
-/* Guided booking: dealer tokens, existing API state and shared controls. */
-.booking-page { background: hsl(var(--background)); }
+/* Guided booking owns its surfaces and controls; general enquiry styles must
+   not repaint the booking form when routes load in a different order. */
+.booking-page :is(input, textarea, select) { border-radius: 8px; font-size: 16px; }
+.booking-page .booking-car { grid-template-columns: auto minmax(0,1fr); }
+.booking-page { background: hsl(var(--card)); }
 .booking-shell { max-width: 1180px; }
 .booking-intro .luxxy-kicker { display: none; }
 .booking-intro h1 { font-size: 30px; }
 .booking-intro > p:last-child { margin-top: 8px; }
 .booking-panel { min-width: 0; }
-.booking-page .booking-panel { border-radius: 0; box-shadow: none; }
+.booking-page .booking-panel { border-radius: 0; box-shadow: none; background: transparent; }
 .booking-layout-active { display: grid; grid-template-columns: 280px minmax(0,1fr); gap: 40px; }
 .booking-layout-active > .booking-panel { border: 0; border-left: 1px solid hsl(var(--border)); padding: 0 0 0 40px; }
 .booking-context { min-width: 0; }
@@ -39,8 +42,9 @@
 .booking-progress { margin: 0 0 24px; padding-bottom: 20px; }
 .booking-progress li { position: relative; min-width: 0; }
 .booking-progress li[aria-current=step]::after { content: ''; position: absolute; bottom: -21px; left: 0; width: 100%; height: 3px; background: hsl(var(--primary)); }
-.booking-date-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 22px; }
-.booking-date-heading select { max-width: 190px; }
+.booking-date-heading { display: grid; grid-template-columns: minmax(0,1fr) minmax(140px,160px); align-items: center; gap: 12px; margin-top: 22px; }
+.booking-date-heading > label { min-width: 0; }
+.booking-date-heading select { width: 100%; min-width: 0; max-width: none; padding-right: 28px; }
 .booking-page [data-testid=group-viewing-dates] { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); overflow: visible; margin-top: 12px; padding-bottom: 18px; }
 .booking-page [data-testid=group-viewing-dates] button { min-width: 0; min-height: 78px; padding: 10px 6px; text-align: center; border-radius: 4px; }
 .booking-page [data-testid=group-viewing-dates] button[aria-pressed=true] { background: hsl(var(--secondary)); color: hsl(var(--foreground)); border: 2px solid hsl(var(--primary)); }
@@ -82,7 +86,7 @@
 .booking-page .booking-car { background: transparent; }
 .booking-page .booking-progress { background: transparent; }
 @media(max-width:639px) {
- .booking-page.booking-page { background: hsl(var(--background)); }
+ .booking-page.booking-page { background: hsl(var(--card)); }
  .booking-shell > a { min-height: 32px; }
  .booking-layout-active .booking-step-heading:has(+ [data-testid=section-viewing-availability]) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
  .booking-page [data-testid=group-viewing-dates] button span { overflow: hidden; text-overflow: ellipsis; }
