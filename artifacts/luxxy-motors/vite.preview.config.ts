@@ -3,6 +3,7 @@ import { mediaSharingPreview } from './preview/media-sharing';
 import { enquiryMediaPreview } from './preview/enquiry-media';
 import { vehicleDescriptionPreview } from './preview/vehicle-descriptions';
 import { stockChangesPreview } from './preview/stock-changes';
+import { vehicleWatchesPreview } from './preview/vehicle-watches';
 import { soldVehicleFollowUpsPreview } from './preview/sold-vehicle-follow-ups';
 import { communicationsPreview } from "./preview/communications";
 import { declarationQa } from './preview/declaration-qa';
@@ -51,7 +52,7 @@ export default mergeConfig(
         configureServer(server) {
           server.middlewares.use(async (req, res, next) => {
             const url = new URL(req.url ?? '/', 'http://localhost');
-            if ((url.pathname === '/join' || url.pathname === '/phone-share' || url.pathname === '/enquiry-photo-upload' || url.pathname.startsWith('/my-purchase/') || url.pathname.startsWith('/verify-invoice/') || url.pathname === '/reserve/payment-return')) { res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('X-Robots-Tag', 'noindex, nofollow'); res.setHeader('Cache-Control', 'no-store'); }
+            if ((url.pathname === '/watch' || url.pathname === '/join' || url.pathname === '/phone-share' || url.pathname === '/enquiry-photo-upload' || url.pathname.startsWith('/my-purchase/') || url.pathname.startsWith('/verify-invoice/') || url.pathname === '/reserve/payment-return')) { res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('X-Robots-Tag', 'noindex, nofollow'); res.setHeader('Cache-Control', 'no-store'); }
             if (!url.pathname.startsWith('/api/')) return next();
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Cache-Control', 'no-store');
@@ -65,6 +66,7 @@ export default mergeConfig(
               return;
             }
             if (await accountInvitationsPreview(req, res, url)) return;
+            if (await vehicleWatchesPreview(req, res, url)) return;
             if (await enquiryMediaPreview(req, res, url)) return;
             if (await mediaSharingPreview(req, res, url)) return;
             if (await vehicleDescriptionPreview(req, res, url)) return;

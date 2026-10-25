@@ -1,4 +1,5 @@
 import { CompareSelectionLink } from '@/components/saved-car-controls';
+import { SavedWatchSummary, WatchCarButton } from '@/components/watch-car-controls';
 import { readSavedSnapshots, savedPriceReduction } from '@/lib/saved-car-snapshots';
 import { formatPrice } from '@/lib/utils';
 import { ShowroomPhoto } from '@/components/showroom-photo';
@@ -112,7 +113,7 @@ export default function Saved() {
                     <AlertDialog>
                       <AlertDialogTrigger asChild><Button variant="ghost" data-testid="button-clear-saved" className="text-muted-foreground">Clear all</Button></AlertDialogTrigger>
                       <AlertDialogContent className="max-w-[calc(100vw-32px)] rounded-xl sm:max-w-md">
-                        <AlertDialogHeader><AlertDialogTitle>Clear your saved cars?</AlertDialogTitle><AlertDialogDescription>This removes your shortlist from this device. You can save cars again whenever you like.</AlertDialogDescription></AlertDialogHeader>
+                        <AlertDialogHeader><AlertDialogTitle>Clear your saved cars?</AlertDialogTitle><AlertDialogDescription>This removes your shortlist from this device. You can save cars again whenever you like. Email updates continue until you stop watching through Manage updates.</AlertDialogDescription></AlertDialogHeader>
                         <AlertDialogFooter><AlertDialogCancel>Keep my cars</AlertDialogCancel><AlertDialogAction onClick={() => clearSaved()}>Clear saved cars</AlertDialogAction></AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
@@ -124,6 +125,7 @@ export default function Saved() {
         </div>
 
         <CompareSelectionLink />
+        {!sharedIds && <SavedWatchSummary />}
         {shareStatus && (
           <p role="status" className="mt-3 text-sm">
             {shareStatus}
@@ -192,6 +194,7 @@ export default function Saved() {
                   {reserved && <p className="rounded bg-secondary px-3 py-2">{snapshots[car.id]?.status === 'available' ? 'Reserved since you saved it' : 'Currently reserved'}</p>}
                 </div>}
                 <CarCard car={car} layout="compact" catalogue analyticsSource="saved_cars" />
+                {!sharedIds && <div className="flex justify-end px-3 pb-3"><WatchCarButton car={car} /></div>}
               </div>;
             })}
           </div>

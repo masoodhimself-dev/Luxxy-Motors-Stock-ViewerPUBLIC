@@ -761,3 +761,20 @@ it('keeps unknown counts blank instead of pretending there are no customers', as
  const row = (await screen.findByRole('heading',{name:'Ford Focus'})).closest('article')!;
  expect(within(row).queryByText(/open enquiries|upcoming test drives|Price reduced/)).not.toBeInTheDocument();
 });
+
+it('shows verified watcher counts separately from enquiries and hides unknown counts on a failed lookup', async () => {
+  state.selected = false;
+  const normal = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options: any) => url === '/api/staff/vehicle-watch-counts' ? { counts: [{ vehicleId: id, count: 4 }] } : normal(url, options));
+  const active = mount();
+  const row = (await screen.findByRole('heading', { name: 'Ford Focus' })).closest('article')!;
+  expect(await within(row).findByText('customers watching')).toHaveTextContent('4 customers watching');
+  expect(within(row).queryByText('open enquiries')).not.toBeInTheDocument();
+  expect(state.fetch.mock.calls.every(([, options]) => !options?.method)).toBe(true);
+  active.unmount();
+  state.fetch.mockImplementation(async (url: string, options: any) => { if (url === '/api/staff/vehicle-watch-counts') throw new Error('temporarily unavailable'); return normal(url, options); });
+  mount();
+  const unknown = (await screen.findByRole('heading', { name: 'Ford Focus' })).closest('article')!;
+  await waitFor(() => expect(state.fetch).toHaveBeenCalledWith('/api/staff/vehicle-watch-counts'));
+  expect(within(unknown).queryByText(/customers watching|customer watching/)).not.toBeInTheDocument();
+});

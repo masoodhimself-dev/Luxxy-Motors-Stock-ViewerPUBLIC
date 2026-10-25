@@ -59,6 +59,8 @@ app.use("/api/service-book-upload", express.json({ limit: "2200kb" }));
 app.use('/api/enquiry-photo-upload', express.json({ limit: '1400kb' }));
 app.use('/api/staff/enquiries/:id/photos', express.json({ limit: '1400kb' }));
 app.use('/api/staff/phone-shares', express.json({ limit: '32kb' }));
+app.use('/api/vehicle-watches', express.json({ limit: '8kb' }));
+app.use('/api/staff/vehicle-watch-tasks', express.json({ limit: '64kb' }));
 app.use('/api/staff/website-assets', express.json({ limit: '3mb' }));
 app.use(express.json({ limit: "25mb", verify: (req, _res, buffer) => {
   if (req.url?.split('?')[0] === '/api/reservations/stripe/webhook') (req as typeof req & { rawBody?: Buffer }).rawBody = Buffer.from(buffer);
@@ -83,6 +85,7 @@ if (process.env.FRONTEND_DIST_DIR) serveFrontend(app, process.env.FRONTEND_DIST_
 app.use((error: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if(req.path.startsWith('/api/enquiry-photo-upload') || /^\/api\/staff\/enquiries\/[^/]+\/(?:photos|photo-upload-session)/.test(req.path)) req.log.warn('Private enquiry photo request failed');
   else if(req.path.startsWith('/api/staff/phone-shares') || req.path.startsWith('/api/phone-shares')) req.log.warn('Private phone sharing request failed');
+  else if(req.path.startsWith('/api/vehicle-watches') || req.path.startsWith('/api/staff/vehicle-watch')) req.log.warn('Private vehicle watch request failed');
   else if(isPrivateTestDriveDeclarationPath(req.path)) req.log.warn('Private test-drive declaration request failed');
   else if(req.path.startsWith('/api/demo-onboarding')) req.log.warn('Demo onboarding request failed');
   else if(req.path === '/api/service-book-upload' || req.path.startsWith('/api/staff/inventory')) req.log.warn('Private inventory request failed');

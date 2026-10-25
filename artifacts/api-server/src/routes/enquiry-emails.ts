@@ -59,7 +59,8 @@ import { dealerProfile } from "../lib/enquiry-notifications";
 import { siteOrigin } from "../lib/enquiry-links";
 import { enquiryMediaContext, selectedEnquiryMedia, EnquiryMediaError, mediaRequestIdentity } from "../lib/enquiry-media";
 
-import { stockChangeMessageSchema, requireSavedStockChangeContext, validateStockChangeMessage, StockChangeMessageError } from '../lib/stock-change-message-context';
+import { stockChangeMessageSchema, requireSavedStockChangeContext, validateStockChangeMessage, StockChangeMessageError, stockContextQuery } from '../lib/stock-change-message-context';
+import { claimPriceUpdate, stockPriceIdentity } from '../lib/price-update-dedup';
 
 export const draftSchema = z
   .object({
@@ -211,13 +212,14 @@ async function preview(
   profile: Awaited<ReturnType<typeof dealerProfile>>,
   executor: typeof db = db,
   layoutVersion: EmailLayoutVersion = "correspondence-v1",
+  priceClaimSource?: string,
 ) {
   const input = {...rawInput, customPhotoIds: rawInput.customPhotoIds ?? [], vehiclePhotoIndices: rawInput.vehiclePhotoIndices ?? [], includeVideo: rawInput.includeVideo ?? false};
   return withEmailPreparation(async () => {
     const enquiry = await entry(id, executor);
     const saved = await readEmailDraft(enquiry.dealerId, enquiry.id, executor);
     requireSavedStockChangeContext(input.stockChange, saved);
-    await validateStockChangeMessage(input.stockChange, {dealerId: enquiry.dealerId, enquiryId: enquiry.id, email: input.to}, executor);
+    await validateStockChangeMessage(input.stockChange, {dealerId: enquiry.dealerId, enquiryId: enquiry.id, email: input.to, priceClaimSource}, executor);
     await checkSavedAiDraftFresh(executor, enquiry.dealerId, enquiry.id, saved);
     if (enquiry.workspaceRevision !== input.expectedRevision)
       throw new EmailError(
@@ -499,6 +501,7 @@ export async function rebuildStaffOutboxEmail(
     await dealerProfile(),
     db,
     approvedEmailLayoutVersion(row.validation.layoutVersion),
+    `enquiry:${row.delivery_id}`,
   );
   if (result.previewHash !== row.validation.previewHash)
     throw new Error(
@@ -913,6 +916,12 @@ export function createEnquiryEmailRouter(
               createdBy: req.staff!.authUserId,
             })
             .returning();
+          if (input.stockChange) {
+            const query = stockContextQuery(tx);
+            const identity = await stockPriceIdentity(query, dealer, input.stockChange.taskId, input.to);
+            if (!identity || !await claimPriceUpdate(query, identity, `enquiry:${delivery!.id}`))
+              throw new StockChangeMessageError('A price update for this customer was approved elsewhere. Refresh their conversation before sending another update.', 409, 'price_update_already_approved');
+          }
           const {
             requestId: _requestId,
             previewHash: _previewHash,

@@ -16,6 +16,7 @@ const SalesDemo = lazy(() => import("@/pages/sales-demo"));
 const JoinDealership = lazy(() => import('@/pages/join'));
 const Platform = lazy(() => import("@/pages/platform"));
 const PhoneShare = lazy(() => import("@/pages/phone-share"));
+const WatchPage = lazy(() => import('@/pages/watch'));
 const StaffUpload = lazy(() => import("@/pages/staff-upload"));
 const EnquiryPhotoUpload = lazy(() => import("@/pages/enquiry-photo-upload"));
 const Portal = lazy(() => import("@/pages/portal"));
@@ -39,7 +40,7 @@ const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false 
 
 function PreviewLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  return location === '/join' || location === '/phone-share' || location === '/platform' || location === '/staff-upload' || location === '/enquiry-photo-upload' || location === '/verify-invoice' || location.startsWith('/verify-invoice/') || location.startsWith('/test-drive-declaration/') ? <>{children}</> : <Layout>{children}</Layout>;
+  return location === '/watch' || location === '/join' || location === '/phone-share' || location === '/platform' || location === '/staff-upload' || location === '/enquiry-photo-upload' || location === '/verify-invoice' || location.startsWith('/verify-invoice/') || location.startsWith('/test-drive-declaration/') ? <>{children}</> : <Layout>{children}</Layout>;
 }
 
 captureInvitationToken();
@@ -59,6 +60,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="/platform"><div role="note" className="mx-6 mt-5 rounded-lg bg-secondary p-4 text-sm">Example dealerships · Domain activation and import credentials require the real backend.</div><Platform /></Route>
                   <Route path="/join" component={JoinDealership} />
                   <Route path="/phone-share" component={PhoneShare} />
+                  <Route path="/watch" component={WatchPage} />
                   <Route path="/staff-upload" component={StaffUpload} />
                   <Route path="/enquiry-photo-upload" component={EnquiryPhotoUpload} />
                   <Route path="/portal" component={Portal} />

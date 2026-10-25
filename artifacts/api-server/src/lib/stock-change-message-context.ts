@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { canonicalCustomerPhone } from '@workspace/vehicle-meta';
 import { z } from 'zod/v4';
 import { activeStockPlatform, readStockChangeTasks } from './stock-change-tasks';
+import { readPriceUpdateClaim, stockPriceIdentity } from './price-update-dedup';
 
 /** Provenance only: staff wording stays editable and is never regenerated here. */
 export const stockChangeMessageSchema = z.object({
@@ -10,7 +11,7 @@ export const stockChangeMessageSchema = z.object({
 }).strict();
 export type StockChangeMessageContext = z.infer<typeof stockChangeMessageSchema>;
 export class StockChangeMessageError extends Error {
-  constructor(message: string, readonly status = 409) { super(message); }
+  constructor(message: string, readonly status = 409, readonly code: 'price_update_changed' | 'price_update_already_approved' = 'price_update_changed') { super(message); }
 }
 export function savedStockChangeContext(saved: { savedDraft?: { content?: unknown } | null }) {
   const content = saved.savedDraft?.content;
@@ -36,7 +37,7 @@ export const stockContextQuery = (executor: Pick<typeof db, 'execute'>) => async
 export type StockChangeContextReader = Pick<typeof db, 'execute'> | {query: (text:string, values?:unknown[]) => Promise<{rows:Record<string, any>[]}>; activePlatform:string};
 export async function validateStockChangeMessage(
   context: StockChangeMessageContext | undefined,
-  target: { dealerId: string; enquiryId: string; email?: string; phone?: string },
+  target: { dealerId: string; enquiryId: string; email?: string; phone?: string; priceClaimSource?: string },
   executor: StockChangeContextReader = db,
 ) {
   if (!context) return undefined;
@@ -60,5 +61,21 @@ export async function validateStockChangeMessage(
     throw new StockChangeMessageError('The customer email changed or cannot receive this price update. Review the enquiry contact details.');
   if (target.phone && (!customer.phone || canonicalCustomerPhone(customer.phone) !== canonicalCustomerPhone(target.phone)))
     throw new StockChangeMessageError('Use this customer’s current phone number for the price update. Review their enquiry contact details.');
+  // The same verified address may both watch the car and have an enquiry.
+  // A saved draft is not a new entitlement to contact it for the same drop.
+  const email = target.email || customer.email;
+  if (email) {
+    const identity = await stockPriceIdentity(query, target.dealerId, context.taskId, email);
+    if (identity) {
+      const claim = await readPriceUpdateClaim(query, identity);
+      if (claim && claim.source_key !== target.priceClaimSource)
+        throw new StockChangeMessageError('A price update for this customer is already approved, sent or awaiting a delivery check. Review their conversation before sending another update.', 409, 'price_update_already_approved');
+    }
+    // Also protect candidate deliveries created before the shared claim was
+    // installed, including uncertainty that must never invite a second send.
+    const watch = (await query(`SELECT 1 FROM vehicle_watch_deliveries d JOIN vehicle_watch_events e ON e.id=d.event_id AND e.dealer_id=d.dealer_id JOIN vehicle_watches w ON w.id=d.watch_id AND w.dealer_id=d.dealer_id JOIN stock_change_tasks t ON t.dealer_id=e.dealer_id AND t.vehicle_id=e.vehicle_id AND e.change_key='price:'||t.change_key WHERE t.dealer_id=$1 AND t.id=$2 AND w.email=$3 AND e.kind='price_drop' AND d.status IN ('processing','sent','uncertain') LIMIT 1`, [target.dealerId,context.taskId,email.trim().toLowerCase()])).rows[0];
+    if (watch)
+      throw new StockChangeMessageError('This customer already has a Watch price update approved, sent or awaiting a delivery check. Review their conversation before sending another update.', 409, 'price_update_already_approved');
+  }
   return task;
 }

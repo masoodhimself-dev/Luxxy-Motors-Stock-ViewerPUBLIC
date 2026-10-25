@@ -39,6 +39,7 @@ import {
 import { CarCard } from '@/components/car-card';
 import { useStock, type Car } from '@/lib/stock-context';
 import { SaveCarButton, CompareCarButton, CompareSelectionLink } from '@/components/saved-car-controls';
+import { WatchCarButton } from '@/components/watch-car-controls';
 import { PublicVehicleGallery as Gallery } from '@/components/public-vehicle-gallery';
 import {
   formatPrice,
@@ -342,6 +343,7 @@ export default function CarDetail() {
                 <VehiclePrint car={car} dealer={dealerConfig} features={features} description={description} />
                 <Button variant="ghost" onClick={share} aria-label="Share this vehicle"><Share2 className="h-4 w-4" /> Share</Button>
                 <SaveCarButton car={car} variant="inline" className="vehicle-save-control border-transparent bg-transparent" />
+                <WatchCarButton key={car.id} car={car} className="vehicle-save-control border-transparent bg-transparent" />
                 {shareMessage && <span className="text-xs text-muted-foreground" role="status">{shareMessage}</span>}
               </div>
             </div>

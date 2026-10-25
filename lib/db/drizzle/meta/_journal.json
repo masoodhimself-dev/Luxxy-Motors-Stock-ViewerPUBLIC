@@ -379,6 +379,27 @@
       "when": 1792886400000,
       "tag": "0053_stock_change_customer_outcomes",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1792890000000,
+      "tag": "0054_vehicle_watches",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1792929600001,
+      "tag": "0055_vehicle_watch_status_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1792929600002,
+      "tag": "0056_price_update_recipient_claims",
+      "breakpoints": true
     }
   ]
 }

@@ -37,6 +37,7 @@ import { workspaceError } from "./enquiry-workspace-tools";
 import { BulkPlateEntry, type PlateEntryCar } from "./bulk-plate-entry";
 import { vehicleDisplayTitle } from "@/lib/utils";
 import { parseStaffRecentCars, rememberStaffCar, staffRecentCarsKey } from '@/lib/staff-recent-cars';
+import { useVehicleWatchCounts } from '@/lib/vehicle-watch-tasks';
 type Tasks = Record<
   "cleaning" | "inspection" | "mot" | "servicing",
   "pending" | "done" | "not_required"
@@ -167,8 +168,9 @@ function carVariant(car: Car) {
 function stockDate(value?: string | null) {
   return value && Number.isFinite(Date.parse(value)) ? new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' }).format(new Date(value)) : null;
 }
-function InventoryInterest({ car }: { car: Car }) {
+function InventoryInterest({ car, watchCount }: { car: Car; watchCount?: number }) {
   return <div className="inventory-interest" aria-label="Customer interest">
+    {watchCount !== undefined && <span data-tone={watchCount > 0 ? 'info' : 'neutral'}><strong>{watchCount}</strong> {watchCount === 1 ? 'customer watching' : 'customers watching'}</span>}
     {car.enquiry_count !== undefined && <span data-tone={car.enquiry_count > 0 ? 'info' : 'neutral'}><strong>{car.enquiry_count}</strong> open {car.enquiry_count === 1 ? 'enquiry' : 'enquiries'}</span>}
     {car.upcoming_test_drive_count !== undefined && <span data-tone={car.upcoming_test_drive_count > 0 ? 'visit' : 'neutral'} title={car.next_test_drive_at ? `Next test drive: ${stockDate(car.next_test_drive_at)} (UK time)` : undefined}><strong>{car.upcoming_test_drive_count}</strong> upcoming test {car.upcoming_test_drive_count === 1 ? 'drive' : 'drives'}</span>}
   </div>;
@@ -328,6 +330,9 @@ export function StaffInventory({
       ),
   });
   const access = useStaffAccess();
+  const watchCounts = useVehicleWatchCounts();
+  const watchCountsKnown = watchCounts.isSuccess && Array.isArray(watchCounts.data?.counts);
+  const watchCountByVehicle = new Map((watchCountsKnown ? watchCounts.data!.counts : []).map(entry => [entry.vehicleId, entry.count]));
   const scope = filter === "archived" ? "archived" : "current";
   const list = useInfiniteQuery({
     queryKey: ["staff-inventory", "list", scope, searchTerm],
@@ -640,7 +645,7 @@ export function StaffInventory({
                     <strong className="inventory-price">
                       {price(car.price)}
                     </strong>
-                    <InventoryInterest car={car} />
+                    <InventoryInterest car={car} watchCount={watchCountsKnown ? watchCountByVehicle.get(car.id) ?? 0 : undefined} />
                     {stockDate(car.next_test_drive_at) && <p className="inventory-next-visit">Next test drive: {stockDate(car.next_test_drive_at)} (UK time)</p>}
                     {car.photo && (
                       <a
@@ -1096,7 +1101,7 @@ export function StaffInventory({
                       <InventoryStatus car={c} />
                     </div>
                   </div>
-                  <InventoryInterest car={c} />
+                  <InventoryInterest car={c} watchCount={watchCountsKnown ? watchCountByVehicle.get(c.id) ?? 0 : undefined} />
                   <InventoryChanges car={c} />
                   <div className="inventory-row-work">
                     {(c.service_photo_count ?? 0) > 0 && <span

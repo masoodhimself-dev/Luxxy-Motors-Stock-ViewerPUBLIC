@@ -122,8 +122,33 @@ export async function acceptReplyEvent(
       )}) AND d.status='active'`,
     )
   ).rows.filter((r) => replyConfiguration(String(r.dealer_id)));
+  // Count both route families. A mixed watch/enquiry recipient list must not choose a case.
+  const watchRoutes = (
+    await executor.execute(
+      sql`SELECT r.reply_address,r.dealer_id FROM vehicle_watch_reply_routes r JOIN dealerships d ON d.id=r.dealer_id WHERE r.reply_address IN (${sql.join(
+        addresses.map((a) => sql`${a}`),
+        sql`,`,
+      )}) AND d.status='active'`,
+    )
+  ).rows.filter(
+    (r) =>
+      replyConfiguration(String(r.dealer_id)) &&
+      !routes.some((existing) => existing.reply_address === r.reply_address),
+  );
+  if (routes.length + watchRoutes.length !== 1) return;
   // Multiple known recipients would expose a message to the wrong case. Never choose one.
-  if (routes.length !== 1) return;
+  if (routes.length !== 1) {
+    if (routes.length === 0) {
+      const { acceptVehicleWatchReply } =
+        await import("./vehicle-watch-replies");
+      await acceptVehicleWatchReply(
+        parsed.data.data.email_id,
+        addresses,
+        executor,
+      );
+    }
+    return;
+  }
   const route = routes[0]!;
   await executor.execute(
     sql`INSERT INTO enquiry_email_replies(provider_id,route_id,dealer_id,enquiry_id) VALUES(${parsed.data.data.email_id}::uuid,${String(route.id)}::uuid,${String(route.dealer_id)},${String(route.enquiry_id)}::uuid) ON CONFLICT(provider_id) DO NOTHING`,
@@ -189,6 +214,9 @@ export async function processCustomerReplies(
   transport: typeof fetch = fetch,
 ) {
   if (process.env.EMAIL_REPLIES_ENABLED !== "true") return;
+  const { processVehicleWatchReplies } =
+    await import("./vehicle-watch-replies");
+  await processVehicleWatchReplies(transport);
   await db.execute(
     sql`UPDATE enquiry_email_replies SET status='review',error_code='retrieval_failed',lease_until=NULL WHERE status='processing' AND attempts>=8 AND lease_until<=now()`,
   );

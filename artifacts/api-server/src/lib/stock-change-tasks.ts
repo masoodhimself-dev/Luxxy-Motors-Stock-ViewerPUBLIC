@@ -14,6 +14,7 @@ import {
 } from "@workspace/db";
 
 import { dealerIntegrationsStore } from "./dealer-integrations-store";
+import { recordVehicleWatchPriceChange } from "./vehicle-watch-events";
 
 export async function activeStockPlatform(transaction?: unknown) {
   const { connection } =
@@ -59,6 +60,7 @@ export async function recordPublishedStockPrice(
   platform?: string,
 ) {
   const activePlatform = platform ?? (await activeStockPlatform(query));
+  await recordVehicleWatchPriceChange(query, before, after, changeKey, now, { activePlatform, missingThreshold: threshold });
   const previousPrice = effectiveStockPrice(before),
     currentPrice = effectiveStockPrice(after);
   const currencyChanged = before.currency !== after.currency;

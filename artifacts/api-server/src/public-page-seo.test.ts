@@ -83,7 +83,7 @@ test('unknown pages are real 404s while supported staff and customer routes reta
     assert.equal(result.canonical, null);
     assert.deepEqual(result.structuredData, []);
   }
-  for (const path of ['/enquire', '/saved', '/compare', '/portal', '/portal/leads/lead-id', '/platform', '/join', '/phone-share', '/staff-upload', '/enquiry-photo-upload', '/reserve/payment-return', '/my-purchase/private-token', '/viewing/private-token', '/sign/private-token', '/customer-details/private-token', '/sign-in', '/sign-in/sso-callback', '/sign-up/verify-email-address', '/verify-invoice', '/verify-invoice/sale/document/private-token', '/test-drive-declaration/private-token']) {
+  for (const path of ['/enquire', '/saved', '/compare', '/portal', '/portal/leads/lead-id', '/platform', '/join', '/watch', '/phone-share', '/staff-upload', '/enquiry-photo-upload', '/reserve/payment-return', '/my-purchase/private-token', '/viewing/private-token', '/sign/private-token', '/customer-details/private-token', '/sign-in', '/sign-in/sso-callback', '/sign-up/verify-email-address', '/verify-invoice', '/verify-invoice/sale/document/private-token', '/test-drive-declaration/private-token']) {
     const result = seo(path);
     assert.equal(result.status, 200, path);
     assert.match(result.robots, /^noindex/);
@@ -150,7 +150,7 @@ test('HTTP metadata reads tenant data for each request, fresh prices, correct 40
       assert.match(html, /src="\/assets\/main.js"/);
       assert.equal(lookups.length, before);
     }
-    for (const path of ['/portal', '/portal/leads/lead-id', '/phone-share', '/verify-invoice/sale/document/private-token', '/test-drive-declaration/private-token', '/sign-in/sso-callback']) {
+    for (const path of ['/watch', '/portal', '/portal/leads/lead-id', '/phone-share', '/verify-invoice/sale/document/private-token', '/test-drive-declaration/private-token', '/sign-in/sso-callback']) {
       response = await fetch(`${base}${path}`); html = await response.text();
       assert.equal(response.status, 200, path);
       assert.equal(response.headers.get('cache-control'), 'no-store');

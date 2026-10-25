@@ -37,7 +37,7 @@ test('crawl documents include only stable canonical public routes and trustworth
   assert.match(robots, /Allow: \/\n/); assert.match(robots, /Disallow: \/api\//);
   assert.match(robots, /Allow: \/api\/website-assets\//); assert.match(robots, /Allow: \/api\/demo-logo/);
   assert.match(robots, /Sitemap: https:\/\/dealer\.example\.test\/sitemap\.xml/);
-  assert.ok(isPrivateSeoPath('/portal/leads/123')); assert.ok(isPrivateSeoPath('/sign-in/oauth'));
+  assert.ok(isPrivateSeoPath('/watch')); assert.match(robots, /Disallow: \/watch/); assert.ok(isPrivateSeoPath('/portal/leads/123')); assert.ok(isPrivateSeoPath('/sign-in/oauth'));
   assert.ok(isPrivateSeoPath('/my-purchase/token?secret=redacted')); assert.ok(!isPrivateSeoPath('/vehicle/123'));
   assert.ok(!isPrivateSeoPath('/sign-inbox'));
 });
