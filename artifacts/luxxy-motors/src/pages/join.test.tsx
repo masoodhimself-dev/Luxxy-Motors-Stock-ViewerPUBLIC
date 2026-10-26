@@ -15,6 +15,30 @@ it('adds access only after explicit acceptance and clears the capability on succ
  identity.signedIn=true;let accepts=0;vi.stubGlobal('fetch',vi.fn(async(_url,init)=>{if(init?.method==='POST'){accepts++;return Response.json({accepted:true,dealerName:'Example Motors',portalUrl:'https://dealer.example.test/portal'});}return Response.json(preview);}));
  render(<JoinDealership/>);await screen.findByRole('button',{name:'Accept invitation'});expect(accepts).toBe(0);fireEvent.click(screen.getByRole('button',{name:'Accept invitation'}));const link=await screen.findByRole('link',{name:'Open dealership portal'});expect(link).toHaveAttribute('href','https://dealer.example.test/portal');expect(accepts).toBe(1);expect(sessionStorage.getItem('luxxy-account-invitation')).toBeNull();expect(window.location.hash).toBe('');
 });
+it('keeps demo owner setup clearly labelled before and after explicit acceptance without claiming launch',async()=>{
+ identity.signedIn=true;let accepts=0;
+ vi.stubGlobal('fetch',vi.fn(async(_url,init)=>{if(init?.method==='POST'){accepts++;return Response.json({accepted:true,dealerName:'Example Motors',portalUrl:'https://example.demo.test/portal'});}return Response.json({...preview,role:'owner',demo:true});}));
+ render(<JoinDealership/>);
+ const note='This invitation gives owner setup access. The dealership remains a demonstration until launch.';
+ expect(await screen.findByText(note)).toBeVisible();
+ expect(screen.getByText(/You’ve been invited as an owner/)).toBeVisible();
+ expect(accepts).toBe(0);
+ fireEvent.click(screen.getByRole('button',{name:'Accept invitation'}));
+ expect(await screen.findByRole('heading',{name:'Your owner setup access is ready'})).toBeVisible();
+ expect(screen.getByText(note)).toBeVisible();
+ expect(screen.getByRole('link',{name:'Open dealership portal'})).toHaveAttribute('href','https://example.demo.test/portal');
+ expect(screen.queryByRole('heading',{name:'You’re ready'})).toBeNull();
+ expect(accepts).toBe(1);
+ expect(sessionStorage.getItem('luxxy-account-invitation')).toBeNull();
+});
+it('keeps ordinary owner invitation wording unchanged',async()=>{
+ identity.signedIn=true;
+ vi.stubGlobal('fetch',vi.fn(async(_url,init)=>Response.json(init?.method==='POST'?{accepted:true,dealerName:'Example Motors',portalUrl:'https://dealer.example.test/portal'}:{...preview,role:'owner',demo:false})));
+ render(<JoinDealership/>);fireEvent.click(await screen.findByRole('button',{name:'Accept invitation'}));
+ expect(await screen.findByRole('heading',{name:'You’re ready'})).toBeVisible();
+ expect(screen.queryByText(/owner setup access/)).toBeNull();
+ expect(screen.queryByText(/remains a demonstration/)).toBeNull();
+});
 it('shows a draft dealership as setup in progress rather than opening a broken domain',async()=>{
  identity.signedIn=true;vi.stubGlobal('fetch',vi.fn(async(_url,init)=>Response.json(init?.method==='POST'?{accepted:true,dealerName:'Example Motors',portalUrl:null}:preview)));render(<JoinDealership/>);fireEvent.click(await screen.findByRole('button',{name:'Accept invitation'}));await screen.findByText(/website is still being prepared/);expect(screen.queryByRole('link',{name:'Open dealership portal'})).toBeNull();
 });

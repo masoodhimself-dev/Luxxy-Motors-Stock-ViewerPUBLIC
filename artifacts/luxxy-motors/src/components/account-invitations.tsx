@@ -8,7 +8,7 @@ import { Mail, RefreshCw, X } from '@/components/icons';
 import './account-invitations.css';
 export type AccountInvitation={id:string;email:string;role:'owner'|'salesperson'|'accounts';status:'pending'|'accepted'|'expired'|'cancelled';deliveryStatus:'pending'|'sending'|'sent'|'failed'|'unknown';expiresAt:string;acceptedAt?:string;managedBy?:'platform'|'staff'};
 type Data={invitations:AccountInvitation[];email:{ready:boolean;message:string}};
-export function AccountInvitations({dealerId,ownerOnly=false,onUpdated}:{dealerId?:string;ownerOnly?:boolean;onUpdated?:()=>void|Promise<void>}) {
+export function AccountInvitations({dealerId,ownerOnly=false,demoSetup=false,onUpdated}:{dealerId?:string;ownerOnly?:boolean;demoSetup?:boolean;onUpdated?:()=>void|Promise<void>}) {
   const endpoint=dealerId?`/api/platform/dealers/${encodeURIComponent(dealerId)}/invitations`:'/api/staff/team/invitations';
   const cache=useQueryClient();
   const query=useQuery({queryKey:['account-invitations',endpoint],queryFn:()=>customFetch<Data>(endpoint),retry:false});
@@ -26,6 +26,7 @@ export function AccountInvitations({dealerId,ownerOnly=false,onUpdated}:{dealerI
   const [previewUrl,setPreviewUrl]=useState('');
   return <section className="account-invitations" aria-label={ownerOnly?'Dealership owner invitations':'Staff invitations'} data-settings-dirty={Boolean(email.trim())}>
     <header><h3>{ownerOnly?'Invite dealership owner':'Invite your team'}</h3><p>{ownerOnly?'Enter the owner’s email. They can create an account or sign in using the invitation—no registration beforehand. Your setup access stays in place.':'Send an invitation to each person’s own email address. They can create an account or use an existing one.'}</p></header>
+    {ownerOnly&&demoSetup&&<p className="account-invite-help" role="note">This gives the owner setup access. The dealership stays a demonstration until conversion, and staff invitations become available after launch.</p>}
     {query.isError&&<div role="alert" className="admin-error">Invitations could not be loaded. <Button type="button" variant="outline" onClick={()=>void query.refetch()}>Retry invitations</Button></div>}
     {error&&<p role="alert" className="admin-error">{error}</p>}{notice&&<p role="status" className="account-invite-notice">{notice}</p>}
     {previewUrl&&<a href={previewUrl} target="_blank" rel="noreferrer" className="underline">Open fictional invitation preview</a>}

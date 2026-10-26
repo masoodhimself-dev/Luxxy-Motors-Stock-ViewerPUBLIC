@@ -5,7 +5,7 @@ import {AccountInvitations} from './account-invitations';
 const clients:QueryClient[]=[];
 afterEach(()=>{clients.splice(0).forEach(client=>client.clear());vi.unstubAllGlobals();});
 const pending={id:'invite-one',email:'new@example.test',role:'salesperson',status:'pending',deliveryStatus:'sent',expiresAt:'2026-11-01T10:00:00Z'};
-function show(platform=false){const client=new QueryClient({defaultOptions:{queries:{retry:false}}});clients.push(client);render(<QueryClientProvider client={client}><AccountInvitations {...platform?{dealerId:'dealer',ownerOnly:true}:{}}/></QueryClientProvider>);return client;}
+function show(platform=false,demoSetup=false){const client=new QueryClient({defaultOptions:{queries:{retry:false}}});clients.push(client);render(<QueryClientProvider client={client}><AccountInvitations {...platform?{dealerId:'dealer',ownerOnly:true,demoSetup}:{}}/></QueryClientProvider>);return client;}
 it('sends one explicit invitation without granting access or requiring pre-registration',async()=>{
  let invited=false;const calls:any[]=[];vi.stubGlobal('fetch',vi.fn(async(url,init)=>{calls.push([String(url),init]);if(init?.method==='POST'){invited=true;return Response.json({invitation:pending});}return Response.json({invitations:invited?[pending]:[],email:{ready:true,message:'Ready'}});}));
  show();await screen.findByRole('button',{name:'Send invitation'});expect(calls.every(([,init])=>!init?.method||init.method==='GET')).toBe(true);
@@ -16,6 +16,13 @@ it('sends one explicit invitation without granting access or requiring pre-regis
 it('platform invitations always request owner access for the selected dealership',async()=>{
  const writes:any[]=[];vi.stubGlobal('fetch',vi.fn(async(url,init)=>{if(init?.method==='POST'){writes.push([String(url),JSON.parse(init.body)]);return Response.json({invitation:{...pending,role:'owner'}});}return Response.json({invitations:[],email:{ready:true,message:'Ready'}});}));
  show(true);await screen.findByRole('button',{name:'Send owner invitation'});expect(screen.queryByRole('combobox')).toBeNull();fireEvent.change(screen.getByRole('textbox',{name:'Email address'}),{target:{value:'new@example.test'}});fireEvent.click(screen.getByRole('button',{name:'Send owner invitation'}));await screen.findByRole('status');expect(writes).toEqual([['/api/platform/dealers/dealer/invitations',{email:'new@example.test',role:'owner'}]]);
+});
+it('explains demo owner setup without sending or offering staff roles automatically',async()=>{
+ const fetch=vi.fn(async()=>Response.json({invitations:[],email:{ready:true,message:'Ready'}}));vi.stubGlobal('fetch',fetch);
+ show(true,true);await screen.findByRole('button',{name:'Send owner invitation'});
+ expect(screen.getByRole('note')).toHaveTextContent('The dealership stays a demonstration until conversion');
+ expect(screen.getByRole('note')).toHaveTextContent('staff invitations become available after launch');
+ expect(screen.queryByRole('combobox')).toBeNull();expect(fetch.mock.calls.every((call:any[])=>!call[1]?.method||call[1].method==='GET')).toBe(true);
 });
 it('does not claim an uncertain email was sent and retains an explicit resend',async()=>{
  vi.stubGlobal('fetch',vi.fn(async(_url,init)=>init?.method==='POST'?Response.json({invitation:{...pending,deliveryStatus:'unknown'}}):Response.json({invitations:[{...pending,deliveryStatus:'unknown'}],email:{ready:true,message:'Ready'}})));

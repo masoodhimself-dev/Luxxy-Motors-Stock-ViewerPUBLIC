@@ -2,7 +2,7 @@ import { accountInvitationManagementRouter } from './account-invitations';
 import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
 import { recordPublishedStockPrice } from '../lib/stock-change-tasks';
 import { randomUUID } from 'node:crypto';
-import { currentDealerId } from "../lib/tenant-context";
+import { currentDealerId, currentTenant } from "../lib/tenant-context";
 import { Router, type Request, type Response } from 'express';
 import { clerkClient } from '@clerk/express';
 import { and, desc, eq, sql } from 'drizzle-orm';
@@ -94,6 +94,7 @@ router.get('/staff/team', requireStaff, requirePermission('team.manage'), async 
 });
 router.post('/staff/team', requireStaff, requirePermission('team.manage'), async (req,res) => {
   try {
+    if(currentTenant()?.demo)throw new OperationError('Add other staff after live conversion. The platform can arrange the dealership owner’s setup invitation.',409);
     const role = req.body?.role;
     if (!isStaffRole(role)) throw new OperationError('Choose owner, salesperson or accounts.');
     const authUserId = typeof req.body?.authUserId === 'string' ? req.body.authUserId.trim() : '';

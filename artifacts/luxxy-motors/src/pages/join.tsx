@@ -5,15 +5,17 @@ import { Button } from '@/components/ui/button';
 import { ShieldCheck } from '@/components/icons';
 import './join.css';
 import { invitationTokenFromBrowser, clearInvitationToken } from '@/lib/account-invitation-token';
-type Preview={dealerName:string;role:string;emailHint:string;expiresAt:string;accepted:boolean;preview?:boolean};
+type Preview={dealerName:string;role:string;emailHint:string;expiresAt:string;accepted:boolean;preview?:boolean;demo?:boolean};
 export default function JoinDealership() {
   const {isLoaded,isSignedIn}=useAuth();const {user}=useUser();const clerk=useClerk();
   const [token]=useState(invitationTokenFromBrowser),[data,setData]=useState<Preview>(),[error,setError]=useState(''),[busy,setBusy]=useState(false),[result,setResult]=useState<{dealerName:string;portalUrl:string|null}>();
+  const demoOwnerSetup=data?.demo===true&&data.role==='owner';
   async function load(){setError('');try{if(!token)throw new Error('Open the invitation link from your email to continue.');setData(await customFetch<Preview>('/api/account-invitations/preview',{headers:{'x-account-invitation-token':token}}));}catch(cause){setError(cause instanceof Error?cause.message:'Your invitation could not be loaded.');}}
   useEffect(()=>{document.title='Join your dealership';void load();},[token]);
   async function accept(){setBusy(true);setError('');try{const accepted=await customFetch<{dealerName:string;portalUrl:string|null}>('/api/account-invitations/accept',{method:'POST',headers:{'x-account-invitation-token':token,'Content-Type':'application/json'},body:'{}'});setResult(accepted);clearInvitationToken();window.history.replaceState(null,'','/join');}catch(cause){setError(cause instanceof Error?cause.message:'Could not accept your invitation. Try again.');}finally{setBusy(false);}}
-  return <main className="account-join-page"><div className="account-join-brand">LUXXY <span>Dealer platform</span></div><section className="account-join-card"><ShieldCheck size={28} aria-hidden="true"/><p className="account-join-kicker">Your dealership account</p><h1>{result?'You’re ready':data?`Join ${data.dealerName}`:'Welcome to your dealership'}</h1>
+  return <main className="account-join-page"><div className="account-join-brand">LUXXY <span>Dealer platform</span></div><section className="account-join-card"><ShieldCheck size={28} aria-hidden="true"/><p className="account-join-kicker">Your dealership account</p><h1>{result?demoOwnerSetup?'Your owner setup access is ready':'You’re ready':data?`Join ${data.dealerName}`:'Welcome to your dealership'}</h1>
     {data?.preview&&<p className="account-join-detail" role="note">Fictional local preview. No real emails or account access changes.</p>}
+    {demoOwnerSetup&&<p className="account-join-detail" role="note">This invitation gives owner setup access. The dealership remains a demonstration until launch.</p>}
     {result?<><p>Your account now has access to {result.dealerName}.</p>{result.portalUrl?<a href={result.portalUrl} className="account-join-open">Open dealership portal</a>:<p className="account-join-detail">Your dealership’s website is still being prepared. We’ll share its portal address when setup is complete. Your account is ready.</p>}</>:<>
       {error&&<p role="alert" className="account-join-error">{error}</p>}
       {!data&&!error&&<p role="status">Checking your invitation…</p>}
