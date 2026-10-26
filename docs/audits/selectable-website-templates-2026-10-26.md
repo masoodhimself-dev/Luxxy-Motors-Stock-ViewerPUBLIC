@@ -1,6 +1,6 @@
 # Selectable customer website templates — 26 October 2026
 
-Branch: `codex/selectable-website-templates`. Implemented and verified locally; not deployed.
+Branch: `codex/selectable-website-templates`. Implemented as `be30b66` and released to the existing shared Render service on 26 October 2026 at 04:52:57 GMT.
 
 ## Behaviour and compatibility
 
@@ -45,3 +45,15 @@ Corrected prototype: `/private/tmp/luxxy-website-design-review-2026-10-26/Luxxy-
 | Scope | No production settings, customer records, stock imports, invoices, payments, credentials, schedules or customer messages changed |
 
 Browser evidence is under `output/website-templates/`, including the 36 checks and the Settings picker screenshot. These are responsive Chromium browser checks, not physical iPhone/iPad Safari tests. Provider delivery, physical touch/camera behaviour and cross-browser/device testing remain outside this local verification. The new preference is not enabled for any live dealership.
+
+## Verified Render release
+
+- User authorised deployment. Fast-forwarded the existing `codex/multi-tenant-foundation` release branch from `273381d` to `be30b66ab18018196740586b01468e5843d9946e`, without force or changes to service configuration.
+- Used the previously confirmed My Workspace and existing `luxxy-shared-staging` service (`srv-db4jfhk9v7es73a4qhrg`). Auto-deploy remains off; triggered one manual deploy without clearing the cache.
+- Deploy `dep-dbfdnsks728c73f1rp0g` started at 04:49:54 GMT and became live at 04:52:57 GMT. Render's workspace typecheck/build and existing pre-deploy command succeeded. This release added no migrations or backfills.
+- Both Shore Drive and Luxxy returned healthy responses. Complete public Settings and stock JSON matched their pre-deploy baselines exactly, both immediately after deployment and after preview testing: 21 Shore Drive cars and 22 Luxxy cars. Neither dealership has a saved template preference.
+- Opened the deployed Shore Drive Settings picker and previewed all three new templates with its actual stock and branding. All 36 combinations (home/stock/vehicle, Phone/iPad/iPad landscape/Desktop) had the expected heading and template, existing Inter typography and no horizontal page overflow. Evidence: `output/website-templates/live-responsive-checks.json`.
+- Used Keep published template to restore the preview-only edit. Current website is selected; the portal confirms Saved — no unpublished changes. Did not save or publish any live Settings change. Screenshot: `output/website-templates/live-settings-template-picker.png`.
+- Reopened the live Shore Drive homepage and confirmed it still renders the existing hero without any template attribute.
+- No error-level Render logs were returned between 04:52:57 and 04:58:09 GMT. No customer messages, imports, invoices, payments, credentials or schedules were changed.
+- Responsive browser checks do not replace physical iPhone/iPad Safari testing; the deployed previews are ready for the user's device testing.
