@@ -7,12 +7,15 @@
  */
 import type { CustomerReview } from './customerReview';
 import type { DealerPresentationHeroImagePosition } from './dealerPresentationHeroImagePosition';
+import type { DealerPresentationWebsiteTemplate } from './dealerPresentationWebsiteTemplate';
 import type { DealerWebsiteCopy } from './dealerWebsiteCopy';
 
 /**
  * Optional showroom content. Empty values are not presented as factual claims.
  */
 export interface DealerPresentation {
+  /** Optional customer website layout. Omitted keeps the existing website. Choosing a layout is published with the normal settings draft. */
+  websiteTemplate?: DealerPresentationWebsiteTemplate;
   /** @pattern ^(#[0-9a-fA-F]{6})?$ */
   pageColour?: string;
   /** @pattern ^(#[0-9a-fA-F]{6})?$ */

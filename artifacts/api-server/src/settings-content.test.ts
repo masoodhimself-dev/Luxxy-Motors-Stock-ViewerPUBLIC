@@ -58,6 +58,29 @@ test("existing settings records need no migration or new fields", () => {
   assert.equal(GetDealerSettingsResponse.parse(legacy).onlineReservation, undefined);
 });
 
+test('website templates are opt-in, validated and survive JSON settings storage', () => {
+  for (const websiteTemplate of ['existing', 'classic', 'premium', 'focused']) {
+    const parsed = UpdateDealerSettingsBody.parse({ ...legacy, presentation: { websiteTemplate } });
+    assert.equal(GetDealerSettingsResponse.parse(JSON.parse(JSON.stringify(parsed))).presentation?.websiteTemplate, websiteTemplate);
+  }
+  for (const websiteTemplate of ['', 'unknown', 'Classic', true, null]) {
+    assert.equal(UpdateDealerSettingsBody.safeParse({ ...legacy, presentation: { websiteTemplate } }).success, false);
+  }
+  assert.equal(GetDealerSettingsResponse.parse({ ...legacy, presentation: {} }).presentation?.websiteTemplate, undefined);
+  assert.equal('websiteTemplate' in (preservePresentation({ presentation: {} }, legacy).presentation), false);
+});
+
+test('older settings clients keep the saved website template and explicit choices can restore the current website', () => {
+  const previous = { presentation: { websiteTemplate: 'premium', heroImagePosition: 'right' } };
+  for (const incoming of [legacy, { ...legacy, presentation: {} }, { ...legacy, presentation: { websiteTemplate: undefined } }]) {
+    const merged = preservePresentation(UpdateDealerSettingsBody.parse(incoming), previous);
+    assert.equal(GetDealerSettingsResponse.parse(merged).presentation?.websiteTemplate, 'premium');
+    assert.equal(merged.presentation?.heroImagePosition, 'right');
+  }
+  const restored = preservePresentation(UpdateDealerSettingsBody.parse({ ...legacy, presentation: { websiteTemplate: 'existing' } }), previous);
+  assert.equal(GetDealerSettingsResponse.parse(restored).presentation?.websiteTemplate, 'existing');
+});
+
 test("old settings clients retain reservation settings while an explicit switch-off is honoured", () => {
   const onlineReservation = { enabled: true, depositPence: 25000, terms: "Contact us to discuss your reservation." };
   const previous = { onlineReservation };

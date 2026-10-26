@@ -1,5 +1,6 @@
 import { googleReviewUrl } from '@workspace/vehicle-meta';
 import { WebsiteContentEditor } from "./website-content-editor";
+import { WebsiteTemplatePicker } from './website-template-picker';
 import { customerWhatsAppNumber } from '@/lib/customer-whatsapp';
 import { SettingsChangeSummary } from './settings-change-summary';
 import { settingsChanges } from '@/lib/settings-changes';
@@ -891,6 +892,12 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
         </SectionCard>
 
         <SectionCard id="homepage" eyebrow="First impression" title="Homepage content" description="Shape the first few seconds of the showroom: your announcement, headline, supporting line and calls to action." icon={<Store className="h-5 w-5" />}>
+          <WebsiteTemplatePicker settings={form} publishedTemplate={settingsQuery.data?.presentation?.websiteTemplate} onChange={websiteTemplate => {
+            const presentation = { ...form.presentation };
+            if (websiteTemplate === undefined) delete presentation.websiteTemplate;
+            else presentation.websiteTemplate = websiteTemplate;
+            updateGroup('presentation', presentation);
+          }} />
           <div className="mb-6 grid gap-3 sm:grid-cols-2">{([['featuredEnabled', 'Show featured cars', true], ['visitEnabled', 'Show visit and dealership section', true], ['servicesEnabled', 'Show services section', true], ['showHeroDescription', 'Show introduction below hero headline', false]] as const).map(([key, label, fallback]) => <label key={key} className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="h-5 w-5" checked={form.presentation?.[key] ?? fallback} onChange={event => updatePresentation(key, event.target.checked)} />{label}</label>)}</div>
           <div className="grid gap-5">
             <Field label="Announcement strip" hint="Optional">

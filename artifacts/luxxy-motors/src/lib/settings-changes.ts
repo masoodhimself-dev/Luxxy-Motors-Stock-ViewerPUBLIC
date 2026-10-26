@@ -1,5 +1,6 @@
 import type { DealerSettings } from '@workspace/api-client-react';
 import { websiteFields } from './website-content';
+import { websiteTemplates, resolveWebsiteTemplate } from './website-templates';
 
 export type SettingsChange = {
   path: string;
@@ -10,6 +11,7 @@ export type SettingsChange = {
   draft: string;
 };
 const labels: Record<string, string> = {
+  'presentation.websiteTemplate':'Website template',
   'identity.name':'Dealership name', 'identity.logoText':'Logo text', 'identity.logoAsset':'Header logo',
   'identity.brandColors.primaryHsl':'Primary brand colour', 'identity.brandColors.accentHsl':'Accent brand colour',
   'contact.phone':'Public phone number', 'contact.whatsapp':'Public WhatsApp number', 'contact.email':'Public email', 'contact.googleReviewUrl':'Google review request link',
@@ -42,6 +44,7 @@ function labelFor(path: string) {
   return path.split('.').map(readableName).join(' · ');
 }
 function sectionFor(path: string): string {
+  if (path === 'presentation.websiteTemplate') return 'homepage';
   const [group, field] = path.split('.');
   if (group === 'testDriveBooking') return 'bookings';
   if (['contact','address','hours'].includes(group)) return 'contact';
@@ -61,6 +64,7 @@ function flatten(value: unknown, prefix = '', result: Record<string, unknown> = 
   return result;
 }
 function display(value: unknown, path: string, vehicleNames: Readonly<Record<string,string>>): string {
+  if (path === 'presentation.websiteTemplate') return websiteTemplates.find(template => template.id === resolveWebsiteTemplate(value))!.name;
   if (value === undefined || value === null || value === '') return 'Not set';
   if (typeof value === 'boolean') return value ? 'On' : 'Off';
   if (path === 'testDriveBooking.confirmationMode') return value === 'approval' ? 'Require staff approval' : 'Confirm immediately';

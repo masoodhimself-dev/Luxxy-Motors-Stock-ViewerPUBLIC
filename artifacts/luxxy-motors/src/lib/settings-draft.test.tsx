@@ -12,6 +12,20 @@ const bookingSettings: DealerTestDriveBooking = {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); clearSettingsDraft(); });
 
 describe('unpublished showroom drafts', () => {
+  it('retains an older template-free draft and its baseline after another staff member selects a layout', () => {
+    const legacy = structuredClone(previewSettings);
+    delete legacy.presentation!.websiteTemplate;
+    const draft = { ...legacy, identity: { ...legacy.identity, name: 'Older unpublished dealership name' } };
+    const baseline = JSON.stringify(legacy);
+    writeSettingsDraft(baseline, draft, 4);
+    const latest = { ...legacy, presentation: { ...legacy.presentation, websiteTemplate: 'classic' as const } };
+    const restored = readSettingsDraft(latest);
+    expect(restored?.form.identity.name).toBe('Older unpublished dealership name');
+    expect(restored?.form.presentation).not.toHaveProperty('websiteTemplate');
+    expect(restored?.saved).toBe(baseline);
+    expect(restored?.revision).toBe(4);
+    expect(latest.presentation.websiteTemplate).toBe('classic');
+  });
   it('retains changes with their published baseline and clears them explicitly', () => {
     const baseline = JSON.stringify(previewSettings);
     const form = structuredClone(previewSettings);

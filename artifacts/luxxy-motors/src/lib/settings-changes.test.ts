@@ -3,6 +3,17 @@ import { settingsChanges } from './settings-changes';
 import { previewSettings } from '../../preview/settings';
 
 describe('shared settings publication comparison', () => {
+  it('names the optional template and restoring the current website in the Homepage review', () => {
+    const published = structuredClone(previewSettings), draft = structuredClone(published);
+    delete published.presentation!.websiteTemplate;
+    draft.presentation = { ...draft.presentation, websiteTemplate: 'premium' };
+    expect(settingsChanges(published, draft)).toEqual([
+      expect.objectContaining({ path: 'presentation.websiteTemplate', label: 'Website template', section: 'homepage', published: 'Current website', draft: 'Premium' }),
+    ]);
+    published.presentation = { ...published.presentation, websiteTemplate: 'premium' };
+    draft.presentation.websiteTemplate = 'existing';
+    expect(settingsChanges(published, draft)[0]).toMatchObject({ published: 'Premium', draft: 'Current website' });
+  });
   it('does not report a newly copied unchanged draft or mutate either input', () => {
     const published=structuredClone(previewSettings), draft=structuredClone(published);
     expect(settingsChanges(published,draft)).toEqual([]);

@@ -32,6 +32,7 @@ export * from './dealerLegal';
 export * from './dealerOnlineReservation';
 export * from './dealerPresentation';
 export * from './dealerPresentationHeroImagePosition';
+export * from './dealerPresentationWebsiteTemplate';
 export * from './dealerRecentHandovers';
 export * from './dealerService';
 export * from './dealerSettings';

@@ -7,6 +7,10 @@ let memoryDraft: Draft | null = null;
 function matchesShape(value: unknown, example: unknown, path = ''): boolean {
   // Removing this optional override intentionally restores website inheritance.
   if (path === 'brochure.accentColour' && value === undefined) return true;
+  // A different staff member may publish the first layout while this older
+  // draft is still open. Retain its omission and baseline so the editor can
+  // show a publication conflict instead of silently dropping every draft edit.
+  if (path === 'presentation.websiteTemplate' && value === undefined) return true;
   if (example == null) return true;
   if (Array.isArray(example)) return Array.isArray(value) && value.every((item) => !example.length || matchesShape(item, example[0], `${path}[]`));
   if (typeof example === 'object') return Boolean(value && typeof value === 'object' && !Array.isArray(value) && Object.entries(example).every(([name, field]) => matchesShape((value as Record<string, unknown>)[name], field, path ? `${path}.${name}` : name)));

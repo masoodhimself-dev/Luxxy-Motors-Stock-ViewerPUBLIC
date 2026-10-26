@@ -10,6 +10,7 @@ import { previewSettings } from '../../preview/settings';
 const device = vi.hoisted(() => ({ mobile: false }));
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => device.mobile }));
 vi.mock('@/lib/stock-context', () => ({ useStock: () => ({stock:{cars:[]}}) }));
+vi.mock('./customer-page-preview', () => ({ default: ({ settings, onClose }: { settings: typeof previewSettings; onClose: () => void }) => <div role="dialog" aria-label="Draft customer website"><p>Preview layout: {settings.presentation?.websiteTemplate ?? 'existing'}</p><button type="button" onClick={onClose}>Close draft preview</button></div> }));
 afterEach(() => { device.mobile=false; clearSettingsDraft(); vi.unstubAllGlobals(); sessionStorage.clear(); window.history.replaceState({},'','/'); });
 function Harness() { const tab = new URLSearchParams(useSearch()).get('settingsTab'); return <DealerSettingsPanel group={(['dealership','bookings'].includes(tab ?? '') ? tab : 'website') as DealerSettingsGroup} />; }
 function setup(settings = structuredClone(previewSettings)) {
@@ -32,6 +33,76 @@ function setup(settings = structuredClone(previewSettings)) {
   const go = (tab: string, section?: string) => { window.history.replaceState({}, '', `/portal?section=settings&settingsTab=${tab}${section ? `&websiteSection=${section}` : ''}`); fireEvent.popState(window); };
   return { client, writes, revisions, go, publishElsewhere(next = structuredClone(settings)) { settings = next; revision++; }, refresh: () => client.invalidateQueries({queryKey:getGetDealerSettingsQueryKey()}), ...view };
 }
+
+it('keeps the current website until an explicit template choice is reviewed and published', async () => {
+  const settings = structuredClone(previewSettings);
+  delete settings.presentation!.websiteTemplate;
+  settings.featuredVehicleIds = ['manual-second', 'manual-first'];
+  const { client, writes, go } = setup(settings);
+  await screen.findByTestId('input-identity-name');
+  go('website', 'homepage');
+  expect(await screen.findByRole('radio', { name: 'Current website' })).toBeChecked();
+  expect(screen.getByRole('button', { name: 'Review changes' })).toBeDisabled();
+  expect(readSettingsDraft(settings)?.form.presentation?.websiteTemplate).toBeUndefined();
+  fireEvent.click(screen.getByRole('radio', { name: 'Classic Showroom' }));
+  expect(writes).toHaveLength(0);
+  fireEvent.click(screen.getByRole('button', { name: 'Preview selected template' }));
+  expect(await screen.findByRole('dialog', { name: 'Draft customer website' })).toHaveTextContent('Preview layout: classic');
+  expect(writes).toHaveLength(0);
+  fireEvent.click(screen.getByRole('button', { name: 'Close draft preview' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Keep published template' }));
+  expect(screen.getByRole('radio', { name: 'Current website' })).toBeChecked();
+  expect(screen.getByRole('button', { name: 'Review changes' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('radio', { name: 'Stock Focused' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Review changes' }));
+  const summary = await screen.findByTestId('settings-change-summary');
+  expect(summary).toHaveTextContent('Website template');
+  expect(within(summary).getByTestId('change-published-presentation.websiteTemplate')).toHaveTextContent('Current website');
+  expect(within(summary).getByTestId('change-draft-presentation.websiteTemplate')).toHaveTextContent('Stock Focused');
+  expect(writes).toHaveLength(0);
+  fireEvent.click(screen.getByRole('button', { name: 'Publish showroom' }));
+  await screen.findByText('Published to the showroom. Your changes are live.');
+  expect(writes).toHaveLength(1);
+  expect(writes[0].presentation?.websiteTemplate).toBe('focused');
+  expect(writes[0].identity).toEqual(settings.identity);
+  expect(writes[0].featuredVehicleIds).toEqual(['manual-second', 'manual-first']);
+  expect(writes[0].testDriveBooking).toEqual(settings.testDriveBooking);
+  client.clear();
+});
+
+it('can explicitly return from a saved template to the existing website without touching other settings', async () => {
+  const settings = structuredClone(previewSettings);
+  settings.presentation = { ...settings.presentation, websiteTemplate: 'premium' };
+  const { client, writes, go } = setup(settings);
+  await screen.findByTestId('input-identity-name'); go('website', 'homepage');
+  expect(await screen.findByRole('radio', { name: 'Premium' })).toBeChecked();
+  fireEvent.click(screen.getByRole('radio', { name: 'Current website' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Review changes' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Publish showroom' }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0].presentation).toEqual({ ...settings.presentation, websiteTemplate: 'existing' });
+  client.clear();
+});
+
+it('retains a legacy draft on remount after a remote template publication and blocks overwriting it', async () => {
+  const settings = structuredClone(previewSettings);
+  delete settings.presentation!.websiteTemplate;
+  const first = setup(settings);
+  fireEvent.change(await screen.findByTestId('input-identity-name'), { target: { value: 'Unpublished older name' } });
+  await waitFor(() => expect(readSettingsDraft(settings)?.form.identity.name).toBe('Unpublished older name'));
+  first.unmount(); first.client.clear();
+  const latest = { ...settings, presentation: { ...settings.presentation, websiteTemplate: 'classic' as const } };
+  const second = setup(latest);
+  expect(await screen.findByTestId('input-identity-name')).toHaveValue('Unpublished older name');
+  expect(await screen.findByText(/Published settings have changed since this draft started/)).toBeInTheDocument();
+  second.go('website', 'homepage');
+  expect(await screen.findByRole('radio', { name: 'Current website' })).toBeChecked();
+  fireEvent.click(screen.getByRole('button', { name: 'Review changes' }));
+  expect(await screen.findByTestId('status-settings-validation')).toHaveTextContent('Check the fields marked above');
+  expect(second.writes).toHaveLength(0);
+  expect(readSettingsDraft(latest)?.form.identity.name).toBe('Unpublished older name');
+  second.client.clear();
+});
 it('shares the complete draft across dealership, website and booking areas and publishes once after review', async () => {
   const { client, writes, go } = setup();
   expect(await screen.findByRole('button', {name:'Review changes'})).toBeDisabled();

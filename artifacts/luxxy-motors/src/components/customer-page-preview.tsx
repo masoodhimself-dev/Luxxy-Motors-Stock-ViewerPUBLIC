@@ -11,6 +11,7 @@ import './customer-page-preview.css';
 const devices = [
   { label: 'Phone', width: 390, height: 844 },
   { label: 'iPad', width: 820, height: 1180 },
+  { label: 'iPad landscape', width: 1194, height: 834 },
   { label: 'Desktop', width: 1440, height: 900 },
 ] as const;
 

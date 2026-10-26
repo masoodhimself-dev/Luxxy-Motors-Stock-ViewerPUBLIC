@@ -25,6 +25,19 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('unpublished actual customer-page snapshots', () => {
+  it.each(['classic', 'premium', 'focused'] as const)('previews %s across all three pages using the draft without changing published data', websiteTemplate => {
+    const settings = draft();
+    settings.presentation = { ...settings.presentation, websiteTemplate };
+    const before = structuredClone(settings);
+    for (const page of ['home', 'stock', 'vehicle'] as const) {
+      const html = renderCustomerPagePreview({ settings, stock, features, page, viewportWidth: 834, vehicleId: 'one' });
+      expect(html).toContain(`data-website-template="${websiteTemplate}"`);
+      expect(html).toContain(page === 'home' ? settings.hero.copy : 'Ford Fiesta');
+      expect(html).not.toContain('Georgia');
+    }
+    expect(settings).toEqual(before);
+  });
+
   it.each<PreviewPage>(['home', 'stock', 'vehicle', 'contact', 'warranty'])('renders %s from the draft and current public stock without requests, effects or device history', page => {
     const fetch = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Preview must not request anything'));
     const getStorage = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('Preview must not read personal history'); });

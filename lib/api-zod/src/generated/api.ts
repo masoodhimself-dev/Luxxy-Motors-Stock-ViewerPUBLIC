@@ -3617,6 +3617,7 @@ export const getDealerSettingsResponseWhyBuyMax = 8;
 
 export const GetDealerSettingsResponse = zod.object({
   "presentation": zod.object({
+  "websiteTemplate": zod.enum(['existing', 'classic', 'premium', 'focused']).optional().describe('Optional customer website layout. Omitted keeps the existing website. Choosing a layout is published with the normal settings draft.'),
   "pageColour": zod.string().regex(getDealerSettingsResponsePresentationPageColourRegExp).optional(),
   "panelColour": zod.string().regex(getDealerSettingsResponsePresentationPanelColourRegExp).optional(),
   "headingColour": zod.string().regex(getDealerSettingsResponsePresentationHeadingColourRegExp).optional(),
@@ -4139,6 +4140,7 @@ export const updateDealerSettingsBodyOneWhyBuyMax = 8;
 
 export const UpdateDealerSettingsBody = zod.object({
   "presentation": zod.object({
+  "websiteTemplate": zod.enum(['existing', 'classic', 'premium', 'focused']).optional().describe('Optional customer website layout. Omitted keeps the existing website. Choosing a layout is published with the normal settings draft.'),
   "pageColour": zod.string().regex(updateDealerSettingsBodyOnePresentationPageColourRegExp).optional(),
   "panelColour": zod.string().regex(updateDealerSettingsBodyOnePresentationPanelColourRegExp).optional(),
   "headingColour": zod.string().regex(updateDealerSettingsBodyOnePresentationHeadingColourRegExp).optional(),
@@ -4656,6 +4658,7 @@ export const updateDealerSettingsResponseWhyBuyMax = 8;
 
 export const UpdateDealerSettingsResponse = zod.object({
   "presentation": zod.object({
+  "websiteTemplate": zod.enum(['existing', 'classic', 'premium', 'focused']).optional().describe('Optional customer website layout. Omitted keeps the existing website. Choosing a layout is published with the normal settings draft.'),
   "pageColour": zod.string().regex(updateDealerSettingsResponsePresentationPageColourRegExp).optional(),
   "panelColour": zod.string().regex(updateDealerSettingsResponsePresentationPanelColourRegExp).optional(),
   "headingColour": zod.string().regex(updateDealerSettingsResponsePresentationHeadingColourRegExp).optional(),

@@ -2395,6 +2395,10 @@ components:
       additionalProperties: false
       description: Optional showroom content. Empty values are not presented as factual claims.
       properties:
+        websiteTemplate:
+          type: string
+          enum: [existing, classic, premium, focused]
+          description: Optional customer website layout. Omitted keeps the existing website. Choosing a layout is published with the normal settings draft.
         pageColour: { type: string, pattern: "^(#[0-9a-fA-F]{6})?$" }
         panelColour: { type: string, pattern: "^(#[0-9a-fA-F]{6})?$" }
         headingColour: { type: string, pattern: "^(#[0-9a-fA-F]{6})?$" }

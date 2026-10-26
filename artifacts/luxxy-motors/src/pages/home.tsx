@@ -5,6 +5,8 @@ import { CompareSelectionLink } from '@/components/saved-car-controls';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import './stock-redesign.css';
 import './home-redesign.css';
+import './website-template-home-stock.css';
+import { resolveWebsiteTemplate } from '@/lib/website-templates';
 import { customerDefaultCopy, websiteText } from "@/lib/website-content";
 import { useSavedCars } from '@/lib/saved-cars-context';
 import { CustomerReviews } from '@/components/customer-reviews';
@@ -83,6 +85,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   const { stock, isLoading, error } = useStock();
   const publicCars = useMemo(() => (stock?.cars ?? []).filter(car => !['sold', 'archived', 'hidden'].includes(String(car.inventoryStatus).toLowerCase())), [stock?.cars]);
   const { settings: dealerConfig } = useDealerSettings();
+  const websiteTemplate = resolveWebsiteTemplate(dealerConfig.presentation?.websiteTemplate);
   const recommendedCars = useMemo(() => {
     const order = new Map((dealerConfig.featuredVehicleIds ?? []).map((id, index) => [id, index]));
     return [...publicCars].sort((a, b) =>
@@ -99,14 +102,18 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   const [showAll, setShowAll] = useState(
     () => browseStock || (!preview && readBrowseSession().showAll === true),
   );
-  const [stockView, setStockView] = useState<'cards' | 'compact'>(() => {
-    if (preview) return 'cards';
+  const [selectedStockView, setStockView] = useState<'cards' | 'compact' | null>(() => {
+    if (preview) return null;
     try {
-      return window.localStorage.getItem(STOCK_VIEW_KEY) === 'compact' ? 'compact' : 'cards';
+      const savedView = window.localStorage.getItem(STOCK_VIEW_KEY);
+      return savedView === 'compact' || savedView === 'cards' ? savedView : null;
     } catch {
-      return 'cards';
+      return null;
     }
   });
+  // Resolve the default after settings arrive, without overwriting a customer's
+  // own view choice while the dealership configuration is still loading.
+  const stockView = selectedStockView ?? (websiteTemplate === 'focused' ? 'compact' : 'cards');
 
   usePageMeta({ ...showroomPageMeta(dealerConfig, { count: stock ? publicCars.length : null }), ...(browseStock ? { title: 'Browse Stock | ' + dealerConfig.identity.name, url: window.location.origin + '/stock' } : {}) });
 
@@ -271,12 +278,13 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   const stockCount = publicCars.length;
 
   useEffect(() => {
+    if (selectedStockView === null || preview) return;
     try {
       window.localStorage.setItem(STOCK_VIEW_KEY, stockView);
     } catch {
       // Keep the selected view usable when storage is unavailable or full.
     }
-  }, [stockView]);
+  }, [stockView, selectedStockView, preview]);
 
   const revealResults = (source: 'quick_filter' | 'filter_panel' | 'view_all') => {
     trackEvent('stock_results_opened', { source, result_count: filteredCars.length });
@@ -334,6 +342,24 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
       : vehicleDisplayTitle(heroFallbackCar);
 
   const heroPhotoSource = heroImage || getThumbnailUrl(heroFallbackCar);
+  // Each optional design uses the same search, dealer copy and photo settings.
+  // Keep the existing hero untouched when no template has been selected.
+  const templateHero = websiteTemplate !== 'existing' && !browseStock ? (
+    <section className="template-showroom-hero" aria-labelledby="home-heading" data-has-photo={Boolean(heroPhotoSource)}>
+      <div className="template-hero-grid">
+        <div className="template-hero-intro">
+          <p className="home-hero-eyebrow">{(!demoSite && dealerConfig.hero.announcement) || `Used cars${dealerConfig.address?.city ? ` in ${dealerConfig.address.city}` : ''}`}</p>
+          <h1 id="home-heading" tabIndex={-1} className="home-hero-heading">{dealerConfig.hero.copy}</h1>
+          {dealerConfig.presentation?.showHeroDescription && <p className="home-hero-description">{dealerConfig.hero.subcopy}</p>}
+        </div>
+        {heroPhotoSource && <div className="template-hero-photo" data-testid="showroom-hero-photo"><ShowroomPhoto src={heroPhotoSource} position={demoSite && !configuredHeroImage ? 'bottom' : dealerConfig.presentation?.heroImagePosition} alt={heroAlt} priority fit="cover" className="h-full" /></div>}
+        <div className="template-hero-search">
+          <HeroStockSearch loading={isLoading} buttonLabel={dealerConfig.hero.primaryCta} cars={publicCars} filters={filters} setFilters={setFilters} count={filteredCars.length} onReset={() => setFilters({ ...defaultFilters })} onSearch={() => revealResults('filter_panel')} />
+          {!isLoading && !error && filteredCars.length < 4 && <p className="home-search-help">Need help choosing? <Link className="text-link" href={'/enquire?type=general&searchRequest='+encodeURIComponent(Object.entries(filters).filter(([k,v])=>k!=='sort' && v).map(([k,v])=>`${k}: ${v}`).join(', ') || 'current stock')}>Ask us <ArrowRight size={16}/></Link></p>}
+        </div>
+      </div>
+    </section>
+  ) : null;
 
   const dealershipPoints = dealerConfig.whyBuy?.length ? (
     <ul className="divide-y divide-border border-y border-border">
@@ -391,8 +417,9 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   );
 
   return (
-    <div className={browseStock ? "luxxy-shell homepage-refined stock-refined stock-redesign min-h-screen" : "luxxy-shell homepage-refined homepage-art-directed homepage-premium min-h-screen"}>
-      {!browseStock && <section className="stock-search-hero" aria-labelledby="home-heading">
+    <div className={cn(browseStock ? "luxxy-shell homepage-refined stock-refined stock-redesign min-h-screen" : "luxxy-shell homepage-refined homepage-art-directed homepage-premium min-h-screen", websiteTemplate !== 'existing' && `website-template-home-${websiteTemplate}`)}>
+      {templateHero}
+      {!browseStock && websiteTemplate === 'existing' && <section className="stock-search-hero" aria-labelledby="home-heading">
         {heroPhotoSource && <div className="stock-search-backdrop" data-testid="showroom-hero-photo"><ShowroomPhoto src={heroPhotoSource} position={demoSite && !configuredHeroImage ? 'bottom' : dealerConfig.presentation?.heroImagePosition} alt={heroAlt} priority fit="cover" className="h-full" /></div>}
         <div className="stock-search-shade" aria-hidden="true" />
         <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">

@@ -567,6 +567,19 @@ export interface DealerWebsiteCopy {
   vehicleSimilarHeading?: string;
 }
 
+/**
+ * Optional customer website layout. Omitted keeps the existing website. Choosing a layout is published with the normal settings draft.
+ */
+export type DealerPresentationWebsiteTemplate = typeof DealerPresentationWebsiteTemplate[keyof typeof DealerPresentationWebsiteTemplate];
+
+
+export const DealerPresentationWebsiteTemplate = {
+  existing: 'existing',
+  classic: 'classic',
+  premium: 'premium',
+  focused: 'focused',
+} as const;
+
 export type DealerPresentationHeroImagePosition = typeof DealerPresentationHeroImagePosition[keyof typeof DealerPresentationHeroImagePosition];
 
 
@@ -582,6 +595,8 @@ export const DealerPresentationHeroImagePosition = {
  * Optional showroom content. Empty values are not presented as factual claims.
  */
 export interface DealerPresentation {
+  /** Optional customer website layout. Omitted keeps the existing website. Choosing a layout is published with the normal settings draft. */
+  websiteTemplate?: DealerPresentationWebsiteTemplate;
   /** @pattern ^(#[0-9a-fA-F]{6})?$ */
   pageColour?: string;
   /** @pattern ^(#[0-9a-fA-F]{6})?$ */

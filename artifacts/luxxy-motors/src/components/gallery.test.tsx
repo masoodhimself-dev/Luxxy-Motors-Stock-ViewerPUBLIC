@@ -7,6 +7,22 @@ import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/
 vi.mock('@/components/vehicle-call', () => ({ VehicleCall: () => null }));
 
 beforeAll(() => { HTMLElement.prototype.scrollIntoView = vi.fn(); });
+it('keeps inline photographs in sync after browsing the enlarged gallery and closing it', async () => {
+  const images = ['one', 'two', 'three'].map(name => `https://example.com/${name}.jpg`);
+  render(<Gallery images={images} />);
+  fireEvent.click(screen.getByRole('button', { name: 'View gallery fullscreen' }));
+  const dialog = await screen.findByRole('dialog');
+  fireEvent.keyDown(dialog, { key: 'ArrowRight' });
+  expect(within(dialog).getByText('2 / 3')).toBeInTheDocument();
+  fireEvent.keyDown(dialog, { key: 'Escape' });
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  await waitFor(() => expect(document.querySelector('.gallery-photo')).toHaveAttribute('src', images[1]));
+  expect(screen.getByText('2 / 3 photographs')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Next photograph' }));
+  await waitFor(() => expect(document.querySelector('.gallery-photo')).toHaveAttribute('src', images[2]));
+  expect(screen.getByText('3 / 3 photographs')).toBeInTheDocument();
+});
+
 it('removes failed images from thumbnails and counts, and handles all failing', () => {
   render(<Gallery images={['https://example.com/one.jpg', 'https://example.com/two.jpg']} />);
   const fail = (src: string) => {

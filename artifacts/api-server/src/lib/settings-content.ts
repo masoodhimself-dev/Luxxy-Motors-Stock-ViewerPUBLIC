@@ -15,7 +15,15 @@ export function preservePresentation<
     : newCopy;
   return {
     ...incoming,
-    presentation: { ...content, ...incoming.presentation, ...(websiteCopy ? { websiteCopy } : {}) },
+    presentation: {
+      ...content,
+      ...incoming.presentation,
+      ...(websiteCopy ? { websiteCopy } : {}),
+      // Older clients omit the layout. Only an explicit supported choice changes it.
+      ...(incoming.presentation?.websiteTemplate === undefined && 'websiteTemplate' in content
+        ? { websiteTemplate: content.websiteTemplate }
+        : {}),
+    },
   };
 }
 

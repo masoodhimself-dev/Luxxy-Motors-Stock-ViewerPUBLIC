@@ -158,7 +158,7 @@ vi.mock('@/lib/demo-status',()=>({useDemoStatus:()=>demoSiteMode}));
 vi.mock('@/lib/dealer-features', () => ({ useDealerFeatures: () => ({ enabled: () => true }) }));
 
 let overrideSettings: typeof dealerConfigFixture & {
-  presentation?: { websiteCopy?: { stockIntroduction?: string }; heroImageUrl?: string; heroImageAlt?: string; showroomImageUrl?: string; showroomImageAlt?: string };
+  presentation?: { websiteTemplate?: 'existing' | 'classic' | 'premium' | 'focused'; showHeroDescription?: boolean; websiteCopy?: { stockIntroduction?: string }; heroImageUrl?: string; heroImageAlt?: string; heroImagePosition?: 'center' | 'left' | 'right' | 'top' | 'bottom'; showroomImageUrl?: string; showroomImageAlt?: string };
 } = dealerConfigFixture;
 
 vi.mock('@/lib/dealer-settings-context', () => ({
@@ -185,7 +185,7 @@ function renderHome(browseStock = true) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  render(
+  return render(
     <QueryClientProvider client={queryClient}>
       <SavedCarsProvider>
         <Home browseStock={browseStock} />
@@ -221,6 +221,89 @@ beforeEach(() => {
   overrideSettings = dealerConfigFixture;
   recentHandoversState.value = { schemaVersion: 1, handovers: [], isLoading: false, isError: false };
   stockFixture.cars = originalCars.map((car) => ({ ...car }));
+});
+
+describe('optional website templates', () => {
+  it('keeps the existing homepage until a template is selected', () => {
+    const { container } = renderHome(false);
+    expect(container.querySelector('.stock-search-hero')).toBeInTheDocument();
+    expect(container.querySelector('.template-showroom-hero')).not.toBeInTheDocument();
+  });
+
+  it.each(['classic', 'premium', 'focused'] as const)('uses dealer content, photo focus and manual featured choices in %s', (websiteTemplate) => {
+    overrideSettings = {
+      ...dealerConfigFixture,
+      featuredVehicleIds: ['audi-a3', 'bmw-1-series'],
+      presentation: { websiteTemplate, heroImageUrl: 'https://cdn.example.com/dealer.jpg', heroImageAlt: 'Our dealership', heroImagePosition: 'right', showHeroDescription: true },
+    };
+    renderHome(false);
+    expect(screen.getByRole('heading', { name: 'Find your next car', level: 1 })).toBeInTheDocument();
+    expect(screen.getByText('Subcopy')).toBeInTheDocument();
+    const photograph = within(screen.getByTestId('showroom-hero-photo')).getByRole('img');
+    expect(photograph).toHaveAttribute('src', 'https://cdn.example.com/dealer.jpg');
+    expect(photograph).toHaveStyle({ objectPosition: 'right' });
+    expect(screen.getAllByTestId(/^card-vehicle-/).slice(0, 2).map(card => card.getAttribute('data-testid'))).toEqual(['card-vehicle-audi-a3', 'card-vehicle-bmw-1-series']);
+    expect(screen.getByRole('navigation', { name: 'Browse by body type' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Plan your visit' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Why choose us?' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Under £10k · 5 cars' })).toHaveAttribute('href', '/stock?maxPrice=10000');
+  });
+
+  it.each(['classic', 'premium', 'focused'] as const)('preserves price sorting when advanced filters are applied in %s', (websiteTemplate) => {
+    overrideSettings = { ...dealerConfigFixture, presentation: { websiteTemplate } };
+    renderHome();
+    fireEvent.change(screen.getByLabelText('Sort results'), { target: { value: 'price-desc' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Fuel' }), { target: { value: 'Petrol' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Show 3 cars' }));
+    expect(screen.getByLabelText('Sort results')).toHaveValue('price-desc');
+    expect(resultTitles()).toEqual(['Ford Fiesta', 'BMW 1 Series', 'VW Golf']);
+    expect(window.location.search).toContain('fuel=Petrol');
+    expect(window.location.search).toContain('sort=price-desc');
+  });
+
+  it.each(['classic', 'premium', 'focused'] as const)('submits the real homepage search in %s', (websiteTemplate) => {
+    overrideSettings = { ...dealerConfigFixture, presentation: { websiteTemplate } };
+    renderHome(false);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Search make' }), { target: { value: 'Ford' } });
+    expect(screen.getByRole('button', { name: 'See stock (1)' })).toBeInTheDocument();
+    fireEvent.submit(screen.getByRole('form', { name: 'Search used cars' }));
+    expect(window.location.pathname).toBe('/stock');
+    cleanup();
+    renderHome();
+    expect(resultTitles()).toEqual(['Ford Fiesta']);
+    expect(screen.getByLabelText('Sort results')).toHaveValue('');
+  });
+
+  it.each(['classic', 'premium', 'focused'] as const)('keeps missing-photo stock accessible without a blank hero in %s', (websiteTemplate) => {
+    overrideSettings = { ...dealerConfigFixture, presentation: { websiteTemplate } };
+    stockFixture.cars = originalCars.map(car => ({ ...car, heroImage: null, images: [] }));
+    renderHome(false);
+    expect(screen.queryByTestId('showroom-hero-photo')).not.toBeInTheDocument();
+    expect(screen.getByRole('form', { name: 'Search used cars' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View all stock' })).toBeInTheDocument();
+  });
+
+  it('starts Stock Focused in List view and respects an existing customer Grid choice', () => {
+    overrideSettings = { ...dealerConfigFixture, presentation: { websiteTemplate: 'focused' } };
+    renderHome();
+    expect(screen.getByTestId('compact-vehicle-bmw-1-series')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'View options' }));
+    fireEvent.click(screen.getByTestId('button-stock-view-cards'));
+    expect(screen.getByTestId('card-vehicle-bmw-1-series')).toBeInTheDocument();
+    cleanup();
+    renderHome();
+    expect(screen.getByTestId('card-vehicle-bmw-1-series')).toBeInTheDocument();
+    expect(screen.queryByTestId('compact-vehicle-bmw-1-series')).not.toBeInTheDocument();
+  });
+
+  it('uses the template default when dealership settings arrive after the stock page', () => {
+    const { rerender } = renderHome();
+    expect(screen.getByTestId('card-vehicle-bmw-1-series')).toBeInTheDocument();
+    overrideSettings = { ...dealerConfigFixture, presentation: { websiteTemplate: 'focused' } };
+    rerender(<QueryClientProvider client={new QueryClient()}><SavedCarsProvider><Home browseStock /></SavedCarsProvider></QueryClientProvider>);
+    expect(screen.getByTestId('compact-vehicle-bmw-1-series')).toBeInTheDocument();
+  });
 });
 
 describe('showroom data resilience', () => {

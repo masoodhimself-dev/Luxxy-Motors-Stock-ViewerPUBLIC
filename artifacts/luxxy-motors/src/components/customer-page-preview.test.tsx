@@ -31,6 +31,11 @@ it('switches actual page, selected car and viewport inside a sandbox without pub
   fireEvent.change(screen.getByRole('combobox', { name: 'Preview page' }), { target: { value: 'vehicle' } });
   fireEvent.change(screen.getByRole('combobox', { name: 'Preview vehicle' }), { target: { value: 'two' } });
   await waitFor(() => expect(fixtures.render).toHaveBeenLastCalledWith(expect.objectContaining({ page: 'vehicle', vehicleId: 'two', viewportWidth: 820, stock: fixtures.stock, features: fixtures.features })));
+  fireEvent.click(screen.getByRole('button', { name: 'iPad landscape' }));
+  const landscape = await screen.findByTitle('iPad landscape vehicle unpublished preview');
+  expect(landscape).toHaveAttribute('width', '1194');
+  expect(landscape).toHaveAttribute('height', '834');
+  await waitFor(() => expect(fixtures.render).toHaveBeenLastCalledWith(expect.objectContaining({ page: 'vehicle', vehicleId: 'two', viewportWidth: 1194 })));
   fireEvent.click(screen.getByRole('button', { name: 'Desktop' }));
   expect(await screen.findByTitle('Desktop vehicle unpublished preview')).toHaveAttribute('width', '1440');
   expect(fetch).not.toHaveBeenCalled();
@@ -58,7 +63,7 @@ it('never mounts a new page, size or car with markup from the previous selection
   });
   render(<CustomerPagePreview settings={previewSettings} onClose={() => {}} />);
   await screen.findByTitle('Phone home unpublished preview');
-  for (const [label, width] of [['Phone', 390], ['iPad', 820], ['Desktop', 1440]] as const) {
+  for (const [label, width] of [['Phone', 390], ['iPad', 820], ['iPad landscape', 1194], ['Desktop', 1440]] as const) {
     const previousPage = screen.getByRole<HTMLSelectElement>('combobox', { name: 'Preview page' }).value;
     expected = `${previousPage} ${width} one`;
     fireEvent.click(screen.getByRole('button', { name: label }));
@@ -73,7 +78,7 @@ it('never mounts a new page, size or car with markup from the previous selection
   expected = 'vehicle 1440 two';
   fireEvent.change(screen.getByRole('combobox', { name: 'Preview vehicle' }), { target: { value: 'two' } });
   await waitFor(() => expect(assignments.at(-1)?.html).toContain('<p>vehicle 1440 two</p>'));
-  expect(assignments.length).toBeGreaterThanOrEqual(19);
+  expect(assignments.length).toBeGreaterThanOrEqual(25);
   for (const assignment of assignments) expect(assignment.html).toContain(`<p>${assignment.expected}</p>`);
 });
 

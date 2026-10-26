@@ -28,6 +28,33 @@ afterEach(() => vi.unstubAllGlobals());
 const logo = () => screen.getByRole('img', { name: 'Maxi Autos' });
 
 describe('header artwork follows the background', () => {
+  it.each(['classic', 'premium', 'focused'] as const)('opts into %s only on the customer showroom, retaining dealer colours and artwork', websiteTemplate => {
+    state.settings.presentation = { ...state.settings.presentation, websiteTemplate };
+    const { container, rerender } = render(<Layout><p>Showroom</p></Layout>);
+    expect(container.firstElementChild).toHaveAttribute('data-website-template', websiteTemplate);
+    expect(logo()).toHaveAttribute('src', '/header-logo.png');
+    const saved = JSON.stringify(state.settings);
+    state.path = '/portal';
+    rerender(<Layout><p>Staff content</p></Layout>);
+    expect(container.firstElementChild).not.toHaveAttribute('data-website-template');
+    expect(container.querySelector('[data-site-header]')).toBeNull();
+    expect(JSON.stringify(state.settings)).toBe(saved);
+  });
+
+  it.each([undefined, 'existing', 'unrecognised'])('preserves the current site when the template is %s', websiteTemplate => {
+    state.settings.presentation = { ...state.settings.presentation, websiteTemplate } as typeof state.settings.presentation;
+    const { container } = render(<Layout><p>Showroom</p></Layout>);
+    expect(container.firstElementChild).not.toHaveAttribute('data-website-template');
+    expect(logo()).toHaveAttribute('src', '/footer-logo.png');
+  });
+
+  it.each(['/enquire', '/my-purchase/test', '/phone-share', '/platform'])('keeps template styling outside the %s workflow', path => {
+    state.settings.presentation = { ...state.settings.presentation, websiteTemplate: 'premium' };
+    state.path = path;
+    const { container } = render(<Layout><p>Customer workflow</p></Layout>);
+    expect(container.firstElementChild).not.toHaveAttribute('data-website-template');
+  });
+
   it('uses footer artwork on the dark homepage, regular artwork on scroll, and switches back at the top', () => {
     render(<Layout><p>Showroom</p></Layout>);
     expect(logo()).toHaveAttribute('src', '/footer-logo.png');
