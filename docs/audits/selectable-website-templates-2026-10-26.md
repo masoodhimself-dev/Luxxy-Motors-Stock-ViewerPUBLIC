@@ -57,3 +57,43 @@ Browser evidence is under `output/website-templates/`, including the 36 checks a
 - Reopened the live Shore Drive homepage and confirmed it still renders the existing hero without any template attribute.
 - No error-level Render logs were returned between 04:52:57 and 04:58:09 GMT. No customer messages, imports, invoices, payments, credentials or schedules were changed.
 - Responsive browser checks do not replace physical iPhone/iPad Safari testing; the deployed previews are ready for the user's device testing.
+
+## Interactive follow-up audit
+
+The user requested search, filters and test-drive booking checks across all three templates while keeping Shore Drive's published website unchanged. The Settings snapshots are deliberately read-only, so this audit exercised the actual interactive React application in a separate loopback-only QA environment.
+
+### Isolation
+
+- Captured Shore Drive's public Settings, 21-car stock and feature switches. Each QA process uses its own template preference in memory and its own in-memory booking records. No live customer or appointment records were copied.
+- Production API proxying is disabled. The local reviewed booking handler supplies availability, creation, management and cancellation; unknown API routes return 404. Notifications remain `not_sent`, and no reminders are scheduled.
+- The QA configuration and evidence are only under untracked `output/website-templates/qa/`. The fixture's template preference remains omitted. Existing local operation/sales stores were neither overwritten nor changed; none of their vehicle IDs overlap the copied stock.
+- Closed the QA browser tab and stopped all three temporary servers after saving evidence. No template was chosen or published on Shore Drive, no live booking was submitted and no external messages were sent.
+
+### Browser matrix
+
+| Template | Phone 390×844 | iPad 820×1180 | iPad landscape 1194×834 | Desktop 1440×900 |
+| --- | --- | --- | --- | --- |
+| Classic Showroom | Passed | Passed | Passed | Passed |
+| Premium | Passed | Passed | Passed | Passed |
+| Stock Focused | Passed | Passed | Passed | Passed |
+
+Every combination completed the homepage → search → filters/sort → vehicle → date/time → customer details → review → confirmed booking → manage appointment journey. All 104 recorded responsive checkpoints had the expected width without horizontal page overflow. The shared booking and management pages retained their existing layout rather than receiving showroom-only template styles.
+
+- **Search and filters:** MG with maximum £10,000 returned six cars. Automatic, SUV and Petrol narrowed this to the correct two cars, priced £8,946 and £7,941 in descending order. Applying advanced filters retained the selected sort. Each template also passed the zero-result Hatchback combination, reset to all 21 cars, and the natural-language search `automatic under £10k`, which returned the expected three cars.
+- **Vehicle context:** every primary journey kept MG ZS `5388fcd6-d07e-411e-879b-1a7948ac960b`, plate LW73BBJ, through the vehicle page, booking, review, confirmation and customer management link.
+- **Date selection:** each template booked 27 October on Phone, 5 November on iPad, 29 October in iPad landscape and 30 October on Desktop, all at 10:00 GMT for 30 minutes. The iPad check used the native selector beyond the initial five date buttons. Sunday dates were absent, in line with Shore Drive's policy. Changing the date cleared the selected time and disabled continuation until a new time was chosen. The first phone time button measured 48 CSS px high and was within the 844 CSS px viewport.
+- **Customer accuracy:** 12 unique fictional bookings, references and management links were recorded, four per template, with the correct QA customer name, email, normalised phone, vehicle and appointment. No submission occurred at review alone. The Classic phone management page also passed explicit cancellation; the other 11 remained active only in the isolated local state.
+- **Validation:** blank required details prevented review; an invalid phone produced the clear 7–15 digit error and preserved other details. Correcting it allowed review. This extra validation check did not create a thirteenth booking.
+- **Visual checks:** inspected actual Classic desktop homepage/stock, Premium phone homepage/iPad stock, Stock Focused phone homepage/desktop stock, and the phone booking confirmation. Dealer logos, photographs, Inter typography, solid icons and dealer colours remained readable and intact.
+
+### Regression checks and findings
+
+- No production template or booking defect was found in the tested journeys. No runtime code, backend booking rule, payment rule or live setting needed changing.
+- Added a shared booking regression that verifies the reviewed payload is sent once, pending submission cannot claim success, duplicate clicks are guarded, successful confirmation carries the correct details, the draft is cleared and an unsent email is not described as sent.
+- The broader suite initially exposed an existing asynchronous readiness race in a WhatsApp test: customer rows could render before the lookup's loading flag cleared. The test now waits for readiness while still asserting unresolved lookup blocks confirmation and recipient changes require fresh acknowledgement. The production guard was not changed.
+- Final full frontend run: **206 files, 2,306 tests passed**, including booking 13/13 and WhatsApp confirmation 15/15. Frontend TypeScript passed. Targeted API booking policy/availability/local lifecycle tests passed 29/29, and API Settings validation passed 16/16. Whitespace checks passed.
+- Final public reads confirmed Shore Drive's complete Settings and stock responses exactly match this audit's starting baseline, and its feature switches are identical. Its template preference is still omitted. The live availability endpoint returned the requested 27 October date with 16 slot entries; no live POST was made.
+
+Evidence includes `output/website-templates/qa/summary.json`, `interactive-checks.json`, three `*-booking-evidence.json` files, before/after public snapshots and screenshots. Full frontend log: `/tmp/luxxy-template-interactions-full-test-readiness-fix.log`.
+
+These checks use Chromium at the stated CSS viewport sizes. Physical iPhone/iPad Safari interaction, native iOS keyboard behaviour, real email delivery and live database booking submission remain unverified by this audit. The local booking evidence does not represent real customer appointments.

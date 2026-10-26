@@ -57,7 +57,11 @@ it('preserves an entered recipient when selecting a different customer number an
 it('requires a fresh mismatch acknowledgement if staff change the recipient again',async()=>{
  const ready=vi.fn();
  render(<Fixture initialPhone="07700 900456" onReadyChange={ready}/>);
- fireEvent.click(await screen.findByRole('checkbox',{name:/I’ve checked \+447700900456/}));
+ expect(screen.getByRole('button',{name:'I’ve sent it'})).toBeDisabled();
+ // Customer rows can render before the lookup's finally clears its loading
+ // state. A visible mismatch checkbox alone does not mean sharing is ready.
+ await waitFor(()=>expect(screen.queryByText('Checking customer details…')).toBeNull());
+ fireEvent.click(screen.getByRole('checkbox',{name:/I’ve checked \+447700900456/}));
  expect(screen.getByRole('button',{name:'I’ve sent it'})).toBeEnabled();
  fireEvent.change(screen.getByRole('textbox',{name:'Recipient number'}),{target:{value:'07700 900789'}});
  expect(screen.getByRole('checkbox',{name:/I’ve checked \+447700900789/})).not.toBeChecked();

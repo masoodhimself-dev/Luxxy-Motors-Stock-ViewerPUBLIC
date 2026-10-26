@@ -4,9 +4,11 @@ import type { Car } from '@/lib/stock-context';
 import { defaultBookingSettings } from '@/lib/test-drive-dates';
 import { TestDriveBooking } from './test-drive-booking';
 
-const state = vi.hoisted(() => ({ failed: false, empty: false, fetching: false, daysAhead: 3, mutate: vi.fn(), reset: vi.fn() }));
+const state = vi.hoisted(() => ({ failed: false, empty: false, fetching: false, pending: false, success: false, daysAhead: 3, mutate: vi.fn(), reset: vi.fn() }));
 vi.mock('@workspace/api-client-react', () => ({
-  useCreateEnquiry: () => ({ isPending: false, isSuccess: false, isError: false, mutate: state.mutate, reset: state.reset }),
+  useCreateEnquiry: () => ({ isPending: state.pending, isSuccess: state.success, isError: false, mutate: state.mutate, reset: state.reset,
+    data: { appointmentStatus: 'confirmed', appointmentAt: '2026-10-17T09:00:00.000Z', appointmentDurationMinutes: 30, customerNotificationStatus: 'pending', managePath: '/viewing/fictional-booking' },
+  }),
   getGetEnquiryAvailabilityQueryKey: (params: unknown) => [params],
   useGetEnquiryAvailability: ({ date }: { date: string }) => ({
     isLoading: false, isFetching: state.fetching, isError: state.failed,
@@ -28,6 +30,8 @@ beforeEach(() => {
   state.failed = false;
   state.empty = false;
   state.fetching = false;
+  state.pending = false;
+  state.success = false;
   state.daysAhead = 3;
   state.mutate.mockClear();
   window.sessionStorage.clear();
@@ -37,6 +41,46 @@ beforeEach(() => {
   vi.setSystemTime(new Date('2026-10-16T08:00:00Z'));
 });
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+
+it('sends the reviewed booking once, waits for the response and shows the saved appointment without claiming an unsent email', () => {
+  const view = render(booking());
+  fireEvent.click(screen.getByTestId('button-viewing-date-2026-10-17'));
+  fireEvent.click(within(screen.getByTestId('group-viewing-slots')).getByRole('button'));
+  fireEvent.click(screen.getByTestId('button-continue-to-details'));
+  fireEvent.change(screen.getByTestId('input-customer-name'), { target: { value: '  Fictional Buyer  ' } });
+  fireEvent.change(screen.getByTestId('input-customer-phone'), { target: { value: '+44 (7700) 900-123' } });
+  fireEvent.change(screen.getByTestId('input-customer-email'), { target: { value: 'fictional@example.test' } });
+  fireEvent.change(screen.getByTestId('textarea-enquiry-message'), { target: { value: '  Please allow time to check the boot.  ' } });
+  fireEvent.submit(screen.getByTestId('button-review-booking').closest('form')!);
+  expect(state.mutate).not.toHaveBeenCalled();
+  expect(screen.getByTestId('booking-review')).toHaveTextContent('Fictional Buyer');
+  fireEvent.click(screen.getByTestId('button-submit-enquiry'));
+  fireEvent.click(screen.getByTestId('button-submit-enquiry'));
+  expect(state.mutate).toHaveBeenCalledTimes(1);
+  expect(state.mutate).toHaveBeenCalledWith({ data: expect.objectContaining({
+    vehicleId: 'booking-car', type: 'viewing', appointmentAt: '2026-10-17T09:00:00.000Z',
+    customerName: 'Fictional Buyer', phone: '+447700900123', email: 'fictional@example.test',
+    preferredContact: 'email', message: 'Please allow time to check the boot.', partExchange: null,
+  }) }, expect.anything());
+  state.pending = true;
+  view.rerender(booking());
+  expect(screen.getByTestId('button-submit-enquiry')).toBeDisabled();
+  expect(screen.getByTestId('button-submit-enquiry')).toHaveTextContent('Sending your booking');
+  expect(screen.queryByTestId('status-enquiry-success')).not.toBeInTheDocument();
+  expect(window.sessionStorage.getItem('luxxy.enquiry-draft.viewing:booking-car')).not.toBeNull();
+  const callbacks = state.mutate.mock.calls[0][1] as { onSuccess: () => void; onSettled: () => void };
+  act(() => { state.pending = false; state.success = true; callbacks.onSuccess(); callbacks.onSettled(); });
+  view.rerender(booking());
+  const confirmation = screen.getByTestId('status-enquiry-success');
+  expect(within(confirmation).getByRole('heading', { name: 'Your test drive is booked' })).toBeInTheDocument();
+  expect(confirmation).toHaveTextContent('Ford Fiesta');
+  expect(confirmation).toHaveTextContent('17 October');
+  expect(confirmation).toHaveTextContent('30 minutes · London time');
+  expect(confirmation).toHaveTextContent('Your booking details are saved here');
+  expect(confirmation).not.toHaveTextContent('Confirmation email sent');
+  expect(within(confirmation).getByRole('link', { name: 'Manage test drive' })).toHaveAttribute('href', '/viewing/fictional-booking');
+  expect(window.sessionStorage.getItem('luxxy.enquiry-draft.viewing:booking-car')).toBeNull();
+});
 
 it('formats quick dates in London even when the visitor is in a different timezone', () => {
   const original = Intl.DateTimeFormat;
