@@ -9,8 +9,6 @@ import { Button } from '@/components/ui/button';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { useStockHeader } from '@/hooks/use-stock-header';
 import { useSavedCars } from '@/lib/saved-cars-context';
-import { CompareTray } from '@/components/compare-tray';
-import { CustomerChat } from '@/components/customer-chat';
 import { isWritableFormControl } from '@/lib/form-draft';
 import { formatPhoneDisplay } from '@/lib/utils';
 import { CustomerFooter } from '@/components/customer-footer';
@@ -19,8 +17,6 @@ import './stock-browsing-header.css';
 import './portal/portal-workspace.css';
 import { readableAccentForHsl, readableForegroundForHsl } from '@/lib/brand-colour';
 import { customerThemeVariables } from '@/lib/customer-theme';
-import { resolveWebsiteTemplate } from '@/lib/website-templates';
-import './website-templates.css';
 export { readableForegroundForHsl } from '@/lib/brand-colour';
 
 const navLinkClass =
@@ -33,16 +29,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [, vehicleRoute] = useRoute('/vehicle/:id');
   const testDriveHref = vehicleRoute?.id ? `/enquire?type=viewing&vehicleId=${encodeURIComponent(vehicleRoute.id)}` : getEnquiryHref('viewing');
   const isStaff = location.startsWith('/portal');
-  const isCustomerTask = /^\/(sign|customer-details|viewing|my-purchase)\//.test(location);
+  const isCustomerTask = /^\/(sign|customer-details|viewing)\//.test(location);
   const isPremiumShowroom = location === '/' || location === '/stock' || /^\/vehicle\/[^/]+\/?$/.test(location);
   const isBrowsingPage = location === '/stock' || /^\/vehicle\/[^/]+\/?$/.test(location);
-  const { settings: dealerConfig } = useDealerSettings();
-  const websiteTemplate = isPremiumShowroom && !isStaff ? resolveWebsiteTemplate(dealerConfig.presentation?.websiteTemplate) : 'existing';
+  const { settings: dealerConfig, publicEnquiriesEnabled } = useDealerSettings();
   const whatsAppHref = getWhatsAppHref(undefined, dealerConfig);
   const { savedCount } = useSavedCars();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const darkHomeHeader = websiteTemplate === 'existing' && location === '/' && !scrolled && !mobileMenuOpen;
+  const darkHomeHeader = location === '/' && !scrolled && !mobileMenuOpen;
   const headerLogo = darkHomeHeader
     ? dealerConfig.presentation?.footerLogoUrl || dealerConfig.identity.logoAsset
     : dealerConfig.identity.logoAsset;
@@ -174,7 +169,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const handleNav = (target: string) => {
     setMobileMenuOpen(false);
-    if (target === 'part-exchange' || target === 'delivery') { setLocation(`/enquire?type=${target === 'part-exchange' ? 'part_exchange' : 'delivery'}`); return; }
+    if (target === 'part-exchange' || target === 'delivery') {
+      setLocation(publicEnquiriesEnabled ? `/enquire?type=${target === 'part-exchange' ? 'part_exchange' : 'general'}` : '/contact');
+      return;
+    }
     navigateToHomeTarget(target, location, setLocation);
   };
 
@@ -191,7 +189,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div style={brandStyle} data-website-template={websiteTemplate === 'existing' ? undefined : websiteTemplate} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}${websiteTemplate === 'existing' ? '' : ` website-template-${websiteTemplate}`}`}>
+    <div style={brandStyle} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}`}>
       <a href="#main-content" className="fixed left-4 top-3 z-[100] -translate-y-24 rounded-md bg-primary px-5 py-3 text-primary-foreground focus:translate-y-0">Skip to content</a>
       {!isStaff && <header
         ref={headerRef}
@@ -230,12 +228,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </span>
               )}
             </button>
-            <Button
+            {dealerConfig.testDriveBooking?.enabled && <Button
               onClick={() => setLocation(testDriveHref)}
               className="h-11 px-4 font-display text-[13px] font-bold tracking-normal bg-primary text-primary-foreground hover:bg-accent hover:text-accent-foreground rounded-md shadow-none transition-all"
             >
               {dealerConfig.bookViewing.ctaLabel}
-            </Button>
+            </Button>}
           </nav>
 
           {/* Desktop Nav - Full */}
@@ -270,12 +268,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   </span>
                 )}
               </button>
-               <Button
+               {dealerConfig.testDriveBooking?.enabled && <Button
                  onClick={() => setLocation(testDriveHref)}
                  className="h-11 px-6 font-display text-[13px] font-bold tracking-normal bg-primary text-primary-foreground hover:bg-accent hover:text-accent-foreground rounded-md shadow-none transition-all"
                >
                  {dealerConfig.bookViewing.ctaLabel}
-              </Button>
+              </Button>}
             </div>
           </nav>
 
@@ -308,7 +306,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <button onClick={() => handleNav('top')} className={mobileNavRowClass}>Home <ArrowRight className="w-5 h-5 opacity-40" /></button>
             <button onClick={() => handleNav('stock')} className={mobileNavRowClass}>{websiteText(dealerConfig, "navigationStock")} <ArrowRight className="w-5 h-5 text-accent" />
             </button>
-            <button onClick={() => { setMobileMenuOpen(false); setLocation(testDriveHref); }} className={mobileNavRowClass}>{dealerConfig.bookViewing.ctaLabel} <CalendarDays className="h-5 w-5 text-accent" /></button>
+            {dealerConfig.testDriveBooking?.enabled && <button onClick={() => { setMobileMenuOpen(false); setLocation(testDriveHref); }} className={mobileNavRowClass}>{dealerConfig.bookViewing.ctaLabel} <CalendarDays className="h-5 w-5 text-accent" /></button>}
             {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className={mobileNavRowClass}>{websiteText(dealerConfig, "navigationPartExchange")} <ArrowRight className="w-5 h-5 opacity-40" /></button>}
             {dealerConfig.warranty?.enabled && <Link href="/warranty" onClick={() => setMobileMenuOpen(false)} aria-current={location === '/warranty' ? 'page' : undefined} className={mobileNavRowClass}>Warranty <ArrowRight className="w-5 h-5 opacity-40" /></Link>}
             {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('delivery')} className={mobileNavRowClass}>Delivery <ArrowRight className="w-5 h-5 opacity-40" /></button>}
@@ -370,11 +368,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </footer>
       )}
-      {!isStaff && !isCustomerTask && <CustomerFooter settings={dealerConfig} testDriveHref={testDriveHref} />}
+      {!isStaff && !isCustomerTask && <CustomerFooter settings={dealerConfig} testDriveHref={testDriveHref} enquiriesEnabled={publicEnquiriesEnabled} />}
       <div data-home-scroll-spacer aria-hidden="true" className="bg-primary" />
 
-      {!isStaff && !isCustomerTask && <CompareTray />}
-      {!isStaff && !isCustomerTask && <CustomerChat />}
     </div>
   );
 }

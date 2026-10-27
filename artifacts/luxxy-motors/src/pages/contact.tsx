@@ -11,7 +11,7 @@ import { formatPhoneDisplay } from '@/lib/utils';
 import { dealershipLocation } from '@/lib/dealership-location';
 
 export default function Contact() {
-  const { settings, isLoading, isError } = useDealerSettings();
+  const { settings, isLoading, isError, publicEnquiriesEnabled } = useDealerSettings();
   const [copyStatus, setCopyStatus] = useState('');
   const location = dealershipLocation(settings.address);
   const phoneHref = getPhoneHref(settings);
@@ -54,8 +54,8 @@ export default function Contact() {
             {email && <a href={`mailto:${email}`} className="group flex min-h-24 items-center gap-4 py-5" data-testid="contact-email"><Mail className="h-5 w-5 shrink-0 text-accent" aria-hidden="true" /><span className="min-w-0 flex-1"><span className="block text-xs text-muted-foreground">Email us</span><span className="mt-1 block break-all font-semibold group-hover:text-accent">{email}</span></span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" /></a>}
           </div>
           <div className="mt-5 flex flex-wrap items-center gap-3">
-            <Button asChild className="min-h-12"><Link href="/enquire?type=general">Send an enquiry<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>
-            <Button asChild variant="outline" className="min-h-12"><Link href="/enquire?type=viewing">Book a Test Drive<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>
+            {publicEnquiriesEnabled && <Button asChild className="min-h-12"><Link href="/enquire?type=general">Send an enquiry<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>}
+            {settings.testDriveBooking?.enabled && <Button asChild variant="outline" className="min-h-12"><Link href="/enquire?type=viewing">Book a Test Drive<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>}
           </div>
         </section>
 

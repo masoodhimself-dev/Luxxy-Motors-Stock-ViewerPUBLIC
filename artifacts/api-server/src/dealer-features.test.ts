@@ -10,12 +10,12 @@ import { runWithTenant } from './lib/tenant-context';
 process.env.MULTI_TENANT_ENABLED = 'true'; process.env.PLATFORM_ADMIN_HOST = 'admin.example.test'; process.env.PLATFORM_ADMIN_USER_IDS = 'user_admin';
 const tenant = (id = 'feature-a') => ({ dealerId: id, canonicalOrigin: `https://${id}.example.test`, platform: 'autotrader' as const, retailerId: 'fictional', sourceUrl: 'https://www.autotrader.co.uk/fictional' });
 
-test('feature schedules use inclusive server-time boundaries and cannot bypass release restrictions', () => {
+test('core feature schedules use inclusive server-time boundaries and explicit dealer overrides', () => {
   const scheduled = { ...defaultFeatureRule('enabled'), disabledAt: '2030-01-01T12:00:00Z' };
   const at = (time: string) => resolveDealerFeatures({ testDriveBookings: scheduled }, {}, new Date(time)).find(f => f.key === 'testDriveBookings')?.enabled;
   assert.equal(at('2030-01-01T11:59:59Z'), true); assert.equal(at('2030-01-01T12:00:00Z'), false);
-  const explicit = resolveDealerFeatures({ publicEnquiries: defaultFeatureRule('disabled') }, { publicEnquiries: defaultFeatureRule('enabled'), websiteChat: defaultFeatureRule('enabled') });
-  assert.equal(explicit.find(f => f.key === 'publicEnquiries')?.enabled, true); assert.equal(explicit.find(f => f.key === 'websiteChat')?.enabled, false);
+  const explicit = resolveDealerFeatures({ publicEnquiries: defaultFeatureRule('disabled') }, { publicEnquiries: defaultFeatureRule('enabled') });
+  assert.equal(explicit.find(f => f.key === 'publicEnquiries')?.enabled, true); assert.equal(explicit.some(f => ['websiteChat','staffAiDrafts','onlineCardReservations','vehicleComparison','recentHandovers'].includes(f.key)), false);
 });
 
 test('platform controls enforce tenant isolation, audit, mutation gates and queued email pauses', async () => {
@@ -42,15 +42,22 @@ test('platform controls enforce tenant isolation, audit, mutation gates and queu
     assert.equal((await request('/api/platform/features', 'GET', undefined, { host: 'dealer.example.test' })).status, 403);
     assert.equal((await request('/api/platform/features/publicEnquiries', 'PUT', input, { origin: 'https://wrong.example.test' })).status, 403);
     assert.equal((await put('unknown')).status, 400); assert.equal((await put('publicEnquiries', { reason: ' ' })).status, 400); assert.equal((await put('publicEnquiries', { disabledAt: 'not-a-date' })).status, 400);
-    assert.equal((await put('publicEnquiries', { mode: 'inherit' }, null)).status, 400); assert.equal((await put('websiteChat', { mode: 'enabled' })).status, 409); assert.equal((await put('publicEnquiries', { mode: 'enabled', disabledAt: '2020-01-01T00:00:00Z' })).status, 400);
+    assert.equal((await put('publicEnquiries', { mode: 'inherit' }, null)).status, 400); assert.equal((await put('websiteChat', { mode: 'enabled' })).status, 400); assert.equal((await put('publicEnquiries', { mode: 'enabled', disabledAt: '2020-01-01T00:00:00Z' })).status, 400);
     assert.equal((await put('publicEnquiries', {}, null)).status, 200); assert.equal(await dealerFeatureEnabled('publicEnquiries', 'feature-a'), false); assert.equal(await dealerFeatureEnabled('publicEnquiries', 'feature-b'), false);
     assert.equal((await put('publicEnquiries', { mode: 'enabled' })).status, 200); assert.equal(await dealerFeatureEnabled('publicEnquiries', 'feature-a'), true); assert.equal(await dealerFeatureEnabled('publicEnquiries', 'feature-b'), false);
     assert.equal((await put('publicEnquiries')).status, 409); assert.equal((await put('publicEnquiries', { mode: 'inherit', expectedRevision: 1 })).status, 200);
+    // A viewing can carry an embedded trade-in: the nested switch must still apply.
+    await engine.exec("UPDATE dealer_settings SET config=jsonb_set(config,'{partExchange}', '{\"enabled\":false}'::jsonb) WHERE dealer_id='feature-a'");
+    assert.equal((await request('/api/enquiries','POST',{type:'viewing'})).status,200);
+    assert.equal((await request('/api/enquiries','POST',{type:'viewing',partExchange:{registration:'TEST'}})).status,403);
+    await engine.exec("UPDATE dealer_settings SET config=jsonb_set(config,'{partExchange}', '{\"enabled\":true}'::jsonb) WHERE dealer_id='feature-a'");
+    assert.equal((await request('/api/enquiries','POST',{type:'viewing',partExchange:{registration:'TEST'}})).status,200);
+    actions=0;
     const admin = await (await request('/api/platform/dealers/feature-a/features')).json() as any; assert.equal(admin.audit.length, 2); assert.equal(admin.audit[0].actor, 'user_admin'); assert.equal(admin.audit[0].reason, input.reason);
     const publicResponse = await request('/api/features'); const publicText = await publicResponse.text(); assert.equal(publicResponse.headers.get('cache-control'), 'no-store'); assert.ok(!publicText.includes('user_admin')); assert.ok(!publicText.includes(input.reason)); assert.equal(JSON.parse(publicText).features.publicEnquiries, false);
-    for (const key of ['testDriveBookings', 'staffAiDrafts', 'customerEmails', 'testDriveDeclarations', 'partExchange']) assert.equal((await put(key)).status, 200);
-    const blocked: Array<[string, object]> = [['/enquiries', { type: 'general' }], ['/enquiries', { type: 'part_exchange' }], ['/enquiries', { type: 'viewing' }], ['/staff/enquiries', { type: 'viewing' }], ['/viewings/token/reschedule', {}], ['/staff/enquiries/id/appointment', { action: 'reschedule' }], ['/test-drive-bookings/id/decision', { decision: 'confirm' }], ['/staff/enquiries/id/ai-draft', {}], ['/staff/enquiries/id/email', {}], ['/declarations', {}]];
-    for (const [path, body] of blocked) assert.equal((await request(`/api${path}`, 'POST', body)).status, 403, path); assert.equal(actions, 0, 'No disabled action reaches a mutation, AI or provider handler');
+    for (const key of ['testDriveBookings', 'customerEmails', 'testDriveDeclarations', 'partExchange']) assert.equal((await put(key)).status, 200);
+    const blocked: Array<[string, object]> = [['/enquiries', { type: 'general' }], ['/enquiries', { type: 'part_exchange' }], ['/enquiries', { type: 'viewing' }], ['/enquiries', {type:'viewing',partExchange:{registration:'TEST'}}], ['/staff/enquiries', { type: 'viewing' }], ['/viewings/token/reschedule', {}], ['/staff/enquiries/id/appointment', { action: 'reschedule' }], ['/test-drive-bookings/id/decision', { decision: 'confirm' }], ['/staff/enquiries/id/email', {}], ['/declarations', {}]];
+    for (const [path, body] of blocked) assert.equal((await request(`/api${path}`, 'POST', body)).status, 403, path); assert.equal(actions, 0, 'No disabled action reaches a mutation or provider handler');
     const allowed: Array<[string, object]> = [['/staff/enquiries/id/appointment', { action: 'cancel' }], ['/test-drive-bookings/id/decision', { decision: 'decline' }], ['/viewings/token/cancel', {}], ['/staff/enquiries', { type: 'general' }]];
     for (const [path, body] of allowed) assert.equal((await request(`/api${path}`, 'POST', body)).status, 200, path); assert.equal((await request('/api/history')).status, 200);
     let providerCalls = 0; const provider: typeof fetch = async () => { providerCalls++; return Response.json({ id: 'must-not-send' }); };

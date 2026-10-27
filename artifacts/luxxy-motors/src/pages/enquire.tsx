@@ -16,20 +16,16 @@ import { usePageMeta } from '@/hooks/use-page-meta';
 import { enquiryPageMeta } from '@/lib/page-meta';
 import { navigateToHomeTarget } from '@/lib/home-navigation';
 
-const enquiryTypes: EnquiryType[] = ['viewing', 'general', 'delivery', 'warranty', 'part_exchange'];
+const enquiryTypes: EnquiryType[] = ['viewing', 'general', 'part_exchange'];
 const headings: Record<EnquiryType, { eyebrow: string; title: string; description: string }> = {
   viewing: { eyebrow: 'Visit us', title: 'Book a Test Drive', description: 'Choose a date and time to see the car and ask us any questions.' },
   general: { eyebrow: 'Talk to us', title: 'How can we help?', description: 'Tell us what you’d like to know, and we’ll help with your next step.' },
-  delivery: { eyebrow: 'Nationwide delivery', title: 'Arrange delivery', description: 'Tell us your location and the car you are interested in. We’ll confirm delivery options and costs.' },
-  warranty: { eyebrow: 'Added peace of mind', title: 'Warranty enquiries', description: 'Ask us about warranty options for the car you have in mind.' },
   part_exchange: { eyebrow: 'Part exchange', title: 'Part-exchange your car', description: 'Tell us about your car. Choose your next one. Choose how to send your details.' },
 };
 
 const metaHeadings: Record<EnquiryType, string> = {
   viewing: 'Book a Test Drive',
   general: 'Contact us',
-  delivery: 'Ask about delivery',
-  warranty: 'Ask about warranty',
   part_exchange: 'Part-exchange valuation',
 };
 

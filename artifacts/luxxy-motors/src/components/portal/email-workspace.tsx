@@ -1,4 +1,4 @@
-import { ConversationMessage } from './conversation-message';
+import { ConversationMessage } from "./conversation-message";
 import { enquiryGroup, primaryEnquiry } from "@/lib/enquiry-groups";
 import { useEnquirySummaries as useGetEnquiries } from "@/lib/enquiry-summary-query";
 import { useEffect, useState, useRef, useMemo } from "react";
@@ -29,8 +29,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { EmailDraftQueue } from "./email-draft-queue";
 import { EnquiryEmailComposer } from "./enquiry-email-composer";
-import { StockChangeEmailComposer } from './stock-change-email-composer';
-import { SoldVehicleEmailComposer } from './sold-vehicle-email-composer';
+import { SoldVehicleEmailComposer } from "./sold-vehicle-email-composer";
 import { workspaceError } from "./enquiry-workspace-tools";
 import { customerHistoryHref } from "./history-links";
 import "./email-workspace.css";
@@ -158,7 +157,8 @@ export function emailStatusTone(value: string) {
   if (["delivered", "opened", "clicked"].includes(value)) return "success";
   if (["failed", "bounced", "complained", "suppressed"].includes(value))
     return "danger";
-  if (["unknown", "delivery_delayed", "review", "reply_needed"].includes(value)) return "warning";
+  if (["unknown", "delivery_delayed", "review", "reply_needed"].includes(value))
+    return "warning";
   if (value === "prepared") return "violet";
   if (["sent", "sending", "scheduled", "queued"].includes(value)) return "info";
   return "neutral";
@@ -177,9 +177,7 @@ export function EmailWorkspace({
   const locationSearch = useSearch();
   const [, navigate] = useLocation();
   const initial = new URLSearchParams(locationSearch);
-  const stockChangeId = initial.get('stockChangeId');
-  const stockChangeChannel = initial.get('channel') === 'whatsapp' ? 'whatsapp' : 'email';
-  const soldSaleId = initial.get('soldSaleId');
+  const soldSaleId = initial.get("soldSaleId");
   const cache = useQueryClient();
   const [view, setView] = useState<"sent" | "drafts">(
     initial.get("view") === "drafts" || initial.has("draft")
@@ -423,7 +421,7 @@ export function EmailWorkspace({
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = 'sales-document.pdf';
+      link.download = "sales-document.pdf";
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (e) {
@@ -504,9 +502,7 @@ export function EmailWorkspace({
         <div className="email-customer-context">
           <div>
             <strong>{scopedEnquiry.customerName}</strong>
-            <span>
-              {scopedEnquiry.vehicleTitle || "General enquiry"}
-            </span>
+            <span>{scopedEnquiry.vehicleTitle || "General enquiry"}</span>
           </div>
           <Link
             href={`/portal?section=notifications&workView=customers&enquiryId=${encodeURIComponent(scopedEnquiry.id)}`}
@@ -570,8 +566,7 @@ export function EmailWorkspace({
             <option value="">Choose customer / enquiry</option>
             {customers.map((e) => (
               <option key={e.id} value={e.id}>
-                {e.customerName} ·{" "}
-                {e.vehicleTitle ?? "General enquiry"}
+                {e.customerName} · {e.vehicleTitle ?? "General enquiry"}
               </option>
             ))}
           </NativeSelect>
@@ -589,10 +584,8 @@ export function EmailWorkspace({
         </section>
       )}
       {compose && customer && (
-        <StockAwareEmailComposer
-          key={`${customer.id}:${stockChangeId || ''}:${soldSaleId || ''}:${stockChangeChannel}`}
-          taskId={stockChangeId}
-          stockChangeChannel={stockChangeChannel}
+        <ContextEmailComposer
+          key={`${customer.id}:${soldSaleId || ""}`}
           soldSaleId={soldSaleId}
           entry={customer}
           onClose={(result) => {
@@ -600,12 +593,15 @@ export function EmailWorkspace({
             setEntryId("");
             setCompose(false);
             setOffset(0);
-            // A direct stock/sale draft is one composer request, not a mode for
+            // A direct sale draft is one composer request, not a mode for
             // every customer subsequently chosen in this workspace.
             const params = new URLSearchParams(locationSearch);
-            if (['compose', 'draft', 'stockChangeId', 'soldSaleId', 'channel'].some(key => params.has(key))) {
-              for (const key of ['compose', 'draft', 'stockChangeId', 'soldSaleId', 'channel']) params.delete(key);
-              params.set('view', result === 'sent' ? 'sent' : 'drafts');
+            if (
+              ["compose", "draft", "soldSaleId"].some((key) => params.has(key))
+            ) {
+              for (const key of ["compose", "draft", "soldSaleId"])
+                params.delete(key);
+              params.set("view", result === "sent" ? "sent" : "drafts");
               navigate(`/portal?${params.toString()}`, { replace: true });
             }
             void history.refetch();
@@ -637,16 +633,22 @@ export function EmailWorkspace({
           </>
         ) : (
           <>
-            <details className="email-inbox-note"><summary>Email connection details</summary>
+            <details className="email-inbox-note">
+              <summary>Email connection details</summary>
               <Mail size={16} aria-hidden="true" />
               <span>
-                {history.data?.repliesConnected ? "Reply routing is connected. Previous emails still use " : "Replies go to "}
+                {history.data?.repliesConnected
+                  ? "Reply routing is connected. Previous emails still use "
+                  : "Replies go to "}
                 {history.data?.replyTo ? (
                   <strong>{history.data.replyTo}</strong>
                 ) : (
                   "your email inbox"
                 )}
-                . {history.data?.repliesConnected ? "Customer replies to new emails appear in the same conversation and on Home." : "Inbox replies are not connected here yet."}
+                .{" "}
+                {history.data?.repliesConnected
+                  ? "Customer replies to new emails appear in the same conversation and on Home."
+                  : "Inbox replies are not connected here yet."}
               </span>
             </details>
             <div
@@ -795,7 +797,13 @@ export function EmailWorkspace({
                         </span>
                         <div>
                           <h3>{conversation.customer}</h3>
-                          <p>{conversation.recipient === "No email address supplied" ? threadMessages.at(-1)?.recipient || conversation.recipient : conversation.recipient}</p>
+                          <p>
+                            {conversation.recipient ===
+                            "No email address supplied"
+                              ? threadMessages.at(-1)?.recipient ||
+                                conversation.recipient
+                              : conversation.recipient}
+                          </p>
                         </div>
                       </div>
                       <p className="email-thread-car">
@@ -811,7 +819,9 @@ export function EmailWorkspace({
                         )}
                         {conversation.vehicleId && (
                           <Link
-                            href={`/portal?section=inventory&vehicleId=${conversation.vehicleId}`}
+                            href={`/vehicle/${encodeURIComponent(conversation.vehicleId)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
                           >
                             Open car
                           </Link>
@@ -936,7 +946,8 @@ export function EmailWorkspace({
                               ? currentStatus
                               : (message.last_event ?? message.status);
                           const incoming = message.kind === "reply";
-                          const summary = message.kind !== "enquiry" && !incoming;
+                          const summary =
+                            message.kind !== "enquiry" && !incoming;
                           return (
                             <li
                               key={item.key}
@@ -963,16 +974,29 @@ export function EmailWorkspace({
                                 <header>
                                   <span>
                                     <Send size={14} aria-hidden="true" />
-                                    {incoming ? status === "review" ? "Incoming email — check sender" : message.customer_name : "Your dealership"}
+                                    {incoming
+                                      ? status === "review"
+                                        ? "Incoming email — check sender"
+                                        : message.customer_name
+                                      : "Your dealership"}
                                   </span>
                                   <small>
-                                    {incoming ? "Customer email reply" : summary
-                                      ? "Email record summary"
-                                      : "Email to customer"}
+                                    {incoming
+                                      ? "Customer email reply"
+                                      : summary
+                                        ? "Email record summary"
+                                        : "Email to customer"}
                                   </small>
                                 </header>
                                 <h4>{message.subject}</h4>
-                                {incoming && status === "review" && <p role="status" className="email-note">This reply needs checking before you treat it as a customer message. Confirm the sender and details. No booking or sale has been changed.</p>}
+                                {incoming && status === "review" && (
+                                  <p role="status" className="email-note">
+                                    This reply needs checking before you treat
+                                    it as a customer message. Confirm the sender
+                                    and details. No booking or sale has been
+                                    changed.
+                                  </p>
+                                )}
                                 {body ? (
                                   <ConversationMessage text={body} />
                                 ) : active && detail.isLoading ? (
@@ -994,7 +1018,11 @@ export function EmailWorkspace({
                                     <Paperclip size={14} aria-hidden="true" />
                                     {message.attachment_count} attachment
                                     {message.attachment_count === 1 ? "" : "s"}
-                                    {incoming ? " · Stored in Resend; attachment downloads are not available here yet" : message.kind === "sale" ? " · Sales document" : ""}
+                                    {incoming
+                                      ? " · Stored in Resend; attachment downloads are not available here yet"
+                                      : message.kind === "sale"
+                                        ? " · Sales document"
+                                        : ""}
                                   </p>
                                 )}
                                 <footer>
@@ -1029,7 +1057,13 @@ export function EmailWorkspace({
                                     ) : (
                                       <Clock3 size={14} aria-hidden="true" />
                                     )}
-                                    {incoming ? status === "handled" ? "Handled" : status === "review" ? "Needs review" : "Reply needed" : emailStatusLabel(status)}
+                                    {incoming
+                                      ? status === "handled"
+                                        ? "Handled"
+                                        : status === "review"
+                                          ? "Needs review"
+                                          : "Reply needed"
+                                      : emailStatusLabel(status)}
                                   </span>
                                 </footer>
                                 <Button
@@ -1051,21 +1085,57 @@ export function EmailWorkspace({
                                     <dl>
                                       <div>
                                         <dt>{incoming ? "Customer" : "To"}</dt>
-                                        <dd>{incoming && detail.data?.message.sender ? detail.data.message.sender : message.recipient}</dd>
+                                        <dd>
+                                          {incoming &&
+                                          detail.data?.message.sender
+                                            ? detail.data.message.sender
+                                            : message.recipient}
+                                        </dd>
                                       </div>
                                     </dl>
                                     <Button
                                       variant="outline"
-                                      disabled={busy || (!incoming && !message.provider_id)}
-                                      onClick={() => void (async()=>{
-                                        if(!incoming){await checkStatus();return;}
-                                        try{setBusy(true);await customFetch(`/api/staff/email/replies/${encodeURIComponent(message.key.slice(6))}/handled`,{method:'POST'});await cache.invalidateQueries({queryKey:['staff-notifications']});await cache.invalidateQueries({queryKey:['reply-attention']});await history.refetch();await thread.refetch();setSelected(null);}catch(cause){setError(workspaceError(cause));}finally{setBusy(false);}
-                                      })()}
+                                      disabled={
+                                        busy ||
+                                        (!incoming && !message.provider_id)
+                                      }
+                                      onClick={() =>
+                                        void (async () => {
+                                          if (!incoming) {
+                                            await checkStatus();
+                                            return;
+                                          }
+                                          try {
+                                            setBusy(true);
+                                            await customFetch(
+                                              `/api/staff/email/replies/${encodeURIComponent(message.key.slice(6))}/handled`,
+                                              { method: "POST" },
+                                            );
+                                            await cache.invalidateQueries({
+                                              queryKey: ["staff-notifications"],
+                                            });
+                                            await cache.invalidateQueries({
+                                              queryKey: ["reply-attention"],
+                                            });
+                                            await history.refetch();
+                                            await thread.refetch();
+                                            setSelected(null);
+                                          } catch (cause) {
+                                            setError(workspaceError(cause));
+                                          } finally {
+                                            setBusy(false);
+                                          }
+                                        })()
+                                      }
                                     >
                                       <RefreshCw size={15} aria-hidden="true" />
                                       {busy
-                                        ? incoming ? "Saving…" : "Checking…"
-                                        : incoming ? "Mark handled" : "Check delivery status"}
+                                        ? incoming
+                                          ? "Saving…"
+                                          : "Checking…"
+                                        : incoming
+                                          ? "Mark handled"
+                                          : "Check delivery status"}
                                     </Button>
                                     {selected?.checked_at && (
                                       <p className="email-note">
@@ -1100,7 +1170,9 @@ export function EmailWorkspace({
                                                 aria-hidden="true"
                                               />
                                               {a.filename} ·{" "}
-                                              {incoming ? "Stored in Resend" : `${Math.ceil(a.byteSize / 1024)} KB`}
+                                              {incoming
+                                                ? "Stored in Resend"
+                                                : `${Math.ceil(a.byteSize / 1024)} KB`}
                                             </p>
                                           ),
                                         )}
@@ -1156,6 +1228,16 @@ export function EmailWorkspace({
   );
 }
 
-function StockAwareEmailComposer({ taskId, soldSaleId, stockChangeChannel, ...props }: Parameters<typeof EnquiryEmailComposer>[0] & { taskId: string | null; soldSaleId: string | null; stockChangeChannel: 'email' | 'whatsapp'; entry: import('@workspace/api-client-react').Enquiry }) {
-  return soldSaleId ? <SoldVehicleEmailComposer {...props} saleId={soldSaleId} /> : taskId ? <StockChangeEmailComposer {...props} taskId={taskId} channel={stockChangeChannel} /> : <EnquiryEmailComposer {...props} />;
+function ContextEmailComposer({
+  soldSaleId,
+  ...props
+}: Parameters<typeof EnquiryEmailComposer>[0] & {
+  soldSaleId: string | null;
+  entry: import("@workspace/api-client-react").Enquiry;
+}) {
+  return soldSaleId ? (
+    <SoldVehicleEmailComposer {...props} saleId={soldSaleId} />
+  ) : (
+    <EnquiryEmailComposer {...props} />
+  );
 }

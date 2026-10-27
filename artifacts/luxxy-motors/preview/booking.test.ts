@@ -283,3 +283,31 @@ test('local history summaries omit timelines and selected conversation pages ret
   assert.equal(ids.length, 51); assert.equal(new Set(ids).size, 51);
   await assert.rejects(call(state, settings, 'GET', `/api/staff/enquiries/${entry.id}/conversations?cursor=bad`), /history page is invalid/i);
 });
+
+
+test('a missing source car rejects new contact and booking while preserving existing appointments until reappearance',async()=>{
+ const car={...previewStock.cars[0],id:'00000000-0000-4000-8000-000000009994',inventoryStatus:'available',sourceStatus:'present'};
+ previewStock.cars.push(car);
+ try {
+  const config=policy({confirmationMode:'approval'}),settings={...previewSettings,testDriveBooking:config};
+  let day=addDays(dateStringInTimezone(new Date()),2);while(!getSlotsForDate(day,config).length)day=addDays(day,1);
+  const input={vehicleId:car.id,type:'viewing',customerName:'Fictional Missing Car',email:'fictional@example.test',phone:'07700900123',preferredContact:'email',message:'A test drive please',appointmentAt:getSlotsForDate(day,config)[0].startAt.toISOString()};
+  const state:BookingPreviewState={reservations:[]};
+  const created=(await call(state,settings,'POST','/api/enquiries',input)).data;
+  const retained=structuredClone(state.enquiries);car.sourceStatus='missing';
+  await assert.rejects(call(state,settings,'POST','/api/enquiries',input),/no longer available/);
+  await assert.rejects(call(state,settings,'POST','/api/enquiries',{...input,type:'general',appointmentAt:null}),/no longer available/);
+  await assert.rejects(call(state,settings,'POST',`/api/test-drive-bookings/${created.id}/decision`,{decision:'confirm',expectedRevision:0}),/car is no longer available/);
+  assert.deepEqual(state.enquiries,retained,'first absence never cancels or rewrites an existing appointment');
+  car.sourceStatus='present';
+  assert.equal((await call(state,settings,'POST','/api/enquiries',{...input,type:'general',appointmentAt:null})).status,201);
+ }finally{previewStock.cars.splice(previewStock.cars.indexOf(car),1);}
+});
+
+test('local preview cannot create removed service enquiries or include a dealer-disabled part exchange',async()=>{
+ const state:BookingPreviewState={reservations:[]},settings={...previewSettings,partExchange:{...previewSettings.partExchange,enabled:false}};
+ const input={vehicleId:null,type:'general',customerName:'Fictional Service Question',email:'fictional@example.test',phone:'07700900123',preferredContact:'email',message:'Please call',appointmentAt:null};
+ for(const type of ['delivery','warranty'])for(const path of ['/api/enquiries','/api/staff/enquiries'])await assert.rejects(call(state,settings,'POST',path,{...input,type}),/Choose an enquiry/);
+ await assert.rejects(call(state,settings,'POST','/api/enquiries',{...input,partExchange:{registration:'AB12CDE',mileage:20000,condition:'good'}}),/Part exchange is not available/);
+ assert.deepEqual(state.enquiries,[]);
+});

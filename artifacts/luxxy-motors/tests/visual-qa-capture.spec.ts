@@ -11,7 +11,7 @@ for (const [name, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 84
     await page.setViewportSize({ width, height });
     const directory = resolve(
       "../../docs/screenshots",
-      ["template-refinement", "homepage-polish", "brand-hero", "booking-polish", "introduction-polish", "design-check-fixes"].includes(process.env.LUXXY_QA_SCREENSHOT_SET || "")
+      ["homepage-polish", "brand-hero", "booking-polish", "introduction-polish", "design-check-fixes"].includes(process.env.LUXXY_QA_SCREENSHOT_SET || "")
         ? process.env.LUXXY_QA_SCREENSHOT_SET!
         : "ui-qa",
     );
@@ -95,10 +95,8 @@ for (const [name, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 84
       return;
     }
     await page.getByTestId('button-save-preview-1').click();
-    await page.getByTestId('button-compare-preview-1').click();
-    await page.getByTestId('button-compare-preview-2').click();
     for (const [screen, path] of [
-      ['vehicle', '/vehicle/preview-1'], ['saved', '/saved'], ['compare', '/compare'],
+      ['vehicle', '/vehicle/preview-1'], ['saved', '/saved'],
       ['booking', '/enquire?type=viewing&vehicleId=preview-1'], ['part-exchange', '/enquire?type=part_exchange'],
       ['customer-details', '/customer-details/sample'], ['viewing', '/viewing/sample'], ['signing', '/sign/sample'],
       ['staff-desk', '/portal'], ['lead', '/portal/leads/sample-lead-1'],
@@ -119,13 +117,6 @@ for (const [name, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 84
     await page.getByTestId('tab-settings').click();
     await expect(page.getByTestId('input-identity-name')).toHaveValue('Luxxy Motors');
     await capture('settings');
-    if (process.env.LUXXY_QA_SCREENSHOT_SET === "template-refinement") {
-      await page.getByTestId("button-settings-nav-presentation").click();
-      await page.locator("#settings-presentation").screenshot({
-        path: resolve(directory, `onboarding-${name}.png`),
-        animations: 'disabled',
-      });
-    }
 
   });
 }

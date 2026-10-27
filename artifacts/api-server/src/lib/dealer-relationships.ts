@@ -1,5 +1,5 @@
 import { buildDealerRelationships, vehicleRegistrationLabel, type DealerRelationships, type RelationshipEnquirySource, type RelationshipEnquiryEventSource, type RelationshipReservationSource, type RelationshipReservationEventSource, type RelationshipSaleSource, type RelationshipVehicleSource } from '@workspace/vehicle-meta';
-import { readDealerChatRecords } from './dealer-chat-store';
+import { readDealerChatRecords } from './historical-chat-history';
 
 export type RelationshipReadClient = { query: (sql: string, parameters: string[]) => Promise<{ rows: Record<string, any>[] }> };
 

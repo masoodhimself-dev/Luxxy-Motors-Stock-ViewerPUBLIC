@@ -12,7 +12,7 @@ test.beforeEach(async ({ page, request }) => {
   await page.route('**/api/dealer-settings', route => route.fulfill({
     json: {
       ...settings,
-      presentation: { ...settings.presentation, featuredEnabled: true, comparisonEnabled: true },
+      presentation: { ...settings.presentation, featuredEnabled: true },
     },
   }));
 });
@@ -78,28 +78,5 @@ for (const width of [390, 820, 1440]) {
       await capture(page, 'mixed-stock');
     });
 
-    test('failed comparison photos show a readable fallback without hiding vehicle details', async ({ page, request, context }) => {
-      const stock = await baseStock(request);
-      const cars = [0, 1].map(index => ({
-        ...fixtureCar(stock.cars[0], `Compare audit ${index}`, 'available'),
-        heroImage: `http://127.0.0.1:4175/__audit_missing_${index}.jpg`,
-        thumbnail: `http://127.0.0.1:4175/__audit_missing_${index}.jpg`,
-        images: [{ url: `http://127.0.0.1:4175/__audit_missing_${index}.jpg`, caption: null }],
-      }));
-      await mockStock(page, stock, cars);
-      await page.route('**/__audit_missing_*.jpg', route => route.fulfill({ status: 404, body: '' }));
-      await context.addInitScript(ids => localStorage.setItem('luxxy.compare-cars.v1', JSON.stringify(ids)), cars.map(car => car.id));
-      await page.goto('/compare');
-      await expect(page.getByTestId('compare-table')).toBeVisible();
-      const fallbacks = page.getByText('Photograph unavailable', { exact: true });
-      await expect(fallbacks).toHaveCount(2);
-      for (const fallback of await fallbacks.all()) await expect(fallback).toBeVisible();
-      await expect(page.locator('#main-content img')).toHaveCount(0);
-      for (const car of cars) {
-        await expect(page.getByTestId(`compare-price-${car.id}`)).toBeVisible();
-        await expect(page.getByTestId(`button-compare-remove-${car.id}`)).toBeVisible();
-      }
-      await capture(page, 'comparison-photo-fallback');
-    });
   });
 }

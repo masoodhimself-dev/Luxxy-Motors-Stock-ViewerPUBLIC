@@ -23,7 +23,7 @@ import {
   vehicleDisplayTitle,
   vehicleRegistration,
 } from '@/lib/utils';
-import { CompareCarButton, SaveCarButton } from '@/components/saved-car-controls';
+import { SaveCarButton } from '@/components/saved-car-controls';
 import { ArrowRight, Camera, ChevronLeft, ChevronRight } from '@/components/icons';
 import { trackEvent } from '@/lib/analytics';
 
@@ -286,11 +286,6 @@ export function CarCard({
                 View vehicle
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <CompareCarButton
-                car={car}
-                variant="compact"
-                className="min-h-11 px-2 text-xs font-medium text-muted-foreground"
-              />
             </div>}
           </>
         )}

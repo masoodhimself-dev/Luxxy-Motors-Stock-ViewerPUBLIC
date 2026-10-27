@@ -64,6 +64,6 @@ test('real HTTP delete isolates dealers, checks roles/revision, and leaves other
     const current=create();await insert(current);await pool.query('UPDATE sale_workspace SET revision=2 WHERE id=$1',[current.id]);assert.equal((await call(current.id,{confirm:true,expectedRevision:1})).status,409);
     const store=new PostgresSaleWorkspaceStore('delete-a',async()=>({branding:context.branding}),pool);
     assert.equal((await store.get(real.id)).emptyDraftDeletable,false);
-    assert.ok((await store.list()).every(sale=>!('requests' in sale)&&!('documentArchives' in sale)));
+    assert.ok((await store.list()).sales.every(sale=>!('requests' in sale)&&!('documentArchives' in sale)));
   } finally {await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));await engine.close();}
 });

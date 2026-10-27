@@ -25,7 +25,7 @@ const enquiry = {
 };
 vi.mock("@workspace/api-client-react", () => ({
   customFetch: (...args: any[]) => state.fetch(...args),
-  getGetDealerSettingsQueryKey: () => ['/api/dealer-settings'],
+  getGetDealerSettingsQueryKey: () => ["/api/dealer-settings"],
   getGetEnquiriesQueryKey: () => ["/api/enquiries"],
   useGetEnquiries: () => ({ data: state.enquiries }),
 }));
@@ -34,7 +34,11 @@ vi.mock("wouter", () => ({
   useLocation: () => ["/portal", state.navigate],
   Link: ({ href, children }: any) => <a href={href}>{children}</a>,
 }));
-vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({ settings: { identity: { name: 'Example Motors' } } }) }));
+vi.mock("@/lib/dealer-settings-context", () => ({
+  useDealerSettings: () => ({
+    settings: { identity: { name: "Example Motors" } },
+  }),
+}));
 vi.mock("./enquiry-workspace-tools", () => ({
   workspaceError: (e: any) => e.data?.error || e.message,
   useRefreshDesk: () => vi.fn(),
@@ -71,8 +75,13 @@ beforeEach(() => {
   state.fetch
     .mockReset()
     .mockImplementation(async (url: string, options: any) => {
-      if (url === '/api/staff/phone-sharing-settings') return { revision: 0, enabled: true };
-      if (url === '/api/features') return { features: { customerEmails: true, staffAiDrafts: true }, evaluatedAt: '2026-10-18T10:00:00Z' };
+      if (url === "/api/staff/phone-sharing-settings")
+        return { revision: 0, enabled: true };
+      if (url === "/api/features")
+        return {
+          features: { customerEmails: true, staffAiDrafts: true },
+          evaluatedAt: "2026-10-18T10:00:00Z",
+        };
       if (url.endsWith("/email-draft")) return { version: 1 };
       if (url.startsWith("/api/staff/email-drafts"))
         return { drafts: [], hasMore: false };
@@ -126,8 +135,14 @@ beforeEach(() => {
     });
 });
 function mount(embedded = false) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const content = () => <QueryClientProvider client={client}><EmailWorkspace embedded={embedded} /></QueryClientProvider>;
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const content = () => (
+    <QueryClientProvider client={client}>
+      <EmailWorkspace embedded={embedded} />
+    </QueryClientProvider>
+  );
   const result = render(content());
   return { ...result, rerenderWorkspace: () => result.rerender(content()) };
 }
@@ -146,7 +161,7 @@ it("links sent messages to their customer, enquiry and car without resending", a
   );
   expect(screen.getByRole("link", { name: "Open car" })).toHaveAttribute(
     "href",
-    "/portal?section=inventory&vehicleId=car-1",
+    "/vehicle/car-1",
   );
   fireEvent.click(
     screen.getByRole("button", { name: "Check delivery status" }),
@@ -768,45 +783,56 @@ it("keeps normal delivery progress distinct from uncertain or failed delivery", 
   expect(emailStatusTone("canceled")).toBe("neutral");
   expect(emailStatusTone("not-a-known-event")).toBe("neutral");
 });
-it('shows incoming customer replies as customer bubbles and only resolves them on staff action', async()=>{
-  const incoming={...message,key:'reply:reply-one',kind:'reply',status:'reply_needed',subject:'Re: Your Ford Focus',message:'Can I visit tomorrow?',attachment_count:0,provider_id:null};
-  state.fetch.mockImplementation(async(url:string,options:any)=>{
-    if(url.startsWith('/api/staff/email/message/'))return{message:{message:incoming.message,sender:'alex@example.test'}};
-    if(url.includes('/handled'))return{handled:true};
-    if(url.startsWith('/api/staff/email?'))return{messages:[incoming,message],hasMore:false,repliesConnected:true};
-    if(url==='/api/enquiries')return state.enquiries;
-    return{drafts:[],hasMore:false};
+it("shows incoming customer replies as customer bubbles and only resolves them on staff action", async () => {
+  const incoming = {
+    ...message,
+    key: "reply:reply-one",
+    kind: "reply",
+    status: "reply_needed",
+    subject: "Re: Your Ford Focus",
+    message: "Can I visit tomorrow?",
+    attachment_count: 0,
+    provider_id: null,
+  };
+  state.fetch.mockImplementation(async (url: string, options: any) => {
+    if (url.startsWith("/api/staff/email/message/"))
+      return {
+        message: { message: incoming.message, sender: "alex@example.test" },
+      };
+    if (url.includes("/handled")) return { handled: true };
+    if (url.startsWith("/api/staff/email?"))
+      return {
+        messages: [incoming, message],
+        hasMore: false,
+        repliesConnected: true,
+      };
+    if (url === "/api/enquiries") return state.enquiries;
+    return { drafts: [], hasMore: false };
   });
-  mount();fireEvent.click(await screen.findByRole('button',{name:/Re: Your Ford Focus/}));
-  await screen.findByText('Can I visit tomorrow?');
-  expect(screen.getByRole('article',{name:'Re: Your Ford Focus, email from customer'}).closest('li')).toHaveClass('is-customer');
-  expect(state.fetch.mock.calls.some(([url])=>url.includes('/handled'))).toBe(false);
-  await screen.findByRole('button',{name:'Mark handled'});fireEvent.click(screen.getByRole('button',{name:'Mark handled'}));
-  await waitFor(()=>expect(state.fetch).toHaveBeenCalledWith('/api/staff/email/replies/reply-one/handled',{method:'POST'}));
-  expect(state.fetch.mock.calls.some(([url])=>url.endsWith('/status'))).toBe(false);
-});
-
-
-it('clears a closed price-update route so the next customer gets an ordinary email composer', async () => {
-  state.search = 'section=notifications&workView=email&compose=enquiry-1&stockChangeId=price-task&channel=whatsapp&customer=Alex';
-  state.enquiries = [{ ...enquiry, vehicleId: 'car-1' }, { ...enquiry, id: 'enquiry-2', customerName: 'Jo', email: 'jo@example.test', vehicleId: 'car-2' }];
-  const original = state.fetch.getMockImplementation()!;
-  state.fetch.mockImplementation(async (url: string, options: any) => url === '/api/staff/stock-change-tasks/price-task' ? {
-    id: 'price-task', kind: 'price_drop', status: 'open', revision: 1, vehicleId: 'car-1', vehicleTitle: 'Ford Focus',
-    publiclyVisible: true, availableForPriceUpdate: true, previousPrice: 8995, currentPrice: 8495,
-    affectedCustomers: [{ enquiryId: 'enquiry-1', email: enquiry.email, phone: '07700900123' }],
-  } : original(url, options));
-  const workspace = mount();
-  expect(await screen.findByRole('heading', { name: 'Prepare customer message' })).toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-  expect(state.navigate).toHaveBeenCalledWith('/portal?section=notifications&workView=email&customer=Alex&view=drafts', { replace: true });
-  state.search = new URL(state.navigate.mock.calls[0][0], 'https://dealer.example').search.slice(1);
-  workspace.rerenderWorkspace();
-  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-  fireEvent.click(screen.getByRole('button', { name: 'New email' }));
-  fireEvent.change(screen.getByRole('combobox', { name: 'Customer enquiry' }), { target: { value: 'enquiry-2' } });
-  expect(await screen.findByRole('heading', { name: 'Prepare customer email' })).toBeVisible();
-  expect(screen.queryByText(/Linked to a price update/)).not.toBeInTheDocument();
-  expect(state.fetch.mock.calls.filter(([url]) => url === '/api/staff/stock-change-tasks/price-task')).toHaveLength(1);
-  expect(state.fetch.mock.calls.some(([url, options]) => /\/email$/.test(url) && options?.method === 'POST')).toBe(false);
+  mount();
+  fireEvent.click(
+    await screen.findByRole("button", { name: /Re: Your Ford Focus/ }),
+  );
+  await screen.findByText("Can I visit tomorrow?");
+  expect(
+    screen
+      .getByRole("article", {
+        name: "Re: Your Ford Focus, email from customer",
+      })
+      .closest("li"),
+  ).toHaveClass("is-customer");
+  expect(state.fetch.mock.calls.some(([url]) => url.includes("/handled"))).toBe(
+    false,
+  );
+  await screen.findByRole("button", { name: "Mark handled" });
+  fireEvent.click(screen.getByRole("button", { name: "Mark handled" }));
+  await waitFor(() =>
+    expect(state.fetch).toHaveBeenCalledWith(
+      "/api/staff/email/replies/reply-one/handled",
+      { method: "POST" },
+    ),
+  );
+  expect(state.fetch.mock.calls.some(([url]) => url.endsWith("/status"))).toBe(
+    false,
+  );
 });

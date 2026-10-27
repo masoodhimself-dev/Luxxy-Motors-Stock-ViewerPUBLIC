@@ -16,7 +16,7 @@ export async function ensureBookingVehicleAvailable(tx: BookingTransaction, deal
   const { connection } = await dealerIntegrationsStore.readStockConnection(tx);
   const configuredThreshold = Number(process.env.STOCK_MISSING_HIDE_THRESHOLD);
   const missingHideThreshold = Number.isFinite(configuredThreshold) ? configuredThreshold : 2;
-  if (vehicle.inventoryStatus !== "available" || vehicle.archivedAt != null || vehicle.source !== connection.platform || vehicle.missingCount >= missingHideThreshold || (vehicle.priceReviewRequired && vehicle.sourcePrice == null && vehicle.websitePriceOverride == null)) throw new BookingConflict(unavailable);
+  if (vehicle.sourceStatus !== "live" || vehicle.inventoryStatus !== "available" || vehicle.archivedAt != null || vehicle.source !== connection.platform || vehicle.missingCount >= missingHideThreshold || (vehicle.priceReviewRequired && vehicle.sourcePrice == null && vehicle.websitePriceOverride == null)) throw new BookingConflict(unavailable);
 }
 
 export async function getBookingPolicy(dealerId: string) {

@@ -140,7 +140,7 @@ export async function acceptReplyEvent(
   if (routes.length !== 1) {
     if (routes.length === 0) {
       const { acceptVehicleWatchReply } =
-        await import("./vehicle-watch-replies");
+        await import("./historical-watch-replies");
       await acceptVehicleWatchReply(
         parsed.data.data.email_id,
         addresses,
@@ -215,7 +215,7 @@ export async function processCustomerReplies(
 ) {
   if (process.env.EMAIL_REPLIES_ENABLED !== "true") return;
   const { processVehicleWatchReplies } =
-    await import("./vehicle-watch-replies");
+    await import("./historical-watch-replies");
   await processVehicleWatchReplies(transport);
   await db.execute(
     sql`UPDATE enquiry_email_replies SET status='review',error_code='retrieval_failed',lease_until=NULL WHERE status='processing' AND attempts>=8 AND lease_until<=now()`,

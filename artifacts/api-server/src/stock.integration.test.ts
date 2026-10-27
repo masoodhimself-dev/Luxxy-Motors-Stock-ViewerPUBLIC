@@ -552,10 +552,10 @@ test("handles suspicious prices, missing/reappearance, and sold inventory safely
   assert.ok(!publicStock.cars.some((item: { advertId: string }) => item.advertId === car(3).advertId));
   assert.equal((await request(`/vehicles/${firstId}`)).status, 404);
 
-  // One miss is retained; the second hides it; a reappearance clears the counter.
+  // A complete-feed miss retains the record but immediately removes public availability. Reappearance restores it.
   await importStock(snapshot("missing-once", [car(1, { price: 99 }), car(3, { price: 99 })]));
   assert.equal((await vehicle(car(2).advertId)).missingCount, 1);
-  assert.equal(GetStockResponse.parse(await request("/stock").then((response) => response.json())).cars.some((item) => item.advertId === car(2).advertId), true);
+  assert.equal(GetStockResponse.parse(await request("/stock").then((response) => response.json())).cars.some((item) => item.advertId === car(2).advertId), false);
   await importStock(snapshot("missing-twice", [car(1, { price: 99 }), car(3, { price: 99 })]));
   assert.equal((await vehicle(car(2).advertId)).missingCount, 2);
   assert.equal(GetStockResponse.parse(await request("/stock").then((response) => response.json())).cars.some((item) => item.advertId === car(2).advertId), false);

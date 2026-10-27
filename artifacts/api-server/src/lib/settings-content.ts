@@ -27,26 +27,6 @@ export function preservePresentation<
   };
 }
 
-type ReservationSettings = { enabled: boolean; depositPence: number; terms: string };
-
-/** Older settings clients must not silently switch off or reset reservations. */
-export function preserveOnlineReservation<T extends { onlineReservation?: ReservationSettings }>(incoming: T, previous: unknown): T {
-  if (incoming.onlineReservation !== undefined) return incoming;
-  const reservation = previous && typeof previous === "object" && "onlineReservation" in previous
-    ? previous.onlineReservation
-    : undefined;
-  return reservation && typeof reservation === "object" && !Array.isArray(reservation)
-    ? { ...incoming, onlineReservation: reservation as ReservationSettings }
-    : incoming;
-}
-
-export function reservationSettingsError(settings?: ReservationSettings): string | null {
-  if (settings?.enabled && !settings.terms.trim()) {
-    return "Add your dealership's reservation terms before enabling Reserve car online.";
-  }
-  return null;
-}
-
 /** Merge brochure options so older clients do not erase a dealer's PDF design.
  * The explicit useWebsiteColour flag changes inheritance without deleting the retained custom accent.
  * Omitting the flag preserves the existing mode, including when an older client edits another field. */

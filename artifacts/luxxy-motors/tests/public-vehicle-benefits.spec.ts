@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 test.skip(process.env.LUXXY_LOCAL_PREVIEW !== '1', 'Isolated fictional public stock only');
 test.use({ reducedMotion: 'reduce', serviceWorkers: 'block' });
 
-for (const width of [390, 820, 1440]) test(`public vehicle benefits, explanations and equipment at ${width}px`, async ({ page, request }) => {
+for (const width of [390, 820, 1440]) test(`public vehicle facts, ownership explanations and equipment at ${width}px`, async ({ page, request }) => {
   await page.setViewportSize({ width, height: 1000 });
   const baseline = await (await request.get('/api/stock')).json();
   const photo = 'https://images.example.com/benefit-photo.jpg';
@@ -27,24 +27,22 @@ for (const width of [390, 820, 1440]) test(`public vehicle benefits, explanation
   await page.goto('/stock');
   const card = page.getByTestId(`card-vehicle-${car.id}`);
   const highlights = card.getByRole('list', { name: 'Vehicle highlights' });
-  await expect(highlights.getByRole('listitem')).toHaveCount(4);
+  await expect(highlights.getByRole('listitem')).toHaveCount(3);
   await expect(highlights).toContainText('ULEZ compliant');
-  await expect(highlights).toContainText('24,000 miles · low mileage');
-  await expect(highlights).toContainText('£20 road tax per year');
-  await expect(highlights).toContainText('Insurance group 11E');
-  await expect(highlights.locator('svg')).toHaveCount(0);
+  await expect(highlights).toContainText('2 owners');
+  await expect(highlights).toContainText('Full service history');
+  await expect(highlights).not.toContainText('low mileage');
+  await expect(highlights).not.toContainText('road tax');
   await expect(page.getByTestId(`card-vehicle-${unknown.id}`).getByRole('list', { name: 'Vehicle highlights' })).toHaveCount(0);
-  await highlights.getByRole('button', { name: 'Insurance group 11E', exact: true }).click();
-  await expect(page.getByRole('tooltip')).toContainText(/your premium depends on your circumstances/i);
+  await highlights.getByRole('button', { name: '2 owners', exact: true }).click();
+  await expect(page.getByRole('tooltip')).toContainText('ownership count supplied with this vehicle');
   await page.keyboard.press('Escape');
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   await card.screenshot({ path: `/tmp/public-benefit-card-${width}.png` });
 
   await page.goto(`/vehicle/${car.id}`);
   const summary = page.locator('.vehicle-summary');
-  await expect(summary.getByRole('list', { name: 'Vehicle highlights' }).getByRole('listitem')).toHaveCount(6);
-  await expect(summary.getByRole('link', { name: 'Check with TfL' })).toHaveAttribute('href', 'https://tfl.gov.uk/modes/driving/ultra-low-emission-zone/ulez-vrm-checker');
-  await expect(summary).toContainText('Check this car’s registration before driving in the zone.');
+  await expect(summary.getByRole('list', { name: 'Vehicle highlights' }).getByRole('listitem')).toHaveCount(3);
   await expect(summary).not.toContainText('below average');
   const equipment = page.locator('.vehicle-features-section');
   const shown = equipment.locator('> .vehicle-equipment-list');
@@ -56,7 +54,7 @@ for (const width of [390, 820, 1440]) test(`public vehicle benefits, explanation
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   await summary.screenshot({ path: `/tmp/public-benefit-detail-${width}.png` });
   await page.goto('/saved?cars=' + encodeURIComponent(car.id));
-  await expect(page.getByTestId(`compact-vehicle-${car.id}`).getByRole('list', { name: 'Vehicle highlights' })).toContainText('Insurance group 11E');
+  await expect(page.getByTestId(`compact-vehicle-${car.id}`).getByRole('list', { name: 'Vehicle highlights' })).toContainText('2 owners');
   await expect(page.locator('.saved-car-list details')).toHaveCount(0);
   await page.getByRole('link', {name:'View vehicle',exact:true}).click();
   await expect(page.locator('.vehicle-features-section')).toContainText('Apple CarPlay');

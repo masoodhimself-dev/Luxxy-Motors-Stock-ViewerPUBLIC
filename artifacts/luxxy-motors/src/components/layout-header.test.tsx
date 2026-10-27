@@ -1,22 +1,22 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { dealerConfig } from '@/config/dealer';
 import { Layout } from './layout';
 import { hslColourToHex } from '@/lib/brand-colour';
 
-const state = vi.hoisted(() => ({ path: '/', settings: {} as typeof dealerConfig }));
+const state = vi.hoisted(() => ({ path: '/', settings: {} as typeof dealerConfig, enquiriesEnabled: true, navigate: vi.fn() }));
 vi.mock('wouter', () => ({
-  useLocation: () => [state.path, vi.fn()], useRoute: () => [false, null],
+  useLocation: () => [state.path, state.navigate], useRoute: () => [false, null],
   Link: ({ children, href, ...props }: any) => <a href={href} {...props}>{children}</a>,
 }));
-vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({ settings: state.settings }) }));
+vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({ settings: state.settings, publicEnquiriesEnabled: state.enquiriesEnabled }) }));
 vi.mock('@/lib/saved-cars-context', () => ({ useSavedCars: () => ({ savedCount: 0 }) }));
 vi.mock('@/components/customer-footer', () => ({ CustomerFooter: () => null }));
-vi.mock('@/components/customer-chat', () => ({ CustomerChat: () => null }));
-vi.mock('@/components/compare-tray', () => ({ CompareTray: () => null }));
 
 beforeEach(() => {
   state.path = '/';
+  state.enquiriesEnabled = true;
+  state.navigate.mockReset();
   state.settings = { ...dealerConfig,
     identity: { ...dealerConfig.identity, name: 'Maxi Autos', logoText: 'Maxi Autos', logoAsset: '/header-logo.png' },
     presentation: { ...dealerConfig.presentation, footerLogoUrl: '/footer-logo.png' },
@@ -28,32 +28,6 @@ afterEach(() => vi.unstubAllGlobals());
 const logo = () => screen.getByRole('img', { name: 'Maxi Autos' });
 
 describe('header artwork follows the background', () => {
-  it.each(['classic', 'premium', 'focused'] as const)('opts into %s only on the customer showroom, retaining dealer colours and artwork', websiteTemplate => {
-    state.settings.presentation = { ...state.settings.presentation, websiteTemplate };
-    const { container, rerender } = render(<Layout><p>Showroom</p></Layout>);
-    expect(container.firstElementChild).toHaveAttribute('data-website-template', websiteTemplate);
-    expect(logo()).toHaveAttribute('src', '/header-logo.png');
-    const saved = JSON.stringify(state.settings);
-    state.path = '/portal';
-    rerender(<Layout><p>Staff content</p></Layout>);
-    expect(container.firstElementChild).not.toHaveAttribute('data-website-template');
-    expect(container.querySelector('[data-site-header]')).toBeNull();
-    expect(JSON.stringify(state.settings)).toBe(saved);
-  });
-
-  it.each([undefined, 'existing', 'unrecognised'])('preserves the current site when the template is %s', websiteTemplate => {
-    state.settings.presentation = { ...state.settings.presentation, websiteTemplate } as typeof state.settings.presentation;
-    const { container } = render(<Layout><p>Showroom</p></Layout>);
-    expect(container.firstElementChild).not.toHaveAttribute('data-website-template');
-    expect(logo()).toHaveAttribute('src', '/footer-logo.png');
-  });
-
-  it.each(['/enquire', '/my-purchase/test', '/phone-share', '/platform'])('keeps template styling outside the %s workflow', path => {
-    state.settings.presentation = { ...state.settings.presentation, websiteTemplate: 'premium' };
-    state.path = path;
-    const { container } = render(<Layout><p>Customer workflow</p></Layout>);
-    expect(container.firstElementChild).not.toHaveAttribute('data-website-template');
-  });
 
   it('uses footer artwork on the dark homepage, regular artwork on scroll, and switches back at the top', () => {
     render(<Layout><p>Showroom</p></Layout>);
@@ -128,4 +102,13 @@ describe('header artwork follows the background', () => {
     expect(document.body.style.getPropertyValue('--dealer-panel')).toBe('');
     document.body.style.removeProperty('--dealer-page');
   });
+});
+
+it.each([true, false])('mobile delivery uses the retained general enquiry only when enabled (%s)', enabled => {
+  state.enquiriesEnabled = enabled;
+  state.settings.delivery = { ...state.settings.delivery!, enabled: true };
+  render(<Layout><p>Showroom</p></Layout>);
+  fireEvent.click(screen.getByRole('button', { name: 'Open navigation menu' }));
+  fireEvent.click(within(screen.getByRole('navigation', { name: 'Mobile navigation' })).getByRole('button', { name: /^Delivery$/ }));
+  expect(state.navigate).toHaveBeenCalledWith(enabled ? '/enquire?type=general' : '/contact');
 });

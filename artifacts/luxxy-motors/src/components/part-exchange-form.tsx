@@ -99,7 +99,7 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!features.enabled('partExchange')) return;
+    if (!settings.partExchange?.enabled || !features.enabled('partExchange')) return;
     if (step === 1 && !selectedVehicle) return;
     if (step < 2) {
       setStep(step + 1);
@@ -148,7 +148,7 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
     </div>;
   }
 
-  if (!features.enabled('partExchange')) return <FeatureUnavailable title="Online part-exchange requests are currently unavailable" loading={features.isLoading} error={features.isError} retry={() => void features.refetch()} />;
+  if (!settings.partExchange?.enabled || !features.enabled('partExchange')) return <FeatureUnavailable title="Online part-exchange requests are currently unavailable" loading={features.isLoading} error={features.isError} retry={() => void features.refetch()} />;
 
   return <form onSubmit={submit} className="part-exchange-form space-y-6" data-testid="form-part-exchange">
     {draftRestored && <div className="flex flex-wrap items-center justify-between gap-2 border-y border-border py-3 text-sm text-muted-foreground" role="status"><p>Your unfinished part-exchange enquiry was restored.</p><button type="button" className="min-h-11 text-link" onClick={discardDraft}>Discard draft</button></div>}

@@ -1,20 +1,16 @@
 import { SaleHandover, SaleHandoverFields, handoverDefaults } from '@/components/portal/sale-handover';
-import { SaleReviewReminder } from '@/components/portal/sale-review-reminder';
-import { ShareQr } from '@/components/share-qr';
-import { RoadTaxGuide } from "@/components/sales-demo/road-tax-guide";
 import { SaleChecklists } from '@/components/sales-demo/sale-checklists';
 import { SoldVehicleCustomerReview } from '@/components/portal/sold-vehicle-customer-review';
 import { soldVehicleFollowUpsQueryKey } from '@/lib/sold-vehicle-follow-ups';
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import { useEnquirySummaries as useGetEnquiries } from "@/lib/enquiry-summary-query";
 import { SaleVehiclePhoto,saleVehicleChoiceLabel } from '@/components/sales-demo/vehicle-choice';
-import { useEffect, useId, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useSearch } from "wouter";
 import { customFetch, HttpApiError } from "@workspace/api-client-react";
 import {
   getGetStockQueryKey,
-  useListReservations,
 } from "@workspace/api-client-react";
 import {
   saleWorkspaceTotals,
@@ -74,6 +70,15 @@ export interface SalesWorkspaceProps {
   newSaleRequest?: number;
   onExit?: () => void;
 }
+type SaleListRow = SaleWorkspaceRecord & { listSummary?: boolean; listTotalDue?: number };
+type SaleListPage = { sales: SaleListRow[]; hasMore?: boolean };
+const salesListKey = ['sale-workspace', 'list'] as const;
+function salesListUrl(q = '', offset = 0) {
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (offset) params.set('offset', String(offset));
+  return `/api/sale-workspace${params.size ? `?${params}` : ''}`;
+}
 const questions = [
   "Which car are you selling?",
   "Who is buying the car?",
@@ -95,7 +100,7 @@ export function SalesWorkspace({
 }: SalesWorkspaceProps) {
   const [, navigate] = useLocation();
   const search = useSearch();
-  const { stock } = useStock();
+  const { stock, isLoading: stockLoading, error: stockError } = useStock();
   const { settings } = useDealerSettings();
   const features = useDealerFeatures();
   const canEmailCustomer = features.enabled('customerEmails');
@@ -104,21 +109,29 @@ export function SalesWorkspace({
     ? 'Checking email availability…'
     : features.isError
       ? 'Email availability could not be checked. Retry the availability check before sending. Your invoice is saved.'
-      : 'Customer email sending is switched off by platform administration. You can still print or download the saved invoice. WhatsApp sharing follows your sharing settings.';
+      : 'Customer email sending is switched off by platform administration. You can still print or download the saved invoice.';
   const enquiries = useGetEnquiries();
-  const reservations = useListReservations();
   const client = useQueryClient();
   const access = useStaffAccess();
-  const sales = useQuery({
-    queryKey: ["sale-workspace"],
-    queryFn: () =>
-      customFetch<{ sales: SaleWorkspaceRecord[] }>("/api/sale-workspace"),
+  const [filter, setFilter] = useState(''), [listSearch, setListSearch] = useState('');
+  const [openingId, setOpeningId] = useState<string | null>(null);
+  const openRequest = useRef(0), openController = useRef<AbortController | null>(null);
+  useEffect(() => { const timer = setTimeout(() => setListSearch(filter.trim()), 250); return () => clearTimeout(timer); }, [filter]);
+  useEffect(() => () => { openRequest.current++; openController.current?.abort(); }, []);
+  const sales = useInfiniteQuery({
+    queryKey: [...salesListKey, listSearch],
+    initialPageParam: 0,
+    queryFn: ({ pageParam, signal }) => customFetch<SaleListPage>(salesListUrl(listSearch, pageParam), { signal }),
+    getNextPageParam: (lastPage, pages) => lastPage.hasMore ? pages.reduce((total, page) => total + page.sales.length, 0) : undefined,
     retry: false,
   });
+  const listRows = useMemo(() => {
+    const seen = new Set<string>();
+    return (sales.data?.pages.flatMap(page => page.sales) ?? []).filter(sale => { if (seen.has(sale.id)) return false; seen.add(sale.id); return true; });
+  }, [sales.data]);
   const [record, setRecord] = useState<SaleWorkspaceRecord | null>(null);
   const [deleteDraftOpen, setDeleteDraftOpen] = useState(false);
   const [draft, setDraft] = useState<SaleDraft | null>(null);
-  const [taxReference, setTaxReference] = useState("");
   const [kind, setKind] = useState<"deposit" | "full">("full");
   const [step, setStep] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
@@ -126,7 +139,6 @@ export function SalesWorkspace({
   const [problem, setProblem] = useState("");
   const [message, setMessage] = useState("");
   const [contactAutofillNotice, setContactAutofillNotice] = useState("");
-  const [filter, setFilter] = useState("");
   const [reviewed, setReviewed] = useState(false);
   const [issued, setIssued] = useState<SaleWorkspaceDocument | null>(null);
   const [soldChoice, setSoldChoice] = useState(false);
@@ -143,6 +155,7 @@ export function SalesWorkspace({
   const lock = useRef(false);
   const retries = useRef(new Map<string, string>());
   const consumed = useRef("");
+  const stockDeferredSource = useRef("");
   const consumedNew = useRef(0);
   const heading = useRef<HTMLHeadingElement>(null);
   const scrollPane = useRef<HTMLElement>(null);
@@ -159,6 +172,18 @@ export function SalesWorkspace({
   const vehicle = stock?.cars.find((car) => car.id === draft?.vehicleId);
   const showVehicleContext = Boolean(draft && step === 1 && !showSummary && !issued);
   const vehicleChangeLocked = Boolean(record?.completedAt || record?.lifecycle?.status === "reserved");
+  const [customerLookup, setCustomerLookup] = useState('');
+  const customerLookupInput = draft && step === 1 && !showSummary && !issued
+    ? [draft.customer, draft.phone, draft.email].map(value => value.trim()).find(value => value.length >= 2) ?? '' : '';
+  useEffect(() => { const timer = setTimeout(() => setCustomerLookup(customerLookupInput), 250); return () => clearTimeout(timer); }, [customerLookupInput]);
+  const customerSales = useQuery({
+    queryKey: ['sale-workspace', 'customer-lookup', customerLookup],
+    queryFn: ({ signal }) => customFetch<SaleListPage>(salesListUrl(customerLookup), { signal }),
+    enabled: Boolean(customerLookup && customerLookup === customerLookupInput),
+    retry: false,
+    staleTime: 30_000,
+  });
+  const recentSales = [...new Map([...listRows, ...(customerLookup === customerLookupInput ? customerSales.data?.sales ?? [] : [])].map(sale => [sale.id, sale])).values()];
   const customerOptions = [
     ...(enquiries.data ?? []).map((item) => ({
       id: `enquiry-${item.id}`,
@@ -172,19 +197,7 @@ export function SalesWorkspace({
       sourceEnquiryId: item.id,
       sourceReservationId: "",
     })),
-    ...(reservations.data?.reservations ?? []).map((item) => ({
-      id: `reservation-${item.id}`,
-      key: 'Reservation',
-      customerName: item.customerName,
-      email: item.email,
-      phone: item.phone,
-      lastUsedAt: item.createdAt,
-      detail: `Reservation · ${item.vehicleTitle}`,
-      vehicleId: item.vehicleId,
-      sourceEnquiryId: "",
-      sourceReservationId: item.id,
-    })),
-    ...(sales.data?.sales ?? [])
+    ...recentSales
       .filter((sale) => sale.id !== record?.id)
       .map((sale) => ({
         id: `sale-${sale.id}`,
@@ -219,10 +232,7 @@ export function SalesWorkspace({
     setReviewed(false);
     setProblem("");
   }
-  function open(saved?: SaleWorkspaceRecord, initial?: SaleDraft) {
-    if (lock.current) return;
-    if (dirty && !window.confirm("Leave your unsaved invoice details?")) return;
-    setTaxReference("");
+  function displaySale(saved?: SaleWorkspaceRecord, initial?: SaleDraft) {
     setDeleteDraftOpen(false);
     setRecord(saved ?? null);
     setDraft(initial ?? (saved ? structuredClone(saved.draft) : emptyDraft()));
@@ -245,6 +255,24 @@ export function SalesWorkspace({
     setSoldChoice(false);
     setOutstandingAccepted(false);
   }
+  async function open(saved?: Pick<SaleListRow, 'id'>, initial?: SaleDraft) {
+    if (lock.current) return;
+    if (dirty && !window.confirm('Leave your unsaved invoice details?')) { openRequest.current++; openController.current?.abort(); setOpeningId(null); return; }
+    const request = ++openRequest.current;
+    openController.current?.abort();
+    const controller = new AbortController(); openController.current = controller;
+    setProblem('');
+    if (!saved) { setOpeningId(null); displaySale(undefined, initial); return; }
+    setOpeningId(saved.id);
+    try {
+      const result = await customFetch<{ sale: SaleListRow }>(`/api/sale-workspace/${encodeURIComponent(saved.id)}`, { signal: controller.signal });
+      if (controller.signal.aborted || request !== openRequest.current) return;
+      if (!result.sale || result.sale.id !== saved.id || result.sale.listSummary || !Array.isArray(result.sale.documents) || !Array.isArray(result.sale.payments)) throw new Error('The complete sale could not be loaded. Refresh sales and try again.');
+      displaySale(result.sale);
+    } catch (error) {
+      if (!controller.signal.aborted && request === openRequest.current) setProblem((error as { data?: { error?: string } })?.data?.error || 'This sale could not be loaded. Refresh sales and try again.');
+    } finally { if (request === openRequest.current) setOpeningId(null); }
+  }
   useEffect(() => {
     if (newSaleRequest > 0 && newSaleRequest !== consumedNew.current) {
       consumedNew.current = newSaleRequest;
@@ -253,53 +281,43 @@ export function SalesWorkspace({
   }, [newSaleRequest]);
   useEffect(() => {
     const params = new URLSearchParams(search);
-    if (embedded && params.get("section") !== "sales") return;
-    const id = params.get("saleId"),
-      enquiryId = params.get("enquiryId"),
-      reservationId = params.get("reservationId");
-    const key = [id, enquiryId, reservationId].join(":");
-    if (
-      key === "::" ||
-      key === consumed.current ||
-      sales.isLoading ||
-      lock.current
-    )
-      return;
-    const existing = sales.data?.sales.find((sale) =>
-      id
-        ? sale.id === id
-        : enquiryId
-          ? sale.draft.sourceEnquiryId === enquiryId
-          : sale.draft.sourceReservationId === reservationId,
-    );
-    if (existing) {
-      consumed.current = key;
-      open(existing);
+    if (embedded && params.get('section') !== 'sales') return;
+    const id = params.get('saleId'), enquiryId = params.get('enquiryId'), reservationId = params.get('reservationId');
+    const key = [id, enquiryId, reservationId].join(':');
+    if (key === '::' || key === consumed.current || lock.current || (!id && enquiries.isLoading)) return;
+    if (!id && stockLoading) {
+      stockDeferredSource.current = key;
+      setOpeningId(`source:${enquiryId || reservationId}`);
       return;
     }
-    const source = customerOptions.find((item) =>
-      enquiryId
-        ? item.sourceEnquiryId === enquiryId
-        : reservationId && item.sourceReservationId === reservationId,
-    );
-    if (source) {
+    // A late stock response must not replace an invoice staff started while waiting.
+    if (stockDeferredSource.current === key && dirty) {
       consumed.current = key;
-      const car = stock?.cars.find((c) => c.id === source.vehicleId);
-      open(undefined, {
-        ...emptyDraft(),
-        customer: source.customerName,
-        email: source.email,
-        phone: source.phone,
-        vehicleId: source.vehicleId,
-        vehicle: car ? vehicleDisplayTitle(car) : "",
-        registration: car ? vehicleRegistration(car) : "",
-        price: car?.price != null ? String(car.price) : "",
-        sourceEnquiryId: source.sourceEnquiryId,
-        sourceReservationId: source.sourceReservationId,
-        customerSource: source.key,
-      });
+      stockDeferredSource.current = '';
+      setOpeningId(null);
+      return;
     }
-  }, [search, sales.data, enquiries.data, reservations.data, stock]);
+    stockDeferredSource.current = '';
+    consumed.current = key;
+    if (id) { void open({ id }); return; }
+    const request = ++openRequest.current;
+    openController.current?.abort(); const controller = new AbortController(); openController.current = controller;
+    setOpeningId(`source:${enquiryId || reservationId}`); setProblem('');
+    const paramsForSource = new URLSearchParams(enquiryId ? { enquiryId } : { reservationId: reservationId! });
+    void customFetch<SaleListPage>(`/api/sale-workspace?${paramsForSource}`, { signal: controller.signal }).then(result => {
+      if (controller.signal.aborted || request !== openRequest.current) return;
+      const existing = result.sales.find(sale => enquiryId ? sale.draft.sourceEnquiryId === enquiryId : sale.draft.sourceReservationId === reservationId);
+      if (existing) { void open(existing); return; }
+      const source = customerOptions.find(item => enquiryId ? item.sourceEnquiryId === enquiryId : reservationId && item.sourceReservationId === reservationId);
+      if (!source) { setOpeningId(null); setProblem('This customer record could not be found. Reopen the original enquiry before starting its sale.'); return; }
+      const car = stock?.cars.find(item => item.id === source.vehicleId);
+      const linkedEnquiry = enquiryId ? enquiries.data?.find(item => item.id === enquiryId) : undefined;
+      void open(undefined, { ...emptyDraft(), customer: source.customerName, email: source.email, phone: source.phone,
+        vehicleId: source.vehicleId, vehicle: car ? vehicleDisplayTitle(car) : linkedEnquiry?.vehicleTitle || '', registration: car ? vehicleRegistration(car) : linkedEnquiry?.vehicleRegistration || '', price: car?.price != null ? String(car.price) : '',
+        sourceEnquiryId: source.sourceEnquiryId, sourceReservationId: source.sourceReservationId, customerSource: source.key });
+      if (stockError) setProblem('Current stock could not be loaded. The enquiry details are kept; confirm the car and enter the agreed price before continuing.');
+    }).catch(() => { if (!controller.signal.aborted && request === openRequest.current) { setOpeningId(null); setProblem('The linked sale could not be checked. Reopen the enquiry or refresh sales before continuing.'); } });
+  }, [search, enquiries.data, enquiries.isLoading, stock, stockLoading, stockError]);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
       if (dirty) {
@@ -324,17 +342,7 @@ export function SalesWorkspace({
   function accept(result: SaleWorkspaceMutation) {
     setRecord(result.sale);
     setDraft(result.sale.draft);
-    client.setQueryData<{ sales: SaleWorkspaceRecord[] }>(
-      ["sale-workspace"],
-      (previous) => ({
-        sales: [
-          result.sale,
-          ...(previous?.sales ?? []).filter(
-            (item) => item.id !== result.sale.id,
-          ),
-        ],
-      }),
-    );
+    void client.invalidateQueries({ queryKey: ['sale-workspace'] }).catch(() => {});
     return result.sale;
   }
   async function request(url: string, method: string, payload: object) {
@@ -413,7 +421,7 @@ export function SalesWorkspace({
     run(async () => {
       const result = await customFetch<{ deleted: boolean; id: string }>(`/api/sale-workspace/${deleting.id}`, { method: 'DELETE', body: JSON.stringify({ expectedRevision: deleting.revision, confirm: true }) });
       if (result.deleted !== true || result.id !== deleting.id) throw new Error('Could not confirm deletion. Reload the saved sales before trying again.');
-      client.setQueryData<{ sales: SaleWorkspaceRecord[] }>(['sale-workspace'], previous => ({ sales: (previous?.sales ?? []).filter(sale => sale.id !== deleting.id) }));
+      client.setQueriesData<{ pages: SaleListPage[]; pageParams: unknown[] }>({ queryKey: salesListKey }, previous => previous ? { ...previous, pages: previous.pages.map(page => ({ ...page, sales: page.sales.filter(sale => sale.id !== deleting.id) })) } : previous);
       setDeleteDraftOpen(false); setRecord(null); setDraft(null); setIssued(null); setShowSummary(false);
       if (embedded) navigate('/portal?section=sales');
       setMessage('Draft deleted.');
@@ -536,15 +544,13 @@ export function SalesWorkspace({
   function email(doc: SaleWorkspaceDocument) {
     if (!canEmailCustomer) { setProblem(emailUnavailableReason); return; }
     run(async () => {
-      const withTaxGuide = doc.type === 'invoice' && doc.invoiceKind === 'full' && doc.snapshot.draft.roadTaxGuide === true;
-      const result = await command(`/documents/${doc.id}/email`, withTaxGuide ? { taxGuide: { reference: taxReference } } : {});
+      const result = await command(`/documents/${doc.id}/email`, {});
       const delivery = result.sale.emailDeliveries
         ?.filter((d) => d.documentId === doc.id)
         .at(-1);
-      if (delivery?.status === 'sent') setTaxReference('');
       setMessage(
         delivery?.status === "sent"
-          ? withTaxGuide ? "Invoice and Road Tax guide accepted for delivery to the customer." : "Invoice emailed to the customer."
+          ? "Invoice emailed to the customer."
           : delivery?.status === "prepared"
             ? "Email prepared. Enable Resend in settings to send it."
             : delivery?.error || "Email status updated.",
@@ -622,11 +628,7 @@ export function SalesWorkspace({
     : total.balance > 0
       ? { label: "Record a payment", note: "Continue with the next payment, or prepare the invoice when you need it.", run: () => resumeAt(2) }
     : { label: latestInvoice ? "Create updated invoice" : "Create invoice", note: latestInvoice ? "The details or payments have changed since the saved invoice." : "The balance is settled. Prepare the customer’s invoice.", run: () => resumeAt(3) };
-  const matchingSales = (sales.data?.sales ?? []).filter((sale) =>
-    `${sale.reference} ${sale.draft.customer} ${sale.draft.vehicle} ${sale.draft.registration}`
-      .toLowerCase()
-      .includes(filter.toLowerCase()),
-  );
+  const matchingSales = listRows;
   function field(
     key: "customer" | "phone" | "email" | "registration" | "price",
     label: string,
@@ -696,6 +698,9 @@ export function SalesWorkspace({
             onChange={(event) => setFilter(event.target.value)}
           />
           {sales.isLoading && <p role="status">Loading sales…</p>}
+          {(sales.isFetching && !sales.isFetchingNextPage) && !sales.isLoading && <p role="status">Refreshing sales…</p>}
+          {openingId && <p role="status">Opening the complete sale…</p>}
+          {problem && <p role="alert">{problem}</p>}
           {sales.isError && (
             <p role="alert">
               Sales could not be loaded.{" "}
@@ -707,7 +712,7 @@ export function SalesWorkspace({
           {message && <p className="invoice-message" role="status">{message}</p>}
           <div className="invoice-sale-list">
             {matchingSales.map((sale) => (
-                <button key={sale.id} data-sale-status={sale.completedAt ? 'sold' : sale.lifecycle?.status === 'reserved' ? 'reserved' : 'in-progress'} onClick={() => open(sale)}>
+                <button key={sale.id} data-sale-status={sale.completedAt ? 'sold' : sale.lifecycle?.status === 'reserved' ? 'reserved' : 'in-progress'} aria-busy={openingId === sale.id} onClick={() => void open(sale)}>
                   <span>
                     <strong>{sale.draft.customer || "Customer to add"}</strong>
                     <small>
@@ -719,7 +724,7 @@ export function SalesWorkspace({
                   <span>
                     <strong>
                       {saleMoney(
-                        saleWorkspaceTotals(sale.draft, sale.payments).totalDue,
+                        typeof sale.listTotalDue === 'number' ? sale.listTotalDue : saleWorkspaceTotals(sale.draft, sale.payments).totalDue,
                       )}
                     </strong>
                     <small>
@@ -734,13 +739,14 @@ export function SalesWorkspace({
                 </button>
               ))}
           </div>
-          {!sales.isLoading && !sales.isError && Boolean(sales.data?.sales.length) && !matchingSales.length && (
+          {sales.hasNextPage && <Button variant="outline" disabled={sales.isFetchingNextPage || sales.isFetching} onClick={() => void sales.fetchNextPage()}>{sales.isFetchingNextPage ? 'Loading more sales…' : 'Load more sales'}</Button>}
+          {!sales.isLoading && !sales.isError && Boolean(listSearch) && !matchingSales.length && (
             <div className="invoice-empty" role="status">
               <h2>No matching sales</h2>
               <p>Try another customer, car or registration.</p>
             </div>
           )}
-          {!sales.isLoading && !sales.isError && !sales.data?.sales.length && (
+          {!sales.isLoading && !sales.isError && !listSearch && !matchingSales.length && (
             <div className="invoice-empty">
               <Invoice size={32} />
               <h2>Your invoices start here</h2>
@@ -852,12 +858,12 @@ export function SalesWorkspace({
                   {resumeAction && <div className="invoice-resume-next"><div><strong>Pick up where you left off</strong><p>{resumeAction.note}</p></div><Button disabled={busy} onClick={resumeAction.run}>{resumeAction.label}<ArrowRight size={16} aria-hidden="true" /></Button></div>}
                   <div className="invoice-resume-records">
                     <section aria-labelledby="resume-payments-heading"><h2 id="resume-payments-heading">Payment history</h2><p>{rows.length ? `${rows.length} ${rows.length === 1 ? "entry" : "entries"} recorded` : "No payments recorded yet."}</p>{latestPayment && <small>Latest: {saleMoney(latestPayment.signedAmountPence)} · {paymentDate(latestPayment.date)} · {latestPayment.method}</small>}{total.pending > 0 && <small>{saleMoney(total.pending)} pending — not yet received.</small>}<Button variant="outline" disabled={busy} onClick={() => resumeAt(2)}>Record payment</Button></section>
-                    <section aria-labelledby="resume-invoice-heading"><h2 id="resume-invoice-heading">Invoice</h2>{latestInvoice ? <><p>{latestInvoice.title} · {latestInvoice.number}</p><small>Issued {new Date(latestInvoice.issuedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}{!invoiceIsCurrent ? " · Changes since issue" : ""}</small><Button variant="outline" disabled={busy} onClick={() => documentAction(latestInvoice, "print")}>Open invoice</Button><ShareQr disabled={busy} source={{kind:"document",saleId:record.id,documentId:latestInvoice.id}} documentType={latestInvoice.type} whatsapp label="WhatsApp QR" onEmailFallback={() => prepareDocumentEmail(latestInvoice)} /></> : <p>No invoice created yet.</p>}<Button variant="ghost" disabled={busy} onClick={() => resumeAt(3)}>{latestInvoice ? "Create another invoice" : "Prepare invoice"}</Button></section>
+                    <section aria-labelledby="resume-invoice-heading"><h2 id="resume-invoice-heading">Invoice</h2>{latestInvoice ? <><p>{latestInvoice.title} · {latestInvoice.number}</p><small>Issued {new Date(latestInvoice.issuedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}{!invoiceIsCurrent ? " · Changes since issue" : ""}</small><Button variant="outline" disabled={busy} onClick={() => documentAction(latestInvoice, "print")}>Open invoice</Button><Button variant="outline" disabled={busy} onClick={() => prepareDocumentEmail(latestInvoice)}>Invoice options</Button></> : <p>No invoice created yet.</p>}<Button variant="ghost" disabled={busy} onClick={() => resumeAt(3)}>{latestInvoice ? "Create another invoice" : "Prepare invoice"}</Button></section>
                   </div>
                   {rows.length > 0 && <section className="invoice-summary-payments" aria-label="Recorded payments"><ul>{rows.map(row => <li key={row.id} data-status={row.status}><div><strong>{saleMoney(row.signedAmountPence)}</strong><span>{paymentDate(row.date)} · {row.method}</span></div><small>{row.status === "confirmed" ? row.signedAmountPence < 0 ? "Returned / reversed" : "Received" : row.status}{row.reference && ` · ${row.reference}`}</small></li>)}</ul></section>}
                   <div className="invoice-resume-edit"><span>{record.completedAt ? "Completed details are locked. Issued invoices remain unchanged." : "Need to correct something?"}</span><Button variant="ghost" disabled={busy} onClick={() => resumeAt(0)}>{record.completedAt ? "View vehicle details" : "Edit vehicle & price"}</Button><Button variant="ghost" disabled={busy} onClick={() => resumeAt(1)}>{record.completedAt ? "View customer details" : "Edit customer details"}</Button></div>
                   {canDeleteDraft && <div className="invoice-draft-delete"><div><strong>{record.draft.customer ? 'Test sale draft' : 'Unused sale draft'}</strong><p>No invoice or payment has been recorded. {dirty ? 'Save or discard your unsaved changes before deleting.' : 'You can remove this draft if it is no longer needed.'}</p></div><Button variant="outline" disabled={busy || dirty} onClick={() => { setProblem(''); setDeleteDraftOpen(true); }}><Trash2 size={16} aria-hidden="true" />Delete draft</Button></div>}
-                  {(record.completedAt || record.lifecycle?.status === 'sold') && <><SaleReviewReminder key={`review-reminder:${record.id}`} sale={record} reviewUrl={settings.contact.googleReviewUrl || ''} onSaved={setRecord} /><SoldVehicleCustomerReview saleId={record.id} /></>}
+                  {(record.completedAt || record.lifecycle?.status === 'sold') && <><SoldVehicleCustomerReview saleId={record.id} /></>}
                   {record.documents.length > 1 && <details className="invoice-resume-paperwork"><summary>All saved paperwork ({record.documents.length})</summary>{[...record.documents].reverse().map(document => <div key={document.id}><span>{document.title}<small>{document.number}</small></span><Button variant="outline" size="sm" disabled={busy} onClick={() => documentAction(document, "print")}>Open {document.number}</Button></div>)}</details>}
                 </section>
               ) : issued ? (
@@ -874,9 +880,7 @@ export function SalesWorkspace({
                       </small>
                     </div>
                   </div>
-                  {issued.type === 'invoice' && issued.invoiceKind === 'full' && issued.snapshot.draft.roadTaxGuide && <RoadTaxGuide
-                    enabled reference={taxReference} onReferenceChange={setTaxReference} disabled={busy}
-                    invoiceReady customerEmail={issued.snapshot.draft.email} />}
+
                   <div className="invoice-document-actions">
                     <Button
                       disabled={busy}
@@ -893,17 +897,17 @@ export function SalesWorkspace({
                     </Button>
                     <Button
                       variant="outline"
-                      disabled={busy || !canEmailCustomer || !issued.snapshot.draft.email || (issued.invoiceKind === 'full' && issued.snapshot.draft.roadTaxGuide === true && !/^\d{12}$/.test(taxReference))}
+                      disabled={busy || !canEmailCustomer || !issued.snapshot.draft.email}
                       aria-describedby={!canEmailCustomer ? emailAvailabilityId : undefined}
                       onClick={() => email(issued)}
                     >
-                      <Mail size={17} /> {issued.invoiceKind === 'full' && issued.snapshot.draft.roadTaxGuide ? 'Email invoice & tax guide' : 'Email customer'}
+                      <Mail size={17} /> Email customer
                     </Button>
-                    {record && <ShareQr disabled={busy} source={{kind:'document',saleId:record.id,documentId:issued.id}} documentType={issued.type} whatsapp label="WhatsApp QR" onEmailFallback={() => prepareDocumentEmail(issued)} />}
+
                   </div>
                   {!canEmailCustomer && <div id={emailAvailabilityId} role="status" className="invoice-note"><p>{emailUnavailableReason}</p>{features.isError && <Button variant="outline" disabled={features.isFetching} onClick={() => void features.refetch()}>Retry email availability</Button>}</div>}
                   {record && <SaleHandover key={`handover:${record.id}`} sale={record} onSaved={sale => accept({sale})} />}
-                  {issued.invoiceKind === 'full' && record && <SaleReviewReminder key={`review-reminder:${record.id}`} sale={record} reviewUrl={settings.contact.googleReviewUrl || ''} onSaved={setRecord} />}
+
                   {issued.invoiceKind === 'full' && record && <SoldVehicleCustomerReview key={`sold-customers:${record.id}:${record.lifecycle?.status ?? 'draft'}`} saleId={record.id} />}
                   {issued.invoiceKind === "full" &&
                     !record?.completedAt &&
@@ -1014,7 +1018,6 @@ export function SalesWorkspace({
                             const car = stock?.cars.find(
                               (c) => c.id === event.target.value,
                             );
-                            setTaxReference('');
                             if (car)
                               setDraft({
                                 ...draft,
@@ -1022,7 +1025,6 @@ export function SalesWorkspace({
                                 sourceReservationId: "",
                                 customerSource: "",
                                 vin: "",
-                                roadTaxGuide: false,
                                 vehicleId: car.id,
                                 vehicle: vehicleDisplayTitle(car),
                                 registration: vehicleRegistration(car),
@@ -1107,10 +1109,10 @@ export function SalesWorkspace({
                         }}
                         onSelect={autofillCustomer}
                       />
-                      {(enquiries.isError || reservations.isError || sales.isError) && (
+                      {(enquiries.isError || sales.isError || customerSales.isError) && (
                         <p className="text-sm text-muted-foreground">Some recent customer details could not be loaded. You can still enter the customer’s details.</p>
                       )}
-                      {(enquiries.isLoading || reservations.isLoading || sales.isLoading) && (
+                      {(enquiries.isLoading || sales.isLoading || customerSales.isFetching) && (
                         <p className="text-sm text-muted-foreground" role="status">Loading recent customers…</p>
                       )}
                       {contactAutofillNotice && <p className="text-sm text-muted-foreground" role="status">{contactAutofillNotice}</p>}
@@ -1612,16 +1614,14 @@ export function SalesWorkspace({
                       </dl>
                       {kind === 'full' && <section className="invoice-final-paperwork" aria-label="Vehicle paperwork">
                         <h2>Vehicle paperwork</h2>
-                        <p className="invoice-note">Confirm the VIN and choose whether to include a tax guide when emailing the full invoice.</p>
+                        <p className="invoice-note">Confirm the VIN from the vehicle or log book.</p>
                         <label>VIN / chassis number
                           <Input value={draft.vin ?? ""} maxLength={17} autoComplete="off" spellCheck={false}
                             disabled={Boolean(record?.completedAt)} placeholder="17-character VIN"
                             onChange={event => update("vin", event.target.value.toUpperCase().replace(/\s/g, ""))} />
                           <small>Copy from the vehicle or log book. Leave blank if not available yet.</small>
                         </label>
-                      <RoadTaxGuide enabled={draft.roadTaxGuide === true} disabled={Boolean(record?.completedAt)}
-                        reference={taxReference} onReferenceChange={setTaxReference}
-                        onChange={enabled => update("roadTaxGuide", enabled)} />
+
                       </section>}
                       <SaleHandoverFields draft={draft} value={handoverDefaults(draft)} onChange={value => update('fulfilment',value)} disabled={Boolean(record?.draft.fulfilment?.completedAt)} />
                       {kind === 'full' && checklistPanel()}
@@ -1655,7 +1655,7 @@ export function SalesWorkspace({
                         <strong>{doc.title}</strong>
                         <small>{doc.number}</small>
                       </span>
-                      {record && <ShareQr disabled={busy} source={{kind:'document',saleId:record.id,documentId:doc.id}} documentType={doc.type} whatsapp label="WhatsApp QR" onEmailFallback={() => prepareDocumentEmail(doc)} />}
+
                       <Button
                         variant="outline"
                         disabled={busy}
@@ -1713,12 +1713,8 @@ export function SalesWorkspace({
           <DialogHeader><DialogTitle>Delete this draft?</DialogTitle><DialogDescription>This permanently removes only this unused or clearly labelled test draft. Invoices, payments, stock and customer enquiry records are kept.</DialogDescription></DialogHeader>
           <p>{record.draft.customer || 'No customer added'}{record.draft.vehicle ? ` — ${record.draft.vehicle}` : ''}</p>
           {problem && <div><p role="alert">{problem}</p><Button variant="outline" disabled={busy} onClick={() => run(async () => {
-            const refreshed = await sales.refetch();
-            if (refreshed.error) throw refreshed.error;
-            const latest = refreshed.data?.sales.find(sale => sale.id === record.id);
-            setDeleteDraftOpen(false);
-            if (latest) { accept({ sale: latest }); setMessage('Latest draft loaded. Review it before deleting.'); }
-            else { setRecord(null); setDraft(null); setShowSummary(false); setMessage('This draft is no longer in your saved sales.'); }
+            const latest = await customFetch<{ sale: SaleWorkspaceRecord }>(`/api/sale-workspace/${record.id}`);
+            setDeleteDraftOpen(false); accept({ sale: latest.sale }); setMessage('Latest draft loaded. Review it before deleting.');
           })}>Reload saved sales</Button></div>}
           <DialogFooter className="gap-2 sm:gap-0"><Button id="keep-sale-draft" variant="outline" disabled={busy} onClick={() => { setDeleteDraftOpen(false); setProblem(''); }}>Keep draft</Button><Button variant="destructive" disabled={busy || !canDeleteDraft || dirty || Boolean(problem)} onClick={deleteSavedDraft}>{busy ? 'Deleting…' : 'Delete draft permanently'}</Button></DialogFooter>
         </DialogContent>

@@ -7,7 +7,7 @@ vi.mock('wouter', () => ({ Link: ({ children, href, ...props }: any) => <a href=
 
 describe('public footer settings', () => {
   it('keeps the configured booking wording and the current vehicle link together', () => {
-    render(<CustomerFooter settings={{ ...dealerConfig, bookViewing: { ...dealerConfig.bookViewing, ctaLabel: 'Arrange a test drive' } }} testDriveHref="/enquire?type=viewing&vehicleId=example-car" />);
+    render(<CustomerFooter settings={{ ...dealerConfig, testDriveBooking: { enabled: true }, bookViewing: { ...dealerConfig.bookViewing, ctaLabel: 'Arrange a test drive' } }} testDriveHref="/enquire?type=viewing&vehicleId=example-car" />);
     expect(screen.getByRole('link', { name: 'Arrange a test drive' })).toHaveAttribute('href', '/enquire?type=viewing&vehicleId=example-car');
   });
 
@@ -26,4 +26,15 @@ describe('public footer settings', () => {
     expect(screen.getByText('Company no. 12345678')).toBeInTheDocument();
     expect(screen.getByText(/Example Motors Ltd. All rights reserved/)).toBeInTheDocument();
   });
+});
+
+it('removes disabled enquiry and booking entry points while keeping direct contact', () => {
+  render(<CustomerFooter settings={{ ...dealerConfig, testDriveBooking: { enabled: false } }} enquiriesEnabled={false} testDriveHref="/enquire?type=viewing" />);
+  expect(screen.queryByRole('link', { name: /Book a Test Drive|Send an enquiry/i })).not.toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Contact & directions' })).toHaveAttribute('href', '/contact');
+});
+
+it('keeps delivery help reachable without linking to disabled website enquiries', () => {
+  render(<CustomerFooter settings={{ ...dealerConfig, delivery: { ...dealerConfig.delivery!, enabled: true } }} enquiriesEnabled={false} testDriveHref="/enquire?type=viewing" />);
+  expect(screen.getByRole('link', { name: 'Delivery options' })).toHaveAttribute('href', '/contact');
 });

@@ -1,17 +1,26 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({ fetch: vi.fn(), enabled: true }));
 vi.mock("@workspace/api-client-react", () => ({
   customFetch: (...args: unknown[]) => state.fetch(...args),
-  getGetDealerSettingsQueryKey: () => ['/api/dealer-settings'],
+  getGetDealerSettingsQueryKey: () => ["/api/dealer-settings"],
 }));
 vi.mock("./enquiry-email-composer", () => ({
   EnquiryEmailComposer: ({ initialContent, sendBlockedReason }: any) => (
     <section aria-label="Prepared declaration email">
       <p>{initialContent.subject}</p>
       <p>{initialContent.message}</p>
-      <textarea aria-label="Prepared message" defaultValue={initialContent.message} />
+      <textarea
+        aria-label="Prepared message"
+        defaultValue={initialContent.message}
+      />
       {sendBlockedReason && <p role="status">{sendBlockedReason}</p>}
     </section>
   ),
@@ -54,7 +63,6 @@ beforeEach(() => {
   records = [];
   state.enabled = true;
   state.fetch.mockReset().mockImplementation(async (path, options) => {
-    if (path === '/api/staff/phone-sharing-settings') return { revision: 0, enabled: true };
     if (path === "/api/features")
       return {
         features: {
@@ -90,7 +98,9 @@ beforeEach(() => {
   });
 });
 function mount(entry = booking) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   const view = render(
     <QueryClientProvider client={client}>
       <TestDriveDeclarations booking={entry} canEmail onClose={() => {}} />
@@ -98,7 +108,7 @@ function mount(entry = booking) {
   );
   return { ...view, client };
 }
-it("creates only on request, provides QR/link, and prepares an unsent email", async () => {
+it("creates only on request, provides a signing link, and prepares an unsent email", async () => {
   mount();
   const create = await screen.findByRole("button", {
     name: "Create signing link",
@@ -114,7 +124,10 @@ it("creates only on request, provides QR/link, and prepares an unsent email", as
   );
   expect(calls).toHaveLength(1);
   expect(JSON.parse(calls[0][1].body).token).toMatch(/^[a-f0-9]{64}$/);
-  expect(JSON.parse(calls[0][1].body)).toMatchObject({ expectedAppointmentRevision: booking.appointmentRevision, expectedVehicleId: booking.vehicleId });
+  expect(JSON.parse(calls[0][1].body)).toMatchObject({
+    expectedAppointmentRevision: booking.appointmentRevision,
+    expectedVehicleId: booking.vehicleId,
+  });
   expect(
     screen.getByRole("textbox", { name: "Private signing link" }),
   ).toHaveValue(
@@ -128,23 +141,54 @@ it("creates only on request, provides QR/link, and prepares an unsent email", as
     state.fetch.mock.calls.filter((call) => call[1]?.method === "POST"),
   ).toHaveLength(1);
 });
-it.each(['signed', 'revoked'] as const)('keeps an edited composer open when a declaration refresh changes pending to %s, and blocks its stale link', async status => {
-  const { client } = mount();
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Create signing link' })).toBeEnabled());
-  fireEvent.click(screen.getByRole('button', { name: 'Create signing link' }));
-  await screen.findByRole('region', { name: 'Share declaration' });
-  fireEvent.click(screen.getByRole('button', { name: 'Prepare email' }));
-  const editor = await screen.findByRole('textbox', { name: 'Prepared message' });
-  fireEvent.change(editor, { target: { value: 'Keep my unsaved explanation about this visit.' } });
-  records = records.map(row => ({ ...row, status, ...(status === 'signed' ? { signedAt: '2026-10-18T11:00:00Z', signerName: 'Alex Taylor' } : { revokedAt: '2026-10-18T11:00:00Z' }) }));
-  // Refresh the same query used by the twenty-second poll; no provider or live write is involved.
-  await act(async () => { await client.refetchQueries({ queryKey: ['test-drive-declarations', booking.id] }); });
-  expect(await screen.findByRole('status')).toHaveTextContent('This declaration link is no longer awaiting a signature.');
-  expect(screen.getByRole('region', { name: 'Prepared declaration email' })).toBeVisible();
-  expect(screen.getByRole('textbox', { name: 'Prepared message' })).toBe(editor);
-  expect(editor).toHaveValue('Keep my unsaved explanation about this visit.');
-  expect(state.fetch.mock.calls.filter(call => call[1]?.method === 'POST')).toHaveLength(1);
-});
+it.each(["signed", "revoked"] as const)(
+  "keeps an edited composer open when a declaration refresh changes pending to %s, and blocks its stale link",
+  async (status) => {
+    const { client } = mount();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Create signing link" }),
+      ).toBeEnabled(),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Create signing link" }),
+    );
+    await screen.findByRole("region", { name: "Share declaration" });
+    fireEvent.click(screen.getByRole("button", { name: "Prepare email" }));
+    const editor = await screen.findByRole("textbox", {
+      name: "Prepared message",
+    });
+    fireEvent.change(editor, {
+      target: { value: "Keep my unsaved explanation about this visit." },
+    });
+    records = records.map((row) => ({
+      ...row,
+      status,
+      ...(status === "signed"
+        ? { signedAt: "2026-10-18T11:00:00Z", signerName: "Alex Taylor" }
+        : { revokedAt: "2026-10-18T11:00:00Z" }),
+    }));
+    // Refresh the same query used by the twenty-second poll; no provider or live write is involved.
+    await act(async () => {
+      await client.refetchQueries({
+        queryKey: ["test-drive-declarations", booking.id],
+      });
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "This declaration link is no longer awaiting a signature.",
+    );
+    expect(
+      screen.getByRole("region", { name: "Prepared declaration email" }),
+    ).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "Prepared message" })).toBe(
+      editor,
+    );
+    expect(editor).toHaveValue("Keep my unsaved explanation about this visit.");
+    expect(
+      state.fetch.mock.calls.filter((call) => call[1]?.method === "POST"),
+    ).toHaveLength(1);
+  },
+);
 it("keeps history readable but prevents new links when platform control is off", async () => {
   records = [
     {

@@ -1,5 +1,4 @@
 import { stockBodyTypes } from '@/lib/body-types';
-import { parseStockSearch } from '@/lib/natural-stock-search';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { arrivalTime } from '@/lib/stock-presentation';
 import { useEffect, useMemo, useState, useRef } from 'react';
@@ -25,9 +24,6 @@ export interface FilterState {
   search: string;
   /** Optional for compatibility with saved searches created before benefit filters. */
   ulez?: boolean;
-  lowMileage?: boolean;
-  lowAnnualTax?: boolean;
-  lowInsuranceGroup?: boolean;
   sort: 'price-asc' | 'price-desc' | 'mileage-asc' | 'mileage-desc' | 'year-desc' | 'arrival-desc' | '';
 }
 
@@ -51,9 +47,6 @@ const emptyFilters: FilterState = {
   bodyType: '',
   search: '',
   ulez: false,
-  lowMileage: false,
-  lowAnnualTax: false,
-  lowInsuranceGroup: false,
   sort: '',
 };
 
@@ -145,9 +138,6 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
     ...(filters.transmission ? [{ key: 'transmission' as const, label: filters.transmission }] : []),
     ...([
       ['ulez', 'ULEZ compliant'],
-      ['lowMileage', 'Up to 30,000 miles'],
-      ['lowAnnualTax', 'Road tax up to £35/year'],
-      ['lowInsuranceGroup', 'Insurance groups 1–15'],
     ] as const).filter(([key]) => filters[key]).map(([key, label]) => ({ key, label })),
   ];
 
@@ -197,15 +187,11 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
     Number(Boolean(filters.fuel)) +
     Number(Boolean(filters.transmission)) +
     Number(Boolean(filters.bodyType)) +
-    Number(Boolean(filters.ulez)) +
-    Number(Boolean(filters.lowMileage)) +
-    Number(Boolean(filters.lowAnnualTax)) +
-    Number(Boolean(filters.lowInsuranceGroup));
+    Number(Boolean(filters.ulez));
 
   const maxBudgets = stockBudgetOptions(cars, filters.maxPrice);
 
   const handleSearchClick = () => {
-    setFilters(current => {const parsed = parseStockSearch(current.search, cars); return {...current, ...(parsed.make && parsed.make !== current.make ? {model:''} : {}), ...parsed};});
     onSearch?.();
   };
 
@@ -297,7 +283,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
           </Select>
         </div>
       </div>
-      <p id="stock-search-hint" className="stock-search-hint">Try “automatic under £10k” or a registration.</p>
+      <p id="stock-search-hint" className="stock-search-hint">Search by make, model or registration.</p>
       {(activeFilterCount > 0 || filters.sort) && (
         <div className="mt-2 flex items-center gap-4 overflow-x-auto whitespace-nowrap" aria-label="Applied filters">
           {appliedFilters.map(({ key, label }) => <button type="button" key={key} aria-label={`Remove ${label} filter`} className="inline-flex shrink-0 min-h-11 items-center gap-2 text-xs font-medium text-primary" onClick={() => {

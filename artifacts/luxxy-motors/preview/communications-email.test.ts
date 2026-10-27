@@ -98,7 +98,7 @@ test('local gallery choices use usable image URLs in the reviewed message', asyn
   const context=await call(`${path}/email-context`,'GET',undefined,entry);
   assert.ok(context.data.vehiclePhotos.length>0);
   assert.equal(typeof context.data.vehiclePhotos[0].url,'string');
-  const reviewed=await call(`${path}/email-preview`,'POST',{...content,vehiclePhotoIndices:[0],includeVideo:false},entry);
+  const reviewed=await call(`${path}/email-preview`,'POST',{...content,vehiclePhotoIndices:[0]},entry);
   assert.equal(reviewed.status,200);
   assert.ok(reviewed.data.text.includes(context.data.vehiclePhotos[0].url));
   assert.doesNotMatch(reviewed.data.text,/\[object Object\]/);

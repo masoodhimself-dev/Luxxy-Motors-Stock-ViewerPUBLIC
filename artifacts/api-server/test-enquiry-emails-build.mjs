@@ -6,7 +6,7 @@ await build({
   platform: "node",
   format: "esm",
   outfile: path.join("dist-test", path.basename(process.argv[2] || "src/enquiry-emails.test.ts").replace(/\.ts$/, ".mjs")),
-  external: ["@electric-sql/pglite"],
+  external: ["@electric-sql/pglite", "@napi-rs/canvas"],
   plugins: [
     {
       name: "isolated-enquiry-email-tests",

@@ -51,7 +51,7 @@ describe('platform feature controls', () => {
   it('reports stale revision conflicts without pretending the change was saved', async () => {
     mocks.fetch.mockResolvedValueOnce(policy()).mockRejectedValueOnce({ data: { error: 'These controls changed in another session. Reload before saving.' } });
     render(<PlatformFeatureControls dealerId="sample" />);
-    const reason = await screen.findByLabelText('AI reply drafts reason'); fireEvent.change(reason, { target: { value: 'Pause new drafts' } });
+    const reason = await screen.findByLabelText('Website enquiries reason'); fireEvent.change(reason, { target: { value: 'Pause new enquiries' } });
     fireEvent.click(within(reason.closest('form')!).getByRole('button', { name: 'Save dealer setting' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Reload before saving');
     expect(screen.queryByText(/controls saved/)).not.toBeInTheDocument();

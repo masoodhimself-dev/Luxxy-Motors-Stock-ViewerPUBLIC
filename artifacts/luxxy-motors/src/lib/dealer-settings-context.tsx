@@ -4,7 +4,6 @@ import { useMemo } from 'react';
 import { dealerConfig } from '@/config/dealer';
 import type { DealerConfig } from '@/config/dealer';
 import type { DealerSettings } from '@workspace/api-client-react';
-import { applyCustomerFeaturePolicy } from '@workspace/vehicle-meta';
 
 const sharedFallback = {
   ...dealerConfig,
@@ -12,9 +11,8 @@ const sharedFallback = {
   address: { street: '', city: '', region: '', postcode: '', mapsUrl: '' }, hours: [],
   legal: { companyName: '', companyNumber: '', vatNumber: '', termsUrl: '', privacyUrl: '', cookieUrl: '' }, social: { instagram: '', facebook: '', twitter: '' },
   hero: { announcement: '', copy: 'Browse used cars', subcopy: '', primaryCta: 'Browse Stock', secondaryCta: '' },
-  onlineReservation: { enabled: false, depositPence: 10000, terms: '' }, recentHandovers: { enabled: false, count: 0 },
   warranty: { ...dealerConfig.warranty!, enabled: false }, delivery: { ...dealerConfig.delivery!, enabled: false }, partExchange: { ...dealerConfig.partExchange!, enabled: false },
-  presentation: { reviewsEnabled: false, reviews: [], comparisonEnabled: false }, trustItems: [], whyBuy: [],
+  presentation: {}, trustItems: [], whyBuy: [],
 };
 const fallbackSettings = (import.meta.env.VITE_MULTI_TENANT_ENABLED === 'true' ? sharedFallback : dealerConfig) as DealerConfig & DealerSettings;
 
@@ -25,7 +23,7 @@ export function useDealerSettings() {
   });
 
   const settings = useMemo(() => {
-    const saved = applyCustomerFeaturePolicy(query.data ?? fallbackSettings);
+    const saved = query.data ?? fallbackSettings;
     const source = { ...saved,
       testDriveBooking: saved.testDriveBooking ? { ...saved.testDriveBooking, enabled: !!saved.testDriveBooking.enabled && features.enabled('testDriveBookings') } : undefined,
       partExchange: saved.partExchange ? { ...saved.partExchange, enabled: !!saved.partExchange.enabled && features.enabled('partExchange') } : undefined,
@@ -35,6 +33,7 @@ export function useDealerSettings() {
   }, [query.data, features.data, features.isError]);
   return {
     settings,
+    publicEnquiriesEnabled: features.enabled('publicEnquiries'),
     isLoading: query.isLoading || features.isLoading,
     isError: query.isError || features.isError,
   };

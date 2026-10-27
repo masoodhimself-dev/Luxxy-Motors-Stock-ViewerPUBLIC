@@ -26,17 +26,10 @@ const JoinDealership = lazy(() => import('@/pages/join'));
 const Platform = lazy(() => import('@/pages/platform'));
 const CarDetail = lazy(() => import("@/pages/car-detail"));
 const Saved = lazy(() => import("@/pages/saved"));
-const Compare = lazy(() => import("@/pages/compare"));
-const PhoneShare = lazy(() => import('@/pages/phone-share'));
-const WatchPage = lazy(() => import('@/pages/watch'));
-const StaffUpload = lazy(() => import("@/pages/staff-upload"));
-const EnquiryPhotoUpload = lazy(() => import("@/pages/enquiry-photo-upload"));
 const Portal = lazy(() => import("@/pages/portal"));
 const Enquire = lazy(() => import("@/pages/enquire"));
 const Contact = lazy(() => import('@/pages/contact'));
 const Warranty = lazy(() => import('@/pages/warranty'));
-const ReservationPaymentReturn = lazy(() => import("@/pages/reservation-payment-return"));
-const CustomerSale = lazy(() => import("@/pages/customer-sale"));
 const InvoiceVerification = lazy(() => import('@/pages/invoice-verification'));
 const Viewing = lazy(() => import("@/pages/viewing"));
 const TestDriveDeclaration = lazy(() => import('@/pages/test-drive-declaration'));
@@ -76,9 +69,6 @@ function Router() {
   const [location] = useLocation();
   if (location === '/verify-invoice' || location.startsWith('/verify-invoice/')) return <RoutedErrorBoundary><Suspense fallback={<RouteLoading/>}><InvoiceVerification/></Suspense></RoutedErrorBoundary>;
   // Platform administration has its own identity and no dealership navigation or chat.
-  if (location === '/phone-share') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><PhoneShare /></Suspense></RoutedErrorBoundary>;
-  if (location === '/staff-upload') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><StaffUpload /></Suspense></RoutedErrorBoundary>;
-  if (location === '/enquiry-photo-upload') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><EnquiryPhotoUpload /></Suspense></RoutedErrorBoundary>;
   if (/^\/sign-in(?:\/|$)/.test(location)) return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><StaffSignIn /></Suspense></RoutedErrorBoundary>;
   if (/^\/sign-up(?:\/|$)/.test(location)) return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><StaffSignUp /></Suspense></RoutedErrorBoundary>;
   if (location === '/join') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><JoinDealership /></Suspense></RoutedErrorBoundary>;
@@ -92,15 +82,12 @@ function Router() {
           <Route path="/stock"><Home key="stock" browseStock /></Route>
           <Route path="/vehicle/:id" component={CarDetail} />
           <Route path="/saved" component={Saved} />
-          <Route path="/compare" component={Compare} />
           <Route path="/platform" component={Platform} />
           <Route path="/portal" component={Portal} />
           <Route path="/portal/leads/:id" component={Portal} />
           <Route path="/enquire" component={Enquire} />
           <Route path="/contact" component={Contact} />
           <Route path="/warranty" component={Warranty} />
-          <Route path="/reserve/payment-return" component={ReservationPaymentReturn} />
-                  <Route path="/my-purchase/:token" component={CustomerSale} />
           <Route path="/viewing/:token" component={Viewing} />
           <Route path="/sign/:token" component={RetiredSalesPage} />
           <Route path="/customer-details/:token" component={RetiredSalesPage} />
@@ -118,7 +105,7 @@ function Router() {
 
 function RoutedErrorBoundary({ children }: { children: ReactNode }) {
   const [location] = useLocation();
-  return <ErrorBoundary resetKey={location} showCustomerHelp={!['/join', '/platform', '/staff-upload', '/enquiry-photo-upload'].includes(location)}>{children}</ErrorBoundary>;
+  return <ErrorBoundary resetKey={location} showCustomerHelp={!['/join', '/platform'].includes(location)}>{children}</ErrorBoundary>;
 }
 
 /** Clears cached portal data when the signed-in staff member changes. */
@@ -146,17 +133,15 @@ function ClerkQueryClientCacheInvalidator() {
 
 function DealerProviders({ children }: { children: ReactNode }) {
   const [location] = useLocation();
-  return /^\/sign-(?:in|up)(?:\/|$)/.test(location) || location === '/join' || location === '/platform' || location === '/staff-upload' || location === '/verify-invoice' || location.startsWith('/verify-invoice/') ? <>{children}</> : <StockProvider><SavedCarsProvider>{children}</SavedCarsProvider></StockProvider>;
+  const standalone = /^\/sign-(?:in|up)(?:\/|$)/.test(location) || ['/join', '/platform', '/verify-invoice'].includes(location) || location.startsWith('/verify-invoice/');
+  return standalone ? <>{children}</> : <StockProvider><SavedCarsProvider>{children}</SavedCarsProvider></StockProvider>;
 }
 
 function ClerkProviderWithRoutes() {
   const [, setLocation] = useLocation();
   const [location] = useLocation();
 
-  if (location === '/watch') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading/>}><WatchPage/></Suspense></RoutedErrorBoundary>;
 
-  if (location === '/phone-share') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading/>}><PhoneShare/></Suspense></RoutedErrorBoundary>;
-  if (location === '/enquiry-photo-upload') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading/>}><EnquiryPhotoUpload/></Suspense></RoutedErrorBoundary>;
 
   if (location.startsWith('/test-drive-declaration/')) return <RoutedErrorBoundary><Suspense fallback={<RouteLoading/>}><TestDriveDeclaration/></Suspense></RoutedErrorBoundary>;
 

@@ -44,7 +44,7 @@ test('PostgreSQL migrations and two-dealer HTTP imports, settings and vehicle lo
   assert.deepEqual(fresh.hours, []); assert.deepEqual(fresh.trustItems, []); assert.deepEqual(fresh.whyBuy, []);
   assert.equal(fresh.testDriveBooking.enabled, false);
   assert.ok(fresh.testDriveBooking.weeklyHours.every(day => !day.enabled));
-  assert.equal(fresh.contact.phone, ''); assert.equal(fresh.onlineReservation.enabled, false);
+  assert.equal(fresh.contact.phone, ''); assert.equal('onlineReservation' in fresh, false);
   for (const tenant of [a,b]) await db.insert(dealerSettingsTable).values({ dealerId: tenant.dealerId, config: { ...defaultSettings, identity: { ...defaultSettings.identity, name: tenant.dealerId } } });
   const { default: app } = await import('./app');
   const server = createServer(app); await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
@@ -164,7 +164,7 @@ test('PostgreSQL migrations and two-dealer HTTP imports, settings and vehicle lo
     const paid = await runWithTenant(a, () => storeA.mutate({ id: created.sale.id, expectedRevision: reserved.sale.revision, requestId: randomUUID(), actor: 'Fixture A', command: { action: 'payment', payment: { amount: '8495', kind: 'final-payment', status: 'confirmed', method: 'Bank transfer', date: '2026-10-09', reference: 'Fixture only' } } }));
     const checked = await runWithTenant(a, () => storeA.mutate({ id: created.sale.id, expectedRevision: paid.sale.revision, requestId: randomUUID(), actor: 'Fixture A', command: { action: 'checklists', completion: Object.fromEntries(saleCompletionChecklistItems.map(item => [item.id, 'checked'])) } }));
     const sold = await runWithTenant(a, () => storeA.mutate({ id: created.sale.id, expectedRevision: checked.sale.revision, requestId: randomUUID(), actor: 'Fixture A', command: { action: 'complete-sale', acknowledge: true } }));
-    assert.equal(sold.sale.lifecycle?.status,'sold'); assert.ok(sold.sale.documents.some(d=>d.type==='invoice')); assert.equal((await storeB.list()).length,0);
+    assert.equal(sold.sale.lifecycle?.status,'sold'); assert.ok(sold.sale.documents.some(d=>d.type==='invoice')); assert.equal((await storeB.list()).sales.length,0);
     assert.equal((await postA({ ...updated, runId: 'sold-refresh', scrapedAt: new Date(Date.now() + 3000).toISOString() })).status, 201);
     assert.equal((await db.select().from(vehiclesTable).where(eq(vehiclesTable.dealerId, a.dealerId)))[0].inventoryStatus, 'sold');
     assert.equal((await request('/api/stock', 'dealer-a.example.test').then(r => r.json()) as { cars: unknown[] }).cars.length, 0);

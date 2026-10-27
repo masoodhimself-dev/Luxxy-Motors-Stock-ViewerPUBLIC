@@ -9,7 +9,6 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { ReserveCar } from '@/components/reserve-car';
 import { VehicleDialogVehicle, useVehicleDialogTheme } from '@/components/vehicle-dialog-vehicle';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { showroomHours } from '@/lib/showroom-hours';
@@ -20,11 +19,9 @@ import type { Car } from '@/lib/stock-context';
 export function VehicleWhatsApp({
   car,
   compact = false,
-  walkaround = false,
 }: {
   car: Car;
   compact?: boolean;
-  walkaround?: boolean;
 }) {
   const { settings } = useDealerSettings();
   const dialogTheme = useVehicleDialogTheme();
@@ -35,20 +32,12 @@ export function VehicleWhatsApp({
   const dialogTitle = useRef<HTMLHeadingElement>(null);
   if (!getWhatsAppHref(undefined, settings)) return null;
   const label = vehicleDisplayTitle(car);
-  const options = settings.onlineReservation;
-  const canReserve =
-    options?.enabled &&
-    options.terms?.trim() &&
-    (!car.inventoryStatus || car.inventoryStatus === 'available') &&
-    (car.price ?? 0) > 0 &&
-    (car.price ?? 0) * 100 >= options.depositPence &&
-    (!car.currency || car.currency.toUpperCase() === 'GBP');
 
   function show() {
     const current = showroomHours(settings.hours ?? []);
     setHours(current);
     setMessage(
-      `${getVehicleContactMessage(car, walkaround ? 'request a walkaround video of this car' : 'get more information about this vehicle', settings)}${current.state === 'closed' ? '\n\nPlease reply when you reopen.' : ''}`,
+      `${getVehicleContactMessage(car, 'get more information about this vehicle', settings)}${current.state === 'closed' ? '\n\nPlease reply when you reopen.' : ''}`,
     );
     setOpen(true);
   }
@@ -60,11 +49,11 @@ export function VehicleWhatsApp({
         type="button"
         onClick={show}
         data-vehicle-contact="whatsapp"
-        aria-label={walkaround ? 'Request a walkaround video' : `WhatsApp about ${label}`}
-        className={walkaround ? 'text-link mt-2 min-h-11 text-sm' : `vehicle-contact-action vehicle-contact-action-whatsapp ${compact ? 'h-12 w-12 shrink-0 p-0' : ''}`}
+        aria-label={`WhatsApp about ${label}`}
+        className={`vehicle-contact-action vehicle-contact-action-whatsapp ${compact ? 'h-12 w-12 shrink-0 p-0' : ''}`}
       >
         <SiWhatsapp aria-hidden="true" className="h-4 w-4" />
-        {!compact && (walkaround ? 'Request a walkaround video' : 'WhatsApp Us')}
+        {!compact && 'WhatsApp Us'}
       </button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
@@ -113,7 +102,7 @@ export function VehicleWhatsApp({
               href={getWhatsAppHref(message.trim(), settings)}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => recordContactIntent({ channel: 'whatsapp', car, source: walkaround ? 'vehicle_walkaround' : 'vehicle_whatsapp_confirmed' })}
+              onClick={() => recordContactIntent({ channel: 'whatsapp', car, source: 'vehicle_whatsapp_confirmed' })}
             ><SiWhatsapp aria-hidden="true" />Continue to WhatsApp</a> : <>
               <Button className="vehicle-action-primary" disabled><SiWhatsapp aria-hidden="true" />Continue to WhatsApp</Button>
               <p role="status" className="vehicle-action-note">Enter a message to continue.</p>
@@ -121,12 +110,7 @@ export function VehicleWhatsApp({
             <p className="vehicle-action-note">Your message is sent only when you confirm in WhatsApp.</p>
           </div>
 
-          {hours.state === 'closed' && <div className="vehicle-action-alternative">
-            <p>{canReserve ? 'You can also reserve this car online.' : 'You can also ask questions online.'}</p>
-            {canReserve
-              ? <ReserveCar car={car} className="vehicle-action-secondary" />
-              : <a className="vehicle-action-secondary" href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`}>Ask about this car</a>}
-          </div>}
+
         </DialogContent>
       </Dialog>
     </>

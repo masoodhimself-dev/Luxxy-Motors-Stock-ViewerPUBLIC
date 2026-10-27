@@ -7,8 +7,7 @@ import { defaultEmailTemplates, defaultEmailAppearance, renderEmailTemplate, typ
 import { enquiryGroup } from "../src/lib/enquiry-groups";
 import { readPreviewEnquiries, readPreviewSettings } from "./reservations";
 import { previewStock } from './stock';
-import { previewEnquiryMedia } from './enquiry-media';
-import { readPreviewStockChangeTask } from './stock-changes';
+import { previewEnquiryGallery } from './enquiry-gallery';
 const drafts = new Map<
   string,
   {
@@ -28,9 +27,7 @@ const contentSchema = z
     includeAppointment: z.boolean(),
     photoIds: z.array(z.string()).max(6),
     documentIds: z.array(z.string()).max(3),
-    customPhotoIds: z.array(z.string().uuid()).max(2).default([]),
     vehiclePhotoIndices: z.array(z.number().int().min(0).max(99)).max(4).default([]),
-    includeVideo: z.boolean().default(false),
     expectedRevision: z.number().int().nonnegative(),
     stockChange: z.object({ taskId: z.string().uuid(), revision: z.number().int().nonnegative() }).strict().optional(),
   })
@@ -48,10 +45,8 @@ export async function communicationsPreview(
       "/api/staff/email",
       "/api/staff/email/reply-attention",
       "/api/staff/push",
-      "/api/staff/ai-drafts/config",
     ].includes(url.pathname) ||
     url.pathname.startsWith('/api/staff/push/') ||
-    /^\/api\/staff\/enquiries\/[^/]+\/ai-draft$/.test(url.pathname) ||
     /^\/api\/staff\/enquiries\/[^/]+\/email(?:-context|-draft(?:\/discard)?|-preview)?$/.test(
       url.pathname,
     );
@@ -71,16 +66,6 @@ export async function communicationsPreview(
     (req.headers.origin && req.headers.origin !== `http://${req.headers.host}`)
   ) {
     send(403, { error: "Communications preview is loopback-only." });
-    return true;
-  }
-  if (url.pathname === '/api/staff/ai-drafts/config' || /^\/api\/staff\/enquiries\/[^/]+\/ai-draft$/.test(url.pathname)) {
-    // A file-backed preview must never use a real provider key or customer data.
-    const reason = 'AI drafting needs the authenticated backend and an operator-enabled dealership. Local preview never contacts OpenAI.';
-    if (req.method === 'GET' && url.pathname === '/api/staff/ai-drafts/config') {
-      send(200, { enabled: false, available: false, reason, model: 'gpt-6-luna', dailyLimit: 20, monthlyLimit: 500, dailyUsed: 0, monthlyUsed: 0 });
-    } else {
-      send(503, { error: reason });
-    }
     return true;
   }
   if (url.pathname === '/api/staff/push' || url.pathname.startsWith('/api/staff/push/')) {
@@ -259,7 +244,7 @@ export async function communicationsPreview(
         templates: availableTemplates.map(template => { const rendered = renderEmailTemplate(template, variables, [], { ...appearance, heading: '', footer: '' }); return { id: template.id, label: template.label, subject: rendered.subject, message: rendered.bodyText }; }),
         invoices: [],
         photos: [],
-        ...previewEnquiryMedia(entry.id,entry.vehicleId,req.headers.host||'localhost'),
+        ...previewEnquiryGallery(entry.vehicleId),
         deliveries: [],
       });
       return true;
@@ -275,18 +260,9 @@ export async function communicationsPreview(
       }
       const body = JSON.parse(raw);
       if (url.pathname.endsWith("/email-draft")) {
-        const previous = saved?.status === 'draft' ? saved.content.stockChange : undefined;
-        const parsed = contentSchema.safeParse({ ...body.content, ...(!body.content?.stockChange && previous ? { stockChange: previous } : {}) });
-        if (!parsed.success) {
-          send(400, { error: "Check the draft." });
-          return true;
-        }
-        if (previous && JSON.stringify(previous) !== JSON.stringify(parsed.data.stockChange)) {
-          const task = parsed.data.stockChange && await readPreviewStockChangeTask(parsed.data.stockChange.taskId);
-          if (body.replaceStockChangeContext !== true || !task || task.revision !== parsed.data.stockChange?.revision || task.status !== 'open' || !task.affectedCustomers.some(person => person.enquiryId === entry.id)) {
-            send(409, { error: 'Review the latest price update before replacing this saved price draft.' }); return true;
-          }
-        }
+        const parsed = contentSchema.safeParse(body.content);
+        if (!parsed.success) { send(400,{error:'Check the draft.'});return true; }
+        if (parsed.data.stockChange || saved?.content.stockChange) { send(409,{error:'This archived price-update draft cannot be sent. Start a new message from current vehicle details.'});return true; }
         if (
           body.expectedVersion !== version ||
           parsed.data.expectedRevision !== (entry.workspaceRevision ?? 0)
@@ -332,22 +308,16 @@ export async function communicationsPreview(
           return true;
         }
         if (parsed.data.expectedRevision !== (entry.workspaceRevision ?? 0)) { send(409, { error: 'The enquiry changed. Reopen the email before reviewing it.' }); return true; }
-        if (parsed.data.stockChange) {
-          const task = await readPreviewStockChangeTask(parsed.data.stockChange.taskId);
-          if (!task || task.status !== 'open' || task.revision !== parsed.data.stockChange.revision || !task.affectedCustomers.some(person => person.enquiryId === entry.id)) { send(409, { error: 'This price update has changed. Review the current car before sending.' }); return true; }
-        }
+        if (parsed.data.stockChange) { send(409,{error:'This archived price-update draft cannot be sent. Start a new message from current vehicle details.'});return true; }
         if (parsed.data.templateId === 'invoice_copy' && !parsed.data.documentIds.length) { send(400, { error: 'Attach an invoice for this customer before reviewing this invoice email.' }); return true; }
         if (['service_history','pre_accident_photos'].includes(parsed.data.templateId ?? '') && !parsed.data.photoIds.length) { send(400, { error: 'Attach a matching approved vehicle photo before reviewing this email.' }); return true; }
         if (parsed.data.photoIds.length || parsed.data.documentIds.length) { send(409, { error: 'Private attachments need the authenticated backend. Local preview cannot validate or send them.' }); return true; }
         if (parsed.data.includeAppointment && !entry.appointmentAt) { send(400, { error: 'There is no appointment on this enquiry.' }); return true; }
         const car = previewStock.cars.find(car => car.id === entry.vehicleId);
-        const media = previewEnquiryMedia(entry.id, entry.vehicleId, req.headers.host||'localhost');
-        const selectedPhotos = parsed.data.customPhotoIds.map(id=>media.customPhotos.find(photo=>photo.id===id));
-        if(selectedPhotos.some(photo=>!photo)){send(409,{error:'A custom photo was removed. Refresh the message before sharing.'});return true;}
+        const media = previewEnquiryGallery(entry.vehicleId);
         const links:string[]=[];
         for(const index of parsed.data.vehiclePhotoIndices){const photo=media.vehiclePhotos.find(photo=>photo.index===index);if(!photo){send(409,{error:'A car photo changed. Choose it again.'});return true;}links.push(`Car photo ${index+1}: ${photo.url}`);}
-        if(parsed.data.includeVideo){if(!media.videoAvailable||!media.videoUrl){send(409,{error:'There is no published video for this car.'});return true;}links.push(`Car video: ${media.videoUrl}`);}
-        const attachments=selectedPhotos.map(photo=>({id:photo!.id,filename:`custom-photo-${photo!.id}.jpg`,byteSize:photo!.byteSize}));
+        const attachments: Array<{ id: string; filename: string; byteSize: number }> = [];
         const facts: EmailFacts = [];
         if (parsed.data.includeVehicle) {
           if (!car && !entry.vehicleTitle) { send(400, { error: 'There is no vehicle information on this enquiry.' }); return true; }

@@ -1,4 +1,3 @@
-import { useCustomerPreview } from '@/lib/customer-preview-context';
 import {
   responsiveVehicleImage,
   retryOriginalImage,
@@ -13,8 +12,7 @@ import {
 import { formatPrice, getThumbnailUrl, vehicleDisplayTitle } from "@/lib/utils";
 export function RecentlyViewed() {
   const { stock } = useStock();
-  const preview = useCustomerPreview();
-  const [ids, setIds] = useState(() => preview ? [] : recentVehicles());
+  const [ids, setIds] = useState(() => recentVehicles());
   const [failedPhotos, setFailedPhotos] = useState<Set<string>>(new Set());
   const cars = ids
     .map((id) => stock?.cars.find((car) => car.id === id))

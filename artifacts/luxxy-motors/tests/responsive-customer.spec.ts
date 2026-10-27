@@ -131,7 +131,6 @@ for (const viewport of viewports) {
         ['contact', '/contact'],
         ['warranty', '/warranty'],
         ['saved', `/saved?cars=${car.id}`],
-        ['compare', '/compare'],
       ];
       for (const [name, path] of pages) {
         await test.step(name, async () => {

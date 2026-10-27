@@ -1,4 +1,3 @@
-import { useCustomerPreview } from '@/lib/customer-preview-context';
 import { FeatureUnavailable } from './feature-unavailable';
 import { useDealerFeatures } from '@/lib/dealer-features';
 import { showroomHours } from '@/lib/showroom-hours';
@@ -7,7 +6,6 @@ import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
 import { enquiryDraftKey, readEnquiryDraft, saveEnquiryDraft, discardEnquiryDraft } from '@/lib/enquiry-draft';
 import { readVehicleExchange } from '@/lib/vehicle-exchange-draft';
 import { responsiveVehicleImage, retryOriginalImage } from '@/lib/responsive-vehicle-image';
-import { ReserveCar } from '@/components/reserve-car';
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import { PartExchangeForm } from '@/components/part-exchange-form';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
@@ -29,8 +27,6 @@ import { trackEvent } from '@/lib/analytics';
 const typeLabels: Record<EnquiryType, string> = {
   viewing: 'Book a Test Drive',
   general: 'General enquiry',
-  delivery: 'Delivery enquiry',
-  warranty: 'Warranty enquiry',
   part_exchange: 'Part exchange valuation',
 };
 
@@ -74,7 +70,6 @@ export function EnquiryForm({
   onTypeChange?: (type: EnquiryType) => void;
   onChangeCar?: () => void;
 }) {
-  const preview = useCustomerPreview();
   const { settings: dealerConfig } = useDealerSettings();
   const features = useDealerFeatures();
   const [, navigate] = useLocation();
@@ -83,13 +78,13 @@ export function EnquiryForm({
   const [unavailableVehiclePhoto, setUnavailableVehiclePhoto] = useState('');
   const nameInputRef = useRef<HTMLInputElement>(null);
   const successHeadingRef = useRef<HTMLHeadingElement>(null);
-  const [hasPartExchange, setHasPartExchange] = useState(() => !preview && Boolean(readVehicleExchange(vehicle?.id)));
-  const [exchange, setExchange] = useState(() => (preview ? null : readVehicleExchange(vehicle?.id)) ?? { registration: '', mileage: '', notes: '' });
+  const [hasPartExchange, setHasPartExchange] = useState(() => Boolean(readVehicleExchange(vehicle?.id)));
+  const [exchange, setExchange] = useState(() => readVehicleExchange(vehicle?.id) ?? { registration: '', mileage: '', notes: '' });
   useEffect(() => {
     const draft = readVehicleExchange(vehicle?.id);
     if (draft) { setExchange(draft); setHasPartExchange(true); }
   }, [vehicle?.id]);
-  const includePartExchange = hasPartExchange && features.enabled('partExchange');
+  const includePartExchange = hasPartExchange && dealerConfig.partExchange?.enabled && features.enabled('partExchange');
   const exchangeSummary = includePartExchange && vehicle ? [
     'Part exchange', `Registration: ${exchange.registration.trim().toUpperCase()}`,
     `Mileage: ${exchange.mileage} miles`, `Other details: ${exchange.notes.trim() || 'None supplied'}`,
@@ -263,9 +258,6 @@ export function EnquiryForm({
             </div>
           </div>
         </div>
-        {vehicle && dealerConfig.onlineReservation?.enabled && <div className="mx-auto mt-6 max-w-sm border-t border-border pt-5">
-          <ReserveCar key={vehicle.id} car={vehicle} customer={{ customerName, email, phone }} partExchange={includePartExchange && exchange.registration && exchange.mileage ? { registration: exchange.registration, mileage: Number(exchange.mileage) } : undefined} className="w-full" />
-        </div>}
         <Button
           type="button"
           variant="outline"
@@ -413,19 +405,11 @@ export function EnquiryForm({
         <div className="flex flex-wrap gap-x-5 gap-y-1 pb-3" aria-label="Other enquiries">
           {(Object.entries(typeLabels) as Array<[EnquiryType, string]>).filter(([value]) => value !== type
             && (value !== 'part_exchange' || (dealerConfig.partExchange?.enabled && features.enabled('partExchange')))
-            && (value !== 'warranty' || dealerConfig.warranty?.enabled)
-            && (value !== 'delivery' || dealerConfig.delivery?.enabled)
-            && (value !== 'viewing' || features.enabled('testDriveBookings'))).map(([value, label]) =>
+            && (value !== 'viewing' || (dealerConfig.testDriveBooking?.enabled && features.enabled('testDriveBookings')))).map(([value, label]) =>
             <Link key={value} href={`/enquire?type=${value}${vehicle ? `&vehicleId=${encodeURIComponent(vehicle.id)}` : ''}`} onClick={event => { event.preventDefault(); changeType(value); }} className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">{label}</Link>
           )}
         </div>
       </details>}
-      {vehicle && dealerConfig.onlineReservation?.enabled && (
-        <MobileActionDisclosure label="Or reserve this car" className="border-t border-border pt-2" testId="enquiry-reservation-options">
-          <p className="mb-3 text-xs text-muted-foreground">You can also reserve this car online. Your enquiry is submitted separately.</p>
-          <ReserveCar key={vehicle.id} car={vehicle} customer={{ customerName, email, phone }} partExchange={includePartExchange && exchange.registration && exchange.mileage ? { registration: exchange.registration, mileage: Number(exchange.mileage) } : undefined} className="w-full" />
-        </MobileActionDisclosure>
-      )}
     </form>
   );
 }

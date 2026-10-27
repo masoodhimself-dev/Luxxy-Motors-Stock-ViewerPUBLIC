@@ -1,162 +1,190 @@
 import { useEffect, useState } from "react";
 import { customFetch } from "@workspace/api-client-react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { SettingsTabs } from "@/components/settings-tabs";
-import { FileCheck2, Palette, CreditCard, FileText } from "@/components/icons";
-import { defaultInvoiceSettings, invoiceTextLimits, invoiceBranding, saleWorkspaceBranding, saleWorkspaceNumber, type InvoiceSettings } from '@workspace/vehicle-meta';
-import { PdfSalesDocument } from './sales-demo/sales-document';
-import { emptyDraft } from './sales-demo/model';
-import type { DealerConfig } from '@/config/dealer';
-import './invoice-settings.css';
+import {
+  defaultInvoiceSettings,
+  invoiceTextLimits,
+  type InvoiceSettings,
+} from "@workspace/vehicle-meta";
+import { Button } from "./ui/button";
+import { Textarea } from "./ui/textarea";
+import "./integration-settings.css";
 type Paperwork = {
-  invoiceSettings?: InvoiceSettings;
   revision: number;
   saleTerms: string;
   reservationTerms: string;
+  invoiceSettings?: InvoiceSettings;
 };
 export function SalesPaperworkSettings() {
-  const [settingsTab, setSettingsTab] = useState("design");
-  const [dealer, setDealer] = useState<DealerConfig>();
-  useEffect(() => { void customFetch<DealerConfig>('/api/dealer-settings').then(setDealer).catch(() => {}); }, []);
-  const [value, setValue] = useState<Paperwork>();
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-  const [saved, setSaved] = useState<Paperwork>();
-  const [busy, setBusy] = useState(false);
-  const [preview, setPreview] = useState<{ dealer: DealerConfig; terms: string; options: InvoiceSettings } | null>(null);
+  const [value, setValue] = useState<Paperwork | null>(null),
+    [saved, setSaved] = useState<Paperwork | null>(null),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [notice, setNotice] = useState("");
+  const options = { ...defaultInvoiceSettings, ...value?.invoiceSettings };
+  const changed = Boolean(
+    value && saved && JSON.stringify(value) !== JSON.stringify(saved),
+  );
+  const tooLong = Boolean(
+    value &&
+    (value.saleTerms.length > invoiceTextLimits.saleTerms ||
+      value.reservationTerms.length > invoiceTextLimits.reservationTerms ||
+      options.paymentInstructions.length >
+        invoiceTextLimits.paymentInstructions),
+  );
   async function load() {
-    setBusy(true); setError(""); setMessage("");
+    setBusy(true);
+    setError("");
     try {
-      const result = await customFetch<Paperwork>("/api/dealer-integrations/sales-paperwork");
-      setValue(result); setSaved(result);
-    } catch { setError("Sales paperwork could not be loaded. Try again."); }
-    finally { setBusy(false); }
+      const data = await customFetch<Paperwork>(
+        "/api/dealer-integrations/sales-paperwork",
+      );
+      setValue(data);
+      setSaved(data);
+    } catch {
+      setError("Sales paperwork could not be loaded. Try again.");
+    } finally {
+      setBusy(false);
+    }
   }
   useEffect(() => {
     void load();
   }, []);
+  useEffect(() => {
+    if (!changed) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [changed]);
   async function save() {
     if (!value || busy || tooLong) return;
-    setBusy(true); setError(""); setMessage("");
+    setBusy(true);
+    setError("");
+    setNotice("");
     try {
-      const result = (
-        await customFetch<Paperwork>(
-          "/api/dealer-integrations/sales-paperwork",
-          {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              expectedRevision: value.revision,
-              saleTerms: value.saleTerms,
-              reservationTerms: value.reservationTerms,
-              invoiceSettings: options,
-            }),
-          },
-        )
+      const result = await customFetch<Paperwork>(
+        "/api/dealer-integrations/sales-paperwork",
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            expectedRevision: value.revision,
+            saleTerms: value.saleTerms,
+            reservationTerms: value.reservationTerms,
+            invoiceSettings: options,
+          }),
+        },
       );
-      setValue(result); setSaved(result);
-      setMessage(
-        "Document settings saved. Existing issued documents keep their original design, reference and terms.",
+      setValue(result);
+      setSaved(result);
+      setNotice(
+        "Document settings saved. Existing invoices, payment records and numbering stay unchanged.",
       );
-    } catch (error) {
+    } catch {
       setError(
-        "Could not save. " + (error instanceof Error ? error.message : "Reload if these settings changed on another device."),
+        "Could not save. Your wording is kept. Reload if another owner changed these settings.",
       );
     } finally {
       setBusy(false);
     }
   }
-  const changed = Boolean(value && saved && (value.saleTerms !== saved.saleTerms || value.reservationTerms !== saved.reservationTerms || JSON.stringify(value.invoiceSettings) !== JSON.stringify(saved.invoiceSettings)));
-  const originalOptions = { ...defaultInvoiceSettings, ...value?.invoiceSettings };
-  const options: InvoiceSettings = { ...originalOptions, style: originalOptions.style==='premium' || originalOptions.style==='branded' ? 'branded' : 'understated' };
-  const lengths = { saleTerms:value?.saleTerms??'', reservationTerms:value?.reservationTerms??'', footer:options.footer, paymentInstructions:options.paymentInstructions };
-  const tooLong = (Object.keys(invoiceTextLimits) as Array<keyof typeof invoiceTextLimits>).some(k=>lengths[k].length>invoiceTextLimits[k]);
-  const counter = (key: keyof typeof invoiceTextLimits) => <small className={lengths[key].length>invoiceTextLimits[key]?'invoice-wording-limit exceeded':'invoice-wording-limit'}>{lengths[key].length} / {invoiceTextLimits[key]} characters</small>;
-  const change = <K extends keyof InvoiceSettings>(key: K, next: InvoiceSettings[K]) => value && setValue({ ...value, invoiceSettings: { ...options, [key]: next } });
-  const sampleReference = saleWorkspaceNumber({}, 'invoice', new Date().toISOString(), options);
-  const previewDealer = invoiceBranding(saleWorkspaceBranding(dealer), options) as DealerConfig;
-  const sample = { ...emptyDraft(), id: 'DESIGN-SAMPLE', customer: 'Jamie Taylor', address:'12 Maple Close, London', vehicle: 'Mercedes-Benz E-Class E220d AMG Line', price: '24500', registration: 'AB20 XYZ', notes: '' };
   return (
-    <section className="integration-settings invoice-settings" aria-label="Sales paperwork settings" data-settings-dirty={changed}>
-      <div className="integration-heading"><div><p className="integration-eyebrow">Sales documents</p><h2>Invoices & terms</h2><p>Set your invoice design, payment details and approved wording.</p></div><FileCheck2 aria-hidden="true" /></div>
-      {error && <p role="alert" className="integration-error">{error}</p>}
-      {value ? (
-        <>
-          <SettingsTabs idPrefix="invoice-settings" label="Invoice settings" value={settingsTab} onValueChange={setSettingsTab} items={[{id:'design',label:'Design',icon:Palette},{id:'payment',label:'Payment details',icon:CreditCard},{id:'terms',label:'Terms',icon:FileText}]} />
-          <div role="tabpanel" id="invoice-settings-panel-design" aria-labelledby="invoice-settings-tab-design" hidden={settingsTab !== 'design'} className="invoice-settings-panel">
-          <div className="invoice-settings-layout">
-            <div className="invoice-settings-controls integration-card">
-              <header><h3>Your invoice design</h3><p>Choose a style that suits your dealership.</p></header>
-              <label className="integration-field">Design style<select disabled={busy} value={options.style} onChange={e => change('style', e.target.value as InvoiceSettings['style'])}><option value="understated">Classic ledger — understated</option><option value="branded">Classic ledger — branded</option></select></label>
-              <p className="invoice-design-help">Branded uses your dealership colour for headings and rules. Understated uses neutral ink. Both keep the same invoice details.</p>
-              {options.style === 'branded' && !options.inkSaving && <><label><input type="checkbox" disabled={busy} checked={options.useWebsiteColour} onChange={e => change('useWebsiteColour', e.target.checked)} /> Use website colour</label>
-              {!options.useWebsiteColour && <label className="integration-field">Invoice colour<input type="color" disabled={busy} value={options.accent} onChange={e => change('accent', e.target.value)} /></label>}</>}
-              <label><input type="checkbox" disabled={busy} checked={options.showLogo} onChange={e => change('showLogo', e.target.checked)} /> Show dealership logo</label>
-              {options.showLogo && <label className="integration-field">Logo size<select disabled={busy} value={options.logoSize} onChange={e => change('logoSize', e.target.value as InvoiceSettings['logoSize'])}><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></select></label>}
-              <details className="invoice-occasional-settings"><summary>Print options</summary><label><input type="checkbox" disabled={busy} checked={options.inkSaving} onChange={e => change('inkSaving', e.target.checked)} /> Ink-saving design</label></details>
-              <label className="integration-field">Thank-you / footer wording<Textarea disabled={busy} rows={2} maxLength={invoiceTextLimits.footer} aria-invalid={options.footer.length>invoiceTextLimits.footer} value={options.footer} onChange={e => change('footer', e.target.value)} /></label>{counter('footer')}
-            </div>
-            <div className="invoice-settings-preview"><h3>A4 design check</h3><p>Fictional customer and vehicle. Preview only updates when you ask; nothing is issued.</p><Button disabled={busy||tooLong||!dealer} onClick={()=>setPreview({dealer:previewDealer,terms:value.saleTerms,options:{...options}})}>{preview?'Update A4 preview':'Check A4 preview'}</Button>{preview ? <><PdfSalesDocument draft={sample} dealer={preview.dealer} documentType="Sales invoice" invoiceTerms={preview.terms} savedVehicle={{id:sample.vehicleId,year:2020,fuel:'Diesel',transmission:'Automatic',mileage:22000,colour:'Obsidian Black',engineSize:'2.0L',owners:1,serviceHistory:'Full'}}/>{JSON.stringify(preview.options)!==JSON.stringify(options)||preview.terms!==value.saleTerms?<p role="status">Settings have changed. Update the preview to check this version.</p>:null}</> : <div className="invoice-preview-empty">Your invoice preview will appear here.</div>}<p className="invoice-design-help">Character limits keep wording compact. Standard invoices aim to fit one A4 page with the car photo and all confirmed payments. Longer payment histories or wording continue onto additional pages without removing content.</p></div>
-          </div>
-          </div>
-          <div role="tabpanel" id="invoice-settings-panel-payment" aria-labelledby="invoice-settings-tab-payment" hidden={settingsTab !== 'payment'} className="invoice-settings-panel">
-            <div className="invoice-settings-detail-grid">
-              <div className="invoice-settings-controls integration-card"><header><h3>Payment details</h3><p>The details customers use to pay and identify their invoice.</p></header>
-              <label className="integration-field">Payment instructions<Textarea disabled={busy} rows={3} maxLength={invoiceTextLimits.paymentInstructions} aria-invalid={options.paymentInstructions.length>invoiceTextLimits.paymentInstructions} value={options.paymentInstructions} onChange={e => change('paymentInstructions', e.target.value)} /></label>{counter('paymentInstructions')}
-              <p>Leave payment instructions blank to omit them. Enter only this dealership’s verified payment details.</p>
-              <details className="invoice-occasional-settings"><summary>Document numbering</summary><p>Only change these when setting up your dealership or agreeing a new numbering format.</p><label className="integration-field">Dealer reference prefix<input disabled={busy} maxLength={12} pattern="[A-Z0-9]*" value={options.referencePrefix} onChange={e => change('referencePrefix', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} /></label>
-              <label className="integration-field">Starting sequence (minimum)<input disabled={busy} type="number" min={1} max={999999999} step={1} value={options.startingSequence} onChange={e => { const n = Number(e.target.value); if (Number.isInteger(n) && n >= 1 && n <= 999999999) change('startingSequence', n); }} /></label>
-              <p>Example format: <strong>{sampleReference}</strong>. Each document type has its own yearly sequence. The actual next number continues after the highest allocated number; this setting never resets it. Changing the prefix does not reset numbering.</p>
-              <p>Invoice, receipt and sale references retain their fixed INV, RCP and SALE labels. Existing documents keep their original design and reference.</p></details>
-              </div>
-              <aside className="invoice-settings-guidance"><CreditCard aria-hidden="true" /><h3>Clear payment records</h3><p>Deposit and full invoices include every confirmed payment, with its date and amount.</p><p>Only add verified payment details for this dealership. Leave the instructions blank to omit them.</p><p>Existing issued documents keep their original reference and payment details.</p></aside>
-            </div>
-          </div>
-          <div role="tabpanel" id="invoice-settings-panel-terms" aria-labelledby="invoice-settings-tab-terms" hidden={settingsTab !== 'terms'} className="invoice-settings-panel">
-            <div className="invoice-settings-detail-grid"><div className="integration-card invoice-settings-terms"><header><h3>Approved dealership wording</h3><p>Use your approved terms. Character limits keep wording concise; longer invoices continue onto additional A4 pages.</p></header>
+    <section
+      className="integration-settings"
+      aria-label="Sales paperwork settings"
+      data-settings-dirty={changed}
+    >
+      <header className="integration-heading">
+        <div>
+          <h3>Invoices and terms</h3>
+          <p>
+            Approved wording for new documents. Existing issued documents keep
+            their saved terms, amounts and references.
+          </p>
+        </div>
+      </header>
+      {error && (
+        <p role="alert" className="integration-error">
+          {error}
+        </p>
+      )}
+      {notice && <p role="status">{notice}</p>}
+      {!value ? (
+        <Button disabled={busy} onClick={() => void load()}>
+          {busy ? "Loading paperwork…" : "Try again"}
+        </Button>
+      ) : (
+        <fieldset disabled={busy} className="space-y-5">
           <label className="integration-field">
             Terms and conditions of sale
             <Textarea
-              disabled={busy}
               rows={8}
               maxLength={invoiceTextLimits.saleTerms}
-              aria-invalid={value.saleTerms.length>invoiceTextLimits.saleTerms}
               value={value.saleTerms}
               onChange={(e) =>
                 setValue({ ...value, saleTerms: e.target.value })
               }
             />
           </label>
-          {counter('saleTerms')}
           <label className="integration-field">
-            Reservation and deposit terms
+            Deposit and reservation terms
             <Textarea
-              disabled={busy}
-              rows={6}
+              rows={5}
               maxLength={invoiceTextLimits.reservationTerms}
-              aria-invalid={value.reservationTerms.length>invoiceTextLimits.reservationTerms}
               value={value.reservationTerms}
               onChange={(e) =>
                 setValue({ ...value, reservationTerms: e.target.value })
               }
             />
           </label>
-          {counter('reservationTerms')}
-            </div><aside className="invoice-settings-guidance"><FileCheck2 aria-hidden="true" /><h3>Saved with each invoice</h3><p>New documents use the wording saved here. Issued documents keep the terms agreed at the time.</p><p>Each new invoice includes a QR code to verify its reference, vehicle and issue-time amounts. Customer contact details remain private.</p></aside></div>
+          <label className="integration-field">
+            Payment instructions
+            <Textarea
+              rows={3}
+              maxLength={invoiceTextLimits.paymentInstructions}
+              value={options.paymentInstructions}
+              onChange={(e) =>
+                setValue({
+                  ...value,
+                  invoiceSettings: {
+                    ...options,
+                    paymentInstructions: e.target.value,
+                  },
+                })
+              }
+            />
+          </label>
+          <p className="text-sm text-muted-foreground">
+            Enter only verified dealership payment details. Leave instructions
+            blank to omit them. Documents use your dealership brand.
+          </p>
+          {tooLong && (
+            <p role="alert" className="integration-error">
+              Existing wording exceeds the limits. Shorten it before saving.
+              Nothing has been removed automatically.
+            </p>
+          )}
+          <div className="flex flex-wrap gap-3">
+            <Button disabled={!changed || tooLong} onClick={() => void save()}>
+              Save document settings
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (
+                  !changed ||
+                  window.confirm("Discard unsaved document wording?")
+                )
+                  void load();
+              }}
+            >
+              Reload saved settings
+            </Button>
           </div>
-          {tooLong&&<p role="alert" className="integration-error">Existing wording exceeds the character limits. Shorten it before saving. Nothing has been removed automatically.</p>}
-          <div className="invoice-settings-save-bar"><p>{changed ? 'You have unsaved changes' : 'All document settings saved'}<small>Changes apply to future documents.</small></p><div>
-          <Button disabled={busy || !changed || tooLong} onClick={() => void save()}>
-            {busy ? "Saving…" : "Save document settings"}
-          </Button>
-          <Button variant="outline" disabled={busy} onClick={() => { if (!changed || window.confirm("Discard unsaved document settings and reload?")) void load(); }}>Reload saved settings</Button>
-          </div></div>
-        </>
-      ) : (
-        <Button disabled={busy} onClick={() => void load()}>{busy ? "Loading…" : "Load sales paperwork"}</Button>
+        </fieldset>
       )}
-      {message && <p role="status">{message}</p>}
     </section>
   );
 }

@@ -1,5 +1,5 @@
 import './test-drive-bookings-panel.css';
-import { ShareQr } from "@/components/share-qr";
+import { DirectWhatsApp } from "@/components/direct-whatsapp";
 import { useEnquirySummaries as useGetEnquiries } from "@/lib/enquiry-summary-query";
 import { useEffect, useState } from 'react';
 import { Link } from 'wouter';
@@ -96,9 +96,9 @@ function BookingRow({ booking, now, onDecision, onMerge, canEmail, canBook, chec
       <BookingReadiness booking={booking} autoLoad={checkPreparation} />
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <Button variant="outline" size="sm" asChild><Link href={`/portal?section=notifications&workView=customers&enquiryId=${encodeURIComponent(booking.id)}`}>Open customer</Link></Button>
-        <ShareQr templateVariables={{vehicle_title:booking.vehicleTitle || "",appointment_time:booking.appointmentAt ? formatDateTime(booking.appointmentAt) + " (UK time)" : ""}} whatsapp label="WhatsApp QR" enquiryId={booking.id} customerName={booking.customerName} customerEmail={booking.email || ""} customerPhone={booking.phone || ""} message={`Hello ${booking.customerName}, about your test drive${booking.vehicleTitle ? ` for ${booking.vehicleTitle}` : ""}. Please let us know if you have any questions.`} />
+        <DirectWhatsApp label="WhatsApp" enquiryId={booking.id} customerName={booking.customerName} customerPhone={booking.phone || ""} message={`Hello ${booking.customerName}, about your test drive${booking.vehicleTitle ? ` for ${booking.vehicleTitle}` : ""}. Please let us know if you have any questions.`} />
         {canEmail && <Button variant="outline" size="sm" asChild><Link href={`/portal?section=notifications&workView=email&compose=${encodeURIComponent(booking.id)}`}>Prepare email</Link></Button>}
-        {canDeclare && <Button type="button" variant="outline" size="sm" onClick={() => setDeclarationOpen(true)}><FileCheck2 className="h-4 w-4" aria-hidden="true"/>Declaration & QR</Button>}
+        {canDeclare && <Button type="button" variant="outline" size="sm" onClick={() => setDeclarationOpen(true)}><FileCheck2 className="h-4 w-4" aria-hidden="true"/>Declaration</Button>}
         <details className="booking-more-tools"><summary>More options</summary><div><Button type="button" variant="ghost" size="sm" onClick={() => onMerge(booking)}>Merge records</Button><HistoryLinks vehicleId={booking.vehicleId} recordType="enquiry" recordId={booking.id} vehicle={Boolean(booking.vehicleId || booking.vehicleTitle)} /></div></details>
       </div>
       {(booking.message || booking.partExchangeRegistration) && <details className="mt-4 border-t border-border pt-2 text-sm">

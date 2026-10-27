@@ -257,6 +257,7 @@ it('discloses a supplied insurance category alongside the price without inferrin
 });
 
 it('opens the existing car-specific enquiry form and keeps print/share outside collapsed phone options', async () => {
+  featureState.data.features.publicEnquiries = true;
   const scrollIntoView = vi.fn();
   Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {configurable: true, value: scrollIntoView});
   window.history.replaceState({}, '', '/vehicle/with-plate');
@@ -378,11 +379,24 @@ it('keeps a separate write-off disclosure visible and shows a verified tax estim
   } finally { Object.assign(car, previous); }
 });
 
-it('opens shared published video inside the photo gallery',()=>{
- window.history.pushState({},'', '/vehicle/with-plate?video=1#walkaround');
- const client=new QueryClient({defaultOptions:{queries:{retry:false,staleTime:Infinity}}});
- client.setQueryData(['public-car-video','with-plate'],{video:{url:'/published-video.mp4'}});
- render(<QueryClientProvider client={client}><SavedCarsProvider><CarDetail/></SavedCarsProvider></QueryClientProvider>);
- expect(screen.getByRole('button',{name:'Video'})).toHaveAttribute('aria-pressed','true');
- expect(document.querySelector('#walkaround video')).toHaveAttribute('src','/published-video.mp4');
+it('removes every main booking and enquiry entry point when the corresponding controls are off', () => {
+  featureState.data.features.testDriveBookings = true;
+  const view = renderVehicle('with-plate', { ...dealerConfig, testDriveBooking: { ...defaultBookingSettings, enabled: false } });
+  expect(view.container.querySelector('[data-vehicle-contact="booking"]')).toBeNull();
+  expect(view.container.querySelector('.vehicle-enquiry-action')).toBeNull();
+  expect(screen.queryByTestId('form-enquiry')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Share this vehicle' })).toBeInTheDocument();
+});
+
+it('renders valid Cazoo vehicle checks without a demo-host-only presentation gate', () => {
+  const car = stockFixture.cars[1];
+  const original = { advertId: car.advertId, advertUrl: car.advertUrl, sourceExtras: car.sourceExtras };
+  Object.assign(car, { advertId: '80238245', advertUrl: 'https://www.cazoo.co.uk/cars-for-sale/80238245/', sourceExtras: {
+    sourcePlatform: 'cazoo', sourceReport: { version: 1, platform: 'cazoo', sourceUrl: 'https://www.cazoo.co.uk/cars-for-sale/80238245/', capturedAt: '2026-01-01T00:00:00Z', ulez: { status: 'compliant', sourceText: 'ULEZ Compliant' }, history: null },
+  } });
+  try {
+    renderVehicle('with-plate');
+    expect(screen.getByRole('region', { name: 'Vehicle checks' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'ULEZ compliant' })).toBeInTheDocument();
+  } finally { Object.assign(car, original); }
 });

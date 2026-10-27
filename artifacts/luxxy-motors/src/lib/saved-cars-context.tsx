@@ -1,217 +1,43 @@
-import { useCustomerPreview } from './customer-preview-context';
 import type { Car } from './stock-context';
 import { rememberSavedCar, forgetSavedSnapshots } from './saved-car-snapshots';
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
-
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 const SAVED_KEY = 'luxxy.saved-cars.v1';
-const COMPARE_KEY = 'luxxy.compare-cars.v1';
-
-/** Customers compare two cars side by side, the way they would on the forecourt. */
-export const MAX_COMPARE = 2;
-
-export type CompareResult = 'added' | 'removed' | 'full';
-
 interface SavedCarsContextValue {
-  savedIds: string[];
-  compareIds: string[];
-  savedCount: number;
-  compareCount: number;
-  isSaved: (id: string) => boolean;
-  isComparing: (id: string) => boolean;
-  /** Returns the saved state after the toggle. */
-  toggleSaved: (id: string, car?: Car) => boolean;
-  toggleCompare: (id: string) => CompareResult;
-  removeFromCompare: (id: string) => void;
-  clearCompare: () => void;
-  /** Drops compared cars that are no longer in stock so they stop holding a slot. */
-  pruneCompare: (availableIds: string[]) => void;
-  /** Removes the given ids, or every saved car when called with no argument. */
-  clearSaved: (ids?: string[]) => void;
+  savedIds: string[]; savedCount: number; isSaved: (id: string) => boolean;
+  toggleSaved: (id: string, car?: Car) => boolean; clearSaved: (ids?: string[]) => void;
 }
-
 const SavedCarsContext = createContext<SavedCarsContextValue | undefined>(undefined);
-
-function readIds(key: string, limit?: number): string[] {
-  if (typeof window === 'undefined') return [];
-
+function readIds(): string[] {
   try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return [];
-
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-
-    const ids = Array.from(
-      new Set(parsed.filter((value): value is string => typeof value === 'string' && value.length > 0)),
-    );
-    return typeof limit === 'number' ? ids.slice(0, limit) : ids;
-  } catch {
-    // A corrupt or unreadable store should never stop the showroom rendering.
-    return [];
-  }
+    const value: unknown = JSON.parse(window.localStorage.getItem(SAVED_KEY) ?? '[]');
+    return Array.isArray(value) ? [...new Set(value.filter((id): id is string => typeof id === 'string' && id.length > 0 && id.length <= 128))] : [];
+  } catch { return []; }
 }
-
-function writeIds(key: string, ids: string[]) {
-  if (typeof window === 'undefined') return;
-
-  try {
-    window.localStorage.setItem(key, JSON.stringify(ids));
-  } catch {
-    // Private browsing and full quotas make writes fail; the in-memory list still works.
-  }
-}
-
 export function SavedCarsProvider({ children }: { children: ReactNode }) {
-  const preview = useCustomerPreview();
-  const [savedIds, setSavedIds] = useState<string[]>(() => preview ? [] : readIds(SAVED_KEY));
-  const [compareIds, setCompareIds] = useState<string[]>(() => preview ? [] : readIds(COMPARE_KEY, MAX_COMPARE));
-
-  useEffect(() => {
-    writeIds(SAVED_KEY, savedIds);
-  }, [savedIds]);
-
-  useEffect(() => {
-    writeIds(COMPARE_KEY, compareIds);
-  }, [compareIds]);
-
-  // Keep a second tab honest: comparing cars across two windows is a normal way to shop.
-  useEffect(() => {
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key === SAVED_KEY) setSavedIds(readIds(SAVED_KEY));
-      if (event.key === COMPARE_KEY) setCompareIds(readIds(COMPARE_KEY, MAX_COMPARE));
-    };
-
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
-  }, []);
-
-  // Toggling reports its outcome straight back to the caller (the buttons turn it into a toast),
-  // so reads have to see the newest list even when several clicks land before React re-renders.
-  // These refs hold that list; state and storage follow from them.
+  const [savedIds, setSavedIds] = useState<string[]>(() => readIds());
   const savedRef = useRef(savedIds);
-  const compareRef = useRef(compareIds);
-
+  const commit = useCallback((ids: string[]) => { savedRef.current = ids; setSavedIds(ids); }, []);
   useEffect(() => {
-    savedRef.current = savedIds;
+    try { window.localStorage.setItem(SAVED_KEY, JSON.stringify(savedIds)); } catch { /* In-memory saving still works. */ }
   }, [savedIds]);
-
   useEffect(() => {
-    compareRef.current = compareIds;
-  }, [compareIds]);
-
-  const commitSaved = useCallback((next: string[]) => {
-    savedRef.current = next;
-    setSavedIds(next);
-  }, []);
-
-  const commitCompare = useCallback((next: string[]) => {
-    compareRef.current = next;
-    setCompareIds(next);
-  }, []);
-
-  const toggleSaved = useCallback(
-    (id: string, car?: Car) => {
-      const current = savedRef.current;
-      const nextSaved = !current.includes(id);
-      if (nextSaved && car) rememberSavedCar(car);
-      if (!nextSaved) forgetSavedSnapshots([id]);
-      commitSaved(nextSaved ? [id, ...current] : current.filter((savedId) => savedId !== id));
-      return nextSaved;
-    },
-    [commitSaved],
-  );
-
-  const toggleCompare = useCallback(
-    (id: string): CompareResult => {
-      const current = compareRef.current;
-
-      if (current.includes(id)) {
-        commitCompare(current.filter((compareId) => compareId !== id));
-        return 'removed';
-      }
-      if (current.length >= MAX_COMPARE) return 'full';
-
-      commitCompare([...current, id]);
-      return 'added';
-    },
-    [commitCompare],
-  );
-
-  const removeFromCompare = useCallback(
-    (id: string) => {
-      commitCompare(compareRef.current.filter((compareId) => compareId !== id));
-    },
-    [commitCompare],
-  );
-
-  const clearCompare = useCallback(() => commitCompare([]), [commitCompare]);
-
-  const pruneCompare = useCallback(
-    (availableIds: string[]) => {
-      const available = new Set(availableIds);
-      const current = compareRef.current;
-      const next = current.filter((id) => available.has(id));
-      if (next.length !== current.length) commitCompare(next);
-    },
-    [commitCompare],
-  );
-
-  const clearSaved = useCallback(
-    (ids?: string[]) => {
-      forgetSavedSnapshots(ids);
-      if (!ids) {
-        commitSaved([]);
-        return;
-      }
-      const removing = new Set(ids);
-      commitSaved(savedRef.current.filter((savedId) => !removing.has(savedId)));
-    },
-    [commitSaved],
-  );
-
-  const value = useMemo<SavedCarsContextValue>(
-    () => ({
-      savedIds,
-      compareIds,
-      savedCount: savedIds.length,
-      compareCount: compareIds.length,
-      isSaved: (id: string) => savedIds.includes(id),
-      isComparing: (id: string) => compareIds.includes(id),
-      toggleSaved,
-      toggleCompare,
-      removeFromCompare,
-      clearCompare,
-      pruneCompare,
-      clearSaved,
-    }),
-    [
-      savedIds,
-      compareIds,
-      toggleSaved,
-      toggleCompare,
-      removeFromCompare,
-      clearCompare,
-      pruneCompare,
-      clearSaved,
-    ],
-  );
-
+    const sync = (event: StorageEvent) => { if (event.key === SAVED_KEY || event.key === null) commit(readIds()); };
+    window.addEventListener('storage', sync); return () => window.removeEventListener('storage', sync);
+  }, [commit]);
+  const toggleSaved = useCallback((id: string, car?: Car) => {
+    const saved = !savedRef.current.includes(id);
+    if (saved && car) rememberSavedCar(car);
+    if (!saved) forgetSavedSnapshots([id]);
+    commit(saved ? [id, ...savedRef.current] : savedRef.current.filter(value => value !== id));
+    return saved;
+  }, [commit]);
+  const clearSaved = useCallback((ids?: string[]) => {
+    forgetSavedSnapshots(ids); const removing = new Set(ids);
+    commit(ids ? savedRef.current.filter(id => !removing.has(id)) : []);
+  }, [commit]);
+  const value = useMemo(() => ({ savedIds, savedCount: savedIds.length, isSaved: (id: string) => savedIds.includes(id), toggleSaved, clearSaved }), [savedIds, toggleSaved, clearSaved]);
   return <SavedCarsContext.Provider value={value}>{children}</SavedCarsContext.Provider>;
 }
-
 export function useSavedCars() {
-  const context = useContext(SavedCarsContext);
-  if (context === undefined) {
-    throw new Error('useSavedCars must be used within a SavedCarsProvider');
-  }
-  return context;
+  const context = useContext(SavedCarsContext); if (!context) throw new Error('useSavedCars must be used within a SavedCarsProvider'); return context;
 }

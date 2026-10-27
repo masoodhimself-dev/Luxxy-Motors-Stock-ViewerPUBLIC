@@ -124,11 +124,7 @@ export function EmailDraftQueue({
                 timeStyle: "short",
               })}{" "}
               ·{" "}
-              {row.source === "ai"
-                ? "AI suggestion — review required"
-                : row.source === "template"
-                  ? "Template"
-                  : "Staff draft"}
+              {row.source === "template" ? "Template" : "Saved draft — review before sending"}
             </small>
           </div>
           <div className="email-draft-row-actions">

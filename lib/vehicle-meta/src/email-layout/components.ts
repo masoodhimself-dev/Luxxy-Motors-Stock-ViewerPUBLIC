@@ -95,10 +95,6 @@ function metadata(view: View): string {
         enquiry_acknowledgement: "Enquiry received",
         dealer_notification: "Customer enquiry",
         callback: "Callback request",
-        reservation_confirmation: "Reservation update",
-        reservation_payment: "Reservation payment",
-        reservation_refund: "Refund update",
-        customer_access_link: "Private customer access",
       } as Partial<Record<TemplateId, string>>
     )[view.templateId] ?? ""
   );

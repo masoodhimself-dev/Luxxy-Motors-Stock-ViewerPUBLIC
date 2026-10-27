@@ -54,6 +54,7 @@ export function enquiryPurpose(entry: Enquiry): string {
 
 export function enquirySourceLabel(entry: Enquiry): string {
   switch (entry.source) {
+    case 'sale_document': return 'Sale';
     case 'sale_review': return 'Post-sale';
     case 'phone': return 'Phone';
     case 'phone_ad_hoc': return 'Phone';

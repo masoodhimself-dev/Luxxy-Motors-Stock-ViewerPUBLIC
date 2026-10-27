@@ -12,7 +12,5 @@ export type EnquiryInputType = typeof EnquiryInputType[keyof typeof EnquiryInput
 export const EnquiryInputType = {
   viewing: 'viewing',
   general: 'general',
-  delivery: 'delivery',
-  warranty: 'warranty',
   part_exchange: 'part_exchange',
 } as const;

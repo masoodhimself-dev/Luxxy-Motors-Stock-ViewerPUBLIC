@@ -95,8 +95,6 @@ test('platform onboarding and operational views preserve access checks and omit 
   await assert.rejects(runWithTenant(tenant,()=>sendEmailWithSettings(config,message,transport)),/Demo email is disabled/);assert.equal(sends,0);
   process.env.DEMO_EMAIL_DOMAIN='emails.example.test';process.env.DEMO_RESEND_VERIFIED='true';process.env.DEMO_RESEND_API_KEY='re_fictional_test_only';
   assert.equal(await runWithTenant(tenant,()=>sendEmailWithSettings(config,message,transport)),'fictional-email');assert.equal(sends,1);
-  const {assertStripeReady}=await import('./lib/stripe-payments');
-  assert.throws(()=>runWithTenant(tenant,()=>assertStripeReady({enabled:true,mode:'live',secretKey:'sk_live_fake',publishableKey:'pk_live_fake',webhookSecret:'whsec_fake'})),/disabled in demonstrations/);
   assert.equal((await request('/api/reservations/checkout','POST',{},'user_admin','fictional-motors.demo.example.test')).status,403);
   const demoPage=await request('/','GET',undefined,'user_admin','fictional-motors.demo.example.test');assert.equal(demoPage.status,200);
   await engine.exec("UPDATE dealer_demos SET expires_at=now()-interval '1 day' WHERE dealer_id='demo-fictional-motors'");

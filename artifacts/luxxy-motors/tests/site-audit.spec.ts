@@ -100,9 +100,6 @@ for (const width of [390, 820, 1440]) {
       await page.goto('/saved?cars=missing-audit-car');
       await expect(page).toHaveTitle(/^Shared shortlist \|/);
       await expect(page.getByRole('heading', { name: 'No cars available in this shortlist' })).toBeVisible();
-      await page.goto('/compare');
-      await expect(page).toHaveTitle(/^(Compare cars|Choose your next car) \|/);
-      await checkAndCapture(page, 'compare');
       await page.goto('/vehicle/missing-audit-car');
       await expect(page).toHaveTitle(/^Vehicle not in stock \|/);
       await expect(page.getByRole('heading', { name: 'This car isn’t in our current stock' })).toBeVisible();

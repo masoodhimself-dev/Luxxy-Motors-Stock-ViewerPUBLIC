@@ -1,13 +1,11 @@
-import { ShareQr } from "@/components/share-qr";
+import { DirectWhatsApp } from "@/components/direct-whatsapp";
 import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { QRCodeSVG } from "qrcode.react";
 import {
   Copy,
   FileText,
   LoaderCircle,
   Mail,
-  QrCode,
   RefreshCw,
   SignedDeclaration,
 } from "@/components/icons";
@@ -217,7 +215,7 @@ export function TestDriveDeclarations({
           <DialogDescription>
             {booking.customerName} ·{" "}
             {booking.vehicleTitle || "Choose a car first"}. Create a private
-            signing link or show its QR code.
+            signing link.
           </DialogDescription>
         </DialogHeader>
         <p className="declaration-staff-note">
@@ -273,7 +271,7 @@ export function TestDriveDeclarations({
                 }
                 onClick={() => void create()}
               >
-                <QrCode size={18} aria-hidden="true" />
+                <FileText size={18} aria-hidden="true" />
                 {busy
                   ? "Working…"
                   : query.data?.declarations.some(
@@ -299,7 +297,7 @@ export function TestDriveDeclarations({
               !link && (
                 <p className="declaration-staff-muted">
                   For privacy, an existing link cannot be recovered here. Create
-                  a replacement to share a new QR code; the previous unsigned
+                  a replacement to share a new signing link; the previous unsigned
                   link will stop working.
                 </p>
               )}
@@ -308,16 +306,8 @@ export function TestDriveDeclarations({
                 className="declaration-share"
                 aria-label="Share declaration"
               >
-                <div className="declaration-qr">
-                  <QRCodeSVG
-                    value={link.url}
-                    size={176}
-                    level="M"
-                    marginSize={3}
-                  />
-                </div>
                 <div>
-                  <h3>Scan to read and sign</h3>
+                  <h3>Read and sign on your phone</h3>
                   <p>Customer uses their own phone. No account needed.</p>
                   <label>
                     Private signing link
@@ -331,7 +321,7 @@ export function TestDriveDeclarations({
                     Expires {declarationTime(link.expiresAt)} (UK time).
                   </p>
                   <div className="declaration-staff-actions">
-                    <ShareQr templateVariables={{vehicle_title:booking.vehicleTitle || ""}} whatsapp label="WhatsApp QR" enquiryId={booking.id} customerName={booking.customerName} customerEmail={booking.email || ""} customerPhone={booking.phone || ""} url={link.url} message={message.replace(link.url, '').trim()} disabled={busy || query.isFetching || query.isError} beforeGenerate={async () => {
+                    <DirectWhatsApp label="WhatsApp" enquiryId={booking.id} customerName={booking.customerName} customerPhone={booking.phone || ""} message={message} disabled={busy || query.isFetching || query.isError} beforeOpen={async () => {
                       const latest = await query.refetch();
                       if (latest.isError || !latest.data?.declarations.some(item => item.id === link.id && item.status === 'pending') || Date.parse(link.expiresAt) <= Date.now()) throw new Error('This declaration link is no longer available. Refresh the record before sharing.');
                     }} />

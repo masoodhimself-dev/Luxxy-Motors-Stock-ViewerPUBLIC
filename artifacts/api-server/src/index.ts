@@ -8,7 +8,6 @@ import app from "./app";
 import { startRetentionWorker } from "./lib/data-retention";
 import { logger } from "./lib/logger";
 import { startReminderWorker } from "./lib/enquiry-notifications";
-import { startStripeReservationWorker } from './lib/stripe-reservation-worker';
 import { backfillLeadsFromEnquiries } from "./lib/leads";
 import { pool } from '@workspace/db';
 import { serviceLifecycle } from './lib/service-lifecycle';
@@ -49,7 +48,6 @@ const server = app.listen(port, (err) => {
     startEmailOutboxWorker(logger),
     startCustomerReplyWorker(logger),
     startStaffPushWorker(logger),
-    startStripeReservationWorker(logger),
   );
   // Enquiries taken before leads existed are carried across on boot. This is
   // idempotent, so it is safe on every restart.

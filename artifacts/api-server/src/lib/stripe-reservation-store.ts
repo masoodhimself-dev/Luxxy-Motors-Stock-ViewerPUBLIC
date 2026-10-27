@@ -1,12 +1,9 @@
-import { dealerIntegrationsStore } from "./dealer-integrations-store";
-import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
+/** Compatibility only for signed events relating to already-issued historical payment sessions. */
 import { pool } from '@workspace/db';
-import { vehicleRegistrationLabel } from '@workspace/vehicle-meta';
-import { assertReservableVehicle, onlineReservationSettings, parseOnlineReservationInput, reservationRequestFingerprint, ReservationError, type ReservationVehicle } from './online-reservations';
+import { ReservationError } from './historical-reservations';
 import { recordStripeReservationDeposit, recordStripeReservationRefund, type SaleWorkspaceReadClient, type SaleWorkspaceDatabase } from './sale-workspace-store';
-import { assertStripeReady, createStripeCheckoutSession, readStripeCheckoutSession, readStripePaymentIntentMetadata, StripeCheckoutPreparationError, validatePaidCheckout, type StripeEvent } from './stripe-payments';
+import { readStripePaymentIntentMetadata, validatePaidCheckout, type StripeEvent } from './stripe-payments';
 import type { StripeSettings } from './dealer-integrations-store';
-import { siteUrl } from './enquiry-links';
 export const stripeReservationKind = 'online_stripe_reservation';
 export type StripeReservationRecord = {
   id: string; dealerId: string; reference: string; vehicleId: string; vehicleTitle: string; vehicleRegistration?: string;
@@ -22,7 +19,6 @@ export type StripeReservationRecord = {
   partExchange?: { registration: string; mileage: number };
 };
 export function stripeReservationView(record: StripeReservationRecord) { return { id: record.id, reference: record.reference, vehicleId: record.vehicleId, vehicleTitle: record.vehicleTitle, vehicleRegistration: record.vehicleRegistration, depositPence: record.depositPence, amountReceivedPence: record.amountReceivedPence, amountRefundedPence: record.amountRefundedPence, paymentStatus: record.paymentStatus, status: record.status, createdAt: record.createdAt, expiresAt: record.expiresAt, saleId: record.saleId, mode: record.mode, needsReview: record.needsReview ?? false }; }
-export function stripeStatusToken(record: Pick<StripeReservationRecord, 'dealerId' | 'id' | 'idempotencyKey'>) { return createHash('sha256').update(`stripe-reservation-status:${record.dealerId}:${record.id}:${record.idempotencyKey}`).digest('hex'); }
 type Client = SaleWorkspaceReadClient;
 export type StripeReservationServices = { database?: SaleWorkspaceDatabase; transport?: typeof fetch; refundRecorder?: typeof recordStripeReservationRefund };
 async function transaction<T>(run: (client: Client) => Promise<T>, database: SaleWorkspaceDatabase = pool): Promise<T> { const client = await database.connect(); try { await client.query('BEGIN'); const result = await run(client); await client.query('COMMIT'); return result; } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); } }
@@ -32,61 +28,7 @@ async function readRecord(client: Client, dealerId: string, id: string): Promise
 async function writeRecord(client: Client, eventId: string, record: StripeReservationRecord) { await client.query("UPDATE lead_events SET payload = jsonb_set(payload, '{reservation}', $2::jsonb) WHERE id=$1::uuid", [eventId, JSON.stringify(record)]); }
 async function activity(client: Client, record: StripeReservationRecord, body: string, extra: Record<string, unknown> = {}) { await client.query("INSERT INTO lead_events (lead_id,type,actor_type,body,payload) VALUES ($1::uuid,'note_added','system',$2,$3::jsonb)", [record.id, body, JSON.stringify({ kind: 'stripe_reservation_activity', reservationId: record.id, ...extra })]); }
 async function competingSale(client: Client, dealerId: string, vehicleId: string) { const rows = await client.query("SELECT id FROM sales WHERE dealer_id=$1 AND vehicle_id=$2::uuid AND status IN ('draft','ready','signing','signed','completed') UNION ALL SELECT id FROM sale_workspace WHERE dealer_id=$1 AND state#>>'{draft,vehicleId}'=$2::text AND state#>>'{lifecycle,status}' IN ('reserved','sold') LIMIT 1", [dealerId, vehicleId]); return rows.rows.length > 0; }
-export async function createStripeReservation(raw: unknown, dealerId: string, settings: StripeSettings, services: StripeReservationServices = {}) {
-  assertStripeReady(settings);
-  const origin = new URL(siteUrl('/'));
-  if (!['https:', 'http:'].includes(origin.protocol) || origin.username || origin.password || settings.mode === 'live' && origin.protocol !== 'https:') throw new ReservationError('The payment return address is not configured safely.', 503);
-  const database = services.database ?? pool, runTransaction = <T>(run: (client: Client) => Promise<T>) => transaction(run, database);
-  const input = parseOnlineReservationInput(raw), fingerprint = reservationRequestFingerprint(input);
-  const created = await runTransaction(async client => {
-    await dealerLock(client, dealerId); await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`stripe-request:${dealerId}:${input.idempotencyKey}`]);
-    const prior = await client.query("SELECT e.payload->'reservation' AS reservation FROM lead_events e JOIN leads l ON l.id=e.lead_id WHERE l.dealer_id=$1 AND e.payload->>'kind'=$2 AND e.payload->'reservation'->>'idempotencyKey'=$3 LIMIT 1", [dealerId, stripeReservationKind, input.idempotencyKey]);
-    if (prior.rows[0]) { const record = prior.rows[0].reservation as StripeReservationRecord; if (record.requestFingerprint !== fingerprint || record.mode !== settings.mode) throw new ReservationError('This reservation request was already used with different details.', 409); if (record.status !== 'awaiting_payment') throw new ReservationError('This reservation is already completed or closed. Please contact the dealership.', 409); return { record, replayed: true }; }
-    const configured = await client.query('SELECT config FROM dealer_settings WHERE dealer_id=$1 FOR SHARE', [dealerId]);
-    const policy = onlineReservationSettings(configured.rows[0]?.config?.onlineReservation);
-    if (!policy.enabled || !policy.terms) throw new ReservationError('Online reservations are currently switched off. Please contact the dealership.', 409);
-    await vehicleLock(client, input.vehicleId);
-    const result = await client.query('SELECT * FROM vehicles WHERE dealer_id=$1 AND id=$2::uuid FOR UPDATE', [dealerId, input.vehicleId]); const row = result.rows[0];
-    const vehicle: ReservationVehicle | undefined = row ? { id: row.id, dealerId: row.dealer_id, source: row.source, inventoryStatus: row.inventory_status, sourceStatus: row.source_status, missingCount: row.missing_count, currency: row.currency, sourcePrice: row.source_price, websitePriceOverride: row.website_price_override, title: row.title, websiteTitleOverride: row.website_title_override, make: row.make, model: row.model, registration: row.registration, registrationBand: row.registration_band, plate: row.plate, vrm: row.vrm, year: row.year } : undefined;
-    const threshold = Number(process.env.STOCK_MISSING_HIDE_THRESHOLD ?? 2);
-    assertReservableVehicle(vehicle, input, policy, { dealerId, stockPlatform: (await dealerIntegrationsStore.readStockConnection()).connection.platform, missingHideThreshold: Number.isFinite(threshold) ? threshold : 2 });
-    const competing = await client.query("SELECT id FROM leads WHERE dealer_id=$1 AND vehicle_id=$2::uuid AND stage IN ('reserved','sale_agreed','collected') LIMIT 1", [dealerId, input.vehicleId]);
-    if (competing.rows.length || await competingSale(client, dealerId, input.vehicleId)) throw new ReservationError('This car is already being purchased or reserved.', 409);
-    const id = randomUUID(), now = new Date();
-    const record: StripeReservationRecord = { id, dealerId, reference: `RSV-${id.replaceAll('-', '').slice(0, 12).toUpperCase()}`, vehicleId: vehicle.id, vehicleTitle: vehicle.websiteTitleOverride || vehicle.title || [vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Vehicle', vehicleRegistration: vehicleRegistrationLabel(vehicle) ?? undefined, depositPence: policy.depositPence, expectedPricePence: input.expectedPricePence, amountReceivedPence: 0, amountRefundedPence: 0, paymentStatus: 'pending', status: 'awaiting_payment', mode: settings.mode, createdAt: now.toISOString(), expiresAt: new Date(now.getTime() + 31 * 60_000).toISOString(), idempotencyKey: input.idempotencyKey, requestFingerprint: fingerprint, customerName: input.customerName, email: input.email, phone: input.phone, terms: policy.terms, termsAccepted: true, eventIds: [], ...(input.partExchange ? { partExchange: input.partExchange } : {}) };
-    record.checkoutUrls = { success: siteUrl(`/reserve/payment-return?reference=${encodeURIComponent(record.reference)}&token=${stripeStatusToken(record)}`), cancel: siteUrl(`/vehicle/${encodeURIComponent(record.vehicleId)}?reservation=cancelled`) };
-    record.credentialFingerprint = createHash('sha256').update(settings.secretKey).digest('hex');
-    await client.query("UPDATE vehicles SET inventory_status='reserved', updated_at=now() WHERE dealer_id=$1 AND id=$2::uuid AND inventory_status='available'", [dealerId, vehicle.id]);
-    await client.query("INSERT INTO leads (id,dealer_id,vehicle_id,vehicle_title,vehicle_registration,vehicle_price,stage,source,customer_name,email,phone,preferred_contact,summary,next_action,next_action_due_at) VALUES ($1::uuid,$2,$3::uuid,$4,$5,$6,'reserved','website_form',$7,$8,$9,'email',$10,$11,$12)", [id, dealerId, vehicle.id, record.vehicleTitle, record.vehicleRegistration ?? null, input.expectedPricePence / 100, input.customerName, input.email, input.phone, 'Stripe reservation awaiting payment. No deposit has been received.', 'Await signed payment confirmation before recording a deposit.', record.expiresAt]);
-    await client.query("INSERT INTO lead_events (lead_id,type,actor_type,body,payload) VALUES ($1::uuid,'note_added','system',$2,$3::jsonb)", [id, 'Vehicle temporarily held while the customer completes Stripe checkout. No payment received.', JSON.stringify({ kind: stripeReservationKind, reservation: record })]);
-    return { record, replayed: false };
-  });
-  if (!created.record.checkoutUrl) {
-    const checkout = await prepareCheckout(created.record, settings, services);
-    created.record = await runTransaction(async client => { await dealerLock(client, dealerId); const current = await readRecord(client, dealerId, created.record.id); if (!current) throw new ReservationError('Reservation not found.', 404); if (current.record.sessionId && current.record.sessionId !== checkout.id) throw new ReservationError('The checkout session has changed.', 409); current.record.sessionId = checkout.id; current.record.checkoutUrl = checkout.url; await writeRecord(client, current.eventId, current.record); return current.record; });
-  }
-  return { reservation: stripeReservationView(created.record), checkoutUrl: created.record.checkoutUrl!, replayed: created.replayed };
-}
-async function prepareCheckout(record: StripeReservationRecord, settings: StripeSettings, services: StripeReservationServices = {}) {
-  const database = services.database ?? pool, runTransaction = <T>(run: (client: Client) => Promise<T>) => transaction(run, database);
-  if (record.credentialFingerprint !== createHash('sha256').update(settings.secretKey).digest('hex')) throw new ReservationError('The payment account changed while this checkout was being prepared. Contact the dealership to review the hold.', 409);
-  const urls = record.checkoutUrls;
-  if (!urls) throw new ReservationError('The saved checkout details need staff review.', 409);
-  const attemptNumber = await runTransaction(async client => { await dealerLock(client, record.dealerId); const current = await readRecord(client, record.dealerId, record.id); if (!current) throw new ReservationError('Reservation not found.', 404); current.record.checkoutAttemptCount = (current.record.checkoutAttemptCount ?? 0) + 1; await writeRecord(client, current.eventId, current.record); return current.record.checkoutAttemptCount; });
-  try { return await createStripeCheckoutSession(settings, record, urls, services.transport ?? fetch); }
-  catch (error) {
-    if (error instanceof StripeCheckoutPreparationError) await runTransaction(async client => { await dealerLock(client, record.dealerId); await vehicleLock(client, record.vehicleId); const current = await readRecord(client, record.dealerId, record.id); if (!current) return; if (error.recoveredSessionId) { current.record.sessionId = error.recoveredSessionId; await writeRecord(client, current.eventId, current.record); } else if (error.definitiveFailure && (attemptNumber === 1 || error.failureParam === 'expires_at' && Date.now() - Date.parse(record.createdAt) <= 23 * 60 * 60_000)) await releaseHold(client, current.eventId, current.record, 'cancelled'); });
-    throw error;
-  }
-}
 export async function listStripeReservations(dealerId: string, database: SaleWorkspaceDatabase = pool) { const result = await database.query("SELECT e.payload->'reservation' AS reservation FROM lead_events e JOIN leads l ON l.id=e.lead_id WHERE l.dealer_id=$1 AND e.payload->>'kind'=$2 ORDER BY l.created_at DESC LIMIT 500", [dealerId, stripeReservationKind]); return result.rows.map(row => row.reservation as StripeReservationRecord); }
-export async function readCustomerStripeStatus(dealerId: string, reference: string, token: string, database: SaleWorkspaceDatabase = pool) {
-  if (!/^RSV-[A-F0-9]{12}$/.test(reference) || !/^[a-f0-9]{64}$/.test(token)) throw new ReservationError('This payment status link is unavailable.', 404);
-  const result = await database.query("SELECT e.payload->'reservation' AS reservation FROM lead_events e JOIN leads l ON l.id=e.lead_id WHERE l.dealer_id=$1 AND e.payload->>'kind'=$2 AND e.payload->'reservation'->>'reference'=$3 LIMIT 1", [dealerId, stripeReservationKind, reference]);
-  const record = result.rows[0]?.reservation as StripeReservationRecord | undefined;
-  if (!record || record.dealerId !== dealerId || record.reference !== reference || !timingSafeEqual(Buffer.from(stripeStatusToken(record), 'hex'), Buffer.from(token, 'hex'))) throw new ReservationError('This payment status link is unavailable.', 404);
-  const { saleId: _saleId, ...view } = stripeReservationView(record); return view;
-}
 async function releaseHold(client: Client, eventId: string, record: StripeReservationRecord, state: 'expired' | 'cancelled') {
   if (record.status !== 'awaiting_payment' || record.amountReceivedPence !== 0) return;
   const competing = await client.query("SELECT id FROM leads WHERE dealer_id=$1 AND vehicle_id=$2::uuid AND id<>$3::uuid AND stage IN ('reserved','sale_agreed','collected') LIMIT 1", [record.dealerId, record.vehicleId, record.id]);
@@ -180,26 +122,3 @@ export async function processStripeReservationEvent(event: StripeEvent, dealerId
     record.eventIds.push(event.id); await writeRecord(client, current.eventId, record); return record;
   });
 }
-/** A provider-confirmed expiration releases stock; uncertainty leaves the hold intact. */
-export async function expireAbandonedStripeReservations(dealerId: string, settings: StripeSettings, services: StripeReservationServices = {}): Promise<number> {
-  const database = services.database ?? pool, runTransaction = <T>(run: (client: Client) => Promise<T>) => transaction(run, database);
-  // Filter before paging so newer paid reservations cannot hide an older abandoned hold.
-  const selected = await database.query("SELECT e.payload->'reservation' AS reservation FROM lead_events e JOIN leads l ON l.id=e.lead_id WHERE l.dealer_id=$1 AND e.payload->>'kind'=$2 AND e.payload->'reservation'->>'status'='awaiting_payment' AND e.payload->'reservation'->>'mode'=$3 AND (e.payload->'reservation'->>'expiresAt')::timestamptz <= $4::timestamptz ORDER BY COALESCE(e.payload->'reservation'->>'lastCheckoutCheckAt', e.payload->'reservation'->>'createdAt') ASC, (e.payload->'reservation'->>'expiresAt')::timestamptz ASC LIMIT 100", [dealerId, stripeReservationKind, settings.mode, new Date(Date.now()).toISOString()]);
-  const due = selected.rows.map(row => row.reservation as StripeReservationRecord); let released = 0;
-  for (const record of due) { try {
-    await flagStripeHoldForReview(record, database, false);
-    if (!record.sessionId) {
-      // Recover an ambiguous create with its original provider idempotency parameters while Stripe retains the result.
-      if (Date.now() - Date.parse(record.createdAt) > 23 * 60 * 60_000 || record.credentialFingerprint !== createHash('sha256').update(settings.secretKey).digest('hex')) { await flagStripeHoldForReview(record, database); continue; }
-      const recovered = await prepareCheckout(record, settings, services); record.sessionId = recovered.id;
-      await runTransaction(async client => { await dealerLock(client, dealerId); const current = await readRecord(client, dealerId, record.id); if (current) { current.record.sessionId = recovered.id; await writeRecord(client, current.eventId, current.record); } });
-    }
-    const session = await readStripeCheckoutSession(settings, record.sessionId, services.transport ?? fetch);
-    if (session.payment_status === 'paid' || session.status === 'complete') { await flagStripeHoldForReview(record, database); continue; }
-    if (session.status !== 'expired') continue;
-    await runTransaction(async client => { await dealerLock(client, dealerId); await vehicleLock(client, record.vehicleId); const current = await readRecord(client, dealerId, record.id); if (current?.record.status === 'awaiting_payment') { await releaseHold(client, current.eventId, current.record, 'expired'); released++; } });
-  } catch { await flagStripeHoldForReview(record, database); /* Keep uncertain payments held until a signed webhook or a later status check. */ } }
-  return released;
-}
-async function flagStripeHoldForReview(record: StripeReservationRecord, database: SaleWorkspaceDatabase = pool, review = true) { await transaction(async client => { await dealerLock(client, record.dealerId); const current = await readRecord(client, record.dealerId, record.id); if (!current || current.record.status !== 'awaiting_payment') return; const newlyFlagged = review && !current.record.needsReview; current.record.lastCheckoutCheckAt = new Date(Date.now()).toISOString(); if (review) current.record.needsReview = true; await writeRecord(client, current.eventId, current.record); if (!newlyFlagged) return; await client.query('UPDATE leads SET next_action=$3,updated_at=now() WHERE dealer_id=$1 AND id=$2::uuid', [record.dealerId, record.id, 'Checkout status is uncertain. Review this reservation in Stripe before releasing the car or recording payment.']); await activity(client, current.record, 'Checkout recovery requires staff review. No payment assumed and vehicle hold retained.'); }, database); }
-export async function recordStripeNotification(dealerId: string, id: string, kind: string, result: { status: 'sent' | 'failed'; providerId?: string; amountPence?: number; revision?: number }) { return transaction(async client => { await dealerLock(client, dealerId); const current = await readRecord(client, dealerId, id); if (!current) return; (current.record.notifications ??= {})[kind] = { ...result, attemptedAt: new Date().toISOString() }; await writeRecord(client, current.eventId, current.record); }); }

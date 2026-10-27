@@ -708,12 +708,12 @@ it("treats a general enquiry HTTP500 as uncertain rather than echoing an unsafe 
 it("saves once then opens the message composer without losing the new enquiry", async () => {
   const view = mount(true, "car-one"); fill();
   fireEvent.click(screen.getByRole("button", { name: "Save & message" }));
-  expect(await screen.findByRole("button", { name: "Send photos or video" })).toBeVisible();
+  expect(await screen.findByRole("button", { name: "Write a message" })).toBeVisible();
   expect(state.create).toHaveBeenCalledTimes(1);
   expect(view.onCreated).not.toHaveBeenCalled();
   expect(view.onOpenChange).not.toHaveBeenCalled();
   expect(screen.queryByRole("button", { name: "Save enquiry" })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Send photos or video" }));
+  fireEvent.click(screen.getByRole("button", { name: "Write a message" }));
   expect(await screen.findByRole("dialog", { name: "Customer message" })).toHaveTextContent("Message for Alex Smith");
   expect(screen.getByRole("dialog", { name: "Customer message" })).toHaveTextContent("enquiry-new");
   fireEvent.click(screen.getByRole("button", { name: "Return to saved enquiry" }));
@@ -727,7 +727,7 @@ it("saves once then opens the message composer without losing the new enquiry", 
 it("Save & message creates one atomic booking and never resaves while preparing messages", async () => {
   const view = mount(true, "car-one"); fill(); await chooseTestDrive();
   fireEvent.click(screen.getByRole("button", { name: "Save & message" }));
-  await screen.findByRole("button", { name: "Send photos or video" });
+  await screen.findByRole("button", { name: "Write a message" });
   expect(screen.getByRole("status")).toHaveTextContent("test drive booked");
   fireEvent.click(screen.getByRole("button", { name: "Done" }));
   expect(state.createBooking).toHaveBeenCalledTimes(1);
@@ -740,7 +740,7 @@ it("does not open sharing when Save & message is not confirmed", async () => {
   const view = mount(); fill();
   fireEvent.click(screen.getByRole("button", { name: "Save & message" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("Check Enquiries");
-  expect(screen.queryByRole("button", { name: "Send photos or video" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Write a message" })).not.toBeInTheDocument();
   expect(view.onCreated).not.toHaveBeenCalled();
   expect(state.create).toHaveBeenCalledTimes(1);
 });
@@ -749,7 +749,7 @@ it("labels an approval-mode appointment as awaiting approval in the saved messag
   state.createBooking.mockResolvedValue({ id: "booking-new", reference: "ENQ-BOOK", appointmentAt: "2026-10-19T14:00:00.000Z", appointmentStatus: "pending" });
   mount(true, "car-one"); fill(); await chooseTestDrive();
   fireEvent.click(screen.getByRole("button", { name: "Save & message" }));
-  await screen.findByRole("button", { name: "Send photos or video" });
+  await screen.findByRole("button", { name: "Write a message" });
   expect(screen.getByRole("status")).toHaveTextContent("test drive awaiting approval");
   expect(screen.getByRole("status")).not.toHaveTextContent("test drive booked");
 });

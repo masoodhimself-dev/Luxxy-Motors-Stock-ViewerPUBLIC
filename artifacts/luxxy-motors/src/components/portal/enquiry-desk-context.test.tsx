@@ -7,7 +7,7 @@ it('keeps known vehicle history and a write-off category separate from running c
   const car = { id: 'fictional-car', make: 'Ford', model: 'Focus', year: 2020, mileage: 42000, fuel: 'Petrol', transmission: 'Manual', colour: 'Blue', registration: 'AB20CDE', owners: 2, writeOffCategory: 'S', sourceExtras: { serviceHistory: 'Service receipts supplied', runningCosts: { items: [{ label: 'Tax per year', value: '£190' }] } } } as unknown as Car;
   render(<VehicleDeskContext car={car} />);
   const history = screen.getByRole('region', { name: 'Vehicle history' });
-  expect(history).toHaveTextContent('Previous keepers2');
+  expect(history).toHaveTextContent('Owners2');
   expect(history).toHaveTextContent('Service receipts supplied');
   expect(history).toHaveTextContent('Write-off categoryS');
   expect(history).not.toHaveTextContent('£190');

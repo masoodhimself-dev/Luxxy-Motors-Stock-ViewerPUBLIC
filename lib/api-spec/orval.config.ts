@@ -57,6 +57,8 @@ export default defineConfig({
       prettier: true,
       override: {
         zod: {
+          // The runtime is Zod 3; keep generated validators compatible.
+          version: 3,
           coerce: {
             query: ['boolean', 'number', 'string'],
             param: ['boolean', 'number', 'string'],

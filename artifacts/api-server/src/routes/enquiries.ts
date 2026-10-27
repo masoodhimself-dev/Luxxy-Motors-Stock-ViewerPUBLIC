@@ -1,3 +1,4 @@
+import { dealerFeatureEnabled } from '../lib/dealer-features';
 import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
 import { currentDealerId } from "../lib/tenant-context";
 import { dealerIntegrationsStore } from "../lib/dealer-integrations-store";
@@ -189,7 +190,7 @@ router.get("/staff/enquiries/:id/conversations", requireStaff, async (req, res) 
 
 async function visibleVehicle(vehicle: Vehicle) {
   return (
-    vehicle.dealerId === settings().dealerId &&
+    vehicle.dealerId === settings().dealerId && vehicle.sourceStatus === "live" && !vehicle.archivedAt &&
     vehicle.source === (await dealerIntegrationsStore.readStockConnection()).connection.platform &&
     ["available", "reserved"].includes(vehicle.inventoryStatus) &&
     vehicle.missingCount < settings().missingHideThreshold &&
@@ -376,6 +377,7 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
   }
 
   const input = parsed.data as ReturnType<typeof CreateStaffEnquiryBody.parse>;
+  if(!['general','viewing','part_exchange'].includes(input.type)){res.status(400).json(errorResponse('Choose a general enquiry, part exchange or test drive.'));return;}
   const capture = quickEnquiryCapture(req.get('x-enquiry-capture'), staff, input);
   if (capture.error) { res.status(400).json(errorResponse(capture.error)); return; }
   const requestCallback = !staff && "requestCallback" in input && input.requestCallback === true;
@@ -420,6 +422,14 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
     return;
   }
 
+  if (!staff && (input.type === 'part_exchange' || input.partExchange != null)) {
+    try {
+      const [configuration] = await db.select({config:dealerSettingsTable.config}).from(dealerSettingsTable).where(eq(dealerSettingsTable.dealerId,currentDealerId())).limit(1);
+      if (!(await dealerFeatureEnabled('partExchange')) || (configuration?.config as {partExchange?:{enabled?:boolean}} | undefined)?.partExchange?.enabled !== true) {
+        res.status(403).json(errorResponse('Part exchange is not available online. Please contact the showroom.')); return;
+      }
+    } catch { res.status(503).json(errorResponse('Part-exchange availability could not be checked. Please try again.')); return; }
+  }
   const partExchange = input.partExchange ?? null;
   const partExchangeMileage = partExchange?.mileage ?? null;
   if (partExchangeMileage != null && !Number.isInteger(partExchangeMileage)) {

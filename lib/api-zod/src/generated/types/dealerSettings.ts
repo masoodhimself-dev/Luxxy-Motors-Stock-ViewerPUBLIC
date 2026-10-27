@@ -13,9 +13,7 @@ import type { DealerHero } from './dealerHero';
 import type { DealerHoursItem } from './dealerHoursItem';
 import type { DealerIdentity } from './dealerIdentity';
 import type { DealerLegal } from './dealerLegal';
-import type { DealerOnlineReservation } from './dealerOnlineReservation';
 import type { DealerPresentation } from './dealerPresentation';
-import type { DealerRecentHandovers } from './dealerRecentHandovers';
 import type { DealerService } from './dealerService';
 import type { DealerSocial } from './dealerSocial';
 import type { DealerTestDriveBooking } from './dealerTestDriveBooking';
@@ -41,10 +39,8 @@ export interface DealerSettings {
   warranty: DealerService;
   delivery: DealerService;
   partExchange: DealerService;
-  onlineReservation?: DealerOnlineReservation;
   bookViewing: DealerBookViewing;
   testDriveBooking?: DealerTestDriveBooking;
-  recentHandovers: DealerRecentHandovers;
   /**
      * @maxItems 8
      * @items.minLength 1

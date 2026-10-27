@@ -1,8 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { EnquiryMergeError, parseEnquiryMergeInput, planEnquiryMerge, mergeCustomersNeedConfirmation, mergeAppointmentsOverlap, assessCustomerContact, canonicalCustomerEmail, canonicalCustomerPhone, type MergeableEnquiry } from '@workspace/vehicle-meta';
-import { PostgresChatStore } from './lib/dealer-chat-store';
-import { emptyChatState } from './lib/dealer-chat';
 
 const ids = Array.from({ length: 24 }, (_, index) => `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`);
 const now = new Date('2026-10-05T12:00:00Z');
@@ -107,25 +105,4 @@ test('malformed IDs, duplicate selections, missing explicit appointments and rev
   const entries = [row(ids[0]), row(ids[1])];
   for (const extra of [{ recordIds: [ids[0]] }, { recordIds: [ids[0], ids[0]] }, { recordIds: [ids[0], 'bad-id'] }, { recordIds: ids }, { keepAppointmentIds: undefined }, { keepAppointmentIds: [ids[0], ids[0]] }, { expectedRevisions: [] }, { reason: ' ' }, { confirmDifferentCustomers: undefined }, { allowOverlappingAppointments: undefined }]) rejects(() => input(entries, extra), 400);
   for (const field of ['workspaceRevision', 'appointmentRevision', 'followUpRevision']) for (const value of [-1, 0.5, undefined]) rejects(() => input(entries, { expectedRevisions: entries.map(entry => ({ id: entry.id, workspaceRevision: 0, appointmentRevision: 0, followUpRevision: 0, [field]: value })) }), 400);
-});
-
-test('production chat contact changes invalidate a reviewed merge and preserve existing case membership', async () => {
-  const existing = { ...row(ids[1], { mergedIntoId: ids[0], workspaceRevision: 4 }), message: 'Existing enquiry transcript' };
-  const entries = [row(ids[0]), existing, row(ids[2])], reviewed = input(entries);
-  const client = { release() {}, async query(sql: string, params: any[] = []) {
-    if (sql.startsWith('SELECT state')) return { rows: [{ state: emptyChatState() }] };
-    if (sql.startsWith('INSERT INTO enquiries')) {
-      // Interpret the update expression on the existing fixture, rather than contacting a database.
-      const update = sql.slice(sql.indexOf('DO UPDATE SET'), sql.indexOf('WHERE enquiries.dealer_id'));
-      const revisionChange = /workspace_revision\s*=\s*enquiries\.workspace_revision\s*\+\s*(\d+)/.exec(update);
-      if (revisionChange) existing.workspaceRevision = (existing.workspaceRevision ?? 0) + Number(revisionChange[1]);
-      Object.assign(existing, { customerName: params[8], email: params[9], phone: params[10], message: params[12] });
-      assert.doesNotMatch(update, /merged_into_id\s*=/, 'chat never reassigns the case');
-    }
-    return { rows: [] };
-  } };
-  const store = new PostgresChatStore({ ...client, connect: async () => client });
-  await store.transaction('synthetic-dealer', tx => tx.saveEnquiry({ id: existing.id, reference: 'SYN-CHAT', name: 'Different synthetic customer', email: 'changed@example.test', phone: '07700900999', message: 'Updated customer transcript', callbackRequested: false, vehicle: null, createdAt: now.toISOString() }));
-  assert.equal(existing.workspaceRevision, 5); assert.equal(existing.mergedIntoId, ids[0]); assert.equal(existing.message, 'Updated customer transcript');
-  rejects(() => planEnquiryMerge(reviewed, entries, staff, now), 409, /changed/);
 });

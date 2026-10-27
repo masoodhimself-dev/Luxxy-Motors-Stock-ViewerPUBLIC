@@ -6,7 +6,7 @@ await build({
   platform: "node",
   format: "esm",
   outfile: ".cache/reply-tests/customer-email-replies.test.mjs",
-  external: ["@electric-sql/pglite"],
+  external: ["@electric-sql/pglite", "@napi-rs/canvas"],
   plugins: [
     {
       name: "isolated-reply-adapters",

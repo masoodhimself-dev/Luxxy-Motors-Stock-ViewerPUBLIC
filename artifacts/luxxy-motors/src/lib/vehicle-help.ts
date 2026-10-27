@@ -4,7 +4,8 @@ import { isUKNumberPlate } from './utils';
 export function vehicleHelpText(label: string, value = ''): string | undefined {
   const term = label.toLowerCase().replace(/[–—_-]/g, ' ').trim();
   const detail = value.toLowerCase();
-  if (/previous keeper|previous owner|^owners?$/.test(term)) return 'The number of previous registered keepers of this car. A registered keeper is the person responsible for the vehicle, and may not be its legal owner.';
+  if (/^owners?$/.test(term)) return 'The ownership count supplied with this vehicle. Check the registration document and history records with the dealership for details.';
+  if (/previous keeper|previous owner/.test(term)) return 'The number of previous registered keepers of this car. A registered keeper is the person responsible for the vehicle, and may not be its legal owner.';
   if (/service history/.test(term)) {
     if (/partial|some/.test(detail)) return 'Some servicing records are available, but the history may have gaps. Ask us which records you can see.';
     if (/full/.test(detail)) return 'This car has full service history. Ask us to show you the records and service intervals.';

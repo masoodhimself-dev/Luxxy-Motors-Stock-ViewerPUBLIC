@@ -5,9 +5,9 @@ import { enquiryDraftKey, readEnquiryDraft, saveEnquiryDraft } from '@/lib/enqui
 import type { Car } from '@/lib/stock-context';
 import { EnquiryForm } from './enquiry-form';
 
-const state = vi.hoisted(() => ({ mutate: vi.fn(), reset: vi.fn(), navigate: vi.fn(), enabled: true, servicesEnabled: true }));
+const state = vi.hoisted(() => ({ mutate: vi.fn(), reset: vi.fn(), navigate: vi.fn(), enabled: true, servicesEnabled: true, bookingEnabled: true }));
 vi.mock('@workspace/api-client-react', () => ({ useCreateEnquiry: () => ({ mutate: state.mutate, reset: state.reset, isPending: false, isSuccess: false, isError: false }) }));
-vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({ settings: { ...dealerConfig, onlineReservation: { enabled: false },
+vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({ settings: { ...dealerConfig, testDriveBooking: { enabled: state.bookingEnabled },
   warranty: { ...dealerConfig.warranty, enabled: state.servicesEnabled },
   delivery: { ...dealerConfig.delivery, enabled: state.servicesEnabled },
   partExchange: { ...dealerConfig.partExchange, enabled: state.servicesEnabled },
@@ -20,15 +20,15 @@ vi.mock('wouter', () => ({
   Redirect: () => null,
 }));
 const car = { id: 'fictional-car', title: 'Ford Fiesta', make: 'Ford', model: 'Fiesta', year: 2020, images: [], price: 6500 } as unknown as Car;
-beforeEach(() => { window.sessionStorage.clear(); state.mutate.mockClear(); state.navigate.mockClear(); state.enabled = true; state.servicesEnabled = true; });
+beforeEach(() => { window.sessionStorage.clear(); state.mutate.mockClear(); state.navigate.mockClear(); state.enabled = true; state.servicesEnabled = true; state.bookingEnabled = true; });
 
 it('does not promote dealer-disabled services but keeps direct customer questions available', () => {
   state.servicesEnabled = false;
-  render(<EnquiryForm vehicle={car} initialType="warranty" />);
-  expect(screen.queryByRole('link', { name: 'Delivery enquiry' })).not.toBeInTheDocument();
+  render(<EnquiryForm vehicle={car} initialType="general" />);
+  expect(screen.queryByRole('link', { name: 'Part exchange valuation' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: 'Part exchange valuation' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Add a part exchange (optional)' })).not.toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'General enquiry' })).toHaveAttribute('href', '/enquire?type=general&vehicleId=fictional-car');
+  expect(screen.getByRole('link', { name: 'Book a Test Drive' })).toHaveAttribute('href', '/enquire?type=viewing&vehicleId=fictional-car');
   expect(screen.getByTestId('form-enquiry')).toBeInTheDocument();
   expect(screen.getByRole('textbox', { name: 'Your question' })).toBeRequired();
   expect(state.mutate).not.toHaveBeenCalled();
@@ -70,21 +70,21 @@ it('uses separate task links with matching URLs while keeping the current draft 
   render(<EnquiryForm vehicle={car} />);
   fireEvent.change(screen.getByTestId('textarea-enquiry-message'), { target: { value: 'Can you deliver this car?' } });
   fireEvent.change(screen.getByTestId('input-customer-name'), { target: { value: 'Fictional Buyer' } });
-  const link = screen.getByRole('link', { name: 'Delivery enquiry' });
-  expect(link).toHaveAttribute('href', '/enquire?type=delivery&vehicleId=fictional-car');
+  const link = screen.getByRole('link', { name: 'Part exchange valuation' });
+  expect(link).toHaveAttribute('href', '/enquire?type=part_exchange&vehicleId=fictional-car');
   fireEvent.click(link);
-  expect(state.navigate).toHaveBeenCalledWith('/enquire?type=delivery&vehicleId=fictional-car');
+  expect(state.navigate).toHaveBeenCalledWith('/enquire?type=part_exchange&vehicleId=fictional-car');
   expect(readEnquiryDraft(enquiryDraftKey(car.id, 'general'))?.message).toBe('Can you deliver this car?');
-  expect(readEnquiryDraft(enquiryDraftKey(car.id, 'delivery'))?.customerName).toBe('Fictional Buyer');
+  expect(readEnquiryDraft(enquiryDraftKey(car.id, 'part_exchange'))?.customerName).toBe('Fictional Buyer');
   expect(state.mutate).not.toHaveBeenCalled();
 });
 
 it('does not overwrite an existing unfinished task while navigating to it', () => {
-  saveEnquiryDraft(enquiryDraftKey(car.id, 'delivery'), { customerName: 'Earlier Buyer', email: '', phone: '', preferredContact: 'email', message: 'Earlier delivery question', hasPartExchange: false, exchange: { registration: '', mileage: '', notes: '' } });
+  saveEnquiryDraft(enquiryDraftKey(car.id, 'part_exchange'), { customerName: 'Earlier Buyer', email: '', phone: '', preferredContact: 'email', message: 'Earlier delivery question', hasPartExchange: false, exchange: { registration: '', mileage: '', notes: '' } });
   render(<EnquiryForm vehicle={car} />);
   fireEvent.change(screen.getByTestId('textarea-enquiry-message'), { target: { value: 'Current question' } });
-  fireEvent.click(screen.getByRole('link', { name: 'Delivery enquiry' }));
-  expect(readEnquiryDraft(enquiryDraftKey(car.id, 'delivery'))?.message).toBe('Earlier delivery question');
+  fireEvent.click(screen.getByRole('link', { name: 'Part exchange valuation' }));
+  expect(readEnquiryDraft(enquiryDraftKey(car.id, 'part_exchange'))?.message).toBe('Earlier delivery question');
 });
 
 it('restores the same WhatsApp contact choice on the inline form without dropping contact details', () => {
@@ -103,4 +103,10 @@ it('keeps the original question in its draft when starting a booking instead of 
   expect(readEnquiryDraft(enquiryDraftKey(car.id, 'general'))?.message).toBe('Original warranty question');
   expect(readEnquiryDraft(enquiryDraftKey(car.id, 'viewing'))).toMatchObject({ message: '', customerName: 'Fictional Buyer' });
   expect(state.mutate).not.toHaveBeenCalled();
+});
+
+it('removes the booking topic when the dealership turns online booking off',()=>{
+ state.bookingEnabled=false;render(<EnquiryForm vehicle={car}/>);
+ expect(screen.queryByRole('link',{name:'Book a Test Drive'})).not.toBeInTheDocument();
+ expect(screen.getByTestId('form-enquiry')).toBeInTheDocument();
 });

@@ -5,7 +5,7 @@ import { readPreviewBookingState } from './reservations.ts';
 import { previewStore } from './sales.ts';
 import { readPreviewPriceOverrides, readPreviewStaffDirectory } from './operations.ts';
 import { previewStock } from './stock.ts';
-import { readPreviewChatRecords } from './chat.ts';
+import { readPreviewChatRecords } from './historical-chat.ts';
 
 export async function readPreviewRelationships(): Promise<DealerRelationships> {
   const [booking, sales, prices, chats] = await Promise.all([readPreviewBookingState(), previewStore.list(), readPreviewPriceOverrides(), readPreviewChatRecords()]);

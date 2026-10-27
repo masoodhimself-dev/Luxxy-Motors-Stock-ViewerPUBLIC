@@ -207,21 +207,9 @@
   border-radius: 8px 8px 0 0;
   padding-inline: 12px;
 }
-.portal-section-nav #portal-section-inventory {
-  --nav-ink: var(--portal-teal);
-  --nav-soft: var(--portal-teal-soft);
-  --nav-line: var(--portal-teal-border);
-}
-.portal-section-nav #portal-section-reservations {
-  --nav-ink: var(--portal-warning);
-  --nav-soft: var(--portal-warning-soft);
-  --nav-line: var(--portal-warning-border);
-}
-.portal-section-nav #portal-section-history {
-  --nav-ink: var(--portal-neutral);
-  --nav-soft: var(--portal-neutral-soft);
-  --nav-line: var(--portal-neutral-border);
-}
+
+
+
 .portal-section-nav #portal-section-settings {
   --nav-ink: var(--portal-violet);
   --nav-soft: var(--portal-violet-soft);
@@ -318,3 +306,7 @@
 .portal-premium-workspace .enquiry-attendance[data-attendance="arrived"] > p { color: var(--portal-teal); }
 .portal-premium-workspace .enquiry-attendance[data-attendance="completed"] > p { color: var(--portal-success); }
 .portal-premium-workspace .enquiry-attendance[data-attendance="no_show"] > p { color: var(--portal-danger); }
+
+/* Three core destinations stay visible together on phones. */
+.portal-workspace .portal-section-nav { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;gap:8px;overflow:visible; }
+.portal-workspace .portal-section-nav > button { min-width:0;padding-inline:8px;white-space:nowrap; }

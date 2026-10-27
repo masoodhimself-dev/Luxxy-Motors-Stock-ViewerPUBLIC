@@ -7,12 +7,6 @@ export function saleHandoverStatus(value?: SaleWorkspaceFulfilment) {
   if (value?.stage === 'to_arrange') return 'To arrange';
   return value?.scheduledDate && (value.method !== 'delivery' || value.address.trim()) ? 'Booked' : 'To arrange';
 }
-export type SaleDeliveryTask = { id: string; customer: string; vehicle: string; date: string; timeWindow: string; driver: string; stage: string };
-export function saleDeliveryTask(sale: Pick<SaleWorkspaceRecord, 'id' | 'draft' | 'completedAt' | 'lifecycle'>): SaleDeliveryTask | null {
-  const value = sale.draft.fulfilment;
-  if (value?.method !== 'delivery' || value.completedAt || sale.lifecycle?.status === 'released') return null;
-  return { id: sale.id, customer: sale.draft.customer, vehicle: sale.draft.vehicle, date: value.scheduledDate, timeWindow: value.timeWindow, driver: value.driver || '', stage: saleHandoverStatus(value) };
-}
 export function saleHandoverMessage(sale: Pick<SaleWorkspaceRecord, 'draft'>, dealer: string) {
   const v = sale.draft.fulfilment;
   if (!v) return '';

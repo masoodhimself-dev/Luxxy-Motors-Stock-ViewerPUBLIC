@@ -1,16 +1,9 @@
-import { customerFeaturePolicy } from './customer-feature-policy.ts';
-
 export const dealerFeatureDefinitions = [
   { key: 'publicEnquiries', label: 'Website enquiries', description: 'New general website enquiries and callback requests.', defaultEnabled: true },
   { key: 'partExchange', label: 'Part exchange', description: 'New website part-exchange requests. Existing records remain available.', defaultEnabled: true },
   { key: 'testDriveBookings', label: 'Test-drive bookings', description: 'New booking requests, confirmations and rescheduling.', defaultEnabled: true },
   { key: 'testDriveDeclarations', label: 'Test-drive declarations', description: 'Create declaration links and accept new customer signatures.', defaultEnabled: true },
-  { key: 'staffAiDrafts', label: 'AI reply drafts', description: 'Generate new staff reply suggestions. Saved drafts remain readable.', defaultEnabled: true },
   { key: 'customerEmails', label: 'Customer email delivery', description: 'Send new customer emails and retry queued emails. History remains available.', defaultEnabled: true },
-  { key: 'websiteChat', label: 'Website chat', description: 'Unavailable in the current release.', defaultEnabled: false, releaseEnabled: customerFeaturePolicy.websiteChat },
-  { key: 'onlineCardReservations', label: 'Online card reservations', description: 'Unavailable in the current release.', defaultEnabled: false, releaseEnabled: customerFeaturePolicy.onlineCardReservations },
-  { key: 'vehicleComparison', label: 'Vehicle comparison', description: 'Unavailable in the current release.', defaultEnabled: false, releaseEnabled: customerFeaturePolicy.vehicleComparison },
-  { key: 'recentHandovers', label: 'Recent handovers', description: 'Unavailable in the current release.', defaultEnabled: false, releaseEnabled: customerFeaturePolicy.recentHandovers },
 ] as const;
 export type DealerFeatureKey = typeof dealerFeatureDefinitions[number]['key'];
 export type FeatureMode = 'inherit' | 'enabled' | 'disabled';
@@ -22,7 +15,7 @@ export type DealerFeatureState = {
 export const defaultFeatureRule = (mode: FeatureMode): FeatureRule => ({ mode, disabledAt: null, revision: 0, reason: '', updatedAt: null, updatedBy: null });
 export function resolveDealerFeatures(defaults: Partial<Record<DealerFeatureKey, FeatureRule>>, overrides: Partial<Record<DealerFeatureKey, FeatureRule>>, now = new Date()): DealerFeatureState[] {
   return dealerFeatureDefinitions.map(definition => {
-    const releaseEnabled = !('releaseEnabled' in definition) || definition.releaseEnabled;
+    const releaseEnabled = true;
     const platformRule = defaults[definition.key] ?? defaultFeatureRule(definition.defaultEnabled ? 'enabled' : 'disabled');
     const rule = overrides[definition.key] ?? defaultFeatureRule('inherit');
     const expired = (value: FeatureRule) => value.disabledAt !== null && Date.parse(value.disabledAt) <= now.getTime();

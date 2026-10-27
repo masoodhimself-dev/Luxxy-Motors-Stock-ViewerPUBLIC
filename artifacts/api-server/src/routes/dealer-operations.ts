@@ -1,17 +1,12 @@
 import { accountInvitationManagementRouter } from './account-invitations';
-import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
-import { recordPublishedStockPrice } from '../lib/stock-change-tasks';
-import { randomUUID } from 'node:crypto';
 import { currentDealerId, currentTenant } from "../lib/tenant-context";
 import { Router, type Request, type Response } from 'express';
 import { clerkClient } from '@clerk/express';
-import { and, desc, eq, sql } from 'drizzle-orm';
-import { db, pool, enquiriesTable, stockImportRunsTable, vehiclesTable, vehicleChangesTable } from '@workspace/db';
+import { pool } from '@workspace/db';
 import type { SaleWorkspaceRecord } from '@workspace/vehicle-meta';
-import { requirePermission, requireStaff, staffLabel } from '../middlewares/staff-auth';
+import { requirePermission, requireStaff } from '../middlewares/staff-auth';
 import { isStaffRole } from '../lib/staff-permissions';
-import { paymentLedgerCsv, stockHealth } from '../lib/dealer-operations';
-import { readDealerOperationsData } from '../lib/dealer-operations-data';
+import { paymentLedgerCsv } from '../lib/dealer-operations';
 const router = Router();
 const dealerId = () => currentDealerId();
 const uuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
@@ -26,27 +21,6 @@ async function sales() {
   const result = await pool.query('SELECT state FROM sale_workspace WHERE dealer_id=$1 ORDER BY updated_at DESC', [dealerId()]);
   return result.rows.map(row => row.state) as SaleWorkspaceRecord[];
 }
-function staleAfterHours() { const hours = Number(process.env.STOCK_STALE_AFTER_HOURS); return Number.isFinite(hours) && hours > 0 ? hours : 36; }
-async function monitoredStockRuns() {
-  const fields = { id: stockImportRunsTable.id, runId: stockImportRunsTable.runId, status: stockImportRunsTable.status, source: stockImportRunsTable.source, receivedAt: stockImportRunsTable.receivedAt, scrapedAt: stockImportRunsTable.scrapedAt, complete: stockImportRunsTable.complete, expectedCount: stockImportRunsTable.expectedCount, receivedCount: stockImportRunsTable.receivedCount, addedCount: stockImportRunsTable.addedCount, changedCount: stockImportRunsTable.changedCount, missingCount: stockImportRunsTable.missingCount, errors: stockImportRunsTable.errors };
-  const [recent, successful] = await Promise.all([
-    db.select(fields).from(stockImportRunsTable).where(eq(stockImportRunsTable.dealerId, dealerId())).orderBy(desc(stockImportRunsTable.receivedAt)).limit(100),
-    db.select(fields).from(stockImportRunsTable).where(and(eq(stockImportRunsTable.dealerId, dealerId()), eq(stockImportRunsTable.status, 'completed'), eq(stockImportRunsTable.complete, true))).orderBy(desc(stockImportRunsTable.receivedAt)).limit(1),
-  ]);
-  return successful[0] && !recent.some(run => run.id === successful[0].id) ? [...recent, successful[0]] : recent;
-}
-router.get('/dealer-operations', requireStaff, async (req, res) => {
-  try {
-    const now = new Date();
-    const threshold = Number(process.env.STOCK_MISSING_HIDE_THRESHOLD);
-    const [summary, stockRuns] = await Promise.all([
-      readDealerOperationsData(pool, dealerId(), now, Number.isFinite(threshold) && threshold >= 0 ? threshold : 2),
-      monitoredStockRuns(),
-    ]);
-    res.setHeader('Cache-Control', 'no-store');
-    res.json({ generatedAt: now.toISOString(), ...summary, stock: stockHealth(stockRuns, now, staleAfterHours()) });
-  } catch (error) { fail(req, res, error); }
-});
 function exportDate(value: unknown): string | undefined {
   if (value === undefined) return;
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(`${value}T00:00:00Z`)) || new Date(`${value}T00:00:00Z`).toISOString().slice(0,10) !== value) throw new OperationError('Choose valid export dates.');
@@ -58,30 +32,6 @@ router.get('/dealer-operations/payments.csv', requireStaff, requirePermission('f
     if (from && to && from > to) throw new OperationError('The export end date must follow the start date.');
     res.setHeader('Cache-Control', 'no-store'); res.setHeader('Content-Type', 'text/csv; charset=utf-8'); res.setHeader('Content-Disposition', 'attachment; filename="payments.csv"');
     res.send(paymentLedgerCsv(await sales(), { from, to }));
-  } catch (error) { fail(req, res, error); }
-});
-router.get('/staff/stock-health', requireStaff, async (req, res) => {
-  try {
-    const runs = await monitoredStockRuns();
-    res.setHeader('Cache-Control', 'no-store');
-    res.json({ ...stockHealth(runs, new Date(), staleAfterHours()), imports: runs.map(run => ({ runId: run.runId, status: run.status, source: run.source, receivedAt: run.receivedAt, scrapedAt: run.scrapedAt, expectedCount: run.expectedCount, receivedCount: run.receivedCount, addedCount: run.addedCount, changedCount: run.changedCount, missingCount: run.missingCount, errors: run.errors })) });
-  } catch (error) { fail(req, res, error); }
-});
-router.patch('/staff/vehicles/:id/price', requireStaff, requirePermission('stock.manage'), async (req, res) => {
-  try {
-    const price = req.body?.price;
-    if (!uuid(req.params.id) || !(price === null || (typeof price === 'number' && Number.isInteger(price) && price >= 0 && price <= 10_000_000))) throw new OperationError('Enter a valid advertised price in pounds, or clear the override.');
-    const updated = await db.transaction(async tx => {
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`stock-import:${dealerId()}`}))`);
-      const [vehicle] = await tx.select().from(vehiclesTable).where(and(eq(vehiclesTable.id, req.params.id), eq(vehiclesTable.dealerId, dealerId()))).for('update');
-      if (!vehicle) throw new OperationError('Vehicle not found.', 404);
-      if (req.body?.expectedUpdatedAt && new Date(req.body.expectedUpdatedAt).getTime() !== vehicle.updatedAt.getTime()) throw new OperationError('This vehicle has changed. Refresh before changing its price.', 409);
-      const [result] = await tx.update(vehiclesTable).set({ websitePriceOverride: price, updatedAt: new Date() }).where(tenantAnd(eq(vehiclesTable.id, vehicle.id), tenantEq(vehiclesTable.dealerId, currentDealerId()))).returning();
-      await tx.insert(vehicleChangesTable).values({ vehicleId: vehicle.id, fieldName: 'websitePriceOverride', oldValue: vehicle.websitePriceOverride, newValue: price, auditMetadata: { actor: staffLabel(req), authUserId: req.staff?.authUserId, reason: 'Staff price override' } });
-      await recordPublishedStockPrice(tx, vehicle, result, `manual:${randomUUID()}`, new Date(), Number.isFinite(Number(process.env.STOCK_MISSING_HIDE_THRESHOLD)) && Number(process.env.STOCK_MISSING_HIDE_THRESHOLD) >= 0 ? Number(process.env.STOCK_MISSING_HIDE_THRESHOLD) : 2);
-      return { id: result.id, price: result.websitePriceOverride ?? result.sourcePrice, websitePriceOverride: result.websitePriceOverride, updatedAt: result.updatedAt };
-    });
-    res.json(updated);
   } catch (error) { fail(req, res, error); }
 });
 router.get('/staff/access', requireStaff, (req, res) => {

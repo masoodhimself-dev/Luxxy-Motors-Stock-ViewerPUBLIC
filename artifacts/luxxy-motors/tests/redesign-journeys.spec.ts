@@ -16,7 +16,6 @@ for (const width of [320, 390, 768, 1440]) {
       '/',
       '/vehicle/preview-1',
       '/saved',
-      '/compare',
       '/enquire?type=viewing&vehicleId=preview-1',
       '/enquire?type=part_exchange',
       '/viewing/sample',
@@ -29,15 +28,7 @@ for (const width of [320, 390, 768, 1440]) {
       await expect(page.locator('#main-content h1')).toBeVisible();
       await fits(page);
     }
-    for (const id of ['preview-1', 'preview-2']) {
-      await page.goto(`/vehicle/${id}`);
-      await page.getByTestId(`button-compare-${id}`).click();
-    }
-    await page.goto('/compare');
-    await expect(page.getByTestId('compare-table')).toBeVisible();
-    await fits(page);
     await page.goto('/portal');
-    await expect(page.getByTestId('compare-tray')).toHaveCount(0);
     await expect(page.getByTestId('work-queue')).toBeVisible();
     for (const tab of ['today', 'leads', 'deals', 'channels', 'settings']) {
       await page.getByTestId(`tab-${tab}`).click();
@@ -69,18 +60,12 @@ test('gallery has keyboard navigation, a focus trap and focus restoration', asyn
   await expect(opener).toBeFocused();
 });
 
-test('save and compare work from stock and vehicle details', async ({ page }) => {
+test('save works from vehicle details', async ({ page }) => {
   await page.goto('/vehicle/preview-1');
   await page.getByTestId('button-save-preview-1').click();
   await expect(page.getByTestId('button-save-preview-1')).toHaveAttribute('aria-pressed', 'true');
-  await page.getByTestId('button-compare-preview-1').click();
-  await page.goto('/vehicle/preview-2');
-  await page.getByTestId('button-compare-preview-2').click();
-  await page.goto('/compare');
-  await expect(page.getByTestId('compare-table')).toContainText('£12,104');
-  await expect(page.getByTestId('compare-table')).toContainText('£13,255');
   await page.goto('/saved');
-  await expect(page.getByTestId('row-vehicle-preview-1')).toBeVisible();
+  await expect(page.getByTestId('compact-vehicle-preview-1')).toBeVisible();
 });
 
 test('booking preserves the selected car, date and contact payload', async ({ page, request }) => {
@@ -177,34 +162,6 @@ test('gallery thumbnails use one tab stop and support arrow, Home and End keys',
   expect(await thumbnails.evaluateAll(els => els.includes(document.activeElement!))).toBe(false);
 });
 
-test('service enquiry headings track the selected type without discarding typed details', async ({ page }) => {
-  await page.goto('/enquire?type=general');
-  await page.getByTestId('input-customer-name').fill('Test Customer');
-  await page.getByText('Need something else?', { exact: true }).click();
-  await page.getByRole('link', { name: 'Warranty enquiry', exact: true }).click();
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Warranty enquiries');
-  await expect(page.getByTestId('input-customer-name')).toHaveValue('Test Customer');
-  await page.getByText('Need something else?', { exact: true }).click();
-  await page.getByRole('link', { name: 'Delivery enquiry', exact: true }).click();
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Arrange delivery');
-});
-
-test('mobile comparison stays compact and shows prices alongside vehicle names', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  for (const id of ['preview-1', 'preview-2']) {
-    await page.goto(`/vehicle/${id}`);
-    await page.getByTestId(`button-compare-${id}`).click();
-  }
-  await page.goto('/saved');
-  const tray = page.getByTestId('compare-tray');
-  await expect(tray).toBeVisible();
-  expect((await tray.boundingBox())!.height).toBeLessThan(90);
-  await tray.getByRole('link', { name: 'Compare', exact: true }).click();
-  await expect(page.getByTestId('compare-price-preview-1')).toContainText('£12,104');
-  await expect(page.getByTestId('compare-price-preview-2')).toContainText('£13,255');
-  expect((await page.getByTestId('compare-price-preview-1').boundingBox())!.y).toBeLessThan(700);
-});
-
 test('mobile staff leads and settings actions remain usable in the first screen', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/portal');
@@ -220,15 +177,15 @@ test('mobile staff leads and settings actions remain usable in the first screen'
 });
 
 
-for (const path of ['/saved', '/compare']) {
+for (const path of ['/saved']) {
   test(`${path} distinguishes a failed stock request from an empty selection`, async ({ page }) => {
     await page.goto('/vehicle/preview-1');
-    await page.getByTestId(path === '/saved' ? 'button-save-preview-1' : 'button-compare-preview-1').click();
+    await page.getByTestId('button-save-preview-1').click();
     await page.route('**/api/stock', route => route.fulfill({ status: 503, json: { error: 'Test stock outage' } }));
     await page.goto(path);
     await expect(page.getByRole('alert')).toContainText('Stock could not be loaded');
     await expect(page.getByRole('alert')).toContainText('Your selections are still saved');
-    const key = path === '/saved' ? 'luxxy.saved-cars.v1' : 'luxxy.compare-cars.v1';
+    const key = 'luxxy.saved-cars.v1';
     expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key) || '[]'), key)).toContain('preview-1');
   });
 }

@@ -1,4 +1,4 @@
-import { canDeleteEmptySaleDraft, reviewReminderNote, saleHandoverStatus } from '@workspace/vehicle-meta';
+import { canDeleteEmptySaleDraft, saleHandoverStatus } from '@workspace/vehicle-meta';
 import { currentTenant } from './tenant-context';
 import { dealerIntegrationsStore } from './dealer-integrations-store';
 import { createHash, randomUUID } from 'node:crypto';
@@ -8,8 +8,7 @@ import { embedInvoiceLogoAsset } from './invoice-logo-assets';
 import { attachInvoiceVerification, invoiceVerificationView } from './invoice-verification';
 import { siteOrigin } from './enquiry-links';
 import { createSoldVehicleFollowUps } from './sold-vehicle-follow-ups';
-import { customerSaleView, customerSaleDocument } from '@workspace/vehicle-meta';
-import { changeSaleWorkspace, createSaleWorkspace, publicSaleWorkspace, invoiceBranding, saleWorkspaceBranding, saleWorkspaceFingerprint, saleWorkspaceNumber, SaleWorkspaceError, type SaleWorkspaceBranding, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceMutation, type SaleWorkspaceRecord, type SaleWorkspaceVehicleSnapshot } from '@workspace/vehicle-meta';
+import { changeSaleWorkspace, createSaleWorkspace, saleWorkspaceTotals, publicSaleWorkspace, currentInvoiceBranding, saleWorkspaceBranding, saleWorkspaceFingerprint, saleWorkspaceNumber, SaleWorkspaceError, type SaleWorkspaceBranding, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceMutation, type SaleWorkspaceRecord, type SaleWorkspaceVehicleSnapshot } from '@workspace/vehicle-meta';
 
 export type SaleWorkspaceAssets = { reviewUrl?: string; branding: SaleWorkspaceBranding; vehicle?: SaleWorkspaceVehicleSnapshot; paperwork?: { saleTerms: string; reservationTerms: string } };
 export type SaleWorkspaceReadClient = { query: (text: string, parameters?: any[]) => Promise<{ rows: Record<string, any>[] }> };
@@ -24,31 +23,40 @@ export async function readSaleWorkspaceAssets(draft: SaleWorkspaceDraft, dealerI
   const vehicle = validVehicleId
     ? (await client.query("SELECT id, coalesce(website_title_override, title, '') AS title, year, fuel, transmission, mileage, colour, owners, write_off_category, website_description, raw_source_data, plate, vrm, registration, engine_size, body_type, doors, seats, emission_class, coalesce(nullif(website_hero_image_override, ''), source_hero_image) AS invoice_image FROM vehicles WHERE dealer_id = $1 AND id = $2::uuid", [dealerId, draft.vehicleId])).rows[0]
     : undefined;
-  const paperwork = await dealerIntegrationsStore.readSalesPaperwork();
+  const paperwork = await dealerIntegrationsStore.readSalesPaperwork(client);
   const branding = saleWorkspaceBranding(settings.rows[0]?.config);
   if (currentTenant()?.demo) {
     const demo = (await client.query('SELECT converted_at FROM dealer_demos WHERE dealer_id = $1', [dealerId])).rows[0];
     if (!demo || demo.converted_at) throw new SaleWorkspaceError('This demonstration changed while the sale was being prepared. Reload before continuing.', 409);
     branding.identity.name += ' · SAMPLE / DEMO';
   }
-  return { reviewUrl: String(settings.rows[0]?.config?.contact?.googleReviewUrl || ''), paperwork, branding: invoiceBranding(branding, paperwork.invoiceSettings), ...(vehicle ? { vehicle: { id: vehicle.id, title: vehicle.title, registration: vehicle.plate || vehicle.vrm || vehicle.registration, engineSize: vehicle.engine_size, bodyType: vehicle.body_type, doors: vehicle.doors, seats: vehicle.seats, emissionClass: vehicle.emission_class, imageUrl: vehicle.invoice_image, year: vehicle.year, fuel: vehicle.fuel, transmission: vehicle.transmission, mileage: vehicle.mileage, colour: vehicle.colour, owners: vehicle.owners, writeOffCategory: vehicle.write_off_category, description: vehicle.website_description || vehicle.raw_source_data?.sourceExtras?.description || null, serviceHistory: typeof vehicle.raw_source_data?.sourceExtras?.serviceHistory === 'string' ? vehicle.raw_source_data.sourceExtras.serviceHistory : vehicle.raw_source_data?.sourceExtras?.historyExtras?.serviceHistory?.description || null } } : {}) };
+  return { reviewUrl: String(settings.rows[0]?.config?.contact?.googleReviewUrl || ''), paperwork, branding: currentInvoiceBranding(branding, paperwork.invoiceSettings), ...(vehicle ? { vehicle: { id: vehicle.id, title: vehicle.title, registration: vehicle.plate || vehicle.vrm || vehicle.registration, engineSize: vehicle.engine_size, bodyType: vehicle.body_type, doors: vehicle.doors, seats: vehicle.seats, emissionClass: vehicle.emission_class, imageUrl: vehicle.invoice_image, year: vehicle.year, fuel: vehicle.fuel, transmission: vehicle.transmission, mileage: vehicle.mileage, colour: vehicle.colour, owners: vehicle.owners, writeOffCategory: vehicle.write_off_category, description: vehicle.website_description || vehicle.raw_source_data?.sourceExtras?.description || null, serviceHistory: typeof vehicle.raw_source_data?.sourceExtras?.serviceHistory === 'string' ? vehicle.raw_source_data.sourceExtras.serviceHistory : vehicle.raw_source_data?.sourceExtras?.historyExtras?.serviceHistory?.description || null } } : {}) };
 }
 
 export class PostgresSaleWorkspaceStore {
   constructor(private dealerId: string, private assets: (draft: SaleWorkspaceDraft, client: SaleWorkspaceReadClient) => Promise<SaleWorkspaceAssets>, private database: SaleWorkspaceDatabase) {}
-  async list(): Promise<SaleWorkspaceRecord[]> {
-    // Keep financial files compact. Only zero-document/payment candidates need
-    // private history to compute whether the Delete draft button is safe to show.
-    const result = await this.database.query("SELECT state - 'documentArchives' - 'requests' - 'providerPayments' AS state, CASE WHEN jsonb_array_length(coalesce(state->'documents', '[]'::jsonb))=0 AND jsonb_array_length(coalesce(state->'payments', '[]'::jsonb))=0 THEN jsonb_build_object('requests',state->'requests','documentArchives',state->'documentArchives','providerPayments',state->'providerPayments') END AS deletion_evidence FROM sale_workspace WHERE dealer_id = $1 ORDER BY updated_at DESC", [this.dealerId]);
-    return result.rows.map(row => ({ ...publicSaleWorkspace(row.state), emptyDraftDeletable: canDeleteEmptySaleDraft({ ...row.state, ...row.deletion_evidence }, true) }));
-  }
-  async deliveryTasks() {
-    const result = await this.database.query(`SELECT id::text, jsonb_build_object('customer',state#>>'{draft,customer}','vehicle',state#>>'{draft,vehicle}','fulfilment',state#>'{draft,fulfilment}') AS draft, count(*) OVER()::int AS total
-      FROM sale_workspace WHERE dealer_id=$1 AND state#>>'{draft,fulfilment,method}'='delivery'
-      AND coalesce(state#>>'{draft,fulfilment,completedAt}','')='' AND coalesce(state#>>'{lifecycle,status}','')<>'released'
-      ORDER BY CASE WHEN state#>>'{draft,fulfilment,stage}'='unsuccessful' THEN 0 WHEN coalesce(state#>>'{draft,fulfilment,scheduledDate}','')='' THEN 1 ELSE 2 END,
-      state#>>'{draft,fulfilment,scheduledDate}',updated_at,id LIMIT 100`, [this.dealerId]);
-    return { tasks: result.rows.map(row => ({ id: row.id, customer: row.draft.customer, vehicle: row.draft.vehicle, date: row.draft.fulfilment.scheduledDate || '', timeWindow: row.draft.fulfilment.timeWindow || '', driver: row.draft.fulfilment.driver || '', stage: saleHandoverStatus(row.draft.fulfilment) })), total: result.rows[0]?.total ?? 0 };
+  async list(options:{q?:string;offset?:number;enquiryId?:string;reservationId?:string}={}) {
+    const q=(options.q??'').trim();
+    const offset=options.offset??0;
+    if(q.length>120||!Number.isSafeInteger(offset)||offset<0||offset>10000)throw new SaleWorkspaceError('Check the sales search or page.',400);
+    const validId=(id:string|undefined)=>!id||/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id);
+    if(!validId(options.enquiryId)||!validId(options.reservationId))throw new SaleWorkspaceError('Choose a valid linked customer enquiry.',400);
+    // Bound database results before projection. Historical snapshots, archives,
+    // retry data and event logs never travel in the list response.
+    const result=await this.database.query(`SELECT state - 'documentArchives' - 'requests' - 'providerPayments' - 'documents' - 'events' - 'emailDeliveries' - 'payments' AS state,
+      CASE WHEN jsonb_array_length(coalesce(state->'documents','[]'::jsonb))=0 AND jsonb_array_length(coalesce(state->'payments','[]'::jsonb))=0 THEN jsonb_build_object('requests',state->'requests','documentArchives',state->'documentArchives','providerPayments',state->'providerPayments','events',state->'events','documents',state->'documents','payments',state->'payments','emailDeliveries',state->'emailDeliveries') END AS deletion_evidence
+      FROM sale_workspace WHERE dealer_id=$1
+      AND ($2='' OR id::text=$2 OR state#>>'{draft,sourceEnquiryId}'=$2 OR state#>>'{draft,sourceReservationId}'=$2
+        OR strpos(lower(concat_ws(' ',reference,state#>>'{draft,customer}',state#>>'{draft,email}',state#>>'{draft,vehicle}',state#>>'{draft,registration}')),lower($2))>0
+        OR ($3<>'' AND strpos(regexp_replace(coalesce(state#>>'{draft,phone}',''),'[^0-9]','','g'),$3)>0))
+      AND ($4='' OR state#>>'{draft,sourceEnquiryId}'=$4) AND ($5='' OR state#>>'{draft,sourceReservationId}'=$5)
+      ORDER BY updated_at DESC,id DESC LIMIT 51 OFFSET $6`,[this.dealerId,q,(/^[+0-9 ().-]+$/.test(q)?q.replace(/\D/g,''):''),options.enquiryId??'',options.reservationId??'',offset]);
+    const sales=result.rows.slice(0,50).map(row=>{
+      const record=row.state as SaleWorkspaceRecord,draft=record.draft;
+      const identity={id:draft.id,customer:draft.customer,email:draft.email,phone:draft.phone,vehicleId:draft.vehicleId,vehicle:draft.vehicle,registration:draft.registration,sourceEnquiryId:draft.sourceEnquiryId,sourceReservationId:draft.sourceReservationId};
+      return {listSummary:true as const,listTotalDue:saleWorkspaceTotals(draft,[]).totalDue,id:record.id,reference:record.reference,revision:record.revision,createdAt:record.createdAt,updatedAt:record.updatedAt,...(record.completedAt?{completedAt:record.completedAt}:{}),...(record.lifecycle?{lifecycle:record.lifecycle}:{}),draft:identity,documents:[],payments:[],events:[],emptyDraftDeletable:canDeleteEmptySaleDraft({...record,...row.deletion_evidence},true)};
+    });
+    return {sales,hasMore:result.rows.length>50};
   }
   async get(id: string): Promise<SaleWorkspaceRecord> {
     const result = await this.database.query('SELECT state FROM sale_workspace WHERE dealer_id = $1 AND id = $2::uuid', [this.dealerId, id]);
@@ -81,40 +89,29 @@ export class PostgresSaleWorkspaceStore {
     const result = await this.database.query('SELECT state FROM sale_workspace WHERE dealer_id = $1 AND id = $2::uuid', [this.dealerId, saleId]);
     return invoiceVerificationView(result.rows[0]?.state, documentId, token);
   }
-  /** Provider acceptance is merged under a row lock; concurrent payments cannot strand it as sending. */
-  async finishEmail(id: string, requestId: string, command: Extract<SaleWorkspaceCommand, { action: 'email-status' | 'link-email-status' }>, actor: string) {
+  /** Merge inside an existing transaction; callers must not acquire another connection. */
+  async finishEmailOnClient(id: string, requestId: string, command: Extract<SaleWorkspaceCommand, { action: 'email-status' }>, actor: string, client: SaleWorkspaceReadClient) {
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`sale-workspace:${this.dealerId}`]);
+    const current = (await client.query('SELECT state FROM sale_workspace WHERE dealer_id = $1 AND id = $2::uuid FOR UPDATE', [this.dealerId, id])).rows[0]?.state as SaleWorkspaceRecord | undefined;
+    if (!current) throw new SaleWorkspaceError('Sale not found.', 404);
+    const document = current.documents.find(item => item.id === command.delivery.documentId);
+    if (!document) throw new SaleWorkspaceError('Document not found.', 404);
+    // Email finalization cannot issue or rebrand a document. Its immutable
+    // snapshot provides all required context without another database checkout.
+    const context: SaleWorkspaceContext = { now: new Date().toISOString(), actor, nextId: randomUUID, nextNumber: () => { throw new Error('Email finalization cannot issue documents'); }, branding: document.snapshot.branding };
+    const result = changeSaleWorkspace(current, command, { requestId, expectedRevision: current.revision }, context);
+    if (!result.replayed) await client.query('UPDATE sale_workspace SET revision = $3, state = $4::jsonb, updated_at = $5 WHERE dealer_id = $1 AND id = $2::uuid', [this.dealerId, id, result.sale.revision, JSON.stringify(result.sale), result.sale.updatedAt]);
+    return { ...result, sale: staffSaleWorkspace(result.sale) };
+  }
+  /** Provider acceptance is merged under a row lock; concurrent payments survive. */
+  async finishEmail(id: string, requestId: string, command: Extract<SaleWorkspaceCommand, { action: 'email-status' }>, actor: string) {
     const client = await this.database.connect();
     try {
       await client.query('BEGIN');
-      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`sale-workspace:${this.dealerId}`]);
-      const current = (await client.query('SELECT state FROM sale_workspace WHERE dealer_id = $1 AND id = $2::uuid FOR UPDATE', [this.dealerId, id])).rows[0]?.state as SaleWorkspaceRecord | undefined;
-      if (!current) throw new SaleWorkspaceError('Sale not found.', 404);
-      const context: SaleWorkspaceContext = { now: new Date().toISOString(), actor, nextId: randomUUID, nextNumber: () => { throw new Error('Email finalization cannot issue documents'); }, ...await this.assets(current.draft, client) };
-      const result = changeSaleWorkspace(current, command, { requestId, expectedRevision: current.revision }, context);
-      if (!result.replayed) await client.query('UPDATE sale_workspace SET revision = $3, state = $4::jsonb, updated_at = $5 WHERE dealer_id = $1 AND id = $2::uuid', [this.dealerId, id, result.sale.revision, JSON.stringify(result.sale), result.sale.updatedAt]);
-      await client.query('COMMIT'); return { ...result, sale: staffSaleWorkspace(result.sale) };
+      const result = await this.finishEmailOnClient(id, requestId, command, actor, client);
+      await client.query('COMMIT'); return result;
     } catch (error) { await client.query('ROLLBACK'); throw error; }
     finally { client.release(); }
-  }
-  async customer(token: string) {
-    if (!/^[a-f0-9]{64}$/.test(token)) throw new SaleWorkspaceError('This customer link is unavailable or has expired.', 404);
-    const hash = createHash('sha256').update(token).digest('hex');
-    const result = await this.database.query("SELECT state FROM sale_workspace WHERE dealer_id = $1 AND state#>>'{customerAccess,tokenHash}' = $2", [this.dealerId, hash]);
-    const record = result.rows[0]?.state as SaleWorkspaceRecord | undefined;
-    if (!record?.customerAccess || record.customerAccess.revokedAt || Date.parse(record.customerAccess.expiresAt) <= Date.now()) throw new SaleWorkspaceError('This customer link is unavailable or has expired.', 404);
-    const assets = await this.assets(record.draft, this.database);
-    if (record.draft.sourceEnquiryId) {
-      const appointment = await this.database.query('SELECT appointment_at, appointment_status, appointment_cancelled_at FROM enquiries WHERE dealer_id = $1 AND id = $2::uuid', [this.dealerId, record.draft.sourceEnquiryId]);
-      const e = appointment.rows[0];
-      if (e?.appointment_at && !e.appointment_cancelled_at) record.draft.appointment = { at: new Date(e.appointment_at).toISOString(), status: e.appointment_status ?? 'confirmed' }; else delete record.draft.appointment;
-    }
-    return { record, view: customerSaleView(record, assets.branding) };
-  }
-  async customerDocument(token: string, documentId: string) {
-    const { record } = await this.customer(token);
-    const document = record.documents.find(d => d.id === documentId);
-    if (!document || document.snapshot.draft.customer !== record.draft.customer || document.snapshot.draft.email !== record.draft.email) throw new SaleWorkspaceError('Document not found.', 404);
-    return customerSaleDocument(document);
   }
   async pdf(id: string, documentId: string) {
     const result = await this.database.query('SELECT state FROM sale_workspace WHERE dealer_id = $1 AND id = $2::uuid', [this.dealerId, id]);
@@ -207,10 +204,7 @@ export class PostgresSaleWorkspaceStore {
         : createSaleWorkspace({ draft: input.draft, requestId: input.requestId }, context, saleWorkspaceNumber(numbers, 'sale', now, assets.branding.invoiceSettings));
       if (!mutation.replayed) {
         if (!current || input.command?.action === 'update') await this.source(mutation.sale.draft, client, current?.id);
-        if (input.command?.action === 'customer-link') {
-          const collision = await client.query("SELECT id FROM sale_workspace WHERE dealer_id = $1 AND id <> $2::uuid AND state#>>'{customerAccess,tokenHash}' = $3", [this.dealerId, mutation.sale.id, input.command.tokenHash]);
-          if (collision.rows.length) throw new SaleWorkspaceError('Create a new unique customer link.', 409);
-        }
+
         if (input.command?.action === 'invoice-payment' && input.command.payment.kind === 'deposit') await this.stock(mutation.sale, 'reserved', client, input.actor);
         if (input.command?.action === 'finish-invoice-sale') await this.stock(mutation.sale, 'sold', client, input.actor);
         if (input.command?.action === 'lifecycle') await this.stock(mutation.sale, input.command.status, client, input.actor);
@@ -218,18 +212,6 @@ export class PostgresSaleWorkspaceStore {
         if (input.command?.action === 'handover') {
           await this.stock(mutation.sale, 'sold', client, input.actor);
           mutation.sale.lifecycle = { status: 'sold', vehicleId: mutation.sale.draft.vehicleId, changedAt: now };
-        }
-        if (input.command?.action === 'review-reminder' || input.command?.action === 'cancel-review-reminder') {
-          const reminder = mutation.sale.reviewReminder!, buyer = mutation.sale.draft;
-          if (input.command.action === 'review-reminder') {
-            // A dedicated buyer thread avoids modifying an unrelated/shared-contact enquiry.
-            await client.query(`INSERT INTO enquiries (id,dealer_id,type,status,customer_name,email,phone,vehicle_id,vehicle_title,message,source,call_outcome,follow_up_at,follow_up_note)
-              VALUES ($1::uuid,$2,'general','contacted',$3,$4,$5,$6::uuid,$7,'Post-sale feedback reminder. No email sent.','sale_review','information_given',$8,$9)
-              ON CONFLICT (id) DO UPDATE SET follow_up_at=EXCLUDED.follow_up_at,follow_up_note=EXCLUDED.follow_up_note,follow_up_completed_at=NULL,follow_up_revision=enquiries.follow_up_revision+1,updated_at=now()
-              WHERE enquiries.dealer_id=EXCLUDED.dealer_id`, [reminder.enquiryId,this.dealerId,buyer.customer,buyer.email,buyer.phone,buyer.vehicleId || null,buyer.vehicle,reminder.at,reviewReminderNote(reminder.url)]);
-          } else {
-            await client.query('UPDATE enquiries SET follow_up_at=NULL,follow_up_revision=follow_up_revision+1,updated_at=now() WHERE dealer_id=$1 AND id=$2::uuid', [this.dealerId,reminder.enquiryId]);
-          }
         }
         for (const document of mutation.sale.documents.filter(d => !current?.documents.some(old => old.id === d.id))) {
           document.snapshot.branding = await embedInvoiceLogoAsset(document.snapshot.branding, this.dealerId, client, siteOrigin());

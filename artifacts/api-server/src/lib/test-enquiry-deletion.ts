@@ -84,7 +84,7 @@ export class TestEnquiryDeletionStore {
       await client.query('BEGIN');
       // Match the existing dealer locks. Sale/source checks and share preparation
       // cannot race this cleanup, and merge membership stays stable throughout.
-      for (const prefix of ['sale-workspace', 'phone-shares', 'enquiry-merge']) await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`${prefix}:${dealer}`]);
+      for (const prefix of ['sale-workspace', 'enquiry-merge']) await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`${prefix}:${dealer}`]);
       const value = await work(client);
       await client.query('COMMIT');
       return value;

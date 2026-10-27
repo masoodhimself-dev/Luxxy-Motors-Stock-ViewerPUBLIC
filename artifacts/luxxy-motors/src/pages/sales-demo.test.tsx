@@ -111,9 +111,15 @@ beforeEach(() => {
   state.fetch
     .mockReset()
     .mockImplementation(
-      async (url: string, options?: { method: string; body: string }) => {
-        if (!options) return { sales: state.sales };
-        const payload = JSON.parse(options.body);
+      async (url: string, options?: { method?: string; body?: string }) => {
+        if (!options?.method) {
+          const path = new URL(url, 'https://example.test');
+          const match = /^\/api\/sale-workspace\/([^/]+)$/.exec(path.pathname);
+          if (match) return { sale: state.sales.find(sale => sale.id === match[1]) };
+          const enquiryId = path.searchParams.get('enquiryId'), reservationId = path.searchParams.get('reservationId');
+          return { sales: state.sales.filter(sale => (!enquiryId || sale.draft.sourceEnquiryId === enquiryId) && (!reservationId || sale.draft.sourceReservationId === reservationId)), hasMore: false };
+        }
+        const payload = JSON.parse(options.body!);
         if (options.method === 'DELETE') {
           const id = url.split('/').at(-1);
           state.sales = state.sales.filter(sale => sale.id !== id);
@@ -180,6 +186,7 @@ it('deletes an eligible saved draft only after explicit confirmation and keeps o
   const real = createSaleWorkspace({draft:{...emptyDraft(),customer:'Protected buyer',vehicle:'Ford Focus'},requestId:'real-draft-create'},context(),'REAL-DRAFT').sale;
   real.emptyDraftDeletable=false;state.sales=[testSale,real];mount();
   fireEvent.click(await screen.findByRole('button',{name:/\[TEST\] Unissued sale/}));
+  await screen.findByRole('heading',{name:'Sale summary'});
   fireEvent.click(screen.getByRole('button',{name:'Delete draft'}));
   const dialog=screen.getByRole('dialog',{name:'Delete this draft?'});
   expect(state.fetch.mock.calls.some(([,options])=>options?.method==='DELETE')).toBe(false);
@@ -194,6 +201,7 @@ it('deletes an eligible saved draft only after explicit confirmation and keeps o
   expect(JSON.parse(deletion?.[1].body)).toEqual({confirm:true,expectedRevision:1});
   expect(screen.getByRole('status')).toHaveTextContent('Draft deleted.');
   fireEvent.click(screen.getByRole('button',{name:/Protected buyer/}));
+  await screen.findByRole('heading',{name:'Sale summary'});
   expect(screen.queryByRole('button',{name:'Delete draft'})).not.toBeInTheDocument();
 });
 
@@ -203,6 +211,7 @@ it('keeps the draft when deletion fails and reloads protected changes before ano
   const original=state.fetch.getMockImplementation()!;
   state.fetch.mockImplementation(async(url,options)=>{if(options?.method==='DELETE')throw new Error('This sale changed on another device. Reload it before deleting.');return original(url,options);});
   mount();fireEvent.click(await screen.findByRole('button',{name:/\[TEST\] Stale draft/}));
+  await screen.findByRole('heading',{name:'Sale summary'});
   fireEvent.click(screen.getByRole('button',{name:'Delete draft'}));fireEvent.click(within(screen.getByRole('dialog')).getByRole('button',{name:'Delete draft permanently'}));
   await waitFor(()=>expect(within(screen.getByRole('dialog')).getByRole('alert')).toHaveTextContent('another device'));
   expect(state.sales).toHaveLength(1);
@@ -566,7 +575,7 @@ it("autofills a recent enquiry contact as staff type and links only the selected
   expect(screen.getByLabelText("Customer’s full name")).toHaveValue("Jamie Taylor");
   expect(screen.getByLabelText("Telephone")).toHaveValue("07700900123");
   expect(screen.getByLabelText("Email for the invoice")).toHaveValue("jamie@example.com");
-  expect(state.fetch.mock.calls.filter(([, options]) => options)).toHaveLength(0);
+  expect(state.fetch.mock.calls.filter(([, options]) => options?.method)).toHaveLength(0);
   fireEvent.click(screen.getByRole("button", { name: "Save details" }));
   await waitFor(() => expect(state.sales).toHaveLength(1));
   expect(state.sales[0].draft.sourceEnquiryId).toBe("enquiry-recent");
@@ -677,7 +686,7 @@ async function mountSaved(sale: SaleWorkspaceRecord) {
   // still require the actual summary before any workflow assertions begin.
   await screen.findByRole("heading", { name: "Sale summary" }, { timeout: 3000 });
 }
-function mutations() { return state.fetch.mock.calls.filter(([, options]) => options); }
+function mutations() { return state.fetch.mock.calls.filter(([, options]) => options?.method); }
 
 it("opens a saved sale at its useful summary and resumes payments without repeating vehicle and customer questions", async () => {
   const sale = fixturePayment(savedSale(), "500");
@@ -790,18 +799,7 @@ it("keeps invoice QR hidden on a resumed sale while print, download and manual e
   expect(state.sales[0].payments).toEqual(frozenPayments);
 });
 
-it("returns document WhatsApp sharing to its internal invoice email controls without sending automatically",async()=>{
-  const sale=fixtureCommand(savedSale(),{action:"issue-invoice",kind:"full",acknowledge:true});
-  const snapshot=structuredClone(sale);
-  await mountSaved(sale);
-  fireEvent.click(screen.getByRole("button",{name:"Use email instead"}));
-  expect(screen.getByRole("heading",{name:"Your invoice is ready."})).toBeVisible();
-  expect(screen.getByText("Review this saved document, then choose Email customer to send it through the dealership email system.")).toBeVisible();
-  expect(screen.getByRole("button",{name:"Email customer"})).toBeEnabled();
-  expect(mutations()).toHaveLength(0);
-  expect(state.sales[0]).toEqual(snapshot);
-  expect(state.fetch.mock.calls.some(([path])=>String(path).includes("/phone-shares/email-enquiry"))).toBe(false);
-});
+
 
 it.each(['paused', 'loading', 'error'] as const)('does not offer or submit invoice email while effective availability is %s', async status => {
   state.customerEmails = false;
@@ -810,14 +808,14 @@ it.each(['paused', 'loading', 'error'] as const)('does not offer or submit invoi
   const sale = fixtureCommand(savedSale(), { action: 'issue-invoice', kind: 'full', acknowledge: true });
   const snapshot = structuredClone(sale);
   await mountSaved(sale);
-  fireEvent.click(screen.getByRole('button', { name: 'Use email instead' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Invoice options' }));
   const email = screen.getByRole('button', { name: 'Email customer' });
   expect(email).toBeDisabled();
   expect(email).toHaveAccessibleDescription(status === 'loading' ? /Checking email availability/ : status === 'error' ? /Email availability could not be checked/ : /switched off by platform administration/);
   fireEvent.click(email);
   expect(screen.getByRole('button', { name: 'Open & print invoice' })).toBeEnabled();
   expect(screen.getByRole('button', { name: 'Download PDF' })).toBeEnabled();
-  for (const share of screen.getAllByRole('button', { name: 'Use email instead' })) expect(share).toBeEnabled();
+  expect(screen.getByRole('button', {name:'Download PDF'})).toBeEnabled();
   expect(state.fetch.mock.calls.filter(([path, options]) => options?.method === 'POST' && String(path).endsWith('/email'))).toHaveLength(0);
   expect(mutations()).toHaveLength(0);
   expect(state.sales[0]).toEqual(snapshot);
@@ -833,7 +831,7 @@ it.each(['full','deposit'] as const)('keeps one collection/delivery panel when o
   await mountSaved(sale);
   expect(screen.getAllByRole('region',{name:'Collection and delivery'})).toHaveLength(1);
   for (let pass=0;pass<2;pass++) {
-    fireEvent.click(screen.getByRole('button',{name:'Use email instead'}));
+    fireEvent.click(screen.getByRole('button',{name:'Invoice options'}));
     await screen.findByRole('heading',{name:'Your invoice is ready.'});
     expect(screen.getAllByRole('region',{name:'Collection and delivery'})).toHaveLength(1);
     fireEvent.click(screen.getByRole('button',{name:'Email customer'}));
@@ -973,56 +971,4 @@ it("shows every interim payment with its amount and status directly on the saved
  expect(history).toHaveTextContent("Received");
  expect(screen.getByRole("region",{name:"Saved sale summary"})).toHaveTextContent("£9,250.00");
  expect(mutations()).toHaveLength(0);
-});
-
-it('asks for VIN and tax guide only at the full invoice review, without saving the slip', async () => {
-  mount();
-  fireEvent.click(await screen.findByRole('button', {name: /New invoice/}));
-  expect(screen.queryByLabelText(/VIN \/ chassis number/)).not.toBeInTheDocument();
-  fireEvent.change(screen.getByRole('combobox', {name:'Vehicle'}), {target:{value:'car-test'}});
-  fireEvent.click(screen.getByRole('button',{name:'Continue'}));
-  fireEvent.change(screen.getByLabelText('Customer’s full name'),{target:{value:'Jamie Taylor'}});
-  fireEvent.click(screen.getByRole('button',{name:'Continue'}));
-  fireEvent.click(screen.getByRole('button',{name:'Continue'}));
-  fireEvent.click(screen.getByRole('button',{name:/^Full invoice/}));
-  fireEvent.click(screen.getByRole('button',{name:'Continue'}));
-  fireEvent.change(screen.getByLabelText(/VIN \/ chassis number/), {target:{value:'wvwzzz1jzxw000001'}});
-  fireEvent.change(screen.getByLabelText('Attach a Road Tax guide to the invoice email?'), {target:{value:'yes'}});
-  fireEvent.change(screen.getByLabelText('Green slip document number (V5C/2)'), {target:{value:'012345678901'}});
-  fireEvent.click(screen.getByRole('button',{name:'Save details'}));
-  await waitFor(()=>expect(state.sales).toHaveLength(1));
-  expect(state.sales[0].draft.vin).toBe('WVWZZZ1JZXW000001');expect(state.sales[0].draft.roadTaxGuide).toBe(true);
-  expect(JSON.stringify(state.fetch.mock.calls)).not.toContain('012345678901');
-});
-
-it('sends the tax reference only with the issued full invoice email, never on create or download', async () => {
- mount();fireEvent.click(await screen.findByRole('button',{name:/New invoice/}));
- fireEvent.change(screen.getByRole('combobox',{name:'Vehicle'}),{target:{value:'car-test'}});fireEvent.click(screen.getByRole('button',{name:'Continue'}));
- fireEvent.change(screen.getByLabelText('Customer’s full name'),{target:{value:'Buyer'}});fireEvent.change(screen.getByLabelText('Email for the invoice'),{target:{value:'buyer@example.invalid'}});
- fireEvent.click(screen.getByRole('button',{name:'Continue'}));fireEvent.click(screen.getByRole('button',{name:'Continue'}));
- fireEvent.click(screen.getByRole('button',{name:/^Full invoice/}));fireEvent.click(screen.getByRole('button',{name:'Continue'}));
- fireEvent.change(screen.getByLabelText('Attach a Road Tax guide to the invoice email?'),{target:{value:'yes'}});
- fireEvent.change(screen.getByLabelText('Green slip document number (V5C/2)'),{target:{value:'012345678901'}});
- fireEvent.click(screen.getByRole('checkbox',{name:/I have checked the customer/}));fireEvent.click(screen.getByRole('button',{name:'Create full invoice'}));
- await screen.findByRole('heading',{name:'Your invoice is ready.'});
- expect(JSON.stringify(state.fetch.mock.calls)).not.toContain('012345678901');expect(JSON.stringify(state.sales)).not.toContain('012345678901');
- expect(screen.queryByRole('button',{name:'Download guide'})).not.toBeInTheDocument();expect(screen.queryByRole('button',{name:'Email guide to customer'})).not.toBeInTheDocument();
- fireEvent.click(screen.getByRole('button',{name:'Download PDF'}));await waitFor(()=>expect(state.pdf).toHaveBeenCalledOnce());
- const email=screen.getByRole('button',{name:'Email invoice & tax guide'});await waitFor(()=>expect(email).toBeEnabled());
- expect(state.fetch.mock.calls.filter(([url])=>String(url).endsWith('/email'))).toHaveLength(0);
- fireEvent.click(email);
- await waitFor(()=>expect(screen.getByRole('status')).toHaveTextContent('Invoice and Road Tax guide accepted'));
- const sent=state.fetch.mock.calls.filter(([url])=>String(url).endsWith('/email'));expect(sent).toHaveLength(1);
- expect(JSON.parse(sent[0][1].body).taxGuide).toEqual({reference:'012345678901'});
- expect(screen.getByLabelText('Green slip document number (V5C/2)')).toHaveValue('');expect(JSON.stringify(state.sales)).not.toContain('012345678901');
-});
-
- it("keeps saved full-invoice WhatsApp available when its email includes a Road Tax guide",async()=>{
-  const sale=fixtureCommand(savedSale(),{action:"issue-invoice",kind:"full",acknowledge:true});
-  sale.documents.at(-1)!.snapshot.draft.roadTaxGuide=true;
-  const original=structuredClone(sale);
-  await mountSaved(sale);
-  expect(screen.getByRole("button",{name:"Use email instead"})).toBeEnabled();
-  expect(state.sales[0]).toEqual(original);
-  expect(mutations()).toHaveLength(0);
 });

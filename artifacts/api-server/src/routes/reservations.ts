@@ -1,20 +1,18 @@
 import { currentDealerId } from "../lib/tenant-context";
-import { dealerIntegrationsStore } from "../lib/dealer-integrations-store";
 import { randomUUID } from 'node:crypto';
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { z } from "zod/v4";
-import { CreateReservationResponse, ListReservationsResponse, CancelReservationResponse } from "@workspace/api-zod";
+import { ListReservationsResponse, CancelReservationResponse } from "@workspace/api-zod";
 import {
-  db, dealerSettingsTable, leadEventsTable, leadsTable, salesTable, vehiclesTable, saleWorkspaceTable,
+  db, leadEventsTable, leadsTable, salesTable, vehiclesTable, saleWorkspaceTable,
   type Lead, type LeadEvent,
 } from "@workspace/db";
 import type { SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 import { requireStaff, requirePermission, staffLabel } from "../middlewares/staff-auth";
 import {
-  assertReservationCanBeCancelled, createOnlineReservation, ReservationError,
-  reservationView, type ReservationRecord, type ReservationRepository, type ReservationTransaction,
-} from "../lib/online-reservations";
+  assertReservationCanBeCancelled, ReservationError, reservationView, type ReservationRecord,
+} from "../lib/historical-reservations";
 
 const router: IRouter = Router();
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -70,105 +68,6 @@ async function getReservation(query: Query, id: string, reservationId: string) {
   return { ...row, record: readRecord(row, cancelled.has(row.lead.id)) };
 }
 
-function transactionAdapter(tx: Tx, id: string): ReservationTransaction {
-  return {
-    async lockRequest(key) {
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`online-reservation:${id}:${key}`}))`);
-    },
-    async findByIdempotencyKey(key) {
-      const [row] = await tx.select({ lead: leadsTable, event: leadEventsTable })
-        .from(leadEventsTable).innerJoin(leadsTable, eq(leadEventsTable.leadId, leadsTable.id))
-        .where(and(originalReservationFilter(id), sql`${leadEventsTable.payload}->'reservation'->>'idempotencyKey' = ${key}`))
-        .limit(1);
-      if (!row) return undefined;
-      const cancelled = await cancelledReservationIds(tx, id, [row.lead.id]);
-      return readRecord(row, cancelled.has(row.lead.id));
-    },
-    async getSettings() {
-      // Hold the settings row while reserving so switching the feature off
-      // cannot interleave with a reservation based on stale configuration.
-      const [settings] = await tx.select().from(dealerSettingsTable)
-        .where(eq(dealerSettingsTable.dealerId, id)).for("share");
-      return settings?.config.onlineReservation;
-    },
-    async lockVehicle(vehicleId) {
-      // The sales workflow takes this same lock before creating a sale.
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`sale-vehicle:${vehicleId}`}))`);
-    },
-    async getVehicle(vehicleId) {
-      const [vehicle] = await tx.select().from(vehiclesTable)
-        .where(and(eq(vehiclesTable.dealerId, id), eq(vehiclesTable.id, vehicleId))).for("update");
-      return vehicle;
-    },
-    async hasActiveSale(vehicleId) {
-      const rows = await tx.select({ id: salesTable.id }).from(salesTable)
-        .where(and(eq(salesTable.dealerId, id), eq(salesTable.vehicleId, vehicleId),
-          inArray(salesTable.status, ["draft", "ready", "signing", "signed", "completed"]))).limit(1);
-      return rows.length > 0;
-    },
-    async hasCompetingReservation(vehicleId, exceptLeadId) {
-      const rows = await tx.select({ id: leadsTable.id }).from(leadsTable)
-        .where(and(eq(leadsTable.dealerId, id), eq(leadsTable.vehicleId, vehicleId),
-          inArray(leadsTable.stage, ["reserved", "sale_agreed", "collected"]),
-          ...(exceptLeadId ? [ne(leadsTable.id, exceptLeadId)] : []))).limit(1);
-      return rows.length > 0;
-    },
-    async create(record, vehicle) {
-      // All mutations are in one transaction. Never record a simulated charge
-      // as an offline deposit or as a payment in the financial tables.
-      const updated = await tx.update(vehiclesTable).set({ inventoryStatus: "reserved", updatedAt: new Date() })
-        .where(and(eq(vehiclesTable.dealerId, id), eq(vehiclesTable.id, vehicle.id), eq(vehiclesTable.inventoryStatus, "available")))
-        .returning({ id: vehiclesTable.id });
-      if (!updated.length) throw new ReservationError("This car has just become unavailable. Please choose another car.", 409);
-      const createdAt = new Date(record.createdAt);
-      await tx.insert(leadsTable).values({
-        id: record.id, dealerId: id, vehicleId: vehicle.id, vehicleTitle: record.vehicleTitle,
-        vehicleRegistration: record.vehicleRegistration ?? null,
-        vehiclePrice: record.expectedPricePence / 100,
-        stage: "reserved", source: "website_form", customerName: record.customerName,
-        email: record.email, phone: record.phone, preferredContact: "phone",
-        summary: `Online reservation. Payment simulated; no money received.`,
-        nextAction: "Contact the customer about their online reservation. Payment is simulated; no deposit has been received.",
-        nextActionDueAt: createdAt, depositPence: 0,
-        createdAt, updatedAt: createdAt,
-      });
-      await tx.insert(leadEventsTable).values([
-        {
-          leadId: record.id, type: "lead_created", actorType: "customer", actor: record.customerName,
-          body: "Customer reserved this car online. Payment simulated; no money received.",
-          payload: { source: "website_form", stage: "reserved" },
-        },
-        {
-          leadId: record.id, type: "note_added", actorType: "system",
-          body: `Reservation: £${(record.depositPence / 100).toFixed(2)} payment simulated; £0 received.${record.partExchange ? ` Part exchange: ${record.partExchange.registration}, ${record.partExchange.mileage.toLocaleString("en-GB")} miles.` : ""}`,
-          payload: { kind: reservationKind, reservation: record },
-        },
-      ]);
-    },
-  };
-}
-
-function repository(id: string): ReservationRepository {
-  return { transaction: (run) => db.transaction((tx) => run(transactionAdapter(tx, id))) };
-}
-
-// Match the public signing endpoints' in-process throttling pattern, with a
-// bounded map and expiry cleanup. A shared gateway limiter can supplement it.
-const attempts = new Map<string, { count: number; resetAt: number }>();
-function allowAttempt(ip: string) {
-  const now = Date.now();
-  for (const [key, attempt] of attempts) if (attempt.resetAt <= now) attempts.delete(key);
-  const existing = attempts.get(ip);
-  if (existing) {
-    if (existing.count >= 12) return false;
-    existing.count += 1;
-  } else {
-    if (attempts.size >= 10_000) return false;
-    attempts.set(ip, { count: 1, resetAt: now + 15 * 60_000 });
-  }
-  return true;
-}
-
 function sendError(error: unknown, req: Request, res: Response) {
   if (error instanceof ReservationError) {
     res.status(error.status).json({ error: error.message });
@@ -178,22 +77,6 @@ function sendError(error: unknown, req: Request, res: Response) {
     res.status(500).json({ error: "We could not complete this reservation. Please try again or contact the dealership." });
   }
 }
-
-router.post("/reservations", async (req, res): Promise<void> => {
-  res.set("Cache-Control", "no-store");
-  if (!allowAttempt(req.ip ?? "unknown")) {
-    res.set("Retry-After", "900").status(429).json({ error: "Too many reservation attempts. Please wait before trying again." });
-    return;
-  }
-  try {
-    const configuredThreshold = Number(process.env.STOCK_MISSING_HIDE_THRESHOLD ?? 2);
-    const result = await createOnlineReservation(req.body, {
-      stockPlatform: (await dealerIntegrationsStore.readStockConnection()).connection.platform, dealerId: dealerId(), paymentMode: process.env.RESERVATION_PAYMENT_MODE, nodeEnv: process.env.NODE_ENV,
-      missingHideThreshold: Number.isFinite(configuredThreshold) && configuredThreshold >= 0 ? configuredThreshold : 2,
-    }, repository(dealerId()));
-    res.status(result.replayed ? 200 : 201).json(CreateReservationResponse.parse(result.reservation));
-  } catch (error) { sendError(error, req, res); }
-});
 
 router.get("/reservations", requireStaff, async (req, res): Promise<void> => {
   res.set("Cache-Control", "no-store");
@@ -226,9 +109,8 @@ router.post("/reservations/:id/cancel", requireStaff, requirePermission("sales.m
       if (!found) throw new ReservationError("Reservation not found.", 404);
       // Sales use dealer then vehicle locks; preserve that order to avoid deadlocks.
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`sale-workspace:${id}`}))`);
-      const adapter = transactionAdapter(tx, id);
-      await adapter.lockVehicle(found.record.vehicleId);
-      const vehicle = await adapter.getVehicle(found.record.vehicleId);
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`sale-vehicle:${found.record.vehicleId}`}))`);
+      const [vehicle] = await tx.select().from(vehiclesTable).where(and(eq(vehiclesTable.dealerId,id),eq(vehiclesTable.id,found.record.vehicleId))).for('update');
       const [lead] = await tx.select().from(leadsTable).where(and(eq(leadsTable.dealerId, id), eq(leadsTable.id, found.lead.id))).for("update");
       const latest = await getReservation(tx, id, req.params.id);
       if (!latest || !lead) throw new ReservationError("Reservation not found.", 404);
@@ -240,8 +122,8 @@ router.post("/reservations/:id/cancel", requireStaff, requirePermission("sales.m
       if (connected.some(row => (row.state as unknown as SaleWorkspaceRecord).lifecycle?.status === 'sold')) throw new ReservationError('This reservation belongs to a sold vehicle. Review its sale file.', 409);
       assertReservationCanBeCancelled({
         inventoryStatus: vehicle?.inventoryStatus, leadStage: lead.stage, depositPence: lead.depositPence,
-        hasActiveSale: await adapter.hasActiveSale(found.record.vehicleId),
-        hasCompetingReservation: await adapter.hasCompetingReservation(found.record.vehicleId, lead.id),
+        hasActiveSale: Boolean((await tx.select({id:salesTable.id}).from(salesTable).where(and(eq(salesTable.dealerId,id),eq(salesTable.vehicleId,found.record.vehicleId),inArray(salesTable.status,["draft","ready","signing","signed","completed"]))).limit(1)).length),
+        hasCompetingReservation: Boolean((await tx.select({id:leadsTable.id}).from(leadsTable).where(and(eq(leadsTable.dealerId,id),eq(leadsTable.vehicleId,found.record.vehicleId),ne(leadsTable.id,lead.id),inArray(leadsTable.stage,["reserved","sale_agreed","collected"]))).limit(1)).length),
       });
       const cancelledAt = new Date().toISOString();
       for (const row of connected) {

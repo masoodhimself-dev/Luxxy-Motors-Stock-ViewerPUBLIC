@@ -14,7 +14,6 @@ import {
   notificationView,
   type NotificationView,
 } from "@/lib/notifications-navigation";
-import { NotificationsHome } from "./notifications-home";
 import { EnquiriesPanel } from "./enquiries-panel";
 import { TestDriveBookingsPanel } from "./test-drive-bookings-panel";
 import { EmailWorkspace } from "./email-workspace";
@@ -23,16 +22,9 @@ import "./notifications-workspace.css";
 
 const views = [
   {
-    id: "attention",
-    label: "Today",
-    description: "Customers and visits",
-    icon: Inbox,
-    tone: "neutral",
-  },
-  {
     id: "customers",
-    label: "Inbox",
-    description: "Conversations and follow-ups",
+    label: "Conversations",
+    description: "Customers and follow-ups",
     icon: CustomerEnquiry,
     tone: "info",
   },
@@ -45,7 +37,7 @@ const views = [
   },
   {
     id: "email",
-    label: "Inbox",
+    label: "Email records",
     description: "Drafts and delivery",
     icon: Mail,
     tone: "violet",
@@ -106,38 +98,12 @@ export function NotificationsWorkspace({
     >
       {!calendar && (
         <header className="customer-workspace-heading">
-          <h2>
-            {view === "attention"
-              ? "Your day"
-              : views.find((item) => item.id === view)?.label}
-          </h2>
-          {view !== "attention" && canEmail && (
+          <h2>Inbox</h2>
+          {canEmail && (
             <Button onClick={newEnquiry}>
               <Plus size={17} aria-hidden="true" />
               Quick enquiry
             </Button>
-          )}
-          {view === "attention" && (
-            <div className="customer-quick-actions" aria-label="Home shortcuts">
-              {canEmail && (
-                <Button variant="outline" data-tone="info" onClick={newEnquiry}>
-                  <CustomerEnquiry size={17} aria-hidden="true" />
-                  Quick enquiry
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                data-tone="teal"
-                onClick={() =>
-                  navigate(
-                    "/portal?section=notifications&workView=test-drives&deskView=calendar",
-                  )
-                }
-              >
-                <CalendarDays size={17} aria-hidden="true" />
-                Calendar
-              </Button>
-            </div>
           )}
         </header>
       )}
@@ -147,7 +113,7 @@ export function NotificationsWorkspace({
         aria-label="Notifications views"
       >
         {views
-          .filter((item) => item.id !== "email")
+          .filter((item) => canEmail || item.id !== "email")
           .map((item) => {
             const Icon = item.icon;
             return (
@@ -156,7 +122,7 @@ export function NotificationsWorkspace({
                 id={`customer-view-${item.id}`}
                 key={item.id}
                 data-tone={item.tone}
-                aria-current={view === item.id || (item.id === "customers" && view === "email") ? "page" : undefined}
+                aria-current={view === item.id ? "page" : undefined}
                 aria-controls="customer-workspace-content"
                 onClick={() => choose(item.id)}
               >
@@ -169,17 +135,12 @@ export function NotificationsWorkspace({
             );
           })}
       </nav>
-      {(view === 'customers' || view === 'email') && canEmail && <nav className="inbox-mode-nav" aria-label="Inbox views">
-        <Button size="sm" variant={view === 'customers' ? 'default' : 'ghost'} aria-pressed={view === 'customers'} onClick={() => choose('customers')}>Conversations</Button>
-        <Button size="sm" variant={view === 'email' ? 'default' : 'ghost'} aria-pressed={view === 'email'} onClick={() => choose('email')}>Email records &amp; drafts</Button>
-      </nav>}
       <div
         id="customer-workspace-content"
         className="customer-workspace-content"
         role="region"
         aria-label={views.find((item) => item.id === view)?.label}
       >
-        {view === "attention" && <NotificationsHome embedded />}
         {view === "customers" && (
           <EnquiriesPanel embedded initialView="history" canEmail={canEmail} />
         )}
@@ -238,8 +199,8 @@ export function NotificationsWorkspace({
             <div className="customer-workspace-denied" role="status">
               <h3>Email access isn’t included in your staff role</h3>
               <p>You can still open customer enquiries and test drives.</p>
-              <Button variant="outline" onClick={() => choose("attention")}>
-                Back to needs attention
+              <Button variant="outline" onClick={() => choose("customers")}>
+                Back to Inbox
               </Button>
             </div>
           ))}

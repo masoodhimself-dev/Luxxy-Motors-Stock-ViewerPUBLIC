@@ -73,7 +73,7 @@ for (const width of [390, 820, 1024, 1440]) {
 
 test('customer typography stays consistent while showroom geometry remains route-specific', async ({ page, request }) => {
   const { cars } = await fixture(page, request);
-  for (const path of ['/saved', '/compare', '/contact', '/enquire?type=viewing&vehicleId=' + cars[0].id]) {
+  for (const path of ['/saved', '/contact', '/enquire?type=viewing&vehicleId=' + cars[0].id]) {
     await page.goto(path);
     await expect(page.locator('#main-content h1').first()).toBeVisible();
     await expect(page.locator('.premium-showroom')).toHaveCount(0);

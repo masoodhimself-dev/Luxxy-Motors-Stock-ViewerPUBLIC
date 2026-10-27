@@ -1,4 +1,4 @@
-import { googleReviewUrl } from './review-reminder.ts';
+import { hslColourToHex } from './brand-colour.ts';
 /** Shared sale ledger contract and deterministic business rules. No payment processor is called here. */
 export type SaleWorkspaceExchange = { registration: string; description: string; value: string };
 export type SaleWorkspaceAdjustment = { description: string; amount: string; kind: 'fee' | 'discount' };
@@ -58,6 +58,15 @@ export function invoiceBranding(branding: SaleWorkspaceBranding, settings?: Invo
   const options = { ...defaultInvoiceSettings, ...settings };
   return { ...branding, invoiceSettings: options,
     presentation: { ...branding.presentation, linkColour: options.inkSaving ? '#34414b' : options.useWebsiteColour ? branding.presentation?.linkColour : options.accent } };
+}
+/** One current dealership brand for new documents only. Historical snapshots retain invoiceBranding compatibility. */
+export function currentInvoiceBranding(branding: SaleWorkspaceBranding, settings?: InvoiceSettings): SaleWorkspaceBranding {
+  const colour = hslColourToHex(branding.identity.brandColors?.primaryHsl ?? '', '#215a7e');
+  const current = invoiceBranding(JSON.parse(JSON.stringify(branding)), {
+    ...defaultInvoiceSettings, ...settings, layoutVersion: 'classic-ledger-v1', style: 'branded',
+    useWebsiteColour: true, accent: colour, showLogo: true, logoSize: 'medium', inkSaving: false,
+  });
+  return { ...current, presentation: { ...current.presentation, linkColour: colour } };
 }
 export type SaleWorkspaceBranding = {
   invoiceSettings?: InvoiceSettings;
@@ -148,7 +157,7 @@ export type SaleWorkspaceRecord = {
   lifecycle?: { status: "draft" | "reserved" | "sold" | "released"; vehicleId: string; changedAt: string };
   customerAccess?: { tokenHash: string; expiresAt: string; revokedAt?: string };
   documentArchives?: Record<string, { content: string; sha256: string }>;
-  emailDeliveries?: Array<{ id: string; documentId: string; to: string; status: "prepared" | "sending" | "sent" | "failed"; attemptedAt: string; sentAt?: string; error?: string; providerId?: string }>;
+  emailDeliveries?: Array<{ id: string; documentId: string; to: string; status: "prepared" | "sending" | "sent" | "failed" | "unknown"; attemptedAt: string; sentAt?: string; error?: string; providerId?: string }>;
   customerLinkEmail?: { id: string; to: string; status: "prepared" | "sending" | "sent" | "failed"; attemptedAt: string; sentAt?: string; error?: string };
   checklists?: SaleWorkspaceChecklists;
   providerPayments?: Record<string, { paymentId: string; eventId: string; refundEvents?: Record<string, { amountRefundedPence: number }> }>;
@@ -170,11 +179,6 @@ export type SaleWorkspaceCommand =
   | { action: 'provider-refund-correction'; paymentId: string; amount: string; reason: string; date: string }
   | { action: 'document'; type: 'invoice' | 'statement' }
   | { action: 'lifecycle'; status: 'reserved' | 'sold' | 'released' }
-  | { action: 'customer-link'; tokenHash: string; expiresAt: string }
-  | { action: 'customer-revoke' }
-  | { action: 'review-reminder'; at: string; url?: string }
-  | { action: 'cancel-review-reminder' }
-  | { action: 'link-email-status'; delivery: NonNullable<SaleWorkspaceRecord['customerLinkEmail']> }
   | { action: 'email-status'; delivery: NonNullable<SaleWorkspaceRecord['emailDeliveries']>[number] }
   | { action: 'fulfilment'; fulfilment: SaleWorkspaceFulfilment }
   | { action: 'handover'; recipient: string; completedAt?: string; acknowledgeOutstanding?: boolean };
@@ -258,10 +262,12 @@ export function cleanSaleWorkspaceDraft(input: unknown, reference: string, ledge
   const draft = Object.fromEntries(fields.map(([name, limit]) => [name, text(source[name] ?? '', limit, name)])) as unknown as SaleWorkspaceDraft;
   draft.vin = draft.vin?.toUpperCase() ?? '';
   if (draft.vin && !/^[A-HJ-NPR-Z0-9]{17}$/.test(draft.vin)) throw new SaleWorkspaceError('Enter the 17-character VIN from the vehicle or log book (no I, O or Q).');
-  draft.roadTaxGuide = source.roadTaxGuide === true;
   if (previous && (previous.sourceEnquiryId || previous.sourceReservationId)) {
     draft.sourceEnquiryId = previous.sourceEnquiryId; draft.sourceReservationId = previous.sourceReservationId;
   }
+  // Opaque retired metadata remains attached to existing sales, but cannot be
+  // introduced or changed through a new draft request. Issued snapshots stay intact.
+  if (previous && 'roadTaxGuide' in previous) draft.roadTaxGuide = previous.roadTaxGuide;
   if (previous?.appointment) draft.appointment = clone(previous.appointment);
   draft.id = reference; draft.deposit = ''; draft.partExchange = source.partExchange === true;
   draft.preparation = source.preparation === true; draft.documents = source.documents === true;
@@ -286,7 +292,7 @@ export function cleanSaleWorkspaceDraft(input: unknown, reference: string, ledge
       method: fulfilment.method as SaleWorkspaceFulfilment['method'], viewed: fulfilment.viewed as SaleWorkspaceFulfilment['viewed'],
       address: text(fulfilment.address ?? '', 2000, 'delivery address'), recipient: text(fulfilment.recipient ?? '', 200, 'recipient'), phone: text(fulfilment.phone ?? '', 80, 'delivery phone'),
       scheduledDate: text(fulfilment.scheduledDate ?? '', 10, 'handover date'), timeWindow: text(fulfilment.timeWindow ?? '', 100, 'time window'), instructions: text(fulfilment.instructions ?? '', 2000, 'delivery instructions'),
-      ...(fulfilment.driver !== undefined ? { driver: text(fulfilment.driver, 200, 'delivery driver') } : {}),
+      ...(previous?.fulfilment?.driver !== undefined ? { driver: previous.fulfilment.driver } : {}),
       ...(previous?.fulfilment?.stage ? { stage: previous.fulfilment.stage } : {}),
       ...(previous?.fulfilment?.failureReason ? { failureReason: previous.fulfilment.failureReason } : {}),
     };
@@ -357,7 +363,6 @@ function resetUpdatedSaleChecks(record: SaleWorkspaceRecord, previous: SaleWorks
   } else {
     if (changed(['notes'])) { reset ||= Boolean(record.checklists.completion.disclosures); delete record.checklists.completion.disclosures; }
     if (changed(['fulfilment', 'collection'])) { reset ||= Boolean(record.checklists.completion.handover); delete record.checklists.completion.handover; }
-    if (changed(['roadTaxGuide'])) { reset ||= Boolean(record.checklists.completion.documents); delete record.checklists.completion.documents; }
   }
   const next = saleWorkspaceRetainedIntakeChecks({ draft: previous, checklists: record.checklists }, record.draft);
   if (Object.keys(record.checklists.partExchanges).some(registration => !next[registration])) reset = true;
@@ -452,44 +457,12 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     if (record.draft.fulfilment?.completedAt) throw new SaleWorkspaceError('Handover is already recorded. Its details cannot be replaced.', 409);
     const value = cleanSaleWorkspaceDraft({ ...record.draft, fulfilment: command.fulfilment }, record.reference, record.payments, record.draft).fulfilment!;
     const stage = command.fulfilment?.stage ?? (value.scheduledDate ? 'booked' : 'to_arrange');
-    if (!['to_arrange','booked','on_way','unsuccessful'].includes(stage)) throw new SaleWorkspaceError('Choose a valid handover status.');
+    if (!['to_arrange','booked'].includes(stage)) throw new SaleWorkspaceError('Choose a valid handover status.');
     if (stage === 'booked' && value.method === 'delivery' && !value.address.trim()) throw new SaleWorkspaceError('Confirm the delivery address before marking it booked.');
     if (stage === 'booked' && !value.scheduledDate) throw new SaleWorkspaceError('Choose a planned date before marking it booked.');
-    if (stage === 'on_way' || stage === 'unsuccessful') {
-      if (value.method !== 'delivery' || (!record.completedAt && record.lifecycle?.status !== 'sold')) throw new SaleWorkspaceError('Complete the sale before recording a delivery attempt.', 409);
-      if (stage === 'on_way' && !value.scheduledDate) throw new SaleWorkspaceError('Choose the delivery date before marking it on the way.');
-      if (!value.address.trim()) throw new SaleWorkspaceError('Confirm the delivery address first.');
-    }
-    const failureReason = stage === 'unsuccessful' ? text(command.fulfilment.failureReason ?? '', 2000, 'delivery problem') : '';
-    if (stage === 'unsuccessful' && !failureReason.trim()) throw new SaleWorkspaceError('Record why delivery was unsuccessful.');
-    record.draft.fulfilment = { ...value, stage, failureReason };
+    record.draft.fulfilment = { ...value, stage };
     resetUpdatedSaleChecks(record, current.draft, context);
-    event(record, context, 'handover-arranged', `${value.method === 'delivery' ? 'Delivery' : 'Collection'}: ${stage.replaceAll('_',' ')}${value.scheduledDate ? `, ${value.scheduledDate}` : ''}${failureReason ? ` — ${failureReason}` : ''}`);
-  } else if (command.action === 'review-reminder') {
-    if (!record.completedAt && record.lifecycle?.status !== 'sold') throw new SaleWorkspaceError('Complete the sale before scheduling a review reminder.', 409);
-    const url = googleReviewUrl(context.reviewUrl ?? command.url ?? ''), at = Date.parse(command.at);
-    if (!url) throw new SaleWorkspaceError('Add a valid Google review link in dealership Settings first.');
-    if (!Number.isFinite(at) || at <= Date.parse(context.now) || at > Date.parse(context.now) + 365 * 86400000) throw new SaleWorkspaceError('Choose a future reminder within the next year.');
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(record.draft.email)) throw new SaleWorkspaceError('A customer email is needed for a review reminder.');
-    record.reviewReminder = { enquiryId: record.reviewReminder?.enquiryId || context.nextId(), at: new Date(at).toISOString(), url };
-    event(record, context, 'review-reminder-scheduled', 'Google review reminder scheduled; no email sent');
-  } else if (command.action === 'cancel-review-reminder') {
-    if (!record.reviewReminder) throw new SaleWorkspaceError('No review reminder is scheduled.', 409);
-    record.reviewReminder.cancelledAt = context.now;
-    event(record, context, 'review-reminder-cancelled', 'Google review reminder cancelled');
-  } else if (command.action === 'customer-link') {
-    ready(record);
-    if (!/^[a-f0-9]{64}$/.test(command.tokenHash) || !Number.isFinite(Date.parse(command.expiresAt)) || Date.parse(command.expiresAt) <= Date.parse(context.now) || Date.parse(command.expiresAt) > Date.parse(context.now) + 90 * 86400000) throw new SaleWorkspaceError('Choose an access duration between one and 90 days.');
-    record.customerAccess = { tokenHash: command.tokenHash, expiresAt: command.expiresAt };
-    delete record.customerLinkEmail;
-    event(record, context, 'customer-link-created', 'Private customer link created; any previous link replaced');
-  } else if (command.action === 'customer-revoke') {
-    if (record.customerAccess) record.customerAccess.revokedAt = context.now;
-    event(record, context, 'customer-link-revoked', 'Private customer access revoked');
-  } else if (command.action === 'link-email-status') {
-    if (command.delivery.status === 'sending' && (!record.customerAccess || record.customerAccess.revokedAt || Date.parse(record.customerAccess.expiresAt) <= Date.parse(context.now))) throw new SaleWorkspaceError('Create an active customer link first.', 409);
-    record.customerLinkEmail = clone(command.delivery);
-    event(record, context, 'customer-link-email-' + command.delivery.status, 'Customer link email ' + command.delivery.status);
+    event(record, context, 'handover-arranged', `${value.method === 'delivery' ? 'Delivery' : 'Collection'}: ${stage.replaceAll('_',' ')}${value.scheduledDate ? `, ${value.scheduledDate}` : ''}`);
   } else if (command.action === 'email-status') {
     if (!record.documents.some(item => item.id === command.delivery?.documentId)) throw new SaleWorkspaceError('Document not found.', 404);
     const rows = record.emailDeliveries ??= [];

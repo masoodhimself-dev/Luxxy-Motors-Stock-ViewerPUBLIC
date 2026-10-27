@@ -7,13 +7,12 @@ for (const width of [390, 820, 1440]) test(`clean supplied text highlights at ${
  await page.route('**/api/stock', route => route.fulfill({ json: { ...stock, cars: [car], count: 1 } }));
  await page.goto('/stock');
  const card = page.locator('.vehicle-card').first();
- await expect(card.getByText('2 previous keepers')).toBeVisible();
- await expect(card.getByRole('button', { name: '£20 road tax per year', exact: true })).toBeVisible();
+ await expect(card.getByText('2 owners')).toBeVisible();
+ await expect(card.getByRole('list', { name: 'Vehicle highlights' })).not.toContainText('road tax');
  await expect(card.locator('.vehicle-specs svg')).toHaveCount(0);
- await expect(card.getByRole('list', { name: 'Vehicle highlights' }).locator('svg')).toHaveCount(0);
  await card.screenshot({ path: `/tmp/fact-card-${width}.png`, animations: 'disabled' });
  await page.goto(`/vehicle/${car.id}`);
- await expect(page.locator('.vehicle-summary').getByText('2 previous keepers')).toBeVisible();
+ await expect(page.locator('.vehicle-summary').getByText('2 owners')).toBeVisible();
  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
  await page.locator('.vehicle-summary').screenshot({ path: `/tmp/fact-summary-${width}.png`, animations: 'disabled' });
 });

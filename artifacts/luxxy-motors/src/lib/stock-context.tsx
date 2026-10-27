@@ -4,7 +4,6 @@ import { useLocation } from 'wouter';
 import { useGetStock, getGetStockQueryKey } from '@workspace/api-client-react';
 import { createStockLoader } from './stock-refresh';
 import { canRefreshNow, useRefreshActive } from './refresh-policy';
-import { useCustomerPreview } from './customer-preview-context';
 
 export type CarImage = { url: string; caption: string | null } | string;
 
@@ -95,16 +94,15 @@ export function StockProvider({ children }: { children: ReactNode }) {
   const portal = /^\/portal(?:\/|$)/.test(location);
   const cache = useQueryClient();
   const active = useRefreshActive();
-  const preview = useCustomerPreview();
   const [loadStock] = useState(() => createStockLoader());
   const { data: apiStock, isLoading, error } = useGetStock({ query: {
     queryKey: getGetStockQueryKey(), queryFn: ({ signal }) => loadStock(signal),
-    enabled: active && !preview, staleTime: portal ? 30_000 : 5 * 60_000,
+    enabled: active, staleTime: portal ? 30_000 : 5 * 60_000,
     refetchInterval: portal ? 5 * 60_000 : false,
     refetchIntervalInBackground: false, refetchOnWindowFocus: true, refetchOnReconnect: true,
   } });
   useEffect(() => {
-    if (portal || preview) return;
+    if (portal) return;
     // A desktop app switch may focus the window without a visibility change.
     // Reuse fresh data, and let the query deduplicate any check already underway.
     const onFocus = () => {
@@ -115,7 +113,7 @@ export function StockProvider({ children }: { children: ReactNode }) {
     };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
-  }, [cache, portal, preview]);
+  }, [cache, portal]);
   const stock = useMemo(() => normalizeStock(apiStock), [apiStock]);
   const errorMessage = error instanceof Error ? error.message : error ? 'Unable to load current stock.' : null;
 

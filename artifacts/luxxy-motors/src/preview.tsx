@@ -15,21 +15,14 @@ import { SavedCarsProvider } from '@/lib/saved-cars-context';
 const SalesDemo = lazy(() => import("@/pages/sales-demo"));
 const JoinDealership = lazy(() => import('@/pages/join'));
 const Platform = lazy(() => import("@/pages/platform"));
-const PhoneShare = lazy(() => import("@/pages/phone-share"));
-const WatchPage = lazy(() => import('@/pages/watch'));
-const StaffUpload = lazy(() => import("@/pages/staff-upload"));
-const EnquiryPhotoUpload = lazy(() => import("@/pages/enquiry-photo-upload"));
 const Portal = lazy(() => import("@/pages/portal"));
 import NotFound from '@/pages/not-found';
 import Home from '@/pages/home';
 const CarDetail = lazy(() => import("@/pages/car-detail"));
 const Saved = lazy(() => import("@/pages/saved"));
-const Compare = lazy(() => import("@/pages/compare"));
 const Enquire = lazy(() => import("@/pages/enquire"));
 const Contact = lazy(() => import('@/pages/contact'));
 const Warranty = lazy(() => import('@/pages/warranty'));
-const ReservationPaymentReturn = lazy(() => import("@/pages/reservation-payment-return"));
-const CustomerSale = lazy(() => import("@/pages/customer-sale"));
 const InvoiceVerification = lazy(() => import('@/pages/invoice-verification'));
 const Viewing = lazy(() => import("@/pages/viewing"));
 const TestDriveDeclaration = lazy(() => import('@/pages/test-drive-declaration'));
@@ -40,7 +33,7 @@ const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false 
 
 function PreviewLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  return location === '/watch' || location === '/join' || location === '/phone-share' || location === '/platform' || location === '/staff-upload' || location === '/enquiry-photo-upload' || location === '/verify-invoice' || location.startsWith('/verify-invoice/') || location.startsWith('/test-drive-declaration/') ? <>{children}</> : <Layout>{children}</Layout>;
+  return location === '/join' || location === '/platform' || location === '/verify-invoice' || location.startsWith('/verify-invoice/') || location.startsWith('/test-drive-declaration/') ? <>{children}</> : <Layout>{children}</Layout>;
 }
 
 captureInvitationToken();
@@ -59,22 +52,15 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="/portal/sales-demo" component={SalesDemo} />
                   <Route path="/platform"><div role="note" className="mx-6 mt-5 rounded-lg bg-secondary p-4 text-sm">Example dealerships · Domain activation and import credentials require the real backend.</div><Platform /></Route>
                   <Route path="/join" component={JoinDealership} />
-                  <Route path="/phone-share" component={PhoneShare} />
-                  <Route path="/watch" component={WatchPage} />
-                  <Route path="/staff-upload" component={StaffUpload} />
-                  <Route path="/enquiry-photo-upload" component={EnquiryPhotoUpload} />
                   <Route path="/portal" component={Portal} />
                   <Route path="/portal/leads/:id" component={Portal} />
                   <Route path="/"><Home key="home" /></Route>
                   <Route path="/stock"><Home key="stock" browseStock /></Route>
                   <Route path="/vehicle/:id" component={CarDetail} />
                   <Route path="/saved" component={Saved} />
-                  <Route path="/compare" component={Compare} />
                   <Route path="/enquire" component={Enquire} />
                   <Route path="/contact" component={Contact} />
                   <Route path="/warranty" component={Warranty} />
-                  <Route path="/reserve/payment-return" component={ReservationPaymentReturn} />
-                  <Route path="/my-purchase/:token" component={CustomerSale} />
                   <Route path="/verify-invoice/*?" component={InvoiceVerification}/>
                   <Route path="/viewing/:token" component={Viewing} />
                   <Route path="/test-drive-declaration/:token" component={TestDriveDeclaration}/>

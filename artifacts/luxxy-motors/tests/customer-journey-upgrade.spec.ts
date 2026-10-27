@@ -2,13 +2,10 @@ import { test, expect, type Page } from '@playwright/test';
 test.skip(process.env.LUXXY_LOCAL_PREVIEW !== '1', 'Local mocked customer journeys only.');
 async function prepare(page: Page) {
   await page.route('**/api/**', route => ['GET', 'HEAD'].includes(route.request().method()) ? route.continue() : route.abort());
-  await page.route('**/api/dealer-settings', async route => {
-    const response = await route.fetch(); const data = await response.json();
-    await route.fulfill({ json: { ...data, presentation: { ...data.presentation, comparisonEnabled: true } } });
-  });
+
 }
 for (const width of [390, 820, 1440]) {
-  test(`simple phone enquiry, summaries and comparison at ${width}`, async ({ page, request }) => {
+  test(`simple phone enquiry and vehicle summaries at ${width}`, async ({ page, request }) => {
     await page.setViewportSize({ width, height: 950 }); await prepare(page);
     const data = await (await request.get('/api/stock')).json();
     const cars = data.cars.slice(0, 2).map((car: any, i: number) => ({ ...car, inventoryStatus: i ? 'reserved' : 'available', sourceExtras: { ...car.sourceExtras, serviceHistory: 'Full service history', historyExtras: null }, specifications: { ...car.specifications, numberOfKeys: 2 } }));
@@ -26,13 +23,7 @@ for (const width of [390, 820, 1440]) {
     await form.getByTestId('button-submit-enquiry').click();
     await expect(page.getByTestId('text-enquiry-reference')).toHaveText('ENQ-TEST');
     expect(payload).toMatchObject({ vehicleId: cars[0].id, email: null, phone: '07700900123', preferredContact: 'phone' });
-    await page.evaluate(ids => localStorage.setItem('luxxy.compare-cars.v1', JSON.stringify(ids)), cars.map((car: any) => car.id));
-    await page.goto('/compare');
-    await expect(page.getByTestId('compare-table')).toContainText('Full service history');
-    await expect(page.getByTestId('compare-table')).toContainText('2 keys');
-    await expect(page.getByTestId('compare-table')).toContainText('Reserved');
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-    await page.screenshot({ path: `/tmp/customer-compare-${width}.png`, fullPage: true, animations: 'disabled' });
   });
   test(`saved changes and managed appointment at ${width}`, async ({ page, request }) => {
     await page.setViewportSize({ width, height: 950 }); await prepare(page);
@@ -93,7 +84,7 @@ for (const width of [390, 820, 1440]) {
  test(`customer page layout audit at ${width}`, async ({ page, request }) => {
   await page.setViewportSize({ width, height: 900 }); await prepare(page);
   const stock = await (await request.get('/api/stock')).json();
-  const paths = ['/', '/stock', '/saved', '/compare', '/contact', '/warranty', `/enquire?type=part_exchange&vehicleId=${stock.cars[0].id}`, `/vehicle/${stock.cars[0].id}`];
+  const paths = ['/', '/stock', '/saved', '/contact', '/warranty', `/enquire?type=part_exchange&vehicleId=${stock.cars[0].id}`, `/vehicle/${stock.cars[0].id}`];
   for (const path of paths) {
    await page.goto(path);
    await expect(page.locator('main')).toBeVisible();

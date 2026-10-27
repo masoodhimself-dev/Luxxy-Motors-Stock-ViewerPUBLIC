@@ -27,7 +27,6 @@ export class FeaturePolicyError extends Error {
 }
 export async function saveFeatureRule(input: { dealerId: string | null; key: DealerFeatureKey; mode: FeatureRule['mode']; disabledAt: string | null; reason: string; expectedRevision: number; actor: string }) {
   const definition = dealerFeatureDefinitions.find(feature => feature.key === input.key)!;
-  if ('releaseEnabled' in definition && !definition.releaseEnabled) throw new FeaturePolicyError('This feature is unavailable in the current release.', 409);
   if (input.dealerId === null && input.mode === 'inherit') throw new FeaturePolicyError('Platform defaults must be enabled or disabled.', 400);
   if (input.mode === 'disabled' && input.disabledAt) throw new FeaturePolicyError('A disabled feature does not need a future switch-off date.', 400);
   if (input.disabledAt && Date.parse(input.disabledAt) <= Date.now()) throw new FeaturePolicyError('Choose a future switch-off date.', 400);

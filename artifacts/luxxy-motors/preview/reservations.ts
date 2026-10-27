@@ -1,8 +1,7 @@
-import { reviewReminderNote, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 // Local-only durable reservation sandbox. Never imported by the production entry point.
 import { randomUUID, randomBytes } from 'node:crypto';
 import type { Enquiry } from '@workspace/api-client-react';
-import { applyCustomerFeaturePolicy, EnquiryMergeError, parseEnquiryMergeInput, planEnquiryMerge, showroomAvailability, vehicleRegistrationLabel } from '@workspace/vehicle-meta';
+import { EnquiryMergeError, parseEnquiryMergeInput, planEnquiryMerge, showroomAvailability, vehicleRegistrationLabel } from '@workspace/vehicle-meta';
 import { bookingDateIsInWindow, bookingPolicyFromConfig, bookingPolicyError, bookingPressure, getSlotsForDate, isValidDateString, slotIsAvailable, validStaffAppointmentDateTime, withinBookingHours, type BookingPolicy, type OccupiedBooking } from '../../api-server/src/lib/booking-slots';
 import { preserveTestDriveBooking } from '../../api-server/src/lib/settings-content';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
@@ -10,7 +9,7 @@ import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { CreateStaffEnquiryBody, ChangeStaffAppointmentBody, ChangeStaffFollowUpBody, CreateEnquiryBody, DecideTestDriveBookingBody, RescheduleViewingBody, UpdateDealerSettingsBody } from '../../../lib/api-zod/src/generated/api';
-import { createOnlineReservation, reservationView, ReservationError, type ReservationRecord, type ReservationRepository } from '../../api-server/src/lib/online-reservations';
+import { reservationView, ReservationError, type ReservationRecord } from '../../api-server/src/lib/historical-reservations';
 import { previewSettings } from './settings';
 import { previewStock } from './stock';
 import { stockRepresentation } from '../../api-server/src/lib/stock-http-cache';
@@ -44,7 +43,7 @@ async function ensurePreviewBookingVehicleAvailable(vehicleId: string | null, st
   const vehicle = previewStock.cars.find(car => car.id === vehicleId);
   const { readPreviewSaleInventory } = await import('./sales');
   const inventory = await readPreviewSaleInventory();
-  if (!vehicle || (inventory[vehicle.id] ?? vehicle.inventoryStatus ?? 'available') !== 'available' || state.reservations.some(entry => entry.vehicleId === internalId(vehicle.id) && entry.status === 'reserved')) throw new ReservationError('This car is no longer available for a test drive. Please contact the showroom.', 409);
+  if (!vehicle || vehicle.sourceStatus === 'missing' || (inventory[vehicle.id] ?? vehicle.inventoryStatus ?? 'available') !== 'available' || state.reservations.some(entry => entry.vehicleId === internalId(vehicle.id) && entry.status === 'reserved')) throw new ReservationError('This car is no longer available for a test drive. Please contact the showroom.', 409);
 }
 export type BookingPreviewState = { reservations: ReservationRecord[]; settings?: typeof previewSettings; enquiries?: PreviewEnquiry[] };
 const filename = fileURLToPath(new URL('../../../.local/online-reservations-preview.json', import.meta.url));
@@ -67,56 +66,6 @@ export async function readPreviewSettings() { return (await load()).settings ?? 
 export async function readPreviewBookingState() { const state = await load(); return { ...state, enquiries: state.enquiries ?? previewResponse('/api/enquiries', new URLSearchParams()) as PreviewEnquiry[] ?? [] }; }
 export async function readPreviewEnquiries() { return (await readPreviewBookingState()).enquiries; }
 export async function writePreviewSettings(config: Record<string, unknown>) { await serial(async () => { const state = await load(); state.settings = config as typeof previewSettings; await save(state); }); }
-
-/** Chat uses this queue so a contact update cannot overwrite a simultaneous booking. */
-export async function upsertPreviewChatEnquiry(input: import('../../api-server/src/lib/dealer-chat').ChatEnquiryInput, options: { stateFile?: string } = {}) {
-  await serial(async () => {
-    const state = await load(options.stateFile);
-    const enquiries = state.enquiries ?? (previewResponse('/api/enquiries', new URLSearchParams()) as PreviewEnquiry[] ?? []);
-    let entry = enquiries.find(enquiry => enquiry.id === input.id);
-    const updatingExisting = Boolean(entry);
-    if (entry && entry.source !== 'chat') throw new ReservationError('This enquiry belongs to another source.', 409);
-    if (!entry) {
-      entry = { id: input.id, dealerId: 'local-preview', reference: input.reference, vehicleId: input.vehicle?.id ?? null,
-        vehicleTitle: input.vehicle?.title ?? null, vehicleRegistration: input.vehicle?.registration ?? null,
-        vehiclePrice: input.vehicle?.price ?? null, vehicleUrl: input.vehicle?.url ?? null, type: 'general', status: 'new',
-        customerName: input.name, email: input.email, phone: input.phone, message: input.message, preferredContact: 'email',
-        assignedToId: null, assignedToName: null, staffNote: null, attendance: 'scheduled', callOutcome: null, workspaceRevision: 0,
-        followUpAt: null, followUpNote: null, followUpCompletedAt: null, followUpRevision: 0,
-        appointmentAt: null, appointmentCancelledAt: null, appointmentRevision: 0, appointmentStatus: null,
-        appointmentDurationMinutes: null, appointmentBufferMinutes: null, appointmentOutsideHours: false,
-        appointmentDoubleBooked: false, appointmentOverCapacity: false, partExchangeRegistration: null,
-        partExchangeMileage: null, partExchangeCondition: null, managePath: null, calendarIcs: null,
-        customerNotificationStatus: 'not_sent', customerNotificationError: null, customerNotificationSentAt: null,
-        dealerNotificationStatus: 'not_sent', dealerNotificationError: null, dealerNotificationSentAt: null,
-        reminderStatus: 'not_scheduled', reminderError: null, reminderSentAt: null, source: 'chat',
-        createdAt: input.createdAt, updatedAt: input.createdAt, events: [{ id: input.id, kind: 'enquiry_received', actor: 'customer',
-          summary: 'Website chat enquiry received', vehicleId: input.vehicle?.id ?? null, vehicleTitle: input.vehicle?.title ?? null,
-          vehicleUrl: input.vehicle?.url ?? null, occurredAt: input.createdAt }] } as PreviewEnquiry;
-      enquiries.unshift(entry);
-    }
-    Object.assign(entry, { customerName: input.name, email: input.email, phone: input.phone, message: input.message, workspaceRevision: (entry.workspaceRevision ?? 0) + (updatingExisting ? 1 : 0),
-      preferredContact: input.callbackRequested ? 'phone' : input.email ? 'email' : 'phone',
-      staffNote: input.callbackRequested && !entry.staffNote?.includes('Customer requested a callback in website chat.') ? [entry.staffNote, 'Customer requested a callback in website chat.'].filter(Boolean).join('\n') : entry.staffNote ?? 'Customer shared contact details in website chat.', updatedAt: new Date().toISOString() });
-    state.enquiries = enquiries; await save(state, options.stateFile);
-  });
-}
-
-/** Local preview counterpart only; never sends email. */
-export async function savePreviewReviewReminder(sale: SaleWorkspaceRecord) {
-  await serial(async () => {
-    const state = await load(), reminder = sale.reviewReminder!;
-    const enquiries = state.enquiries ?? (previewResponse('/api/enquiries', new URLSearchParams()) as PreviewEnquiry[] ?? []);
-    let entry = enquiries.find(row => row.id === reminder.enquiryId);
-    if (!entry && !reminder.cancelledAt) {
-      entry = {id:reminder.enquiryId,dealerId:'local-preview',reference:'PREVIEW-REVIEW',type:'general',status:'contacted',customerName:sale.draft.customer,email:sale.draft.email,phone:sale.draft.phone,vehicleId:sale.draft.vehicleId,vehicleTitle:sale.draft.vehicle,message:'Post-sale feedback reminder. No email sent.',source:'sale_review',callOutcome:'information_given',workspaceRevision:0,followUpRevision:0,appointmentAt:null,appointmentCancelledAt:null,appointmentRevision:0,attendance:'scheduled',createdAt:new Date().toISOString(),events:[]} as PreviewEnquiry;
-      enquiries.unshift(entry);
-    }
-    if (entry && entry.followUpAt === (reminder.cancelledAt ? null : reminder.at) && entry.followUpNote === reviewReminderNote(reminder.url)) return;
-    if (entry) Object.assign(entry,{followUpAt:reminder.cancelledAt?null:reminder.at,followUpNote:reviewReminderNote(reminder.url),followUpCompletedAt:null,followUpRevision:(entry.followUpRevision??0)+1,updatedAt:new Date().toISOString()});
-    state.enquiries=enquiries;await save(state);
-  });
-}
 
 async function save(state: BookingPreviewState, file = filename) {
   await mkdir(dirname(file), { recursive: true });
@@ -188,11 +137,11 @@ export async function reservationPreview(req: IncomingMessage, res: ServerRespon
       const bookingResult = await handlePreviewBooking(req, url, state, settings, options);
       if (bookingResult) { if (req.method !== "GET") await save(state, options.stateFile); return bookingResult; }
       if (req.method === 'GET') {
-        if (path === '/api/dealer-settings') return { status: 200, data: applyCustomerFeaturePolicy(settings) };
+        if (path === '/api/dealer-settings') return { status: 200, data: settings };
         if (path === '/api/stock') {
           const [{ readPreviewSaleInventory }, { readPreviewPriceOverrides }] = await Promise.all([import('./sales'), import('./operations')]);
           const [saleInventory, prices] = await Promise.all([readPreviewSaleInventory(), readPreviewPriceOverrides()]);
-          return { status: 200, data: { ...previewStock, cars: previewStock.cars.map(car => ({ ...car, ...(car.id in prices && prices[car.id] !== null ? { price: prices[car.id] } : {}), inventoryStatus: saleInventory[car.id] ?? (state.reservations.some(item => item.vehicleId === internalId(car.id) && item.status === 'reserved') ? 'reserved' : 'available') })) } };
+          return { status: 200, data: { ...previewStock, count: previewStock.cars.filter(car=>car.sourceStatus!=='missing').length, cars: previewStock.cars.filter(car=>car.sourceStatus!=='missing').map(car => ({ ...car, ...(car.id in prices && prices[car.id] !== null ? { price: prices[car.id] } : {}), inventoryStatus: saleInventory[car.id] ?? (state.reservations.some(item => item.vehicleId === internalId(car.id) && item.status === 'reserved') ? 'reserved' : 'available') })) } };
         }
         if (path === '/api/reservations') return { status: 200, data: { reservations: state.reservations.map(record => ({ ...publicView(record), customerName: record.customerName, email: record.email, phone: record.phone, leadId: record.id })) } };
         if (path === '/api/leads') {
@@ -205,35 +154,12 @@ export async function reservationPreview(req: IncomingMessage, res: ServerRespon
       if (req.method === 'PATCH' && path === '/api/dealer-settings') {
         const parsed = UpdateDealerSettingsBody.safeParse(await body(req));
         if (!parsed.success) throw new ReservationError('Please check your settings.', 400);
-        if (parsed.data.onlineReservation?.enabled && !parsed.data.onlineReservation.terms.trim()) throw new ReservationError('Add reservation terms before enabling online reservations.', 400);
         const compatible = preserveTestDriveBooking(parsed.data, settings);
         const policyError = bookingPolicyError(compatible.testDriveBooking);
         if (policyError) throw new ReservationError(policyError, 400);
         state.settings = compatible as typeof previewSettings;
         await save(state, options.stateFile);
         return { status: 200, data: state.settings };
-      }
-      if (req.method === 'POST' && path === '/api/reservations') {
-        const input = await body(req);
-        const [{ readPreviewSaleInventory }, { readPreviewPriceOverrides }] = await Promise.all([import('./sales'), import('./operations')]);
-        const [saleInventory, prices] = await Promise.all([readPreviewSaleInventory(), readPreviewPriceOverrides()]);
-        const repository: ReservationRepository = {
-          transaction: async work => work({
-            lockRequest: async () => {}, lockVehicle: async () => {},
-            findByIdempotencyKey: async key => state.reservations.find(item => item.idempotencyKey === key),
-            getSettings: async () => settings.onlineReservation,
-            getVehicle: async id => {
-              const car = previewStock.cars.find(candidate => internalId(candidate.id) === id);
-              return car ? { id, dealerId, source: 'autotrader', inventoryStatus: saleInventory[car.id] ?? (state.reservations.some(item => item.vehicleId === id && item.status === 'reserved') ? 'reserved' : 'available'), sourceStatus: 'live', missingCount: 0, currency: car.currency ?? 'GBP', sourcePrice: car.price, websitePriceOverride: prices[car.id] ?? null, title: car.title, plate: car.plate, vrm: car.vrm, registration: car.registration, registrationBand: car.registrationBand, year: car.year } : undefined;
-            },
-            hasActiveSale: async id => Boolean(saleInventory[externalId(id)]),
-            hasCompetingReservation: async id => state.reservations.some(item => item.vehicleId === id && item.status === 'reserved'),
-            create: async record => { state.reservations.unshift(record); },
-          }),
-        };
-        const created = await createOnlineReservation({ ...input, vehicleId: internalId(String(input.vehicleId)) }, { dealerId, paymentMode: 'simulated', nodeEnv: 'development' }, repository);
-        await save(state, options.stateFile);
-        return { status: created.replayed ? 200 : 201, data: { ...created.reservation, vehicleId: externalId(created.reservation.vehicleId) } };
       }
       if (req.method === 'POST' && /^\/api\/reservations\/[^/]+\/cancel$/.test(path)) {
         const id = path.split('/')[3];
@@ -308,8 +234,8 @@ export async function handlePreviewBooking(req: IncomingMessage, url: URL, state
   const merge = /^\/api\/staff\/enquiries\/([^/]+)\/merge$/.exec(path);
   if (req.method === 'POST' && merge) {
     const staffId = typeof req.headers?.['x-preview-staff-id'] === 'string' ? req.headers['x-preview-staff-id'] : 'preview-alex';
-    const { readPreviewChatStaff } = await import('./chat');
-    const member = (await (options.readMergeStaff ?? readPreviewChatStaff)()).find(member => member.id === staffId);
+    const { readPreviewMergeStaff } = await import('./operations');
+    const member = (await (options.readMergeStaff ?? readPreviewMergeStaff)()).find(member => member.id === staffId);
     if (!member) throw new ReservationError('Sign in to use the dealer portal.', 401);
     if (!roleHasPermission(member.role, 'sales.manage')) throw new ReservationError('Your staff role does not allow this action.', 403);
     try {
@@ -390,10 +316,12 @@ export async function handlePreviewBooking(req: IncomingMessage, url: URL, state
   if (req.method === 'POST' && (path === '/api/enquiries' || path === '/api/staff/enquiries')) {
     const staff = path === '/api/staff/enquiries';
     const rawInput = await body(req);
+    if (!['general','viewing','part_exchange'].includes(rawInput?.type)) throw new ReservationError('Choose an enquiry, test drive or part exchange.', 400);
     if (staff && rawInput && Object.prototype.hasOwnProperty.call(rawInput, 'requestCallback')) throw new ReservationError('Website callback requests must use the public enquiry form.', 400);
     const parsed = (staff ? CreateStaffEnquiryBody : CreateEnquiryBody).safeParse(rawInput);
     if (!parsed.success) throw new ReservationError('Please check your contact details and chosen time.', 400);
     const input = parsed.data as ReturnType<typeof CreateStaffEnquiryBody.parse>;
+    if ((input.type === 'part_exchange' || input.partExchange) && !settings.partExchange?.enabled) throw new ReservationError('Part exchange is not available. Contact the showroom.', 403);
     const captureHeader = req.headers['x-enquiry-capture'];
     const capture = quickEnquiryCapture(Array.isArray(captureHeader) ? captureHeader.join(',') : captureHeader, staff, input);
     if (capture.error) throw new ReservationError(capture.error, 400);
@@ -417,6 +345,7 @@ export async function handlePreviewBooking(req: IncomingMessage, url: URL, state
     const [saleInventory, prices] = await Promise.all([readPreviewSaleInventory(), readPreviewPriceOverrides()]);
     const vehicle = sourceVehicle ? { ...sourceVehicle, ...(prices[sourceVehicle.id] != null ? { price: prices[sourceVehicle.id] } : {}), inventoryStatus: saleInventory[sourceVehicle.id] ?? sourceVehicle.inventoryStatus } : undefined;
     if (input.vehicleId && !vehicle) throw new ReservationError('That car is no longer available.', 404);
+    if (vehicle?.sourceStatus === 'missing') throw new ReservationError('This car is no longer available. Please choose another car or contact the showroom.', 409);
     if (input.type === 'viewing' && vehicle?.inventoryStatus && vehicle.inventoryStatus !== 'available') throw new ReservationError('This car is not available for a test drive.', 409);
     if (input.type === 'viewing' && (!vehicle || !input.appointmentAt)) throw new ReservationError('Please choose a car and time.', 400);
     if (input.type === 'viewing' && vehicle && state.reservations.some(entry => entry.vehicleId === internalId(vehicle.id) && entry.status === 'reserved')) throw new ReservationError('This car is reserved and cannot be booked.', 409);

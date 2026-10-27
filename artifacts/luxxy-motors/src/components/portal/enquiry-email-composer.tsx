@@ -1,4 +1,4 @@
-import { ShareQr } from '@/components/share-qr';
+import { DirectWhatsApp } from '@/components/direct-whatsapp';
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { customFetch, type Enquiry } from "@workspace/api-client-react";
@@ -15,9 +15,7 @@ import {
 import { useRefreshDesk, workspaceError } from "./enquiry-workspace-tools";
 import { requestUuid } from "@/lib/request-uuid";
 import { useDealerFeatures } from '@/lib/dealer-features';
-import { AiDraftSuggestion } from "./ai-draft-suggestion";
 import { CustomerEmailPreview } from "./customer-email-preview";
-import { EnquiryMediaAttachments, type CustomEnquiryPhoto } from "./enquiry-media-attachments";
 import "./enquiry-email-composer.css";
 
 type Delivery = {
@@ -40,7 +38,6 @@ type EmailContext = {
     version: number;
     status: string;
     source?: string;
-    aiGenerationId?: string | null;
     content: EmailDraft;
     updatedAt: string;
   } | null;
@@ -63,9 +60,7 @@ type EmailContext = {
     issuedAt: string;
   }[];
   photos: { id: string; byte_size: number; category?: string }[];
-  customPhotos?: CustomEnquiryPhoto[];
   vehiclePhotos?: { index: number; url: string; caption?: string }[];
-  videoAvailable?: boolean;
   deliveries: Delivery[];
 };
 type EmailDraft = {
@@ -78,9 +73,7 @@ type EmailDraft = {
   includeAppointment: boolean;
   photoIds: string[];
   documentIds: string[];
-  customPhotoIds?: string[];
   vehiclePhotoIndices?: number[];
-  includeVideo?: boolean;
   expectedRevision: number;
 };
 type EmailPreview = {
@@ -91,7 +84,7 @@ type EmailPreview = {
   previewHash: string;
   attachments: { id: string; filename: string; byteSize: number }[];
 };
-export type SuggestedEmailContent = { subject: string; message: string; label: string; applyLabel?: string; includeVehicle?: boolean; templateId?: "enquiry_message"; stockChange?: { taskId: string; revision: number } };
+export type SuggestedEmailContent = { subject: string; message: string; label: string; applyLabel?: string; includeVehicle?: boolean; templateId?: "enquiry_message" };
 export type InitialEmailContent = { subject: string; message: string; appendText: string; link: string };
 const request = <T,>(path: string, body?: unknown) =>
   customFetch<T>(
@@ -204,7 +197,6 @@ function EnquiryEmailEditor({
     } | null>(null);
   const cache = useQueryClient();
   const savedVersion = useRef(0);
-  const replaceStockChangeContext = useRef(false);
   const [suggestionApplied, setSuggestionApplied] = useState(false);
   const [dirty, setDirty] = useState(false),
     [saveNotice, setSaveNotice] = useState("");
@@ -224,15 +216,8 @@ function EnquiryEmailEditor({
   const [busyAction, setBusyAction] = useState<
     "save" | "review" | "send" | "status" | null
   >(null);
-  const [mediaBusy, setMediaBusy] = useState(false);
-  const busy = busyAction !== null || mediaBusy;
+  const busy = busyAction !== null;
   const [error, setError] = useState("");
-  const [aiBusy, setAiBusy] = useState(false);
-  useEffect(() => { if (!features.enabled('staffAiDrafts')) setAiBusy(false); }, [features.data]);
-  const [aiGenerationId, setAiGenerationId] = useState<string>();
-  useEffect(() => {
-    setAiGenerationId(undefined);
-  }, [context.data?.revision]);
   useEffect(() => {
     if (
       !context.data ||
@@ -248,16 +233,13 @@ function EnquiryEmailEditor({
     if (data.savedDraft) {
       setDraft(data.savedDraft.content);
       setSaveNotice(
-        data.savedDraft.source === "ai"
-          ? "AI-assisted draft restored · review before sending"
-          : "Saved draft restored · not sent",
+        "Saved draft restored · not sent",
       );
       return;
     }
     setSuggestionApplied(Boolean(suggestedContent));
     setDraft({
       ...(suggestedContent?.templateId ? { templateId: suggestedContent.templateId } : {}),
-      ...(suggestedContent?.stockChange ? { stockChange: suggestedContent.stockChange } : {}),
       to: initialRecipient && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(initialRecipient.trim()) ? initialRecipient.trim() : data.email,
       ...(initialContent ? { subject: initialContent.subject, message: initialContent.message } : suggestedContent ? { subject: suggestedContent.subject, message: suggestedContent.message } : data.defaults),
       includeVehicle: data.reviewRequest || suggestedContent?.includeVehicle === false ? false : data.vehicleAvailable,
@@ -276,8 +258,6 @@ function EnquiryEmailEditor({
     initialRecipient,
   ]);
   function change(value: Partial<EmailDraft>) {
-    if ("templateId" in value || "expectedRevision" in value)
-      setAiGenerationId(undefined);
     setDraft((d) => ({ ...d, ...value }));
     setDirty(true);
     setSaveNotice("Unsaved changes");
@@ -287,27 +267,19 @@ function EnquiryEmailEditor({
     setError("");
   }
   async function persistDraft() {
+    if (draft.stockChange) throw new Error("Start a new message before saving or sending this archived price-update draft.");
     const result = await request<{
       version: number;
       savedDraft?: EmailContext["savedDraft"];
     }>(`${base}/email-draft`, {
       expectedVersion: savedVersion.current,
       content: draft,
-      ...(replaceStockChangeContext.current ? { replaceStockChangeContext: true } : {}),
-      ...(aiGenerationId ? { aiGenerationId } : {}),
     });
     savedVersion.current = result.version;
-    replaceStockChangeContext.current = false;
     await cache.cancelQueries({ queryKey: contextKey, exact: true });
     cache.setQueryData<EmailContext>(contextKey, (current) => {
       if (!current) return current;
-      const source = aiGenerationId
-        ? "ai"
-        : draft.templateId
-          ? "template"
-          : current.savedDraft?.source === "ai"
-            ? "ai"
-            : "manual";
+      const source = draft.templateId ? "template" : "manual";
       return {
         ...current,
         version: result.version,
@@ -315,10 +287,6 @@ function EnquiryEmailEditor({
           version: result.version,
           status: "draft",
           source,
-          aiGenerationId:
-            source === "ai"
-              ? (aiGenerationId ?? current.savedDraft?.aiGenerationId)
-              : null,
           content: {
             ...draft,
             photoIds: [...draft.photoIds],
@@ -328,7 +296,6 @@ function EnquiryEmailEditor({
         },
       };
     });
-    setAiGenerationId(undefined);
     setDirty(false);
     setSaveNotice("Draft saved · not sent");
     await Promise.all([
@@ -338,7 +305,7 @@ function EnquiryEmailEditor({
     ]);
   }
   async function saveDraft() {
-    if (busyRef.current || aiBusy || mediaBusy) return;
+    if (busyRef.current) return;
     busyRef.current = true;
     setBusyAction("save");
     setError("");
@@ -352,7 +319,7 @@ function EnquiryEmailEditor({
     }
   }
   function close() {
-    if (busyRef.current || aiBusy || mediaBusy) return;
+    if (busyRef.current) return;
     if (
       dirty &&
       !window.confirm(
@@ -363,7 +330,7 @@ function EnquiryEmailEditor({
     onClose("draft");
   }
   async function review() {
-    if (busyRef.current || aiBusy || mediaBusy) return;
+    if (busyRef.current) return;
     if (missingAttachment) {
       setError(missingAttachment);
       return;
@@ -388,26 +355,8 @@ function EnquiryEmailEditor({
       setBusyAction(null);
     }
   }
-  async function prepareWhatsApp() {
-    if (busyRef.current || aiBusy || mediaBusy)
-      throw new Error("Wait for the current draft action to finish, then try again.");
-    busyRef.current = true;
-    setBusyAction("save");
-    try {
-      await verifyContext?.();
-      // Save the exact copy before sharing, just as email review does. This
-      // replaces an old AI draft's provenance when staff explicitly choose a
-      // template, while keeping freshness checks on edits to AI-assisted copy.
-      await persistDraft();
-    } catch (cause) {
-      throw new Error(workspaceError(cause));
-    } finally {
-      busyRef.current = false;
-      setBusyAction(null);
-    }
-  }
   async function send() {
-    if (!preview || !reviewedDraft || busyRef.current || !features.enabled('customerEmails') || sendBlockedReason) return;
+    if (!preview || !reviewedDraft || reviewedDraft.stockChange || busyRef.current || !features.enabled('customerEmails') || sendBlockedReason) return;
     busyRef.current = true;
     setBusyAction("send");
     setError("");
@@ -431,7 +380,6 @@ function EnquiryEmailEditor({
       setDirty(false);
       await Promise.all([
         refresh(),
-        cache.invalidateQueries({ queryKey: ['staff-stock-change-tasks'] }),
         cache.invalidateQueries({ queryKey: ["staff-email-drafts"] }),
         cache.invalidateQueries({ queryKey: ["staff-notifications"] }),
         cache.invalidateQueries({ queryKey: ['reply-attention'] }),
@@ -473,8 +421,7 @@ function EnquiryEmailEditor({
     }
   }
   const data = initialized.current ? context.data : undefined;
-  const preparingMessage = messageMode || Boolean(draft.stockChange && !draft.to.trim());
-  const mediaAttachments = data && <EnquiryMediaAttachments enquiryId={entry.id} photos={data.customPhotos} vehiclePhotos={data.vehiclePhotos} videoAvailable={data.videoAvailable} selection={draft} disabled={busy || aiBusy} onChange={change} onBusyChange={setMediaBusy} onRefresh={() => context.refetch({ throwOnError: true })} />;
+  const preparingMessage = messageMode;
   const photoCategory =
     draft.templateId === "service_history"
       ? "service_book"
@@ -562,13 +509,12 @@ function EnquiryEmailEditor({
             <>
               {!features.enabled('customerEmails') && <p className="enquiry-email-readiness" role="status">{features.isLoading ? 'Checking email availability…' : features.isError ? 'Email availability could not be checked. Sending is paused; your draft is safe.' : 'Email sending is switched off by platform administration. You can still prepare and save drafts.'}</p>}
               {sendBlockedReason && <p className="enquiry-email-readiness" role="status">{sendBlockedReason} Your text is kept here and can be saved as a draft.</p>}
-              {draft.stockChange && <p className="enquiry-email-readiness" role="status">Linked to a price update. The current car, price and customer are checked before email or WhatsApp sharing. If the price changes, prepare fresh wording from Home.</p>}
+              {draft.stockChange && <div className="enquiry-email-readiness" role="alert"><p>This archived price-update draft cannot be sent. Start a new message using the current enquiry details.</p><Button type="button" variant="outline" disabled={busy} onClick={()=>change({stockChange:undefined,templateId:undefined,subject:data.defaults.subject,message:data.defaults.message,expectedRevision:data.revision})}>Start a new message</Button></div>}
               {!data.ready && (
                 <p role="status" className="enquiry-email-readiness">
-                  Email is not enabled for this dealership. Ask the owner to
-                  complete{" "}
-                  <a href="/portal?section=settings&settingsTab=integrations">
-                    Settings → Advanced → Connections → Resend
+                  Email is not enabled for this dealership. Ask the platform administrator to connect the sender. Review wording in{" "}
+                  <a href="/portal?section=settings&settingsTab=emails">
+                    Message settings
                   </a>
                   . You can prepare and review the message here.
                 </p>
@@ -641,7 +587,7 @@ function EnquiryEmailEditor({
                         photos before sending.
                       </p>
                       <div className="enquiry-email-actions">
-                        {reviewedDraft && <ShareQr beforeGenerate={verifyContext} disabled={busy || Boolean(sendingRequest.current) || !!sendBlockedReason} source={{kind:"enquiry",enquiryId:entry.id,draft:reviewedDraft,previewHash:preview.previewHash}} whatsapp customerName={entry.customerName} onEmailFallback={body => { if (body && body !== draft.message) change({ message: body }); setSaveNotice("Check the email address, then review the email before sending. Your message and attachments are kept."); }} label="WhatsApp QR" />}
+
                         <Button
                           disabled={busy || !data.ready || !features.enabled('customerEmails') || !!sendBlockedReason}
                           onClick={() => void send()}
@@ -674,10 +620,10 @@ function EnquiryEmailEditor({
                       }}
                       className="enquiry-email-form"
                     >
-                      {suggestedContent && <div className="enquiry-email-readiness" role="status"><p>{suggestionApplied ? `${suggestedContent.label} prepared. Edit the wording and review before sending.` : `Your saved draft has been kept. You can choose the ${suggestedContent.label.toLowerCase()} wording instead.`}</p>{!suggestionApplied && <Button type="button" variant="outline" disabled={busy || aiBusy} onClick={() => { replaceStockChangeContext.current = Boolean(draft.stockChange && suggestedContent.stockChange && (draft.stockChange.taskId !== suggestedContent.stockChange.taskId || draft.stockChange.revision !== suggestedContent.stockChange.revision)); change({ templateId: suggestedContent.templateId, subject: suggestedContent.subject, message: suggestedContent.message, includeAppointment: false, ...(suggestedContent.stockChange ? { stockChange: suggestedContent.stockChange } : {}), ...(suggestedContent.includeVehicle === false ? { includeVehicle: false } : {}) }); setSuggestionApplied(true); }}>{suggestedContent.applyLabel || `Use ${suggestedContent.label.toLowerCase()} wording`}</Button>}</div>}
-                      {initialContent && !draft.message.includes(initialContent.link) && <div className="enquiry-email-readiness"><p>Your saved message has been kept. Add the private declaration link when you are ready.</p><Button type="button" variant="outline" disabled={busy || aiBusy} onClick={() => change({ message: `${draft.message.trim()}\n\n${initialContent.appendText}`.trim() })}>Add declaration link</Button></div>}
-                      <fieldset disabled={busy || aiBusy}>
-                        {initialRecipient && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(initialRecipient.trim()) && draft.to !== initialRecipient.trim() && <div className="enquiry-email-readiness"><p>Your saved draft’s email address has been kept. The sharing window selected {initialRecipient.trim()}.</p><Button type="button" variant="outline" disabled={busy || aiBusy} onClick={() => change({ to: initialRecipient.trim() })}>Use email address {initialRecipient.trim()}</Button></div>}
+                      {suggestedContent && <div className="enquiry-email-readiness" role="status"><p>{suggestionApplied ? `${suggestedContent.label} prepared. Edit the wording and review before sending.` : `Your saved draft has been kept. You can choose the ${suggestedContent.label.toLowerCase()} wording instead.`}</p>{!suggestionApplied && <Button type="button" variant="outline" disabled={busy} onClick={() => { change({ templateId: suggestedContent.templateId, subject: suggestedContent.subject, message: suggestedContent.message, includeAppointment: false, ...(suggestedContent.includeVehicle === false ? { includeVehicle: false } : {}) }); setSuggestionApplied(true); }}>{suggestedContent.applyLabel || `Use ${suggestedContent.label.toLowerCase()} wording`}</Button>}</div>}
+                      {initialContent && !draft.message.includes(initialContent.link) && <div className="enquiry-email-readiness"><p>Your saved message has been kept. Add the private declaration link when you are ready.</p><Button type="button" variant="outline" disabled={busy} onClick={() => change({ message: `${draft.message.trim()}\n\n${initialContent.appendText}`.trim() })}>Add declaration link</Button></div>}
+                      <fieldset disabled={busy}>
+                        {initialRecipient && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(initialRecipient.trim()) && draft.to !== initialRecipient.trim() && <div className="enquiry-email-readiness"><p>Your saved draft’s email address has been kept. The sharing window selected {initialRecipient.trim()}.</p><Button type="button" variant="outline" disabled={busy} onClick={() => change({ to: initialRecipient.trim() })}>Use email address {initialRecipient.trim()}</Button></div>}
                         <label>
                           {preparingMessage ? 'Customer email (optional for WhatsApp)' : 'Customer email'}
                           <Input
@@ -766,28 +712,7 @@ function EnquiryEmailEditor({
                             </select>
                           </label>
                         )}
-                        {features.enabled('staffAiDrafts') && !draft.stockChange && <AiDraftSuggestion
-                          key={`${entry.id}:${data.revision}:${savedVersion.current}`}
-                          enquiryId={entry.id}
-                          expectedRevision={draft.expectedRevision}
-                          expectedVersion={savedVersion.current}
-                          draftFingerprint={JSON.stringify(draft)}
-                          disabled={
-                            busy || draft.expectedRevision !== data.revision
-                          }
-                          onBusyChange={setAiBusy}
-                          onUse={(suggestion) => {
-                            change({
-                              templateId: undefined,
-                              subject: suggestion.subject,
-                              message: suggestion.message,
-                            });
-                            setAiGenerationId(suggestion.generationId);
-                            setSaveNotice(
-                              "AI suggestion added · unsaved · review before sending",
-                            );
-                          }}
-                        />}
+
                         <label>
                           Subject
                           <Input
@@ -811,7 +736,8 @@ function EnquiryEmailEditor({
                             }
                           />
                         </label>
-                        {draft.stockChange ? <details className="enquiry-email-service-book"><summary>Photos & video (optional){Boolean(draft.customPhotoIds?.length || draft.vehiclePhotoIndices?.length || draft.includeVideo) && ' · selected'}</summary>{mediaAttachments}</details> : mediaAttachments}
+
+                        {Boolean(data.vehiclePhotos?.length) && <details className="enquiry-email-service-book"><summary>Car photographs · optional links</summary><p>Choose up to four existing car photographs.</p><div className="grid grid-cols-2 gap-3">{data.vehiclePhotos!.map(photo => { const selected=draft.vehiclePhotoIndices ?? []; return <label key={photo.index} className="grid gap-2"><img src={photo.url} alt={photo.caption || `Car photograph ${photo.index+1}`} loading="lazy" className="aspect-video w-full object-cover"/><span><input type="checkbox" checked={selected.includes(photo.index)} disabled={!selected.includes(photo.index)&&selected.length>=4} onChange={event=>change({vehiclePhotoIndices:event.target.checked?[...selected,photo.index]:selected.filter(index=>index!==photo.index)})}/> {photo.caption || `Photograph ${photo.index+1}`}</span></label>;})}</div></details>}
                         {Boolean(data.invoices?.length) && (
                           <fieldset className="enquiry-email-service-book">
                             <legend>Saved invoices · optional</legend>
@@ -930,9 +856,9 @@ function EnquiryEmailEditor({
                               <p>
                                 No private vehicle photos uploaded yet.{" "}
                                 <a
-                                  href={`/portal?section=inventory&vehicleId=${data.vehicleId}`}
+                                  href={`/vehicle/${data.vehicleId}`} target="_blank" rel="noreferrer"
                                 >
-                                  Open this car in Cars
+                                  View vehicle details
                                 </a>{" "}
                                 to upload them.
                               </p>
@@ -949,13 +875,13 @@ function EnquiryEmailEditor({
                         </p>
                       )}
                       <div className="enquiry-email-actions">
-                        <ShareQr whatsapp customerName={entry.customerName} onEmailFallback={body => { if (body && body !== draft.message) change({ message: body }); setSaveNotice("Check the email address, then review the email before sending. Your message and attachments are kept."); }} label="WhatsApp QR" beforeGenerate={prepareWhatsApp} disabled={busy || aiBusy || Boolean(sendingRequest.current) || !!sendBlockedReason || !!missingAttachment || draft.expectedRevision !== data.revision || !draft.message.trim() || !draft.subject.trim()} source={{kind:"enquiry-message",enquiryId:entry.id,draft:{...draft,to:""}}} />
+                        <DirectWhatsApp enquiryId={entry.id} customerName={entry.customerName} message={draft.message} disabled={busy || Boolean(sendingRequest.current) || !!sendBlockedReason || Boolean(draft.stockChange) || !draft.message.trim()} beforeOpen={verifyContext} onEmailFallback={body => { change({ message: body }); setSaveNotice("Check the address, then review before sending."); }} />
                         <Button
                           type="button"
                           variant="outline"
                           disabled={
                             busy ||
-                            aiBusy ||
+                            Boolean(draft.stockChange) ||
                             draft.expectedRevision !== data.revision
                           }
                           onClick={() => void saveDraft()}
@@ -968,7 +894,7 @@ function EnquiryEmailEditor({
                           type="submit"
                           disabled={
                             busy ||
-                            aiBusy ||
+                            Boolean(draft.stockChange) ||
                             draft.expectedRevision !== data.revision ||
                             !draft.to.trim() ||
                             Boolean(missingAttachment)
@@ -981,7 +907,7 @@ function EnquiryEmailEditor({
                         <Button
                           type="button"
                           variant="outline"
-                          disabled={busy || aiBusy}
+                          disabled={busy}
                           onClick={close}
                         >
                           Cancel

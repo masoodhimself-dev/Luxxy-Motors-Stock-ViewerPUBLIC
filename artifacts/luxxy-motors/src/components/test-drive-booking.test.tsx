@@ -4,7 +4,7 @@ import type { Car } from '@/lib/stock-context';
 import { defaultBookingSettings } from '@/lib/test-drive-dates';
 import { TestDriveBooking } from './test-drive-booking';
 
-const state = vi.hoisted(() => ({ failed: false, empty: false, fetching: false, pending: false, success: false, daysAhead: 3, mutate: vi.fn(), reset: vi.fn() }));
+const state = vi.hoisted(() => ({ failed: false, empty: false, fetching: false, pending: false, success: false, daysAhead: 3, partExchangeEnabled: true, mutate: vi.fn(), reset: vi.fn() }));
 vi.mock('@workspace/api-client-react', () => ({
   useCreateEnquiry: () => ({ isPending: state.pending, isSuccess: state.success, isError: false, mutate: state.mutate, reset: state.reset,
     data: { appointmentStatus: 'confirmed', appointmentAt: '2026-10-17T09:00:00.000Z', appointmentDurationMinutes: 30, customerNotificationStatus: 'pending', managePath: '/viewing/fictional-booking' },
@@ -18,7 +18,7 @@ vi.mock('@workspace/api-client-react', () => ({
 }));
 vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({
   settings: {
-    identity: { name: 'Test Motors' }, address: {}, contact: { phone: '07700900123', whatsapp: '447700900123' }, hours: [],
+    partExchange: { enabled: state.partExchangeEnabled }, identity: { name: 'Test Motors' }, address: {}, contact: { phone: '07700900123', whatsapp: '447700900123' }, hours: [],
     testDriveBooking: { ...defaultBookingSettings, daysAhead: state.daysAhead, weeklyHours: Array.from({ length: 7 }, (_, day) => ({ day, enabled: true, open: '09:00', close: '18:00' })) },
   },
   isLoading: false, isError: false,
@@ -33,6 +33,7 @@ beforeEach(() => {
   state.pending = false;
   state.success = false;
   state.daysAhead = 3;
+  state.partExchangeEnabled = true;
   state.mutate.mockClear();
   window.sessionStorage.clear();
   window.history.replaceState({}, '', '/enquire?type=viewing&vehicleId=booking-car');
@@ -279,4 +280,25 @@ it('uses readable compact date options and keeps later choices in one consecutiv
   ]);
   expect(screen.getByTestId('button-viewing-date-2026-11-12')).toHaveAttribute('aria-pressed', 'true');
   expect(within(screen.getByTestId('group-viewing-slots')).getByRole('button')).toHaveAttribute('data-testid', 'button-viewing-slot-2026-11-12T09:00:00.000Z');
+});
+
+it('removes part-exchange inputs, review details and payload when the dealer disables it mid-booking', () => {
+  const view = render(booking());
+  fireEvent.click(within(screen.getByTestId('group-viewing-slots')).getByRole('button'));
+  fireEvent.click(screen.getByTestId('button-continue-to-details'));
+  fireEvent.click(screen.getByRole('button', { name: 'Add a part exchange (optional)' }));
+  fireEvent.change(screen.getByTestId('enquiry-part-exchange-plate-input'), { target: { value: 'AB12 CDE' } });
+  fireEvent.change(screen.getByRole('spinbutton', { name: 'Approximate mileage' }), { target: { value: '42000' } });
+  fireEvent.change(screen.getByTestId('input-customer-name'), { target: { value: 'Fictional Buyer' } });
+  fireEvent.change(screen.getByTestId('input-customer-phone'), { target: { value: '07700900123' } });
+  fireEvent.change(screen.getByTestId('input-customer-email'), { target: { value: 'fictional@example.test' } });
+  state.partExchangeEnabled = false;
+  view.rerender(booking());
+  expect(screen.queryByTestId('enquiry-part-exchange-details')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Add a part exchange (optional)' })).not.toBeInTheDocument();
+  fireEvent.submit(screen.getByTestId('button-review-booking').closest('form')!);
+  expect(screen.getByTestId('booking-review')).not.toHaveTextContent('AB12 CDE');
+  fireEvent.click(screen.getByTestId('button-submit-enquiry'));
+  expect(state.mutate.mock.calls[0][0].data.partExchange).toBeNull();
+  expect(state.mutate.mock.calls[0][0].data.message).not.toMatch(/AB12|Part exchange/);
 });

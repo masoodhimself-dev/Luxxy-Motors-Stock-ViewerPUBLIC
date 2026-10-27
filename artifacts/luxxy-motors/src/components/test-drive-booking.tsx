@@ -194,7 +194,7 @@ export function TestDriveBooking({
   const approval = config.confirmationMode === "approval";
   const formDisabled =
     busy || settingsLoading || settingsError || isLoading || Boolean(error);
-  const exchangeMessage = details.hasPartExchange
+  const exchangeMessage = settings.partExchange?.enabled && details.hasPartExchange
     ? [
         "Part exchange",
         `Registration: ${details.exchange.registration.trim().toUpperCase()}`,
@@ -319,7 +319,7 @@ export function TestDriveBooking({
         .join("\n\n"),
       appointmentAt: selectedSlot,
       visitorId: getVisitorId(),
-      partExchange: details.hasPartExchange
+      partExchange: settings.partExchange?.enabled && details.hasPartExchange
         ? {
             registration: details.exchange.registration.trim().toUpperCase(),
             mileage: Number(details.exchange.mileage),
@@ -933,7 +933,7 @@ export function TestDriveBooking({
                       </span>
                     </label>
                   </div>
-                  <div className="border-t border-border pt-3">
+                  {settings.partExchange?.enabled && <div className="border-t border-border pt-3">
                     {!details.hasPartExchange ? <button type="button" className="min-h-12 text-sm font-medium underline underline-offset-4" onClick={() => setDetails(old => ({ ...old, hasPartExchange: true }))}>Add a part exchange (optional)</button> : <div>
                     <p className="text-sm font-semibold">Your part exchange</p>
                       <div
@@ -980,7 +980,7 @@ export function TestDriveBooking({
                       </div>
                     <button type="button" className="mt-2 min-h-11 text-sm underline underline-offset-4" onClick={() => setDetails(old => ({ ...old, hasPartExchange: false }))}>Remove part exchange</button>
                     </div>}
-                  </div>
+                  </div>}
                   <details
                     className="border-t border-border"
                     open={Boolean(details.message) || undefined}
@@ -1069,7 +1069,7 @@ export function TestDriveBooking({
                       {details.email}
                     </p>
                   </div>
-                  {details.hasPartExchange && (
+                  {settings.partExchange?.enabled && details.hasPartExchange && (
                     <div className="text-sm">
                       <p className="font-semibold">Your part-exchange</p>
                       <p className="mt-1">

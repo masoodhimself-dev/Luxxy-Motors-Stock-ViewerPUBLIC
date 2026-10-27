@@ -18,8 +18,8 @@ const stock = GetStockResponse.parse({ schemaVersion: 1, dealerName: data.dealer
 const settings = {
   ...dealerConfig, identity: { ...dealerConfig.identity, name: 'Cazoo stock demo', logoText: 'CAZOO DEMO', logoAsset: '' }, contact: { phone: '', whatsapp: '', email: '' }, address: { street: '', city: '', region: '', postcode: '', mapsUrl: '' }, hours: [], legal: { companyName: '', companyNumber: '', vatNumber: '', termsUrl: '', privacyUrl: '', cookieUrl: '' }, social: { instagram: '', facebook: '', twitter: '' },
   hero: { ...dealerConfig.hero, announcement: 'Read-only Cazoo example', copy: 'Browse the Cazoo example.', subcopy: 'A fixed sample of 33 cars collected on 8 October 2026.', primaryCta: 'Browse Stock', secondaryCta: 'Browse Stock' }, featuredVehicleIds: [],
-  warranty: { enabled: false, title: '', description: '', ctaLabel: '' }, delivery: { enabled: false, title: '', description: '', ctaLabel: '' }, partExchange: { enabled: false, title: '', description: '', ctaLabel: '' }, onlineReservation: { enabled: false, depositPence: 10000, terms: '' }, recentHandovers: { enabled: false, count: 0 }, trustItems: [], whyBuy: [],
-  presentation: { reviewsEnabled: false, reviews: [], comparisonEnabled: true, heroImageUrl: cars[0]?.heroImage ?? '', heroImageAlt: 'Photograph from the supplied Cazoo snapshot', showroomImageUrl: '', includedInformation: '', teamIntroduction: '', visitInstructions: '', parkingInstructions: '', reviewsUrl: '' },
+  warranty: { enabled: false, title: '', description: '', ctaLabel: '' }, delivery: { enabled: false, title: '', description: '', ctaLabel: '' }, partExchange: { enabled: false, title: '', description: '', ctaLabel: '' }, trustItems: [], whyBuy: [],
+  presentation: { heroImageUrl: cars[0]?.heroImage ?? '', heroImageAlt: 'Photograph from the supplied Cazoo snapshot', showroomImageUrl: '', includedInformation: '', teamIntroduction: '', visitInstructions: '', parkingInstructions: '', reviewsUrl: '' },
 };
 export function createCazooDemoApp(directory = resolve('artifacts/luxxy-motors/dist/cazoo-demo/public')) {
   const app = express();
@@ -30,7 +30,6 @@ export function createCazooDemoApp(directory = resolve('artifacts/luxxy-motors/d
   app.get('/api/stock', (_req, res) => { res.json(stock); });
   app.get('/api/vehicles/:id', (req, res) => { const car = cars.find(c => c.id === req.params.id); if (!car) { res.status(404).json({ error: 'Vehicle not found' }); return; } res.json(GetVehicleResponse.parse(car)); });
   app.get('/api/dealer-settings', (_req, res) => { res.json(settings); });
-  app.get('/api/recent-handovers', (_req, res) => { res.json({ schemaVersion: 1, handovers: [] }); });
   app.get('/api/chat/config', (_req, res) => { res.json({ settings: { enabled: false } }); });
   app.get('/api/reservations/payment-readiness', (_req, res) => { res.json({ enabled: false, mode: null }); });
   app.use('/api', (_req, res) => { res.status(404).json({ error: 'Not available in this read-only display test.' }); });

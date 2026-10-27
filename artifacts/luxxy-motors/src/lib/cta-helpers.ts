@@ -38,8 +38,6 @@ export function getWhatsAppHref(message?: string, config: DealerContactDetails =
 export function getContactHref(subject?: string) {
   const normalized = (subject || '').toLowerCase();
   if (normalized.includes('part exchange')) return getEnquiryHref('part_exchange');
-  if (normalized.includes('warranty')) return getEnquiryHref('warranty');
-  if (normalized.includes('delivery')) return getEnquiryHref('delivery');
   if (normalized.includes('viewing') || normalized.includes('booking')) return getEnquiryHref('viewing');
   return getEnquiryHref('general');
 }
@@ -145,7 +143,7 @@ export function recordBookingIntent({
     vehicle_context: vehicleContext,
   });
 }
-export type EnquiryType = 'viewing' | 'general' | 'delivery' | 'warranty' | 'part_exchange';
+export type EnquiryType = 'viewing' | 'general' | 'part_exchange';
 
 export function getEnquiryHref(type: EnquiryType, car?: Car) {
   const params = new URLSearchParams({ type });

@@ -1,8 +1,8 @@
+import { bookingSettingsUpdate } from '../lib/booking-settings-update';
 import { googleReviewUrl } from '@workspace/vehicle-meta';
 import { currentDealerId, multiTenantEnabled } from "../lib/tenant-context";
-import { applyCustomerFeaturePolicy } from '@workspace/vehicle-meta';
 import { bookingPolicyError, defaultBookingPolicy } from "../lib/booking-slots";
-import { preserveGoogleReviewUrl, preserveTestDriveBooking, preserveBrochure, preserveOnlineReservation, preservePresentation, publicSettingsLinkError, reservationSettingsError } from "../lib/settings-content";
+import { preserveGoogleReviewUrl, preserveTestDriveBooking, preserveBrochure, preservePresentation, publicSettingsLinkError } from "../lib/settings-content";
 import { Router, type IRouter } from "express";
 import { requirePermission, requireStaff, staffLabel } from "../middlewares/staff-auth";
 import { eq } from "drizzle-orm";
@@ -46,10 +46,7 @@ export const defaultSettings = {
   warranty: { enabled: true, title: "Warranty", description: "Warranty options are available on eligible vehicles.", ctaLabel: "Learn About Warranty" },
   delivery: { enabled: true, title: "Nationwide Delivery", description: "Customers may be able to have their vehicle delivered.", ctaLabel: "Ask About Delivery" },
   partExchange: { enabled: true, title: "Looking to part exchange your current car?", description: "Give us your registration and mileage and we’ll help you understand what your current car could be worth.", ctaLabel: "Value My Car" },
-  onlineReservation: { enabled: false, depositPence: 10000, terms: "" },
   bookViewing: { title: "Seen something you like?", description: "Arrange a viewing at a time that suits you.", ctaLabel: "Book a Viewing" },
-  // Disabled until the dealer opts into publishing anonymised completed-sales proof.
-  recentHandovers: { enabled: false, count: 3 },
   trustItems: ["Warranty available", "Nationwide delivery", "Carefully selected vehicles", "Straightforward buying"],
   whyBuy: [
     { title: "Quality Vehicles", description: "Carefully selected used vehicles." },
@@ -69,7 +66,6 @@ export function newDealerSettings(name: string) {
     legal: { companyName: name, companyNumber: '', vatNumber: '', termsUrl: '', privacyUrl: '', cookieUrl: '' },
     hours: [], trustItems: [], whyBuy: [],
     testDriveBooking: { ...defaultBookingPolicy, enabled: false, weeklyHours: defaultBookingPolicy.weeklyHours.map(day => ({ ...day, enabled: false })) },
-    onlineReservation: { enabled: false, depositPence: 10000, terms: '' },
     warranty: { ...defaultSettings.warranty, enabled: false },
     delivery: { ...defaultSettings.delivery, enabled: false },
     partExchange: { ...defaultSettings.partExchange, enabled: false },
@@ -121,7 +117,7 @@ async function settingsSnapshot(): Promise<{ config: Settings; revision: number 
   await db.insert(dealerSettingsTable).values({ dealerId: id, config: defaultSettings }).onConflictDoNothing();
   return settingsSnapshot();
 }
-export async function getOrCreateSettings() { return applyCustomerFeaturePolicy((await settingsSnapshot()).config); }
+export async function getOrCreateSettings() { return (await settingsSnapshot()).config; }
 
 function readText(source: unknown, key: string): string {
   if (!source || typeof source !== "object") return "";
@@ -148,13 +144,16 @@ async function validatePublication(incoming: Record<string, unknown>, previous: 
   if (!parsed.success) {
     throw new SettingsVersionError(parsed.error.message, 400);
   }
-  const compatible = UpdateDealerSettingsBody.parse(preserveTestDriveBooking(preserveBrochure(preserveOnlineReservation(preservePresentation(preserveGoogleReviewUrl(parsed.data, previous), previous), previous), previous), previous));
+  const compatible = UpdateDealerSettingsBody.parse(preserveTestDriveBooking(preserveBrochure(preservePresentation(preserveGoogleReviewUrl(parsed.data, previous), previous), previous), previous));
   const linkError = publicSettingsLinkError(compatible);
   if (linkError) throw new SettingsVersionError(linkError, 400);
   if (compatible.contact.googleReviewUrl && !googleReviewUrl(compatible.contact.googleReviewUrl)) throw new SettingsVersionError('Use a valid HTTPS Google review link from your Business Profile.',400);
-  const reservationError = reservationSettingsError(compatible.onlineReservation) ?? bookingPolicyError(compatible.testDriveBooking);
+  const reservationError = bookingPolicyError(compatible.testDriveBooking);
   if (reservationError) throw new SettingsVersionError(reservationError, 400);
-  return await cleanFeaturedVehicles(compatible, client) as Record<string, unknown>;
+  const published=await cleanFeaturedVehicles(compatible, client) as Record<string,unknown>;
+  // Preserve old private/historical config opaquely; no request can rewrite it.
+  for(const key of ['onlineReservation','recentHandovers']){delete published[key];if(Object.prototype.hasOwnProperty.call(previous,key))published[key]=previous[key];}
+  return published;
 }
 function settingsFailure(req: import('express').Request, res: import('express').Response, error: unknown) {
   if (error instanceof SettingsVersionError) {
@@ -171,14 +170,21 @@ router.get("/dealer-settings", async (req, res): Promise<void> => {
     const { config, revision } = await settingsSnapshot();
     res.setHeader('x-settings-revision', String(revision));
     res.setHeader('ETag', `"${revision}"`);
-    res.json(GetDealerSettingsResponse.parse(applyCustomerFeaturePolicy(config)));
+    res.json(GetDealerSettingsResponse.parse(config));
   } catch (error) { settingsFailure(req, res, error); }
+});
+router.patch('/dealer-settings/bookings', requireStaff, requirePermission('settings.publish'), async (req,res) => {
+  try {
+    const result = await new PostgresSettingsVersionStore(dealerId(),pool).publish({config:req.body,expectedRevision:expectedSettingsRevision(req.headers['if-match']),actor:staffLabel(req),validate:async(input,current)=>bookingSettingsUpdate(input,current)});
+    res.setHeader('x-settings-revision',String(result.revision));res.setHeader('ETag',`"${result.revision}"`);
+    res.json({testDriveBooking:result.config.testDriveBooking,revision:result.revision});
+  } catch(error) {settingsFailure(req,res,error);}
 });
 router.patch("/dealer-settings", requireStaff, requirePermission('settings.publish'), async (req, res): Promise<void> => {
   try {
     const result = await new PostgresSettingsVersionStore(dealerId(), pool).publish({ config: req.body, expectedRevision: expectedSettingsRevision(req.headers['if-match']), actor: staffLabel(req), validate: validatePublication });
     res.setHeader('x-settings-revision', String(result.revision)); res.setHeader('ETag', `"${result.revision}"`);
-    res.json(UpdateDealerSettingsResponse.parse(applyCustomerFeaturePolicy(result.config as Settings)));
+    res.json(UpdateDealerSettingsResponse.parse(result.config as Settings));
   } catch (error) { settingsFailure(req, res, error); }
 });
 router.get('/staff/settings-history', requireStaff, requirePermission('settings.publish'), async (req, res) => {

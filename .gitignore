@@ -62,3 +62,8 @@ Thumbs.db
 
 # Separate read-only showcase build output
 artifacts/api-server/dist-cazoo/
+
+# Isolated compiled preview regression suites
+artifacts/luxxy-motors/dist-test-core/
+artifacts/luxxy-motors/dist-test-preview/
+artifacts/luxxy-motors/dist-test-sales/

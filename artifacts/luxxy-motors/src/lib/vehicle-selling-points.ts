@@ -1,57 +1,16 @@
-import type { Car } from "./stock-context";
-import { vehicleHistoryFacts } from "./vehicle-extra-facts";
-import { vehicleBenefits } from "./vehicle-benefits";
-import { formatCompactMileage } from "./utils";
-export type SellingPoint = {
-  id?: string;
-  label: string;
-  text: string;
-  note?: string;
-  href?: string;
-};
-/** Conservative, supplied-data-only highlights. Other facts remain in the normal specifications. */
+import type { Car } from './stock-context';
+import { vehicleHistoryFacts } from './vehicle-extra-facts';
+import { vehicleBenefits } from './vehicle-benefits';
+export type SellingPoint = { id?: string; label: string; text: string; note?: string; href?: string };
+/** Factual highlights only; no insurance affordability or mileage comparisons. */
 export function vehicleSellingPoints(car: Car): SellingPoint[] {
-  const benefits = vehicleBenefits(car);
-  const points: SellingPoint[] = [
-    benefits.ulez,
-    benefits.lowMileage,
-    benefits.lowAnnualTax,
-    benefits.lowInsuranceGroup,
-  ].filter((point): point is NonNullable<typeof point> => point !== null);
+  const ulez = vehicleBenefits(car).ulez;
+  const points: SellingPoint[] = ulez ? [ulez] : [];
   const facts = vehicleHistoryFacts(car);
-  const owners = facts.find((fact) => fact.label === "Previous keepers")?.value;
-  if (owners && /^[12]$/.test(owners.trim()))
-    points.push({
-      label: "Previous keepers",
-      text: `${owners.trim()} previous ${owners.trim() === "1" ? "keeper" : "keepers"}`,
-    });
-  const highlights = car.sourceExtras?.vehicleHighlights;
-  const lowerMileage =
-    Array.isArray(highlights) &&
-    highlights.some((item) => {
-      if (!item || typeof item !== "object") return false;
-      const row = item as Record<string, unknown>;
-      return row.key === "MileageLow" && row.quantifier === "LOW";
-    });
-  if (
-    !benefits.lowMileage &&
-    lowerMileage &&
-    typeof car.mileage === "number" &&
-    Number.isInteger(car.mileage) &&
-    car.mileage >= 0
-  )
-    points.push({
-      label: "Mileage",
-      text: `${formatCompactMileage(car.mileage)} · below average`,
-      note: "This car has covered fewer miles than comparable vehicles.",
-    });
-  const service = facts.find((fact) => fact.label === "Service history")?.value;
-  if (
-    service &&
-    /^full(?: (?:dealership|dealer))?(?: service)?(?: history)?$/i.test(
-      service.trim(),
-    )
-  )
-    points.push({ label: "Service history", text: "Full service history" });
+  const ownerFact = facts.find(fact => ['Owners','Previous keepers'].includes(fact.label));
+  const owners = ownerFact?.value.trim();
+  if (owners && /^\d+$/.test(owners)) points.push({ label: ownerFact!.label, text: ownerFact!.label === 'Previous keepers' ? `${owners} previous ${owners === '1' ? 'keeper' : 'keepers'}` : `${owners} ${owners === '1' ? 'owner' : 'owners'}` });
+  const service = facts.find(fact => fact.label === 'Service history')?.value;
+  if (service && /^full(?: (?:dealership|dealer))?(?: service)?(?: history)?$/i.test(service.trim())) points.push({ label: 'Service history', text: 'Full service history' });
   return points;
 }

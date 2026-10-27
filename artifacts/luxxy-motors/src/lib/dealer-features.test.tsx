@@ -35,3 +35,13 @@ it('fails closed when a refresh fails even if an older enabled response remains 
   expect(result.current.isError).toBe(true);
   expect(result.current.enabled('customerEmails')).toBe(false);
 });
+it('does not poll an open customer page every minute', async () => {
+  state.fetch.mockResolvedValue({ features: { publicEnquiries: true }, evaluatedAt: '2026-10-27T10:00:00Z' });
+  const view = mount();
+  await waitFor(() => expect(view.result.current.enabled('publicEnquiries')).toBe(true));
+  vi.useFakeTimers();
+  try {
+    await act(async () => { vi.advanceTimersByTime(3 * 60_000); });
+    expect(state.fetch).toHaveBeenCalledTimes(1);
+  } finally { view.unmount(); vi.useRealTimers(); }
+});

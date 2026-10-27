@@ -46,9 +46,7 @@ export function renderCompatibleEmailLayout(input: {
       ? "Visit details"
       : document
         ? "Document details"
-        : id.startsWith("reservation_")
-          ? "Reservation details"
-          : "Details for your records",
+        : "Details for your records",
     facts: details,
   };
   const view: View = {

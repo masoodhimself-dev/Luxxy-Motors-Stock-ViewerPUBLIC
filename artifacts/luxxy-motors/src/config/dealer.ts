@@ -1,8 +1,7 @@
-import type { DealerBrochure, DealerOnlineReservation, DealerPresentation } from "@workspace/api-client-react";
+import type { DealerBrochure, DealerPresentation } from "@workspace/api-client-react";
 export interface DealerConfig {
   brochure?: DealerBrochure;
   presentation?: DealerPresentation;
-  onlineReservation?: DealerOnlineReservation;
   identity: {
     name: string;
     logoText?: string;
@@ -69,20 +68,11 @@ export interface DealerConfig {
     description: string;
     ctaLabel: string;
   };
-  recentHandovers: {
-    enabled: boolean;
-    count: number;
-  };
   trustItems: string[];
-  reviews?: {
-    link?: string;
-    data?: Array<{ author: string; rating: number; text: string }>;
-  };
   whyBuy?: Array<{ title: string; description: string }>;
 }
 
 export const dealerConfig: DealerConfig = {
-  onlineReservation: { enabled: false, depositPence: 10000, terms: "" },
   identity: {
     name: "Luxxy Motors",
     logoText: "LUXXY MOTORS",
@@ -132,10 +122,6 @@ export const dealerConfig: DealerConfig = {
     title: "Seen something you like?",
     description: "Book a test drive at a time that suits you.",
     ctaLabel: "Book a Test Drive",
-  },
-  recentHandovers: {
-    enabled: false,
-    count: 3,
   },
   trustItems: [
     "Warranty available",

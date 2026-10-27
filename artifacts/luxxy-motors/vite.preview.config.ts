@@ -1,19 +1,13 @@
 import { accountInvitationsPreview } from './preview/account-invitations';
-import { mediaSharingPreview } from './preview/media-sharing';
-import { enquiryMediaPreview } from './preview/enquiry-media';
-import { vehicleDescriptionPreview } from './preview/vehicle-descriptions';
-import { stockChangesPreview } from './preview/stock-changes';
-import { vehicleWatchesPreview } from './preview/vehicle-watches';
 import { soldVehicleFollowUpsPreview } from './preview/sold-vehicle-follow-ups';
 import { communicationsPreview } from "./preview/communications";
 import { declarationQa } from './preview/declaration-qa';
 import { plateEntryQa } from './preview/plate-entry-qa';
 import { platformPreview } from "./preview/platform";
-import { deferredCustomerFeatureResponse, resolveDealerFeatures } from '@workspace/vehicle-meta';
+import { resolveDealerFeatures } from '@workspace/vehicle-meta';
 import { brochureDealer } from '../api-server/src/lib/vehicle-brochure';
 import { reservationPreview, readPreviewSettings, readPreviewEnquiries, writePreviewSettings } from './preview/reservations';
 import { operationsPreview } from './preview/operations';
-import { chatPreview } from './preview/chat';
 import { relationshipsPreview } from './preview/relationships';
 import { dealerIntegrationsPreview } from './preview/dealer-integrations';
 import { defineConfig, mergeConfig } from 'vite';
@@ -52,7 +46,7 @@ export default mergeConfig(
         configureServer(server) {
           server.middlewares.use(async (req, res, next) => {
             const url = new URL(req.url ?? '/', 'http://localhost');
-            if ((url.pathname === '/watch' || url.pathname === '/join' || url.pathname === '/phone-share' || url.pathname === '/enquiry-photo-upload' || url.pathname.startsWith('/my-purchase/') || url.pathname.startsWith('/verify-invoice/') || url.pathname === '/reserve/payment-return')) { res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('X-Robots-Tag', 'noindex, nofollow'); res.setHeader('Cache-Control', 'no-store'); }
+            if ((url.pathname === '/join' || url.pathname.startsWith('/verify-invoice/'))) { res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('X-Robots-Tag', 'noindex, nofollow'); res.setHeader('Cache-Control', 'no-store'); }
             if (!url.pathname.startsWith('/api/')) return next();
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Cache-Control', 'no-store');
@@ -66,24 +60,16 @@ export default mergeConfig(
               return;
             }
             if (await accountInvitationsPreview(req, res, url)) return;
-            if (await vehicleWatchesPreview(req, res, url)) return;
-            if (await enquiryMediaPreview(req, res, url)) return;
-            if (await mediaSharingPreview(req, res, url)) return;
-            if (await vehicleDescriptionPreview(req, res, url)) return;
-            if (await stockChangesPreview(req, res, url)) return;
             if (await soldVehicleFollowUpsPreview(req, res, url)) return;
             if (await declarationQa(req, res, url)) return;
             if (await plateEntryQa(req, res, url)) return;
-            const deferred = deferredCustomerFeatureResponse(url.pathname, req.method ?? 'GET');
-            if (deferred) { res.statusCode = deferred.status; res.end(JSON.stringify(deferred.body)); return; }
             if (/^\/api\/(sales|signing|customer-intake-sessions)(\/|$)/.test(url.pathname)) {
               res.statusCode = 410;
               res.end(JSON.stringify({ error: 'The previous sales process has been removed.' }));
               return;
             }
             if (await platformPreview(req, res, url)) return;
-            if (await operationsPreview(req, res, url, { readSettings: readPreviewSettings, writeSettings: writePreviewSettings, readEnquiries: readPreviewEnquiries })) return;
-            if (await chatPreview(req, res, url)) return;
+            if (await operationsPreview(req, res, url, { readSettings: readPreviewSettings, writeSettings: writePreviewSettings })) return;
             if (await relationshipsPreview(req, res, url)) return;
             if (await dealerIntegrationsPreview(req, res, url)) return;
             if (await communicationsPreview(req, res, url)) return;
@@ -110,7 +96,6 @@ export default mergeConfig(
               '/api/stock': previewStock,
               '/api/features': { features: Object.fromEntries(resolveDealerFeatures({}, {}).map(feature => [feature.key, feature.enabled])), evaluatedAt: new Date().toISOString() },
               '/api/dealer-settings': previewSettings,
-              '/api/recent-handovers': { schemaVersion: 1, handovers: [] },
             };
             const response =
               responses[url.pathname] ?? previewResponse(url.pathname, url.searchParams);

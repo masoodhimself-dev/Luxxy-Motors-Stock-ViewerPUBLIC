@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { SaleWorkspaceRecord } from '@workspace/vehicle-meta';
-import { dealerOperationsSummary, paymentLedgerCsv, stockHealth } from './lib/dealer-operations';
+import { paymentLedgerCsv } from './lib/dealer-operations';
 import { operationPermission, permissionsForRole, roleHasPermission } from './lib/staff-permissions';
 import { expectedSettingsRevision, nextSettingsVersion, PostgresSettingsVersionStore, SettingsVersionError, type SettingsVersion } from './lib/settings-versions';
 const current: SettingsVersion = { revision: 4, config: { identity: { name: 'Dealer' } }, publishedAt: '2026-10-01T12:00:00Z', publishedBy: 'Owner', action: 'publish' };
@@ -11,7 +11,7 @@ test('role grants and route checks protect money, publication, team and advertis
   assert.equal(roleHasPermission('salesperson','settings.publish'),false);
   assert.equal(roleHasPermission('accounts','finance.export'),true);
   assert.equal(roleHasPermission('accounts','sales.manage'),false);
-  assert.equal(permissionsForRole('owner').includes('stock.manage'),true);
+  assert.equal(permissionsForRole('owner').includes('settings.publish'),true);
   assert.equal(operationPermission('POST','/sale-workspace/x/payments/y/reverse'),'payments.refund');
   assert.equal(operationPermission('POST','/sale-workspace/x/documents'),'payments.record');
   assert.equal(operationPermission('POST','/sale-workspace/x/documents/y/email'),'payments.record');
@@ -45,19 +45,7 @@ test('settings validation reuses the held transaction connection before committi
   const result=await store.publish({config:{identity:{name:'Updated'}},expectedRevision:4,actor:'Owner',validate:async(config,_current,held)=>{assert.equal(held,client);await held.query('SELECT visibility');return config;}});
   assert.equal(connections,1);assert.equal(released,true);assert.equal(result.revision,5);assert.equal(calls.at(-1),'COMMIT');assert.equal(calls.filter(sql=>sql.startsWith('INSERT INTO dealer_settings_versions')).length,2);assert.equal(calls.some(sql=>sql.startsWith('UPDATE dealer_settings')),true);
 });
-test('stock freshness uses when stock was observed and preserves the last successful sync after a failure', () => {
-  const health=stockHealth([{runId:'good',status:'completed',complete:true,scrapedAt:'2026-10-01T00:00:00Z',receivedAt:'2026-10-04T10:00:00Z'},{runId:'bad',status:'quarantined',scrapedAt:'2026-10-04T11:00:00Z',receivedAt:'2026-10-04T11:00:00Z'}],new Date('2026-10-04T12:00:00Z'));
-  assert.equal(health.lastSuccessfulSync,'2026-10-04T10:00:00.000Z');assert.equal(health.stale,true);assert.equal(health.ageHours,84);assert.equal(health.failuresSinceSuccess,1);
-  assert.deepEqual(health.alerts.map(alert=>alert.code),['stock_stale','import_failed']);
-});
 function sale():SaleWorkspaceRecord { return {id:'sale-1',reference:'SALE-1',revision:1,createdAt:'2026-10-01T12:00:00Z',updatedAt:'2026-10-04T12:00:00Z',draft:{id:'SALE-1',customer:' =HYPERLINK("bad")',email:'',phone:'',address:'',vehicleId:'car-1',vehicle:'Car, with "quotes"',registration:'AB12CDE',price:'1000',partExchange:false,pxRegistration:'',pxDescription:'',pxValue:'',deposit:'',paymentMethod:'',notes:'',collection:'',preparation:false,documents:false,handover:false,sourceEnquiryId:'enquiry-1',fulfilment:{method:'delivery',viewed:'viewed',address:'',recipient:'',phone:'',scheduledDate:'2026-10-06',timeWindow:'AM',instructions:''}},payments:[{id:'p1',amount:'200.00',amountPence:20000,signedAmountPence:20000,method:'Bank transfer',date:'2026-10-02',reference:'+SUM(1,2)',kind:'deposit',status:'confirmed',recordedBy:'Staff',recordedAt:'2026-10-02T12:00:00Z'},{id:'p2',amount:'50.00',amountPence:5000,signedAmountPence:-5000,method:'Bank transfer',date:'2026-10-03',reference:'Refund',kind:'refund',status:'confirmed',reversesPaymentId:'p1',reason:'Customer changed car',recordedBy:'Accounts',recordedAt:'2026-10-03T12:00:00Z'},{id:'p3',amount:'100.00',amountPence:10000,signedAmountPence:10000,method:'Bank transfer',date:'2026-10-04',reference:'pending',kind:'part-payment',status:'pending',recordedBy:'Accounts',recordedAt:'2026-10-04T12:00:00Z'}],documents:[],events:[]}; }
-test('dashboard balances include refunds, exclude pending money, and conversion counts linked enquiries once',()=>{
-  const one=sale(),two={...sale(),id:'sale-2',reference:'SALE-2'};
-  const summary=dealerOperationsSummary({enquiries:[{id:'enquiry-1',status:'new',appointmentAt:'2026-10-05T12:00:00Z',appointmentStatus:'pending'},{id:'enquiry-2',status:'contacted'}],sales:[one,two],stockRuns:[],stockCount:3,now:new Date('2026-10-04T12:00:00Z')});
-  assert.equal(summary.outstandingBalancePence,170000);assert.equal(summary.convertedEnquiries,1);assert.equal(summary.enquiryConversionPercent,50);assert.equal(summary.completedConversionPercent,0);assert.equal(summary.pendingAppointments,1);assert.equal(summary.upcomingDeliveries,2);
-  const completed=dealerOperationsSummary({enquiries:[{id:'enquiry-1',status:'closed',followUpAt:'2026-10-01T00:00:00Z'},{id:'enquiry-2',status:'contacted'}],sales:[{...one,draft:{...one.draft,handover:true}}],stockRuns:[],stockCount:3,now:new Date('2026-10-04T12:00:00Z')});
-  assert.equal(completed.completedConversionPercent,50);assert.equal(completed.overdueFollowUps,0);assert.equal(completed.upcomingDeliveries,0);
-});
 test('accountant CSV exports the actual signed ledger with safe formula cells and date filtering',()=>{
   const csv=paymentLedgerCsv([sale()]);
   assert.equal(csv.split('\r\n').length,5);assert.match(csv,/"' =HYPERLINK\(""bad""\)"/);assert.match(csv,/"'\+SUM\(1,2\)"/);assert.match(csv,/"-50","5000","-5000"/);assert.match(csv,/"p1","Customer changed car"/);

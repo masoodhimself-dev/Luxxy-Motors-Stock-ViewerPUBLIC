@@ -8,7 +8,7 @@ for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     const pageErrors: string[] = [];
     page.on('pageerror', error => pageErrors.push(error.message));
-    for (const path of ['/', '/vehicle/preview-1', '/saved', '/compare',  '/enquire?type=general', '/enquire?type=delivery', '/enquire?type=warranty', '/enquire?type=viewing&vehicleId=preview-1', '/enquire?type=part_exchange', '/viewing/sample', '/missing']) {
+    for (const path of ['/', '/vehicle/preview-1', '/saved',  '/enquire?type=general', '/enquire?type=viewing&vehicleId=preview-1', '/enquire?type=part_exchange', '/viewing/sample', '/missing']) {
       await page.goto(path);
       await expect(page.locator('#main-content h1')).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth), path).toBeLessThanOrEqual(width);
@@ -79,7 +79,7 @@ test('viewing lookup network failure offers retry and recovers', async ({ page }
   await expect(page.getByRole('heading', { name: 'Your viewing', exact: true })).toBeVisible();
 });
 
-for (const type of ['general', 'delivery', 'warranty']) {
+for (const type of ['general']) {
   test(`${type} enquiry preserves details and recovers from submission failure`, async ({ page }) => {
     let attempt = 0;
     let payload: any;

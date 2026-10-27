@@ -188,36 +188,6 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
       signoff,
   },
   {
-    id: "reservation_confirmation",
-    label: "Reservation confirmation",
-    category: "Reservations",
-    subject: "Your reservation — {{vehicle_title}}",
-    body:
-      greeting +
-      "Thanks for your reservation request for {{vehicle_title}}. Your current reservation and payment status are shown below. We’ll be in touch about the next steps." +
-      signoff,
-  },
-  {
-    id: "reservation_payment",
-    label: "Reservation payment confirmed",
-    category: "Reservations",
-    subject: "Your reservation deposit — {{vehicle_title}}",
-    body:
-      greeting +
-      "We’ve confirmed your reservation deposit for {{vehicle_title}}. Check the payment details below and keep this email for your records." +
-      signoff,
-  },
-  {
-    id: "reservation_refund",
-    label: "Reservation refund",
-    category: "Reservations",
-    subject: "Reservation refund — {{vehicle_title}}",
-    body:
-      greeting +
-      "We’ve recorded a refund against your reservation of {{vehicle_title}}. The details are below. Your bank may take a little time to show the funds." +
-      signoff,
-  },
-  {
     id: "invoice",
     label: "Invoice",
     category: "Sales",
@@ -255,16 +225,6 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     body:
       greeting +
       "Your {{document_type}} for {{vehicle_title}} is attached. Keep it for your records." +
-      signoff,
-  },
-  {
-    id: "customer_access_link",
-    label: "Private customer page link",
-    category: "Customer access",
-    subject: "Your private {{dealer_name}} customer page",
-    body:
-      greeting +
-      "Your private customer page brings your car, documents and recorded payments together. Open it using the secure link below.\n\nKeep this link private. It expires at {{expires_at}}." +
       signoff,
   },
 ];
@@ -460,18 +420,6 @@ const emailPresentation: Record<string, { title: string; kicker: string }> = {
     title: "Your test drive is coming up",
     kicker: "Your visit reminder",
   },
-  reservation_confirmation: {
-    title: "Your reservation update",
-    kicker: "Your next car",
-  },
-  reservation_payment: {
-    title: "Your deposit is confirmed",
-    kicker: "Payment update",
-  },
-  reservation_refund: {
-    title: "Your reservation refund",
-    kicker: "Payment update",
-  },
   invoice: { title: "Your invoice", kicker: "Your documents" },
   payment_receipt: { title: "Your payment receipt", kicker: "Your documents" },
   balance_statement: {
@@ -479,10 +427,6 @@ const emailPresentation: Record<string, { title: string; kicker: string }> = {
     kicker: "Your documents",
   },
   document_email: { title: "Your sales document", kicker: "Your documents" },
-  customer_access_link: {
-    title: "Your private customer page",
-    kicker: "Your car and documents",
-  },
 };
 function secureEmailLink(value: unknown): string | undefined {
   if (typeof value !== "string" || /[\\<>"\s\u0000-\u001f]/.test(value))
@@ -583,7 +527,8 @@ function withoutInternalEmailReferences(value: string, reference: string) {
 const protectedTextByRenderedEmail = new WeakMap<object, string>();
 export function protectedEmailText(rendered: object): string {
   const text = protectedTextByRenderedEmail.get(rendered);
-  if (text === undefined) throw new EmailTemplateError('The message facts could not be prepared.');
+  if (text === undefined)
+    throw new EmailTemplateError("The message facts could not be prepared.");
   return text;
 }
 /** One restrained, email-safe layout shared by messages, bookings and documents. */
@@ -654,17 +599,13 @@ export function renderEmailTemplate(
     .map((fact) => `${fact.label}: ${fact.value}`)
     .join("\n");
   const attachments = (options.attachments ?? []).filter((name) => name.trim());
-  const actionUrl =
-    options.actionUrl ? secureEmailLink(options.actionUrl) : options.templateId === "customer_access_link"
-      ? secureEmailLink(variables.portal_url)
-      : options.templateId?.startsWith("booking_") &&
-          options.templateId !== "booking_cancellation"
-        ? secureEmailLink(variables.manage_url)
-        : undefined;
-  const actionLabel =
-    options.actionLabel?.trim() || (options.templateId === "customer_access_link"
-      ? "Open your private page"
-      : "Manage your test drive");
+  const actionUrl = options.actionUrl
+    ? secureEmailLink(options.actionUrl)
+    : options.templateId?.startsWith("booking_") &&
+        options.templateId !== "booking_cancellation"
+      ? secureEmailLink(variables.manage_url)
+      : undefined;
+  const actionLabel = options.actionLabel?.trim() || "Manage your test drive";
   const contactEmail =
     typeof variables.dealer_email === "string" &&
     /^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(variables.dealer_email)
@@ -676,23 +617,21 @@ export function renderEmailTemplate(
     options.templateId?.startsWith("booking_") ||
     options.templateId === "appointment_details"
       ? "Visit details"
-      : options.templateId?.startsWith("reservation_")
-        ? "Reservation details"
+      : [
+            "invoice",
+            "invoice_copy",
+            "payment_receipt",
+            "balance_statement",
+            "document_email",
+          ].includes(options.templateId ?? "")
+        ? "Document details"
         : [
-              "invoice",
-              "invoice_copy",
-              "payment_receipt",
-              "balance_statement",
-              "document_email",
+              "vehicle_details",
+              "service_history",
+              "pre_accident_photos",
             ].includes(options.templateId ?? "")
-          ? "Document details"
-          : [
-                "vehicle_details",
-                "service_history",
-                "pre_accident_photos",
-              ].includes(options.templateId ?? "")
-            ? "Vehicle details"
-            : "Details for your records";
+          ? "Vehicle details"
+          : "Details for your records";
   const html = renderCompatibleEmailLayout({
     templateId: options.templateId,
     subject,
@@ -716,11 +655,11 @@ export function renderEmailTemplate(
   });
   const protectedParts = [
     heading,
-    options.templateId ? title : '',
-    actionUrl ? `${actionLabel}: ${actionUrl}` : '',
-    factText ? `${detailsHeading}\n${factText}` : '',
-    attachments.length ? 'Attachments\n' + attachments.join('\n') : '',
-    [contactEmail, phone].filter(Boolean).join(' · '),
+    options.templateId ? title : "",
+    actionUrl ? `${actionLabel}: ${actionUrl}` : "",
+    factText ? `${detailsHeading}\n${factText}` : "",
+    attachments.length ? "Attachments\n" + attachments.join("\n") : "",
+    [contactEmail, phone].filter(Boolean).join(" · "),
     address,
     footer,
   ].filter(Boolean);
@@ -743,6 +682,6 @@ export function renderEmailTemplate(
       .join("\n\n"),
     html,
   };
-  protectedTextByRenderedEmail.set(rendered, protectedParts.join('\n\n'));
+  protectedTextByRenderedEmail.set(rendered, protectedParts.join("\n\n"));
   return rendered;
 }

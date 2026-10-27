@@ -8,7 +8,7 @@ export async function readEmailDraft(
   executor: typeof db = db,
 ) {
   const result = await executor.execute(
-    sql`SELECT version,status,source,content,ai_generation_id AS "aiGenerationId",updated_at AS "updatedAt" FROM enquiry_email_drafts WHERE dealer_id=${dealer} AND enquiry_id=${enquiry}::uuid`,
+    sql`SELECT version,status,source,content,updated_at AS "updatedAt" FROM enquiry_email_drafts WHERE dealer_id=${dealer} AND enquiry_id=${enquiry}::uuid`,
   );
   const row = result.rows[0];
   return {

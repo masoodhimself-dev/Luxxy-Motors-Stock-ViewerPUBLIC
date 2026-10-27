@@ -9,7 +9,6 @@ const featureNames: Record<DealerFeatureKey, string> = {
   partExchange: 'Website part-exchange requests',
   publicEnquiries: 'Website enquiries',
   customerEmails: 'Customer email sending',
-  staffAiDrafts: 'AI reply drafts',
 };
 
 /** Availability is read-only here; publishing website settings cannot change it. */

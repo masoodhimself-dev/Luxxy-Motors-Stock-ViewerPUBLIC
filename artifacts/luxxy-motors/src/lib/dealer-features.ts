@@ -4,7 +4,6 @@ import { customFetch } from "@workspace/api-client-react";
 export type DealerFeatureKey =
   | "testDriveBookings"
   | "testDriveDeclarations"
-  | "staffAiDrafts"
   | "customerEmails"
   | "publicEnquiries"
   | "partExchange";
@@ -16,8 +15,8 @@ export function useDealerFeatures() {
   const query = useQuery({
     queryKey: ["dealer-features"],
     queryFn: () => customFetch<DealerFeatures>("/api/features"),
-    staleTime: 60_000,
-    refetchInterval: 60_000,
+    staleTime: 5 * 60_000,
+    refetchInterval: false,
     refetchIntervalInBackground: false,
     retry: false,
   });

@@ -12,7 +12,5 @@ export type StaffEnquiryInputType = typeof StaffEnquiryInputType[keyof typeof St
 export const StaffEnquiryInputType = {
   viewing: 'viewing',
   general: 'general',
-  delivery: 'delivery',
-  warranty: 'warranty',
   part_exchange: 'part_exchange',
 } as const;

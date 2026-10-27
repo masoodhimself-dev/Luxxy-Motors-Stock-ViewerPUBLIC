@@ -1,6 +1,6 @@
-export const notificationViews = ['attention', 'customers', 'test-drives', 'email'] as const;
+export const notificationViews = ['customers', 'test-drives', 'email'] as const;
 export type NotificationView = typeof notificationViews[number];
-const legacyViews: Record<string, NotificationView> = { overview: 'attention', enquiries: 'customers', 'test-drives': 'test-drives', email: 'email' };
+const legacyViews: Record<string, NotificationView> = { overview: 'customers', enquiries: 'customers', 'test-drives': 'test-drives', email: 'email' };
 
 /** Old emailed/bookmarked portal links remain valid inside the combined workspace. */
 export function notificationView(search: string): NotificationView {
@@ -12,16 +12,16 @@ export function notificationView(search: string): NotificationView {
   if (params.has('compose') || params.has('draft')) return 'email';
   if (params.get('deskView') === 'calendar') return 'test-drives';
   if (params.has('enquiryId')) return 'customers';
-  return 'attention';
+  return 'customers';
 }
 
 export function notificationHref(view: NotificationView, search = ''): string {
   const previous = new URLSearchParams(search), params = new URLSearchParams({ section: 'notifications', workView: view });
-  if (view !== 'attention') {
+  {
     const enquiry = previous.get('enquiryId') || previous.get('compose') || previous.get('draft');
     if (enquiry) params.set('enquiryId', enquiry);
     if (notificationView(search) === view) {
-      const keys = view === 'email' ? ['customer', 'view', 'compose', 'draft', 'stockChangeId', 'soldSaleId'] : ['deskView'];
+      const keys = view === 'email' ? ['customer', 'view', 'compose', 'draft', 'soldSaleId'] : ['deskView'];
       for (const key of keys) { const value = previous.get(key); if (value) params.set(key, value); }
     }
   }

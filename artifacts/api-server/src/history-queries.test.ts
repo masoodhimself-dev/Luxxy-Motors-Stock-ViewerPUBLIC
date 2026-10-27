@@ -7,9 +7,7 @@ import { db, engine, dealershipsTable, enquiriesTable, saleWorkspaceTable, deale
 import { runWithTenant } from "./lib/tenant-context";
 import { PostgresSaleWorkspaceStore } from "./lib/sale-workspace-store";
 import { publicSaleWorkspace } from "@workspace/vehicle-meta";
-import { readDealerChatRecords } from "./lib/dealer-chat-store";
-import { inventoryHistory } from "./lib/inventory-history";
-import { parseHistoryCursor } from "./lib/history-cursor";
+import { readDealerChatRecords } from "./lib/historical-chat-history";
 import enquiriesRouter from "./routes/enquiries";
 
 process.env.MULTI_TENANT_ENABLED = "true";
@@ -35,17 +33,25 @@ function enquiryGet(path: string, omit = false, staff = true) {
 test("large sales and relationship chat reads exclude archive/retry/token bulk inside PostgreSQL while keeping public history", async t => {
   const sales = Array.from({ length: 100 }, (_, number) => {
     const id = randomUUID();
-    return { id, dealerId: dealer, reference: `FICTIONAL-${number}`, revision: 0, createdAt: "2026-10-17T10:00:00.000Z", updatedAt: "2026-10-17T10:00:00.000Z", draft: { customer: `Fictional buyer ${number}` }, payments: [{ amountPence: 10000 }], documents: [{ id: `doc-${number}`, title: "Fictional invoice" }], events: [], documentArchives: { document: { content: "ARCHIVED-PDF".repeat(2000), sha256: "fictional" } }, requests: { private: { fingerprint: "PRIVATE-RETRY".repeat(100) } }, providerPayments: { private: "PRIVATE-PROVIDER" }, customerAccess: { tokenHash: "PRIVATE-ACCESS", expiresAt: "2027-01-01T00:00:00Z" } };
+    return { id, dealerId: dealer, reference: `FICTIONAL-${number}`, revision: 0, createdAt: "2026-10-17T10:00:00.000Z", updatedAt: "2026-10-17T10:00:00.000Z", draft: { customer: `Fictional buyer ${number}`, price:"12000",sourceEnquiryId:randomUUID(),sourceReservationId:randomUUID() }, payments: [{ amountPence: 10000 }], documents: [{ id: `doc-${number}`, title: "Fictional invoice" }], events: [], documentArchives: { document: { content: "ARCHIVED-PDF".repeat(2000), sha256: "fictional" } }, requests: { private: { fingerprint: "PRIVATE-RETRY".repeat(100) } }, providerPayments: { private: "PRIVATE-PROVIDER" }, customerAccess: { tokenHash: "PRIVATE-ACCESS", expiresAt: "2027-01-01T00:00:00Z" } };
   });
   await db.insert(saleWorkspaceTable).values(sales.map(state => ({ id: state.id, dealerId: dealer, reference: state.reference, revision: 0, state })));
   const oldRows = (await engine.query("SELECT state FROM sale_workspace WHERE dealer_id=$1 ORDER BY updated_at DESC", [dealer])).rows;
   let transferred = 0;
   const database = { async query(query: string, parameters: unknown[]) { const result = await engine.query(query, parameters); transferred += bytes(result.rows); return result; } };
   const store = new PostgresSaleWorkspaceStore(dealer, async () => { throw new Error("Listing must not load photos or providers"); }, database as never);
-  const listed = await store.list();
-  assert.equal(listed.length, 100);
-  assert.deepEqual(listed.map(record => record.id).sort(), sales.map(record => record.id).sort());
-  for (const record of listed) assert.deepEqual(record, { ...publicSaleWorkspace(sales.find(sale => sale.id === record.id)! as never), emptyDraftDeletable: false });
+  const page=await store.list(),next=await store.list({offset:50});
+  const listed=[...page.sales,...next.sales];
+  assert.equal(page.sales.length,50);assert.equal(page.hasMore,true);assert.equal(next.sales.length,50);assert.equal(next.hasMore,false);
+  assert.equal(listed.length,100);assert.deepEqual(listed.map(record=>record.id).sort(),sales.map(record=>record.id).sort());
+  for(const record of listed){assert.equal(record.listSummary,true);assert.equal(record.listTotalDue,1200000);assert.deepEqual(record.documents,[]);assert.deepEqual(record.payments,[]);assert.deepEqual(record.events,[]);assert.equal(record.emptyDraftDeletable,false);assert.ok(!JSON.stringify(record).includes('PRIVATE-'));assert.ok(!JSON.stringify(record).includes('ARCHIVED-PDF'));}
+  const old=sales[99];
+  assert.equal((await store.list({q:'Fictional buyer 99'})).sales[0].id,old.id);
+  assert.equal((await store.list({enquiryId:old.draft.sourceEnquiryId})).sales[0].id,old.id);
+  assert.equal((await store.list({reservationId:old.draft.sourceReservationId})).sales[0].id,old.id);
+  assert.equal((await store.list({q:old.draft.sourceEnquiryId})).sales[0].id,old.id);
+  assert.equal((await store.get(old.id)).documents.length,1);
+  await assert.rejects(()=>store.list({offset:-1}),/sales search/);await assert.rejects(()=>store.list({offset:10001}),/sales search/);
   assert.ok(transferred < bytes(oldRows) / 10);
   const chatRecords = Array.from({ length: 100 }, (_, number) => ({ conversation: { id: `chat-${number}`, reference: `CHAT-${number}`, enquiryId: null, status: "with_staff" }, messages: [{ id: `message-${number}`, body: "Fictional customer history", createdAt: "2026-10-17T10:00:00Z" }], tokenHash: "PRIVATE-CHAT-HASH".repeat(200), tokenExpiresAt: "2027-01-01T00:00:00Z", requestId: `private-request-${number}` }));
   const state = { schemaVersion: 1, settings: { private: "PRIVATE-SETTING".repeat(1000) }, records: chatRecords, presence: {} };
@@ -84,39 +90,4 @@ test("enquiry summaries keep merged originals, matching fields and appointments;
   assert.equal((await enquiryGet(`/staff/enquiries/${original}/conversations`, false, false)).status, 401);
   assert.equal((await enquiryGet(`/staff/enquiries/${original}/conversations?cursor=invalid`)).status, 400);
   t.diagnostic(JSON.stringify({ enquiries: { records: 2, events: 1000, fullPollBytes: bytes(full.data), summaryPollBytes: bytes(summary.data), maximumConversationPageBytes: largestPage, pages } }));
-});
-
-test("default inventory omits archives, exact counts/search cover every retained car, and microsecond cursors reach all older records", async t => {
-  await engine.query(`INSERT INTO vehicles(dealer_id,source,advert_id,title,archived_at,first_seen_at)
-    SELECT $1,'autotrader','archive-'||n,CASE WHEN n=1 THEN 'Fictional needle oldest' ELSE 'Fictional archived car '||n END,now(), '2026-10-17 10:00:00Z'::timestamptz+n*interval '1 microsecond' FROM generate_series(1,500) n`, [dealer]);
-  await engine.query("INSERT INTO vehicles(dealer_id,source,advert_id,title) SELECT $1,'autotrader','current-'||n,'Fictional current car '||n FROM generate_series(1,30) n", [dealer]);
-  await engine.query("INSERT INTO vehicles(dealer_id,source,advert_id,title,archived_at) SELECT $1,'autotrader','foreign-'||n,'Other dealership',now() FROM generate_series(1,7) n", [other]);
-  await engine.query("UPDATE vehicles SET year=2019,mileage=52000,fuel='Petrol',transmission='Manual',variant='1.2 SE Euro 6',trim='SE',body_type='Hatchback',engine_size='1.2L',engine_cc=1197,colour='Blue',doors=5,seats=5,raw_source_data=$2::jsonb,audit_metadata=$3::jsonb WHERE dealer_id=$1 AND advert_id IN ('current-1','archive-1')", [dealer, JSON.stringify({ privateSource: "PRIVATE-SOURCE-BULK".repeat(10000) }), JSON.stringify({ privateAudit: "PRIVATE-AUDIT-BULK".repeat(10000) })]);
-  const current = await inventoryHistory(dealer, { scope: "current", q: "", cursor: null });
-  assert.equal(current.cars.length, 30); assert.equal(current.nextCursor, null); assert.deepEqual(current.counts, { current: 30, archived: 500 });
-  assert.equal(current.matchedCount, 30);
-  const factKeys = ['year','mileage','fuel','transmission','variant','trim','body_type','engine_size','engine_cc','colour','doors','seats'] as const;
-  const facts = (car: Record<string, unknown>) => Object.fromEntries(factKeys.map(key => [key, car[key]]));
-  const suppliedFacts = { year: 2019, mileage: 52000, fuel: "Petrol", transmission: "Manual", variant: "1.2 SE Euro 6", trim: "SE", body_type: "Hatchback", engine_size: "1.2L", engine_cc: 1197, colour: "Blue", doors: 5, seats: 5 };
-  assert.deepEqual(facts(current.cars.find(car => car.title === "Fictional current car 1")!), suppliedFacts);
-  assert.deepEqual(facts(current.cars.find(car => car.title === "Fictional current car 2")!), Object.fromEntries(factKeys.map(key => [key, null])));
-  assert.ok(!JSON.stringify(current).includes("PRIVATE-"));
-  assert.ok(current.cars.every(car => !["raw_source_data", "audit_metadata", "photo_bytes", "images"].some(key => key in car)));
-  assert.ok(bytes(current) < 30_000);
-  const search = await inventoryHistory(dealer, { scope: "archived", q: "needle oldest", cursor: null });
-  assert.equal(search.matchedCount, 1); assert.equal(search.cars.length, 1); assert.equal(search.cars[0].title, "Fictional needle oldest");
-  assert.deepEqual(facts(search.cars[0]!), suppliedFacts);
-  assert.ok(!JSON.stringify(search).includes("PRIVATE-"));
-  const seen = new Set<string>(); let cursor: string | null = null, maxBytes = 0;
-  do {
-    const page = await inventoryHistory(dealer, { scope: "archived", q: "", cursor: parseHistoryCursor(cursor) });
-    assert.equal(page.matchedCount, 500); assert.ok(page.cars.length <= 50);
-    for (const car of page.cars) { assert.ok(!seen.has(String(car.id))); seen.add(String(car.id)); assert.ok(car.archived_at); }
-    maxBytes = Math.max(maxBytes, bytes(page)); cursor = page.nextCursor;
-  } while (cursor);
-  assert.equal(seen.size, 500);
-  const foreign = await inventoryHistory(other, { scope: "archived", q: "", cursor: null });
-  assert.equal(foreign.cars.length, 7); assert.deepEqual(foreign.counts, { current: 0, archived: 7 });
-  assert.ok(foreign.cars.every(car => Object.values(facts(car)).every(value => value === null)));
-  t.diagnostic(JSON.stringify({ inventory: { current: current.cars.length, archived: seen.size, currentResponseBytes: bytes(current), maximumArchivePageBytes: maxBytes } }));
 });

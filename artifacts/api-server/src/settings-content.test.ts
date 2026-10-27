@@ -5,7 +5,7 @@ import {
   UpdateDealerSettingsBody,
   GetDealerSettingsResponse,
 } from "@workspace/api-zod";
-import { preserveBrochure, preserveOnlineReservation, preservePresentation, reservationSettingsError } from "./lib/settings-content";
+import { preserveBrochure, preservePresentation } from "./lib/settings-content";
 
 const service = {
   enabled: false,
@@ -55,7 +55,7 @@ const legacy = {
 
 test("existing settings records need no migration or new fields", () => {
   assert.equal(GetDealerSettingsResponse.parse(legacy).presentation, undefined);
-  assert.equal(GetDealerSettingsResponse.parse(legacy).onlineReservation, undefined);
+  assert.equal((GetDealerSettingsResponse.parse(legacy) as Record<string,unknown>).onlineReservation, undefined);
 });
 
 test('website templates are opt-in, validated and survive JSON settings storage', () => {
@@ -81,22 +81,6 @@ test('older settings clients keep the saved website template and explicit choice
   assert.equal(GetDealerSettingsResponse.parse(restored).presentation?.websiteTemplate, 'existing');
 });
 
-test("old settings clients retain reservation settings while an explicit switch-off is honoured", () => {
-  const onlineReservation = { enabled: true, depositPence: 25000, terms: "Contact us to discuss your reservation." };
-  const previous = { onlineReservation };
-  assert.deepEqual(preserveOnlineReservation(UpdateDealerSettingsBody.parse(legacy), previous).onlineReservation, onlineReservation);
-  const disabled = { ...onlineReservation, enabled: false };
-  assert.deepEqual(preserveOnlineReservation(UpdateDealerSettingsBody.parse({ ...legacy, onlineReservation: disabled }), previous).onlineReservation, disabled);
-});
-
-test("reservation settings require integer pence within bounds and terms before enabling", () => {
-  for (const depositPence of [0, 99, 100.5, 1000001]) {
-    assert.equal(UpdateDealerSettingsBody.safeParse({ ...legacy, onlineReservation: { enabled: false, depositPence, terms: "" } }).success, false);
-  }
-  assert.equal(reservationSettingsError({ enabled: false, depositPence: 10000, terms: "" }), null);
-  assert.match(reservationSettingsError({ enabled: true, depositPence: 10000, terms: " \n " }) ?? "", /reservation terms/);
-  assert.equal(reservationSettingsError({ enabled: true, depositPence: 10000, terms: "Terms supplied by the dealership." }), null);
-});
 test("onboarding content survives JSON storage and response validation", () => {
   const presentation = {
     parkingInstructions: "Customer parking beside reception.",

@@ -28,7 +28,6 @@ async function buildAll() {
     // - uses native modules and loads them dynamically (e.g. sharp)
     // - use path traversal to read files (e.g. @google-cloud/secret-manager loads sibling .proto files)
     external: [
-      "ffmpeg-static", "ffprobe-static", "@aws-sdk/client-s3",
       "*.node",
       "@napi-rs/canvas",
       "sharp",
@@ -62,7 +61,6 @@ async function buildAll() {
       "@mikro-orm/*",
       "@grpc/*",
       "@swc/*",
-      "@aws-sdk/*",
       "@azure/*",
       "@opentelemetry/*",
       "@google-cloud/*",

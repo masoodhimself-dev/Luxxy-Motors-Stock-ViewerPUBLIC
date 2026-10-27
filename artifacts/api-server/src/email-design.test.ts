@@ -255,14 +255,14 @@ test("accent buttons keep contrasting text and copy stays readable with a bright
     sampleEmailVariables,
     [],
     { ...defaultEmailAppearance, brandColour: "#172033" },
-    { templateId: "customer_access_link" },
+    { templateId: "booking_confirmation" },
   );
   const light = renderEmailTemplate(
     template,
     sampleEmailVariables,
     [],
     { ...defaultEmailAppearance, brandColour: "#FFFFFF" },
-    { templateId: "customer_access_link" },
+    { templateId: "booking_confirmation" },
   );
   assert.match(dark.html, /color:#FFFFFF;background-color:#172033/);
   assert.match(light.html, /color:#000000;background-color:#FFFFFF/);
@@ -272,7 +272,7 @@ test("accent buttons keep contrasting text and copy stays readable with a bright
     sampleEmailVariables,
     [],
     { ...defaultEmailAppearance, brandColour: "#777777" },
-    { templateId: "customer_access_link" },
+    { templateId: "booking_confirmation" },
   );
   assert.match(mid.html, /color:#000000;background-color:#777777/);
 });
@@ -297,7 +297,7 @@ test("attachment card lists only supplied file names and supports image-blocked 
   assert.match(branded.html, /alt="Example Motors"/);
   assert.match(branded.html, />Example Motors<\/p>/);
 });
-test("booking and reservation previews present truthful sample states", () => {
+test("booking previews present truthful sample states", () => {
   const preview = (id: string) =>
     previewEmailTemplate(
       id,
@@ -312,16 +312,6 @@ test("booking and reservation previews present truthful sample states", () => {
     preview("booking_cancellation").text,
     /Appointment status: cancelled/,
   );
-  assert.match(
-    preview("reservation_confirmation").text,
-    /Amount received: £0.00/,
-  );
-  assert.match(
-    preview("reservation_confirmation").text,
-    /Payment status: pending/,
-  );
-  assert.match(preview("reservation_refund").text, /Amount refunded: £100.00/);
-  assert.match(preview("reservation_refund").text, /Payment status: refunded/);
 });
 
 test("dealers can customise the in-email title without changing recorded facts", () => {
@@ -398,7 +388,8 @@ test("long vehicle facts, filenames and substituted headings stay bounded and br
 });
 
 test("prose links exclude sentence punctuation while private action URLs stay exact", () => {
-  const capability = "https://example.test/my-purchase/Abc_123?token=A%2FB%2BC";
+  const capability =
+    "https://example.test/test-drive-declaration/Abc_123?token=A%2FB%2BC";
   const rendered = renderEmailTemplate(
     {
       subject: "Your private page",
@@ -407,7 +398,11 @@ test("prose links exclude sentence punctuation while private action URLs stay ex
     { ...sampleEmailVariables, portal_url: capability },
     [{ label: "Private page", value: capability }],
     defaultEmailAppearance,
-    { templateId: "customer_access_link" },
+    {
+      templateId: "enquiry_message",
+      actionUrl: capability,
+      actionLabel: "Read and sign",
+    },
   );
   assert.match(rendered.html, /href="https:\/\/example\.test\/stock"/);
   assert.ok(!rendered.html.includes('href="https://example.test/stock."'));

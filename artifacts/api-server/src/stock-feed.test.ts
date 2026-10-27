@@ -9,7 +9,6 @@ import { factualStockDescription, stockDescriptionExtras } from '@workspace/vehi
 import { stockPlatformIssues, stockConnectionNeedsMigration } from './lib/stock-platform';
 import { isPlatformAdmin } from './lib/platform-admin';
 import { DealerIntegrationsStore } from './lib/dealer-integrations-store';
-import { assertReservableVehicle, type OnlineReservationInput } from './lib/online-reservations';
 import { permittedBrochureImage } from './lib/vehicle-brochure-images';
 
 test('Cazoo snapshot uses the existing exact schema and matching platform', () => {
@@ -55,15 +54,6 @@ test('private stock settings persist, revisions protect changes and unsupported 
     const paused = await store.updateStockConnection({ expectedRevision: 1, connection: { ...connection, enabled: false } });
     assert.equal(paused.connection.enabled, false); assert.equal((await store.readMasked() as Record<string, unknown>).stockConnection, undefined);
   } finally { await rm(dir, { recursive: true, force: true }); }
-});
-test('Cazoo reservation rules retain availability, price and owner safeguards', () => {
-  const vehicle = { id: 'vehicle-test', dealerId: 'dealer-test', source: 'cazoo', inventoryStatus: 'available', sourceStatus: 'live', missingCount: 0, currency: 'GBP', sourcePrice: 8995, websitePriceOverride: null, title: 'Lexus IS' };
-  const input = { vehicleId: vehicle.id, expectedPricePence: 899500, expectedDepositPence: 20000, terms: 'Approved terms', termsAccepted: true } as OnlineReservationInput;
-  const settings = { enabled: true, depositPence: 20000, terms: 'Approved terms' };
-  assert.doesNotThrow(() => assertReservableVehicle(vehicle, input, settings, { dealerId: 'dealer-test', stockPlatform: 'cazoo' }));
-  assert.throws(() => assertReservableVehicle(vehicle, input, settings, { dealerId: 'other-dealer', stockPlatform: 'cazoo' }), /no longer/);
-  assert.throws(() => assertReservableVehicle({ ...vehicle, inventoryStatus: 'sold' }, input, settings, { dealerId: 'dealer-test', stockPlatform: 'cazoo' }), /no longer/);
-  assert.throws(() => assertReservableVehicle(vehicle, input, settings, { dealerId: 'dealer-test' }), /no longer/);
 });
 test('Cazoo image CDN is permitted for PDFs without relaxing private-address protections', () => {
   assert.ok(permittedBrochureImage('https://cdn.images.autoexposure.co.uk/example/car.jpg'));

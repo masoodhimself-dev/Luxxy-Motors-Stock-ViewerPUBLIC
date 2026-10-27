@@ -1,69 +1,262 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { createServer } from 'node:http';
-import { operationsPreview } from './operations';
-import { previewSettings } from './settings';
-import { previewStock } from './stock';
-test('local operations enforce roles, require publication revisions and preserve concurrent edits in history',async()=>{
-  const folder=await mkdtemp(join(tmpdir(),'luxxy-operations-test-'));
-  let settings=structuredClone(previewSettings) as unknown as Record<string,unknown>;
-  let enquiries:Array<{id:string,status:string,vehicleId:string,appointmentAt?:string,attendance?:string,mergedIntoId?:string,appointmentCancelledAt?:string,appointmentStatus?:string}>=[];
-  const server=createServer((req,res)=>{void operationsPreview(req,res,new URL(req.url??'/',`http://${req.headers.host}`),{stateFile:join(folder,'operations.json'),readSettings:async()=>settings,writeSettings:async config=>{settings=config;},readEnquiries:async()=>enquiries,readSales:async()=>[]}).then(handled=>{if(!handled){res.statusCode=200;res.end('allowed');}});});
-  await new Promise<void>((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
-  const address=server.address();assert.ok(address&&typeof address!=='string');const base=`http://127.0.0.1:${address.port}`;
+import assert from "node:assert/strict";
+import test from "node:test";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createServer } from "node:http";
+import { operationsPreview } from "./operations";
+import { previewSettings } from "./settings";
+test("local operations enforce roles, require publication revisions and preserve concurrent edits in history", async () => {
+  const folder = await mkdtemp(join(tmpdir(), "luxxy-operations-test-"));
+  let settings = structuredClone(previewSettings) as unknown as Record<
+    string,
+    unknown
+  >;
+  const server = createServer((req, res) => {
+    void operationsPreview(
+      req,
+      res,
+      new URL(req.url ?? "/", `http://${req.headers.host}`),
+      {
+        stateFile: join(folder, "operations.json"),
+        readSettings: async () => settings,
+        writeSettings: async (config) => {
+          settings = config;
+        },
+        readSales: async () => [],
+      },
+    ).then((handled) => {
+      if (!handled) {
+        res.statusCode = 200;
+        res.end("allowed");
+      }
+    });
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const base = `http://127.0.0.1:${address.port}`;
   try {
-    const inventory=await(await fetch(`${base}/api/staff/inventory`)).json();assert.equal(inventory.previewReadOnly,true);assert.equal(inventory.nextCursor,null);assert.equal(inventory.counts.archived,0);assert.ok(inventory.cars.length>0);assert.equal(inventory.matchedCount,inventory.cars.length);
-    assert.equal(inventory.dealerId,'local-preview');
-    const sample=previewStock.cars[0]!,listed=inventory.cars.find((car:{id:string})=>car.id===sample.id);
-    assert.deepEqual({year:listed.year,mileage:listed.mileage,fuel:listed.fuel,transmission:listed.transmission},{year:sample.year??null,mileage:sample.mileage??null,fuel:sample.fuel??null,transmission:sample.transmission??null});
-    assert.deepEqual({variant:listed.variant,trim:listed.trim,body_type:listed.body_type,engine_size:listed.engine_size,engine_cc:listed.engine_cc,colour:listed.colour,doors:listed.doors,seats:listed.seats},{variant:sample.variant??null,trim:sample.trim??null,body_type:sample.bodyType??null,engine_size:sample.engineSize??null,engine_cc:sample.engineCC??null,colour:sample.colour??null,doors:sample.doors??null,seats:sample.seats??null});
-    assert.ok(inventory.cars.every((car:Record<string,unknown>)=>!['images','rawSourceData','raw_source_data','photo_bytes'].some(key=>key in car)));
-    const detail=await(await fetch(`${base}/api/staff/inventory/${sample.id}`)).json();
-    assert.equal(detail.dealerId,'local-preview');assert.equal(detail.previewReadOnly,true);assert.deepEqual(detail.car,listed);assert.deepEqual(detail.photos,[]);
-    assert.deepEqual(detail.preparation,{revision:0,tasks:{cleaning:'pending',inspection:'pending',mot:'pending',servicing:'pending'},assigned_to_id:null,due_date:null,notes:''});
-    assert.deepEqual(await(await fetch(`${base}/api/staff/inventory/${sample.id}/customers`)).json(),{customers:[],previewReadOnly:true});
-    assert.equal((await fetch(`${base}/api/staff/inventory/00000000-0000-4000-8000-000000000099`)).status,404);
-    assert.equal((await fetch(`${base}/api/staff/inventory/00000000-0000-4000-8000-000000000099/customers`)).status,404);
-    for(const [suffix,method] of [['preparation','PUT'],['plate','PUT'],['upload-session','POST'],['unreserve','POST'],['email','POST']] as const)assert.equal((await fetch(`${base}/api/staff/inventory/${sample.id}/${suffix}`,{method,headers:{'Content-Type':'application/json'},body:'{}'})).status,405);
-    assert.equal((await fetch(`${base}/api/staff/inventory/${sample.id}/photos/00000000-0000-4000-8000-000000000099`)).status,405);
-    // Opening a sample must not manufacture or persist preparation/customer data.
-    await assert.rejects(readFile(join(folder,'operations.json')),{code:'ENOENT'});
-    assert.equal(listed.enquiry_count,0);assert.equal(listed.upcoming_test_drive_count,0);assert.deepEqual(listed.stock_changes.items,[]);
-    const visit=new Date(Date.now()+86400000).toISOString();
-    enquiries=[
-      {id:'active',status:'new',vehicleId:sample.id,appointmentAt:visit,appointmentStatus:'confirmed',attendance:'scheduled'},
-      {id:'pending',status:'contacted',vehicleId:sample.id,appointmentAt:visit,appointmentStatus:'pending'},
-      {id:'cancelled',status:'new',vehicleId:sample.id,appointmentAt:visit,appointmentCancelledAt:visit},
-      {id:'completed',status:'contacted',vehicleId:sample.id,appointmentAt:visit,attendance:'completed'},
-      {id:'merged',status:'new',vehicleId:sample.id,appointmentAt:visit,mergedIntoId:'active'},
-      {id:'closed',status:'closed',vehicleId:sample.id,appointmentAt:visit},
-      {id:'other-car',status:'new',vehicleId:'other-car',appointmentAt:visit},
-    ];
-    const actual=(await(await fetch(`${base}/api/staff/inventory`)).json()).cars.find((car:{id:string})=>car.id===sample.id);
-    assert.equal(actual.enquiry_count,4);assert.equal(actual.upcoming_test_drive_count,2);assert.equal(actual.next_test_drive_at,visit);assert.deepEqual(actual.stock_changes.items,[]);
-    assert.deepEqual((await(await fetch(`${base}/api/staff/inventory/${sample.id}`)).json()).car,actual);
-    enquiries=[];
-    const archives=await(await fetch(`${base}/api/staff/inventory?scope=archived`)).json();assert.deepEqual(archives.cars,[]);assert.equal(archives.matchedCount,0);
-    const invalidScope=await fetch(`${base}/api/staff/inventory?scope=everything`);assert.equal(invalidScope.status,400);
-    const original=await fetch(`${base}/api/dealer-settings`);assert.equal(original.headers.get('x-settings-revision'),'0');const config=await original.json();
-    const missing=await fetch(`${base}/api/dealer-settings`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(config)});assert.equal(missing.status,428);
-    const denied=await fetch(`${base}/api/dealer-integrations`,{headers:{'x-preview-staff-id':'preview-jamie'}});assert.equal(denied.status,403);
-    const permissions=await fetch(`${base}/api/staff/access`,{headers:{'x-preview-staff-id':'preview-jamie'}});assert.equal((await permissions.json()).role,'salesperson');
-    const a={...config,identity:{...config.identity,name:'Dealer A'}},b={...config,identity:{...config.identity,name:'Dealer B'}};
-    const [first,second]=await Promise.all([a,b].map(value=>fetch(`${base}/api/dealer-settings`,{method:'PATCH',headers:{'Content-Type':'application/json','If-Match':'"0"'},body:JSON.stringify(value)})));
-    assert.deepEqual([first.status,second.status].sort(),[200,409]);
-    const history=await(await fetch(`${base}/api/staff/settings-history`)).json();assert.equal(history.revision,1);assert.equal(history.versions.length,2);
-    const restored=await fetch(`${base}/api/staff/settings-history/0/restore`,{method:'POST',headers:{'If-Match':'"1"'}});assert.equal(restored.status,200);assert.equal(restored.headers.get('x-settings-revision'),'2');assert.equal((await restored.json()).config.identity.name,config.identity.name);
-    assert.equal((settings.identity as {name:string}).name,config.identity.name);
-    const ownerId='00000000-0000-4000-8000-000000000001';
-    const noOwner=await fetch(`${base}/api/staff/team/${ownerId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({role:'salesperson'})});assert.equal(noOwner.status,409);
-    const csvDenied=await fetch(`${base}/api/dealer-operations/payments.csv`,{headers:{'x-preview-staff-id':'preview-jamie'}});assert.equal(csvDenied.status,403);
-    const add=await fetch(`${base}/api/staff/team`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({authUserId:'preview-finance',email:'accounts@example.test',role:'accounts'})});assert.equal(add.status,201);
-    const csv=await fetch(`${base}/api/dealer-operations/payments.csv`,{headers:{'x-preview-staff-id':'preview-finance'}});assert.equal(csv.status,200);assert.match(csv.headers.get('Content-Type')??'',/text\/csv/);
-    const accountsEdit=await fetch(`${base}/api/staff/enquiries/test/workspace`,{method:'PATCH',headers:{'x-preview-staff-id':'preview-finance'}});assert.equal(accountsEdit.status,403);
-    const crossOrigin=await fetch(`${base}/api/staff/access`,{headers:{Origin:'https://untrusted.example'}});assert.equal(crossOrigin.status,403);
-  } finally {await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));await rm(folder,{recursive:true,force:true});}
+    // Removed Cars endpoints must fall through without reading or manufacturing data.
+    for (const [path, method] of [
+      ["/api/staff/inventory", "GET"],
+      ["/api/staff/vehicles/example/price", "PATCH"],
+      ["/api/staff/stock-health", "GET"],
+      ["/api/dealer-operations", "GET"],
+    ] as const) {
+      const response = await fetch(`${base}${path}`, { method });
+      assert.equal(await response.text(), "allowed");
+    }
+    await assert.rejects(readFile(join(folder, "operations.json")), {
+      code: "ENOENT",
+    });
+    const original = await fetch(`${base}/api/dealer-settings`);
+    assert.equal(original.headers.get("x-settings-revision"), "0");
+    const config = await original.json();
+    const missing = await fetch(`${base}/api/dealer-settings`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(config),
+    });
+    assert.equal(missing.status, 428);
+    const denied = await fetch(`${base}/api/dealer-integrations`, {
+      headers: { "x-preview-staff-id": "preview-jamie" },
+    });
+    assert.equal(denied.status, 403);
+    const permissions = await fetch(`${base}/api/staff/access`, {
+      headers: { "x-preview-staff-id": "preview-jamie" },
+    });
+    assert.equal((await permissions.json()).role, "salesperson");
+    const a = { ...config, identity: { ...config.identity, name: "Dealer A" } },
+      b = { ...config, identity: { ...config.identity, name: "Dealer B" } };
+    const [first, second] = await Promise.all(
+      [a, b].map((value) =>
+        fetch(`${base}/api/dealer-settings`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", "If-Match": '"0"' },
+          body: JSON.stringify(value),
+        }),
+      ),
+    );
+    assert.deepEqual([first.status, second.status].sort(), [200, 409]);
+    const history = await (
+      await fetch(`${base}/api/staff/settings-history`)
+    ).json();
+    assert.equal(history.revision, 1);
+    assert.equal(history.versions.length, 2);
+    const restored = await fetch(
+      `${base}/api/staff/settings-history/0/restore`,
+      { method: "POST", headers: { "If-Match": '"1"' } },
+    );
+    assert.equal(restored.status, 200);
+    assert.equal(restored.headers.get("x-settings-revision"), "2");
+    assert.equal(
+      (await restored.json()).config.identity.name,
+      config.identity.name,
+    );
+    assert.equal(
+      (settings.identity as { name: string }).name,
+      config.identity.name,
+    );
+    const ownerId = "00000000-0000-4000-8000-000000000001";
+    const noOwner = await fetch(`${base}/api/staff/team/${ownerId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: "salesperson" }),
+    });
+    assert.equal(noOwner.status, 409);
+    const csvDenied = await fetch(
+      `${base}/api/dealer-operations/payments.csv`,
+      { headers: { "x-preview-staff-id": "preview-jamie" } },
+    );
+    assert.equal(csvDenied.status, 403);
+    const add = await fetch(`${base}/api/staff/team`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        authUserId: "preview-finance",
+        email: "accounts@example.test",
+        role: "accounts",
+      }),
+    });
+    assert.equal(add.status, 201);
+    const csv = await fetch(`${base}/api/dealer-operations/payments.csv`, {
+      headers: { "x-preview-staff-id": "preview-finance" },
+    });
+    assert.equal(csv.status, 200);
+    assert.match(csv.headers.get("Content-Type") ?? "", /text\/csv/);
+    const accountsEdit = await fetch(
+      `${base}/api/staff/enquiries/test/workspace`,
+      { method: "PATCH", headers: { "x-preview-staff-id": "preview-finance" } },
+    );
+    assert.equal(accountsEdit.status, 403);
+    const crossOrigin = await fetch(`${base}/api/staff/access`, {
+      headers: { Origin: "https://untrusted.example" },
+    });
+    assert.equal(crossOrigin.status, 403);
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+test("narrow preview booking updates disable independently, require revisions and preserve all unrelated settings", async () => {
+  const folder = await mkdtemp(join(tmpdir(), "luxxy-preview-bookings-"));
+  let settings = {
+    ...structuredClone(previewSettings),
+    identity: { ...previewSettings.identity, name: "" },
+    unrelatedLegacy: { keep: "verbatim" },
+    testDriveBooking: {
+      ...previewSettings.testDriveBooking,
+      weeklyHours: [{ day: "Monday", open: "18:00", close: "09:00" }],
+    },
+  } as unknown as Record<string, unknown>;
+  const original = structuredClone(settings),
+    publications: Array<Record<string, unknown>> = [];
+  const server = createServer((req, res) => {
+    void operationsPreview(
+      req,
+      res,
+      new URL(req.url ?? "/", `http://${req.headers.host}`),
+      {
+        stateFile: join(folder, "operations.json"),
+        readSettings: async () => settings,
+        writeSettings: async (config) => {
+          settings = config;
+          publications.push(config);
+        },
+      },
+    ).then((handled) => {
+      if (!handled) {
+        res.statusCode = 404;
+        res.end();
+      }
+    });
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const base = `http://127.0.0.1:${address.port}`;
+  const patch = (body: unknown, revision?: string, staff?: string) =>
+    fetch(`${base}/api/dealer-settings/bookings`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(revision ? { "If-Match": revision } : {}),
+        ...(staff ? { "x-preview-staff-id": staff } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+  try {
+    const missing = await patch({ testDriveBooking: { enabled: false } });
+    assert.equal(missing.status, 428);
+    assert.equal(publications.length, 0);
+    const denied = await patch(
+      { testDriveBooking: { enabled: false } },
+      "0",
+      "preview-jamie",
+    );
+    assert.equal(denied.status, 403);
+    const disabled = await patch({ testDriveBooking: { enabled: false } }, "0");
+    assert.equal(disabled.status, 200);
+    assert.equal(disabled.headers.get("x-settings-revision"), "1");
+    assert.equal(disabled.headers.get("etag"), '"1"');
+    const response = await disabled.json();
+    assert.equal(response.revision, 1);
+    assert.equal(response.testDriveBooking.enabled, false);
+    assert.deepEqual(settings.identity, original.identity);
+    assert.deepEqual(settings.unrelatedLegacy, original.unrelatedLegacy);
+    assert.deepEqual(
+      (settings.testDriveBooking as any).weeklyHours,
+      (original.testDriveBooking as any).weeklyHours,
+    );
+    const stale = await patch({ testDriveBooking: { enabled: true } }, "0");
+    assert.equal(stale.status, 409);
+    assert.equal(stale.headers.get("x-settings-revision"), "1");
+    const invalid = await patch({ testDriveBooking: { enabled: true } }, "1");
+    assert.equal(invalid.status, 400);
+    assert.equal(publications.length, 1);
+    const extra = await patch(
+      {
+        testDriveBooking: { enabled: false },
+        identity: { name: "Unapproved edit" },
+      },
+      "1",
+    );
+    assert.equal(extra.status, 400);
+    assert.deepEqual(settings.identity, original.identity);
+    const enabled = await patch(
+      {
+        testDriveBooking: {
+          ...previewSettings.testDriveBooking,
+          enabled: true,
+        },
+      },
+      "1",
+    );
+    assert.equal(enabled.status, 200);
+    assert.equal((await enabled.json()).revision, 2);
+    assert.equal(publications.length, 2);
+    const published = await fetch(`${base}/api/dealer-settings`);
+    assert.equal(published.headers.get("x-settings-revision"), "2");
+    assert.equal((await published.json()).testDriveBooking.enabled, true);
+    const history = await (
+      await fetch(`${base}/api/staff/settings-history`)
+    ).json();
+    assert.equal(history.revision, 2);
+    assert.equal(history.versions.length, 3);
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+    await rm(folder, { recursive: true, force: true });
+  }
 });

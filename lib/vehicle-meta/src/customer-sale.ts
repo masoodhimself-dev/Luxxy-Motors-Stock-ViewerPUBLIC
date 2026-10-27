@@ -1,25 +1,6 @@
-import { saleWorkspaceTotals, saleWorkspaceBranding, type SaleWorkspaceRecord, type SaleWorkspaceDocument, type SaleWorkspaceDraft, type SaleWorkspacePayment, type SaleWorkspaceBranding } from './sale-workspace.ts';
+import { saleWorkspaceBranding, type SaleWorkspaceDocument, type SaleWorkspaceDraft, type SaleWorkspacePayment } from './sale-workspace.ts';
 
-/** Explicit customer contract: never serialize the staff record or its arbitrary JSON fields. */
-export type CustomerSaleView = {
-  reference: string; customer: string; vehicle: string; registration: string; status: string;
-  totals: ReturnType<typeof saleWorkspaceTotals>;
-  payments: Array<Pick<SaleWorkspacePayment, 'id' | 'amountPence' | 'signedAmountPence' | 'method' | 'date' | 'kind' | 'status' | 'receiptId'>>;
-  documents: Array<Pick<SaleWorkspaceDocument, 'id' | 'number' | 'title' | 'type' | 'issuedAt'>>;
-  fulfilment?: Pick<NonNullable<SaleWorkspaceDraft['fulfilment']>, 'method' | 'address' | 'recipient' | 'phone' | 'scheduledDate' | 'timeWindow' | 'stage' | 'completedAt' | 'completedRecipient'>;
-  appointment?: SaleWorkspaceDraft['appointment'];
-  dealer: SaleWorkspaceBranding; expiresAt: string;
-};
 const copy = <T>(value: T): T => JSON.parse(JSON.stringify(value));
-export function customerSaleView(record: SaleWorkspaceRecord, branding: SaleWorkspaceBranding): CustomerSaleView {
-  const f = record.draft.fulfilment;
-  return copy({ reference: record.reference, customer: record.draft.customer, vehicle: record.draft.vehicle, registration: record.draft.registration,
-    status: record.lifecycle?.status ?? (record.draft.handover ? 'sold' : 'draft'), totals: saleWorkspaceTotals(record.draft, record.payments),
-    payments: record.payments.filter(p => p.status !== 'cancelled').map(p => ({ id: p.id, amountPence: p.amountPence, signedAmountPence: p.signedAmountPence, method: p.method, date: p.date, kind: p.kind, status: p.status, ...(p.receiptId ? { receiptId: p.receiptId } : {}) })),
-    documents: record.documents.filter(d => d.snapshot.draft.customer === record.draft.customer && d.snapshot.draft.email === record.draft.email).map(d => ({ id: d.id, number: d.number, title: d.title, type: d.type, issuedAt: d.issuedAt })),
-    ...(f ? { fulfilment: { method: f.method, address: f.address, recipient: f.recipient, phone: f.phone, scheduledDate: f.scheduledDate, timeWindow: f.timeWindow, ...(f.stage ? {stage:f.stage} : {}), ...(f.completedAt ? { completedAt: f.completedAt, completedRecipient: f.completedRecipient } : {}) } } : {}),
-    ...(record.draft.appointment ? { appointment: record.draft.appointment } : {}), dealer: saleWorkspaceBranding(branding), expiresAt: record.customerAccess?.expiresAt ?? '' });
-}
 
 /** Keep issued customer/vehicle/money values exactly as issued; redact staff-only fields. */
 export function customerSaleDocument(document: SaleWorkspaceDocument): SaleWorkspaceDocument {

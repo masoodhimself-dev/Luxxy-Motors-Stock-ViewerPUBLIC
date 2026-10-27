@@ -1,6 +1,3 @@
-import { recordStockChangeContact } from "./stock-change-tasks";
-import { validateStockChangeMessage, StockChangeMessageError, stockContextQuery } from "./stock-change-message-context";
-import { finishPriceUpdate, stockPriceIdentity } from "./price-update-dedup";
 import { routeCustomerReply } from './customer-email-replies';
 import { createHash, randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
@@ -162,13 +159,6 @@ async function syncTarget(row: EmailOutbox, executor: Executor = db) {
   const error =
     status === "sent" ? null : row.status === "sending" ? null : message(row);
   if (row.kind === "staff") {
-    if (row.validation.input?.stockChange && row.validation.input?.to && row.delivery_id) {
-      const query = stockContextQuery(executor);
-      const identity = await stockPriceIdentity(query, row.dealer_id, row.validation.input.stockChange.taskId, row.validation.input.to);
-      if (identity && ['sent','failed','unknown','cancelled'].includes(row.status))
-        await finishPriceUpdate(query, identity, `enquiry:${row.delivery_id}`, row.status === 'sent' ? 'sent' : row.status === 'failed' ? 'release' : 'uncertain');
-    }
-    if (row.status === 'sent' && row.validation.input?.stockChange) await recordStockChangeContact({dealerId: row.dealer_id, taskId: row.validation.input.stockChange.taskId, enquiryId: row.enquiry_id, channel: 'email', eventKey: `email:${row.delivery_id}`, staffName: String(row.validation.stockChangeStaffName || 'Staff'), now: new Date(row.finished_at || row.created_at)}, executor as typeof db);
     if (row.status === "sent") await executor.execute(sql`UPDATE enquiry_email_replies SET resolved_at=now(),resolved_by='email_reply' WHERE dealer_id=${row.dealer_id} AND enquiry_id=${row.enquiry_id}::uuid AND status='received' AND resolved_at IS NULL AND received_at<=${row.created_at} AND lower(sender)=(SELECT lower(recipient) FROM enquiry_emails WHERE id=${row.delivery_id}::uuid AND dealer_id=${row.dealer_id})`);
     await executor.execute(
       sql`UPDATE enquiry_emails SET status=${status},provider_id=${row.provider_id},error=${error},finished_at=${status === "sending" ? null : new Date()} WHERE id=${row.delivery_id}::uuid AND dealer_id=${row.dealer_id} AND enquiry_id=${row.enquiry_id}::uuid`,
@@ -176,6 +166,10 @@ async function syncTarget(row: EmailOutbox, executor: Executor = db) {
     await executor.execute(
       sql`UPDATE enquiry_email_drafts d SET status=${status === "failed" ? "draft" : status},version=version+1,updated_at=now() FROM enquiry_emails m WHERE d.dealer_id=${row.dealer_id} AND d.enquiry_id=${row.enquiry_id}::uuid AND m.id=${row.delivery_id}::uuid AND m.dealer_id=d.dealer_id AND d.send_request_id=m.request_id AND d.status<>${status === "failed" ? "draft" : status}`,
     );
+    if (row.validation.saleDocument) {
+      const {syncSaleDocumentEmail}=await import('./sale-document-email');
+      await syncSaleDocumentEmail(row,executor);
+    }
   } else {
     const prefix =
       row.kind === "customer"
@@ -369,7 +363,7 @@ export function deliverEmailOutbox(
           )(claimed);
           // Recheck immediately before every provider attempt, including queued
           // retries. The approved wording/bytes are never refreshed silently.
-          if (claimed.kind === 'staff') await validateStockChangeMessage(claimed.validation.input?.stockChange, {dealerId: claimed.dealer_id, enquiryId: claimed.enquiry_id, email: claimed.validation.input?.to, priceClaimSource: `enquiry:${claimed.delivery_id}`});
+          if (claimed.validation.input?.stockChange) throw new Error('This retired stock-update email needs manual review.');
           const prepared = await prepareEmailWithSettings(config, claimed.kind === "dealer" ? request : await routeCustomerReply(request, claimed.enquiry_id, db, false));
           if (
             emailAccountHash(prepared.config) !== claimed.account_hash ||
@@ -388,7 +382,7 @@ export function deliverEmailOutbox(
           const failure = classifyEmailFailure(error);
           const receivedAt = options.clock?.() ?? options.now ?? new Date();
           countAttempt = !(
-            (error instanceof EmailProviderError && !error.attempted) || error instanceof StockChangeMessageError
+            (error instanceof EmailProviderError && !error.attempted)
           );
           if (
             countAttempt &&
@@ -400,10 +394,7 @@ export function deliverEmailOutbox(
               receivedAt.getTime() +
                 Math.max(failure.retryAfterSeconds ?? 60, 1) * 1000,
             );
-          if (error instanceof StockChangeMessageError) {
-            status = 'failed';
-            code = error.code;
-          } else if (failure.kind === "permanent") {
+          if (failure.kind === "permanent") {
             status = "failed";
             code = "provider_rejected";
           } else if (

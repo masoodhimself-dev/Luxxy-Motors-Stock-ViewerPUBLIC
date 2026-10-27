@@ -45,6 +45,8 @@ import type {
   GetEnquiryAvailabilityParams,
   GetLeadsParams,
   GetStaffAppointmentAvailabilityParams,
+  GetStaffAppointmentDiary200,
+  GetStaffAppointmentDiaryParams,
   HealthStatus,
   Lead,
   LeadActivityInput,
@@ -58,11 +60,9 @@ import type {
   LeadTouchInput,
   LeadUpdate,
   OnlineReservation,
-  OnlineReservationInput,
   OnlineReservations,
   PortalSession,
   PortalWorklist,
-  RecentHandovers,
   Sale,
   SaleChecklist,
   SaleChecklistCode,
@@ -258,84 +258,6 @@ export function useGetStock<TData = Awaited<ReturnType<typeof getStock>>, TError
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetStockQueryOptions(options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getGetRecentHandoversUrl = () => {
-
-
-
-
-  return `/api/recent-handovers`
-}
-
-/**
- * Returns an anonymised, allowlisted projection of completed vehicle handovers for showroom social proof.
- * @summary Get recent public handovers
- */
-export const getRecentHandovers = async ( options?: Parameters<typeof customFetch>[1]): Promise<RecentHandovers> => {
-
-  return customFetch<RecentHandovers>(getGetRecentHandoversUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetRecentHandoversQueryKey = () => {
-    return [
-    `/api/recent-handovers`
-    ] as const;
-    }
-
-
-export const getGetRecentHandoversQueryOptions = <TData = Awaited<ReturnType<typeof getRecentHandovers>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRecentHandovers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetRecentHandoversQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRecentHandovers>>> = ({ signal }) => getRecentHandovers({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRecentHandovers>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type GetRecentHandoversQueryResult = NonNullable<Awaited<ReturnType<typeof getRecentHandovers>>>
-export type GetRecentHandoversQueryError = ErrorType<ApiError>
-
-
-/**
- * @summary Get recent public handovers
- */
-
-export function useGetRecentHandovers<TData = Awaited<ReturnType<typeof getRecentHandovers>>, TError = ErrorType<ApiError>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRecentHandovers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getGetRecentHandoversQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -568,78 +490,6 @@ export function useGetVehicle<TData = Awaited<ReturnType<typeof getVehicle>>, TE
 
 
 
-
-export const getCreateReservationUrl = () => {
-
-
-
-
-  return `/api/reservations`
-}
-
-/**
- * Creates a real reservation and lead for an available vehicle. Payment is simulated; no money is received. Repeating the same idempotency key returns the original reservation.
- * @summary Reserve a vehicle online
- */
-export const createReservation = async (onlineReservationInput: OnlineReservationInput, options?: Parameters<typeof customFetch>[1]): Promise<OnlineReservation> => {
-
-  return customFetch<OnlineReservation>(getCreateReservationUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(onlineReservationInput)
-  }
-);}
-
-
-
-
-
-export const getCreateReservationMutationOptions = <TError = ErrorType<ApiError>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReservation>>, TError,{data: BodyType<OnlineReservationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createReservation>>, TError,{data: BodyType<OnlineReservationInput>}, TContext> => {
-
-const mutationKey = ['createReservation'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createReservation>>, {data: BodyType<OnlineReservationInput>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  createReservation(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type CreateReservationMutationResult = NonNullable<Awaited<ReturnType<typeof createReservation>>>
-    export type CreateReservationMutationBody = BodyType<OnlineReservationInput>
-    export type CreateReservationMutationError = ErrorType<ApiError>
-
-    /**
- * @summary Reserve a vehicle online
- */
-export const useCreateReservation = <TError = ErrorType<ApiError>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReservation>>, TError,{data: BodyType<OnlineReservationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof createReservation>>,
-        TError,
-        {data: BodyType<OnlineReservationInput>},
-        TContext
-      > => {
-      return useMutation(getCreateReservationMutationOptions(options));
-    }
 
 export const getListReservationsUrl = () => {
 
@@ -1093,6 +943,7 @@ export const getCreateStaffEnquiryUrl = () => {
 }
 
 /**
+ * Set the optional X-Enquiry-Capture header to quick for a general staff enquiry with no appointment, ad-hoc vehicle or follow-up. Quick capture creates an actionable new enquiry without sending customer/dealer email or scheduling notifications. Omitting this header preserves the full enquiry workflow.
  * @summary Staff-only createStaffEnquiry
  */
 export const createStaffEnquiry = async (staffEnquiryInput: StaffEnquiryInput, options?: Parameters<typeof customFetch>[1]): Promise<Enquiry> => {
@@ -1298,6 +1149,91 @@ export const useChangeStaffAppointment = <TError = ErrorType<ApiError | void>,
       > => {
       return useMutation(getChangeStaffAppointmentMutationOptions(options));
     }
+
+export const getGetStaffAppointmentDiaryUrl = (params: GetStaffAppointmentDiaryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/staff/enquiries/appointments?${stringifiedParams}` : `/api/staff/enquiries/appointments`
+}
+
+/**
+ * Requires dealership staff. Returns only active viewings in the selected London date and its adjacent dates, matching the transactional overlap check. No enquiry messages, contact details or event history are included. Saving still rechecks availability under a lock.
+ * @summary Check nearby staff appointments
+ */
+export const getStaffAppointmentDiary = async (params: GetStaffAppointmentDiaryParams, options?: Parameters<typeof customFetch>[1]): Promise<GetStaffAppointmentDiary200> => {
+
+  return customFetch<GetStaffAppointmentDiary200>(getGetStaffAppointmentDiaryUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStaffAppointmentDiaryQueryKey = (params?: GetStaffAppointmentDiaryParams,) => {
+    return [
+    `/api/staff/enquiries/appointments`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetStaffAppointmentDiaryQueryOptions = <TData = Awaited<ReturnType<typeof getStaffAppointmentDiary>>, TError = ErrorType<void>>(params: GetStaffAppointmentDiaryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStaffAppointmentDiary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStaffAppointmentDiaryQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStaffAppointmentDiary>>> = ({ signal }) => getStaffAppointmentDiary(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStaffAppointmentDiary>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStaffAppointmentDiaryQueryResult = NonNullable<Awaited<ReturnType<typeof getStaffAppointmentDiary>>>
+export type GetStaffAppointmentDiaryQueryError = ErrorType<void>
+
+
+/**
+ * @summary Check nearby staff appointments
+ */
+
+export function useGetStaffAppointmentDiary<TData = Awaited<ReturnType<typeof getStaffAppointmentDiary>>, TError = ErrorType<void>>(
+ params: GetStaffAppointmentDiaryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStaffAppointmentDiary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStaffAppointmentDiaryQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetEnquiriesUrl = (params?: GetEnquiriesParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -4398,4 +4334,3 @@ export const useDecideTestDriveBooking = <TError = ErrorType<ApiError>,
       > => {
       return useMutation(getDecideTestDriveBookingMutationOptions(options));
     }
-

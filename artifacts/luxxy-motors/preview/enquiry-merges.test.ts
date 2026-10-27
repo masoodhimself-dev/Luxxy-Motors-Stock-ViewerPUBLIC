@@ -6,7 +6,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { Enquiry } from '@workspace/api-client-react';
-import { reservationPreview, upsertPreviewChatEnquiry, type BookingPreviewState } from './reservations';
+import { reservationPreview, type BookingPreviewState } from './reservations';
 import { previewSettings } from './settings';
 import { previewStock } from './stock';
 
@@ -66,9 +66,9 @@ test('durable preview merges atomically, preserves original records, tokens and 
     assert.equal(edit.status, 200); const child = await edit.json(); assert.equal(child.mergedIntoId, ids[0]); assert.equal(child.staffNote, 'Original child remains editable'); assert.equal(child.workspaceRevision, 2);
     const updated = JSON.parse(await readFile(stateFile, 'utf8')) as BookingPreviewState;
     assert.equal((await post(path, mergeInput(updated.enquiries!.slice(0, 4), ids.slice(0, 2)))).status, 409, 'partial second case selection is rejected');
-    const chat = updated.enquiries![3];
-    await upsertPreviewChatEnquiry({ id: chat.id, reference: chat.reference, name: chat.customerName, email: chat.email, phone: chat.phone, message: 'Customer sent another chat message', vehicle: null, callbackRequested: false, createdAt: chat.createdAt }, { stateFile });
-    assert.equal((await post(path, mergeInput(updated.enquiries!, ids.slice(0, 2)))).status, 409, 'customer chat changes invalidate a reviewed merge');
+    const legacyUpdate = await call('PATCH', `/api/staff/enquiries/${ids[3]}/workspace`, { expectedRevision: 0, staffNote: 'Historical conversation remains editable' });
+    assert.equal(legacyUpdate.status, 200);
+    assert.equal((await post(path, mergeInput(updated.enquiries!, ids.slice(0, 2)))).status, 409, 'staff note changes invalidate a reviewed merge');
     const afterChat = JSON.parse(await readFile(stateFile, 'utf8')) as BookingPreviewState;
     assert.equal(afterChat.enquiries![3].workspaceRevision, 1); assert.equal(afterChat.enquiries![4].mergedIntoId, ids[3]);
     const status = await call('PATCH', `/api/enquiries/${ids[3]}/status`, { status: 'contacted' }); assert.equal(status.status, 200);

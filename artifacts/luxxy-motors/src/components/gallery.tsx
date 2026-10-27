@@ -1,4 +1,3 @@
-import { useCustomerPreview } from '@/lib/customer-preview-context';
 import { VehicleCall } from '@/components/vehicle-call';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { responsiveVehicleImage, retryOriginalImage } from "@/lib/responsive-vehicle-image";
@@ -13,8 +12,6 @@ import { Link } from 'wouter';
 import './gallery-overview.css';
 
 export interface GalleryProps {
-  video?: { url: string; preview?: boolean };
-  initialVideo?: boolean;
   car?: Car;
   images: CarImage[];
   heroImage?: string | null;
@@ -26,10 +23,7 @@ function imageCaption(image: CarImage | string | undefined) {
   return image && typeof image === 'object' ? image.caption || '' : '';
 }
 
-export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', customerView = false, customerActions, video, initialVideo = false }: GalleryProps) {
-  const preview = useCustomerPreview();
-  const [videoSelected, setVideoSelected] = useState(initialVideo);
-  const showingVideo = Boolean(video && videoSelected);
+export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', customerView = false, customerActions }: GalleryProps) {
   const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
   const [overview, setOverview] = useState(false);
@@ -65,7 +59,6 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
   // Only an explicit photo selection can open this. Filtering and failed-image
   // recovery must never interrupt browsing, and it appears once per vehicle visit.
   const selectPhoto = (target: number) => {
-    setVideoSelected(false);
     const restoreFocus = interestOpen && document.activeElement === interestHeading.current;
     setInterestOpen(false);
     setZoomed(false);
@@ -216,12 +209,11 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
     sizes = eager ? "(max-width: 1023px) 100vw, 900px" : "120px",
   ) => {
     const url = getSafeImageUrl(allImages[imageIndex]);
-    const ImageElement = eager && !preview ? motion.img : 'img';
+    const ImageElement = eager ? motion.img : 'img';
     const content = (
       <ImageElement
-        {...(eager && !preview ? { initial: { opacity: reduceMotion ? 1 : 0, scale: reduceMotion ? 1 : 1.025 }, animate: { opacity: 1, scale: 1 }, exit: { opacity: 0, scale: 1 }, transition: { duration: reduceMotion ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] } } : {})}
+        {...(eager ? { initial: { opacity: reduceMotion ? 1 : 0, scale: reduceMotion ? 1 : 1.025 }, animate: { opacity: 1, scale: 1 }, exit: { opacity: 0, scale: 1 }, transition: { duration: reduceMotion ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] } } : {})}
         key={url}
-        style={preview && eager ? { opacity: 1 } : undefined}
         src={url}
         {...responsiveVehicleImage(url, sizes)}
         decoding="async"
@@ -244,7 +236,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
         }}}
       />
     );
-    return eager && !preview ? <AnimatePresence initial={false} mode="popLayout">{content}</AnimatePresence> : content;
+    return eager ? <AnimatePresence initial={false} mode="popLayout">{content}</AnimatePresence> : content;
   };
   const arrowClass =
     'photo-glass-control grid shrink-0 place-items-center';
@@ -272,7 +264,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
       </div>
     </section>
   );
-  if (!allImages.length && !video)
+  if (!allImages.length)
     return (
       <div className="flex aspect-[4/3] flex-col items-center justify-center gap-3 bg-muted text-muted-foreground">
         <Camera className="h-8 w-8" />
@@ -284,12 +276,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
       setOpen(value);
       if (!value) { setInterestOpen(false); setZoomed(false); setOverview(false); swiped.current = false; touchStart.current = null; }
     }}>
-      <div className="min-w-0" id={video ? "walkaround" : undefined}>
-        {video && <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Vehicle photos and video">
-          <button type="button" aria-pressed={!showingVideo} onClick={() => setVideoSelected(false)} className={cn('inline-flex min-h-11 items-center gap-2 rounded-sm border px-4 text-sm font-medium', !showingVideo ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground')}><Camera className="h-4 w-4" aria-hidden="true" />Photos{allImages.length > 0 ? ` (${allImages.length})` : ''}</button>
-          <button type="button" aria-pressed={showingVideo} onClick={() => { setInterestOpen(false); setVideoSelected(true); }} className={cn('inline-flex min-h-11 items-center gap-2 rounded-sm border px-4 text-sm font-medium', showingVideo ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground')}><svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true"><path d="M4 5h10a2 2 0 0 1 2 2v2l5-3v12l-5-3v2a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" /></svg>Video</button>
-        </div>}
-        {showingVideo ? <div className="relative aspect-[4/3] overflow-hidden rounded-sm bg-black"><video aria-label={`${vehicleLabel} walkaround video`} className="h-full w-full object-contain" controls playsInline preload="none" poster={heroImage || undefined} src={video!.url} /></div> : <>
+      <div className="min-w-0">
         <div className="vehicle-gallery-frame">
         <div
           ref={inlinePhoto} tabIndex={-1}
@@ -302,7 +289,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
             "gallery-photo absolute inset-0 h-full w-full object-contain",
             true,
           )}
-          {!preview && allImages.length > 0 && loadedUrl !== activeUrl && <span className="pointer-events-none absolute left-3 top-3 rounded bg-black/60 px-3 py-2 text-xs text-white" role="status">Loading photo…</span>}
+          {allImages.length > 0 && loadedUrl !== activeUrl && <span className="pointer-events-none absolute left-3 top-3 rounded bg-black/60 px-3 py-2 text-xs text-white" role="status">Loading photo…</span>}
           {allImages.length > 0 && !(interestOpen && !open) && <DialogTrigger asChild>
             <button
               type="button"
@@ -350,10 +337,8 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
           </span>
         </div>
         {failedImages.size > 0 && <p className="mt-2 text-xs text-muted-foreground">{failedImages.size} {failedImages.size === 1 ? 'photo couldn’t' : 'photos couldn’t'} be loaded. <button type="button" onClick={retryPhotos} className="min-h-11 px-2 font-medium underline underline-offset-4">Retry photos</button></p>}
-        </>}
-        {showingVideo && <p className="mt-3 text-xs text-muted-foreground">{video?.preview ? "Local sample video · not footage of this car." : "Car walkaround"}</p>}
-        {!showingVideo && groupNavigation()}
-        {!showingVideo && allImages.length > 1 && (
+        {groupNavigation()}
+        {allImages.length > 1 && (
           <div
             className="vehicle-thumbnail-grid mt-3 flex gap-2"
             aria-label="Choose photograph"

@@ -425,3 +425,7 @@
     line-height: 1.3;
   }
 }
+
+/* One level of Inbox navigation: conversations, bookings, email records. */
+.customer-workspace-views { grid-template-columns:repeat(3,minmax(0,1fr)); }
+@media(max-width:600px){ .customer-workspace-views { display:flex;gap:4px;overflow-x:auto; } .customer-workspace-views>button { flex:1 0 106px;min-width:0;padding:10px 8px; } .customer-workspace-views>button svg { display:none; } .customer-workspace-views>button small { display:none; } }

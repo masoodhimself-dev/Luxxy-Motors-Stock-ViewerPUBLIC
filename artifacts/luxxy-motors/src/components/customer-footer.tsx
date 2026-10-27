@@ -7,7 +7,7 @@ import { dealershipLocation } from '@/lib/dealership-location';
 import { getUpcomingVisitDates } from '@/lib/upcoming-visit-dates';
 import './customer-footer.css';
 
-export function CustomerFooter({ settings, testDriveHref }: { settings: DealerConfig; testDriveHref: string }) {
+export function CustomerFooter({ settings, testDriveHref, enquiriesEnabled = false }: { settings: DealerConfig & { testDriveBooking?: { enabled: boolean } }; testDriveHref: string; enquiriesEnabled?: boolean }) {
   const address = dealershipLocation(settings.address);
   const dates = getUpcomingVisitDates(settings.hours ?? []);
   const location = [settings.address?.city, settings.address?.region].filter(Boolean).join(' · ');
@@ -30,17 +30,17 @@ export function CustomerFooter({ settings, testDriveHref }: { settings: DealerCo
           <h3>Our cars & services</h3>
           <Link href="/stock">Browse our cars</Link>
           <Link href="/saved">Your saved cars</Link>
-          <Link href={testDriveHref}>{settings.bookViewing.ctaLabel}</Link>
+          {settings.testDriveBooking?.enabled && <Link href={testDriveHref}>{settings.bookViewing.ctaLabel}</Link>}
           {settings.partExchange?.enabled && <Link href="/enquire?type=part_exchange">Part exchange</Link>}
           {settings.warranty?.enabled && <Link href="/warranty">Warranty options</Link>}
-          {settings.delivery?.enabled && <Link href="/enquire?type=delivery">Delivery options</Link>}
+          {settings.delivery?.enabled && <Link href={enquiriesEnabled ? "/enquire?type=general" : "/contact"}>Delivery options</Link>}
         </nav>
 
         <section className="footer-column footer-contact" aria-labelledby="footer-contact-heading">
           <h3 id="footer-contact-heading">Talk to us</h3>
           {settings.contact.phone && <a href={`tel:${settings.contact.phone.replace(/[^0-9+]/g, '')}`}><Phone size={16} aria-hidden="true" /><span>{formatPhoneDisplay(settings.contact.phone)}</span></a>}
           {settings.contact.email && <a href={`mailto:${settings.contact.email}`}><Mail size={16} aria-hidden="true" /><span>{settings.contact.email}</span></a>}
-          <Link href="/enquire?type=general">Send an enquiry <ArrowUpRight size={14} aria-hidden="true" /></Link>
+          {enquiriesEnabled && <Link href="/enquire?type=general">Send an enquiry <ArrowUpRight size={14} aria-hidden="true" /></Link>}
           {address.lines.length > 0 && <div className="footer-address"><MapPin size={16} aria-hidden="true" /><div><address>{address.lines.map((line, index) => <span key={index}>{line}</span>)}{address.isSample && <span className="footer-placeholder-note">Example address — confirm with us before travelling.</span>}</address>{address.directions && <a href={address.directions} target="_blank" rel="noopener noreferrer">Get directions <ArrowUpRight size={14} aria-hidden="true" /></a>}</div></div>}
           <Link href="/contact" className="footer-text-link">Contact & directions <ArrowUpRight size={14} aria-hidden="true" /></Link>
         </section>

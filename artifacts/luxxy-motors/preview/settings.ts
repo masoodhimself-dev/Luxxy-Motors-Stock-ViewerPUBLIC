@@ -1,20 +1,11 @@
 import { defaultBookingPolicy } from '../../api-server/src/lib/booking-slots';
-import customerReviews from './customer-reviews.json';
 import type { DealerSettings } from '@workspace/api-client-react';
 import { dealerConfig } from '../src/config/dealer';
 
 // Complete API-shaped defaults for the read-only design preview.
 export const previewSettings: DealerSettings = {
   testDriveBooking: defaultBookingPolicy,
-  onlineReservation: {
-    enabled: true,
-    depositPence: 10000,
-    terms: "Sample reservation terms: we will hold your chosen car while our team contacts you to discuss the purchase and next steps. Contact the dealership if you wish to cancel. Replace these sample terms with your dealership's reservation policy before publishing. Payment is simulated and no money is taken.",
-  },
   presentation: {
-    comparisonEnabled: true,
-    reviewsEnabled: true,
-    reviews: customerReviews.map(review => ({ ...review, rating: 5 as const })),
     // With no separate showroom image, the introduction reuses the homepage photo.
     showroomImageUrl: "",
     showroomImageAlt: "",
@@ -97,10 +88,6 @@ export const previewSettings: DealerSettings = {
     title: dealerConfig.bookViewing.title,
     description: dealerConfig.bookViewing.description,
     ctaLabel: dealerConfig.bookViewing.ctaLabel,
-  },
-  recentHandovers: {
-    enabled: dealerConfig.recentHandovers?.enabled ?? false,
-    count: dealerConfig.recentHandovers?.count ?? 3,
   },
   trustItems: [...dealerConfig.trustItems],
   whyBuy: (dealerConfig.whyBuy || []).map((item) => ({ ...item })),

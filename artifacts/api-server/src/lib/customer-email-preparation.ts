@@ -1,13 +1,23 @@
+import { SaleWorkspaceError } from "@workspace/vehicle-meta";
+import { prepareSaleCorrespondence } from "./sale-correspondence";
 import { Router } from "express";
 import { z } from "zod/v4";
-import { activeStockPlatform } from "./stock-change-tasks";
 import { pool } from "@workspace/db";
 import { randomUUID } from "node:crypto";
 import { canonicalCustomerPhone } from "@workspace/vehicle-meta";
 import { currentDealerId } from "./tenant-context";
 import { staffHasPermission } from "../middlewares/staff-auth";
-import { PhoneShareError, phoneShareHash } from "./phone-share";
-import { validateStockChangeMessage, StockChangeMessageError, type StockChangeMessageContext } from "./stock-change-message-context";
+import { createHash } from "node:crypto";
+class EmailPreparationError extends Error {
+  constructor(
+    message: string,
+    readonly status = 400,
+  ) {
+    super(message);
+  }
+}
+const preparationHash = (value: string) =>
+  createHash("sha256").update(value).digest("hex");
 const email = z.union([
   z.literal(""),
   z.string().trim().toLowerCase().email().max(254),
@@ -16,6 +26,7 @@ const request = z
   .object({
     requestId: z.string().uuid(),
     enquiryId: z.string().uuid().optional(),
+    saleId: z.string().uuid().optional(),
     newCustomer: z
       .object({
         name: z.string().trim().min(2).max(200),
@@ -24,7 +35,6 @@ const request = z
       .strict()
       .optional(),
     vehicleId: z.string().uuid().optional(),
-    grantId: z.string().uuid().optional(),
     phone: z
       .string()
       .trim()
@@ -34,7 +44,9 @@ const request = z
     email: email.optional(),
   })
   .strict()
-  .refine((v) => Boolean(v.enquiryId) !== Boolean(v.newCustomer));
+  .refine(
+    (v) => [v.enquiryId, v.newCustomer, v.saleId].filter(Boolean).length === 1,
+  );
 export function customerEmailPreparationRouter() {
   const router = Router();
   router.post("/email-enquiry", async (req, res) => {
@@ -54,41 +66,15 @@ export function customerEmailPreparationRouter() {
     }
     const data = parsed.data,
       dealer = currentDealerId(),
-      fingerprint = phoneShareHash(JSON.stringify(data));
+      fingerprint = preparationHash(JSON.stringify(data));
     const connect = () => pool.connect();
     let c: Awaited<ReturnType<typeof connect>> | undefined;
     try {
-      // Resolve the stock platform before holding a connection. All checks
-      // after BEGIN use that connection, including under a busy database pool.
-      const contextualGrant = data.grantId ? (await pool.query("SELECT payload->'stockChange' AS context FROM customer_phone_shares WHERE dealer_id=$1 AND id=$2", [dealer, data.grantId])).rows[0]?.context : undefined;
-      const pricePlatform = contextualGrant ? await activeStockPlatform() : undefined;
       c = await pool.connect();
       await c.query("BEGIN");
       await c.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
         `email-preparation:${data.requestId}`,
       ]);
-      let stockChange: StockChangeMessageContext | undefined;
-      let priceEnquiryId: string | undefined;
-      // Recheck access before replay too: a saved preparation never revives an expired document pack.
-      if (data.grantId) {
-        const grant = (
-          await c.query(
-            "SELECT payload FROM customer_phone_shares WHERE dealer_id=$1 AND id=$2 AND revoked_at IS NULL AND expires_at>now()",
-            [dealer, data.grantId],
-          )
-        ).rows[0];
-        if (!grant?.payload?.message)
-          throw new PhoneShareError(
-            "This sharing pack expired or was revoked. Create a new sharing pack before preparing its email.",
-            410,
-          );
-        stockChange = grant.payload.stockChange;
-        priceEnquiryId = stockChange ? grant.payload.enquiryId : undefined;
-        if (stockChange && (!data.enquiryId || data.enquiryId !== priceEnquiryId))
-          throw new PhoneShareError('Keep this price update against its original customer enquiry. Start a fresh message for a different customer.', 409);
-        if (stockChange && !pricePlatform) throw new StockChangeMessageError('This price-update link changed. Create a fresh sharing pack.');
-        await validateStockChangeMessage(stockChange, {dealerId: dealer, enquiryId: priceEnquiryId || ''}, {query: c.query.bind(c), activePlatform: pricePlatform || ''});
-      }
       const existing = (
         await c.query("SELECT * FROM customer_email_preparations WHERE id=$1", [
           data.requestId,
@@ -100,11 +86,15 @@ export function customerEmailPreparationRouter() {
           existing.fingerprint !== fingerprint ||
           existing.created_by !== req.staff!.authUserId)
       )
-        throw new PhoneShareError(
+        throw new EmailPreparationError(
           "This email preparation was already used for different details.",
           409,
         );
-      let id = existing?.enquiry_id || data.enquiryId,
+      let id =
+          existing?.enquiry_id ||
+          (data.saleId
+            ? await prepareSaleCorrespondence(data.saleId, c)
+            : data.enquiryId),
         entry: any;
       if (id) {
         const visited = new Set<string>();
@@ -115,10 +105,14 @@ export function customerEmailPreparationRouter() {
               [dealer, id],
             )
           ).rows[0];
-          if (!entry) throw new PhoneShareError("Enquiry not found.", 404);
+          if (!entry)
+            throw new EmailPreparationError("Enquiry not found.", 404);
           if (!entry.merged_into_id) break;
           if (visited.has(entry.id) || visited.size >= 10)
-            throw new PhoneShareError("The merged enquiry needs review.", 409);
+            throw new EmailPreparationError(
+              "The merged enquiry needs review.",
+              409,
+            );
           visited.add(entry.id);
           id = entry.merged_into_id;
         }
@@ -126,7 +120,7 @@ export function customerEmailPreparationRouter() {
         const recipient = data.email || data.newCustomer!.email || "",
           phone = data.phone ? canonicalCustomerPhone(data.phone) : "";
         if (!recipient && !phone)
-          throw new PhoneShareError(
+          throw new EmailPreparationError(
             "Enter a customer email address or phone number.",
             400,
           );
@@ -138,7 +132,7 @@ export function customerEmailPreparationRouter() {
               [dealer, data.vehicleId],
             )
           ).rows[0];
-          if (!vehicle) throw new PhoneShareError("Car not found.", 404);
+          if (!vehicle) throw new EmailPreparationError("Car not found.", 404);
         }
         entry = (
           await c.query(
@@ -156,7 +150,6 @@ export function customerEmailPreparationRouter() {
           )
         ).rows[0];
       }
-      await validateStockChangeMessage(stockChange, {dealerId: dealer, enquiryId: entry.id, email: data.email || entry.email || ''}, {query: c.query.bind(c), activePlatform: pricePlatform || ''});
       if (!existing)
         await c.query(
           "INSERT INTO customer_email_preparations(id,dealer_id,enquiry_id,fingerprint,created_by) VALUES($1,$2,$3,$4,$5)",
@@ -173,16 +166,22 @@ export function customerEmailPreparationRouter() {
         enquiry: { id: entry.id, customerName: entry.customer_name },
         customerEmail: data.email || entry.email || "",
         replayed: Boolean(existing),
-        ...(stockChange ? {stockChange} : {}),
       });
     } catch (e) {
       if (c) await c.query("ROLLBACK");
-      res.status(e instanceof PhoneShareError || e instanceof StockChangeMessageError ? e.status : 503).json({
-        error:
-          (e instanceof PhoneShareError || e instanceof StockChangeMessageError)
-            ? e.message
-            : "The customer email could not be prepared. Retry the same preparation; nothing was sent.",
-      });
+      res
+        .status(
+          e instanceof EmailPreparationError || e instanceof SaleWorkspaceError
+            ? e.status
+            : 503,
+        )
+        .json({
+          error:
+            e instanceof EmailPreparationError ||
+            e instanceof SaleWorkspaceError
+              ? e.message
+              : "The customer email could not be prepared. Retry the same preparation; nothing was sent.",
+        });
     } finally {
       c?.release();
     }

@@ -1,5 +1,5 @@
-import { publicPriceReductions, recordMissingStockTasks, recordPublishedStockPrice, resolveReappearedStockTasks } from '../lib/stock-change-tasks';
-import { descriptionDisclosures, descriptionMetadata, taxDescription, publishedDescription, retainedOriginals } from '../lib/vehicle-descriptions';
+import { publicPriceReductions, recordMissingStockHistory, recordPublishedStockPrice, recordReappearedStockHistory } from '../lib/stock-price-history';
+import { descriptionDisclosures, descriptionMetadata, taxDescription, publishedDescription, retainedOriginals } from '../lib/published-vehicle-description';
 import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
 import { matchesImportSecret } from "../middlewares/tenant";
 import { currentDealerId, currentTenant, multiTenantEnabled } from "../lib/tenant-context";
@@ -306,7 +306,7 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
           Object.keys(auditChanges).length ? updated++ : unchanged++;
         }
       }
-      await resolveReappearedStockTasks(tx, settings.dealerId, present.filter(vehicle => !["sold", "archived", "hidden"].includes(vehicle.inventoryStatus) && vehicle.sourceStatus === "missing").map(vehicle => vehicle.id), now, run.id);
+      await recordReappearedStockHistory(tx, settings.dealerId, present.filter(vehicle => !["sold", "archived", "hidden"].includes(vehicle.inventoryStatus) && vehicle.sourceStatus === "missing").map(vehicle => vehicle.id), now, run.id);
       const absent = current.filter(vehicle => !incomingIds.has(vehicle.advertId));
       if (absent.length) {
         // Bounded batches preserve exactly the rows observed by this snapshot,
@@ -314,7 +314,7 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
         for (let start = 0; start < absent.length; start += 500) {
           await tx.update(vehiclesTable).set({ sourceStatus: "missing", missingCount: sql`${vehiclesTable.missingCount} + 1`, importRunId: run.id }).where(and(eq(vehiclesTable.dealerId, settings.dealerId), eq(vehiclesTable.source, settings.platform), inArray(vehiclesTable.id, absent.slice(start, start + 500).map(vehicle => vehicle.id))));
         }
-        await recordMissingStockTasks(tx, absent, run.id, now);
+        await recordMissingStockHistory(tx, absent, run.id, now);
         missing = absent.length;
       }
       await tx.update(stockImportRunsTable).set({ status: "completed", addedCount: created, changedCount: updated, missingCount: missing }).where(tenantAnd(eq(stockImportRunsTable.id, run.id), tenantEq(stockImportRunsTable.dealerId, currentDealerId())));
@@ -372,14 +372,14 @@ export async function projectVehicles(vehicles: Vehicle[]) {
     return { id: vehicle.id, inventoryStatus: vehicle.inventoryStatus, advertId: vehicle.advertId, title: vehicle.websiteTitleOverride ?? vehicle.title, variant: vehicle.variant, make: vehicle.make, model: vehicle.model, trim: vehicle.trim, year: vehicle.year, price: vehicle.websitePriceOverride ?? vehicle.sourcePrice, priceType: vehicle.priceType, currency: vehicle.currency, mileage: vehicle.mileage, mileageText: vehicle.mileageText, registration: vehicle.registration, registrationBand: vehicle.registrationBand, plate: vehicle.plate, vrm: vehicle.vrm, vrmVerified: vehicle.vrmVerified, fuel: vehicle.fuel, transmission: vehicle.transmission, bodyType: vehicle.bodyType, engineSize: vehicle.engineSize, engineCC: vehicle.engineCC, doors: vehicle.doors, seats: vehicle.seats, colour: vehicle.colour, emissionClass: vehicle.emissionClass, drivetrain: vehicle.drivetrain, owners: vehicle.owners, writeOffCategory: vehicle.writeOffCategory, advertUrl: vehicle.advertUrl, dealerName: vehicle.dealerName, dealerLocation: vehicle.dealerLocation, imageCount: vehicle.imageCount, heroImage: hero, images: vehicleImages, specifications: specifications !== null && typeof specifications === "object" && !Array.isArray(specifications) ? specifications : null, sourceExtras: sourceExtras !== null && typeof sourceExtras === "object" && !Array.isArray(sourceExtras) ? sourceExtras : null };
   });
 }
-function visible(vehicle: Pick<Vehicle, 'archivedAt' | 'inventoryStatus' | 'missingCount' | 'priceReviewRequired' | 'sourcePrice' | 'websitePriceOverride'>, settings: Awaited<ReturnType<typeof config>>) {
-  return !vehicle.archivedAt && ["available", "reserved"].includes(vehicle.inventoryStatus) && vehicle.missingCount < settings.missingHideThreshold && !(vehicle.priceReviewRequired && vehicle.sourcePrice == null && vehicle.websitePriceOverride == null);
+function visible(vehicle: Pick<Vehicle, 'sourceStatus' | 'archivedAt' | 'inventoryStatus' | 'missingCount' | 'priceReviewRequired' | 'sourcePrice' | 'websitePriceOverride'>, settings: Awaited<ReturnType<typeof config>>) {
+  return vehicle.sourceStatus === "live" && !vehicle.archivedAt && ["available", "reserved"].includes(vehicle.inventoryStatus) && vehicle.missingCount < settings.missingHideThreshold && !(vehicle.priceReviewRequired && vehicle.sourcePrice == null && vehicle.websitePriceOverride == null);
 }
 router.get("/stock", async (req, res): Promise<void> => {
   const settings = await config();
   const all = await db.select().from(vehiclesTable).where(and(
     eq(vehiclesTable.dealerId, settings.dealerId), eq(vehiclesTable.source, settings.platform),
-    inArray(vehiclesTable.inventoryStatus, ['available', 'reserved']), isNull(vehiclesTable.archivedAt),
+    eq(vehiclesTable.sourceStatus,'live'), inArray(vehiclesTable.inventoryStatus, ['available', 'reserved']), isNull(vehiclesTable.archivedAt),
     lt(vehiclesTable.missingCount, settings.missingHideThreshold),
     or(eq(vehiclesTable.priceReviewRequired, false), isNotNull(vehiclesTable.sourcePrice), isNotNull(vehiclesTable.websitePriceOverride)),
   )).orderBy(vehiclesTable.advertId);
@@ -397,12 +397,12 @@ export type PublicVehicle = Awaited<ReturnType<typeof projectVehicles>>[number];
 export async function listPublicStockSitemapEntries(): Promise<{ id: string }[]> {
   const settings = await config();
   const vehicles = await db.select({
-    id: vehiclesTable.id, archivedAt: vehiclesTable.archivedAt, inventoryStatus: vehiclesTable.inventoryStatus,
+    id: vehiclesTable.id, sourceStatus:vehiclesTable.sourceStatus, archivedAt: vehiclesTable.archivedAt, inventoryStatus: vehiclesTable.inventoryStatus,
     missingCount: vehiclesTable.missingCount, priceReviewRequired: vehiclesTable.priceReviewRequired,
     sourcePrice: vehiclesTable.sourcePrice, websitePriceOverride: vehiclesTable.websitePriceOverride,
   }).from(vehiclesTable).where(and(
     eq(vehiclesTable.dealerId, settings.dealerId), eq(vehiclesTable.source, settings.platform),
-    inArray(vehiclesTable.inventoryStatus, ['available', 'reserved']), isNull(vehiclesTable.archivedAt),
+    eq(vehiclesTable.sourceStatus,'live'), inArray(vehiclesTable.inventoryStatus, ['available', 'reserved']), isNull(vehiclesTable.archivedAt),
     lt(vehiclesTable.missingCount, settings.missingHideThreshold),
     or(eq(vehiclesTable.priceReviewRequired, false), isNotNull(vehiclesTable.sourcePrice), isNotNull(vehiclesTable.websitePriceOverride)),
   )).orderBy(vehiclesTable.advertId);

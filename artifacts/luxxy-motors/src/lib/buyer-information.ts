@@ -33,7 +33,7 @@ export function buyerInformation(car: Car) {
   const history = vehicleWriteOffCategory(car);
   const records = vehicleHistoryFacts(car);
   return [
-    { label: "Previous keepers", value: records.find(item => item.label === "Previous keepers")?.value ?? null },
+    { label: records.find(item => ["Owners","Previous keepers"].includes(item.label))?.label ?? "Owners", value: records.find(item => ["Owners","Previous keepers"].includes(item.label))?.value ?? null },
     { label: "Service history", value: records.find(item => item.label === "Service history")?.value ?? text(["serviceHistory"]) },
     { label: "MOT expiry", value: text(["motExpiry", "motExpiryDate"]) },
     { label: "Keys", value: keyCount || records.find(item => item.label === "Keys included")?.value || text(["keys"]) },

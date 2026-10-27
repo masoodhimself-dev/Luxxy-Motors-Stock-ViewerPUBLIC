@@ -10,10 +10,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 const state = vi.hoisted(() => ({
   fetch: vi.fn(),
   close: vi.fn(),
-  generationError: false,
-  features: { customerEmails: true, staffAiDrafts: true },
+  features: { customerEmails: true },
 }));
-vi.mock('@/lib/dealer-features', () => ({ useDealerFeatures: () => ({ data: { features: state.features }, enabled: (key: 'customerEmails' | 'staffAiDrafts') => state.features[key], isLoading: false, isError: false }) }));
+vi.mock('@/lib/dealer-features', () => ({ useDealerFeatures: () => ({ data: { features: state.features }, enabled: (key: 'customerEmails') => state.features[key], isLoading: false, isError: false }) }));
 vi.mock("@workspace/api-client-react", () => ({
   customFetch: (...args: unknown[]) => state.fetch(...args),
   getGetDealerSettingsQueryKey: () => ['/api/dealer-settings'],
@@ -28,22 +27,6 @@ import { EnquiryEmailComposer } from "./enquiry-email-composer";
 const declarationContent = { subject: 'Your test-drive declaration', message: 'Please read and sign: https://example.test/test-drive-declaration/private-token', appendText: 'Declaration: https://example.test/test-drive-declaration/private-token', link: 'https://example.test/test-drive-declaration/private-token' };
 
 const entry = { id: "enquiry-one", customerName: "Alex", reference: "ENQ-001" };
-const config = {
-  enabled: true,
-  available: true,
-  reason: null,
-  model: "gpt-6-luna",
-  dailyLimit: 20,
-  monthlyLimit: 500,
-  dailyUsed: 0,
-  monthlyUsed: 0,
-};
-const suggestion = {
-  generationId: "00000000-0000-4000-8000-000000000001",
-  subject: "Your Ford Fiesta",
-  message: "Hello Alex,\n\nThanks for your enquiry about the Ford Fiesta.",
-  warnings: [],
-};
 function context(second = false) {
   return {
     version: 4,
@@ -98,38 +81,17 @@ const calls = (suffix: string) =>
   state.fetch.mock.calls.filter(
     (call) => call[0].endsWith(suffix) && call[1]?.method === "POST",
   );
-async function generate() {
-  await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Draft with AI" })).toBeEnabled(),
-  );
-  fireEvent.click(screen.getByRole("button", { name: "Draft with AI" }));
-  fireEvent.click(screen.getByRole("button", { name: "Generate draft" }));
-  await screen.findByRole("button", { name: "Use this draft" });
-}
 beforeEach(() => {
   state.close.mockReset();
-  state.generationError = false;
-  state.features = { customerEmails: true, staffAiDrafts: true };
+  state.features = { customerEmails: true };
   state.fetch.mockReset().mockImplementation(async (url: string) => {
-    if (url === '/api/staff/phone-sharing-settings') return { revision: 0, enabled: true };
-    if (url.endsWith("/email-context"))
-      return context(url.includes("enquiry-two"));
-    if (url.endsWith("/config")) return config;
-    if (url.endsWith("/ai-draft")) {
-      if (state.generationError)
-        throw {
-          data: {
-            error: "AI is temporarily unavailable. Your draft has not changed.",
-          },
-        };
-      return suggestion;
-    }
+    if (url.endsWith("/email-context")) return context(url.includes("enquiry-two"));
     if (url.endsWith("/email-draft")) return { version: 5 };
     if (url.includes("/photos/")) return new Blob([], { type: "image/jpeg" });
     if (url.endsWith("/email-preview"))
       return {
         to: "alex@example.test",
-        subject: suggestion.subject,
+        subject: "Previewed subject",
         text: "Previewed draft",
         previewHash: "a".repeat(64),
         attachments: [],
@@ -160,47 +122,7 @@ it("preserves a saved recipient and requires explicit approval to replace it", a
   expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue("Saved message");
 });
 
-it("keeps saved AI provenance until staff explicitly replace it with the shared message", async () => {
-  const original = state.fetch.getMockImplementation()!;
-  state.fetch.mockImplementation(async (url: string, options: unknown) => {
-    const result = await original(url, options);
-    return url.endsWith("/email-context") ? { ...result, savedDraft: { version: 4, status: "draft", source: "ai", aiGenerationId: "old-generation", content: { to: "saved@example.test", subject: "AI subject", message: "Old AI message", includeVehicle: true, includeAppointment: false, photoIds: [], documentIds: [], expectedRevision: 2 } } } : result;
-  });
-  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><EnquiryEmailComposer entry={entry} suggestedContent={{ label: "Shared message", subject: "Customer requested photos", message: "Reviewed photo links from sharing window", applyLabel: "Use this shared message", includeVehicle: false, templateId: "enquiry_message" }} onClose={state.close} /></QueryClientProvider>);
-  expect(await screen.findByRole("textbox", { name: "Message" })).toHaveValue("Old AI message");
-  expect(calls("/email-draft")).toHaveLength(0);
-  fireEvent.click(screen.getByRole("button", { name: "Use this shared message" }));
-  expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue("Reviewed photo links from sharing window");
-  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
-  await waitFor(() => expect(calls("/email-draft")).toHaveLength(1));
-  const saved = JSON.parse(calls("/email-draft")[0][1].body);
-  expect(saved.content.templateId).toBe("enquiry_message");
-  expect(saved).not.toHaveProperty("aiGenerationId");
-  expect(saved.content.includeVehicle).toBe(false);
-});
-
-it("keeps selected custom photos, public car photos and published video in the reviewed draft", async () => {
-  const original = state.fetch.getMockImplementation()!;
-  state.fetch.mockImplementation(async (url: string, options: unknown) => {
-    const result = await original(url, options);
-    return url.endsWith("/email-context") ? { ...result, customPhotos: [{ id: "custom-one", byteSize: 12288, url: "/api/staff/enquiries/enquiry-one/photos/custom-one" }], vehiclePhotos: [{ index: 0, url: "https://example.test/car.jpg" }], videoAvailable: true } : result;
-  });
-  mount();
-  fireEvent.click(await screen.findByRole("checkbox", { name: /Attach photo 1/ }));
-  fireEvent.click(screen.getByText(/Car photos/).closest("summary")!);
-  fireEvent.click(screen.getByRole("checkbox", { name: "Include car photo 1" }));
-  fireEvent.click(screen.getByRole("checkbox", { name: /Include the published car video/ }));
-  expect(calls("/email")).toHaveLength(0);
-  fireEvent.click(screen.getByRole("button", { name: "Review email" }));
-  await screen.findByRole("region", { name: "Email preview" });
-  const payload = JSON.parse(calls("/email-preview")[0][1].body);
-  expect(payload).toMatchObject({ customPhotoIds: ["custom-one"], vehiclePhotoIndices: [0], includeVideo: true });
-  const saved = JSON.parse(calls("/email-draft")[0][1].body);
-  expect(saved.content).toMatchObject({ customPhotoIds: ["custom-one"], vehiclePhotoIndices: [0], includeVideo: true });
-  expect(calls("/email")).toHaveLength(0);
-});
-
-it("links an unconfigured sender directly to Advanced connection settings", async () => {
+it("links message wording to Settings while the sender is unconfigured", async () => {
   const original = state.fetch.getMockImplementation()!;
   state.fetch.mockImplementation(async (url: string, options: unknown) => {
     const result = await original(url, options);
@@ -209,9 +131,9 @@ it("links an unconfigured sender directly to Advanced connection settings", asyn
   mount();
   expect(
     await screen.findByRole("link", {
-      name: "Settings → Advanced → Connections → Resend",
+      name: "Message settings",
     }),
-  ).toHaveAttribute("href", "/portal?section=settings&settingsTab=integrations");
+  ).toHaveAttribute("href", "/portal?section=settings&settingsTab=emails");
   expect(calls("/email")).toHaveLength(0);
 });
 
@@ -284,332 +206,6 @@ it('disables a reviewed send when declaration status changes without losing the 
   expect(state.close).not.toHaveBeenCalled();
 });
 
-it('preserves drafting and preview while platform controls disable AI and customer delivery', async () => {
-  state.features = { customerEmails: false, staffAiDrafts: false };
-  mount();
-  await screen.findByRole('textbox', { name: 'Message' });
-  expect(screen.queryByRole('button', { name: 'Draft with AI' })).not.toBeInTheDocument();
-  expect(screen.getByText(/Email sending is switched off by platform/)).toBeVisible();
-  expect(screen.getByRole('button', { name: 'Save draft' })).toBeEnabled();
-  fireEvent.click(screen.getByRole('button', { name: 'Review email' }));
-  expect(await screen.findByRole('button', { name: 'Send email' })).toBeDisabled();
-  expect(calls('/email')).toHaveLength(0);
-  expect(calls('/ai-draft')).toHaveLength(0);
-});
-
-it("keeps AI separate until accepted, then preserves the recipient and attachments when explicitly saved", async () => {
-  mount();
-  await screen.findByRole("textbox", { name: "Message" });
-  fireEvent.change(screen.getByRole("textbox", { name: "Customer email" }), {
-    target: { value: "approved@example.test" },
-  });
-  fireEvent.click(
-    screen.getByRole("checkbox", { name: /Full invoice.*INV-001/ }),
-  );
-  fireEvent.click(
-    screen.getByRole("checkbox", { name: /Service book.*Photo 1/ }),
-  );
-  await generate();
-  expect(screen.getByRole("textbox", { name: "Subject" })).toHaveValue(
-    "Original subject",
-  );
-  expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue(
-    "Original staff message",
-  );
-  expect(calls("/email-draft")).toHaveLength(0);
-  expect(calls("/email-preview")).toHaveLength(0);
-  expect(calls("/email")).toHaveLength(0);
-  fireEvent.click(screen.getByRole("button", { name: "Use this draft" }));
-  expect(screen.getByRole("textbox", { name: "Subject" })).toHaveValue(
-    suggestion.subject,
-  );
-  expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue(
-    suggestion.message,
-  );
-  expect(screen.getByRole("textbox", { name: "Customer email" })).toHaveValue(
-    "approved@example.test",
-  );
-  expect(
-    screen.getByRole("checkbox", { name: /Full invoice.*INV-001/ }),
-  ).toBeChecked();
-  expect(
-    screen.getByRole("checkbox", { name: /Service book.*Photo 1/ }),
-  ).toBeChecked();
-  expect(calls("/email-draft")).toHaveLength(0);
-  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
-  await screen.findByText("Draft saved · not sent");
-  expect(JSON.parse(calls("/email-draft")[0][1].body)).toMatchObject({
-    expectedVersion: 4,
-    aiGenerationId: suggestion.generationId,
-    content: {
-      to: "approved@example.test",
-      subject: suggestion.subject,
-      message: suggestion.message,
-      photoIds: ["photo-one"],
-      documentIds: ["invoice-one"],
-      includeVehicle: true,
-      includeAppointment: true,
-      expectedRevision: 2,
-    },
-  });
-  expect(calls("/email-preview")).toHaveLength(0);
-  expect(calls("/email")).toHaveLength(0);
-});
-
-it("clears the unsaved AI generation reference when staff choose a different template", async () => {
-  mount();
-  await generate();
-  fireEvent.click(screen.getByRole("button", { name: "Use this draft" }));
-  fireEvent.change(screen.getByRole("combobox", { name: "Email template" }), {
-    target: { value: "vehicle_details" },
-  });
-  expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue(
-    "Template reply",
-  );
-  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
-  await screen.findByText("Draft saved · not sent");
-  expect(JSON.parse(calls("/email-draft")[0][1].body)).toMatchObject({
-    content: {
-      templateId: "vehicle_details",
-      subject: "Template subject",
-      message: "Template reply",
-    },
-  });
-  expect(JSON.parse(calls("/email-draft")[0][1].body)).not.toHaveProperty(
-    "aiGenerationId",
-  );
-});
-
-it("saves a replacement template before creating its WhatsApp QR instead of sharing an old AI draft", async () => {
-  const original = state.fetch.getMockImplementation()!;
-  state.fetch.mockImplementation(async (url: string, options?: { body?: string }) => {
-    if (url.endsWith("/email-context")) return {
-      ...context(),
-      savedDraft: { version: 4, status: "draft", source: "ai", aiGenerationId: suggestion.generationId, content: {
-        to: "alex@example.test", subject: "Expired AI subject", message: "Expired AI copy",
-        includeVehicle: true, includeAppointment: false, photoIds: [], documentIds: [], expectedRevision: 2,
-      } },
-    };
-    if (url === "/api/staff/phone-shares") {
-      expect(calls("/email-draft")).toHaveLength(1);
-      return { id: "pack", url: `https://example.test/phone-share#${"a".repeat(64)}`, message: "Template reply", customerPhone: "07700 900123", hasAttachments: false, enquiryId: entry.id };
-    }
-    if (url.includes("/phone-shares/enquiries?")) return { enquiries: [{ id: entry.id, customerName: entry.customerName, phone: "07700 900123" }] };
-    return original(url, options);
-  });
-  mount();
-  expect(await screen.findByRole("textbox", { name: "Message" })).toHaveValue("Expired AI copy");
-  fireEvent.change(screen.getByRole("combobox", { name: "Email template" }), { target: { value: "vehicle_details" } });
-  fireEvent.click(screen.getByRole("button", { name: "WhatsApp QR" }));
-  await waitFor(() => expect(calls("/phone-shares")).toHaveLength(1));
-  const saved = JSON.parse(calls("/email-draft")[0][1].body);
-  expect(saved).toMatchObject({ expectedVersion: 4, content: { templateId: "vehicle_details", subject: "Template subject", message: "Template reply" } });
-  expect(saved).not.toHaveProperty("aiGenerationId");
-  expect(JSON.parse(calls("/phone-shares")[0][1].body).source.draft).toMatchObject({ to: "", templateId: "vehicle_details", message: "Template reply" });
-  expect(calls("/email")).toHaveLength(0);
-  expect(calls("/confirm-whatsapp")).toHaveLength(0);
-});
-
-it("saves accepted AI provenance before creating its WhatsApp QR, without generating or sending again", async () => {
-  const original = state.fetch.getMockImplementation()!;
-  state.fetch.mockImplementation(async (url: string, options?: { body?: string }) => {
-    if (url === "/api/staff/phone-shares") return { id: "pack", url: `https://example.test/phone-share#${"a".repeat(64)}`, message: suggestion.message, customerPhone: "07700 900123", hasAttachments: false, enquiryId: entry.id };
-    if (url.includes("/phone-shares/enquiries?")) return { enquiries: [] };
-    return original(url, options);
-  });
-  mount();
-  await generate();
-  fireEvent.click(screen.getByRole("button", { name: "Use this draft" }));
-  fireEvent.click(screen.getByRole("button", { name: "WhatsApp QR" }));
-  await waitFor(() => expect(calls("/phone-shares")).toHaveLength(1));
-  expect(JSON.parse(calls("/email-draft")[0][1].body)).toMatchObject({ expectedVersion: 4, aiGenerationId: suggestion.generationId, content: { message: suggestion.message } });
-  expect(calls("/ai-draft")).toHaveLength(1);
-  expect(calls("/email")).toHaveLength(0);
-  expect(calls("/confirm-whatsapp")).toHaveLength(0);
-});
-
-it("keeps an expired AI edit on screen and creates no sharing pack when saving fails", async () => {
-  const original = state.fetch.getMockImplementation()!;
-  state.fetch.mockImplementation(async (url: string, options?: { body?: string }) => {
-    if (url.endsWith("/email-draft")) throw { status: 409, data: { error: "This AI suggestion expired. Start a new draft." } };
-    return original(url, options);
-  });
-  mount();
-  await generate();
-  fireEvent.click(screen.getByRole("button", { name: "Use this draft" }));
-  fireEvent.change(screen.getByRole("textbox", { name: "Message" }), { target: { value: `${suggestion.message}\nA staff edit.` } });
-  fireEvent.click(screen.getByRole("button", { name: "WhatsApp QR" }));
-  expect(await screen.findByRole("alert")).toHaveTextContent("This AI suggestion expired");
-  expect(screen.getByRole("textbox", { name: "Message", hidden: true })).toHaveValue(`${suggestion.message}\nA staff edit.`);
-  expect(calls("/phone-shares")).toHaveLength(0);
-  expect(calls("/email")).toHaveLength(0);
-  expect(calls("/confirm-whatsapp")).toHaveLength(0);
-});
-
-it("saves the generation reference once, then reviews using the new saved version without generating or sending again", async () => {
-  mount();
-  await generate();
-  fireEvent.click(screen.getByRole("button", { name: "Use this draft" }));
-  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
-  await screen.findByText("Draft saved · not sent");
-  fireEvent.change(screen.getByRole("textbox", { name: "Message" }), {
-    target: { value: `${suggestion.message}\n\nKind regards, Alex` },
-  });
-  fireEvent.click(screen.getByRole("button", { name: "Review email" }));
-  await screen.findByText("Previewed draft");
-  expect(calls("/ai-draft")).toHaveLength(1);
-  expect(calls("/email-draft")).toHaveLength(2);
-  expect(JSON.parse(calls("/email-draft")[0][1].body)).toHaveProperty(
-    "aiGenerationId",
-    suggestion.generationId,
-  );
-  const reviewed = JSON.parse(calls("/email-draft")[1][1].body);
-  expect(reviewed.expectedVersion).toBe(5);
-  expect(reviewed).not.toHaveProperty("aiGenerationId");
-  expect(reviewed.content.message).toContain("Kind regards, Alex");
-  expect(calls("/email")).toHaveLength(0);
-});
-
-it("retains staff text on a generation failure without saving or sending it", async () => {
-  state.generationError = true;
-  mount();
-  await screen.findByRole("textbox", { name: "Message" });
-  fireEvent.change(screen.getByRole("textbox", { name: "Message" }), {
-    target: { value: "Keep my carefully written reply" },
-  });
-  await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Draft with AI" })).toBeEnabled(),
-  );
-  fireEvent.click(screen.getByRole("button", { name: "Draft with AI" }));
-  fireEvent.click(screen.getByRole("button", { name: "Generate draft" }));
-  expect(await screen.findByRole("alert")).toHaveTextContent(
-    "AI is temporarily unavailable",
-  );
-  expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue(
-    "Keep my carefully written reply",
-  );
-  expect(calls("/email-draft")).toHaveLength(0);
-  expect(calls("/email")).toHaveLength(0);
-});
-
-it("temporarily locks edits and saving while a suggestion is being prepared", async () => {
-  const original = state.fetch.getMockImplementation()!;
-  let complete!: (value: typeof suggestion) => void;
-  state.fetch.mockImplementation((url: string, options?: unknown) =>
-    url.endsWith("/ai-draft")
-      ? new Promise((resolve) => {
-          complete = resolve;
-        })
-      : original(url, options),
-  );
-  mount();
-  await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Draft with AI" })).toBeEnabled(),
-  );
-  fireEvent.click(screen.getByRole("button", { name: "Draft with AI" }));
-  fireEvent.click(screen.getByRole("button", { name: "Generate draft" }));
-  expect(screen.getByRole("textbox", { name: "Message" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Save draft" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Review email" })).toBeDisabled();
-  expect(calls("/email-draft")).toHaveLength(0);
-  await act(async () => {
-    complete(suggestion);
-  });
-  expect(screen.getByRole("textbox", { name: "Message" })).toBeEnabled();
-  expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue(
-    "Original staff message",
-  );
-});
-
-it("does not carry a suggestion or its provenance into another customer's composer", async () => {
-  const view = mount();
-  await generate();
-  fireEvent.click(screen.getByRole("button", { name: "Use this draft" }));
-  view.rerender(
-    view.content({
-      id: "enquiry-two",
-      customerName: "Jordan",
-      reference: "ENQ-002",
-    }),
-  );
-  expect(await screen.findByRole("textbox", { name: "Subject" })).toHaveValue(
-    "Jordan’s original subject",
-  );
-  expect(screen.getByRole("textbox", { name: "Customer email" })).toHaveValue(
-    "jordan@example.test",
-  );
-  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
-  await screen.findByText("Draft saved · not sent");
-  expect(calls("/email-draft")[0][0]).toBe(
-    "/api/staff/enquiries/enquiry-two/email-draft",
-  );
-  expect(JSON.parse(calls("/email-draft")[0][1].body)).not.toHaveProperty(
-    "aiGenerationId",
-  );
-});
-
-it("restores saved AI text, source and version after closing and reopening with the same query cache", async () => {
-  const original = state.fetch.getMockImplementation()!;
-  let stored: Record<string, unknown> = context();
-  state.fetch.mockImplementation(
-    async (url: string, options?: { body?: string }) => {
-      if (url.endsWith("/email-context")) return stored;
-      if (url.endsWith("/email-draft")) {
-        const input = JSON.parse(options!.body!);
-        const version = input.expectedVersion + 1;
-        const previous = stored.savedDraft as {
-          aiGenerationId?: string;
-        } | null;
-        stored = {
-          ...stored,
-          version,
-          savedDraft: {
-            version,
-            status: "draft",
-            source: "ai",
-            aiGenerationId: input.aiGenerationId ?? previous?.aiGenerationId,
-            content: input.content,
-            updatedAt: "2026-10-17T11:00:00Z",
-          },
-        };
-        return { version, savedDraft: stored.savedDraft };
-      }
-      return original(url, options);
-    },
-  );
-  const first = mount();
-  await generate();
-  fireEvent.click(screen.getByRole("button", { name: "Use this draft" }));
-  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
-  await screen.findByText("Draft saved · not sent");
-  expect(
-    first.client.getQueryData(["enquiry-email-context", entry.id]),
-  ).toMatchObject({
-    version: 5,
-    savedDraft: {
-      source: "ai",
-      aiGenerationId: suggestion.generationId,
-      content: { subject: suggestion.subject, message: suggestion.message },
-    },
-  });
-  first.unmount();
-  mount(first.client);
-  expect(await screen.findByRole("textbox", { name: "Subject" })).toHaveValue(
-    suggestion.subject,
-  );
-  expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue(
-    suggestion.message,
-  );
-  expect(
-    screen.getByText("AI-assisted draft restored · review before sending"),
-  ).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
-  await screen.findByText("Draft saved · not sent");
-  expect(JSON.parse(calls("/email-draft")[1][1].body).expectedVersion).toBe(5);
-  expect(calls("/ai-draft")).toHaveLength(1);
-  expect(calls("/email")).toHaveLength(0);
-});
-
 it("waits for the latest server draft instead of hydrating cached defaults from before another staff member saved", async () => {
   const original = state.fetch.getMockImplementation()!;
   let finish!: (value: unknown) => void;
@@ -660,7 +256,6 @@ it("waits for the latest server draft instead of hydrating cached defaults from 
   fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
   await screen.findByText("Draft saved · not sent");
   expect(JSON.parse(calls("/email-draft")[0][1].body).expectedVersion).toBe(8);
-  expect(calls("/ai-draft")).toHaveLength(0);
 });
 
 it("does not overwrite unsaved staff edits when the context refetches", async () => {
@@ -696,7 +291,6 @@ it("does not overwrite unsaved staff edits when the context refetches", async ()
     "Original subject",
   );
   expect(calls("/email-draft")).toHaveLength(0);
-  expect(calls("/ai-draft")).toHaveLength(0);
 });
 
 it("labels saving separately from preparing an email preview", async () => {
@@ -722,65 +316,6 @@ it("labels saving separately from preparing an email preview", async () => {
   expect(calls("/email-preview")).toHaveLength(0);
 });
 
-it("can explicitly refresh stale enquiry details and generate a fresh reply without choosing a template", async () => {
-  const original = state.fetch.getMockImplementation()!;
-  state.fetch.mockImplementation((url: string, options?: unknown) =>
-    url.endsWith("/email-context")
-      ? Promise.resolve({
-          ...context(),
-          savedDraft: {
-            version: 4,
-            status: "draft",
-            source: "ai",
-            aiGenerationId: "00000000-0000-4000-8000-000000000009",
-            updatedAt: "2026-10-17T10:00:00Z",
-            content: {
-              to: "alex@example.test",
-              subject: "Old saved subject",
-              message: "Old saved reply to review",
-              includeVehicle: true,
-              includeAppointment: false,
-              photoIds: [],
-              documentIds: ["invoice-one"],
-              expectedRevision: 1,
-            },
-          },
-        })
-      : original(url, options),
-  );
-  mount();
-  await screen.findByRole("textbox", { name: "Message" });
-  expect(screen.getByRole("button", { name: "Save draft" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Review email" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Draft with AI" })).toBeDisabled();
-  fireEvent.click(
-    screen.getByRole("button", { name: "Use latest enquiry details" }),
-  );
-  expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue(
-    "Old saved reply to review",
-  );
-  expect(
-    screen.getByRole("checkbox", { name: /Full invoice.*INV-001/ }),
-  ).toBeChecked();
-  await generate();
-  expect(JSON.parse(calls("/ai-draft")[0][1].body)).toMatchObject({
-    expectedRevision: 2,
-    expectedVersion: 4,
-  });
-  fireEvent.click(screen.getByRole("button", { name: "Use this draft" }));
-  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
-  await screen.findByText("Draft saved · not sent");
-  expect(JSON.parse(calls("/email-draft")[0][1].body)).toMatchObject({
-    aiGenerationId: suggestion.generationId,
-    content: {
-      expectedRevision: 2,
-      message: suggestion.message,
-      documentIds: ["invoice-one"],
-    },
-  });
-  expect(calls("/email")).toHaveLength(0);
-});
-
 it("shows the exact server design before an explicitly requested email send", async () => {
   const original = state.fetch.getMockImplementation()!;
   state.fetch.mockImplementation(async (url: string, options?: unknown) => {
@@ -803,46 +338,6 @@ it("shows the exact server design before an explicitly requested email send", as
   expect(screen.getByText("Previewed draft")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Send email" })).toBeEnabled();
   expect(calls("/email")).toHaveLength(0);
-});
-
-it("restores a saved template selection and clears it when an AI reply replaces the template", async () => {
-  const original = state.fetch.getMockImplementation()!;
-  state.fetch.mockImplementation((url: string, options?: unknown) =>
-    url.endsWith("/email-context")
-      ? Promise.resolve({
-          ...context(),
-          savedDraft: {
-            version: 4,
-            status: "draft",
-            source: "template",
-            updatedAt: "2026-10-17T10:00:00Z",
-            content: {
-              to: "alex@example.test",
-              templateId: "vehicle_details",
-              subject: "Saved template subject",
-              message: "Saved template reply",
-              includeVehicle: true,
-              includeAppointment: false,
-              photoIds: [],
-              documentIds: [],
-              expectedRevision: 2,
-            },
-          },
-        })
-      : original(url, options),
-  );
-  mount();
-  expect(
-    await screen.findByRole("combobox", { name: "Email template" }),
-  ).toHaveValue("vehicle_details");
-  await generate();
-  fireEvent.click(screen.getByRole("button", { name: "Use this draft" }));
-  expect(screen.getByRole("combobox", { name: "Email template" })).toHaveValue(
-    "",
-  );
-  expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue(
-    suggestion.message,
-  );
 });
 
 it.each([
@@ -960,7 +455,7 @@ it('prepares appointment follow-up wording without sending or including old appo
 });
 it('keeps a saved draft until staff explicitly choose follow-up wording', async () => {
   const suggestedContent = { label: 'Appointment follow-up', subject: 'Follow-up subject', message: 'Gentle follow-up wording' };
-  state.fetch.mockImplementation(async (url: string) => url === '/api/staff/phone-sharing-settings' ? { revision: 0, enabled: true } : url.endsWith('/email-context') ? { ...context(), savedDraft: { version: 4, status: 'draft', source: 'staff', content: { to: 'saved@example.test', subject: 'Saved subject', message: 'Keep my existing message', includeVehicle: true, includeAppointment: true, photoIds: ['photo-one'], documentIds: ['invoice-one'], expectedRevision: 2 } } } : url.endsWith('/config') ? config : {});
+  state.fetch.mockImplementation(async (url: string) => url.endsWith('/email-context') ? { ...context(), savedDraft: { version: 4, status: 'draft', source: 'staff', content: { to: 'saved@example.test', subject: 'Saved subject', message: 'Keep my existing message', includeVehicle: true, includeAppointment: true, photoIds: ['photo-one'], documentIds: ['invoice-one'], expectedRevision: 2 } } } : {});
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><EnquiryEmailComposer entry={entry} suggestedContent={suggestedContent} onClose={state.close} /></QueryClientProvider>);
   expect(await screen.findByRole('textbox', { name: 'Message' })).toHaveValue('Keep my existing message');
   fireEvent.click(screen.getByRole('button', { name: 'Use appointment follow-up wording' }));
@@ -968,86 +463,6 @@ it('keeps a saved draft until staff explicitly choose follow-up wording', async 
   expect(screen.getByRole('textbox', { name: 'Customer email' })).toHaveValue('saved@example.test');
   expect(screen.getByRole('checkbox', { name: 'Appointment details' })).not.toBeChecked();
   expect(state.fetch.mock.calls.every(([, options]) => !options?.method || options.method === 'GET')).toBe(true);
-});
-
-it('checks a stock update again before saving a reviewed email and keeps the text if it changed', async () => {
-  const verifyContext = vi.fn().mockRejectedValue({ status: 409, data: { error: 'The price changed again. Review the car.' } });
-  const suggestedContent = { label: 'Price update', applyLabel: 'Use price update wording', subject: 'A price update', message: 'The advertised price is now £8,495.' };
-  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><EnquiryEmailComposer entry={entry} suggestedContent={suggestedContent} verifyContext={verifyContext} onClose={state.close} /></QueryClientProvider>);
-  expect(await screen.findByRole('textbox', { name: 'Message' })).toHaveValue(suggestedContent.message);
-  fireEvent.click(screen.getByRole('button', { name: 'Review email' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('The price changed again. Review the car.');
-  expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue(suggestedContent.message);
-  expect(verifyContext).toHaveBeenCalledTimes(1);
-  expect(calls('/email-draft')).toHaveLength(0);
-  expect(calls('/email-preview')).toHaveLength(0);
-  expect(calls('/email')).toHaveLength(0);
-});
-
-it('rechecks stock before an explicitly reviewed send and never sends a stale update', async () => {
-  const verifyContext = vi.fn().mockResolvedValueOnce(undefined).mockRejectedValue({ status: 409, data: { error: 'This car is no longer advertised.' } });
-  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><EnquiryEmailComposer entry={entry} verifyContext={verifyContext} onClose={state.close} /></QueryClientProvider>);
-  await screen.findByRole('textbox', { name: 'Message' });
-  fireEvent.click(screen.getByRole('button', { name: 'Review email' }));
-  fireEvent.click(await screen.findByRole('button', { name: 'Send email' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('This car is no longer advertised.');
-  expect(verifyContext).toHaveBeenCalledTimes(2);
-  expect(calls('/email')).toHaveLength(0);
-  expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('Original staff message');
-});
-
-it('preserves a saved price context through ordinary Inbox edits and keeps the draft when the server blocks stale wording', async () => {
-  const stockChange = { taskId: '00000000-0000-4000-8000-000000000451', revision: 3 };
-  const original = state.fetch.getMockImplementation()!;
-  state.fetch.mockImplementation(async (url: string, options?: unknown) => {
-    if (url.endsWith('/email-context')) return { ...context(), savedDraft: { version: 4, status: 'draft', source: 'manual', content: { to: 'alex@example.test', subject: 'Price update', message: 'The price is £8,495.', stockChange, includeVehicle: false, includeAppointment: false, photoIds: [], documentIds: [], expectedRevision: 2 } } };
-    if (url.endsWith('/email-preview')) throw { status: 409, data: { error: 'The advertised price has changed. Prepare a fresh price update from Home.' } };
-    return original(url, options);
-  });
-  mount();
-  expect(await screen.findByRole('textbox', { name: 'Message' })).toHaveValue('The price is £8,495.');
-  fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Hi Alex, the price is £8,495.' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Review email' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('The advertised price has changed');
-  expect(JSON.parse(calls('/email-draft')[0][1].body).content.stockChange).toEqual(stockChange);
-  expect(JSON.parse(calls('/email-preview')[0][1].body).stockChange).toEqual(stockChange);
-  expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('Hi Alex, the price is £8,495.');
-  expect(calls('/email')).toHaveLength(0);
-});
-
-it('carries price context into a phone-only WhatsApp draft and QR without a dummy email', async () => {
-  const stockChange = { taskId: '00000000-0000-4000-8000-000000000452', revision: 0 };
-  const original = state.fetch.getMockImplementation()!;
-  state.fetch.mockImplementation(async (url: string, options?: unknown) => {
-    if (url.endsWith('/email-context')) return { ...context(), email: '' };
-    if (url === '/api/staff/phone-shares') return { id: 'pack', url: `https://example.test/phone-share#${'a'.repeat(64)}`, message: 'The price is now £8,495.', customerPhone: '07700900123', hasAttachments: false, enquiryId: entry.id };
-    if (url.includes('/phone-shares/enquiries?')) return { enquiries: [{ id: entry.id, customerName: entry.customerName, phone: '07700900123' }] };
-    return original(url, options);
-  });
-  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><EnquiryEmailComposer entry={entry} messageMode suggestedContent={{ label: 'Price update', subject: 'Price update', message: 'The price is now £8,495.', stockChange }} onClose={state.close} /></QueryClientProvider>);
-  expect(await screen.findByRole('textbox', { name: 'Customer email (optional for WhatsApp)' })).toHaveValue('');
-  expect(screen.getByRole('button', { name: 'Review email' })).toBeDisabled();
-  await waitFor(() => expect(screen.getByRole('button', { name: 'WhatsApp QR' })).toBeEnabled());
-  fireEvent.click(screen.getByRole('button', { name: 'WhatsApp QR' }));
-  await waitFor(() => expect(calls('/phone-shares')).toHaveLength(1));
-  expect(JSON.parse(calls('/email-draft')[0][1].body).content).toMatchObject({ to: '', stockChange });
-  expect(JSON.parse(calls('/phone-shares')[0][1].body).source.draft).toMatchObject({ to: '', stockChange });
-  expect(calls('/email')).toHaveLength(0);
-  expect(calls('/confirm-whatsapp')).toHaveLength(0);
-});
-
-it('only requests replacement of old price provenance after staff explicitly use fresh price wording', async () => {
-  const stockChange = { taskId: '00000000-0000-4000-8000-000000000453', revision: 0 };
-  const latest = { taskId: '00000000-0000-4000-8000-000000000454', revision: 0 };
-  const original = state.fetch.getMockImplementation()!;
-  state.fetch.mockImplementation(async (url: string, options?: unknown) => url.endsWith('/email-context') ? { ...context(), savedDraft: { version: 4, status: 'draft', source: 'manual', content: { to: 'alex@example.test', subject: 'Old update', message: 'The old price is £8,995.', stockChange, includeVehicle: false, includeAppointment: false, photoIds: [], documentIds: [], expectedRevision: 2 } } } : original(url, options));
-  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><EnquiryEmailComposer entry={entry} suggestedContent={{ label: 'Price update', subject: 'Latest update', message: 'The current price is £8,495.', stockChange: latest }} onClose={state.close} /></QueryClientProvider>);
-  expect(await screen.findByRole('textbox', { name: 'Message' })).toHaveValue('The old price is £8,995.');
-  expect(calls('/email-draft')).toHaveLength(0);
-  fireEvent.click(screen.getByRole('button', { name: 'Use price update wording' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
-  await screen.findByText('Draft saved · not sent');
-  expect(JSON.parse(calls('/email-draft')[0][1].body)).toMatchObject({ replaceStockChangeContext: true, content: { stockChange: latest, message: 'The current price is £8,495.' } });
 });
 
 it('uses a supplied stable follow-up request ID across a lost response and retry', async () => {
@@ -1073,10 +488,98 @@ it('uses a supplied stable follow-up request ID across a lost response and retry
 
 it("opens review-request defaults without reattaching car or appointment facts",async()=>{
   const defaults={subject:'How is your new car?',message:'Leave an honest review: https://g.page/r/example/review'};
-  state.fetch.mockImplementation(async(url:string)=>url.endsWith('/email-context')?{...context(),reviewRequest:true,defaults}:config);
+  state.fetch.mockImplementation(async(url:string)=>url.endsWith('/email-context')?{...context(),reviewRequest:true,defaults}:context());
   render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><EnquiryEmailComposer entry={entry} onClose={state.close}/></QueryClientProvider>);
   expect(await screen.findByRole('textbox',{name:'Message'})).toHaveValue(defaults.message);
   expect(screen.getByRole('checkbox',{name:'Vehicle details and current price'})).not.toBeChecked();
   expect(screen.getByRole('checkbox',{name:'Appointment details'})).not.toBeChecked();
   expect(state.fetch.mock.calls.every(([url])=>!String(url).endsWith('/email'))).toBe(true);
+});
+
+
+it('allows a manual draft to be saved and reviewed while customer delivery is disabled', async () => {
+  state.features = { customerEmails: false };
+  mount();
+  await screen.findByRole('textbox', { name: 'Message' });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Keep this staff-written reply for review.' } });
+  expect(screen.getByText(/Email sending is switched off by platform/)).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await screen.findByText('Draft saved · not sent');
+  expect(JSON.parse(calls('/email-draft')[0][1].body)).toMatchObject({ expectedVersion: 4, content: { to: 'alex@example.test', message: 'Keep this staff-written reply for review.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Review email' }));
+  expect(await screen.findByRole('button', { name: 'Send email' })).toBeDisabled();
+  expect(calls('/email')).toHaveLength(0);
+});
+
+it('keeps four selected existing stock-photo links and excludes removed upload and video fields', async () => {
+  const original=state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async(url:string,options:unknown)=>url.endsWith('/email-context')?{...context(),vehiclePhotos:Array.from({length:5},(_,index)=>({index,url:`https://example.test/car-${index}.jpg`}))}:original(url,options));
+  mount();
+  await screen.findByRole('textbox',{name:'Message'});
+  fireEvent.click(screen.getByText('Car photographs · optional links').closest('summary')!);
+  for(let index=1;index<=4;index++)fireEvent.click(screen.getByRole('checkbox',{name:new RegExp(`Photograph ${index}$`)}));
+  expect(screen.getByRole('checkbox',{name:/Photograph 5$/})).toBeDisabled();
+  fireEvent.click(screen.getByRole('button',{name:'Review email'}));
+  await screen.findByRole('region',{name:'Email preview'});
+  const reviewed=JSON.parse(calls('/email-preview')[0][1].body);
+  expect(reviewed.vehiclePhotoIndices).toEqual([0,1,2,3]);
+  expect(Object.keys(reviewed).sort()).toEqual(['documentIds','expectedRevision','includeAppointment','includeVehicle','message','photoIds','subject','to','vehiclePhotoIndices'].sort());
+  expect(calls('/email')).toHaveLength(0);
+});
+
+it('requires explicit refresh of a stale saved enquiry before preserving its manual wording and invoice', async()=>{
+  const original=state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async(url:string,options:unknown)=>url.endsWith('/email-context')?{...context(),savedDraft:{version:4,status:'draft',source:'manual',content:{to:'alex@example.test',subject:'Saved subject',message:'Keep my reviewed wording',includeVehicle:true,includeAppointment:false,photoIds:[],documentIds:['invoice-one'],expectedRevision:1}}}:original(url,options));
+  mount();
+  await screen.findByRole('textbox',{name:'Message'});
+  expect(screen.getByRole('button',{name:'Save draft'})).toBeDisabled();
+  expect(screen.getByRole('button',{name:'Review email'})).toBeDisabled();
+  fireEvent.click(screen.getByRole('button',{name:'Use latest enquiry details'}));
+  expect(screen.getByRole('textbox',{name:'Message'})).toHaveValue('Keep my reviewed wording');
+  expect(screen.getByRole('checkbox',{name:/Full invoice.*INV-001/})).toBeChecked();
+  fireEvent.click(screen.getByRole('button',{name:'Save draft'}));
+  await screen.findByText('Draft saved · not sent');
+  expect(JSON.parse(calls('/email-draft')[0][1].body)).toMatchObject({expectedVersion:4,content:{expectedRevision:2,message:'Keep my reviewed wording',documentIds:['invoice-one']}});
+});
+
+it('does not carry unsaved manual edits into a different customer',async()=>{
+  const view=mount();
+  await screen.findByRole('textbox',{name:'Message'});
+  fireEvent.change(screen.getByRole('textbox',{name:'Message'}),{target:{value:'Private first-customer wording'}});
+  view.rerender(view.content({id:'enquiry-two',customerName:'Jordan',reference:'ENQ-002'}));
+  expect(await screen.findByRole('textbox',{name:'Subject'})).toHaveValue('Jordan’s original subject');
+  expect(screen.getByRole('textbox',{name:'Customer email'})).toHaveValue('jordan@example.test');
+  expect(screen.getByRole('textbox',{name:'Message'})).toHaveValue('Original staff message');
+  fireEvent.click(screen.getByRole('button',{name:'Save draft'}));
+  await screen.findByText('Draft saved · not sent');
+  expect(calls('/email-draft')[0][0]).toBe('/api/staff/enquiries/enquiry-two/email-draft');
+});
+
+it('restores a saved template and switches to a manual draft without losing its text',async()=>{
+  const original=state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async(url:string,options:unknown)=>url.endsWith('/email-context')?{...context(),savedDraft:{version:4,status:'draft',source:'template',content:{to:'alex@example.test',templateId:'vehicle_details',subject:'Saved template',message:'Keep the saved text',includeVehicle:true,includeAppointment:false,photoIds:[],documentIds:[],expectedRevision:2}}}:original(url,options));
+  mount();
+  expect(await screen.findByRole('combobox',{name:'Email template'})).toHaveValue('vehicle_details');
+  fireEvent.change(screen.getByRole('combobox',{name:'Email template'}),{target:{value:''}});
+  expect(screen.getByRole('textbox',{name:'Message'})).toHaveValue('Keep the saved text');
+  fireEvent.click(screen.getByRole('button',{name:'Save draft'}));
+  await screen.findByText('Draft saved · not sent');
+  expect(JSON.parse(calls('/email-draft')[0][1].body).content).not.toHaveProperty('templateId');
+});
+
+it('keeps an archived price draft protected until staff explicitly starts current wording',async()=>{
+ const original=state.fetch.getMockImplementation()!;
+ const stockChange={taskId:'00000000-0000-4000-8000-000000000451',revision:3};
+ state.fetch.mockImplementation(async(url:string,options:unknown)=>url.endsWith('/email-context')?{...context(),savedDraft:{version:4,status:'draft',source:'manual',content:{to:'alex@example.test',subject:'Archived price',message:'An old reduction of £500',stockChange,includeVehicle:false,includeAppointment:false,photoIds:[],documentIds:[],expectedRevision:2}}}:original(url,options));
+ mount();await screen.findByRole('textbox',{name:'Message'});
+ expect(screen.getByRole('alert')).toHaveTextContent('archived price-update draft cannot be sent');
+ expect(screen.getByRole('button',{name:'Save draft'})).toBeDisabled();
+ expect(screen.getByRole('button',{name:'Review email'})).toBeDisabled();
+ expect(screen.getByRole('button',{name:'WhatsApp'})).toBeDisabled();
+ expect(calls('/email-draft')).toHaveLength(0);expect(calls('/email')).toHaveLength(0);
+ fireEvent.click(screen.getByRole('button',{name:'Start a new message'}));
+ expect(screen.getByRole('textbox',{name:'Subject'})).toHaveValue('Original subject');
+ expect(screen.getByRole('textbox',{name:'Message'})).toHaveValue('Original staff message');
+ fireEvent.click(screen.getByRole('button',{name:'Save draft'}));await screen.findByText('Draft saved · not sent');
+ expect(JSON.parse(calls('/email-draft')[0][1].body).content).not.toHaveProperty('stockChange');
 });

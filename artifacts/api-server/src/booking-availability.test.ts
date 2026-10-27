@@ -23,7 +23,7 @@ while (!getSlotsForDate(day).length) day = addDays(day, 1);
 const slots = getSlotsForDate(day);
 const originalAppointment = slots[0].startAt.toISOString(), nextAppointment = slots[1].startAt.toISOString();
 const booking: Record<string, unknown> = { id: bookingId, dealerId, type: 'viewing', appointmentAt: originalAppointment, appointmentRevision: 0, appointmentStatus: 'pending', vehicleId, manageTokenHash: viewingTokenHash(token) };
-const availableVehicle = { id: vehicleId, dealerId, source: 'autotrader', inventoryStatus: 'available', missingCount: 0, sourcePrice: 9000, priceReviewRequired: false };
+const availableVehicle = { id: vehicleId, dealerId, source: 'autotrader', sourceStatus:'live', inventoryStatus: 'available', missingCount: 0, sourcePrice: 9000, priceReviewRequired: false };
 let vehicle: Record<string, unknown> | null = { ...availableVehicle };
 const queries: string[] = [];
 function rowsFor(table: typeof enquiriesTable | typeof vehiclesTable, record: Record<string, unknown> | null) {
@@ -79,7 +79,7 @@ test('production booking changes recheck current dealer stock and give an accura
       });
     }
     await t.test('the shared guard rejects missing, unpublished and wrong-source cars', async () => {
-      for (const stock of [null, { ...availableVehicle, archivedAt: new Date().toISOString() }, { ...availableVehicle, missingCount: 2 }, { ...availableVehicle, source: 'cazoo' }, { ...availableVehicle, sourcePrice: null, priceReviewRequired: true }]) {
+      for (const stock of [null, {...availableVehicle,sourceStatus:'missing',missingCount:1}, { ...availableVehicle, archivedAt: new Date().toISOString() }, { ...availableVehicle, missingCount: 2 }, { ...availableVehicle, source: 'cazoo' }, { ...availableVehicle, sourcePrice: null, priceReviewRequired: true }]) {
         vehicle = stock;
         await assert.rejects(runWithTenant(tenant, () => db.transaction(tx => ensureBookingVehicleAvailable(tx, dealerId, vehicleId))), BookingConflict);
       }

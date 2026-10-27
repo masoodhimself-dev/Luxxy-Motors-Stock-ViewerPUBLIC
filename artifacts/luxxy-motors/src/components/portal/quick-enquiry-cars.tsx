@@ -5,7 +5,7 @@ import { Search, CarFront, Check } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { vehicleContent, prioritiseVehicleFeatures, vehicleDescriptionParagraphs } from "@/lib/vehicle-content";
-import { vehicleHistoryFacts, vehicleRunningCosts, vehicleSpecificationGroups, vehicleListingHighlights } from "@/lib/vehicle-extra-facts";
+import { vehicleHistoryFacts, vehicleRunningCosts, vehicleSpecificationGroups } from "@/lib/vehicle-extra-facts";
 
 const words = (value: string) => value.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter(Boolean);
 const alias = (word: string) => ({ auto: "automatic", grey: "gray", gasoline: "petrol" }[word] || word);
@@ -58,7 +58,6 @@ function QuickCarDetails({ car }: { car: Car }) {
   const factGroups = [
     { title: "Recorded history", facts: vehicleHistoryFacts(car) },
     { title: "Running costs", facts: vehicleRunningCosts(car) },
-    { title: "Listing highlights", facts: vehicleListingHighlights(car) },
     ...vehicleSpecificationGroups(car),
   ].filter(group => group.facts.length > 0);
   return <div className="quick-car-details-content">

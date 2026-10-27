@@ -23,9 +23,3 @@ it('prepares a customer-editable message with the car year, price and registrati
   fireEvent.change(message, { target: { value: 'Can I visit tomorrow?' } });
   expect(decodeURIComponent(screen.getByRole('link', { name: 'Continue to WhatsApp' }).getAttribute('href')!)).toContain('Can I visit tomorrow?');
 });
-
-it('keeps walkaround requests tied to the same car', () => {
-  render(<VehicleWhatsApp car={car} walkaround />);
-  fireEvent.click(screen.getByRole('button', { name: 'Request a walkaround video' }));
-  expect((screen.getByRole('textbox', { name: 'Your message' }) as HTMLTextAreaElement).value).toContain('request a walkaround video of this car');
-});

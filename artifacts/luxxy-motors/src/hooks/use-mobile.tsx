@@ -1,13 +1,11 @@
-import { useCustomerPreview } from '@/lib/customer-preview-context';
 import * as React from 'react';
 
 const MOBILE_BREAKPOINT = 768;
 
 /** Match the breakpoint of the layout using this hook; other callers retain 768px. */
 export function useIsMobile(breakpoint = MOBILE_BREAKPOINT) {
-  const preview = useCustomerPreview();
   const [isMobile, setIsMobile] = React.useState(() =>
-    preview ? preview.viewportWidth < breakpoint : typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
       ? window.matchMedia(`(max-width: ${breakpoint - 1}px)`).matches
       : false,
   );

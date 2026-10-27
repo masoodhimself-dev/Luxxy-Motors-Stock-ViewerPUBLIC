@@ -1,4 +1,4 @@
-import { ShareQr } from "@/components/share-qr";
+import { DirectWhatsApp } from "@/components/direct-whatsapp";
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { ArrowLeft, CalendarDays, Phone } from '@/components/icons';
@@ -6,7 +6,7 @@ import { useGetStaffDirectory, useUpdateEnquiryWorkspace, type Enquiry } from '@
 import { Button } from '@/components/ui/button';
 import { callOutcomes, type CallOutcome } from '@/lib/enquiry-desk-model';
 import { appointmentLabel } from '@/lib/test-drive-dates';
-import { formatPrice } from '@/lib/utils';
+import { getThumbnailUrl, formatPrice } from '@/lib/utils';
 import type { Car } from '@/lib/stock-context';
 import { HistoryLinks } from './history-links';
 import { AppointmentExceptionLabels } from './enquiry-calendar';
@@ -14,7 +14,6 @@ import { AttendanceControls, useRefreshDesk, workspaceError } from './enquiry-wo
 import { ConversationHistory } from './enquiry-conversation';
 import { callbackTiming } from './enquiry-callback-model';
 import { enquiryGroup, primaryEnquiry } from '@/lib/enquiry-groups';
-import { EnquiryPhotoPeek } from './enquiry-photo-peek';
 import { CustomerEmailSummary } from './customer-email-summary';
 import { canFollowUpAppointment } from '@/lib/appointment-follow-up-email';
 import type { InboxEnquiry } from '@/lib/enquiry-reply-attention';
@@ -73,7 +72,7 @@ function EnquiryDetail({ entry, car, actions }: { entry: Enquiry; car?: Car; act
     <div className="enquiry-detail-owner"><p className="text-xs text-muted-foreground">Assigned to <strong>{entry.assignedToName || 'Unassigned'}</strong></p><ClaimEnquiry entry={entry} /></div>
     </header>
     <section className="enquiry-detail-car" aria-label="Enquiry vehicle">
-      {car && <EnquiryPhotoPeek car={car} className="enquiry-detail-car-photo" />}
+      {car && getThumbnailUrl(car) && <img src={getThumbnailUrl(car)} alt="" loading="lazy" className="enquiry-detail-car-photo" />}
       <div className="enquiry-detail-car-copy"><h4>{entry.vehicleTitle || 'General showroom enquiry'}</h4>{entry.vehicleRegistration && <p className="text-sm font-medium">{entry.vehicleRegistration}</p>}{entry.vehicleId && <p className="enquiry-detail-availability">{car ? car.inventoryStatus === 'available' ? 'Available' : car.inventoryStatus === 'reserved' ? 'Reserved' : car.inventoryStatus === 'sold' ? 'Sold' : car.inventoryStatus === 'archived' ? 'Archived' : 'Availability unconfirmed' : 'No longer in current stock'}</p>}{car?.price != null && <p className="text-sm font-semibold">{formatPrice(car.price)}</p>}{!entry.vehicleId && entry.vehicleTitle && <p className="text-xs text-muted-foreground">Ad hoc vehicle — not showroom stock{entry.vehiclePrice != null ? ` · ${formatPrice(entry.vehiclePrice)}` : ''}</p>}</div>
       {car && <Button size="sm" variant="outline" onClick={() => actions.onVehicle(car)}>Vehicle information</Button>}
     </section>
@@ -89,7 +88,7 @@ function EnquiryDetail({ entry, car, actions }: { entry: Enquiry; car?: Car; act
       {entry.followUpAt && !entry.followUpCompletedAt && <p>Follow-up: {appointmentLabel(entry.followUpAt)}</p>}
       {entry.appointmentAt && !entry.appointmentCancelledAt && !visitFinished && <p>Test drive: {appointmentLabel(entry.appointmentAt)} · {entry.appointmentStatus === 'pending' ? 'Awaiting approval' : 'Confirmed'}</p>}
     </div>}
-    <div className="inbox-primary-actions"><ShareQr templateVariables={{vehicle_title:entry.vehicleTitle || "",vehicle_registration:entry.vehicleRegistration || ""}} whatsapp label="WhatsApp" enquiryId={entry.id} customerName={entry.customerName} customerEmail={entry.email || ""} customerPhone={entry.phone || ""} message={`Hello ${entry.customerName}, thanks for your interest${entry.vehicleTitle ? ` in ${entry.vehicleTitle}` : ""}. How can we help?`} /><div className="enquiry-detail-actions" aria-label="Selected enquiry actions">
+    <div className="inbox-primary-actions"><DirectWhatsApp label="WhatsApp" enquiryId={entry.id} customerName={entry.customerName} customerPhone={entry.phone || ""} message={`Hello ${entry.customerName}, thanks for your interest${entry.vehicleTitle ? ` in ${entry.vehicleTitle}` : ""}. How can we help?`} /><div className="enquiry-detail-actions" aria-label="Selected enquiry actions">
       {(pendingReply || !(presentation.action === "conversation" || (presentation.action === "respond" && actionLabel === "Record the response"))) && <Button size="sm" variant="outline" onClick={() => actions.onConversation(entry)}>Add call note</Button>}
       {showAppointmentEmail && <Button size="sm" variant="outline" onClick={() => actions.onAppointmentFollowUp?.(entry)}>Follow-up email</Button>}
       {actions.onEmail && (!showAppointmentEmail || pendingReply) && (pendingReply || actionLabel !== 'Reply') && <Button size="sm" variant="outline" onClick={() => actions.onEmail?.(entry)}>Reply</Button>}

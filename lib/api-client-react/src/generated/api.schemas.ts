@@ -5,58 +5,6 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-export interface OnlineReservationPartExchange {
-  /**
-     * @minLength 2
-     * @maxLength 16
-     */
-  registration: string;
-  /**
-     * @minimum 0
-     * @maximum 1000000
-     */
-  mileage: number;
-}
-
-export interface OnlineReservationInput {
-  /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ */
-  vehicleId: string;
-  /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ */
-  idempotencyKey: string;
-  /**
-     * @minLength 2
-     * @maxLength 120
-     */
-  customerName: string;
-  /**
-     * @maxLength 254
-     * @pattern ^[^\s@]+@[^\s@]+\.[^\s@]+$
-     */
-  email: string;
-  /**
-     * @minLength 5
-     * @maxLength 40
-     */
-  phone: string;
-  /**
-     * @minimum 1
-     * @maximum 2147483647
-     */
-  expectedPricePence: number;
-  /**
-     * @minimum 100
-     * @maximum 1000000
-     */
-  expectedDepositPence: number;
-  termsAccepted: true;
-  /**
-     * @minLength 1
-     * @maxLength 4000
-     */
-  terms: string;
-  partExchange?: OnlineReservationPartExchange;
-}
-
 export type OnlineReservationAmountReceivedPence = typeof OnlineReservationAmountReceivedPence[keyof typeof OnlineReservationAmountReceivedPence];
 
 
@@ -146,20 +94,6 @@ export interface StaffOnlineReservation {
 
 export interface OnlineReservations {
   reservations: StaffOnlineReservation[];
-}
-
-/**
- * Online reservations are disabled until the dealership explicitly enables them and supplies its reservation terms. Payment is currently simulated.
- */
-export interface DealerOnlineReservation {
-  enabled: boolean;
-  /**
-     * @minimum 100
-     * @maximum 1000000
-     */
-  depositPence: number;
-  /** @maxLength 4000 */
-  terms: string;
 }
 
 export interface DealerBrandColors {
@@ -396,44 +330,6 @@ export interface DealerWhyBuyItem {
      * @maxLength 300
      */
   description: string;
-}
-
-export interface DealerRecentHandovers {
-  enabled: boolean;
-  /**
-     * @minimum 1
-     * @maximum 6
-     */
-  count: number;
-}
-
-export interface RecentHandoverVehicle {
-  /** @nullable */
-  make: string | null;
-  /** @nullable */
-  model: string | null;
-  /** @nullable */
-  trim: string | null;
-  /** @nullable */
-  year: number | null;
-  /** @nullable */
-  bodyType: string | null;
-  /** @nullable */
-  fuel: string | null;
-  /** @nullable */
-  transmission: string | null;
-}
-
-export interface RecentHandover {
-  vehicle: RecentHandoverVehicle;
-  /** @pattern ^[A-Z][a-z]+ [0-9]{4}$ */
-  handoverMonth: string;
-}
-
-export interface RecentHandovers {
-  schemaVersion: 1;
-  /** @maxItems 6 */
-  handovers: RecentHandover[];
 }
 
 export type CustomerReviewRating = typeof CustomerReviewRating[keyof typeof CustomerReviewRating];
@@ -736,10 +632,8 @@ export interface DealerSettings {
   warranty: DealerService;
   delivery: DealerService;
   partExchange: DealerService;
-  onlineReservation?: DealerOnlineReservation;
   bookViewing: DealerBookViewing;
   testDriveBooking?: DealerTestDriveBooking;
-  recentHandovers: DealerRecentHandovers;
   /**
      * @maxItems 8
      * @items.minLength 1
@@ -1408,8 +1302,6 @@ export type EnquiryInputType = typeof EnquiryInputType[keyof typeof EnquiryInput
 export const EnquiryInputType = {
   viewing: 'viewing',
   general: 'general',
-  delivery: 'delivery',
-  warranty: 'warranty',
   part_exchange: 'part_exchange',
 } as const;
 
@@ -1545,8 +1437,6 @@ export type StaffEnquiryInputType = typeof StaffEnquiryInputType[keyof typeof St
 export const StaffEnquiryInputType = {
   viewing: 'viewing',
   general: 'general',
-  delivery: 'delivery',
-  warranty: 'warranty',
   part_exchange: 'part_exchange',
 } as const;
 
@@ -2641,6 +2531,38 @@ export interface PortalWorklist {
   depositsWithoutDeal: Lead[];
 }
 
+export type GetStaffAppointmentDiaryParams = {
+date: string;
+};
+
+export type GetStaffAppointmentDiary200Timezone = typeof GetStaffAppointmentDiary200Timezone[keyof typeof GetStaffAppointmentDiary200Timezone];
+
+
+export const GetStaffAppointmentDiary200Timezone = {
+  'Europe/London': 'Europe/London',
+} as const;
+
+export type GetStaffAppointmentDiary200AppointmentsItem = {
+  id: string;
+  reference: string;
+  customerName: string;
+  /** @nullable */
+  vehicleTitle: string | null;
+  /** @nullable */
+  assignedToName: string | null;
+  appointmentAt: string;
+  /** @nullable */
+  appointmentDurationMinutes: number | null;
+  /** @nullable */
+  appointmentBufferMinutes: number | null;
+};
+
+export type GetStaffAppointmentDiary200 = {
+  date: string;
+  timezone: GetStaffAppointmentDiary200Timezone;
+  appointments: GetStaffAppointmentDiary200AppointmentsItem[];
+};
+
 export type GetEnquiriesParams = {
 status?: GetEnquiriesStatus;
 };
@@ -2731,4 +2653,3 @@ export const GetLeadsState = {
   open: 'open',
   closed: 'closed',
 } as const;
-

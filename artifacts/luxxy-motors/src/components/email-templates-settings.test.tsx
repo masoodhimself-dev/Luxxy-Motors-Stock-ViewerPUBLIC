@@ -1,130 +1,85 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, expect, it, vi } from 'vitest';
-import { defaultEmailAppearance, defaultEmailTemplates, emailTemplateVariables } from '@workspace/vehicle-meta';
-import { EmailTemplatesSettings } from './email-templates-settings';
-afterEach(()=>vi.unstubAllGlobals());
-function api(options: { failPreviewAfterSave?: boolean; websiteBranding?: boolean } = {}) {
- let revision=1;const templates=structuredClone(defaultEmailTemplates);let appearance={...defaultEmailAppearance};let useWebsiteBranding=false;const websiteAppearance={logoUrl:'https://dealer.example.test/logo.svg',brandColour:'#DDAA44'};
- const writes: Array<{url:string;body:any}>=[];const previews: any[]=[];
- vi.stubGlobal('fetch',vi.fn(async(url,init)=>{
-  const body=init?.body ? JSON.parse(init.body):undefined;
-  if(String(url).endsWith('/preview')){previews.push(body);if(options.failPreviewAfterSave && writes.length)return Response.json({error:'Preview temporarily unavailable'},{status:503});return Response.json({subject:body.subject,html:'<!doctype html><html><body><h1>Rendered sample email</h1></body></html>',text:'Plain-text sample email'});}
-  if(init?.method==='PUT') {writes.push({url:String(url),body});expect(body.expectedRevision).toBe(revision);revision++;if(String(url).endsWith('/appearance')){appearance=body.appearance;useWebsiteBranding=body.useWebsiteBranding;}else {const entry=templates.find(t=>t.id===body.id)!;entry.subject=body.subject;entry.body=body.body;entry.headline=body.headline;}}
-  return Response.json({revision,templates,appearance,variables:emailTemplateVariables,...(options.websiteBranding ? {customAppearance:appearance,useWebsiteBranding,websiteAppearance}: {})});
- }));return {writes,previews};
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { expect, it, vi, afterEach } from "vitest";
+import { EmailTemplatesSettings } from "./email-templates-settings";
+afterEach(() => vi.unstubAllGlobals());
+function show() {
+  let data = {
+    revision: 4,
+    templates: [
+      {
+        id: "enquiry_acknowledgement",
+        label: "Enquiry reply",
+        category: "Enquiries",
+        subject: "Your enquiry",
+        body: "Hello {{customer_name}}",
+        headline: "Hello",
+      },
+    ],
+    variables: ["customer_name"],
+  };
+  const writes: any[] = [];
+  const fetch = vi.fn(async (_input, init) => {
+    if (init?.method === "PUT") {
+      const body = JSON.parse(init.body);
+      writes.push(body);
+      data = {
+        ...data,
+        revision: 5,
+        templates: data.templates.map((item) => ({
+          ...item,
+          subject: body.subject,
+          body: body.body,
+        })),
+      };
+    }
+    return Response.json(data);
+  });
+  vi.stubGlobal("fetch", fetch);
+  render(<EmailTemplatesSettings />);
+  return { writes, fetch };
 }
-it('renders a server preview without writes and marks edits stale until refreshed',async()=>{
- const {writes,previews}=api();render(<EmailTemplatesSettings/>);
- await screen.findByText('Preview is current');expect(writes).toHaveLength(0);expect(previews).toHaveLength(1);
- fireEvent.change(screen.getByLabelText('Subject line'),{target:{value:'A new subject'}});
- expect(screen.getByText('Preview needs updating')).toBeInTheDocument();expect(previews).toHaveLength(1);
- fireEvent.click(screen.getByRole('button',{name:'Update preview'}));
- await screen.findByText('Preview is current');expect(previews).toHaveLength(2);expect(writes).toHaveLength(0);
- expect(screen.getByRole('tabpanel',{name:'Preview'})).toBeVisible();
- fireEvent.click(screen.getByRole('button',{name:'Phone'}));
- expect(screen.getByTitle('Email preview using sample customer information').parentElement).toHaveClass('email-preview-phone');
- fireEvent.click(screen.getByRole('button',{name:'Plain text'}));expect(screen.getByText('Plain-text sample email')).toBeInTheDocument();
+it("keeps plain reusable wording without email design or spare branding", async () => {
+  const { fetch } = show();
+  await screen.findByLabelText("Subject");
+  expect(screen.queryByText("Email branding")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Phone" }),
+  ).not.toBeInTheDocument();
+  expect(fetch).toHaveBeenCalledTimes(1);
 });
-it('saves one template with the revision and keeps unsaved brand edits',async()=>{
- const {writes}=api();render(<EmailTemplatesSettings/>);await screen.findByText('Preview is current');
- fireEvent.click(screen.getByRole('tab',{name:'Branding'}));
- fireEvent.change(screen.getByLabelText('Accent colour'),{target:{value:'#24577A'}});
- fireEvent.click(screen.getByRole('tab',{name:'Messages'}));
- fireEvent.change(screen.getByLabelText('Your message'),{target:{value:'Hi {{customer_name}}, your car details are ready.'}});
- fireEvent.change(screen.getByLabelText('Email title'),{target:{value:'Your car awaits'}});
- fireEvent.click(screen.getByRole('button',{name:'Save template'}));
- await screen.findByText('Email template saved. Future emails will use this wording.');
- expect(writes).toHaveLength(1);expect(writes[0].body.body).toContain('your car details');expect(writes[0].body.headline).toBe('Your car awaits');expect(screen.getByLabelText('Email title')).toHaveValue('Your car awaits');expect(screen.getByLabelText('Accent colour')).toHaveValue('#24577A');
- fireEvent.click(screen.getByRole('tab',{name:'Branding'}));expect(screen.getByText('Unsaved branding')).toBeVisible();
+it("saves only the selected wording with the expected revision and no delivery request", async () => {
+  const { writes, fetch } = show();
+  fireEvent.change(await screen.findByLabelText("Subject"), {
+    target: { value: "We received your enquiry" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save wording" }));
+  await screen.findByText(
+    "Wording saved for future emails. No message was sent.",
+  );
+  expect(writes).toEqual([
+    {
+      id: "enquiry_acknowledgement",
+      expectedRevision: 4,
+      subject: "We received your enquiry",
+      body: "Hello {{customer_name}}",
+      headline: "Hello",
+    },
+  ]);
+  expect(
+    fetch.mock.calls.every(([url]) => url === "/api/email-templates"),
+  ).toBe(true);
 });
-it('saving branding preserves the draft message and advances its revision',async()=>{
- const {writes}=api();render(<EmailTemplatesSettings/>);await screen.findByText('Preview is current');
- fireEvent.change(screen.getByLabelText('Your message'),{target:{value:'Unsaved message'}});
- fireEvent.click(screen.getByRole('tab',{name:'Branding'}));
- fireEvent.click(screen.getByRole('button',{name:'Use Forest green accent'}));
- expect(screen.getByRole('button',{name:'Use Forest green accent'})).toHaveAttribute('aria-pressed','true');
- expect(screen.getByRole('button',{name:'Use Deep blue accent'})).toHaveAttribute('aria-pressed','false');
- fireEvent.click(screen.getByRole('button',{name:'Save email branding'}));
- await screen.findByText('Email branding saved for every email template.');
- fireEvent.click(screen.getByRole('tab',{name:'Messages'}));
- expect(screen.getByLabelText('Your message')).toHaveValue('Unsaved message');
- fireEvent.click(screen.getByRole('button',{name:'Save template'}));
- await waitFor(()=>expect(writes).toHaveLength(2));expect(writes[1].body.expectedRevision).toBe(2);
-});
-it('declining to discard wording keeps the current template selected',async()=>{
- api();vi.stubGlobal('confirm',vi.fn().mockReturnValue(false));render(<EmailTemplatesSettings/>);await screen.findByText('Preview is current');
- fireEvent.change(screen.getByLabelText('Your message'),{target:{value:'A draft to keep'}});
- fireEvent.change(screen.getByLabelText('Choose a message'),{target:{value:'booking_confirmation'}});
- expect(window.confirm).toHaveBeenCalled();expect(screen.getByLabelText('Choose a message')).toHaveValue('enquiry_acknowledgement');expect(screen.getByLabelText('Your message')).toHaveValue('A draft to keep');
-});
-
-it('switches email tabs without losing drafts, making writes or exposing inactive panels',async()=>{
- const {writes,previews}=api();render(<EmailTemplatesSettings/>);await screen.findByText('Preview is current');
- fireEvent.change(screen.getByLabelText('Your message'),{target:{value:'A message to keep while choosing colours'}});
- fireEvent.click(screen.getByRole('tab',{name:'Branding'}));
- expect(screen.getByRole('tabpanel',{name:'Branding'})).toBeVisible();
- expect(screen.queryByRole('tabpanel',{name:'Messages'})).not.toBeInTheDocument();
- fireEvent.change(screen.getByLabelText('Brand heading'),{target:{value:'My dealership'}});
- fireEvent.click(screen.getByRole('tab',{name:'Messages'}));
- expect(screen.getByLabelText('Your message')).toHaveValue('A message to keep while choosing colours');
- fireEvent.click(screen.getByRole('tab',{name:'Branding'}));
- expect(screen.getByLabelText('Brand heading')).toHaveValue('My dealership');
- expect(writes).toHaveLength(0);expect(previews).toHaveLength(1);
-});
-
-it('opens Preview directly without saving or losing an unsaved message',async()=>{
- const {writes,previews}=api();render(<EmailTemplatesSettings/>);await screen.findByText('Preview is current');
- fireEvent.change(screen.getByLabelText('Your message'),{target:{value:'My unsaved draft'}});
- fireEvent.click(screen.getByRole('tab',{name:'Preview'}));
- expect(screen.getByRole('tabpanel',{name:'Preview'})).toBeVisible();
- expect(screen.queryByRole('textbox',{name:'Your message'})).not.toBeInTheDocument();
- expect(screen.getByTitle('Email preview using sample customer information')).toHaveAttribute('sandbox','');
- expect(screen.getByText('Preview needs updating')).toBeInTheDocument();
- fireEvent.click(screen.getByRole('tab',{name:'Messages'}));
- expect(screen.getByLabelText('Your message')).toHaveValue('My unsaved draft');
- expect(writes).toHaveLength(0);expect(previews).toHaveLength(1);
-});
-
-it('keeps the existing message intact when a customer variable would exceed the limit',async()=>{
- api();render(<EmailTemplatesSettings/>);await screen.findByText('Preview is current');
- const message='a'.repeat(12000);
- fireEvent.change(screen.getByLabelText('Your message'),{target:{value:message}});
- fireEvent.click(screen.getByText('Personalise with customer details'));
- fireEvent.click(screen.getByRole('button',{name:'{{customer_name}}'}));
- expect(screen.getByRole('alert')).toHaveTextContent('Shorten your message first');
- expect(screen.getByLabelText('Your message')).toHaveValue(message);
- expect(screen.getByText('12,000 / 12,000')).toBeInTheDocument();
-});
-
-it('distinguishes a saved template from a failed preview refresh',async()=>{
- const {writes}=api({failPreviewAfterSave:true});render(<EmailTemplatesSettings/>);await screen.findByText('Preview is current');
- fireEvent.change(screen.getByLabelText('Your message'),{target:{value:'Saved successfully'}});
- fireEvent.click(screen.getByRole('button',{name:'Save template'}));
- await screen.findByText('Email template saved. Future emails will use this wording.');
- expect(await screen.findByRole('alert')).toHaveTextContent('Your template is saved, but the preview could not be refreshed');
- expect(screen.getByRole('button',{name:'Save template'})).toBeDisabled();
- expect(writes).toHaveLength(1);
-});
-
-it('previews inherited website branding while retaining the custom override and approved wording',async()=>{
- const {writes,previews}=api({websiteBranding:true});render(<EmailTemplatesSettings/>);await screen.findByText('Preview is current');
- fireEvent.click(screen.getByRole('tab',{name:'Branding'}));
- fireEvent.change(screen.getByLabelText('Logo image address'),{target:{value:'https://custom.example.test/logo.png'}});
- fireEvent.change(screen.getByLabelText('Footer wording'),{target:{value:'Approved dealer footer'}});
- fireEvent.click(screen.getByRole('checkbox',{name:'Use website logo and colour'})); expect(writes).toHaveLength(0);
- fireEvent.click(screen.getByRole('button',{name:'Preview branding'}));await screen.findByText('Preview is current');
- expect(previews.at(-1).appearance).toMatchObject({logoUrl:'https://dealer.example.test/logo.svg',brandColour:'#DDAA44',footer:'Approved dealer footer'});
- expect(screen.getByText('Email branding has unsaved changes. Previewing does not save them.')).toBeInTheDocument();
- fireEvent.click(screen.getByRole('button',{name:'Save email branding'}));await screen.findByText('Email branding saved for every email template.');
- expect(writes[0].body).toMatchObject({useWebsiteBranding:true,appearance:{logoUrl:'https://custom.example.test/logo.png',footer:'Approved dealer footer'}});
- fireEvent.click(screen.getByRole('tab',{name:'Branding'}));fireEvent.click(screen.getByRole('checkbox',{name:'Use website logo and colour'}));
- expect(screen.getByLabelText('Logo image address')).toHaveValue('https://custom.example.test/logo.png');expect(screen.getByLabelText('Footer wording')).toHaveValue('Approved dealer footer');
-});
-it('keeps unreleased reservation templates out of everyday email settings without changing saved templates',async()=>{
- const {writes}=api();render(<EmailTemplatesSettings/>);await screen.findByText('Preview is current');
- expect(screen.queryByRole('checkbox',{name:'Show inactive reservation templates'})).not.toBeInTheDocument();
- expect(screen.queryByRole('option',{name:'Reservation confirmation'})).not.toBeInTheDocument();
- expect(screen.getByRole('option',{name:'Booking confirmed'})).toBeInTheDocument();
- expect(screen.getByRole('option',{name:'Invoice'})).toBeInTheDocument();
- expect(writes).toHaveLength(0);
+it("marks an edited message dirty until staff explicitly discard it", async () => {
+  show();
+  fireEvent.change(await screen.findByLabelText("Message"), {
+    target: { value: "Custom wording" },
+  });
+  expect(
+    screen.getByRole("region", { name: "Email message wording" }),
+  ).toHaveAttribute("data-settings-dirty", "true");
+  const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+  fireEvent.click(screen.getByRole("button", { name: "Reload saved wording" }));
+  expect(confirm).toHaveBeenCalled();
+  expect(screen.getByLabelText("Message")).toHaveValue("Custom wording");
+  confirm.mockRestore();
 });

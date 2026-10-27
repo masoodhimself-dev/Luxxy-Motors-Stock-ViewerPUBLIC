@@ -1,4 +1,3 @@
-import { useCustomerPreview } from '@/lib/customer-preview-context';
 
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import './vehicle-redesign.css';
@@ -7,7 +6,6 @@ import { VehicleTerm } from '@/components/customer-help';
 import { VehicleEquipmentList } from '@/components/vehicle-equipment-list';
 import { VehicleSourceReport } from '@/components/vehicle-source-report';
 import { readVehicleSourceReport } from '@/lib/vehicle-source-report';
-import { vehicleChecksEnabledForHost } from '@/lib/vehicle-checks-rollout';
 import { VehicleSellingPoints } from '@/components/vehicle-selling-points';
 import { browseReturnHref, requestBrowseRestore } from '@/lib/browse-session';
 import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
@@ -15,16 +13,14 @@ import { prioritiseVehicleFeatures, vehicleContent, vehicleDescriptionParagraphs
 import { PriceReduction } from '@/components/price-reduction';
 import { stockRegistrationYear } from '@/lib/stock-presentation';
 import { websiteText } from "@/lib/website-content";
-import { VehicleReviews } from '@/components/vehicle-reviews';
 import { VehicleWhatsApp } from '@/components/vehicle-whatsapp';
 import { VehicleCall } from '@/components/vehicle-call';
 import { EnquiryForm } from '@/components/enquiry-form';
 import { VehiclePrint } from '@/components/vehicle-print';
 import { rememberVehicle, vehicleAvailability } from '@/lib/customer-convenience';
 import { VehicleVisit } from '@/components/vehicle-buying-guide';
-import { VehicleHistorySummary, VehicleListingHighlights, VehicleRunningCosts, VehicleSpecificationDetails } from '@/components/vehicle-running-costs';
-import { vehicleHistoryFacts, vehicleListingHighlights, vehicleSpecificationGroups, vehicleRunningCosts as getVehicleRunningCosts } from '@/lib/vehicle-extra-facts';
-import { ReserveCar } from '@/components/reserve-car';
+import { VehicleHistorySummary, VehicleRunningCosts, VehicleSpecificationDetails } from '@/components/vehicle-running-costs';
+import { vehicleHistoryFacts, vehicleSpecificationGroups, vehicleRunningCosts as getVehicleRunningCosts } from '@/lib/vehicle-extra-facts';
 import { getSimilarCars } from "@/lib/similar-cars";
 import { buyerInformation } from "@/lib/buyer-information";
 import { useEffect, useState, type MouseEvent } from 'react';
@@ -38,9 +34,8 @@ import {
 } from '@/components/icons';
 import { CarCard } from '@/components/car-card';
 import { useStock, type Car } from '@/lib/stock-context';
-import { SaveCarButton, CompareCarButton, CompareSelectionLink } from '@/components/saved-car-controls';
-import { WatchCarButton } from '@/components/watch-car-controls';
-import { PublicVehicleGallery as Gallery } from '@/components/public-vehicle-gallery';
+import { SaveCarButton } from '@/components/saved-car-controls';
+import { Gallery } from '@/components/gallery';
 import {
   formatPrice,
   formatMileage,
@@ -80,7 +75,6 @@ function LedgerRow({ label, value, testId }: { label: string; value: string; tes
 }
 
 export default function CarDetail() {
-  const preview = useCustomerPreview();
   const [shareMessage, setShareMessage] = useState('');
   // Keep identity above the gallery until the two-column layout starts.
   const isCompactLayout = useIsMobile(1100);
@@ -160,9 +154,7 @@ export default function CarDetail() {
   const vehicleLabel = vehicleDisplayTitle(car);
   const vehicleRunningCostFacts = getVehicleRunningCosts(car);
   const vehicleHistoryRecordFacts = vehicleHistoryFacts(car);
-  const showVehicleChecks = vehicleChecksEnabledForHost(window.location.hostname, import.meta.env.DEV);
-  const sourceReport = showVehicleChecks ? readVehicleSourceReport(car) : null;
-  const listingHighlights = vehicleListingHighlights(car);
+  const sourceReport = readVehicleSourceReport(car);
 
   const overviewSpecs = [
     { label: 'Engine', value: car.engineSize || (car.engineCC ? `${(car.engineCC / 1000).toFixed(1)}L` : 'Ask us') },
@@ -175,7 +167,7 @@ export default function CarDetail() {
   ].filter(fact => !['-', 'Ask us', 'Unknown', ''].includes(fact.value));
 
   const hasSpecifications = overviewSpecs.length > 0 || vehicleSpecificationGroups(car).length > 0;
-  const handoverFacts = buyerInformation(car).filter(item => item.value && !['Service history', 'Keys', 'Previous keepers'].includes(item.label));
+  const handoverFacts = buyerInformation(car).filter(item => item.value && !['Service history', 'Keys', 'Owners', 'Previous keepers'].includes(item.label));
 
   const keyFacts: { label: string; value: string; testId?: string }[] = [
     { label: 'Year / plate', value: registrationYear, testId: 'text-registration-year' },
@@ -198,8 +190,7 @@ export default function CarDetail() {
   const damageDisclosure = vehicleInsuranceDisclosure(car, vehicleContent(car).description);
 
   const hasHandoverInformation = handoverFacts.length > 0 || Boolean(dealerConfig.presentation?.includedInformation?.trim()) || Boolean(damageDisclosure);
-  const canReserve = Boolean(dealerConfig.onlineReservation?.enabled && dealerConfig.onlineReservation.terms?.trim() && (!car.inventoryStatus || car.inventoryStatus === 'available') && (car.price ?? 0) > 0 && (car.price ?? 0) * 100 >= dealerConfig.onlineReservation.depositPence && (!car.currency || car.currency.toUpperCase() === 'GBP'));
-  const hasSecondaryActions = canReserve || dealerConfig.partExchange?.enabled || dealerConfig.presentation?.comparisonEnabled;
+  const hasSecondaryActions = dealerConfig.partExchange?.enabled;
   const content = vehicleContent(car);
   const separateDescriptionNotes = car.sourceExtras?.vehicleDescriptionPlacement === 'separate' && typeof car.sourceExtras?.vehicleDescriptionBody === 'string' && Array.isArray(car.sourceExtras?.vehicleDescriptionDisclosures) && car.sourceExtras.vehicleDescriptionDisclosures.length > 0;
   const description = separateDescriptionNotes ? String(car.sourceExtras!.vehicleDescriptionBody) : content.description;
@@ -222,7 +213,7 @@ export default function CarDetail() {
     document.getElementById('vehicle-enquiry')?.scrollIntoView({block: 'start', behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'});
     document.getElementById('vehicle-enquiry-heading')?.focus({preventScroll: true});
   };
-  const bookingAction = (!car.inventoryStatus || car.inventoryStatus === 'available') ? (
+  const bookingAction = dealerConfig.testDriveBooking?.enabled && (!car.inventoryStatus || car.inventoryStatus === 'available') ? (
     <Button asChild size="lg" key="booking" className="vehicle-booking-action">
       <a
         href={bookingHref}
@@ -234,7 +225,7 @@ export default function CarDetail() {
       </a>
     </Button>
   ) : null;
-  const enquiryAction = (
+  const enquiryAction = customerFeatures.enabled('publicEnquiries') && (
     <a key="enquiry" className="vehicle-enquiry-action" href="#vehicle-enquiry" onClick={event => {
       if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       event.preventDefault();
@@ -280,7 +271,7 @@ export default function CarDetail() {
     <div className="vehicle-page vehicle-redesigned vehicle-page-enter luxxy-shell min-h-screen">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="vehicle-browse-tools flex items-center">
-          <Link href={preview ? '/stock' : browseReturnHref()} onClick={() => requestBrowseRestore()} className="vehicle-return-link text-link min-h-11 text-muted-foreground">
+          <Link href={browseReturnHref()} onClick={() => requestBrowseRestore()} className="vehicle-return-link text-link min-h-11 text-muted-foreground">
             <ArrowLeft className="h-4 w-4" />
             Back to your results
           </Link>
@@ -295,7 +286,6 @@ export default function CarDetail() {
               onEnquiry: customerFeatures.enabled('publicEnquiries') ? openVehicleEnquiry : undefined,
               call: getPhoneHref(dealerConfig) ? <VehicleCall car={car} className="vehicle-gallery-interest-action" /> : undefined,
             }} />
-            <div className="vehicle-gallery-help"><span>Take a closer look</span><VehicleWhatsApp car={car} walkaround /></div>
           </div>
           <div className="vehicle-summary-column min-w-0">
           <div className="vehicle-summary min-w-0">
@@ -328,14 +318,9 @@ export default function CarDetail() {
 
             {hasSecondaryActions && <MobileActionDisclosure label="More options" testId="vehicle-secondary-actions" className="vehicle-secondary-actions mt-3 border-t border-border md:mt-0 md:border-0">
               <div className="vehicle-contact-options">
-              <div className="vehicle-secondary-grid">{canReserve && <ReserveCar key={car.id} car={car} className="min-h-12 w-full" />}
+              <div className="vehicle-secondary-grid">
               {dealerConfig.partExchange?.enabled && <a href={`/enquire?type=part_exchange&vehicleId=${encodeURIComponent(car.id)}`} className="vehicle-contact-action">Value my car <ArrowRight className="h-4 w-4" /></a>}</div>
-              {dealerConfig.onlineReservation?.enabled && dealerConfig.onlineReservation.terms?.trim() && (!car.inventoryStatus || car.inventoryStatus === 'available') && (car.price ?? 0) * 100 >= dealerConfig.onlineReservation.depositPence && (!car.currency || car.currency === 'GBP') && <details className="border-b border-border pb-3 text-xs leading-5"><summary className="min-h-11 cursor-pointer py-3 font-medium">{formatPrice(dealerConfig.onlineReservation.depositPence / 100)} reservation deposit · How it works</summary><p className="mt-2">Review your details and the terms before confirming. We’ll follow up on your reservation; book a test drive separately.</p><p className="mt-2 font-medium">Payment is currently simulated. No money is taken.</p><h3 className="mt-3 font-semibold">Reservation & cancellation terms</h3><p className="mt-2 whitespace-pre-line text-muted-foreground">{dealerConfig.onlineReservation.terms}</p></details>}
               </div>
-            {dealerConfig.presentation?.comparisonEnabled && <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-              <CompareCarButton car={car} variant="compact" className="min-h-11" /><CompareSelectionLink />
-
-            </div>}
 
 
             </MobileActionDisclosure>}
@@ -343,7 +328,6 @@ export default function CarDetail() {
                 <VehiclePrint car={car} dealer={dealerConfig} features={features} description={description} />
                 <Button variant="ghost" onClick={share} aria-label="Share this vehicle"><Share2 className="h-4 w-4" /> Share</Button>
                 <SaveCarButton car={car} variant="inline" className="vehicle-save-control border-transparent bg-transparent" />
-                <WatchCarButton key={car.id} car={car} className="vehicle-save-control border-transparent bg-transparent" />
                 {shareMessage && <span className="text-xs text-muted-foreground" role="status">{shareMessage}</span>}
               </div>
             </div>
@@ -388,7 +372,7 @@ export default function CarDetail() {
 
             </section>}
           </div>}
-          {(hasSpecifications || vehicleRunningCostFacts.length > 0 || listingHighlights.length > 0) && <div className="vehicle-information-row vehicle-technical-row">
+          {(hasSpecifications || vehicleRunningCostFacts.length > 0) && <div className="vehicle-information-row vehicle-technical-row">
             {hasSpecifications && <section
               aria-labelledby="vehicle-overview-heading"
               className="vehicle-specification-section border-t border-border pt-7"
@@ -403,9 +387,8 @@ export default function CarDetail() {
               </dl>
               <VehicleSpecificationDetails car={car} />
             </section>}
-            {(vehicleRunningCostFacts.length > 0 || listingHighlights.length > 0) && <div className="vehicle-costs-panel">
-              <VehicleRunningCosts car={car} comparisonCars={stock?.cars ?? []} />
-              {listingHighlights.length > 0 && <details className="vehicle-source-comparisons"><summary>How this car compares</summary><VehicleListingHighlights car={car} /></details>}
+            {vehicleRunningCostFacts.length > 0 && <div className="vehicle-costs-panel">
+              <VehicleRunningCosts car={car} />
             </div>}
             </div>}
             <div className="vehicle-information-row vehicle-records-row">
@@ -463,15 +446,14 @@ export default function CarDetail() {
             </section>}
             <a className="vehicle-service-record-request" href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}&question=service`}><VehicleFactIcon label="Service history" /><span>Request service records<span className="vehicle-service-record-note">Ask us to email the available service-book photos and records.</span></span><ArrowRight className="h-4 w-4" /></a>
           </div>
-          {showVehicleChecks && <VehicleSourceReport car={car} />}
+          {sourceReport && <VehicleSourceReport car={car} />}
         </div>
-        <div className="vehicle-review-strip"><VehicleReviews /></div>
-        <div className="vehicle-enquiry-visit-row">
-          <section id="vehicle-enquiry" className="vehicle-inline-enquiry min-w-0" aria-labelledby="vehicle-enquiry-heading">
+          <div className="vehicle-enquiry-visit-row">
+          {customerFeatures.enabled('publicEnquiries') && <section id="vehicle-enquiry" className="vehicle-inline-enquiry min-w-0" aria-labelledby="vehicle-enquiry-heading">
             <h2 id="vehicle-enquiry-heading" tabIndex={-1} className="section-heading mb-2">Enquire about this {vehicleLabel}</h2>
             <p className="mb-6 text-sm text-muted-foreground">Ask us about this car or tell us how we can help.</p>
             <EnquiryForm key={car.id} vehicle={car} initialType="general" embedded />
-          </section>
+          </section>}
           <VehicleVisit car={car} />
         </div>
       </div>

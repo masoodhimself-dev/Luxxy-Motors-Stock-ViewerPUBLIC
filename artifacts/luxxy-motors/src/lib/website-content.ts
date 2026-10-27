@@ -62,12 +62,6 @@ export const websiteFields = [
     "defaultValue": "Meet our team"
   },
   {
-    "key": "reviewsHeading",
-    "label": "Reviews heading",
-    "group": "Homepage",
-    "defaultValue": "What our customers say"
-  },
-  {
     "key": "contactTitle",
     "label": "Contact title",
     "group": "Contact",
@@ -176,18 +170,6 @@ export const websiteFields = [
     "defaultValue": "Kept on this device. Pick up where you left off with your favourites."
   },
   {
-    "key": "compareTitle",
-    "label": "Compare title",
-    "group": "Comparison",
-    "defaultValue": "Compare cars"
-  },
-  {
-    "key": "compareDescription",
-    "label": "Compare description",
-    "group": "Comparison",
-    "defaultValue": "Price, specification and running details at a glance."
-  },
-  {
     "key": "viewingTitle",
     "label": "Viewing title",
     "group": "Enquiry pages",
@@ -210,30 +192,6 @@ export const websiteFields = [
     "label": "General description",
     "group": "Enquiry pages",
     "defaultValue": "Tell us what you\u2019d like to know. We\u2019ll get back to you."
-  },
-  {
-    "key": "deliveryTitle",
-    "label": "Delivery title",
-    "group": "Enquiry pages",
-    "defaultValue": "Arrange delivery"
-  },
-  {
-    "key": "deliveryDescription",
-    "label": "Delivery description",
-    "group": "Enquiry pages",
-    "defaultValue": "Tell us your location and the car you are interested in. We will confirm delivery options and costs."
-  },
-  {
-    "key": "warrantyTitle",
-    "label": "Warranty title",
-    "group": "Enquiry pages",
-    "defaultValue": "Warranty enquiries"
-  },
-  {
-    "key": "warrantyDescription",
-    "label": "Warranty description",
-    "group": "Enquiry pages",
-    "defaultValue": "We will talk you through the warranty options available for the vehicle you have in mind."
   },
   {
     "key": "part_exchangeTitle",
@@ -270,7 +228,6 @@ export const editableWebsiteFields = websiteFields.filter(field => field.group !
 export const websiteFieldHelp: Partial<Record<WebsiteTextKey, string>> = {
   servicesHeading: 'Accessible section heading for screen readers. Service cards use their own titles in Services.',
   teamHeading: 'Shown in the visit section when a team photograph or introduction is supplied.',
-  reviewsHeading: 'Used on the homepage and vehicle pages when customer reviews are enabled.',
   viewingTitle: 'Shown at the top of the customer test-drive booking form.',
   viewingDescription: 'Shown below the title of the customer test-drive booking form.',
   contactBeforeHeading: 'Shown when Appointments & visiting information has been supplied.',
@@ -288,7 +245,6 @@ export function websiteFieldPage(key: WebsiteTextKey, vehiclePageHref?: string):
   if (field.group === 'Warranty') return { href:'/warranty', label:'Warranty page' };
   if (field.group === 'Browse stock') return { href:'/stock', label:'Browse stock' };
   if (field.group === 'Saved cars') return { href:'/saved', label:'Saved cars' };
-  if (field.group === 'Comparison') return { href:'/compare', label:'Compare cars' };
   if (field.group === 'Vehicle page') return vehiclePageHref ? {href:vehiclePageHref,label:'Vehicle page'} : {href:'/stock',label:'Choose a vehicle from stock'};
   if (field.group === 'Enquiry pages') {
     const type = key.replace(/(?:Title|Description)$/, '');

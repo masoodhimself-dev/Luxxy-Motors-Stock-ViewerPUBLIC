@@ -56,7 +56,7 @@ it('prevents confirmations when platform booking controls are off while leaving 
   mount({ enquiryId: 'enquiry-one' });
   expect(screen.getByRole('button',{name:'Confirm appointment'})).toBeDisabled();
   expect(screen.getByRole('button',{name:'Decline'})).toBeEnabled();
-  expect(screen.getByRole('button',{name:'Declaration & QR'})).toBeEnabled();
+  expect(screen.getByRole('button',{name:'Declaration'})).toBeEnabled();
   expect(screen.getByText(/New test-drive bookings and confirmations are paused/)).toBeVisible();
 });
 it('never falls back to another customer when a contextual appointment is missing', () => {
@@ -123,7 +123,7 @@ it('keeps booking records readable for accounts without declaration controls or 
   mount();
   expect(within(screen.getByTestId('staff-test-drive-enquiry-other')).getByText('Jordan')).toBeVisible();
   expect(screen.getByRole('link', { name: 'Open customer' })).toBeVisible();
-  expect(screen.queryByRole('button', { name: 'Declaration & QR' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Declaration' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Check preparation' })).not.toBeInTheDocument();
   expect(declarationCalls()).toHaveLength(0);
   expect(state.fetch.mock.calls.every(([, options]) => !options?.method || options.method === 'GET')).toBe(true);
