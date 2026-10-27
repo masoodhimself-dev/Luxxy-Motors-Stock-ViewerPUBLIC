@@ -434,6 +434,20 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
   let document: SaleWorkspaceDocument | undefined;
   if (command.action === 'update') {
     const updated = cleanSaleWorkspaceDraft(command.draft, record.reference, record.payments, record.draft);
+    // The invoice wizard edits the same arrangements as the dedicated handover
+    // form. Keep ordinary booking status in step with changes made there,
+    // without overriding an in-progress, failed or completed handover.
+    const previousFulfilment = record.draft.fulfilment;
+    const nextFulfilment = updated.fulfilment;
+    if (previousFulfilment && nextFulfilment && !previousFulfilment.completedAt &&
+        (previousFulfilment.stage === 'to_arrange' || previousFulfilment.stage === 'booked') &&
+        (previousFulfilment.method !== nextFulfilment.method ||
+         previousFulfilment.scheduledDate !== nextFulfilment.scheduledDate ||
+         previousFulfilment.address !== nextFulfilment.address)) {
+      nextFulfilment.stage = nextFulfilment.scheduledDate &&
+        (nextFulfilment.method !== 'delivery' || nextFulfilment.address.trim())
+        ? 'booked' : 'to_arrange';
+    }
     if (record.completedAt && ['customer','email','phone','address','vehicleId','vehicle','registration','vin','price','exchanges','adjustments'].some(key => JSON.stringify(updated[key as keyof SaleWorkspaceDraft] ?? (key === 'vin' ? '' : undefined)) !== JSON.stringify(record.draft[key as keyof SaleWorkspaceDraft] ?? (key === 'vin' ? '' : undefined)))) throw new SaleWorkspaceError('Completed sale details are locked. Use payment corrections and retain the issued invoice.', 409);
     if (record.lifecycle && ['reserved', 'sold'].includes(record.lifecycle.status) && updated.vehicleId !== record.draft.vehicleId) throw new SaleWorkspaceError('Release the sale reservation before changing its vehicle.', 409);
     if (record.customerAccess && (updated.customer !== record.draft.customer || updated.email !== record.draft.email || updated.vehicleId !== record.draft.vehicleId)) record.customerAccess.revokedAt = context.now;
