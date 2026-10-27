@@ -16,7 +16,7 @@ const needsCancellation = (row: SoldVehicleCustomer) => row.kind === 'appointmen
   : !row.appointmentCancelledAt && Boolean(row.appointmentAt && Date.parse(row.appointmentAt) > Date.now()));
 const emailLabel = (status: SoldVehicleCustomer['emailStatus']) => ['delivered', 'opened', 'clicked'].includes(status ?? '') ? 'Email delivered' : status === 'sent' ? 'Email sent — awaiting delivery' : status === 'unknown' ? 'Delivery unconfirmed — check Email before resending' : ['prepared', 'sending', 'scheduled', 'queued', 'delivery_delayed'].includes(status ?? '') ? 'Approved email queued — check Email' : status ? `Email ${status} — contact customer` : null;
 
-/** Works before mark-sold as a read-only preview, then as a durable review from sales or Home. */
+/** Works before mark-sold as a read-only preview, then as a durable review in Sales. */
 export function SoldVehicleCustomerReview({ saleId, onComplete }: { saleId: string; onComplete?: () => void }) {
   const cache = useQueryClient();
   const access = useStaffAccess();
@@ -55,7 +55,7 @@ export function SoldVehicleCustomerReview({ saleId, onComplete }: { saleId: stri
   function failure(cause: unknown) {
     const conflict = Boolean(cause && typeof cause === 'object' && 'status' in cause && cause.status === 409);
     setError(conflict ? 'A booking or customer was updated by someone else. The latest details are being loaded; check them before continuing.'
-      : 'This update could not be confirmed. Check the refreshed list before trying again. Unfinished work stays on Home.');
+      : 'This update could not be confirmed. Check the refreshed list before trying again. Review unfinished updates here in Sales.');
   }
   async function cancel(rowsToCancel: SoldVehicleCustomer[], prepareEmail: boolean) {
     if (busy || !rowsToCancel.length) return;
@@ -124,7 +124,7 @@ export function SoldVehicleCustomerReview({ saleId, onComplete }: { saleId: stri
     })}</ul>;
   }
   return <section className="sold-customer-review" aria-label="Sold car customers">
-    <header><div><h3>{review.sold ? 'Customers to update' : 'Other customers interested in this car'}</h3><p>{review.sold ? `${review.remaining} ${review.remaining === 1 ? 'follow-up' : 'follow-ups'} left. Unfinished work stays on Home.` : 'When you mark this car sold, review the remaining visits and customer updates here.'}</p></div><span className="sold-review-count">{appointments.filter(pending).length} booked · {interests.filter(pending).length} interested</span></header>
+    <header><div><h3>{review.sold ? 'Customers to update' : 'Other customers interested in this car'}</h3><p>{review.sold ? `${review.remaining} ${review.remaining === 1 ? 'follow-up' : 'follow-ups'} left. Review unfinished updates here in Sales.` : 'When you mark this car sold, review the remaining visits and customer updates here.'}</p></div><span className="sold-review-count">{appointments.filter(pending).length} booked · {interests.filter(pending).length} interested</span></header>
     {error && <p className="sold-review-error" role="alert">{error}</p>}{notice && <p className="sold-review-notice" role="status">{notice}</p>}
     {review.sold && cancellable.length > 0 && canManage && <div className="sold-review-bulk">
       <p><strong>{selectedRows.length} selected</strong> · Cancel these visits, then contact each customer. No email is sent automatically.</p>

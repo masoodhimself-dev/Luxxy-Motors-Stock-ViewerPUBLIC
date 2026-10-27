@@ -119,13 +119,15 @@ it('refreshes conflicts without claiming the appointment was cancelled', async (
   expect(screen.getByRole('button', { name: 'Cancel appointment…' })).toBeEnabled();
 });
 
-it('shows unresolved work from Home after reopening without automatic writes', async () => {
+it('shows unresolved updates after reopening in Sales without automatic writes', async () => {
   show(<Harness />);
   const button = await screen.findByRole('button', { name: 'Review customers' });
   expect(screen.getByText(/2 customers to update/)).toBeVisible();
   fireEvent.click(button);
   expect(await screen.findByText('Fictional Alex')).toBeVisible();
   expect(screen.getByText('Call before they travel')).toBeVisible();
+  expect(screen.getByText(/Review unfinished updates here in Sales/)).toBeVisible();
+  expect(document.body).not.toHaveTextContent('Unfinished work stays on Home');
   expect(state.fetch.mock.calls.every(([, options]) => !options?.method)).toBe(true);
 });
 

@@ -14,7 +14,6 @@ import {
 } from "@workspace/api-client-react";
 import {
   saleWorkspaceTotals,
-  saleWorkspaceFingerprint,
   saleWorkspaceChecklistProgress,
   saleWorkspaceRetainedIntakeChecks,
   type SaleWorkspaceChecklistInput,
@@ -27,6 +26,7 @@ import {
 import { useStock } from "@/lib/stock-context";
 import { useDealerSettings } from "@/lib/dealer-settings-context";
 import { useDealerFeatures } from "@/lib/dealer-features";
+import { saleInvoiceIsCurrent } from '@/lib/sale-invoice-current';
 import {
   vehicleDisplayTitle,
   vehicleRegistration,
@@ -576,9 +576,7 @@ export function SalesWorkspace({
     if (!embedded) navigate("/portal?section=sales");
   }
   const latestInvoice = record?.documents.filter(document => document.type === "invoice").at(-1) ?? null;
-  const invoiceIsCurrent = Boolean(latestInvoice && draft &&
-    saleWorkspaceFingerprint({ draft: latestInvoice.snapshot.draft, payments: latestInvoice.snapshot.payments }) ===
-      saleWorkspaceFingerprint({ draft, payments: rows }));
+  const invoiceIsCurrent = Boolean(latestInvoice && draft && saleInvoiceIsCurrent(latestInvoice, draft, rows));
   const latestPayment = rows.filter(row => row.status === "confirmed").at(-1);
   const saleStatus = record?.completedAt ? "Sold" : record?.lifecycle?.status === "reserved" ? "Reserved" : record?.lifecycle?.status === "released" ? "Released" : "In progress";
   function resumeAt(nextStep: number) {

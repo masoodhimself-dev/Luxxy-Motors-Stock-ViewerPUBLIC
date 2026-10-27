@@ -927,6 +927,31 @@ it("opens a completed sale's frozen invoice and keeps completed customer and veh
   expect(within(screen.getByRole("complementary", { name: "Selected car" })).getByRole("button", { name: "Change car" })).toBeDisabled();
 });
 
+it.each(['collection', 'delivery'] as const)('keeps the saved full invoice current after recording %s without changing its documents or payments', async method => {
+  let sale = fixturePayment(savedSale({ fulfilment: {
+    method, viewed: 'viewed', address: method === 'delivery' ? '25 Test Road' : '', recipient: 'Jamie Taylor', phone: '07700900123',
+    scheduledDate: '2026-10-27', timeWindow: 'Afternoon', instructions: '',
+  } }), '10000', 'final-payment');
+  sale = fixtureCommand(sale, { action: 'issue-invoice', kind: 'full', acknowledge: true });
+  const issuedInvoice = structuredClone(sale.documents.at(-1));
+  const payments = structuredClone(sale.payments);
+  sale = fixtureCommand(sale, { action: 'finish-invoice-sale', acknowledge: true });
+  sale = fixtureCommand(sale, { action: 'handover', recipient: 'Jamie Taylor' });
+  const frozenSale = structuredClone(sale);
+  await mountSaved(sale);
+  expect(screen.getByRole('button', { name: 'Open latest invoice' })).toBeEnabled();
+  expect(screen.queryByText(/Changes since issue/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/details or payments have changed since the saved invoice/)).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Create updated invoice' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Open latest invoice' }));
+  await waitFor(() => expect(state.pdf).toHaveBeenCalledTimes(1));
+  expect(state.pdf.mock.calls[0][0].issuedDocument).toEqual(issuedInvoice);
+  expect(state.sales[0].documents.find(document => document.id === issuedInvoice!.id)).toEqual(issuedInvoice);
+  expect(state.sales[0].payments).toEqual(payments);
+  expect(state.sales[0]).toEqual(frozenSale);
+  expect(mutations()).toHaveLength(0);
+});
+
 it("preserves an unrecorded payment while switching between the summary and the payment form", async () => {
   await mountSaved(fixturePayment(savedSale(), "500"));
   fireEvent.click(screen.getByRole("button", { name: "Record a payment" }));
