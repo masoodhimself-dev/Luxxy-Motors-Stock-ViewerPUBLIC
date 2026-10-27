@@ -1,7 +1,10 @@
+import { customerTestSession } from '@/lib/customer-test-storage';
+import type { Car } from '@/lib/stock-context';
 import { customerDefaultCopy, websiteText } from "@/lib/website-content";
 import './warranty.css';
 import { useEffect, useState } from 'react';
-import { Link, useSearch } from 'wouter';
+import { useSearch } from 'wouter';
+import { CustomerSafeLink as Link } from '@/components/customer-safe-link';
 import { ArrowLeft, ArrowRight, MessageCircle, Phone } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { PageHeading } from '@/components/page-ui';
@@ -22,7 +25,9 @@ const policyQuestions = [
   ['Getting help', 'Who handles a claim, and what approval is needed before repairs begin?'],
 ] as const;
 
-export default function Warranty() {
+export type TestWarrantyAdapter = {openGeneralEnquiry:(vehicle?:Car)=>void};
+export default function Warranty() { return <WarrantyContent />; }
+export function WarrantyContent({testMode}:{testMode?:TestWarrantyAdapter} = {}) {
   const { settings, isLoading: settingsLoading, isError: settingsError, publicEnquiriesEnabled } = useDealerSettings();
   const { stock, isLoading: stockLoading, error: stockError } = useStock();
   const search = useSearch();
@@ -43,6 +48,8 @@ export default function Warranty() {
     title: `Warranty information | ${settings.identity.name}`,
     description: `Ask ${settings.identity.name} about warranty options for your chosen vehicle, policy terms and how to get help.`,
   });
+
+  if(customerTestSession() && !testMode) return <p role="alert">Warranty is unavailable in the test workspace.</p>;
 
   return (
     <div className="friendly-page friendly-warranty luxxy-shell bg-background pb-14 sm:pb-20">
@@ -81,10 +88,10 @@ export default function Warranty() {
               <p id="warranty-vehicle-help" className="mt-3 text-xs leading-6 text-muted-foreground" role={stockLoading ? 'status' : stockError || unavailableVehicle ? 'alert' : undefined}>
                 {stockLoading ? 'Loading current stock. You can still send a general enquiry.' : stockError ? 'We couldn’t load the vehicle list. You can still ask a general warranty question.' : unavailableVehicle ? 'That car is no longer listed. Tell us which vehicle you mean in your enquiry.' : 'We’ll confirm the cover, cost and terms for your car.'}
               </p>
-              <Button asChild className="mt-5 w-full"><Link href={publicEnquiriesEnabled ? getEnquiryHref('general', vehicle) : '/contact'} data-testid="warranty-enquiry-link">{vehicle ? 'Enquire About This Car' : enquiryActionLabel}<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>
+              {testMode ? (publicEnquiriesEnabled && <Button className="mt-5 w-full" data-testid="warranty-enquiry-link" onClick={()=>testMode.openGeneralEnquiry(vehicle)}>{vehicle ? 'Enquire About This Car' : enquiryActionLabel}<ArrowRight className="h-4 w-4" aria-hidden="true" /></Button>) : <Button asChild className="mt-5 w-full"><Link href={publicEnquiriesEnabled ? getEnquiryHref('general', vehicle) : '/contact'} data-testid="warranty-enquiry-link">{vehicle ? 'Enquire About This Car' : enquiryActionLabel}<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>}
               <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
-                {phoneHref && <a href={phoneHref} className="text-link inline-flex min-h-11 items-center gap-2"><Phone className="h-4 w-4" aria-hidden="true" />{formatPhoneDisplay(settings.contact.phone!)}</a>}
-                {whatsappHref && <a href={whatsappHref} target="_blank" rel="noopener noreferrer" data-testid="warranty-whatsapp" className="text-link inline-flex min-h-11 items-center gap-2"><MessageCircle className="h-4 w-4" aria-hidden="true" />WhatsApp</a>}
+                {!testMode && phoneHref && <a href={phoneHref} className="text-link inline-flex min-h-11 items-center gap-2"><Phone className="h-4 w-4" aria-hidden="true" />{formatPhoneDisplay(settings.contact.phone!)}</a>}
+                {!testMode && whatsappHref && <a href={whatsappHref} target="_blank" rel="noopener noreferrer" data-testid="warranty-whatsapp" className="text-link inline-flex min-h-11 items-center gap-2"><MessageCircle className="h-4 w-4" aria-hidden="true" />WhatsApp</a>}
               </div>
             </section>
           </header>
@@ -94,7 +101,7 @@ export default function Warranty() {
             <p className="pb-4 text-sm leading-6 text-muted-foreground">{websiteText(settings, 'warrantyDetailsIntroduction')}</p>
             <dl className="grid min-w-0 gap-x-10 sm:grid-cols-2">{policyQuestions.map(([label, question]) => <div key={label} className="border-t border-border py-4"><dt className="text-sm font-semibold">{label}</dt><dd className="mt-1 text-sm leading-6 text-muted-foreground">{question}</dd></div>)}</dl>
           </details>
-          <p className="mt-6 text-sm leading-6 text-muted-foreground">Already bought a car? <Link href={publicEnquiriesEnabled ? "/enquire?type=general" : "/contact"} className="inline-flex min-h-11 items-center text-primary underline underline-offset-4">Ask us for help</Link> with your registration and warranty documents to hand.</p>
+          <p className="mt-6 text-sm leading-6 text-muted-foreground">Already bought a car? {testMode ? (publicEnquiriesEnabled && <button type="button" onClick={()=>testMode.openGeneralEnquiry()} className="inline-flex min-h-11 items-center text-primary underline underline-offset-4">Ask us for help</button>) : <Link href={publicEnquiriesEnabled ? "/enquire?type=general" : "/contact"} className="inline-flex min-h-11 items-center text-primary underline underline-offset-4">Ask us for help</Link>} with your registration and warranty documents to hand.</p>
         </>}
       </div>
     </div>

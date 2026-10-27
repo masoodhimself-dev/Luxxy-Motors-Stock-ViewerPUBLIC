@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { SignInButton, UserButton, useAuth, useUser } from "@clerk/react";
 import { staffReturnUrl } from "@/lib/staff-return-url";
@@ -41,7 +41,11 @@ import {
 } from "@/components/portal/quick-enquiry";
 import { appointmentLabel } from "@/lib/test-drive-dates";
 import { SalesWorkspace } from "@/pages/sales-demo";
+import { StartTestDialog, TestModeMenu, usePortalTestSession } from "@/components/portal/test-session";
+import { TestEnquiries } from "@/components/portal/test-enquiries";
+import { TestEmailSettings } from "@/components/portal/test-email";
 import { DealerReports } from "@/components/portal/dealer-reports";
+import { installTestModeFetchGuard } from "@/lib/test-mode-fetch-guard";
 
 import { NotificationsWorkspace } from "@/components/portal/notifications-workspace";
 import { PortalInstallMetadata } from "@/components/portal/device-notifications";
@@ -73,10 +77,12 @@ function PortalToolbar({
   children,
   staffName,
   account,
+  hideShowroom,
 }: {
   children?: React.ReactNode;
   staffName?: string;
   account?: React.ReactNode;
+  hideShowroom?: boolean;
 }) {
   const { settings } = useDealerSettings();
   return (
@@ -104,7 +110,7 @@ function PortalToolbar({
         </div>
         <div className="portal-toolbar-actions">
           {children}
-          <a
+          {!hideShowroom && <a
             href="/"
             target="_blank"
             rel="noopener noreferrer"
@@ -114,7 +120,7 @@ function PortalToolbar({
           >
             <ExternalLink size={16} aria-hidden="true" />
             <span>View showroom</span>
-          </a>
+          </a>}
           {staffName && (
             <span
               className="portal-account-name"
@@ -200,6 +206,8 @@ function PortalDesk() {
   const { user } = useUser();
   const [salesOpened, setSalesOpened] = useState(tab === "sales");
   const [newSaleRequest, setNewSaleRequest] = useState(0);
+  const [managedTestEnquiry, setManagedTestEnquiry] = useState<{id:string;saleId:string|null;sessionId:string;request:number;customerName:string;email:string;phone:string;partExchange?:{registration:string;mileage:number;condition:string|null}|null}|null>(null);
+  const testEnquiryRequest = useRef(0);
   const [quickEnquiryOpen, setQuickEnquiryOpen] = useState(false);
   const [quickEnquiryVehicleId, setQuickEnquiryVehicleId] = useState<
     string | null
@@ -232,6 +240,13 @@ function PortalDesk() {
     if (next === "sales") setSalesOpened(true);
   }, [search, access.data]);
   const canSell = access.data?.permissions.includes("sales.manage") ?? false;
+  const testScope = `${window.location.host}:${user?.id ?? access.data?.user?.authUserId ?? 'staff'}`;
+  const test = usePortalTestSession(testScope, canSell);
+  useLayoutEffect(() => test.guardSessionId ? installTestModeFetchGuard(test.guardSessionId) : undefined, [test.guardSessionId]);
+  const [startTestOpen, setStartTestOpen] = useState(false);
+  const testSession = test.session;
+  const testBlocked = access.isLoading || access.isError || test.checking || test.failed;
+  useEffect(() => setManagedTestEnquiry(null), [testSession?.sessionId]);
   const visibleTabs = tabs.filter(
     (item) =>
       item.key !== "settings" ||
@@ -345,8 +360,9 @@ function PortalDesk() {
       className="portal-workspace portal-premium-workspace luxxy-shell min-h-[70vh] bg-background"
     >
       <PortalInstallMetadata />
-      <PortalToolbar staffName={staffName} account={<UserButton />}>
-        <DropdownMenu>
+      <PortalToolbar staffName={staffName} account={<UserButton />} hideShowroom={Boolean(testSession) || testBlocked || test.locked}>
+        {canSell && <TestModeMenu active={Boolean(testSession) || test.locked} busy={test.busy || testBlocked} onStart={() => { if (confirmSettingsNavigation()) setStartTestOpen(true); }} onEnd={() => void test.end()} />}
+        {!testSession && !testBlocked && !test.locked && <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               type="button"
@@ -399,8 +415,9 @@ function PortalDesk() {
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>
-        </DropdownMenu>
+        </DropdownMenu>}
       </PortalToolbar>
+      {canSell && <StartTestDialog open={startTestOpen} onOpenChange={setStartTestOpen} onStart={test.start} busy={test.busy} error={test.error} scope={testScope} />}
       <h1 className="sr-only">Dealership workspace</h1>
       <div className="portal-workspace-inner mx-auto">
         <div className="min-w-0">
@@ -442,7 +459,7 @@ function PortalDesk() {
             })}
           </nav>
 
-          {quickCreated && (
+          {!testSession && !testBlocked && !test.locked && quickCreated && (
             <div className="portal-quick-confirmation" role="status">
               <CheckCircle2 size={18} aria-hidden="true" />
               <span>
@@ -484,21 +501,24 @@ function PortalDesk() {
           )}
 
           <div className="portal-section-content min-h-[50vh]">
+            {test.error && <p role="alert">{test.error}</p>}
+            {testBlocked ? <div role={test.failed || access.isError ? 'alert' : 'status'} className="p-6">{test.failed || access.isError ? <>We couldn’t check your workspace access. <Button type="button" variant="outline" onClick={() => void (access.isError ? access.refetch() : test.retry())}>Retry</Button></> : 'Checking test mode…'}</div> : test.locked ? <div role="alert" className="p-6"><p>This test has expired or is no longer available. End test mode before returning to the live workspace.</p><Button type="button" disabled={test.busy} onClick={() => void test.end()}>End test mode</Button></div> : <>
+            {testSession && <TestEmailSettings canEdit={Boolean(access.data?.permissions.includes('settings.publish'))} />}
             {tab !== "sales" && (
               <div
                 role="region"
                 id={`portal-content-${tab}`}
                 aria-labelledby={`portal-section-${tab}`}
               >
-                {tab === "notifications" && (
+                {tab === "notifications" && (testSession ? <TestEnquiries session={testSession} onOpenSale={(enquiry)=>{setManagedTestEnquiry({...enquiry,sessionId:testSession.sessionId,request:++testEnquiryRequest.current});setSalesOpened(true);setTab('sales');navigate('/portal?section=sales');}} /> : (
                   <NotificationsWorkspace
                     canEmail={canSell}
                     onQuickEnquiry={() => quickEnquiry()}
                     onNewSale={newSale}
                   />
-                )}
-                {tab === "settings" && <DealerSettingsHub />}
-                {tab === "reports" && (access.data ? <DealerReports scope={`${user?.id ?? access.data.user?.authUserId ?? "staff"}:${[...access.data.permissions].sort().join(",")}`} /> : access.isError ? <div role="alert"><p>We couldn’t check your access to Reports.</p><Button type="button" variant="outline" onClick={() => void access.refetch()}>Try again</Button></div> : <p role="status">Checking report access…</p>)}
+                ))}
+                {tab === "settings" && <DealerSettingsHub testSessionId={testSession?.sessionId} />}
+                {tab === "reports" && (access.data ? <DealerReports scope={`${user?.id ?? access.data.user?.authUserId ?? "staff"}:${[...access.data.permissions].sort().join(",")}`} testSessionId={testSession?.sessionId} /> : <p role="status">Checking report access…</p>)}
               </div>
             )}
             {salesOpened && (
@@ -509,7 +529,10 @@ function PortalDesk() {
                 aria-labelledby="portal-section-sales"
               >
                 <SalesWorkspace
+                  key={testSession?.sessionId ?? 'live'}
                   embedded
+                  managedTestSession={testSession}
+                  managedTestEnquiry={testSession ? managedTestEnquiry : null}
                   newSaleRequest={newSaleRequest}
                   onExit={() => {
                     setTab("notifications");
@@ -518,11 +541,12 @@ function PortalDesk() {
                 />
               </div>
             )}
+            </>}
           </div>
         </div>
       </div>
-      <ContextHistoryDialog />
-      {canSell && (
+      {!testSession && !testBlocked && !test.locked && <ContextHistoryDialog />}
+      {canSell && !testSession && !testBlocked && !test.locked && (
         <QuickEnquiryDialog
           open={quickEnquiryOpen}
           initialVehicleId={quickEnquiryVehicleId}

@@ -4,6 +4,7 @@ import test from 'node:test';
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
+import { createCanvas } from '@napi-rs/canvas';
 import express from 'express';
 const { pool } = await import('@workspace/db');
 const { runWithTenant } = await import('./lib/tenant-context');
@@ -18,7 +19,11 @@ app.use((req,_res,next)=>{
 app.use('/api',router);
 const server=createServer(app);await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
 const base=`http://127.0.0.1:${(server.address() as any).port}/api`;
+const fixtureCar='11111111-1111-4111-8111-111111111111',fixtureCustomer='22222222-2222-4222-8222-222222222222';
+const ensureFixture=async()=>{await pool.query(`INSERT INTO vehicles(id,dealer_id,source,advert_id,title,registration,source_price) VALUES($1,'protected-dealer','fixture','fixture-car','[TEST] Example Car','TEST 01',1000) ON CONFLICT(id) DO NOTHING`,[fixtureCar]);await pool.query(`INSERT INTO customers(id,dealer_id,name,phone,email) VALUES($1,'protected-dealer','[TEST] Example Buyer','07700900123','') ON CONFLICT(id) DO NOTHING`,[fixtureCustomer]);};
+await ensureFixture();
 const call=async(path:string,method='GET',body?:unknown,headers:Record<string,string>={})=>{
+  if(path==='/sales-test/sessions'&&method==='POST'&&body&&Object.keys(body as object).length===0){await ensureFixture();body={vehicleId:fixtureCar,customerEnquiryId:fixtureCustomer,customerSource:'customer'};}
   const response=await fetch(base+path,{method,headers:{'content-type':'application/json',...headers},...(body===undefined?{}:{body:JSON.stringify(body)})});
   const type=response.headers.get('content-type')||''; const data: any = type.includes('application/json') ? await response.json() : Buffer.from(await response.arrayBuffer()); return {status:response.status,data,headers:response.headers};
 };
@@ -37,6 +42,38 @@ test('isolated test session exercises sale engine and cannot affect real data or
   assert.equal((await call(path,'POST',{}, {'origin':'https://other.example.test'})).status,403);
   const created=await call(path,'POST',{});assert.equal(created.status,201,JSON.stringify(created.data));const s=created.data;assert.equal(s.vehicle.title,'[TEST] Example Car');
   const scoped=`${path}/${s.sessionId}`, work=`${scoped}/sale-workspace`;
+  const originalSettings=JSON.stringify((await pool.query("SELECT * FROM dealer_settings WHERE dealer_id='protected-dealer'")).rows);
+  const isolatedSettings=await call(`${scoped}/settings`);assert.equal(isolatedSettings.status,200,JSON.stringify(isolatedSettings.data));
+  const nextSettings=structuredClone(isolatedSettings.data.config);nextSettings.testDriveBooking.enabled=false;
+  assert.equal((await call(`${scoped}/settings`,'PATCH',{group:'bookings',config:nextSettings,expectedRevision:isolatedSettings.data.revision},{'x-role':'salesperson'})).status,403);
+  const savedSettings=await call(`${scoped}/settings`,'PATCH',{group:'bookings',config:nextSettings,expectedRevision:isolatedSettings.data.revision});assert.equal(savedSettings.status,200,JSON.stringify(savedSettings.data));assert.equal(savedSettings.data.config.testDriveBooking.enabled,false);
+  assert.equal((await call(`${scoped}/settings`,'PATCH',{group:'bookings',config:nextSettings,expectedRevision:isolatedSettings.data.revision})).status,409);
+  assert.equal((await call(`${scoped}/settings`,'GET',undefined,{'x-dealer':'other-dealer'})).status,404);
+  assert.equal(JSON.stringify((await pool.query("SELECT * FROM dealer_settings WHERE dealer_id='protected-dealer'")).rows),originalSettings);
+  const privateBefore=JSON.stringify((await pool.query("SELECT * FROM dealer_private_settings WHERE dealer_id='protected-dealer'")).rows);
+  const templates=await call(`${scoped}/email-templates`);assert.equal(templates.status,200,JSON.stringify(templates.data));const template=templates.data.templates[0];
+  const editedTemplate={id:template.id,expectedRevision:templates.data.revision,subject:'A test subject',body:'Hello {{customer_name}}',headline:''};
+  assert.equal((await call(`${scoped}/email-templates`,'PUT',editedTemplate,{'x-role':'salesperson'})).status,403);
+  const templateResult=await call(`${scoped}/email-templates`,'PUT',editedTemplate);assert.equal(templateResult.status,200,JSON.stringify(templateResult.data));assert.equal(templateResult.data.templates.find((item:any)=>item.id===template.id).subject,'A test subject');
+  assert.equal((await call(`${scoped}/email-templates`,'PUT',editedTemplate)).status,409);
+  assert.equal((await call(`${scoped}/email-templates`,'GET',undefined,{'x-user':'someone-else'})).status,404);
+  const paperwork=await call(`${scoped}/paperwork`);assert.equal(paperwork.status,200,JSON.stringify(paperwork.data));
+  const editedPaperwork={expectedRevision:paperwork.data.revision,saleTerms:'Test sale terms',reservationTerms:'Test deposit terms',invoiceSettings:paperwork.data.invoiceSettings,correctionSettings:paperwork.data.correctionSettings};
+  assert.equal((await call(`${scoped}/paperwork`,'PUT',editedPaperwork,{'x-role':'salesperson'})).status,403);
+  const savedPaperwork=await call(`${scoped}/paperwork`,'PUT',editedPaperwork);assert.equal(savedPaperwork.status,200,JSON.stringify(savedPaperwork.data));assert.equal(savedPaperwork.data.saleTerms,'Test sale terms');
+  assert.equal((await call(`${scoped}/paperwork`,'PUT',editedPaperwork)).status,409);
+  assert.equal(JSON.stringify((await pool.query("SELECT * FROM dealer_private_settings WHERE dealer_id='protected-dealer'")).rows),privateBefore);
+  const realStaff=randomUUID();await pool.query("INSERT INTO portal_users(id,dealer_id,auth_user_id,email,name,role) VALUES($1,'protected-dealer','fixture-owner-test-team','owner@example.test','Owner','owner')",[realStaff]);
+  const teamBefore=JSON.stringify((await pool.query("SELECT * FROM portal_users WHERE dealer_id='protected-dealer'")).rows), invitesBefore=JSON.stringify((await pool.query("SELECT * FROM account_invitations WHERE dealer_id='protected-dealer'")).rows);
+  const team=await call(`${scoped}/team`);assert.equal(team.status,200,JSON.stringify(team.data));const owner=team.data.members.find((m:any)=>m.email==='owner@example.test');assert.ok(owner);assert.notEqual(owner.id,realStaff);
+  assert.equal((await call(`${scoped}/team`,'PATCH',{id:owner.id,active:false,expectedRevision:team.data.revision})).status,409);
+  assert.equal((await call(`${scoped}/team`,'POST',{email:'staff@example.test',role:'salesperson',expectedRevision:team.data.revision},{'x-role':'salesperson'})).status,403);
+  const practice=await call(`${scoped}/team`,'POST',{email:'staff@example.test',role:'salesperson',expectedRevision:team.data.revision});assert.equal(practice.status,200,JSON.stringify(practice.data));assert.equal(practice.data.members.find((m:any)=>m.email==='staff@example.test').invited,true);
+  assert.equal((await call(`${scoped}/team`,'POST',{email:'other@example.test',role:'accounts',expectedRevision:team.data.revision})).status,409);
+  assert.equal((await call(`${scoped}/team`,'GET',undefined,{'x-user':'other-user'})).status,404);
+  assert.equal(JSON.stringify((await pool.query("SELECT * FROM portal_users WHERE dealer_id='protected-dealer'")).rows),teamBefore);assert.equal(JSON.stringify((await pool.query("SELECT * FROM account_invitations WHERE dealer_id='protected-dealer'")).rows),invitesBefore);
+  await pool.query('DELETE FROM portal_users WHERE id=$1',[realStaff]);
+  const testReport=await call(`${scoped}/reports?period=30d`);assert.equal(testReport.status,200,JSON.stringify(testReport.data));assert.equal(testReport.data.enquiries.received,0);assert.equal(testReport.data.sales.completed,0);
   assert.equal((await call(`${scoped}/stock`)).data.cars[0].inventoryStatus,'available');
   for(const headers of [{'x-dealer':'other-dealer'},{'x-user':'other-user'}] as Record<string,string>[]) {assert.equal((await call(scoped,'GET',undefined,headers)).status,404);assert.equal((await call(scoped,'DELETE',{},headers)).status,404);}
   const evilDrafts=[{...draft(s.vehicle.id),vehicleId:realVehicle},{...draft(s.vehicle.id),sourceEnquiryId:randomUUID()},{...draft(s.vehicle.id),sourceReservationId:randomUUID()},{...draft(s.vehicle.id),email:'real@example.com'},{...draft(s.vehicle.id),customer:'A real person'}];
@@ -50,7 +87,7 @@ test('isolated test session exercises sale engine and cannot affect real data or
   assert.equal((await call(`${work}/${sale.id}/documents/${randomUUID()}/email`,'POST',mutation())).status,404);
   await doAction('invoice-payments',{payment:{amount:'100',method:'Bank transfer',date,reference:'TEST-DEPOSIT',kind:'deposit',status:'confirmed'}});
   assert.equal((await call(`${scoped}/stock`)).data.cars[0].inventoryStatus,'reserved');
-  const dep=await doAction('issue-invoice',{kind:'deposit',acknowledge:true});assert.match(dep.document.number,/TEST/);assert.equal(dep.document.verification,undefined);
+  const dep=await doAction('issue-invoice',{kind:'deposit',acknowledge:true});assert.match(dep.document.number,/TEST/);assert.equal(dep.document.verification,undefined);assert.equal(dep.document.content,'Test deposit terms');
   const pdf=await call(`${work}/${sale.id}/documents/${dep.document.id}/pdf`);assert.equal(pdf.status,200);assert.equal(pdf.data.subarray(0,4).toString(),'%PDF');if(process.env.SALES_TEST_PDF_PATH)await writeFile(process.env.SALES_TEST_PDF_PATH,pdf.data);
   const depositSnapshot=dep.document;
   const originalPayment = sale.payments[0];
@@ -84,6 +121,16 @@ test('isolated test session exercises sale engine and cannot affect real data or
   await pool.query("DELETE FROM sale_workspace WHERE dealer_id='protected-dealer'");await pool.query("DELETE FROM sale_workspace_counters WHERE dealer_id='protected-dealer'");await pool.query("DELETE FROM vehicles WHERE dealer_id='protected-dealer'");
 });
 
+test('a test-only contact can start a session without creating a real customer',async()=>{
+  await ensureFixture();const before=JSON.stringify((await pool.query("SELECT * FROM customers WHERE dealer_id='protected-dealer' ORDER BY id")).rows);
+  const body={vehicleId:fixtureCar,customerSource:'test',testCustomer:{name:'Practice Buyer',phone:'',email:''}},headers={'x-user':'practice-contact'};
+  assert.equal((await call(path,'POST',{...body,testCustomer:{name:'',phone:'',email:''}},headers)).status,400);
+  assert.equal((await call(path,'POST',{...body,testCustomer:{name:'Practice Buyer',phone:'',email:'invalid'}},headers)).status,400);
+  const created=await call(path,'POST',body,headers);assert.equal(created.status,201,JSON.stringify(created.data));assert.equal(created.data.customer.name,'Practice Buyer');
+  assert.equal(JSON.stringify((await pool.query("SELECT * FROM customers WHERE dealer_id='protected-dealer' ORDER BY id")).rows),before);
+  assert.equal((await call(`${path}/${created.data.sessionId}`,'DELETE',{},headers)).status,200);
+  assert.equal(JSON.stringify((await pool.query("SELECT * FROM customers WHERE dealer_id='protected-dealer' ORDER BY id")).rows),before);
+});
 test('refunding a fictional deposit does not release stock until staff explicitly release it',async()=>{
   const created=await call(path,'POST',{}, {'x-user':'refund-user'});assert.equal(created.status,201);const s=created.data,scope=`${path}/${s.sessionId}`,work=`${scope}/sale-workspace`,headers={'x-user':'refund-user'};
   let r=await call(work,'POST',mutation({draft:draft(s.vehicle.id)}),headers);assert.equal(r.status,201);let sale=r.data.sale;
@@ -190,4 +237,45 @@ test('cleanup locks the test vehicle before scanning FKs; a concurrent parent in
   const result=await insert;assert.equal(result.ok,false);assert.equal(result.code,'23503');
   assert.equal((await pool.query('SELECT 1 FROM enquiries WHERE id=$1',[parentId])).rowCount,0);
 });
-test.after(async()=>{await new Promise<void>(resolve=>server.close(()=>resolve()));await pool.end();});
+test('test sale supports part exchange and delivery without changing real stock or customer',async()=>{
+  await ensureFixture();
+  const snapshot=async()=>JSON.stringify((await pool.query('SELECT (SELECT row_to_json(v) FROM vehicles v WHERE id=$1) car,(SELECT row_to_json(c) FROM customers c WHERE id=$2) customer',[fixtureCar,fixtureCustomer])).rows);
+  const before=await snapshot(), headers={'x-user':'delivery-px-user'};
+  const created=await call(path,'POST',{},headers);assert.equal(created.status,201,JSON.stringify(created.data));
+  const s=created.data,scope=`${path}/${s.sessionId}`,work=`${scope}/sale-workspace`;
+  const copy={...draft(s.vehicle.id),vin:'WVWZZZ1JZXW000001',exchanges:[{registration:'AA12AAA',description:'Part exchange',value:'200'}]};
+  let r=await call(work,'POST',mutation({draft:copy}),headers);assert.equal(r.status,201,JSON.stringify(r.data));let sale=r.data.sale;
+  const act=async(action:string,body:Record<string,unknown>)=>{const result=await call(`${work}/${sale.id}/${action}`,'POST',mutation({expectedRevision:sale.revision,...body}),headers);assert.equal(result.status,200,JSON.stringify(result.data));sale=result.data.sale;return result.data;};
+  await act('checklists',{partExchanges:[{registration:'AA12AAA',items:{identity:'checked',condition:'checked',ownership:'checked',finance:'not_needed',keys:'checked'}}]});
+  await act('invoice-payments',{payment:{amount:'800',method:'Bank transfer',date,reference:'TEST',kind:'final-payment',status:'confirmed'}});
+  await act('issue-invoice',{kind:'full',acknowledge:true});
+  await act('fulfilment',{fulfilment:{method:'delivery',viewed:'viewed',address:'2 Test Road, London',recipient:'Test recipient',phone:'07000000000',scheduledDate:date,timeWindow:'Afternoon',instructions:'Test only'}});
+  await act('finish-invoice-sale',{acknowledge:true});
+  await act('handover',{recipient:'Test recipient'});
+  assert.equal(sale.draft.fulfilment.method,'delivery');assert.equal(sale.draft.exchanges[0].registration,'AA12AAA');assert.ok(sale.draft.fulfilment.completedAt);
+  assert.equal(await snapshot(),before);
+  assert.equal((await call(scope,'DELETE',{},headers)).status,200);assert.equal(await snapshot(),before);
+});
+
+test('test invoice uses the dealer logo and preserves the real settings',async()=>{
+  const old=(await pool.query("SELECT config,revision FROM dealer_settings WHERE dealer_id='protected-dealer'")).rows[0];
+  const canvas=createCanvas(24,12);canvas.getContext('2d').fillRect(0,0,24,12);
+  const logo=`data:image/png;base64,${(await canvas.encode('png')).toString('base64')}`;
+  await pool.query("INSERT INTO dealer_settings(dealer_id,config,revision) VALUES('protected-dealer',$1::jsonb,1) ON CONFLICT(dealer_id) DO UPDATE SET config=$1::jsonb",[JSON.stringify({identity:{name:'Real Dealer',logoAsset:logo}})]);
+  try {
+    const settingsBefore=JSON.stringify((await pool.query("SELECT config,revision FROM dealer_settings WHERE dealer_id='protected-dealer'")).rows);
+    const headers={'x-user':'logo-test-user'},created=await call(path,'POST',{},headers);assert.equal(created.status,201,JSON.stringify(created.data));
+    const s=created.data,scope=`${path}/${s.sessionId}`,work=`${scope}/sale-workspace`;
+    let result=await call(work,'POST',mutation({draft:draft(s.vehicle.id)}),headers);assert.equal(result.status,201,JSON.stringify(result.data));let sale=result.data.sale;
+    result=await call(`${work}/${sale.id}/issue-invoice`,'POST',mutation({expectedRevision:sale.revision,kind:'full',acknowledge:true}),headers);assert.equal(result.status,200,JSON.stringify(result.data));
+    assert.equal(result.data.document.snapshot.branding.identity.logoAsset,logo);
+    assert.match(result.data.document.snapshot.branding.identity.name,/TEST/);
+    assert.equal((await call(scope,'DELETE',{},headers)).status,200);
+    assert.equal(JSON.stringify((await pool.query("SELECT config,revision FROM dealer_settings WHERE dealer_id='protected-dealer'")).rows),settingsBefore);
+  } finally {
+    if(old)await pool.query("UPDATE dealer_settings SET config=$1::jsonb,revision=$2 WHERE dealer_id='protected-dealer'",[JSON.stringify(old.config),old.revision]);
+    else await pool.query("DELETE FROM dealer_settings WHERE dealer_id='protected-dealer'");
+  }
+});
+
+test.after(async()=>{await pool.query('DELETE FROM customers WHERE id=$1',[fixtureCustomer]);await pool.query('DELETE FROM vehicles WHERE id=$1',[fixtureCar]);await new Promise<void>(resolve=>server.close(()=>resolve()));await pool.end();});

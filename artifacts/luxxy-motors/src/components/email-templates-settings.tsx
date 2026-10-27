@@ -12,8 +12,8 @@ type Templates = {
   templates: EmailTemplate[];
   variables: string[];
 };
-const request = <T,>(method = "GET", body?: unknown) =>
-  customFetch<T>("/api/email-templates", {
+const request = <T,>(url:string, method = "GET", body?: unknown) =>
+  customFetch<T>(url, {
     method,
     ...(body
       ? {
@@ -22,7 +22,8 @@ const request = <T,>(method = "GET", body?: unknown) =>
         }
       : {}),
   });
-export function EmailTemplatesSettings() {
+export function EmailTemplatesSettings({testSessionId}:{testSessionId?:string} = {}) {
+  const endpoint=testSessionId ? `/api/sales-test/sessions/${encodeURIComponent(testSessionId)}/email-templates` : '/api/email-templates';
   const [data, setData] = useState<Templates | null>(null),
     [selected, setSelected] = useState("enquiry_acknowledgement");
   const [subject, setSubject] = useState(""),
@@ -46,7 +47,7 @@ export function EmailTemplatesSettings() {
     setBusy(true);
     setError("");
     try {
-      apply(await request<Templates>());
+      apply(await request<Templates>(endpoint));
     } catch {
       setError("Message wording could not be loaded. Try again.");
     } finally {
@@ -72,7 +73,7 @@ export function EmailTemplatesSettings() {
     setNotice("");
     try {
       apply(
-        await request<Templates>("PUT", {
+        await request<Templates>(endpoint,"PUT", {
           id: selected,
           expectedRevision: data.revision,
           ...(reset
@@ -80,7 +81,7 @@ export function EmailTemplatesSettings() {
             : { subject, body, headline: active?.headline ?? "" }),
         }),
       );
-      setNotice("Wording saved for future emails. No message was sent.");
+      setNotice(testSessionId ? "Wording saved in this test. No message was sent." : "Wording saved for future emails. No message was sent.");
     } catch {
       setError(
         "Wording could not be saved. Your edits are kept. Reload if another owner changed the messages.",

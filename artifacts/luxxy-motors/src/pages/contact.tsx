@@ -1,7 +1,8 @@
+import { customerTestSession } from '@/lib/customer-test-storage';
 import { websiteText } from "@/lib/website-content";
 import './customer-workflows.css';
 import { useState } from 'react';
-import { Link } from 'wouter';
+import { CustomerSafeLink as Link } from '@/components/customer-safe-link';
 import { ArrowLeft, ArrowRight, Check, Copy, Mail, MapPin, MessageCircle, Phone } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
@@ -10,7 +11,9 @@ import { getPhoneHref, getWhatsAppHref } from '@/lib/cta-helpers';
 import { formatPhoneDisplay } from '@/lib/utils';
 import { dealershipLocation } from '@/lib/dealership-location';
 
-export default function Contact() {
+export type TestContactAdapter = {openGeneralEnquiry:()=>void;openBooking:()=>void};
+export default function Contact() { return <ContactContent />; }
+export function ContactContent({testMode}:{testMode?:TestContactAdapter} = {}) {
   const { settings, isLoading, isError, publicEnquiriesEnabled } = useDealerSettings();
   const [copyStatus, setCopyStatus] = useState('');
   const location = dealershipLocation(settings.address);
@@ -33,6 +36,8 @@ export default function Contact() {
     }
   };
 
+  if(customerTestSession() && !testMode) return <p role="alert">Contact is unavailable in the test workspace.</p>;
+
   return <div className="friendly-page friendly-contact luxxy-shell bg-background pb-14 sm:pb-20">
     <div className="container mx-auto px-4 pt-5 sm:px-6 sm:pt-8 lg:px-8">
       <Link href="/" className="inline-flex min-h-11 items-center gap-2 text-xs font-medium text-muted-foreground hover:text-primary"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back to showroom</Link>
@@ -49,13 +54,13 @@ export default function Contact() {
         <section aria-labelledby="talk-heading" className="contact-talk-panel min-w-0">
           <h2 id="talk-heading" className="font-display text-2xl font-semibold tracking-tight">{websiteText(settings, "contactTalkHeading")}</h2>
           <div className="mt-5 divide-y divide-border border-y border-border">
-            {phoneHref && <a href={phoneHref} className="group flex min-h-24 items-center gap-4 py-5" data-testid="contact-phone"><Phone className="h-5 w-5 shrink-0 text-accent" aria-hidden="true" /><span className="min-w-0 flex-1"><span className="block text-xs text-muted-foreground">Call Us</span><span className="contact-phone-number mt-1 block font-display text-xl font-semibold group-hover:text-accent">{formatPhoneDisplay(settings.contact.phone!)}</span></span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" /></a>}
-            {whatsAppHref && <a href={whatsAppHref} target="_blank" rel="noopener noreferrer" className="group flex min-h-24 items-center gap-4 py-5" data-testid="contact-whatsapp"><MessageCircle className="h-5 w-5 shrink-0 text-accent" aria-hidden="true" /><span className="min-w-0 flex-1"><span className="block text-xs text-muted-foreground">Prefer a message?</span><span className="mt-1 block font-display text-lg font-semibold group-hover:text-accent">Chat on WhatsApp</span><span className="mt-1 block text-xs text-muted-foreground">Opens WhatsApp with a message ready to edit.</span></span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" /></a>}
-            {email && <a href={`mailto:${email}`} className="group flex min-h-24 items-center gap-4 py-5" data-testid="contact-email"><Mail className="h-5 w-5 shrink-0 text-accent" aria-hidden="true" /><span className="min-w-0 flex-1"><span className="block text-xs text-muted-foreground">Email us</span><span className="mt-1 block break-all font-semibold group-hover:text-accent">{email}</span></span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" /></a>}
+            {!testMode && phoneHref && <a href={phoneHref} className="group flex min-h-24 items-center gap-4 py-5" data-testid="contact-phone"><Phone className="h-5 w-5 shrink-0 text-accent" aria-hidden="true" /><span className="min-w-0 flex-1"><span className="block text-xs text-muted-foreground">Call Us</span><span className="contact-phone-number mt-1 block font-display text-xl font-semibold group-hover:text-accent">{formatPhoneDisplay(settings.contact.phone!)}</span></span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" /></a>}
+            {!testMode && whatsAppHref && <a href={whatsAppHref} target="_blank" rel="noopener noreferrer" className="group flex min-h-24 items-center gap-4 py-5" data-testid="contact-whatsapp"><MessageCircle className="h-5 w-5 shrink-0 text-accent" aria-hidden="true" /><span className="min-w-0 flex-1"><span className="block text-xs text-muted-foreground">Prefer a message?</span><span className="mt-1 block font-display text-lg font-semibold group-hover:text-accent">Chat on WhatsApp</span><span className="mt-1 block text-xs text-muted-foreground">Opens WhatsApp with a message ready to edit.</span></span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" /></a>}
+            {!testMode && email && <a href={`mailto:${email}`} className="group flex min-h-24 items-center gap-4 py-5" data-testid="contact-email"><Mail className="h-5 w-5 shrink-0 text-accent" aria-hidden="true" /><span className="min-w-0 flex-1"><span className="block text-xs text-muted-foreground">Email us</span><span className="mt-1 block break-all font-semibold group-hover:text-accent">{email}</span></span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" /></a>}
           </div>
           <div className="mt-5 flex flex-wrap items-center gap-3">
-            {publicEnquiriesEnabled && <Button asChild className="min-h-12"><Link href="/enquire?type=general">Send an enquiry<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>}
-            {settings.testDriveBooking?.enabled && <Button asChild variant="outline" className="min-h-12"><Link href="/enquire?type=viewing">Book a Test Drive<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>}
+            {publicEnquiriesEnabled && (testMode ? <Button className="min-h-12" onClick={testMode.openGeneralEnquiry}>Send an enquiry<ArrowRight className="h-4 w-4" aria-hidden="true" /></Button> : <Button asChild className="min-h-12"><Link href="/enquire?type=general">Send an enquiry<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>)}
+            {settings.testDriveBooking?.enabled && (testMode ? <Button variant="outline" className="min-h-12" onClick={testMode.openBooking}>Book a Test Drive<ArrowRight className="h-4 w-4" aria-hidden="true" /></Button> : <Button asChild variant="outline" className="min-h-12"><Link href="/enquire?type=viewing">Book a Test Drive<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>)}
           </div>
         </section>
 
@@ -67,7 +72,7 @@ export default function Contact() {
               <p className="mt-5 text-sm font-semibold">{settings.identity.name}</p>
               <address className="mt-2 not-italic text-base leading-7 text-primary-foreground/85" data-testid="contact-address">{location.lines.length ? location.lines.map((line, index) => <div key={index}>{line}</div>) : 'Contact us for our showroom address.'}</address>
               {location.isSample && <p className="mt-4 border-t border-primary-foreground/20 pt-4 text-xs leading-5 text-primary-foreground/80">Sample address for this template. Please contact us for the correct location before travelling.</p>}
-              {location.directions ? <div className="mt-5 flex flex-wrap items-center gap-3"><Button asChild variant="secondary"><a href={location.directions} target="_blank" rel="noopener noreferrer" data-testid="contact-directions">Get directions<ArrowRight className="h-4 w-4" aria-hidden="true" /></a></Button><button type="button" onClick={copyAddress} className="inline-flex min-h-11 items-center gap-2 px-2 text-sm underline underline-offset-4">{copyStatus === 'Address copied' ? <Check className="h-4 w-4" aria-hidden="true" /> : <Copy className="h-4 w-4" aria-hidden="true" />}Copy address</button></div> : !location.isSample && <p className="mt-4 text-xs leading-5 text-primary-foreground/80">Please contact us for directions before setting off.</p>}
+              {testMode ? <p className="mt-4 text-xs">Contact links are unavailable in this test preview.</p> : location.directions ? <div className="mt-5 flex flex-wrap items-center gap-3"><Button asChild variant="secondary"><a href={location.directions} target="_blank" rel="noopener noreferrer" data-testid="contact-directions">Get directions<ArrowRight className="h-4 w-4" aria-hidden="true" /></a></Button><button type="button" onClick={copyAddress} className="inline-flex min-h-11 items-center gap-2 px-2 text-sm underline underline-offset-4">{copyStatus === 'Address copied' ? <Check className="h-4 w-4" aria-hidden="true" /> : <Copy className="h-4 w-4" aria-hidden="true" />}Copy address</button></div> : !location.isSample && <p className="mt-4 text-xs leading-5 text-primary-foreground/80">Please contact us for directions before setting off.</p>}
               {copyStatus && <p role="status" className="mt-3 text-xs leading-5">{copyStatus}</p>}
             </>}
             {(isLoading || isError) && <p className="mt-5 text-sm leading-6 text-primary-foreground/80">{isLoading ? 'Loading showroom location…' : 'Contact us to confirm our location.'}</p>}

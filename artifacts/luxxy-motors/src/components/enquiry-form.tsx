@@ -9,6 +9,7 @@ import { responsiveVehicleImage, retryOriginalImage } from '@/lib/responsive-veh
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import { PartExchangeForm } from '@/components/part-exchange-form';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useTestRequest } from '@/lib/use-test-request';
 import { Link, Redirect, useLocation } from 'wouter';
 import { useCreateEnquiry, type EnquiryInput } from '@workspace/api-client-react';
 import { ArrowRight, CheckCircle2, CircleAlert, Mail, MessageSquare, ShieldCheck } from '@/components/icons';
@@ -61,6 +62,7 @@ export function EnquiryForm({
   initialMessage = '',
   onTypeChange,
   onChangeCar,
+  testMode,
 }: {
   initialType?: EnquiryType;
   embedded?: boolean;
@@ -69,8 +71,11 @@ export function EnquiryForm({
   stockCars?: Car[];
   onTypeChange?: (type: EnquiryType) => void;
   onChangeCar?: () => void;
+  /** Used only in the authenticated, isolated staff test workspace. */
+  testMode?: { customer: { name: string; email: string; phone: string }; config?:ReturnType<typeof useDealerSettings>['settings']; submit: (input: EnquiryInput) => Promise<void> };
 }) {
-  const { settings: dealerConfig } = useDealerSettings();
+  const { settings: liveDealerConfig } = useDealerSettings();
+  const dealerConfig=testMode?.config ?? liveDealerConfig;
   const features = useDealerFeatures();
   const [, navigate] = useLocation();
   const testDrivePath = `/enquire?type=viewing${vehicle ? `&vehicleId=${encodeURIComponent(vehicle.id)}` : ''}`;
@@ -78,21 +83,22 @@ export function EnquiryForm({
   const [unavailableVehiclePhoto, setUnavailableVehiclePhoto] = useState('');
   const nameInputRef = useRef<HTMLInputElement>(null);
   const successHeadingRef = useRef<HTMLHeadingElement>(null);
-  const [hasPartExchange, setHasPartExchange] = useState(() => Boolean(readVehicleExchange(vehicle?.id)));
-  const [exchange, setExchange] = useState(() => readVehicleExchange(vehicle?.id) ?? { registration: '', mileage: '', notes: '' });
+  const [hasPartExchange, setHasPartExchange] = useState(() => !testMode && Boolean(readVehicleExchange(vehicle?.id)));
+  const [exchange, setExchange] = useState(() => (!testMode && readVehicleExchange(vehicle?.id)) || { registration: '', mileage: '', notes: '' });
   useEffect(() => {
+    if (testMode) return;
     const draft = readVehicleExchange(vehicle?.id);
     if (draft) { setExchange(draft); setHasPartExchange(true); }
-  }, [vehicle?.id]);
+  }, [vehicle?.id, Boolean(testMode)]);
   const includePartExchange = hasPartExchange && dealerConfig.partExchange?.enabled && features.enabled('partExchange');
   const exchangeSummary = includePartExchange && vehicle ? [
     'Part exchange', `Registration: ${exchange.registration.trim().toUpperCase()}`,
     `Mileage: ${exchange.mileage} miles`, `Other details: ${exchange.notes.trim() || 'None supplied'}`,
   ].join('\n') : '';
   const messageLimit = 2000 - (exchangeSummary ? exchangeSummary.length + 2 : 0);
-  const [customerName, setCustomerName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  const [customerName, setCustomerName] = useState(testMode?.customer.name ?? '');
+  const [email, setEmail] = useState(testMode?.customer.email ?? '');
+  const [phone, setPhone] = useState(testMode?.customer.phone ?? '');
   const [phoneError, setPhoneError] = useState('');
   const [nameError,setNameError] = useState('');
   const [emailError,setEmailError] = useState('');
@@ -107,12 +113,19 @@ export function EnquiryForm({
   useEffect(() => {
     if (!messageTouched.current && initialMessage) setMessage(initialMessage);
   }, [initialMessage]);
-  const mutation = useCreateEnquiry();
+  const liveMutation = useCreateEnquiry();
+  const isolatedMutation = useTestRequest(async ({data}:{data:EnquiryInput}) => {
+    if (!testMode) throw new Error('Test session is unavailable.');
+    await testMode.submit(data);
+    return {customerNotificationStatus:'not_sent'};
+  });
+  const mutation = testMode ? isolatedMutation as unknown as typeof liveMutation : liveMutation;
   useEffect(() => {
     setType(initialType);
     mutation.reset();
   }, [initialType, mutation.reset]);
   useEffect(() => {
+    if (testMode) return;
     skipDraftSave.current = true;
     const draft=readEnquiryDraft(draftKey);
     if (draft) {
@@ -122,14 +135,15 @@ export function EnquiryForm({
       setDraftSaved(true);
       setDraftRestored(true);
     } else { setDraftSaved(false); setDraftRestored(false); }
-  }, [draftKey]);
+  }, [draftKey, Boolean(testMode)]);
   useEffect(() => {
+    if (testMode) return;
     if(skipDraftSave.current) {skipDraftSave.current=false;return;}
     if(mutation.data) return;
     if(customerName || email || phone || message || exchange.registration) {
       setDraftSaved(saveEnquiryDraft(draftKey,{customerName,email,phone,message,preferredContact,hasPartExchange,exchange}));
     } else {discardEnquiryDraft(draftKey);setDraftSaved(false);}
-  }, [draftKey,customerName,email,phone,message,preferredContact,hasPartExchange,exchange,mutation.data]);
+  }, [draftKey,customerName,email,phone,message,preferredContact,hasPartExchange,exchange,mutation.data,Boolean(testMode)]);
   useEffect(() => {
     if(mutation.isError) document.querySelector<HTMLElement>('[data-testid="status-enquiry-error"]')?.focus();
   }, [mutation.isError]);
@@ -194,9 +208,9 @@ export function EnquiryForm({
         mileage: Number(exchange.mileage),
         condition: null,
       } : null,
-      visitorId: getVisitorId(),
+      visitorId: testMode ? null : getVisitorId(),
     };
-    trackEvent('enquiry_submitted', {
+    if (!testMode) trackEvent('enquiry_submitted', {
       enquiry_type: type,
       vehicle_context: Boolean(data.vehicleId),
       preferred_contact: preferredContact,
@@ -205,8 +219,8 @@ export function EnquiryForm({
       { data },
       {
         onSuccess: () => {
-          discardEnquiryDraft(draftKey);setDraftSaved(false);setDraftRestored(false);
-          trackEvent('enquiry_completed', {
+          if (!testMode) discardEnquiryDraft(draftKey);setDraftSaved(false);setDraftRestored(false);
+          if (!testMode) trackEvent('enquiry_completed', {
             enquiry_type: type,
             vehicle_context: Boolean(data.vehicleId),
             preferred_contact: preferredContact,
@@ -216,10 +230,12 @@ export function EnquiryForm({
     );
   };
 
+  if (testMode && type !== 'general') return <p role="alert">This enquiry type is not available in this test view.</p>;
   if (type === 'viewing') return <Redirect to={testDrivePath} />;
   if (isPartExchange) return <PartExchangeForm vehicle={vehicle} stockCars={stockCars} />;
 
   if (mutation.isSuccess) {
+    if (testMode) return <div className="rounded border bg-card p-5" role="status"><h2 className="text-lg font-semibold">Test enquiry received</h2><p className="mt-2 text-sm">The enquiry is available in the test inbox. No customer message was sent.</p><Button type="button" variant="outline" className="mt-4" onClick={()=>mutation.reset()}>Send another test enquiry</Button></div>;
     return (
       <div className="luxxy-reveal py-4 text-center" data-testid="status-enquiry-success">
         <span className="mx-auto grid h-14 w-14 place-items-center border border-border bg-secondary/50 text-accent">
@@ -301,9 +317,9 @@ export function EnquiryForm({
             {(customerRegistrationDetails(vehicle) || vehicle.transmission) && <p className="mt-1 text-sm text-muted-foreground">{[customerRegistrationDetails(vehicle), vehicle.transmission].filter(Boolean).join(' · ')}</p>}
             <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3">
             {vehicle.price != null && <p className="luxxy-price-inline text-base font-semibold text-primary">{formatPrice(vehicle.price, vehicle.currency)}</p>}
-            <Link href="/stock" onClick={(event) => { if (onChangeCar) { event.preventDefault(); onChangeCar(); } }} className="inline-flex min-h-11 items-center text-sm text-accent underline underline-offset-4 transition-colors hover:text-primary">
+            {!testMode && <Link href="/stock" onClick={(event) => { if (onChangeCar) { event.preventDefault(); onChangeCar(); } }} className="inline-flex min-h-11 items-center text-sm text-accent underline underline-offset-4 transition-colors hover:text-primary">
               Change car
-            </Link>
+            </Link>}
             </div>
           </div>
         </div>
@@ -355,7 +371,7 @@ export function EnquiryForm({
             {!additionalContact && !(preferredContact === 'email' ? phone : email) && <button type="button" className="customer-enquiry-add-contact text-link" onClick={() => setAdditionalContact(true)}>{preferredContact === 'email' ? 'Add a phone number (optional)' : 'Add an email address (optional)'}</button>}
           </fieldset>
 
-        {selectedVehicle && features.enabled('partExchange') && (dealerConfig.partExchange?.enabled || hasPartExchange) && <div className="customer-enquiry-exchange">
+        {!testMode && selectedVehicle && features.enabled('partExchange') && (dealerConfig.partExchange?.enabled || hasPartExchange) && <div className="customer-enquiry-exchange">
           {!hasPartExchange ? <button type="button" className="customer-enquiry-exchange-add" onClick={() => setHasPartExchange(true)}>Add a part exchange (optional)</button> : <fieldset className="space-y-4 border-t border-border pt-4">
           <legend className="sr-only">Part-exchange details</legend>
           <div className="space-y-4" data-testid="enquiry-part-exchange-details">
@@ -400,7 +416,7 @@ export function EnquiryForm({
            </span>
         </div>
       </div>
-      {!embedded && <details key={type} className="customer-enquiry-topic">
+      {!embedded && !testMode && <details key={type} className="customer-enquiry-topic">
         <summary>Need something else?</summary>
         <div className="flex flex-wrap gap-x-5 gap-y-1 pb-3" aria-label="Other enquiries">
           {(Object.entries(typeLabels) as Array<[EnquiryType, string]>).filter(([value]) => value !== type

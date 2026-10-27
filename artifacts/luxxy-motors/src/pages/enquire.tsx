@@ -5,9 +5,11 @@ import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { ArrowLeft, ArrowRight, Camera, CircleAlert } from '@/components/icons';
 import { Link, useLocation, useSearch } from 'wouter';
 import { EnquiryForm } from '@/components/enquiry-form';
+import { PartExchangeForm } from '@/components/part-exchange-form';
+import type { EnquiryInput } from '@workspace/api-client-react';
 import { VehicleCall } from '@/components/vehicle-call';
 import { TestDriveBooking } from '@/components/test-drive-booking';
-import { useStock } from '@/lib/stock-context';
+import { useStock, type Car } from '@/lib/stock-context';
 import type { EnquiryType } from '@/lib/cta-helpers';
 import { formatMileage, formatPrice, getThumbnailUrl, vehicleRegistration } from '@/lib/utils';
 import { customerRegistrationDetails } from '@/lib/customer-vehicle-meta';
@@ -33,17 +35,20 @@ function vehicleName(vehicle: { title: string | null; make: string | null; model
   return vehicle.title || [vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Selected vehicle';
 }
 
-export default function Enquire() {
+export default function Enquire() { return <EnquirePage />; }
+
+export function EnquirePage({testMode}:{testMode?:{type:'general'|'viewing'|'part_exchange';sessionId:string;config:ReturnType<typeof useDealerSettings>['settings'];customer:{name:string;email:string;phone:string};vehicle:{id:string;title:string;registration:string;price:number|null}|null;submit:(input:EnquiryInput)=>Promise<{appointmentStatus:string|null}>}} = {}) {
   const [location, setLocation] = useLocation();
   const { stock, isLoading, error } = useStock();
-  const { settings: dealerConfig } = useDealerSettings();
+  const { settings: liveDealerConfig } = useDealerSettings();
+  const dealerConfig=testMode?.config ?? liveDealerConfig;
   const search = useSearch();
   const params = useMemo(() => new URLSearchParams(search), [search]);
-  const requestedType = params.get('type') as EnquiryType | null;
+  const requestedType = testMode ? testMode.type : params.get('type') as EnquiryType | null;
   const [type, setType] = useState<EnquiryType>(requestedType && enquiryTypes.includes(requestedType) ? requestedType : 'general');
   useEffect(() => { setType(requestedType && enquiryTypes.includes(requestedType) ? requestedType : 'general'); }, [requestedType]);
-  const vehicleId = params.get('vehicleId');
-  const vehicle = stock?.cars.find((car) => car.id === vehicleId);
+  const vehicleId = testMode ? testMode.vehicle?.id ?? null : params.get('vehicleId');
+  const vehicle:Car|undefined = testMode?.vehicle ? {...testMode.vehicle,advertId:'',images:[],make:null,model:null,variant:null,trim:null,year:null,mileage:null,mileageText:null,fuel:null,transmission:null,currency:'GBP',priceType:null,registrationBand:null,plate:null,vrm:null,vrmVerified:null,bodyType:null,engineSize:null,engineCC:null,doors:null,seats:null,colour:null,emissionClass:null,drivetrain:null,owners:null,writeOffCategory:null,advertUrl:null,dealerName:null,dealerLocation:null,imageCount:null,heroImage:null,specifications:null,sourceExtras:null} : testMode ? undefined : stock?.cars.find((car) => car.id === vehicleId);
   const copy = {
     ...headings[type],
     eyebrow: type === 'viewing' ? `Visit ${dealerConfig.identity.name}` : type === 'general' ? dealerConfig.identity.name : headings[type].eyebrow,
@@ -70,18 +75,18 @@ export default function Enquire() {
     : [];
   const changeCar = () => navigateToHomeTarget('stock', location, setLocation);
 
-  if (type === 'viewing') return <TestDriveBooking vehicle={vehicle} stockCars={stock?.cars ?? []} isLoading={isLoading} error={error} missingVehicle={Boolean(vehicleId && !vehicle)} />;
+  if (type === 'viewing') return testMode ? <div onClickCapture={event=>{if((event.target as Element).closest('a')){event.preventDefault();event.stopPropagation();}}}><TestDriveBooking vehicle={vehicle} stockCars={vehicle?[vehicle]:[]} testMode={testMode} /></div> : <TestDriveBooking vehicle={vehicle} stockCars={stock?.cars ?? []} isLoading={isLoading} error={error} missingVehicle={Boolean(vehicleId && !vehicle)} />;
 
   return (
-    <div className="friendly-page friendly-enquire luxxy-shell min-h-screen bg-background pb-20 pt-4 sm:pt-8 md:pt-12">
+    <div className="friendly-page friendly-enquire luxxy-shell min-h-screen bg-background pb-20 pt-4 sm:pt-8 md:pt-12" onClickCapture={testMode ? event=>{if((event.target as Element).closest('a')){event.preventDefault();event.stopPropagation();}} : undefined}>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <Link
+        {!testMode && <Link
           href="/"
           className="inline-flex min-h-11 items-center gap-3 font-display text-[12px] font-normal text-primary transition-colors hover:text-accent group"
         >
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
           Back to showroom
-        </Link>
+        </Link>}
         <div className="mt-3 grid items-start gap-5 sm:mt-5 sm:gap-6 lg:grid-cols-[320px_minmax(0,1fr)] xl:gap-12">
           <section className="enquiry-introduction flex flex-col">
             <div className="friendly-banner">
@@ -108,9 +113,9 @@ export default function Enquire() {
               <div className="mt-5 hidden flex-col gap-4 lg:flex" data-testid="enquiry-vehicle-summary">
                 <div className="flex items-center justify-between gap-3 border-b border-border pb-2">
                   <p className="font-display text-[13px] font-semibold text-primary">Your selected car</p>
-                  <Link href="/stock" onClick={(event) => { event.preventDefault(); changeCar(); }} className="inline-flex min-h-11 shrink-0 items-center font-display text-xs text-accent underline underline-offset-4 transition-colors hover:text-primary">
+                  {!testMode && <Link href="/stock" onClick={(event) => { event.preventDefault(); changeCar(); }} className="inline-flex min-h-11 shrink-0 items-center font-display text-xs text-accent underline underline-offset-4 transition-colors hover:text-primary">
                     Change car
-                  </Link>
+                  </Link>}
                 </div>
                 <div className="relative hidden aspect-[4/3] w-full overflow-hidden rounded-md bg-muted lg:block">
                   {vehicleImage ? (
@@ -148,7 +153,7 @@ export default function Enquire() {
                     If you have a specific car in mind, choose it from our stock and we’ll include it with your enquiry.
                   </p>
                 </div>
-                <Link
+                {!testMode && <Link
                   href="/stock"
                   onClick={(event: MouseEvent<HTMLAnchorElement>) => {
                     event.preventDefault();
@@ -157,14 +162,14 @@ export default function Enquire() {
                   className="font-display text-[12px] font-semibold tracking-normal text-accent transition-colors hover:text-primary mt-2 flex items-center gap-2"
                 >
                   Browse our cars <ArrowRight className="h-3 w-3" />
-                </Link>
+                </Link>}
               </div>
             )}
           </section>
 
           <section className="min-w-0" aria-labelledby="enquiry-form-heading">
             <div className="enquiry-form-panel">
-              {isLoading ? (
+              {!testMode && isLoading ? (
                 <div className="space-y-6 py-12" data-testid="loading-enquiry-vehicle">
                   <div className="h-4 w-44 animate-pulse bg-primary/20 border border-primary" />
                   <div className="h-12 w-3/4 animate-pulse bg-primary/20 border border-primary" />
@@ -174,7 +179,7 @@ export default function Enquire() {
                   </div>
                   <div className="h-32 animate-pulse bg-primary/10 border border-primary" />
                 </div>
-              ) : error ? (
+              ) : !testMode && error ? (
                 <div className="flex items-start gap-4 border border-[hsl(var(--accent))]/50 bg-[hsl(var(--accent))]/10 p-6 text-[13px] font-normal leading-relaxed text-primary" role="alert" data-testid="status-stock-error">
                   <CircleAlert className="h-6 w-6 shrink-0 text-[hsl(var(--accent))]" />
                   <div>
@@ -192,10 +197,10 @@ export default function Enquire() {
                 </div>
               ) : null}
 
-              <EnquiryForm initialMessage={type === "general" && params.get("searchRequest") ? params.get("searchRequest")!.slice(0, 500) : vehicle && type === "general" ? questionMessage(params.get("question")) : ""} onTypeChange={setType} onChangeCar={changeCar} initialType={type} vehicle={vehicle} stockCars={stock?.cars ?? []} />
+              {testMode && type==='part_exchange' ? <PartExchangeForm vehicle={vehicle} stockCars={vehicle?[vehicle]:[]} testMode={{customer:testMode.customer,config:testMode.config,submit:async input=>{await testMode.submit(input);}}}/> : <EnquiryForm initialMessage={type === "general" && params.get("searchRequest") ? params.get("searchRequest")!.slice(0, 500) : vehicle && type === "general" ? questionMessage(params.get("question")) : ""} onTypeChange={setType} onChangeCar={changeCar} initialType={type} vehicle={vehicle} stockCars={stock?.cars ?? []} testMode={testMode ? {customer:testMode.customer,config:testMode.config,submit:async input=>{await testMode.submit(input);}} : undefined} />}
             </div>
 
-            {dealerConfig.contact.phone && <p className="mt-5 text-sm text-muted-foreground">
+            {!testMode && dealerConfig.contact.phone && <p className="mt-5 text-sm text-muted-foreground">
               Prefer to talk? {vehicle ? <VehicleCall car={vehicle} className="inline-flex min-h-11 items-center gap-2 align-middle text-primary underline underline-offset-4" /> : <a className="inline-flex min-h-11 items-center text-primary underline underline-offset-4" href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}>Call Us</a>}.
             </p>}
 

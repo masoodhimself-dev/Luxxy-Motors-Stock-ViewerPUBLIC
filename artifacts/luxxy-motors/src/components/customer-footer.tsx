@@ -1,4 +1,4 @@
-import { Link } from 'wouter';
+import { CustomerSafeLink as Link } from '@/components/customer-safe-link';
 import { ArrowUpRight, Facebook, Instagram, Mail, MapPin, Phone, Twitter } from '@/components/icons';
 import type { DealerConfig } from '@/config/dealer';
 import { DealerWordmark } from '@/components/brand/wordmark';
@@ -7,7 +7,7 @@ import { dealershipLocation } from '@/lib/dealership-location';
 import { getUpcomingVisitDates } from '@/lib/upcoming-visit-dates';
 import './customer-footer.css';
 
-export function CustomerFooter({ settings, testDriveHref, enquiriesEnabled = false }: { settings: DealerConfig & { testDriveBooking?: { enabled: boolean } }; testDriveHref: string; enquiriesEnabled?: boolean }) {
+export function CustomerFooter({ settings, testDriveHref, enquiriesEnabled = false, testMode = false }: { settings: DealerConfig & { testDriveBooking?: { enabled: boolean } }; testDriveHref: string; enquiriesEnabled?: boolean; testMode?: boolean }) {
   const address = dealershipLocation(settings.address);
   const dates = getUpcomingVisitDates(settings.hours ?? []);
   const location = [settings.address?.city, settings.address?.region].filter(Boolean).join(' · ');
@@ -23,7 +23,7 @@ export function CustomerFooter({ settings, testDriveHref, enquiriesEnabled = fal
         <div className="footer-brand">
           <Link href="/" className={`footer-wordmark${!settings.presentation?.footerLogoUrl && settings.identity.logoAsset ? ' footer-wordmark-on-panel' : ''}`} aria-label={`${settings.identity.name} home`}><DealerWordmark {...settings.identity} logoAsset={settings.presentation?.footerLogoUrl || settings.identity.logoAsset} className={settings.presentation?.footerLogoUrl ? "h-auto w-[220px] max-w-full" : undefined} /></Link>
           {location && <p className="footer-location">{location}</p>}
-          {socialLinks.length > 0 && <nav className="footer-social" aria-label="Follow us">{socialLinks.map(({ label, href, Icon }) => <a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={label}><Icon size={18} aria-hidden="true" /></a>)}</nav>}
+          {!testMode && socialLinks.length > 0 && <nav className="footer-social" aria-label="Follow us">{socialLinks.map(({ label, href, Icon }) => <a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={label}><Icon size={18} aria-hidden="true" /></a>)}</nav>}
         </div>
 
         <nav className="footer-column" aria-label="Explore our dealership">
@@ -38,10 +38,10 @@ export function CustomerFooter({ settings, testDriveHref, enquiriesEnabled = fal
 
         <section className="footer-column footer-contact" aria-labelledby="footer-contact-heading">
           <h3 id="footer-contact-heading">Talk to us</h3>
-          {settings.contact.phone && <a href={`tel:${settings.contact.phone.replace(/[^0-9+]/g, '')}`}><Phone size={16} aria-hidden="true" /><span>{formatPhoneDisplay(settings.contact.phone)}</span></a>}
-          {settings.contact.email && <a href={`mailto:${settings.contact.email}`}><Mail size={16} aria-hidden="true" /><span>{settings.contact.email}</span></a>}
+          {!testMode && settings.contact.phone && <a href={`tel:${settings.contact.phone.replace(/[^0-9+]/g, '')}`}><Phone size={16} aria-hidden="true" /><span>{formatPhoneDisplay(settings.contact.phone)}</span></a>}
+          {!testMode && settings.contact.email && <a href={`mailto:${settings.contact.email}`}><Mail size={16} aria-hidden="true" /><span>{settings.contact.email}</span></a>}
           {enquiriesEnabled && <Link href="/enquire?type=general">Send an enquiry <ArrowUpRight size={14} aria-hidden="true" /></Link>}
-          {address.lines.length > 0 && <div className="footer-address"><MapPin size={16} aria-hidden="true" /><div><address>{address.lines.map((line, index) => <span key={index}>{line}</span>)}{address.isSample && <span className="footer-placeholder-note">Example address — confirm with us before travelling.</span>}</address>{address.directions && <a href={address.directions} target="_blank" rel="noopener noreferrer">Get directions <ArrowUpRight size={14} aria-hidden="true" /></a>}</div></div>}
+          {address.lines.length > 0 && <div className="footer-address"><MapPin size={16} aria-hidden="true" /><div><address>{address.lines.map((line, index) => <span key={index}>{line}</span>)}{address.isSample && <span className="footer-placeholder-note">Example address — confirm with us before travelling.</span>}</address>{!testMode && address.directions && <a href={address.directions} target="_blank" rel="noopener noreferrer">Get directions <ArrowUpRight size={14} aria-hidden="true" /></a>}</div></div>}
           <Link href="/contact" className="footer-text-link">Contact & directions <ArrowUpRight size={14} aria-hidden="true" /></Link>
         </section>
 
@@ -54,7 +54,7 @@ export function CustomerFooter({ settings, testDriveHref, enquiriesEnabled = fal
 
       <div className="footer-bottom">
         <div><p>© {new Date().getFullYear()} {settings.legal.companyName?.trim() || settings.identity.name?.trim() || 'Our dealership'}. All rights reserved.</p>{(settings.legal.companyNumber || settings.legal.vatNumber) && <p className="footer-company-details">{settings.legal.companyNumber && <span>Company no. {settings.legal.companyNumber}</span>}{settings.legal.vatNumber && <span>VAT no. {settings.legal.vatNumber}</span>}</p>}</div>
-        {(settings.legal.privacyUrl || settings.legal.termsUrl || settings.legal.cookieUrl) && <nav aria-label="Legal information">{settings.legal.privacyUrl && <a href={settings.legal.privacyUrl}>Privacy policy</a>}{settings.legal.termsUrl && <a href={settings.legal.termsUrl}>Terms & conditions</a>}{settings.legal.cookieUrl && <a href={settings.legal.cookieUrl}>Cookies</a>}</nav>}
+        {!testMode && (settings.legal.privacyUrl || settings.legal.termsUrl || settings.legal.cookieUrl) && <nav aria-label="Legal information">{settings.legal.privacyUrl && <a href={settings.legal.privacyUrl}>Privacy policy</a>}{settings.legal.termsUrl && <a href={settings.legal.termsUrl}>Terms & conditions</a>}{settings.legal.cookieUrl && <a href={settings.legal.cookieUrl}>Cookies</a>}</nav>}
       </div>
     </div>
   </footer>;

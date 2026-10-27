@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { dealerConfig, type DealerConfig } from '@/config/dealer';
 import type { Car } from '@/lib/stock-context';
-import Warranty from './warranty';
+import Warranty, {WarrantyContent} from './warranty';
 
 const state = vi.hoisted(() => ({ settings: {} as DealerConfig, error: null as unknown, cars: [] as Car[], enquiriesEnabled: true }));
 vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({ settings: state.settings, publicEnquiriesEnabled: state.enquiriesEnabled, isLoading: false, isError: false }) }));
@@ -72,4 +72,21 @@ it('routes both warranty enquiry entrypoints to contact when website enquiries a
   render(<Warranty />);
   expect(screen.getByTestId('warranty-enquiry-link')).toHaveAttribute('href', '/contact');
   expect(screen.getByRole('link', { name: 'Ask us for help' })).toHaveAttribute('href', '/contact');
+});
+
+it('keeps test warranty enquiries scoped to the chosen car and hides live contacts',()=>{
+ const openGeneralEnquiry=vi.fn();document.documentElement.dataset.testModeSession='practice';
+ try {
+  render(<WarrantyContent testMode={{openGeneralEnquiry}}/>);
+  expect(document.querySelector('a[href^=\"tel:\"]')).toBeNull();expect(document.querySelector('a[href*=\"wa.me\"]')).toBeNull();
+  fireEvent.click(screen.getByTestId('warranty-enquiry-link'));expect(openGeneralEnquiry).toHaveBeenLastCalledWith(undefined);
+  fireEvent.change(screen.getByLabelText(/Which car are you asking about/),{target:{value:'car-a'}});
+  fireEvent.click(screen.getByTestId('warranty-enquiry-link'));expect(openGeneralEnquiry).toHaveBeenLastCalledWith(expect.objectContaining({id:'car-a'}));
+  fireEvent.click(screen.getByRole('button',{name:'Ask us for help'}));expect(openGeneralEnquiry).toHaveBeenLastCalledWith();
+ } finally {delete document.documentElement.dataset.testModeSession;}
+});
+
+it('fails closed if warranty is mounted in test mode without its adapter',()=>{
+ document.documentElement.dataset.testModeSession='practice';
+ try {render(<Warranty/>);expect(screen.getByRole('alert')).toHaveTextContent('unavailable in the test workspace');expect(document.querySelector('a[href^="tel:"]')).toBeNull();} finally {delete document.documentElement.dataset.testModeSession;}
 });

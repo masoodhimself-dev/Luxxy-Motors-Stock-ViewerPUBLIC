@@ -1,7 +1,8 @@
+import { readCustomerStorage, writeCustomerStorage, removeCustomerStorage } from "./customer-test-storage";
 const recentKey = "luxxy.recent-vehicles.v1";
 export function recentVehicles(): string[] {
   try {
-    const items = JSON.parse(localStorage.getItem(recentKey) || "[]");
+    const items = JSON.parse(readCustomerStorage(localStorage, recentKey) || "[]");
     return Array.isArray(items)
       ? items
           .filter(
@@ -20,7 +21,7 @@ export function recentVehicles(): string[] {
 }
 export function rememberVehicle(id: string) {
   try {
-    const previous = JSON.parse(localStorage.getItem(recentKey) || "[]");
+    const previous = JSON.parse(readCustomerStorage(localStorage, recentKey) || "[]");
     const items = Array.isArray(previous)
       ? previous.filter(
           (item) =>
@@ -31,7 +32,7 @@ export function rememberVehicle(id: string) {
             Date.now() - item.at < 30 * 86400000,
         )
       : [];
-    localStorage.setItem(
+    writeCustomerStorage(localStorage,
       recentKey,
       JSON.stringify([{ id, at: Date.now() }, ...items].slice(0, 8)),
     );
@@ -41,7 +42,7 @@ export function rememberVehicle(id: string) {
 }
 export function clearRecentVehicles() {
   try {
-    localStorage.removeItem(recentKey);
+    removeCustomerStorage(localStorage, recentKey);
   } catch {}
 }
 export function parseShortlist(search: string): string[] | null {

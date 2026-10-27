@@ -19,7 +19,7 @@ export function SaveCarButton({
   variant?: 'overlay' | 'inline';
   className?: string;
 }) {
-  const { isSaved, toggleSaved } = useSavedCars();
+  const { isSaved, toggleSaved, testSessionId } = useSavedCars();
   const saved = isSaved(car.id);
   const { toast } = useToast();
   const label = vehicleLabelFor(car);
@@ -31,7 +31,7 @@ export function SaveCarButton({
       onClick={(e) => {
         e.preventDefault();
         toggleSaved(car.id, car);
-        if (!saved) toast({title: 'Car saved', description: <Link href="/saved" className="underline underline-offset-4">View saved cars</Link>, duration: 5000});
+        if (!saved) toast({title: 'Car saved', description: testSessionId ? 'Saved in this test.' : <Link href="/saved" className="underline underline-offset-4">View saved cars</Link>, duration: 5000});
       }}
       aria-pressed={saved}
       aria-label={saved ? `Remove ${label} from your saved cars` : `Save ${label} to your saved cars`}

@@ -17,6 +17,7 @@ import { serviceLifecycle } from './lib/service-lifecycle';
 import seoRouter from './routes/seo';
 import indexNowRouter from './routes/indexnow';
 import { seoPrivatePageHeaders } from './lib/seo-crawl';
+import { testModeRequestGuard } from './middlewares/test-mode-request-guard';
 import {
   CLERK_PROXY_PATH,
   clerkProxyMiddleware,
@@ -47,6 +48,8 @@ app.use(
   }),
 );
 protectPrivateCapabilityPages(app);
+// Apply before every API mount, including webhooks and platform endpoints.
+app.use('/api', testModeRequestGuard);
 // Mounted before the body parsers: the Clerk proxy streams raw bytes.
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
@@ -56,6 +59,11 @@ app.use(cors({ credentials: true, origin: true }));
 app.use(importAdmission.middleware);
 app.use("/api/demo-onboarding", express.json({ limit: "450kb" }));
 app.use('/api/staff/website-assets', express.json({ limit: '3mb' }));
+// These limits run before the shared 25 MB parser regardless of router order.
+// Only the exact test-email preview route accepts two compressed image uploads.
+app.post('/api/sales-test/sessions/:sessionId/email-preview', express.json({ limit: 4_100_000 }));
+app.use('/api/sales-test', express.json({ limit: 256_000 }));
+app.use('/api/test-email-settings', express.json({ limit: 256_000 }));
 app.use(express.json({ limit: "25mb", verify: (req, _res, buffer) => {
   if (req.url?.split('?')[0] === '/api/reservations/stripe/webhook') (req as typeof req & { rawBody?: Buffer }).rawBody = Buffer.from(buffer);
 } }));
@@ -89,6 +97,10 @@ app.use((error: unknown, req: express.Request, res: express.Response, _next: exp
   if (typeof error === "object" && error !== null && "type" in error && error.type === "entity.too.large") {
     if(req.path.startsWith('/api/demo-onboarding')){res.status(413).json({error:'Onboarding request exceeds the 450 KB limit.'});return;}
     if(req.path === '/api/staff/website-assets'){res.status(413).json({error:'Image upload exceeds the 3 MB request limit. Choose a smaller image.'});return;}
+    if(req.path.startsWith('/api/sales-test') || req.path.startsWith('/api/test-email-settings')){
+      const photoPreview=req.method==='POST' && /^\/api\/sales-test\/sessions\/[^/]+\/email-preview\/?$/.test(req.path);
+      res.status(413).json({error:photoPreview?'Test email request exceeds the 4.1 MB limit. Choose smaller photos.':'Test request exceeds the 256 KB limit.'});return;
+    }
     res.status(413).json({ ...identity, status: "rejected", errors: [{ code: "payload_too_large", message: "Request exceeds the 25 MB limit", path: null, advertId: null }] });
     return;
   }

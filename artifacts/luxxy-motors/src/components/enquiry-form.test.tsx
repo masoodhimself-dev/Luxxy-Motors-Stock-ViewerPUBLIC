@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { dealerConfig } from '@/config/dealer';
 import { enquiryDraftKey, readEnquiryDraft, saveEnquiryDraft } from '@/lib/enquiry-draft';
@@ -109,4 +109,24 @@ it('removes the booking topic when the dealership turns online booking off',()=>
  state.bookingEnabled=false;render(<EnquiryForm vehicle={car}/>);
  expect(screen.queryByRole('link',{name:'Book a Test Drive'})).not.toBeInTheDocument();
  expect(screen.getByTestId('form-enquiry')).toBeInTheDocument();
+});
+
+it('uses only its isolated adapter for the customer enquiry and leaves real drafts untouched',async()=>{
+ const submit=vi.fn().mockResolvedValue(undefined);
+ saveEnquiryDraft(enquiryDraftKey(car.id,'general'),{customerName:'Existing',email:'old@example.test',phone:'',preferredContact:'email',message:'existing draft',hasPartExchange:false,exchange:{registration:'',mileage:'',notes:''}});
+ render(<EnquiryForm vehicle={car} testMode={{customer:{name:'Copied Customer',email:'copy@example.test',phone:'07700900123'},submit}}/>);
+ expect(screen.getByTestId('input-customer-name')).toHaveValue('Copied Customer');
+ fireEvent.change(screen.getByTestId('input-customer-name'),{target:{value:'Edited Test Customer'}});
+ fireEvent.change(screen.getByTestId('textarea-enquiry-message'),{target:{value:'Can I see this car?'}});
+ fireEvent.submit(screen.getByTestId('form-enquiry'));
+ await waitFor(()=>expect(submit).toHaveBeenCalledWith(expect.objectContaining({customerName:'Edited Test Customer',message:'Can I see this car?',visitorId:null})));
+ expect(state.mutate).not.toHaveBeenCalled();
+ expect(readEnquiryDraft(enquiryDraftKey(car.id,'general'))?.message).toBe('existing draft');
+ expect(await screen.findByText('Test enquiry received')).toBeVisible();
+});
+
+it('blocks unsupported customer form types in test mode instead of mounting a live form',()=>{
+ render(<EnquiryForm vehicle={car} initialType="part_exchange" testMode={{customer:{name:'Test Customer',email:'test@example.test',phone:''},submit:vi.fn()}}/>);
+ expect(screen.getByRole('alert')).toHaveTextContent('not available');
+ expect(state.mutate).not.toHaveBeenCalled();
 });

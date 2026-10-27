@@ -19,6 +19,7 @@ import { SettingsTabs } from "@/components/settings-tabs";
 import { DealerSettingsPanel } from "@/components/dealer-settings-panel";
 import { SalesPaperworkSettings } from "@/components/sales-paperwork-settings";
 import { EmailTemplatesSettings } from "@/components/email-templates-settings";
+import { TestTeamSettings } from "@/components/portal/test-team-settings";
 import { confirmSettingsNavigation } from "@/lib/settings-navigation";
 import "./dealer-administration.css";
 type Role = "owner" | "salesperson" | "accounts";
@@ -223,7 +224,7 @@ function TeamSettings() {
     </section>
   );
 }
-export function DealerSettingsHub() {
+export function DealerSettingsHub({testSessionId}: {testSessionId?:string} = {}) {
   const access = useStaffAccess(),
     search = useSearch(),
     [, navigate] = useLocation();
@@ -253,7 +254,7 @@ export function DealerSettingsHub() {
       <header className="settings-tabs-heading">
         <div>
           <h2>Settings</h2>
-          <p>The details your team uses every day.</p>
+          <p>{testSessionId ? 'Changes are saved only in this test.' : 'The details your team uses every day.'}</p>
         </div>
         <span>
           <ShieldCheck size={15} />
@@ -280,11 +281,12 @@ export function DealerSettingsHub() {
           <DealerSettingsPanel
             key={selected}
             group={selected as "dealership" | "website" | "bookings"}
+            testSessionId={testSessionId}
           />
         )}
-        {selected === "paperwork" && <SalesPaperworkSettings />}
-        {selected === "emails" && <EmailTemplatesSettings />}
-        {selected === "team" && <TeamSettings />}
+        {selected === "paperwork" && <SalesPaperworkSettings testSessionId={testSessionId} />}
+        {selected === "emails" && <EmailTemplatesSettings testSessionId={testSessionId} />}
+        {selected === "team" && (testSessionId ? <TestTeamSettings sessionId={testSessionId}/> : <TeamSettings />)}
       </div>
     </section>
   );

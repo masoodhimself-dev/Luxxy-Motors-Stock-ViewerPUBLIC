@@ -17,7 +17,7 @@ export interface GalleryProps {
   heroImage?: string | null;
   vehicleLabel?: string;
   customerView?: boolean;
-  customerActions?: { bookingHref?: string; enquiryHref?: string; onEnquiry?: () => void; call?: ReactNode };
+  customerActions?: { testSafe?: boolean; bookingHref?: string; enquiryHref?: string; onBooking?: () => void; onEnquiry?: () => void; call?: ReactNode };
 }
 function imageCaption(image: CarImage | string | undefined) {
   return image && typeof image === 'object' ? image.caption || '' : '';
@@ -84,7 +84,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
     setOverview(false);
     setOpen(false);
   };
-  const requestEnquiry = (event: MouseEvent<HTMLAnchorElement>) => {
+  const requestEnquiry = (event: MouseEvent<HTMLAnchorElement | HTMLButtonElement>) => {
     if (event.button !== 0 || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
     if (customerActions?.onEnquiry) {
       event.preventDefault();
@@ -251,12 +251,9 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
         <h2 id={interestHeadingId} ref={interestHeading} tabIndex={-1}>Like what you see?</h2>
         <p>Fancy a closer look? Pop in for a test drive or have a chat.</p>
         <div className="vehicle-gallery-interest-actions">
-          {customerActions?.bookingHref && <Link href={customerActions.bookingHref} className="vehicle-gallery-interest-action vehicle-gallery-interest-primary" onClick={() => {
-            recordBookingIntent({ source: 'vehicle_gallery', vehicleContext: true });
-            contactFromPrompt();
-          }}><Calendar aria-hidden="true" />Book a Test Drive<ArrowRight aria-hidden="true" /></Link>}
+          {customerActions?.bookingHref && (customerActions.testSafe ? <button type="button" className="vehicle-gallery-interest-action vehicle-gallery-interest-primary" onClick={() => {customerActions.onBooking?.();contactFromPrompt();}}><Calendar aria-hidden="true" />Book a Test Drive<ArrowRight aria-hidden="true" /></button> : <Link href={customerActions.bookingHref} className="vehicle-gallery-interest-action vehicle-gallery-interest-primary" onClick={() => {recordBookingIntent({ source: 'vehicle_gallery', vehicleContext: true });contactFromPrompt();}}><Calendar aria-hidden="true" />Book a Test Drive<ArrowRight aria-hidden="true" /></Link>)}
           <div className="vehicle-gallery-interest-secondary">
-            {customerActions?.enquiryHref && <Link href={customerActions.enquiryHref} className="vehicle-gallery-interest-action" onClick={requestEnquiry}><Mail aria-hidden="true" />Ask a question</Link>}
+            {customerActions?.enquiryHref && (customerActions.testSafe ? <button type="button" className="vehicle-gallery-interest-action" onClick={requestEnquiry}><Mail aria-hidden="true" />Ask a question</button> : <Link href={customerActions.enquiryHref} className="vehicle-gallery-interest-action" onClick={requestEnquiry}><Mail aria-hidden="true" />Ask a question</Link>)}
             {customerActions?.call}
           </div>
         </div>
@@ -500,10 +497,10 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
         </div>
         </>}
         {car && !interestOpen && <div className="vehicle-lightbox-contact" aria-label="Contact about this vehicle">
-          <VehicleCall car={car} buttonLabel="Call Us" className="vehicle-lightbox-contact-button" />
-          <Link href={customerActions?.enquiryHref ?? `/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`} className="vehicle-lightbox-contact-button" onClick={requestEnquiry}>
+          {!customerActions?.testSafe && <VehicleCall car={car} buttonLabel="Call Us" className="vehicle-lightbox-contact-button" />}
+          {customerActions?.testSafe ? (customerActions.onEnquiry && <button type="button" className="vehicle-lightbox-contact-button" onClick={requestEnquiry}><Mail className="h-5 w-5" /> Message</button>) : <Link href={customerActions?.enquiryHref ?? `/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`} className="vehicle-lightbox-contact-button" onClick={requestEnquiry}>
             <Mail className="h-5 w-5" /> Message
-          </Link>
+          </Link>}
         </div>}
       </DialogContent>
     </Dialog>

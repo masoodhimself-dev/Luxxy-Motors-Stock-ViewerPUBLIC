@@ -24,6 +24,8 @@ import dealerReportsRouter from './dealer-reports';
 import dealerRelationshipsRouter from './dealer-relationships';
 import { requireStaffOperationAccess } from '../middlewares/staff-auth';
 import salesTestRouter from './sales-test';
+import testModeEmailRouter from './test-mode-email';
+import salesTestEnquiriesRouter from './sales-test-enquiries';
 
 import staffInventoryRouter from "./staff-inventory";
 import staffEmailRouter from "./staff-email";
@@ -34,7 +36,9 @@ import soldVehicleFollowUpsRouter from './sold-vehicle-follow-ups';
 import searchVisibilityRouter from './search-visibility';
 import dealerWebsiteAssetsRouter from './dealer-website-assets';
 const router: IRouter = Router();
+router.use(testModeEmailRouter);
 router.use(salesTestRouter);
+router.use(salesTestEnquiriesRouter);
 router.use(requireStaffOperationAccess);
 router.use(enforceDealerFeatures);
 router.use(dealerFeaturesRouter);

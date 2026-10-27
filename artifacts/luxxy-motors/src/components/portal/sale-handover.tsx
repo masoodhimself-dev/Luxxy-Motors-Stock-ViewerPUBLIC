@@ -63,7 +63,7 @@ export function SaleHandoverFields({
         role="group"
         aria-label="Collection or delivery"
       >
-        {(testOnly ? ["collection"] as const : ["collection", "delivery"] as const).map((method) => (
+        {(["collection", "delivery"] as const).map((method) => (
           <Button
             type="button"
             key={method}
@@ -108,7 +108,6 @@ export function SaleHandoverFields({
           <Input
             value={value.recipient}
             maxLength={200}
-            disabled={testOnly}
             onChange={(e) => field("recipient", e.target.value)}
           />
         </label>
@@ -118,7 +117,6 @@ export function SaleHandoverFields({
             type="tel"
             value={value.phone}
             maxLength={80}
-            disabled={testOnly}
             onChange={(e) => field("phone", e.target.value)}
           />
         </label>
@@ -465,7 +463,7 @@ export function SaleHandover({
       )}
       {confirm && (
         <HandoverDialog
-          fixedRecipient={testOnly}
+          fixedRecipient={false}
           draft={sale.draft}
           balance={saleWorkspaceTotals(sale.draft, sale.payments).balance}
           busy={busy}

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, afterEach, it, expect, vi } from "vitest";
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 const state = vi.hoisted(() => ({
   permissions: ["sales.manage", "settings.publish", "team.manage"],
   signedIn: true,
@@ -12,6 +13,7 @@ vi.mock("@clerk/react", () => ({
   SignInButton: ({ children }: any) => children,
 }));
 vi.mock("@workspace/api-client-react", () => ({
+  customFetch: vi.fn(async () => ({session:null})),
   getGetPortalSessionQueryKey: () => ["portal-session"],
   useGetPortalSession: () => ({
     data: { state: "allowed", name: "Operator" },
@@ -56,6 +58,8 @@ vi.mock("@/pages/sales-demo", () => ({
   SalesWorkspace: () => <p>Sales workspace</p>,
 }));
 import Portal from "./portal";
+import { customFetch } from '@workspace/api-client-react';
+function showPortal() { return render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><Portal /></QueryClientProvider>); }
 beforeEach(() => {
   state.permissions = ["sales.manage", "settings.publish", "team.manage"];
   state.signedIn = true;
@@ -70,8 +74,10 @@ afterEach(() => {
   vi.restoreAllMocks();
   window.history.replaceState({}, "", "/");
 });
-it("defaults to Inbox with only Inbox, Sales, Reports and Settings destinations", () => {
-  render(<Portal />);
+it("defaults to Inbox with only Inbox, Sales, Reports and Settings destinations", async () => {
+  showPortal();
+  await screen.findByText('Inbox workspace');
+  expect(customFetch).toHaveBeenCalledWith('/api/sales-test/sessions',expect.anything());
   expect(screen.getByText("Inbox workspace")).toBeVisible();
   const nav = screen.getByRole("navigation", { name: "Portal sections" });
   expect(
@@ -86,18 +92,18 @@ it("defaults to Inbox with only Inbox, Sales, Reports and Settings destinations"
     screen.queryByRole("button", { name: "Cars" }),
   ).not.toBeInTheDocument();
 });
-it("retired Cars bookmarks return to Inbox without loading a Cars workspace", () => {
+it("retired Cars bookmarks return to Inbox without loading a Cars workspace", async () => {
   window.history.replaceState(
     {},
     "",
     "/portal?section=inventory&recordVideo=1",
   );
-  render(<Portal />);
+  showPortal(); await screen.findByText('Inbox workspace');
   expect(screen.getByText("Inbox workspace")).toBeVisible();
 });
-it("keeps Settings in the four-item phone navigation", () => {
+it("keeps Settings in the four-item phone navigation", async () => {
   window.innerWidth = 390;
-  render(<Portal />);
+  showPortal(); await screen.findByText('Inbox workspace');
   const buttons = within(
     screen.getByRole("navigation", { name: "Portal sections" }),
   ).getAllByRole("button");
@@ -105,13 +111,13 @@ it("keeps Settings in the four-item phone navigation", () => {
   expect(buttons[2]).toHaveTextContent("Reports");
   expect(buttons[3]).toHaveTextContent("Settings");
 });
-it("requires deliberate discard before leaving unsaved private Settings", () => {
+it("requires deliberate discard before leaving unsaved private Settings", async () => {
   window.history.replaceState(
     {},
     "",
     "/portal?section=settings&settingsTab=emails",
   );
-  render(<Portal />);
+  showPortal(); await screen.findByLabelText('Private wording');
   fireEvent.change(screen.getByLabelText("Private wording"), {
     target: { value: "Unsaved wording" },
   });
@@ -126,9 +132,9 @@ it("requires deliberate discard before leaving unsaved private Settings", () => 
   fireEvent.click(screen.getByRole("button", { name: "Sales" }));
   expect(screen.getByText("Sales workspace")).toBeVisible();
 });
-it("does not offer owner settings to an accounts role", () => {
+it("does not offer owner settings to an accounts role", async () => {
   state.permissions = ["payments.record"];
-  render(<Portal />);
+  showPortal(); await screen.findByText('Inbox workspace');
   expect(
     within(screen.getByRole("navigation", { name: "Portal sections" }))
       .getAllByRole("button")
@@ -136,13 +142,13 @@ it("does not offer owner settings to an accounts role", () => {
   ).toEqual(["Inbox", "Sales", "Reports"]);
 });
 
-it("protects unsaved settings when using the workspace logo", () => {
+it("protects unsaved settings when using the workspace logo", async () => {
   window.history.replaceState(
     {},
     "",
     "/portal?section=settings&settingsTab=emails",
   );
-  render(<Portal />);
+  showPortal(); await screen.findByLabelText('Private wording');
   fireEvent.change(screen.getByLabelText("Private wording"), {
     target: { value: "Keep my private wording" },
   });
@@ -158,9 +164,9 @@ it("protects unsaved settings when using the workspace logo", () => {
   expect(screen.getByText("Inbox workspace")).toBeVisible();
 });
 
-it("opens Reports and protects unsaved settings when navigating to it", () => {
+it("opens Reports and protects unsaved settings when navigating to it", async () => {
   window.history.replaceState({}, "", "/portal?section=settings");
-  render(<Portal />);
+  showPortal(); await screen.findByLabelText('Private wording');
   fireEvent.change(screen.getByLabelText("Private wording"), { target: { value: "unsaved" } });
   const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
   fireEvent.click(screen.getByRole("button", { name: "Reports" }));

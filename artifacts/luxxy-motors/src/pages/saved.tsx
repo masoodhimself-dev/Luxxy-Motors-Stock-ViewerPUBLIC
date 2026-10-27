@@ -1,3 +1,4 @@
+import { customerTestSession } from '@/lib/customer-test-storage';
 import { readSavedSnapshots, savedPriceReduction } from '@/lib/saved-car-snapshots';
 import { formatPrice } from '@/lib/utils';
 import { ShowroomPhoto } from '@/components/showroom-photo';
@@ -8,7 +9,7 @@ import { useState } from "react";
 import { useSearch } from "wouter";
 import { parseShortlist, shortlistUrl } from "@/lib/customer-convenience";
 import { PageHeading, PageEmptyState } from "@/components/page-ui";
-import { Link } from "wouter";
+import { CustomerSafeLink as Link } from '@/components/customer-safe-link';
 import { ArrowLeft, ArrowRight } from "@/components/icons";
 import { useStock, type Car } from "@/lib/stock-context";
 import { useSavedCars } from "@/lib/saved-cars-context";
@@ -20,7 +21,7 @@ import './customer-workflows.css';
 export default function Saved() {
   const { settings } = useDealerSettings();
   const { stock, isLoading, error } = useStock();
-  const { savedIds, clearSaved } = useSavedCars();
+  const { savedIds, clearSaved, testSessionId } = useSavedCars();
 
   const sharedIds = parseShortlist(useSearch());
   usePageMeta({
@@ -28,10 +29,11 @@ export default function Saved() {
     description: 'Review your shortlisted cars, explore their details and arrange a test drive.',
   });
   const shownIds = sharedIds ?? savedIds;
-  const snapshots = readSavedSnapshots();
+  const snapshots = readSavedSnapshots(testSessionId);
   const [shareStatus, setShareStatus] = useState("");
   const [copyLink, setCopyLink] = useState("");
   const share = async () => {
+    if (customerTestSession()) { setShareStatus('Sharing is unavailable in test mode.'); return; }
     const url = shortlistUrl(shownIds);
     try {
       if (navigator.share)

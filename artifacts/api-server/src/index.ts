@@ -13,6 +13,7 @@ import { pool } from '@workspace/db';
 import { serviceLifecycle } from './lib/service-lifecycle';
 import { createShutdown, installShutdownSignals } from './lib/shutdown';
 import { startEmailOutboxWorker } from './lib/email-outbox';
+import { startSalesTestCleanupWorker } from './routes/sales-test';
 
 // Validate public links before listening or starting background database work.
 siteOrigin();
@@ -42,6 +43,7 @@ const server = app.listen(port, (err) => {
   logger.info({ port }, "Server listening");
   stopWorkers.push(
     startRetentionWorker(logger),
+    startSalesTestCleanupWorker(logger),
     startDemoCompletionWorker(logger),
     startDomainSetupWorker(logger),
     startReminderWorker(logger),

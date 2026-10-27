@@ -1,3 +1,4 @@
+import { customerTestSession, readCustomerStorage, writeCustomerStorage } from '@/lib/customer-test-storage';
 import { bodyTypeKey, stockBodyTypes } from '@/lib/body-types';
 import { VehicleFactIcon } from "@/components/vehicle-fact-icon";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -21,7 +22,8 @@ import {
   restoreBrowsePosition,
 } from "@/lib/browse-session";
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation } from 'wouter';
+import { useLocation, useSearch } from 'wouter';
+import { CustomerSafeLink as Link } from '@/components/customer-safe-link';
 import { useStock } from '@/lib/stock-context';
 import { CarCard } from '@/components/car-card';
 import { Filters, type FilterState } from '@/components/filters';
@@ -59,9 +61,10 @@ const STOCK_VIEW_KEY = 'luxxy.stock-view.v1';
 export default function Home({ browseStock = false }: { browseStock?: boolean }) {
   const demoSite = useDemoStatus();
   const [, setLocation] = useLocation();
+  const routedSearch = useSearch();
   useEffect(() => {
     const redirectStock = () => {
-      if (!browseStock && ['#stock', '#vehicle-results'].includes(window.location.hash)) setLocation('/stock');
+      if (!customerTestSession() && !browseStock && ['#stock', '#vehicle-results'].includes(window.location.hash)) setLocation('/stock');
     };
     redirectStock();
     window.addEventListener('hashchange', redirectStock);
@@ -82,7 +85,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   );
   const [selectedStockView, setStockView] = useState<'cards' | 'compact' | null>(() => {
     try {
-      const savedView = window.localStorage.getItem(STOCK_VIEW_KEY);
+      const savedView = readCustomerStorage(window.localStorage, STOCK_VIEW_KEY);
       return savedView === 'compact' || savedView === 'cards' ? savedView : null;
     } catch {
       return null;
@@ -99,8 +102,9 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   const [stockOptionsOpen, setStockOptionsOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(() => readBrowseSession().visibleCount || 12);
   const [filters, setFilters] = useState<FilterState>(() => {
-    if (browseStock && window.location.search) {
-      const params = new URLSearchParams(window.location.search);
+    const search = customerTestSession() ? routedSearch : window.location.search;
+    if (browseStock && search) {
+      const params = new URLSearchParams(search);
       const next = { ...defaultFilters };
       for (const key of Object.keys(next) as (keyof FilterState)[]) {
         const value = params.get(key);
@@ -128,7 +132,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   ].filter(choice => choice.count > 0);
 
   useEffect(() => {
-    if (!browseStock) return;
+    if (!browseStock || customerTestSession()) return;
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => { if (value) params.set(key, String(value)); });
     const query = params.toString();
@@ -137,7 +141,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   }, [filters, browseStock]);
 
   useEffect(() => {
-    if (!browseStock) return;
+    if (!browseStock || customerTestSession()) return;
     const restoreQuery = () => {
       const params = new URLSearchParams(window.location.search);
       const next = {...defaultFilters};
@@ -150,6 +154,17 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     window.addEventListener('popstate', restoreQuery);
     return () => window.removeEventListener('popstate', restoreQuery);
   }, [browseStock]);
+
+  useEffect(() => {
+    if (!browseStock || !customerTestSession()) return;
+    const params = new URLSearchParams(routedSearch);
+    const next = {...defaultFilters};
+    for (const key of Object.keys(next) as (keyof FilterState)[]) {
+      const value = params.get(key);
+      if (value !== null) Object.assign(next, {[key]: typeof next[key] === 'boolean' ? value === 'true' : value});
+    }
+    setFilters(next);
+  }, [browseStock, routedSearch]);
 
   const filteredCars = useMemo(() => {
     let result = [...recommendedCars];
@@ -254,7 +269,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   useEffect(() => {
     if (selectedStockView === null) return;
     try {
-      window.localStorage.setItem(STOCK_VIEW_KEY, stockView);
+      writeCustomerStorage(window.localStorage, STOCK_VIEW_KEY, stockView);
     } catch {
       // Keep the selected view usable when storage is unavailable or full.
     }
@@ -433,7 +448,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
               <CollapsibleContent className="stock-options-panel">
                 <div className="flex items-center justify-between gap-4"><span className="text-sm text-muted-foreground">Vehicle display</span>{stockViewControls}</div>
                 <Link className="stock-option-action" href="/saved"><Heart size={17} aria-hidden="true" />Saved cars ({savedCount})<ArrowRight size={16} aria-hidden="true" /></Link>
-                <button type="button" className="stock-option-action" onClick={async () => {try {await navigator.clipboard.writeText(window.location.href); setCopyNotice('Search link copied');} catch {setCopyNotice('Copy the address from your browser to share this search.');}}}><Link2 size={17} aria-hidden="true" />Copy search link</button>
+                <button type="button" className="stock-option-action" onClick={async () => {if(customerTestSession()){setCopyNotice('Sharing is unavailable in test mode.');return;}try {await navigator.clipboard.writeText(window.location.href); setCopyNotice('Search link copied');} catch {setCopyNotice('Copy the address from your browser to share this search.');}}}><Link2 size={17} aria-hidden="true" />Copy search link</button>
                 {copyNotice && <p className="text-sm leading-5 text-muted-foreground" role="status">{copyNotice}</p>}
               </CollapsibleContent>
             </Collapsible>
@@ -596,14 +611,14 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                     <p className="mt-3 flex-1 text-sm leading-relaxed text-muted-foreground">
                       {id === 'delivery' ? customerDefaultCopy(service.description, 'Ask us about delivery options for your next car.', ['Customers may be able to have their vehicle delivered.']) : id === 'warranty' ? customerDefaultCopy(service.description, 'Ask us about warranty options for your chosen car.', ['Warranty options are available on eligible vehicles.']) : service.description}
                     </p>
-                    <a
+                    <Link
                       className="text-link mt-4"
                       href={id === 'warranty' ? '/warranty' : id === 'part-exchange' || publicEnquiriesEnabled ? getContactHref(subject) : '/contact'}
                       data-testid={testid}
                     >
                       {service.ctaLabel}
                       <ArrowRight className="h-4 w-4" />
-                    </a>
+                    </Link>
                   </article>
                 ),
             )}

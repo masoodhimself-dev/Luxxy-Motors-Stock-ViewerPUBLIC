@@ -65,3 +65,4 @@ export * from "./vehicle-watches";
 
 export * from './price-update-recipient-claims';
 export * from './sales-test-sessions';
+export * from './sales-test-settings';

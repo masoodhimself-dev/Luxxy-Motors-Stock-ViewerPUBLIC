@@ -13,7 +13,7 @@ declare global {
  * Analytics is configured by the deployment owner and must never affect the journey.
  */
 export function trackEvent(name: string, data?: AnalyticsData): void {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || document.documentElement.dataset.testModeSession) return;
 
   try {
     window.umami?.track(name, data);

@@ -1,3 +1,4 @@
+import { customerTestSession } from '@/lib/customer-test-storage';
 import { useEffect } from 'react';
 import { applyPageMeta, resetPageMeta, type PageMeta } from '@/lib/page-meta';
 
@@ -17,7 +18,7 @@ export function usePageMeta(meta: PageMeta | null) {
   const indexable = meta?.indexable;
 
   useEffect(() => {
-    if (!title || !description) return;
+    if (customerTestSession() || !title || !description) return;
     applyPageMeta({ title, description, image, url, type, indexable });
     return () => resetPageMeta();
   }, [title, description, image, url, type, indexable]);

@@ -18,6 +18,7 @@ import { customerRegistrationDetails } from '@/lib/customer-vehicle-meta';
 import type { Car } from '@/lib/stock-context';
 import { buildPartExchangeMessage, type PartExchangeDetails } from '@/lib/part-exchange';
 import { partExchangeDraftKey, readPartExchangeDraft, savePartExchangeDraft, discardPartExchangeDraft } from '@/lib/part-exchange-draft';
+import { useTestRequest } from '@/lib/use-test-request';
 
 const steps = ['Your car', 'Your next car', 'Contact & review'];
 const labelClass = 'field-label';
@@ -26,12 +27,15 @@ const emptyDetails: PartExchangeDetails = {
   keys: '', v5: '', serviceHistory: '', name: '', phone: '', email: '',
 };
 
-export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockCars: Car[] }) {
-  const { settings, isLoading: settingsLoading, isError: settingsError } = useDealerSettings();
+export function PartExchangeForm({ vehicle, stockCars, testMode }: { vehicle?: Car; stockCars: Car[];testMode?:{customer:{name:string;email:string;phone:string};config:ReturnType<typeof useDealerSettings>['settings'];submit:(input:EnquiryInput)=>Promise<void>} }) {
+  const { settings:liveSettings, isLoading: settingsLoading, isError: settingsError } = useDealerSettings();
+  const settings=testMode?.config ?? liveSettings;
   const features = useDealerFeatures();
-  const mutation = useCreateEnquiry();
+  const liveMutation = useCreateEnquiry();
+  const testMutation=useTestRequest(async({data}:{data:EnquiryInput})=>{if(!testMode)throw new Error('Test session unavailable.');await testMode.submit(data);return {customerNotificationStatus:'not_sent'};});
+  const mutation=testMode ? testMutation as unknown as typeof liveMutation : liveMutation;
   const [delivery, setDelivery] = useState<'website' | 'whatsapp'>('website');
-  const [details, setDetails] = useState(emptyDetails);
+  const [details, setDetails] = useState(()=>testMode?{...emptyDetails,name:testMode.customer.name,email:testMode.customer.email,phone:testMode.customer.phone}:emptyDetails);
   const [step, setStep] = useState(0);
   const [furthestStep, setFurthestStep] = useState(0);
   const [vehicleId, setVehicleId] = useState(vehicle?.id ?? '');
@@ -43,6 +47,7 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
   const [draftRestored, setDraftRestored] = useState(false);
   const skipDraftSave = useRef(false);
   useEffect(() => {
+    if (testMode) return;
     skipDraftSave.current = true;
     const draft = readPartExchangeDraft(draftKey);
     const enquiry = readEnquiryDraft(enquiryDraftKey(vehicle?.id, 'part_exchange')) ?? readEnquiryDraft(enquiryDraftKey(vehicle?.id, 'general'));
@@ -58,13 +63,14 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
     setReviewed(false);
     setStep(0);
     setFurthestStep(0);
-  }, [draftKey]);
+  }, [draftKey, Boolean(testMode)]);
   useEffect(() => {
+    if (testMode) return;
     if (skipDraftSave.current) { skipDraftSave.current = false; return; }
     if (mutation.isSuccess) { discardPartExchangeDraft(draftKey); return; }
     if (Object.values(details).some(value => value.trim())) savePartExchangeDraft(draftKey, { details, vehicleId, delivery });
     else discardPartExchangeDraft(draftKey);
-  }, [draftKey, details, vehicleId, delivery, mutation.isSuccess]);
+  }, [draftKey, details, vehicleId, delivery, mutation.isSuccess, Boolean(testMode)]);
   const discardDraft = () => {
     discardPartExchangeDraft(draftKey);
     setDetails({ ...emptyDetails }); setVehicleId(vehicle?.id ?? ''); setDelivery('website');
@@ -86,8 +92,8 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
     hasMounted.current = true;
   }, [step, mutation.isSuccess]);
   const message = selectedVehicle ? buildPartExchangeMessage(details, selectedVehicle, settings.identity.name) : '';
-  const whatsAppHref = getWhatsAppHref(message, settings);
-  const phoneHref = getPhoneHref(settings);
+  const whatsAppHref = testMode ? null : getWhatsAppHref(message, settings);
+  const phoneHref = testMode ? null : getPhoneHref(settings);
   useEffect(() => {
     // A removed or invalid showroom number must not strand a restored draft on
     // an unavailable send method. The website enquiry remains available.
@@ -121,12 +127,12 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
         type: 'part_exchange', vehicleId: selectedVehicle!.id,
         customerName: details.name.trim(), email: details.email.trim() || null,
         phone: details.phone.replace(/[\s().\-/]/g, ''), preferredContact: whatsAppHref ? 'whatsapp' : 'phone',
-        message, appointmentAt: null, visitorId: getVisitorId(),
+        message, appointmentAt: null, visitorId: testMode ? null : getVisitorId(),
         partExchange: { registration: details.registration.trim().toUpperCase(), mileage: Number(details.mileage), condition },
       } });
       return;
     }
-    if (!whatsAppHref) return;
+    if (testMode || !whatsAppHref) return;
     try {
       window.open(whatsAppHref, '_blank', 'noopener,noreferrer');
       setOpened(true);
@@ -137,6 +143,7 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
   };
 
   if (mutation.isSuccess) {
+    if(testMode)return <div role="status"><h2 className="text-xl font-semibold">Test part-exchange enquiry received</h2><p className="mt-3 text-sm">It is available in the test inbox. No customer message was sent.</p></div>;
     const photoHref = getWhatsAppHref(`Hello ${settings.identity.name}, here are the photos for my part-exchange enquiry. My car: ${details.registration.trim().toUpperCase()} ${details.makeModel.trim() ? `(${details.makeModel.trim()})` : ''}. Name: ${details.name.trim()}. Phone: ${details.phone.trim()}.`, settings);
     return <div className="space-y-5" data-testid="status-part-exchange-success">
       <p className="luxxy-kicker">Details received</p>
@@ -227,7 +234,7 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
       {launchError && <p role="alert" className="text-sm text-destructive">{launchError}</p>}
     </div>}
 
-    {!whatsAppHref && <p role="status" className="text-sm leading-6 text-muted-foreground">You can’t reach us on WhatsApp right now. {phoneHref ? <a className="underline underline-offset-4" href={phoneHref}>Call us to discuss your part exchange.</a> : 'Please contact us directly.'}</p>}
+    {!testMode && !whatsAppHref && <p role="status" className="text-sm leading-6 text-muted-foreground">You can’t reach us on WhatsApp right now. {phoneHref ? <a className="underline underline-offset-4" href={phoneHref}>Call us to discuss your part exchange.</a> : 'Please contact us directly.'}</p>}
     <div className="part-exchange-actions flex items-center justify-between gap-3 border-t border-border pt-5">
       {step > 0 ? <Button type="button" variant="ghost" onClick={() => setStep(step - 1)}><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back</Button> : <span className="text-xs text-muted-foreground">Contact details at the end</span>}
       <Button type="submit" disabled={mutation.isPending || (step === 1 ? !selectedVehicle : step === 2 ? !ready || (delivery === 'whatsapp' && !whatsAppHref) : false)} data-testid="button-part-exchange-continue">{step === 2 ? <><MessageSquare className="h-4 w-4" aria-hidden="true" />{mutation.isPending ? 'Sending details…' : delivery === 'website' ? 'Send my details' : 'Open WhatsApp'}</> : <>Continue<ArrowRight className="h-4 w-4" aria-hidden="true" /></>}</Button>

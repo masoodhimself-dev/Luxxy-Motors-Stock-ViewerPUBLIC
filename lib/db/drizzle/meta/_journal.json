@@ -407,6 +407,97 @@
       "when": 1792933200000,
       "tag": "0057_sales_test_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1792933200058,
+      "tag": "0058_sales_test_real_snapshots",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1792933200059,
+      "tag": "0059_sales_test_enquiries",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1792933200060,
+      "tag": "0060_sales_test_enquiry_sale",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1792933200061,
+      "tag": "0061_sales_test_customer_address",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1792933200062,
+      "tag": "0062_test_email",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1792933200063,
+      "tag": "0063_test_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1792933200064,
+      "tag": "0064_test_email_photo_attachments",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1792933200065,
+      "tag": "0065_test_email_rendered_html",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1792933200066,
+      "tag": "0066_test_booking_approval",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1792933200067,
+      "tag": "0067_test_email_send_claim",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1792933200068,
+      "tag": "0068_test_email_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1792933200069,
+      "tag": "0069_test_enquiry_vehicle",
+      "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1792933200070,
+      "tag": "0070_test_general_enquiries",
+      "breakpoints": true
     }
   ]
 }

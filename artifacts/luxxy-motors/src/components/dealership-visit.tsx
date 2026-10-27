@@ -1,3 +1,4 @@
+import { customerTestSession } from '@/lib/customer-test-storage';
 import { customerDefaultCopy, websiteText } from '@/lib/website-content';
 import { ArrowRight } from '@/components/icons';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
@@ -22,7 +23,7 @@ export function DealershipVisit({ children }: { children?: React.ReactNode }) {
             <h3 className="text-base font-semibold">{websiteText(settings, 'teamHeading')}</h3>
             <p className="mt-3 whitespace-pre-line text-sm leading-7 text-muted-foreground">{content.teamIntroduction}</p>
           </div>}
-          {ready && content.reviewsUrl && <div className="border-y border-border py-5">
+          {ready && content.reviewsUrl && !customerTestSession() && <div className="border-y border-border py-5">
             <h3 className="text-base font-semibold">Hear from our customers</h3>
             <a href={content.reviewsUrl} target="_blank" rel="noopener noreferrer" className="text-link mt-2">Read customer reviews <ArrowRight className="h-4 w-4" /></a>
           </div>}

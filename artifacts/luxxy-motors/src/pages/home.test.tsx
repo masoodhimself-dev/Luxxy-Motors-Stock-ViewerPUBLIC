@@ -698,3 +698,16 @@ it('drops removed benefit parameters instead of preserving hidden filters', () =
   expect(screen.queryByText('Affordable Insurance')).not.toBeInTheDocument();
   expect(screen.queryByText('Road tax up to £35/year')).not.toBeInTheDocument();
 });
+
+it('keeps the staff portal URL and browser preferences unchanged in a customer practice view', () => {
+  window.history.replaceState({}, '', '/portal?section=sales');
+  window.localStorage.setItem('luxxy.stock-view.v1', 'cards');
+  document.documentElement.dataset.testModeSession = 'home-practice';
+  try {
+    renderHome();
+    fireEvent.click(screen.getByRole('button', { name: 'View options' }));
+    fireEvent.click(screen.getByTestId('button-stock-view-compact'));
+    expect(window.location.pathname + window.location.search).toBe('/portal?section=sales');
+    expect(window.localStorage.getItem('luxxy.stock-view.v1')).toBe('cards');
+  } finally { cleanup(); delete document.documentElement.dataset.testModeSession; }
+});

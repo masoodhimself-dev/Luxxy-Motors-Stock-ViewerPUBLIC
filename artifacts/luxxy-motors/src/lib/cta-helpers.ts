@@ -106,7 +106,7 @@ export function recordContactIntent({
     vehicle_context: Boolean(car),
   });
 
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || document.documentElement.dataset.testModeSession) return;
   const body = JSON.stringify({
     channel,
     vehicleId: car?.id ?? null,

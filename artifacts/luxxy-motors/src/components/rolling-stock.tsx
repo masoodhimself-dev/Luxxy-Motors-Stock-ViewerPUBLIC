@@ -3,7 +3,7 @@ import { useDealerSettings } from "@/lib/dealer-settings-context";
 import { useRef, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from '@/components/icons';
 import type { PointerEvent, TouchEvent } from 'react';
-import { Link } from 'wouter';
+import { CustomerSafeLink as Link } from '@/components/customer-safe-link';
 import { CarCard } from '@/components/car-card';
 import type { Car } from '@/lib/stock-context';
 

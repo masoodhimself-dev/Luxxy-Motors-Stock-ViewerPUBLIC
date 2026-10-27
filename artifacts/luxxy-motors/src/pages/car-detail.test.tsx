@@ -400,3 +400,53 @@ it('renders valid Cazoo vehicle checks without a demo-host-only presentation gat
     expect(screen.getByRole('heading', { name: 'ULEZ compliant' })).toBeInTheDocument();
   } finally { Object.assign(car, original); }
 });
+
+it('routes the real vehicle page actions into the test workspace without external contact', async () => {
+  featureState.data.features.publicEnquiries=true;
+  featureState.data.features.testDriveBookings=true;
+  featureState.data.features.partExchange=true;
+  const settings={...dealerConfig,contact:{...dealerConfig.contact,phone:'07388831790',whatsapp:'07388831790'},testDriveBooking:{...defaultBookingSettings,enabled:true},partExchange:{enabled:true}};
+  const openForm=vi.fn();const submit=vi.fn().mockResolvedValue({appointmentStatus:null});
+  const car=stockFixture.cars[1], previous={images:car.images,heroImage:car.heroImage,imageCount:car.imageCount};
+  const galleryImages=Array.from({length:12},(_,i)=>`https://example.com/test-gallery-${i}.jpg`);Object.assign(car,{images:galleryImages,heroImage:galleryImages[0],imageCount:12});
+  const client=new QueryClient({defaultOptions:{queries:{retry:false,staleTime:Infinity}}});client.setQueryData(getGetDealerSettingsQueryKey(),settings);
+  document.documentElement.dataset.testModeSession='isolated-fixture';
+  try {
+    const {CarDetailContent}=await import('@/pages/car-detail');
+    render(<QueryClientProvider client={client}><SavedCarsProvider><CarDetailContent testMode={{carId:'with-plate',config:settings as any,customer:{name:'Test Customer',phone:'07700900123',email:'test@example.test'},submit,openForm}}/></SavedCarsProvider></QueryClientProvider>);
+    expect(screen.getByRole('heading',{name:'BMW 3 Series'})).toBeVisible();
+    expect(screen.queryByRole('button',{name:'Share this vehicle'})).not.toBeInTheDocument();
+    expect(document.querySelector('a[href^="tel:"]')).toBeNull();
+    expect(document.querySelector('a[href*="wa.me"]')).toBeNull();
+    fireEvent.click(screen.getAllByRole('button',{name:/test.drive/i})[0]);
+    expect(openForm).toHaveBeenCalledWith('viewing',expect.objectContaining({id:'with-plate'}));
+    fireEvent.click(screen.getByRole('button',{name:'Show photograph 10 of 12'}));
+    const gallery=within(screen.getByRole('region',{name:'Like what you see?'}));
+    fireEvent.click(gallery.getByRole('button',{name:'Book a Test Drive'}));
+    expect(openForm).toHaveBeenCalledTimes(2);
+    fireEvent.click(screen.getByRole('button',{name:'View gallery fullscreen'}));
+    const lightbox=within(screen.getByRole('dialog',{name:'Vehicle image gallery'}));
+    expect(lightbox.queryByRole('link',{name:/call|whatsapp|message/i})).not.toBeInTheDocument();
+    expect(lightbox.queryByRole('button',{name:/call|callback|whatsapp/i})).not.toBeInTheDocument();
+    expect(lightbox.getByRole('button',{name:'Message'})).toHaveAttribute('type','button');
+    fireEvent.keyDown(screen.getByRole('dialog',{name:'Vehicle image gallery'}),{key:'Escape'});
+    fireEvent.click(screen.getByRole('button',{name:'Value my car'}));
+    expect(openForm).toHaveBeenCalledWith('part_exchange',expect.objectContaining({id:'with-plate'}));
+    fireEvent.change(screen.getByTestId('textarea-enquiry-message'),{target:{value:'Please tell me about this car'}});
+    fireEvent.click(screen.getByTestId('button-submit-enquiry'));
+    await waitFor(()=>expect(submit).toHaveBeenCalledWith(expect.objectContaining({vehicleId:'with-plate',type:'general'})));
+  } finally {delete document.documentElement.dataset.testModeSession;Object.assign(car,previous);}
+});
+
+it('does not offer test booking or part exchange if platform features disable them', async () => {
+  featureState.data.features.publicEnquiries=true;
+  const settings={...dealerConfig,testDriveBooking:{...defaultBookingSettings,enabled:true},partExchange:{enabled:true}};
+  const client=new QueryClient({defaultOptions:{queries:{retry:false,staleTime:Infinity}}});client.setQueryData(getGetDealerSettingsQueryKey(),settings);
+  document.documentElement.dataset.testModeSession='isolated-disabled-fixture';
+  try {
+    const {CarDetailContent}=await import('@/pages/car-detail');
+    render(<QueryClientProvider client={client}><SavedCarsProvider><CarDetailContent testMode={{carId:'with-plate',config:settings as any,customer:{name:'Test Customer',phone:'07700900123',email:'test@example.test'},submit:vi.fn(),openForm:vi.fn()}}/></SavedCarsProvider></QueryClientProvider>);
+    expect(screen.queryByRole('button',{name:/test.drive/i})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button',{name:'Value my car'})).not.toBeInTheDocument();
+  } finally {delete document.documentElement.dataset.testModeSession;}
+});

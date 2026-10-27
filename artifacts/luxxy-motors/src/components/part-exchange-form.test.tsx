@@ -16,6 +16,23 @@ const car = { id: 'stock-1', title: 'Ford Focus', make: 'Ford', model: 'Focus', 
 beforeEach(() => { sessionStorage.clear(); vi.clearAllMocks(); mutation.isSuccess = false; featureState.allowed = true; featureState.isError = false; featureState.isLoading = false; featureState.whatsapp = '447700900123'; });
 
 describe('short part exchange journey', () => {
+  it('keeps customer part-exchange submissions inside the isolated test adapter',async()=>{
+    const submit=vi.fn().mockResolvedValue(undefined);
+    render(<PartExchangeForm vehicle={car} stockCars={[car]} testMode={{customer:{name:'Copied Customer',phone:'07700900123',email:'copy@example.test'},config:{...dealerConfig,partExchange:{title:'Part exchange',description:'',ctaLabel:'',enabled:true}} as any,submit}}/>);
+    expect(document.querySelector('a[href^="tel:"]')).toBeNull();expect(document.querySelector('a[href*="wa.me"]')).toBeNull();
+    fireEvent.change(screen.getByTestId('input-part-exchange-registration'), { target: { value: 'AB12 CDE' } });
+    fireEvent.change(screen.getByTestId('input-part-exchange-mileage'), { target: { value: '45000' } });
+    fireEvent.click(screen.getByTestId('button-part-exchange-continue'));
+    fireEvent.click(screen.getByTestId('button-part-exchange-continue'));
+    expect(screen.getByTestId('input-customer-name')).toHaveValue('Copied Customer');
+    expect(screen.queryByRole('radio',{name:/Send everything on WhatsApp/})).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByTestId('button-part-exchange-continue'));
+    expect(await screen.findByText('Test part-exchange enquiry received')).toBeVisible();
+    expect(submit).toHaveBeenCalledWith(expect.objectContaining({type:'part_exchange',customerName:'Copied Customer',visitorId:null,partExchange:expect.objectContaining({registration:'AB12 CDE'})}));
+    expect(mutation.mutate).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(partExchangeDraftKey(car.id))).toBeNull();
+  });
   it('keeps the website flow usable without promising an unavailable WhatsApp photo handoff', () => {
     featureState.whatsapp = '';
     const view = render(<PartExchangeForm vehicle={car} stockCars={[car]} />);

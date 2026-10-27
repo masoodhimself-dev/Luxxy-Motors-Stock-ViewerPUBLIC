@@ -1,6 +1,8 @@
+import { customerTestSession } from './customer-test-storage';
 type SetLocation = (path: string) => void;
 
-let pendingTarget: string | null = null;
+const pendingTargets = new Map<string, string>();
+const navigationScope = () => customerTestSession() ?? "live";
 
 const homeTargetFocusIds: Record<string, string> = {
   top: 'home-heading',
@@ -76,12 +78,13 @@ export function navigateToHomeTarget(
   setLocation: SetLocation,
 ) {
   if (target === 'stock' || target === 'vehicle-results') {
-    pendingTarget = null;
+    pendingTargets.delete(navigationScope());
     if (currentLocation !== '/stock') setLocation('/stock');
     else scrollToHomeTarget('stock');
     return;
   }
-  pendingTarget = target;
+  const scope = navigationScope();
+  pendingTargets.set(scope, target);
 
   if (currentLocation !== '/') {
     setLocation('/');
@@ -89,26 +92,26 @@ export function navigateToHomeTarget(
   }
 
   requestAnimationFrame(() => {
-    if (pendingTarget === target && scrollToHomeTarget(target)) {
+    if (scope === navigationScope() && pendingTargets.get(scope) === target && scrollToHomeTarget(target)) {
       focusHomeTarget(homeTargetFocusIds[target] || target) || (target === 'about' && focusHomeTarget('visit-heading'));
-      pendingTarget = null;
+      pendingTargets.delete(scope);
     }
   });
 }
 
 export function flushPendingHomeTarget() {
-  if (!pendingTarget) return;
-
-  const target = pendingTarget;
+  const scope = navigationScope();
+  const target = pendingTargets.get(scope);
+  if (!target) return;
   if (scrollToHomeTarget(target)) {
     const focusTarget = homeTargetFocusIds[target];
     if (focusTarget) {
       focusHomeTarget(focusTarget) || (target === 'about' && focusHomeTarget('visit-heading'));
     }
-    pendingTarget = null;
+    pendingTargets.delete(scope);
   }
 }
 
 export function hasPendingHomeTarget() {
-  return pendingTarget !== null;
+  return pendingTargets.has(navigationScope());
 }

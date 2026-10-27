@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useTestRequest } from '@/lib/use-test-request';
+import { useTestAvailability } from '@/lib/use-test-availability';
 import '../pages/customer-workflows.css';
 import './test-drive-booking.css';
 import { Link, useLocation } from "wouter";
@@ -106,24 +108,27 @@ export function TestDriveBooking({
   isLoading = false,
   error,
   missingVehicle = false,
+  testMode,
 }: {
   vehicle?: Car;
   stockCars: Car[];
   isLoading?: boolean;
   error?: unknown;
   missingVehicle?: boolean;
+  testMode?: {sessionId:string;customer:{name:string;email:string;phone:string};config:ReturnType<typeof useDealerSettings>['settings'];submit:(input:EnquiryInput)=>Promise<{appointmentStatus:string|null}>};
 }) {
   const {
-    settings,
+    settings: liveSettings,
     isLoading: settingsLoading,
     isError: settingsError,
   } = useDealerSettings();
+  const settings=testMode?.config ?? liveSettings;
   const [bookingNow, setBookingNow] = useState(() => new Date());
   useEffect(() => { const timer = window.setInterval(() => setBookingNow(new Date()), 60000); return () => window.clearInterval(timer); }, []);
   const bookingHour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', hour: '2-digit', hourCycle: 'h23' }).format(bookingNow));
   const nightTime = bookingHour >= 20 || bookingHour < 7;
   const showroomState = showroomHours(settings.hours ?? [], bookingNow).state;
-  const config = settings.testDriveBooking ?? defaultBookingSettings;
+  const config = (testMode?.config ?? settings).testDriveBooking ?? defaultBookingSettings;
   const [, setLocation] = useLocation();
   const cars = stockCars.filter(
     (car) =>
@@ -143,7 +148,7 @@ export function TestDriveBooking({
   );
   const choice = cars.find((car) => car.id === choiceId);
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [details, setDetails] = useState(() => initialDetails(vehicle));
+  const [details, setDetails] = useState(() => testMode ? {customerName:testMode.customer.name,email:testMode.customer.email,phone:testMode.customer.phone,preferredContact:'email' as const,message:'',hasPartExchange:false,exchange:{registration:'',mileage:'',notes:''}} : initialDetails(vehicle));
   const [draftSaved, setDraftSaved] = useState(false);
   const [phoneError, setPhoneError] = useState("");
   const today = londonDate(bookingNow);
@@ -159,7 +164,9 @@ export function TestDriveBooking({
   const heading = useRef<HTMLHeadingElement>(null);
   const nameInput = useRef<HTMLInputElement>(null);
   const errorMessage = useRef<HTMLDivElement>(null);
-  const mutation = useCreateEnquiry();
+  const liveMutation = useCreateEnquiry();
+  const testMutation = useTestRequest(async({data}:{data:EnquiryInput})=>{if(!testMode)throw new Error('Test session unavailable.');const result=await testMode.submit(data);if(!['confirmed','pending'].includes(result.appointmentStatus ?? ''))throw new Error('The test booking status could not be verified.');return {appointmentStatus:result.appointmentStatus,appointmentAt:data.appointmentAt,customerNotificationStatus:'not_sent',calendarIcs:null,managePath:null};});
+  const mutation = testMode ? testMutation as unknown as typeof liveMutation : liveMutation;
   const busy = mutation.isPending;
   const key = enquiryDraftKey(currentCar?.id, "viewing");
   const keysUsed = useRef(new Set<string>());
@@ -168,13 +175,13 @@ export function TestDriveBooking({
   const restoringDraft = useRef(false);
   const submitting = useRef(false);
   const pickingCar = choosingCar || !currentCar;
-  const availability = useGetEnquiryAvailability(
+  const liveAvailability = useGetEnquiryAvailability(
     { date: selectedDate },
     {
       query: {
         queryKey: getGetEnquiryAvailabilityQueryKey({ date: selectedDate }),
         enabled:
-          !pickingCar &&
+          !testMode && !pickingCar &&
           !isLoading &&
           !error &&
           !settingsLoading &&
@@ -187,6 +194,8 @@ export function TestDriveBooking({
       },
     },
   );
+  const testAvailability=useTestAvailability(testMode?.sessionId,selectedDate,Boolean(testMode)&&!pickingCar&&!settingsLoading&&!settingsError&&config.enabled&&dates.includes(selectedDate)&&!mutation.isSuccess);
+  const availability = testMode ? testAvailability as unknown as typeof liveAvailability : liveAvailability;
   const slots = availability.data?.slots.filter((slot) => slot.available) ?? [];
   const nextBookingDate = dates.find(date => date > selectedDate);
   const selectedTime = slots.find((slot) => slot.startAt === selectedSlot);
@@ -226,12 +235,14 @@ export function TestDriveBooking({
       setSelectedSlot(null);
   }, [availability.data, selectedSlot]);
   useEffect(() => {
+    if (testMode) return;
     if (!currentCar || restoredCar.current) return;
     restoredCar.current = currentCar.id;
     restoringDraft.current = true;
     setDetails(initialDetails(currentCar));
   }, [currentCar?.id]);
   useEffect(() => {
+    if (testMode) return;
     if (restoringDraft.current) {
       restoringDraft.current = false;
       return;
@@ -318,7 +329,7 @@ export function TestDriveBooking({
         .filter(Boolean)
         .join("\n\n"),
       appointmentAt: selectedSlot,
-      visitorId: getVisitorId(),
+      visitorId: testMode ? null : getVisitorId(),
       partExchange: settings.partExchange?.enabled && details.hasPartExchange
         ? {
             registration: details.exchange.registration.trim().toUpperCase(),
@@ -328,7 +339,7 @@ export function TestDriveBooking({
         : null,
     };
     submitting.current = true;
-    trackEvent("enquiry_submitted", {
+    if (!testMode) trackEvent("enquiry_submitted", {
       enquiry_type: "viewing",
       vehicle_context: true,
       preferred_contact: "email",
@@ -337,10 +348,10 @@ export function TestDriveBooking({
       { data },
       {
         onSuccess: () => {
-          keysUsed.current.forEach(discardEnquiryDraft);
-          discardEnquiryDraft(key);
+          if (!testMode) keysUsed.current.forEach(discardEnquiryDraft);
+          if (!testMode) discardEnquiryDraft(key);
           setDraftSaved(false);
-          trackEvent("enquiry_completed", {
+          if (!testMode) trackEvent("enquiry_completed", {
             enquiry_type: "viewing",
             vehicle_context: true,
             preferred_contact: "email",
@@ -378,7 +389,7 @@ export function TestDriveBooking({
               ? formatPrice(currentCar.price, currentCar.currency)
               : "Price on application"}
           </p>
-          {!mutation.isSuccess && (
+          {!mutation.isSuccess && !testMode && (
             <button
               type="button"
               disabled={busy}
@@ -437,13 +448,13 @@ export function TestDriveBooking({
   return (
     <div className="booking-page bg-background px-4 pb-14 pt-5 sm:px-6 sm:py-10">
       <div className="booking-shell mx-auto">
-        <Link
+        {!testMode && <Link
           href={currentCar ? `/vehicle/${currentCar.id}` : "/stock"}
           className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-primary"
         >
           <ArrowLeft size={16} aria-hidden="true" />
           {currentCar ? "Back to the car" : "Browse Stock"}
-        </Link>
+        </Link>}
         <header className="booking-intro mb-6 mt-3 sm:mb-8">
           <p className="luxxy-kicker">Visit {settings.identity.name}</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -472,9 +483,10 @@ export function TestDriveBooking({
               <p className="mt-3 text-muted-foreground">
                 Please try again before choosing your appointment.
               </p>
-              <Button className="mt-5" onClick={() => window.location.reload()}>
+              {!testMode && <Button className="mt-5" onClick={() => window.location.reload()}>
                 Try again
-              </Button>
+              </Button>}
+              {testMode && <p className="mt-3 text-sm">Return to the test workspace and try again.</p>}
             </div>
           ) : !config.enabled ? (
             <div>
@@ -485,10 +497,12 @@ export function TestDriveBooking({
                 Online appointment booking is currently unavailable. Contact us
                 and we’ll help you choose a time.
               </p>
-              <Button asChild className="mt-5">
+              {!testMode && <Button asChild className="mt-5">
                 <Link href={timeHelpHref}>Ask about a test drive</Link>
-              </Button>
+              </Button>}
             </div>
+          ) : testMode && mutation.isSuccess ? (
+            <div role="status"><h2 className="text-xl font-semibold">{mutation.data.appointmentStatus==='confirmed'?'Test drive saved in the test inbox':'Test drive request saved in the test inbox'}</h2><p className="mt-3 text-sm">No live time was reserved and no customer message was sent.</p></div>
           ) : mutation.isSuccess ? (
             <section data-testid="status-enquiry-success">
               <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-full bg-secondary text-primary">
@@ -845,11 +859,11 @@ export function TestDriveBooking({
                   {!availability.isLoading && !availability.isFetching && (availability.isError || !slots.length) ? (
                     <div className="booking-time-recovery mt-4 flex flex-wrap items-center gap-3" aria-label="Help arranging a test drive">
                       {!availability.isError && nextBookingDate && <Button type="button" variant="outline" className="min-h-11" aria-label={`Check times on ${bookingDateLabel(nextBookingDate)}`} onClick={() => setSelectedDate(nextBookingDate)}>Check next date<ArrowRight size={16} aria-hidden="true" /></Button>}
-                      <Link href={timeHelpHref} className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">Ask us about a time</Link>
-                      {getPhoneHref(settings) && <a href={getPhoneHref(settings)} className="inline-flex min-h-11 items-center gap-2 text-sm underline underline-offset-4"><Phone size={16} aria-hidden="true" />Call Us</a>}
-                      {currentCar && getVehicleWhatsAppHref(currentCar, 'arrange a test drive', settings) && <a href={getVehicleWhatsAppHref(currentCar, 'arrange a test drive', settings)} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-2 text-sm underline underline-offset-4"><MessageCircle size={16} aria-hidden="true" />WhatsApp</a>}
+                      {!testMode && <Link href={timeHelpHref} className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">Ask us about a time</Link>}
+                      {!testMode && getPhoneHref(settings) && <a href={getPhoneHref(settings)} className="inline-flex min-h-11 items-center gap-2 text-sm underline underline-offset-4"><Phone size={16} aria-hidden="true" />Call Us</a>}
+                      {!testMode && currentCar && getVehicleWhatsAppHref(currentCar, 'arrange a test drive', settings) && <a href={getVehicleWhatsAppHref(currentCar, 'arrange a test drive', settings)} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-2 text-sm underline underline-offset-4"><MessageCircle size={16} aria-hidden="true" />WhatsApp</a>}
                     </div>
-                  ) : <Link href={timeHelpHref} className="mt-3 inline-flex min-h-11 items-center text-sm text-muted-foreground underline underline-offset-4">Can’t find a suitable time?</Link>}
+                  ) : !testMode && <Link href={timeHelpHref} className="mt-3 inline-flex min-h-11 items-center text-sm text-muted-foreground underline underline-offset-4">Can’t find a suitable time?</Link>}
                   <Button
                     type="button"
                     disabled={

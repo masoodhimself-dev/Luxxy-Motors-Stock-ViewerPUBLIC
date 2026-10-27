@@ -3,7 +3,7 @@ import {
   retryOriginalImage,
 } from "@/lib/responsive-vehicle-image";
 import { useState } from "react";
-import { Link } from "wouter";
+import { CustomerSafeLink as Link } from '@/components/customer-safe-link';
 import { useStock } from "@/lib/stock-context";
 import {
   clearRecentVehicles,
