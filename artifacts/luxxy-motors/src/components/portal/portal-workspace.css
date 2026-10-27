@@ -307,6 +307,6 @@
 .portal-premium-workspace .enquiry-attendance[data-attendance="completed"] > p { color: var(--portal-success); }
 .portal-premium-workspace .enquiry-attendance[data-attendance="no_show"] > p { color: var(--portal-danger); }
 
-/* Three core destinations stay visible together on phones. */
-.portal-workspace .portal-section-nav { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;gap:8px;overflow:visible; }
+/* Core destinations stay visible together on phones. */
+.portal-workspace .portal-section-nav { display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));width:100%;gap:4px;overflow:visible; }
 .portal-workspace .portal-section-nav > button { min-width:0;padding-inline:8px;white-space:nowrap; }

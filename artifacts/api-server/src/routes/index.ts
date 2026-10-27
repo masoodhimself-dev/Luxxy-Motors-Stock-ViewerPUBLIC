@@ -20,6 +20,7 @@ import vehicleBrochureRouter from "./vehicle-brochure";
 import saleWorkspaceRouter from "./sale-workspace";
 import dealerIntegrationsRouter from './dealer-integrations';
 import dealerOperationsRouter from './dealer-operations';
+import dealerReportsRouter from './dealer-reports';
 import dealerRelationshipsRouter from './dealer-relationships';
 import { requireStaffOperationAccess } from '../middlewares/staff-auth';
 import salesTestRouter from './sales-test';
@@ -49,6 +50,7 @@ router.use(staffPushRouter);
 router.use(staffEmailRouter);
 router.use(dealerIntegrationsRouter);
 router.use(dealerOperationsRouter);
+router.use(dealerReportsRouter);
 router.use(dealerRelationshipsRouter);
 
 router.use(retiredSalesRouter);

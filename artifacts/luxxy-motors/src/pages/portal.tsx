@@ -12,6 +12,7 @@ import {
   Sale,
   Plus,
   Settings2,
+  FileText,
   ExternalLink,
   CalendarDays,
   Mail,
@@ -40,6 +41,7 @@ import {
 } from "@/components/portal/quick-enquiry";
 import { appointmentLabel } from "@/lib/test-drive-dates";
 import { SalesWorkspace } from "@/pages/sales-demo";
+import { DealerReports } from "@/components/portal/dealer-reports";
 
 import { NotificationsWorkspace } from "@/components/portal/notifications-workspace";
 import { PortalInstallMetadata } from "@/components/portal/device-notifications";
@@ -50,17 +52,18 @@ import {
   installSettingsNavigationGuard,
 } from "@/lib/settings-navigation";
 
-type TabKey = "notifications" | "sales" | "settings";
+type TabKey = "notifications" | "sales" | "reports" | "settings";
 
 const tabs: Array<{ key: TabKey; label: string; icon: typeof Settings2 }> = [
   { key: "notifications", label: "Inbox", icon: CustomerEnquiry },
   { key: "sales", label: "Sales", icon: Sale },
+  { key: "reports", label: "Reports", icon: FileText },
   { key: "settings", label: "Settings", icon: Settings2 },
 ];
 
 function requestedSection(search: string): TabKey {
   const section = new URLSearchParams(search).get("section");
-  return section === "sales" || section === "settings"
+  return section === "sales" || section === "reports" || section === "settings"
     ? section
     : "notifications";
 }
@@ -495,6 +498,7 @@ function PortalDesk() {
                   />
                 )}
                 {tab === "settings" && <DealerSettingsHub />}
+                {tab === "reports" && (access.data ? <DealerReports scope={`${user?.id ?? access.data.user?.authUserId ?? "staff"}:${[...access.data.permissions].sort().join(",")}`} /> : access.isError ? <div role="alert"><p>We couldn’t check your access to Reports.</p><Button type="button" variant="outline" onClick={() => void access.refetch()}>Try again</Button></div> : <p role="status">Checking report access…</p>)}
               </div>
             )}
             {salesOpened && (

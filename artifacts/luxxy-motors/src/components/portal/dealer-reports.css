@@ -1,0 +1,23 @@
+.dealer-reports { max-width: 1120px; padding: 4px 0 32px; color: var(--portal-ink, #182b39); }
+.dealer-reports-header { display:flex; justify-content:space-between; gap:20px; align-items:end; margin-bottom:18px; }
+.dealer-reports h2 { margin:0; font-size:clamp(1.5rem, 2.5vw, 1.9rem); font-weight:700; line-height:1.2; }
+.dealer-reports-header p,.dealer-reports-popular > p { margin:8px 0 0; color:var(--portal-muted, #536879); }
+.dealer-reports-period { display:grid; gap:6px; font-size:0.875rem; font-weight:600; }
+.dealer-reports-period select { min-height:44px; min-width:150px; border:1px solid #b7c4ce; border-radius:6px; background:#fff; padding:8px 32px 8px 12px; color:#182b39; }
+.dealer-reports-range, .dealer-reports-footer { color:var(--portal-muted, #536879); font-size:0.84rem; margin:0 0 14px; }
+.dealer-reports-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%, 240px),1fr)); gap:14px; }
+.dealer-reports-card,.dealer-reports-popular,.dealer-reports-state { border:1px solid var(--portal-border, #d6e0e5); border-radius:8px; background:#fff; padding:20px; }
+.dealer-reports-card h3,.dealer-reports-popular h3 { font-size:1rem; font-weight:700; margin:0; }
+.dealer-reports-card > strong { display:block; font-size:2rem; font-weight:700; color:var(--portal-info, #245d80); line-height:1.15; margin-top:12px; }
+.dealer-reports-card p { margin:8px 0 0; color:var(--portal-muted, #536879); line-height:1.5; font-size:0.9rem; }
+.dealer-reports-card .dealer-reports-sub { color:var(--portal-ink, #182b39); border-top:1px solid #e3e9ed; padding-top:12px; margin-top:14px; }
+.dealer-reports-card .dealer-reports-note { font-size:0.8rem; }
+.dealer-reports-popular { margin-top:14px; }
+.dealer-reports-popular ol { list-style:none; margin:14px 0 0; padding:0; }
+.dealer-reports-popular li { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:12px 0; border-top:1px solid #e3e9ed; }
+.dealer-reports-popular li span { min-width:0; overflow-wrap:anywhere; }
+.dealer-reports-popular li strong { white-space:nowrap; font-size:0.875rem; }
+.dealer-reports-empty { padding:15px 0 0; }
+.dealer-reports-footer { margin-top:16px; line-height:1.5; }
+.dealer-reports-state p { margin:0 0 12px; }
+@media(max-width:480px) { .dealer-reports-header { align-items:start; flex-direction:column; gap:16px; } .dealer-reports-period, .dealer-reports-period select { width:100%; } .dealer-reports-card,.dealer-reports-popular { padding:16px; } }

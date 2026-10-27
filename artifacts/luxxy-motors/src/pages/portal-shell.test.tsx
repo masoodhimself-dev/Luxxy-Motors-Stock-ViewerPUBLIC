@@ -51,6 +51,7 @@ vi.mock("@/components/brand/wordmark", () => ({
 vi.mock("@/lib/dealer-settings-context", () => ({
   useDealerSettings: () => ({ settings: { identity: { name: "Dealer" } } }),
 }));
+vi.mock("@/components/portal/dealer-reports", () => ({ DealerReports: () => <p>Reports workspace</p> }));
 vi.mock("@/pages/sales-demo", () => ({
   SalesWorkspace: () => <p>Sales workspace</p>,
 }));
@@ -69,7 +70,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   window.history.replaceState({}, "", "/");
 });
-it("defaults to Inbox with only Inbox, Sales and Settings destinations", () => {
+it("defaults to Inbox with only Inbox, Sales, Reports and Settings destinations", () => {
   render(<Portal />);
   expect(screen.getByText("Inbox workspace")).toBeVisible();
   const nav = screen.getByRole("navigation", { name: "Portal sections" });
@@ -77,7 +78,7 @@ it("defaults to Inbox with only Inbox, Sales and Settings destinations", () => {
     within(nav)
       .getAllByRole("button")
       .map((button) => button.textContent),
-  ).toEqual(["Inbox", "Sales", "Settings"]);
+  ).toEqual(["Inbox", "Sales", "Reports", "Settings"]);
   expect(
     screen.queryByRole("button", { name: "Home" }),
   ).not.toBeInTheDocument();
@@ -94,14 +95,15 @@ it("retired Cars bookmarks return to Inbox without loading a Cars workspace", ()
   render(<Portal />);
   expect(screen.getByText("Inbox workspace")).toBeVisible();
 });
-it("keeps Settings in the three-item phone navigation", () => {
+it("keeps Settings in the four-item phone navigation", () => {
   window.innerWidth = 390;
   render(<Portal />);
   const buttons = within(
     screen.getByRole("navigation", { name: "Portal sections" }),
   ).getAllByRole("button");
-  expect(buttons).toHaveLength(3);
-  expect(buttons[2]).toHaveTextContent("Settings");
+  expect(buttons).toHaveLength(4);
+  expect(buttons[2]).toHaveTextContent("Reports");
+  expect(buttons[3]).toHaveTextContent("Settings");
 });
 it("requires deliberate discard before leaving unsaved private Settings", () => {
   window.history.replaceState(
@@ -131,7 +133,7 @@ it("does not offer owner settings to an accounts role", () => {
     within(screen.getByRole("navigation", { name: "Portal sections" }))
       .getAllByRole("button")
       .map((button) => button.textContent),
-  ).toEqual(["Inbox", "Sales"]);
+  ).toEqual(["Inbox", "Sales", "Reports"]);
 });
 
 it("protects unsaved settings when using the workspace logo", () => {
@@ -154,4 +156,17 @@ it("protects unsaved settings when using the workspace logo", () => {
   fireEvent.click(screen.getByRole("link", { name: "Dealer workspace" }));
   expect(confirm).toHaveBeenCalledTimes(2);
   expect(screen.getByText("Inbox workspace")).toBeVisible();
+});
+
+it("opens Reports and protects unsaved settings when navigating to it", () => {
+  window.history.replaceState({}, "", "/portal?section=settings");
+  render(<Portal />);
+  fireEvent.change(screen.getByLabelText("Private wording"), { target: { value: "unsaved" } });
+  const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+  fireEvent.click(screen.getByRole("button", { name: "Reports" }));
+  expect(confirm).toHaveBeenCalledOnce();
+  expect(screen.queryByText("Reports workspace")).not.toBeInTheDocument();
+  confirm.mockReturnValue(true);
+  fireEvent.click(screen.getByRole("button", { name: "Reports" }));
+  expect(screen.getByText("Reports workspace")).toBeVisible();
 });
