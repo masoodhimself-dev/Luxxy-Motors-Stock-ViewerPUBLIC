@@ -63,6 +63,25 @@ test("large sales and relationship chat reads exclude archive/retry/token bulk i
   t.diagnostic(JSON.stringify({ sales: { records: 100, beforeDatabaseBytes: bytes(oldRows), afterDatabaseBytes: transferred }, chat: { records: 100, beforeDatabaseBytes: bytes(state), afterDatabaseBytes: chatBytes } }));
 });
 
+test('sale list totals include confirmed refunds and pending payments without exposing ledger details or handover address', async () => {
+  const id=randomUUID();
+  const state={id,dealerId:dealer,reference:'SUMMARY-BALANCE',revision:0,createdAt:'2026-10-27T10:00:00Z',updatedAt:'2026-10-27T10:00:00Z',draft:{customer:'Summary Buyer',vehicle:'Summary Car',price:'6000',fulfilment:{method:'delivery',scheduledDate:'2026-10-30',address:'PRIVATE-DELIVERY-ADDRESS',stage:'booked'}},payments:[{status:'confirmed',amountPence:50000,signedAmountPence:50000,reference:'PRIVATE-REFERENCE'},{status:'confirmed',amountPence:10000,signedAmountPence:-10000},{status:'pending',amountPence:20000,signedAmountPence:20000}],documents:[],events:[],corrections:[{description:'PRIVATE-CORRECTION-NOTE'}]};
+  await db.insert(saleWorkspaceTable).values({id,dealerId:dealer,reference:state.reference,revision:0,state});
+  let databaseRows='';
+  const database={query:async(query:string,parameters:unknown[])=>{const result=await engine.query(query,parameters);if(query.startsWith('SELECT state -'))databaseRows=JSON.stringify(result.rows);return result;}};
+  const store=new PostgresSaleWorkspaceStore(dealer,async()=>{throw new Error('Unexpected asset lookup');},database as never);
+  const [row]=(await store.list({q:'SUMMARY-BALANCE'})).sales;
+  assert.equal(row.listTotalDue,600000);assert.equal(row.listPaid,40000);assert.equal(row.listPending,20000);assert.equal(row.listBalance,560000);
+  assert.equal(row.listHasCorrectionNotes,true);assert.equal(row.listHasRefunds,true);
+  assert.deepEqual(row.listHandover,{method:'delivery',status:'Booked'});assert.deepEqual(row.payments,[]);
+  assert.ok(!JSON.stringify(row).includes('PRIVATE-'));
+  assert.ok(!databaseRows.includes('PRIVATE-CORRECTION-NOTE'));
+  assert.equal((await store.get(id)).corrections?.[0].description,'PRIVATE-CORRECTION-NOTE');
+  const invalidId=randomUUID(),invalid={id:invalidId,dealerId:dealer,reference:'UNKNOWN-LEDGER',revision:1,createdAt:'2026-10-27T10:00:00Z',updatedAt:'2026-10-27T10:00:00Z',draft:{customer:'Unknown Ledger',price:'6000'},payments:null,documents:[],events:[]};
+  await db.insert(saleWorkspaceTable).values({id:invalidId,dealerId:dealer,reference:invalid.reference,revision:1,state:invalid});
+  const [unknown]=(await store.list({q:'UNKNOWN-LEDGER'})).sales;assert.equal(unknown.listLedgerKnown,false);assert.equal(unknown.emptyDraftDeletable,false);
+});
+
 test("enquiry summaries keep merged originals, matching fields and appointments; every conversation remains reachable in bounded authenticated pages", async t => {
   const main = randomUUID(), original = randomUUID(), foreign = randomUUID();
   await db.insert(enquiriesTable).values([

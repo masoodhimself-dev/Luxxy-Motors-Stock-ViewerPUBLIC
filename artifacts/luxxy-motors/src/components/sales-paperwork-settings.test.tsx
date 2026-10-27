@@ -29,10 +29,20 @@ it("saves wording with version checks and preserves existing numbering/design va
     }),
   );
   render(<SalesPaperworkSettings />);
+  expect(
+    await screen.findByText(/may not contain the dealership’s complete terms/i),
+  ).toBeInTheDocument();
+  expect(
+    await screen.findByLabelText("Deposit and reservation terms"),
+  ).toHaveAccessibleDescription(/agreed deposit and refund policy/i);
   fireEvent.change(
     await screen.findByLabelText("Terms and conditions of sale"),
     { target: { value: "Updated approved terms" } },
   );
+  expect(screen.getByText(/accountant handles correction paperwork/i)).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Instructions for staff (optional)"), {
+    target: { value: "Ask the manager to contact our accountant." },
+  });
   fireEvent.click(
     screen.getByRole("button", { name: "Save document settings" }),
   );
@@ -45,6 +55,7 @@ it("saves wording with version checks and preserves existing numbering/design va
       saleTerms: "Updated approved terms",
       reservationTerms: "Deposit terms",
       invoiceSettings: options,
+      correctionSettings: { handling: "accountant", instructions: "Ask the manager to contact our accountant." },
     },
   ]);
   expect(screen.queryByLabelText("Design style")).not.toBeInTheDocument();

@@ -72,3 +72,23 @@ test('settings are isolated, revision protected, validated and backward compatib
   options.footer='Changed';assert.equal(frozen.invoiceSettings?.footer,'Thank you');assert.equal(frozen.presentation?.linkColour,'#6a3d70');
  } finally {await rm(dir,{recursive:true,force:true});}
 });
+
+test('accountant correction instructions are dealer-specific, revision protected and preserved for older clients', async () => {
+ const dir = await mkdtemp(join(tmpdir(),'invoice-correction-settings-'));
+ try {
+  const a = new DealerIntegrationsStore({filename:join(dir,'a.json'),dealerId:'a',production:false,databaseBacked:false});
+  const b = new DealerIntegrationsStore({filename:join(dir,'b.json'),dealerId:'b',production:false,databaseBacked:false});
+  const initial = await a.readSalesPaperwork();
+  assert.deepEqual(initial.correctionSettings,{handling:'accountant',instructions:''});
+  const saved = await a.updateSalesPaperwork({expectedRevision:initial.revision,saleTerms:'Approved',reservationTerms:'',correctionSettings:{handling:'accountant',instructions:'  Ask the manager  '}});
+  assert.deepEqual(saved.correctionSettings,{handling:'accountant',instructions:'Ask the manager'});
+  assert.deepEqual((await b.readSalesPaperwork()).correctionSettings,{handling:'accountant',instructions:''});
+  await assert.rejects(a.updateSalesPaperwork({expectedRevision:initial.revision,saleTerms:'',reservationTerms:'',correctionSettings:{handling:'accountant',instructions:'Stale'}}));
+  for (const correctionSettings of [{handling:'automated',instructions:''},{handling:'accountant',instructions:'x'.repeat(501)}]) {
+   await assert.rejects(a.updateSalesPaperwork({expectedRevision:saved.revision,saleTerms:'',reservationTerms:'',correctionSettings}));
+  }
+  const legacy = await a.updateSalesPaperwork({expectedRevision:saved.revision,saleTerms:'Revised',reservationTerms:''});
+  assert.deepEqual(legacy.correctionSettings,saved.correctionSettings);
+  assert.deepEqual((await a.readSalesPaperwork()).correctionSettings,saved.correctionSettings);
+ } finally {await rm(dir,{recursive:true,force:true});}
+});

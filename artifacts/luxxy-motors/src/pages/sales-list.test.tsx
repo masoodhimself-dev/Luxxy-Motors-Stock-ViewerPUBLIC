@@ -29,6 +29,53 @@ it('loads fifty compact summaries at a time without fetching financial files',as
  fireEvent.click(screen.getByRole('button',{name:'Load more sales'}));await screen.findByRole('button',{name:/Older Customer/});
  expect(reads()).toEqual(['/api/sale-workspace','/api/sale-workspace?offset=50']);expect(screen.queryByRole('button',{name:'Load more sales'})).not.toBeInTheDocument();expect(writes()).toHaveLength(0);
 });
+it('shows the balance, handover and next action without exposing the payment ledger',async()=>{
+ const reserved={...summary('deposit','Deposit Buyer'),lifecycle:{status:'reserved'},listTotalDue:600000,listPaid:50000,listPending:0,listBalance:550000,listHandover:{method:'collection',status:'Booked'}};
+ const delivered={...summary('done','Completed Buyer'),completedAt:'2026-10-27T12:00:00Z',listTotalDue:600000,listPaid:600000,listPending:0,listBalance:0,listHandover:{method:'delivery',status:'Delivered'}};
+ const credit={...summary('credit','Credit Buyer'),listTotalDue:600000,listPaid:650000,listPending:0,listBalance:-50000};
+ state.api.mockResolvedValue({sales:[reserved,delivered,credit],hasMore:false});mount();
+ const deposit=await screen.findByRole('button',{name:/Deposit Buyer/});expect(deposit).toHaveTextContent('Reserved');expect(deposit).toHaveTextContent('Balance due: £5,500.00');expect(deposit).toHaveTextContent('Collection: Booked');expect(deposit).toHaveTextContent('Next: Review the balance due');
+ const complete=screen.getByRole('button',{name:/Completed Buyer/});expect(complete).toHaveTextContent('Delivery: Delivered');expect(complete).toHaveTextContent('Next: Sale completed');
+ const overpaid=screen.getByRole('button',{name:/Credit Buyer/});expect(overpaid).toHaveTextContent('Customer credit: £500.00');expect(overpaid).toHaveTextContent('Next: Review customer credit');
+ expect(reads()).toEqual(['/api/sale-workspace']);expect(writes()).toHaveLength(0);
+});
+it('does not invent a zero balance for older list responses',async()=>{
+ state.api.mockResolvedValue({sales:[summary('legacy','Legacy Buyer')],hasMore:false});mount();
+ const row=await screen.findByRole('button',{name:/Legacy Buyer/});expect(row).toHaveTextContent('Open sale to review the balance');expect(row).not.toHaveTextContent('Balance due:');
+});
+it('requires explicit confirmation before releasing a refunded reservation',async()=>{
+ const saved=full('release','Refunded Buyer');saved.lifecycle={status:'reserved',vehicleId:'car-one',changedAt:'2026-10-27T10:00:00Z'};
+ const released={...saved,lifecycle:{...saved.lifecycle,status:'released'}};
+ state.api.mockImplementation(async(p:string,o?:{method?:string})=>p==='/api/sale-workspace'?{sales:[summary('release','Refunded Buyer')],hasMore:false}:p==='/api/sale-workspace/release'&&!o?.method?{sale:saved}:p==='/api/sale-workspace/release/lifecycle'&&o?.method==='POST'?{sale:released}:Promise.reject(new Error(`Unexpected: ${p}`)));
+ mount();fireEvent.click(await screen.findByRole('button',{name:/Refunded Buyer/}));await screen.findByRole('heading',{name:'Sale summary'});
+ expect(writes()).toHaveLength(0);fireEvent.click(screen.getByRole('button',{name:'Release reservation'}));
+ const dialog=screen.getByRole('dialog',{name:'Release this reservation?'});expect(dialog).toHaveTextContent('payment history will be kept');expect(dialog).toHaveTextContent('No message will be sent');expect(writes()).toHaveLength(0);
+ fireEvent.click(within(dialog).getByRole('button',{name:'Release reservation'}));await screen.findByText(/Reservation released. Check the car’s published stock status/);
+ expect(writes()).toHaveLength(1);expect(writes()[0][0]).toBe('/api/sale-workspace/release/lifecycle');expect(JSON.parse(writes()[0][1].body)).toMatchObject({status:'released',expectedRevision:saved.revision});
+});
+it('prevents releasing while confirmed or pending payments remain',async()=>{
+ const saved=full('held','Held Buyer');saved.lifecycle={status:'reserved',vehicleId:'car-one',changedAt:'2026-10-27T10:00:00Z'};
+ saved.payments=[{id:'p1',amount:'100.00',amountPence:10000,signedAmountPence:10000,method:'Cash',date:'2026-10-27',reference:'',kind:'deposit',status:'confirmed',recordedBy:'Staff',recordedAt:'2026-10-27T10:00:00Z'}];
+ state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:[summary('held','Held Buyer')],hasMore:false}:{sale:saved});
+ mount();fireEvent.click(await screen.findByRole('button',{name:/Held Buyer/}));await screen.findByRole('heading',{name:'Sale summary'});
+ expect(screen.getByRole('button',{name:'Release reservation'})).toBeDisabled();expect(screen.getByText(/Review any received or pending payments/)).toBeVisible();expect(writes()).toHaveLength(0);
+});
+it('does not present the abandoned price as debt after releasing a refunded reservation',async()=>{
+ const saved=full('released','Former Buyer');saved.lifecycle={status:'released',vehicleId:'car-one',changedAt:'2026-10-27T10:00:00Z'};
+ const row={...summary('released','Former Buyer'),lifecycle:saved.lifecycle,listTotalDue:600000,listPaid:0,listPending:0,listBalance:600000,listHandover:{method:'collection',status:'To arrange'}};
+ state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:[row],hasMore:false}:{sale:saved});mount();
+ const listRow=await screen.findByRole('button',{name:/Former Buyer/});expect(listRow).toHaveTextContent('Sale not completed');expect(listRow).not.toHaveTextContent('Balance due');expect(listRow).not.toHaveTextContent('Collection: To arrange');
+ fireEvent.click(listRow);const detail=await screen.findByRole('region',{name:'Saved sale summary'});expect(detail).toHaveTextContent('The reservation was released and the sale is not completed');expect(detail).toHaveTextContent('start a new invoice');expect(detail).not.toHaveTextContent('Balance due');
+ for(const name of ['Record payment','Create another invoice','Prepare invoice','Edit vehicle & price','Edit customer details'])expect(within(detail).queryByRole('button',{name})).not.toBeInTheDocument();expect(writes()).toHaveLength(0);
+});
+it('flags funds or pending payments on a released reservation without claiming the purchase price is due',async()=>{
+ const saved=full('released-payment','Former Buyer');saved.lifecycle={status:'released',vehicleId:'car-one',changedAt:'2026-10-27T10:00:00Z'};
+ saved.payments=[{id:'p1',amount:'100.00',amountPence:10000,signedAmountPence:10000,method:'Bank transfer',date:'2026-10-27',reference:'',kind:'deposit',status:'confirmed',recordedBy:'Staff',recordedAt:'2026-10-27T10:00:00Z'},{id:'p2',amount:'20.00',amountPence:2000,signedAmountPence:2000,method:'Bank transfer',date:'2026-10-27',reference:'',kind:'part-payment',status:'pending',recordedBy:'Staff',recordedAt:'2026-10-27T10:00:00Z'}];
+ const row={...summary('released-payment','Former Buyer'),lifecycle:saved.lifecycle,listTotalDue:600000,listPaid:10000,listPending:2000,listBalance:590000};
+ state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:[row],hasMore:false}:{sale:saved});mount();
+ const listRow=await screen.findByRole('button',{name:/Former Buyer/});expect(listRow).toHaveTextContent('Review payment history');expect(listRow).toHaveTextContent('Net received: £100.00');expect(listRow).toHaveTextContent('Pending: £20.00');expect(listRow).not.toHaveTextContent('Balance due');
+ fireEvent.click(listRow);const detail=await screen.findByRole('region',{name:'Saved sale summary'});const alert=within(detail).getByRole('alert');expect(alert).toHaveTextContent('Net received: £100.00');expect(alert).toHaveTextContent('Pending: £20.00');expect(alert).toHaveTextContent('do not mean the purchase price is due');expect(detail).toHaveTextContent('Payment history');expect(within(detail).queryByRole('button',{name:'Record payment'})).not.toBeInTheDocument();
+});
 it('waits for the latest full sale before allowing edits',async()=>{
  let finish!:(v:unknown)=>void;const saved=full('a','Current Customer');saved.revision=9;
  state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:[summary('a','Old summary')],hasMore:false}:new Promise(r=>{finish=r}));
@@ -56,6 +103,29 @@ it('finds the existing source-enquiry sale before considering a new one',async()
  state.search='?section=sales&enquiryId=old-enquiry';const row=summary('old-sale','Existing Buyer'),saved=full('old-sale','Existing Buyer');row.draft.sourceEnquiryId=saved.draft.sourceEnquiryId='old-enquiry';
  state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:[],hasMore:false}:p.includes('?enquiryId=')?{sales:[row],hasMore:false}:{sale:saved});
  mount();expect(await screen.findByRole('heading',{name:'Sale summary'})).toBeVisible();expect(reads()).toContain('/api/sale-workspace?enquiryId=old-enquiry');expect(writes()).toHaveLength(0);
+});
+it('starts a new enquiry-linked sale after every previous sale is safely released',async()=>{
+ state.search='?section=sales&enquiryId=old-enquiry';state.enquiries=[{id:'old-enquiry',customerName:'Returning Buyer',vehicleId:'car-one',vehicleTitle:'Ford Focus'}];state.stock={cars:[{id:'car-one',title:'Ford Focus',price:6000}]};
+ const old={...summary('released','Returning Buyer'),lifecycle:{status:'released'},listPaid:0,listPending:0,listLedgerKnown:true};old.draft.sourceEnquiryId='old-enquiry';
+ state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:[],hasMore:false}:p.includes('?enquiryId=')?{sales:[old],hasMore:false}:Promise.reject(new Error(`Unexpected: ${p}`)));
+ mount();expect(await screen.findByRole('heading',{name:'Which car are you selling?'})).toBeVisible();expect(screen.getByLabelText('Vehicle')).toHaveValue('car-one');expect(reads()).not.toContain('/api/sale-workspace/released');expect(writes()).toHaveLength(0);
+});
+it('checks later enquiry pages and opens an active sale before reusing a released one',async()=>{
+ state.search='?section=sales&enquiryId=old-enquiry';state.enquiries=[{id:'old-enquiry',customerName:'Returning Buyer',vehicleId:'car-one'}];
+ const old={...summary('released','Returning Buyer'),lifecycle:{status:'released'},listPaid:0,listPending:0,listLedgerKnown:true};old.draft.sourceEnquiryId='old-enquiry';
+ const active=summary('active','Active Buyer'),saved=full('active','Active Buyer');active.draft.sourceEnquiryId=saved.draft.sourceEnquiryId='old-enquiry';
+ state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:[],hasMore:false}:p==='/api/sale-workspace?enquiryId=old-enquiry'?{sales:[old],hasMore:true}:p==='/api/sale-workspace?enquiryId=old-enquiry&offset=1'?{sales:[active],hasMore:false}:p==='/api/sale-workspace/active'?{sale:saved}:Promise.reject(new Error(`Unexpected: ${p}`)));
+ mount();expect(await screen.findByRole('heading',{name:'Sale summary'})).toBeVisible();expect(screen.getByRole('region',{name:'Saved sale summary'})).toHaveTextContent('Active Buyer');expect(reads()).toContain('/api/sale-workspace?enquiryId=old-enquiry&offset=1');expect(writes()).toHaveLength(0);
+});
+it.each([{listPaid:10000,listPending:0,listLedgerKnown:true},{listPaid:0,listPending:1000,listLedgerKnown:true},{listPaid:0,listPending:0,listLedgerKnown:false},{}])('opens a released sale with unsettled or unknown payments instead of starting another: %s',async amounts=>{
+ state.search='?section=sales&enquiryId=old-enquiry';const old={...summary('released','Prior Buyer'),lifecycle:{status:'released'},...amounts};old.draft.sourceEnquiryId='old-enquiry';const saved=full('released','Prior Buyer');saved.draft.sourceEnquiryId='old-enquiry';saved.lifecycle={status:'released',vehicleId:'car-one',changedAt:'2026-10-27T10:00:00Z'};
+ state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:[],hasMore:false}:p.includes('?enquiryId=')?{sales:[old],hasMore:false}:p==='/api/sale-workspace/released'?{sale:saved}:Promise.reject(new Error(`Unexpected: ${p}`)));
+ mount();expect(await screen.findByRole('heading',{name:'Sale summary'})).toBeVisible();expect(screen.getByRole('region',{name:'Saved sale summary'})).toHaveTextContent('Prior Buyer');expect(writes()).toHaveLength(0);
+});
+it('stops if another page of enquiry-linked sales cannot be checked',async()=>{
+ state.search='?section=sales&enquiryId=old-enquiry';state.enquiries=[{id:'old-enquiry',customerName:'Returning Buyer',vehicleId:'car-one'}];const old={...summary('released','Returning Buyer'),lifecycle:{status:'released'},listPaid:0,listPending:0,listLedgerKnown:true};old.draft.sourceEnquiryId='old-enquiry';
+ state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:[],hasMore:false}:p==='/api/sale-workspace?enquiryId=old-enquiry'?{sales:[old],hasMore:true}:Promise.reject(new Error('Page unavailable')));
+ mount();expect(await screen.findByRole('alert')).toHaveTextContent('The linked sale could not be checked');expect(screen.queryByRole('heading',{name:'Which car are you selling?'})).not.toBeInTheDocument();expect(writes()).toHaveLength(0);
 });
 
 it('keeps a full-file response from replacing a new invoice started while it was loading',async()=>{
@@ -230,4 +300,32 @@ it.each(['still-present','malformed','unavailable'] as const)('keeps the test op
  expect(await within(dialog).findByRole('alert')).toHaveTextContent('Not found');
  expect(screen.getByText('TEST MODE — fictional sale')).toBeVisible();
  expect(reads).toBe(2);
+});
+
+it.each(['refund','note'])('does not claim the calculated balance is owed after a completed sale has a %s',async kind=>{
+ const saved=full('completed-corrected','Corrected Buyer');saved.completedAt='2026-10-27T10:00:00Z';
+ saved.payments=[{id:'p1',amount:'6000.00',amountPence:600000,signedAmountPence:600000,method:'Bank transfer',date:'2026-10-27',reference:'',kind:'part-payment',status:'confirmed',recordedBy:'Staff',recordedAt:'2026-10-27T10:00:00Z'}];
+ if(kind==='refund')saved.payments.push({id:'p2',amount:'500.00',amountPence:50000,signedAmountPence:-50000,method:'Bank transfer',date:'2026-10-27',reference:'',kind:'refund',status:'confirmed',recordedBy:'Staff',recordedAt:'2026-10-27T10:00:00Z'});
+ else saved.corrections=[{id:'note',description:'Accountant reviewing price correction',reference:'ACC-5',recordedAt:'2026-10-27T10:10:00Z',recordedBy:'Staff'}];
+ const row={...summary('completed-corrected','Corrected Buyer'),completedAt:saved.completedAt,listTotalDue:600000,listPaid:kind==='refund'?550000:600000,listPending:0,listBalance:kind==='refund'?50000:0,listHasRefunds:kind==='refund',listHasCorrectionNotes:kind==='note'};
+ state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:[row],hasMore:false}:p==='/api/sale-workspace/paperwork'?{correctionSettings:{handling:'accountant',instructions:''}}:{sale:saved});mount();
+ const listRow=await screen.findByRole('button',{name:/Corrected Buyer/});expect(listRow).toHaveTextContent('Review correction with accountant');expect(listRow).toHaveTextContent('Calculated balance (review)');expect(listRow).not.toHaveTextContent('Balance due');
+ fireEvent.click(listRow);const detail=await screen.findByRole('region',{name:'Saved sale summary'});expect(detail).toHaveTextContent('Calculated balance (review)');expect(detail).not.toHaveTextContent('Balance due');expect(detail).toHaveTextContent('does not include external price corrections');expect(detail).toHaveTextContent('before treating it as money owed');
+ fireEvent.click(within(detail).getByRole('button',{name:'Review payment history'}));expect(screen.getByText('Calculated balance (review)')).toBeVisible();expect(screen.queryByText('Balance due')).not.toBeInTheDocument();expect(screen.getByRole('alert')).toHaveTextContent('before treating it as money owed');expect(writes()).toHaveLength(0);
+});
+
+it('flags an externally corrected deposit invoice even before a sale is completed',async()=>{
+ const saved=full('deposit-note','Deposit Buyer');saved.corrections=[{id:'note',description:'Price correction is being reviewed',reference:'ACC-1',recordedAt:'2026-10-27T10:10:00Z',recordedBy:'Staff'}];
+ const row={...summary('deposit-note','Deposit Buyer'),listTotalDue:600000,listPaid:100000,listPending:0,listBalance:500000,listHasCorrectionNotes:true};
+ state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:[row],hasMore:false}:{sale:saved});mount();
+ const listRow=await screen.findByRole('button',{name:/Deposit Buyer/});expect(listRow).toHaveTextContent('Review correction with accountant');expect(listRow).toHaveTextContent('Calculated balance (review): £5,000.00');expect(listRow).not.toHaveTextContent('Balance due');
+ fireEvent.click(listRow);const detail=await screen.findByRole('region',{name:'Saved sale summary'});expect(detail).toHaveTextContent('does not include external price corrections');expect(detail).toHaveTextContent('Calculated balance (review)');expect(detail).not.toHaveTextContent('Balance due');expect(writes()).toHaveLength(0);
+});
+
+it('flags an external correction on a released reservation without displaying a balance due',async()=>{
+ const saved=full('released-note','Released Buyer');saved.lifecycle={status:'released',vehicleId:'car-one',changedAt:'2026-10-27T10:00:00Z'};saved.corrections=[{id:'note',description:'Reference filed with accountant',reference:'ACC-1',recordedAt:'2026-10-27T10:10:00Z',recordedBy:'Staff'}];
+ const row={...summary('released-note','Released Buyer'),lifecycle:saved.lifecycle,listTotalDue:600000,listPaid:0,listPending:0,listBalance:600000,listHasCorrectionNotes:true};
+ state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:[row],hasMore:false}:{sale:saved});mount();
+ const listRow=await screen.findByRole('button',{name:/Released Buyer/});expect(listRow).toHaveTextContent('Review correction with accountant');expect(listRow).not.toHaveTextContent('Balance due');
+ fireEvent.click(listRow);const detail=await screen.findByRole('region',{name:'Saved sale summary'});expect(detail).toHaveTextContent('This released sale has a correction note');expect(detail).not.toHaveTextContent('Balance due');expect(writes()).toHaveLength(0);
 });

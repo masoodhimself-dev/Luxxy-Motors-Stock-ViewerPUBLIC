@@ -14,6 +14,39 @@ const reviewChecks = (sale: SaleWorkspaceRecord) => changeSaleWorkspace(sale, {
   partExchanges: saleWorkspaceExchanges(sale.draft).map(exchange => ({ registration: exchange.registration, items: Object.fromEntries(partExchangeChecklistItems.map(item => [item.id, 'checked' as const])) })),
 }, { expectedRevision: sale.revision, requestId: `review-checks-${++sequence}` }, context()).sale;
 
+test('external correction notes require completed sale and never alter issued documents or payments', () => {
+  const original = create();
+  const input = { expectedRevision: original.revision, requestId: 'correction-before-completion' };
+  assert.throws(() => changeSaleWorkspace(original, { action:'correction-note', description:'Accountant reference', reference:'EX-1' }, input, context()), /after an invoice is issued/);
+  const paid = changeSaleWorkspace(original, payment('12000','final-payment'), {expectedRevision:original.revision,requestId:'correction-payment'}, context()).sale;
+  const issued = changeSaleWorkspace(paid, {action:'issue-invoice',kind:'full',acknowledge:true}, {expectedRevision:paid.revision,requestId:'correction-invoice'}, context()).sale;
+  const completed = changeSaleWorkspace(issued, {action:'finish-invoice-sale',acknowledge:true}, {expectedRevision:issued.revision,requestId:'correction-complete'}, context()).sale;
+  const before = structuredClone(completed);
+  const command = {action:'correction-note',description:'  Accountant prepared corrected paperwork  ',reference:' EX-1 '} as const;
+  const request = {expectedRevision:completed.revision,requestId:'correction-record'};
+  const saved=changeSaleWorkspace(completed,command,request,context()).sale;
+  assert.deepEqual(saved.draft,before.draft);assert.deepEqual(saved.documents,before.documents);assert.deepEqual(saved.payments,before.payments);
+  assert.deepEqual(saleWorkspaceTotals(saved.draft,saved.payments),saleWorkspaceTotals(before.draft,before.payments));
+  assert.deepEqual(saved.corrections?.map(({description,reference,recordedAt,recordedBy})=>({description,reference,recordedAt,recordedBy})),[{description:'Accountant prepared corrected paperwork',reference:'EX-1',recordedAt:context().now,recordedBy:'Test staff'}]);
+  const retry=changeSaleWorkspace(saved,command,request,context());assert.equal(retry.replayed,true);assert.equal(retry.sale.corrections?.length,1);
+  assert.throws(()=>changeSaleWorkspace(saved,{...command,description:'Different'},request,context()),/already been used/);
+  assert.throws(()=>changeSaleWorkspace(saved,command,{...request,requestId:'correction-stale'},context()),/another device/);
+  for(const description of ['', '  ', 'x'.repeat(2001)])assert.throws(()=>changeSaleWorkspace(saved,{...command,description},{expectedRevision:saved.revision,requestId:`invalid-${++sequence}`},context()));
+  assert.throws(()=>changeSaleWorkspace(saved,{...command,reference:'x'.repeat(201)},{expectedRevision:saved.revision,requestId:'correction-reference-too-long'},context()));
+});
+
+test('an issued deposit invoice can be annotated before or after a reservation is released', () => {
+  const initial=create();
+  const paid=changeSaleWorkspace(initial,{action:'invoice-payment',payment:{amount:'100',kind:'deposit',status:'confirmed',method:'Cash',date:'2026-10-04',reference:''}},{expectedRevision:initial.revision,requestId:'note-deposit'},context()).sale;
+  const invoiced=changeSaleWorkspace(paid,{action:'issue-invoice',kind:'deposit',acknowledge:true},{expectedRevision:paid.revision,requestId:'note-deposit-invoice'},context()).sale;
+  const noted=changeSaleWorkspace(invoiced,{action:'correction-note',description:'Accountant reviewing deposit',reference:''},{expectedRevision:invoiced.revision,requestId:'note-deposit-before-release'},context()).sale;
+  assert.deepEqual(noted.payments,invoiced.payments);assert.equal(JSON.stringify(noted.documents),JSON.stringify(invoiced.documents));
+  const refunded=changeSaleWorkspace(noted,{action:'reverse',paymentId:noted.payments[0].id,amount:'100',reason:'Refund recorded',date:'2026-10-04',invoiceOnly:true},{expectedRevision:noted.revision,requestId:'note-deposit-refund'},context()).sale;
+  const released=changeSaleWorkspace(refunded,{action:'lifecycle',status:'released'},{expectedRevision:refunded.revision,requestId:'note-deposit-release'},context()).sale;
+  const after=changeSaleWorkspace(released,{action:'correction-note',description:'Accountant confirmed refund paperwork',reference:'REF-2'},{expectedRevision:released.revision,requestId:'note-deposit-after-release'},context()).sale;
+  assert.equal(after.corrections?.length,2);assert.deepEqual(after.draft,released.draft);assert.deepEqual(after.payments,released.payments);assert.deepEqual(after.documents,released.documents);assert.deepEqual(after.lifecycle,released.lifecycle);
+});
+
 test('every confirmed payment issues an immutable receipt with its original balance', () => {
   const sale = create();
   const first = changeSaleWorkspace(sale, payment('500', 'deposit'), { expectedRevision: sale.revision, requestId: 'request-deposit' }, context());
@@ -47,9 +80,11 @@ test('pending and imported simulated deposits never reduce the balance or issue 
 
 test('partial refunds retain original payments and reject excess corrections', () => {
   const first = changeSaleWorkspace(create(), payment('500', 'deposit'), { expectedRevision: 1, requestId: 'request-deposit' }, context());
-  const correction: SaleWorkspaceCommand = { action: 'reverse', paymentId: first.sale.payments[0].id, amount: '200', kind: 'refund', date: '2026-10-04', reason: 'Customer request' };
+  const correction: SaleWorkspaceCommand = { action: 'reverse', paymentId: first.sale.payments[0].id, amount: '200', kind: 'refund', date: '2026-10-04', method: 'Cash', reason: 'Customer request' };
   const refund = changeSaleWorkspace(first.sale, correction, { expectedRevision: first.sale.revision, requestId: 'request-refund' }, context());
   assert.equal(refund.sale.payments.length, 2); assert.equal(refund.sale.payments[0].amountPence, 50000); assert.equal(refund.sale.payments[1].signedAmountPence, -20000);
+  assert.equal(refund.sale.payments[1].date, '2026-10-04'); assert.equal(refund.sale.payments[1].method, 'Cash'); assert.equal(refund.sale.payments[0].method, 'Bank transfer');
+  assert.throws(() => changeSaleWorkspace(first.sale, { ...correction, date: '2026-10-03' }, { expectedRevision: first.sale.revision, requestId: 'request-early-refund' }, context()), /before the original payment/);
   assert.equal(refund.document?.title, 'Refund receipt'); assert.equal(refund.document?.balanceAtIssue, 1170000);
   assert.throws(() => changeSaleWorkspace(refund.sale, { ...correction, amount: '301' }, { expectedRevision: refund.sale.revision, requestId: 'request-too-much' }, context()), /remaining amount/);
 });
@@ -58,6 +93,41 @@ test('pending cancellation preserves the ledger without producing a receipt', ()
   const pending = changeSaleWorkspace(create(), payment('500', 'deposit', 'pending'), { expectedRevision: 1, requestId: 'request-pending' }, context());
   const cancelled = changeSaleWorkspace(pending.sale, { action: 'reverse', paymentId: pending.sale.payments[0].id, reason: 'Not received', date: '2026-10-04' }, { expectedRevision: pending.sale.revision, requestId: 'request-cancel' }, context());
   assert.equal(cancelled.sale.payments[0].status, 'cancelled'); assert.equal(cancelled.document, undefined); assert.equal(saleWorkspaceTotals(cancelled.sale.draft, cancelled.sale.payments).pending, 0);
+});
+
+test('a reservation with pending payments cannot be released until they are cancelled', () => {
+  const sale = create();
+  const reserved = changeSaleWorkspace(sale, { action: 'lifecycle', status: 'reserved' }, { expectedRevision: sale.revision, requestId: 'pending-release-reserve' }, context()).sale;
+  const pending = changeSaleWorkspace(reserved, payment('500', 'deposit', 'pending'), { expectedRevision: reserved.revision, requestId: 'pending-release-payment' }, context()).sale;
+  assert.throws(() => changeSaleWorkspace(pending, { action: 'lifecycle', status: 'released' }, { expectedRevision: pending.revision, requestId: 'pending-release-attempt' }, context()), /pending payments/);
+  const cancelled = changeSaleWorkspace(pending, { action: 'reverse', paymentId: pending.payments[0].id, reason: 'Never received', date: '2026-10-04' }, { expectedRevision: pending.revision, requestId: 'pending-release-cancel' }, context()).sale;
+  const released = changeSaleWorkspace(cancelled, { action: 'lifecycle', status: 'released' }, { expectedRevision: cancelled.revision, requestId: 'pending-release-done' }, context()).sale;
+  assert.equal(released.lifecycle?.status, 'released'); assert.equal(released.payments[0].status, 'cancelled');
+  assert.throws(() => changeSaleWorkspace(released, { action: 'lifecycle', status: 'reserved' }, { expectedRevision: released.revision, requestId: 'released-reactivation' }, context()), /Start a new sale/);
+  assert.throws(() => changeSaleWorkspace(released, { action: 'update', draft: { ...released.draft, notes: 'Changed' } }, { expectedRevision: released.revision, requestId: 'released-update' }, context()), /Start a new sale/);
+  assert.throws(() => changeSaleWorkspace(released, { action: 'fulfilment', fulfilment: { method: 'collection', viewed: 'viewed', address: '', recipient: 'Test customer', phone: '', scheduledDate: '', timeWindow: '', instructions: '' } }, { expectedRevision: released.revision, requestId: 'released-fulfilment' }, context()), /Start a new sale/);
+});
+
+test('provider payments cannot be manually refunded or reversed in the sale ledger', async () => {
+  const original = changeSaleWorkspace(create(), payment('500', 'deposit'), { expectedRevision: 1, requestId: 'provider-payment' }, context()).sale;
+  original.providerPayments = { 'pi_test': { paymentId: original.payments[0].id, eventId: 'evt_test' } };
+  const before = JSON.stringify(original); let rolledBack = false;
+  const database: SaleWorkspaceDatabase = {
+    query: async () => ({ rows: [] }),
+    connect: async () => ({
+      query: async (sql: string) => {
+        if (sql.startsWith('SELECT state FROM sale_workspace')) return { rows: [{ state: original }] };
+        if (sql === 'ROLLBACK') rolledBack = true;
+        return { rows: [] };
+      },
+      release() {},
+    }),
+  };
+  const store = new PostgresSaleWorkspaceStore('fixture-dealer', async () => context(), database);
+  for (const kind of ['refund', 'reversal'] as const) {
+    await assert.rejects(() => store.mutate({ id: original.id, expectedRevision: original.revision, requestId: `provider-${kind}`, actor: 'Staff', command: { action: 'reverse', paymentId: original.payments[0].id, amount: '500', kind, reason: 'Test', date: '2026-10-04' } }), /verified provider update/);
+  }
+  assert.equal(rolledBack, true); assert.equal(JSON.stringify(original), before);
 });
 
 test('invoices freeze branding and vehicle facts, and later versions retain the first', () => {

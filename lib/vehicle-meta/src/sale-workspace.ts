@@ -87,6 +87,8 @@ export type SaleWorkspaceDocument = {
   snapshot: { draft: SaleWorkspaceDraft; payments: SaleWorkspacePayment[]; totals: SaleWorkspaceTotals; branding: SaleWorkspaceBranding; vehicle?: SaleWorkspaceVehicleSnapshot };
 };
 export type SaleWorkspaceEvent = { id: string; type: string; description: string; occurredAt: string; actor: string };
+/** A staff note about external correction paperwork. It does not amend the sale or ledger. */
+export type SaleWorkspaceCorrection = { id: string; description: string; reference: string; recordedAt: string; recordedBy: string };
 /** Staff attestations, not automated legal, safety or payment verification. */
 export const saleCompletionChecklistItems = [
   { id: 'customer_vehicle', label: 'Customer and vehicle confirmed', detail: 'Check the buyer, vehicle and registration match this sale.' },
@@ -147,6 +149,7 @@ export function saleWorkspaceChecklistProgress(record: Pick<SaleWorkspaceRecord,
 export type SaleWorkspaceRecord = {
   id: string; reference: string; revision: number; draft: SaleWorkspaceDraft;
   payments: SaleWorkspacePayment[]; documents: SaleWorkspaceDocument[]; events: SaleWorkspaceEvent[];
+  corrections?: SaleWorkspaceCorrection[];
   createdAt: string; updatedAt: string;
   /** Server-computed only; deletion rechecks the full private history transactionally. */
   emptyDraftDeletable?: boolean;
@@ -174,14 +177,15 @@ export type SaleWorkspaceCommand =
   | { action: 'finish-invoice-sale'; acknowledge: boolean; acknowledgeOutstanding?: boolean }
   | { action: 'complete-sale'; acknowledge: boolean }
   | { action: 'confirm'; paymentId: string; date?: string; reserveVehicle?: boolean }
-  | { action: 'reverse'; paymentId: string; amount?: string; kind?: 'refund' | 'reversal'; reason: string; date: string; invoiceOnly?: boolean }
+  | { action: 'reverse'; paymentId: string; amount?: string; kind?: 'refund' | 'reversal'; reason: string; date: string; method?: string; invoiceOnly?: boolean }
   /** Internal provider reconciliation; there is no staff API for this command. */
   | { action: 'provider-refund-correction'; paymentId: string; amount: string; reason: string; date: string }
   | { action: 'document'; type: 'invoice' | 'statement' }
   | { action: 'lifecycle'; status: 'reserved' | 'sold' | 'released' }
   | { action: 'email-status'; delivery: NonNullable<SaleWorkspaceRecord['emailDeliveries']>[number] }
   | { action: 'fulfilment'; fulfilment: SaleWorkspaceFulfilment }
-  | { action: 'handover'; recipient: string; completedAt?: string; acknowledgeOutstanding?: boolean };
+  | { action: 'handover'; recipient: string; completedAt?: string; acknowledgeOutstanding?: boolean }
+  | { action: 'correction-note'; description: string; reference?: string };
 export type SaleWorkspaceContext = {
   now: string; actor: string; nextId: () => string;
   nextNumber: (type: SaleWorkspaceDocument['type']) => string;
@@ -433,6 +437,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
   const record = clone(current);
   let document: SaleWorkspaceDocument | undefined;
   if (command.action === 'update') {
+    if (record.lifecycle?.status === 'released') throw new SaleWorkspaceError('This reservation has been released. Start a new sale for any new agreement.', 409);
     const updated = cleanSaleWorkspaceDraft(command.draft, record.reference, record.payments, record.draft);
     // The invoice wizard edits the same arrangements as the dedicated handover
     // form. Keep ordinary booking status in step with changes made there,
@@ -455,18 +460,29 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     record.draft = updated;
     resetUpdatedSaleChecks(record, previousDraft, context);
     event(record, context, 'sale-updated', 'Sale details updated');
+  } else if (command.action === 'correction-note') {
+    if (!record.completedAt && !record.documents.some(document => document.type === 'invoice')) throw new SaleWorkspaceError('Correction notes are available after an invoice is issued or the sale is completed.', 409);
+    const description = text(command.description, 2000, 'the correction details');
+    const reference = text(command.reference ?? '', 200, 'the paperwork reference');
+    if (!description) throw new SaleWorkspaceError('Enter details of the correction.');
+    (record.corrections ??= []).push({ id: context.nextId(), description, reference, recordedAt: context.now, recordedBy: context.actor });
+    event(record, context, 'correction-note', 'External correction details recorded');
   } else if (command.action === 'checklists') {
+    if (record.lifecycle?.status === 'released') throw new SaleWorkspaceError('This reservation has been released. Start a new sale for any new agreement.', 409);
     saveSaleChecklists(record, command, context);
   } else if (command.action === 'lifecycle') {
     ready(record);
     if (!['reserved', 'sold', 'released'].includes(command.status)) throw new SaleWorkspaceError('Choose a valid stock action.');
+    if (record.lifecycle?.status === 'released') throw new SaleWorkspaceError('This reservation has been released. Start a new sale for any new agreement.', 409);
     if (record.lifecycle?.status === 'sold' && command.status !== 'sold') throw new SaleWorkspaceError('A sold vehicle cannot be released from this sale.', 409);
     if (command.status === 'released' && saleWorkspaceTotals(record.draft, record.payments).confirmedPaid !== 0) throw new SaleWorkspaceError('Record the refund or payment correction before releasing this reservation.', 409);
+    if (command.status === 'released' && saleWorkspaceTotals(record.draft, record.payments).pending !== 0) throw new SaleWorkspaceError('Cancel or resolve pending payments before releasing this reservation.', 409);
     if (command.status === 'released' && record.lifecycle?.status !== 'reserved') throw new SaleWorkspaceError('Only a car reserved by this sale can be released.', 409);
     if (command.status === 'sold') requireCompletedSaleChecklists(record);
     record.lifecycle = { status: command.status, vehicleId: record.draft.vehicleId, changedAt: context.now };
     event(record, context, 'stock-' + command.status, command.status === 'released' ? 'Vehicle reservation released' : 'Vehicle marked ' + command.status);
   } else if (command.action === 'fulfilment') {
+    if (record.lifecycle?.status === 'released') throw new SaleWorkspaceError('This reservation has been released. Start a new sale before arranging handover.', 409);
     if (!command.fulfilment || typeof command.fulfilment !== 'object' || Array.isArray(command.fulfilment)) throw new SaleWorkspaceError('Check the collection or delivery details.');
     if (record.draft.fulfilment?.completedAt) throw new SaleWorkspaceError('Handover is already recorded. Its details cannot be replaced.', 409);
     const value = cleanSaleWorkspaceDraft({ ...record.draft, fulfilment: command.fulfilment }, record.reference, record.payments, record.draft).fulfilment!;
@@ -485,6 +501,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     event(record, context, 'document-email-' + command.delivery.status, 'Document email ' + command.delivery.status);
   } else if (command.action === 'payment' || command.action === 'take-deposit' || command.action === 'invoice-payment') {
     ready(record);
+    if (record.lifecycle?.status === 'released') throw new SaleWorkspaceError('This reservation has been released. Start a new sale before recording another payment.', 409);
     if (command.action === 'invoice-payment' && command.payment?.status !== 'confirmed') throw new SaleWorkspaceError('Record received funds on this sale.');
     if (command.action === 'invoice-payment' && command.payment.kind === 'deposit' && (record.completedAt || record.lifecycle?.status === 'sold')) throw new SaleWorkspaceError('This car is already sold. Record an interim or final payment instead of another reservation deposit.');
     if (command.action === 'take-deposit') {
@@ -510,6 +527,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     }
   } else if (command.action === 'confirm') {
     ready(record);
+    if (record.lifecycle?.status === 'released') throw new SaleWorkspaceError('This reservation has been released. Start a new sale before confirming another payment.', 409);
     const payment = record.payments.find(row => row.id === command.paymentId);
     if (!payment || payment.status !== 'pending') throw new SaleWorkspaceError('Only a pending payment can be confirmed.', 409);
     if (command.reserveVehicle) {
@@ -527,6 +545,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     const reason = text(command.reason, 1000, 'the correction reason');
     if (!reason) throw new SaleWorkspaceError('Add a reason for the refund, reversal or cancellation.');
     const date = receivedDate(command.date, context.now);
+    if (original.status === 'confirmed' && date < original.date) throw new SaleWorkspaceError('The refund or correction date cannot be before the original payment.');
     if (original.status === 'pending') { original.status = 'cancelled'; original.reason = reason; event(record, context, 'pending-cancelled', `Pending payment cancelled: ${reason}`); }
     else {
       const refunded = -record.payments.filter(row => row.reversesPaymentId === original.id && row.status === 'confirmed').reduce((sum, row) => sum + row.signedAmountPence, 0);
@@ -535,7 +554,9 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
       const { amount, amountPence } = command.amount === undefined ? { amount: (remaining / 100).toFixed(2), amountPence: remaining } : positiveMoney(command.amount);
       if (amountPence > remaining) throw new SaleWorkspaceError('The correction cannot exceed the remaining amount of this payment.');
       if (command.kind && !['refund', 'reversal'].includes(command.kind)) throw new SaleWorkspaceError('Choose refund or reversal.');
-      const payment: SaleWorkspacePayment = { id: context.nextId(), amount, amountPence, signedAmountPence: -amountPence, method: original.method, date, reference: original.reference, kind: command.kind ?? 'refund', status: 'confirmed', recordedAt: context.now, recordedBy: context.actor, reversesPaymentId: original.id, reason };
+      const method = command.method === undefined ? original.method : text(command.method, 100, 'the refund method');
+      if (!method) throw new SaleWorkspaceError('Choose the refund or correction method.');
+      const payment: SaleWorkspacePayment = { id: context.nextId(), amount, amountPence, signedAmountPence: -amountPence, method, date, reference: original.reference, kind: command.kind ?? 'refund', status: 'confirmed', recordedAt: context.now, recordedBy: context.actor, reversesPaymentId: original.id, reason };
       record.payments.push(payment); event(record, context, 'payment-corrected', `${payment.kind}: £${amount}. ${reason}`); if (!command.invoiceOnly) document = receipt(record, context, payment);
     }
   } else if (command.action === 'provider-refund-correction') {
@@ -553,9 +574,11 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
   } else if (command.action === 'document') {
     ready(record);
     if (!['invoice', 'statement'].includes(command.type)) throw new SaleWorkspaceError('Choose an invoice or statement.');
+    if (record.lifecycle?.status === 'released' && command.type === 'invoice') throw new SaleWorkspaceError('This reservation has been released. Start a new sale before issuing another invoice.', 409);
     document = issueDocument(record, context, command.type, command.type === 'invoice' ? 'Sales invoice' : 'Balance statement');
   } else if (command.action === 'issue-invoice') {
     ready(record);
+    if (record.lifecycle?.status === 'released') throw new SaleWorkspaceError('This reservation has been released. Start a new sale before issuing another invoice.', 409);
     if (!['deposit', 'full'].includes(command.kind) || command.acknowledge !== true) throw new SaleWorkspaceError('Review the details and choose a deposit or full invoice.');
     const amount = saleWorkspaceTotals(record.draft, record.payments);
     if (amount.balance < 0) throw new SaleWorkspaceError('Resolve the customer credit before issuing an invoice.');
@@ -566,6 +589,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     record.packDocumentIds = [document.id];
   } else if (command.action === 'finish-invoice-sale') {
     ready(record);
+    if (record.lifecycle?.status === 'released') throw new SaleWorkspaceError('This reservation has been released. Start a new sale before marking this car sold.', 409);
     if (record.completedAt) throw new SaleWorkspaceError('This car is already marked sold. Reopen its saved invoice.', 409);
     if (command.acknowledge !== true) throw new SaleWorkspaceError('Confirm that this car should be marked sold.');
     const fullInvoice = [...record.documents].reverse().find(d => d.invoiceKind === 'full');
@@ -580,6 +604,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     event(record, context, 'sale-completed', 'Car marked sold after issuing the full invoice; removed from public stock' + (outstanding > 0 ? `; £${(outstanding / 100).toFixed(2)} remains outstanding (staff acknowledged)` : ''));
   } else if (command.action === 'complete-sale') {
     ready(record);
+    if (record.lifecycle?.status === 'released') throw new SaleWorkspaceError('This reservation has been released. Start a new sale before completing it.', 409);
     if (record.completedAt) throw new SaleWorkspaceError('This sale is already completed. Reopen its saved documents.', 409);
     if (command.acknowledge !== true) throw new SaleWorkspaceError('Review and confirm the customer, vehicle, payments and terms.');
     if (saleWorkspaceTotals(record.draft, record.payments).balance !== 0) throw new SaleWorkspaceError('Record the remaining payment or resolve the customer credit before completing this sale.');
@@ -598,6 +623,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     event(record, context, 'sale-completed', 'Sale completed; invoice and document pack issued; vehicle removed from public stock');
   } else if (command.action === 'handover') {
     ready(record);
+    if (record.lifecycle?.status === 'released') throw new SaleWorkspaceError('This reservation has been released. Start a new sale before recording handover.', 409);
     if (record.draft.fulfilment?.completedAt) throw new SaleWorkspaceError('Handover is already recorded.', 409);
     const balance = saleWorkspaceTotals(record.draft, record.payments).balance;
     if (balance > 0 && command.acknowledgeOutstanding !== true) throw new SaleWorkspaceError('An outstanding balance remains. Explicitly acknowledge it before recording handover.', 409);
@@ -619,7 +645,8 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     event(record, context, 'sale-checks-reset', 'Price and payments check reset because the payment ledger changed');
   }
   if (Object.values(saleWorkspaceTotals(record.draft, record.payments)).some(value => !Number.isSafeInteger(value))) throw new SaleWorkspaceError('The sale amounts exceed the supported range. Check the payment entries.');
-  record.revision += 1; record.updatedAt = context.now; record.draft.payments = clone(record.payments);
+  record.revision += 1; record.updatedAt = context.now;
+  if (command.action !== 'correction-note') record.draft.payments = clone(record.payments);
   (record.requests ??= {})[key] = { fingerprint, ...(document ? { documentId: document.id } : {}) };
   return { sale: record, ...(document ? { document } : {}) };
 }

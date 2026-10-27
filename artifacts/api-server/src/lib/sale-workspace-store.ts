@@ -8,7 +8,7 @@ import { embedInvoiceLogoAsset } from './invoice-logo-assets';
 import { attachInvoiceVerification, invoiceVerificationView } from './invoice-verification';
 import { siteOrigin } from './enquiry-links';
 import { createSoldVehicleFollowUps } from './sold-vehicle-follow-ups';
-import { changeSaleWorkspace, createSaleWorkspace, saleWorkspaceTotals, publicSaleWorkspace, currentInvoiceBranding, saleWorkspaceBranding, saleWorkspaceFingerprint, saleWorkspaceNumber, SaleWorkspaceError, type SaleWorkspaceBranding, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceMutation, type SaleWorkspaceRecord, type SaleWorkspaceVehicleSnapshot } from '@workspace/vehicle-meta';
+import { changeSaleWorkspace, createSaleWorkspace, saleWorkspaceTotals, publicSaleWorkspace, currentInvoiceBranding, saleWorkspaceBranding, saleWorkspaceFingerprint, saleWorkspaceNumber, SaleWorkspaceError, type SaleWorkspaceBranding, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceMutation, type SaleWorkspaceRecord, type SaleWorkspaceVehicleSnapshot, type SaleWorkspacePayment } from '@workspace/vehicle-meta';
 
 export type SaleWorkspaceAssets = { reviewUrl?: string; branding: SaleWorkspaceBranding; vehicle?: SaleWorkspaceVehicleSnapshot; paperwork?: { saleTerms: string; reservationTerms: string } };
 export type SaleWorkspaceReadClient = { query: (text: string, parameters?: any[]) => Promise<{ rows: Record<string, any>[] }> };
@@ -43,8 +43,11 @@ export class PostgresSaleWorkspaceStore {
     if(!validId(options.enquiryId)||!validId(options.reservationId))throw new SaleWorkspaceError('Choose a valid linked customer enquiry.',400);
     // Bound database results before projection. Historical snapshots, archives,
     // retry data and event logs never travel in the list response.
-    const result=await this.database.query(`SELECT state - 'documentArchives' - 'requests' - 'providerPayments' - 'documents' - 'events' - 'emailDeliveries' - 'payments' AS state,
-      CASE WHEN jsonb_array_length(coalesce(state->'documents','[]'::jsonb))=0 AND jsonb_array_length(coalesce(state->'payments','[]'::jsonb))=0 THEN jsonb_build_object('requests',state->'requests','documentArchives',state->'documentArchives','providerPayments',state->'providerPayments','events',state->'events','documents',state->'documents','payments',state->'payments','emailDeliveries',state->'emailDeliveries') END AS deletion_evidence
+    const result=await this.database.query(`SELECT state - 'documentArchives' - 'requests' - 'providerPayments' - 'documents' - 'events' - 'emailDeliveries' - 'payments' - 'corrections' AS state,
+      CASE WHEN jsonb_typeof(state->'corrections')='array' THEN jsonb_array_length(state->'corrections')>0 ELSE false END AS list_has_correction_notes,
+      coalesce(jsonb_typeof(state->'payments')='array',false) AS list_ledger_known,
+      coalesce((SELECT jsonb_agg(jsonb_build_object('status',p->'status','signedAmountPence',p->'signedAmountPence','amountPence',p->'amountPence')) FROM jsonb_array_elements(CASE WHEN jsonb_typeof(state->'payments')='array' THEN state->'payments' ELSE '[]'::jsonb END) AS p),'[]'::jsonb) AS list_payment_entries,
+      CASE WHEN jsonb_typeof(state->'payments')='array' AND (state->'documents' IS NULL OR jsonb_typeof(state->'documents')='array') THEN CASE WHEN jsonb_array_length(coalesce(state->'documents','[]'::jsonb))=0 AND jsonb_array_length(state->'payments')=0 THEN jsonb_build_object('requests',state->'requests','documentArchives',state->'documentArchives','providerPayments',state->'providerPayments','events',state->'events','documents',state->'documents','payments',state->'payments','emailDeliveries',state->'emailDeliveries') END END AS deletion_evidence
       FROM sale_workspace WHERE dealer_id=$1
       AND ($2='' OR id::text=$2 OR state#>>'{draft,sourceEnquiryId}'=$2 OR state#>>'{draft,sourceReservationId}'=$2
         OR strpos(lower(concat_ws(' ',reference,state#>>'{draft,customer}',state#>>'{draft,email}',state#>>'{draft,vehicle}',state#>>'{draft,registration}')),lower($2))>0
@@ -54,7 +57,10 @@ export class PostgresSaleWorkspaceStore {
     const sales=result.rows.slice(0,50).map(row=>{
       const record=row.state as SaleWorkspaceRecord,draft=record.draft;
       const identity={id:draft.id,customer:draft.customer,email:draft.email,phone:draft.phone,vehicleId:draft.vehicleId,vehicle:draft.vehicle,registration:draft.registration,sourceEnquiryId:draft.sourceEnquiryId,sourceReservationId:draft.sourceReservationId};
-      return {listSummary:true as const,listTotalDue:saleWorkspaceTotals(draft,[]).totalDue,id:record.id,reference:record.reference,revision:record.revision,createdAt:record.createdAt,updatedAt:record.updatedAt,...(record.completedAt?{completedAt:record.completedAt}:{}),...(record.lifecycle?{lifecycle:record.lifecycle}:{}),draft:identity,documents:[],payments:[],events:[],emptyDraftDeletable:canDeleteEmptySaleDraft({...record,...row.deletion_evidence},true)};
+      const totals=saleWorkspaceTotals(draft,(row.list_payment_entries ?? []) as SaleWorkspacePayment[]);
+      const handover=draft.fulfilment ? {method:draft.fulfilment.method,status:saleHandoverStatus({...draft.fulfilment,address:draft.fulfilment.address ?? ''})} : null;
+      const listHasRefunds=(row.list_payment_entries ?? []).some((payment: SaleWorkspacePayment)=>payment.status==='confirmed' && payment.signedAmountPence<0);
+      return {listSummary:true as const,listTotalDue:totals.totalDue,listPaid:totals.confirmedPaid,listPending:totals.pending,listLedgerKnown:row.list_ledger_known === true,listBalance:totals.balance,listHandover:handover,listHasCorrectionNotes:row.list_has_correction_notes === true,listHasRefunds,id:record.id,reference:record.reference,revision:record.revision,createdAt:record.createdAt,updatedAt:record.updatedAt,...(record.completedAt?{completedAt:record.completedAt}:{}),...(record.lifecycle?{lifecycle:record.lifecycle}:{}),draft:identity,documents:[],payments:[],events:[],emptyDraftDeletable:canDeleteEmptySaleDraft({...record,...row.deletion_evidence},true)};
     });
     return {sales,hasMore:result.rows.length>50};
   }
@@ -128,7 +134,17 @@ export class PostgresSaleWorkspaceStore {
       const e = result.rows[0];
       if (!e || e.vehicle_id && e.vehicle_id !== draft.vehicleId) throw new SaleWorkspaceError('The enquiry belongs to another vehicle or could not be found.', 409);
       const duplicate = await client.query("SELECT state FROM sale_workspace WHERE dealer_id = $1 AND state#>>'{draft,sourceEnquiryId}' = $2", [this.dealerId, draft.sourceEnquiryId]);
-      if (duplicate.rows.some(row => row.state.id !== currentId)) throw new SaleWorkspaceError('A sale already exists for this enquiry. Open its saved sale file.', 409);
+      // Keep every historical sale, but let a customer return after a released
+      // reservation once its ledger is clear. A provider can later change a
+      // refund's status, so re-check the stored ledger under the dealer lock
+      // instead of assuming that every released sale is settled.
+      if (duplicate.rows.some(row => {
+        const sale = row.state as SaleWorkspaceRecord;
+        if (sale.id === currentId) return false;
+        if (sale.lifecycle?.status !== 'released' || sale.completedAt || sale.draft.sourceReservationId || !Array.isArray(sale.payments)) return true;
+        const totals = saleWorkspaceTotals(sale.draft, sale.payments);
+        return totals.confirmedPaid !== 0 || totals.pending !== 0;
+      })) throw new SaleWorkspaceError('A sale already exists for this enquiry or an earlier payment needs review. Open its saved sale file.', 409);
       if (e.appointment_at && !e.appointment_cancelled_at) draft.appointment = { at: new Date(e.appointment_at).toISOString(), status: e.appointment_status ?? 'confirmed' };
     }
     if (draft.sourceReservationId) {
@@ -180,6 +196,7 @@ export class PostgresSaleWorkspaceStore {
         const result = await client.query('SELECT state FROM sale_workspace WHERE dealer_id = $1 AND id = $2::uuid FOR UPDATE', [this.dealerId, input.id]);
         current = result.rows[0]?.state;
         if (!current) throw new SaleWorkspaceError('Sale not found.', 404);
+        if (input.command?.action === 'reverse' && Object.values(current.providerPayments ?? {}).some(provider => provider.paymentId === (input.command as Extract<SaleWorkspaceCommand, {action:'reverse'}>).paymentId)) throw new SaleWorkspaceError('Refund this payment with its provider. A verified provider update will record the refund here.', 409);
       } else {
         const replay = await client.query("SELECT state FROM sale_workspace WHERE dealer_id = $1 AND state->'requests' ? $2 FOR UPDATE", [this.dealerId, input.requestId]);
         if (replay.rows[0]) {

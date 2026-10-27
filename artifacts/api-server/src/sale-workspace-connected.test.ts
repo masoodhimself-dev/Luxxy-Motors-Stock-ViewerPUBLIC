@@ -17,6 +17,7 @@ function fixture(reservationTerms = 'TEST APPROVED RESERVATION') {
     if (q.startsWith('SELECT id, coalesce')) return { rows: [{ id: vehicleId, title: 'A real stock car', year: 2020, fuel: 'Petrol', transmission: 'Manual', mileage: 12000 }] };
     if (q.startsWith('SELECT numbers')) return { rows: [{ numbers: clone(numbers) }] };
     if (q.startsWith('SELECT inventory_status')) return { rows: [clone(vehicle)] };
+    if (q.startsWith('SELECT vehicle_id, appointment_at')) return { rows: [{ vehicle_id: vehicleId, appointment_at: null }] };
     if (q.startsWith('SELECT stage FROM leads')) return { rows: [{ stage: 'reserved' }] };
     if (q.startsWith('SELECT l.vehicle_id FROM leads')) return { rows: [{ vehicle_id: vehicleId }] };
     if (q.startsWith('SELECT id FROM leads')) return { rows: [] };
@@ -25,6 +26,7 @@ function fixture(reservationTerms = 'TEST APPROVED RESERVATION') {
       if (q.includes("state->'requests'")) list = list.filter(s => s.requests?.[p[1]]);
       else if (q.includes("state->'providerPayments'")) list = list.filter(s => s.providerPayments?.[p[1]]);
       else if (q.includes('sourceReservationId')) list = list.filter(s => s.draft.sourceReservationId === p[1]);
+      else if (q.includes('sourceEnquiryId')) list = list.filter(s => s.draft.sourceEnquiryId === p[1]);
       else if (q.includes('id = $2')) list = list.filter(s => s.id === p[1]);
       return { rows: list.map(state => ({ state: clone(state) })) };
     }
@@ -41,8 +43,43 @@ function fixture(reservationTerms = 'TEST APPROVED RESERVATION') {
     return { query: async (q, p) => { if (q === 'ROLLBACK') { records = new Map(before.records); numbers = before.numbers; vehicle = before.vehicle; } return query(q, p); }, release: () => {} };
   } };
   const store = new PostgresSaleWorkspaceStore('fixture-dealer', async (d, client) => ({ ...await readSaleWorkspaceAssets(d, 'fixture-dealer', client), paperwork: { saleTerms: 'TEST APPROVED TERMS', reservationTerms } }), database);
-  return { database, store, vehicle: () => clone(vehicle), statements };
+  return { database, store, vehicle: () => clone(vehicle), statements, seed: (sale: SaleWorkspaceRecord) => records.set(sale.id, clone(sale)) };
 }
+
+test('a cleared released enquiry can start one new sale without changing its original history', async () => {
+  const f = fixture(), enquiryId = randomUUID();
+  const customerDraft = { ...draft(), sourceEnquiryId: enquiryId };
+  const create = () => f.store.mutate({ draft: customerDraft, requestId: randomUUID(), actor: 'Staff' });
+  let first = (await create()).sale;
+  await assert.rejects(create(), /already exists/);
+  const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  first = (await f.store.mutate({ id: first.id, expectedRevision: first.revision, requestId: randomUUID(), actor: 'Staff', command: { action: 'invoice-payment', payment: { amount: '100', method: 'Cash', date, reference: '', kind: 'deposit', status: 'confirmed' } } })).sale;
+  first = (await f.store.mutate({ id: first.id, expectedRevision: first.revision, requestId: randomUUID(), actor: 'Staff', command: { action: 'issue-invoice', kind: 'deposit', acknowledge: true } })).sale;
+  const invoiceId = first.documents.at(-1)!.id, invoiceHash = (await f.store.pdf(first.id, invoiceId)).archive.sha256;
+  first = (await f.store.mutate({ id: first.id, expectedRevision: first.revision, requestId: randomUUID(), actor: 'Staff', command: { action: 'reverse', paymentId: first.payments[0].id, kind: 'refund', reason: 'Customer changed their mind', date, invoiceOnly: true } })).sale;
+  first = (await f.store.mutate({ id: first.id, expectedRevision: first.revision, requestId: randomUUID(), actor: 'Staff', command: { action: 'lifecycle', status: 'released' } })).sale;
+  const prior = JSON.stringify(await f.store.get(first.id));
+  const second = (await create()).sale;
+  assert.notEqual(second.id, first.id);
+  assert.equal(second.draft.sourceEnquiryId, enquiryId);
+  assert.equal(JSON.stringify(await f.store.get(first.id)), prior);
+  assert.equal((await f.store.pdf(first.id, invoiceId)).archive.sha256, invoiceHash);
+  await assert.rejects(create(), /already exists/);
+  assert.equal(f.vehicle().inventory_status, 'available');
+});
+
+test('earlier released sales with funds, pending payments or a linked reservation still block enquiry reuse', async () => {
+  for (const condition of ['funds', 'pending', 'linked-reservation', 'missing-ledger'] as const) {
+    const f = fixture(), enquiryId = randomUUID();
+    const original = (await f.store.mutate({ draft: { ...draft(), sourceEnquiryId: enquiryId }, requestId: randomUUID(), actor: 'Staff' })).sale;
+    original.lifecycle = { status: 'released', vehicleId, changedAt: new Date().toISOString() };
+    if (condition === 'linked-reservation') original.draft.sourceReservationId = reservationId;
+    if (condition === 'missing-ledger') delete (original as Partial<SaleWorkspaceRecord>).payments;
+    if (condition === 'funds' || condition === 'pending') original.payments = [{ id: randomUUID(), amount: '10.00', amountPence: 1000, signedAmountPence: 1000, method: 'Cash', date: '2026-10-01', reference: '', kind: 'deposit', status: condition === 'funds' ? 'confirmed' : 'pending', recordedBy: 'Staff', recordedAt: new Date().toISOString() }];
+    f.seed(original);
+    await assert.rejects(f.store.mutate({ draft: { ...draft(), sourceEnquiryId: enquiryId }, requestId: randomUUID(), actor: 'Staff' }), /already exists/);
+  }
+});
 
 test('production availability mutations reject a competing buyer and preserve Grok source data', async () => {
   const f = fixture();

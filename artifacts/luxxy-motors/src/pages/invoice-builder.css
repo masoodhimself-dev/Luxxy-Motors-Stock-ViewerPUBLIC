@@ -160,6 +160,7 @@ body:has(.invoice-builder.is-editing) { overflow: hidden; }
 .invoice-sale-list > button > span:first-child { min-width: 0; flex: 1; overflow-wrap: anywhere; }
 .invoice-sale-list > button > span:nth-child(2) { flex-shrink: 0; text-align: right; }
 .invoice-sale-list strong { font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.invoice-sale-list .invoice-list-next { color: var(--invoice-accent); font-weight: 600; }
 .invoice-empty { margin-top: 24px; padding: 48px 20px; border: 1px dashed #cdd8e0; border-radius: 12px; background: #fff; text-align: center; color: var(--invoice-muted); }
 .invoice-empty svg { margin: auto; }
 @media (max-width: 1024px) {
@@ -269,6 +270,14 @@ body:has(.invoice-builder.is-editing) { overflow: hidden; }
 .invoice-resume-unsaved { margin-top:16px; padding:10px 12px; border:1px solid #ead8ac; border-radius:6px; background:#fff9eb; color:#755b25; font-size:12px!important; }
 .invoice-resume-paperwork { border-top:1px solid #e1e7ec; padding-top:16px; margin-top:16px; }
 .invoice-resume-paperwork summary { min-height:44px; }
+.invoice-correction-notes { overflow-wrap:anywhere; }
+.invoice-correction-notes form { display:grid; gap:10px; margin-top:20px; }
+.invoice-correction-notes form label { font-weight:600; }
+.invoice-correction-notes form button { justify-self:start; }
+.invoice-correction-notes section { margin-top:20px; }
+.invoice-correction-notes ul { padding-left:20px; }
+.invoice-correction-notes li { margin:12px 0; }
+.invoice-correction-notes li p { white-space:pre-wrap; }
 .invoice-resume-paperwork>div { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-top:1px solid #e1e7ec; font-size:13px; }
 @media(max-width:640px) {
   .invoice-resume-sheet h1 { font-size:25px; }

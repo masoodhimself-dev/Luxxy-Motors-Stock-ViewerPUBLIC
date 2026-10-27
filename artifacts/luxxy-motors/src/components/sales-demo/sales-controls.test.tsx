@@ -138,7 +138,7 @@ describe("simplified received-payment workflow", () => {
     const onSave = vi.fn();
     render(
       <ReversePaymentDialog
-        payment={payment()}
+        payment={payment({ date: "2026-01-01" })}
         availablePence={30004}
         busy={false}
         problem=""
@@ -149,6 +149,11 @@ describe("simplified received-payment workflow", () => {
     fireEvent.change(screen.getByLabelText("Reason"), {
       target: { value: "Fixture refund" },
     });
+    fireEvent.change(screen.getByLabelText("Refund method"), { target: { value: "Bank transfer" } });
+    fireEvent.change(screen.getByLabelText("Refund date"), { target: { value: "2026-01-05" } });
+    fireEvent.submit(screen.getByRole("dialog").querySelector("form")!);
+    expect(onSave).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByLabelText(/I confirm the money has already been refunded/));
     fireEvent.change(screen.getByLabelText("Refund / correction amount (£)"), {
       target: { value: "300.05" },
     });
@@ -159,7 +164,7 @@ describe("simplified received-payment workflow", () => {
     });
     fireEvent.submit(screen.getByRole("dialog").querySelector("form")!);
     expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ amount: "300.04", reason: "Fixture refund" }),
+      expect.objectContaining({ amount: "300.04", reason: "Fixture refund", date: "2026-01-05", method: "Bank transfer" }),
     );
   });
 });

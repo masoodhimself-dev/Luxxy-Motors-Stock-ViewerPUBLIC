@@ -1,5 +1,6 @@
 import { SaleHandover, SaleHandoverFields, handoverDefaults } from '@/components/portal/sale-handover';
 import { SaleChecklists } from '@/components/sales-demo/sale-checklists';
+import { CompletedSaleCorrectionHelp } from '@/components/sales-demo/completed-sale-correction-help';
 import { SoldVehicleCustomerReview } from '@/components/portal/sold-vehicle-customer-review';
 import { soldVehicleFollowUpsQueryKey } from '@/lib/sold-vehicle-follow-ups';
 import { UKNumberPlate } from '@/components/uk-number-plate';
@@ -70,7 +71,24 @@ export interface SalesWorkspaceProps {
   newSaleRequest?: number;
   onExit?: () => void;
 }
-type SaleListRow = SaleWorkspaceRecord & { listSummary?: boolean; listTotalDue?: number };
+type SaleListRow = SaleWorkspaceRecord & { listSummary?: boolean; listTotalDue?: number; listPaid?: number; listPending?: number; listLedgerKnown?: boolean; listBalance?: number; listHasCorrectionNotes?: boolean; listHasRefunds?: boolean; listHandover?: { method: 'collection' | 'delivery'; status: string } | null };
+
+/** List summaries deliberately contain totals, not customer payment details. */
+function saleListProgress(sale: SaleListRow) {
+  const handover = sale.listHandover;
+  const balance = sale.listBalance;
+  const correctionReview = Boolean(sale.listHasCorrectionNotes || sale.corrections?.length || (sale.completedAt && (sale.listHasRefunds || sale.payments?.some(payment => payment.status === 'confirmed' && payment.signedAmountPence < 0))));
+  const done = handover?.status === 'Collected' || handover?.status === 'Delivered';
+  const status = done ? handover!.status : sale.completedAt ? 'Sold' : sale.lifecycle?.status === 'reserved' ? 'Reserved' : sale.lifecycle?.status === 'released' ? 'Released' : 'In progress';
+  const action = sale.lifecycle?.status === 'released' ? sale.listLedgerKnown === false || (sale.listPending ?? 0) > 0 || (sale.listPaid ?? 0) !== 0 ? 'Review payment history' : correctionReview ? 'Review correction with accountant' : 'Sale not completed'
+    : correctionReview ? 'Review correction with accountant' : !sale.draft.vehicleId ? 'Add the vehicle' : !sale.draft.customer?.trim() ? 'Add customer details' : sale.listLedgerKnown === false ? 'Review payment history'
+    : typeof balance !== 'number' ? 'Open sale to review the balance'
+    : balance < 0 ? 'Review customer credit' : (sale.listPending ?? 0) > 0 ? 'Review pending payments'
+    : balance > 0 ? 'Review the balance due'
+    : sale.completedAt && !done ? handover?.status === 'To arrange' || !handover ? 'Arrange collection or delivery' : 'Review the handover'
+    : sale.completedAt ? 'Sale completed' : 'Review invoice and sale';
+  return { status, action, handover, balance, correctionReview };
+}
 type SaleListPage = { sales: SaleListRow[]; hasMore?: boolean };
 const salesListKey = ['sale-workspace', 'list'] as const;
 function salesListUrl(q = '', offset = 0, base = '/api/sale-workspace') {
@@ -157,7 +175,15 @@ function SalesWorkspaceContent({
     return (sales.data?.pages.flatMap(page => page.sales) ?? []).filter(sale => { if (seen.has(sale.id)) return false; seen.add(sale.id); return true; });
   }, [sales.data]);
   const [record, setRecord] = useState<SaleWorkspaceRecord | null>(null);
+  const correctionPaperwork = useQuery({
+    queryKey: ['sale-workspace', 'correction-instructions', typeof window === 'undefined' ? '' : window.location.host, testSession ? `test:${testSession.sessionId}` : 'live', record?.id],
+    queryFn: ({ signal }) => customFetch<{ correctionSettings?: { handling: 'accountant'; instructions: string } }>('/api/sale-workspace/paperwork', { signal }),
+    enabled: Boolean(!testSession && (record?.completedAt || record?.documents.some(document => document.type === 'invoice'))),
+    retry: false,
+    gcTime: 0,
+  });
   const [deleteDraftOpen, setDeleteDraftOpen] = useState(false);
+  const [releaseReservationOpen, setReleaseReservationOpen] = useState(false);
   const [draft, setDraft] = useState<SaleDraft | null>(null);
   const [kind, setKind] = useState<"deposit" | "full">("full");
   const [step, setStep] = useState(0);
@@ -337,9 +363,26 @@ function SalesWorkspaceContent({
     openController.current?.abort(); const controller = new AbortController(); openController.current = controller;
     setOpeningId(`source:${enquiryId || reservationId}`); setProblem('');
     const paramsForSource = new URLSearchParams(enquiryId ? { enquiryId } : { reservationId: reservationId! });
-    void customFetch<SaleListPage>(`${saleApiBase}?${paramsForSource}`, { signal: controller.signal }).then(result => {
+    void customFetch<SaleListPage>(`${saleApiBase}?${paramsForSource}`, { signal: controller.signal }).then(async result => {
       if (controller.signal.aborted || request !== openRequest.current) return;
-      const existing = result.sales.find(sale => enquiryId ? sale.draft.sourceEnquiryId === enquiryId : sale.draft.sourceReservationId === reservationId);
+      if (!Array.isArray(result.sales)) throw new Error('Invalid sale lookup');
+      // A released enquiry may be reused only after checking every matching page.
+      // The server checks the same rules again under its transaction lock.
+      const results = [...result.sales];
+      if (enquiryId) {
+        let page = result, offset = result.sales.length;
+        while (page.hasMore) {
+          if (!page.sales.length || offset > 10000) throw new Error('Incomplete sale lookup');
+          const nextParams = new URLSearchParams(paramsForSource); nextParams.set('offset', String(offset));
+          page = await customFetch<SaleListPage>(`${saleApiBase}?${nextParams}`, { signal: controller.signal });
+          if (controller.signal.aborted || request !== openRequest.current) return;
+          if (!Array.isArray(page.sales)) throw new Error('Invalid sale lookup');
+          results.push(...page.sales); offset += page.sales.length;
+        }
+      }
+      const matches = results.filter(sale => enquiryId ? sale.draft.sourceEnquiryId === enquiryId : sale.draft.sourceReservationId === reservationId);
+      const safeReleased = (sale: SaleListRow) => sale.lifecycle?.status === 'released' && !sale.completedAt && !sale.draft.sourceReservationId && sale.listLedgerKnown === true && typeof sale.listPaid === 'number' && sale.listPaid === 0 && typeof sale.listPending === 'number' && sale.listPending === 0;
+      const existing = enquiryId ? matches.find(sale => sale.lifecycle?.status !== 'released') ?? matches.find(sale => !safeReleased(sale)) : matches[0];
       if (existing) { void open(existing); return; }
       const source = customerOptions.find(item => enquiryId ? item.sourceEnquiryId === enquiryId : reservationId && item.sourceReservationId === reservationId);
       if (!source) { setOpeningId(null); setProblem('This customer record could not be found. Reopen the original enquiry before starting its sale.'); return; }
@@ -610,6 +653,7 @@ function SalesWorkspaceContent({
     if (!embedded && !testSession) navigate("/portal?section=sales");
   }
   const latestInvoice = record?.documents.filter(document => document.type === "invoice").at(-1) ?? null;
+  const needsCorrectionReview = Boolean(record?.corrections?.length || (record?.completedAt && rows.some(row => row.status === 'confirmed' && row.signedAmountPence < 0)));
   const invoiceIsCurrent = Boolean(latestInvoice && draft && saleInvoiceIsCurrent(latestInvoice, draft, rows));
   const latestPayment = rows.filter(row => row.status === "confirmed").at(-1);
   const saleStatus = record?.completedAt ? "Sold" : record?.lifecycle?.status === "reserved" ? "Reserved" : record?.lifecycle?.status === "released" ? "Released" : "In progress";
@@ -646,15 +690,17 @@ function SalesWorkspaceContent({
     setProblem("");
     setMessage("");
   }
-  const resumeAction = !draft || !total ? null
+  const resumeAction = !draft || !total || record?.lifecycle?.status === 'released' ? null
     : !draft.vehicleId || !(pence(draft.price) > 0)
       ? { label: "Add vehicle details", note: "Choose the car and confirm the agreed price.", run: () => resumeAt(0) }
     : !draft.customer.trim()
       ? { label: "Add customer details", note: "Add the buyer’s details before payments or paperwork.", run: () => resumeAt(1) }
+    : needsCorrectionReview
+      ? { label: "Review payment history", note: "External corrections are not included in the calculated balance. Check with your accountant before treating it as money owed.", run: () => resumeAt(2) }
     : total.balance < 0 || total.pending > 0
       ? { label: "Review payments", note: total.balance < 0 ? "Review the customer’s credit before continuing." : "Pending payments are not included in the amount received.", run: () => resumeAt(2) }
     : record?.completedAt && total.balance === 0 && latestInvoice && invoiceIsCurrent
-      ? { label: "Open latest invoice", note: draft.fulfilment?.method === "delivery" && !draft.fulfilment.completedAt ? "The balance is settled. Delivery is still outstanding." : "The sale is complete and the balance is settled.", run: () => documentAction(latestInvoice, "print") }
+      ? { label: "Open latest invoice", note: !draft.fulfilment?.completedAt ? `The balance is settled. ${draft.fulfilment?.method === "delivery" ? "Delivery" : "Collection or delivery"} is still outstanding; see the arrangements above.` : "The sale and handover are complete, and the balance is settled.", run: () => documentAction(latestInvoice, "print") }
     : latestInvoice?.invoiceKind === "full" && invoiceIsCurrent && !record?.completedAt
       ? { label: "Review sale completion", note: "The full invoice is saved. Review it and choose whether to mark the car sold.", run: reviewSavedInvoice }
     : total.balance > 0
@@ -749,7 +795,7 @@ function SalesWorkspaceContent({
           )}
           {message && <p className="invoice-message" role="status">{message}</p>}
           <div className="invoice-sale-list">
-            {matchingSales.map((sale) => (
+            {matchingSales.map((sale) => { const progress = saleListProgress(sale); return (
                 <button key={sale.id} data-sale-status={sale.completedAt ? 'sold' : sale.lifecycle?.status === 'reserved' ? 'reserved' : 'in-progress'} aria-busy={openingId === sale.id} onClick={() => void open(sale)}>
                   <span>
                     <strong>{sale.draft.customer || "Customer to add"}</strong>
@@ -758,6 +804,7 @@ function SalesWorkspaceContent({
                       {sale.draft.registration &&
                         `· ${sale.draft.registration}`}
                     </small>
+                    <small className="invoice-list-next">Next: {progress.action}</small>
                   </span>
                   <span>
                     <strong>
@@ -765,17 +812,15 @@ function SalesWorkspaceContent({
                         typeof sale.listTotalDue === 'number' ? sale.listTotalDue : saleWorkspaceTotals(sale.draft, sale.payments).totalDue,
                       )}
                     </strong>
-                    <small>
-                      {sale.completedAt
-                        ? "Sold"
-                        : sale.lifecycle?.status === "reserved"
-                          ? "Reserved"
-                          : "In progress"}
-                    </small>
+                    <small>{progress.status}</small>
+                    {sale.lifecycle?.status !== 'released' && sale.listLedgerKnown !== false && typeof progress.balance === 'number' && <small>{progress.correctionReview ? 'Calculated balance (review)' : progress.balance < 0 ? 'Customer credit' : 'Balance due'}: {saleMoney(progress.correctionReview ? progress.balance : Math.abs(progress.balance))}</small>}
+                    {sale.lifecycle?.status === 'released' && typeof sale.listPaid === 'number' && sale.listPaid !== 0 && <small>{sale.listPaid < 0 ? 'Net paid out' : 'Net received'}: {saleMoney(Math.abs(sale.listPaid))}</small>}
+                    {sale.lifecycle?.status === 'released' && typeof sale.listPending === 'number' && sale.listPending > 0 && <small>Pending: {saleMoney(sale.listPending)}</small>}
+                    {sale.lifecycle?.status !== 'released' && progress.handover && <small>{progress.handover.method === 'delivery' ? 'Delivery' : 'Collection'}: {progress.handover.status}</small>}
                   </span>
                   <ArrowRight size={18} />
                 </button>
-              ))}
+              ); })}
           </div>
           {sales.hasNextPage && <Button variant="outline" disabled={sales.isFetchingNextPage || sales.isFetching} onClick={() => void sales.fetchNextPage()}>{sales.isFetchingNextPage ? 'Loading more sales…' : 'Load more sales'}</Button>}
           {!sales.isLoading && !sales.isError && Boolean(listSearch) && !matchingSales.length && (
@@ -891,18 +936,44 @@ function SalesWorkspaceContent({
                     <span className="invoice-resume-status" data-status={saleStatus.toLowerCase().replaceAll(" ", "-")}>{saleStatus}</span>
                   </div>
                   {dirty && <p className="invoice-resume-unsaved" role="status">Your unsaved entries are still here. Save details or return to the payment form to record them.</p>}
-                  <dl className="invoice-resume-totals" aria-label="Sale amounts"><div><dt>Agreed total</dt><dd>{saleMoney(total.totalDue)}</dd></div><div><dt>Paid</dt><dd>{saleMoney(total.confirmedPaid)}</dd></div><div data-balance={total.balance === 0 ? "settled" : "due"}><dt>{total.balance < 0 ? "Customer credit" : "Balance due"}</dt><dd>{saleMoney(Math.abs(total.balance))}</dd></div></dl>
-                  <SaleHandover key={`handover:${record.id}`} sale={record} onSaved={sale => accept({sale})} saleApiBase={saleApiBase} allowMessaging={!testSession} testOnly={Boolean(testSession)} />
+                  <dl className="invoice-resume-totals" aria-label="Sale amounts"><div><dt>Agreed total</dt><dd>{saleMoney(total.totalDue)}</dd></div><div><dt>Paid</dt><dd>{saleMoney(total.confirmedPaid)}</dd></div>{record.lifecycle?.status !== 'released' && <div data-balance={total.balance === 0 ? "settled" : "due"}><dt>{needsCorrectionReview ? "Calculated balance (review)" : total.balance < 0 ? "Customer credit" : "Balance due"}</dt><dd>{saleMoney(needsCorrectionReview ? total.balance : Math.abs(total.balance))}</dd></div>}</dl>
+                  {needsCorrectionReview && <p role="alert" className="invoice-error">{record.lifecycle?.status === 'released' ? 'This released sale has a correction note. Check the external paperwork with your accountant.' : 'This sale has a recorded refund or correction note. The calculated balance uses the price recorded here and does not include external price corrections. Check with your accountant before treating it as money owed.'}</p>}
+                  {record.lifecycle?.status === 'released' && <p className="invoice-note">The reservation was released and the sale is not completed. The agreed price above is retained for the record. To sell this car, return to sales and start a new invoice.</p>}
+                  {record.lifecycle?.status === 'released' && (total.confirmedPaid !== 0 || total.pending > 0) && <p role="alert" className="invoice-error">Review the recorded payments and any provider refund status for this released reservation. {total.confirmedPaid !== 0 && `${total.confirmedPaid < 0 ? 'Net paid out' : 'Net received'}: ${saleMoney(Math.abs(total.confirmedPaid))}. `}{total.pending > 0 && `Pending: ${saleMoney(total.pending)}. `}These amounts do not mean the purchase price is due.</p>}
+                  {record.lifecycle?.status !== 'released' && <SaleHandover key={`handover:${record.id}`} sale={record} onSaved={sale => accept({sale})} saleApiBase={saleApiBase} allowMessaging={!testSession} testOnly={Boolean(testSession)} />}
                   {resumeAction && <div className="invoice-resume-next"><div><strong>Pick up where you left off</strong><p>{resumeAction.note}</p></div><Button disabled={busy} onClick={resumeAction.run}>{resumeAction.label}<ArrowRight size={16} aria-hidden="true" /></Button></div>}
                   <div className="invoice-resume-records">
-                    <section aria-labelledby="resume-payments-heading"><h2 id="resume-payments-heading">Payment history</h2><p>{rows.length ? `${rows.length} ${rows.length === 1 ? "entry" : "entries"} recorded` : "No payments recorded yet."}</p>{latestPayment && <small>Latest: {saleMoney(latestPayment.signedAmountPence)} · {paymentDate(latestPayment.date)} · {latestPayment.method}</small>}{total.pending > 0 && <small>{saleMoney(total.pending)} pending — not yet received.</small>}<Button variant="outline" disabled={busy} onClick={() => resumeAt(2)}>Record payment</Button></section>
-                    <section aria-labelledby="resume-invoice-heading"><h2 id="resume-invoice-heading">Invoice</h2>{latestInvoice ? <><p>{latestInvoice.title} · {latestInvoice.number}</p><small>Issued {new Date(latestInvoice.issuedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}{!invoiceIsCurrent ? " · Changes since issue" : ""}</small><Button variant="outline" disabled={busy} onClick={() => documentAction(latestInvoice, "print")}>Open invoice</Button><Button variant="outline" disabled={busy} onClick={() => prepareDocumentEmail(latestInvoice)}>Invoice options</Button></> : <p>No invoice created yet.</p>}<Button variant="ghost" disabled={busy} onClick={() => resumeAt(3)}>{latestInvoice ? "Create another invoice" : "Prepare invoice"}</Button></section>
+                    <section aria-labelledby="resume-payments-heading"><h2 id="resume-payments-heading">Payment history</h2><p>{rows.length ? `${rows.length} ${rows.length === 1 ? "entry" : "entries"} recorded` : "No payments recorded yet."}</p>{latestPayment && <small>Latest: {saleMoney(latestPayment.signedAmountPence)} · {paymentDate(latestPayment.date)} · {latestPayment.method}</small>}{total.pending > 0 && <small>{saleMoney(total.pending)} pending — not yet received.</small>}{record.lifecycle?.status !== 'released' && <Button variant="outline" disabled={busy} onClick={() => resumeAt(2)}>Record payment</Button>}</section>
+                    <section aria-labelledby="resume-invoice-heading"><h2 id="resume-invoice-heading">Invoice</h2>{latestInvoice ? <><p>{latestInvoice.title} · {latestInvoice.number}</p><small>Issued {new Date(latestInvoice.issuedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}{!invoiceIsCurrent ? " · Changes since issue" : ""}</small><Button variant="outline" disabled={busy} onClick={() => documentAction(latestInvoice, "print")}>Open invoice</Button><Button variant="outline" disabled={busy} onClick={() => prepareDocumentEmail(latestInvoice)}>Invoice options</Button></> : <p>No invoice created yet.</p>}{record.completedAt && <small>A new sales invoice is not a credit note and does not correct the agreed sale price.</small>}{record.lifecycle?.status !== 'released' && <Button variant="ghost" disabled={busy} onClick={() => resumeAt(3)}>{latestInvoice ? record.completedAt ? "Create updated sales invoice" : "Create another invoice" : "Prepare invoice"}</Button>}</section>
                   </div>
+                  {record.lifecycle?.status === 'reserved' && !record.completedAt && access.data?.permissions.includes('sales.manage') && <div className="invoice-draft-delete"><div><strong>Reservation</strong><p>{total.confirmedPaid !== 0 || total.pending !== 0 ? 'Review any received or pending payments before releasing this car.' : 'Payments are clear. You can release the car if this sale will not proceed.'}</p></div><Button variant="outline" disabled={busy || dirty || total.confirmedPaid !== 0 || total.pending !== 0} onClick={() => { setProblem(''); setReleaseReservationOpen(true); }}>Release reservation</Button></div>}
                   {rows.length > 0 && <section className="invoice-summary-payments" aria-label="Recorded payments"><ul>{rows.map(row => <li key={row.id} data-status={row.status}><div><strong>{saleMoney(row.signedAmountPence)}</strong><span>{paymentDate(row.date)} · {row.method}</span></div><small>{row.status === "confirmed" ? row.signedAmountPence < 0 ? "Returned / reversed" : "Received" : row.status}{row.reference && ` · ${row.reference}`}</small></li>)}</ul></section>}
-                  <div className="invoice-resume-edit"><span>{record.completedAt ? "Completed details are locked. Issued invoices remain unchanged." : "Need to correct something?"}</span><Button variant="ghost" disabled={busy} onClick={() => resumeAt(0)}>{record.completedAt ? "View vehicle details" : "Edit vehicle & price"}</Button><Button variant="ghost" disabled={busy} onClick={() => resumeAt(1)}>{record.completedAt ? "View customer details" : "Edit customer details"}</Button></div>
+                  {record.lifecycle?.status !== 'released' && <div className="invoice-resume-edit"><span>{record.completedAt ? "Completed details are locked. Issued invoices remain unchanged." : "Need to correct something?"}</span><Button variant="ghost" disabled={busy} onClick={() => resumeAt(0)}>{record.completedAt ? "View vehicle details" : "Edit vehicle & price"}</Button><Button variant="ghost" disabled={busy} onClick={() => resumeAt(1)}>{record.completedAt ? "View customer details" : "Edit customer details"}</Button></div>}
                   {canDeleteDraft && <div className="invoice-draft-delete"><div><strong>{record.draft.customer ? 'Test sale draft' : 'Unused sale draft'}</strong><p>No invoice or payment has been recorded. {dirty ? 'Save or discard your unsaved changes before deleting.' : 'You can remove this draft if it is no longer needed.'}</p></div><Button variant="outline" disabled={busy || dirty} onClick={() => { setProblem(''); setDeleteDraftOpen(true); }}><Trash2 size={16} aria-hidden="true" />Delete draft</Button></div>}
                   {!testSession && (record.completedAt || record.lifecycle?.status === 'sold') && <><SoldVehicleCustomerReview saleId={record.id} /></>}
                   {record.documents.length > 1 && <details className="invoice-resume-paperwork"><summary>All saved paperwork ({record.documents.length})</summary>{[...record.documents].reverse().map(document => <div key={document.id}><span>{document.title}<small>{document.number}</small></span><Button variant="outline" size="sm" disabled={busy} onClick={() => documentAction(document, "print")}>Open {document.number}</Button></div>)}</details>}
+                  {(record.completedAt || latestInvoice) && <CompletedSaleCorrectionHelp
+                    key={record.id}
+                    completed={Boolean(record.completedAt)}
+                    corrections={record.corrections}
+                    instructions={correctionPaperwork.data?.correctionSettings?.instructions}
+                    instructionsError={correctionPaperwork.isError}
+                    onRetryInstructions={() => void correctionPaperwork.refetch()}
+                    canRecord={Boolean(access.data?.permissions.includes('sales.manage'))}
+                    disabled={busy || dirty}
+                    onRecord={async input => {
+                      if (lock.current) throw new Error('Another sale action is in progress.');
+                      lock.current = true;
+                      setBusy(true);
+                      try {
+                        const result = await request(`${saleApiBase}/${record.id}/corrections`, 'POST', { expectedRevision: record.revision, ...input });
+                        accept(result);
+                      } catch (error) {
+                        if (error instanceof HttpApiError && error.data && typeof error.data === 'object' && 'error' in error.data) throw new Error(String(error.data.error));
+                        throw error;
+                      } finally { lock.current = false; setBusy(false); }
+                    }}
+                  />}
                 </section>
               ) : issued ? (
                 <>
@@ -1397,10 +1468,11 @@ function SalesWorkspaceContent({
                           <strong>{saleMoney(total!.confirmedPaid)}</strong>
                         </div>
                         <div data-kind="balance" data-balance={total!.balance === 0 ? 'settled' : total!.balance < 0 ? 'credit' : 'outstanding'}>
-                          <span>Balance due</span>
+                          <span>{needsCorrectionReview ? 'Calculated balance (review)' : 'Balance due'}</span>
                           <strong>{saleMoney(total!.balance)}</strong>
                         </div>
                       </div>
+                      {needsCorrectionReview && <p role="alert" className="invoice-error">This calculation uses the price recorded here and does not include external price corrections. Check with your accountant before treating it as money owed.</p>}
                       {rows.length > 0 && (
                         <div className="invoice-payment-list">
                           {rows.map((row) => (
@@ -1411,11 +1483,12 @@ function SalesWorkspaceContent({
                                 </strong>
                                 <small>
                                   {paymentDate(row.date)} · {row.method} ·{" "}
-                                  {row.status}
+                                  {row.status === 'confirmed' && row.kind === 'refund' ? 'Refund recorded' : row.status === 'confirmed' && row.signedAmountPence < 0 ? 'Correction recorded' : row.status}
                                   {row.reference && ` · ${row.reference}`}
+                                  {row.reason && ` · ${row.reason}`}
                                 </small>
                               </span>
-                              {!testSession && row.status !== "cancelled" &&
+                              {access.data?.permissions.includes('payments.refund') && row.status !== "cancelled" &&
                                 row.signedAmountPence > 0 && (
                                   <Button
                                     variant="ghost"
@@ -1757,6 +1830,18 @@ function SalesWorkspaceContent({
           <DialogFooter className="gap-2 sm:gap-0"><Button id="keep-sale-draft" variant="outline" disabled={busy} onClick={() => { setDeleteDraftOpen(false); setProblem(''); }}>Keep draft</Button><Button variant="destructive" disabled={busy || !canDeleteDraft || dirty || Boolean(problem)} onClick={deleteSavedDraft}>{busy ? 'Deleting…' : 'Delete draft permanently'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>}
+      {record && <Dialog open={releaseReservationOpen} onOpenChange={open => { if (!busy) setReleaseReservationOpen(open); }}>
+        <DialogContent className="z-[90]" overlayClassName="z-[89]">
+          <DialogHeader><DialogTitle>Release this reservation?</DialogTitle><DialogDescription>{testSession ? 'The fictional test car will become available again.' : 'The reservation will be removed. The car may become available to customers if it is still in published stock.'} The sale, invoices and payment history will be kept. No message will be sent.</DialogDescription></DialogHeader>
+          {problem && <p role="alert">{problem}</p>}
+          <DialogFooter><Button variant="outline" disabled={busy} onClick={() => setReleaseReservationOpen(false)}>Keep reserved</Button><Button disabled={busy || dirty || total?.confirmedPaid !== 0 || total?.pending !== 0} onClick={() => run(async () => {
+            await command('/lifecycle', {status:'released'});
+            setReleaseReservationOpen(false);
+            setMessage(testSession ? 'Test reservation released. The fictional car is available again.' : 'Reservation released. Check the car’s published stock status before promising it to another customer.');
+            if (!testSession) void client.invalidateQueries({queryKey:getGetStockQueryKey()}).catch(() => {});
+          })}>{busy ? 'Releasing…' : 'Release reservation'}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>}
       {reverse && record && (
         <ReversePaymentDialog
           invoiceOnly
@@ -1783,7 +1868,7 @@ function SalesWorkspaceContent({
               setReverse(null);
               setReviewed(false);
               setMessage(
-                "Payment corrected. Original invoices remain unchanged; generate an updated invoice with the new balance.",
+                input.kind === 'refund' ? "Refund recorded. No money was sent by the system. Original invoices remain unchanged; check with your manager or accountant what further paperwork is appropriate." : "Payment correction recorded. Original invoices remain unchanged; check with your manager or accountant what further paperwork is appropriate.",
               );
             })
           }

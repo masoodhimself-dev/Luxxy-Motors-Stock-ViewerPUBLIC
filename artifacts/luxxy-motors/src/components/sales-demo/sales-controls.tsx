@@ -382,17 +382,21 @@ export function ReversePaymentDialog({
     date: string;
     amount: string;
     kind: "refund" | "reversal";
+    method: string;
   }) => void;
 }) {
   const [reason, setReason] = useState("");
   const [amount, setAmount] = useState((availablePence / 100).toFixed(2));
   const [kind, setKind] = useState<"refund" | "reversal">("refund");
+  const [date, setDate] = useState(todayLondon());
+  const [method, setMethod] = useState(payment.method);
+  const [refundConfirmed, setRefundConfirmed] = useState(false);
   const pending = payment.status === "pending";
   const correctionPence = pence(amount);
   const valid =
-    Boolean(reason.trim()) &&
+    Boolean(reason.trim()) && Boolean(date) && date <= todayLondon() && (pending || date >= payment.date) &&
     (pending ||
-      (Number.isSafeInteger(correctionPence) &&
+      (Boolean(method.trim()) && (kind !== "refund" || refundConfirmed) && Number.isSafeInteger(correctionPence) &&
         correctionPence > 0 &&
         correctionPence <= availablePence));
   return (
@@ -418,14 +422,14 @@ export function ReversePaymentDialog({
           <DialogDescription>
             {pending
               ? "The pending entry stays in the history, marked cancelled."
-              : invoiceOnly ? "Keep your existing invoices and record a separate adjustment to the payment history. This does not send money; create an updated invoice afterwards." : "Keep the original receipt and add a separate adjustment to the payment history. This records a refund or correction; it does not send money."}
+              : invoiceOnly ? "Existing invoices stay unchanged. This adds an adjustment to the payment history; it does not send money. Check with your manager or accountant what further paperwork is appropriate." : "Keep the original receipt and add a separate adjustment to the payment history. This records a refund or correction; it does not send money."}
           </DialogDescription>
         </DialogHeader>
         <form
           onSubmit={(e) => {
             e.preventDefault();
             if (valid && !busy)
-              onSave({ reason, date: todayLondon(), amount, kind });
+              onSave({ reason, date, amount, kind, method });
           }}
         >
           <fieldset disabled={busy} className="sales-dialog-fields">
@@ -459,8 +463,22 @@ export function ReversePaymentDialog({
                 <p className="sales-panel-note">
                   Available to refund or correct: {saleMoney(availablePence)}
                 </p>
+                <label>
+                  {kind === "refund" ? "Refund method" : "Correction method"}
+                  <Input value={method} maxLength={100} onChange={(e) => setMethod(e.target.value)} />
+                </label>
+                {kind === "refund" && (
+                  <label>
+                    <input type="checkbox" checked={refundConfirmed} onChange={(e) => setRefundConfirmed(e.target.checked)} />
+                    {" "}I confirm the money has already been refunded. This only records it.
+                  </label>
+                )}
               </>
             )}
+            <label>
+              {pending ? "Cancellation date" : kind === "refund" ? "Refund date" : "Correction date"}
+              <Input type="date" value={date} max={todayLondon()} onChange={(e) => setDate(e.target.value)} />
+            </label>
             <label>
               Reason
               <Textarea

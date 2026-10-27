@@ -2397,13 +2397,13 @@
     border-color: var(--portal-info-border, #c9d9ef);
     background: var(--portal-info-soft, #edf4ff);
   }
-  .portal-premium-workspace .invoice-builder .invoice-sale-list > button[data-sale-status=sold] > span:nth-child(2) small {
+  .portal-premium-workspace .invoice-builder .invoice-sale-list > button[data-sale-status=sold] > span:nth-child(2) small:first-of-type {
     color: var(--portal-success, #14634a);
   }
-  .portal-premium-workspace .invoice-builder .invoice-sale-list > button[data-sale-status=reserved] > span:nth-child(2) small {
+  .portal-premium-workspace .invoice-builder .invoice-sale-list > button[data-sale-status=reserved] > span:nth-child(2) small:first-of-type {
     color: var(--portal-warning, #87510b);
   }
-  .portal-premium-workspace .invoice-builder .invoice-sale-list > button[data-sale-status=in-progress] > span:nth-child(2) small {
+  .portal-premium-workspace .invoice-builder .invoice-sale-list > button[data-sale-status=in-progress] > span:nth-child(2) small:first-of-type {
     color: var(--portal-info, #245ca5);
   }
   .portal-premium-workspace .invoice-builder .invoice-check input {

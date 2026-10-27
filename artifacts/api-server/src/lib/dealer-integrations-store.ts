@@ -74,6 +74,7 @@ export type PrivateDealerSettings = {
     saleTerms: string;
     reservationTerms: string;
     invoiceSettings?: InvoiceSettings;
+    correctionSettings?: { handling: "accountant"; instructions: string };
   };
   stockConnection?: StockConnection;
 };
@@ -545,6 +546,10 @@ export class DealerIntegrationsStore {
       invoiceSettings: currentInvoiceSettings(
         state.salesPaperwork?.invoiceSettings,
       ),
+      correctionSettings: {
+        handling: "accountant" as const,
+        instructions: state.salesPaperwork?.correctionSettings?.instructions ?? "",
+      },
     };
   }
   async updateSalesPaperwork(raw: unknown) {
@@ -553,6 +558,10 @@ export class DealerIntegrationsStore {
         expectedRevision: z.number().int().nonnegative(),
         saleTerms: z.string().trim().max(20000),
         reservationTerms: z.string().trim().max(20000),
+        correctionSettings: z.object({
+          handling: z.literal("accountant"),
+          instructions: z.string().trim().max(500),
+        }).strict().optional(),
         invoiceSettings: z
           .object({
             layoutVersion: z.literal("classic-ledger-v1").optional(),
@@ -612,6 +621,7 @@ export class DealerIntegrationsStore {
         saleTerms: parsed.data.saleTerms,
         reservationTerms: parsed.data.reservationTerms,
         invoiceSettings: options,
+        correctionSettings: parsed.data.correctionSettings ?? state.salesPaperwork?.correctionSettings ?? { handling: "accountant", instructions: "" },
       };
       state.revision++;
       state.updatedAt = new Date().toISOString();

@@ -53,18 +53,63 @@ test('isolated test session exercises sale engine and cannot affect real data or
   const dep=await doAction('issue-invoice',{kind:'deposit',acknowledge:true});assert.match(dep.document.number,/TEST/);assert.equal(dep.document.verification,undefined);
   const pdf=await call(`${work}/${sale.id}/documents/${dep.document.id}/pdf`);assert.equal(pdf.status,200);assert.equal(pdf.data.subarray(0,4).toString(),'%PDF');if(process.env.SALES_TEST_PDF_PATH)await writeFile(process.env.SALES_TEST_PDF_PATH,pdf.data);
   const depositSnapshot=dep.document;
-  await doAction('invoice-payments',{payment:{amount:'900',method:'Bank transfer',date,reference:'TEST-FINAL',kind:'final-payment',status:'confirmed'}});
+  const originalPayment = sale.payments[0];
+  const refundPath=`payments/${originalPayment.id}/reverse`;
+  assert.equal((await call(`${work}/${sale.id}/${refundPath}`,'POST',mutation({expectedRevision:sale.revision,amount:'20',kind:'refund',reason:'Test refund',date,method:'Cash'}),{'x-role':'salesperson'})).status,403);
+  assert.equal((await call(`${work}/${sale.id}/${refundPath}`,'POST',mutation({expectedRevision:sale.revision,amount:'20',kind:'refund',reason:'Test refund',date,method:'Cash'}),{'x-user':'other-user'})).status,404);
+  await doAction(refundPath,{amount:'20',kind:'refund',reason:'Test refund',date,method:'Cash',invoiceOnly:true});
+  assert.equal(sale.payments[1].signedAmountPence,-2000);assert.equal(sale.payments[1].method,'Cash');assert.deepEqual(sale.payments[0],originalPayment);assert.deepEqual(sale.documents[0],depositSnapshot);
+  assert.equal((await call(`${work}/${sale.id}/${refundPath}`,'POST',mutation({expectedRevision:sale.revision,amount:'81',kind:'refund',reason:'Too much',date,method:'Cash'}))).status,422);
+  await doAction('invoice-payments',{payment:{amount:'920',method:'Bank transfer',date,reference:'TEST-FINAL',kind:'final-payment',status:'confirmed'}});
   await doAction('issue-invoice',{kind:'full',acknowledge:true});assert.deepEqual(sale.documents[0],depositSnapshot);
   await doAction('fulfilment',{fulfilment:{method:'collection',viewed:'viewed',address:'',recipient:s.customer.name,phone:s.customer.phone,scheduledDate:date,timeWindow:'10:00',instructions:''}});
   await doAction('finish-invoice-sale',{acknowledge:true});await doAction('handover',{recipient:s.customer.name});
   assert.equal((await call(`${scoped}/stock`)).data.cars[0].inventoryStatus,'sold');
-  assert.equal(sale.payments.length,2);assert.equal(sale.lifecycle.status,'sold');assert.ok(sale.draft.fulfilment.completedAt);
+  assert.equal(sale.payments.length,3);assert.equal(sale.lifecycle.status,'sold');assert.ok(sale.draft.fulfilment.completedAt);
+  const beforeCorrection=structuredClone(sale),correctionPath=`${work}/${sale.id}/corrections`;
+  const correctionRequest=mutation({expectedRevision:sale.revision,description:'Accountant will review the price adjustment',reference:'TEST-ACCOUNTANT-1'});
+  assert.equal((await call(correctionPath,'POST',correctionRequest,{'x-role':'accounts'})).status,403);
+  assert.equal((await call(correctionPath,'POST',correctionRequest,{'x-user':'other-user'})).status,404);
+  const correction=await call(correctionPath,'POST',correctionRequest);assert.equal(correction.status,200,JSON.stringify(correction.data));sale=correction.data.sale;
+  assert.equal(sale.corrections.length,1);assert.equal(sale.corrections[0].reference,'TEST-ACCOUNTANT-1');
+  assert.deepEqual(sale.draft,beforeCorrection.draft);assert.deepEqual(sale.documents,beforeCorrection.documents);assert.deepEqual(sale.payments,beforeCorrection.payments);
+  const replay=await call(correctionPath,'POST',correctionRequest);assert.equal(replay.status,200);assert.equal(replay.data.replayed,true);assert.equal(replay.data.sale.corrections.length,1);
+  assert.equal((await call(correctionPath,'POST',{...correctionRequest,description:'Different'})).status,409);
+  assert.equal((await call(`${work}/${sale.id}`)).data.sale.corrections[0].description,'Accountant will review the price adjustment');
   const afterPdf=await call(`${work}/${sale.id}/documents/${dep.document.id}/pdf`);assert.deepEqual(afterPdf.data,pdf.data);
   assert.equal(await protectedState(),before);
   const cleaned=await call(scoped,'DELETE',{});assert.equal(cleaned.status,200,JSON.stringify(cleaned.data));
   assert.equal((await call(work,'POST',mutation({draft:draft(s.vehicle.id)}))).status,404);
   assert.equal((await call(`${work}/${sale.id}`)).status,404);assert.equal(await protectedState(),before);
   await pool.query("DELETE FROM sale_workspace WHERE dealer_id='protected-dealer'");await pool.query("DELETE FROM sale_workspace_counters WHERE dealer_id='protected-dealer'");await pool.query("DELETE FROM vehicles WHERE dealer_id='protected-dealer'");
+});
+
+test('refunding a fictional deposit does not release stock until staff explicitly release it',async()=>{
+  const created=await call(path,'POST',{}, {'x-user':'refund-user'});assert.equal(created.status,201);const s=created.data,scope=`${path}/${s.sessionId}`,work=`${scope}/sale-workspace`,headers={'x-user':'refund-user'};
+  let r=await call(work,'POST',mutation({draft:draft(s.vehicle.id)}),headers);assert.equal(r.status,201);let sale=r.data.sale;
+  const act=async(name:string,body:Record<string,unknown>)=>{const next=await call(`${work}/${sale.id}/${name}`,'POST',mutation({expectedRevision:sale.revision,...body}),headers);assert.equal(next.status,200,JSON.stringify(next.data));sale=next.data.sale;return next.data;};
+  await act('invoice-payments',{payment:{amount:'100',method:'Bank transfer',date,reference:'TEST',kind:'deposit',status:'confirmed'}});
+  const original=structuredClone(sale.payments[0]);const invoice=(await act('issue-invoice',{kind:'deposit',acknowledge:true})).document;
+  await act('corrections',{description:'Accountant reviewing deposit invoice',reference:'TEST-PAPER-1'});
+  assert.equal(sale.corrections.length,1);assert.deepEqual(sale.documents[0],invoice);
+  assert.equal((await call(`${work}/${sale.id}/lifecycle`,'POST',mutation({expectedRevision:sale.revision,status:'released'}),headers)).status,409);
+  await act(`payments/${original.id}/reverse`,{amount:'100',kind:'refund',reason:'Customer changed mind',date,method:'Bank transfer',invoiceOnly:true});
+  assert.equal((await call(`${scope}/stock`,'GET',undefined,headers)).data.cars[0].inventoryStatus,'reserved');
+  assert.deepEqual(sale.payments[0],original);assert.deepEqual(sale.documents[0],invoice);
+  await act('lifecycle',{status:'released'});
+  assert.equal((await call(`${scope}/stock`,'GET',undefined,headers)).data.cars[0].inventoryStatus,'available');
+  assert.equal(sale.lifecycle.status,'released');assert.deepEqual(sale.documents[0],invoice);
+  const releasedSnapshot=structuredClone(sale);
+  await act('corrections',{description:'Accountant reviewed released reservation',reference:''});
+  assert.equal(sale.corrections.length,2);assert.deepEqual(sale.draft,releasedSnapshot.draft);assert.deepEqual(sale.payments,releasedSnapshot.payments);assert.deepEqual(sale.documents,releasedSnapshot.documents);assert.deepEqual(sale.lifecycle,releasedSnapshot.lifecycle);
+  for(const [endpoint,body] of [
+    ['invoice-payments',{payment:{amount:'100',method:'Bank transfer',date,kind:'part-payment',status:'confirmed'}}],
+    ['issue-invoice',{kind:'full',acknowledge:true}],
+    ['finish-invoice-sale',{acknowledge:true,acknowledgeOutstanding:true}],
+    ['handover',{recipient:s.customer.name,acknowledgeOutstanding:true}],
+  ] as const) assert.equal((await call(`${work}/${sale.id}/${endpoint}`,'POST',mutation({expectedRevision:sale.revision,...body}),headers)).status,409);
+  assert.equal((await call(`${scope}/stock`,'GET',undefined,headers)).data.cars[0].inventoryStatus,'available');
+  assert.equal((await call(scope,'DELETE',{},headers)).status,200);
 });
 
 test('expiry fails closed and cleanup waiting on same advisory lock prevents stale replay',async()=>{

@@ -139,17 +139,25 @@ router.get(route,async(req,res)=>{try{const s=await session(req);active(s);res.j
 router.post(route,async(req,res)=>{try{const s=await session(req);active(s);const result=await sandboxStore(s).mutate({requestId:req.body?.requestId,draft:validateDraft(req.body?.draft,s),actor:staffLabel(req)});res.status(result.replayed?200:201).json({...result,preview:false});}catch(e){fail(req,res,e);}});
 router.get(route+'/:id',async(req,res)=>{try{const s=await session(req);active(s);if(!UUID.test(String(req.params.id)))throw new SaleWorkspaceError('Sale not found.',404);res.json({sale:await sandboxStore(s).get(String(req.params.id)),preview:false});}catch(e){fail(req,res,e);}});
 router.put(route+'/:id',async(req,res)=>{try{const s=await session(req);active(s);if(!UUID.test(String(req.params.id)))throw new SaleWorkspaceError('Sale not found.',404);res.json({...await sandboxStore(s).mutate({id:String(req.params.id),requestId:req.body?.requestId,expectedRevision:req.body?.expectedRevision,command:{action:'update',draft:validateDraft(req.body?.draft,s)},actor:staffLabel(req)}),preview:false});}catch(e){fail(req,res,e);}});
+router.post(route+'/:id/payments/:paymentId/reverse',requirePermission('payments.refund'),async(req,res)=>{
+  try{const s=await session(req);active(s);if(!UUID.test(String(req.params.id))||!UUID.test(String(req.params.paymentId)))throw new SaleWorkspaceError('Payment not found.',404);
+    const result=await sandboxStore(s).mutate({id:String(req.params.id),requestId:req.body?.requestId,expectedRevision:req.body?.expectedRevision,command:{action:'reverse',paymentId:String(req.params.paymentId),amount:req.body?.amount,kind:req.body?.kind,reason:req.body?.reason,date:req.body?.date,method:req.body?.method,invoiceOnly:req.body?.invoiceOnly===true},actor:staffLabel(req)});res.json({...result,preview:false});
+  }catch(e){fail(req,res,e);}
+});
 const actions: Record<string,{permission:'payments.record'|'sales.manage'|'sales.handover'; command:(body:any)=>SaleWorkspaceCommand}> = {
   'invoice-payments':{permission:'payments.record',command:b=>({action:'invoice-payment',payment:b.payment})},
   'issue-invoice':{permission:'payments.record',command:b=>({action:'issue-invoice',kind:b.kind,acknowledge:b.acknowledge})},
   'finish-invoice-sale':{permission:'payments.record',command:b=>({action:'finish-invoice-sale',acknowledge:b.acknowledge,acknowledgeOutstanding:b.acknowledgeOutstanding===true})},
   'fulfilment':{permission:'sales.manage',command:b=>({action:'fulfilment',fulfilment:b.fulfilment})},
   'handover':{permission:'sales.handover',command:b=>({action:'handover',recipient:b.recipient,completedAt:b.completedAt,acknowledgeOutstanding:b.acknowledgeOutstanding})},
+  'lifecycle':{permission:'sales.manage',command:b=>({action:'lifecycle',status:b.status})},
+  'corrections':{permission:'sales.manage',command:b=>({action:'correction-note',description:b.description,reference:b.reference})},
 };
 router.post(route+'/:id/:action',async(req,res,next)=>{const key=String(req.params.action);const action=Object.hasOwn(actions,key)?actions[key]:undefined;if(!action){res.status(404).json({error:'This action is unavailable in test mode.'});return;}requirePermission(action.permission)(req,res,next);},async(req,res)=>{
   try{const s=await session(req);active(s);if(!UUID.test(String(req.params.id)))throw new SaleWorkspaceError('Sale not found.',404);
     const action=actions[String(req.params.action)]!;
     if(req.params.action==='handover' && req.body?.recipient!==customer.name)throw new SaleWorkspaceError('Use the fictional customer for handover.');
+    if(req.params.action==='lifecycle' && req.body?.status!=='released')throw new SaleWorkspaceError('Only the fictional reservation can be released here.');
     if(req.params.action==='fulfilment' && (req.body?.fulfilment?.method!=='collection' || (req.body?.fulfilment?.recipient && req.body.fulfilment.recipient!==customer.name) || (req.body?.fulfilment?.phone && req.body.fulfilment.phone!==customer.phone)))throw new SaleWorkspaceError('Use collection and the fictional customer for this test.');
     const result=await sandboxStore(s).mutate({id:String(req.params.id),requestId:req.body?.requestId,expectedRevision:req.body?.expectedRevision,command:action.command(req.body),actor:staffLabel(req)});res.json({...result,preview:false});
   }catch(e){fail(req,res,e);}

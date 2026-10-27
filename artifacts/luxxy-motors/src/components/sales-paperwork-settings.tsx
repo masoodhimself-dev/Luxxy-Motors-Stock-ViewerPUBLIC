@@ -13,6 +13,7 @@ type Paperwork = {
   saleTerms: string;
   reservationTerms: string;
   invoiceSettings?: InvoiceSettings;
+  correctionSettings?: { handling: "accountant"; instructions: string };
 };
 export function SalesPaperworkSettings() {
   const [value, setValue] = useState<Paperwork | null>(null),
@@ -21,6 +22,7 @@ export function SalesPaperworkSettings() {
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
   const options = { ...defaultInvoiceSettings, ...value?.invoiceSettings };
+  const correctionSettings = value?.correctionSettings ?? { handling: "accountant" as const, instructions: "" };
   const changed = Boolean(
     value && saved && JSON.stringify(value) !== JSON.stringify(saved),
   );
@@ -74,6 +76,7 @@ export function SalesPaperworkSettings() {
             saleTerms: value.saleTerms,
             reservationTerms: value.reservationTerms,
             invoiceSettings: options,
+            correctionSettings,
           }),
         },
       );
@@ -103,6 +106,11 @@ export function SalesPaperworkSettings() {
             Approved wording for new documents. Existing issued documents keep
             their saved terms, amounts and references.
           </p>
+          <p>
+            These fields can hold short invoice summaries. They may not contain
+            the dealership’s complete terms: have the full terms reviewed and
+            provide them to the customer before they commit to the sale.
+          </p>
         </div>
       </header>
       {error && (
@@ -121,6 +129,7 @@ export function SalesPaperworkSettings() {
             Terms and conditions of sale
             <Textarea
               rows={8}
+              aria-describedby="sale-terms-help"
               maxLength={invoiceTextLimits.saleTerms}
               value={value.saleTerms}
               onChange={(e) =>
@@ -128,10 +137,15 @@ export function SalesPaperworkSettings() {
               }
             />
           </label>
+          <p id="sale-terms-help" className="text-sm text-muted-foreground">
+            Use the dealership’s approved sale wording. Check that any longer
+            terms are given to the customer separately.
+          </p>
           <label className="integration-field">
             Deposit and reservation terms
             <Textarea
               rows={5}
+              aria-describedby="deposit-terms-help"
               maxLength={invoiceTextLimits.reservationTerms}
               value={value.reservationTerms}
               onChange={(e) =>
@@ -139,6 +153,10 @@ export function SalesPaperworkSettings() {
               }
             />
           </label>
+          <p id="deposit-terms-help" className="text-sm text-muted-foreground">
+            Explain the agreed deposit and refund policy. Only promise what the
+            dealership has approved.
+          </p>
           <label className="integration-field">
             Payment instructions
             <Textarea
@@ -159,6 +177,28 @@ export function SalesPaperworkSettings() {
           <p className="text-sm text-muted-foreground">
             Enter only verified dealership payment details. Leave instructions
             blank to omit them. Documents use your dealership brand.
+          </p>
+          <div>
+            <h4 className="font-semibold">Corrections after an invoice is issued</h4>
+            <p className="text-sm text-muted-foreground">
+              Your accountant handles correction paperwork. The original invoice and payment history remain intact. Creating correction documents in DealerOS is not available yet; it does not issue credit notes or change a completed sale price.
+            </p>
+          </div>
+          <label className="integration-field">
+            Instructions for staff (optional)
+            <Textarea
+              rows={3}
+              maxLength={500}
+              value={correctionSettings.instructions}
+              onChange={(e) => setValue({
+                ...value,
+                correctionSettings: { handling: "accountant", instructions: e.target.value },
+              })}
+              aria-describedby="correction-instructions-help"
+            />
+          </label>
+          <p id="correction-instructions-help" className="text-sm text-muted-foreground">
+            For example: “Ask the manager to contact our accountant.” Shown to staff only, not on customer invoices.
           </p>
           {tooLong && (
             <p role="alert" className="integration-error">
