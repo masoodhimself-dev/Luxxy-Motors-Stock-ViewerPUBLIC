@@ -45,11 +45,13 @@ export function SaleHandoverFields({
   value,
   onChange,
   disabled = false,
+  testOnly = false,
 }: {
   draft: HandoverDraft;
   value: SaleWorkspaceFulfilment;
   onChange: (v: SaleWorkspaceFulfilment) => void;
   disabled?: boolean;
+  testOnly?: boolean;
 }) {
   const field = (key: keyof SaleWorkspaceFulfilment, next: string) =>
     onChange({ ...value, [key]: next });
@@ -61,7 +63,7 @@ export function SaleHandoverFields({
         role="group"
         aria-label="Collection or delivery"
       >
-        {(["collection", "delivery"] as const).map((method) => (
+        {(testOnly ? ["collection"] as const : ["collection", "delivery"] as const).map((method) => (
           <Button
             type="button"
             key={method}
@@ -106,6 +108,7 @@ export function SaleHandoverFields({
           <Input
             value={value.recipient}
             maxLength={200}
+            disabled={testOnly}
             onChange={(e) => field("recipient", e.target.value)}
           />
         </label>
@@ -115,6 +118,7 @@ export function SaleHandoverFields({
             type="tel"
             value={value.phone}
             maxLength={80}
+            disabled={testOnly}
             onChange={(e) => field("phone", e.target.value)}
           />
         </label>
@@ -157,9 +161,15 @@ export function SaleHandoverFields({
 export function SaleHandover({
   sale,
   onSaved,
+  saleApiBase = "/api/sale-workspace",
+  allowMessaging = true,
+  testOnly = false,
 }: {
   sale: SaleWorkspaceRecord;
   onSaved: (sale: SaleWorkspaceRecord) => void;
+  saleApiBase?: string;
+  allowMessaging?: boolean;
+  testOnly?: boolean;
 }) {
   const cache = useQueryClient(),
     access = useStaffAccess(),
@@ -193,7 +203,7 @@ export function SaleHandover({
     if (!active.current)
       throw new Error("Reopen the current sale before sharing.");
     const latest = await customFetch<{ sale: SaleWorkspaceRecord }>(
-      `/api/sale-workspace/${sale.id}`,
+      `${saleApiBase}/${sale.id}`,
     );
     if (!active.current || latest.sale.revision !== sale.revision)
       throw new Error(
@@ -223,7 +233,7 @@ export function SaleHandover({
     };
     try {
       const result = await customFetch<{ sale: SaleWorkspaceRecord }>(
-        `/api/sale-workspace/${sale.id}/${attempt.current.path}`,
+        `${saleApiBase}/${sale.id}/${attempt.current.path}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -262,7 +272,7 @@ export function SaleHandover({
     setBusy(true);
     try {
       const latest = await customFetch<{ sale: SaleWorkspaceRecord }>(
-        `/api/sale-workspace/${sale.id}`,
+        `${saleApiBase}/${sale.id}`,
       );
       if (!active.current) return;
       onSaved(latest.sale);
@@ -317,6 +327,7 @@ export function SaleHandover({
       {editing ? (
         <>
           <SaleHandoverFields
+            testOnly={testOnly}
             draft={sale.draft}
             value={form}
             onChange={setForm}
@@ -400,7 +411,7 @@ export function SaleHandover({
             )}
           </dl>
           <div className="handover-actions">
-            {canManage && (
+            {canManage && allowMessaging && (
               <>
                 <Button
                   variant="outline"
@@ -454,6 +465,7 @@ export function SaleHandover({
       )}
       {confirm && (
         <HandoverDialog
+          fixedRecipient={testOnly}
           draft={sale.draft}
           balance={saleWorkspaceTotals(sale.draft, sale.payments).balance}
           busy={busy}

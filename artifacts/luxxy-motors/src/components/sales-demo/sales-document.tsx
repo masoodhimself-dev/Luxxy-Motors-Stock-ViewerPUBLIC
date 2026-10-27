@@ -122,7 +122,8 @@ export function buildDraftSaleDocument({ draft, dealer, vehicle, documentType, s
 async function documentBlob(props: PdfSalesDocumentProps, draftDocument?: SaleWorkspaceDocument): Promise<Blob> {
   if (props.pdfUrl) {
     // Issued documents must display their original archive; a failed fetch never re-renders it.
-    if (!/^\/api\/sale-workspace\//.test(props.pdfUrl)) throw new Error('Use the saved document address from this dealership.');
+    const testArchive = /^\/api\/sales-test\/sessions\/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\/sale-workspace\/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\/documents\/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\/pdf$/i;
+    if (!/^\/api\/sale-workspace\//.test(props.pdfUrl) && !testArchive.test(props.pdfUrl)) throw new Error('Use the saved document address from this dealership.');
     const blob = await customFetch<Blob>(props.pdfUrl, { responseType: 'blob', cache: 'no-store' });
     if ((await blob.slice(0, 5).text()) !== '%PDF-') throw new Error('The saved PDF is unavailable. Please try again.');
     return blob;

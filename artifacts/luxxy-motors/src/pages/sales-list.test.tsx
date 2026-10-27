@@ -1,6 +1,7 @@
-import {act,fireEvent,render,screen} from '@testing-library/react';
+import {act,fireEvent,render,screen,waitFor,within} from '@testing-library/react';
 import {beforeEach,expect,it,vi} from 'vitest';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
+import {HttpApiError} from '@workspace/api-client-react';
 import {createSaleWorkspace,type SaleWorkspaceRecord} from '@workspace/vehicle-meta';
 const state=vi.hoisted(()=>({api:vi.fn(),search:'',enquiries:[] as any[],stock:{cars:[]} as any,stockLoading:false,stockError:null as string|null}));
 vi.mock('@workspace/api-client-react',()=>({customFetch:(...args:unknown[])=>state.api(...args),HttpApiError:class extends Error{},getGetStockQueryKey:()=>['/api/stock']}));
@@ -108,4 +109,125 @@ it('settled stock errors retain linked enquiry identity and allow manual price e
  expect(screen.getByLabelText('Vehicle')).toHaveValue('car-one');expect(screen.getByLabelText('Registration / number plate')).toHaveValue('AB12CDE');
  fireEvent.change(screen.getByLabelText('Agreed vehicle price (£)'),{target:{value:'6000'}});fireEvent.click(screen.getByRole('button',{name:/Continue/}));
  expect(await screen.findByLabelText('Customer’s full name')).toHaveValue('Linked Buyer');expect(writes()).toHaveLength(0);
+});
+
+it('isolates a test sale from real stock and customers and removes only its session',async()=>{
+ const session={sessionId:'synthetic-session',expiresAt:'2099-01-01T00:00:00Z',vehicle:{id:'test-car',title:'[TEST] Example Car',registration:'TEST 01',price:1000},customer:{name:'[TEST] Example Buyer',phone:'07700900123',email:'',address:'1 Example Road, Test Town, TE1 1ST'}};
+ const base='/api/sales-test/sessions/synthetic-session';
+ state.stock={cars:[{id:'real-car',title:'Real Stock Car',price:9999}]};
+ state.enquiries=[{id:'real-customer',customerName:'Private Customer',vehicleId:'real-car'}];
+ state.api.mockImplementation(async(p:string,o?:{method?:string;body?:string})=>{
+  if(p==='/api/sale-workspace')return {sales:[summary('real-sale','Private Buyer')],hasMore:false};
+  if(p==='/api/sales-test/sessions'&&!o?.method)return {session:null};
+  if(p==='/api/sales-test/sessions'&&o?.method==='POST')return session;
+  if(p===`${base}/stock`)return {cars:[session.vehicle]};
+  if(p===`${base}/sale-workspace`&&!o?.method)return {sales:[],hasMore:false};
+  if(p===`${base}/sale-workspace`&&o?.method==='POST'){
+   const payload=JSON.parse(o.body!);
+   return createSaleWorkspace(payload,{now:'2026-10-27T10:00:00Z',actor:'Test',nextId:()=> 'test-sale',nextNumber:()=> 'TEST-01',branding},'TEST-01');
+  }
+  if(p===base&&o?.method==='DELETE')return {cleared:true};
+  throw new Error(`Unexpected request: ${p}`);
+ });
+ mount();await screen.findByRole('button',{name:/Private Buyer/});fireEvent.click(screen.getByRole('button',{name:'Start test sale'}));
+ await screen.findByText('TEST MODE — fictional sale');
+ await waitFor(()=>expect(screen.queryByRole('button',{name:/Private Buyer/})).not.toBeInTheDocument());
+ fireEvent.click(screen.getByRole('button',{name:'New invoice'}));
+ expect(await screen.findByRole('heading',{name:'Which car are you selling?'})).toBeVisible();
+ expect(await screen.findByRole('option',{name:/\[TEST\] Example Car/})).toBeInTheDocument();
+ expect(screen.queryByRole('option',{name:/Real Stock Car/})).not.toBeInTheDocument();
+ fireEvent.click(screen.getByRole('button',{name:/Continue/}));
+ expect(screen.getByLabelText('Customer’s full name')).toHaveValue('[TEST] Example Buyer');
+ expect(screen.getByText('TEST 01')).toBeVisible();
+ expect(screen.queryByText('Registration not added')).not.toBeInTheDocument();
+ expect(screen.getByLabelText('Customer address')).toHaveValue('1 Example Road, Test Town, TE1 1ST');
+ expect(screen.queryByText('Private Customer')).not.toBeInTheDocument();
+ fireEvent.click(screen.getByRole('button',{name:'Save details'}));
+ await waitFor(()=>expect(writes().some(([p])=>p===`${base}/sale-workspace`)).toBe(true));
+ const create=writes().find(([p])=>p===`${base}/sale-workspace`);
+ expect(JSON.parse(create![1].body).draft.customer).toBe('[TEST] Example Buyer');
+ expect(JSON.parse(create![1].body).draft.vehicleId).toBe('test-car');
+ expect(writes().some(([p])=>p==='/api/sale-workspace')).toBe(false);
+ fireEvent.click(screen.getByRole('button',{name:'End test and delete test data'}));
+ expect(screen.getByRole('dialog',{name:'End this test?'})).toBeVisible();
+ fireEvent.click(within(screen.getByRole('dialog',{name:'End this test?'})).getByRole('button',{name:'Clear test data'}));
+ await waitFor(()=>expect(writes().some(([p,o])=>p===base&&o?.method==='DELETE')).toBe(true));
+ expect(await screen.findByRole('button',{name:/Private Buyer/})).toBeInTheDocument();
+});
+
+it('recovers an expired test only for cleanup and allows retry after a cleanup failure',async()=>{
+ const session={sessionId:'expired-session',expiresAt:'2001-01-01T00:00:00Z',vehicle:{id:'test-car',title:'[TEST] Example Car',registration:'TEST 01',price:1000},customer:{name:'[TEST] Example Buyer',phone:'07700900123',email:'',address:'1 Example Road, Test Town, TE1 1ST'}};
+ let attempts=0;
+ state.api.mockImplementation(async(p:string,o?:{method?:string})=>{
+  if(p==='/api/sale-workspace')return {sales:[],hasMore:false};
+  if(p==='/api/sales-test/sessions'&&!o?.method)return {session};
+  if(p==='/api/sales-test/sessions/expired-session'&&o?.method==='DELETE'){if(++attempts===1)throw new Error('Cleanup temporarily unavailable');return {cleared:true};}
+  throw new Error(`Unexpected request: ${p}`);
+ });
+ mount();await screen.findByRole('button',{name:'Start test sale'});fireEvent.click(screen.getByRole('button',{name:'Start test sale'}));
+ expect(await screen.findByText('TEST MODE — session expired')).toBeVisible();
+ expect(screen.queryByRole('button',{name:'New invoice'})).not.toBeInTheDocument();
+ fireEvent.click(screen.getByRole('button',{name:'End test and delete test data'}));
+ let dialog=screen.getByRole('dialog',{name:'End this test?'});fireEvent.click(within(dialog).getByRole('button',{name:'Clear test data'}));
+ await within(dialog).findByText('Cleanup temporarily unavailable');
+ expect(screen.getByText('TEST MODE — session expired')).toBeVisible();
+ fireEvent.click(within(dialog).getByRole('button',{name:'Clear test data'}));
+ await screen.findByRole('button',{name:'Start test sale'});
+ expect(attempts).toBe(2);
+ expect(writes().filter(([p])=>p==='/api/sales-test/sessions')).toHaveLength(0);
+ expect(writes().filter(([p])=>p==='/api/sale-workspace')).toHaveLength(0);
+});
+
+it('does not create a session if checking for an existing one fails',async()=>{
+ state.api.mockImplementation(async(p:string)=>{
+  if(p==='/api/sale-workspace')return {sales:[],hasMore:false};
+  if(p==='/api/sales-test/sessions')throw new Error('Session check failed');
+  throw new Error(`Unexpected request: ${p}`);
+ });
+ mount();await screen.findByRole('button',{name:'Start test sale'});fireEvent.click(screen.getByRole('button',{name:'Start test sale'}));
+ expect(await screen.findByRole('alert')).toHaveTextContent('Session check failed');
+ expect(writes()).toHaveLength(0);
+});
+
+it.each(['absent','newer'] as const)('recovers a lost cleanup response when the original session is %s', async (outcome) => {
+ const session={sessionId:'old-session',expiresAt:'2099-01-01T00:00:00Z',vehicle:{id:'test-car',title:'[TEST] Example Car',registration:'TEST 01',price:1000},customer:{name:'[TEST] Example Buyer',phone:'07700900123',email:'',address:'1 Example Road, Test Town, TE1 1ST'}};
+ let reads=0;
+ state.api.mockImplementation(async(p:string,o?:{method?:string})=>{
+  if(p==='/api/sale-workspace')return {sales:[],hasMore:false};
+  if(p==='/api/sales-test/sessions'&&!o?.method)return {session:++reads===1?session:outcome==='absent'?null:{...session,sessionId:'newer-session'}};
+  if(p==='/api/sales-test/sessions/old-session'&&o?.method==='DELETE')throw Object.assign(Object.create(HttpApiError.prototype),{message:'Not found',status:404});
+  if(p==='/api/sales-test/sessions/old-session/stock')return {cars:[session.vehicle]};
+  if(p==='/api/sales-test/sessions/old-session/sale-workspace')return {sales:[],hasMore:false};
+  throw new Error(`Unexpected request: ${p}`);
+ });
+ mount();await screen.findByRole('button',{name:'Start test sale'});fireEvent.click(screen.getByRole('button',{name:'Start test sale'}));
+ await screen.findByText('TEST MODE — fictional sale');fireEvent.click(screen.getByRole('button',{name:'End test and delete test data'}));
+ fireEvent.click(within(screen.getByRole('dialog',{name:'End this test?'})).getByRole('button',{name:'Clear test data'}));
+ await screen.findByRole('button',{name:'Start test sale'});
+ expect(reads).toBe(2);
+ expect(writes().filter(([p,o])=>o?.method==='DELETE').map(([p])=>p)).toEqual(['/api/sales-test/sessions/old-session']);
+ expect(writes().some(([p])=>p==='/api/sales-test/sessions/newer-session')).toBe(false);
+});
+
+it.each(['still-present','malformed','unavailable'] as const)('keeps the test open if cleanup cannot be verified: %s', async (outcome) => {
+ const session={sessionId:'old-session',expiresAt:'2099-01-01T00:00:00Z',vehicle:{id:'test-car',title:'[TEST] Example Car',registration:'TEST 01',price:1000},customer:{name:'[TEST] Example Buyer',phone:'07700900123',email:'',address:'1 Example Road, Test Town, TE1 1ST'}};
+ let reads=0;
+ state.api.mockImplementation(async(p:string,o?:{method?:string})=>{
+  if(p==='/api/sale-workspace')return {sales:[],hasMore:false};
+  if(p==='/api/sales-test/sessions'&&!o?.method){
+   if(++reads===1)return {session};
+   if(outcome==='unavailable')throw new Error('Check unavailable');
+   return outcome==='malformed'?{}:{session};
+  }
+  if(p==='/api/sales-test/sessions/old-session'&&o?.method==='DELETE')throw Object.assign(Object.create(HttpApiError.prototype),{message:'Not found',status:404});
+  if(p==='/api/sales-test/sessions/old-session/stock')return {cars:[session.vehicle]};
+  if(p==='/api/sales-test/sessions/old-session/sale-workspace')return {sales:[],hasMore:false};
+  throw new Error(`Unexpected request: ${p}`);
+ });
+ mount();await screen.findByRole('button',{name:'Start test sale'});fireEvent.click(screen.getByRole('button',{name:'Start test sale'}));
+ await screen.findByText('TEST MODE — fictional sale');fireEvent.click(screen.getByRole('button',{name:'End test and delete test data'}));
+ const dialog=screen.getByRole('dialog',{name:'End this test?'});fireEvent.click(within(dialog).getByRole('button',{name:'Clear test data'}));
+ expect(await within(dialog).findByRole('alert')).toHaveTextContent('Not found');
+ expect(screen.getByText('TEST MODE — fictional sale')).toBeVisible();
+ expect(reads).toBe(2);
 });

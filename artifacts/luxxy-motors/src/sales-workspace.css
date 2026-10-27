@@ -2413,3 +2413,24 @@
     outline-color: var(--portal-info, #245ca5);
   }
 }
+
+.sales-test-banner {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: #fff3cc;
+  color: #513d00;
+  border: 2px solid #b98113;
+  border-radius: .5rem;
+}
+.sales-test-banner strong { font-weight: 750; }
+.sales-test-banner p { margin: .25rem 0 0; }
+@media (max-width: 600px) {
+  .sales-test-banner { padding: .5rem .65rem; gap: .5rem; }
+  .sales-test-banner strong { font-size: .8rem; }
+  .sales-test-banner p { font-size: .7rem; line-height: 1.25; }
+  .sales-test-banner .db-btn { max-width: 9rem; font-size: .7rem; line-height: 1.2; padding: .4rem; }
+}

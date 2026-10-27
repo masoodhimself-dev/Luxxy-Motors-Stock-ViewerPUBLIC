@@ -34,7 +34,7 @@ export async function readSaleWorkspaceAssets(draft: SaleWorkspaceDraft, dealerI
 }
 
 export class PostgresSaleWorkspaceStore {
-  constructor(private dealerId: string, private assets: (draft: SaleWorkspaceDraft, client: SaleWorkspaceReadClient) => Promise<SaleWorkspaceAssets>, private database: SaleWorkspaceDatabase) {}
+  constructor(private dealerId: string, private assets: (draft: SaleWorkspaceDraft, client: SaleWorkspaceReadClient) => Promise<SaleWorkspaceAssets>, private database: SaleWorkspaceDatabase, private options?: { afterLock?: (client: SaleWorkspaceReadClient) => Promise<void>; omitInvoiceVerification?: boolean; omitLogoEmbedding?: boolean }) {}
   async list(options:{q?:string;offset?:number;enquiryId?:string;reservationId?:string}={}) {
     const q=(options.q??'').trim();
     const offset=options.offset??0;
@@ -174,6 +174,7 @@ export class PostgresSaleWorkspaceStore {
       await client.query('BEGIN');
       // Serialise numbering and create retry checks for this dealer; row locks protect each file too.
       await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`sale-workspace:${this.dealerId}`]);
+      await this.options?.afterLock?.(client);
       let current: SaleWorkspaceRecord | undefined;
       if (input.id) {
         const result = await client.query('SELECT state FROM sale_workspace WHERE dealer_id = $1 AND id = $2::uuid FOR UPDATE', [this.dealerId, input.id]);
@@ -214,8 +215,8 @@ export class PostgresSaleWorkspaceStore {
           mutation.sale.lifecycle = { status: 'sold', vehicleId: mutation.sale.draft.vehicleId, changedAt: now };
         }
         for (const document of mutation.sale.documents.filter(d => !current?.documents.some(old => old.id === d.id))) {
-          document.snapshot.branding = await embedInvoiceLogoAsset(document.snapshot.branding, this.dealerId, client, siteOrigin());
-          if (document.type === 'invoice') attachInvoiceVerification(document, mutation.sale.id, siteOrigin());
+          if (!this.options?.omitLogoEmbedding) document.snapshot.branding = await embedInvoiceLogoAsset(document.snapshot.branding, this.dealerId, client, siteOrigin());
+          if (document.type === 'invoice' && !this.options?.omitInvoiceVerification) attachInvoiceVerification(document, mutation.sale.id, siteOrigin());
           (mutation.sale.documentArchives ??= {})[document.id] = archiveSaleDocument(document);
         }
         await client.query('INSERT INTO sale_workspace (id, dealer_id, reference, revision, state, created_at, updated_at) VALUES ($1::uuid, $2, $3, $4, $5::jsonb, $6, $7) ON CONFLICT (id) DO UPDATE SET revision = EXCLUDED.revision, state = EXCLUDED.state, updated_at = EXCLUDED.updated_at', [mutation.sale.id, this.dealerId, mutation.sale.reference, mutation.sale.revision, JSON.stringify(mutation.sale), mutation.sale.createdAt, mutation.sale.updatedAt]);
