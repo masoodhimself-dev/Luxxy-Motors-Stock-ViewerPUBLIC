@@ -1,3 +1,4 @@
+import { DeliveryEstimator } from '@/components/delivery-estimator';
 import { bodyTypeKey, stockBodyTypes } from '@/lib/body-types';
 import { VehicleFactIcon } from "@/components/vehicle-fact-icon";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -595,6 +596,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                     <p className="mt-3 flex-1 text-sm leading-relaxed text-muted-foreground">
                       {id === 'delivery' ? customerDefaultCopy(service.description, 'Ask us about delivery options for your next car.', ['Customers may be able to have their vehicle delivered.']) : id === 'warranty' ? customerDefaultCopy(service.description, 'Ask us about warranty options for your chosen car.', ['Warranty options are available on eligible vehicles.']) : service.description}
                     </p>
+                    {id === 'delivery' && <DeliveryEstimator />}
                     <a
                       className="text-link mt-4"
                       href={id === 'warranty' ? '/warranty' : id === 'part-exchange' || publicEnquiriesEnabled ? getContactHref(subject) : '/contact'}

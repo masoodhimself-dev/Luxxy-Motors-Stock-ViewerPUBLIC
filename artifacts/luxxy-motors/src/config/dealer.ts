@@ -1,5 +1,6 @@
-import type { DealerBrochure, DealerPresentation } from "@workspace/api-client-react";
+import type { DealerBrochure, DealerPresentation, DealerDeliveryPricing } from "@workspace/api-client-react";
 export interface DealerConfig {
+  deliveryPricing?: DealerDeliveryPricing;
   brochure?: DealerBrochure;
   presentation?: DealerPresentation;
   identity: {

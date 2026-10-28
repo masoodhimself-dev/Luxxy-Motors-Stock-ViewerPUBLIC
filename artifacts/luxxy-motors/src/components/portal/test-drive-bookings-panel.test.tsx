@@ -128,3 +128,18 @@ it('keeps booking records readable for accounts without declaration controls or 
   expect(declarationCalls()).toHaveLength(0);
   expect(state.fetch.mock.calls.every(([, options]) => !options?.method || options.method === 'GET')).toBe(true);
 });
+
+it('opens booking email addresses inside the portal with the correct enquiry context', () => {
+ state.bookings[0].email = 'alex@example.test';
+ mount({canEmail:true,enquiryId:'enquiry-one'});
+ expect(screen.getByRole('link',{name:'alex@example.test'})).toHaveAttribute('href','/portal?section=notifications&workView=email&compose=enquiry-one');
+});
+it('lets Accounts view appointments without offering enquiry changes or external email', () => {
+ state.permissions = ['payments.record','payments.refund'];
+ state.bookings[0].email = 'alex@example.test';
+ mount({enquiryId:'enquiry-one'});
+ expect(screen.getByText('alex@example.test')).toBeVisible();
+ expect(screen.queryByRole('link',{name:'alex@example.test'})).not.toBeInTheDocument();
+ for(const name of ['Confirm appointment','Decline','Declaration','WhatsApp','Merge records']) expect(screen.queryByRole('button',{name})).not.toBeInTheDocument();
+ expect(screen.getByRole('link',{name:'Open customer'})).toBeVisible();
+});

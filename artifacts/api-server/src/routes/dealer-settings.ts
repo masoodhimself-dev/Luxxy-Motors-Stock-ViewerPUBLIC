@@ -1,3 +1,5 @@
+import { normalisePostcode, validPostcodeSyntax } from '../lib/postcodes';
+import { postcodeService, persistDealerLocation, settingsPostcode } from '../lib/postcode-storage';
 import { bookingSettingsUpdate } from '../lib/booking-settings-update';
 import { googleReviewUrl } from '@workspace/vehicle-meta';
 import { currentDealerId, multiTenantEnabled } from "../lib/tenant-context";
@@ -140,11 +142,12 @@ export async function getDealerIdentity(): Promise<{ name: string; location: str
 }
 
 async function validatePublication(incoming: Record<string, unknown>, previous: Record<string, unknown>, client: SettingsQueryClient) {
-  const parsed = UpdateDealerSettingsBody.safeParse(incoming);
+  const parsed = UpdateDealerSettingsBody.safeParse({ ...incoming, ...(!Object.prototype.hasOwnProperty.call(incoming, 'deliveryPricing') && previous.deliveryPricing ? { deliveryPricing: previous.deliveryPricing } : {}) });
   if (!parsed.success) {
     throw new SettingsVersionError(parsed.error.message, 400);
   }
   const compatible = UpdateDealerSettingsBody.parse(preserveTestDriveBooking(preserveBrochure(preservePresentation(preserveGoogleReviewUrl(parsed.data, previous), previous), previous), previous));
+  if (validPostcodeSyntax(compatible.address.postcode)) compatible.address.postcode = normalisePostcode(compatible.address.postcode);
   const linkError = publicSettingsLinkError(compatible);
   if (linkError) throw new SettingsVersionError(linkError, 400);
   if (compatible.contact.googleReviewUrl && !googleReviewUrl(compatible.contact.googleReviewUrl)) throw new SettingsVersionError('Use a valid HTTPS Google review link from your Business Profile.',400);
@@ -182,7 +185,8 @@ router.patch('/dealer-settings/bookings', requireStaff, requirePermission('setti
 });
 router.patch("/dealer-settings", requireStaff, requirePermission('settings.publish'), async (req, res): Promise<void> => {
   try {
-    const result = await new PostgresSettingsVersionStore(dealerId(), pool).publish({ config: req.body, expectedRevision: expectedSettingsRevision(req.headers['if-match']), actor: staffLabel(req), validate: validatePublication });
+    const location = await postcodeService.lookup(settingsPostcode(req.body ?? {})).catch(() => null);
+    const result = await new PostgresSettingsVersionStore(dealerId(), pool).publish({ persist: (config, client) => persistDealerLocation(client, dealerId(), config, location), config: req.body, expectedRevision: expectedSettingsRevision(req.headers['if-match']), actor: staffLabel(req), validate: validatePublication });
     res.setHeader('x-settings-revision', String(result.revision)); res.setHeader('ETag', `"${result.revision}"`);
     res.json(UpdateDealerSettingsResponse.parse(result.config as Settings));
   } catch (error) { settingsFailure(req, res, error); }
@@ -198,7 +202,9 @@ router.get('/staff/settings-history', requireStaff, requirePermission('settings.
 router.post('/staff/settings-history/:version/restore', requireStaff, requirePermission('settings.publish'), async (req, res) => {
   try {
     if (!/^\d+$/.test(req.params.version)) throw new SettingsVersionError('Settings version not found.', 404);
-    const result = await new PostgresSettingsVersionStore(dealerId(), pool).publish({ expectedRevision: expectedSettingsRevision(req.headers['if-match']), actor: staffLabel(req), restoredFrom: Number(req.params.version), validate: validatePublication });
+    const restore = await pool.query('SELECT config FROM dealer_settings_versions WHERE dealer_id=$1 AND revision=$2', [dealerId(), Number(req.params.version)]);
+    const location = await postcodeService.lookup(settingsPostcode(restore.rows[0]?.config ?? {})).catch(() => null);
+    const result = await new PostgresSettingsVersionStore(dealerId(), pool).publish({ persist: (config, client) => persistDealerLocation(client, dealerId(), config, location), expectedRevision: expectedSettingsRevision(req.headers['if-match']), actor: staffLabel(req), restoredFrom: Number(req.params.version), validate: validatePublication });
     res.setHeader('x-settings-revision', String(result.revision)); res.setHeader('ETag', `"${result.revision}"`);
     res.json({ revision: result.revision, config: UpdateDealerSettingsResponse.parse(result.config) });
   } catch (error) { settingsFailure(req, res, error); }

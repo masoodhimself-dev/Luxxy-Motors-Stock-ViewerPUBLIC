@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-28",
+  "status": "Implemented locally; not deployed",
+  "api": {
+    "GET /api/postcodes?postcode=SW1A1AA": "Verified, formatted postcode and nullable latitude/longitude/region/administrativeArea. 400 invalid syntax, 404 not found, 503 unavailable, 504 provider timeout.",
+    "GET /api/postcodes?query=SW1A": "At most six postcode suggestions.",
+    "GET /api/postcodes/distance?postcode=SW1A1AA": "Approximate straight-line miles to the resolved dealership, or null when coordinates are unavailable. Never accepts a dealership selector."
+  },
+  "architecture": {
+    "service": "artifacts/api-server/src/lib/postcodes.ts; reusable injected transport/cache, exported distanceMiles",
+    "cache": "Only public postcode geography is shared. PostgreSQL cache plus bounded in-memory cache; successful lookups only, 24-hour layer TTL, in-flight coalescing, 500-entry memory bounds, periodic bounded expired-row cleanup on writes. No polling.",
+    "resilience": "3-second provider timeout, fixed HTTPS provider host, no redirects, no automatic provider retries, 60 requests/minute per tenant/IP, 32 concurrent distinct provider/cache jobs maximum. Manual address entry remains available.",
+    "storage": "New dealer_locations keyed by currentDealerId, saved in the same revision-checked settings transaction. Provider lookup happens before the transaction. Changed unverified postcodes remove mismatched coordinates; settings restoration follows the same path. Existing API payloads and role grants unchanged.",
+    "marketplace": "Coordinates and their index support a future bounding-box candidate query followed by exact distanceMiles filtering. No marketplace search or cross-tenant search endpoint added."
+  },
+  "forms": [
+    "Dealership Business settings postcode",
+    "Sales customer address: explicit Use postcode in address; preserves street text",
+    "Delivery address: same reusable helper",
+    "Customer test-drive details: optional, collapsed showroom-distance check",
+    "Quick Enquiry test-drive booking: optional distance check",
+    "Staff new enquiry/test-drive form: optional distance check"
+  ],
+  "dataHandling": "No street/name/email/phone is sent to Postcodes.io. Booking distance postcodes are not added to the booking payload. No issued invoices, existing customer records, payments or stock were rewritten.",
+  "release": {
+    "migration": "lib/db/drizzle/0072_postcode_locations.sql",
+    "migrationAppliedToProduction": false,
+    "deploymentApproved": false,
+    "coordinatePopulation": "An owner saves the dealership Business address after migration; existing live dealers are not silently backfilled."
+  },
+  "verification": {
+    "fullInterfaceSuite": "1594 passed across 164 files",
+    "finalPostcodeComponentTests": "7 passed, including added ArrowUp and Escape regression",
+    "postcodeServiceDatabaseHttp": "9 passed using isolated PGlite and local loopback; mocked provider",
+    "settingsPublication": "9 passed, including atomic persistence and stale-editor rejection",
+    "existingSettings": "14 passed",
+    "existingBookingSettings": "4 passed",
+    "browser": "390/820/1440px settings autocomplete and optional customer-booking distance, outage/manual fallback, no writes or page errors; 3 passed; final 390px visual capture also passed",
+    "typeChecks": "Backend and frontend passed",
+    "builds": "Backend and frontend passed",
+    "realProvider": "SW1A 1AA lookup succeeded; six SW1A autocomplete suggestions returned; service-only, no customer data or database writes",
+    "limitations": [
+      "Responsive browser checks are not physical iPhone/iPad tests.",
+      "Browser provider responses were mocked; actual provider was checked separately.",
+      "Database migration was exercised only in an isolated PGlite database.",
+      "The existing fixture preview does not run the production PostgreSQL backend."
+    ]
+  }
+}

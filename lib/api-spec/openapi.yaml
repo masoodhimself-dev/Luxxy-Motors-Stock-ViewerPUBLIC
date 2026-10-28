@@ -2114,6 +2114,14 @@ components:
         primaryCta: { type: string, minLength: 1, maxLength: 80 }
         secondaryCta: { type: string, minLength: 1, maxLength: 80 }
       required: [announcement, copy, subcopy, primaryCta, secondaryCta]
+    DealerDeliveryPricing:
+      type: object
+      additionalProperties: false
+      properties:
+        enabled: { type: boolean }
+        basePrice: { type: string, pattern: '^(?:0|[1-9]\d{0,4})(?:\.\d{1,2})?$', maxLength: 8, description: "Base delivery charge in GBP, including any tax the dealership intends to charge." }
+        pricePerMile: { type: string, pattern: '^(?:0|[1-9]\d{0,4})(?:\.\d{1,2})?$', maxLength: 8, description: "Delivery charge per approximate one-way mile in GBP." }
+      required: [enabled, basePrice, pricePerMile]
     DealerService:
       type: object
       additionalProperties: false
@@ -2324,6 +2332,7 @@ components:
           items: { type: string, minLength: 1, maxLength: 120 }
         warranty: { $ref: "#/components/schemas/DealerService" }
         delivery: { $ref: "#/components/schemas/DealerService" }
+        deliveryPricing: { $ref: "#/components/schemas/DealerDeliveryPricing" }
         partExchange: { $ref: "#/components/schemas/DealerService" }
         bookViewing: { $ref: "#/components/schemas/DealerBookViewing" }
         testDriveBooking: { $ref: "#/components/schemas/DealerTestDriveBooking" }

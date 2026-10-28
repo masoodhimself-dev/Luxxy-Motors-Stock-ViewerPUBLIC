@@ -3477,6 +3477,14 @@ export const getDealerSettingsResponseDeliveryDescriptionMax = 300;
 
 export const getDealerSettingsResponseDeliveryCtaLabelMax = 80;
 
+export const getDealerSettingsResponseDeliveryPricingBasePriceMax = 8;
+
+
+export const getDealerSettingsResponseDeliveryPricingBasePriceRegExp = new RegExp('^(?:0|[1-9]\\d{0,4})(?:\\.\\d{1,2})?$');
+export const getDealerSettingsResponseDeliveryPricingPricePerMileMax = 8;
+
+
+export const getDealerSettingsResponseDeliveryPricingPricePerMileRegExp = new RegExp('^(?:0|[1-9]\\d{0,4})(?:\\.\\d{1,2})?$');
 export const getDealerSettingsResponsePartExchangeTitleMax = 120;
 
 export const getDealerSettingsResponsePartExchangeDescriptionMax = 300;
@@ -3694,6 +3702,11 @@ export const GetDealerSettingsResponse = zod.object({
   "description": zod.string().min(1).max(getDealerSettingsResponseDeliveryDescriptionMax),
   "ctaLabel": zod.string().min(1).max(getDealerSettingsResponseDeliveryCtaLabelMax)
 }),
+  "deliveryPricing": zod.object({
+  "enabled": zod.boolean(),
+  "basePrice": zod.string().max(getDealerSettingsResponseDeliveryPricingBasePriceMax).regex(getDealerSettingsResponseDeliveryPricingBasePriceRegExp).describe('Base delivery charge in GBP, including any tax the dealership intends to charge.'),
+  "pricePerMile": zod.string().max(getDealerSettingsResponseDeliveryPricingPricePerMileMax).regex(getDealerSettingsResponseDeliveryPricingPricePerMileRegExp).describe('Delivery charge per approximate one-way mile in GBP.')
+}).optional(),
   "partExchange": zod.object({
   "enabled": zod.boolean(),
   "title": zod.string().min(1).max(getDealerSettingsResponsePartExchangeTitleMax),
@@ -3982,6 +3995,14 @@ export const updateDealerSettingsBodyOneDeliveryDescriptionMax = 300;
 
 export const updateDealerSettingsBodyOneDeliveryCtaLabelMax = 80;
 
+export const updateDealerSettingsBodyOneDeliveryPricingBasePriceMax = 8;
+
+
+export const updateDealerSettingsBodyOneDeliveryPricingBasePriceRegExp = new RegExp('^(?:0|[1-9]\\d{0,4})(?:\\.\\d{1,2})?$');
+export const updateDealerSettingsBodyOneDeliveryPricingPricePerMileMax = 8;
+
+
+export const updateDealerSettingsBodyOneDeliveryPricingPricePerMileRegExp = new RegExp('^(?:0|[1-9]\\d{0,4})(?:\\.\\d{1,2})?$');
 export const updateDealerSettingsBodyOnePartExchangeTitleMax = 120;
 
 export const updateDealerSettingsBodyOnePartExchangeDescriptionMax = 300;
@@ -4199,6 +4220,11 @@ export const UpdateDealerSettingsBody = zod.object({
   "description": zod.string().min(1).max(updateDealerSettingsBodyOneDeliveryDescriptionMax),
   "ctaLabel": zod.string().min(1).max(updateDealerSettingsBodyOneDeliveryCtaLabelMax)
 }),
+  "deliveryPricing": zod.object({
+  "enabled": zod.boolean(),
+  "basePrice": zod.string().max(updateDealerSettingsBodyOneDeliveryPricingBasePriceMax).regex(updateDealerSettingsBodyOneDeliveryPricingBasePriceRegExp).describe('Base delivery charge in GBP, including any tax the dealership intends to charge.'),
+  "pricePerMile": zod.string().max(updateDealerSettingsBodyOneDeliveryPricingPricePerMileMax).regex(updateDealerSettingsBodyOneDeliveryPricingPricePerMileRegExp).describe('Delivery charge per approximate one-way mile in GBP.')
+}).optional(),
   "partExchange": zod.object({
   "enabled": zod.boolean(),
   "title": zod.string().min(1).max(updateDealerSettingsBodyOnePartExchangeTitleMax),
@@ -4482,6 +4508,14 @@ export const updateDealerSettingsResponseDeliveryDescriptionMax = 300;
 
 export const updateDealerSettingsResponseDeliveryCtaLabelMax = 80;
 
+export const updateDealerSettingsResponseDeliveryPricingBasePriceMax = 8;
+
+
+export const updateDealerSettingsResponseDeliveryPricingBasePriceRegExp = new RegExp('^(?:0|[1-9]\\d{0,4})(?:\\.\\d{1,2})?$');
+export const updateDealerSettingsResponseDeliveryPricingPricePerMileMax = 8;
+
+
+export const updateDealerSettingsResponseDeliveryPricingPricePerMileRegExp = new RegExp('^(?:0|[1-9]\\d{0,4})(?:\\.\\d{1,2})?$');
 export const updateDealerSettingsResponsePartExchangeTitleMax = 120;
 
 export const updateDealerSettingsResponsePartExchangeDescriptionMax = 300;
@@ -4699,6 +4733,11 @@ export const UpdateDealerSettingsResponse = zod.object({
   "description": zod.string().min(1).max(updateDealerSettingsResponseDeliveryDescriptionMax),
   "ctaLabel": zod.string().min(1).max(updateDealerSettingsResponseDeliveryCtaLabelMax)
 }),
+  "deliveryPricing": zod.object({
+  "enabled": zod.boolean(),
+  "basePrice": zod.string().max(updateDealerSettingsResponseDeliveryPricingBasePriceMax).regex(updateDealerSettingsResponseDeliveryPricingBasePriceRegExp).describe('Base delivery charge in GBP, including any tax the dealership intends to charge.'),
+  "pricePerMile": zod.string().max(updateDealerSettingsResponseDeliveryPricingPricePerMileMax).regex(updateDealerSettingsResponseDeliveryPricingPricePerMileRegExp).describe('Delivery charge per approximate one-way mile in GBP.')
+}).optional(),
   "partExchange": zod.object({
   "enabled": zod.boolean(),
   "title": zod.string().min(1).max(updateDealerSettingsResponsePartExchangeTitleMax),

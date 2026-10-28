@@ -1,3 +1,4 @@
+import { usePageMeta } from '@/hooks/use-page-meta';
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { SignInButton, UserButton, useAuth, useUser } from "@clerk/react";
@@ -193,6 +194,7 @@ function AccessDenied({ email }: { email: string | null }) {
 }
 
 function PortalDesk() {
+  const { settings } = useDealerSettings();
   const [tab, setTab] = useState<TabKey>(() =>
     requestedSection(window.location.search),
   );
@@ -230,6 +232,11 @@ function PortalDesk() {
     setTab(next);
     if (next === "sales") setSalesOpened(true);
   }, [search, access.data]);
+  usePageMeta({
+    title: `${tab === 'notifications' ? 'Inbox' : tab === 'sales' ? 'Sales' : 'Settings'} | ${settings.identity.name || 'Dealership'}`,
+    description: 'Private dealership staff workspace.',
+    indexable: false,
+  });
   const canSell = access.data?.permissions.includes("sales.manage") ?? false;
   const visibleTabs = tabs.filter(
     (item) =>

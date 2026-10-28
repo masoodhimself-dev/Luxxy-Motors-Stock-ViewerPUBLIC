@@ -25,6 +25,7 @@ export * from './dealerBrandColors';
 export * from './dealerBrochure';
 export * from './dealerBrochureGalleryLayout';
 export * from './dealerContact';
+export * from './dealerDeliveryPricing';
 export * from './dealerHero';
 export * from './dealerHoursItem';
 export * from './dealerIdentity';

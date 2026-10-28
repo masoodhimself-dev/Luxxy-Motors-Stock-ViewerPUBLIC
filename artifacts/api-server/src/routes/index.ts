@@ -1,3 +1,4 @@
+import postcodesRouter from './postcodes';
 import historicalStripePaymentsRouter from './stripe-reservations';
 import historicalReservationsRouter from './reservations';
 import { customerEmailPreparationRouter } from '../lib/customer-email-preparation';
@@ -39,6 +40,7 @@ router.use(['/sales-test', '/test-email-settings'], (_req, res) => {
 router.use(requireStaffOperationAccess);
 router.use(enforceDealerFeatures);
 router.use(dealerFeaturesRouter);
+router.use(postcodesRouter);
 router.use('/staff/whatsapp', requireStaff, whatsappConfirmationRouter(), customerEmailPreparationRouter());
 router.use(searchVisibilityRouter);
 router.use(dealerWebsiteAssetsRouter);

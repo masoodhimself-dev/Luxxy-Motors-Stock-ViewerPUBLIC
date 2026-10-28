@@ -2,13 +2,13 @@ import {act,fireEvent,render,screen,within} from '@testing-library/react';
 import {beforeEach,expect,it,vi} from 'vitest';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
 import {createSaleWorkspace,type SaleWorkspaceRecord} from '@workspace/vehicle-meta';
-const state=vi.hoisted(()=>({api:vi.fn(),search:'',enquiries:[] as any[],stock:{cars:[]} as any,stockLoading:false,stockError:null as string|null}));
+const state=vi.hoisted(()=>({permissions:['sales.manage','sales.handover','payments.record'],api:vi.fn(),search:'',enquiries:[] as any[],stock:{cars:[]} as any,stockLoading:false,stockError:null as string|null}));
 vi.mock('@workspace/api-client-react',()=>({customFetch:(...args:unknown[])=>state.api(...args),HttpApiError:class extends Error{},getGetStockQueryKey:()=>['/api/stock']}));
 vi.mock('@/lib/enquiry-summary-query',()=>({useEnquirySummaries:()=>({data:state.enquiries,isLoading:false,isError:false})}));
 vi.mock('@/lib/stock-context',()=>({useStock:()=>({stock:state.stock,isLoading:state.stockLoading,error:state.stockError})}));
 vi.mock('@/lib/dealer-settings-context',()=>({useDealerSettings:()=>({settings:{identity:{name:'Fictional Motors'},contact:{},address:{},legal:{}}})}));
 vi.mock('@/lib/dealer-features',()=>({useDealerFeatures:()=>({enabled:()=>true,isLoading:false,isError:false})}));
-vi.mock('@/components/portal/dealer-administration',()=>({useStaffAccess:()=>({data:{permissions:['sales.manage','sales.handover']}})}));
+vi.mock('@/components/portal/dealer-administration',()=>({useStaffAccess:()=>({data:{permissions:state.permissions}})}));
 vi.mock('@/components/portal/sale-handover',()=>({SaleHandover:()=>null,SaleHandoverFields:()=>null,handoverDefaults:()=>({})}));
 vi.mock('@/components/portal/sold-vehicle-customer-review',()=>({SoldVehicleCustomerReview:()=>null}));
 vi.mock('wouter',()=>({useLocation:()=>['/portal',vi.fn()],useSearch:()=>state.search}));
@@ -17,7 +17,7 @@ const branding={identity:{name:'Fictional Motors',logoText:'TEST',logoAsset:''},
 function full(id:string,name=id){return createSaleWorkspace({requestId:`create-${id}`,draft:{customer:name,email:'buyer@example.test',phone:'07700900123',address:'Private invoice address',vehicleId:'car-one',vehicle:'Ford Focus',registration:'AB12CDE',price:'6000'}},{now:'2026-10-20T10:00:00Z',actor:'Test',nextId:()=>id,nextNumber:()=>id,branding},`SALE-${id}`).sale;}
 function summary(id:string,name=id){const v=full(id,name);return {id,reference:v.reference,revision:v.revision,createdAt:v.createdAt,updatedAt:v.updatedAt,draft:{customer:name,email:'buyer@example.test',phone:'07700900123',vehicleId:'car-one',vehicle:'Ford Focus',registration:'AB12CDE',sourceEnquiryId:'',sourceReservationId:''},listSummary:true,listTotalDue:600000} as unknown as SaleWorkspaceRecord;}
 function mount(){const client=new QueryClient({defaultOptions:{queries:{retry:false}}});const view=render(<QueryClientProvider client={client}><SalesWorkspace embedded/></QueryClientProvider>);return {...view,refresh:()=>view.rerender(<QueryClientProvider client={client}><SalesWorkspace embedded/></QueryClientProvider>)};}
-beforeEach(()=>{state.search='';state.enquiries=[];state.stock={cars:[]};state.stockLoading=false;state.stockError=null;state.api.mockReset();});
+beforeEach(()=>{state.permissions=['sales.manage','sales.handover','payments.record'];state.search='';state.enquiries=[];state.stock={cars:[]};state.stockLoading=false;state.stockError=null;state.api.mockReset();});
 const reads=()=>state.api.mock.calls.filter(([,o])=>!o?.method).map(([p])=>p as string);
 const writes=()=>state.api.mock.calls.filter(([,o])=>Boolean(o?.method));
 it('loads fifty compact summaries at a time without fetching financial files',async()=>{
@@ -208,4 +208,19 @@ it('flags an external correction on a released reservation without displaying a 
  state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:[row],hasMore:false}:{sale:saved});mount();
  const listRow=await screen.findByRole('button',{name:/Released Buyer/});expect(listRow).toHaveTextContent('Review correction with accountant');expect(listRow).not.toHaveTextContent('Balance due');
  fireEvent.click(listRow);const detail=await screen.findByRole('region',{name:'Saved sale summary'});expect(detail).toHaveTextContent('This released sale has a correction note');expect(detail).not.toHaveTextContent('Balance due');expect(writes()).toHaveLength(0);
+});
+
+it('keeps Accounts payment and invoice access on existing sales without offering new sales or detail edits',async()=>{
+ state.permissions=['payments.record','payments.refund'];
+ const sale=full('accounts','Existing Buyer');
+ state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:[summary('accounts','Existing Buyer')],hasMore:false}:{sale});
+ mount();fireEvent.click(await screen.findByRole('button',{name:/Existing Buyer/}));
+ await screen.findByRole('region',{name:'Saved sale summary'});
+ expect(screen.queryByRole('button',{name:'New invoice'})).not.toBeInTheDocument();
+ expect(screen.getByRole('button',{name:'Record payment'})).toBeEnabled();
+ expect(screen.getByRole('button',{name:'Prepare invoice'})).toBeEnabled();
+ fireEvent.click(screen.getByRole('button',{name:'View customer details'}));
+ expect(screen.getByRole('combobox',{name:'Customer’s full name'})).toBeDisabled();
+ expect(screen.queryByRole('button',{name:'Save details'})).not.toBeInTheDocument();
+ expect(writes()).toHaveLength(0);
 });

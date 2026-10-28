@@ -133,12 +133,11 @@ function TeamSettings() {
             and sales.
           </li>
           <li>
-            <strong>Salesperson:</strong> stock, customer enquiries,
+            <strong>Salesperson:</strong> customer enquiries,
             appointments and sales.
           </li>
           <li>
-            <strong>Accounts:</strong> record and refund payments, view sales
-            and export the payment ledger.
+            <strong>Accounts:</strong> view existing sales, issue invoices, and record or refund payments.
           </li>
         </ul>
       </details>

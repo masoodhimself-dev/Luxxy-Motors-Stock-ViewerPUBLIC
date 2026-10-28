@@ -1,0 +1,18 @@
+import {test,expect} from '@playwright/test';
+import {mkdir} from 'node:fs/promises';
+const output='/private/tmp/luxxy-delivery-pricing-2026-10-28';
+for(const width of [390,820,1440])test(`delivery pricing settings and customer road quote at ${width}px`,async({page,request})=>{
+ await page.setViewportSize({width,height:900});const errors:string[]=[],writes:string[]=[];page.on('pageerror',error=>errors.push(error.message));
+ let settings=await(await request.get('/api/dealer-settings')).json();settings.delivery.enabled=true;delete settings.deliveryPricing;settings.presentation={...settings.presentation,servicesEnabled:true};let revision=6,unavailable=false;
+ await page.route('**/*',route=>{const req=route.request(),url=new URL(req.url());if(url.origin!=='http://127.0.0.1:4278')return route.abort();if(url.pathname.startsWith('/api/')&&!['GET','HEAD'].includes(req.method())){writes.push(url.pathname);return route.fulfill({status:403,json:{error:'Test blocks real writes.'}});}return route.continue();});
+ await page.route('**/api/dealer-settings',route=>{if(route.request().method()==='PATCH'){expect(route.request().headers()['if-match']).toBe(String(revision));settings=route.request().postDataJSON();revision++;}return route.fulfill({json:settings,headers:{'x-settings-revision':String(revision)}});});
+ await page.route('**/api/postcodes?*',route=>route.fulfill({json:new URL(route.request().url()).searchParams.has('query')?{postcodes:['SW1A 1AA']}:{location:{postcode:'SW1A 1AA',latitude:51.501,longitude:-0.142,region:'London',administrativeArea:'Westminster'}}}));
+ await page.route('**/api/postcodes/delivery-estimate?*',route=>unavailable?route.fulfill({status:503,json:{code:'routing_unavailable',error:'Routing unavailable'}}):route.fulfill({json:{postcode:'SW1A 1AA',roadMiles:23.4,basePricePence:5000,pricePerMilePence:150,mileageChargePence:3510,totalPence:8510,distanceBasis:'driving',estimated:true}}));
+ await page.goto('/portal?section=settings&settingsTab=dealership');await page.getByRole('checkbox',{name:'Show delivery cost calculator'}).check();await page.getByRole('textbox',{name:'Base delivery price (£)'}).fill('50.00');await page.getByRole('textbox',{name:'Price per road mile (£)'}).fill('1.50');await page.getByRole('button',{name:'Save details',exact:true}).click();await expect(page.getByText('Unsaved changes',{exact:true})).toHaveCount(0);
+ await expect.poll(()=>settings.deliveryPricing).toEqual({enabled:true,basePrice:'50.00',pricePerMile:'1.50'});
+ await page.goto('/#delivery');
+ await page.getByText('Estimate your delivery cost',{exact:true}).click();const field=page.getByRole('combobox',{name:'Delivery postcode',exact:true});await field.fill('SW1A1AA');await page.getByRole('button',{name:'Calculate delivery',exact:true}).click();await expect(page.getByText('£85.10',{exact:false})).toBeVisible();await expect(page.getByText(/23.4 road miles/)).toBeVisible();await expect(field).toHaveValue('SW1A 1AA');
+ await field.evaluate(el=>el.scrollIntoView({block:'center',behavior:'instant'}));expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await mkdir(output,{recursive:true});await page.screenshot({path:`${output}/quote-${width}.png`});
+ unavailable=true;await field.fill('N1 1AA');await expect(page.getByText('£85.10',{exact:false})).toHaveCount(0);await page.getByRole('button',{name:'Calculate delivery',exact:true}).click();await expect(page.getByRole('alert').filter({hasText:'road delivery estimate'})).toBeVisible();
+ settings.deliveryPricing.enabled=false;await page.reload();await expect(page.getByText('Estimate your delivery cost',{exact:true})).toHaveCount(0);expect(writes).toEqual([]);expect(errors).toEqual([]);
+});

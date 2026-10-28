@@ -1,3 +1,4 @@
+import { OptionalJourneyPostcode } from '@/components/postcode-field';
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -296,6 +297,7 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated, initialVehic
                   phoneRequired
                   disabled={pending}
                 />
+                {booking && <OptionalJourneyPostcode />}
                 {recentCustomers.isError && <p className="quick-enquiry-hint">Recent customers could not load. You can still enter their details.</p>}
                 <label>
                   Notes (optional)

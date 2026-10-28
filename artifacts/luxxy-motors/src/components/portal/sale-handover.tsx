@@ -1,3 +1,4 @@
+import { AddressPostcodeHelper } from '@/components/postcode-field';
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
@@ -130,6 +131,7 @@ export function SaleHandoverFields({
               onChange={(e) => field("address", e.target.value)}
             />
           </label>
+          <AddressPostcodeHelper address={value.address} onChange={address => field('address',address)} disabled={disabled} />
           <p>
             Confirm this address with the customer. It may differ from their
             invoice address.

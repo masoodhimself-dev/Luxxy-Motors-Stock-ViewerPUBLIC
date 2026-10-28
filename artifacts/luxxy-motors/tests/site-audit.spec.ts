@@ -40,7 +40,7 @@ for (const width of [390, 820, 1440]) {
       await page.goto('/');
       await checkAndCapture(page, 'home');
       await page.getByRole('combobox', { name: 'Search make', exact: true }).selectOption(car.make);
-      await page.getByRole('button', { name: /^Browse cars/ }).click();
+      await page.getByRole('button', { name: /^(?:Search|Browse cars)/ }).click();
       await expect(page).toHaveURL(/\/stock\?/);
       await expect(page.getByRole('button', { name: `Remove ${car.make} filter`, exact: true })).toBeVisible();
       const matchCount = stock.cars.filter((item: { make: string; inventoryStatus?: string }) => item.make === car.make && !['sold', 'archived', 'hidden'].includes(item.inventoryStatus ?? '')).length;
@@ -82,7 +82,7 @@ for (const width of [390, 820, 1440]) {
           return top === element || element.contains(top);
         })).toBe(true);
       }
-      const book = page.getByRole('link', { name: 'Book a test drive', exact: true }).filter({ visible: true }).first();
+      const book = page.getByRole('link', { name: /^Book a test drive$/i }).filter({ visible: true }).first();
       await book.click();
       await expect(page).toHaveURL(new RegExp(`vehicleId=${vehicleHref.split('/').pop()}`));
       await expect(page.getByTestId('card-enquiry-vehicle')).toBeVisible();
@@ -107,7 +107,7 @@ for (const width of [390, 820, 1440]) {
       await page.goto('/missing-audit-page');
       await expect(page).toHaveTitle(/^Page not found \|/);
       await checkAndCapture(page, 'not-found');
-      await page.locator('#main-content').getByRole('link', { name: 'Browse Stock', exact: true }).click();
+      await page.locator('#main-content').getByRole('link', { name: /^Browse stock$/i }).click();
       await expect(page).toHaveURL(/\/stock$/);
       await expect(page).toHaveTitle(/^Browse Stock \|/);
     });

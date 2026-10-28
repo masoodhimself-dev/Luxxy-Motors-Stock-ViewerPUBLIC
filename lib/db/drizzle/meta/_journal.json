@@ -505,6 +505,20 @@
       "when": 1793145600000,
       "tag": "0071_remove_practice_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1793192400000,
+      "tag": "0072_postcode_locations",
+      "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1793192400001,
+      "tag": "0073_delivery_road_distance",
+      "breakpoints": true
     }
   ]
 }

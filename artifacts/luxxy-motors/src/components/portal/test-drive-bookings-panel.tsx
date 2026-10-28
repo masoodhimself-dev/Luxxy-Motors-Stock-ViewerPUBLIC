@@ -77,17 +77,17 @@ function BookingRow({ booking, now, onDecision, onMerge, canEmail, canBook, chec
           <p className="font-semibold text-primary">{booking.vehicleTitle || 'Vehicle to be arranged'}</p>
           <p className="mt-1 text-sm font-medium">{booking.appointmentAt ? formatDateTime(booking.appointmentAt) : 'Time to be arranged'} <span className="font-normal text-muted-foreground">(UK time)</span></p>
           <AppointmentExceptionLabels booking={booking} />
-          <div className="mt-2"><AttendanceControls entry={booking} /></div>
+          {canDeclare && <div className="mt-2"><AttendanceControls entry={booking} /></div>}
           <p className="mt-1 text-xs text-muted-foreground">{booking.appointmentDurationMinutes ?? 30} minutes</p>
         </div>
         <div className="min-w-0 text-sm">
           <p className="font-medium text-primary">{booking.customerName}</p>
           {booking.phone && <a href={`tel:${booking.phone}`} className="mt-1 block w-fit text-muted-foreground underline underline-offset-4">{booking.phone}</a>}
-          {booking.email && <a href={`mailto:${booking.email}`} className="mt-1 block break-all text-muted-foreground underline underline-offset-4">{booking.email}</a>}
+          {booking.email && (canEmail ? <Link href={`/portal?section=notifications&workView=email&compose=${encodeURIComponent(booking.id)}`} className="mt-1 block break-all text-muted-foreground underline underline-offset-4">{booking.email}</Link> : <p className="mt-1 break-all text-muted-foreground">{booking.email}</p>)}
         </div>
         <div>
           <Chip tone={status === 'confirmed' ? 'info' : status === 'pending' && !timePassed ? 'warning' : 'muted'}>{status === 'pending' && timePassed ? 'Time passed' : statusLabels[status]}</Chip>
-          {status === 'pending' && upcoming && <div className="mt-3 flex flex-wrap gap-2">
+          {canDeclare && status === 'pending' && upcoming && <div className="mt-3 flex flex-wrap gap-2">
             <Button type="button" size="sm" disabled={mutation.isPending || !canBook} onClick={() => openDecision('confirm')}>Confirm appointment</Button>
             <Button type="button" size="sm" variant="outline" disabled={mutation.isPending} onClick={() => openDecision('decline')}>Decline</Button>
           </div>}
@@ -96,10 +96,10 @@ function BookingRow({ booking, now, onDecision, onMerge, canEmail, canBook, chec
       <BookingReadiness booking={booking} autoLoad={checkPreparation} />
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <Button variant="outline" size="sm" asChild><Link href={`/portal?section=notifications&workView=customers&enquiryId=${encodeURIComponent(booking.id)}`}>Open customer</Link></Button>
-        <DirectWhatsApp label="WhatsApp" enquiryId={booking.id} customerName={booking.customerName} customerPhone={booking.phone || ""} message={`Hello ${booking.customerName}, about your test drive${booking.vehicleTitle ? ` for ${booking.vehicleTitle}` : ""}. Please let us know if you have any questions.`} />
+        {canDeclare && <DirectWhatsApp label="WhatsApp" enquiryId={booking.id} customerName={booking.customerName} customerPhone={booking.phone || ""} message={`Hello ${booking.customerName}, about your test drive${booking.vehicleTitle ? ` for ${booking.vehicleTitle}` : ""}. Please let us know if you have any questions.`} />}
         {canEmail && <Button variant="outline" size="sm" asChild><Link href={`/portal?section=notifications&workView=email&compose=${encodeURIComponent(booking.id)}`}>Prepare email</Link></Button>}
         {canDeclare && <Button type="button" variant="outline" size="sm" onClick={() => setDeclarationOpen(true)}><FileCheck2 className="h-4 w-4" aria-hidden="true"/>Declaration</Button>}
-        <details className="booking-more-tools"><summary>More options</summary><div><Button type="button" variant="ghost" size="sm" onClick={() => onMerge(booking)}>Merge records</Button><HistoryLinks vehicleId={booking.vehicleId} recordType="enquiry" recordId={booking.id} vehicle={Boolean(booking.vehicleId || booking.vehicleTitle)} /></div></details>
+        <details className="booking-more-tools"><summary>More options</summary><div>{canDeclare && <Button type="button" variant="ghost" size="sm" onClick={() => onMerge(booking)}>Merge records</Button>}<HistoryLinks vehicleId={booking.vehicleId} recordType="enquiry" recordId={booking.id} vehicle={Boolean(booking.vehicleId || booking.vehicleTitle)} /></div></details>
       </div>
       {(booking.message || booking.partExchangeRegistration) && <details className="mt-4 border-t border-border pt-2 text-sm">
         <summary className="min-h-11 cursor-pointer py-3 font-medium">Visit details</summary>

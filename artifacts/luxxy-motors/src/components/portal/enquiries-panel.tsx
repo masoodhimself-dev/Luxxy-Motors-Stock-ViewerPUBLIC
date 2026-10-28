@@ -1,3 +1,4 @@
+import { OptionalJourneyPostcode } from '@/components/postcode-field';
 import {
   applyReplyAttention,
   useReplyAttention,
@@ -1044,6 +1045,7 @@ function NewCall({
             </p>
           )}
         </fieldset>
+        {booking && <OptionalJourneyPostcode />}
         <BookingAccessNotice access={bookingAccess} />
         {booking &&
           bookingAccess.enabled &&

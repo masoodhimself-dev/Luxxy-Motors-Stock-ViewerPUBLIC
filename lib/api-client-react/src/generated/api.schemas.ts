@@ -205,6 +205,22 @@ export interface DealerHero {
   secondaryCta: string;
 }
 
+export interface DealerDeliveryPricing {
+  enabled: boolean;
+  /**
+     * Base delivery charge in GBP, including any tax the dealership intends to charge.
+     * @maxLength 8
+     * @pattern ^(?:0|[1-9]\d{0,4})(?:\.\d{1,2})?$
+     */
+  basePrice: string;
+  /**
+     * Delivery charge per approximate one-way mile in GBP.
+     * @maxLength 8
+     * @pattern ^(?:0|[1-9]\d{0,4})(?:\.\d{1,2})?$
+     */
+  pricePerMile: string;
+}
+
 export interface DealerService {
   enabled: boolean;
   /**
@@ -631,6 +647,7 @@ export interface DealerSettings {
   featuredVehicleIds: string[];
   warranty: DealerService;
   delivery: DealerService;
+  deliveryPricing?: DealerDeliveryPricing;
   partExchange: DealerService;
   bookViewing: DealerBookViewing;
   testDriveBooking?: DealerTestDriveBooking;

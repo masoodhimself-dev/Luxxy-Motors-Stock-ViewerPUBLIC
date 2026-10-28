@@ -1,3 +1,5 @@
+import { DeliveryPricingSettings, validDeliveryMoney } from './delivery-pricing-settings';
+import { PostcodeField } from '@/components/postcode-field';
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   customFetch,
@@ -776,6 +778,7 @@ export function DealerSettingsPanel({
         !isValidHsl(form.identity.brandColors.accentHsl))
     )
       errors.colour = "Choose valid brand colours.";
+    if (group === 'dealership' && form.deliveryPricing && (!validDeliveryMoney(form.deliveryPricing.basePrice) || !validDeliveryMoney(form.deliveryPricing.pricePerMile))) errors.delivery = 'Enter delivery prices from £0 to £99,999.99 with no more than two decimal places.';
     if (Object.keys(errors).length) {
       setError(Object.values(errors).join(" "));
       return;
@@ -849,6 +852,8 @@ export function DealerSettingsPanel({
       data.address = copy(form.address);
       data.hours = copy(form.hours);
       data.legal = copy(form.legal);
+      data.delivery = copy(form.delivery);
+      if (form.deliveryPricing) data.deliveryPricing = copy(form.deliveryPricing);
     }
     update.mutate(
       { data },
@@ -969,14 +974,7 @@ export function DealerSettingsPanel({
                       }
                     />
                   </Field>
-                  <Field label="Postcode">
-                    <Input
-                      value={form.address.postcode}
-                      onChange={(e) =>
-                        nested("address", "postcode", e.target.value)
-                      }
-                    />
-                  </Field>
+                  <PostcodeField value={form.address.postcode} onChange={value => nested('address', 'postcode', value)} />
                   <Field label="Google Maps link">
                     <Input
                       type="url"
@@ -1001,6 +999,7 @@ export function DealerSettingsPanel({
                   onChange={(value) => field("hours", value)}
                 />
               </section>
+              <DeliveryPricingSettings value={form.deliveryPricing} deliveryEnabled={form.delivery.enabled} onDeliveryEnabled={enabled => field('delivery', {...form.delivery, enabled})} onChange={value => field('deliveryPricing', value)} />
               <section className="admin-card space-y-4">
                 <h3>Company details</h3>
                 <div className="grid gap-4 sm:grid-cols-2">

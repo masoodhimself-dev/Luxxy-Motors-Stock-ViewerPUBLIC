@@ -1,3 +1,4 @@
+import { OptionalJourneyPostcode } from '@/components/postcode-field';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import '../pages/customer-workflows.css';
 import './test-drive-booking.css';
@@ -933,6 +934,7 @@ export function TestDriveBooking({
                       </span>
                     </label>
                   </div>
+                  <OptionalJourneyPostcode />
                   {settings.partExchange?.enabled && <div className="border-t border-border pt-3">
                     {!details.hasPartExchange ? <button type="button" className="min-h-12 text-sm font-medium underline underline-offset-4" onClick={() => setDetails(old => ({ ...old, hasPartExchange: true }))}>Add a part exchange (optional)</button> : <div>
                     <p className="text-sm font-semibold">Your part exchange</p>

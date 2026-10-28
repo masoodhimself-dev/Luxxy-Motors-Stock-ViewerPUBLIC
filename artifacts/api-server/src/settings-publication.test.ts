@@ -80,3 +80,16 @@ test('unsafe publication is rejected before any version or published settings is
   assert.equal(f.current().revision, 7); assert.equal(f.calls.some(call => /^(INSERT|UPDATE)/.test(call.sql)), false);
   assert.equal(f.calls.at(-1)?.sql, 'ROLLBACK');
 });
+
+test('derived location persistence uses the validated settings transaction and never runs for stale editors', async () => {
+ const f=versionFixture();let persisted=0;
+ await f.store.publish({config:{address:{postcode:'ha27lu'}},expectedRevision:7,actor:'Owner',validate:async(config)=>({...config,address:{postcode:'HA2 7LU'}}),persist:async(config,client)=>{
+  assert.deepEqual(config.address,{postcode:'HA2 7LU'});assert.ok(f.calls.some(call=>call.sql.startsWith('UPDATE dealer_settings')));assert.ok(!f.calls.some(call=>call.sql==='COMMIT'));persisted++;await client.query('SELECT location-fixture');
+ }});
+ assert.equal(persisted,1);
+ await assert.rejects(f.store.publish({config:{},expectedRevision:7,actor:'Stale owner',validate,persist:async()=>{persisted++;}}),{status:409});assert.equal(persisted,1);
+});
+test('a failed derived-location write rolls back the settings publication',async()=>{
+ const f=versionFixture();await assert.rejects(f.store.publish({config:{},expectedRevision:7,actor:'Owner',validate,persist:async()=>{throw Error('Location store failed');}}),/Location store failed/);
+ assert.equal(f.calls.at(-1)?.sql,'ROLLBACK');assert.equal(f.calls.some(call=>call.sql==='COMMIT'),false);
+});

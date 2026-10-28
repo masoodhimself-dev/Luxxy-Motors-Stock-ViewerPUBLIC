@@ -136,3 +136,16 @@ it("does not review or publish the previous colour while an invalid hex edit is 
   ).not.toBeInTheDocument();
   expect(writes).toHaveLength(0);
 });
+
+it('saves delivery base price and road-mile price with the existing settings revision and preserves unrelated settings',async()=>{
+ const {writes,getSaved}=show('dealership');await screen.findByRole('heading',{name:'Vehicle delivery'});
+ if(!(screen.getByRole('checkbox',{name:'Offer delivery on the website'}) as HTMLInputElement).checked)fireEvent.click(screen.getByRole('checkbox',{name:'Offer delivery on the website'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:'Show delivery cost calculator'}));
+ fireEvent.change(screen.getByRole('textbox',{name:'Base delivery price (£)'}),{target:{value:'50.00'}});fireEvent.change(screen.getByRole('textbox',{name:'Price per road mile (£)'}),{target:{value:'1.50'}});
+ fireEvent.click(screen.getByRole('button',{name:'Save details'}));await waitFor(()=>expect(writes).toHaveLength(1));
+ expect(writes[0]!.body.deliveryPricing).toEqual({enabled:true,basePrice:'50.00',pricePerMile:'1.50'});expect(writes[0]!.revision).toBe('4');expect(getSaved().testDriveBooking).toEqual(previewSettings.testDriveBooking);
+});
+it('rejects negative and over-precise delivery rates without publishing',async()=>{
+ const {writes}=show('dealership');await screen.findByRole('heading',{name:'Vehicle delivery'});if(!(screen.getByRole('checkbox',{name:'Offer delivery on the website'}) as HTMLInputElement).checked)fireEvent.click(screen.getByRole('checkbox',{name:'Offer delivery on the website'}));fireEvent.click(screen.getByRole('checkbox',{name:'Show delivery cost calculator'}));
+ fireEvent.change(screen.getByRole('textbox',{name:'Base delivery price (£)'}),{target:{value:'-1'}});fireEvent.change(screen.getByRole('textbox',{name:'Price per road mile (£)'}),{target:{value:'1.005'}});fireEvent.click(screen.getByRole('button',{name:'Save details'}));await screen.findByText(/Enter delivery prices from/);expect(writes).toHaveLength(0);
+});

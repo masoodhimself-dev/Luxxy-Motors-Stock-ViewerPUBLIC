@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-28",
+  "status": "Implemented locally and real routing verified; not deployed",
+  "customerExperience": {
+    "location": "Customer homepage Delivery section, shared by website templates",
+    "flow": "Expand Estimate your delivery cost, enter a UK delivery postcode, choose Calculate delivery, review road mileage and the price breakdown.",
+    "formula": "Base price + displayed one-way road miles \u00d7 price per mile; calculated in integer pence, rounded to the nearest penny.",
+    "example": "\u00a350.00 + 23.4 road miles \u00d7 \u00a31.50 = \u00a385.10",
+    "fallback": "No straight-line mileage or guessed charge. Invalid postcode asks for correction; routing/missing coordinates/quota failure asks the customer to contact the dealership.",
+    "records": "No enquiry, invoice, booking, payment or sale charge is created."
+  },
+  "settings": {
+    "location": "Settings > Business > Vehicle delivery",
+    "fields": [
+      "Offer delivery on the website",
+      "Show delivery cost calculator",
+      "Base delivery price (\u00a3)",
+      "Price per road mile (\u00a3)"
+    ],
+    "defaults": "Existing delivery text unchanged; calculator absent until explicitly enabled with valid prices.",
+    "compatibility": "Optional deliveryPricing object. Existing settings publications without that field preserve previously saved pricing. Existing revision and owner permission checks are retained."
+  },
+  "routing": {
+    "provider": "OpenRouteService driving-car JSON endpoint",
+    "authentication": "OPENROUTESERVICE_API_KEY, backend environment only",
+    "basis": "One-way driving route from showroom postcode coordinates to customer postcode coordinates. Not straight-line or HGV routing.",
+    "cache": "Successful directional route distances cached in PostgreSQL and bounded process memory for seven-day layers; cached distance is independent of dealership prices. No automatic polling.",
+    "limits": "Four concurrent uncached routes per process. Conservative 40/minute and 2000/day shared database budget across instances/restarts, plus process counters; failed/partial reservations may conservatively consume budget. Provider quotas can still return unavailable.",
+    "privacy": "Only coordinate pairs sent upstream; no customer name, street address, phone, email or dealership ID. Keys never sent to the browser. Attribution shown alongside calculator.",
+    "localConfiguration": "Key saved in ignored local .env with permissions 0600; not printed, committed or copied to Render."
+  },
+  "database": {
+    "migration": "0073_delivery_road_distance.sql adds road_distance_cache and road_routing_usage; requires earlier 0072 postcode migration",
+    "appliedToProduction": false,
+    "existingRecordsModified": false
+  },
+  "verification": {
+    "fullUiSuite": "1601 tests passed across 165 files",
+    "focusedUiFinal": "11 postcode/calculator tests passed after display and formatting refinement",
+    "backendDelivery": "7 tests passed: money/rounding, provider format/caching, no fallback, durable cache, database quotas, tenant-isolated HTTP, settings schema compatibility",
+    "regressions": "14 settings, 9 publication and 9 postcode service/HTTP/database tests passed",
+    "responsiveBrowser": "3 passed at 390/820/1440px: save mock settings, calculate mock road quote, outage/no-free-quote, disable calculator; no real writes or external calls",
+    "builds": "Frontend and backend passed",
+    "types": "Frontend and backend passed",
+    "limitations": [
+      "Browser route responses were mocked.",
+      "Physical iPhone/iPad testing remains outstanding."
+    ],
+    "realProvider": {
+      "success": true,
+      "origin": "UB3 3EP",
+      "destination": "SW1A 1AA",
+      "drivingMetres": 23267,
+      "roadMiles": 14.5,
+      "straightLineMilesForComparisonOnly": 11.8,
+      "exampleQuotePence": 7175,
+      "providerCalls": 1,
+      "cacheReused": true,
+      "productionWrites": false
+    }
+  },
+  "nextStep": "Deployment requires approval, private configuration of the routing key on Render, migrations 0072/0073 and a post-deployment check. None of these production actions has been performed."
+}

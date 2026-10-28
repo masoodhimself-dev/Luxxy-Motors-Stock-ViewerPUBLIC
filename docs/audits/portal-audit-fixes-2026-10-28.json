@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-28",
+  "status": "fixed locally; deployment not requested",
+  "findings": [
+    {
+      "id": "A1",
+      "fix": "Active enquiry and test-drive email addresses open the internal composer with the enquiry ID; non-sending roles see plain text."
+    },
+    {
+      "id": "A2",
+      "fix": "Accounts cannot create sales, edit sale details, claim or update enquiries, confirm/decline appointments, change calendar appointments or confirm WhatsApp sends. Existing sales, invoice issuance and payment permissions remain intact. Backend grants unchanged."
+    },
+    {
+      "id": "A3",
+      "fix": "Portal browser title identifies Inbox, Sales or Settings and the dealership. Staff metadata remains noindex."
+    },
+    {
+      "id": "A4",
+      "fix": "Team help describes current role capabilities without retired stock or ledger export tools."
+    }
+  ],
+  "verification": {
+    "browser": "6 passed at 390, 820 and 1440 pixels, including no-write journey checks and customer-specific internal email composition",
+    "productionBuild": "passed",
+    "backendPermissions": "5 passed",
+    "physicalDevices": "not tested",
+    "interfaceSuite": "1588 passed across 163 files in the final clean run"
+  },
+  "safety": {
+    "productionWrites": false,
+    "messagesSent": false,
+    "migrationRequired": false,
+    "deployed": false
+  }
+}

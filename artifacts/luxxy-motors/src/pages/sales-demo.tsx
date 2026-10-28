@@ -1,3 +1,4 @@
+import { AddressPostcodeHelper } from '@/components/postcode-field';
 import { SaleHandover, SaleHandoverFields, handoverDefaults } from '@/components/portal/sale-handover';
 import { SaleChecklists } from '@/components/sales-demo/sale-checklists';
 import { CompletedSaleCorrectionHelp } from '@/components/sales-demo/completed-sale-correction-help';
@@ -131,6 +132,7 @@ export function SalesWorkspace({
   const enquiries = useGetEnquiries();
   const client = useQueryClient();
   const access = useStaffAccess();
+  const canManageSales = access.data?.permissions.includes('sales.manage') === true;
   const [filter, setFilter] = useState(''), [listSearch, setListSearch] = useState('');
   const [openingId, setOpeningId] = useState<string | null>(null);
   const openRequest = useRef(0), openController = useRef<AbortController | null>(null);
@@ -282,7 +284,7 @@ export function SalesWorkspace({
     setOutstandingAccepted(false);
   }
   async function open(saved?: Pick<SaleListRow, 'id'>, initial?: SaleDraft) {
-    if (lock.current) return;
+    if (lock.current || (!saved && !canManageSales)) return;
     if (dirty && !window.confirm('Leave your unsaved invoice details?')) { openRequest.current++; openController.current?.abort(); setOpeningId(null); return; }
     const request = ++openRequest.current;
     openController.current?.abort();
@@ -517,7 +519,7 @@ export function SalesWorkspace({
       setProblem("Record the received deposit before creating its invoice.");
       return;
     }
-    if (step === 3 && draft && !draft.fulfilment?.recipient && !record?.draft.fulfilment?.completedAt) setDraft({...draft,fulfilment:{...handoverDefaults(draft),recipient:draft.customer,phone:draft.fulfilment?.phone||draft.phone,address:draft.fulfilment?.address||draft.address}});
+    if (canManageSales && step === 3 && draft && !draft.fulfilment?.recipient && !record?.draft.fulfilment?.completedAt) setDraft({...draft,fulfilment:{...handoverDefaults(draft),recipient:draft.customer,phone:draft.fulfilment?.phone||draft.phone,address:draft.fulfilment?.address||draft.address}});
     setStep(Math.min(4, step + 1));
     setProblem("");
     setReviewed(false);
@@ -704,7 +706,7 @@ export function SalesWorkspace({
         </div>
         <div>
           {record && !showSummary && !issued && <Button variant="ghost" disabled={busy} onClick={() => { setShowSummary(true); setProblem(""); }}>Sale summary</Button>}
-          {draft && (!showSummary || detailsDirty) && (
+          {canManageSales && draft && (!showSummary || detailsDirty) && (
             <Button variant="outline" disabled={busy} onClick={save}>
               Save details
             </Button>
@@ -727,13 +729,12 @@ export function SalesWorkspace({
             <div>
               <h1>Sales & invoices</h1>
               <p>
-                Create a deposit invoice or a full sales invoice in five short
-                steps.
+                {access.data?.permissions.includes('sales.manage') ? 'Create a deposit invoice or a full sales invoice in five short steps.' : 'View existing sales, invoices and payments.'}
               </p>
             </div>
-            <Button onClick={() => open()}>
+            {access.data?.permissions.includes('sales.manage') && <Button onClick={() => open()}>
               <Plus size={17} /> New invoice
-            </Button>
+            </Button>}
           </div>
           <Input
             aria-label="Search sales"
@@ -908,7 +909,7 @@ export function SalesWorkspace({
                   </div>
                   {record.lifecycle?.status === 'reserved' && !record.completedAt && access.data?.permissions.includes('sales.manage') && <div className="invoice-draft-delete"><div><strong>Reservation</strong><p>{total.confirmedPaid !== 0 || total.pending !== 0 ? 'Review any received or pending payments before releasing this car.' : 'Payments are clear. You can release the car if this sale will not proceed.'}</p></div><Button variant="outline" disabled={busy || dirty || total.confirmedPaid !== 0 || total.pending !== 0} onClick={() => { setProblem(''); setReleaseReservationOpen(true); }}>Release reservation</Button></div>}
                   {rows.length > 0 && <section className="invoice-summary-payments" aria-label="Recorded payments"><ul>{rows.map(row => <li key={row.id} data-status={row.status}><div><strong>{saleMoney(row.signedAmountPence)}</strong><span>{paymentDate(row.date)} · {row.method}</span></div><small>{row.status === "confirmed" ? row.signedAmountPence < 0 ? "Returned / reversed" : "Received" : row.status}{row.reference && ` · ${row.reference}`}</small></li>)}</ul></section>}
-                  {record.lifecycle?.status !== 'released' && <div className="invoice-resume-edit"><span>{record.completedAt ? "Completed details are locked. Issued invoices remain unchanged." : "Need to correct something?"}</span><Button variant="ghost" disabled={busy} onClick={() => resumeAt(0)}>{record.completedAt ? "View vehicle details" : "Edit vehicle & price"}</Button><Button variant="ghost" disabled={busy} onClick={() => resumeAt(1)}>{record.completedAt ? "View customer details" : "Edit customer details"}</Button></div>}
+                  {record.lifecycle?.status !== 'released' && <div className="invoice-resume-edit"><span>{record.completedAt ? "Completed details are locked. Issued invoices remain unchanged." : "Need to correct something?"}</span><Button variant="ghost" disabled={busy} onClick={() => resumeAt(0)}>{(record.completedAt || !canManageSales) ? "View vehicle details" : "Edit vehicle & price"}</Button><Button variant="ghost" disabled={busy} onClick={() => resumeAt(1)}>{(record.completedAt || !canManageSales) ? "View customer details" : "Edit customer details"}</Button></div>}
                   {canDeleteDraft && <div className="invoice-draft-delete"><div><strong>{record.draft.customer ? 'Test sale draft' : 'Unused sale draft'}</strong><p>No invoice or payment has been recorded. {dirty ? 'Save or discard your unsaved changes before deleting.' : 'You can remove this draft if it is no longer needed.'}</p></div><Button variant="outline" disabled={busy || dirty} onClick={() => { setProblem(''); setDeleteDraftOpen(true); }}><Trash2 size={16} aria-hidden="true" />Delete draft</Button></div>}
                   {(record.completedAt || record.lifecycle?.status === 'sold') && <><SoldVehicleCustomerReview saleId={record.id} /></>}
                   {record.documents.length > 1 && <details className="invoice-resume-paperwork"><summary>All saved paperwork ({record.documents.length})</summary>{[...record.documents].reverse().map(document => <div key={document.id}><span>{document.title}<small>{document.number}</small></span><Button variant="outline" size="sm" disabled={busy} onClick={() => documentAction(document, "print")}>Open {document.number}</Button></div>)}</details>}
@@ -1070,7 +1071,7 @@ export function SalesWorkspace({
                   </Button>
                 </>
               ) : (
-                <fieldset disabled={busy}>
+                <fieldset disabled={busy || (!canManageSales && step < 2)}>
                   {step === 0 && (
                     <>
                       <h2>Vehicle & agreed price</h2>
@@ -1197,6 +1198,7 @@ export function SalesWorkspace({
                             }
                           />
                         </label>
+                        <div className="invoice-field-wide"><AddressPostcodeHelper address={draft.address} onChange={value => update('address',value)} disabled={!canManageSales || Boolean(record?.completedAt)} /></div>
                         {!record?.completedAt && !rows.length && <small className="invoice-field-wide">Choosing a recent customer clears this address. Confirm their current address for this sale.</small>}
                       </div>
                     </>
@@ -1688,13 +1690,13 @@ export function SalesWorkspace({
                         <p className="invoice-note">Confirm the VIN from the vehicle or log book.</p>
                         <label>VIN / chassis number
                           <Input value={draft.vin ?? ""} maxLength={17} autoComplete="off" spellCheck={false}
-                            disabled={Boolean(record?.completedAt)} placeholder="17-character VIN"
+                            disabled={!canManageSales || Boolean(record?.completedAt)} placeholder="17-character VIN"
                             onChange={event => update("vin", event.target.value.toUpperCase().replace(/\s/g, ""))} />
                           <small>Copy from the vehicle or log book. Leave blank if not available yet.</small>
                         </label>
 
                       </section>}
-                      <SaleHandoverFields draft={draft} value={handoverDefaults(draft)} onChange={value => update('fulfilment',value)} disabled={Boolean(record?.draft.fulfilment?.completedAt)} />
+                      <SaleHandoverFields draft={draft} value={handoverDefaults(draft)} onChange={value => update('fulfilment',value)} disabled={!canManageSales || Boolean(record?.draft.fulfilment?.completedAt)} />
                       {kind === 'full' && checklistPanel()}
                       <label className="invoice-check">
                         <input

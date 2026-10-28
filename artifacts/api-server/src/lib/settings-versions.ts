@@ -26,7 +26,7 @@ export class PostgresSettingsVersionStore {
     const rows = await this.database.query('SELECT * FROM dealer_settings_versions WHERE dealer_id = $1 ORDER BY revision DESC LIMIT 100', [this.dealerId]);
     return rows.rows.map(version);
   }
-  async publish(input: { config?: Record<string, unknown>; expectedRevision: number; actor: string; restoredFrom?: number; validate: (config: Record<string, unknown>, current: Record<string, unknown>, client: SettingsQueryClient) => Promise<Record<string, unknown>> }): Promise<SettingsVersion> {
+  async publish(input: { config?: Record<string, unknown>; expectedRevision: number; actor: string; restoredFrom?: number; persist?: (config: Record<string, unknown>, client: SettingsQueryClient) => Promise<void>; validate: (config: Record<string, unknown>, current: Record<string, unknown>, client: SettingsQueryClient) => Promise<Record<string, unknown>> }): Promise<SettingsVersion> {
     const client = await this.database.connect();
     try {
       await client.query('BEGIN');
@@ -48,6 +48,7 @@ export class PostgresSettingsVersionStore {
       await client.query("INSERT INTO dealer_settings_versions(dealer_id,revision,config,published_at,published_by,action) VALUES($1,$2,$3::jsonb,$4,$5,'initial') ON CONFLICT DO NOTHING", [this.dealerId, current.revision, JSON.stringify(current.config), current.publishedAt, current.publishedBy]);
       await client.query('INSERT INTO dealer_settings_versions(dealer_id,revision,config,published_at,published_by,action,restored_from) VALUES($1,$2,$3::jsonb,$4,$5,$6,$7)', [this.dealerId, next.revision, JSON.stringify(next.config), next.publishedAt, next.publishedBy, next.action, next.restoredFrom ?? null]);
       await client.query('UPDATE dealer_settings SET config = $2::jsonb, revision = $3, updated_at = $4 WHERE dealer_id = $1', [this.dealerId, JSON.stringify(next.config), next.revision, next.publishedAt]);
+      await input.persist?.(next.config, client);
       await client.query('COMMIT'); return next;
     } catch (error) { await client.query('ROLLBACK'); throw error; }
     finally { client.release(); }

@@ -23,7 +23,7 @@ for(const width of [390,820,1440]) test(`whole portal desk at ${width}px`,async(
   }));
   await page.route('**/*',async route=>{
     const req=route.request(),url=new URL(req.url());
-    if(url.origin!=='http://127.0.0.1:4276')return route.abort();
+    if(url.origin!==new URL(test.info().project.use.baseURL!).origin)return route.abort();
     if(url.pathname.startsWith('/api/')&&!['GET','HEAD'].includes(req.method())){writes.push(req.url());return route.fulfill({status:403,json:{error:'Visual review blocks writes.'}});}
     if(url.pathname==='/api/enquiries')return route.fulfill({json:entries});
     if(url.pathname==='/api/test-drive-bookings')return route.fulfill({json:entries.filter(entry=>entry.type==='viewing')});
