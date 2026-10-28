@@ -8,7 +8,7 @@ import {
   type DealerSettings,
   type DealerTestDriveBooking,
 } from "@workspace/api-client-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { googleReviewUrl } from "@workspace/vehicle-meta";
 import { customerWhatsAppNumber } from "@/lib/customer-whatsapp";
 import {
@@ -658,19 +658,14 @@ function ShowroomHoursEditor({
 /** Small owner editor. Each area saves only its own fields against the latest publication. */
 export function DealerSettingsPanel({
   group = "dealership",
-  testSessionId,
 }: {
   group?: DealerSettingsGroup;
   allowReviewImport?: boolean;
-  testSessionId?: string;
 }) {
-  const liveQuery = useGetDealerSettings({
-      query: { queryKey: getGetDealerSettingsQueryKey(), enabled: !testSessionId },
-    });
-  const testQuery = useQuery({queryKey:['sales-test',testSessionId,'settings'], queryFn:({signal})=>customFetch<{config:DealerSettings;revision:number}>(`/api/sales-test/sessions/${encodeURIComponent(testSessionId!)}/settings`,{signal}), enabled:Boolean(testSessionId),retry:false});
-  const query = testSessionId ? {...testQuery,data:testQuery.data?.config} : liveQuery;
-  const settingsRevision = (value:unknown) => testSessionId ? testQuery.data?.revision ?? null : getSettingsRevision(value);
-  const cache = useQueryClient();
+  const query = useGetDealerSettings({
+      query: { queryKey: getGetDealerSettingsQueryKey() },
+    }),
+    cache = useQueryClient();
   const [form, setForm] = useState<DealerSettings | null>(null),
     [baseline, setBaseline] = useState<DealerSettings | null>(null),
     [revision, setRevision] = useState<number | null>(null);
@@ -678,8 +673,7 @@ export function DealerSettingsPanel({
     [notice, setNotice] = useState(""),
     [review, setReview] = useState(false),
     [uploads, setUploads] = useState(0),
-    [bookingBusy, setBookingBusy] = useState(false),
-    [testSaving, setTestSaving] = useState(false);
+    [bookingBusy, setBookingBusy] = useState(false);
   const update = useUpdateDealerSettings({
     request: {
       headers: revision === null ? {} : { "If-Match": String(revision) },
@@ -696,12 +690,12 @@ export function DealerSettingsPanel({
       !bookingBusy &&
       (!form ||
         revision === null ||
-        (settingsRevision(query.data) !== null &&
-          settingsRevision(query.data)! >= revision))
+        (getSettingsRevision(query.data) !== null &&
+          getSettingsRevision(query.data)! >= revision))
     ) {
       setForm(copy(query.data));
       setBaseline(copy(query.data));
-      setRevision(settingsRevision(query.data));
+      setRevision(getSettingsRevision(query.data));
     }
   }, [query.data, query.dataUpdatedAt, dirty, update.isPending, bookingBusy]);
   useEffect(() => {
@@ -736,7 +730,6 @@ export function DealerSettingsPanel({
       !dirty ||
       uploads ||
       update.isPending ||
-      testSaving ||
       bookingBusy
     )
       return;
@@ -789,17 +782,6 @@ export function DealerSettingsPanel({
     }
     if (group === "website" && !review) {
       setReview(true);
-      return;
-    }
-    if(testSessionId) {
-      setTestSaving(true);
-      try {
-        const saved=await customFetch<{config:DealerSettings;revision:number}>(`/api/sales-test/sessions/${encodeURIComponent(testSessionId)}/settings`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({group,config:form,expectedRevision:revision})});
-        cache.setQueryData(['sales-test',testSessionId,'settings'],saved);
-        setForm(copy(saved.config));setBaseline(copy(saved.config));setRevision(saved.revision);setReview(false);
-        setNotice('Saved in this test. Live settings are unchanged.');
-      } catch { setError('Test settings could not be saved. Your edits are kept.'); }
-      finally { setTestSaving(false); }
       return;
     }
     if (group === "bookings") {
@@ -922,7 +904,7 @@ export function DealerSettingsPanel({
     <section className="dealer-settings-panel" data-settings-dirty={dirty}>
       <form onSubmit={save} noValidate>
         <fieldset
-          disabled={update.isPending || bookingBusy || testSaving || uploads > 0}
+          disabled={update.isPending || bookingBusy || uploads > 0}
           className="space-y-5"
         >
           {group === "dealership" && (
@@ -1051,7 +1033,7 @@ export function DealerSettingsPanel({
                 documents.
               </p>
               <DealerWordmark {...form.identity} />
-              {!testSessionId && <WebsiteImageField
+              <WebsiteImageField
                 label="Dealership logo"
                 value={form.identity.logoAsset}
                 onChange={(value) =>
@@ -1060,7 +1042,7 @@ export function DealerSettingsPanel({
                 onBusyChange={(busy) =>
                   setUploads((n) => Math.max(0, n + (busy ? 1 : -1)))
                 }
-              />}
+              />
               <div className="grid gap-4 sm:grid-cols-2">
                 <ColourField
                   testId="brand-main"
@@ -1091,7 +1073,7 @@ export function DealerSettingsPanel({
                   }
                 />
               </div>
-              {!testSessionId && <WebsiteImageField
+              <WebsiteImageField
                 label="Homepage photograph"
                 kind="photo"
                 value={form.presentation?.heroImageUrl ?? ""}
@@ -1104,8 +1086,7 @@ export function DealerSettingsPanel({
                 onBusyChange={(busy) =>
                   setUploads((n) => Math.max(0, n + (busy ? 1 : -1)))
                 }
-              />}
-              {testSessionId && <p className="text-sm text-muted-foreground">Image uploads are not available in this test.</p>}
+              />
               <Field label="Photograph description">
                 <Input
                   value={form.presentation?.heroImageAlt ?? ""}
@@ -1129,9 +1110,10 @@ export function DealerSettingsPanel({
                   className="rounded-md border border-border p-4"
                   role="status"
                 >
-                  <h4 className="font-semibold">{testSessionId ? 'Ready to save in this test' : 'Ready to publish'}</h4>
+                  <h4 className="font-semibold">Ready to publish</h4>
                   <p>
-                    {testSessionId ? 'Your changes will stay in this test.' : 'Your logo, colours and homepage photograph will be used on the website. Existing invoices and payments stay unchanged.'}
+                    Your logo, colours and homepage photograph will be used on
+                    the website. Existing invoices and payments stay unchanged.
                   </p>
                 </div>
               )}
@@ -1178,7 +1160,7 @@ export function DealerSettingsPanel({
                   ) {
                     setForm(copy(query.data!));
                     setBaseline(copy(query.data!));
-                    setRevision(settingsRevision(query.data!));
+                    setRevision(getSettingsRevision(query.data!));
                     setError("");
                     setReview(false);
                   }
@@ -1189,17 +1171,17 @@ export function DealerSettingsPanel({
               <Button
                 type="submit"
                 disabled={
-                  !dirty || update.isPending || bookingBusy || testSaving || uploads > 0
+                  !dirty || update.isPending || bookingBusy || uploads > 0
                 }
               >
                 <Save size={16} />
-                {update.isPending || bookingBusy || testSaving
+                {update.isPending || bookingBusy
                   ? "Saving…"
                   : group === "bookings"
                     ? "Save bookings"
                     : group === "website"
                       ? review
-                        ? testSessionId ? "Save test brand" : "Publish brand"
+                        ? "Publish brand"
                         : "Review brand"
                       : "Save details"}
               </Button>

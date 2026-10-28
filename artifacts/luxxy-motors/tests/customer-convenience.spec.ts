@@ -3,7 +3,7 @@ import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 
 for (const width of [390, 1440]) {
-  test(`recent cars, shared shortlist and draft recovery at ${width}px`, async ({
+  test(`shared shortlist and draft recovery at ${width}px`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 900 });
@@ -14,7 +14,7 @@ for (const width of [390, 1440]) {
     await page.goto("/");
     await expect(
       page.getByRole("heading", { name: "Recently viewed" }),
-    ).toBeVisible();
+    ).toHaveCount(0);
     await page.evaluate(() =>
       localStorage.setItem(
         "luxxy.saved-cars.v1",
@@ -78,7 +78,6 @@ for (const width of [390, 1440]) {
       fullPage: true,
     });
     await page.goto("/");
-    await page.getByRole("button", { name: "Clear viewing history" }).click();
     await expect(
       page.getByRole("heading", { name: "Recently viewed" }),
     ).toHaveCount(0);

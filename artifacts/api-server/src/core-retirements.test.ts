@@ -67,6 +67,7 @@ test("removed product routes are absent from the actual router while old financi
     });
   try {
     for (const [method, path] of [
+      ["GET", "/dealer-reports"],
       ["POST", "/reservations"],
       ["POST", "/reservations/stripe/checkout"],
       ["GET", "/chat/session"],
@@ -97,6 +98,9 @@ test("removed product routes are absent from the actual router while old financi
     ])
       assert.equal((await call(method, path)).status, 404, `${method} ${path}`);
     for (const path of [
+      "/sales-test/sessions",
+      "/sales-test/sessions/00000000-0000-4000-8000-000000000001/email-send",
+      "/test-email-settings",
       "/sales",
       "/sales/old/complete",
       "/signing/old/complete",

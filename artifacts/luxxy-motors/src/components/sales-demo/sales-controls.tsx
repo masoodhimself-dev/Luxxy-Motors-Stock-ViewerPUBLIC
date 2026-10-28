@@ -878,7 +878,6 @@ export function HandoverDialog({
   problem,
   onClose,
   onSave,
-  fixedRecipient = false,
 }: {
   draft: SaleDraft;
   balance: number;
@@ -886,7 +885,6 @@ export function HandoverDialog({
   problem: string;
   onClose: () => void;
   onSave: (recipient: string, acknowledge: boolean) => void;
-  fixedRecipient?: boolean;
 }) {
   const [recipient, setRecipient] = useState(
     draft.fulfilment?.recipient || draft.customer,
@@ -930,7 +928,6 @@ export function HandoverDialog({
               <Input
                 autoFocus
                 value={recipient}
-                disabled={fixedRecipient}
                 onChange={(e) => setRecipient(e.target.value)}
               />
             </label>

@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-28",
+  "status": "implemented locally; not deployed",
+  "removed": [
+    "Portal practice menu, session creation and recovery",
+    "Practice enquiries and bookings",
+    "Copied customer-site practice browser, saved/watch simulation",
+    "Test-only email preview, send, settings and templates",
+    "Practice settings, reports, team invitation copies and cleanup worker",
+    "Sandbox-only sale store extension hooks",
+    "Practice ORM schema exports",
+    "Staff Reports page and API",
+    "Automatic fictional demo activity and destructive reset tools",
+    "Customer Recently Viewed section; Saved cars retained"
+  ],
+  "migration": "0071_remove_practice_mode",
+  "cleanup": "Forward-only migration verifies exact registered synthetic namespaces, vehicle source and ownership, sale links, all vehicle foreign keys and unexpected dealership-scoped records before deleting only isolated copies and dropping practice-only tables. No CASCADE. Historical applied migrations remain intact.",
+  "upgrade_safety": "Retired endpoints and explicitly marked requests return HTTP 410 so old open practice clients cannot fall through to live writes.",
+  "validation": {
+    "workspace_build": "passed",
+    "frontend_typecheck": "passed",
+    "interface_tests": 1585,
+    "migration_tests": 5,
+    "responsive_browser_checks": {
+      "widths": [
+        390,
+        820,
+        1440
+      ],
+      "result": "passed",
+      "scope": "Local fixtures, normal portal navigation, new invoice vehicle entry, public vehicle page and test-drive time selection/details; all writes and external requests blocked."
+    },
+    "backend": "Full backend script sequence passed, with corrected retirement expectations rerun from platform tests onwards. Includes real PostgreSQL migration replay, protection tests, legacy API guards, bookings, sales, payments, invoice PDFs and handover."
+  },
+  "live_changes": {
+    "records": false,
+    "messages": false,
+    "deployment": false,
+    "migration_applied": false
+  }
+}

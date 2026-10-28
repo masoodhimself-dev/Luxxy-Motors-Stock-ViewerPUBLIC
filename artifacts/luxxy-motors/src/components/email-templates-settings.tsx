@@ -12,8 +12,8 @@ type Templates = {
   templates: EmailTemplate[];
   variables: string[];
 };
-const request = <T,>(url:string, method = "GET", body?: unknown) =>
-  customFetch<T>(url, {
+const request = <T,>(method = "GET", body?: unknown) =>
+  customFetch<T>("/api/email-templates", {
     method,
     ...(body
       ? {
@@ -22,8 +22,7 @@ const request = <T,>(url:string, method = "GET", body?: unknown) =>
         }
       : {}),
   });
-export function EmailTemplatesSettings({testSessionId}:{testSessionId?:string} = {}) {
-  const endpoint=testSessionId ? `/api/sales-test/sessions/${encodeURIComponent(testSessionId)}/email-templates` : '/api/email-templates';
+export function EmailTemplatesSettings() {
   const [data, setData] = useState<Templates | null>(null),
     [selected, setSelected] = useState("enquiry_acknowledgement");
   const [subject, setSubject] = useState(""),
@@ -47,7 +46,7 @@ export function EmailTemplatesSettings({testSessionId}:{testSessionId?:string} =
     setBusy(true);
     setError("");
     try {
-      apply(await request<Templates>(endpoint));
+      apply(await request<Templates>());
     } catch {
       setError("Message wording could not be loaded. Try again.");
     } finally {
@@ -73,7 +72,7 @@ export function EmailTemplatesSettings({testSessionId}:{testSessionId?:string} =
     setNotice("");
     try {
       apply(
-        await request<Templates>(endpoint,"PUT", {
+        await request<Templates>("PUT", {
           id: selected,
           expectedRevision: data.revision,
           ...(reset
@@ -81,7 +80,7 @@ export function EmailTemplatesSettings({testSessionId}:{testSessionId?:string} =
             : { subject, body, headline: active?.headline ?? "" }),
         }),
       );
-      setNotice(testSessionId ? "Wording saved in this test. No message was sent." : "Wording saved for future emails. No message was sent.");
+      setNotice("Wording saved for future emails. No message was sent.");
     } catch {
       setError(
         "Wording could not be saved. Your edits are kept. Reload if another owner changed the messages.",

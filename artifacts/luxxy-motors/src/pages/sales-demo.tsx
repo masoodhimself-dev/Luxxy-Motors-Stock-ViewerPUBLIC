@@ -1,5 +1,4 @@
 import { SaleHandover, SaleHandoverFields, handoverDefaults } from '@/components/portal/sale-handover';
-import { TestEmailButton } from '@/components/portal/test-email';
 import { SaleChecklists } from '@/components/sales-demo/sale-checklists';
 import { CompletedSaleCorrectionHelp } from '@/components/sales-demo/completed-sale-correction-help';
 import { SoldVehicleCustomerReview } from '@/components/portal/sold-vehicle-customer-review';
@@ -8,7 +7,7 @@ import { UKNumberPlate } from '@/components/uk-number-plate';
 import { useEnquirySummaries as useGetEnquiries } from "@/lib/enquiry-summary-query";
 import { SaleVehiclePhoto,saleVehicleChoiceLabel } from '@/components/sales-demo/vehicle-choice';
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { QueryClient, QueryClientProvider, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useSearch } from "wouter";
 import { customFetch, HttpApiError } from "@workspace/api-client-react";
 import {
@@ -25,7 +24,7 @@ import {
   type SaleWorkspaceDraft,
   type SaleWorkspacePayment,
 } from "@workspace/vehicle-meta";
-import { useStock, type StockData } from "@/lib/stock-context";
+import { useStock } from "@/lib/stock-context";
 import { useDealerSettings } from "@/lib/dealer-settings-context";
 import { useDealerFeatures } from "@/lib/dealer-features";
 import { saleInvoiceIsCurrent } from '@/lib/sale-invoice-current';
@@ -71,9 +70,6 @@ export interface SalesWorkspaceProps {
   embedded?: boolean;
   newSaleRequest?: number;
   onExit?: () => void;
-  /** When supplied, the portal owns the session and its isolated workspace. */
-  managedTestSession?: TestSession | null;
-  managedTestEnquiry?: {id:string; saleId:string|null; sessionId:string; request:number; customerName:string; email:string; phone:string; partExchange?:{registration:string;mileage:number;condition:string|null}|null} | null;
 }
 type SaleListRow = SaleWorkspaceRecord & { listSummary?: boolean; listTotalDue?: number; listPaid?: number; listPending?: number; listLedgerKnown?: boolean; listBalance?: number; listHasCorrectionNotes?: boolean; listHasRefunds?: boolean; listHandover?: { method: 'collection' | 'delivery'; status: string } | null };
 
@@ -95,11 +91,11 @@ function saleListProgress(sale: SaleListRow) {
 }
 type SaleListPage = { sales: SaleListRow[]; hasMore?: boolean };
 const salesListKey = ['sale-workspace', 'list'] as const;
-function salesListUrl(q = '', offset = 0, base = '/api/sale-workspace') {
+function salesListUrl(q = '', offset = 0) {
   const params = new URLSearchParams();
   if (q) params.set('q', q);
   if (offset) params.set('offset', String(offset));
-  return `${base}${params.size ? `?${params}` : ''}`;
+  return `/api/sale-workspace${params.size ? `?${params}` : ''}`;
 }
 const questions = [
   "Which car are you selling?",
@@ -115,54 +111,24 @@ const paymentDate = (date: string) =>
     year: "numeric",
   });
 
-export type TestSession = {
-  sessionId: string; expiresAt: string; sourceVehicleId?: string | null;
-  vehicle: { id: string; title: string; registration: string; price: number };
-  customer: { name: string; phone: string; email: string; address: string };
-};
-type InternalSalesProps = SalesWorkspaceProps & {
-  testSession?: TestSession;
-  onStartTest?: () => void;
-  onEndTest?: () => void;
-  testEnding?: boolean;
-  testError?: string;
-  showTestBanner?: boolean;
-};
-function SalesWorkspaceContent({
+export function SalesWorkspace({
   embedded = false,
   newSaleRequest = 0,
-  managedTestEnquiry,
   onExit,
-  testSession,
-  onStartTest,
-  onEndTest,
-  testEnding,
-  testError,
-  showTestBanner = true,
-}: InternalSalesProps) {
+}: SalesWorkspaceProps) {
   const [, navigate] = useLocation();
   const search = useSearch();
-  const realStock = useStock();
-  const testStock = useQuery({
-    queryKey: ['sales-test', testSession?.sessionId, 'stock'],
-    queryFn: ({ signal }) => customFetch<StockData>(`/api/sales-test/sessions/${encodeURIComponent(testSession!.sessionId)}/stock`, { signal }),
-    enabled: Boolean(testSession), retry: false,
-  });
-  const stock = testSession ? testStock.data ?? null : realStock.stock;
-  const stockLoading = testSession ? testStock.isLoading : realStock.isLoading;
-  const stockError = testSession ? (testStock.isError ? 'Test stock could not be loaded.' : null) : realStock.error;
-  const saleApiBase = testSession ? `/api/sales-test/sessions/${encodeURIComponent(testSession.sessionId)}/sale-workspace` : '/api/sale-workspace';
-  const listKey = testSession ? ['sales-test', testSession.sessionId, 'list'] : salesListKey;
+  const { stock, isLoading: stockLoading, error: stockError } = useStock();
   const { settings } = useDealerSettings();
   const features = useDealerFeatures();
-  const canEmailCustomer = !testSession && features.enabled('customerEmails');
+  const canEmailCustomer = features.enabled('customerEmails');
   const emailAvailabilityId = useId();
   const emailUnavailableReason = features.isLoading
     ? 'Checking email availability…'
     : features.isError
       ? 'Email availability could not be checked. Retry the availability check before sending. Your invoice is saved.'
       : 'Customer email sending is switched off by platform administration. You can still print or download the saved invoice.';
-  const enquiries = useGetEnquiries(undefined, testSession ? { query: { queryKey: ['sales-test', testSession.sessionId, 'enquiries'], enabled: false } } : undefined);
+  const enquiries = useGetEnquiries();
   const client = useQueryClient();
   const access = useStaffAccess();
   const [filter, setFilter] = useState(''), [listSearch, setListSearch] = useState('');
@@ -171,9 +137,9 @@ function SalesWorkspaceContent({
   useEffect(() => { const timer = setTimeout(() => setListSearch(filter.trim()), 250); return () => clearTimeout(timer); }, [filter]);
   useEffect(() => () => { openRequest.current++; openController.current?.abort(); }, []);
   const sales = useInfiniteQuery({
-    queryKey: [...listKey, listSearch],
+    queryKey: [...salesListKey, listSearch],
     initialPageParam: 0,
-    queryFn: ({ pageParam, signal }) => customFetch<SaleListPage>(salesListUrl(listSearch, pageParam, saleApiBase), { signal }),
+    queryFn: ({ pageParam, signal }) => customFetch<SaleListPage>(salesListUrl(listSearch, pageParam), { signal }),
     getNextPageParam: (lastPage, pages) => lastPage.hasMore ? pages.reduce((total, page) => total + page.sales.length, 0) : undefined,
     retry: false,
   });
@@ -182,12 +148,10 @@ function SalesWorkspaceContent({
     return (sales.data?.pages.flatMap(page => page.sales) ?? []).filter(sale => { if (seen.has(sale.id)) return false; seen.add(sale.id); return true; });
   }, [sales.data]);
   const [record, setRecord] = useState<SaleWorkspaceRecord | null>(null);
-  const pendingTestEnquiry = useRef<string | null>(null);
-  const consumedTestEnquiry = useRef(0);
   const correctionPaperwork = useQuery({
-    queryKey: ['sale-workspace', 'correction-instructions', typeof window === 'undefined' ? '' : window.location.host, testSession ? `test:${testSession.sessionId}` : 'live', record?.id],
+    queryKey: ['sale-workspace', 'correction-instructions', typeof window === 'undefined' ? '' : window.location.host, record?.id],
     queryFn: ({ signal }) => customFetch<{ correctionSettings?: { handling: 'accountant'; instructions: string } }>('/api/sale-workspace/paperwork', { signal }),
-    enabled: Boolean(!testSession && (record?.completedAt || record?.documents.some(document => document.type === 'invoice'))),
+    enabled: Boolean(record?.completedAt || record?.documents.some(document => document.type === 'invoice')),
     retry: false,
     gcTime: 0,
   });
@@ -226,7 +190,7 @@ function SalesWorkspaceContent({
   );
   const checklistReady = Boolean(record && !detailsDirty && saleWorkspaceChecklistProgress(record).ready);
   const dirty = detailsDirty || Boolean(payment.amount.trim());
-  const canDeleteDraft = Boolean(!testSession && record?.emptyDraftDeletable && access.data?.permissions.includes('sales.manage'));
+  const canDeleteDraft = Boolean(record?.emptyDraftDeletable && access.data?.permissions.includes('sales.manage'));
   const rows = record?.payments ?? [];
   const total = draft
     ? saleWorkspaceTotals(draft as SaleWorkspaceDraft, rows)
@@ -239,14 +203,14 @@ function SalesWorkspaceContent({
     ? [draft.customer, draft.phone, draft.email].map(value => value.trim()).find(value => value.length >= 2) ?? '' : '';
   useEffect(() => { const timer = setTimeout(() => setCustomerLookup(customerLookupInput), 250); return () => clearTimeout(timer); }, [customerLookupInput]);
   const customerSales = useQuery({
-    queryKey: [...listKey, 'customer-lookup', customerLookup],
-    queryFn: ({ signal }) => customFetch<SaleListPage>(salesListUrl(customerLookup, 0, saleApiBase), { signal }),
-    enabled: Boolean(!testSession && customerLookup && customerLookup === customerLookupInput),
+    queryKey: ['sale-workspace', 'customer-lookup', customerLookup],
+    queryFn: ({ signal }) => customFetch<SaleListPage>(salesListUrl(customerLookup), { signal }),
+    enabled: Boolean(customerLookup && customerLookup === customerLookupInput),
     retry: false,
     staleTime: 30_000,
   });
   const recentSales = [...new Map([...listRows, ...(customerLookup === customerLookupInput ? customerSales.data?.sales ?? [] : [])].map(sale => [sale.id, sale])).values()];
-  const customerOptions = testSession ? [] : [
+  const customerOptions = [
     ...(enquiries.data ?? []).map((item) => ({
       id: `enquiry-${item.id}`,
       key: 'Enquiry',
@@ -295,16 +259,9 @@ function SalesWorkspaceContent({
     setProblem("");
   }
   function displaySale(saved?: SaleWorkspaceRecord, initial?: SaleDraft) {
-    pendingTestEnquiry.current = null;
     setDeleteDraftOpen(false);
     setRecord(saved ?? null);
-    setDraft(initial ?? (saved ? structuredClone(saved.draft) : testSession ? {
-      ...emptyDraft(), customer: testSession.customer.name, phone: testSession.customer.phone,
-      email: testSession.customer.email, address: testSession.customer.address, vehicleId: testSession.vehicle.id,
-      vehicle: testSession.vehicle.title, registration: testSession.vehicle.registration,
-      price: String(testSession.vehicle.price),
-      fulfilment: { ...emptyDraft().fulfilment!, recipient: testSession.customer.name, phone: testSession.customer.phone, address: testSession.customer.address },
-    } : emptyDraft()));
+    setDraft(initial ?? (saved ? structuredClone(saved.draft) : emptyDraft()));
     setStep(0);
     setShowSummary(Boolean(saved));
     setKind(saved?.documents.at(-1)?.invoiceKind ?? "full");
@@ -325,41 +282,23 @@ function SalesWorkspaceContent({
     setOutstandingAccepted(false);
   }
   async function open(saved?: Pick<SaleListRow, 'id'>, initial?: SaleDraft) {
-    if (lock.current) return false;
-    if (dirty && !window.confirm('Leave your unsaved invoice details?')) { openRequest.current++; openController.current?.abort(); setOpeningId(null); return false; }
+    if (lock.current) return;
+    if (dirty && !window.confirm('Leave your unsaved invoice details?')) { openRequest.current++; openController.current?.abort(); setOpeningId(null); return; }
     const request = ++openRequest.current;
     openController.current?.abort();
     const controller = new AbortController(); openController.current = controller;
     setProblem('');
-    if (!saved) { setOpeningId(null); displaySale(undefined, initial); return true; }
+    if (!saved) { setOpeningId(null); displaySale(undefined, initial); return; }
     setOpeningId(saved.id);
     try {
-      const result = await customFetch<{ sale: SaleListRow }>(`${saleApiBase}/${encodeURIComponent(saved.id)}`, { signal: controller.signal });
-      if (controller.signal.aborted || request !== openRequest.current) return false;
+      const result = await customFetch<{ sale: SaleListRow }>(`/api/sale-workspace/${encodeURIComponent(saved.id)}`, { signal: controller.signal });
+      if (controller.signal.aborted || request !== openRequest.current) return;
       if (!result.sale || result.sale.id !== saved.id || result.sale.listSummary || !Array.isArray(result.sale.documents) || !Array.isArray(result.sale.payments)) throw new Error('The complete sale could not be loaded. Refresh sales and try again.');
       displaySale(result.sale);
-      return true;
     } catch (error) {
       if (!controller.signal.aborted && request === openRequest.current) setProblem((error as { data?: { error?: string } })?.data?.error || 'This sale could not be loaded. Refresh sales and try again.');
-      return false;
     } finally { if (request === openRequest.current) setOpeningId(null); }
   }
-  useEffect(() => {
-    if (!testSession || !managedTestEnquiry || managedTestEnquiry.sessionId !== testSession.sessionId || managedTestEnquiry.request === consumedTestEnquiry.current) return;
-    consumedTestEnquiry.current = managedTestEnquiry.request;
-    const item = managedTestEnquiry;
-    const address = item.customerName === testSession.customer.name && item.email === testSession.customer.email && item.phone === testSession.customer.phone ? testSession.customer.address : '';
-    const initial = item.saleId ? undefined : {
-      ...emptyDraft(), customer:item.customerName, email:item.email, phone:item.phone,
-      address, vehicleId:testSession.vehicle.id, vehicle:testSession.vehicle.title,
-      registration:testSession.vehicle.registration, price:String(testSession.vehicle.price),
-      notes:item.partExchange ? `Part-exchange enquiry: ${item.partExchange.registration}, ${item.partExchange.mileage.toLocaleString('en-GB')} miles${item.partExchange.condition ? `, ${item.partExchange.condition}` : ''}. Value not yet agreed.` : '',
-      fulfilment:{...emptyDraft().fulfilment!, recipient:item.customerName, phone:item.phone, address},
-    };
-    void open(item.saleId ? {id:item.saleId} : undefined, initial).then(opened => {
-      if (opened && !item.saleId) pendingTestEnquiry.current = item.id;
-    });
-  }, [testSession?.sessionId, managedTestEnquiry?.request]);
   useEffect(() => {
     if (newSaleRequest > 0 && newSaleRequest !== consumedNew.current) {
       consumedNew.current = newSaleRequest;
@@ -368,7 +307,7 @@ function SalesWorkspaceContent({
   }, [newSaleRequest]);
   useEffect(() => {
     const params = new URLSearchParams(search);
-    if (testSession || (embedded && params.get('section') !== 'sales')) return;
+    if (embedded && params.get('section') !== 'sales') return;
     const id = params.get('saleId'), enquiryId = params.get('enquiryId'), reservationId = params.get('reservationId');
     const key = [id, enquiryId, reservationId].join(':');
     if (key === '::' || key === consumed.current || lock.current || (!id && enquiries.isLoading)) return;
@@ -391,7 +330,7 @@ function SalesWorkspaceContent({
     openController.current?.abort(); const controller = new AbortController(); openController.current = controller;
     setOpeningId(`source:${enquiryId || reservationId}`); setProblem('');
     const paramsForSource = new URLSearchParams(enquiryId ? { enquiryId } : { reservationId: reservationId! });
-    void customFetch<SaleListPage>(`${saleApiBase}?${paramsForSource}`, { signal: controller.signal }).then(async result => {
+    void customFetch<SaleListPage>(`/api/sale-workspace?${paramsForSource}`, { signal: controller.signal }).then(async result => {
       if (controller.signal.aborted || request !== openRequest.current) return;
       if (!Array.isArray(result.sales)) throw new Error('Invalid sale lookup');
       // A released enquiry may be reused only after checking every matching page.
@@ -402,7 +341,7 @@ function SalesWorkspaceContent({
         while (page.hasMore) {
           if (!page.sales.length || offset > 10000) throw new Error('Incomplete sale lookup');
           const nextParams = new URLSearchParams(paramsForSource); nextParams.set('offset', String(offset));
-          page = await customFetch<SaleListPage>(`${saleApiBase}?${nextParams}`, { signal: controller.signal });
+          page = await customFetch<SaleListPage>(`/api/sale-workspace?${nextParams}`, { signal: controller.signal });
           if (controller.signal.aborted || request !== openRequest.current) return;
           if (!Array.isArray(page.sales)) throw new Error('Invalid sale lookup');
           results.push(...page.sales); offset += page.sales.length;
@@ -446,9 +385,7 @@ function SalesWorkspaceContent({
   function accept(result: SaleWorkspaceMutation) {
     setRecord(result.sale);
     setDraft(result.sale.draft);
-    void client.invalidateQueries({ queryKey: testSession ? listKey : ['sale-workspace'] }).catch(() => {});
-    if (testSession) void client.invalidateQueries({ queryKey: ['sales-test', testSession.sessionId, 'stock'] }).catch(() => {});
-    if (testSession) void client.invalidateQueries({ queryKey: ['sales-test', testSession.sessionId, 'practice-enquiries'] }).catch(() => {});
+    void client.invalidateQueries({ queryKey: ['sale-workspace'] }).catch(() => {});
     return result.sale;
   }
   async function request(url: string, method: string, payload: object) {
@@ -474,11 +411,10 @@ function SalesWorkspaceContent({
     const editable = { ...draft, payments: [], deposit: "" };
     return accept(
       await request(
-        record ? `${saleApiBase}/${record.id}` : saleApiBase,
+        record ? `/api/sale-workspace/${record.id}` : "/api/sale-workspace",
         record ? "PUT" : "POST",
         {
           draft: editable,
-          ...(!record && testSession && pendingTestEnquiry.current ? { testEnquiryId: pendingTestEnquiry.current } : {}),
           ...(record ? { expectedRevision: record.revision } : {}),
         },
       ),
@@ -487,7 +423,7 @@ function SalesWorkspaceContent({
   async function command(path: string, payload: object) {
     const saved = await saveInternal();
     const result = await request(
-      `${saleApiBase}/${saved.id}${path}`,
+      `/api/sale-workspace/${saved.id}${path}`,
       "POST",
       { expectedRevision: saved.revision, ...payload },
     );
@@ -526,14 +462,14 @@ function SalesWorkspaceContent({
     if (!record || !canDeleteDraft || dirty) return;
     const deleting = record;
     run(async () => {
-      const result = await customFetch<{ deleted: boolean; id: string }>(`${saleApiBase}/${deleting.id}`, { method: 'DELETE', body: JSON.stringify({ expectedRevision: deleting.revision, confirm: true }) });
+      const result = await customFetch<{ deleted: boolean; id: string }>(`/api/sale-workspace/${deleting.id}`, { method: 'DELETE', body: JSON.stringify({ expectedRevision: deleting.revision, confirm: true }) });
       if (result.deleted !== true || result.id !== deleting.id) throw new Error('Could not confirm deletion. Reload the saved sales before trying again.');
-      client.setQueriesData<{ pages: SaleListPage[]; pageParams: unknown[] }>({ queryKey: listKey }, previous => previous ? { ...previous, pages: previous.pages.map(page => ({ ...page, sales: page.sales.filter(sale => sale.id !== deleting.id) })) } : previous);
+      client.setQueriesData<{ pages: SaleListPage[]; pageParams: unknown[] }>({ queryKey: salesListKey }, previous => previous ? { ...previous, pages: previous.pages.map(page => ({ ...page, sales: page.sales.filter(sale => sale.id !== deleting.id) })) } : previous);
       setDeleteDraftOpen(false); setRecord(null); setDraft(null); setIssued(null); setShowSummary(false);
-      if (embedded && !testSession) navigate('/portal?section=sales');
+      if (embedded) navigate('/portal?section=sales');
       setMessage('Draft deleted.');
       // A failed background refresh must not make a completed deletion look like a failure.
-      void client.invalidateQueries({ queryKey: testSession ? listKey : ['sale-workspace'] }).catch(() => {});
+      void client.invalidateQueries({ queryKey: ['sale-workspace'] }).catch(() => {});
     });
   }
   const saveChecks = (input: SaleWorkspaceChecklistInput) => run(async () => {
@@ -642,7 +578,7 @@ function SalesWorkspaceContent({
           draft,
           dealer: settings,
           issuedDocument: doc,
-          pdfUrl: `${saleApiBase}/${record.id}/documents/${doc.id}/pdf`,
+          pdfUrl: `/api/sale-workspace/${record.id}/documents/${doc.id}/pdf`,
         },
         action,
       );
@@ -667,7 +603,7 @@ function SalesWorkspaceContent({
   function prepareDocumentEmail(doc: SaleWorkspaceDocument) {
     setIssued(doc);
     setShowSummary(false);
-    setMessage(testSession ? 'This is a test invoice. Test emails go only to the designated test inbox.' : canEmailCustomer ? "Review this saved document, then choose Email customer to send it through the dealership email system." : `Review this saved document. ${emailUnavailableReason}`);
+    setMessage(canEmailCustomer ? "Review this saved document, then choose Email customer to send it through the dealership email system." : `Review this saved document. ${emailUnavailableReason}`);
   }
   function leave() {
     if (
@@ -680,7 +616,7 @@ function SalesWorkspaceContent({
     setShowSummary(false);
     setIssued(null);
     setProblem("");
-    if (!embedded && !testSession) navigate("/portal?section=sales");
+    if (!embedded) navigate("/portal?section=sales");
   }
   const latestInvoice = record?.documents.filter(document => document.type === "invoice").at(-1) ?? null;
   const needsCorrectionReview = Boolean(record?.corrections?.length || (record?.completedAt && rows.some(row => row.status === 'confirmed' && row.signedAmountPence < 0)));
@@ -746,7 +682,7 @@ function SalesWorkspaceContent({
       <label>
         {label}
         {key === "registration" ? <UKNumberPlate editable required={false} variant="front" value={draft?.registration ?? ""}
-          inputLabel={label} onChange={value => update("registration",value)} disabled={Boolean(record?.completedAt || testSession)} /> : <Input
+          inputLabel={label} onChange={value => update("registration",value)} disabled={Boolean(record?.completedAt)} /> : <Input
           type={type}
           value={draft?.[key] ?? ""}
           onChange={(event) => update(key, event.target.value)}
@@ -759,11 +695,6 @@ function SalesWorkspaceContent({
 
   return (
     <div className={`invoice-builder${draft ? " is-editing" : ""}`}>
-      {testSession && showTestBanner && <div className="sales-test-banner">
-        <div><strong>TEST MODE — practice sale</strong><p>Invoices and payments stay in this test. Emails go only to the designated test inbox.</p></div>
-        <Button type="button" variant="outline" disabled={testEnding} onClick={onEndTest}>{testEnding ? 'Ending test…' : 'End test and delete test data'}</Button>
-        {testError && <p role="alert">{testError}</p>}
-      </div>}
       <header className="invoice-builder-header">
         <div>
           <span className="invoice-builder-brand">
@@ -800,10 +731,9 @@ function SalesWorkspaceContent({
                 steps.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => open()}><Plus size={17} /> New invoice</Button>
-              {onStartTest && access.data?.permissions.includes('sales.manage') && <Button variant="outline" onClick={onStartTest}>Start test sale</Button>}
-            </div>
+            <Button onClick={() => open()}>
+              <Plus size={17} /> New invoice
+            </Button>
           </div>
           <Input
             aria-label="Search sales"
@@ -904,7 +834,7 @@ function SalesWorkspaceContent({
                     <p className="invoice-builder-kicker">Selected car</p>
                     <h2>{draft.vehicle || "Selected vehicle"}</h2>
                     {vehicle?.variant && <p className="invoice-car-context-variant">{vehicle.variant}</p>}
-                    {testSession ? <span>{testSession.vehicle.registration}</span> : <UKNumberPlate value={draft.registration} size="sm" variant="front" />}
+                    <UKNumberPlate value={draft.registration} size="sm" variant="front" />
                   </div>
                   {vehicle && (
                     <div className="invoice-car-context-specs">
@@ -943,7 +873,7 @@ function SalesWorkspaceContent({
                         run(async () => {
                           const latest = await customFetch<{
                             sale: SaleWorkspaceRecord;
-                          }>(`${saleApiBase}/${record.id}`);
+                          }>(`/api/sale-workspace/${record.id}`);
                           accept({ sale: latest.sale });
                           setMessage("Latest sale loaded.");
                         })
@@ -970,11 +900,7 @@ function SalesWorkspaceContent({
                   {needsCorrectionReview && <p role="alert" className="invoice-error">{record.lifecycle?.status === 'released' ? 'This released sale has a correction note. Check the external paperwork with your accountant.' : 'This sale has a recorded refund or correction note. The calculated balance uses the price recorded here and does not include external price corrections. Check with your accountant before treating it as money owed.'}</p>}
                   {record.lifecycle?.status === 'released' && <p className="invoice-note">The reservation was released and the sale is not completed. The agreed price above is retained for the record. To sell this car, return to sales and start a new invoice.</p>}
                   {record.lifecycle?.status === 'released' && (total.confirmedPaid !== 0 || total.pending > 0) && <p role="alert" className="invoice-error">Review the recorded payments and any provider refund status for this released reservation. {total.confirmedPaid !== 0 && `${total.confirmedPaid < 0 ? 'Net paid out' : 'Net received'}: ${saleMoney(Math.abs(total.confirmedPaid))}. `}{total.pending > 0 && `Pending: ${saleMoney(total.pending)}. `}These amounts do not mean the purchase price is due.</p>}
-                  {record.lifecycle?.status !== 'released' && <SaleHandover key={`handover:${record.id}`} sale={record} onSaved={sale => accept({sale})} saleApiBase={saleApiBase} allowMessaging={!testSession} testOnly={Boolean(testSession)} />}
-                  {testSession && record.lifecycle?.status !== 'released' && <div className="flex flex-wrap gap-2">
-                    {record.draft.fulfilment && <TestEmailButton sessionId={testSession.sessionId} saleId={record.id} templateId="handover_confirmation" label="Preview collection or delivery email" />}
-                    {record.completedAt && <TestEmailButton sessionId={testSession.sessionId} saleId={record.id} templateId="review_request" label="Preview review request" />}
-                  </div>}
+                  {record.lifecycle?.status !== 'released' && <SaleHandover key={`handover:${record.id}`} sale={record} onSaved={sale => accept({sale})} />}
                   {resumeAction && <div className="invoice-resume-next"><div><strong>Pick up where you left off</strong><p>{resumeAction.note}</p></div><Button disabled={busy} onClick={resumeAction.run}>{resumeAction.label}<ArrowRight size={16} aria-hidden="true" /></Button></div>}
                   <div className="invoice-resume-records">
                     <section aria-labelledby="resume-payments-heading"><h2 id="resume-payments-heading">Payment history</h2><p>{rows.length ? `${rows.length} ${rows.length === 1 ? "entry" : "entries"} recorded` : "No payments recorded yet."}</p>{latestPayment && <small>Latest: {saleMoney(latestPayment.signedAmountPence)} · {paymentDate(latestPayment.date)} · {latestPayment.method}</small>}{total.pending > 0 && <small>{saleMoney(total.pending)} pending — not yet received.</small>}{record.lifecycle?.status !== 'released' && <Button variant="outline" disabled={busy} onClick={() => resumeAt(2)}>Record payment</Button>}</section>
@@ -984,7 +910,7 @@ function SalesWorkspaceContent({
                   {rows.length > 0 && <section className="invoice-summary-payments" aria-label="Recorded payments"><ul>{rows.map(row => <li key={row.id} data-status={row.status}><div><strong>{saleMoney(row.signedAmountPence)}</strong><span>{paymentDate(row.date)} · {row.method}</span></div><small>{row.status === "confirmed" ? row.signedAmountPence < 0 ? "Returned / reversed" : "Received" : row.status}{row.reference && ` · ${row.reference}`}</small></li>)}</ul></section>}
                   {record.lifecycle?.status !== 'released' && <div className="invoice-resume-edit"><span>{record.completedAt ? "Completed details are locked. Issued invoices remain unchanged." : "Need to correct something?"}</span><Button variant="ghost" disabled={busy} onClick={() => resumeAt(0)}>{record.completedAt ? "View vehicle details" : "Edit vehicle & price"}</Button><Button variant="ghost" disabled={busy} onClick={() => resumeAt(1)}>{record.completedAt ? "View customer details" : "Edit customer details"}</Button></div>}
                   {canDeleteDraft && <div className="invoice-draft-delete"><div><strong>{record.draft.customer ? 'Test sale draft' : 'Unused sale draft'}</strong><p>No invoice or payment has been recorded. {dirty ? 'Save or discard your unsaved changes before deleting.' : 'You can remove this draft if it is no longer needed.'}</p></div><Button variant="outline" disabled={busy || dirty} onClick={() => { setProblem(''); setDeleteDraftOpen(true); }}><Trash2 size={16} aria-hidden="true" />Delete draft</Button></div>}
-                  {!testSession && (record.completedAt || record.lifecycle?.status === 'sold') && <><SoldVehicleCustomerReview saleId={record.id} /></>}
+                  {(record.completedAt || record.lifecycle?.status === 'sold') && <><SoldVehicleCustomerReview saleId={record.id} /></>}
                   {record.documents.length > 1 && <details className="invoice-resume-paperwork"><summary>All saved paperwork ({record.documents.length})</summary>{[...record.documents].reverse().map(document => <div key={document.id}><span>{document.title}<small>{document.number}</small></span><Button variant="outline" size="sm" disabled={busy} onClick={() => documentAction(document, "print")}>Open {document.number}</Button></div>)}</details>}
                   {(record.completedAt || latestInvoice) && <CompletedSaleCorrectionHelp
                     key={record.id}
@@ -1000,7 +926,7 @@ function SalesWorkspaceContent({
                       lock.current = true;
                       setBusy(true);
                       try {
-                        const result = await request(`${saleApiBase}/${record.id}/corrections`, 'POST', { expectedRevision: record.revision, ...input });
+                        const result = await request(`/api/sale-workspace/${record.id}/corrections`, 'POST', { expectedRevision: record.revision, ...input });
                         accept(result);
                       } catch (error) {
                         if (error instanceof HttpApiError && error.data && typeof error.data === 'object' && 'error' in error.data) throw new Error(String(error.data.error));
@@ -1038,32 +964,28 @@ function SalesWorkspaceContent({
                     >
                       <Download size={17} /> Download PDF
                     </Button>
-                    {!testSession && <Button
+                    <Button
                       variant="outline"
                       disabled={busy || !canEmailCustomer || !issued.snapshot.draft.email}
                       aria-describedby={!canEmailCustomer ? emailAvailabilityId : undefined}
                       onClick={() => email(issued)}
                     >
                       <Mail size={17} /> Email customer
-                    </Button>}
-                    {testSession && record && <TestEmailButton sessionId={testSession.sessionId} saleId={record.id} documentId={issued.id} label="Email test invoice" />}
+                    </Button>
 
                   </div>
-                  {!testSession && !canEmailCustomer && <div id={emailAvailabilityId} role="status" className="invoice-note"><p>{emailUnavailableReason}</p>{features.isError && <Button variant="outline" disabled={features.isFetching} onClick={() => void features.refetch()}>Retry email availability</Button>}</div>}
-                  {record && <SaleHandover key={`handover:${record.id}`} sale={record} onSaved={sale => accept({sale})} saleApiBase={saleApiBase} allowMessaging={!testSession} testOnly={Boolean(testSession)} />}
-                  {testSession && record && <div className="flex flex-wrap gap-2">
-                    {record.draft.fulfilment && <TestEmailButton sessionId={testSession.sessionId} saleId={record.id} templateId="handover_confirmation" label="Preview collection or delivery email" />}
-                    {record.completedAt && <TestEmailButton sessionId={testSession.sessionId} saleId={record.id} templateId="review_request" label="Preview review request" />}
-                  </div>}
+                  {!canEmailCustomer && <div id={emailAvailabilityId} role="status" className="invoice-note"><p>{emailUnavailableReason}</p>{features.isError && <Button variant="outline" disabled={features.isFetching} onClick={() => void features.refetch()}>Retry email availability</Button>}</div>}
+                  {record && <SaleHandover key={`handover:${record.id}`} sale={record} onSaved={sale => accept({sale})} />}
 
-                  {!testSession && issued.invoiceKind === 'full' && record && <SoldVehicleCustomerReview key={`sold-customers:${record.id}:${record.lifecycle?.status ?? 'draft'}`} saleId={record.id} />}
+                  {issued.invoiceKind === 'full' && record && <SoldVehicleCustomerReview key={`sold-customers:${record.id}:${record.lifecycle?.status ?? 'draft'}`} saleId={record.id} />}
                   {issued.invoiceKind === "full" &&
                     !record?.completedAt &&
                     !soldChoice && (
                       <section className="invoice-sold-question">
                         <h2>Should this car be marked sold?</h2>
                         <p>
-                          {testSession ? 'This only changes the copied test car.' : 'Marking it sold removes it from the customer website. Your invoice and payments stay saved.'}
+                          Marking it sold removes it from the customer website.
+                          Your invoice and payments stay saved.
                         </p>
                         {checklistPanel()}
                         {total!.balance > 0 && (
@@ -1107,12 +1029,12 @@ function SalesWorkspaceContent({
                                 await client.invalidateQueries({ queryKey: soldVehicleFollowUpsQueryKey });
                                 setSoldChoice(true);
                                 setMessage(
-                                  testSession ? "Test car marked sold." : "Car marked sold and removed from the website.",
+                                  "Car marked sold and removed from the website.",
                                 );
                               })
                             }
                           >
-                            {testSession ? 'Yes, mark test car sold' : 'Yes, mark sold & remove'}
+                            Yes, mark sold & remove
                           </Button>
                           <Button
                             variant="outline"
@@ -1236,8 +1158,8 @@ function SalesWorkspaceContent({
                       <RecentCustomerFields
                         value={{ customerName: draft.customer, phone: draft.phone, email: draft.email }}
                         customers={customerOptions}
-                        disabled={Boolean(record?.completedAt || testSession)}
-                        suggestionsDisabled={Boolean(rows.length || testSession)}
+                        disabled={Boolean(record?.completedAt)}
+                        suggestionsDisabled={Boolean(rows.length)}
                         nameLabel="Customer’s full name"
                         phoneLabel="Telephone"
                         emailLabel="Email for the invoice"
@@ -1256,10 +1178,10 @@ function SalesWorkspaceContent({
                         }}
                         onSelect={autofillCustomer}
                       />
-                      {!testSession && (enquiries.isError || sales.isError || customerSales.isError) && (
+                      {(enquiries.isError || sales.isError || customerSales.isError) && (
                         <p className="text-sm text-muted-foreground">Some recent customer details could not be loaded. You can still enter the customer’s details.</p>
                       )}
-                      {!testSession && (enquiries.isLoading || sales.isLoading || customerSales.isFetching) && (
+                      {(enquiries.isLoading || sales.isLoading || customerSales.isFetching) && (
                         <p className="text-sm text-muted-foreground" role="status">Loading recent customers…</p>
                       )}
                       {contactAutofillNotice && <p className="text-sm text-muted-foreground" role="status">{contactAutofillNotice}</p>}
@@ -1275,7 +1197,7 @@ function SalesWorkspaceContent({
                             }
                           />
                         </label>
-                        {!testSession && !record?.completedAt && !rows.length && <small className="invoice-field-wide">Choosing a recent customer clears this address. Confirm their current address for this sale.</small>}
+                        {!record?.completedAt && !rows.length && <small className="invoice-field-wide">Choosing a recent customer clears this address. Confirm their current address for this sale.</small>}
                       </div>
                     </>
                   )}
@@ -1772,7 +1694,7 @@ function SalesWorkspaceContent({
                         </label>
 
                       </section>}
-                      <SaleHandoverFields draft={draft} value={handoverDefaults(draft)} onChange={value => update('fulfilment',value)} disabled={Boolean(record?.draft.fulfilment?.completedAt)} testOnly={Boolean(testSession)} />
+                      <SaleHandoverFields draft={draft} value={handoverDefaults(draft)} onChange={value => update('fulfilment',value)} disabled={Boolean(record?.draft.fulfilment?.completedAt)} />
                       {kind === 'full' && checklistPanel()}
                       <label className="invoice-check">
                         <input
@@ -1786,11 +1708,10 @@ function SalesWorkspaceContent({
                         received payments.
                       </label>
                       <p className="invoice-note">
-                        {testSession
-                          ? 'The PDF is marked as a test and uses test terms. It is not a real invoice.'
-                          : kind === 'full'
-                            ? 'Creating the full invoice does not mark the car sold. You’ll be asked afterwards. The PDF uses your dealership’s invoice branding and any approved terms supplied in settings.'
-                            : 'The deposit invoice uses your dealership’s invoice branding and any approved terms supplied in settings.'}
+                        Creating the full invoice does not mark the car sold.
+                        You’ll be asked afterwards. The PDF uses your
+                        dealership’s invoice branding and any approved terms
+                        supplied in settings.
                       </p>
                     </>
                   )}
@@ -1863,7 +1784,7 @@ function SalesWorkspaceContent({
           <DialogHeader><DialogTitle>Delete this draft?</DialogTitle><DialogDescription>This permanently removes only this unused or clearly labelled test draft. Invoices, payments, stock and customer enquiry records are kept.</DialogDescription></DialogHeader>
           <p>{record.draft.customer || 'No customer added'}{record.draft.vehicle ? ` — ${record.draft.vehicle}` : ''}</p>
           {problem && <div><p role="alert">{problem}</p><Button variant="outline" disabled={busy} onClick={() => run(async () => {
-            const latest = await customFetch<{ sale: SaleWorkspaceRecord }>(`${saleApiBase}/${record.id}`);
+            const latest = await customFetch<{ sale: SaleWorkspaceRecord }>(`/api/sale-workspace/${record.id}`);
             setDeleteDraftOpen(false); accept({ sale: latest.sale }); setMessage('Latest draft loaded. Review it before deleting.');
           })}>Reload saved sales</Button></div>}
           <DialogFooter className="gap-2 sm:gap-0"><Button id="keep-sale-draft" variant="outline" disabled={busy} onClick={() => { setDeleteDraftOpen(false); setProblem(''); }}>Keep draft</Button><Button variant="destructive" disabled={busy || !canDeleteDraft || dirty || Boolean(problem)} onClick={deleteSavedDraft}>{busy ? 'Deleting…' : 'Delete draft permanently'}</Button></DialogFooter>
@@ -1871,13 +1792,13 @@ function SalesWorkspaceContent({
       </Dialog>}
       {record && <Dialog open={releaseReservationOpen} onOpenChange={open => { if (!busy) setReleaseReservationOpen(open); }}>
         <DialogContent className="z-[90]" overlayClassName="z-[89]">
-          <DialogHeader><DialogTitle>Release this reservation?</DialogTitle><DialogDescription>{testSession ? 'The copied test car will become available again.' : 'The reservation will be removed. The car may become available to customers if it is still in published stock.'} The sale, invoices and payment history will be kept. No message will be sent.</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>Release this reservation?</DialogTitle><DialogDescription>The reservation will be removed. The car may become available to customers if it is still in published stock. The sale, invoices and payment history will be kept. No message will be sent.</DialogDescription></DialogHeader>
           {problem && <p role="alert">{problem}</p>}
           <DialogFooter><Button variant="outline" disabled={busy} onClick={() => setReleaseReservationOpen(false)}>Keep reserved</Button><Button disabled={busy || dirty || total?.confirmedPaid !== 0 || total?.pending !== 0} onClick={() => run(async () => {
             await command('/lifecycle', {status:'released'});
             setReleaseReservationOpen(false);
-            setMessage(testSession ? 'Test reservation released. The copied car is available again.' : 'Reservation released. Check the car’s published stock status before promising it to another customer.');
-            if (!testSession) void client.invalidateQueries({queryKey:getGetStockQueryKey()}).catch(() => {});
+            setMessage('Reservation released. Check the car’s published stock status before promising it to another customer.');
+            void client.invalidateQueries({queryKey:getGetStockQueryKey()}).catch(() => {});
           })}>{busy ? 'Releasing…' : 'Release reservation'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>}
@@ -1915,72 +1836,6 @@ function SalesWorkspaceContent({
       )}
     </div>
   );
-}
-
-/** The test workspace has a separate cache and a server-owned synthetic scope. */
-export function SalesWorkspace(props: SalesWorkspaceProps) {
-  const [session, setSession] = useState<TestSession | null>(null);
-  const [starting, setStarting] = useState(false);
-  const [ending, setEnding] = useState(false);
-  const [confirmEnd, setConfirmEnd] = useState(false);
-  const [testError, setTestError] = useState('');
-  const [testCache] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: false } } }));
-  async function startTest() {
-    if (starting) return;
-    setStarting(true); setTestError('');
-    try {
-      const current = await customFetch<{ session: TestSession | null }>('/api/sales-test/sessions');
-      const result = current.session ?? await customFetch<TestSession>('/api/sales-test/sessions', { method: 'POST' });
-      if (!result.sessionId || !result.vehicle?.id || !result.customer?.name) throw new Error('The test workspace could not be started.');
-      testCache.clear(); setSession(result);
-    } catch (error) {
-      setTestError(error instanceof Error ? error.message : 'The test workspace could not be started.');
-    } finally { setStarting(false); }
-  }
-  async function endTest() {
-    if (!session || ending) return;
-    setEnding(true); setTestError('');
-    try {
-      const result = await customFetch<{ cleared: boolean }>(`/api/sales-test/sessions/${encodeURIComponent(session.sessionId)}`, { method: 'DELETE' });
-      if (result.cleared !== true) throw new Error('The test cleanup could not be confirmed. Please retry.');
-      testCache.clear(); setSession(null); setConfirmEnd(false);
-    } catch (error) {
-      // A completed cleanup can lose its response. A retry then returns 404;
-      // only leave the old workspace after independently confirming that its
-      // exact session is absent. Never clear or delete a newer session.
-      if (error instanceof HttpApiError && error.status === 404) {
-        try {
-          const current = await customFetch<{ session: TestSession | null }>('/api/sales-test/sessions');
-          if (current && (current.session === null || (typeof current.session?.sessionId === 'string' && current.session.sessionId && current.session.sessionId !== session.sessionId))) {
-            testCache.clear(); setSession(null); setConfirmEnd(false); return;
-          }
-        } catch { /* Keep the workspace open when cleanup cannot be verified. */ }
-      }
-      setTestError(error instanceof Error ? error.message : 'The test could not be ended. Please retry.');
-    } finally { setEnding(false); }
-  }
-  if (props.managedTestSession !== undefined) return props.managedTestSession
-    ? <SalesWorkspaceContent {...props} testSession={props.managedTestSession} showTestBanner={false} />
-    : <SalesWorkspaceContent {...props} />;
-  if (!session) return <>
-    {testError && <p role="alert">{testError}</p>}
-    {starting && <p role="status">Starting test sale…</p>}
-    <SalesWorkspaceContent {...props} />
-  </>;
-  const confirmDialog = <Dialog open={confirmEnd} onOpenChange={open => { if (!ending) { setConfirmEnd(open); setTestError(''); } }}>
-    <DialogContent className="z-[90]" overlayClassName="z-[89]">
-      <DialogHeader><DialogTitle>End this test?</DialogTitle><DialogDescription>This permanently removes this test's sales, invoices and payments. Real dealership records are not affected.</DialogDescription></DialogHeader>
-      {testError && <p role="alert">{testError}</p>}
-      <DialogFooter><Button variant="outline" disabled={ending} onClick={() => setConfirmEnd(false)}>Keep testing</Button><Button variant="destructive" disabled={ending} onClick={() => void endTest()}>{ending ? 'Clearing…' : 'Clear test data'}</Button></DialogFooter>
-    </DialogContent>
-  </Dialog>;
-  if (new Date(session.expiresAt).getTime() <= Date.now()) return <><div className="sales-test-banner">
-    <div><strong>TEST MODE — session expired</strong><p>Clear this test before starting another one.</p>{testError && <p role="alert">{testError}</p>}</div>
-    <Button type="button" variant="outline" disabled={ending} onClick={() => setConfirmEnd(true)}>{ending ? 'Ending test…' : 'End test and delete test data'}</Button>
-  </div>{confirmDialog}</>;
-  return <><QueryClientProvider client={testCache}>
-    <SalesWorkspaceContent embedded testSession={session} onExit={() => setConfirmEnd(true)} onEndTest={() => setConfirmEnd(true)} testEnding={ending} testError={testError} />
-  </QueryClientProvider>{confirmDialog}</>;
 }
 export default function SalesDemo() {
   return <SalesWorkspace />;

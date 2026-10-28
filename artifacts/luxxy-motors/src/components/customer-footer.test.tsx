@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { dealerConfig } from '@/config/dealer';
 import { CustomerFooter } from './customer-footer';
 
-vi.mock('wouter', () => ({ useLocation: () => ['/', vi.fn()], Link: ({ children, href, ...props }: any) => <a href={href} {...props}>{children}</a> }));
+vi.mock('wouter', () => ({ Link: ({ children, href, ...props }: any) => <a href={href} {...props}>{children}</a> }));
 
 describe('public footer settings', () => {
   it('keeps the configured booking wording and the current vehicle link together', () => {

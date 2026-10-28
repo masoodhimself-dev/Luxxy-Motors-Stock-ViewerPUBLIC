@@ -4,9 +4,8 @@ import type { Car } from '@/lib/stock-context';
 import { defaultBookingSettings } from '@/lib/test-drive-dates';
 import { TestDriveBooking } from './test-drive-booking';
 
-const state = vi.hoisted(() => ({ failed: false, empty: false, fetching: false, pending: false, success: false, daysAhead: 3, partExchangeEnabled: true, mutate: vi.fn(), reset: vi.fn(),fetch:vi.fn() }));
+const state = vi.hoisted(() => ({ failed: false, empty: false, fetching: false, pending: false, success: false, daysAhead: 3, partExchangeEnabled: true, mutate: vi.fn(), reset: vi.fn() }));
 vi.mock('@workspace/api-client-react', () => ({
-  customFetch:state.fetch,
   useCreateEnquiry: () => ({ isPending: state.pending, isSuccess: state.success, isError: false, mutate: state.mutate, reset: state.reset,
     data: { appointmentStatus: 'confirmed', appointmentAt: '2026-10-17T09:00:00.000Z', appointmentDurationMinutes: 30, customerNotificationStatus: 'pending', managePath: '/viewing/fictional-booking' },
   }),
@@ -36,7 +35,6 @@ beforeEach(() => {
   state.daysAhead = 3;
   state.partExchangeEnabled = true;
   state.mutate.mockClear();
-  state.fetch.mockReset();
   window.sessionStorage.clear();
   window.history.replaceState({}, '', '/enquire?type=viewing&vehicleId=booking-car');
   HTMLElement.prototype.scrollIntoView = vi.fn();
@@ -44,33 +42,6 @@ beforeEach(() => {
   vi.setSystemTime(new Date('2026-10-16T08:00:00Z'));
 });
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
-
-it('uses the actual booking form with only session-scoped availability and submission in test mode',async()=>{
- vi.useRealTimers();const submit=vi.fn().mockResolvedValue({appointmentStatus:'pending'});
- state.fetch.mockImplementation(async (url:string)=>{const date=new URL(url,'http://localhost').searchParams.get('date');return {date,timezone:'Europe/London',slots:[{available:true,label:'10:00 am',startAt:`${date}T10:00:00.000Z`}]};});
- const config={identity:{name:'Test Motors'},address:{},contact:{},hours:[],partExchange:{enabled:false},testDriveBooking:{...defaultBookingSettings,confirmationMode:'approval',daysAhead:3,weeklyHours:Array.from({length:7},(_,day)=>({day,enabled:true,open:'09:00',close:'18:00'}))}};
- render(<TestDriveBooking vehicle={car} stockCars={[car]} testMode={{sessionId:'test-session',customer:{name:'Copied Customer',email:'copy@example.test',phone:'07700900123'},config:config as any,submit}}/>);
- fireEvent.click(within(await screen.findByTestId('group-viewing-slots')).getByRole('button'));
- fireEvent.click(screen.getByTestId('button-continue-to-details'));
- expect(screen.getByTestId('input-customer-name')).toHaveValue('Copied Customer');
- fireEvent.submit(screen.getByTestId('button-review-booking').closest('form')!);
- fireEvent.click(screen.getByTestId('button-submit-enquiry'));
- expect(await screen.findByText('Test drive request saved in the test inbox')).toBeVisible();
- expect(submit).toHaveBeenCalledOnce();
- expect(submit).toHaveBeenCalledWith(expect.objectContaining({type:'viewing',customerName:'Copied Customer',visitorId:null}));
- expect(state.mutate).not.toHaveBeenCalled();
- expect(state.fetch.mock.calls.every(([url])=>String(url).startsWith('/api/sales-test/sessions/test-session/enquiries/availability'))).toBe(true);
- expect(window.sessionStorage.length).toBe(0);
-});
-
-it('does not expose live contact or navigation links in test-mode availability recovery',async()=>{
- vi.useRealTimers();state.fetch.mockResolvedValue({slots:[]});
- const config={identity:{name:'Test Motors'},address:{},contact:{phone:'07700900123',whatsapp:'447700900123'},hours:[],partExchange:{enabled:false},testDriveBooking:{...defaultBookingSettings,daysAhead:3,weeklyHours:Array.from({length:7},(_,day)=>({day,enabled:true,open:'09:00',close:'18:00'}))}};
- render(<TestDriveBooking vehicle={car} stockCars={[car]} testMode={{sessionId:'test-session',customer:{name:'Copied Customer',email:'copy@example.test',phone:'07700900123'},config:config as any,submit:vi.fn()}}/>);
- await screen.findByTestId('status-availability-empty');
- expect(document.querySelector('a[href^="tel:"]')).toBeNull();expect(document.querySelector('a[href*="wa.me"]')).toBeNull();
- expect(screen.queryByRole('link',{name:'Ask us about a time'})).not.toBeInTheDocument();expect(screen.queryByRole('link',{name:'Back to the car'})).not.toBeInTheDocument();
-});
 
 it('sends the reviewed booking once, waits for the response and shows the saved appointment without claiming an unsent email', () => {
   const view = render(booking());

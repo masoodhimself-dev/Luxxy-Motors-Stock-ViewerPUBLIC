@@ -15,7 +15,7 @@ for (const width of [390, 1440]) {
     await mkdir('../../docs/screenshots/customer-simplification', { recursive: true });
     await page.screenshot({ path: `../../docs/screenshots/customer-simplification/vehicle-${width}.png`, fullPage: true });
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Recently viewed', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Recently viewed', exact: true })).toHaveCount(0);
     await page.screenshot({ path: `../../docs/screenshots/customer-simplification/home-${width}.png`, fullPage: true });
 
   });

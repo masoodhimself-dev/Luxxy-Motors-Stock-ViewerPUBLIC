@@ -2,13 +2,12 @@ import { Router } from 'express';
 import { z } from 'zod/v4';
 import { pool } from '@workspace/db';
 import { demoProvisioning } from '../lib/demo-policy';
-import { saveDemoBaseline } from '../lib/demo-baseline';
 import { runWithTenant } from '../lib/tenant-context';
 import { EmailProviderError, sendEmailWithSettings } from '../lib/email-provider';
 
 import { isPlatformAdmin } from '../lib/platform-admin';
 export type CompletionKey={id:string;ownerAuthUserId:string};
-export async function runDemoCompletionOperation(key:CompletionKey,id:string,operation:'test-email'|'baseline',method:string,input:{runId?:string;confirm?:string},transport:typeof fetch=(...args)=>fetch(...args)):Promise<{httpStatus:number;body:Record<string,any>}>{
+export async function runDemoCompletionOperation(key:CompletionKey,id:string,operation:'test-email'|'stock-ready',method:string,input:{runId?:string;confirm?:string},transport:typeof fetch=(...args)=>fetch(...args)):Promise<{httpStatus:number;body:Record<string,any>}>{
   const client=await pool.connect();
   try{
    await client.query('BEGIN');
@@ -19,7 +18,7 @@ export async function runDemoCompletionOperation(key:CompletionKey,id:string,ope
    if(new Date(demo.expires_at).getTime()<=Date.now()||demo.status!=='active'){await client.query('ROLLBACK');return {httpStatus:410,body:{error:'This demo is expired or inactive.'}};}
    const provision=demoProvisioning();
    let state=(await client.query('SELECT * FROM demo_onboarding_completion WHERE dealer_id=$1',[id])).rows[0];
-   const reply=()=>({dealerId:id,status:state?.email_status??'not-sent',baselineSaved:Boolean(demo.baseline),...(state?.completed_at?{completedAt:state.completed_at}:{}),...(state?.checked_at?{checkedAt:state.checked_at}:{})});
+   const reply=()=>({dealerId:id,status:state?.email_status??'not-sent',stockReady:Boolean(state?.completed_at),...(state?.completed_at?{completedAt:state.completed_at}:{}),...(state?.checked_at?{checkedAt:state.checked_at}:{})});
    if(operation==='test-email'){
     if(!provision.emailReady||!provision.emailDomain||!provision.recipients.includes(demo.recipient)){await client.query('ROLLBACK');return {httpStatus:409,body:{error:'Demo sender or approved recipient is not ready.'}};}
     if(state&&state.recipient!==demo.recipient){await client.query('ROLLBACK');return {httpStatus:409,body:{error:'Demo recipient changed. Operator review is required; no automatic resend.'}};}
@@ -57,17 +56,17 @@ export async function runDemoCompletionOperation(key:CompletionKey,id:string,ope
     await client.query('COMMIT');return {httpStatus:200,body:reply()};
    }
    if(input.confirm!==id){await client.query('ROLLBACK');return {httpStatus:400,body:{error:'Confirm the exact demo dealer ID.'}};}
-   // A repeated completion never recreates practice data or overwrites an existing baseline.
-   if(demo.baseline){await client.query('COMMIT');return {httpStatus:200,body:{dealerId:id,status:state?.baseline_run_id===input.runId?'replayed':'already-saved',baselineSaved:true}};}
+   // Repeated completion only returns its saved receipt; it never changes dealership activity.
+   if(state?.completed_at){await client.query('COMMIT');return {httpStatus:200,body:{dealerId:id,status:state?.baseline_run_id===input.runId?'replayed':'already-saved',stockReady:true}};}
    if(state?.email_status!=='delivered'||state.recipient!==demo.recipient||!provision.recipients.includes(demo.recipient)){await client.query('ROLLBACK');return {httpStatus:409,body:{error:'Confirm delivery to the current approved demo recipient before saving the starting point.'}};}
    for(const lock of [`stock-import:${id}`,`sale-workspace:${id}`,`dealer-settings:${id}`])await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[lock]);
    const latest=(await client.query('SELECT run_id,status,received_count,expected_count FROM stock_import_runs WHERE dealer_id=$1 ORDER BY received_at DESC LIMIT 1',[id])).rows[0];
    if(latest?.run_id!==input.runId||latest.status!=='completed'||latest.received_count<1||latest.received_count!==latest.expected_count){await client.query('ROLLBACK');return {httpStatus:409,body:{error:'Use the latest successful complete, non-empty stock import runId.'}};}
-   const config=(await client.query('SELECT config FROM dealer_settings WHERE dealer_id=$1 FOR UPDATE',[id])).rows[0]?.config;
-   if(!config||!await saveDemoBaseline(client,id,config,demo.logo_data,demo.footer_logo_data)){await client.query('ROLLBACK');return {httpStatus:409,body:{error:'Demo stock and branding are not ready.'}};}
+   const stock=(await client.query('SELECT id FROM vehicles WHERE dealer_id=$1 LIMIT 1',[id])).rows;
+   if(!stock.length){await client.query('ROLLBACK');return {httpStatus:409,body:{error:'Demo stock and branding are not ready.'}};}
    await client.query('UPDATE dealer_demos SET revision=revision+1,updated_by=$2 WHERE dealer_id=$1',[id,key.ownerAuthUserId]);
    await client.query('UPDATE demo_onboarding_completion SET baseline_run_id=$2,completed_at=now() WHERE dealer_id=$1',[id,input.runId]);
-   await client.query('COMMIT');return {httpStatus:200,body:{dealerId:id,status:'saved',baselineSaved:true}};
+   await client.query('COMMIT');return {httpStatus:200,body:{dealerId:id,status:'saved',stockReady:true}};
   }catch(error){
    await client.query('ROLLBACK');
    if(error instanceof EmailProviderError){
@@ -83,12 +82,13 @@ export function demoCompletionRouter(transport:typeof fetch=(...args)=>fetch(...
  const router=Router();
  router.all('/demos/:dealerId/:operation',async(req,res,next)=>{
   const operation=req.params.operation;
-  if(!['test-email','baseline'].includes(operation) || !((operation==='test-email'&&['GET','POST'].includes(req.method))||(operation==='baseline'&&req.method==='POST'))){next();return;}
-  const body=operation==='baseline'?z.object({runId:z.uuid(),confirm:z.string()}).strict():z.object({}).strict();
+  if(operation==='baseline'){res.status(410).json({error:'Demo snapshots and reset tools have been removed. Use stock-ready to finish stock setup.'});return;}
+  if(!['test-email','stock-ready'].includes(operation) || !((operation==='test-email'&&['GET','POST'].includes(req.method))||(operation==='stock-ready'&&req.method==='POST'))){next();return;}
+  const body=operation==='stock-ready'?z.object({runId:z.uuid(),confirm:z.string()}).strict():z.object({}).strict();
   const parsed=body.safeParse(req.method==='GET'?{}:req.body??{});
   if(!parsed.success){res.status(400).json({error:'Invalid completion request. Use the documented fields only.'});return;}
   const input=parsed.data as {runId?:string;confirm?:string};
-  const result=await runDemoCompletionOperation(res.locals.onboardingKey,req.params.dealerId,operation as 'test-email'|'baseline',req.method,input,transport);
+  const result=await runDemoCompletionOperation(res.locals.onboardingKey,req.params.dealerId,operation as 'test-email'|'stock-ready',req.method,input,transport);
   res.status(result.httpStatus).json(result.body);
  });
  return router;

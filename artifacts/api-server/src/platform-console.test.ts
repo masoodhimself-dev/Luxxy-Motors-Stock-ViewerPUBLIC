@@ -63,29 +63,23 @@ test('platform onboarding and operational views preserve access checks and omit 
   const demoMetadata = demoOverview.dealers.find(d => d.id === 'demo-fictional-motors')!;
   assert.equal(demoMetadata.isDemo,true); assert.ok(Date.parse(demoMetadata.demoExpiresAt!) > Date.now());
   assert.equal((await request('/api/platform/demos','POST',demoInput)).status,409);
-  assert.equal((await engine.query("SELECT * FROM sale_workspace WHERE dealer_id='demo-fictional-motors'")).rows.length,2);
+  for(const table of ['sale_workspace','enquiries','leads'])assert.equal((await engine.query(`SELECT * FROM ${table} WHERE dealer_id='demo-fictional-motors'`)).rows.length,0);
   const demoPath='/api/platform/dealers/demo-fictional-motors/demo';
-  const action={action:'baseline',expectedRevision:0,confirm:'demo-fictional-motors'};
-  assert.equal((await request('/api/platform/dealers/test-dealer/demo','POST',{...action,confirm:'test-dealer'})).status,409);
-  assert.equal((await request(demoPath,'POST',action)).status,409); // no stock baseline
+  const action={expectedRevision:0,confirm:'demo-fictional-motors'};
   await engine.exec("INSERT INTO vehicles (dealer_id,source,advert_id,title,source_price) VALUES ('demo-fictional-motors','grok','demo-advert','Example vehicle',12995)");
-  const saveBaseline=await request(demoPath,'POST',action);assert.equal(saveBaseline.status,200,await saveBaseline.clone().text());
-  await engine.exec("UPDATE vehicles SET source_price=9999,inventory_status='sold' WHERE dealer_id='demo-fictional-motors'");
-  assert.equal((await request(demoPath,'POST',{...action,action:'activity',expectedRevision:0})).status,409);
-  const reset=await request(demoPath,'POST',{...action,action:'activity',expectedRevision:1});assert.equal(reset.status,200,await reset.clone().text());
-  let car=(await engine.query<Record<string,any>>("SELECT * FROM vehicles WHERE dealer_id='demo-fictional-motors'")).rows[0];assert.equal(car.source_price,9999);assert.equal(car.inventory_status,'reserved');
-  const original=await request(demoPath,'POST',{...action,action:'original',expectedRevision:2});assert.equal(original.status,200,await original.clone().text());
-  car=(await engine.query<Record<string,any>>("SELECT * FROM vehicles WHERE dealer_id='demo-fictional-motors'")).rows[0];assert.equal(car.source_price,12995);
-  assert.equal((await engine.query("SELECT * FROM enquiries WHERE dealer_id='demo-fictional-motors'")).rows.length,3);
-  assert.equal((await engine.query("SELECT * FROM dealerships WHERE id='test-dealer'")).rows.length,1);
-  const recipientAction={action:'recipient',expectedRevision:3,confirm:'demo-fictional-motors',recipient:'unapproved@example.test'};
+  await engine.exec("INSERT INTO enquiries(dealer_id,type,customer_name,email,message) VALUES('demo-fictional-motors','general','Protected Buyer','protected@example.test','Keep customer history')");
+  await engine.query("INSERT INTO sale_workspace(id,dealer_id,reference,revision,state) VALUES('00000000-0000-4000-8000-000000000091','demo-fictional-motors','INV-KEEP',1,$1::jsonb)",[JSON.stringify({documents:[{number:'INV-KEEP'}],payments:[{amountPence:20000}]})]);
+  const protectedRows=async()=>Promise.all(['vehicles','enquiries','sale_workspace'].map(async table=>(await engine.query(`SELECT * FROM ${table} WHERE dealer_id='demo-fictional-motors' ORDER BY id`)).rows));
+  const beforeReset=await protectedRows();
+  for(const retired of ['baseline','activity','original'])assert.equal((await request(demoPath,'POST',{...action,action:retired})).status,410);
+  assert.deepEqual(await protectedRows(),beforeReset);
+  const recipientAction={action:'recipient',expectedRevision:0,confirm:'demo-fictional-motors',recipient:'unapproved@example.test'};
   assert.equal((await request(demoPath,'POST',recipientAction)).status,400);
-  assert.equal((await request(demoPath,'POST',{...recipientAction,recipient:'operator@example.test',expectedRevision:0})).status,409);
+  assert.equal((await request(demoPath,'POST',{...recipientAction,recipient:'operator@example.test',expectedRevision:99})).status,409);
   assert.equal((await request(demoPath,'POST',{...recipientAction,recipient:'operator@example.test'},'user_other')).status,403);
-  const baselineBefore=(await engine.query<Record<string,any>>("SELECT baseline FROM dealer_demos WHERE dealer_id='demo-fictional-motors'")).rows[0];
   assert.equal((await request(demoPath,'POST',{...recipientAction,recipient:'OPERATOR@example.test'})).status,200);
   const recipientAfter=(await engine.query<Record<string,any>>("SELECT recipient,revision,baseline FROM dealer_demos WHERE dealer_id='demo-fictional-motors'")).rows[0];
-  assert.equal(recipientAfter.recipient,'operator@example.test');assert.equal(recipientAfter.revision,4);assert.deepEqual(recipientAfter.baseline,baselineBefore.baseline);
+  assert.equal(recipientAfter.recipient,'operator@example.test');assert.equal(recipientAfter.revision,1);assert.equal(recipientAfter.baseline,null);
   const {runWithTenant}=await import('./lib/tenant-context');
   const {sendEmailWithSettings}=await import('./lib/email-provider');
   const tenant={dealerId:'demo-fictional-motors',canonicalOrigin:'https://fictional-motors.demo.example.test',platform:'autotrader' as const,retailerId:'demo-retailer',sourceUrl:demoInput.sourceUrl,demo:true};
@@ -167,7 +161,7 @@ test('platform onboarding and operational views preserve access checks and omit 
   assert.equal((await enhanced('/demos/demo-bot-example','PATCH',{expectedRevision:1,changes:{recipient:'evil@example.test'}})).status,400);
   assert.equal((await engine.query<any>("SELECT config FROM dealer_settings WHERE dealer_id='demo-bot-example'")).rows[0].config.address.city,'Corrected Town');
   // Completion cannot send arbitrary mail, affect another key's demo, or replace a baseline.
-  const emailPath='/demos/demo-bot-example/test-email',baselinePath='/demos/demo-bot-example/baseline';
+  const emailPath='/demos/demo-bot-example/test-email',baselinePath='/demos/demo-bot-example/stock-ready';
   const completeRun='66666666-6666-4666-8666-666666666666';
   const completionBody={runId:completeRun,confirm:'demo-bot-example'};
   assert.equal((await machine(emailPath,'POST',{subject:'arbitrary'})).status,400);
@@ -209,12 +203,13 @@ test('platform onboarding and operational views preserve access checks and omit 
    const done=await (await enhanced('/demos/demo-bot-example/completion')).json() as any;
    assert.equal(done.status,'completed',JSON.stringify(done));assert.equal(done.stage,'baseline');
    const summary=await (await enhanced('/demos/demo-bot-example')).json() as any;
-   assert.equal(summary.vehicleCount,1);assert.equal(summary.email.email_status,'delivered');assert.equal(summary.baselineSaved,true);assert.equal(summary.revision,2);
+   assert.equal(summary.vehicleCount,1);assert.equal(summary.email.email_status,'delivered');assert.equal(summary.stockReady,true);assert.equal(summary.revision,2);
    assert.equal((await enhanced('/demos/demo-bot-example','PATCH',{...patch,expectedRevision:2})).status,409);
+   for(const table of ['enquiries','leads','sale_workspace'])assert.equal((await engine.query(`SELECT * FROM ${table} WHERE dealer_id='demo-bot-example'`)).rows.length,0);
    const baselineState=(await engine.query<Record<string,any>>("SELECT baseline FROM dealer_demos WHERE dealer_id='demo-bot-example'")).rows[0].baseline;
    await engine.exec("UPDATE enquiries SET message='Practice edit must survive retry' WHERE dealer_id='demo-bot-example'");
    assert.equal(((await (await machine(baselinePath,'POST',completionBody)).json()) as any).status,'replayed');
-   assert.equal((await engine.query("SELECT * FROM enquiries WHERE dealer_id='demo-bot-example' AND message='Practice edit must survive retry'")).rows.length,3);
+   assert.equal((await engine.query("SELECT * FROM enquiries WHERE dealer_id='demo-bot-example' AND message='Practice edit must survive retry'")).rows.length,0);
    assert.deepEqual((await engine.query<Record<string,any>>("SELECT baseline FROM dealer_demos WHERE dealer_id='demo-bot-example'")).rows[0].baseline,baselineState);
    assert.equal(emailSends,2);assert.equal(statusReads,4);
   }finally{globalThis.fetch=originalFetch;}
@@ -296,7 +291,13 @@ test('platform onboarding and operational views preserve access checks and omit 
   for(let i=0;i<ids.length;i++)await engine.query("INSERT INTO vehicles(id,dealer_id,source,advert_id,title,source_price,inventory_status) VALUES ($1,$2,'autotrader',$3,$4,$5,$6)",[ids[i],conversionId,`conversion-${i}`,`Test car ${i}`,5000+i*1000,i===2?'sold':'available']);
   const imported='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
   await db.insert(stockImportRunsTable).values({runId:imported,status:'completed',receivedAt:new Date(),scrapedAt:new Date(),dealerId:conversionId,source:'grok',retailerId:'fictional-ref',schemaVersion:'1',expectedCount:3,receivedCount:3,rawSnapshot:{}});
-  assert.equal((await request(`/api/platform/dealers/${conversionId}/demo`,'POST',{action:'baseline',expectedRevision:0,confirm:conversionId})).status,200);
+  assert.equal((await request(`/api/platform/dealers/${conversionId}/demo`,'POST',{action:'baseline',expectedRevision:0,confirm:conversionId})).status,410);
+  // Historical demos may still contain old samples. Build that fixture only in this test,
+  // so conversion protection remains covered after production seeding is removed.
+  const {seedLegacyDemoFixture}=await import('./test/legacy-demo-fixture');
+  const fixtureConfig=(await engine.query<any>('SELECT config FROM dealer_settings WHERE dealer_id=$1',[conversionId])).rows[0].config;
+  await seedLegacyDemoFixture(engine as any,conversionId,fixtureConfig);
+  await engine.query('UPDATE dealer_demos SET revision=1 WHERE dealer_id=$1',[conversionId]);
   await engine.query("UPDATE vehicles SET inventory_status='sold' WHERE dealer_id=$1 AND id=$2",[conversionId,ids[2]]);
   await engine.query("INSERT INTO dealer_domains(hostname,dealer_id,verified,verification_token) VALUES ('conversion.example.test',$1,true,'fixture-domain')",[conversionId]);
   await engine.query("INSERT INTO portal_users(dealer_id,auth_user_id,role) VALUES ($1,'user_dealerOwner','owner')",[conversionId]);
@@ -353,13 +354,13 @@ test('platform onboarding and operational views preserve access checks and omit 
   assert.equal((await request('/','GET',undefined,'','conversion-demo.demo.example.test')).status,421);
   assert.equal(((await (await request(conversionPath,'POST',{...attempt,expectedRevision:1})).json()) as any).status,'replayed');
   assert.equal((await request(conversionPath,'POST',{...attempt,expectedRevision:1,domainOrigin:'https://different.example.test'})).status,409);
-  assert.equal((await request(`/api/platform/dealers/${conversionId}/demo`,'POST',{action:'original',expectedRevision:2,confirm:conversionId})).status,409);
+  assert.equal((await request(`/api/platform/dealers/${conversionId}/demo`,'POST',{action:'original',expectedRevision:2,confirm:conversionId})).status,410);
   assert.equal((await enhanced(`/demos/${conversionId}`,'GET',undefined,conversionKey.secret)).status,404);
   assert.equal((await enhanced('/demos','POST',promotion,conversionKey.secret)).status,404);
   assert.equal((await enhanced(`/demos/${conversionId}`,'PATCH',{expectedRevision:2,changes:{logoData:job.demo.logoData}},conversionKey.secret)).status,404);
   assert.equal((await enhanced(`/demos/${conversionId}/complete`,'POST',{runId:imported,confirm:conversionId,publicSiteChecked:true,importReplayChecked:true},conversionKey.secret)).status,404);
   assert.equal((await enhanced(`/demos/${conversionId}/test-email`,'POST',{},conversionKey.secret)).status,404);
-  assert.equal((await enhanced(`/demos/${conversionId}/baseline`,'POST',{runId:imported,confirm:conversionId},conversionKey.secret)).status,404);
+  assert.equal((await enhanced(`/demos/${conversionId}/baseline`,'POST',{runId:imported,confirm:conversionId},conversionKey.secret)).status,410);
   const originalKeys=(await engine.query("SELECT * FROM dealer_import_keys WHERE dealer_id='test-dealer'")).rows.length;
   assert.equal((await request('/api/platform/onboarding-keys/'+onboarding.id,'DELETE')).status,200);
   assert.equal((await machine('/capabilities')).status,401);

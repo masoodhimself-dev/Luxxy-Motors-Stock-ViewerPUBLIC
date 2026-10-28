@@ -1,8 +1,7 @@
 import { websiteText } from "@/lib/website-content";
 import { DealerWordmark } from "@/components/brand/wordmark";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { useLocation, useRoute } from 'wouter';
-import { CustomerSafeLink as Link } from '@/components/customer-safe-link';
+import { Link, useLocation, useRoute } from 'wouter';
 import { Menu, X, Phone, MessageCircle, ArrowRight, Heart, CalendarDays } from '@/components/icons';
 import { navigateToHomeTarget } from '@/lib/home-navigation';
 import { getEnquiryHref, getWhatsAppHref } from '@/lib/cta-helpers';
@@ -25,7 +24,7 @@ const navLinkClass =
 const mobileNavRowClass =
   'flex min-h-12 items-center justify-between border-b border-primary/10 py-2 text-left font-display text-base font-semibold text-primary transition-colors hover:text-accent';
 
-export function Layout({ children, testMode = false }: { children: React.ReactNode; testMode?: boolean }) {
+export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const [, vehicleRoute] = useRoute('/vehicle/:id');
   const testDriveHref = vehicleRoute?.id ? `/enquire?type=viewing&vehicleId=${encodeURIComponent(vehicleRoute.id)}` : getEnquiryHref('viewing');
@@ -78,7 +77,7 @@ export function Layout({ children, testMode = false }: { children: React.ReactNo
   }) as CSSProperties, [brandPrimary, accent, customerAccent, dealerConfig.presentation, isStaff]);
 
   useEffect(() => {
-    if (isStaff || testMode) return;
+    if (isStaff) return;
     // Radix menus and dialogs live beneath body rather than the showroom shell.
     // Carry the same dealer palette there, then restore it on staff routes.
     const entries = Object.entries(brandStyle) as [string, string][];
@@ -90,16 +89,15 @@ export function Layout({ children, testMode = false }: { children: React.ReactNo
         else document.body.style.removeProperty(key);
       }
     };
-  }, [brandStyle, isStaff, testMode]);
+  }, [brandStyle, isStaff]);
 
   useEffect(() => {
-    if (testMode) return;
     const url = dealerConfig.presentation?.faviconUrl;
     if (!url || !/^https:\/\//.test(url)) return;
     const icon = document.createElement('link'); icon.rel = 'icon'; icon.href = url;
     document.head.appendChild(icon);
     return () => icon.remove();
-  }, [dealerConfig.presentation?.faviconUrl, testMode]);
+  }, [dealerConfig.presentation?.faviconUrl]);
 
 
   useEffect(() => {
@@ -145,7 +143,6 @@ export function Layout({ children, testMode = false }: { children: React.ReactNo
   }, []);
 
   useEffect(() => {
-    if (testMode) return;
     if (isStaff) {
       document.documentElement.style.setProperty('--site-header-height', '0px');
       return () => document.documentElement.style.removeProperty('--site-header-height');
@@ -168,11 +165,10 @@ export function Layout({ children, testMode = false }: { children: React.ReactNo
       observer.disconnect();
       document.documentElement.style.removeProperty('--site-header-height');
     };
-  }, [isStaff, testMode]);
+  }, [isStaff]);
 
   const handleNav = (target: string) => {
     setMobileMenuOpen(false);
-    if (testMode && !['part-exchange','delivery'].includes(target)) {setLocation(target === 'stock' ? '/stock' : '/');return;}
     if (target === 'part-exchange' || target === 'delivery') {
       setLocation(publicEnquiriesEnabled ? `/enquire?type=${target === 'part-exchange' ? 'part_exchange' : 'general'}` : '/contact');
       return;
@@ -182,7 +178,7 @@ export function Layout({ children, testMode = false }: { children: React.ReactNo
 
   const handleLogoClick = () => {
     if (
-      !testMode && location !== '/' &&
+      location !== '/' &&
       hasEditedFormRef.current &&
       document.querySelector('form:not([data-preserves-draft])') &&
       !window.confirm('You have unfinished details on this page. Leave them and return to the homepage?')
@@ -194,10 +190,9 @@ export function Layout({ children, testMode = false }: { children: React.ReactNo
 
   return (
     <div style={brandStyle} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}`}>
-      {!testMode && <a href="#main-content" className="fixed left-4 top-3 z-[100] -translate-y-24 rounded-md bg-primary px-5 py-3 text-primary-foreground focus:translate-y-0">Skip to content</a>}
+      <a href="#main-content" className="fixed left-4 top-3 z-[100] -translate-y-24 rounded-md bg-primary px-5 py-3 text-primary-foreground focus:translate-y-0">Skip to content</a>
       {!isStaff && <header
         ref={headerRef}
-        style={testMode ? {position:'relative'} : undefined}
         data-site-header
         data-scroll-hidden={stockHeader.hidden}
         onFocusCapture={stockHeader.reveal}
@@ -216,7 +211,7 @@ export function Layout({ children, testMode = false }: { children: React.ReactNo
           {/* Desktop Nav - Condensed */}
           <nav className="site-header-nav hidden items-center gap-4 lg:flex 2xl:hidden" aria-label="Primary navigation">
             <button onClick={() => handleNav('stock')} className={navLinkClass}>{websiteText(dealerConfig, "navigationStock")}</button>
-            {!testMode && dealerConfig.contact.phone && <a className={navLinkClass} href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}><Phone className="mr-2 h-4 w-4" aria-hidden="true" />{formatPhoneDisplay(dealerConfig.contact.phone)}</a>}
+            {dealerConfig.contact.phone && <a className={navLinkClass} href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}><Phone className="mr-2 h-4 w-4" aria-hidden="true" />{formatPhoneDisplay(dealerConfig.contact.phone)}</a>}
             {dealerConfig.warranty?.enabled && <Link href="/warranty" aria-current={location === '/warranty' ? 'page' : undefined} className={`inline-flex min-h-11 items-center ${navLinkClass}`}>Warranty</Link>}
             <Link href="/contact" aria-current={location === '/contact' ? 'page' : undefined} className={`inline-flex min-h-11 items-center ${navLinkClass}`}>{websiteText(dealerConfig, "navigationContact")}</Link>
             <button
@@ -250,7 +245,7 @@ export function Layout({ children, testMode = false }: { children: React.ReactNo
             <Link href="/contact" aria-current={location === '/contact' ? 'page' : undefined} className={`inline-flex min-h-11 items-center ${navLinkClass}`}>{websiteText(dealerConfig, "navigationContact")}</Link>
 
             <div className="flex items-center gap-4 pl-6 border-l border-primary/10">
-              {!testMode && dealerConfig.contact.phone && (
+              {dealerConfig.contact.phone && (
                 <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="group flex min-h-11 items-center gap-2">
                   <Phone className="h-4 w-4 shrink-0 text-accent transition-transform group-hover:scale-110" />
                   <span className="whitespace-nowrap font-display text-[14px] font-bold tracking-normal text-primary transition-colors group-hover:text-accent">
@@ -300,7 +295,7 @@ export function Layout({ children, testMode = false }: { children: React.ReactNo
           </>}
         </div>
 
-        {!testMode && !isStaff && dealerConfig.contact.phone && <div className="header-phone-row lg:hidden"><a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}><Phone size={16} aria-hidden="true" />{formatPhoneDisplay(dealerConfig.contact.phone)}</a></div>}
+        {!isStaff && dealerConfig.contact.phone && <div className="header-phone-row lg:hidden"><a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}><Phone size={16} aria-hidden="true" />{formatPhoneDisplay(dealerConfig.contact.phone)}</a></div>}
 
         {/* Mobile Nav Dropdown */}
         {mobileMenuOpen && (
@@ -334,7 +329,7 @@ export function Layout({ children, testMode = false }: { children: React.ReactNo
             <Link href="/contact" onClick={() => setMobileMenuOpen(false)} aria-current={location === '/contact' ? 'page' : undefined} className={mobileNavRowClass}>{websiteText(dealerConfig, "navigationContact")} <ArrowRight className="w-5 h-5 opacity-40" /></Link>
 
             <div className="mt-5 grid grid-cols-2 gap-3 border-t border-border pt-4">
-              {!testMode && dealerConfig.contact.phone && (
+              {dealerConfig.contact.phone && (
                 <a
                   href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}
                   className="flex min-h-11 items-center justify-center rounded-md border border-border px-3 text-primary hover:bg-secondary"
@@ -342,7 +337,7 @@ export function Layout({ children, testMode = false }: { children: React.ReactNo
                   <span className="flex items-center gap-2 text-sm font-medium"><Phone className="h-4 w-4" /> Call Us</span>
                 </a>
               )}
-              {!testMode && whatsAppHref && (
+              {whatsAppHref && (
                 <a
                   href={whatsAppHref}
                   target="_blank"
@@ -361,7 +356,7 @@ export function Layout({ children, testMode = false }: { children: React.ReactNo
         {children}
       </main>
 
-      {!testMode && isCustomerTask && (
+      {isCustomerTask && (
         <footer className="mt-auto border-t border-border bg-card px-4 py-6 sm:px-6" data-testid="customer-task-footer">
           <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-x-8 gap-y-3 text-sm">
             <div><p className="font-semibold">{dealerConfig.identity.name}</p><p className="mt-1 text-muted-foreground">Need help with your documents or visit? Talk to us.</p></div>
@@ -373,7 +368,7 @@ export function Layout({ children, testMode = false }: { children: React.ReactNo
           </div>
         </footer>
       )}
-      {!isStaff && !isCustomerTask && <CustomerFooter settings={dealerConfig} testDriveHref={testDriveHref} enquiriesEnabled={publicEnquiriesEnabled} testMode={testMode} />}
+      {!isStaff && !isCustomerTask && <CustomerFooter settings={dealerConfig} testDriveHref={testDriveHref} enquiriesEnabled={publicEnquiriesEnabled} />}
       <div data-home-scroll-spacer aria-hidden="true" className="bg-primary" />
 
     </div>

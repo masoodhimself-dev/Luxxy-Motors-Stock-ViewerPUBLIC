@@ -63,29 +63,6 @@ describe('authoritative sale PDF preview', () => {
     expect(URL.createObjectURL).not.toHaveBeenCalled();
   });
 
-  it('opens only the exact scoped test invoice archive and never regenerates a failed one', async () => {
-    const url = '/api/sales-test/sessions/11111111-1111-4111-8111-111111111111/sale-workspace/22222222-2222-4222-8222-222222222222/documents/33333333-3333-4333-8333-333333333333/pdf';
-    vi.mocked(customFetch).mockResolvedValueOnce(new NodeBlob(['%PDF-TEST-ONLY']));
-    const view = render(<PdfSalesDocument issuedDocument={issued()} pdfUrl={url} />);
-    await screen.findByRole('link', { name: 'Open PDF' });
-    expect(customFetch).toHaveBeenCalledWith(url, expect.objectContaining({ responseType: 'blob', cache: 'no-store' }));
-    expect(await (vi.mocked(URL.createObjectURL).mock.calls[0][0] as NodeBlob).text()).toBe('%PDF-TEST-ONLY');
-    view.unmount();
-    vi.mocked(customFetch).mockRejectedValueOnce(new Error('archive unavailable'));
-    render(<PdfSalesDocument issuedDocument={issued()} pdfUrl={url} />);
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('PDF could not open'));
-    expect(saleDocumentPdfBytes).not.toHaveBeenCalled();
-  });
-
-  it('rejects malformed or external test invoice addresses before fetching', async () => {
-    const view = render(<PdfSalesDocument issuedDocument={issued()} pdfUrl="/api/sales-test/sessions/not-a-session/sale-workspace/anything" />);
-    await screen.findByRole('alert');
-    view.unmount();
-    render(<PdfSalesDocument issuedDocument={issued()} pdfUrl="https://another-dealer.invalid/api/sales-test/sessions/anything" />);
-    await screen.findByRole('alert');
-    expect(customFetch).not.toHaveBeenCalled();
-  });
-
   it('offers the original native archive when its bytes fetch successfully but PDFjs cannot render them', async () => {
     vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:first').mockReturnValueOnce('blob:second');
     vi.mocked(customFetch).mockResolvedValueOnce(new NodeBlob(['%PDF-first-archive'])).mockResolvedValueOnce(new NodeBlob(['%PDF-second-archive']));

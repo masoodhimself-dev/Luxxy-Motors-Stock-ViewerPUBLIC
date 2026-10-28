@@ -2,7 +2,6 @@ import { demoShowroomAddress,demoOpeningHours,publishedDemoHours } from './demo-
 import { randomBytes } from 'node:crypto';
 import { z } from 'zod/v4';
 import { demoProvisioning } from './demo-policy';
-import { seedDemo } from './demo-workspace';
 import { newDealerSettings } from '../routes/dealer-settings';
 import type { SaleWorkspaceReadClient } from './sale-workspace-store';
 export class DemoSetupError extends Error { constructor(message:string, readonly status=400){super(message);} }
@@ -37,7 +36,6 @@ export async function insertDemo(client:SaleWorkspaceReadClient, prepared:Return
     await client.query("INSERT INTO portal_users (dealer_id,auth_user_id,role) VALUES ($1,$2,'owner')",[id,ownerAuthUserId]);
     await client.query('INSERT INTO dealer_settings (dealer_id,config) VALUES ($1,$2::jsonb)',[id,JSON.stringify(config)]);
     await client.query('INSERT INTO dealer_demos (dealer_id,recipient,expires_at,updated_by,logo_data,footer_logo_data,business_details) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb)',[id,d.recipient.toLowerCase(),new Date(Date.now()+d.days*86400000),ownerAuthUserId,logo,footerLogo,JSON.stringify({...(d.showroomAddress?{showroomAddress:d.showroomAddress}:{}),...(d.openingHours?{openingHours:d.openingHours}:{})})]);
-    await seedDemo(client,id,config);
 
  return {dealerId:id,origin:`https://${host}`};
 }

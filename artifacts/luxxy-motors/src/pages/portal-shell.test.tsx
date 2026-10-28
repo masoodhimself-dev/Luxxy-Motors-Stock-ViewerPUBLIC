@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, afterEach, it, expect, vi } from "vitest";
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 const state = vi.hoisted(() => ({
   permissions: ["sales.manage", "settings.publish", "team.manage"],
   signedIn: true,
@@ -13,7 +12,6 @@ vi.mock("@clerk/react", () => ({
   SignInButton: ({ children }: any) => children,
 }));
 vi.mock("@workspace/api-client-react", () => ({
-  customFetch: vi.fn(async () => ({session:null})),
   getGetPortalSessionQueryKey: () => ["portal-session"],
   useGetPortalSession: () => ({
     data: { state: "allowed", name: "Operator" },
@@ -53,13 +51,10 @@ vi.mock("@/components/brand/wordmark", () => ({
 vi.mock("@/lib/dealer-settings-context", () => ({
   useDealerSettings: () => ({ settings: { identity: { name: "Dealer" } } }),
 }));
-vi.mock("@/components/portal/dealer-reports", () => ({ DealerReports: () => <p>Reports workspace</p> }));
 vi.mock("@/pages/sales-demo", () => ({
   SalesWorkspace: () => <p>Sales workspace</p>,
 }));
 import Portal from "./portal";
-import { customFetch } from '@workspace/api-client-react';
-function showPortal() { return render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><Portal /></QueryClientProvider>); }
 beforeEach(() => {
   state.permissions = ["sales.manage", "settings.publish", "team.manage"];
   state.signedIn = true;
@@ -74,50 +69,49 @@ afterEach(() => {
   vi.restoreAllMocks();
   window.history.replaceState({}, "", "/");
 });
-it("defaults to Inbox with only Inbox, Sales, Reports and Settings destinations", async () => {
-  showPortal();
-  await screen.findByText('Inbox workspace');
-  expect(customFetch).toHaveBeenCalledWith('/api/sales-test/sessions',expect.anything());
+it("defaults to Inbox with only Inbox, Sales and Settings destinations", () => {
+  render(<Portal />);
   expect(screen.getByText("Inbox workspace")).toBeVisible();
   const nav = screen.getByRole("navigation", { name: "Portal sections" });
   expect(
     within(nav)
       .getAllByRole("button")
       .map((button) => button.textContent),
-  ).toEqual(["Inbox", "Sales", "Reports", "Settings"]);
+  ).toEqual(["Inbox", "Sales", "Settings"]);
   expect(
     screen.queryByRole("button", { name: "Home" }),
   ).not.toBeInTheDocument();
   expect(
     screen.queryByRole("button", { name: "Cars" }),
   ).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /test mode|start test|practice/i })).not.toBeInTheDocument();
+  expect(screen.queryByText(/test inbox|practice website/i)).not.toBeInTheDocument();
 });
-it("retired Cars bookmarks return to Inbox without loading a Cars workspace", async () => {
+it("retired Cars bookmarks return to Inbox without loading a Cars workspace", () => {
   window.history.replaceState(
     {},
     "",
     "/portal?section=inventory&recordVideo=1",
   );
-  showPortal(); await screen.findByText('Inbox workspace');
+  render(<Portal />);
   expect(screen.getByText("Inbox workspace")).toBeVisible();
 });
-it("keeps Settings in the four-item phone navigation", async () => {
+it("keeps Settings in the three-item phone navigation", () => {
   window.innerWidth = 390;
-  showPortal(); await screen.findByText('Inbox workspace');
+  render(<Portal />);
   const buttons = within(
     screen.getByRole("navigation", { name: "Portal sections" }),
   ).getAllByRole("button");
-  expect(buttons).toHaveLength(4);
-  expect(buttons[2]).toHaveTextContent("Reports");
-  expect(buttons[3]).toHaveTextContent("Settings");
+  expect(buttons).toHaveLength(3);
+  expect(buttons[2]).toHaveTextContent("Settings");
 });
-it("requires deliberate discard before leaving unsaved private Settings", async () => {
+it("requires deliberate discard before leaving unsaved private Settings", () => {
   window.history.replaceState(
     {},
     "",
     "/portal?section=settings&settingsTab=emails",
   );
-  showPortal(); await screen.findByLabelText('Private wording');
+  render(<Portal />);
   fireEvent.change(screen.getByLabelText("Private wording"), {
     target: { value: "Unsaved wording" },
   });
@@ -132,23 +126,23 @@ it("requires deliberate discard before leaving unsaved private Settings", async 
   fireEvent.click(screen.getByRole("button", { name: "Sales" }));
   expect(screen.getByText("Sales workspace")).toBeVisible();
 });
-it("does not offer owner settings to an accounts role", async () => {
+it("does not offer owner settings to an accounts role", () => {
   state.permissions = ["payments.record"];
-  showPortal(); await screen.findByText('Inbox workspace');
+  render(<Portal />);
   expect(
     within(screen.getByRole("navigation", { name: "Portal sections" }))
       .getAllByRole("button")
       .map((button) => button.textContent),
-  ).toEqual(["Inbox", "Sales", "Reports"]);
+  ).toEqual(["Inbox", "Sales"]);
 });
 
-it("protects unsaved settings when using the workspace logo", async () => {
+it("protects unsaved settings when using the workspace logo", () => {
   window.history.replaceState(
     {},
     "",
     "/portal?section=settings&settingsTab=emails",
   );
-  showPortal(); await screen.findByLabelText('Private wording');
+  render(<Portal />);
   fireEvent.change(screen.getByLabelText("Private wording"), {
     target: { value: "Keep my private wording" },
   });
@@ -164,15 +158,9 @@ it("protects unsaved settings when using the workspace logo", async () => {
   expect(screen.getByText("Inbox workspace")).toBeVisible();
 });
 
-it("opens Reports and protects unsaved settings when navigating to it", async () => {
-  window.history.replaceState({}, "", "/portal?section=settings");
-  showPortal(); await screen.findByLabelText('Private wording');
-  fireEvent.change(screen.getByLabelText("Private wording"), { target: { value: "unsaved" } });
-  const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-  fireEvent.click(screen.getByRole("button", { name: "Reports" }));
-  expect(confirm).toHaveBeenCalledOnce();
-  expect(screen.queryByText("Reports workspace")).not.toBeInTheDocument();
-  confirm.mockReturnValue(true);
-  fireEvent.click(screen.getByRole("button", { name: "Reports" }));
-  expect(screen.getByText("Reports workspace")).toBeVisible();
+it("retired Reports bookmarks return to Inbox", () => {
+  window.history.replaceState({}, "", "/portal?section=reports");
+  render(<Portal />);
+  expect(screen.getByText("Inbox workspace")).toBeVisible();
+  expect(screen.queryByRole("button", {name:"Reports"})).not.toBeInTheDocument();
 });

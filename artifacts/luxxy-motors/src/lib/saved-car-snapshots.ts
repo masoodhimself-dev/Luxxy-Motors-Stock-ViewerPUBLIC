@@ -1,14 +1,10 @@
-import { customerTestSession, readCustomerStorage, writeCustomerStorage, removeCustomerStorage } from './customer-test-storage';
-import { readTestCustomerSnapshots, writeTestCustomerSnapshots, removeTestCustomerSnapshots } from './test-customer-shortlist-storage';
 import type { Car } from './stock-context';
 import { getThumbnailUrl, vehicleDisplayTitle, vehicleRegistration } from './utils';
 export type SavedSnapshot = { title: string; photo: string; price: number | null; currency: string; status: string; savedAt: string; registration?: string };
 const key = 'luxxy.saved-car-snapshots.v1';
-function effectiveSession(sessionId?:string|null) { return sessionId === undefined ? customerTestSession() : sessionId; }
-export function readSavedSnapshots(sessionId?: string | null): Record<string, SavedSnapshot> {
+export function readSavedSnapshots(): Record<string, SavedSnapshot> {
   try {
-    const session=effectiveSession(sessionId);
-    const data = JSON.parse((session ? readTestCustomerSnapshots(session) ?? readCustomerStorage(localStorage,key,session) : readCustomerStorage(localStorage,key,null)) || '{}');
+    const data = JSON.parse(localStorage.getItem(key) || '{}');
     if (!data || typeof data !== 'object' || Array.isArray(data)) return {};
     return Object.fromEntries(Object.entries(data).filter(([, item]) => {
       const value = item as SavedSnapshot;
@@ -16,15 +12,14 @@ export function readSavedSnapshots(sessionId?: string | null): Record<string, Sa
     })) as Record<string, SavedSnapshot>;
   } catch { return {}; }
 }
-export function rememberSavedCar(car: Car, sessionId?: string | null) {
+export function rememberSavedCar(car: Car) {
   const registration = vehicleRegistration(car);
-  try { const session=effectiveSession(sessionId); const value=JSON.stringify({ ...readSavedSnapshots(sessionId), [car.id]: { title: vehicleDisplayTitle(car), photo: getThumbnailUrl(car) || '', price: car.price ?? null, currency: car.currency || 'GBP', status: String(car.inventoryStatus || 'available'), savedAt: new Date().toISOString(), ...(registration ? { registration } : {}) } }); writeCustomerStorage(localStorage,key,value,session); if(session)writeTestCustomerSnapshots(session,value); } catch { /* Saving the shortlist still works when storage is unavailable. */ }
+  try { localStorage.setItem(key, JSON.stringify({ ...readSavedSnapshots(), [car.id]: { title: vehicleDisplayTitle(car), photo: getThumbnailUrl(car) || '', price: car.price ?? null, currency: car.currency || 'GBP', status: String(car.inventoryStatus || 'available'), savedAt: new Date().toISOString(), ...(registration ? { registration } : {}) } })); } catch { /* Saving the shortlist still works when storage is unavailable. */ }
 }
-export function forgetSavedSnapshots(ids?: string[], sessionId?: string | null) {
+export function forgetSavedSnapshots(ids?: string[]) {
   try {
-    const session=effectiveSession(sessionId);
-    if (!ids) { removeCustomerStorage(localStorage,key,session); if(session)removeTestCustomerSnapshots(session); return; }
-    const data = readSavedSnapshots(sessionId); ids.forEach(id => delete data[id]); const value=JSON.stringify(data); writeCustomerStorage(localStorage,key,value,session); if(session)writeTestCustomerSnapshots(session,value);
+    if (!ids) { localStorage.removeItem(key); return; }
+    const data = readSavedSnapshots(); ids.forEach(id => delete data[id]); localStorage.setItem(key, JSON.stringify(data));
   } catch {}
 }
 export function savedPriceReduction(snapshot: SavedSnapshot | undefined, car: Car) {

@@ -12,7 +12,7 @@ import { vehicleAvailability } from '@/lib/customer-convenience';
 import { rememberStockPosition } from "@/lib/browse-session";
 import { usePhotoSwipe } from '@/hooks/use-photo-swipe';
 import { useEffect, useId, useMemo, useState } from 'react';
-import { CustomerSafeLink as Link } from '@/components/customer-safe-link';
+import { Link } from 'wouter';
 import { Car } from '@/lib/stock-context';
 import {
   cn,

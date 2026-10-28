@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { createSaleWorkspace, changeSaleWorkspace, currentInvoiceSettings, invoiceBranding, saleWorkspaceBranding, type SaleWorkspaceContext } from '@workspace/vehicle-meta';
-import type { SaleWorkspaceReadClient } from './sale-workspace-store';
+import type { SaleWorkspaceReadClient } from '../lib/sale-workspace-store';
 
-/** Only ever called after locking a row in dealer_demos. No live dealer fallback. */
-export async function seedDemo(client: SaleWorkspaceReadClient, dealerId: string, config: any) {
+/** Historical fixtures for isolated conversion regression tests only. Never imported by production code. */
+export async function seedLegacyDemoFixture(client: SaleWorkspaceReadClient, dealerId: string, config: any) {
   const vehicles = (await client.query('SELECT id, title, plate, registration, source_price FROM vehicles WHERE dealer_id=$1 ORDER BY id LIMIT 3', [dealerId])).rows;
   const now = new Date();
   for (let i=0; i<3; i++) {
@@ -33,13 +33,4 @@ export async function seedDemo(client: SaleWorkspaceReadClient, dealerId: string
     }
     await client.query('INSERT INTO sale_workspace (id,dealer_id,reference,revision,state) VALUES ($1,$2,$3,$4,$5::jsonb)',[sale.id,dealerId,sale.reference,sale.revision,JSON.stringify(sale)]);
   }
-}
-/** Activity only: private integrations, staff, import credentials and import history are not reset. */
-export async function clearDemoActivity(client: SaleWorkspaceReadClient, dealerId: string) {
-  // Refuse old-style financial ledgers rather than risk destroying issued accounting records.
-  if ((await client.query('SELECT id FROM sales WHERE dealer_id=$1 LIMIT 1',[dealerId])).rows.length) throw new Error('Legacy sales exist. Reset needs operator review.');
-  await client.query('UPDATE enquiries SET merged_into_id=NULL WHERE dealer_id=$1',[dealerId]);
-  for (const table of ['email_delivery_checks','enquiry_emails','sale_workspace','sale_workspace_counters','leads','enquiries','customer_intake_sessions','dealer_chat']) await client.query(`DELETE FROM ${table} WHERE dealer_id=$1`,[dealerId]);
-  // Only demo lifecycle flags; source facts, prices and photographs remain untouched.
-  await client.query("UPDATE vehicles SET inventory_status='available', archived_at=NULL, retirement_started_at=NULL, audit_metadata=coalesce(audit_metadata,'{}'::jsonb)-'saleWorkspaceId'-'retentionArchive' WHERE dealer_id=$1",[dealerId]);
 }

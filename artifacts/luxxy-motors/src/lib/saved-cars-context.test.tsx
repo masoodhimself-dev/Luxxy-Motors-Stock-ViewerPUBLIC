@@ -61,15 +61,3 @@ describe('saved cars', () => {
     expect(result.current.savedIds).toEqual([]);
   });
 });
-
-it('isolates practice saves and clear-all from the real shortlist even before the test marker is installed', () => {
-  window.localStorage.setItem(SAVED_KEY, JSON.stringify(['real']));
-  const { result, unmount } = renderHook(() => useSavedCars(), { wrapper: ({children}) => <SavedCarsProvider testSessionId="practice-session">{children}</SavedCarsProvider> });
-  expect(result.current.savedIds).toEqual([]);
-  act(() => result.current.toggleSaved('practice'));
-  expect(result.current.savedIds).toEqual(['practice']);
-  expect(JSON.parse(window.localStorage.getItem(SAVED_KEY)!)).toEqual(['real']);
-  act(() => result.current.clearSaved());
-  expect(JSON.parse(window.localStorage.getItem(SAVED_KEY)!)).toEqual(['real']);
-  unmount();
-});

@@ -1,4 +1,3 @@
-import { customerTestSession, readCustomerStorage, writeCustomerStorage } from "./customer-test-storage";
 import type { FilterState } from "@/components/filters";
 const KEY = "luxxy.browse.v1";
 type BrowseSession = {
@@ -10,11 +9,10 @@ type BrowseSession = {
   viewportWidth?: number;
   vehicleOffset?: number;
 };
-const restoreRequests = new Set<string>();
-const restoreScope = () => customerTestSession() ?? "live";
+let restoreRequested = false;
 export function readBrowseSession(): BrowseSession {
   try {
-    const value = JSON.parse(readCustomerStorage(sessionStorage, KEY) || "{}");
+    const value = JSON.parse(sessionStorage.getItem(KEY) || "{}");
     return value && typeof value === "object" ? value : {};
   } catch {
     return {};
@@ -22,7 +20,7 @@ export function readBrowseSession(): BrowseSession {
 }
 export function saveBrowseSession(value: BrowseSession) {
   try {
-    writeCustomerStorage(sessionStorage,
+    sessionStorage.setItem(
       KEY,
       JSON.stringify({ ...readBrowseSession(), ...value }),
     );
@@ -40,12 +38,11 @@ export function rememberStockPosition(vehicleId: string) {
   }
 }
 export function requestBrowseRestore() {
-  restoreRequests.add(restoreScope());
+  restoreRequested = true;
 }
 export function restoreBrowsePosition(skip = false) {
-  const scope = restoreScope();
-  if (!restoreRequests.has(scope)) return;
-  restoreRequests.delete(scope);
+  if (!restoreRequested) return;
+  restoreRequested = false;
   if (skip) return;
   const state = readBrowseSession();
   requestAnimationFrame(() => {

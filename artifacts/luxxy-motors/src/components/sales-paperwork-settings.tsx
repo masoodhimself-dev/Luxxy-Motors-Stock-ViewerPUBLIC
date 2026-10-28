@@ -15,8 +15,7 @@ type Paperwork = {
   invoiceSettings?: InvoiceSettings;
   correctionSettings?: { handling: "accountant"; instructions: string };
 };
-export function SalesPaperworkSettings({testSessionId}:{testSessionId?:string} = {}) {
-  const endpoint = testSessionId ? `/api/sales-test/sessions/${encodeURIComponent(testSessionId)}/paperwork` : '/api/dealer-integrations/sales-paperwork';
+export function SalesPaperworkSettings() {
   const [value, setValue] = useState<Paperwork | null>(null),
     [saved, setSaved] = useState<Paperwork | null>(null),
     [busy, setBusy] = useState(false),
@@ -39,7 +38,7 @@ export function SalesPaperworkSettings({testSessionId}:{testSessionId?:string} =
     setError("");
     try {
       const data = await customFetch<Paperwork>(
-        endpoint,
+        "/api/dealer-integrations/sales-paperwork",
       );
       setValue(data);
       setSaved(data);
@@ -68,7 +67,7 @@ export function SalesPaperworkSettings({testSessionId}:{testSessionId?:string} =
     setNotice("");
     try {
       const result = await customFetch<Paperwork>(
-        endpoint,
+        "/api/dealer-integrations/sales-paperwork",
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -84,7 +83,7 @@ export function SalesPaperworkSettings({testSessionId}:{testSessionId?:string} =
       setValue(result);
       setSaved(result);
       setNotice(
-        testSessionId ? "Document settings saved in this test. Live records are unchanged." : "Document settings saved. Existing invoices, payment records and numbering stay unchanged.",
+        "Document settings saved. Existing invoices, payment records and numbering stay unchanged.",
       );
     } catch {
       setError(

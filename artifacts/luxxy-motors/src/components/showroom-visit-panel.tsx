@@ -1,6 +1,5 @@
 import { useEffect, useId, useState } from 'react';
-import { CustomerSafeLink as Link } from '@/components/customer-safe-link';
-import { customerTestSession } from '@/lib/customer-test-storage';
+import { Link } from 'wouter';
 import { ArrowUpRight, Calendar, ChevronDown, Clock3, MapPin, Phone } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
@@ -65,7 +64,7 @@ export function ShowroomVisitPanel({
           {ready && settings.identity.name && <DetailHeading>{settings.identity.name}</DetailHeading>}
           {hasAddress ? <address>{location.lines.map((line, index) => <span key={`${line}-${index}`}>{line}</span>)}</address>
             : <div>{area && <p className="showroom-visit-panel-note">Showroom area: {area}</p>}<p className="showroom-visit-panel-note">{isLoading ? 'Loading showroom address…' : 'Contact us to confirm the showroom address before travelling.'}</p></div>}
-          {directions && !customerTestSession() && <a className="showroom-visit-panel-directions" href={directions} target="_blank" rel="noopener noreferrer">Get directions<ArrowUpRight size={15} /></a>}
+          {directions && <a className="showroom-visit-panel-directions" href={directions} target="_blank" rel="noopener noreferrer">Get directions<ArrowUpRight size={15} /></a>}
         </div>
       </div>
       <div className="showroom-visit-panel-hours" data-status={ready ? opening.state : 'unknown'}>
@@ -90,7 +89,7 @@ export function ShowroomVisitPanel({
     </div>}
     {(canBook || phone) && <div className="showroom-visit-panel-actions">
       {canBook && <Button asChild><Link href={bookingHref}><Calendar size={17} />{settings.bookViewing.ctaLabel}</Link></Button>}
-      {phone && !customerTestSession() && <Button asChild variant="outline"><a href={`tel:${phone.replace(/[^0-9+]/g, '')}`}><Phone size={17} /><span>Call Us <span className="showroom-visit-panel-number">{formatPhoneDisplay(phone)}</span></span></a></Button>}
+      {phone && <Button asChild variant="outline"><a href={`tel:${phone.replace(/[^0-9+]/g, '')}`}><Phone size={17} /><span>Call Us <span className="showroom-visit-panel-number">{formatPhoneDisplay(phone)}</span></span></a></Button>}
     </div>}
   </div>;
 }

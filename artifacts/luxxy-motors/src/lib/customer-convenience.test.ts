@@ -1,8 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
-  recentVehicles,
-  rememberVehicle,
-  clearRecentVehicles,
   parseShortlist,
   vehicleAvailability,
 } from "./customer-convenience";
@@ -17,33 +14,6 @@ beforeEach(() => {
   sessionStorage.clear();
 });
 describe("customer convenience storage", () => {
-  it("deduplicates recent cars and bounds history to eight", () => {
-    for (let i = 0; i < 12; i++) rememberVehicle(String(i));
-    rememberVehicle("7");
-    expect(recentVehicles()).toEqual([
-      "7",
-      "11",
-      "10",
-      "9",
-      "8",
-      "6",
-      "5",
-      "4",
-    ]);
-    clearRecentVehicles();
-    expect(recentVehicles()).toEqual([]);
-  });
-  it("ignores corrupt, expired and future history", () => {
-    localStorage.setItem(
-      "luxxy.recent-vehicles.v1",
-      JSON.stringify([
-        { id: "old", at: 1 },
-        { id: "future", at: Date.now() + 60000 },
-        { id: "valid", at: Date.now() },
-      ]),
-    );
-    expect(recentVehicles()).toEqual(["valid"]);
-  });
   it("bounds and validates shared vehicle references", () => {
     expect(parseShortlist("")).toBeNull();
     expect(

@@ -1,5 +1,3 @@
-import { customerTestSession } from '@/lib/customer-test-storage';
-import type { EnquiryInput } from '@workspace/api-client-react';
 
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import './vehicle-redesign.css';
@@ -19,15 +17,14 @@ import { VehicleWhatsApp } from '@/components/vehicle-whatsapp';
 import { VehicleCall } from '@/components/vehicle-call';
 import { EnquiryForm } from '@/components/enquiry-form';
 import { VehiclePrint } from '@/components/vehicle-print';
-import { rememberVehicle, vehicleAvailability } from '@/lib/customer-convenience';
+import { vehicleAvailability } from '@/lib/customer-convenience';
 import { VehicleVisit } from '@/components/vehicle-buying-guide';
 import { VehicleHistorySummary, VehicleRunningCosts, VehicleSpecificationDetails } from '@/components/vehicle-running-costs';
 import { vehicleHistoryFacts, vehicleSpecificationGroups, vehicleRunningCosts as getVehicleRunningCosts } from '@/lib/vehicle-extra-facts';
 import { getSimilarCars } from "@/lib/similar-cars";
 import { buyerInformation } from "@/lib/buyer-information";
 import { useEffect, useState, type MouseEvent } from 'react';
-import { useLocation, useRoute } from 'wouter';
-import { CustomerSafeLink as Link } from '@/components/customer-safe-link';
+import { Link, useLocation, useRoute } from 'wouter';
 import {
   ArrowLeft,
   ArrowRight,
@@ -77,33 +74,21 @@ function LedgerRow({ label, value, testId }: { label: string; value: string; tes
   );
 }
 
-export type TestCarDetailAdapter = {
-  carId: string;
-  config: ReturnType<typeof useDealerSettings>['settings'];
-  customer: {name:string;email:string;phone:string};
-  submit: (input: EnquiryInput) => Promise<{appointmentStatus:string|null}>;
-  openForm: (type:'general'|'viewing'|'part_exchange', car:Car) => void;
-};
-
-export default function CarDetail() { return <CarDetailContent />; }
-
-export function CarDetailContent({testMode}:{testMode?:TestCarDetailAdapter} = {}) {
+export default function CarDetail() {
   const [shareMessage, setShareMessage] = useState('');
   // Keep identity above the gallery until the two-column layout starts.
   const isCompactLayout = useIsMobile(1100);
   const [, params] = useRoute('/vehicle/:id');
   const [location, setLocation] = useLocation();
   const { stock, isLoading, error } = useStock();
-  const { settings: liveDealerConfig } = useDealerSettings();
-  const dealerConfig=testMode?.config ?? liveDealerConfig;
+  const { settings: dealerConfig } = useDealerSettings();
   const customerFeatures = useDealerFeatures();
-  const car = stock?.cars?.find((candidate) => candidate.id === (testMode?.carId ?? params?.id));
+  const car = stock?.cars?.find((candidate) => candidate.id === params?.id);
 
-  useEffect(() => { if (car?.id) rememberVehicle(car.id); }, [car?.id]);
   useEffect(() => { setShareMessage(''); }, [car?.id]);
 
   useEffect(() => {
-    if (!car?.id || customerTestSession()) return;
+    if (!car?.id) return;
     const scrollToSection = () => {
       const id = window.location.hash.slice(1);
       if (['vehicle-description-heading', 'features-heading', 'vehicle-enquiry', 'vehicle-source-report-heading'].includes(id)) {
@@ -123,8 +108,6 @@ export function CarDetailContent({testMode}:{testMode?:TestCarDetailAdapter} = {
     title: `${error ? 'Vehicle details unavailable' : 'Vehicle not in stock'} | ${dealerConfig.identity.name}`,
     description: error ? 'Please try again to check this vehicle’s current details.' : 'Browse our current used cars or ask us about this car.',
   });
-
-  if (customerTestSession() && !testMode) return <p role="alert">This vehicle page is unavailable in the test workspace.</p>;
 
   if (isLoading) {
     return (
@@ -206,14 +189,12 @@ export function CarDetailContent({testMode}:{testMode?:TestCarDetailAdapter} = {
   const damageDisclosure = vehicleInsuranceDisclosure(car, vehicleContent(car).description);
 
   const hasHandoverInformation = handoverFacts.length > 0 || Boolean(dealerConfig.presentation?.includedInformation?.trim()) || Boolean(damageDisclosure);
-  const hasSecondaryActions = dealerConfig.partExchange?.enabled && (!testMode || customerFeatures.enabled('partExchange'));
-  const canTestBook = !testMode || customerFeatures.enabled('testDriveBookings');
+  const hasSecondaryActions = dealerConfig.partExchange?.enabled;
   const content = vehicleContent(car);
   const separateDescriptionNotes = car.sourceExtras?.vehicleDescriptionPlacement === 'separate' && typeof car.sourceExtras?.vehicleDescriptionBody === 'string' && Array.isArray(car.sourceExtras?.vehicleDescriptionDisclosures) && car.sourceExtras.vehicleDescriptionDisclosures.length > 0;
   const description = separateDescriptionNotes ? String(car.sourceExtras!.vehicleDescriptionBody) : content.description;
   const features = prioritiseVehicleFeatures(content.features);
   const share = async () => {
-    if (customerTestSession()) { setShareMessage('Sharing is unavailable in test mode.'); return; }
     try {
       const url = getVehicleShareUrl(car);
       if (navigator.share) await navigator.share({ title: vehicleLabel, url });
@@ -231,7 +212,7 @@ export function CarDetailContent({testMode}:{testMode?:TestCarDetailAdapter} = {
     document.getElementById('vehicle-enquiry')?.scrollIntoView({block: 'start', behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'});
     document.getElementById('vehicle-enquiry-heading')?.focus({preventScroll: true});
   };
-  const bookingAction = canTestBook && dealerConfig.testDriveBooking?.enabled && (!car.inventoryStatus || car.inventoryStatus === 'available') ? testMode ? <Button size="lg" key="booking" className="vehicle-booking-action" onClick={()=>testMode.openForm('viewing',car)}><Calendar className="h-4 w-4" />{dealerConfig.bookViewing.ctaLabel}</Button> : (
+  const bookingAction = dealerConfig.testDriveBooking?.enabled && (!car.inventoryStatus || car.inventoryStatus === 'available') ? (
     <Button asChild size="lg" key="booking" className="vehicle-booking-action">
       <a
         href={bookingHref}
@@ -244,13 +225,13 @@ export function CarDetailContent({testMode}:{testMode?:TestCarDetailAdapter} = {
     </Button>
   ) : null;
   const enquiryAction = customerFeatures.enabled('publicEnquiries') && (
-    <Link key="enquiry" className="vehicle-enquiry-action" href="#vehicle-enquiry" onClick={event => {
+    <a key="enquiry" className="vehicle-enquiry-action" href="#vehicle-enquiry" onClick={event => {
       if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       event.preventDefault();
       openVehicleEnquiry();
     }}>
       <CustomerEnquiry className="h-4 w-4" aria-hidden="true" /> Enquire About This Car
-    </Link>
+    </a>
   );
 
   const registrationDetails = registration && (
@@ -280,22 +261,13 @@ export function CarDetailContent({testMode}:{testMode?:TestCarDetailAdapter} = {
         <p className="luxxy-price text-[2rem]">{car.price ? formatPrice(car.price, car.currency) : 'Price on application'}</p>
         <PriceReduction car={car} showRecordedDate />
         {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <p className="text-sm text-muted-foreground">{car.priceType}</p>}
-        {damageDisclosure && <Link href="#vehicle-history" className="vehicle-insurance-disclosure"><VehicleFactIcon label="Insurance history" /><span>{damageDisclosure.summary}</span><ArrowRight className="h-4 w-4" /></Link>}
+        {damageDisclosure && <a href="#vehicle-history" className="vehicle-insurance-disclosure"><VehicleFactIcon label="Insurance history" /><span>{damageDisclosure.summary}</span><ArrowRight className="h-4 w-4" /></a>}
       </div>
     </header>
   );
 
-  const blockExternalTestLink = (event: MouseEvent<HTMLDivElement>) => {
-    if (!testMode) return;
-    const anchor=(event.target as Element).closest('a');
-    if (!anchor) return;
-    try {
-      const url=new URL(anchor.href,window.location.href);
-      if (!['http:','https:'].includes(url.protocol) || url.origin!==window.location.origin || anchor.target==='_blank') {event.preventDefault();event.stopPropagation();}
-    } catch {event.preventDefault();event.stopPropagation();}
-  };
   return (
-    <div className="vehicle-page vehicle-redesigned vehicle-page-enter luxxy-shell min-h-screen" onClickCapture={blockExternalTestLink} onAuxClickCapture={blockExternalTestLink}>
+    <div className="vehicle-page vehicle-redesigned vehicle-page-enter luxxy-shell min-h-screen">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="vehicle-browse-tools flex items-center">
           <Link href={browseReturnHref()} onClick={() => requestBrowseRestore()} className="vehicle-return-link text-link min-h-11 text-muted-foreground">
@@ -308,12 +280,10 @@ export function CarDetailContent({testMode}:{testMode?:TestCarDetailAdapter} = {
           {isCompactLayout && vehicleIdentity}
           <div className="vehicle-detail-gallery min-w-0">
             <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} customerView customerActions={{
-              testSafe: Boolean(testMode),
-              bookingHref: canTestBook && dealerConfig.testDriveBooking?.enabled && (!car.inventoryStatus || car.inventoryStatus === 'available') ? (testMode ? '#test-drive' : bookingHref) : undefined,
-              onBooking: testMode ? ()=>testMode.openForm('viewing',car) : undefined,
+              bookingHref: dealerConfig.testDriveBooking?.enabled && (!car.inventoryStatus || car.inventoryStatus === 'available') ? bookingHref : undefined,
               enquiryHref: customerFeatures.enabled('publicEnquiries') ? '#vehicle-enquiry' : undefined,
               onEnquiry: customerFeatures.enabled('publicEnquiries') ? openVehicleEnquiry : undefined,
-              call: !testMode && getPhoneHref(dealerConfig) ? <VehicleCall car={car} className="vehicle-gallery-interest-action" /> : undefined,
+              call: getPhoneHref(dealerConfig) ? <VehicleCall car={car} className="vehicle-gallery-interest-action" /> : undefined,
             }} />
           </div>
           <div className="vehicle-summary-column min-w-0">
@@ -324,10 +294,10 @@ export function CarDetailContent({testMode}:{testMode?:TestCarDetailAdapter} = {
             {registrationDetails}
           </div>}
           <div className="vehicle-primary-actions vehicle-summary-main-actions">{bookingAction}{enquiryAction}</div>
-            {!testMode && <div className="vehicle-direct-contact" aria-label="Talk to us about this car">
+            <div className="vehicle-direct-contact" aria-label="Talk to us about this car">
               <VehicleCall car={car} />
               <VehicleWhatsApp car={car} />
-            </div>}
+            </div>
           <VehicleSellingPoints car={car} />
           <aside className="min-w-0 pt-5">
             <dl className="vehicle-key-facts grid grid-cols-2 gap-x-4 gap-y-4">
@@ -348,14 +318,14 @@ export function CarDetailContent({testMode}:{testMode?:TestCarDetailAdapter} = {
             {hasSecondaryActions && <MobileActionDisclosure label="More options" testId="vehicle-secondary-actions" className="vehicle-secondary-actions mt-3 border-t border-border md:mt-0 md:border-0">
               <div className="vehicle-contact-options">
               <div className="vehicle-secondary-grid">
-              {dealerConfig.partExchange?.enabled && (testMode ? <button type="button" onClick={()=>testMode.openForm('part_exchange',car)} className="vehicle-contact-action">Value my car <ArrowRight className="h-4 w-4" /></button> : <a href={`/enquire?type=part_exchange&vehicleId=${encodeURIComponent(car.id)}`} className="vehicle-contact-action">Value my car <ArrowRight className="h-4 w-4" /></a>)}</div>
+              {dealerConfig.partExchange?.enabled && <a href={`/enquire?type=part_exchange&vehicleId=${encodeURIComponent(car.id)}`} className="vehicle-contact-action">Value my car <ArrowRight className="h-4 w-4" /></a>}</div>
               </div>
 
 
             </MobileActionDisclosure>}
               <div className="vehicle-utility-actions" role="group" aria-label="Vehicle tools">
-                {!testMode && <><VehiclePrint car={car} dealer={dealerConfig} features={features} description={description} />
-                <Button variant="ghost" onClick={share} aria-label="Share this vehicle"><Share2 className="h-4 w-4" /> Share</Button></>}
+                <VehiclePrint car={car} dealer={dealerConfig} features={features} description={description} />
+                <Button variant="ghost" onClick={share} aria-label="Share this vehicle"><Share2 className="h-4 w-4" /> Share</Button>
                 <SaveCarButton car={car} variant="inline" className="vehicle-save-control border-transparent bg-transparent" />
                 {shareMessage && <span className="text-xs text-muted-foreground" role="status">{shareMessage}</span>}
               </div>
@@ -366,12 +336,12 @@ export function CarDetailContent({testMode}:{testMode?:TestCarDetailAdapter} = {
         </div>
         <div className="vehicle-details-content min-w-0">
           <nav aria-label="Vehicle information sections" className="vehicle-section-nav">
-            {features.length > 0 && <Link href="#features-heading">Features & equipment</Link>}
-            {description && <Link href="#vehicle-description-heading">Description</Link>}
-            {hasSpecifications && <Link href="#vehicle-overview-heading">Specifications</Link>}
-            {vehicleRunningCostFacts.length > 0 && <Link href="#vehicle-running-costs-heading">Running costs</Link>}
-            {(vehicleHistoryRecordFacts.length > 0 || hasHandoverInformation) && <Link href={vehicleHistoryRecordFacts.length > 0 ? '#vehicle-records-heading' : '#buyer-information-heading'}>History & information</Link>}
-            {sourceReport && <Link href="#vehicle-source-report-heading">Vehicle checks</Link>}
+            {features.length > 0 && <a href="#features-heading">Features & equipment</a>}
+            {description && <a href="#vehicle-description-heading">Description</a>}
+            {hasSpecifications && <a href="#vehicle-overview-heading">Specifications</a>}
+            {vehicleRunningCostFacts.length > 0 && <a href="#vehicle-running-costs-heading">Running costs</a>}
+            {(vehicleHistoryRecordFacts.length > 0 || hasHandoverInformation) && <a href={vehicleHistoryRecordFacts.length > 0 ? '#vehicle-records-heading' : '#buyer-information-heading'}>History & information</a>}
+            {sourceReport && <a href="#vehicle-source-report-heading">Vehicle checks</a>}
           </nav>
           {(description || features.length > 0) && <div className="vehicle-information-row vehicle-editorial-overview">
             {features.length > 0 && (
@@ -395,7 +365,7 @@ export function CarDetailContent({testMode}:{testMode?:TestCarDetailAdapter} = {
               <div className="vehicle-description-copy mt-4 space-y-4 text-base leading-7 text-foreground">
                 {vehicleDescriptionParagraphs(description).map((paragraph, index) => <p key={index} className="whitespace-pre-line">{paragraph}</p>)}
                 {separateDescriptionNotes && <aside className="rounded-lg border border-border bg-muted/40 p-4 text-sm leading-6" aria-label="Vehicle history and important information"><h3 className="mb-2 font-semibold text-foreground">Vehicle history & important information</h3>{(car.sourceExtras!.vehicleDescriptionDisclosures as unknown[]).filter((note): note is string => typeof note === 'string').map(note => <p key={note} className="whitespace-pre-line">{note}</p>)}</aside>}
-                {typeof car.sourceExtras?.vehicleDescriptionTax === 'string' && <aside className="rounded-lg border border-border p-4 text-sm leading-6" aria-label="Verified vehicle tax"><h3 className="mb-2 font-semibold">Vehicle tax</h3><p>{car.sourceExtras.vehicleDescriptionTax}</p>{!testMode && <a href="https://www.gov.uk/vehicle-tax-direct-debit/setting-up" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center underline">About DVLA Direct Debit payments</a>}</aside>}
+                {typeof car.sourceExtras?.vehicleDescriptionTax === 'string' && <aside className="rounded-lg border border-border p-4 text-sm leading-6" aria-label="Verified vehicle tax"><h3 className="mb-2 font-semibold">Vehicle tax</h3><p>{car.sourceExtras.vehicleDescriptionTax}</p><a href="https://www.gov.uk/vehicle-tax-direct-debit/setting-up" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center underline">About DVLA Direct Debit payments</a></aside>}
                 {Array.isArray(car.sourceExtras?.originalAdvertDescriptions) && <details className="border-t border-border pt-4 text-sm"><summary className="min-h-11 cursor-pointer py-2 font-semibold">Original advert information</summary>{car.sourceExtras.originalAdvertDescriptions.filter((value): value is string => typeof value === 'string').map((value, index) => <p key={index} className="whitespace-pre-line py-2">{value}</p>)}</details>}
               </div>
 
@@ -456,7 +426,12 @@ export function CarDetailContent({testMode}:{testMode?:TestCarDetailAdapter} = {
                   {dealerConfig.presentation.includedInformation}
                 </p>
               )}
-              {testMode ? <button type="button" className="text-link mt-3" onClick={()=>testMode.openForm('general',car)}>Ask us about these details <ArrowRight className="h-4 w-4" /></button> : <Link href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`} className="text-link mt-3">Ask us about these details <ArrowRight className="h-4 w-4" /></Link>}
+              <Link
+                href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`}
+                className="text-link mt-3"
+              >
+                Ask us about these details <ArrowRight className="h-4 w-4" />
+              </Link>
             {damageDisclosure && (
               <div id="vehicle-history" className="mt-7 scroll-mt-24 border-t border-border pt-4">
                 <h3 className="text-xs font-medium text-muted-foreground">
@@ -468,7 +443,7 @@ export function CarDetailContent({testMode}:{testMode?:TestCarDetailAdapter} = {
               </div>
             )}
             </section>}
-            {testMode ? <button type="button" className="vehicle-service-record-request" onClick={()=>testMode.openForm('general',car)}><VehicleFactIcon label="Service history" /><span>Request service records</span><ArrowRight className="h-4 w-4" /></button> : <a className="vehicle-service-record-request" href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}&question=service`}><VehicleFactIcon label="Service history" /><span>Request service records<span className="vehicle-service-record-note">Ask us to email the available service-book photos and records.</span></span><ArrowRight className="h-4 w-4" /></a>}
+            <a className="vehicle-service-record-request" href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}&question=service`}><VehicleFactIcon label="Service history" /><span>Request service records<span className="vehicle-service-record-note">Ask us to email the available service-book photos and records.</span></span><ArrowRight className="h-4 w-4" /></a>
           </div>
           {sourceReport && <VehicleSourceReport car={car} />}
         </div>
@@ -476,9 +451,9 @@ export function CarDetailContent({testMode}:{testMode?:TestCarDetailAdapter} = {
           {customerFeatures.enabled('publicEnquiries') && <section id="vehicle-enquiry" className="vehicle-inline-enquiry min-w-0" aria-labelledby="vehicle-enquiry-heading">
             <h2 id="vehicle-enquiry-heading" tabIndex={-1} className="section-heading mb-2">Enquire about this {vehicleLabel}</h2>
             <p className="mb-6 text-sm text-muted-foreground">Ask us about this car or tell us how we can help.</p>
-            <EnquiryForm key={car.id} vehicle={car} initialType="general" embedded testMode={testMode ? {customer:testMode.customer,config:testMode.config,submit:async input=>{await testMode.submit(input);}} : undefined} />
+            <EnquiryForm key={car.id} vehicle={car} initialType="general" embedded />
           </section>}
-          {testMode ? <section aria-label="Visit the showroom" className="mt-8 border-t border-border pt-7"><h2 className="section-heading">Visit the showroom</h2>{canTestBook && dealerConfig.testDriveBooking?.enabled && <Button type="button" onClick={()=>testMode.openForm('viewing',car)}>Choose a test-drive time</Button>}</section> : <VehicleVisit car={car} />}
+          <VehicleVisit car={car} />
         </div>
       </div>
       {similarCars.length > 0 && (

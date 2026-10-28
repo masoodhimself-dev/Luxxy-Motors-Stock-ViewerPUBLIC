@@ -1,4 +1,3 @@
-import { customerTestSession } from '@/lib/customer-test-storage';
 import { useId } from 'react';
 import { AlertTriangle, ExternalLink, ShieldCheck } from '@/components/icons';
 import { readVehicleSourceReport, type SourceCheckStatus, type VehicleSourceReportCar } from '@/lib/vehicle-source-report';
@@ -22,7 +21,7 @@ export function VehicleSourceReport({ car }: { car: VehicleSourceReportCar }) {
     <h2 id="vehicle-source-report-heading" className="section-heading">Vehicle checks</h2>
     {report.ulez && <div className="vehicle-source-report__ulez">
       <h3>{ulezLabels[report.ulez.status]}</h3>
-      {!customerTestSession() && <a href="https://tfl.gov.uk/modes/driving/check-your-vehicle/" target="_blank" rel="noopener noreferrer">Check ULEZ status <ExternalLink size={14} /></a>}
+      <a href="https://tfl.gov.uk/modes/driving/check-your-vehicle/" target="_blank" rel="noopener noreferrer">Check ULEZ status <ExternalLink size={14} /></a>
     </div>}
     {report.history && <div className="vehicle-source-report__history">
       {report.recordedDisclosure && <aside className="vehicle-source-report__disclosure"><AlertTriangle size={20} /><div><strong>{report.recordedDisclosure.label}</strong><p>Please read the insurance history information for this vehicle.</p></div></aside>}

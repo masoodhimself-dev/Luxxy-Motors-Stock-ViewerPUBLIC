@@ -17,7 +17,6 @@ export function demoJobRouter(){
    if(d.status!=='active'||new Date(d.expires_at).getTime()<=Date.now()){await client.query('ROLLBACK');res.status(410).json({error:'Demo expired or inactive.'});return;}
    const prior=(await client.query('SELECT * FROM demo_completion_jobs WHERE dealer_id=$1',[id])).rows[0];
    if(prior){await client.query('COMMIT');res.status(prior.run_id===parsed.data.runId?200:409).json(prior.run_id===parsed.data.runId?publicCompletionJob(prior):{error:'A completion job already exists for a different import. Operator review required.'});return;}
-   if(d.baseline){await client.query('ROLLBACK');res.status(409).json({error:'Baseline already saved. No completion job created.'});return;}
    const latest=(await client.query('SELECT run_id,status,received_count,expected_count FROM stock_import_runs WHERE dealer_id=$1 ORDER BY received_at DESC LIMIT 1',[id])).rows[0];
    if(latest?.run_id!==parsed.data.runId||latest.status!=='completed'||latest.received_count<1||latest.received_count!==latest.expected_count){await client.query('ROLLBACK');res.status(409).json({error:'Use latest complete non-empty import runId.'});return;}
    const job=(await client.query('INSERT INTO demo_completion_jobs(dealer_id,key_id,run_id) VALUES ($1,$2,$3) RETURNING *',[id,key.id,parsed.data.runId])).rows[0];

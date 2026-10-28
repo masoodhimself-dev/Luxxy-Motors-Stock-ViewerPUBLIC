@@ -24,14 +24,14 @@ export async function processDemoCompletionJobs(transport:typeof fetch=(...args)
    const key={id:job.key_id,ownerAuthUserId:job.owner_auth_user_id};
    await lease.query("UPDATE demo_completion_jobs SET status='running',attempts=attempts+1,updated_at=now() WHERE id=$1",[id]);
    // Validate the selected import on every attempt, not just job creation.
-   const current=(await lease.query('SELECT d.baseline,d.expires_at,d.converted_at,t.status FROM dealer_demos d JOIN dealerships t ON t.id=d.dealer_id WHERE d.dealer_id=$1',[job.dealer_id])).rows[0];
+   const current=(await lease.query('SELECT d.expires_at,d.converted_at,t.status FROM dealer_demos d JOIN dealerships t ON t.id=d.dealer_id WHERE d.dealer_id=$1',[job.dealer_id])).rows[0];
    const latest=(await lease.query('SELECT run_id,status,received_count,expected_count FROM stock_import_runs WHERE dealer_id=$1 ORDER BY received_at DESC LIMIT 1',[job.dealer_id])).rows[0];
    if(!current||current.converted_at||current.status!=='active'||new Date(current.expires_at).getTime()<=Date.now()||latest?.run_id!==job.run_id||latest.status!=='completed'||latest.received_count<1||latest.received_count!==latest.expected_count){await record('blocked',job.stage,'Demo or latest complete import changed. Operator review required.');continue;}
-   const operation=job.stage==='baseline'?'baseline':'test-email';
+   const operation=job.stage==='baseline'?'stock-ready':'test-email';
    if(job.stage==='import-check')await record('running','email-send');
    const stage=job.stage==='import-check'?'email-send':job.stage;
    if(stage==='email-delivery'){
-    if(job.delivery_checks>=10){await record('blocked',stage,'Email delivery not confirmed after ten checks. No baseline saved.');continue;}
+    if(job.delivery_checks>=10){await record('blocked',stage,'Email delivery not confirmed after ten checks. Stock setup is not completed.');continue;}
     await lease.query('UPDATE demo_completion_jobs SET delivery_checks=delivery_checks+1 WHERE id=$1',[id]);
    }
    const result=await runDemoCompletionOperation(key,job.dealer_id,operation,stage==='email-delivery'?'GET':'POST',{runId:job.run_id,confirm:job.dealer_id},transport);
@@ -39,8 +39,8 @@ export async function processDemoCompletionJobs(transport:typeof fetch=(...args)
     const transient=[429,503].includes(result.httpStatus)&&!(result.body.error as string)?.includes('email-read permission');
     await record(transient?'running':'blocked',stage,result.body.error??'Completion failed.');continue;
    }
-   if(stage==='baseline'){const saved=result.body.baselineSaved&&['saved','replayed'].includes(result.body.status);await record(saved?'completed':'blocked','baseline',saved?null:'Baseline already exists or was not saved by this job. Operator review required.');}
-   else if(result.body.status==='failed')await record('blocked','email-delivery','Test email failed delivery. No baseline saved.');
+   if(stage==='baseline'){const saved=result.body.stockReady&&['saved','replayed'].includes(result.body.status);await record(saved?'completed':'blocked','baseline',saved?null:'Stock readiness was not confirmed for this job. Operator review required.');}
+   else if(result.body.status==='failed')await record('blocked','email-delivery','Test email failed delivery. Stock setup is not completed.');
    else if(result.body.status==='delivered')await record('running','baseline',null,0);
    else await record('running','email-delivery');
   }catch{

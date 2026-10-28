@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 test.skip(process.env.LUXXY_LOCAL_PREVIEW !== '1', 'Fictional browser response only; no saved stock changes.');
 
-for (const width of [390, 834, 1440]) test(`verified customer price reduction and recent browsing at ${width}`, async ({page}) => {
+for (const width of [390, 834, 1440]) test(`verified customer price reduction at ${width}`, async ({page}) => {
   await page.setViewportSize({width, height:1000});
   const id = '27be77df-87ce-4557-8b61-0a24d9092b76';
   const errors:string[] = [];
@@ -32,9 +32,6 @@ for (const width of [390, 834, 1440]) test(`verified customer price reduction an
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   await page.screenshot({path:`/tmp/luxxy-public-stock-update-${width}.png`,fullPage:true});
   await page.goto('/stock');
-  const recent = page.locator('section').filter({has:page.getByRole('heading',{name:'Recently viewed',exact:true})});
-  await expect(recent.getByRole('link').filter({hasText:'Nissan Qashqai'})).toBeVisible();
-  await recent.getByRole('button',{name:'Clear viewing history'}).click();
   await expect(page.getByRole('heading',{name:'Recently viewed',exact:true})).toHaveCount(0);
   expect(errors).toEqual([]);
 });

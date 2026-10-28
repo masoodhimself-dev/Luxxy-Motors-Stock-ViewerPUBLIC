@@ -1,7 +1,6 @@
-import {act,fireEvent,render,screen,waitFor,within} from '@testing-library/react';
+import {act,fireEvent,render,screen,within} from '@testing-library/react';
 import {beforeEach,expect,it,vi} from 'vitest';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
-import {HttpApiError} from '@workspace/api-client-react';
 import {createSaleWorkspace,type SaleWorkspaceRecord} from '@workspace/vehicle-meta';
 const state=vi.hoisted(()=>({api:vi.fn(),search:'',enquiries:[] as any[],stock:{cars:[]} as any,stockLoading:false,stockError:null as string|null}));
 vi.mock('@workspace/api-client-react',()=>({customFetch:(...args:unknown[])=>state.api(...args),HttpApiError:class extends Error{},getGetStockQueryKey:()=>['/api/stock']}));
@@ -181,31 +180,7 @@ it('settled stock errors retain linked enquiry identity and allow manual price e
  expect(await screen.findByLabelText('Customer’s full name')).toHaveValue('Linked Buyer');expect(writes()).toHaveLength(0);
 });
 
-it('uses only sandbox data and endpoints in a portal-managed test sale',async()=>{
- const session={sessionId:'synthetic-session',expiresAt:'2099-01-01T00:00:00Z',vehicle:{id:'test-car',title:'Example Car',registration:'TEST 01',price:1000},customer:{name:'Example Buyer',phone:'07700900123',email:'',address:'1 Example Road'}};
- const base='/api/sales-test/sessions/synthetic-session';
- state.stock={cars:[{id:'real-car',title:'Real Stock Car',price:9999}]};
- state.enquiries=[{id:'real-customer',customerName:'Private Customer',vehicleId:'real-car'}];
- state.api.mockImplementation(async(p:string,o?:{method?:string;body?:string})=>{
-  if(p===`${base}/stock`)return {cars:[session.vehicle]};
-  if(p===`${base}/sale-workspace`&&!o?.method)return {sales:[],hasMore:false};
-  if(p===`${base}/sale-workspace`&&o?.method==='POST')return createSaleWorkspace(JSON.parse(o.body!),{now:'2026-10-27T10:00:00Z',actor:'Test',nextId:()=> 'test-sale',nextNumber:()=> 'TEST-01',branding},'TEST-01');
-  throw new Error(`Unexpected request: ${p}`);
- });
- const client=new QueryClient({defaultOptions:{queries:{retry:false}}});
- render(<QueryClientProvider client={client}><SalesWorkspace embedded managedTestSession={session}/></QueryClientProvider>);
- fireEvent.click(await screen.findByRole('button',{name:'New invoice'}));
- expect(await screen.findByRole('option',{name:/Example Car/})).toBeInTheDocument();
- expect(screen.queryByRole('option',{name:/Real Stock Car/})).not.toBeInTheDocument();
- fireEvent.click(screen.getByRole('button',{name:/Continue/}));
- expect(screen.getByLabelText('Customer’s full name')).toHaveValue('Example Buyer');
- expect(screen.queryByText('Private Customer')).not.toBeInTheDocument();
- fireEvent.click(screen.getByRole('button',{name:'Save details'}));
- await waitFor(()=>expect(writes().some(([p])=>p===`${base}/sale-workspace`)).toBe(true));
- const body=JSON.parse(writes().find(([p])=>p===`${base}/sale-workspace`)![1].body);
- expect(body.draft.customer).toBe('Example Buyer');expect(body.draft.vehicleId).toBe('test-car');
- expect(writes().some(([p])=>p==='/api/sale-workspace')).toBe(false);
-});
+
 
 it.each(['refund','note'])('does not claim the calculated balance is owed after a completed sale has a %s',async kind=>{
  const saved=full('completed-corrected','Corrected Buyer');saved.completedAt='2026-10-27T10:00:00Z';
