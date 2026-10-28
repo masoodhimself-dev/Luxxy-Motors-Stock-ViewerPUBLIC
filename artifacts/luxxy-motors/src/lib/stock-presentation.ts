@@ -19,3 +19,12 @@ export function stockRegistrationYear(car: Car): string {
   const number = band.match(/\b(\d{2})\s*reg\b/i)?.[1] || (/^\d{2}$/.test(band) ? band : '');
   return [year, number ? '(' + number + ' reg)' : ''].filter(Boolean).join(' ');
 }
+
+/** Prefer the supplied derivative to a trim-only label; never manufacture an engine or model. */
+export function stockVariant(car: Car): string {
+  return (car.variant?.trim() || car.trim?.trim() || '')
+    .replace(/\bEuro\s*\d[^ ]*/gi, '')
+    .replace(/\(s\/s\)/gi, '')
+    .replace(/\b\d(?:dr|door)\b/gi, '')
+    .replace(/\s+/g, ' ').trim();
+}

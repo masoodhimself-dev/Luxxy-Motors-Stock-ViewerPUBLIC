@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {arrivalTime, stockHighlights, shortTrim, stockRegistrationYear} from './stock-presentation';
+import {arrivalTime, stockHighlights, shortTrim, stockRegistrationYear, stockVariant} from './stock-presentation';
 import type {Car} from './stock-context';
 describe('stock presentation from supplied data', () => {
   it('does not treat an import timestamp as an arrival date', () => {
@@ -21,4 +21,12 @@ describe('stock presentation from supplied data', () => {
 it('formats a full supplied registration band without repeating the year', () => {
   expect(stockRegistrationYear({year:2018, registrationBand:'2018 (68 reg)'} as Car)).toBe('2018 (68 reg)');
   expect(stockRegistrationYear({year:2018, registrationBand:'68'} as Car)).toBe('2018 (68 reg)');
+});
+
+it('uses the supplied full derivative before a trim label, without inventing missing details', () => {
+  const car = {variant: '1.5 TSI SE DSG Euro 6 (s/s) 5dr', trim:'SE'} as Car;
+  expect(stockVariant(car)).toBe('1.5 TSI SE DSG');
+  expect(car.variant).toBe('1.5 TSI SE DSG Euro 6 (s/s) 5dr');
+  expect(stockVariant({trim:'Trophy'} as Car)).toBe('Trophy');
+  expect(stockVariant({} as Car)).toBe('');
 });

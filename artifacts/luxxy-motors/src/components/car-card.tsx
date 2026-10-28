@@ -5,7 +5,7 @@ import { vehicleSellingPoints } from '@/lib/vehicle-selling-points';
 import { vehicleInsuranceDisclosure } from '@/lib/vehicle-history';
 import { prioritiseVehicleFeatures, vehicleContent } from '@/lib/vehicle-content';
 import { PriceReduction } from '@/components/price-reduction';
-import { shortTrim, stockHighlights, stockRegistrationYear } from '@/lib/stock-presentation';
+import { shortTrim, stockHighlights, stockRegistrationYear, stockVariant } from '@/lib/stock-presentation';
 import { customerRegistrationDetails } from '@/lib/customer-vehicle-meta';
 import { responsiveVehicleImage, retryOriginalImage } from "@/lib/responsive-vehicle-image";
 import { vehicleAvailability } from '@/lib/customer-convenience';
@@ -41,6 +41,7 @@ export function CarCard({
   catalogue = false,
   summaryOnly = false,
   savedDetails = false,
+  stockDetails = false,
   analyticsSource = 'showroom',
 }: {
   car: Car;
@@ -52,6 +53,7 @@ export function CarCard({
   catalogue?: boolean;
   summaryOnly?: boolean;
   savedDetails?: boolean;
+  stockDetails?: boolean;
   analyticsSource?: 'showroom' | 'similar_cars' | 'saved_cars';
 }) {
   const displayBadges = [...new Set([vehicleAvailability(car.inventoryStatus), ...badges])];
@@ -113,7 +115,7 @@ export function CarCard({
   const specs = [
     registrationYear ? { label: 'Year', value: registrationYear } : null,
     car.mileage != null
-      ? { label: 'Mileage', value: savedDetails ? formatMileage(car.mileage) : formatCompactMileage(car.mileage) }
+      ? { label: 'Mileage', value: (savedDetails || stockDetails) ? formatMileage(car.mileage) : formatCompactMileage(car.mileage) }
       : car.mileageText
         ? { label: 'Mileage', value: car.mileageText }
         : null,
@@ -127,7 +129,13 @@ export function CarCard({
     car.bodyType ? { label: 'Body', value: car.bodyType } : null,
     car.colour ? { label: 'Colour', value: car.colour } : null,
     car.doors != null || car.seats != null ? { label: 'Doors / seats', value: [car.doors != null ? `${car.doors} doors` : null, car.seats != null ? `${car.seats} seats` : null].filter(Boolean).join(' · ') } : null,
-  ].filter(Boolean) as { label: string; value: string }[] : specs.slice(0, 4);
+  ].filter(Boolean) as { label: string; value: string }[] : stockDetails ? [...specs, ...(car.bodyType ? [{label: 'Body', value: car.bodyType}] : [])] : specs.slice(0, 4);
+  const stockFeatures = stockDetails
+    ? prioritiseVehicleFeatures(vehicleContent(car).features)
+      .filter(feature => !/\b(?:no|not|without|unavailable|absent|removed|deleted|missing|excluded|disabled|inoperative|faulty|broken)\b|\b(?:isn['’]?t|doesn['’]?t|non[ -]?(?:functional|functioning|working))\b/i.test(feature))
+      .slice(0, 2)
+    : [];
+  const variant = stockDetails ? stockVariant(car) : shortTrim(car);
   const savedFeatures = savedDetails
     ? prioritiseVehicleFeatures(vehicleContent(car).features).slice(0, 4)
     : [];
@@ -138,6 +146,7 @@ export function CarCard({
       className={cn(
         'vehicle-card group flex relative',
         savedDetails && 'vehicle-card-saved-details',
+        stockDetails && 'stock-details-card',
         catalogue && 'vehicle-card-catalogue',
         catalogue && isCompact && 'vehicle-card-catalogue-compact',
         isRow
@@ -257,9 +266,9 @@ export function CarCard({
                 {vehicleLabel}
               </Link>
             </h3>
-            {!summaryOnly && (car.variant || car.trim) && (
-              <p className="vehicle-card-variant mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                {shortTrim(car)}
+            {!summaryOnly && variant && (
+              <p title={stockDetails ? variant : undefined} className="vehicle-card-variant mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                {variant}
               </p>
             )}
             {registration && <p className="mt-1 text-xs text-muted-foreground">{summaryOnly ? customerRegistrationDetails(car) : <UKNumberPlate value={registration} size="sm" variant="front" showFlag={false} />}</p>}
@@ -295,13 +304,16 @@ export function CarCard({
                 {savedFeatures.map(feature => <li key={feature}>{feature}</li>)}
               </ul>
             </div>}
-            {!savedDetails && (!catalogue || !hasSellingPoints) && stockHighlights(car).length > 0 && <p className="stock-card-highlights mb-3 text-xs text-muted-foreground">{stockHighlights(car).join(' · ')}</p>}
-            {!stretchedLink && <div
+            {stockFeatures.length > 0 && <ul className="stock-card-equipment" aria-label="Key features">
+              {stockFeatures.map(feature => <li key={feature} title={feature}>{feature}</li>)}
+            </ul>}
+            {!stockDetails && !savedDetails && (!catalogue || !hasSellingPoints) && stockHighlights(car).length > 0 && <p className="stock-card-highlights mb-3 text-xs text-muted-foreground">{stockHighlights(car).join(' · ')}</p>}
+            {(!stretchedLink || stockDetails) && <div
               className="vehicle-card-actions relative z-20 mt-auto flex flex-wrap items-center justify-between gap-1 border-t border-border pt-2"
               data-testid={isCompact ? `compact-actions-${car.id}` : undefined}
             >
               <Link href={detailHref} onClick={recordVehicleOpen} className="vehicle-card-view text-link text-sm">
-                View vehicle
+                {stockDetails ? 'View car' : 'View vehicle'}
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>}

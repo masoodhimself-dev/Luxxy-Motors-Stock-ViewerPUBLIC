@@ -421,7 +421,7 @@ describe('showroom search filters', () => {
     expect(window.localStorage.getItem('luxxy.stock-view.v1')).toBe('compact');
     expect(screen.queryByTestId('button-compare-bmw-1-series')).not.toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /view/i }).length).toBeGreaterThan(0);
-    expect(screen.queryByTestId('compact-actions-bmw-1-series')).not.toBeInTheDocument();
+    expect(screen.getByTestId('compact-actions-bmw-1-series')).toHaveTextContent('View car');
   });
 
   it('restores the saved stock display preference', () => {
@@ -597,7 +597,7 @@ it('retains supplied equipment when mileage is the only omitted card highlight',
   stockFixture.cars = [{ ...originalCars[0], mileage: 12885, fuel: null, emissionClass: null, sourceExtras: { features: ['Heated seats'] } }];
   renderHome();
   const card = screen.getByTestId('card-vehicle-bmw-1-series');
-  expect(card).toHaveTextContent('12.9k miles');
+  expect(card).toHaveTextContent('12,885 miles');
   expect(card).toHaveTextContent('Heated seats');
   expect(card).not.toHaveTextContent('low mileage');
 });
@@ -697,4 +697,19 @@ it('drops removed benefit parameters instead of preserving hidden filters', () =
   fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
   expect(screen.queryByText('Affordable Insurance')).not.toBeInTheDocument();
   expect(screen.queryByText('Road tax up to £35/year')).not.toBeInTheDocument();
+});
+
+it('shows supplied stock detail, exact mileage and an explicit car link while retaining photo/save controls', () => {
+  const car = {...originalCars[0], variant:'1.5 TSI SE DSG Euro 6 (s/s) 5dr', trim:'SE', mileage:85342, engineSize:'1.5L', bodyType:'Hatchback', features:['No parking sensors', 'Cruise Control', 'Heated front seats', 'Bluetooth']};
+  stockFixture.cars=[car];
+  renderHome();
+  const card=screen.getByTestId(`card-vehicle-${car.id}`);
+  expect(within(card).getByText('1.5 TSI SE DSG')).toBeInTheDocument();
+  expect(within(card).getByText('85,342 miles')).toBeInTheDocument();
+  expect(within(card).getByText('1.5L')).toBeInTheDocument();
+  const equipment=within(card).getByRole('list',{name:'Key features'});
+  expect(within(equipment).getAllByRole('listitem')).toHaveLength(2);
+  expect(equipment).not.toHaveTextContent('No parking sensors');
+  expect(within(card).getByRole('link',{name:'View car'})).toHaveAttribute('href',`/vehicle/${car.id}`);
+  expect(within(card).getByTestId(`button-save-${car.id}`)).toBeInTheDocument();
 });

@@ -515,6 +515,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                       key={car.id}
                       car={car}
                       catalogue
+                      stockDetails
                       priority={index < 2}
                       layout={stockView === 'compact' ? 'compact' : 'card'}
                       stretchedLink
