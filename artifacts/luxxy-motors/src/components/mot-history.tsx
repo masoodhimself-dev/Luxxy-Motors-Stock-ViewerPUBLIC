@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { customFetch } from "@workspace/api-client-react";
 import type { MotHistory } from "@workspace/vehicle-meta";
 import { Button } from "./ui/button";
@@ -212,9 +212,11 @@ export function MotHistoryPanel({
 export function StaffMotLookupDialog({
   onClose,
   initialRegistration = "",
+  returnFocusRef,
 }: {
   onClose: () => void;
   initialRegistration?: string;
+  returnFocusRef?: RefObject<HTMLButtonElement | null>;
 }) {
   const [registration, setRegistration] = useState(initialRegistration);
   const { busy, reply, error, load } = useMotRequest(registration);
@@ -225,7 +227,17 @@ export function StaffMotLookupDialog({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="portal-action-dialog max-w-2xl">
+      <DialogContent
+        className="portal-action-dialog max-w-2xl"
+        onCloseAutoFocus={(event) => {
+          // Safari does not focus buttons on tap; return explicitly to the opener
+          // instead of refocusing the allowance field and reopening its keyboard.
+          if (returnFocusRef?.current?.isConnected) {
+            event.preventDefault();
+            returnFocusRef.current.focus({ preventScroll: true });
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Check MOT history</DialogTitle>
           <DialogDescription>
@@ -276,9 +288,11 @@ export function PartExchangeMotCheck({
   registration: string;
 }) {
   const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
   return (
     <>
       <Button
+        ref={trigger}
         type="button"
         variant="outline"
         className="w-full"
@@ -290,6 +304,7 @@ export function PartExchangeMotCheck({
       </Button>
       {open && (
         <StaffMotLookupDialog
+          returnFocusRef={trigger}
           initialRegistration={registration}
           onClose={() => setOpen(false)}
         />

@@ -70,6 +70,8 @@ it("part exchange opens a prefilled pop-up, reads only MOT data and retains the 
       <PartExchangeMotCheck registration="AB12 CDE" />
     </div>,
   );
+  // Tapping a button in Safari leaves the previous form input focused.
+  screen.getByLabelText("Part-exchange allowance").focus();
   fireEvent.click(
     screen.getByRole("button", { name: "Check part-exchange MOT" }),
   );
@@ -85,6 +87,11 @@ it("part exchange opens a prefilled pop-up, reads only MOT data and retains the 
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(screen.getByLabelText("Part-exchange allowance")).toHaveValue("1500");
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Check part-exchange MOT" }),
+    ).toHaveFocus(),
+  );
   expect(state.fetch).toHaveBeenCalledTimes(1);
 });
 it("ignores late results after changing the registration", async () => {

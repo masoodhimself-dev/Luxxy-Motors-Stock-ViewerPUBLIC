@@ -203,7 +203,8 @@ function PortalDesk() {
   const [salesOpened, setSalesOpened] = useState(tab === "sales");
   const [newSaleRequest, setNewSaleRequest] = useState(0);
   const [quickEnquiryOpen, setQuickEnquiryOpen] = useState(false);
-  const [motLookupOpen,setMotLookupOpen] = useState(false);
+  const [motLookupOpen, setMotLookupOpen] = useState(false);
+  const motLookupTrigger = useRef<HTMLButtonElement>(null);
   const [quickEnquiryVehicleId, setQuickEnquiryVehicleId] = useState<
     string | null
   >(null);
@@ -353,13 +354,19 @@ function PortalDesk() {
       className="portal-workspace portal-premium-workspace portal-redesign luxxy-shell min-h-[70vh] bg-background"
     >
       <PortalInstallMetadata />
-      {motLookupOpen && canSell && <StaffMotLookupDialog onClose={()=>setMotLookupOpen(false)}/>}
+      {motLookupOpen && canSell && (
+        <StaffMotLookupDialog
+          returnFocusRef={motLookupTrigger}
+          onClose={() => setMotLookupOpen(false)}
+        />
+      )}
       <PortalToolbar staffName={staffName} account={<UserButton />}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               type="button"
               className="portal-quick-trigger"
+              ref={motLookupTrigger}
               aria-label="Quick actions"
             >
               <Plus size={16} aria-hidden="true" />
