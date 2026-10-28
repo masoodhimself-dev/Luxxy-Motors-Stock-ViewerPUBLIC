@@ -4,7 +4,8 @@ import { db, vehiclesTable } from "@workspace/db";
 import { vehicleRegistration } from "@workspace/vehicle-meta";
 import { currentDealerId } from "../lib/tenant-context";
 import { requireStaff, requirePermission } from "../middlewares/staff-auth";
-import { MotError } from "../lib/mot-history";
+import { MotError, normaliseMotRegistration } from "../lib/mot-history";
+import { estimateMotMileage } from "../lib/mot-mileage-estimate";
 import { motService } from "../lib/mot-storage";
 import { findPublicVehicle } from "./stock";
 
@@ -40,12 +41,10 @@ export function motRouter(
     }
     if (++entry.count > 20) {
       res.set("Retry-After", "60");
-      res
-        .status(429)
-        .json({
-          code: "busy",
-          error: "Too many MOT checks. Please try again shortly.",
-        });
+      res.status(429).json({
+        code: "busy",
+        error: "Too many MOT checks. Please try again shortly.",
+      });
       return;
     }
     next();
@@ -54,13 +53,11 @@ export function motRouter(
     if (error instanceof MotError)
       res.status(error.status).json({ code: error.code, error: error.message });
     else
-      res
-        .status(503)
-        .json({
-          code: "unavailable",
-          error:
-            "MOT history is temporarily unavailable. Please try again later.",
-        });
+      res.status(503).json({
+        code: "unavailable",
+        error:
+          "MOT history is temporarily unavailable. Please try again later.",
+      });
   };
   const vehicleHandler =
     (
@@ -99,6 +96,28 @@ export function motRouter(
         fail(res, error);
       }
     };
+  // Public part-exchange forms receive an estimate only, never staff/customer data.
+  router.get("/mot-mileage-estimate", limit, async (req, res) => {
+    try {
+      if (typeof req.query.registration !== "string")
+        throw new MotError(
+          "invalid_registration",
+          "Enter a complete UK registration number.",
+          400,
+        );
+      const registration = normaliseMotRegistration(req.query.registration);
+      const history = await service.lookup(registration);
+      const estimate = estimateMotMileage(history);
+      const vehicle = { make: history.make, model: history.model };
+      res.json(
+        estimate
+          ? { status: "estimated", registration, vehicle, estimate }
+          : { status: "unavailable", registration, vehicle },
+      );
+    } catch (error) {
+      fail(res, error);
+    }
+  });
   router.get("/vehicles/:id/mot-history", limit, vehicleHandler(publicVehicle));
   router.get(
     "/staff/vehicles/:id/mot-history",

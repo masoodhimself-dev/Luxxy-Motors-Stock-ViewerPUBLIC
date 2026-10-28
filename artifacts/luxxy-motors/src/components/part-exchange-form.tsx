@@ -1,3 +1,4 @@
+import { MotMileageEstimate } from './mot-mileage-estimate';
 import { FeatureUnavailable } from './feature-unavailable';
 import './part-exchange-form.css';
 import { useDealerFeatures } from '@/lib/dealer-features';
@@ -175,7 +176,7 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
       <legend className="sr-only">Your current car</legend>
       <div className="max-w-sm"><label className="block"><span className={labelClass}>Registration</span><UKNumberPlate value={details.registration} editable onChange={value => update('registration', value)} testId="visual-uk-number-plate" inputTestId="input-part-exchange-registration" /></label></div>
       <label className="block"><span className={labelClass}>Make and model (optional)</span><Input maxLength={100} value={details.makeModel} onChange={event => update('makeModel', event.target.value)} placeholder="e.g. Volkswagen Golf 1.4 TSI" data-testid="input-part-exchange-model" /></label>
-      <label className="block max-w-sm"><span className={labelClass}>Current mileage (miles)</span><Input required type="number" min={0} max={1000000} step={1} inputMode="numeric" value={details.mileage} onChange={event => update('mileage', event.target.value)} placeholder="e.g. 45000" data-testid="input-part-exchange-mileage" /></label>
+      <label className="block max-w-sm"><span className={labelClass}>Current mileage (miles)</span><Input required type="number" min={0} max={1000000} step={1} inputMode="numeric" value={details.mileage} onChange={event => update('mileage', event.target.value)} placeholder="e.g. 45000" data-testid="input-part-exchange-mileage" /></label><MotMileageEstimate registration={details.registration} mileage={details.mileage} onEstimate={mileage => setDetails(current => ({...current, mileage}))} />
       <details className="border-t border-border pt-3"><summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold">Condition and paperwork (optional)</summary><fieldset className="min-w-0 space-y-5 pt-3">
       <legend className="sr-only">Condition and paperwork</legend>
       <label className="block"><span className={labelClass}>Overall condition</span><NativeSelect value={details.condition} onChange={event => update('condition', event.target.value)} data-testid="select-part-exchange-condition">

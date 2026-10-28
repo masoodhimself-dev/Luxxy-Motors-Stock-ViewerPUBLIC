@@ -1,3 +1,4 @@
+import { MotMileageEstimate } from './mot-mileage-estimate';
 import { OptionalJourneyPostcode } from '@/components/postcode-field';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import '../pages/customer-workflows.css';
@@ -979,6 +980,7 @@ export function TestDriveBooking({
                             }
                           />
                         </label>
+                        <div className="sm:col-span-2"><MotMileageEstimate registration={details.exchange.registration} mileage={details.exchange.mileage} onEstimate={mileage => setDetails(old => ({...old, exchange: {...old.exchange, mileage}}))} /></div>
                       </div>
                     <button type="button" className="mt-2 min-h-11 text-sm underline underline-offset-4" onClick={() => setDetails(old => ({ ...old, hasPartExchange: false }))}>Remove part exchange</button>
                     </div>}

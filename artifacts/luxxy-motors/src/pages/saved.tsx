@@ -189,7 +189,7 @@ export default function Saved() {
                   {reduction != null && <p className="rounded bg-secondary px-3 py-2 font-medium">Price reduced by {formatPrice(reduction, car.currency)} since you saved it</p>}
                   {reserved && <p className="rounded bg-secondary px-3 py-2">{snapshots[car.id]?.status === 'available' ? 'Reserved since you saved it' : 'Currently reserved'}</p>}
                 </div>}
-                <CarCard car={car} layout="compact" catalogue analyticsSource="saved_cars" />
+                <CarCard car={car} layout="compact" catalogue savedDetails analyticsSource="saved_cars" />
               </div>;
             })}
           </div>

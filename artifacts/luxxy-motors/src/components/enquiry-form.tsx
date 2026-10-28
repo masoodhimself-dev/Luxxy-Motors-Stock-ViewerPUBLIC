@@ -1,3 +1,4 @@
+import { MotMileageEstimate } from './mot-mileage-estimate';
 import { FeatureUnavailable } from './feature-unavailable';
 import { useDealerFeatures } from '@/lib/dealer-features';
 import { showroomHours } from '@/lib/showroom-hours';
@@ -374,6 +375,7 @@ export function EnquiryForm({
                 value={exchange.mileage}
                 onChange={event => setExchange(current => ({ ...current, mileage: event.target.value }))} />
             </label>
+            <MotMileageEstimate registration={exchange.registration} mileage={exchange.mileage} onEstimate={mileage => setExchange(current => ({...current, mileage}))} />
             <details className="border-t border-border pt-3"><summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-primary">Anything to mention? (optional)</summary><label className="block"><span className={labelClass}>Anything we should know about your car?</span>
               <Textarea rows={3} maxLength={400} value={exchange.notes} onChange={event => setExchange(current => ({ ...current, notes: event.target.value }))} />
             </label></details>

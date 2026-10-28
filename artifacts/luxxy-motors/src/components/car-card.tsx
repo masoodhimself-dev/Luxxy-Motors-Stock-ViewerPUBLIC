@@ -3,7 +3,7 @@ import { HoverHelp, TermHelp, VehicleTerm } from './customer-help';
 import { VehicleSellingPoints } from './vehicle-selling-points';
 import { vehicleSellingPoints } from '@/lib/vehicle-selling-points';
 import { vehicleInsuranceDisclosure } from '@/lib/vehicle-history';
-import { vehicleContent } from '@/lib/vehicle-content';
+import { prioritiseVehicleFeatures, vehicleContent } from '@/lib/vehicle-content';
 import { PriceReduction } from '@/components/price-reduction';
 import { shortTrim, stockHighlights, stockRegistrationYear } from '@/lib/stock-presentation';
 import { customerRegistrationDetails } from '@/lib/customer-vehicle-meta';
@@ -17,6 +17,7 @@ import { Car } from '@/lib/stock-context';
 import {
   cn,
   formatCompactMileage,
+  formatMileage,
   formatPrice,
   getSafeImageUrl,
   getThumbnailUrl,
@@ -39,6 +40,7 @@ export function CarCard({
   photoControls = true,
   catalogue = false,
   summaryOnly = false,
+  savedDetails = false,
   analyticsSource = 'showroom',
 }: {
   car: Car;
@@ -49,6 +51,7 @@ export function CarCard({
   photoControls?: boolean;
   catalogue?: boolean;
   summaryOnly?: boolean;
+  savedDetails?: boolean;
   analyticsSource?: 'showroom' | 'similar_cars' | 'saved_cars';
 }) {
   const displayBadges = [...new Set([vehicleAvailability(car.inventoryStatus), ...badges])];
@@ -110,7 +113,7 @@ export function CarCard({
   const specs = [
     registrationYear ? { label: 'Year', value: registrationYear } : null,
     car.mileage != null
-      ? { label: 'Mileage', value: formatCompactMileage(car.mileage) }
+      ? { label: 'Mileage', value: savedDetails ? formatMileage(car.mileage) : formatCompactMileage(car.mileage) }
       : car.mileageText
         ? { label: 'Mileage', value: car.mileageText }
         : null,
@@ -119,13 +122,22 @@ export function CarCard({
     car.engineSize ? { label: 'Engine', value: car.engineSize } : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
-  const visibleSpecs = specs.slice(0, 4);
+  const visibleSpecs = savedDetails ? [
+    ...specs,
+    car.bodyType ? { label: 'Body', value: car.bodyType } : null,
+    car.colour ? { label: 'Colour', value: car.colour } : null,
+    car.doors != null || car.seats != null ? { label: 'Doors / seats', value: [car.doors != null ? `${car.doors} doors` : null, car.seats != null ? `${car.seats} seats` : null].filter(Boolean).join(' · ') } : null,
+  ].filter(Boolean) as { label: string; value: string }[] : specs.slice(0, 4);
+  const savedFeatures = savedDetails
+    ? prioritiseVehicleFeatures(vehicleContent(car).features).slice(0, 4)
+    : [];
   const hasSellingPoints = vehicleSellingPoints(car).some(point => point.label !== 'Mileage');
   const insuranceDisclosure = vehicleInsuranceDisclosure(car, vehicleContent(car).description);
   return (
     <article
       className={cn(
         'vehicle-card group flex relative',
+        savedDetails && 'vehicle-card-saved-details',
         catalogue && 'vehicle-card-catalogue',
         catalogue && isCompact && 'vehicle-card-catalogue-compact',
         isRow
@@ -271,13 +283,19 @@ export function CarCard({
               {catalogue && car.inventoryStatus === 'reserved' && <span>Reserved</span>}
               {insuranceDisclosure && <TermHelp text={insuranceDisclosure.explanation}>{insuranceDisclosure.cardLabel}</TermHelp>}
             </div>}
-            <div className="vehicle-specs mb-3 mt-2">
+            <div className={cn("vehicle-specs mb-3 mt-2", savedDetails && "saved-car-specs")} aria-label={savedDetails ? 'Vehicle specifications' : undefined}>
               {visibleSpecs.map((spec) => (
-                <VehicleTerm key={spec.label} label={spec.label} value={spec.value} className="inline-flex min-w-0 items-center gap-1.5 [overflow-wrap:anywhere]" ariaLabel={`${spec.label}: ${spec.value}`}>{spec.value}</VehicleTerm>
+                <VehicleTerm key={spec.label} label={spec.label} value={spec.value} className="inline-flex min-w-0 items-center gap-1.5 [overflow-wrap:anywhere]" ariaLabel={`${spec.label}: ${spec.value}`}>{savedDetails ? <span><span className="saved-spec-label">{spec.label}</span><span className="saved-spec-value">{spec.value}</span></span> : spec.value}</VehicleTerm>
               ))}
             </div>
             <VehicleSellingPoints car={car} compact omitMileage />
-            {(!catalogue || !hasSellingPoints) && stockHighlights(car).length > 0 && <p className="stock-card-highlights mb-3 text-xs text-muted-foreground">{stockHighlights(car).join(' · ')}</p>}
+            {savedFeatures.length > 0 && <div className="saved-car-equipment">
+              <p className="saved-equipment-heading">Key features</p>
+              <ul aria-label="Key features">
+                {savedFeatures.map(feature => <li key={feature}>{feature}</li>)}
+              </ul>
+            </div>}
+            {!savedDetails && (!catalogue || !hasSellingPoints) && stockHighlights(car).length > 0 && <p className="stock-card-highlights mb-3 text-xs text-muted-foreground">{stockHighlights(car).join(' · ')}</p>}
             {!stretchedLink && <div
               className="vehicle-card-actions relative z-20 mt-auto flex flex-wrap items-center justify-between gap-1 border-t border-border pt-2"
               data-testid={isCompact ? `compact-actions-${car.id}` : undefined}

@@ -65,7 +65,7 @@
     "test:practice-retirement": "node test-build.mjs src/practice-retirement.test.ts && node --test dist-test/practice-retirement.test.mjs && node test-build.mjs src/retired-practice-client.integration.test.ts && node --test dist-test/retired-practice-client.integration.test.mjs",
     "test:postcodes": "node test-enquiry-emails-build.mjs src/postcodes.test.ts && node --test dist-test/postcodes.test.mjs",
     "test:delivery-pricing": "node test-enquiry-emails-build.mjs src/delivery-pricing.test.ts && node --test dist-test/delivery-pricing.test.mjs",
-    "test:mot": "node test-enquiry-emails-build.mjs src/mot-history.test.ts && node --test dist-test/mot-history.test.mjs"
+    "test:mot": "node test-enquiry-emails-build.mjs src/mot-history.test.ts && node --test dist-test/mot-history.test.mjs && node test-enquiry-emails-build.mjs src/mot-mileage-estimate.test.ts && node --test dist-test/mot-mileage-estimate.test.mjs"
   },
   "dependencies": {
     "@clerk/express": "^2.1.64",

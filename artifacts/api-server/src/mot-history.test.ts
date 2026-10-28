@@ -332,6 +332,21 @@ test("public vehicle checks are scoped to visible tenant stock; arbitrary regist
     };
     assert.equal((await get(`/api/vehicles/${id}/mot-history`)).status, 200);
     assert.equal(calls, 1);
+    const invalidEstimate = await get(
+      "/api/mot-mileage-estimate?registration=invalid",
+    );
+    assert.equal(invalidEstimate.status, 400);
+    assert.equal(calls, 1);
+    const estimateReply = await get(
+      "/api/mot-mileage-estimate?registration=AB12%20CDE",
+    );
+    assert.equal(estimateReply.status, 200);
+    assert.equal(estimateReply.body.vehicle.make, "FORD");
+    assert.equal(estimateReply.body.registration, "AB12CDE");
+    assert.equal(estimateReply.body.history, undefined);
+    assert.equal(estimateReply.body.tests, undefined);
+    assert.equal(estimateReply.cache, "no-store");
+    assert.equal(calls, 2);
     assert.equal(
       (
         await get(`/api/vehicles/${id}/mot-history`, {
@@ -340,10 +355,10 @@ test("public vehicle checks are scoped to visible tenant stock; arbitrary regist
       ).status,
       404,
     );
-    assert.equal(calls, 1);
+    assert.equal(calls, 2);
     const absent = await get(`/api/vehicles/${missing}/mot-history`);
     assert.equal(absent.body.status, "registration_missing");
-    assert.equal(calls, 1);
+    assert.equal(calls, 2);
     assert.equal(absent.cache, "no-store");
     assert.equal(
       (await get("/api/staff/mot-history?registration=AB12CDE")).status,
