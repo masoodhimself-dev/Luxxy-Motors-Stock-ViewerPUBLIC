@@ -1,4 +1,5 @@
 import { usePageMeta } from '@/hooks/use-page-meta';
+import {StaffMotLookupDialog} from '@/components/mot-history';
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { SignInButton, UserButton, useAuth, useUser } from "@clerk/react";
@@ -202,6 +203,7 @@ function PortalDesk() {
   const [salesOpened, setSalesOpened] = useState(tab === "sales");
   const [newSaleRequest, setNewSaleRequest] = useState(0);
   const [quickEnquiryOpen, setQuickEnquiryOpen] = useState(false);
+  const [motLookupOpen,setMotLookupOpen] = useState(false);
   const [quickEnquiryVehicleId, setQuickEnquiryVehicleId] = useState<
     string | null
   >(null);
@@ -351,6 +353,7 @@ function PortalDesk() {
       className="portal-workspace portal-premium-workspace portal-redesign luxxy-shell min-h-[70vh] bg-background"
     >
       <PortalInstallMetadata />
+      {motLookupOpen && canSell && <StaffMotLookupDialog onClose={()=>setMotLookupOpen(false)}/>}
       <PortalToolbar staffName={staffName} account={<UserButton />}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -380,6 +383,7 @@ function PortalDesk() {
                   New sale
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem data-action="mot" onSelect={()=>setMotLookupOpen(true)}><CheckCircle2 aria-hidden="true"/>Check MOT</DropdownMenuItem>
               </>
             )}
             <DropdownMenuItem

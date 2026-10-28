@@ -231,3 +231,4 @@ export * from './vehicle-sheet-branding.ts';
 export * from './review-reminder.ts';
 
 export * from "./sale-delivery.ts";
+export type {MotHistory,MotTest} from './mot-history';

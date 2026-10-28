@@ -1,3 +1,4 @@
+import {MotHistoryPanel} from '../mot-history';
 import { useRef, type ReactNode } from "react";
 import type { Car } from "@/lib/stock-context";
 import { vehicleContent } from "@/lib/vehicle-content";
@@ -142,6 +143,7 @@ export function EnquiryVehicleInformation({
           </DialogDescription>
         </DialogHeader>
         <HistoryLinks vehicleId={car.id} />
+        <MotHistoryPanel vehicleId={car.id} staff/>
         <div className="enquiry-vehicle-overview grid min-w-0 gap-6 md:grid-cols-2">
           <div className="min-w-0">
             <Gallery

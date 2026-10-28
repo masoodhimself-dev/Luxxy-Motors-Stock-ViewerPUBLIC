@@ -66,3 +66,4 @@ export * from "./vehicle-watches";
 export * from './price-update-recipient-claims';
 
 export * from './postcodes';
+export * from './mot-history';

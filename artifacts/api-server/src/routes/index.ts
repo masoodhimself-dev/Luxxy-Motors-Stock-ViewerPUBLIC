@@ -1,3 +1,4 @@
+import motHistoryRouter from './mot-history';
 import postcodesRouter from './postcodes';
 import historicalStripePaymentsRouter from './stripe-reservations';
 import historicalReservationsRouter from './reservations';
@@ -40,6 +41,7 @@ router.use(['/sales-test', '/test-email-settings'], (_req, res) => {
 router.use(requireStaffOperationAccess);
 router.use(enforceDealerFeatures);
 router.use(dealerFeaturesRouter);
+router.use(motHistoryRouter);
 router.use(postcodesRouter);
 router.use('/staff/whatsapp', requireStaff, whatsappConfirmationRouter(), customerEmailPreparationRouter());
 router.use(searchVisibilityRouter);

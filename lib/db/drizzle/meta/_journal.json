@@ -519,6 +519,13 @@
       "when": 1793192400001,
       "tag": "0073_delivery_road_distance",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1793192400002,
+      "tag": "0074_mot_history",
+      "breakpoints": true
     }
   ]
 }

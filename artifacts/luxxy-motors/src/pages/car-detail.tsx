@@ -1,3 +1,4 @@
+import {MotHistoryPanel} from '@/components/mot-history';
 
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import './vehicle-redesign.css';
@@ -446,6 +447,7 @@ export default function CarDetail() {
             <a className="vehicle-service-record-request" href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}&question=service`}><VehicleFactIcon label="Service history" /><span>Request service records<span className="vehicle-service-record-note">Ask us to email the available service-book photos and records.</span></span><ArrowRight className="h-4 w-4" /></a>
           </div>
           {sourceReport && <VehicleSourceReport car={car} />}
+          <MotHistoryPanel key={car.id} vehicleId={car.id}/>
         </div>
           <div className="vehicle-enquiry-visit-row">
           {customerFeatures.enabled('publicEnquiries') && <section id="vehicle-enquiry" className="vehicle-inline-enquiry min-w-0" aria-labelledby="vehicle-enquiry-heading">

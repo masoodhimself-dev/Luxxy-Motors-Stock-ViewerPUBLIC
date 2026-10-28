@@ -1,3 +1,4 @@
+import {PartExchangeMotCheck} from '@/components/mot-history';
 import { AddressPostcodeHelper } from '@/components/postcode-field';
 import { SaleHandover, SaleHandoverFields, handoverDefaults } from '@/components/portal/sale-handover';
 import { SaleChecklists } from '@/components/sales-demo/sale-checklists';
@@ -1319,6 +1320,7 @@ export function SalesWorkspace({
                             className="invoice-adjustment-row"
                             key={`px-${index}`}
                           >
+                            <div>
                             <label>
                               Part-exchange registration
                               <Input
@@ -1339,6 +1341,8 @@ export function SalesWorkspace({
                                 }
                               />
                             </label>
+                            {canManageSales && <div className="mt-2"><PartExchangeMotCheck registration={row.registration}/></div>}
+                            </div>
                             <label>
                               Vehicle description
                               <Input
