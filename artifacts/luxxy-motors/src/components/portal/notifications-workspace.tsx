@@ -98,7 +98,7 @@ export function NotificationsWorkspace({
     >
       {!calendar && (
         <header className="customer-workspace-heading">
-          <h2>Inbox</h2>
+          <div className="inbox-title"><p>Customer workspace</p><h2>Inbox</h2><span>Conversations, visits and follow-ups, together.</span></div>
           {canEmail && (
             <Button onClick={newEnquiry}>
               <Plus size={17} aria-hidden="true" />

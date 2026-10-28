@@ -1,0 +1,190 @@
+/* The staff desk. Scoped to the portal; no customer pages or document styles. */
+.portal-workspace.portal-redesign {
+  --portal-canvas:#f3f6f8; --portal-border:#dce5eb; --portal-ink:#203443;
+  --portal-accent:#245f86; --portal-muted:#5d7180;
+  padding:0; min-height:100dvh; background:var(--portal-canvas);
+}
+.portal-workspace.portal-redesign > .portal-toolbar { margin:0; position:sticky; top:0; z-index:30; background:#fff; }
+.portal-workspace.portal-redesign .portal-toolbar-inner { max-width:none; min-height:72px; padding:10px 28px; }
+.portal-workspace.portal-redesign .portal-toolbar-label { font-size:12px; letter-spacing:.02em; }
+.portal-workspace.portal-redesign .portal-workspace-inner.portal-app-layout { max-width:1800px; display:grid; grid-template-columns:192px minmax(0,1fr); align-items:start; }
+.portal-workspace.portal-redesign .portal-navigation-rail { position:sticky; top:72px; display:flex; flex-direction:column; min-height:calc(100dvh - 72px); padding:28px 14px 18px; border-right:1px solid var(--portal-border); background:#fff; }
+.portal-workspace.portal-redesign .portal-rail-caption { margin:0 12px 12px; color:var(--portal-muted); font-size:10px; font-weight:650; letter-spacing:.1em; text-transform:uppercase; }
+.portal-workspace.portal-redesign .portal-section-nav { display:flex; flex-direction:column; gap:6px; margin:0; min-height:0; border:0; overflow:visible; }
+.portal-workspace.portal-redesign .portal-section-nav > button { display:flex; justify-content:flex-start; gap:11px; min-height:48px; padding:12px 14px; border:1px solid transparent; border-radius:8px; background:transparent; color:var(--portal-muted); font-size:14px; font-weight:550; }
+.portal-workspace.portal-redesign .portal-section-nav > button svg { display:block; width:18px; height:18px; color:currentColor; }
+.portal-workspace.portal-redesign .portal-section-nav > button[aria-current="page"] { background:#eaf3f9; color:#1f567a; border-color:#d4e6f1; }
+.portal-workspace.portal-redesign .portal-section-nav > button:hover { background:#f0f5f8; }
+.portal-workspace.portal-redesign .portal-rail-shortcuts { margin-top:32px; padding-top:24px; border-top:1px solid var(--portal-border); }
+.portal-workspace.portal-redesign .portal-rail-shortcuts > button { display:flex; align-items:center; width:100%; min-height:44px; gap:11px; padding:10px 14px; color:var(--portal-muted); text-align:left; border-radius:8px; }
+.portal-workspace.portal-redesign .portal-rail-shortcuts > button:hover { background:#f0f5f8; color:var(--portal-accent); }
+.portal-workspace.portal-redesign .portal-rail-footer { display:flex; align-items:center; gap:10px; margin-top:auto; padding:32px 10px 0; min-width:0; }
+.portal-workspace.portal-redesign .portal-rail-footer > div { min-width:0; }
+.portal-workspace.portal-redesign .portal-rail-footer strong { display:block; font-size:12px; overflow-wrap:anywhere; }
+.portal-workspace.portal-redesign .portal-rail-footer small { display:block; color:var(--portal-muted); font-size:11px; }
+.portal-workspace.portal-redesign .portal-staff-avatar { display:grid; place-items:center; flex:0 0 34px; height:34px; border-radius:50%; background:#eaf0f5; color:#426079; font-weight:600; }
+.portal-workspace.portal-redesign .portal-main-area { padding:28px clamp(18px,2.4vw,36px) 40px; }
+.portal-workspace.portal-redesign .portal-section-content { min-width:0; }
+.portal-workspace.portal-redesign :is(button.bg-primary,.customer-workspace-heading > button) { border-radius:7px; box-shadow:0 1px 2px #2034430c; }
+.portal-workspace.portal-redesign :is(input:not([type=checkbox]):not([type=radio]):not(.uk-number-plate-input),select,textarea) { border-radius:7px; border-color:#c6d3dc; }
+.portal-workspace.portal-redesign .customer-notifications-workspace { display:block; }
+.portal-workspace.portal-redesign .customer-workspace-heading { display:flex; position:static; align-items:center; justify-content:space-between; gap:16px; margin:0 0 24px; min-height:0; }
+.portal-workspace.portal-redesign .customer-workspace-heading h2 { position:static; width:auto; height:auto; clip-path:none; overflow:visible; font-size:28px; font-weight:650; line-height:1.25; letter-spacing:-.04em; margin:3px 0 5px; }
+.portal-workspace.portal-redesign .inbox-title > p { color:var(--portal-muted); font-size:11px; font-weight:550; }
+.portal-workspace.portal-redesign .inbox-title > span { color:var(--portal-muted); font-size:13px; }
+.portal-workspace.portal-redesign .customer-workspace-heading > button { min-height:44px; padding:10px 16px; flex:none; background:var(--portal-accent); color:white; }
+.portal-workspace.portal-redesign .customer-workspace-views { display:flex; gap:6px; width:fit-content; max-width:100%; padding:4px; margin:0 0 18px; border:1px solid var(--portal-border); border-radius:9px; background:#e9eff3; overflow:visible; }
+.portal-workspace.portal-redesign .customer-workspace-views > button { min-width:0; min-height:44px; padding:10px 16px; flex-direction:row; gap:8px; border-radius:6px; color:var(--portal-muted); }
+.portal-workspace.portal-redesign .customer-workspace-views > button[aria-current="page"] { background:#fff; color:var(--portal-accent); box-shadow:0 1px 3px #20344312; }
+.portal-workspace.portal-redesign .customer-workspace-views > button svg { display:block; width:16px; height:16px; color:currentColor; }
+.portal-workspace.portal-redesign .customer-workspace-views strong { font-size:13px; font-weight:550; white-space:nowrap; }
+.portal-workspace.portal-redesign .customer-workspace-views small { display:none; }
+.portal-workspace.portal-redesign .customer-workspace-content { min-width:0; }
+.portal-workspace.portal-redesign .enquiries-premium-workspace { border:0; border-radius:0; overflow:visible; background:transparent; }
+.portal-workspace.portal-redesign .enquiry-simple-toolbar { padding:0 0 14px; gap:8px; background:transparent; border:0; }
+.portal-workspace.portal-redesign .enquiry-simple-toolbar > label { flex:1; }
+.portal-workspace.portal-redesign .enquiry-workspace-canvas { padding:0; background:transparent; }
+.portal-workspace.portal-redesign .enquiry-history-sheet { padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; }
+.portal-workspace.portal-redesign .enquiry-queue-nav { padding:0 0 16px; margin:0; gap:6px; border:0; background:transparent; }
+.portal-workspace.portal-redesign .enquiry-queue-nav > button { min-height:38px; padding:7px 10px; border:1px solid transparent; background:transparent; color:var(--portal-muted); font-size:12px; font-weight:500; }
+.portal-workspace.portal-redesign .enquiry-queue-nav > button[aria-pressed="true"] { background:white; border-color:#c8dae6; color:var(--portal-accent); box-shadow:0 1px 2px #20344308; }
+.portal-workspace.portal-redesign .enquiry-queue-nav > button > span { border-radius:5px; font-size:11px; background:#e8eef3; }
+.portal-workspace.portal-redesign .enquiry-record-browser { gap:18px; }
+.portal-workspace.portal-redesign .enquiry-record-list-pane { background:#fff; border:1px solid var(--portal-border); border-radius:10px; }
+.portal-workspace.portal-redesign .enquiry-record-count { padding:12px 15px; font-weight:550; background:#fff; }
+.portal-workspace.portal-redesign .enquiry-record-select { padding:15px; gap:5px; }
+.portal-workspace.portal-redesign .enquiry-record-select[aria-pressed="true"] { background:#eaf3fa; border-left-color:var(--portal-accent); }
+.portal-workspace.portal-redesign .enquiry-record-row-heading { gap:7px; }
+.portal-workspace.portal-redesign .enquiry-record-row-heading > strong { display:flex; align-items:center; gap:8px; min-width:0; font-size:13px; font-weight:600; }
+.portal-workspace.portal-redesign .enquiry-customer-initial { display:grid; place-items:center; flex:0 0 28px; height:28px; border-radius:50%; background:#edf1f5; color:#526b7c; font-size:11px; font-weight:600; }
+.portal-workspace.portal-redesign .enquiry-compact-list > li[data-tone="danger"] .enquiry-customer-initial { background:#fbe9ec; color:#a5303e; }
+.portal-workspace.portal-redesign .enquiry-compact-list > li[data-tone="warning"] .enquiry-customer-initial { background:#fff2d9; color:#87510b; }
+.portal-workspace.portal-redesign .enquiry-record-row-car { font-size:12px; }
+.portal-workspace.portal-redesign .enquiry-record-row-message { color:#647887; font-size:12px; line-height:1.5; }
+.portal-workspace.portal-redesign .enquiry-record-row-next { font-size:11px; font-weight:550; }
+.portal-workspace.portal-redesign .enquiry-record-detail-pane { padding:22px; gap:16px; border:1px solid var(--portal-border); border-radius:10px; box-shadow:0 2px 8px #233f5004; }
+.portal-workspace.portal-redesign .enquiry-detail-customer { gap:7px 12px; padding-bottom:16px; }
+.portal-workspace.portal-redesign .enquiry-detail-heading h3 { font-size:23px; font-weight:650; }
+.portal-workspace.portal-redesign .enquiry-detail-eyebrow { font-size:10px; letter-spacing:.035em; }
+.portal-workspace.portal-redesign .enquiry-detail-car { padding:12px; background:#f5f8fa; border:0; border-radius:8px; }
+.portal-workspace.portal-redesign .enquiry-detail-car-photo { border-radius:5px; }
+.portal-workspace.portal-redesign .enquiry-action-plan { margin:0; padding:13px 15px; border:1px solid #cfe1ed; border-left:3px solid var(--portal-accent); border-radius:7px; background:#eef6fb; }
+.portal-workspace.portal-redesign .enquiry-action-plan h4 { font-size:14px; }
+.portal-workspace.portal-redesign .enquiry-action-plan p { font-size:12px; line-height:1.6; }
+.portal-workspace.portal-redesign .inbox-primary-actions { padding:0; border:0; background:transparent; gap:7px; }
+.portal-workspace.portal-redesign .inbox-primary-actions button { min-height:44px; border-radius:7px; }
+.portal-workspace.portal-redesign :is(.enquiry-context-details,.enquiry-detail-more,.enquiry-email-records) { border-top:1px solid var(--portal-border); padding-top:2px; }
+.portal-workspace.portal-redesign :is(.enquiry-context-details,.enquiry-detail-more,.enquiry-email-records) > summary { min-height:44px; align-content:center; font-size:12px; color:#4d6779; }
+/* Sales keeps the financial workflow. Only the workspace presentation changes. */
+.portal-workspace.portal-redesign .invoice-builder { border-radius:10px; border-color:var(--portal-border); background:#fff; box-shadow:0 2px 8px #233f5004; }
+.portal-workspace.portal-redesign .invoice-builder-header { background:#fff; padding:14px 20px; border-bottom:1px solid var(--portal-border); }
+.portal-workspace.portal-redesign .invoice-builder-list { padding:24px; }
+.portal-workspace.portal-redesign .invoice-list-heading h1 { font-size:28px; line-height:1.25; letter-spacing:-.04em; }
+.portal-workspace.portal-redesign .invoice-list-heading p { margin-top:6px; font-size:13px; color:var(--portal-muted); }
+.portal-workspace.portal-redesign .invoice-sale-list { gap:10px; }
+.portal-workspace.portal-redesign .invoice-sale-list > button { border:1px solid var(--portal-border); border-radius:8px; padding:16px 18px; transition:background .15s,border-color .15s; }
+.portal-workspace.portal-redesign .invoice-sale-list > button:hover { background:#f3f8fc; border-color:#9bbfd8; }
+.portal-workspace.portal-redesign .invoice-sale-list > button[data-sale-status="reserved"] { border-left:3px solid #be891d; }
+.portal-workspace.portal-redesign .invoice-sale-list > button[data-sale-status="sold"] { border-left:3px solid #2c805d; }
+.portal-workspace.portal-redesign .invoice-steps { padding:12px 20px; gap:6px; background:#f7f9fb; border-color:var(--portal-border); }
+.portal-workspace.portal-redesign .invoice-steps > button { border-radius:7px; }
+.portal-workspace.portal-redesign .invoice-question-sheet { border-radius:10px; border-color:var(--portal-border); }
+.portal-workspace.portal-redesign .invoice-builder-scroll { background:var(--portal-canvas); }
+.portal-workspace.portal-redesign .invoice-builder-footer { border-color:var(--portal-border); background:#fff; }
+.portal-workspace.portal-redesign .invoice-car-context { border-radius:9px; border-color:var(--portal-border); background:#fff; }
+.portal-workspace.portal-redesign .invoice-empty { border-radius:9px; padding:36px 24px; background:#f6f9fb; }
+/* Settings are grouped, with navigation separated from the editor on wide screens. */
+.portal-workspace.portal-redesign .settings-tabs-heading { margin:0 0 24px; padding:0; border:0; }
+.portal-workspace.portal-redesign .settings-tabs-heading h2 { font-size:28px; line-height:1.25; letter-spacing:-.04em; }
+.portal-workspace.portal-redesign .settings-tabs-heading p { margin-top:6px; font-size:13px; color:var(--portal-muted); }
+.portal-workspace.portal-redesign .settings-tabs-heading > span { padding:6px 9px; border:1px solid #cce0d6; border-radius:6px; background:#eef7f2; color:#2b6950; font-size:11px; }
+.portal-workspace.portal-redesign .dealer-settings-hub > .settings-tabs { margin:0; padding:6px; border:1px solid var(--portal-border); border-radius:9px; background:#fff; }
+.portal-workspace.portal-redesign .dealer-settings-hub > .settings-tabs > button { min-height:48px; border:0; border-radius:6px; padding:12px; font-size:13px; color:var(--portal-muted); }
+.portal-workspace.portal-redesign .dealer-settings-hub > .settings-tabs > button[aria-selected="true"] { background:#eaf3fa; color:var(--portal-accent); box-shadow:none; }
+.portal-workspace.portal-redesign .settings-hub-content { min-width:0; padding:24px; border:1px solid var(--portal-border); border-radius:10px; background:#fff; }
+.portal-workspace.portal-redesign .settings-hub-content :is(.settings-panel-header,.admin-heading) { padding-top:0; }
+.portal-workspace.portal-redesign .settings-hub-content :is(.settings-section,.settings-subsection,.admin-card) { border-radius:8px; border-color:var(--portal-border); }
+.portal-workspace.portal-redesign .settings-hub-content :is(.settings-save-bar,.settings-panel-footer) { background:#fff; border-color:var(--portal-border); }
+.portal-workspace.portal-redesign .device-alerts { border:0; color:var(--portal-muted); margin-top:18px; font-size:12px; }
+@media(min-width:1200px) {
+  .portal-workspace.portal-redesign .dealer-settings-hub { display:grid; grid-template-columns:180px minmax(0,1fr); gap:20px; align-items:start; }
+  .portal-workspace.portal-redesign .dealer-settings-hub > .settings-tabs-heading { grid-column:1/-1; margin-bottom:0; }
+  .portal-workspace.portal-redesign .dealer-settings-hub > .settings-tabs { display:grid; grid-template-columns:minmax(0,1fr); position:sticky; top:96px; }
+  .portal-workspace.portal-redesign .dealer-settings-hub > .settings-tabs > button { justify-content:flex-start; text-align:left; }
+}
+@media(min-width:1000px) {
+  .portal-workspace.portal-redesign .enquiry-record-browser { grid-template-columns:minmax(270px,310px) minmax(0,1fr); }
+}
+@media(min-width:768px) and (max-width:1199px) {
+  .portal-workspace.portal-redesign .portal-workspace-inner.portal-app-layout { grid-template-columns:100px minmax(0,1fr); }
+  .portal-workspace.portal-redesign .portal-navigation-rail { padding-inline:8px; }
+  .portal-workspace.portal-redesign .portal-section-nav > button { flex-direction:column; gap:5px; padding:11px 5px; font-size:12px; }
+  .portal-workspace.portal-redesign :is(.portal-rail-caption,.portal-rail-shortcuts,.portal-rail-footer) { display:none; }
+  .portal-workspace.portal-redesign .portal-main-area { padding:22px 18px 36px; }
+  .portal-workspace.portal-redesign .settings-hub-content { margin-top:16px; padding:18px; }
+}
+@media(max-width:767px) {
+  .portal-workspace.portal-redesign .portal-toolbar-inner { min-height:64px; padding:8px 16px; }
+  .portal-workspace.portal-redesign .portal-workspace-inner.portal-app-layout { display:block; padding-bottom:calc(84px + env(safe-area-inset-bottom)); }
+  .portal-workspace.portal-redesign .portal-navigation-rail { position:fixed; z-index:40; inset:auto 0 0; min-height:0; padding:6px 12px calc(6px + env(safe-area-inset-bottom)); border:0; border-top:1px solid var(--portal-border); background:#fffffffa; }
+  .portal-workspace.portal-redesign .portal-section-nav { display:flex; flex-direction:row; gap:6px; }
+  .portal-workspace.portal-redesign .portal-section-nav > button { flex:1; min-height:54px; flex-direction:column; justify-content:center; gap:3px; padding:6px 4px; border-radius:8px; font-size:11px; }
+  .portal-workspace.portal-redesign :is(.portal-rail-caption,.portal-rail-shortcuts,.portal-rail-footer) { display:none; }
+  .portal-workspace.portal-redesign .portal-main-area { padding:22px 14px 28px; }
+  .portal-workspace.portal-redesign .customer-workspace-heading { margin-bottom:18px; flex-wrap:nowrap; }
+  .portal-workspace.portal-redesign .customer-workspace-heading h2 { font-size:26px; }
+  .portal-workspace.portal-redesign .inbox-title > span { display:none; }
+  .portal-workspace.portal-redesign .customer-workspace-heading > button { padding:10px 12px; font-size:12px; }
+  .portal-workspace.portal-redesign .customer-workspace-views { display:grid; width:100%; grid-template-columns:repeat(3,minmax(0,1fr)); gap:3px; margin-bottom:16px; padding:4px; }
+  .portal-workspace.portal-redesign .customer-workspace-views > button { flex:none; padding:10px 3px; justify-content:center; min-width:0; gap:4px; }
+  .portal-workspace.portal-redesign .customer-workspace-views strong { white-space:normal; font-size:11px; }
+  .portal-workspace.portal-redesign .customer-workspace-views > button svg { display:none; }
+  .portal-workspace.portal-redesign .enquiry-record-detail-pane { padding:16px; gap:14px; scroll-margin-top:80px; }
+  .portal-workspace.portal-redesign .enquiry-detail-heading h3 { font-size:22px; }
+  .portal-workspace.portal-redesign .enquiry-detail-owner { justify-content:flex-start; }
+  .portal-workspace.portal-redesign .enquiry-action-plan { flex-direction:column; align-items:stretch; }
+  .portal-workspace.portal-redesign .enquiry-action-plan > div { flex-basis:auto; }
+  .portal-workspace.portal-redesign .enquiry-action-plan > button { align-self:flex-start; min-height:44px; }
+  .portal-workspace.portal-redesign .invoice-builder-list { padding:18px 14px; }
+  .portal-workspace.portal-redesign .invoice-list-heading { gap:12px; }
+  .portal-workspace.portal-redesign .invoice-list-heading h1 { font-size:24px; }
+  .portal-workspace.portal-redesign .invoice-list-heading p { font-size:12px; }
+  .portal-workspace.portal-redesign .invoice-builder-header { padding:10px 14px; }
+  .portal-workspace.portal-redesign .invoice-builder-header > div:last-child { gap:4px; }
+  .portal-workspace.portal-redesign .invoice-steps { padding:10px 8px; gap:3px; }
+  .portal-workspace.portal-redesign .invoice-builder-footer { bottom:calc(68px + env(safe-area-inset-bottom)); padding-bottom:12px; }
+  .portal-workspace.portal-redesign .settings-tabs-heading { margin-bottom:18px; }
+  .portal-workspace.portal-redesign .settings-tabs-heading h2 { font-size:26px; }
+  .portal-workspace.portal-redesign .dealer-settings-hub > .settings-tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); overflow:visible; gap:4px; }
+  .portal-workspace.portal-redesign .dealer-settings-hub > .settings-tabs > button { min-width:0; padding:8px 3px; flex-direction:column; justify-content:center; gap:4px; font-size:11px; white-space:normal; text-align:center; }
+  .portal-workspace.portal-redesign .settings-hub-content { padding:18px 14px; margin-top:16px; }
+  .portal-workspace.portal-redesign :is(.settings-save-bar,.settings-panel-footer) { bottom:calc(68px + env(safe-area-inset-bottom)); }
+}
+@media(prefers-reduced-motion:reduce) { .portal-workspace.portal-redesign *, .portal-workspace.portal-redesign *::before, .portal-workspace.portal-redesign *::after { scroll-behavior:auto!important; transition:none!important; } }
+@media print { .portal-workspace.portal-redesign .portal-navigation-rail { display:none; } .portal-workspace.portal-redesign .portal-workspace-inner.portal-app-layout { display:block; } .portal-workspace.portal-redesign .portal-main-area { padding:0; } }
+
+/* Keep the invoice editor inside the desk, with navigation and actions reachable. */
+body:has(.portal-workspace.portal-redesign .invoice-builder.is-editing) { overflow:auto; }
+.portal-workspace.portal-redesign .invoice-builder.is-editing { position:relative; inset:auto; z-index:0; height:calc(100dvh - 128px); min-height:480px; border:1px solid var(--portal-border); border-radius:10px; overflow:hidden; }
+@media(max-width:767px) {
+  .portal-workspace.portal-redesign .invoice-builder.is-editing { height:calc(100dvh - 166px); min-height:0; }
+  .portal-workspace.portal-redesign .invoice-builder-footer { bottom:auto; }
+}
+.portal-workspace.portal-redesign .portal-panel { border-radius:10px; background:#fff; }
+.portal-workspace.portal-redesign .portal-panel-header { padding:18px 20px; background:#fff; }
+.portal-workspace.portal-redesign .portal-panel-header h2 { font-size:18px; }
+.portal-workspace.portal-redesign .email-workspace .email-columns { border-radius:10px; border-color:var(--portal-border); overflow:hidden; }
+.portal-workspace.portal-redesign .email-workspace .email-toolbar { padding:0 0 16px; background:transparent; }
+.portal-workspace.portal-redesign .email-workspace .email-view-tabs > button { min-height:44px; border-radius:7px; }
+.portal-workspace.portal-redesign .email-workspace .email-message-list { background:#fff; border-color:var(--portal-border); }
+.portal-workspace.portal-redesign .email-workspace .email-message-detail { background:#fff; }
+.portal-workspace.portal-redesign .email-workspace .email-bubble { border-radius:8px; box-shadow:none; }
+.portal-workspace.portal-redesign .booking-desktop-list > button { border-radius:7px; }
+.portal-workspace.portal-redesign .enquiry-car-placeholder { display:grid; place-items:center; width:72px; height:54px; flex:none; border-radius:6px; background:#e6eef3; color:#7690a3; }
+.portal-workspace.portal-redesign .enquiry-conversation-entry { border:1px solid var(--portal-border); border-radius:8px; background:#f7f9fb; padding:14px 16px; }
+.portal-workspace.portal-redesign .enquiry-conversation-entry[data-kind="staff"] { background:#edf5fb; border-color:#d4e5f0; }
+.portal-workspace.portal-redesign .enquiry-conversation-entry[data-kind="whatsapp"] { background:#eff8f3; border-color:#cfe4d8; }
+.portal-workspace.portal-redesign .enquiry-conversation-entry[data-kind="internal"] { background:#fff8e8; border-color:#eadbbd; }
+.portal-workspace.portal-redesign .enquiry-conversation-entry[data-kind="customer"] { background:#fff; border-left:3px solid var(--portal-accent); }
+
+.portal-workspace.portal-redesign .settings-hub-content .dealer-settings-panel > form > fieldset > .admin-card:first-child { border:0; padding:0; box-shadow:none; }

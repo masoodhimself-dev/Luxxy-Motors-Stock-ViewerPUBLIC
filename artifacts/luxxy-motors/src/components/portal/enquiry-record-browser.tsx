@@ -1,7 +1,7 @@
 import { DirectWhatsApp } from "@/components/direct-whatsapp";
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'wouter';
-import { ArrowLeft, CalendarDays, Phone } from '@/components/icons';
+import { ArrowLeft, CalendarDays, Phone, CarFront } from '@/components/icons';
 import { useGetStaffDirectory, useUpdateEnquiryWorkspace, type Enquiry } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { callOutcomes, type CallOutcome } from '@/lib/enquiry-desk-model';
@@ -48,6 +48,7 @@ function EnquiryDetail({ entry, car, actions }: { entry: Enquiry; car?: Car; act
   const pendingReply = ((entry as InboxEnquiry).pendingEmailReplies ?? 0) > 0;
   const presentation = enquiryPresentation(entry);
   const [emailOpen, setEmailOpen] = useState(false);
+  const [photoFailed, setPhotoFailed] = useState(false);
   const showAppointmentEmail = Boolean(actions.onAppointmentFollowUp && canFollowUpAppointment(entry));
   const outstanding = Boolean(entry.followUpAt && !entry.followUpCompletedAt);
   const future = entry.appointmentAt && Date.parse(entry.appointmentAt) > Date.now() && !entry.appointmentCancelledAt;
@@ -72,7 +73,7 @@ function EnquiryDetail({ entry, car, actions }: { entry: Enquiry; car?: Car; act
     <div className="enquiry-detail-owner"><p className="text-xs text-muted-foreground">Assigned to <strong>{entry.assignedToName || 'Unassigned'}</strong></p><ClaimEnquiry entry={entry} /></div>
     </header>
     <section className="enquiry-detail-car" aria-label="Enquiry vehicle">
-      {car && getThumbnailUrl(car) && <img src={getThumbnailUrl(car)} alt="" loading="lazy" className="enquiry-detail-car-photo" />}
+      {car && (getThumbnailUrl(car) && !photoFailed ? <img src={getThumbnailUrl(car)} alt="" loading="lazy" onError={() => setPhotoFailed(true)} className="enquiry-detail-car-photo" /> : <span className="enquiry-car-placeholder" aria-hidden="true"><CarFront size={28} /></span>)}
       <div className="enquiry-detail-car-copy"><h4>{entry.vehicleTitle || 'General showroom enquiry'}</h4>{entry.vehicleRegistration && <p className="text-sm font-medium">{entry.vehicleRegistration}</p>}{entry.vehicleId && <p className="enquiry-detail-availability">{car ? car.inventoryStatus === 'available' ? 'Available' : car.inventoryStatus === 'reserved' ? 'Reserved' : car.inventoryStatus === 'sold' ? 'Sold' : car.inventoryStatus === 'archived' ? 'Archived' : 'Availability unconfirmed' : 'No longer in current stock'}</p>}{car?.price != null && <p className="text-sm font-semibold">{formatPrice(car.price)}</p>}{!entry.vehicleId && entry.vehicleTitle && <p className="text-xs text-muted-foreground">Ad hoc vehicle — not showroom stock{entry.vehiclePrice != null ? ` · ${formatPrice(entry.vehiclePrice)}` : ''}</p>}</div>
       {car && <Button size="sm" variant="outline" onClick={() => actions.onVehicle(car)}>Vehicle information</Button>}
     </section>
@@ -134,8 +135,8 @@ export function EnquiryRecordBrowser({ entries, allEntries = entries, cars, sele
   return <div className="enquiry-record-browser" data-selected={explicitSelection ? 'true' : 'false'}>
     <div ref={list} tabIndex={-1} className="enquiry-record-list-pane" aria-label={callbacks ? 'Callback requests' : 'Enquiry records'}>
       <p className="enquiry-record-count">{entries.length} {callbacks ? entries.length === 1 ? 'callback' : 'callbacks' : entries.length === 1 ? 'enquiry' : 'enquiries'}</p>
-      <ul className="enquiry-compact-list">{entries.map(entry => { const ownSummary = enquiryPresentation(entry); const urgentOriginal = [...enquiryGroup(entry, allEntries)].sort((a, b) => enquiryPresentation(a).priority - enquiryPresentation(b).priority)[0] ?? entry; const summary = enquiryPresentation(urgentOriginal); return <li key={entry.id} data-testid={`enquiry-${entry.id}`}><button type="button" className="enquiry-record-select" aria-label={`Open enquiry for ${entry.customerName}, ${entry.vehicleTitle || "general enquiry"}`} aria-pressed={selected?.id === entry.id} onClick={() => onSelect(entry.id)}>
-        <span className="enquiry-record-row-heading"><strong>{entry.customerName}</strong><span className="enquiry-state-label" data-tone={summary.tone}>{summary.state}</span>{callbacks && <span className={`enquiry-callback-badge enquiry-callback-${callbackTiming(entry)}`}>{callbackTiming(entry) === 'overdue' ? 'Overdue now' : callbackTiming(entry) === 'upcoming' ? 'Upcoming' : 'Needs a time'}</span>}</span>
+      <ul className="enquiry-compact-list">{entries.map(entry => { const ownSummary = enquiryPresentation(entry); const urgentOriginal = [...enquiryGroup(entry, allEntries)].sort((a, b) => enquiryPresentation(a).priority - enquiryPresentation(b).priority)[0] ?? entry; const summary = enquiryPresentation(urgentOriginal); return <li key={entry.id} data-tone={summary.tone} data-testid={`enquiry-${entry.id}`}><button type="button" className="enquiry-record-select" aria-label={`Open enquiry for ${entry.customerName}, ${entry.vehicleTitle || "general enquiry"}`} aria-pressed={selected?.id === entry.id} onClick={() => onSelect(entry.id)}>
+        <span className="enquiry-record-row-heading"><strong><span className="enquiry-customer-initial" aria-hidden="true">{entry.customerName.trim().slice(0, 1).toUpperCase() || "?"}</span>{entry.customerName}</strong><span className="enquiry-state-label" data-tone={summary.tone}>{summary.state}</span>{callbacks && <span className={`enquiry-callback-badge enquiry-callback-${callbackTiming(entry)}`}>{callbackTiming(entry) === 'overdue' ? 'Overdue now' : callbackTiming(entry) === 'upcoming' ? 'Upcoming' : 'Needs a time'}</span>}</span>
         <span className="enquiry-record-row-purpose">{summary.purpose} <span>{summary.source}</span></span>
         <span className="enquiry-record-row-car">{entry.vehicleTitle || 'General showroom enquiry'}{entry.vehicleRegistration ? ` · ${entry.vehicleRegistration}` : ''}</span>
         {((entry as InboxEnquiry).latestReplyText || entry.message) && <span className="enquiry-record-row-message">{(entry as InboxEnquiry).latestReplyText ? `Latest reply: ${(entry as InboxEnquiry).latestReplyText}` : enquiryRequestText(entry)}</span>}

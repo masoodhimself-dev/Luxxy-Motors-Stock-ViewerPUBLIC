@@ -8,7 +8,7 @@ import {
   Users,
   ShieldCheck,
 } from "@/components/icons";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
 import { useLocation, useSearch } from "wouter";
@@ -224,6 +224,15 @@ function TeamSettings() {
   );
 }
 export function DealerSettingsHub() {
+  const [verticalNavigation, setVerticalNavigation] = useState(false);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia("(min-width: 1200px)");
+    const update = () => setVerticalNavigation(media.matches);
+    update();
+    media.addEventListener?.("change", update);
+    return () => media.removeEventListener?.("change", update);
+  }, []);
   const access = useStaffAccess(),
     search = useSearch(),
     [, navigate] = useLocation();
@@ -253,7 +262,7 @@ export function DealerSettingsHub() {
       <header className="settings-tabs-heading">
         <div>
           <h2>Settings</h2>
-          <p>The details your team uses every day.</p>
+          <p>Your business, customer experience and team access.</p>
         </div>
         <span>
           <ShieldCheck size={15} />
@@ -261,6 +270,7 @@ export function DealerSettingsHub() {
         </span>
       </header>
       <SettingsTabs
+        orientation={verticalNavigation ? "vertical" : "horizontal"}
         idPrefix="dealer-settings"
         label="Settings categories"
         value={selected}

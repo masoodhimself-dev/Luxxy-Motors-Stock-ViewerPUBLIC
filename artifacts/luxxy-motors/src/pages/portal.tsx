@@ -50,6 +50,8 @@ import {
   installSettingsNavigationGuard,
 } from "@/lib/settings-navigation";
 
+import "@/components/portal/portal-redesign.css";
+
 type TabKey = "notifications" | "sales" | "settings";
 
 const tabs: Array<{ key: TabKey; label: string; icon: typeof Settings2 }> = [
@@ -339,7 +341,7 @@ function PortalDesk() {
   return (
     <div
       data-section={tab}
-      className="portal-workspace portal-premium-workspace luxxy-shell min-h-[70vh] bg-background"
+      className="portal-workspace portal-premium-workspace portal-redesign luxxy-shell min-h-[70vh] bg-background"
     >
       <PortalInstallMetadata />
       <PortalToolbar staffName={staffName} account={<UserButton />}>
@@ -399,8 +401,9 @@ function PortalDesk() {
         </DropdownMenu>
       </PortalToolbar>
       <h1 className="sr-only">Dealership workspace</h1>
-      <div className="portal-workspace-inner mx-auto">
-        <div className="min-w-0">
+      <div className="portal-workspace-inner portal-app-layout mx-auto">
+        <aside className="portal-navigation-rail" aria-label="Workspace navigation">
+          <p className="portal-rail-caption">Your workspace</p>
           <nav
             ref={sectionNav}
             className="portal-section-nav mb-5 flex max-w-full gap-0.5 overflow-x-auto border-b border-border"
@@ -432,13 +435,20 @@ function PortalDesk() {
                       : "border-transparent text-muted-foreground hover:bg-secondary hover:text-primary"
                   }`}
                 >
-                  <Icon className="hidden h-4 w-4 sm:block" />
+                  <Icon className="h-4 w-4" aria-hidden="true" />
                   {label}
                 </button>
               );
             })}
           </nav>
-
+          <div className="portal-rail-shortcuts">
+            <p className="portal-rail-caption">Shortcuts</p>
+            <button type="button" onClick={() => go("/portal?section=notifications&workView=test-drives&deskView=calendar")}><CalendarDays size={17} aria-hidden="true" />Calendar</button>
+            {canSell && <button type="button" onClick={() => go("/portal?section=notifications&workView=email&view=drafts")}><Mail size={17} aria-hidden="true" />Email drafts</button>}
+          </div>
+          <div className="portal-rail-footer"><span className="portal-staff-avatar" aria-hidden="true">{staffName.slice(0, 1).toUpperCase()}</span><div><strong>{staffName}</strong><small>Staff workspace</small></div></div>
+        </aside>
+        <div className="portal-main-area min-w-0">
           {quickCreated && (
             <div className="portal-quick-confirmation" role="status">
               <CheckCircle2 size={18} aria-hidden="true" />

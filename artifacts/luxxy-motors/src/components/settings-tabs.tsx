@@ -5,7 +5,8 @@ import './settings-tabs.css';
 export type SettingsTab = { id: string; label: string; icon?: LucideIcon };
 
 /** Arrow keys move focus; Enter/Space activates, so leaving a dirty editor is deliberate. */
-export function SettingsTabs({ idPrefix, label, value, items, onValueChange }: {
+export function SettingsTabs({ idPrefix, label, value, items, onValueChange, orientation = "horizontal" }: {
+  orientation?: "horizontal" | "vertical";
   idPrefix: string;
   label: string;
   value: string;
@@ -33,8 +34,8 @@ export function SettingsTabs({ idPrefix, label, value, items, onValueChange }: {
   }, [value]);
   function move(event: KeyboardEvent<HTMLButtonElement>, index: number) {
     let next: number;
-    if (event.key === 'ArrowRight') next = (index + 1) % items.length;
-    else if (event.key === 'ArrowLeft') next = (index - 1 + items.length) % items.length;
+    if (event.key === 'ArrowRight' || (orientation === 'vertical' && event.key === 'ArrowDown')) next = (index + 1) % items.length;
+    else if (event.key === 'ArrowLeft' || (orientation === 'vertical' && event.key === 'ArrowUp')) next = (index - 1 + items.length) % items.length;
     else if (event.key === 'Home') next = 0;
     else if (event.key === 'End') next = items.length - 1;
     else return;
@@ -43,7 +44,7 @@ export function SettingsTabs({ idPrefix, label, value, items, onValueChange }: {
     target?.focus({ preventScroll: true });
     target?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
   }
-  return <div ref={root} className="settings-tabs" role="tablist" aria-label={label} aria-orientation="horizontal">
+  return <div ref={root} className="settings-tabs" role="tablist" aria-label={label} aria-orientation={orientation}>
     {items.map(({ id, label: title, icon: Icon }, index) => <button
       key={id} type="button" role="tab" id={`${idPrefix}-tab-${id}`}
       aria-controls={value === id ? `${idPrefix}-panel-${id}` : undefined} aria-selected={value === id}

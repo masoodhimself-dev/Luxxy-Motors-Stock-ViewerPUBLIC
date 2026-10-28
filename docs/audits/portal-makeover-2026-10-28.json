@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-28",
+  "status": "implemented locally; not deployed",
+  "preview": "http://127.0.0.1:4275/portal",
+  "scope": [
+    "Inbox, bookings, email records",
+    "Sales list and invoice editor presentation",
+    "Business, brand, bookings, invoice terms, messages and team settings",
+    "Desktop navigation rail, tablet rail and phone bottom navigation"
+  ],
+  "workflows": "Existing API, access permissions, booking rules, email sending, invoices and payments unchanged. Removed features remain removed.",
+  "tests": {
+    "interface_regressions": {
+      "passed": 1585,
+      "note": "1560 passed in final run; 4 suites could not collect when temporary disk space ran out. Cleared only disposable test artifacts and reran those 25 tests successfully."
+    },
+    "responsive_flows": {
+      "passed": 3,
+      "widths": [
+        390,
+        820,
+        1440
+      ],
+      "coverage": [
+        "Customer selection and return",
+        "Customer search",
+        "Vehicle information dialog",
+        "Quick enquiry dialog",
+        "Bookings and email records",
+        "Sales and new invoice entry",
+        "Phone invoice footer stays above navigation",
+        "All six settings groups",
+        "Responsive keyboard navigation",
+        "Unsaved settings navigation cancellation"
+      ],
+      "safety": "Sample browser fixtures, external requests and all record writes blocked."
+    },
+    "workspace_build": "passed",
+    "final_css_frontend_build": "passed",
+    "physical_devices": "not tested"
+  },
+  "live_records_changed": false,
+  "customer_messages_sent": false,
+  "migration_required": false
+}
