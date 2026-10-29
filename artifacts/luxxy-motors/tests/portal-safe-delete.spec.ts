@@ -2,80 +2,15 @@ import { test, expect, type Page } from '@playwright/test';
 import { createSaleWorkspace, saleWorkspaceBranding, type SaleWorkspaceContext, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 
 test.skip(process.env.LUXXY_LOCAL_PREVIEW !== '1', 'Fictional local interception only; no live records or communications.');
-const testEnquiryId = '11111111-2222-4333-8444-555555555555';
-const realEnquiryId = '99999999-8888-4777-8666-555555555555';
 
 async function guardExternal(page: Page) {
   await page.route(/^https?:\/\//, route => new URL(route.request().url()).origin === 'http://127.0.0.1:4212' ? route.continue() : route.abort());
 }
 function access() { return { role: 'owner', permissions: ['sales.manage', 'sales.handover', 'payments.record'], user: { authUserId: 'fictional-safe-delete-owner', name: 'Fictional owner' } }; }
 
+// Enquiry deletion now uses explicit permanent confirmation; its responsive
+// journeys and protected-record checks live in enquiry-deletion.spec.ts.
 for (const width of [390, 834, 1440]) {
-  test(`safe test enquiry delete has review, cancel and exact-record confirmation at ${width}`, async ({ page }) => {
-    test.setTimeout(90000);
-    await page.setViewportSize({ width, height: 1000 });
-    await guardExternal(page);
-    const sample = { reference: 'HIDDEN-TEST', type: 'general', source: 'phone', status: 'new', phone: '07700900123', email: 'operator@example.test', preferredContact: 'phone', vehicleId: null, vehicleTitle: 'Fictional car', appointmentAt: null, workspaceRevision: 2, followUpRevision: 0, createdAt: '2026-10-24T09:00:00Z', events: [] };
-    const real = { ...sample, id: realEnquiryId, customerName: 'Real Buyer To Preserve', message: 'Please preserve this real customer enquiry.' };
-    const fictional = { ...sample, id: testEnquiryId, customerName: 'TEST: QR sharing check', message: 'TEST: fictional enquiry for cleanup only.' };
-    let enquiries = [fictional, real];
-    const originalReal = JSON.stringify(real), deletes: { path: string; body: unknown }[] = [], unexpected: string[] = [], errors: string[] = [];
-    let checks = 0;
-    page.on('pageerror', error => errors.push(error.message));
-    await page.route('**/api/**', async route => {
-      const req = route.request(), path = new URL(req.url()).pathname;
-      if (path === '/api/staff/access') return route.fulfill({ json: access() });
-      if (path === '/api/enquiries') return route.fulfill({ json: enquiries });
-      if (path === '/api/staff/email/reply-attention') return route.fulfill({ json: { enquiries: [] } });
-      if (path === '/api/staff/directory') return route.fulfill({ json: { currentUserId: 'fictional-safe-delete-owner', members: [] } });
-      if (path === '/api/reservations') return route.fulfill({ json: { reservations: [] } });
-      if (path === '/api/staff/phone-sharing-settings') return route.fulfill({ json: { enabled: true, revision: 1 } });
-      if (/^\/api\/staff\/enquiries\/[^/]+\/conversations$/.test(path)) return route.fulfill({ json: { events: [], total: 0, nextCursor: null } });
-      if (path === `/api/staff/enquiries/${testEnquiryId}/deletion` && req.method() === 'GET') {
-        checks++; return route.fulfill({ json: { id: testEnquiryId, expectedRevision: 2, canDelete: true, reason: null } });
-      }
-      if (path === `/api/staff/enquiries/${testEnquiryId}/deletion` && req.method() === 'DELETE') {
-        deletes.push({ path, body: req.postDataJSON() });
-        enquiries = enquiries.filter(entry => entry.id !== testEnquiryId);
-        return route.fulfill({ json: { deleted: true, id: testEnquiryId } });
-      }
-      if (['GET', 'HEAD'].includes(req.method())) return route.continue();
-      unexpected.push(`${req.method()} ${path}`); return route.abort();
-    });
-    await page.goto(`/portal?section=notifications&workView=customers&enquiryId=${testEnquiryId}`);
-    // Vite may still be compiling the lazily loaded portal on a cold start.
-    // Keep the normal short assertions for the actual deletion interactions.
-    await expect(page.getByRole('status', { name: 'Loading page', exact: true })).toBeHidden({ timeout: 30000 });
-    const detail = page.getByRole('region', { name: `Selected enquiry: ${fictional.customerName}` });
-    await expect(detail).toBeVisible();
-    await detail.getByText('Customer details & more', { exact: true }).click();
-    await detail.getByRole('button', { name: 'Delete test enquiry', exact: true }).click();
-    const confirmation = page.getByRole('alertdialog', { name: 'Delete this test enquiry?' });
-    await expect(confirmation.getByRole('button', { name: 'Delete permanently', exact: true })).toBeDisabled();
-    await expect(confirmation.getByLabel('I confirm this is test data, not a real customer enquiry.')).toBeVisible();
-    expect(checks).toBe(1); expect(deletes).toEqual([]);
-    await confirmation.getByRole('button', { name: 'Keep enquiry', exact: true }).click();
-    await expect(confirmation).not.toBeVisible(); expect(deletes).toEqual([]);
-    await detail.getByRole('button', { name: 'Delete test enquiry', exact: true }).click();
-    await confirmation.getByLabel('I confirm this is test data, not a real customer enquiry.').check();
-    await expect(confirmation.getByRole('button', { name: 'Delete permanently', exact: true })).toBeEnabled();
-    expect(checks).toBe(2);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await page.screenshot({ path: `/tmp/luxxy-safe-delete-enquiry-${width}.png`, animations: 'disabled' });
-    await confirmation.getByRole('button', { name: 'Delete permanently', exact: true }).click();
-    await expect(page.getByRole('status').filter({ hasText: 'Test enquiry deleted.' })).toBeVisible();
-    await expect(page).not.toHaveURL(new RegExp(testEnquiryId));
-    await expect(page.getByRole('button', { name: `Open enquiry for ${fictional.customerName}, Fictional car`, exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Open enquiry for Real Buyer To Preserve, Fictional car', exact: true }).click();
-    const preserved = page.getByRole('region', { name: 'Selected enquiry: Real Buyer To Preserve' });
-    await expect(preserved).toContainText(real.message);
-    await preserved.getByText('Customer details & more', { exact: true }).click();
-    await expect(preserved.getByRole('button', { name: 'Delete test enquiry', exact: true })).toHaveCount(0);
-    expect(deletes).toEqual([{ path: `/api/staff/enquiries/${testEnquiryId}/deletion`, body: { expectedRevision: 2, confirmTestOnly: true } }]);
-    expect(enquiries).toEqual([real]); expect(JSON.stringify(real)).toBe(originalReal);
-    expect(unexpected).toEqual([]); expect(errors).toEqual([]);
-  });
-
   test(`safe empty sale delete preserves real saved sale at ${width}`, async ({ page, request }) => {
     test.setTimeout(90000);
     await page.setViewportSize({ width, height: 1000 });

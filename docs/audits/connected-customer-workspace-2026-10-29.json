@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-29",
+  "status": "implemented and verified locally; held for the next approved deployment batch",
+  "scope": [
+    "Cars shows actual linked customer names, outstanding replies, follow-ups and next confirmed test drive",
+    "Cars opens the correct original enquiry, including explicitly merged cases with different vehicles",
+    "Inbox queues: All enquiries, Needs reply, Due today and Test drives",
+    "Selected customer timeline combines original enquiries, calls, staff-confirmed WhatsApp, incoming email and outgoing email with honest delivery states",
+    "Incoming email sender review and manual Mark handled retain existing endpoints and permission checks",
+    "Persistent Email, WhatsApp and Call/private note composer preserves edits across channel changes",
+    "On-demand existing DVSA MOT, part-exchange identity/mileage and road-delivery estimate components insert facts into editable drafts only",
+    "Quick Enquiry explicitly offers to continue exact-contact open cases; never name-only matching or silent merging",
+    "Unsaved message/note navigation guards cover router changes, customer selection, filters, callback queues, bookings and browser unload",
+    "Vehicle/check context collapses on smaller screens; desktop uses contextual rail"
+  ],
+  "protected": [
+    "No database schema, backend API contracts, permissions or business-rule changes",
+    "No live records, stock, invoices, agreed prices, deposits or payments changed",
+    "No customer messages sent during verification",
+    "No stock import, Grok schedule, deployment or tenant configuration changes",
+    "No added polling intervals, per-car MOT lookups or external text-generation API",
+    "Retired video, preparation, comparison, Home and Reports not restored"
+  ],
+  "messageSafeguards": [
+    "Email still uses saved-draft version, expected enquiry revision, server preview hash, explicit send and idempotent request",
+    "WhatsApp resolves the customer number from the current selected record and checks current enquiry revision/vehicle before handoff and confirmation",
+    "WhatsApp remains staff-confirmed handoff only; no automatic reply or read/delivery tracking claimed",
+    "Invoice/photo attachments are blocked in the plain-text WhatsApp handoff; staff use existing email attachment route",
+    "Internal email fallback preserves edited text and changes channel without opening mailto",
+    "Draft bodies are not copied into browser storage or history"
+  ],
+  "verification": {
+    "unitTests": { "passed": 230, "files": 14 },
+    "browser": {
+      "passed": 15,
+      "engine": "WebKit",
+      "profiles": ["320x740 phone", "390x844 iPhone", "820x1180 iPad portrait", "1194x834 iPad landscape", "1440x1000 desktop"],
+      "sources": ["Shore Drive public Auto Trader snapshot", "Multi Choice public Cazoo snapshot"],
+      "covers": ["correct Cars-to-customer handoff", "unified activity", "manual email review/send", "channel draft preservation", "internal email fallback", "prefilled WhatsApp number", "staff confirmation saved in correct timeline", "queue filters", "cancelled dirty navigation", "no horizontal overflow", "no page runtime errors"],
+      "isolation": "All test-browser-context external destinations blocked; allowed POSTs fulfilled by disposable in-memory fixtures; all unexpected writes blocked. No request forwarded to a live API or provider."
+    },
+    "typecheck": "passed",
+    "productionBuild": "passed",
+    "remainingBuildWarnings": ["Existing UI sourcemap warnings", "Existing large PDF/controller bundles", "Mixed static/dynamic enquiry-composer import warning"],
+    "limitations": [
+      "Responsive WebKit profiles, not physical iPhone/iPad hardware",
+      "Provider delivery not retested; email and WhatsApp requests were intercepted locally",
+      "Existing configured booking notification policies unchanged",
+      "Unavailable registrations/provider settings remain explicit rather than inferred",
+      "No new staff stock-change endpoint or retired stock-outreach workflow added"
+    ]
+  },
+  "evidenceDirectory": "/Users/masoodhaqdad/Documents/ChatGPT/Offline POS KDS system/output/connected-workspace-2026-10-29"
+}

@@ -12,6 +12,9 @@ allowBuilds:
   '@swc/core': true
   msw: true
   unrs-resolver: true
+  # ssh2 has a complete JavaScript fallback; native acceleration is unnecessary.
+  cpu-features: false
+  ssh2: false
 
 autoInstallPeers: false
 

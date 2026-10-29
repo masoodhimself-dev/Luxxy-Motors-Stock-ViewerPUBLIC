@@ -1,0 +1,148 @@
+.enquiries-premium-workspace .enquiry-customer-case {
+  min-width: 0;
+  display: grid;
+  gap: 16px;
+}
+.enquiries-premium-workspace .enquiry-case-columns {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 18px;
+}
+.enquiries-premium-workspace .enquiry-case-main {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+.enquiries-premium-workspace .enquiry-case-context {
+  order: -1;
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+.enquiries-premium-workspace .enquiry-case-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.enquiries-premium-workspace .enquiry-case-actions button,
+.enquiries-premium-workspace .enquiry-case-actions a {
+  min-height: 44px;
+  font-size: 12px;
+}
+.enquiries-premium-workspace .enquiry-case-main .enquiry-action-plan {
+  margin: 0;
+  border-radius: 7px;
+}
+.enquiries-premium-workspace .enquiry-case-action-preview {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.enquiries-premium-workspace .enquiry-case-appointment {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #cbded8;
+  background: #f0f7f4;
+  border-radius: 7px;
+  font-size: 12px;
+}
+.enquiries-premium-workspace .enquiry-case-appointment > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+}
+.enquiries-premium-workspace .enquiry-case-followup {
+  padding: 12px;
+  background: var(--portal-canvas);
+  border-radius: 6px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.enquiries-premium-workspace .enquiry-case-followup h4 {
+  font-size: 13px;
+  font-weight: 600;
+}
+.enquiries-premium-workspace .enquiry-case-more {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 0;
+}
+.enquiries-premium-workspace .enquiry-case-more > p {
+  flex-basis: 100%;
+}
+.enquiries-premium-workspace .enquiry-case-context-disclosure {
+  min-width: 0;
+}
+.enquiries-premium-workspace .enquiry-case-context-disclosure > summary {
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--portal-border);
+  border-radius: 7px;
+  background: var(--portal-canvas);
+  font-size: 12px;
+  cursor: pointer;
+}
+.enquiries-premium-workspace .enquiry-case-context-disclosure > summary strong {
+  display: block;
+  font-size: 13px;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+}
+.enquiries-premium-workspace .enquiry-case-context-disclosure > div {
+  display: grid;
+  gap: 12px;
+  padding-top: 10px;
+}
+.enquiries-premium-workspace
+  .enquiry-case-context
+  .enquiry-detail-car
+  > button {
+  width: 100%;
+}
+@media (min-width: 1380px) {
+  .enquiries-premium-workspace .enquiry-case-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(215px, 240px);
+    align-items: start;
+  }
+  .enquiries-premium-workspace .enquiry-case-context {
+    order: initial;
+  }
+  .enquiries-premium-workspace .enquiry-case-context .enquiry-detail-car {
+    align-items: start;
+  }
+  .enquiries-premium-workspace .enquiry-case-context .enquiry-detail-car-photo {
+    width: 100%;
+    height: 125px;
+    object-fit: cover;
+  }
+  .enquiries-premium-workspace .enquiry-case-context .enquiry-detail-car-copy {
+    flex-basis: 100%;
+  }
+}
+@media (max-width: 899px) {
+  .enquiries-premium-workspace .enquiry-case-actions {
+    position: sticky;
+    top: 60px;
+    z-index: 3;
+    padding: 7px;
+    margin-inline: -4px;
+    border: 1px solid var(--portal-border);
+    border-radius: 7px;
+    background: var(--portal-panel);
+  }
+  .enquiries-premium-workspace .enquiry-case-actions button,
+  .enquiries-premium-workspace .enquiry-case-actions a {
+    flex: 1 1 120px;
+  }
+  .enquiries-premium-workspace .enquiry-case-followup {
+    display: none;
+  }
+}

@@ -110,16 +110,25 @@ for (const source of ["shore", "multi"])
     await page
       .getByRole("combobox", { name: "Sort results", exact: true })
       .selectOption("price-asc");
-    await page
-      .getByRole("button", { name: "Advanced search", exact: true })
-      .click();
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible();
-    await dialog
+    const desktopFilters = page.viewportSize()!.width >= 1024;
+    if (!desktopFilters)
+      await page
+        .getByRole("button", { name: "Advanced search", exact: true })
+        .click();
+    const filterContainer = desktopFilters
+      ? page.getByRole("complementary", { name: "Filter cars" })
+      : page.getByRole("dialog");
+    await expect(filterContainer).toBeVisible();
+    await filterContainer
       .getByRole("combobox", { name: "Make", exact: true })
       .selectOption(car.make);
-    await dialog.getByRole("button", { name: /Show \d+ cars?/ }).click();
-    await expect(dialog).not.toBeVisible();
+    if (!desktopFilters) {
+      await filterContainer.getByRole("button", { name: /Show \d+ cars?/ }).click();
+      await expect(filterContainer).not.toBeVisible();
+    } else {
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Advanced search", exact: true })).toHaveCount(0);
+    }
     await expect(cards.first()).toContainText(car.make);
     await cards
       .first()

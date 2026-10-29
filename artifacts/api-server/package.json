@@ -8,7 +8,7 @@
     "build": "node ./build.mjs",
     "start": "exec node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "pnpm run test:safety && pnpm run test:stock && pnpm run test:stock-feed && pnpm run test:sales && pnpm run test:leads && pnpm run test:portal && pnpm run test:settings && pnpm run test:settings-publication && pnpm run test:brochure && pnpm run test:portability && pnpm run test:retired-sales && pnpm run test:bookings && pnpm run test:staff-enquiries && pnpm run test:enquiry-merges && pnpm run test:callback-conversations && pnpm run test:sale-workspace && pnpm run test:dealer-improvements && pnpm run test:relationships && pnpm run test:tenancy && pnpm run test:platform && pnpm run test:domain && pnpm run test:email-workspace && pnpm run test:push && pnpm run test:email-design && pnpm run test:capacity:guards && pnpm run test:shutdown && pnpm run test:history && pnpm run test:email-recovery && pnpm run test:quick-enquiry && pnpm run test:declarations && pnpm run test:features && pnpm run test:share-origin && pnpm run test:staff-origin && pnpm run test:sold-follow-ups && pnpm run test:email-website-branding && pnpm run test:platform-stock-source && pnpm run test:website-assets && pnpm run test:seo && pnpm run test:search-visibility && pnpm run test:invitations && pnpm run test:customer-replies && pnpm run test:safe-deletion && pnpm run test:stock-cache && pnpm run test:invoice-email && pnpm run test:booking-settings && pnpm run test:stock-availability && pnpm run test:whatsapp-confirmation && pnpm run test:published-descriptions && pnpm run test:core-retirements && pnpm run test:practice-retirement && pnpm run test:postcodes && pnpm run test:delivery-pricing && pnpm run test:mot",
+    "test": "pnpm run test:safety && pnpm run test:stock && pnpm run test:stock-feed && pnpm run test:sales && pnpm run test:leads && pnpm run test:portal && pnpm run test:settings && pnpm run test:settings-publication && pnpm run test:brochure && pnpm run test:portability && pnpm run test:retired-sales && pnpm run test:bookings && pnpm run test:staff-enquiries && pnpm run test:enquiry-merges && pnpm run test:callback-conversations && pnpm run test:sale-workspace && pnpm run test:dealer-improvements && pnpm run test:relationships && pnpm run test:tenancy && pnpm run test:platform && pnpm run test:domain && pnpm run test:email-workspace && pnpm run test:push && pnpm run test:email-design && pnpm run test:capacity:guards && pnpm run test:shutdown && pnpm run test:history && pnpm run test:email-recovery && pnpm run test:quick-enquiry && pnpm run test:declarations && pnpm run test:features && pnpm run test:share-origin && pnpm run test:staff-origin && pnpm run test:sold-follow-ups && pnpm run test:email-website-branding && pnpm run test:platform-stock-source && pnpm run test:website-assets && pnpm run test:seo && pnpm run test:search-visibility && pnpm run test:invitations && pnpm run test:customer-replies && pnpm run test:safe-deletion && pnpm run test:stock-cache && pnpm run test:invoice-email && pnpm run test:booking-settings && pnpm run test:stock-availability && pnpm run test:whatsapp-confirmation && pnpm run test:published-descriptions && pnpm run test:core-retirements && pnpm run test:practice-retirement && pnpm run test:postcodes && pnpm run test:delivery-pricing && pnpm run test:mot && pnpm run test:cazoo-feed",
     "test:brochure": "node ./test-build.mjs src/vehicle-brochure.test.ts && node --enable-source-maps --test ./dist-test/vehicle-brochure.test.mjs",
     "test:portal": "node ./test-build.mjs src/portal.integration.test.ts && node --enable-source-maps --test ./dist-test/portal.integration.test.mjs",
     "test:stock": "node ./test-build.mjs src/stock.integration.test.ts && node --enable-source-maps --test ./dist-test/stock.integration.test.mjs",
@@ -54,7 +54,7 @@
     "test:search-visibility": "node test-search-visibility-build.mjs && node --test .cache/search-visibility-tests/search-visibility.test.mjs",
     "test:invitations": "node test-invitations-build.mjs && node --test .cache/invitation-tests/account-invitations.test.mjs",
     "test:customer-replies": "node test-customer-replies-build.mjs && node --test .cache/reply-tests/customer-email-replies.test.mjs",
-    "test:safe-deletion": "node test-sale-draft-deletion-build.mjs && node --test .cache/sale-draft-deletion/sale-draft-deletion.test.mjs && node test-enquiry-emails-build.mjs src/test-enquiry-deletion.test.ts && node --test dist-test/test-enquiry-deletion.test.mjs",
+    "test:safe-deletion": "node test-sale-draft-deletion-build.mjs && node --test .cache/sale-draft-deletion/sale-draft-deletion.test.mjs && node test-enquiry-emails-build.mjs src/test-enquiry-deletion.test.ts && node --test dist-test/test-enquiry-deletion.test.mjs && node test-enquiry-emails-build.mjs src/enquiry-deletion.test.ts && node --test dist-test/enquiry-deletion.test.mjs",
     "test:settings-publication": "node test-settings-publication-build.mjs && node --test .cache/settings-publication-tests/settings-publication.test.mjs",
     "test:invoice-email": "node test-enquiry-emails-build.mjs src/sale-document-email.test.ts && node --test dist-test/sale-document-email.test.mjs",
     "test:booking-settings": "node test-enquiry-emails-build.mjs src/booking-settings-update.test.ts && node --test dist-test/booking-settings-update.test.mjs",
@@ -65,7 +65,8 @@
     "test:practice-retirement": "node test-build.mjs src/practice-retirement.test.ts && node --test dist-test/practice-retirement.test.mjs && node test-build.mjs src/retired-practice-client.integration.test.ts && node --test dist-test/retired-practice-client.integration.test.mjs",
     "test:postcodes": "node test-enquiry-emails-build.mjs src/postcodes.test.ts && node --test dist-test/postcodes.test.mjs",
     "test:delivery-pricing": "node test-enquiry-emails-build.mjs src/delivery-pricing.test.ts && node --test dist-test/delivery-pricing.test.mjs",
-    "test:mot": "node test-enquiry-emails-build.mjs src/mot-history.test.ts && node --test dist-test/mot-history.test.mjs && node test-enquiry-emails-build.mjs src/mot-mileage-estimate.test.ts && node --test dist-test/mot-mileage-estimate.test.mjs"
+    "test:mot": "node test-enquiry-emails-build.mjs src/mot-history.test.ts && node --test dist-test/mot-history.test.mjs && node test-enquiry-emails-build.mjs src/mot-mileage-estimate.test.ts && node --test dist-test/mot-mileage-estimate.test.mjs",
+    "test:cazoo-feed": "node test-cazoo-feed-build.mjs && node --test .cache/cazoo-feed/*.test.mjs"
   },
   "dependencies": {
     "@clerk/express": "^2.1.64",
@@ -83,6 +84,7 @@
     "jspdf": "4.2.1",
     "pino": "^9.14.0",
     "pino-http": "^10.5.0",
+    "ssh2": "^1.17.0",
     "svix": "^2.8.0",
     "web-push": "^3.6.7",
     "zod": "catalog:"
@@ -94,6 +96,7 @@
     "@types/express": "^5.0.6",
     "@types/html-to-text": "^9.0.4",
     "@types/node": "catalog:",
+    "@types/ssh2": "^1.15.6",
     "@types/web-push": "^3.6.4",
     "esbuild": "0.27.3",
     "esbuild-plugin-pino": "^2.3.3",

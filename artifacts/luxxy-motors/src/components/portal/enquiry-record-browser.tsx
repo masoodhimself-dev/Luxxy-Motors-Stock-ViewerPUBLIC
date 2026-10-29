@@ -1,26 +1,18 @@
-import { DirectWhatsApp } from "@/components/direct-whatsapp";
-import { useEffect, useRef, useState } from 'react';
-import { Link } from 'wouter';
-import { ArrowLeft, CalendarDays, Phone, CarFront } from '@/components/icons';
-import { useGetStaffDirectory, useUpdateEnquiryWorkspace, type Enquiry } from '@workspace/api-client-react';
-import { Button } from '@/components/ui/button';
-import { callOutcomes, type CallOutcome } from '@/lib/enquiry-desk-model';
-import { appointmentLabel } from '@/lib/test-drive-dates';
-import { getThumbnailUrl, formatPrice } from '@/lib/utils';
-import type { Car } from '@/lib/stock-context';
-import { HistoryLinks } from './history-links';
-import { AppointmentExceptionLabels } from './enquiry-calendar';
-import { AttendanceControls, useRefreshDesk, workspaceError } from './enquiry-workspace-tools';
-import { ConversationHistory } from './enquiry-conversation';
-import { callbackTiming } from './enquiry-callback-model';
-import { enquiryGroup, primaryEnquiry } from '@/lib/enquiry-groups';
-import { CustomerEmailSummary } from './customer-email-summary';
-import { canFollowUpAppointment } from '@/lib/appointment-follow-up-email';
-import type { InboxEnquiry } from '@/lib/enquiry-reply-attention';
-import { enquiryPresentation, enquiryRequestText } from '@/lib/enquiry-presentation';
-import './enquiry-record-browser.css';
-import { useStaffAccess } from './dealer-administration';
-import { DeleteTestEnquiry } from './delete-test-enquiry';
+import { useEffect, useRef, useState } from "react";
+import { ArrowLeft } from "@/components/icons";
+import type { Enquiry } from "@workspace/api-client-react";
+import { Button } from "@/components/ui/button";
+import { appointmentLabel } from "@/lib/test-drive-dates";
+import type { Car } from "@/lib/stock-context";
+import { EnquiryCustomerCase } from "./enquiry-customer-case";
+import { callbackTiming } from "./enquiry-callback-model";
+import { enquiryGroup, primaryEnquiry } from "@/lib/enquiry-groups";
+import type { InboxEnquiry } from "@/lib/enquiry-reply-attention";
+import {
+  enquiryPresentation,
+  enquiryRequestText,
+} from "@/lib/enquiry-presentation";
+import "./enquiry-record-browser.css";
 
 export type EnquiryRecordActions = {
   onDeletedEnquiry?: (id: string) => void;
@@ -37,123 +29,319 @@ export type EnquiryRecordActions = {
   onAppointmentFollowUp?: (entry: Enquiry) => void;
 };
 
-function ClaimEnquiry({ entry }: { entry: Enquiry }) {
-  const directory = useGetStaffDirectory();
-  const mutation = useUpdateEnquiryWorkspace();
-  const refresh = useRefreshDesk();
-  if (entry.assignedToId) return null;
-  return <div className="enquiry-claim-action"><Button size="sm" variant="outline" disabled={mutation.isPending || !directory.data?.currentUserId} onClick={async () => { try { await mutation.mutateAsync({ id: entry.id, data: { expectedRevision: entry.workspaceRevision ?? 0, assignedToId: directory.data!.currentUserId } }); await refresh(); } catch {} }}>{mutation.isPending ? 'Assigning…' : 'Assign to me'}</Button>{directory.isError && <p role="alert" className="text-xs text-destructive">Staff directory unavailable. Refresh to retry.</p>}{mutation.isError && <p role="alert" className="text-xs text-destructive">{workspaceError(mutation.error)}</p>}</div>;
-}
-
-function EnquiryDetail({ entry, car, actions }: { entry: Enquiry; car?: Car; actions: EnquiryRecordActions }) {
-  const access = useStaffAccess();
-  const canManage = access.data?.permissions.includes('sales.manage') === true && !access.isError;
-  const pendingReply = ((entry as InboxEnquiry).pendingEmailReplies ?? 0) > 0;
-  const presentation = enquiryPresentation(entry);
-  const [emailOpen, setEmailOpen] = useState(false);
-  const [photoFailed, setPhotoFailed] = useState(false);
-  const showAppointmentEmail = Boolean(actions.onAppointmentFollowUp && canFollowUpAppointment(entry));
-  const outstanding = Boolean(entry.followUpAt && !entry.followUpCompletedAt);
-  const future = entry.appointmentAt && Date.parse(entry.appointmentAt) > Date.now() && !entry.appointmentCancelledAt;
-  const visitFinished = entry.attendance === 'completed' || entry.attendance === 'no_show';
-  const canBook = !future || visitFinished;
-  const showVisitControls = presentation.action === 'update' && Boolean(entry.appointmentAt && !entry.appointmentCancelledAt);
-  const action = presentation.action === 'follow_up' ? () => actions.onFollowUp(entry)
-    : presentation.action === 'appointment' && future ? () => actions.onAppointment(entry)
-    : presentation.action === 'appointment' ? () => actions.onUpdate(entry)
-    : presentation.action === 'conversation' ? () => actions.onConversation(entry)
-    : presentation.action === 'respond' ? () => (entry.preferredContact === 'phone' || entry.preferredContact === 'whatsapp') || !entry.email || !actions.onEmail ? actions.onConversation(entry) : actions.onEmail(entry)
-    : null;
-  const actionLabel = presentation.action === 'respond'
-    ? (entry.preferredContact === 'phone' || entry.preferredContact === 'whatsapp') || !entry.email || !actions.onEmail ? 'Record the response' : 'Reply'
-    : presentation.nextAction;
-  return <>
-    <header className="enquiry-detail-customer">
-      <div className="enquiry-detail-heading"><div><p className="enquiry-detail-eyebrow">{presentation.purpose} / {presentation.source}</p><h3>{entry.customerName}</h3></div><span className="enquiry-state-label" data-tone={presentation.tone}>{presentation.state}</span></div>
-      <div className="enquiry-detail-contact">{entry.phone ? <a href={`tel:${entry.phone.replace(/[^+\d]/g, '')}`}><Phone aria-hidden className="h-4 w-4" />{entry.phone}</a> : <p className="text-sm text-muted-foreground">No phone supplied</p>}{entry.email && (canManage && actions.onEmail ? <button type="button" className="underline underline-offset-4" onClick={() => actions.onEmail?.(entry)}>{entry.email}</button> : <span>{entry.email}</span>)}</div>
-
-
-    <div className="enquiry-detail-owner"><p className="text-xs text-muted-foreground">Assigned to <strong>{entry.assignedToName || 'Unassigned'}</strong></p>{canManage && <ClaimEnquiry entry={entry} />}</div>
-    </header>
-    <section className="enquiry-detail-car" aria-label="Enquiry vehicle">
-      {car && (getThumbnailUrl(car) && !photoFailed ? <img src={getThumbnailUrl(car)} alt="" loading="lazy" onError={() => setPhotoFailed(true)} className="enquiry-detail-car-photo" /> : <span className="enquiry-car-placeholder" aria-hidden="true"><CarFront size={28} /></span>)}
-      <div className="enquiry-detail-car-copy"><h4>{entry.vehicleTitle || 'General showroom enquiry'}</h4>{entry.vehicleRegistration && <p className="text-sm font-medium">{entry.vehicleRegistration}</p>}{entry.vehicleId && <p className="enquiry-detail-availability">{car ? car.inventoryStatus === 'available' ? 'Available' : car.inventoryStatus === 'reserved' ? 'Reserved' : car.inventoryStatus === 'sold' ? 'Sold' : car.inventoryStatus === 'archived' ? 'Archived' : 'Availability unconfirmed' : 'No longer in current stock'}</p>}{car?.price != null && <p className="text-sm font-semibold">{formatPrice(car.price)}</p>}{!entry.vehicleId && entry.vehicleTitle && <p className="text-xs text-muted-foreground">Ad hoc vehicle — not showroom stock{entry.vehiclePrice != null ? ` · ${formatPrice(entry.vehiclePrice)}` : ''}</p>}</div>
-      {car && <Button size="sm" variant="outline" onClick={() => actions.onVehicle(car)}>Vehicle information</Button>}
-    </section>
-    {pendingReply && canManage && <section className="enquiry-action-plan" data-tone="warning" aria-label="Customer email reply"><div><span className="enquiry-action-label">Next step</span><h4>{(entry as InboxEnquiry).emailRepliesToReview ? 'Incoming email needs review' : 'Customer replied'}</h4><p>Open the conversation, read their reply and respond or mark it handled.</p></div><Button size="sm" asChild><Link href={`/portal?section=notifications&workView=email&enquiryId=${encodeURIComponent(entry.id)}`}>Read reply</Link></Button></section>}
-    {!pendingReply && <section className="enquiry-action-plan" data-tone={presentation.tone} aria-label="Recommended next action">
-      <div><span className="enquiry-action-label">Next step</span><h4>{presentation.nextAction}</h4>{presentation.action !== 'respond' && <p>{presentation.reason}</p>}{presentation.dueAt && <time dateTime={presentation.dueAt}>{appointmentLabel(presentation.dueAt)}</time>}</div>
-      {canManage && showVisitControls && <AttendanceControls entry={entry} />}
-      {canManage && (presentation.action === 'appointment' && entry.appointmentStatus === 'pending'
-        ? <Button size="sm" asChild><Link href={`/portal?section=notifications&workView=test-drives&enquiryId=${encodeURIComponent(entry.id)}`}>Review test drive</Link></Button>
-        : action && <Button size="sm" onClick={action}>{presentation.action === 'appointment' ? 'Manage appointment' : actionLabel}</Button>)}
-    </section>}
-    {pendingReply && <div className="enquiry-scheduled-summary">
-      {entry.followUpAt && !entry.followUpCompletedAt && <p>Follow-up: {appointmentLabel(entry.followUpAt)}</p>}
-      {entry.appointmentAt && !entry.appointmentCancelledAt && !visitFinished && <p>Test drive: {appointmentLabel(entry.appointmentAt)} · {entry.appointmentStatus === 'pending' ? 'Awaiting approval' : 'Confirmed'}</p>}
-    </div>}
-    {canManage && <div className="inbox-primary-actions"><DirectWhatsApp label="WhatsApp" enquiryId={entry.id} customerName={entry.customerName} customerPhone={entry.phone || ""} message={`Hello ${entry.customerName}, thanks for your interest${entry.vehicleTitle ? ` in ${entry.vehicleTitle}` : ""}. How can we help?`} /><div className="enquiry-detail-actions" aria-label="Selected enquiry actions">
-      {(pendingReply || !(presentation.action === "conversation" || (presentation.action === "respond" && actionLabel === "Record the response"))) && <Button size="sm" variant="outline" onClick={() => actions.onConversation(entry)}>Add call note</Button>}
-      {showAppointmentEmail && <Button size="sm" variant="outline" onClick={() => actions.onAppointmentFollowUp?.(entry)}>Follow-up email</Button>}
-      {actions.onEmail && (!showAppointmentEmail || pendingReply) && (pendingReply || actionLabel !== 'Reply') && <Button size="sm" variant="outline" onClick={() => actions.onEmail?.(entry)}>Reply</Button>}
-      {presentation.action !== 'follow_up' && <Button size="sm" variant="outline" onClick={() => actions.onFollowUp(entry)}>{outstanding ? 'Manage follow-up' : 'Set follow-up'}</Button>}
-    </div>
-      <div className="enquiry-detail-actions" aria-label="Appointment actions">{future && !visitFinished && <Button variant="outline" size="sm" onClick={() => actions.onAppointment(entry)}><CalendarDays aria-hidden className="mr-1 h-4 w-4" />Change appointment</Button>}{canBook && <Button variant="outline" size="sm" disabled={actions.canBook === false} onClick={() => actions.onBook(entry)}>{entry.appointmentAt ? 'Book another test drive' : 'Book test drive'}</Button>}</div>
-    </div>}<ConversationHistory entry={entry} loadOnDemand />
-    <details className="enquiry-detail-more enquiry-context-details"><summary>Appointments &amp; customer history</summary>    <section className="enquiry-detail-next-step" aria-label="Customer next step">
-      {entry.followUpAt && <div className="enquiry-detail-followup"><p className="font-medium text-sm">{entry.followUpCompletedAt ? 'Follow-up completed' : callbackTiming(entry) === 'overdue' ? 'Follow-up overdue' : 'Upcoming follow-up'}</p>{entry.followUpCompletedAt && <p className="text-sm">{appointmentLabel(entry.followUpAt)}</p>}{entry.followUpNote && <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{entry.followUpNote}</p>}</div>}
-      {entry.appointmentAt && <section className="enquiry-detail-appointment"><p className="text-sm font-medium">Appointment · {appointmentLabel(entry.appointmentAt)}</p><AppointmentExceptionLabels booking={entry} />{canManage && !showVisitControls && <AttendanceControls entry={entry} />}</section>}
-
-    </section>
-    <nav className="enquiry-context-links" aria-label="Enquiry history">
-      {actions.onCustomerHistory && <Button size="sm" variant="outline" onClick={() => actions.onCustomerHistory?.(entry)}>Customer history</Button>}
-      <HistoryLinks vehicleId={entry.vehicleId} recordType={actions.onCustomerHistory ? undefined : "enquiry"} recordId={entry.id} vehicle={Boolean(entry.vehicleId || entry.vehicleTitle)} />
-    </nav>
-</details>
-    {actions.onEmail && <details className="enquiry-email-records" onToggle={event => setEmailOpen(event.currentTarget.open)}><summary>Email delivery &amp; saved drafts</summary>{emailOpen && <CustomerEmailSummary enquiryId={entry.id} reference={entry.reference} onPrepare={() => actions.onEmail?.(entry)} />}</details>}
-    <details className="enquiry-desk-more enquiry-detail-more"><summary>Customer details &amp; more</summary>    <div className="enquiry-detail-record-meta">
-      {entry.callOutcome && <p><strong>Latest outcome: </strong>{callOutcomes[entry.callOutcome as CallOutcome] || entry.callOutcome}</p>}
-      {entry.createdAt && <p>{entry.source === 'website_callback' ? 'Callback requested' : 'Received'} <time dateTime={entry.createdAt}>{appointmentLabel(entry.createdAt)}</time>{entry.preferredContact ? ` · Preferred contact: ${entry.preferredContact}` : ''}</p>}
-    </div>{canManage && <div>
-      <Button size="sm" variant="outline" onClick={() => actions.onUpdate(entry)}>Update enquiry</Button>
-      <Button size="sm" variant="outline" asChild><Link href={`/portal?section=sales&enquiryId=${entry.id}`}>Start sale</Link></Button>
-      {actions.onMerge && <Button size="sm" variant="outline" onClick={() => actions.onMerge?.(entry)}>Merge records</Button>}
-      <DeleteTestEnquiry key={entry.id} entry={entry} onDeleted={actions.onDeletedEnquiry} />
-    </div>}</details>
-
-  </>;
-}
-
-export function EnquiryRecordBrowser({ entries, allEntries = entries, cars, selectedId, onSelect, onBack, actions, callbacks = false, emptyMessage = 'No matching enquiries. Try another name or phone number.' }: { entries: Enquiry[]; allEntries?: Enquiry[]; cars: Car[]; selectedId: string | null; onSelect: (id: string) => void; onBack: () => void; actions: EnquiryRecordActions; callbacks?: boolean; emptyMessage?: string }) {
-  const selected = entries.find(entry => entry.id === selectedId) ?? entries[0];
-  const group = selected ? enquiryGroup(selected, allEntries) : [];
+export function EnquiryRecordBrowser({
+  entries,
+  allEntries = entries,
+  cars,
+  selectedId,
+  onSelect,
+  onBack,
+  actions,
+  callbacks = false,
+  emptyMessage = "No matching enquiries. Try another name or phone number.",
+}: {
+  entries: Enquiry[];
+  allEntries?: Enquiry[];
+  cars: Car[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onBack: () => void | boolean;
+  actions: EnquiryRecordActions;
+  callbacks?: boolean;
+  emptyMessage?: string;
+}) {
+  const selectedRoot =
+    entries.find((entry) =>
+      enquiryGroup(entry, allEntries).some(
+        (original) => original.id === selectedId,
+      ),
+    ) ?? entries[0];
+  const group = selectedRoot ? enquiryGroup(selectedRoot, allEntries) : [];
+  const selected =
+    group.find((original) => original.id === selectedId) ?? selectedRoot;
   const primary = selected ? primaryEnquiry(selected, allEntries) : undefined;
-  const linkedWork = group.filter(original => original.id !== selected?.id && enquiryPresentation(original).action !== 'none');
-  const explicitSelection = Boolean(selectedId && entries.some(entry => entry.id === selectedId));
+  const linkedWork = group.filter(
+    (original) =>
+      original.id !== selected?.id &&
+      enquiryPresentation(original).action !== "none",
+  );
+  const explicitSelection = Boolean(
+    selectedId && group.some((entry) => entry.id === selectedId),
+  );
   const detail = useRef<HTMLDivElement>(null);
-  const [openedOriginals, setOpenedOriginals] = useState<Set<string>>(() => new Set());
+  const [openedOriginals, setOpenedOriginals] = useState<Set<string>>(
+    () => new Set(),
+  );
   const list = useRef<HTMLDivElement>(null);
-  useEffect(() => { if (detail.current) detail.current.scrollTop = 0; if (explicitSelection && window.matchMedia('(max-width: 899px)').matches) { detail.current?.focus(); detail.current?.scrollIntoView({ block: 'start' }); } }, [selected?.id, selectedId, explicitSelection]);
-  if (!entries.length) return <p role="status" className="px-4 py-6 text-center text-sm text-muted-foreground">{!allEntries.length && !callbacks && emptyMessage === 'No matching enquiries. Try another name or phone number.' ? 'No enquiries yet. Use Quick enquiry to record a call; website enquiries will appear here.' : emptyMessage}</p>;
-  return <div className="enquiry-record-browser" data-selected={explicitSelection ? 'true' : 'false'}>
-    <div ref={list} tabIndex={-1} className="enquiry-record-list-pane" aria-label={callbacks ? 'Callback requests' : 'Enquiry records'}>
-      <p className="enquiry-record-count">{entries.length} {callbacks ? entries.length === 1 ? 'callback' : 'callbacks' : entries.length === 1 ? 'enquiry' : 'enquiries'}</p>
-      <ul className="enquiry-compact-list">{entries.map(entry => { const ownSummary = enquiryPresentation(entry); const urgentOriginal = [...enquiryGroup(entry, allEntries)].sort((a, b) => enquiryPresentation(a).priority - enquiryPresentation(b).priority)[0] ?? entry; const summary = enquiryPresentation(urgentOriginal); return <li key={entry.id} data-tone={summary.tone} data-testid={`enquiry-${entry.id}`}><button type="button" className="enquiry-record-select" aria-label={`Open enquiry for ${entry.customerName}, ${entry.vehicleTitle || "general enquiry"}`} aria-pressed={selected?.id === entry.id} onClick={() => onSelect(entry.id)}>
-        <span className="enquiry-record-row-heading"><strong><span className="enquiry-customer-initial" aria-hidden="true">{entry.customerName.trim().slice(0, 1).toUpperCase() || "?"}</span>{entry.customerName}</strong><span className="enquiry-state-label" data-tone={summary.tone}>{summary.state}</span>{callbacks && <span className={`enquiry-callback-badge enquiry-callback-${callbackTiming(entry)}`}>{callbackTiming(entry) === 'overdue' ? 'Overdue now' : callbackTiming(entry) === 'upcoming' ? 'Upcoming' : 'Needs a time'}</span>}</span>
-        <span className="enquiry-record-row-purpose">{summary.purpose} <span>{summary.source}</span></span>
-        <span className="enquiry-record-row-car">{entry.vehicleTitle || 'General showroom enquiry'}{entry.vehicleRegistration ? ` · ${entry.vehicleRegistration}` : ''}</span>
-        {((entry as InboxEnquiry).latestReplyText || entry.message) && <span className="enquiry-record-row-message">{(entry as InboxEnquiry).latestReplyText ? `Latest reply: ${(entry as InboxEnquiry).latestReplyText}` : enquiryRequestText(entry)}</span>}
-        <span className="enquiry-record-row-meta">{entry.assignedToName || 'Not assigned'}{callbacks && entry.source === 'website_callback' ? ' · Website request' : ''}{!callbacks && enquiryGroup(entry, allEntries).length > 1 ? ` · ${enquiryGroup(entry, allEntries).length} merged records` : ''}</span>
-        {callbacks && <span className="enquiry-record-row-meta">{entry.phone || entry.email || 'Contact not supplied'}{entry.createdAt ? ` · Requested ${appointmentLabel(entry.createdAt)}` : ''}</span>}
-        {urgentOriginal.id !== entry.id && summary.priority < ownSummary.priority && <span className="enquiry-record-row-meta">Next step is on a linked enquiry</span>}
-        <span className="enquiry-record-row-next">{callbacks && entry.followUpAt ? `Due ${appointmentLabel(entry.followUpAt)}` : summary.nextAction}</span>
-      </button></li>; })}</ul>
+  useEffect(() => {
+    if (detail.current) detail.current.scrollTop = 0;
+    if (explicitSelection && window.matchMedia("(max-width: 899px)").matches) {
+      detail.current?.focus();
+      detail.current?.scrollIntoView({ block: "start" });
+    }
+  }, [selected?.id, selectedId, explicitSelection]);
+  if (!entries.length)
+    return (
+      <p
+        role="status"
+        className="px-4 py-6 text-center text-sm text-muted-foreground"
+      >
+        {!allEntries.length &&
+        !callbacks &&
+        emptyMessage ===
+          "No matching enquiries. Try another name or phone number."
+          ? "No enquiries yet. Use Quick enquiry to record a call; website enquiries will appear here."
+          : emptyMessage}
+      </p>
+    );
+  return (
+    <div
+      className="enquiry-record-browser"
+      data-selected={explicitSelection ? "true" : "false"}
+    >
+      <div
+        ref={list}
+        tabIndex={-1}
+        className="enquiry-record-list-pane"
+        aria-label={callbacks ? "Callback requests" : "Enquiry records"}
+      >
+        <p className="enquiry-record-count">
+          {entries.length}{" "}
+          {callbacks
+            ? entries.length === 1
+              ? "callback"
+              : "callbacks"
+            : entries.length === 1
+              ? "enquiry"
+              : "enquiries"}
+        </p>
+        <ul className="enquiry-compact-list">
+          {entries.map((entry) => {
+            const ownSummary = enquiryPresentation(entry);
+            const urgentOriginal =
+              [...enquiryGroup(entry, allEntries)].sort(
+                (a, b) =>
+                  enquiryPresentation(a).priority -
+                  enquiryPresentation(b).priority,
+              )[0] ?? entry;
+            const summary = enquiryPresentation(urgentOriginal);
+            return (
+              <li
+                key={entry.id}
+                data-tone={summary.tone}
+                data-testid={`enquiry-${entry.id}`}
+              >
+                <button
+                  type="button"
+                  className="enquiry-record-select"
+                  aria-label={`Open enquiry for ${entry.customerName}, ${entry.vehicleTitle || "general enquiry"}`}
+                  aria-pressed={selectedRoot?.id === entry.id}
+                  onClick={() => onSelect(urgentOriginal.id)}
+                >
+                  <span className="enquiry-record-row-heading">
+                    <strong>
+                      <span
+                        className="enquiry-customer-initial"
+                        aria-hidden="true"
+                      >
+                        {entry.customerName.trim().slice(0, 1).toUpperCase() ||
+                          "?"}
+                      </span>
+                      {entry.customerName}
+                    </strong>
+                    <span
+                      className="enquiry-state-label"
+                      data-tone={summary.tone}
+                    >
+                      {summary.state}
+                    </span>
+                    {callbacks && (
+                      <span
+                        className={`enquiry-callback-badge enquiry-callback-${callbackTiming(entry)}`}
+                      >
+                        {callbackTiming(entry) === "overdue"
+                          ? "Overdue now"
+                          : callbackTiming(entry) === "upcoming"
+                            ? "Upcoming"
+                            : "Needs a time"}
+                      </span>
+                    )}
+                  </span>
+                  <span className="enquiry-record-row-purpose">
+                    {summary.purpose} <span>{summary.source}</span>
+                  </span>
+                  <span className="enquiry-record-row-car">
+                    {entry.vehicleTitle || "General showroom enquiry"}
+                    {entry.vehicleRegistration
+                      ? ` · ${entry.vehicleRegistration}`
+                      : ""}
+                  </span>
+                  {((entry as InboxEnquiry).latestReplyText ||
+                    entry.message) && (
+                    <span className="enquiry-record-row-message">
+                      {(entry as InboxEnquiry).latestReplyText
+                        ? `Latest reply: ${(entry as InboxEnquiry).latestReplyText}`
+                        : enquiryRequestText(entry)}
+                    </span>
+                  )}
+                  <span className="enquiry-record-row-meta">
+                    {entry.assignedToName || "Not assigned"}
+                    {callbacks && entry.source === "website_callback"
+                      ? " · Website request"
+                      : ""}
+                    {!callbacks && enquiryGroup(entry, allEntries).length > 1
+                      ? ` · ${enquiryGroup(entry, allEntries).length} merged records`
+                      : ""}
+                  </span>
+                  {callbacks && (
+                    <span className="enquiry-record-row-meta">
+                      {entry.phone || entry.email || "Contact not supplied"}
+                      {entry.createdAt
+                        ? ` · Requested ${appointmentLabel(entry.createdAt)}`
+                        : ""}
+                    </span>
+                  )}
+                  {urgentOriginal.id !== entry.id &&
+                    summary.priority < ownSummary.priority && (
+                      <span className="enquiry-record-row-meta">
+                        Next step is on a linked enquiry
+                      </span>
+                    )}
+                  <span className="enquiry-record-row-next">
+                    {callbacks && entry.followUpAt
+                      ? `Due ${appointmentLabel(entry.followUpAt)}`
+                      : summary.nextAction}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+      <div
+        ref={detail}
+        tabIndex={-1}
+        className="enquiry-record-detail-pane"
+        role="region"
+        aria-label={`Selected enquiry: ${selected.customerName}`}
+      >
+        <Button
+          className="enquiry-record-back"
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            if (onBack() === false) return;
+            requestAnimationFrame(() => {
+              list.current?.focus();
+              list.current?.scrollIntoView({ block: "start" });
+            });
+          }}
+        >
+          <ArrowLeft aria-hidden className="mr-1 h-4 w-4" />
+          Back to {callbacks ? "callbacks" : "enquiries"}
+        </Button>
+        {linkedWork.length > 0 && (
+          <section
+            className="enquiry-linked-work"
+            aria-label="Work on linked enquiries"
+          >
+            <h4>Work on linked enquiries</h4>
+            {linkedWork.map((original) => {
+              const task = enquiryPresentation(original);
+              return (
+                <div key={original.id}>
+                  <div>
+                    <span className="enquiry-state-label" data-tone={task.tone}>
+                      {task.state}
+                    </span>
+                    <p>
+                      {original.customerName} —{" "}
+                      {original.vehicleTitle || "General enquiry"}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setOpenedOriginals((current) =>
+                        new Set(current).add(original.id),
+                      );
+                      requestAnimationFrame(() =>
+                        document
+                          .getElementById(`linked-enquiry-${original.id}`)
+                          ?.scrollIntoView({ block: "start" }),
+                      );
+                    }}
+                  >
+                    Open linked task
+                  </Button>
+                </div>
+              );
+            })}
+          </section>
+        )}
+        <EnquiryCustomerCase
+          key={selected.id}
+          entries={group}
+          entry={selected}
+          car={cars.find((car) => car.id === selected.vehicleId)}
+          actions={actions}
+        />
+        {group.length > 1 && (
+          <section
+            className="enquiry-linked-originals"
+            aria-label="Merged case original records"
+          >
+            <h4>Merged customer records</h4>
+            <p className="text-xs text-muted-foreground">
+              Each original keeps its customer, car, appointments, follow-ups
+              and conversation history.
+            </p>
+            {group
+              .filter((item) => item.id !== selected.id)
+              .map((original) => (
+                <details
+                  key={original.id}
+                  id={`linked-enquiry-${original.id}`}
+                  open={openedOriginals.has(original.id)}
+                  className="enquiry-linked-original"
+                  onToggle={(event) => {
+                    const open = event.currentTarget.open;
+                    setOpenedOriginals((current) => {
+                      const next = new Set(current);
+                      if (open) next.add(original.id);
+                      else next.delete(original.id);
+                      return next;
+                    });
+                  }}
+                >
+                  <summary>
+                    {original.customerName}
+                    {original.createdAt
+                      ? ` · ${appointmentLabel(original.createdAt)}`
+                      : ""}
+                    {original.id === primary?.id ? " · Main record" : ""}
+                    <span>
+                      {original.vehicleTitle || "General showroom enquiry"}
+                      {original.vehicleRegistration
+                        ? ` · ${original.vehicleRegistration}`
+                        : ""}
+                    </span>
+                  </summary>
+                  {openedOriginals.has(original.id) && (
+                    <div>
+                      <EnquiryCustomerCase
+                        entry={original}
+                        car={cars.find((car) => car.id === original.vehicleId)}
+                        actions={actions}
+                      />
+                    </div>
+                  )}
+                </details>
+              ))}
+          </section>
+        )}
+      </div>
     </div>
-    <div ref={detail} tabIndex={-1} className="enquiry-record-detail-pane" role="region" aria-label={`Selected enquiry: ${selected.customerName}`}>
-      <Button className="enquiry-record-back" size="sm" variant="outline" onClick={() => { onBack(); requestAnimationFrame(() => { list.current?.focus(); list.current?.scrollIntoView({ block: 'start' }); }); }}><ArrowLeft aria-hidden className="mr-1 h-4 w-4" />Back to {callbacks ? 'callbacks' : 'enquiries'}</Button>
-      {linkedWork.length > 0 && <section className="enquiry-linked-work" aria-label="Work on linked enquiries"><h4>Work on linked enquiries</h4>{linkedWork.map(original => { const task = enquiryPresentation(original); return <div key={original.id}><div><span className="enquiry-state-label" data-tone={task.tone}>{task.state}</span><p>{original.customerName} — {original.vehicleTitle || 'General enquiry'}</p></div><Button size="sm" variant="outline" onClick={() => { setOpenedOriginals(current => new Set(current).add(original.id)); requestAnimationFrame(() => document.getElementById(`linked-enquiry-${original.id}`)?.scrollIntoView({ block: 'start' })); }}>Open linked task</Button></div>; })}</section>}
-      <EnquiryDetail key={selected.id} entry={selected} car={cars.find(car => car.id === selected.vehicleId)} actions={actions} />
-      {group.length > 1 && <section className="enquiry-linked-originals" aria-label="Merged case original records"><h4>Merged customer records</h4><p className="text-xs text-muted-foreground">Each original keeps its customer, car, appointments, follow-ups and conversation history.</p>{group.filter(item => item.id !== selected.id).map(original => <details key={original.id} id={`linked-enquiry-${original.id}`} open={openedOriginals.has(original.id)} className="enquiry-linked-original" onToggle={event => { const open = event.currentTarget.open; setOpenedOriginals(current => { const next = new Set(current); if (open) next.add(original.id); else next.delete(original.id); return next; }); }}><summary>{original.customerName}{original.createdAt ? ` · ${appointmentLabel(original.createdAt)}` : ''}{original.id === primary?.id ? ' · Main record' : ''}<span>{original.vehicleTitle || 'General showroom enquiry'}{original.vehicleRegistration ? ` · ${original.vehicleRegistration}` : ''}</span></summary>{openedOriginals.has(original.id) && <div><EnquiryDetail entry={original} car={cars.find(car => car.id === original.vehicleId)} actions={actions} /></div>}</details>)}</section>}
-    </div>
-  </div>;
+  );
 }

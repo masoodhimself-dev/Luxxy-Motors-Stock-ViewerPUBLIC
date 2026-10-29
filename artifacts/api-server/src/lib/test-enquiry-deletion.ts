@@ -1,15 +1,9 @@
-import { Router } from 'express';
 import { pool } from '@workspace/db';
-import { z } from 'zod/v4';
-import { currentDealerId } from './tenant-context';
-import { requirePermission, requireStaff } from '../middlewares/staff-auth';
 
 type Row = Record<string, any>;
 type Client = { query: (text: string, values?: any[]) => Promise<{ rows: Row[] }>; release: () => void };
 type Database = { connect: () => Promise<Client> };
 export type TestEnquiryDeletion = { id: string; expectedRevision: number; canDelete: boolean; reason: string | null };
-const idSchema = z.string().uuid();
-const deleteSchema = z.object({ expectedRevision: z.number().int().min(0), confirmTestOnly: z.literal(true) }).strict();
 
 /** Deliberately excludes "test drive", "contest", suffixes and a customer merely discussing a test. */
 export function explicitlyTestLabelled(value: unknown): boolean {
@@ -110,19 +104,5 @@ export class TestEnquiryDeletionStore {
   }
 }
 
-export function testEnquiryDeletionRouter(store = new TestEnquiryDeletionStore()) {
-  const router = Router();
-  router.use('/staff/enquiries/:id/deletion', requireStaff, requirePermission('sales.manage'), (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
-  router.get('/staff/enquiries/:id/deletion', async (req, res) => {
-    if (!idSchema.safeParse(req.params.id).success) { res.status(400).json({ error: 'Choose a valid enquiry.' }); return; }
-    try { res.json(await store.inspect(currentDealerId(), String(req.params.id))); }
-    catch (error) { req.log.error({ err: error }, 'Unable to check test enquiry deletion'); res.status(error instanceof TestEnquiryDeletionError ? error.status : 503).json({ error: error instanceof TestEnquiryDeletionError ? error.message : 'Unable to check this enquiry. Try again.' }); }
-  });
-  router.delete('/staff/enquiries/:id/deletion', async (req, res) => {
-    const parsed = deleteSchema.safeParse(req.body);
-    if (!idSchema.safeParse(req.params.id).success || !parsed.success) { res.status(400).json({ error: 'Review the test enquiry and confirm test-only deletion.' }); return; }
-    try { res.json(await store.remove(currentDealerId(), String(req.params.id), parsed.data.expectedRevision)); }
-    catch (error) { req.log.error({ err: error }, 'Unable to delete test enquiry'); res.status(error instanceof TestEnquiryDeletionError ? error.status : 503).json({ error: error instanceof TestEnquiryDeletionError ? error.message : 'The test enquiry could not be deleted. Refresh and try again.' }); }
-  });
-  return router;
-}
+// The old HTTP entry point now requires explicit permanent deletion confirmation.
+export { enquiryDeletionRouter as testEnquiryDeletionRouter } from './enquiry-deletion';

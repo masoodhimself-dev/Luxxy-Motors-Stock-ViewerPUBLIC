@@ -17,6 +17,7 @@ const featureState = vi.hoisted(() => ({
   isError: false,
   refetch: vi.fn(),
 }));
+const settingsState = vi.hoisted(() => ({ bookings: true }));
 vi.mock("@/lib/dealer-features", () => ({
   useDealerFeatures: () => ({
     ...featureState,
@@ -65,7 +66,7 @@ vi.mock("@/lib/dealer-settings-context", () => ({
   useDealerSettings: () => ({
     settings: {
       identity: { name: "Fictional Motors" },
-      testDriveBooking: { enabled: false },
+      testDriveBooking: { enabled: settingsState.bookings },
     },
     isLoading: false,
     isError: false,
@@ -192,6 +193,7 @@ beforeEach(() => {
   featureState.allowed = true;
   featureState.isError = false;
   featureState.isLoading = false;
+  settingsState.bookings = true;
   featureState.refetch.mockReset();
 });
 
@@ -200,10 +202,10 @@ it("keeps the first edited search value when clearing a selected customer and it
     "section=notifications&workView=customers&enquiryId=alex",
   );
   const search = screen.getByRole("textbox", {
-    name: "Find a customer or car",
+    name: "Search enquiries",
   });
-  await waitFor(() => expect(search).toHaveValue("Alex Customer"));
-  expect(screen.getByTestId("selected-enquiry")).toHaveTextContent("alex");
+  await waitFor(() => expect(screen.getByTestId("selected-enquiry")).toHaveTextContent("alex"));
+  expect(search).toHaveValue("");
   fireEvent.change(search, { target: { value: "Jordan" } });
   expect(search).toHaveValue("Jordan");
   expect(screen.getByTestId("selected-enquiry")).toHaveTextContent("none");
@@ -245,7 +247,7 @@ it("removes the exact deleted test from caches and route while preserving real c
     ]),
   );
   expect(client.getQueryData(["enquiries"])).toEqual([alex, jordan]);
-  expect(screen.getByRole("status")).toHaveTextContent("Test enquiry deleted.");
+  expect(screen.getByRole("status")).toHaveTextContent("Enquiry deleted.");
   expect(
     screen.queryByText(/This enquiry could not be found/),
   ).not.toBeInTheDocument();
@@ -364,8 +366,8 @@ it("opens a requested record when it becomes available after a query refresh", a
     expect(screen.getByTestId("selected-enquiry")).toHaveTextContent(fresh.id),
   );
   expect(
-    screen.getByRole("textbox", { name: "Find a customer or car" }),
-  ).toHaveValue(fresh.customerName);
+    screen.getByRole("textbox", { name: "Search enquiries" }),
+  ).toHaveValue("");
   expect(
     screen.queryByText(/This enquiry could not be found/),
   ).not.toBeInTheDocument();
@@ -455,6 +457,12 @@ it("pauses new test-drive intent while keeping phone enquiry fields usable", asy
       /New test drives and rescheduling are paused by the platform/,
     ),
   ).toBeVisible();
+  expect(state.create).not.toHaveBeenCalled();
+});
+it('also pauses new test drives when the dealership setting is switched off', async () => {
+  settingsState.bookings=false;
+  mount('section=notifications&workView=test-drives&deskView=calendar');
+  expect(await screen.findByRole('button',{name:'Add calendar appointment'})).toBeDisabled();
   expect(state.create).not.toHaveBeenCalled();
 });
 

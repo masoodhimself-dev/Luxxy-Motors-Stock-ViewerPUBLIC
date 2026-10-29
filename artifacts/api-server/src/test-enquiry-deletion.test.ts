@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { engine, pool } from './test/tenant-test-db';
 import { explicitlyTestLabelled, testEnquiryDeletionRouter, TestEnquiryDeletionStore } from './lib/test-enquiry-deletion';
 import { runWithTenant } from './lib/tenant-context';
+import { EnquiryDeletionStore } from './lib/enquiry-deletion';
 
 process.env.MULTI_TENANT_ENABLED = 'true';
 const dealer = 'test-cleanup-a';
@@ -159,7 +160,8 @@ test('isolated PostgreSQL test-only enquiry cleanup protects customers and finan
       else Object.assign(req, { auth: Object.assign(() => ({ userId: null }), { [Symbol.for('@clerk/express.auth')]: true }) });
       runWithTenant({ dealerId: dealer, canonicalOrigin: `https://${dealer}.example.test`, platform: 'autotrader', retailerId: 'fictional', sourceUrl: 'https://example.test', kind: 'website' }, next);
     });
-    app.use('/api', testEnquiryDeletionRouter(store));
+    const deletionStore = new EnquiryDeletionStore(pool);
+    app.use('/api', testEnquiryDeletionRouter(deletionStore));
     const server = app.listen(0, '127.0.0.1'); await new Promise<void>(resolve => server.once('listening', resolve));
     const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/staff/enquiries`;
     const id = await create();
@@ -168,8 +170,9 @@ test('isolated PostgreSQL test-only enquiry cleanup protects customers and finan
       for (const method of ['GET', 'DELETE']) { assert.equal((await send(method)).status, 401); assert.equal((await send(method, 'accounts')).status, 403); }
       const inspected = await send('GET', 'salesperson'); assert.equal(inspected.status, 200); assert.equal(inspected.headers.get('cache-control'), 'no-store');
       for (const body of [{ expectedRevision: 0 }, { expectedRevision: -1, confirmTestOnly: true }, { expectedRevision: 0, confirmTestOnly: false }, { expectedRevision: 0, confirmTestOnly: true, override: true }]) assert.equal((await send('DELETE', 'owner', body)).status, 400);
-      assert.equal((await send('DELETE', 'owner', { expectedRevision: 0, confirmTestOnly: true }, 'https://other-dealer.example.test')).status, 403);
-      assert.equal((await send('DELETE', 'salesperson', { expectedRevision: 0, confirmTestOnly: true })).status, 200);
+      assert.equal((await send('DELETE', 'owner', { expectedRevision: 0, confirmDelete: true }, 'https://other-dealer.example.test')).status, 403);
+      assert.equal((await send('DELETE', 'salesperson', { expectedRevision: 0, confirmTestOnly: true })).status, 400);
+      assert.equal((await send('DELETE', 'salesperson', { expectedRevision: 0, confirmDelete: true })).status, 200);
       assert.equal((await send('GET', 'owner')).status, 404);
     } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
   });

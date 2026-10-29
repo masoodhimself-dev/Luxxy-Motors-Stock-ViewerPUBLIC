@@ -1,0 +1,135 @@
+.enquiry-checks {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--portal-border, #dbe4e9);
+  border-radius: 14px;
+  background: var(--portal-surface, #fff);
+  color: var(--portal-text, #203541);
+}
+.enquiry-checks-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.enquiry-checks-heading h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+.enquiry-checks-heading > span {
+  color: #596f7c;
+  font-size: 11px;
+}
+.enquiry-checks-tools {
+  display: grid;
+  gap: 7px;
+}
+.enquiry-checks-tools > button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid #dce5ea;
+  border-radius: 9px;
+  background: #f6f9fb;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.enquiry-checks-tools > button strong {
+  font-size: 12px;
+  font-weight: 650;
+}
+.enquiry-checks-tools > button span {
+  color: #536c7b;
+  font-size: 11px;
+}
+.enquiry-checks-tools > button:hover {
+  border-color: #90adbe;
+  background: #eef5f8;
+}
+.enquiry-checks-tools > button[aria-expanded="true"] {
+  border-color: #75a9b7;
+  background: #eaf5f4;
+}
+.enquiry-checks-tools > button:focus-visible,
+.enquiry-checks-registration input:focus-visible {
+  outline: 3px solid #6babbf;
+  outline-offset: 2px;
+}
+.enquiry-checks-content {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #e2e9ed;
+  overflow-wrap: anywhere;
+}
+.enquiry-checks-content > section {
+  min-width: 0;
+}
+.enquiry-checks-content h2 {
+  font-size: 14px;
+}
+.enquiry-checks-content details {
+  min-width: 0;
+}
+.enquiry-checks-content summary {
+  overflow-wrap: anywhere;
+}
+.enquiry-checks-note {
+  margin: 0;
+  color: #536c7b;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.enquiry-checks-registration {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.enquiry-checks-registration input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid #bfcdd6;
+  border-radius: 8px;
+  background: #fff;
+  color: #203541;
+  font-size: 16px;
+  font-weight: 500;
+}
+.enquiry-checks-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.enquiry-checks-actions > button {
+  flex: 1 1 150px;
+}
+.enquiry-checks-content button {
+  min-height: 44px;
+  max-width: 100%;
+  height: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 639px) {
+  .enquiry-checks {
+    padding: 13px;
+  }
+  .enquiry-checks-content {
+    max-width: 100%;
+  }
+}

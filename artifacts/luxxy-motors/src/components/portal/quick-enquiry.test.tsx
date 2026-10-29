@@ -174,24 +174,27 @@ beforeEach(() => {
   state.stockError = null;
 });
 afterEach(() => vi.useRealTimers());
-function mount(open = true, initialVehicleId?: string) {
+function mount(open = true, initialVehicleId?: string, initialBookTestDrive = false, continueEnabled = true) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   const invalidate = vi.spyOn(client, "invalidateQueries").mockResolvedValue();
   const onOpenChange = vi.fn(),
-    onCreated = vi.fn();
+    onCreated = vi.fn(),
+    onContinueEnquiry = vi.fn();
   const view = render(
     <QueryClientProvider client={client}>
       <QuickEnquiryDialog
         open={open}
         initialVehicleId={initialVehicleId}
+        initialBookTestDrive={initialBookTestDrive}
         onOpenChange={onOpenChange}
         onCreated={onCreated}
+        onContinueEnquiry={continueEnabled ? onContinueEnquiry : undefined}
       />
     </QueryClientProvider>,
   );
-  return { ...view, invalidate, onOpenChange, onCreated };
+  return { ...view, invalidate, onOpenChange, onCreated, onContinueEnquiry };
 }
 function fill() {
   fireEvent.change(screen.getByRole("combobox", { name: "Customer name" }), {
@@ -201,6 +204,12 @@ function fill() {
     target: { value: " 07700 900123 " },
   });
 }
+it('prefills the Cars test-drive handoff without saving or messaging', () => {
+  mount(true, 'car-one', true);
+  expect(screen.getByRole('checkbox', { name: 'Book a Test Drive' })).toBeChecked();
+  expect(screen.getByRole('article', { name: 'Selected car' })).toHaveTextContent('Ford Focus');
+  expect(state.create).not.toHaveBeenCalled();
+});
 it("autofills a recent customer while keeping the chosen car and notes for this enquiry", () => {
   const recent = { id: "old-enquiry", reference: "ENQ-OLD", customerName: "Amelia Taylor", phone: "07700900124", email: "amelia@example.test", vehicleId: "old-car", vehicleTitle: "Previous car", createdAt: "2026-10-01T10:00:00Z" };
   state.recentCustomers = [recent];
@@ -752,4 +761,101 @@ it("labels an approval-mode appointment as awaiting approval in the saved messag
   await screen.findByRole("button", { name: "Write a message" });
   expect(screen.getByRole("status")).toHaveTextContent("test drive awaiting approval");
   expect(screen.getByRole("status")).not.toHaveTextContent("test drive booked");
+});
+
+const returning = (patch: Record<string, unknown> = {}) => ({ id: "returning-enquiry", reference: "ENQ-RETURN", dealerId: "dealer-one", customerName: "Alex Smith", phone: "+447700900123", email: "alex@example.test", vehicleId: "car-one", vehicleTitle: "Ford Focus", status: "contacted", createdAt: "2026-10-01T10:00:00Z", updatedAt: "2026-10-02T10:00:00Z", ...patch });
+
+it("offers explicit continuation after a full phone match without creating or messaging anything", () => {
+  state.recentCustomers = [returning()];
+  const view = mount(true, "car-one");
+  fill();
+  const choice = screen.getByRole("region", { name: "Existing enquiries for this contact" });
+  expect(choice).toHaveTextContent("Exact phone match");
+  fireEvent.click(screen.getByRole("button", { name: "Continue Alex Smith enquiry" }));
+  expect(view.onContinueEnquiry).toHaveBeenCalledExactlyOnceWith("returning-enquiry");
+  expect(view.onOpenChange).toHaveBeenCalledWith(false);
+  expect(view.onCreated).not.toHaveBeenCalled();
+  expect(state.create).not.toHaveBeenCalled();
+  expect(state.createBooking).not.toHaveBeenCalled();
+});
+
+it("offers a valid exact email match, never name-only, partial phone, a closed case or a different selected car", () => {
+  state.recentCustomers = [returning(), returning({ id: "closed", status: "closed" })];
+  mount(true, "car-two");
+  fill();
+  expect(screen.queryByRole("region", { name: "Existing enquiries for this contact" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /No specific car/ }));
+  fireEvent.change(screen.getByRole("combobox", { name: "Phone number" }), { target: { value: "07700" } });
+  expect(screen.queryByRole("button", { name: "Continue Alex Smith enquiry" })).not.toBeInTheDocument();
+  fireEvent.change(screen.getByRole("combobox", { name: "Email (optional)" }), { target: { value: " ALEX@example.test " } });
+  expect(screen.getByRole("region", { name: "Existing enquiries for this contact" })).toHaveTextContent("Exact email match");
+  expect(screen.getAllByRole("button", { name: "Continue Alex Smith enquiry" })).toHaveLength(1);
+});
+
+it("shows separate choices for independent open cases and follows a merged source to its explicit primary", () => {
+  state.recentCustomers = [returning({ id: "primary", vehicleId: "car-two", phone: "02079460000", email: null }), returning({ id: "child", mergedIntoId: "primary" }), returning({ id: "separate", reference: "ENQ-OTHER" })];
+  const view = mount(true, "car-one");
+  fill();
+  expect(screen.getByRole("region", { name: "Existing enquiries for this contact" })).toHaveTextContent("2 open enquiries match this contact");
+  fireEvent.click(screen.getByRole("button", { name: "Continue Alex Smith enquiry · ENQ-RETURN" }));
+  expect(view.onContinueEnquiry).toHaveBeenCalledExactlyOnceWith("primary");
+  expect(state.create).not.toHaveBeenCalled();
+});
+
+it("warns before discarding unsaved notes or booking choices and preserves the form when staff cancel", async () => {
+  state.recentCustomers = [returning()];
+  const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+  const view = mount(true, "car-one");
+  fill();
+  fireEvent.change(screen.getByRole("textbox", { name: "Notes (optional)" }), { target: { value: "Do not lose this note" } });
+  await chooseTestDrive();
+  fireEvent.click(screen.getByRole("button", { name: "Continue Alex Smith enquiry" }));
+  expect(confirm).toHaveBeenCalledWith(expect.stringContaining("Notes and test-drive choices on this form have not been saved"));
+  expect(view.onContinueEnquiry).not.toHaveBeenCalled();
+  expect(screen.getByRole("textbox", { name: "Notes (optional)" })).toHaveValue("Do not lose this note");
+  expect(screen.getByRole("button", { name: "15:00" })).toHaveAttribute("aria-pressed", "true");
+  confirm.mockReturnValue(true);
+  fireEvent.click(screen.getByRole("button", { name: "Continue Alex Smith enquiry" }));
+  expect(view.onContinueEnquiry).toHaveBeenCalledWith("returning-enquiry");
+  expect(state.create).not.toHaveBeenCalled();
+  expect(state.createBooking).not.toHaveBeenCalled();
+  confirm.mockRestore();
+});
+
+it("lets staff explicitly keep a separate new enquiry with the existing save contract", async () => {
+  state.recentCustomers = [returning()];
+  const view = mount(true, "car-one");
+  fill();
+  fireEvent.click(screen.getByRole("button", { name: "Create another enquiry" }));
+  expect(screen.queryByRole("region", { name: "Existing enquiries for this contact" })).not.toBeInTheDocument();
+  expect(screen.getByRole("combobox", { name: "Phone number" })).toHaveValue(" 07700 900123 ");
+  fireEvent.click(screen.getByRole("button", { name: "Save enquiry" }));
+  await waitFor(() => expect(view.onCreated).toHaveBeenCalledTimes(1));
+  expect(view.onContinueEnquiry).not.toHaveBeenCalled();
+  expect(state.create).toHaveBeenCalledTimes(1);
+  expect(state.create.mock.calls[0][0].data.vehicleId).toBe("car-one");
+});
+
+it.each(["no handler", "customer lookup failed"])("keeps normal capture working without continuation when %s", async condition => {
+  state.recentCustomers = [returning()];
+  state.recentError = condition === "customer lookup failed";
+  const view = mount(true, "car-one", false, condition !== "no handler");
+  fill();
+  expect(screen.queryByRole("region", { name: "Existing enquiries for this contact" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Save enquiry" }));
+  await waitFor(() => expect(view.onCreated).toHaveBeenCalledTimes(1));
+  expect(view.onContinueEnquiry).not.toHaveBeenCalled();
+  expect(state.create).toHaveBeenCalledTimes(1);
+});
+
+it("blocks navigation to an existing enquiry while a separate create request is pending", () => {
+  state.recentCustomers = [returning()];
+  state.create.mockReturnValue(new Promise(() => {}));
+  const view = mount(true, "car-one");
+  fill();
+  fireEvent.click(screen.getByRole("button", { name: "Save enquiry" }));
+  expect(screen.getByRole("button", { name: "Continue Alex Smith enquiry" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Continue Alex Smith enquiry" }));
+  expect(view.onContinueEnquiry).not.toHaveBeenCalled();
+  expect(state.create).toHaveBeenCalledTimes(1);
 });

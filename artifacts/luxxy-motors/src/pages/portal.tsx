@@ -1,5 +1,5 @@
-import { usePageMeta } from '@/hooks/use-page-meta';
-import {StaffMotLookupDialog} from '@/components/mot-history';
+import { usePageMeta } from "@/hooks/use-page-meta";
+import { StaffMotLookupDialog } from "@/components/mot-history";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { SignInButton, UserButton, useAuth, useUser } from "@clerk/react";
@@ -21,6 +21,7 @@ import {
   ChevronDown,
   CheckCircle2,
   X,
+  CarFront,
 } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { DealerWordmark } from "@/components/brand/wordmark";
@@ -40,7 +41,12 @@ import {
   QuickEnquiryDialog,
   type QuickEnquiryResult,
 } from "@/components/portal/quick-enquiry";
-import { appointmentLabel } from "@/lib/test-drive-dates";
+import {
+  appointmentLabel,
+  defaultBookingSettings,
+} from "@/lib/test-drive-dates";
+import { useDealerFeatures } from "@/lib/dealer-features";
+import { CarsWorkspace } from "@/components/portal/cars-workspace";
 import { SalesWorkspace } from "@/pages/sales-demo";
 
 import { NotificationsWorkspace } from "@/components/portal/notifications-workspace";
@@ -54,19 +60,52 @@ import {
 
 import "@/components/portal/portal-redesign.css";
 
-type TabKey = "notifications" | "sales" | "settings";
+type TabKey = "notifications" | "cars" | "sales" | "settings";
 
 const tabs: Array<{ key: TabKey; label: string; icon: typeof Settings2 }> = [
   { key: "notifications", label: "Inbox", icon: CustomerEnquiry },
+  { key: "cars", label: "Cars", icon: CarFront },
   { key: "sales", label: "Sales", icon: Sale },
   { key: "settings", label: "Settings", icon: Settings2 },
 ];
 
 function requestedSection(search: string): TabKey {
   const section = new URLSearchParams(search).get("section");
+  if (section === "cars" || section === "inventory") return "cars";
   return section === "sales" || section === "settings"
     ? section
     : "notifications";
+}
+
+function PortalCars({
+  canManage,
+  onEnquiry,
+  onSale,
+  onOpenEnquiry,
+}: {
+  canManage: boolean;
+  onEnquiry: (vehicleId: string, bookTestDrive?: boolean) => void;
+  onSale: (vehicleId: string) => void;
+  onOpenEnquiry: (id: string) => void;
+}) {
+  const { settings, isLoading, isError } = useDealerSettings();
+  const features = useDealerFeatures();
+  const bookingEnabled =
+    !isLoading &&
+    !isError &&
+    !features.isLoading &&
+    !features.isError &&
+    features.enabled("testDriveBookings") &&
+    (settings.testDriveBooking ?? defaultBookingSettings).enabled;
+  return (
+    <CarsWorkspace
+      canManage={canManage}
+      bookingEnabled={bookingEnabled}
+      onEnquiry={onEnquiry}
+      onSale={onSale}
+      onOpenEnquiry={onOpenEnquiry}
+    />
+  );
 }
 
 /** One staff bar replaces the separate showroom header and workspace welcome. */
@@ -202,7 +241,9 @@ function PortalDesk() {
   const { user } = useUser();
   const [salesOpened, setSalesOpened] = useState(tab === "sales");
   const [newSaleRequest, setNewSaleRequest] = useState(0);
+  const [newSaleVehicleId, setNewSaleVehicleId] = useState<string | null>(null);
   const [quickEnquiryOpen, setQuickEnquiryOpen] = useState(false);
+  const [quickBookTestDrive, setQuickBookTestDrive] = useState(false);
   const [motLookupOpen, setMotLookupOpen] = useState(false);
   const motLookupTrigger = useRef<HTMLButtonElement>(null);
   const [quickEnquiryVehicleId, setQuickEnquiryVehicleId] = useState<
@@ -236,8 +277,8 @@ function PortalDesk() {
     if (next === "sales") setSalesOpened(true);
   }, [search, access.data]);
   usePageMeta({
-    title: `${tab === 'notifications' ? 'Inbox' : tab === 'sales' ? 'Sales' : 'Settings'} | ${settings.identity.name || 'Dealership'}`,
-    description: 'Private dealership staff workspace.',
+    title: `${tab === "notifications" ? "Inbox" : tab === "cars" ? "Cars" : tab === "sales" ? "Sales" : "Settings"} | ${settings.identity.name || "Dealership"}`,
+    description: "Private dealership staff workspace.",
     indexable: false,
   });
   const canSell = access.data?.permissions.includes("sales.manage") ?? false;
@@ -336,15 +377,18 @@ function PortalDesk() {
     user?.firstName ??
     sessionQuery.data?.email ??
     "there";
-  function newSale() {
-    if (!confirmSettingsNavigation()) return;
+  function newSale(vehicleId?: string) {
+    if (!canSell || !confirmSettingsNavigation()) return;
+    setNewSaleVehicleId(vehicleId || null);
     setSalesOpened(true);
     setTab("sales");
     navigate("/portal?section=sales");
     setNewSaleRequest((request) => request + 1);
   }
-  function quickEnquiry(vehicleId?: string) {
+  function quickEnquiry(vehicleId?: string, bookTestDrive = false) {
+    if (!canSell) return;
     setQuickEnquiryVehicleId(vehicleId || null);
+    setQuickBookTestDrive(bookTestDrive);
     setQuickEnquiryOpen(true);
   }
 
@@ -385,12 +429,18 @@ function PortalDesk() {
                   <CustomerEnquiry aria-hidden="true" />
                   Quick enquiry
                 </DropdownMenuItem>
-                <DropdownMenuItem data-action="sale" onSelect={newSale}>
+                <DropdownMenuItem data-action="sale" onSelect={() => newSale()}>
                   <Sale aria-hidden="true" />
                   New sale
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem data-action="mot" onSelect={()=>setMotLookupOpen(true)}><CheckCircle2 aria-hidden="true"/>Check MOT</DropdownMenuItem>
+                <DropdownMenuItem
+                  data-action="mot"
+                  onSelect={() => setMotLookupOpen(true)}
+                >
+                  <CheckCircle2 aria-hidden="true" />
+                  Check MOT
+                </DropdownMenuItem>
               </>
             )}
             <DropdownMenuItem
@@ -420,7 +470,10 @@ function PortalDesk() {
       </PortalToolbar>
       <h1 className="sr-only">Dealership workspace</h1>
       <div className="portal-workspace-inner portal-app-layout mx-auto">
-        <aside className="portal-navigation-rail" aria-label="Workspace navigation">
+        <aside
+          className="portal-navigation-rail"
+          aria-label="Workspace navigation"
+        >
           <p className="portal-rail-caption">Your workspace</p>
           <nav
             ref={sectionNav}
@@ -461,10 +514,38 @@ function PortalDesk() {
           </nav>
           <div className="portal-rail-shortcuts">
             <p className="portal-rail-caption">Shortcuts</p>
-            <button type="button" onClick={() => go("/portal?section=notifications&workView=test-drives&deskView=calendar")}><CalendarDays size={17} aria-hidden="true" />Calendar</button>
-            {canSell && <button type="button" onClick={() => go("/portal?section=notifications&workView=email&view=drafts")}><Mail size={17} aria-hidden="true" />Email drafts</button>}
+            <button
+              type="button"
+              onClick={() =>
+                go(
+                  "/portal?section=notifications&workView=test-drives&deskView=calendar",
+                )
+              }
+            >
+              <CalendarDays size={17} aria-hidden="true" />
+              Calendar
+            </button>
+            {canSell && (
+              <button
+                type="button"
+                onClick={() =>
+                  go("/portal?section=notifications&workView=email&view=drafts")
+                }
+              >
+                <Mail size={17} aria-hidden="true" />
+                Email drafts
+              </button>
+            )}
           </div>
-          <div className="portal-rail-footer"><span className="portal-staff-avatar" aria-hidden="true">{staffName.slice(0, 1).toUpperCase()}</span><div><strong>{staffName}</strong><small>Staff workspace</small></div></div>
+          <div className="portal-rail-footer">
+            <span className="portal-staff-avatar" aria-hidden="true">
+              {staffName.slice(0, 1).toUpperCase()}
+            </span>
+            <div>
+              <strong>{staffName}</strong>
+              <small>Staff workspace</small>
+            </div>
+          </div>
         </aside>
         <div className="portal-main-area min-w-0">
           {quickCreated && (
@@ -519,7 +600,19 @@ function PortalDesk() {
                   <NotificationsWorkspace
                     canEmail={canSell}
                     onQuickEnquiry={() => quickEnquiry()}
-                    onNewSale={newSale}
+                    onNewSale={() => newSale()}
+                  />
+                )}
+                {tab === "cars" && (
+                  <PortalCars
+                    canManage={canSell}
+                    onEnquiry={quickEnquiry}
+                    onSale={newSale}
+                    onOpenEnquiry={(id) =>
+                      go(
+                        `/portal?section=notifications&workView=customers&enquiryId=${encodeURIComponent(id)}`,
+                      )
+                    }
                   />
                 )}
                 {tab === "settings" && <DealerSettingsHub />}
@@ -535,6 +628,7 @@ function PortalDesk() {
                 <SalesWorkspace
                   embedded
                   newSaleRequest={newSaleRequest}
+                  newSaleVehicleId={newSaleVehicleId}
                   onExit={() => {
                     setTab("notifications");
                     navigate(notificationHref("customers"));
@@ -550,7 +644,15 @@ function PortalDesk() {
         <QuickEnquiryDialog
           open={quickEnquiryOpen}
           initialVehicleId={quickEnquiryVehicleId}
+          initialBookTestDrive={quickBookTestDrive}
           onOpenChange={setQuickEnquiryOpen}
+          onContinueEnquiry={(id) => {
+            setQuickEnquiryOpen(false);
+            setQuickCreated(null);
+            go(
+              `/portal?section=notifications&workView=customers&enquiryId=${encodeURIComponent(id)}`,
+            );
+          }}
           onCreated={(enquiry) => {
             setQuickEnquiryOpen(false);
             setQuickCreated(enquiry);

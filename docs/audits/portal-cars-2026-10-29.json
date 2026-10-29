@@ -1,0 +1,333 @@
+{
+  "date": "2026-10-29",
+  "status": "implemented locally; not deployed",
+  "scope": [
+    "Focused staff Cars workspace for current available/reserved cars",
+    "Permission-gated real enquiry counts, pending requests and next test drive",
+    "Shared vehicle facts, photos, history, equipment, specifications and on-demand MOT panel",
+    "Existing Quick Enquiry booking handoff with selected car",
+    "Searchable photo vehicle chooser in Sales and car-prefilled unsaved sale",
+    "Clearer Inbox search label and removed preparation wording"
+  ],
+  "unchanged": [
+    "Backend APIs and database schema",
+    "Published stock, stock imports and Grok schedules",
+    "Issued invoices, agreed sale amounts, deposits and payments",
+    "Existing booking, permissions and email policies",
+    "Retired Home, Reports, video, preparation and compare features"
+  ],
+  "behaviour": [
+    "Cars shows only current available/reserved records from the existing stock service; no fabricated sold/missing tabs",
+    "Case counts deduplicate explicit merges, not people sharing a phone number",
+    "Test drives require a future viewing appointment, scheduled attendance and no cancellation; pending requests are labelled separately",
+    "Activity failures/loading never display false zero counts",
+    "Sales receives a fresh unsaved draft only after permission, stock availability and dirty-form checks",
+    "Vehicle details preserve filter state, scroll and focus; tapped Safari buttons are remembered explicitly",
+    "No new polling intervals or per-row MOT requests"
+  ],
+  "verification": {
+    "unitTests": {
+      "passed": 142,
+      "files": 9,
+      "includes": "51 existing and new sales-process tests, 46 Quick Enquiry tests, portal navigation, Cars activity/permissions, shared facts and chooser regressions"
+    },
+    "browser": {
+      "passed": 15,
+      "engine": "WebKit",
+      "profiles": [
+        "320x740 iPhone",
+        "390x844 iPhone",
+        "820x1180 iPad portrait",
+        "1194x834 iPad landscape",
+        "1440x1000 desktop"
+      ],
+      "sources": [
+        "Shore Drive public Auto Trader snapshot",
+        "Multi Choice public Cazoo snapshot"
+      ],
+      "writes": "All non-GET/HEAD requests blocked; observed none",
+      "network": "External requests blocked; every API read fixture-contained",
+      "coverage": [
+        "search/filters/sort",
+        "no horizontal overflow",
+        "four-item navigation",
+        "44px controls and 16px inputs",
+        "drawer bounds, MOT on demand, focus and scroll restoration",
+        "selected-car booking handoff",
+        "reserved and disabled-booking restrictions",
+        "unsaved sale car/price prefill and local chooser changes"
+      ]
+    },
+    "typecheck": "passed",
+    "productionBuild": "passed; existing sourcemap and bundle-size warnings remain",
+    "limitations": [
+      "Responsive browser profiles, not physical iPhone/iPad hardware.",
+      "Customer examples exist only in the browser fixtures; none were saved.",
+      "Fixture gallery photographs are deterministic local assets; source vehicle facts remain supplied data.",
+      "No live customer messages sent, no live mutations tested."
+    ],
+    "review": "Independent read-only review found no new saved agreement, customer, price or payment risk in Cars-to-Sales handoff."
+  },
+  "deviceChecks": [
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "source": "multi",
+      "cars": 28,
+      "mergedCaseCount": 2,
+      "motReads": [
+        "/api/staff/vehicles/62e9de26-909c-4942-b04f-d8a77f3ee281/mot-history"
+      ],
+      "writes": [],
+      "errors": [],
+      "apiReads": [
+        "/api/features",
+        "/api/dealer-settings",
+        "/api/stock",
+        "/api/portal/session",
+        "/api/staff/access",
+        "/api/enquiries",
+        "/api/staff/vehicles/62e9de26-909c-4942-b04f-d8a77f3ee281/mot-history",
+        "/api/staff/directory",
+        "/api/enquiries/availability",
+        "/api/sale-workspace"
+      ]
+    },
+    {
+      "viewport": {
+        "width": 820,
+        "height": 1180
+      },
+      "source": "multi",
+      "cars": 28,
+      "mergedCaseCount": 2,
+      "motReads": [
+        "/api/staff/vehicles/62e9de26-909c-4942-b04f-d8a77f3ee281/mot-history"
+      ],
+      "writes": [],
+      "errors": [],
+      "apiReads": [
+        "/api/features",
+        "/api/dealer-settings",
+        "/api/stock",
+        "/api/portal/session",
+        "/api/staff/access",
+        "/api/enquiries",
+        "/api/staff/vehicles/62e9de26-909c-4942-b04f-d8a77f3ee281/mot-history",
+        "/api/staff/directory",
+        "/api/enquiries/availability",
+        "/api/sale-workspace"
+      ]
+    },
+    {
+      "viewport": {
+        "width": 1194,
+        "height": 834
+      },
+      "source": "multi",
+      "cars": 28,
+      "mergedCaseCount": 2,
+      "motReads": [
+        "/api/staff/vehicles/62e9de26-909c-4942-b04f-d8a77f3ee281/mot-history"
+      ],
+      "writes": [],
+      "errors": [],
+      "apiReads": [
+        "/api/features",
+        "/api/dealer-settings",
+        "/api/stock",
+        "/api/portal/session",
+        "/api/staff/access",
+        "/api/enquiries",
+        "/api/staff/vehicles/62e9de26-909c-4942-b04f-d8a77f3ee281/mot-history",
+        "/api/staff/directory",
+        "/api/enquiries/availability",
+        "/api/sale-workspace"
+      ]
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "source": "multi",
+      "cars": 28,
+      "mergedCaseCount": 2,
+      "motReads": [
+        "/api/staff/vehicles/62e9de26-909c-4942-b04f-d8a77f3ee281/mot-history"
+      ],
+      "writes": [],
+      "errors": [],
+      "apiReads": [
+        "/api/features",
+        "/api/dealer-settings",
+        "/api/stock",
+        "/api/portal/session",
+        "/api/staff/access",
+        "/api/enquiries",
+        "/api/staff/vehicles/62e9de26-909c-4942-b04f-d8a77f3ee281/mot-history",
+        "/api/staff/directory",
+        "/api/enquiries/availability",
+        "/api/sale-workspace"
+      ]
+    },
+    {
+      "viewport": {
+        "width": 320,
+        "height": 740
+      },
+      "source": "multi",
+      "cars": 28,
+      "mergedCaseCount": 2,
+      "motReads": [
+        "/api/staff/vehicles/62e9de26-909c-4942-b04f-d8a77f3ee281/mot-history"
+      ],
+      "writes": [],
+      "errors": [],
+      "apiReads": [
+        "/api/features",
+        "/api/dealer-settings",
+        "/api/stock",
+        "/api/portal/session",
+        "/api/staff/access",
+        "/api/enquiries",
+        "/api/staff/vehicles/62e9de26-909c-4942-b04f-d8a77f3ee281/mot-history",
+        "/api/staff/directory",
+        "/api/enquiries/availability",
+        "/api/sale-workspace"
+      ]
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "source": "shore",
+      "cars": 18,
+      "mergedCaseCount": 2,
+      "motReads": [
+        "/api/staff/vehicles/c2f7e5df-46ce-462d-9f90-d8684014dfb4/mot-history"
+      ],
+      "writes": [],
+      "errors": [],
+      "apiReads": [
+        "/api/features",
+        "/api/dealer-settings",
+        "/api/stock",
+        "/api/portal/session",
+        "/api/staff/access",
+        "/api/enquiries",
+        "/api/staff/vehicles/c2f7e5df-46ce-462d-9f90-d8684014dfb4/mot-history",
+        "/api/staff/directory",
+        "/api/enquiries/availability",
+        "/api/sale-workspace"
+      ]
+    },
+    {
+      "viewport": {
+        "width": 820,
+        "height": 1180
+      },
+      "source": "shore",
+      "cars": 18,
+      "mergedCaseCount": 2,
+      "motReads": [
+        "/api/staff/vehicles/c2f7e5df-46ce-462d-9f90-d8684014dfb4/mot-history"
+      ],
+      "writes": [],
+      "errors": [],
+      "apiReads": [
+        "/api/features",
+        "/api/dealer-settings",
+        "/api/stock",
+        "/api/portal/session",
+        "/api/staff/access",
+        "/api/enquiries",
+        "/api/staff/vehicles/c2f7e5df-46ce-462d-9f90-d8684014dfb4/mot-history",
+        "/api/staff/directory",
+        "/api/enquiries/availability",
+        "/api/sale-workspace"
+      ]
+    },
+    {
+      "viewport": {
+        "width": 1194,
+        "height": 834
+      },
+      "source": "shore",
+      "cars": 18,
+      "mergedCaseCount": 2,
+      "motReads": [
+        "/api/staff/vehicles/c2f7e5df-46ce-462d-9f90-d8684014dfb4/mot-history"
+      ],
+      "writes": [],
+      "errors": [],
+      "apiReads": [
+        "/api/features",
+        "/api/dealer-settings",
+        "/api/stock",
+        "/api/portal/session",
+        "/api/staff/access",
+        "/api/enquiries",
+        "/api/staff/vehicles/c2f7e5df-46ce-462d-9f90-d8684014dfb4/mot-history",
+        "/api/staff/directory",
+        "/api/enquiries/availability",
+        "/api/sale-workspace"
+      ]
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "source": "shore",
+      "cars": 18,
+      "mergedCaseCount": 2,
+      "motReads": [
+        "/api/staff/vehicles/c2f7e5df-46ce-462d-9f90-d8684014dfb4/mot-history"
+      ],
+      "writes": [],
+      "errors": [],
+      "apiReads": [
+        "/api/features",
+        "/api/dealer-settings",
+        "/api/stock",
+        "/api/portal/session",
+        "/api/staff/access",
+        "/api/enquiries",
+        "/api/staff/vehicles/c2f7e5df-46ce-462d-9f90-d8684014dfb4/mot-history",
+        "/api/staff/directory",
+        "/api/enquiries/availability",
+        "/api/sale-workspace"
+      ]
+    },
+    {
+      "viewport": {
+        "width": 320,
+        "height": 740
+      },
+      "source": "shore",
+      "cars": 18,
+      "mergedCaseCount": 2,
+      "motReads": [
+        "/api/staff/vehicles/c2f7e5df-46ce-462d-9f90-d8684014dfb4/mot-history"
+      ],
+      "writes": [],
+      "errors": [],
+      "apiReads": [
+        "/api/features",
+        "/api/dealer-settings",
+        "/api/stock",
+        "/api/portal/session",
+        "/api/staff/access",
+        "/api/enquiries",
+        "/api/staff/vehicles/c2f7e5df-46ce-462d-9f90-d8684014dfb4/mot-history",
+        "/api/staff/directory",
+        "/api/enquiries/availability",
+        "/api/sale-workspace"
+      ]
+    }
+  ]
+}

@@ -213,7 +213,9 @@ afterEach(() => vi.restoreAllMocks());
 beforeEach(() => {
   stockIsLoading=false;
   demoSiteMode=false;
-  window.matchMedia = vi.fn().mockReturnValue({ matches: false });
+  // Most filter journeys exercise the compact mobile drawer. Desktop keeps the
+  // same controls directly in the sidebar and is covered explicitly below.
+  window.matchMedia = vi.fn().mockReturnValue({ matches: true });
   window.history.replaceState({}, '', '/');
   window.sessionStorage.clear();
   vi.clearAllMocks();
@@ -284,6 +286,45 @@ describe('showroom data resilience', () => {
 });
 
 describe('showroom search filters', () => {
+  it('keeps quick preferences inside the mobile filters until Show cars is chosen', async () => {
+    renderHome();
+    expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Show automatic cars' }));
+    expect(resultTitles()).toEqual(['BMW 1 Series', 'Audi A3', 'VW Golf']);
+    expect(dialog).toBeInTheDocument();
+    expect(scrollToHomeTarget).not.toHaveBeenCalled();
+    expect(focusHomeTarget).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Show cars under £10k' }));
+    expect(dialog).toBeInTheDocument();
+    expect(scrollToHomeTarget).not.toHaveBeenCalled();
+    expect(focusHomeTarget).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole('button', { name: /^Show \d+ cars?$/ }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(scrollToHomeTarget).toHaveBeenCalledWith('vehicle-results');
+      expect(focusHomeTarget).toHaveBeenCalledWith('vehicle-results');
+    });
+  });
+
+  it('exposes make and model directly in the desktop sidebar without a modal', () => {
+    window.matchMedia = vi.fn().mockReturnValue({ matches: false });
+    renderHome();
+    const sidebar = screen.getByRole('complementary', { name: 'Filter cars' });
+    const make = within(sidebar).getByRole('combobox', { name: 'Make' });
+    const model = within(sidebar).getByRole('combobox', { name: 'Model' });
+    expect(make).toBeVisible();
+    expect(model).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Advanced search' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    fireEvent.change(make, { target: { value: 'BMW' } });
+    fireEvent.change(model, { target: { value: '3 Series' } });
+    expect(resultTitles()).toEqual(['BMW 3 Series']);
+    expect(window.location.search).toBe('?make=BMW&model=3+Series');
+    expect(scrollToHomeTarget).not.toHaveBeenCalled();
+  });
+
   it('uses saved featured order for homepage and recommended stock while keeping reserved cars last', () => {
     overrideSettings = { ...dealerConfigFixture, featuredVehicleIds: ['bmw-1-series', 'audi-a3', 'bmw-3-series', 'removed-id'] };
     stockFixture.cars[0] = { ...originalCars[0], inventoryStatus: 'reserved' };
@@ -474,6 +515,7 @@ describe('showroom search filters', () => {
     expect(resultTitles()).toEqual(['BMW 1 Series', 'Audi A3', 'VW Golf']);
 
     fireEvent.change(screen.getByLabelText('Max budget'), { target: { value: '' } });
+    fireEvent.click(screen.getByText('More filters', { selector: 'summary' }));
     fireEvent.change(screen.getByLabelText('Fuel'), { target: { value: 'Diesel' } });
     expect(resultTitles()).toEqual(['BMW 3 Series']);
 
@@ -527,7 +569,7 @@ describe('showroom search filters', () => {
 
     await waitFor(() => {
       expect(scrollToHomeTarget).toHaveBeenCalledWith('vehicle-results');
-      expect(focusHomeTarget).toHaveBeenCalledWith('vehicle-results-heading');
+      expect(focusHomeTarget).toHaveBeenCalledWith('vehicle-results');
     });
   });
 
@@ -564,8 +606,9 @@ it("uses an illustrative car hero for demos and avoids a repeated demo announcem
 
 it('refines the selected make and sort when a quick budget filter is applied', () => {
   renderHome();
-  fireEvent.change(screen.getByLabelText('Quick filter by make'), { target: { value: 'BMW' } });
   fireEvent.change(screen.getByLabelText('Sort results'), { target: { value: 'price-desc' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+  fireEvent.change(screen.getByRole('combobox', { name: 'Make' }), { target: { value: 'BMW' } });
   fireEvent.click(screen.getByRole('button', { name: 'Show cars under £10k' }));
   expect(resultTitles()).toEqual(['BMW 3 Series', 'BMW 1 Series']);
   expect(window.location.search).toBe('?make=BMW&maxPrice=10000&sort=price-desc');
@@ -618,6 +661,7 @@ describe('compact customer stock presentation', () => {
     renderHome();
     expect(screen.getByLabelText('Search the showroom')).toHaveAccessibleDescription('Search by make, model or registration.');
     fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+    fireEvent.click(screen.getByText('More filters', { selector: 'summary' }));
     fireEvent.change(screen.getByLabelText('Transmission'), { target: { value: 'Automatic' } });
     fireEvent.change(screen.getByLabelText('Max budget'), { target: { value: '5000' } });
     fireEvent.change(screen.getByLabelText('Fuel'), { target: { value: 'Petrol' } });

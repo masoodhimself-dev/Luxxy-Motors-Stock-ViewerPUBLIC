@@ -1,5 +1,5 @@
 import { OptionalJourneyPostcode } from '@/components/postcode-field';
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getGetEnquiriesQueryKey,
@@ -26,6 +26,7 @@ import { useStock } from "@/lib/stock-context";
 import { useStaffAccess } from "./dealer-administration";
 import { useEnquirySummaries } from "@/lib/enquiry-summary-query";
 import { RecentCustomerFields } from "./recent-customer-fields";
+import { findContinuingEnquiries } from "./quick-enquiry-continuation";
 import { AppointmentSlots } from "./appointment-slots";
 import { useDealerSettings } from "@/lib/dealer-settings-context";
 import { useDealerFeatures } from "@/lib/dealer-features";
@@ -38,7 +39,9 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated?: (result: QuickEnquiryResult) => void;
+  onContinueEnquiry?: (id: string) => void;
   initialVehicleId?: string | null;
+  initialBookTestDrive?: boolean;
 };
 const emptyForm = { name: "", phone: "", email: "", vehicleId: "", notes: "" };
 function saveError(error: unknown) {
@@ -49,7 +52,7 @@ function saveError(error: unknown) {
 }
 
 /** Enquiry-only capture stays silent; optional test drives use the booking policy. */
-export function QuickEnquiryDialog({ open, onOpenChange, onCreated, initialVehicleId }: Props) {
+export function QuickEnquiryDialog({ open, onOpenChange, onCreated, onContinueEnquiry, initialVehicleId, initialBookTestDrive = false }: Props) {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -58,19 +61,21 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated, initialVehic
   const [slotValid, setSlotValid] = useState(false);
   const [saved, setSaved] = useState<{ result: QuickEnquiryResult; name: string; car: string } | null>(null);
   const [messaging, setMessaging] = useState(false);
+  const [createAnotherKey, setCreateAnotherKey] = useState("");
   const submitting = useRef(false);
   const wasOpen = useRef(false);
   useEffect(() => {
     if (open && !wasOpen.current) {
       setForm({ ...emptyForm, vehicleId: initialVehicleId || "" });
       setError("");
-      setBooking(false);
+      setBooking(initialBookTestDrive);
       setAppointmentTime("");
       setSlotValid(false);
       setSaved(null); setMessaging(false);
+      setCreateAnotherKey("");
     }
     wasOpen.current = open;
-  }, [open, initialVehicleId]);
+  }, [open, initialVehicleId, initialBookTestDrive]);
   const cache = useQueryClient();
   const access = useStaffAccess(open);
   const allowed = Boolean(access.data?.permissions.includes("sales.manage"));
@@ -105,6 +110,11 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated, initialVehic
   // policy. The silent quick-capture header remains enquiry-only.
   const bookingMutation = useCreateStaffEnquiry({ mutation: { retry: false } });
   const pending = saving || mutation.isPending || bookingMutation.isPending;
+  const continuing = useMemo(() => onContinueEnquiry && allowed && !recentCustomers.isError
+    ? findContinuingEnquiries(recentCustomers.data ?? [], form)
+    : [], [onContinueEnquiry, allowed, recentCustomers.data, recentCustomers.isError, form.phone, form.email, form.vehicleId]);
+  const continuationKey = JSON.stringify([form.phone, form.email, form.vehicleId, continuing.map(choice => choice.primary.id)]);
+  const showContinuing = continuing.length > 0 && createAnotherKey !== continuationKey;
   const dirty = booking || [form.name, form.phone, form.email, form.notes].some((value) => value.trim());
   const update = (key: keyof typeof form, value: string) =>
     setForm((current) => ({ ...current, [key]: value }));
@@ -132,6 +142,18 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated, initialVehic
     if (!saved) return;
     const result = saved.result; setSaved(null); setMessaging(false);
     onOpenChange(false); onCreated?.(result);
+  }
+  function continueEnquiry(id: string) {
+    if (!onContinueEnquiry || !allowed || pending || submitting.current || !continuing.some(choice => choice.primary.id === id)) return;
+    if ((form.notes.trim() || booking || appointmentTime) && !window.confirm("Open the existing enquiry? Notes and test-drive choices on this form have not been saved and will be discarded. Nothing will be added to the existing enquiry.")) return;
+    setForm(emptyForm);
+    setError("");
+    setBooking(false);
+    setAppointmentTime("");
+    setSlotValid(false);
+    setCreateAnotherKey("");
+    onOpenChange(false);
+    onContinueEnquiry(id);
   }
   async function submit(event: FormEvent, messageAfter = false) {
     event.preventDefault();
@@ -297,6 +319,15 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated, initialVehic
                   phoneRequired
                   disabled={pending}
                 />
+                {showContinuing && <section className="grid min-w-0 gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 text-sm text-slate-800" aria-label="Existing enquiries for this contact">
+                  <div><h3 className="font-semibold">{continuing.length === 1 ? "There is already an open enquiry" : `${continuing.length} open enquiries match this contact`}</h3><p className="mt-1 text-xs leading-5 text-slate-600">Check the customer and car before continuing. Opening an existing enquiry does not copy this form’s details, notes or booking choices.</p></div>
+                  <ul className="grid min-w-0 gap-3">{continuing.map(choice => <li key={choice.primary.id} className="grid min-w-0 gap-2 border-t border-emerald-200 pt-3">
+                    <div className="min-w-0 break-words"><strong>{choice.primary.customerName}</strong><p className="text-xs">{choice.primary.reference} · {choice.matchingRecord.vehicleTitle || "General enquiry"}</p><p className="text-xs text-slate-600">{[choice.matchingRecord.phone, choice.matchingRecord.email].filter(Boolean).join(" · ")}</p><p className="text-xs text-emerald-800">Exact {choice.matchedBy.join(" and ")} match</p></div>
+                    <Button type="button" variant="outline" className="h-auto min-h-11 whitespace-normal text-left" disabled={pending} onClick={() => continueEnquiry(choice.primary.id)}>Continue {choice.primary.customerName} enquiry{continuing.length > 1 ? ` · ${choice.primary.reference}` : ""}</Button>
+                  </li>)}</ul>
+                  <Button type="button" variant="ghost" className="h-auto min-h-11 justify-self-start whitespace-normal px-2" disabled={pending} onClick={() => setCreateAnotherKey(continuationKey)}>Create another enquiry</Button>
+                  <p className="text-xs text-slate-600">Creating another keeps the records separate. Nothing is merged automatically.</p>
+                </section>}
                 {booking && <OptionalJourneyPostcode />}
                 {recentCustomers.isError && <p className="quick-enquiry-hint">Recent customers could not load. You can still enter their details.</p>}
                 <label>

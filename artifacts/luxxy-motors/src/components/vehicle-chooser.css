@@ -1,0 +1,173 @@
+.vehicle-chooser {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.vehicle-chooser label {
+  font-weight: 600;
+}
+.vehicle-chooser-search {
+  position: relative;
+  min-width: 0;
+}
+.vehicle-chooser-search > svg {
+  position: absolute;
+  top: 50%;
+  left: 13px;
+  transform: translateY(-50%);
+  color: #4d6c81;
+  pointer-events: none;
+}
+.invoice-builder .vehicle-chooser-search input,
+.vehicle-chooser-search input {
+  width: 100%;
+  min-height: 46px;
+  padding-left: 42px;
+  font-size: 16px;
+}
+.vehicle-chooser-hint,
+.vehicle-chooser-count {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #526675;
+}
+.vehicle-chooser-selection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #cbded4;
+  border-radius: 8px;
+  background: #f0f8f3;
+}
+.vehicle-chooser-selection p {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  min-width: 0;
+  color: #265a40;
+  font-size: 13px;
+}
+.vehicle-chooser-selection p span {
+  overflow-wrap: anywhere;
+}
+.vehicle-chooser-selection p svg {
+  flex-shrink: 0;
+}
+.vehicle-chooser-selection button {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.vehicle-chooser-results {
+  max-height: 350px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid #c9d5df;
+  border-radius: 9px;
+  background: #fff;
+}
+.vehicle-chooser-results > button {
+  display: flex;
+  width: 100%;
+  min-height: 90px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-bottom: 1px solid #e1e8ed;
+  text-align: left;
+  color: #203847;
+  background: #fff;
+}
+.vehicle-chooser-results > button:last-child {
+  border-bottom: 0;
+}
+.vehicle-chooser-results > button:is(:hover, :focus-visible),
+.vehicle-chooser-results > button[aria-pressed="true"] {
+  background: #eef5fa;
+}
+.vehicle-chooser-results > button:focus-visible {
+  outline: 3px solid #28607f;
+  outline-offset: -3px;
+}
+.vehicle-chooser-results > button:disabled,
+.vehicle-chooser-selection button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+.vehicle-chooser-results img,
+.vehicle-chooser-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 88px;
+  width: 88px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #edf1f4;
+  color: #577183;
+}
+.vehicle-chooser-summary {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+.vehicle-chooser-summary strong {
+  font-size: 14px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.vehicle-chooser-summary small {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #526675;
+  overflow-wrap: anywhere;
+}
+.vehicle-chooser-results > p {
+  margin: 0;
+  padding: 16px;
+  font-size: 13px;
+}
+@media (max-width: 639px) {
+  .vehicle-chooser-results {
+    max-height: 300px;
+  }
+  .vehicle-chooser-results > button {
+    gap: 10px;
+    padding: 10px;
+  }
+  .vehicle-chooser-results img,
+  .vehicle-chooser-placeholder {
+    flex-basis: 66px;
+    width: 66px;
+    height: 58px;
+  }
+  .vehicle-chooser-selection {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0;
+  }
+  .vehicle-chooser-selection button {
+    align-self: flex-end;
+  }
+}
+/* Invoice and portal form rules are intentionally specific. Keep this search
+   readable at 16px on iOS and preserve the space reserved for its icon. */
+.invoice-builder .vehicle-chooser .vehicle-chooser-search input[type="search"],
+.portal-premium-workspace
+  .invoice-builder
+  .vehicle-chooser
+  .vehicle-chooser-search
+  input[type="search"] {
+  padding-left: 42px;
+  font-size: 16px;
+}

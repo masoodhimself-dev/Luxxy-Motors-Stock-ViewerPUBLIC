@@ -107,7 +107,7 @@ it('starts a new enquiry-linked sale after every previous sale is safely release
  state.search='?section=sales&enquiryId=old-enquiry';state.enquiries=[{id:'old-enquiry',customerName:'Returning Buyer',vehicleId:'car-one',vehicleTitle:'Ford Focus'}];state.stock={cars:[{id:'car-one',title:'Ford Focus',price:6000}]};
  const old={...summary('released','Returning Buyer'),lifecycle:{status:'released'},listPaid:0,listPending:0,listLedgerKnown:true};old.draft.sourceEnquiryId='old-enquiry';
  state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:[],hasMore:false}:p.includes('?enquiryId=')?{sales:[old],hasMore:false}:Promise.reject(new Error(`Unexpected: ${p}`)));
- mount();expect(await screen.findByRole('heading',{name:'Which car are you selling?'})).toBeVisible();expect(screen.getByLabelText('Vehicle')).toHaveValue('car-one');expect(reads()).not.toContain('/api/sale-workspace/released');expect(writes()).toHaveLength(0);
+ mount();expect(await screen.findByRole('heading',{name:'Which car are you selling?'})).toBeVisible();expect(within(screen.getByRole('region',{name:'Vehicle selection'})).getByRole('status')).toHaveTextContent('Ford Focus selected');fireEvent.click(screen.getByRole('button',{name:'Change vehicle'}));expect(screen.getByRole('button',{name:'Choose Ford Focus'})).toHaveAttribute('aria-pressed','true');expect(reads()).not.toContain('/api/sale-workspace/released');expect(writes()).toHaveLength(0);
 });
 it('checks later enquiry pages and opens an active sale before reusing a released one',async()=>{
  state.search='?section=sales&enquiryId=old-enquiry';state.enquiries=[{id:'old-enquiry',customerName:'Returning Buyer',vehicleId:'car-one'}];
@@ -154,9 +154,9 @@ it('waits for slow stock before prefilling a new enquiry-linked sale and keeps t
  expect(reads()).not.toContain('/api/sale-workspace?enquiryId=new-enquiry');
  state.stock={cars:[{id:'car-one',make:'Ford',model:'Focus',title:'Ford Focus',price:6789,registration:'AB12CDE',inventoryStatus:'available'}]};state.stockLoading=false;view.refresh();
  expect(await screen.findByRole('heading',{name:'Which car are you selling?'})).toBeVisible();
- expect(screen.getByLabelText('Vehicle')).toHaveValue('car-one');
+ expect(within(screen.getByRole('region',{name:'Vehicle selection'})).getByRole('status')).toHaveTextContent('Ford Focus selected');
  expect(screen.getByLabelText('Agreed vehicle price (£)')).toHaveValue('6789');
- expect(screen.getByText('Ford Focus')).toBeVisible();
+ expect(within(screen.getByRole('region',{name:'Vehicle selection'})).getByText('Ford Focus')).toBeVisible();
  fireEvent.click(screen.getByRole('button',{name:/Continue/}));
  expect(await screen.findByLabelText('Customer’s full name')).toHaveValue('Linked Buyer');expect(writes()).toHaveLength(0);
 });
@@ -175,7 +175,7 @@ it('settled stock errors retain linked enquiry identity and allow manual price e
  state.api.mockResolvedValue({sales:[],hasMore:false});mount();
  expect(await screen.findByRole('heading',{name:'Which car are you selling?'})).toBeVisible();
  expect(screen.getByRole('alert')).toHaveTextContent('Current stock could not be loaded');
- expect(screen.getByLabelText('Vehicle')).toHaveValue('car-one');expect(screen.getByLabelText('Registration / number plate')).toHaveValue('AB12CDE');
+ expect(within(screen.getByRole('region',{name:'Vehicle selection'})).getByRole('status')).toHaveTextContent('Ford Focus selected · saved vehicle details kept');expect(screen.getByLabelText('Registration / number plate')).toHaveValue('AB12CDE');
  fireEvent.change(screen.getByLabelText('Agreed vehicle price (£)'),{target:{value:'6000'}});fireEvent.click(screen.getByRole('button',{name:/Continue/}));
  expect(await screen.findByLabelText('Customer’s full name')).toHaveValue('Linked Buyer');expect(writes()).toHaveLength(0);
 });

@@ -1,0 +1,114 @@
+.enquiry-reply-desk {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--portal-border);
+  border-radius: 9px;
+  background: var(--portal-panel);
+  scroll-margin-top: 100px;
+}
+.enquiry-reply-desk > header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.enquiry-reply-desk h4 {
+  font-size: 14px;
+  font-weight: 600;
+}
+.enquiry-reply-desk > header p,
+.enquiry-inline-heading p,
+.enquiry-reply-notice {
+  font-size: 12px;
+  color: var(--portal-muted);
+}
+.enquiry-reply-channels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.enquiry-reply-channels button {
+  min-height: 44px;
+  font-size: 12px;
+}
+.enquiry-inline-heading {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.enquiry-email-inline {
+  min-width: 0;
+}
+.enquiry-email-inline .enquiry-email-form,
+.enquiry-email-inline fieldset {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+.enquiry-email-inline .enquiry-email-form label {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  font-size: 13px;
+}
+.enquiry-email-inline :is(input, textarea, select) {
+  max-width: 100%;
+  min-height: 44px;
+}
+.enquiry-email-inline select {
+  width: 100%;
+  border: 1px solid var(--portal-border);
+  border-radius: 5px;
+  background: var(--portal-panel);
+  padding: 10px;
+}
+.enquiry-email-inline .enquiry-email-inclusions label {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+}
+.enquiry-email-inline input[type="checkbox"] {
+  min-height: auto;
+  width: auto;
+}
+.enquiry-email-inline .enquiry-email-photos {
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+}
+.enquiry-email-inline .enquiry-email-photos img {
+  width: 100%;
+  max-height: 150px;
+  object-fit: contain;
+}
+.enquiry-email-inline .enquiry-email-review dl {
+  overflow-wrap: anywhere;
+}
+.enquiry-email-inline .enquiry-email-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.enquiry-email-inline .enquiry-email-hint {
+  margin-top: 10px;
+}
+@media (max-width: 599px) {
+  .enquiry-reply-desk {
+    padding: 12px;
+  }
+  .enquiry-reply-channels {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .enquiry-reply-channels button:last-child {
+    grid-column: 1/-1;
+  }
+  .enquiry-email-inline :is(input, textarea, select) {
+    font-size: 16px;
+  }
+  .enquiry-email-inline .enquiry-email-actions > button {
+    flex: 1 1 130px;
+  }
+}

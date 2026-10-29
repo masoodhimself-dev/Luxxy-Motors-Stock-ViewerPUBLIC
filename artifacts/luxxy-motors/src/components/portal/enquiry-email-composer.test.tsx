@@ -6,7 +6,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, QueryObserver } from "@tanstack/react-query";
 const state = vi.hoisted(() => ({
   fetch: vi.fn(),
   close: vi.fn(),
@@ -81,6 +81,44 @@ const calls = (suffix: string) =>
   state.fetch.mock.calls.filter(
     (call) => call[0].endsWith(suffix) && call[1]?.method === "POST",
   );
+it('keeps the server review and manual send steps in the embedded reply editor', async () => {
+  render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><EnquiryEmailComposer inline entry={entry} onClose={state.close} /></QueryClientProvider>);
+  await screen.findByRole('textbox', {name:'Message'});
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', {name:'Send email'})).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', {name:'Review email'}));
+  await screen.findByRole('region', {name:'Email preview'});
+  expect(calls('/email-preview')).toHaveLength(1);
+  expect(calls('/email')).toHaveLength(0);
+  expect(screen.getByRole('button', {name:'Send email'})).toBeEnabled();
+});
+
+it('inserts checked facts once without replacing the initial server wording or sending', async () => {
+  const client = new QueryClient({defaultOptions:{queries:{retry:false}}});
+  const content = (id:number) => <QueryClientProvider client={client}><EnquiryEmailComposer inline entry={entry} insertion={{id,text:'Checked road quote: £68.60.'}} onClose={state.close} /></QueryClientProvider>;
+  const view=render(content(1));
+  await waitFor(()=>expect(screen.getByRole('textbox',{name:'Message'})).toHaveValue('Original staff message\n\nChecked road quote: £68.60.'));
+  fireEvent.change(screen.getByRole('textbox',{name:'Message'}),{target:{value:'Staff edits retained'}});
+  view.rerender(content(1));
+  expect(screen.getByRole('textbox',{name:'Message'})).toHaveValue('Staff edits retained');
+  view.rerender(content(2));
+  await waitFor(()=>expect(screen.getByRole('textbox',{name:'Message'})).toHaveValue('Staff edits retained\n\nChecked road quote: £68.60.'));
+  expect(calls('/email')).toHaveLength(0);
+  expect(calls('/email-draft')).toHaveLength(0);
+});
+
+it('blocks a WhatsApp handoff when fresh context no longer matches the checked vehicle revision', async () => {
+  let reads=0;
+  const original=state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url:string,options:unknown)=>url.endsWith('/email-context')?{...context(),revision:++reads===1?2:3}:original(url,options));
+  render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><EnquiryEmailComposer inline channel="whatsapp" entry={entry} customerPhone="07700900123" onClose={state.close} /></QueryClientProvider>);
+  await screen.findByRole('textbox',{name:'Message'});
+  fireEvent.click(screen.getByRole('button',{name:'WhatsApp'}));
+  expect(await screen.findByText(/This enquiry changed/)).toBeInTheDocument();
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(state.fetch.mock.calls.some(c=>String(c[0]).includes('/whatsapp/enquiries'))).toBe(false);
+  expect(calls('/email')).toHaveLength(0);
+});
 beforeEach(() => {
   state.close.mockReset();
   state.features = { customerEmails: true };
@@ -256,6 +294,31 @@ it("waits for the latest server draft instead of hydrating cached defaults from 
   fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
   await screen.findByText("Draft saved · not sent");
   expect(JSON.parse(calls("/email-draft")[0][1].body).expectedVersion).toBe(8);
+});
+
+it("inserts checked facts after an identical cached-context refetch becomes ready, preserving default or saved wording", async () => {
+  const original = state.fetch.getMockImplementation()!;
+  for (const saved of [false, true]) {
+    const cached = { ...context(), ...(saved ? { savedDraft: { version: 4, status: "draft", source: "manual", content: { to: "saved@example.test", subject: "Keep the saved subject", message: "Keep the saved staff wording", includeVehicle: true, includeAppointment: false, photoIds: [], documentIds: [], expectedRevision: 2 } } } : {}) };
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(["enquiry-email-context", entry.id], cached);
+    let finish!: (value: unknown) => void;
+    state.fetch.mockImplementation((url: string, options?: unknown) => url.endsWith("/email-context") ? new Promise(resolve => { finish = resolve; }) : original(url, options));
+    const view = render(<QueryClientProvider client={client}><EnquiryEmailComposer inline entry={entry} insertion={{ id: 70, text: "Estimated delivery: £57.40." }} onClose={state.close} /></QueryClientProvider>);
+    expect(screen.getByText("Loading latest email details…")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Message" })).not.toBeInTheDocument();
+    await act(async () => { finish(JSON.parse(JSON.stringify(cached))); });
+    // TanStack Query retains the same cached object when fresh bytes are structurally equal.
+    expect(client.getQueryData(["enquiry-email-context", entry.id])).toBe(cached);
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue(`${saved ? "Keep the saved staff wording" : "Original staff message"}\n\nEstimated delivery: £57.40.`));
+    expect(screen.getByRole("textbox", { name: "Subject" })).toHaveValue(saved ? "Keep the saved subject" : "Original subject");
+    expect(screen.getByRole("textbox", { name: "Customer email" })).toHaveValue(saved ? "saved@example.test" : "alex@example.test");
+    expect(calls("/email-draft")).toHaveLength(0);
+    expect(calls("/email-preview")).toHaveLength(0);
+    expect(calls("/email")).toHaveLength(0);
+    view.unmount();
+    client.clear();
+  }
 });
 
 it("does not overwrite unsaved staff edits when the context refetches", async () => {
@@ -442,6 +505,44 @@ it('keeps uncertain email acceptance protected when a saved-status refresh fails
   expect(screen.getByRole('heading', {name: 'Acceptance unconfirmed'})).toBeInTheDocument();
   expect(screen.queryByRole('button', {name: 'Send email'})).not.toBeInTheDocument();
   expect(calls('/email')).toHaveLength(1);
+});
+
+it('refreshes an already observed customer email timeline after manual send and saved-status refresh without sending twice', async () => {
+  const original = state.fetch.getMockImplementation()!;
+  let submitted = false, completed = false;
+  const delivery = { id: 'timeline-delivery', requestId: 'timeline-request', to: 'alex@example.test', subject: 'Approved reply', status: 'unknown', photoCount: 0, createdAt: '2026-10-17T10:00:00Z', error: 'Acceptance not yet confirmed.' };
+  state.fetch.mockImplementation(async (url: string, options?: { method?: string }) => {
+    if (url.endsWith('/email') && options?.method === 'POST') {
+      submitted = true;
+      return { delivery };
+    }
+    if (url.endsWith('/email-context')) return { ...context(), deliveries: submitted ? [{ ...delivery, status: completed ? 'sent' : 'unknown' }] : [] };
+    return original(url, options);
+  });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const journal = new QueryObserver(client, {
+    queryKey: ['staff-email-conversation', `enquiry:${entry.id}`],
+    staleTime: Infinity,
+    queryFn: async () => ({ messages: submitted ? [{ id: delivery.id, status: completed ? 'sent' : 'unknown' }] : [] }),
+  });
+  const stop = journal.subscribe(() => {});
+  try {
+    mount(client);
+    await screen.findByRole('textbox', { name: 'Message' });
+    await waitFor(() => expect(journal.getCurrentResult().data?.messages).toEqual([]));
+    fireEvent.click(screen.getByRole('button', { name: 'Review email' }));
+    await screen.findByRole('region', { name: 'Email preview' });
+    expect(calls('/email')).toHaveLength(0);
+    expect(journal.getCurrentResult().data?.messages).toEqual([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Send email' }));
+    await screen.findByRole('heading', { name: 'Acceptance unconfirmed' });
+    await waitFor(() => expect(journal.getCurrentResult().data?.messages).toEqual([{ id: delivery.id, status: 'unknown' }]));
+    completed = true;
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh saved status' }));
+    await screen.findByRole('heading', { name: 'Submitted to Resend' });
+    await waitFor(() => expect(journal.getCurrentResult().data?.messages).toEqual([{ id: delivery.id, status: 'sent' }]));
+    expect(calls('/email')).toHaveLength(1);
+  } finally { stop(); }
 });
 
 it('prepares appointment follow-up wording without sending or including old appointment details', async () => {

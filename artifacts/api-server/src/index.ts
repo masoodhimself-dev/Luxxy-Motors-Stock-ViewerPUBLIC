@@ -13,6 +13,7 @@ import { pool } from '@workspace/db';
 import { serviceLifecycle } from './lib/service-lifecycle';
 import { createShutdown, installShutdownSignals } from './lib/shutdown';
 import { startEmailOutboxWorker } from './lib/email-outbox';
+import { createPostgresCazooFeedRepository, startCazooFeedCollector } from './lib/cazoo-feed-collector';
 
 // Validate public links before listening or starting background database work.
 siteOrigin();
@@ -49,6 +50,20 @@ const server = app.listen(port, (err) => {
     startCustomerReplyWorker(logger),
     startStaffPushWorker(logger),
   );
+  // Separate collection-only feature gate. Import acceptance remains independent.
+  if (process.env.CAZOO_SFTP_ENABLED === 'true') {
+    void serviceLifecycle.track(async () => {
+      const repository = await createPostgresCazooFeedRepository();
+      if (!serviceLifecycle.isDraining()) stopWorkers.push(startCazooFeedCollector({
+        repository,
+        onError: () => logger.warn('Cazoo stock collection could not complete. Stock has not been imported.'),
+        onCheck: summary => {
+          if (summary.status === 'blocked' || (summary.status === 'failed' && summary.attempts >= 3)) logger.warn(summary, 'Cazoo collection needs review. Stock has not been imported.');
+          else if (summary.status === 'ready' || summary.status === 'unchanged') logger.info(summary, 'Cazoo stock file checked. Stock has not been imported.');
+        },
+      }));
+    }).catch(() => logger.warn('Cazoo stock collection could not start. Stock has not been imported.'));
+  }
   // Enquiries taken before leads existed are carried across on boot. This is
   // idempotent, so it is safe on every restart.
   forEachActiveDealer(() => backfillLeadsFromEnquiries(logger), { name: 'lead-backfill', log: logger }).catch((err: unknown) => {

@@ -86,3 +86,24 @@ it("warns before unloading unsaved team role changes and cleans up handlers", ()
   window.dispatchEvent(next);
   expect(next.defaultPrevented).toBe(false);
 });
+it('protects a customer reply on router changes without storing its text', () => {
+  history.replaceState({}, '', '/portal?section=notifications&enquiryId=one');
+  remove=installSettingsNavigationGuard();
+  const form=document.createElement('section');
+  form.dataset.messageDirty='true';
+  form.textContent='Private customer reply';
+  document.body.append(form);
+  const confirm=vi.spyOn(window,'confirm').mockReturnValue(false);
+  history.pushState({},'', '/portal?section=cars');
+  expect(location.search).toContain('enquiryId=one');
+  expect(confirm).toHaveBeenCalledWith(expect.stringContaining('customer message or note'));
+  expect(JSON.stringify(history.state)).not.toContain('Private customer reply');
+  const unload=new Event('beforeunload',{cancelable:true});
+  window.dispatchEvent(unload);
+  expect(unload.defaultPrevented).toBe(true);
+  confirm.mockReturnValue(true);
+  expect(confirmSettingsNavigation()).toBe(true);
+  history.pushState({},'', '/portal?section=cars');
+  expect(location.search).toBe('?section=cars');
+  expect(confirm).toHaveBeenCalledTimes(2);
+});

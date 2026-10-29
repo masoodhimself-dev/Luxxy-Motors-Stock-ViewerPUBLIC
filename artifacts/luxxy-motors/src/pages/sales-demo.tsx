@@ -7,7 +7,8 @@ import { SoldVehicleCustomerReview } from '@/components/portal/sold-vehicle-cust
 import { soldVehicleFollowUpsQueryKey } from '@/lib/sold-vehicle-follow-ups';
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import { useEnquirySummaries as useGetEnquiries } from "@/lib/enquiry-summary-query";
-import { SaleVehiclePhoto,saleVehicleChoiceLabel } from '@/components/sales-demo/vehicle-choice';
+import { SaleVehiclePhoto } from '@/components/sales-demo/vehicle-choice';
+import { VehicleChooser } from '@/components/vehicle-chooser';
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useSearch } from "wouter";
@@ -71,6 +72,7 @@ import "./invoice-builder.css";
 export interface SalesWorkspaceProps {
   embedded?: boolean;
   newSaleRequest?: number;
+  newSaleVehicleId?: string | null;
   onExit?: () => void;
 }
 type SaleListRow = SaleWorkspaceRecord & { listSummary?: boolean; listTotalDue?: number; listPaid?: number; listPending?: number; listLedgerKnown?: boolean; listBalance?: number; listHasCorrectionNotes?: boolean; listHasRefunds?: boolean; listHandover?: { method: 'collection' | 'delivery'; status: string } | null };
@@ -116,6 +118,7 @@ const paymentDate = (date: string) =>
 export function SalesWorkspace({
   embedded = false,
   newSaleRequest = 0,
+  newSaleVehicleId = null,
   onExit,
 }: SalesWorkspaceProps) {
   const [, navigate] = useLocation();
@@ -303,11 +306,17 @@ export function SalesWorkspace({
     } finally { if (request === openRequest.current) setOpeningId(null); }
   }
   useEffect(() => {
-    if (newSaleRequest > 0 && newSaleRequest !== consumedNew.current) {
-      consumedNew.current = newSaleRequest;
-      open();
-    }
-  }, [newSaleRequest]);
+    if (newSaleRequest <= 0 || newSaleRequest === consumedNew.current || busy || !access.data) return;
+    if (newSaleVehicleId && stockLoading) return;
+    consumedNew.current = newSaleRequest;
+    if (newSaleVehicleId) {
+      const car = stock?.cars.find(item => item.id === newSaleVehicleId);
+      if (!canManageSales) { setProblem('You do not have permission to start a sale.'); return; }
+      if (stockError || !stock) { setProblem('Current stock could not be loaded. Refresh Cars before starting this sale.'); return; }
+      if (!car || car.inventoryStatus !== 'available') { setProblem('This car is no longer available. Refresh Cars and choose another vehicle.'); return; }
+      open(undefined, { ...emptyDraft(), vehicleId: car.id, vehicle: vehicleDisplayTitle(car), registration: vehicleRegistration(car), price: car.price != null ? String(car.price) : '' });
+    } else open();
+  }, [newSaleRequest, newSaleVehicleId, stockLoading, stockError, stock, canManageSales, busy, access.data]);
   useEffect(() => {
     const params = new URLSearchParams(search);
     if (embedded && params.get('section') !== 'sales') return;
@@ -1076,55 +1085,19 @@ export function SalesWorkspace({
                   {step === 0 && (
                     <>
                       <h2>Vehicle & agreed price</h2>
-                      <label>
-                        Which car is the customer buying?
-                        <select
-                          aria-label="Vehicle"
-                          value={draft.vehicleId}
-                          disabled={Boolean(
-                            record?.completedAt ||
-                            record?.lifecycle?.status === "reserved",
-                          )}
-                          onChange={(event) => {
-                            const car = stock?.cars.find(
-                              (c) => c.id === event.target.value,
-                            );
-                            if (car)
-                              setDraft({
-                                ...draft,
-                                sourceEnquiryId: "",
-                                sourceReservationId: "",
-                                customerSource: "",
-                                vin: "",
-                                vehicleId: car.id,
-                                vehicle: vehicleDisplayTitle(car),
-                                registration: vehicleRegistration(car),
-                                price:
-                                  car.price != null ? String(car.price) : "",
-                              });
-                          }}
-                        >
-                          <option value="">Choose a stock vehicle</option>
-                          {draft.vehicleId && !vehicle && (
-                            <option value={draft.vehicleId}>
-                              {draft.vehicle} · saved vehicle
-                            </option>
-                          )}
-                          {(stock?.cars ?? [])
-                            .filter(
-                              (car) =>
-                                car.id === draft.vehicleId ||
-                                !["sold", "archived"].includes(
-                                  String(car.inventoryStatus),
-                                ),
-                            )
-                            .map((car) => (
-                              <option key={car.id} value={car.id}>
-                                {saleVehicleChoiceLabel(car)}
-                              </option>
-                            ))}
-                        </select>
-                      </label>
+                      <VehicleChooser
+                        cars={(stock?.cars ?? []).filter(car => car.id === draft.vehicleId || !["sold", "archived"].includes(String(car.inventoryStatus)))}
+                        value={draft.vehicleId}
+                        savedLabel={draft.vehicle}
+                        disabled={busy || !canManageSales || vehicleChangeLocked}
+                        loading={stockLoading}
+                        failed={Boolean(stockError)}
+                        lockedReason={vehicleChangeLocked ? "The vehicle is locked to this reserved or completed sale." : undefined}
+                        onChange={(id) => {
+                          const car = stock?.cars.find(c => c.id === id);
+                          if (car) setDraft({ ...draft, sourceEnquiryId: "", sourceReservationId: "", customerSource: "", vin: "", vehicleId: car.id, vehicle: vehicleDisplayTitle(car), registration: vehicleRegistration(car), price: car.price != null ? String(car.price) : "" });
+                        }}
+                      />
                       {vehicle && (
                         <div className="invoice-selected-car">
                           <SaleVehiclePhoto key={vehicle.id} car={vehicle} />

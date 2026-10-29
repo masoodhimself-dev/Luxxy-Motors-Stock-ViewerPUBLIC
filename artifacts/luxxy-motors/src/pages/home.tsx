@@ -4,6 +4,7 @@ import { VehicleFactIcon } from "@/components/vehicle-fact-icon";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import './stock-redesign.css';
 import './home-redesign.css';
+import './stock-sidebar.css';
 import { customerDefaultCopy, websiteText } from "@/lib/website-content";
 import { useSavedCars } from '@/lib/saved-cars-context';
 import { arrivalTime } from '@/lib/stock-presentation';
@@ -270,7 +271,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     }
     requestAnimationFrame(() => {
       if (scrollToHomeTarget('vehicle-results')) {
-        focusHomeTarget('vehicle-results-heading');
+        focusHomeTarget('vehicle-results');
       }
     });
   };
@@ -329,12 +330,12 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
 
   if (isLoading && browseStock)
     return (
-      <div className="luxxy-shell stock-refined stock-redesign min-h-screen" aria-label="Loading stock" aria-busy="true">
+      <div className="luxxy-shell stock-refined stock-redesign stock-sidebar-layout min-h-screen" aria-label="Loading stock" aria-busy="true">
         <span className="sr-only" role="status">Loading used cars</span>
-        <div className="container stock-loading mx-auto px-4 sm:px-6 lg:px-8" aria-hidden="true">
+        <div className="container stock-loading stock-sidebar-loading mx-auto px-4 sm:px-6 lg:px-8" aria-hidden="true">
           <div className="stock-loading-title stock-skeleton animate-pulse" />
-          <div className="stock-loading-line stock-skeleton animate-pulse" />
-          <div className="stock-loading-search" />
+          <div className="stock-loading-sidebar"><div className="stock-loading-line stock-skeleton animate-pulse" /><div className="stock-loading-line stock-skeleton animate-pulse" /><div className="stock-loading-line stock-skeleton animate-pulse" /></div>
+          <div className="stock-loading-search stock-skeleton animate-pulse" />
           <div className="stock-card-results stock-results-grid grid">
             {[1, 2, 3, 4, 5, 6].map(n => <div key={n} className="stock-loading-card"><div className="stock-loading-photo stock-skeleton animate-pulse" /><div className="stock-loading-details"><div className="stock-loading-line stock-skeleton animate-pulse" /><div className="stock-loading-line stock-skeleton animate-pulse" /><div className="stock-loading-line stock-skeleton animate-pulse" /></div></div>)}
           </div>
@@ -372,7 +373,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   );
 
   return (
-    <div className={cn(browseStock ? "luxxy-shell homepage-refined stock-refined stock-redesign min-h-screen" : "luxxy-shell homepage-refined homepage-art-directed homepage-premium min-h-screen")}>
+    <div className={cn(browseStock ? "luxxy-shell homepage-refined stock-refined stock-redesign stock-sidebar-layout min-h-screen" : "luxxy-shell homepage-refined homepage-art-directed homepage-premium min-h-screen")}>
       {!browseStock && <section className="stock-search-hero" aria-labelledby="home-heading">
         {heroPhotoSource && <div className="stock-search-backdrop" data-testid="showroom-hero-photo"><ShowroomPhoto src={heroPhotoSource} position={demoSite && !configuredHeroImage ? 'bottom' : dealerConfig.presentation?.heroImagePosition} alt={heroAlt} priority fit="cover" className="h-full" /></div>}
         <div className="stock-search-shade" aria-hidden="true" />
@@ -418,7 +419,6 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
 
       {browseStock && <section className="stock-page-intro" aria-labelledby="vehicle-results-heading">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <nav aria-label="Breadcrumb" className="stock-breadcrumb"><Link href="/">Home</Link><span aria-hidden="true">/</span><span>Used cars</span></nav>
           <div className="stock-heading-row">
             <div className="stock-title-group">
               <h1 id="vehicle-results-heading" tabIndex={-1}>{websiteText(dealerConfig, "stockTitle")}</h1>
@@ -438,13 +438,17 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
               </CollapsibleContent>
             </Collapsible>
           </div>
-          {customerDefaultCopy(websiteText(dealerConfig, "stockIntroduction"), '', ['Find your next used car.']) && <p className="stock-introduction">{websiteText(dealerConfig, "stockIntroduction")}</p>}
+
         </div>
       </section>}
 
       {browseStock && <section id="stock" data-home-section className="browse-stock py-8 md:py-10">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="container stock-catalogue-layout mx-auto px-4 sm:px-6 lg:px-8">
           <Filters
+            shortcuts={!error && publicCars.length > 0 && <nav className="stock-shopping-shortcuts" aria-label="Shop by preference">
+            {publicCars.some(car => /automatic/i.test(car.transmission || '')) && <button type="button" aria-label="Show automatic cars" aria-pressed={filters.transmission === 'Automatic'} onClick={() => applyQuickFilter({ transmission: filters.transmission === 'Automatic' ? '' : 'Automatic' }, false)}>Automatic</button>}
+            {publicCars.some(car => car.price != null && car.price <= 10000) && <button type="button" aria-label="Show cars under £10k" aria-pressed={filters.maxPrice === '10000'} onClick={() => applyQuickFilter({ maxPrice: filters.maxPrice === '10000' ? '' : '10000' }, false)}>Under £10k</button>}
+          </nav>}
             quickFilters={<>             <div className="flex flex-wrap gap-2 text-sm">
               {benefitChoices.filter(({ key }) => benefitCounts[key] > 0 || filters[key]).map(({ key, label, note }) => <button
                 key={key}
@@ -485,13 +489,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
             }}
           />
 
-          {!error && publicCars.length > 0 && <nav className="stock-shopping-shortcuts" aria-label="Shop by preference">
-            {publicCars.some(car => /automatic/i.test(car.transmission || '')) && <button type="button" aria-label="Show automatic cars" aria-pressed={filters.transmission === 'Automatic'} onClick={() => applyQuickFilter({ transmission: filters.transmission === 'Automatic' ? '' : 'Automatic' })}>Automatic</button>}
-            {publicCars.some(car => car.price != null && car.price <= 10000) && <button type="button" aria-label="Show cars under £10k" aria-pressed={filters.maxPrice === '10000'} onClick={() => applyQuickFilter({ maxPrice: filters.maxPrice === '10000' ? '' : '10000' })}>Under £10k</button>}
-            {benefitChoices.filter(({ key }) => benefitCounts[key] > 0).slice(0, 2).map(({ key, label, note }) => <button key={key} type="button" title={note} aria-pressed={Boolean(filters[key])} onClick={() => toggleBenefitFilter(key)}>{label}</button>)}
-          </nav>}
-
-          <div id="vehicle-results" data-home-section className="mt-2 md:mt-4">
+          <div id="vehicle-results" tabIndex={-1} aria-label="Vehicle results" data-home-section className="mt-2 md:mt-4">
             {!error && <div className="stock-results-bar">
             </div>}
             {error ? (
@@ -554,6 +552,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                 </Button>
               </div>
             )}
+            {customerDefaultCopy(websiteText(dealerConfig, "stockIntroduction"), '', ['Find your next used car.']) && <p className="stock-introduction stock-end-information">{websiteText(dealerConfig, "stockIntroduction")}</p>}
           </div>
         </div>
       </section>}

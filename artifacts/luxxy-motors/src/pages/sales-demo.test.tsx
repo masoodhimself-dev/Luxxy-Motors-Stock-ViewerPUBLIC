@@ -17,6 +17,8 @@ const state = vi.hoisted(() => ({
   reservations: [] as StaffOnlineReservation[],
   search: "",
   enquiriesError: false,
+  stockLoading: false,
+  stockError: null as string | null,
   customerEmails: true,
   invoiceQrEnabled: true,
   featuresLoading: false,
@@ -39,12 +41,13 @@ const state = vi.hoisted(() => ({
         colour: "Blue",
         images: [],
         heroImage: null as string | null,
+        inventoryStatus: "available",
       },
     ],
   },
 }));
 vi.mock("@/lib/stock-context", () => ({
-  useStock: () => ({ stock: state.stock }),
+  useStock: () => ({ stock: state.stock, isLoading: state.stockLoading, error: state.stockError }),
 }));
 vi.mock("@/lib/dealer-settings-context", () => ({
   useDealerSettings: () => ({
@@ -101,6 +104,8 @@ beforeEach(() => {
   state.reservations = [];
   state.search = "";
   state.enquiriesError = false;
+  state.stockLoading = false;
+  state.stockError = null;
   state.customerEmails = true;
   state.invoiceQrEnabled = true;
   state.featuresLoading = false;
@@ -240,6 +245,15 @@ it("returns an embedded invoice to the sales list and keeps the unsaved-change g
     confirm.mockRestore();
   }
 });
+function chooseStockVehicle(id: string) {
+  const chooser = screen.getByRole("region", { name: "Vehicle selection" });
+  if (!within(chooser).queryByLabelText("Matching stock vehicles")) {
+    fireEvent.click(within(chooser).getByRole("button", { name: "Change vehicle" }));
+  }
+  const option = within(chooser).getAllByRole("button").find(button => button.getAttribute("data-vehicle-id") === id);
+  expect(option).toBeDefined();
+  fireEvent.click(option!);
+}
 async function details(_type: "deposit" | "full") {
   fireEvent.click(await screen.findByRole("button", { name: /New invoice/ }));
   expect(
@@ -248,9 +262,7 @@ async function details(_type: "deposit" | "full") {
   expect(
     screen.queryByLabelText("Customer’s full name"),
   ).not.toBeInTheDocument();
-  fireEvent.change(screen.getByRole("combobox", { name: "Vehicle" }), {
-    target: { value: "car-test" },
-  });
+  chooseStockVehicle("car-test");
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   expect(
     screen.getByRole("heading", { name: "Who is buying the car?" }),
@@ -412,9 +424,7 @@ it("requires the car and customer before asking about payments or invoices", asy
   expect(
     screen.queryByRole("button", { name: /^Full invoice/ }),
   ).not.toBeInTheDocument();
-  fireEvent.change(screen.getByRole("combobox", { name: "Vehicle" }), {
-    target: { value: "car-test" },
-  });
+  chooseStockVehicle("car-test");
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   expect(screen.getByRole("alert")).toHaveTextContent(
@@ -476,9 +486,7 @@ function recentEnquiry(overrides: Partial<Enquiry> = {}): Enquiry {
 }
 async function openCustomerStep() {
   fireEvent.click(await screen.findByRole("button", { name: /New invoice/ }));
-  fireEvent.change(screen.getByRole("combobox", { name: "Vehicle" }), {
-    target: { value: "car-test" },
-  });
+  chooseStockVehicle("car-test");
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 }
 
@@ -486,9 +494,7 @@ it("shows the selected car and agreed price beside the customer details", async 
   state.stock.cars[0].heroImage = "https://images.example.com/ford-focus.jpg";
   mount();
   fireEvent.click(await screen.findByRole("button", { name: /New invoice/ }));
-  fireEvent.change(screen.getByRole("combobox", { name: "Vehicle" }), {
-    target: { value: "car-test" },
-  });
+  chooseStockVehicle("car-test");
   fireEvent.change(screen.getByLabelText("Agreed vehicle price (£)"), {
     target: { value: "9750" },
   });
@@ -520,7 +526,7 @@ it("returns to the vehicle step without losing entered customer details", async 
 
   fireEvent.click(screen.getByRole("button", { name: "Change car" }));
   expect(screen.getByRole("heading", { name: "Which car are you selling?" })).toBeInTheDocument();
-  expect(screen.getByRole("combobox", { name: "Vehicle" })).toHaveValue("car-test");
+  expect(screen.getByRole("region", { name: "Vehicle selection" })).toHaveTextContent("Ford Focus selected");
   expect(screen.queryByRole("complementary", { name: "Selected car" })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
@@ -540,7 +546,7 @@ it("updates the customer-step car summary and saved draft after changing vehicle
   await openCustomerStep();
   fireEvent.change(screen.getByLabelText("Customer’s full name"), { target: { value: "Jamie Taylor" } });
   fireEvent.click(screen.getByRole("button", { name: "Change car" }));
-  fireEvent.change(screen.getByRole("combobox", { name: "Vehicle" }), { target: { value: "car-second" } });
+  chooseStockVehicle("car-second");
   expect(screen.getByLabelText("Agreed vehicle price (£)")).toHaveValue("7500");
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
@@ -625,7 +631,7 @@ it("keeps explicitly linked enquiry prefilling from its URL", async () => {
   state.search = "?enquiryId=enquiry-recent";
   mount();
   await screen.findByRole("heading", { name: "Which car are you selling?" });
-  expect(screen.getByRole("combobox", { name: "Vehicle" })).toHaveValue("car-test");
+  expect(screen.getByRole("region", { name: "Vehicle selection" })).toHaveTextContent("Ford Focus selected");
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   expect(screen.getByLabelText("Customer’s full name")).toHaveValue("Jamie Taylor");
   fireEvent.click(screen.getByRole("button", { name: "Save details" }));
@@ -700,7 +706,7 @@ it("opens a saved sale at its useful summary and resumes payments without repeat
   expect(summary).toHaveTextContent("£500.00");
   expect(summary).toHaveTextContent("£9,500.00");
   expect(screen.queryByRole("navigation", { name: "Invoice steps" })).not.toBeInTheDocument();
-  expect(screen.queryByRole("combobox", { name: "Vehicle" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("searchbox", { name: "Search stock vehicles" })).not.toBeInTheDocument();
   expect(mutations()).toHaveLength(0);
   fireEvent.click(screen.getByRole("button", { name: "Record a payment" }));
   expect(screen.getByRole("heading", { name: "What has the customer paid?" })).toBeInTheDocument();
@@ -918,7 +924,7 @@ it("opens a completed sale's frozen invoice and keeps completed customer and veh
   expect(mutations()).toHaveLength(0);
   expect(state.sales[0]).toEqual(snapshot);
   fireEvent.click(screen.getByRole("button", { name: "View vehicle details" }));
-  expect(screen.getByRole("combobox", { name: "Vehicle" })).toBeDisabled();
+  expect(screen.getByRole("searchbox", { name: "Search stock vehicles" })).toBeDisabled();
   expect(screen.getByLabelText("Agreed vehicle price (£)")).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: "Sale summary" }));
   fireEvent.click(screen.getByRole("button", { name: "View customer details" }));
@@ -996,4 +1002,92 @@ it("shows every interim payment with its amount and status directly on the saved
  expect(history).toHaveTextContent("Received");
  expect(screen.getByRole("region",{name:"Saved sale summary"})).toHaveTextContent("£9,250.00");
  expect(mutations()).toHaveLength(0);
+});
+
+
+it("starts a new unsaved sale from Cars using the selected available vehicle and no prior customer", async () => {
+  state.sales = [savedSale({ customer: "Existing buyer", email: "existing@example.com" })];
+  mount({ embedded: true, newSaleRequest: 1, newSaleVehicleId: "car-test" });
+  await screen.findByRole("heading", { name: "Which car are you selling?" });
+  expect(screen.getByRole("region", { name: "Vehicle selection" })).toHaveTextContent("Ford Focus selected");
+  expect(screen.getByLabelText("Registration / number plate")).toHaveValue("AB20 XYZ");
+  expect(screen.getByLabelText("Agreed vehicle price (£)")).toHaveValue("10000");
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.getByLabelText("Customer’s full name")).toHaveValue("");
+  expect(screen.getByLabelText("Telephone")).toHaveValue("");
+  expect(mutations()).toHaveLength(0);
+  expect(state.sales[0].draft.customer).toBe("Existing buyer");
+});
+
+it.each(["reserved", "sold", "archived", "missing"])("refuses a stale Cars start-sale request for a %s vehicle", async inventoryStatus => {
+  state.stock.cars[0].inventoryStatus = inventoryStatus;
+  mount({ embedded: true, newSaleRequest: 1, newSaleVehicleId: "car-test" });
+  expect(await screen.findByRole("alert")).toHaveTextContent("no longer available");
+  expect(screen.queryByRole("heading", { name: "Which car are you selling?" })).not.toBeInTheDocument();
+  expect(mutations()).toHaveLength(0);
+});
+
+it("keeps the stock failure visible rather than creating a sale for an unverified Cars selection", async () => {
+  state.stockError = "Stock unavailable";
+  mount({ embedded: true, newSaleRequest: 1, newSaleVehicleId: "car-test" });
+  expect(await screen.findByRole("alert")).toHaveTextContent("Refresh Cars before starting this sale");
+  expect(screen.queryByRole("heading", { name: "Which car are you selling?" })).not.toBeInTheDocument();
+  expect(mutations()).toHaveLength(0);
+});
+
+it("retains the selected car and agreed price protection after a deposit reserves the sale", async () => {
+  const sale = fixturePayment(savedSale(), "500");
+  await mountSaved(sale);
+  fireEvent.click(screen.getByRole("button", { name: "Edit vehicle & price" }));
+  expect(screen.getByRole("searchbox", { name: "Search stock vehicles" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Change vehicle" })).toBeDisabled();
+  expect(screen.getByRole("region", { name: "Vehicle selection" })).toHaveTextContent("locked to this reserved or completed sale");
+  expect(state.sales[0]).toEqual(sale);
+  expect(mutations()).toHaveLength(0);
+});
+
+it("keeps unsaved customer details when a Cars start-sale request is cancelled", async () => {
+  state.stock.cars.push({ ...state.stock.cars[0], id: "car-second", title: "Toyota Yaris", make: "Toyota", model: "Yaris", price: 7500 });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const ui = (newSaleRequest: number) => <QueryClientProvider client={client}><SalesWorkspace embedded newSaleRequest={newSaleRequest} newSaleVehicleId="car-second" /></QueryClientProvider>;
+  const view = render(ui(0));
+  await openCustomerStep();
+  fireEvent.change(screen.getByLabelText("Customer’s full name"), { target: { value: "Unsaved buyer" } });
+  const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+  try {
+    view.rerender(ui(1));
+    expect(confirm).toHaveBeenCalledWith("Leave your unsaved invoice details?");
+    expect(screen.getByLabelText("Customer’s full name")).toHaveValue("Unsaved buyer");
+    expect(screen.getByRole("complementary", { name: "Selected car" })).toHaveTextContent("Ford Focus");
+    expect(mutations()).toHaveLength(0);
+  } finally { confirm.mockRestore(); }
+});
+
+it("waits for stock before prefilling a Cars start-sale request", async () => {
+  state.stockLoading = true;
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const ui = () => <QueryClientProvider client={client}><SalesWorkspace embedded newSaleRequest={1} newSaleVehicleId="car-test" /></QueryClientProvider>;
+  const view = render(ui());
+  expect(screen.queryByRole("heading", { name: "Which car are you selling?" })).not.toBeInTheDocument();
+  state.stockLoading = false;
+  view.rerender(ui());
+  await screen.findByRole("heading", { name: "Which car are you selling?" });
+  expect(screen.getByLabelText("Agreed vehicle price (£)")).toHaveValue("10000");
+  expect(mutations()).toHaveLength(0);
+});
+
+it("keeps the original sale chooser's reserved option while excluding sold and archived alternatives", async () => {
+  for (const [id, inventoryStatus] of [["car-reserved", "reserved"], ["car-sold", "sold"], ["car-archived", "archived"]]) {
+    state.stock.cars.push({ ...state.stock.cars[0], id, title: `Ford ${id}`, model: id, inventoryStatus });
+  }
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: /New invoice/ }));
+  const options = screen.getByLabelText("Matching stock vehicles");
+  expect(within(options).getAllByRole("button")).toHaveLength(2);
+  expect(options).toHaveTextContent("Reserved");
+  expect(options).not.toHaveTextContent("Ford car-sold");
+  expect(options).not.toHaveTextContent("Ford car-archived");
+  fireEvent.change(screen.getByRole("searchbox", { name: "Search stock vehicles" }), { target: { value: "Blue Manual" } });
+  expect(screen.getByLabelText("Agreed vehicle price (£)")).toHaveValue("");
+  expect(mutations()).toHaveLength(0);
 });

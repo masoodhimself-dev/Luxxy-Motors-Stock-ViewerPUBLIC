@@ -1,0 +1,101 @@
+{
+  "checkedAt": "2026-10-29T12:26:10.033983+00:00",
+  "scope": "Multi-Choice official Cazoo SFTP collection only",
+  "implemented": {
+    "parser": true,
+    "identityReconciliationPreview": true,
+    "directPasswordOnlySftp": true,
+    "pinnedServerFingerprint": true,
+    "boundedStableDownloads": true,
+    "restartSafeDatabaseCheckpoints": true,
+    "advisoryLock": true,
+    "maximumAttemptsPerSlot": 3,
+    "minimumRetryMinutes": 15,
+    "londonCheckWindows": [
+      "07:10-08:40",
+      "19:10-20:40"
+    ],
+    "scheduledFileMustBelongToCurrentDelivery": true,
+    "automaticStockApplication": false
+  },
+  "realConnectionTests": [
+    {
+      "startedAt": "2026-10-29T12:10:10.293Z",
+      "finishedAt": "2026-10-29T12:10:13.095Z",
+      "durationMs": 2802,
+      "dealerId": "demo-multi-choice-motors-cazoo-test",
+      "retailerId": "cazoo-75497",
+      "fileBytes": 60855,
+      "sha256": "003401492279f1a35fb60b4cb4463f057a43684b50f7e9c2f99182821d5014ba",
+      "remoteModifiedAt": "2026-10-29T10:12:34.000Z",
+      "vehicleCount": 31,
+      "photos": 544,
+      "planStatus": "blocked",
+      "matches": 0,
+      "creates": 31,
+      "missing": 0,
+      "importsAttempted": 0,
+      "remoteWritesAttempted": 0
+    },
+    {
+      "startedAt": "2026-10-29T12:11:48.433Z",
+      "finishedAt": "2026-10-29T12:11:51.314Z",
+      "durationMs": 2881,
+      "dealerId": "demo-multi-choice-motors-cazoo-test",
+      "retailerId": "cazoo-75497",
+      "fileBytes": 60855,
+      "sha256": "003401492279f1a35fb60b4cb4463f057a43684b50f7e9c2f99182821d5014ba",
+      "remoteModifiedAt": "2026-10-29T10:12:34.000Z",
+      "vehicleCount": 31,
+      "photos": 544,
+      "planStatus": "blocked",
+      "matches": 0,
+      "creates": 31,
+      "missing": 0,
+      "importsAttempted": 0,
+      "remoteWritesAttempted": 0
+    }
+  ],
+  "tests": {
+    "cazooTestsPassed": 99,
+    "cazooTestsFailed": 0,
+    "apiTypecheck": "passed",
+    "apiProductionBuild": "passed",
+    "databaseTests": "7 isolated PGlite integration tests; real migration and SQL, advisory functions simulated"
+  },
+  "privateReader": {
+    "username": "u702248-sub2",
+    "folder": "multi-choice-motors-cazoo-incoming",
+    "readOnlySettingVerifiedInHetzner": true,
+    "sftpPort": 22,
+    "remoteWritesAttempted": 0,
+    "destructivePermissionProbePerformed": false
+  },
+  "render": {
+    "service": "luxxy-shared-staging",
+    "serviceId": "srv-db4jfhk9v7es73a4qhrg",
+    "workspace": "My Workspace",
+    "saveAction": "Save only",
+    "savedKeys": [
+      "CAZOO_SFTP_ENABLED",
+      "CAZOO_SFTP_CONNECTIONS_JSON",
+      "CAZOO_SFTP_PASSWORD_MULTI_CHOICE"
+    ],
+    "secretValuesIncluded": false,
+    "deployed": false,
+    "liveCommitStill": "0567a4172ad5b5ed8039dbda6946b39531adc425"
+  },
+  "limits": {
+    "actualScheduledSlotsVerified": false,
+    "fullLiveInventoryReconciliationPerformed": false,
+    "publicStockOnlyNeverAuthorizesImport": true,
+    "migrationAppliedLive": false
+  },
+  "protected": {
+    "stockImportsAttempted": 0,
+    "customerMessagesSent": 0,
+    "existingRecordsChanged": 0,
+    "supplierFilesChanged": 0,
+    "otherDealerConnectionsChanged": 0
+  }
+}

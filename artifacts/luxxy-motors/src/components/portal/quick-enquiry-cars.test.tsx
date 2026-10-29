@@ -9,6 +9,7 @@ it("matches every search term in any order, with auto shorthand and spaced regis
  expect(matchesEnquiryCar(mg, "MG HS auto red")).toBe(true);
  expect(matchesEnquiryCar(mg, "red auto HS MG")).toBe(true);
  expect(matchesEnquiryCar(toyota, "AB12CDE")).toBe(true);
+ expect(matchesEnquiryCar({ ...toyota, plate: null, vrm: null, registration: 'AB12 CDE' }, "AB12CDE")).toBe(true);
  expect(matchesEnquiryCar(toyota, "Toyota red")).toBe(false);
  expect(matchesEnquiryCar(toyota, "manual")).toBe(false);
 });

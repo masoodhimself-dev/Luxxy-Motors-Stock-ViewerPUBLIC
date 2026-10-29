@@ -1,0 +1,244 @@
+{
+  "date": "2026-10-29",
+  "status": "implemented locally; held for next approved deployment batch",
+  "request": "Show stock near the top of the page, with filters on the left on wider screens and a compact accessible filter sheet on small screens.",
+  "research": [
+    {
+      "url": "https://www.cinch.co.uk/used-cars",
+      "used": "Grouped left-side filters, compact result controls; omitted large introductory/finance blocks."
+    },
+    {
+      "url": "https://www.cazoo.co.uk/cars/",
+      "used": "Compact common filters, full filter panel, clear filters and show-result-count action."
+    },
+    {
+      "url": "https://www.motorpoint.co.uk/used-cars?sortby=year-asc",
+      "used": "Common filters followed quickly by stock, with removable applied criteria."
+    }
+  ],
+  "behaviour": [
+    "Desktop and landscape tablets at 1024px or wider use a sticky left filter sidebar.",
+    "Phone and portrait tablet layouts keep search and sort concise and open filters in a bounded sheet/dialog with scrolling fields and a fixed results action.",
+    "Wider screens show three card columns; medium screens two; phones one. Compact stock display remains one column.",
+    "Custom stock introduction remains intact below the cars instead of pushing them down.",
+    "Existing filter rules, URL state, dealer colours, featured choices, stock order, photo controls and saved cars remain in use.",
+    "No backend, database, permissions, polling or messaging changes."
+  ],
+  "verification": {
+    "unit": {
+      "passed": 79,
+      "files": [
+        "home.test.tsx",
+        "stock-sidebar-filters.test.tsx",
+        "stock-budget-options.test.ts",
+        "stock-presentation.test.ts",
+        "customer-theme.test.ts"
+      ]
+    },
+    "browser": {
+      "passed": 17,
+      "skipped": 4,
+      "skippedReason": "Colour/error/loading edge cases intentionally run only at three representative viewports. Both source journeys run at every viewport.",
+      "engine": "WebKit",
+      "profiles": [
+        "320x740 phone",
+        "390x844 iPhone",
+        "820x1180 iPad portrait",
+        "1024x768 iPad landscape",
+        "1194x834 iPad landscape",
+        "1024x900 desktop",
+        "1440x1000 desktop"
+      ],
+      "sources": [
+        "Shore Drive Auto Trader public snapshot",
+        "Multi Choice Cazoo public snapshot"
+      ],
+      "coverage": [
+        "search",
+        "make/model linkage",
+        "budget and fuel",
+        "sort",
+        "applied chips",
+        "URL reload",
+        "reset",
+        "save car",
+        "vehicle links",
+        "photo controls",
+        "iPad rotation and modal release",
+        "44px controls",
+        "no horizontal overflow",
+        "dark-panel contrast",
+        "long headings and preserved description",
+        "empty stock",
+        "error/retry",
+        "loading/recovery",
+        "mobile shortcut focus",
+        "results focus after closing filters"
+      ]
+    },
+    "additionalFocusRecheck": "Both sources passed at iPhone 390 with an explicit results-focus assertion.",
+    "typecheck": "passed",
+    "productionBuild": "passed; existing bundle-size and sourcemap warnings remain",
+    "limitations": [
+      "Browser device profiles, not physical iPhone/iPad testing.",
+      "Actual public car fields retained but gallery photographs replaced with deterministic local assets in browser tests.",
+      "External requests and writes blocked in browser tests; no real records changed."
+    ]
+  },
+  "metrics": [
+    {
+      "source": "multi",
+      "viewport": {
+        "width": 1024,
+        "height": 900
+      },
+      "firstTop": 203,
+      "publicCars": 28,
+      "mutations": [],
+      "errors": []
+    },
+    {
+      "source": "multi",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "firstTop": 203,
+      "publicCars": 28,
+      "mutations": [],
+      "errors": []
+    },
+    {
+      "source": "multi",
+      "viewport": {
+        "width": 820,
+        "height": 1180
+      },
+      "firstTop": 293,
+      "publicCars": 28,
+      "mutations": [],
+      "errors": []
+    },
+    {
+      "source": "multi",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "firstTop": 203,
+      "publicCars": 28,
+      "mutations": [],
+      "errors": []
+    },
+    {
+      "source": "multi",
+      "viewport": {
+        "width": 1194,
+        "height": 834
+      },
+      "firstTop": 203,
+      "publicCars": 28,
+      "mutations": [],
+      "errors": []
+    },
+    {
+      "source": "multi",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "firstTop": 287,
+      "publicCars": 28,
+      "mutations": [],
+      "errors": []
+    },
+    {
+      "source": "multi",
+      "viewport": {
+        "width": 320,
+        "height": 740
+      },
+      "firstTop": 287,
+      "publicCars": 28,
+      "mutations": [],
+      "errors": []
+    },
+    {
+      "source": "shore",
+      "viewport": {
+        "width": 1024,
+        "height": 900
+      },
+      "firstTop": 203,
+      "publicCars": 18,
+      "mutations": [],
+      "errors": []
+    },
+    {
+      "source": "shore",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "firstTop": 203,
+      "publicCars": 18,
+      "mutations": [],
+      "errors": []
+    },
+    {
+      "source": "shore",
+      "viewport": {
+        "width": 820,
+        "height": 1180
+      },
+      "firstTop": 293,
+      "publicCars": 18,
+      "mutations": [],
+      "errors": []
+    },
+    {
+      "source": "shore",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "firstTop": 203,
+      "publicCars": 18,
+      "mutations": [],
+      "errors": []
+    },
+    {
+      "source": "shore",
+      "viewport": {
+        "width": 1194,
+        "height": 834
+      },
+      "firstTop": 203,
+      "publicCars": 18,
+      "mutations": [],
+      "errors": []
+    },
+    {
+      "source": "shore",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "firstTop": 287,
+      "publicCars": 18,
+      "mutations": [],
+      "errors": []
+    },
+    {
+      "source": "shore",
+      "viewport": {
+        "width": 320,
+        "height": 740
+      },
+      "firstTop": 287,
+      "publicCars": 18,
+      "mutations": [],
+      "errors": []
+    }
+  ]
+}

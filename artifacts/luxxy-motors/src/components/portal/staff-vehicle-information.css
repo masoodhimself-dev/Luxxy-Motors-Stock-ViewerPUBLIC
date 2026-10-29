@@ -1,0 +1,114 @@
+.portal-action-dialog.staff-vehicle-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: min(960px, calc(100vw - 32px));
+  max-width: none;
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #d8e2e8;
+  border-radius: 12px;
+  background: #fff;
+  color: #203443;
+}
+.staff-vehicle-dialog .staff-vehicle-heading {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 20px 72px 18px 20px;
+  border-bottom: 1px solid #d8e2e8;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.staff-vehicle-dialog .staff-vehicle-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 20px;
+}
+.staff-vehicle-body > * + * {
+  margin-top: 20px;
+}
+.staff-vehicle-body :is(dt, dd, li, p) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.staff-vehicle-body .enquiry-vehicle-overview {
+  align-items: start;
+}
+.staff-vehicle-body .enquiry-vehicle-overview > section {
+  min-width: 0;
+}
+.staff-vehicle-dialog .staff-vehicle-fact-group {
+  border-top: 1px solid #d8e2e8;
+}
+.staff-vehicle-fact-group > summary {
+  min-height: 48px;
+  padding: 14px 0;
+  font-weight: 600;
+  cursor: pointer;
+}
+.staff-vehicle-fact-group > :not(summary) {
+  margin-bottom: 14px;
+}
+.staff-vehicle-fact-group > section[aria-label="MOT history"] {
+  padding: 0;
+  border: 0;
+}
+.staff-vehicle-fact-group > section[aria-label="MOT history"] > h2 {
+  display: none;
+}
+.staff-vehicle-dialog .staff-vehicle-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 20px max(14px, env(safe-area-inset-bottom));
+  border-top: 1px solid #d8e2e8;
+  background: #fff;
+}
+.staff-vehicle-actions :is(button, a) {
+  min-height: 44px;
+}
+.staff-vehicle-dialog .staff-vehicle-disclosure {
+  padding: 12px;
+  border: 1px solid #e4cf9c;
+  border-radius: 7px;
+  background: #fff7e5;
+  color: #704d10;
+  font-size: 14px;
+}
+.portal-action-dialog.staff-vehicle-dialog.staff-vehicle-panel {
+  inset: 16px 16px 16px auto;
+  width: min(840px, calc(100vw - 32px));
+  max-height: none;
+  translate: none;
+  transform: none;
+  animation: none;
+}
+@media (max-width: 639px) {
+  .portal-action-dialog.staff-vehicle-dialog,
+  .portal-action-dialog.staff-vehicle-dialog.staff-vehicle-panel {
+    inset: 0;
+    width: 100%;
+    max-height: 100dvh;
+    height: 100dvh;
+    translate: none;
+    transform: none;
+    animation: none;
+    border-radius: 0;
+  }
+  .staff-vehicle-dialog .staff-vehicle-heading {
+    padding: 18px 66px 14px 16px;
+  }
+  .staff-vehicle-dialog .staff-vehicle-body {
+    padding: 16px;
+  }
+  .staff-vehicle-dialog .staff-vehicle-actions {
+    padding-inline: 16px;
+  }
+  .staff-vehicle-dialog .enquiry-vehicle-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -1,5 +1,6 @@
 /** Private settings stay in memory. No form data is copied into browser storage or history. */
-const dirtySelector = '[data-settings-dirty="true"]';
+const dirtySelector =
+  '[data-settings-dirty="true"], [data-message-dirty="true"]';
 const positionKey = "__luxxySettingsHistoryPositionV1";
 let approvedNavigation = false;
 let mountedGuard: { users: number; remove: () => void } | undefined;
@@ -10,7 +11,9 @@ export function confirmSettingsNavigation(
 ): boolean {
   if (!hasUnsavedSettings(root)) return true;
   approvedNavigation = window.confirm(
-    "You have unsaved settings. Leave and discard those changes?",
+    root.querySelector('[data-message-dirty="true"]')
+      ? "You have an unsaved customer message or note. Leave and discard those changes?"
+      : "You have unsaved settings. Leave and discard those changes?",
   );
   return approvedNavigation;
 }

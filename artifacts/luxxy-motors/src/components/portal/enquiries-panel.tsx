@@ -1,4 +1,4 @@
-import { OptionalJourneyPostcode } from '@/components/postcode-field';
+import { OptionalJourneyPostcode } from "@/components/postcode-field";
 import {
   applyReplyAttention,
   useReplyAttention,
@@ -35,6 +35,7 @@ import {
   useChangeStaffAppointment,
   getGetEnquiriesQueryKey,
   getGetTestDriveBookingsQueryKey,
+  getGetDealerSettingsQueryKey,
   type Enquiry,
 } from "@workspace/api-client-react";
 import {
@@ -108,6 +109,7 @@ import { appointmentFollowUpEmail } from "@/lib/appointment-follow-up-email";
 import { enquiryPresentation } from "@/lib/enquiry-presentation";
 import "./enquiries-workspace.css";
 import "./staff-appointment-picker.css";
+import { confirmSettingsNavigation } from "@/lib/settings-navigation";
 import { AppointmentSlots as Slots } from "./appointment-slots";
 
 const field = "enquiry-field grid gap-1.5 text-sm font-medium";
@@ -1344,17 +1346,34 @@ export function EnquiriesPanel({
   onOpenCustomer?: (id: string) => void;
 } = {}) {
   const features = useDealerFeatures();
+  const {
+    settings: deskSettings,
+    isLoading: bookingSettingsLoading,
+    isError: bookingSettingsError,
+  } = useDealerSettings();
   const bookingAccess: BookingAccess = {
-    enabled: features.enabled("testDriveBookings"),
-    message: features.isLoading
-      ? "Checking test-drive availability…"
-      : features.isError
-        ? "Booking availability could not be checked. New test drives and rescheduling are paused until this is checked. Existing appointments can still be viewed or cancelled."
-        : "New test drives and rescheduling are paused by the platform. Existing appointments can still be viewed or cancelled, and phone enquiries can still be recorded.",
-    ...(features.isError
+    enabled:
+      !features.isLoading &&
+      !features.isError &&
+      !bookingSettingsLoading &&
+      !bookingSettingsError &&
+      features.enabled("testDriveBookings") &&
+      (deskSettings.testDriveBooking ?? defaultBookingSettings).enabled,
+    message:
+      features.isLoading || bookingSettingsLoading
+        ? "Checking test-drive availability…"
+        : features.isError || bookingSettingsError
+          ? "Booking availability could not be checked. New test drives and rescheduling are paused until this is checked. Existing appointments can still be viewed or cancelled."
+          : !features.enabled("testDriveBookings")
+            ? "New test drives and rescheduling are paused by the platform. Existing appointments can still be viewed or cancelled, and phone enquiries can still be recorded."
+            : "New test drives are switched off in Settings. Existing appointments can still be viewed or cancelled, and phone enquiries can still be recorded.",
+    ...(features.isError || bookingSettingsError
       ? {
           retry: () => {
             void features.refetch();
+            void client.invalidateQueries({
+              queryKey: getGetDealerSettingsQueryKey(),
+            });
           },
         }
       : {}),
@@ -1390,7 +1409,6 @@ export function EnquiriesPanel({
   const [callbackSearch, setCallbackSearch] = useState("");
   const [historyContact, setHistoryContact] = useState<Contact | null>(null);
   const directory = useGetStaffDirectory();
-  const { settings: deskSettings } = useDealerSettings();
   const draftKey = directory.data
     ? `luxxy.staff-call-draft.v1:${deskSettings.identity.name}:${directory.data.currentUserId}`
     : null;
@@ -1439,14 +1457,14 @@ export function EnquiriesPanel({
     }
     if (!query.data || openedEnquiry.current === requestedEnquiry) return;
     const requested = query.data.find((item) => item.id === requestedEnquiry);
-    const entry = requested ? primaryEnquiry(requested, query.data) : undefined;
+    const entry = requested;
     if (entry) openedEnquiry.current = requestedEnquiry;
     setMode(requestedDeskView === "callbacks" ? "callbacks" : "history");
     setOwnerScope("all");
     setFilter("all");
     setGlobalSearch("");
     if (entry) {
-      setSearch(entry.customerName);
+      setSearch("");
       setSelectedEnquiryId(entry.id);
       setNotice("");
     } else {
@@ -1476,7 +1494,7 @@ export function EnquiriesPanel({
     setGlobalSearch("");
     setOwnerScope("all");
     const primary = primaryEnquiry(entry, query.data ?? []);
-    setSearch(primary.customerName);
+    setSearch("");
     setSelectedEnquiryId(primary.id);
     if (embedded)
       navigate(
@@ -1545,6 +1563,15 @@ export function EnquiriesPanel({
         !original.followUpCompletedAt &&
         Date.parse(original.followUpAt) <= Date.now(),
       );
+    if (value === "due-today")
+      return (
+        Boolean(
+          original.followUpAt &&
+          !original.followUpCompletedAt &&
+          londonDate(new Date(original.followUpAt)) <= londonDate(),
+        ) ||
+        (summary.action === "follow_up" && !original.followUpAt)
+      );
     if (value === "visits")
       return Boolean(
         original.appointmentAt &&
@@ -1567,9 +1594,8 @@ export function EnquiriesPanel({
   const queues = [
     { value: "all", label: "All enquiries", tone: "muted" },
     { value: "reply", label: "Needs reply", tone: "info" },
-    { value: "followups", label: "Follow-ups", tone: "warning" },
+    { value: "due-today", label: "Due today", tone: "warning" },
     { value: "visits", label: "Test drives", tone: "info" },
-    { value: "done", label: "No task scheduled", tone: "success" },
   ];
   const groupPriority = (entry: Enquiry) =>
     Math.min(
@@ -1605,6 +1631,7 @@ export function EnquiriesPanel({
         ),
     );
   function clearSelectedRecord() {
+    if (!confirmSettingsNavigation()) return false;
     setSelectedEnquiryId(null);
     const requested = query.data?.find(
       (entry) => entry.id === requestedEnquiry,
@@ -1614,12 +1641,14 @@ export function EnquiriesPanel({
       search === primaryEnquiry(requested, allEntries).customerName
     )
       setSearch("");
-    if (embedded && requestedEnquiry)
+    if (embedded)
       navigate(
         `/portal?section=notifications&workView=customers${mode === "callbacks" ? "&deskView=callbacks" : ""}`,
       );
+    return true;
   }
   function selectRecord(id: string) {
+    if (id !== selectedEnquiryId && !confirmSettingsNavigation()) return;
     setSelectedEnquiryId(id);
     // In-place selection keeps the queue/search; an external deep link still resolves below.
     openedEnquiry.current = id;
@@ -1641,7 +1670,7 @@ export function EnquiriesPanel({
     }
     setGlobalSearch("");
     setMode("history");
-    setSearch(primary.customerName);
+    setSearch("");
     setFilter("all");
     selectRecord(primary.id);
   }
@@ -1677,7 +1706,7 @@ export function EnquiriesPanel({
         setSelection(undefined);
         setFormKey((key) => key + 1);
       }
-      setNotice("Test enquiry deleted.");
+      setNotice("Enquiry deleted.");
       void client
         .invalidateQueries({
           predicate: (query) => {
@@ -1711,6 +1740,7 @@ export function EnquiriesPanel({
     onVehicle: setInformation,
     onBook: (entry) => {
       if (!bookingAccess.enabled) return;
+      if (!confirmSettingsNavigation()) return;
       setInitialBookingDate(undefined);
       setSelection(undefined);
       setInitial(entry);
@@ -1742,6 +1772,7 @@ export function EnquiriesPanel({
         <Tabs
           value={mode === "callbacks" || mode === "new" ? "history" : mode}
           onValueChange={(value) => {
+            if (!confirmSettingsNavigation()) return;
             setMode(value as typeof mode);
             setGlobalSearch("");
           }}
@@ -1752,10 +1783,6 @@ export function EnquiriesPanel({
           >
             <TabsTrigger
               value="history"
-              onClick={() => {
-                setMode("history");
-                setGlobalSearch("");
-              }}
               id="desk-tab-history"
               aria-controls="desk-panel-history"
               className="min-h-11 rounded-sm px-5"
@@ -1764,10 +1791,6 @@ export function EnquiriesPanel({
             </TabsTrigger>
             <TabsTrigger
               value="calendar"
-              onClick={() => {
-                setMode("calendar");
-                setGlobalSearch("");
-              }}
               id="desk-tab-calendar"
               aria-controls="desk-panel-calendar"
               className="min-h-11 rounded-sm px-5"
@@ -1780,11 +1803,11 @@ export function EnquiriesPanel({
       {mode === "history" ? (
         <div className="enquiry-simple-toolbar" aria-label="Workspace actions">
           <label>
-            <span className="sr-only">Find a customer or car</span>
+            <span className="sr-only">Search enquiries</span>
             <Input
               value={search}
               onChange={(event) => {
-                clearSelectedRecord();
+                if (!clearSelectedRecord()) return;
                 setSearch(event.target.value);
               }}
               placeholder="Search name, phone, email or car"
@@ -1820,7 +1843,9 @@ export function EnquiriesPanel({
                 Enquiry ownership
                 <NativeSelect
                   value={ownerScope}
-                  onChange={(e) => setOwnerScope(e.target.value)}
+                  onChange={(e) => {
+                    if (clearSelectedRecord()) setOwnerScope(e.target.value);
+                  }}
                 >
                   <option value="all">All owners</option>
                   <option value="mine" disabled={!directory.data}>
@@ -1834,14 +1859,14 @@ export function EnquiriesPanel({
                 <NativeSelect
                   value={filter}
                   onChange={(e) => {
-                    setFilter(e.target.value);
-                    clearSelectedRecord();
+                    if (clearSelectedRecord()) setFilter(e.target.value);
                   }}
                 >
                   <option value="all">All enquiries</option>
                   <option value="reply">Needs reply</option>
                   <option value="followups">Follow-ups</option>
                   <option value="due">Overdue follow-ups</option>
+                  <option value="due-today">Due today</option>
                   <option value="visits">Active test drives</option>
                   <option value="upcoming">Upcoming test drives</option>
                   <option value="today">Today’s test drives</option>
@@ -1852,6 +1877,7 @@ export function EnquiriesPanel({
                 variant="outline"
                 size="sm"
                 onClick={() => {
+                  if (!clearSelectedRecord()) return;
                   setMode("callbacks");
                   setGlobalSearch("");
                 }}
@@ -1874,6 +1900,7 @@ export function EnquiriesPanel({
                   id="desk-tab-new"
                   size="sm"
                   onClick={() => {
+                    if (!confirmSettingsNavigation()) return;
                     setMode("new");
                     setGlobalSearch("");
                     if (embedded)
@@ -1919,6 +1946,7 @@ export function EnquiriesPanel({
                 variant={dueCount ? "outline" : "ghost"}
                 size="sm"
                 onClick={() => {
+                  if (!clearSelectedRecord()) return;
                   if (mode === "callbacks") {
                     setCallbackFilter("overdue");
                     setCallbackSearch("");
@@ -1928,7 +1956,6 @@ export function EnquiriesPanel({
                     setSearch("");
                   }
                   setGlobalSearch("");
-                  clearSelectedRecord();
                 }}
               >
                 Overdue now ({dueCount})
@@ -1942,8 +1969,8 @@ export function EnquiriesPanel({
                     <Input
                       value={callbackSearch}
                       onChange={(event) => {
+                        if (!clearSelectedRecord()) return;
                         setCallbackSearch(event.target.value);
-                        clearSelectedRecord();
                       }}
                       placeholder="Customer, contact or registration"
                     />
@@ -1953,8 +1980,8 @@ export function EnquiriesPanel({
                     <NativeSelect
                       value={callbackFilter}
                       onChange={(event) => {
+                        if (!clearSelectedRecord()) return;
                         setCallbackFilter(event.target.value);
-                        clearSelectedRecord();
                       }}
                     >
                       <option value="all">All callbacks</option>
@@ -1985,7 +2012,9 @@ export function EnquiriesPanel({
                   </span>
                   <NativeSelect
                     value={ownerScope}
-                    onChange={(e) => setOwnerScope(e.target.value)}
+                    onChange={(e) => {
+                      if (clearSelectedRecord()) setOwnerScope(e.target.value);
+                    }}
                   >
                     <option value="all">
                       {mode === "callbacks" ? "All owners" : "All enquiries"}
@@ -2224,8 +2253,7 @@ export function EnquiriesPanel({
                     data-tone={queue.tone}
                     aria-pressed={filter === queue.value}
                     onClick={() => {
-                      setFilter(queue.value);
-                      clearSelectedRecord();
+                      if (clearSelectedRecord()) setFilter(queue.value);
                     }}
                   >
                     {queue.label}
@@ -2386,6 +2414,7 @@ export function EnquiriesPanel({
         <EnquiryVehicleInformation
           car={information}
           onClose={() => setInformation(null)}
+          canManage={canEmail}
         />
       )}
       {followUpEntry && (
