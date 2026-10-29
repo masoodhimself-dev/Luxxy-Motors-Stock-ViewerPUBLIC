@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { VehicleFactIcon } from './vehicle-fact-icon';
 import { VehicleTerm } from './customer-help';
 import type { Car } from "@/lib/stock-context";
@@ -15,12 +16,16 @@ export function VehicleRunningCosts({ car }: { car: Car }) {
   </section>;
 }
 
-export function VehicleHistorySummary({ car }: { car: Car }) {
+export function VehicleHistorySummary({ car, motAction }: { car: Car; motAction?: ReactNode }) {
   const facts = vehicleHistoryFacts(car);
-  if (!facts.length) return null;
+  if (!facts.length && !motAction) return null;
   return <section aria-labelledby="vehicle-records-heading" className="mt-8 border-t border-border pt-7">
-    <h2 id="vehicle-records-heading" className="section-heading">Ownership & service records</h2>
-    <dl className="mt-4 grid gap-3 sm:grid-cols-3">{facts.map(fact => <div key={fact.label} className="border border-border bg-card p-4"><dt className="flex items-center gap-2 text-xs text-muted-foreground"><VehicleTerm label={fact.label} value={fact.value}><VehicleFactIcon label={fact.label} value={fact.value} />{fact.label}</VehicleTerm></dt><dd className="mt-1 font-semibold">{fact.value}</dd></div>)}</dl>
+    <h2 id="vehicle-records-heading" className="section-heading">{facts.length ? "Ownership & service records" : "MOT history"}</h2>
+    {motAction && <div className="vehicle-history-mot">
+      <p className="text-sm leading-6 text-muted-foreground">Check recorded MOT results, mileage and advisories.</p>
+      {motAction}
+    </div>}
+    {facts.length > 0 && <dl className="mt-4 grid gap-3 sm:grid-cols-3">{facts.map(fact => <div key={fact.label} className="border border-border bg-card p-4"><dt className="flex items-center gap-2 text-xs text-muted-foreground"><VehicleTerm label={fact.label} value={fact.value}><VehicleFactIcon label={fact.label} value={fact.value} />{fact.label}</VehicleTerm></dt><dd className="mt-1 font-semibold">{fact.value}</dd></div>)}</dl>}
   </section>;
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { MotHistory } from "@workspace/vehicle-meta";
 import { customFetch } from "@workspace/api-client-react";
 import { useDealerSettings } from "@/lib/dealer-settings-context";
@@ -14,20 +14,28 @@ import {
 import { MotHistoryPanel } from "./mot-history";
 import { DeliveryEstimator, type DeliveryEstimate } from "./delivery-estimator";
 import { VehicleFactIcon } from "./vehicle-fact-icon";
+import { VehicleBadgeIcon } from "./vehicle-badge-icon";
 import { Truck } from "./icons";
 
-export function VehicleQuickChecks({ vehicleId }: { vehicleId: string }) {
+type VehicleCheckActions = {
+  motBadge: ReactNode;
+  motAction: ReactNode;
+  deliveryAction: ReactNode;
+};
+
+export function VehicleQuickChecks({ vehicleId, children }: {
+  vehicleId: string;
+  children: (actions: VehicleCheckActions) => ReactNode;
+}) {
   const { settings } = useDealerSettings();
   const [panel, setPanel] = useState<"mot" | "delivery" | null>(null);
   const [history, setHistory] = useState<MotHistory | null>(null);
   const [estimate, setEstimate] = useState<DeliveryEstimate | null>(null);
-  const lastPanel = useRef<"mot" | "delivery">("mot");
-  function open(next: "mot" | "delivery") {
-    lastPanel.current = next;
+  const lastTrigger = useRef<HTMLButtonElement | null>(null);
+  function open(next: "mot" | "delivery", trigger: HTMLButtonElement) {
+    lastTrigger.current = trigger;
     setPanel(next);
   }
-  const motButton = useRef<HTMLButtonElement>(null),
-    deliveryButton = useRef<HTMLButtonElement>(null);
   const deliveryEnabled = Boolean(
     settings.delivery?.enabled && settings.deliveryPricing?.enabled,
   );
@@ -62,61 +70,49 @@ export function VehicleQuickChecks({ vehicleId }: { vehicleId: string }) {
   ]);
   const badge = longMot(history),
     firstDue = firstMotDue(history);
-  return (
-    <section
-      className="vehicle-quick-checks"
-      aria-label="Useful vehicle checks"
-    >
+  const motBadge = firstDue || badge ? <>
       {firstDue && (
         <button
           type="button"
           className="vehicle-long-mot"
-          onClick={() => open("mot")}
+          onClick={(event) => open("mot", event.currentTarget)}
+          title={`First MOT due ${firstDue}`}
         >
-          First MOT due ·{" "}
+          <VehicleBadgeIcon kind="mot" />
+          <span>MOT not required until{" "}
           {new Date(firstDue + "T12:00:00Z").toLocaleDateString("en-GB", {
-            day: "numeric",
-            month: "short",
+            month: "2-digit",
             year: "numeric",
             timeZone: "Europe/London",
-          })}
+          })}</span>
         </button>
       )}
       {badge && (
         <button
           type="button"
           className="vehicle-long-mot"
-          onClick={() => open("mot")}
+          onClick={(event) => open("mot", event.currentTarget)}
         >
-          Long MOT · {badge.months} months left
+          <VehicleBadgeIcon kind="mot" />
+          <span>Long MOT · {badge.months} months left</span>
         </button>
       )}
-      <div className="vehicle-quick-check-buttons">
-        <Button
-          ref={motButton}
-          type="button"
-          variant="outline"
-          onClick={() => open("mot")}
-        >
-          <VehicleFactIcon label="MOT" />
-          <span>MOT history</span>
-        </Button>
-        {deliveryEnabled && (
-          <Button
-            ref={deliveryButton}
-            type="button"
-            variant="outline"
-            onClick={() => open("delivery")}
-          >
-            <Truck className="h-4 w-4" aria-hidden="true" />
-            <span>
-              {estimate
-                ? `Delivery · est. £${(estimate.totalPence / 100).toFixed(2)}`
-                : "Delivery estimate"}
-            </span>
-          </Button>
-        )}
-      </div>
+    </> : null;
+  const motAction = (
+    <Button type="button" variant="ghost"
+      className="vehicle-context-action" onClick={(event) => open("mot", event.currentTarget)}>
+      <VehicleFactIcon label="MOT" /><span>MOT history</span>
+    </Button>
+  );
+  const deliveryAction = deliveryEnabled ? (
+    <Button type="button" variant="ghost"
+      className="vehicle-context-action" onClick={(event) => open("delivery", event.currentTarget)}>
+      <Truck className="h-4 w-4" aria-hidden="true" />
+      <span>{estimate ? `Delivery · est. £${(estimate.totalPence / 100).toFixed(2)}` : "Delivery estimate"}</span>
+    </Button>
+  ) : null;
+  return <>
+      {children({ motBadge, motAction, deliveryAction })}
       <Dialog
         open={panel !== null}
         onOpenChange={(open) => {
@@ -127,10 +123,8 @@ export function VehicleQuickChecks({ vehicleId }: { vehicleId: string }) {
           className="max-w-xl max-h-[85dvh] overflow-y-auto"
           onCloseAutoFocus={(event) => {
             event.preventDefault();
-            (lastPanel.current === "delivery"
-              ? deliveryButton
-              : motButton
-            ).current?.focus({ preventScroll: true });
+            if (lastTrigger.current?.isConnected)
+              lastTrigger.current.focus({ preventScroll: true });
           }}
         >
           <DialogHeader className="text-left">
@@ -160,6 +154,5 @@ export function VehicleQuickChecks({ vehicleId }: { vehicleId: string }) {
           </div>
         </DialogContent>
       </Dialog>
-    </section>
-  );
+    </>;
 }

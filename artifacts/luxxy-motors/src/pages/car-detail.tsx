@@ -21,7 +21,7 @@ import { VehiclePrint } from '@/components/vehicle-print';
 import { vehicleAvailability } from '@/lib/customer-convenience';
 import { VehicleVisit } from '@/components/vehicle-buying-guide';
 import { VehicleHistorySummary, VehicleRunningCosts, VehicleSpecificationDetails } from '@/components/vehicle-running-costs';
-import { vehicleHistoryFacts, vehicleSpecificationGroups, vehicleRunningCosts as getVehicleRunningCosts } from '@/lib/vehicle-extra-facts';
+import { vehicleSpecificationGroups, vehicleRunningCosts as getVehicleRunningCosts } from '@/lib/vehicle-extra-facts';
 import { getSimilarCars } from "@/lib/similar-cars";
 import { buyerInformation } from "@/lib/buyer-information";
 import { useEffect, useState, type MouseEvent } from 'react';
@@ -153,7 +153,6 @@ export default function CarDetail() {
   const bookingHref = getVehicleBookingHref(car);
   const vehicleLabel = vehicleDisplayTitle(car);
   const vehicleRunningCostFacts = getVehicleRunningCosts(car);
-  const vehicleHistoryRecordFacts = vehicleHistoryFacts(car);
   const sourceReport = readVehicleSourceReport(car);
 
   const overviewSpecs = [
@@ -241,6 +240,8 @@ export default function CarDetail() {
       <dd><UKNumberPlate value={registration} variant="front" size="sm" testId={`plate-vehicle-${car.id}`} /></dd>
     </dl>
   );
+  return <VehicleQuickChecks key={car.id} vehicleId={car.id}>
+    {({ motBadge, motAction, deliveryAction }) => {
   const vehicleIdentity = (
     <header className={`min-w-0${isCompactLayout ? ' vehicle-compact-identity' : ''}`} data-testid="vehicle-identity">
       <p className="vehicle-availability luxxy-kicker mb-3">
@@ -264,7 +265,6 @@ export default function CarDetail() {
         {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <p className="text-sm text-muted-foreground">{car.priceType}</p>}
         {damageDisclosure && <a href="#vehicle-history" className="vehicle-insurance-disclosure"><VehicleFactIcon label="Insurance history" /><span>{damageDisclosure.summary}</span><ArrowRight className="h-4 w-4" /></a>}
       </div>
-      <VehicleQuickChecks key={car.id} vehicleId={car.id} />
     </header>
   );
 
@@ -300,7 +300,7 @@ export default function CarDetail() {
               <VehicleCall car={car} />
               <VehicleWhatsApp car={car} />
             </div>
-          <VehicleSellingPoints car={car} />
+          <VehicleSellingPoints car={car} motBadge={motBadge} />
           <aside className="min-w-0 pt-5">
             <dl className="vehicle-key-facts grid grid-cols-2 gap-x-4 gap-y-4">
               {keyFacts.map((fact) => (
@@ -342,7 +342,8 @@ export default function CarDetail() {
             {description && <a href="#vehicle-description-heading">Description</a>}
             {hasSpecifications && <a href="#vehicle-overview-heading">Specifications</a>}
             {vehicleRunningCostFacts.length > 0 && <a href="#vehicle-running-costs-heading">Running costs</a>}
-            {(vehicleHistoryRecordFacts.length > 0 || hasHandoverInformation) && <a href={vehicleHistoryRecordFacts.length > 0 ? '#vehicle-records-heading' : '#buyer-information-heading'}>History & information</a>}
+            <a href="#vehicle-records-heading">History & information</a>
+            {deliveryAction && <a href="#vehicle-delivery-heading">Delivery</a>}
             {sourceReport && <a href="#vehicle-source-report-heading">Vehicle checks</a>}
           </nav>
           {(description || features.length > 0) && <div className="vehicle-information-row vehicle-editorial-overview">
@@ -393,7 +394,7 @@ export default function CarDetail() {
             </div>}
             </div>}
             <div className="vehicle-information-row vehicle-records-row">
-            <VehicleHistorySummary car={car} />
+            <VehicleHistorySummary car={car} motAction={motAction} />
             {hasHandoverInformation && <section
               className="mt-8 border-t border-border pt-7"
               aria-labelledby="buyer-information-heading"
@@ -456,7 +457,14 @@ export default function CarDetail() {
             <p className="mb-6 text-sm text-muted-foreground">Ask us about this car or tell us how we can help.</p>
             <EnquiryForm key={car.id} vehicle={car} initialType="general" embedded />
           </section>}
-          <VehicleVisit car={car} />
+          <div className="vehicle-visit-delivery-stack min-w-0">
+            <VehicleVisit car={car} />
+            {deliveryAction && <section aria-labelledby="vehicle-delivery-heading" className="mt-8 border-t border-border pt-7">
+              <h2 id="vehicle-delivery-heading" className="section-heading scroll-mt-28">{dealerConfig.delivery?.title || "Delivery to your door"}</h2>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">{dealerConfig.delivery?.description || "Enter your postcode for an estimated delivery cost, based on the driving distance from our showroom."}</p>
+              {deliveryAction}
+            </section>}
+          </div>
         </div>
       </div>
       {similarCars.length > 0 && (
@@ -496,4 +504,6 @@ export default function CarDetail() {
       )}
     </div>
   );
+    }}
+  </VehicleQuickChecks>;
 }

@@ -400,3 +400,18 @@ it('renders valid Cazoo vehicle checks without a demo-host-only presentation gat
     expect(screen.getByRole('heading', { name: 'ULEZ compliant' })).toBeInTheDocument();
   } finally { Object.assign(car, original); }
 });
+
+it('keeps MOT and delivery actions out of the price header and in their own relevant sections', () => {
+  renderVehicle('with-plate', {
+    ...dealerConfig,
+    delivery: { enabled: true, title: 'Delivery to your door', description: 'Ask us about delivery.', ctaLabel: 'Ask about delivery' },
+    deliveryPricing: { enabled: true, basePrice: '50', pricePerMile: '1.50' },
+  });
+  const header = screen.getByTestId('vehicle-identity');
+  expect(within(header).queryByRole('button', { name: 'MOT history' })).toBeNull();
+  expect(within(header).queryByRole('button', { name: 'Delivery estimate' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'MOT history' }).closest('section')).toHaveAttribute('aria-labelledby', 'vehicle-records-heading');
+  expect(screen.getByRole('button', { name: 'Delivery estimate' }).closest('section')).toHaveAttribute('aria-labelledby', 'vehicle-delivery-heading');
+  expect(screen.getByRole('link', { name: 'History & information' })).toHaveAttribute('href', '#vehicle-records-heading');
+  expect(screen.getByRole('link', { name: 'Delivery' })).toHaveAttribute('href', '#vehicle-delivery-heading');
+});

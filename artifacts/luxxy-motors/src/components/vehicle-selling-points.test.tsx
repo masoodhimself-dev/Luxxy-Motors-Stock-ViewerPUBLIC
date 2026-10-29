@@ -68,3 +68,12 @@ it("omits the entire benefits area when the required facts are absent", () => {
   expect(container).toBeEmptyDOMElement();
   expect(screen.queryByRole("link", { name: /TfL/ })).not.toBeInTheDocument();
 });
+
+it("keeps MOT alongside the existing badges and supports MOT without other highlights", () => {
+  const { rerender } = render(<VehicleSellingPoints car={car()} motBadge={<button>MOT not required until 05/2028</button>} />);
+  const list = screen.getByRole('list', { name: 'Vehicle highlights' });
+  expect(within(list).getByRole('button', { name: 'MOT not required until 05/2028' })).toBeInTheDocument();
+  expect(list).toHaveTextContent('ULEZ compliant');
+  rerender(<VehicleSellingPoints car={{} as Car} motBadge={<button>Long MOT</button>} />);
+  expect(screen.getByRole('list', { name: 'Vehicle highlights' })).toHaveTextContent('Long MOT');
+});

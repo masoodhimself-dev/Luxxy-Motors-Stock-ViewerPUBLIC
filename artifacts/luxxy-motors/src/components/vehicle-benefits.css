@@ -5,37 +5,6 @@
 .vehicle-benefit-summary-compact {
   margin-block: 12px;
 }
-.vehicle-benefit-summary .vehicle-selling-points,
-.vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-selling-points {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.vehicle-benefit-summary .vehicle-selling-points li,
-.vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-selling-points li {
-  max-width: 100%;
-  padding: 5px 9px;
-  border: 1px solid #dce4e9;
-  border-radius: 5px;
-  background: #f5f8fa;
-  color: #294958;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.6;
-  overflow-wrap: anywhere;
-}
-.vehicle-benefit-summary .vehicle-selling-points li[data-benefit="ulez"],
-.vehicle-page.vehicle-redesigned
-  .vehicle-summary
-  .vehicle-selling-points
-  li[data-benefit="ulez"] {
-  border-color: #c6ddd3;
-  background: #eef6f1;
-  color: #285b46;
-}
 .vehicle-benefit-check {
   margin-top: 8px;
   color: #64747e;
@@ -55,5 +24,67 @@
   margin-block: 12px 0;
 }
 
-.vehicle-selling-points .customer-term-help { display: inline-flex; align-items: center; gap: 7px; text-align: left; }
-.vehicle-selling-points .vehicle-highlight-icon { width: 17px; height: 17px; flex-shrink: 0; color: currentColor; }
+/* Restrained factual labels, using the site's existing type and theme. */
+.vehicle-benefit-summary .vehicle-selling-points,
+.vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-selling-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: flex-start;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.vehicle-benefit-summary .vehicle-selling-points li,
+.vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-selling-points li {
+  display: inline-flex;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.vehicle-benefit-summary .vehicle-selling-points .vehicle-badge,
+.vehicle-benefit-summary .vehicle-selling-points .vehicle-long-mot {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+  margin: 0;
+  padding: 7px 10px;
+  border: 1px solid #e0e3e5;
+  border-radius: 3px;
+  background: #fff;
+  color: #253039;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 1.4;
+  text-align: left;
+  text-decoration: none;
+  white-space: normal;
+  cursor: pointer;
+}
+.vehicle-benefit-summary .vehicle-selling-points .vehicle-highlight-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: hsl(var(--muted-foreground));
+}
+.vehicle-selling-points .vehicle-badge:hover,
+.vehicle-selling-points .vehicle-long-mot:hover {
+  border-color: hsl(var(--foreground));
+  background: hsl(var(--muted) / .4);
+}
+.vehicle-selling-points .vehicle-badge:focus-visible,
+.vehicle-selling-points .vehicle-long-mot:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 3px;
+}
+
+.vehicle-benefit-summary .vehicle-selling-points li[data-benefit="mot"] .vehicle-highlight-icon,
+.vehicle-benefit-summary .vehicle-selling-points li[data-benefit="ulez"] .vehicle-highlight-icon {
+  color: #38734e;
+}

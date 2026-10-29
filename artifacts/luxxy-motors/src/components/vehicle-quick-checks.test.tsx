@@ -23,6 +23,15 @@ vi.mock("./postcode-field", () => ({
   ),
 }));
 import { VehicleQuickChecks } from "./vehicle-quick-checks";
+function Checks({ vehicleId }: { vehicleId: string }) {
+  return <VehicleQuickChecks vehicleId={vehicleId}>
+    {({ motBadge, motAction, deliveryAction }) => <>
+      <header>{motBadge}</header>
+      <section aria-label="Vehicle history">{motAction}</section>
+      <section aria-label="Vehicle delivery">{deliveryAction}</section>
+    </>}
+  </VehicleQuickChecks>;
+}
 const history = {
   registration: "AB12CDE",
   make: "FORD",
@@ -64,7 +73,7 @@ beforeEach(() => {
   );
 });
 it("requests only cached data on arrival and loads actual MOT history when tapped", async () => {
-  render(<VehicleQuickChecks vehicleId="car-a" />);
+  render(<Checks vehicleId="car-a" />);
   await screen.findByRole("button", { name: /Long MOT/ });
   expect(state.fetch).toHaveBeenCalledTimes(1);
   expect(state.fetch.mock.calls[0][0]).toBe(
@@ -76,7 +85,7 @@ it("requests only cached data on arrival and loads actual MOT history when tappe
   expect(screen.getByRole("dialog")).toBeVisible();
 });
 it("retains the delivery quote when closed and reopened and never books or charges", async () => {
-  render(<VehicleQuickChecks vehicleId="car-a" />);
+  render(<Checks vehicleId="car-a" />);
   fireEvent.click(screen.getByRole("button", { name: "Delivery estimate" }));
   fireEvent.change(screen.getByLabelText("Delivery postcode"), {
     target: { value: "SW1A1AA" },
@@ -100,7 +109,7 @@ it("retains the delivery quote when closed and reopened and never books or charg
 it("omits unavailable badges and disabled delivery without breaking MOT", async () => {
   state.settings.delivery.enabled = false;
   state.fetch.mockResolvedValue({ status: "uncached" });
-  render(<VehicleQuickChecks vehicleId="no-plate" />);
+  render(<Checks vehicleId="no-plate" />);
   await waitFor(() => expect(state.fetch).toHaveBeenCalledTimes(1));
   expect(screen.queryByRole("button", { name: /Long MOT/ })).toBeNull();
   expect(
@@ -113,9 +122,18 @@ it("shows the first due date for a new car using the recorded DVSA date", async 
     status: "available",
     history: { ...history, tests: [], firstMotDueDate: "2028-05-20" },
   });
-  render(<VehicleQuickChecks vehicleId="new-car" />);
-  await screen.findByRole("button", { name: "First MOT due · 20 May 2028" });
+  render(<Checks vehicleId="new-car" />);
+  await screen.findByRole("button", { name: "MOT not required until 05/2028" });
   fireEvent.click(screen.getByRole("button", { name: "MOT history" }));
   await screen.findByText(/No MOT required before this date/);
   expect(screen.queryByText(/No MOT tests were returned/)).toBeNull();
+});
+
+it("returns focus to the actual MOT badge when its dialog closes", async () => {
+  render(<Checks vehicleId="badge-car" />);
+  const badge = await screen.findByRole("button", { name: /Long MOT/ });
+  fireEvent.click(badge);
+  await screen.findByText("Latest test: Passed");
+  fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  await waitFor(() => expect(badge).toHaveFocus());
 });
