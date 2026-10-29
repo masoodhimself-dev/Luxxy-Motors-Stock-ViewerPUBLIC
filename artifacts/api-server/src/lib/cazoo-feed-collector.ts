@@ -234,6 +234,7 @@ export function startCazooFeedCollector(options: CazooCollectorDependencies & {
   env?: Record<string, string | undefined>;
   lifecycle?: ReturnType<typeof createServiceLifecycle>;
   onError: () => void;
+  afterTick?: () => Promise<void>;
   onCheck?: (summary: Pick<CazooFeedCheck, 'dealerId' | 'status' | 'attempts' | 'vehicleCount' | 'errorCode'>) => void;
 }) {
   const env = options.env ?? process.env;
@@ -249,6 +250,7 @@ export function startCazooFeedCollector(options: CazooCollectorDependencies & {
         const { dealerId, status, attempts, vehicleCount, errorCode } = result.value.check;
         options.onCheck?.({ dealerId, status, attempts, vehicleCount, errorCode });
       }
+      await options.afterTick?.();
     },
   });
 }

@@ -1,3 +1,4 @@
+import { officialCazooEnabled } from '../lib/cazoo-feed-apply';
 import { publicPriceReductions, recordMissingStockHistory, recordPublishedStockPrice, recordReappearedStockHistory } from '../lib/stock-price-history';
 import { descriptionDisclosures, descriptionMetadata, taxDescription, publishedDescription, retainedOriginals } from '../lib/published-vehicle-description';
 import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
@@ -24,6 +25,7 @@ import {
 } from "@workspace/api-zod";
 import {
   db,
+  pool,
   stockImportRunsTable,
   vehicleChangesTable,
   vehicleImagesTable,
@@ -189,6 +191,9 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
     res.status(401).json({ ...identity, status: "rejected", errors: [issue("unauthorized", "Invalid import secret")] }); return;
   }
   const settings = await config();
+  if (settings.platform === 'cazoo' && await officialCazooEnabled(settings.dealerId, pool)) {
+    res.status(409).json({ ...identity, status: 'rejected', errors: [issue('official_feed_active', 'This dealership uses the official Cazoo CSV connection. Browser-worker imports are disabled.')] }); return;
+  }
   if (!settings.retailerId) {
     req.log.error("STOCK_RETAILER_ID is not configured");
     res.status(500).json({ ...identity, status: "rejected", errors: [issue("configuration_error", "Stock import is not configured")] }); return;

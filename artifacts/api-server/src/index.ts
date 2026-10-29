@@ -1,3 +1,4 @@
+import { applyCollectedOfficialCazoo, type FeedSqlPool } from './lib/cazoo-feed-apply';
 import { startCustomerReplyWorker } from './lib/customer-email-replies';
 import { startStaffPushWorker } from './lib/staff-push';
 import { startDemoCompletionWorker } from './lib/demo-completion-jobs';
@@ -56,6 +57,11 @@ const server = app.listen(port, (err) => {
       const repository = await createPostgresCazooFeedRepository();
       if (!serviceLifecycle.isDraining()) stopWorkers.push(startCazooFeedCollector({
         repository,
+        afterTick: async () => {
+          for (const result of await applyCollectedOfficialCazoo(pool as unknown as FeedSqlPool)) {
+            if (result.status === 'imported') logger.info(result, 'Official Cazoo stock imported. No customer messages sent.');
+          }
+        },
         onError: () => logger.warn('Cazoo stock collection could not complete. Stock has not been imported.'),
         onCheck: summary => {
           if (summary.status === 'blocked' || (summary.status === 'failed' && summary.attempts >= 3)) logger.warn(summary, 'Cazoo collection needs review. Stock has not been imported.');
