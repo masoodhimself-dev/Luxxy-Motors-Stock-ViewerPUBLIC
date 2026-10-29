@@ -396,6 +396,53 @@ export async function applyOfficialCazooFeed(
           )
         ).rows[0];
         created++;
+        await client.query(
+          "INSERT INTO vehicle_changes(vehicle_id,import_run_id,field_name,old_value,new_value) VALUES($1,$2,'vehicleAdded',NULL,'true'::jsonb)",
+          [saved.id, run.id],
+        );
+      }
+      // Record genuine catalogue changes for the staff view, ignoring capture metadata.
+      if (before) {
+        const changes: { field: string; before: unknown; after: unknown }[] =
+          [];
+        const oldPhotos = Array.isArray(before.raw_source_data?.images)
+          ? before.raw_source_data.images.map((i: any) =>
+              typeof i === "string" ? i : i.url,
+            )
+          : [];
+        const newPhotos = car.images.map((i) => i.url);
+        if (JSON.stringify(oldPhotos) !== JSON.stringify(newPhotos))
+          changes.push({
+            field: "sourceImages",
+            before: oldPhotos,
+            after: newPhotos,
+          });
+        for (const [field, column] of Object.entries(columns)) {
+          if (field === "price" || ["imageCount", "heroImage"].includes(field))
+            continue;
+          const after = (car as any)[field] ?? null;
+          if (JSON.stringify(before[column] ?? null) !== JSON.stringify(after))
+            changes.push({ field, before: before[column] ?? null, after });
+        }
+        const oldDescription =
+          before.raw_source_data?.description ??
+          before.raw_source_data?.specifications?.description ??
+          null;
+        const description =
+          (car as any).description ??
+          (car.specifications as any)?.description ??
+          null;
+        if (oldDescription !== description)
+          changes.push({
+            field: "description",
+            before: oldDescription,
+            after: description,
+          });
+        if (changes.length)
+          await client.query(
+            "INSERT INTO vehicle_changes(vehicle_id,import_run_id,field_name,old_value,new_value) SELECT $1,$2,x.field,x.before,x.after FROM jsonb_to_recordset($3::jsonb) AS x(field text,before jsonb,after jsonb)",
+            [saved.id, run.id, JSON.stringify(changes)],
+          );
       }
       await client.query(
         "UPDATE vehicle_images SET is_active=false WHERE vehicle_id=$1 AND origin='source' AND NOT(source_url=ANY($2::text[]))",

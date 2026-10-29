@@ -361,3 +361,48 @@ test("the saved-candidate runner is disabled by default and retries safely after
     await db.close();
   }
 });
+
+test("records actual official photo changes once and keeps repeat files quiet", async () => {
+  const { db, pool, candidate } = await setup();
+  try {
+    await applyOfficialCazooFeed(pool, { dealerId: "multi", candidate, now });
+    const next = structuredClone(candidate);
+    next.metadata.sha256 = "b".repeat(64);
+    next.metadata.capturedAt = "2026-10-29T20:13:25Z";
+    next.cars[0].images.push({
+      url: "https://cdn.images.autoexposure.co.uk/AETA22820/AETV10000000_3.jpg",
+      caption: null,
+    });
+    next.cars[0].imageCount = 3;
+    const later = new Date("2026-10-29T20:30:00Z");
+    await applyOfficialCazooFeed(pool, {
+      dealerId: "multi",
+      candidate: next,
+      now: later,
+    });
+    const rows = (
+      await db.query<any>(
+        "SELECT old_value,new_value FROM vehicle_changes WHERE field_name='sourceImages'",
+      )
+    ).rows;
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].old_value.length, 2);
+    assert.equal(rows[0].new_value.length, 3);
+    const replay = await applyOfficialCazooFeed(pool, {
+      dealerId: "multi",
+      candidate: next,
+      now: later,
+    });
+    assert.equal(replay.status, "replayed");
+    assert.equal(
+      (
+        await db.query(
+          "SELECT * FROM vehicle_changes WHERE field_name='sourceImages'",
+        )
+      ).rows.length,
+      1,
+    );
+  } finally {
+    await db.close();
+  }
+});

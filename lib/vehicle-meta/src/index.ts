@@ -232,3 +232,5 @@ export * from './review-reminder.ts';
 
 export * from "./sale-delivery.ts";
 export type {MotHistory,MotTest} from './mot-history';
+
+export * from "./staff-cars.ts";

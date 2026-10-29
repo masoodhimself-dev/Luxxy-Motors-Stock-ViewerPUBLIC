@@ -1,3 +1,4 @@
+import staffCarsRouter from "./staff-cars";
 import motHistoryRouter from './mot-history';
 import postcodesRouter from './postcodes';
 import historicalStripePaymentsRouter from './stripe-reservations';
@@ -48,6 +49,7 @@ router.use(searchVisibilityRouter);
 router.use(dealerWebsiteAssetsRouter);
 router.use(testDriveDeclarationsRouter);
 router.use(staffInventoryRouter);
+router.use(staffCarsRouter);
 router.use(soldVehicleFollowUpsRouter);
 router.use(enquiryEmailsRouter);
 router.use(staffNotificationsRouter);

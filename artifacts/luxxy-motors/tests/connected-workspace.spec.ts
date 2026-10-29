@@ -1,3 +1,4 @@
+import { staffMotSummary } from "@workspace/vehicle-meta";
 import { test, expect, type Page } from "@playwright/test";
 import { readFile, mkdir } from "node:fs/promises";
 import path from "node:path";
@@ -206,6 +207,33 @@ async function setup(page: Page, source: "shore" | "multi") {
         json: {
           currentUserId: "staff-one",
           members: [{ id: "staff-one", name: "Jamie" }],
+        },
+      });
+    if (p === "/api/staff/cars")
+      return route.fulfill({
+        json: {
+          feed: {
+            source: source === "multi" ? "Cazoo" : "Auto Trader",
+            receivedAt: new Date(now).toISOString(),
+            appliedAt: new Date(now).toISOString(),
+            state: "current",
+            scheduled: false,
+          },
+          cars: stock.cars.map((car: any) => ({
+            ...car,
+            staff: {
+              source: source === "multi" ? "cazoo" : "autotrader",
+              sourceStatus: "live",
+              inventoryStatus: "available",
+              published: true,
+              firstSeenAt: new Date(now).toISOString(),
+              lastSeenAt: new Date(now).toISOString(),
+              archivedAt: null,
+              mot: staffMotSummary(null),
+              changes: [],
+              sale: null,
+            },
+          })),
         },
       });
     if (p === "/api/enquiries") return route.fulfill({ json: records });

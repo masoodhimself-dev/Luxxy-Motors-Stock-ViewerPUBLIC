@@ -1,714 +1,372 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import type { Car } from "@/lib/stock-context";
-import type { Enquiry } from "@workspace/api-client-react";
-import { CarsWorkspace } from "./cars-workspace";
 import {
-  currentStockCars,
-  findWorkspaceCars,
+  fireEvent,
+  render,
+  screen,
+  within,
+  waitFor,
+} from "@testing-library/react";
+import { CarsWorkspace, StaffMotBadge } from "./cars-workspace";
+import {
+  carNextStep,
+  filterStaffCars,
   vehicleActivityById,
+  workspaceStatus,
 } from "./cars-workspace-model";
-
+import type { StaffCar, StaffCarsData } from "./staff-cars-query";
+import { staffMotSummary } from "@workspace/vehicle-meta";
+import type { Enquiry } from "@workspace/api-client-react";
 const state = vi.hoisted(() => ({
-  cars: [] as unknown[],
-  loading: false,
-  error: null as string | null,
-  entries: [] as unknown[],
-  replies: [] as unknown[],
-  repliesLoading: false,
-  repliesError: false,
-  replyQuery: vi.fn(),
-  replyRefetch: vi.fn(),
-  fetch: vi.fn(),
-  activityLoading: false,
+  data: undefined as StaffCarsData | undefined,
+  pending: false,
+  error: false,
+  entries: [] as any[],
+  replies: [] as any[],
   activityError: false,
-  summary: vi.fn(),
+  activityPending: false,
+  replyError: false,
+  queryOptions: [] as any[],
+  summaryOptions: [] as any[],
   refetch: vi.fn(),
   invalidate: vi.fn(),
 }));
-vi.mock("@/lib/stock-context", () => ({
-  useStock: () => ({
-    stock: state.loading ? null : { cars: state.cars },
-    isLoading: state.loading,
-    error: state.error,
+vi.mock("./staff-cars-query", () => ({
+  staffCarsKey: ["staff-cars"],
+  useStaffCars: () => ({
+    data: state.data,
+    isPending: state.pending,
+    isError: state.error,
+    refetch: state.refetch,
   }),
 }));
 vi.mock("@/lib/enquiry-summary-query", () => ({
-  useEnquirySummaries: (_params: unknown, options: unknown) => {
-    state.summary(options);
+  useEnquirySummaries: (_: unknown, options: any) => {
+    state.summaryOptions.push(options);
     return {
       data: state.entries,
-      isPending: state.activityLoading,
+      isPending: state.activityPending,
       isError: state.activityError,
       refetch: state.refetch,
     };
   },
 }));
-vi.mock("@workspace/api-client-react", () => ({
-  customFetch: (...args: unknown[]) => state.fetch(...args),
-  getGetEnquiriesQueryKey: () => ["enquiries"],
-  getGetStockQueryKey: () => ["stock"],
-}));
 vi.mock("@tanstack/react-query", () => ({
-  useQuery: (options: unknown) => {
-    state.replyQuery(options);
+  useQuery: (options: any) => {
+    state.queryOptions.push(options);
     return {
       data: { enquiries: state.replies },
-      isPending: state.repliesLoading,
-      isError: state.repliesError,
-      refetch: state.replyRefetch,
+      isPending: false,
+      isError: state.replyError,
+      refetch: state.refetch,
     };
   },
   useQueryClient: () => ({ invalidateQueries: state.invalidate }),
 }));
 vi.mock("./enquiry-vehicle-information", () => ({
-  EnquiryVehicleInformation: ({
-    car,
-    onClose,
-    presentation,
-    actions,
-  }: {
-    car: Car;
-    onClose: () => void;
-    presentation: string;
-    actions: React.ReactNode;
-  }) => (
-    <div role="dialog" aria-label={car.title!} data-presentation={presentation}>
-      <button onClick={onClose}>Close details</button>
+  VehicleInformationBody: ({ car }: any) => <p>Vehicle facts: {car.title}</p>,
+  EnquiryVehicleInformation: ({ car, actions, onClose, published }: any) => (
+    <div role="dialog" aria-label={car.title}>
+      <button onClick={onClose}>Close</button>
+      <span>{published ? "Advert available" : "No customer advert"}</span>
       {actions}
     </div>
   ),
 }));
-
-const toyota = {
-  id: "one",
-  title: "Toyota Yaris",
-  make: "Toyota",
-  model: "Yaris",
-  variant: "Excel",
-  year: 2021,
-  colour: "Black",
-  transmission: "Automatic",
-  fuel: "Petrol",
-  price: 8990,
-  mileage: 22000,
-  plate: "AB12 CDE",
-  inventoryStatus: "available",
-  images: [],
-} as unknown as Car;
-const mg = {
-  ...toyota,
-  id: "two",
-  title: "MG HS",
-  make: "MG",
-  model: "HS",
-  colour: "Red",
-  price: 14990,
-  plate: "XY22 ZZZ",
-  inventoryStatus: "reserved",
+vi.mock("@/components/mot-history", () => ({
+  MotHistoryPanel: ({ vehicleId }: any) => (
+    <button>Check MOT for {vehicleId}</button>
+  ),
+}));
+const now = "2026-10-29T12:00:00Z";
+function car(id: string, extra: any = {}): StaffCar {
+  return {
+    id,
+    advertId: id,
+    title: "Toyota Yaris " + id,
+    make: "Toyota",
+    model: "Yaris",
+    variant: "1.5 Hybrid Automatic",
+    year: 2021,
+    price: 8990,
+    mileage: 22000,
+    fuel: "Petrol Hybrid",
+    transmission: "Automatic",
+    plate: "AB12 CDE",
+    inventoryStatus: "available",
+    heroImage: null,
+    images: [],
+    staff: {
+      source: "cazoo",
+      sourceStatus: "live",
+      inventoryStatus: "available",
+      published: true,
+      firstSeenAt: now,
+      lastSeenAt: now,
+      archivedAt: null,
+      mot: staffMotSummary(null),
+      changes: [],
+      sale: null,
+    },
+    ...extra,
+  } as StaffCar;
+}
+const props = {
+  canManage: true,
+  bookingEnabled: true,
+  onEnquiry: vi.fn(),
+  onSale: vi.fn(),
+  onOpenEnquiry: vi.fn(),
 };
-const now = Date.parse("2030-01-01T12:00:00Z");
-const enquiry = (overrides: Partial<Enquiry> = {}) =>
+const entry = (extra: any = {}) =>
   ({
-    id: "enq-one",
-    reference: "ENQ-001",
-    dealerId: "dealer-one",
-    type: "viewing",
+    id: "enquiry-one",
     vehicleId: "one",
-    customerName: "Alex",
-    createdAt: "2029-12-01T12:00:00Z",
-    appointmentAt: null,
-    appointmentCancelledAt: null,
-    appointmentStatus: null,
-    ...overrides,
+    type: "general",
+    status: "new",
+    customerName: "Amelia Buyer",
+    phone: "07700900123",
+    createdAt: now,
+    ...extra,
   }) as Enquiry;
-
 beforeEach(() => {
   vi.clearAllMocks();
-  state.cars = [toyota, mg];
-  state.loading = false;
-  state.error = null;
+  window.history.replaceState({}, "", "/portal?section=cars");
+  state.data = {
+    feed: {
+      source: "Official Cazoo CSV",
+      receivedAt: now,
+      appliedAt: now,
+      state: "current",
+      scheduled: true,
+    },
+    cars: [
+      car("one"),
+      car("two", { inventoryStatus: "reserved" }),
+      car("sold", { inventoryStatus: "sold" }),
+      car("missing", {
+        staff: { ...car("x").staff, sourceStatus: "missing", published: false },
+      }),
+    ],
+  };
+  state.pending = false;
+  state.error = false;
   state.entries = [];
   state.replies = [];
-  state.repliesLoading = false;
-  state.repliesError = false;
-  state.activityLoading = false;
   state.activityError = false;
+  state.activityPending = false;
+  state.replyError = false;
+  state.queryOptions = [];
+  state.summaryOptions = [];
+  sessionStorage.clear();
+  vi.spyOn(window, "scrollTo").mockImplementation(() => {});
 });
-
-it("only includes available and reserved current stock, retaining stock order", () => {
-  expect(
-    currentStockCars([
-      mg,
-      { ...toyota, id: "sold", inventoryStatus: "sold" },
-      toyota,
-      { ...toyota, id: "unknown", inventoryStatus: null },
-    ]).map((car) => car.id),
-  ).toEqual(["two", "one"]);
+it("keeps sold and missing staff views separate from current stock", async () => {
+  render(<CarsWorkspace {...props} />);
+  expect(screen.getAllByTestId(/^portal-car-/)).toHaveLength(2);
+  fireEvent.click(screen.getByRole("button", { name: "Sold 1" }));
+  await waitFor(() =>
+    expect(screen.getAllByTestId(/^portal-car-/)).toHaveLength(1),
+  );
+  expect(screen.getByTestId("portal-car-sold")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Missing from feed 1" }));
+  await waitFor(() =>
+    expect(screen.getByTestId("portal-car-missing")).toBeVisible(),
+  );
+  expect(screen.queryByTestId("portal-car-sold")).not.toBeInTheDocument();
 });
-
-it("does not keep a past test drive after time moves on with unchanged cached records", () => {
-  const clock = vi.spyOn(Date, "now").mockReturnValue(now);
-  try {
-    state.entries = [
-      enquiry({
-        appointmentAt: "2030-01-02T12:00:00Z",
-        appointmentStatus: "confirmed",
-      }),
-    ];
-    const props = {
-      canManage: true,
-      bookingEnabled: true,
-      onEnquiry: vi.fn(),
-      onSale: vi.fn(),
-    };
-    const view = render(<CarsWorkspace {...props} />);
-    expect(screen.getByText(/^Next test drive/)).toBeVisible();
-    clock.mockReturnValue(Date.parse("2030-01-03T12:00:00Z"));
-    view.rerender(<CarsWorkspace {...props} />);
-    expect(screen.queryByText(/^Next test drive/)).not.toBeInTheDocument();
-  } finally {
-    clock.mockRestore();
-  }
-});
-
-it("combines flexible car search with availability and puts missing prices last in either direction", () => {
-  const missing = { ...toyota, id: "missing", price: null };
-  const cars = [mg, missing, toyota];
-  expect(
-    findWorkspaceCars(cars, "black auto Toyota", "available", "stock").map(
-      (car) => car.id,
-    ),
-  ).toEqual(["missing", "one"]);
-  expect(
-    findWorkspaceCars(cars, "", "reserved", "stock").map((car) => car.id),
-  ).toEqual(["two"]);
-  expect(
-    findWorkspaceCars(cars, "AB12CDE", "all", "price-asc").map((car) => car.id),
-  ).toEqual(["one", "missing"]);
-  expect(
-    findWorkspaceCars(cars, "", "all", "price-desc").map((car) => car.id),
-  ).toEqual(["two", "one", "missing"]);
-  expect(cars.map((car) => car.id)).toEqual(["two", "missing", "one"]);
-});
-
-it("counts explicit merged cases once but preserves separate customers sharing a phone", () => {
-  const primary = enquiry({ phone: "07000000000" });
-  const child = enquiry({ id: "child", mergedIntoId: primary.id });
-  const separate = enquiry({ id: "separate", phone: primary.phone });
-  const otherCar = enquiry({
-    id: "other",
-    vehicleId: "two",
-    mergedIntoId: primary.id,
+it("uses bookmarkable vehicle pages and restores the list search and filters on Back", async () => {
+  render(<CarsWorkspace {...props} />);
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "one" } });
+  await waitFor(() =>
+    expect(screen.queryByTestId("portal-car-two")).not.toBeInTheDocument(),
+  );
+  const link = screen.getByRole("link", {
+    name: "Open vehicle file for Toyota Yaris one",
   });
-  const result = vehicleActivityById(
-    [
-      primary,
-      child,
-      separate,
-      otherCar,
-      enquiry({ id: "general", vehicleId: null }),
-    ],
-    now,
+  expect(link.getAttribute("href")).toContain("carId=one");
+  fireEvent.click(link);
+  await waitFor(() =>
+    expect(screen.getByText("Vehicle facts: Toyota Yaris one")).toBeVisible(),
   );
-  expect(result.get("one")?.cases.map((entry) => entry.id)).toEqual([
-    "enq-one",
-    "separate",
-  ]);
-  expect(result.get("two")?.cases.map((entry) => entry.id)).toEqual([
-    "enq-one",
-  ]);
-  expect(result.size).toBe(2);
+  fireEvent.click(screen.getByRole("link", { name: "Back to Cars" }));
+  await waitFor(() => expect(screen.getByRole("searchbox")).toHaveValue("one"));
 });
-
-it("shows the next approved or legacy booking, excluding pending, cancelled, attended and past appointments", () => {
-  const entries = [
-    enquiry({ id: "legacy", appointmentAt: "2030-01-03T12:00:00Z" }),
-    enquiry({
-      id: "approved",
-      appointmentAt: "2030-01-02T12:00:00Z",
-      appointmentStatus: "confirmed",
-      attendance: "scheduled",
-    }),
-    enquiry({
-      id: "pending",
-      appointmentAt: "2030-01-02T10:00:00Z",
-      appointmentStatus: "pending",
-    }),
-    enquiry({
-      id: "cancelled",
-      appointmentAt: "2030-01-02T08:00:00Z",
-      appointmentCancelledAt: "2029-12-31T12:00:00Z",
-    }),
-    ...(["arrived", "completed", "no_show"] as const).map((attendance) =>
-      enquiry({
-        id: attendance,
-        attendance,
-        appointmentAt: "2030-01-02T08:00:00Z",
-      }),
-    ),
-    enquiry({ id: "past", appointmentAt: "2029-12-31T12:00:00Z" }),
-    enquiry({ id: "invalid", appointmentAt: "bad date" }),
-    enquiry({
-      id: "general-time",
-      type: "general",
-      appointmentAt: "2030-01-02T07:00:00Z",
-    }),
-    enquiry({
-      id: "delivery-time",
-      type: "delivery",
-      appointmentAt: "2030-01-02T07:00:00Z",
-    }),
-  ];
-  const result = vehicleActivityById(entries, now).get("one")!;
-  expect(result.nextAppointment?.id).toBe("approved");
-  expect(result.pendingAppointments.map((entry) => entry.id)).toEqual([
-    "pending",
-  ]);
-  expect(
-    vehicleActivityById([entries[0]], now).get("one")?.nextAppointment?.id,
-  ).toBe("legacy");
-});
-
-it("searches current cars and filters availability without changing any records", () => {
-  const onEnquiry = vi.fn();
-  const onSale = vi.fn();
-  render(
-    <CarsWorkspace
-      canManage
-      bookingEnabled
-      onEnquiry={onEnquiry}
-      onSale={onSale}
-    />,
-  );
-  fireEvent.change(
-    screen.getByRole("searchbox", { name: "Search current cars" }),
-    { target: { value: "MG red auto" } },
-  );
-  expect(screen.queryByTestId("portal-car-one")).not.toBeInTheDocument();
-  expect(screen.getByTestId("portal-car-two")).toHaveTextContent("Reserved");
-  fireEvent.click(screen.getByRole("button", { name: "Available 1" }));
-  expect(screen.getByText("No matching cars")).toBeInTheDocument();
-  fireEvent.click(
-    screen.getByRole("button", { name: "Clear search and filters" }),
-  );
-  fireEvent.click(
-    within(screen.getByTestId("portal-car-one")).getByRole("button", {
-      name: "New enquiry",
-    }),
-  );
-  expect(onEnquiry).toHaveBeenCalledWith("one");
-  expect(onSale).not.toHaveBeenCalled();
-});
-
-it("opens the shared side panel, preserving search and closes it before handing off to a booking or sale", () => {
-  const onEnquiry = vi.fn(() =>
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
-  );
-  const onSale = vi.fn();
-  render(
-    <CarsWorkspace
-      canManage
-      bookingEnabled
-      onEnquiry={onEnquiry}
-      onSale={onSale}
-    />,
-  );
-  fireEvent.change(screen.getByRole("searchbox"), {
-    target: { value: "Toyota" },
-  });
-  fireEvent.click(
-    screen.getByRole("button", { name: "View details for Toyota Yaris" }),
-  );
-  expect(screen.getByRole("dialog")).toHaveAttribute(
-    "data-presentation",
-    "panel",
-  );
-  fireEvent.click(
-    within(screen.getByRole("dialog")).getByRole("button", {
-      name: "Book test drive",
-    }),
-  );
-  expect(onEnquiry).toHaveBeenCalledWith("one", true);
-  expect(screen.getByRole("searchbox")).toHaveValue("Toyota");
-});
-
-it("omits book actions when booking is off and sale actions for reserved vehicles", () => {
-  render(
-    <CarsWorkspace
-      canManage
-      bookingEnabled={false}
-      onEnquiry={vi.fn()}
-      onSale={vi.fn()}
-    />,
-  );
-  fireEvent.click(
-    screen.getByRole("button", { name: "View details for Toyota Yaris" }),
-  );
-  expect(
-    within(screen.getByRole("dialog")).queryByRole("button", {
-      name: "Book test drive",
-    }),
-  ).not.toBeInTheDocument();
-  expect(
-    within(screen.getByRole("dialog")).getByRole("button", {
-      name: "Start sale",
-    }),
-  ).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Close details" }));
-  fireEvent.click(
-    screen.getByRole("button", { name: "View details for MG HS" }),
-  );
-  expect(
-    within(screen.getByRole("dialog")).queryByRole("button", {
-      name: "Start sale",
-    }),
-  ).not.toBeInTheDocument();
-  expect(
-    within(screen.getByRole("dialog")).getByRole("button", {
-      name: "New enquiry",
-    }),
-  ).toBeInTheDocument();
-});
-
-it("keeps customer activity and management actions unavailable without permission, without fetching it", () => {
-  render(
-    <CarsWorkspace
-      canManage={false}
-      bookingEnabled
-      onEnquiry={vi.fn()}
-      onSale={vi.fn()}
-    />,
-  );
-  expect(state.summary).toHaveBeenLastCalledWith({
-    query: expect.objectContaining({ enabled: false, refetchInterval: false }),
-  });
-  expect(
-    screen.queryByRole("button", { name: "New enquiry" }),
-  ).not.toBeInTheDocument();
-  expect(screen.queryByText("No enquiries yet")).not.toBeInTheDocument();
-  fireEvent.click(
-    screen.getByRole("button", { name: "View details for Toyota Yaris" }),
+it("supports direct sold vehicle links and routes staff to the existing sale without creating one", () => {
+  const sold = state.data!.cars[2];
+  sold.staff.sale = {
+    id: "sale-existing",
+    reference: "SALE-1",
+    status: "sold",
+  };
+  window.history.replaceState({}, "", "/portal?section=cars&carId=sold");
+  render(<CarsWorkspace {...props} />);
+  expect(screen.getByRole("link", { name: "View sale" })).toHaveAttribute(
+    "href",
+    "/portal?section=sales&saleId=sale-existing",
   );
   expect(
     screen.queryByRole("button", { name: "Start sale" }),
   ).not.toBeInTheDocument();
+  expect(props.onSale).not.toHaveBeenCalled();
 });
-
-it("uses actual enquiry links and original appointment links, rather than inferred customer matches", () => {
+it("chooses the actual merged child reply as the next action", () => {
   state.entries = [
-    enquiry(),
-    enquiry({
-      id: "source-booking",
-      mergedIntoId: "enq-one",
-      appointmentAt: "2099-01-02T12:00:00Z",
-      appointmentStatus: "confirmed",
-    }),
+    entry(),
+    entry({ id: "child", mergedIntoId: "enquiry-one" }),
   ];
-  render(
-    <CarsWorkspace
-      canManage
-      bookingEnabled
-      onEnquiry={vi.fn()}
-      onSale={vi.fn()}
-    />,
-  );
+  state.replies = [{ enquiryId: "child", pending: 1, review: 0 }];
+  render(<CarsWorkspace {...props} />);
   const row = within(screen.getByTestId("portal-car-one"));
-  expect(row.getByText("1 enquiry")).toBeVisible();
-  expect(row.getByRole("link", { name: /^Alex / })).toHaveAttribute(
-    "href",
-    "/portal?section=notifications&workView=customers&enquiryId=enq-one",
-  );
-  expect(row.getByRole("link", { name: /Next test drive/ })).toHaveAttribute(
-    "href",
-    "/portal?section=notifications&workView=customers&enquiryId=source-booking",
-  );
+  expect(row.getByText("1 awaiting reply")).toBeVisible();
+  fireEvent.click(row.getByRole("link", { name: "Reply to Amelia Buyer" }));
+  expect(props.onOpenEnquiry).toHaveBeenCalledWith("child");
 });
-
-it("does not claim zero activity while loading or after an error", () => {
-  state.activityLoading = true;
-  const view = render(
-    <CarsWorkspace
-      canManage
-      bookingEnabled
-      onEnquiry={vi.fn()}
-      onSale={vi.fn()}
-    />,
-  );
-  expect(screen.getAllByText("Loading customer activity…")).toHaveLength(2);
-  expect(screen.queryByText("No enquiries yet")).not.toBeInTheDocument();
-  state.activityLoading = false;
-  state.activityError = true;
-  view.rerender(
-    <CarsWorkspace
-      canManage
-      bookingEnabled
-      onEnquiry={vi.fn()}
-      onSale={vi.fn()}
-    />,
-  );
-  expect(screen.getAllByText("Activity unavailable")).toHaveLength(2);
-  expect(screen.queryByText("No upcoming test drive")).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  expect(state.refetch).toHaveBeenCalledOnce();
+it("permission-gates customer data, including stale cached activity, and never polls", () => {
+  state.entries = [entry()];
+  state.replies = [{ enquiryId: "enquiry-one", pending: 1, review: 0 }];
+  render(<CarsWorkspace {...props} canManage={false} />);
+  expect(screen.queryByText(/Amelia/)).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "New enquiry" }),
+  ).not.toBeInTheDocument();
+  expect(state.queryOptions.at(-1)).toMatchObject({
+    enabled: false,
+    refetchInterval: false,
+  });
+  expect(state.summaryOptions.at(-1).query).toMatchObject({
+    enabled: false,
+    refetchInterval: false,
+  });
 });
-
-it("uses honest missing details for Cazoo cars and shows stock loading and failure states", () => {
-  state.cars = [
+it("keeps booking disabled and does not offer Start sale on a reserved or missing vehicle", () => {
+  window.history.replaceState({}, "", "/portal?section=cars&carId=two");
+  render(<CarsWorkspace {...props} bookingEnabled={false} />);
+  expect(
+    screen.queryByRole("button", { name: "Book test drive" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Start sale" }),
+  ).not.toBeInTheDocument();
+});
+it("does not show unavailable customer adverts for missing stock", () => {
+  window.history.replaceState({}, "", "/portal?section=cars&carId=missing");
+  render(<CarsWorkspace {...props} />);
+  expect(
+    screen.queryByRole("link", { name: /View customer advert/ }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByText(/does not confirm a sale/)).toBeVisible();
+});
+it("filters actual changes and fixable issues, preserving sold state over a missing source", () => {
+  const a = car("a"),
+    b = car("b", { images: ["https://example.test/photo.jpg"] }),
+    sold = car("s", {
+      inventoryStatus: "sold",
+      staff: { ...a.staff, sourceStatus: "missing" },
+    });
+  a.staff.changes = [
     {
-      ...toyota,
-      plate: null,
-      registration: "21 reg",
-      vrm: null,
-      price: null,
-      mileage: null,
-      mileageText: null,
+      kind: "price",
+      label: "Price reduced",
+      at: now,
+      before: 9000,
+      after: 8990,
     },
   ];
-  const view = render(
-    <CarsWorkspace
-      canManage
-      bookingEnabled
-      onEnquiry={vi.fn()}
-      onSale={vi.fn()}
-    />,
+  expect(workspaceStatus(sold)).toBe("sold");
+  expect(
+    filterStaffCars([a, b], "", "all", "stock", "changed", new Map()).map(
+      (c) => c.id,
+    ),
+  ).toEqual(["a"]);
+  expect(
+    filterStaffCars([a, b], "", "all", "stock", "no-photos", new Map()).map(
+      (c) => c.id,
+    ),
+  ).toEqual(["a"]);
+  const before = JSON.stringify([a, b]);
+  filterStaffCars([a, b], "", "all", "price-desc", "all", new Map());
+  expect(JSON.stringify([a, b])).toBe(before);
+});
+it("does not claim zero customer activity while loading or after an error", () => {
+  state.activityPending = true;
+  const view = render(<CarsWorkspace {...props} />);
+  expect(screen.getAllByText("Loading customer activity…")).toHaveLength(2);
+  expect(screen.queryByText("0 enquiries")).not.toBeInTheDocument();
+  state.activityPending = false;
+  state.activityError = true;
+  view.rerender(<CarsWorkspace {...props} />);
+  expect(screen.getAllByText("Customer activity unavailable")).toHaveLength(2);
+});
+it("renders MOT text and dates alongside colour and does not fetch MOT on list load", () => {
+  const summary = {
+    state: "expired",
+    tone: "red",
+    label: "MOT expired",
+    date: "2026-10-28",
+    checkedAt: now,
+    lastMileage: null,
+  } as const;
+  render(<StaffMotBadge summary={summary} />);
+  expect(screen.getByText(/MOT expired/)).toHaveTextContent("28 Oct 2026");
+  expect(
+    screen.getByText(/MOT expired/).closest(".staff-mot-badge"),
+  ).toHaveAttribute("data-tone", "red");
+});
+it("loads a first-MOT due date through the same staff status model", () => {
+  const s = staffMotSummary(
+    {
+      registration: "AB25CDE",
+      make: null,
+      model: null,
+      checkedAt: now,
+      recall: "Unknown",
+      tests: [],
+      firstMotDueDate: "2028-03-01",
+    },
+    new Date(now),
   );
-  expect(screen.getByTestId("portal-car-one")).toHaveTextContent(
-    "Registration not supplied",
-  );
-  expect(screen.getByTestId("portal-car-one")).toHaveTextContent(
-    "Price not supplied",
-  );
-  expect(screen.getByTestId("portal-car-one")).toHaveTextContent(
-    "Mileage not supplied",
-  );
-  expect(screen.getByTestId("portal-car-one")).not.toHaveTextContent("£0");
-  state.loading = true;
-  view.rerender(
-    <CarsWorkspace
-      canManage
-      bookingEnabled
-      onEnquiry={vi.fn()}
-      onSale={vi.fn()}
-    />,
-  );
-  expect(screen.getByLabelText("Loading cars")).toBeInTheDocument();
-  state.loading = false;
-  state.error = "Network unavailable";
-  state.cars = [];
-  view.rerender(
-    <CarsWorkspace
-      canManage
-      bookingEnabled
-      onEnquiry={vi.fn()}
-      onSale={vi.fn()}
-    />,
-  );
+  expect(s.state).toBe("first_due");
+  expect(s.date).toBe("2028-03-01");
+});
+it("shows a clear loading and failure state and explains screen refresh", () => {
+  state.pending = true;
+  state.data = undefined;
+  const view = render(<CarsWorkspace {...props} />);
+  expect(screen.getByLabelText("Loading cars")).toBeVisible();
+  state.pending = false;
+  state.error = true;
+  view.rerender(<CarsWorkspace {...props} />);
   expect(screen.getByRole("alert")).toHaveTextContent(
-    "Stock could not be refreshed",
+    "Cars could not be refreshed",
   );
   expect(screen.queryByText("No current cars")).not.toBeInTheDocument();
 });
 
-it("keeps a merged child's actual reply or follow-up attached to its own vehicle and source record", () => {
-  const parent = enquiry({
-    type: "general",
-    status: "contacted",
-    vehicleId: "one",
-    customerName: "Alex Buyer",
+it("keeps a reserved car visible in Reserved when its advert goes missing", () => {
+  const reserved = car("reserved", {
+    inventoryStatus: "reserved",
+    staff: {
+      ...car("x").staff,
+      inventoryStatus: "reserved",
+      sourceStatus: "missing",
+      published: false,
+    },
   });
-  const child = {
-    ...enquiry({
-      id: "child-reply",
-      mergedIntoId: parent.id,
-      type: "general",
-      vehicleId: "one",
-    }),
-    pendingEmailReplies: 2,
-  };
-  const otherCar = enquiry({
-    id: "other-car-followup",
-    mergedIntoId: parent.id,
-    vehicleId: "two",
-    followUpAt: "2029-12-31T12:00:00Z",
-  });
-  const records = [parent, child, otherCar];
-  const before = structuredClone(records);
-  const result = vehicleActivityById(records, now);
-  expect(result.get("one")?.cases).toHaveLength(1);
-  expect(result.get("one")?.customers[0]).toMatchObject({
-    customer: { id: parent.id, customerName: "Alex Buyer" },
-    task: { id: child.id },
-    presentation: { state: "Customer replied" },
-  });
-  expect(result.get("two")?.customers[0]).toMatchObject({
-    customer: { id: parent.id },
-    task: { id: otherCar.id },
-    presentation: { state: "Follow-up overdue" },
-  });
-  expect(records).toEqual(before);
-});
-
-it("shows real customer names and recorded reply/follow-up work, opening the correct original customer record", () => {
-  state.entries = [
-    enquiry({
-      type: "general",
-      customerName: "Alex Buyer",
-      status: "contacted",
-    }),
-    enquiry({
-      id: "reply-child",
-      mergedIntoId: "enq-one",
-      type: "general",
-      customerName: "Alex Buyer",
-    }),
-    enquiry({
-      id: "followup",
-      customerName: "Sam Driver",
-      type: "general",
-      followUpAt: "2020-01-01T12:00:00Z",
-      phone: "07700900123",
-    }),
-  ];
-  state.replies = [{ enquiryId: "reply-child", pending: 2, review: 0 }];
-  const onOpenEnquiry = vi.fn(),
-    onEnquiry = vi.fn(),
-    onSale = vi.fn();
-  render(
-    <CarsWorkspace
-      canManage
-      bookingEnabled
-      onEnquiry={onEnquiry}
-      onSale={onSale}
-      onOpenEnquiry={onOpenEnquiry}
-    />,
-  );
-  const row = within(screen.getByTestId("portal-car-one"));
-  expect(row.getByText("2 enquiries")).toBeVisible();
-  expect(row.getByText("Alex Buyer")).toBeVisible();
-  expect(row.getByText("Customer replied")).toBeVisible();
-  expect(row.getByText("2 customer replies to review")).toBeVisible();
-  expect(row.getByText("Sam Driver")).toBeVisible();
-  expect(row.getByText(/Follow-up overdue/)).toBeVisible();
-  const reply = row.getByRole("link", { name: /^Alex Buyer / });
-  expect(reply).toHaveAttribute(
-    "href",
-    "/portal?section=notifications&workView=customers&enquiryId=reply-child",
-  );
-  fireEvent.click(reply);
-  expect(onOpenEnquiry).toHaveBeenCalledExactlyOnceWith("reply-child");
-  fireEvent.click(row.getByRole("link", { name: /^Sam Driver / }));
-  expect(onOpenEnquiry).toHaveBeenLastCalledWith("followup");
-  expect(onEnquiry).not.toHaveBeenCalled();
-  expect(onSale).not.toHaveBeenCalled();
-});
-
-it("shares one permission-gated reply aggregate and explicitly disables polling", async () => {
-  render(
-    <CarsWorkspace
-      canManage
-      bookingEnabled
-      onEnquiry={vi.fn()}
-      onSale={vi.fn()}
-    />,
-  );
-  expect(state.replyQuery).toHaveBeenCalledOnce();
-  const options = state.replyQuery.mock.calls[0][0];
-  expect(options).toMatchObject({
-    queryKey: ["reply-attention"],
-    enabled: true,
-    refetchInterval: false,
-    retry: false,
-  });
-  await options.queryFn();
-  expect(state.fetch).toHaveBeenCalledExactlyOnceWith(
-    "/api/staff/email/reply-attention",
-  );
-});
-
-it("does not disclose cached customer names or reply status to staff without management permission", () => {
-  state.entries = [enquiry({ customerName: "Private Buyer" })];
-  state.replies = [{ enquiryId: "enq-one", pending: 2, review: 0 }];
-  render(
-    <CarsWorkspace
-      canManage={false}
-      bookingEnabled
-      onEnquiry={vi.fn()}
-      onSale={vi.fn()}
-      onOpenEnquiry={vi.fn()}
-    />,
-  );
-  expect(state.replyQuery).toHaveBeenLastCalledWith(
-    expect.objectContaining({ enabled: false, refetchInterval: false }),
-  );
-  expect(screen.queryByText("Private Buyer")).not.toBeInTheDocument();
-  expect(screen.queryByText("Customer replied")).not.toBeInTheDocument();
-});
-
-it("keeps the customer enquiries and bookings visible when reply status fails, with an honest retry state", () => {
-  state.entries = [
-    enquiry({
-      customerName: "Alex Buyer",
-      appointmentAt: "2099-01-02T12:00:00Z",
-      appointmentStatus: "confirmed",
-    }),
-  ];
-  state.repliesError = true;
-  render(
-    <CarsWorkspace
-      canManage
-      bookingEnabled
-      onEnquiry={vi.fn()}
-      onSale={vi.fn()}
-    />,
-  );
-  const row = within(screen.getByTestId("portal-car-one"));
-  expect(row.getByText("Alex Buyer")).toBeVisible();
-  expect(row.getByText("Email reply status unavailable")).toBeVisible();
   expect(
-    row.getByRole("link", { name: /Next test drive · Alex Buyer/ }),
+    filterStaffCars([reserved], "", "reserved", "stock", "all", new Map()),
+  ).toHaveLength(1);
+  expect(
+    filterStaffCars([reserved], "", "missing", "stock", "all", new Map()),
+  ).toHaveLength(1);
+  expect(
+    filterStaffCars([reserved], "", "all", "stock", "all", new Map()),
+  ).toHaveLength(0);
+  state.data!.cars = [reserved];
+  window.history.replaceState({}, "", "/portal?section=cars&carsTab=reserved");
+  render(<CarsWorkspace {...props} />);
+  expect(
+    within(screen.getByTestId("portal-car-reserved")).getByText("Reserved", {
+      exact: true,
+    }),
   ).toBeVisible();
-  expect(screen.queryByText("No enquiries yet")).toBeInTheDocument(); // Only the unrelated MG row has none.
-  fireEvent.click(screen.getByRole("button", { name: "Retry reply status" }));
-  expect(state.replyRefetch).toHaveBeenCalledOnce();
-});
-
-it("shows two useful customer names first and puts additional customers behind one tidy disclosure", () => {
-  state.entries = [
-    enquiry({
-      id: "first",
-      type: "general",
-      customerName: "First Buyer",
-      status: "closed",
-    }),
-    enquiry({
-      id: "urgent",
-      type: "general",
-      customerName: "Reply Buyer",
-      status: "contacted",
-    }),
-    enquiry({
-      id: "due",
-      type: "general",
-      customerName: "Follow-up Buyer",
-      followUpAt: "2020-01-01T12:00:00Z",
-    }),
-  ];
-  state.replies = [{ enquiryId: "urgent", pending: 1, review: 0 }];
-  render(
-    <CarsWorkspace
-      canManage
-      bookingEnabled
-      onEnquiry={vi.fn()}
-      onSale={vi.fn()}
-    />,
-  );
-  const row = within(screen.getByTestId("portal-car-one"));
-  expect(row.getByText("Reply Buyer")).toBeVisible();
-  expect(row.getByText("Follow-up Buyer")).toBeVisible();
-  const more = row.getByText("1 more customer");
-  expect(more.closest("details")).not.toHaveAttribute("open");
-  fireEvent.click(more);
-  expect(more.closest("details")).toHaveAttribute("open");
-  expect(row.getByRole("link", { name: /First Buyer Closed/ })).toBeVisible();
 });

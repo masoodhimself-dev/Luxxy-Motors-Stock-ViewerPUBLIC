@@ -166,3 +166,126 @@ export function vehicleActivityById(
     ]),
   );
 }
+
+export type StaffCarsTab =
+  "all" | "available" | "reserved" | "sold" | "missing";
+export type StaffCarsAttention =
+  "all" | "changed" | "attention" | "no-photos" | "no-price" | "reply";
+export function workspaceStatus(
+  car: import("./staff-cars-query").StaffCar,
+): StaffCarsTab | "hidden" {
+  if (car.inventoryStatus === "sold") return "sold";
+  if (
+    car.inventoryStatus === "hidden" ||
+    car.inventoryStatus === "archived" ||
+    car.staff.archivedAt
+  )
+    return "hidden";
+  if (car.staff.sourceStatus === "missing") return "missing";
+  return car.inventoryStatus === "reserved" ? "reserved" : "available";
+}
+export function carIssues(
+  car: import("./staff-cars-query").StaffCar,
+  activity?: VehicleActivity,
+) {
+  const issues: string[] = [];
+  if (!car.heroImage && !car.images.length) issues.push("No photos");
+  if (car.price == null) issues.push("Missing price");
+  if (workspaceStatus(car) === "missing") issues.push("Missing from feed");
+  if (activity?.customers.some((c) => (c.task.pendingEmailReplies ?? 0) > 0))
+    issues.push("Customer awaiting reply");
+  return issues;
+}
+export function carInTab(
+  car: import("./staff-cars-query").StaffCar,
+  tab: StaffCarsTab,
+) {
+  const status = workspaceStatus(car);
+  return (
+    status !== "hidden" &&
+    (tab === "all"
+      ? ["available", "reserved"].includes(status)
+      : tab === "reserved"
+        ? car.inventoryStatus === "reserved"
+        : status === tab)
+  );
+}
+export function filterStaffCars(
+  cars: import("./staff-cars-query").StaffCar[],
+  search: string,
+  tab: StaffCarsTab,
+  sort: CarsSort,
+  attention: StaffCarsAttention,
+  activities: Map<string, VehicleActivity>,
+) {
+  const result = cars.filter((car) => {
+    const issues = carIssues(car, activities.get(car.id));
+    if (!carInTab(car, tab) || !matchesEnquiryCar(car, search)) return false;
+    return (
+      attention === "all" ||
+      (attention === "changed" && car.staff.changes.length > 0) ||
+      (attention === "attention" && issues.length > 0) ||
+      (attention === "no-photos" && issues.includes("No photos")) ||
+      (attention === "no-price" && issues.includes("Missing price")) ||
+      (attention === "reply" && issues.includes("Customer awaiting reply"))
+    );
+  });
+  return sort === "stock"
+    ? result
+    : result.sort((a, b) =>
+        sort === "make"
+          ? vehicleDisplayTitle(a).localeCompare(
+              vehicleDisplayTitle(b),
+              "en-GB",
+              { numeric: true, sensitivity: "base" },
+            )
+          : a.price == null
+            ? b.price == null
+              ? 0
+              : 1
+            : b.price == null
+              ? -1
+              : sort === "price-asc"
+                ? a.price - b.price
+                : b.price - a.price,
+      );
+}
+export function carNextStep(
+  car: import("./staff-cars-query").StaffCar,
+  activity?: VehicleActivity,
+) {
+  const reply = activity?.customers.find(
+    (c) => (c.task.pendingEmailReplies ?? 0) > 0,
+  );
+  if (reply)
+    return {
+      kind: "enquiry",
+      id: reply.task.id,
+      label: `Reply to ${reply.customer.customerName}`,
+    };
+  if (car.staff.sale)
+    return {
+      kind: "sale",
+      id: car.staff.sale.id,
+      label: car.staff.sale.status === "sold" ? "View sale" : "Continue sale",
+    };
+  const task = activity?.customers.find((c) => c.presentation.priority <= 4);
+  if (task)
+    return {
+      kind: "enquiry",
+      id: task.task.id,
+      label:
+        task.presentation.action === "appointment"
+          ? "View test drive"
+          : task.presentation.nextAction,
+    };
+  if (activity?.nextAppointment)
+    return {
+      kind: "enquiry",
+      id: activity.nextAppointment.id,
+      label: "View test drive",
+    };
+  return workspaceStatus(car) === "available"
+    ? { kind: "new", id: car.id, label: "New enquiry" }
+    : { kind: "details", id: car.id, label: "Open car" };
+}

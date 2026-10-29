@@ -1,3 +1,4 @@
+import type { MotHistory } from "@workspace/vehicle-meta";
 import { MotHistoryPanel } from "../mot-history";
 import { useRef, type ReactNode, type RefObject } from "react";
 import type { Car } from "@/lib/stock-context";
@@ -92,6 +93,8 @@ export function EnquiryVehicleInformation({
   actions,
   canManage = true,
   returnFocusRef,
+  published = true,
+  onMotHistory,
 }: {
   car: Car;
   onClose: () => void;
@@ -99,9 +102,75 @@ export function EnquiryVehicleInformation({
   actions?: ReactNode;
   canManage?: boolean;
   returnFocusRef?: RefObject<HTMLElement | null>;
+  published?: boolean;
+  onMotHistory?: (history: MotHistory) => void;
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
   const opener = useRef<HTMLElement | null>(null);
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent
+        className={`portal-action-dialog portal-action-dialog-wide enquiry-vehicle-dialog staff-vehicle-dialog${presentation === "panel" ? " staff-vehicle-panel" : ""}`}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          opener.current =
+            returnFocusRef?.current ??
+            (document.activeElement instanceof HTMLElement
+              ? document.activeElement
+              : null);
+          heading.current?.focus({ preventScroll: true });
+        }}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          if (opener.current?.isConnected)
+            opener.current.focus({ preventScroll: true });
+        }}
+      >
+        <DialogHeader className="staff-vehicle-heading">
+          <DialogTitle ref={heading} tabIndex={-1} className="pr-10">
+            {vehicleDisplayTitle(car)}
+          </DialogTitle>
+          <DialogDescription>
+            {car.variant || "Vehicle information for showroom staff"} ·{" "}
+            {car.inventoryStatus === "available"
+              ? "Available"
+              : car.inventoryStatus === "reserved"
+                ? "Reserved"
+                : car.inventoryStatus === "sold"
+                  ? "Sold"
+                  : "Availability unconfirmed"}
+          </DialogDescription>
+        </DialogHeader>
+        <VehicleInformationBody
+          car={car}
+          canManage={canManage}
+          published={published}
+          onMotHistory={onMotHistory}
+        />
+        {actions && <div className="staff-vehicle-actions">{actions}</div>}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function VehicleInformationBody({
+  car,
+  canManage = true,
+  includeMot = true,
+  published = true,
+  onMotHistory,
+}: {
+  car: Car;
+  canManage?: boolean;
+  includeMot?: boolean;
+  published?: boolean;
+  onMotHistory?: (history: MotHistory) => void;
+}) {
   const { description, features } = vehicleContent(car);
   const facts: [string, unknown][] = [
     [
@@ -138,232 +207,182 @@ export function EnquiryVehicleInformation({
   const recordFacts = vehicleHistoryFacts(car);
   const specificationGroups = vehicleSpecificationGroups(car);
   return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-    >
-      <DialogContent
-        className={`portal-action-dialog portal-action-dialog-wide enquiry-vehicle-dialog staff-vehicle-dialog${presentation === "panel" ? " staff-vehicle-panel" : ""}`}
-        onOpenAutoFocus={(event) => {
-          event.preventDefault();
-          opener.current = returnFocusRef?.current ?? (
-            document.activeElement instanceof HTMLElement
-              ? document.activeElement
-              : null);
-          heading.current?.focus({ preventScroll: true });
-        }}
-        onCloseAutoFocus={(event) => {
-          event.preventDefault();
-          if (opener.current?.isConnected)
-            opener.current.focus({ preventScroll: true });
-        }}
-      >
-        <DialogHeader className="staff-vehicle-heading">
-          <DialogTitle ref={heading} tabIndex={-1} className="pr-10">
-            {vehicleDisplayTitle(car)}
-          </DialogTitle>
-          <DialogDescription>
-            {car.variant || "Vehicle information for showroom staff"} ·{" "}
-            {car.inventoryStatus === "available"
-              ? "Available"
-              : car.inventoryStatus === "reserved"
-                ? "Reserved"
-                : car.inventoryStatus === "sold"
-                  ? "Sold"
-                  : "Availability unconfirmed"}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="staff-vehicle-body">
-          <HistoryLinks vehicleId={car.id} />
-          {car.writeOffCategory && (
-            <p className="staff-vehicle-disclosure">
-              Recorded write-off category:{" "}
-              <strong>{car.writeOffCategory}</strong>. Check the recorded
-              history and disclosures before advising the customer.
-            </p>
-          )}
-          <div className="enquiry-vehicle-overview grid min-w-0 gap-6 md:grid-cols-2">
-            <div className="min-w-0">
-              <Gallery
-                images={car.images}
-                heroImage={car.heroImage}
-                vehicleLabel={vehicleDisplayTitle(car)}
-              />
-            </div>
-            <section>
-              <h3 className="mb-3 font-semibold">At a glance</h3>
-              <dl className="enquiry-vehicle-facts divide-y divide-border text-sm">
-                {facts
-                  .filter(
-                    ([, value]) =>
-                      value !== null && value !== undefined && value !== "",
-                  )
-                  .map(([label, value]) => (
-                    <div
-                      key={label}
-                      className="flex min-w-0 justify-between gap-4 py-2"
-                    >
-                      <dt className="text-muted-foreground">{label}</dt>
-                      <dd className="text-right font-medium">
-                        {String(value)}
-                      </dd>
-                    </div>
-                  ))}
-              </dl>
-            </section>
-          </div>
-          <details className="staff-vehicle-fact-group">
-            <summary>History & condition</summary>
-            <dl className="grid gap-4 text-sm sm:grid-cols-2">
-              {buyerInformation(car)
-                .filter(
-                  (item) =>
-                    ![
-                      "Owners",
-                      "Previous keepers",
-                      "Service history",
-                      "Keys",
-                    ].includes(item.label),
-                )
-                .map((item) => (
-                  <div key={item.label}>
-                    <dt className="font-medium">{item.label}</dt>
-                    <dd className="mt-1 text-muted-foreground">
-                      {item.value || "Not supplied — check before confirming"}
-                    </dd>
-                  </div>
-                ))}
-            </dl>
-            {typeof extra.writeOffCheck === "string" && (
-              <p className="mt-3 text-sm">
-                History check: {extra.writeOffCheck}
-              </p>
-            )}
-          </details>
-          {canManage && (
-            <details className="staff-vehicle-fact-group">
-              <summary>MOT history</summary>
-              <MotHistoryPanel vehicleId={car.id} staff />
-            </details>
-          )}
-          {description && (
-            <section className="border-t border-border pt-4">
-              <h3 className="mb-2 font-semibold">
-                {car.sourceExtras?.descriptionOrigin === "generated-facts"
-                  ? "Vehicle description · Generated from supplied facts"
-                  : "Advert description"}
-              </h3>
-              <p className="whitespace-pre-wrap break-words text-sm leading-6">
-                {description}
-              </p>
-            </section>
-          )}
-          {features.length > 0 && (
-            <details className="staff-vehicle-fact-group">
-              <summary>Features & equipment ({features.length})</summary>
-              <ul className="grid list-inside list-disc gap-2 text-sm sm:grid-cols-2">
-                {features.map((feature) => (
-                  <li key={feature}>{feature}</li>
-                ))}
-              </ul>
-            </details>
-          )}
-          {runningCosts.length > 0 && (
-            <details className="staff-vehicle-fact-group">
-              <summary>Running costs</summary>
-              <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {runningCosts.map((fact) => (
-                  <div
-                    key={fact.label}
-                    className="border border-border bg-muted/30 p-3"
-                  >
-                    <dt className="text-xs text-muted-foreground">
-                      {fact.label}
-                    </dt>
-                    <dd className="mt-1 font-semibold">{fact.value}</dd>
-                  </div>
-                ))}
-              </dl>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Figures supplied with the listing; actual fuel use and tax may
-                vary.
-              </p>
-            </details>
-          )}
-          {recordFacts.length > 0 && (
-            <details className="staff-vehicle-fact-group">
-              <summary>Recorded history</summary>
-              <dl className="grid gap-3 sm:grid-cols-3">
-                {recordFacts.map((fact) => (
-                  <div key={fact.label}>
-                    <dt className="text-xs text-muted-foreground">
-                      {fact.label}
-                    </dt>
-                    <dd className="mt-1 text-sm font-medium">{fact.value}</dd>
-                  </div>
-                ))}
-              </dl>
-            </details>
-          )}
-          {specificationGroups.map((group, index) => (
-            <details
-              className="staff-vehicle-fact-group"
-              key={`${group.title}-${index}`}
-            >
-              <summary>{group.title}</summary>
-              <dl className="enquiry-vehicle-facts divide-y divide-border text-sm">
-                {group.facts.map((fact, i) => (
-                  <div
-                    className="flex min-w-0 justify-between gap-4 py-2"
-                    key={`${fact.label}-${i}`}
-                  >
-                    <dt className="text-muted-foreground">{fact.label}</dt>
-                    <dd className="text-right font-medium">{fact.value}</dd>
-                  </div>
-                ))}
-              </dl>
-            </details>
-          ))}
-
-          {(
-            [
-              [
-                "Technical specifications",
-                specificationGroups.length
-                  ? null
-                  : (extra.specCategories ?? car.specifications),
-              ],
-              ["Insurance group", extra.insuranceGroup],
-            ] as [string, unknown][]
-          )
-            .filter(
-              ([, value]) =>
-                value != null && (!Array.isArray(value) || value.length),
-            )
-            .map(([label, value]) => (
-              <details
-                key={label}
-                className="border-t border-border pt-2 text-sm"
-              >
-                <summary className="min-h-11 cursor-pointer py-3 font-semibold">
-                  {label}
-                </summary>
-                <SuppliedFacts value={value} />
-              </details>
-            ))}
-          <a
-            href={`/vehicle/${encodeURIComponent(car.id)}`}
-            target="_blank"
-            rel="noreferrer"
-            className="w-fit py-3 text-sm font-medium underline underline-offset-4"
-          >
-            Open customer vehicle page in a new tab
-          </a>
+    <div className="staff-vehicle-body">
+      <HistoryLinks vehicleId={car.id} />
+      {car.writeOffCategory && (
+        <p className="staff-vehicle-disclosure">
+          Recorded write-off category: <strong>{car.writeOffCategory}</strong>.
+          Check the recorded history and disclosures before advising the
+          customer.
+        </p>
+      )}
+      <div className="enquiry-vehicle-overview grid min-w-0 gap-6 md:grid-cols-2">
+        <div className="min-w-0">
+          <Gallery
+            images={car.images}
+            heroImage={car.heroImage}
+            vehicleLabel={vehicleDisplayTitle(car)}
+          />
         </div>
-        {actions && <div className="staff-vehicle-actions">{actions}</div>}
-      </DialogContent>
-    </Dialog>
+        <section>
+          <h3 className="mb-3 font-semibold">At a glance</h3>
+          <dl className="enquiry-vehicle-facts divide-y divide-border text-sm">
+            {facts
+              .filter(
+                ([, value]) =>
+                  value !== null && value !== undefined && value !== "",
+              )
+              .map(([label, value]) => (
+                <div
+                  key={label}
+                  className="flex min-w-0 justify-between gap-4 py-2"
+                >
+                  <dt className="text-muted-foreground">{label}</dt>
+                  <dd className="text-right font-medium">{String(value)}</dd>
+                </div>
+              ))}
+          </dl>
+        </section>
+      </div>
+      <details className="staff-vehicle-fact-group">
+        <summary>History & condition</summary>
+        <dl className="grid gap-4 text-sm sm:grid-cols-2">
+          {buyerInformation(car)
+            .filter(
+              (item) =>
+                ![
+                  "Owners",
+                  "Previous keepers",
+                  "Service history",
+                  "Keys",
+                ].includes(item.label),
+            )
+            .map((item) => (
+              <div key={item.label}>
+                <dt className="font-medium">{item.label}</dt>
+                <dd className="mt-1 text-muted-foreground">
+                  {item.value || "Not supplied — check before confirming"}
+                </dd>
+              </div>
+            ))}
+        </dl>
+        {typeof extra.writeOffCheck === "string" && (
+          <p className="mt-3 text-sm">History check: {extra.writeOffCheck}</p>
+        )}
+      </details>
+      {canManage && includeMot && (
+        <details className="staff-vehicle-fact-group">
+          <summary>MOT history</summary>
+          <MotHistoryPanel vehicleId={car.id} staff onHistory={onMotHistory} />
+        </details>
+      )}
+      {description && (
+        <section className="border-t border-border pt-4">
+          <h3 className="mb-2 font-semibold">
+            {car.sourceExtras?.descriptionOrigin === "generated-facts"
+              ? "Vehicle description · Generated from supplied facts"
+              : "Advert description"}
+          </h3>
+          <p className="whitespace-pre-wrap break-words text-sm leading-6">
+            {description}
+          </p>
+        </section>
+      )}
+      {features.length > 0 && (
+        <details className="staff-vehicle-fact-group">
+          <summary>Features & equipment ({features.length})</summary>
+          <ul className="grid list-inside list-disc gap-2 text-sm sm:grid-cols-2">
+            {features.map((feature) => (
+              <li key={feature}>{feature}</li>
+            ))}
+          </ul>
+        </details>
+      )}
+      {runningCosts.length > 0 && (
+        <details className="staff-vehicle-fact-group">
+          <summary>Running costs</summary>
+          <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {runningCosts.map((fact) => (
+              <div
+                key={fact.label}
+                className="border border-border bg-muted/30 p-3"
+              >
+                <dt className="text-xs text-muted-foreground">{fact.label}</dt>
+                <dd className="mt-1 font-semibold">{fact.value}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Figures supplied with the listing; actual fuel use and tax may vary.
+          </p>
+        </details>
+      )}
+      {recordFacts.length > 0 && (
+        <details className="staff-vehicle-fact-group">
+          <summary>Recorded history</summary>
+          <dl className="grid gap-3 sm:grid-cols-3">
+            {recordFacts.map((fact) => (
+              <div key={fact.label}>
+                <dt className="text-xs text-muted-foreground">{fact.label}</dt>
+                <dd className="mt-1 text-sm font-medium">{fact.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </details>
+      )}
+      {specificationGroups.map((group, index) => (
+        <details
+          className="staff-vehicle-fact-group"
+          key={`${group.title}-${index}`}
+        >
+          <summary>{group.title}</summary>
+          <dl className="enquiry-vehicle-facts divide-y divide-border text-sm">
+            {group.facts.map((fact, i) => (
+              <div
+                className="flex min-w-0 justify-between gap-4 py-2"
+                key={`${fact.label}-${i}`}
+              >
+                <dt className="text-muted-foreground">{fact.label}</dt>
+                <dd className="text-right font-medium">{fact.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </details>
+      ))}
+
+      {(
+        [
+          [
+            "Technical specifications",
+            specificationGroups.length
+              ? null
+              : (extra.specCategories ?? car.specifications),
+          ],
+          ["Insurance group", extra.insuranceGroup],
+        ] as [string, unknown][]
+      )
+        .filter(
+          ([, value]) =>
+            value != null && (!Array.isArray(value) || value.length),
+        )
+        .map(([label, value]) => (
+          <details key={label} className="border-t border-border pt-2 text-sm">
+            <summary className="min-h-11 cursor-pointer py-3 font-semibold">
+              {label}
+            </summary>
+            <SuppliedFacts value={value} />
+          </details>
+        ))}
+      {published && (
+        <a
+          href={`/vehicle/${encodeURIComponent(car.id)}`}
+          target="_blank"
+          rel="noreferrer"
+          className="w-fit py-3 text-sm font-medium underline underline-offset-4"
+        >
+          Open customer vehicle page in a new tab
+        </a>
+      )}
+    </div>
   );
 }
