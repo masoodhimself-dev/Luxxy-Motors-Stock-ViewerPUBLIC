@@ -77,7 +77,7 @@ export function RollingStock({ cars, unavailable = false, shortcuts, showVehicle
   };
   return <section className="rolling-stock homepage-stock" aria-label="Browse cars">
     <div className="rolling-stock-footer container mx-auto flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
-      <h2 id="rolling-stock-heading" className="section-heading">{websiteText(settings, "featuredHeading")}</h2>
+      <h2 id="rolling-stock-heading" className="section-heading">{showVehicles ? websiteText(settings, "featuredHeading") : "Browse our stock"}</h2>
       <div className="flex items-center gap-4">
         {showVehicles && cars.length > 1 && <div className="rolling-stock-arrows" aria-label="Browse featured cars">
           <button type="button" onClick={() => browse(-1)} aria-label="Previous featured cars"><ChevronLeft size={18} aria-hidden="true" /></button>
@@ -86,7 +86,6 @@ export function RollingStock({ cars, unavailable = false, shortcuts, showVehicle
         <Link href="/stock?all=1" className="text-link min-h-11 text-sm">View all stock</Link>
       </div>
     </div>
-    {shortcuts}
     {showVehicles && (cars.length ? <div
       ref={viewport}
       className="rolling-stock-window"
@@ -125,5 +124,6 @@ export function RollingStock({ cars, unavailable = false, shortcuts, showVehicle
       <Link href="/contact" className="text-link">Contact us</Link>
     </div>)}
 
+    {shortcuts}
   </section>;
 }

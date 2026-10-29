@@ -3,9 +3,9 @@ import { HoverHelp, TermHelp, VehicleTerm } from './customer-help';
 import { VehicleSellingPoints } from './vehicle-selling-points';
 import { vehicleSellingPoints } from '@/lib/vehicle-selling-points';
 import { vehicleInsuranceDisclosure } from '@/lib/vehicle-history';
-import { prioritiseVehicleFeatures, vehicleContent } from '@/lib/vehicle-content';
+import { prioritiseVehicleFeatures, prominentVehicleFeatures, vehicleContent } from '@/lib/vehicle-content';
 import { PriceReduction } from '@/components/price-reduction';
-import { shortTrim, stockHighlights, stockRegistrationYear, stockVariant } from '@/lib/stock-presentation';
+import { shortTrim, stockHighlights, stockRegistrationYear, stockVariant, isJustArrived } from '@/lib/stock-presentation';
 import { customerRegistrationDetails } from '@/lib/customer-vehicle-meta';
 import { responsiveVehicleImage, retryOriginalImage } from "@/lib/responsive-vehicle-image";
 import { vehicleAvailability } from '@/lib/customer-convenience';
@@ -130,11 +130,7 @@ export function CarCard({
     car.colour ? { label: 'Colour', value: car.colour } : null,
     car.doors != null || car.seats != null ? { label: 'Doors / seats', value: [car.doors != null ? `${car.doors} doors` : null, car.seats != null ? `${car.seats} seats` : null].filter(Boolean).join(' · ') } : null,
   ].filter(Boolean) as { label: string; value: string }[] : stockDetails ? [...specs, ...(car.bodyType ? [{label: 'Body', value: car.bodyType}] : [])] : specs.slice(0, 4);
-  const stockFeatures = stockDetails
-    ? prioritiseVehicleFeatures(vehicleContent(car).features)
-      .filter(feature => !/\b(?:no|not|without|unavailable|absent|removed|deleted|missing|excluded|disabled|inoperative|faulty|broken)\b|\b(?:isn['’]?t|doesn['’]?t|non[ -]?(?:functional|functioning|working))\b/i.test(feature))
-      .slice(0, 2)
-    : [];
+  const stockFeatures = stockDetails ? prominentVehicleFeatures(vehicleContent(car).features, 2) : [];
   const variant = stockDetails ? stockVariant(car) : shortTrim(car);
   const savedFeatures = savedDetails
     ? prioritiseVehicleFeatures(vehicleContent(car).features).slice(0, 4)
@@ -243,6 +239,7 @@ export function CarCard({
             {galleryUrls.length > 1 ? `${activeIndex + 1} / ${galleryUrls.length}` : photoCount}
           </span>
         )}
+        {stockDetails && isJustArrived(car) && <span className="stock-just-arrived">Just arrived</span>}
         {!catalogue && displayBadges.length > 0 && (photoControls || displayBadges[0] !== 'Available') && (
           <span className="absolute left-3 top-3 max-w-[70%] rounded-sm bg-primary px-2 py-1 text-xs text-primary-foreground">
             {displayBadges[0]}

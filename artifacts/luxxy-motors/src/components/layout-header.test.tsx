@@ -112,3 +112,15 @@ it.each([true, false])('mobile delivery uses the retained general enquiry only w
   fireEvent.click(within(screen.getByRole('navigation', { name: 'Mobile navigation' })).getByRole('button', { name: /^Delivery$/ }));
   expect(state.navigate).toHaveBeenCalledWith(enabled ? '/enquire?type=general' : '/contact');
 });
+
+it('adds an accessible direct-call control to vehicle headers only', () => {
+  state.path = '/vehicle/example';
+  state.settings.contact = { ...state.settings.contact, phone: '0204 6286488' };
+  const view = render(<Layout><p>Vehicle</p></Layout>);
+  expect(view.container.querySelector('[data-site-header]')).toHaveClass('vehicle-page-header');
+  expect(screen.getByRole('link', { name: 'Call Maxi Autos' })).toHaveAttribute('href', 'tel:02046286488');
+  view.unmount();
+  state.path = '/stock';
+  render(<Layout><p>Stock</p></Layout>);
+  expect(screen.queryByRole('link', { name: 'Call Maxi Autos' })).not.toBeInTheDocument();
+});

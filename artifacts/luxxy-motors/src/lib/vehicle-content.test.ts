@@ -1,6 +1,6 @@
 import {expect,it} from 'vitest';
 import type {Car} from './stock-context';
-import {prioritiseVehicleFeatures, vehicleContent, vehicleDescriptionParagraphs} from './vehicle-content';
+import {prioritiseVehicleFeatures, vehicleContent, vehicleDescriptionParagraphs, prominentVehicleFeatures, groupVehicleEquipment} from './vehicle-content';
 it('maps Grok content and removes headings and duplicates',()=>{
  expect(vehicleContent({sourceExtras:{advertDescription:' Description ',featureList:['Please note:', 'Exterior','Bluetooth',' bluetooth ',null,'Added extras']}} as unknown as Car)).toEqual({description:'Description',features:['Bluetooth']});
 });
@@ -55,4 +55,14 @@ it('breaks long descriptions into paragraphs without losing the seller’s histo
 it('keeps supplied paragraph breaks, line breaks, prices and decimals intact', () => {
  expect(vehicleDescriptionParagraphs('Engine: 1.6L\nPrice: £7,995.50\n\nViewing by appointment.')).toEqual(['Engine: 1.6L\nPrice: £7,995.50', 'Viewing by appointment.']);
  expect(vehicleDescriptionParagraphs('')).toEqual([]);
+});
+
+it('selects only positively supplied useful highlights, including panoramic roofs', () => {
+ expect(prominentVehicleFeatures(['Chrome trim', 'Optional Apple CarPlay', 'No heated seats', 'Panoramic roof', 'Reversing Camera', 'Heated Front Seats'], 2)).toEqual(['Panoramic roof', 'Reversing Camera']);
+});
+it('groups source equipment without inventing or dropping unfamiliar details', () => {
+ const features = ['Front parking sensors', 'Bluetooth Audio', 'Alarm', 'Heated seats', 'Alloy wheels', 'Factory code ABC'];
+ const groups = groupVehicleEquipment(features);
+ expect(groups.map(group=>group.label)).toEqual(['Parking & manoeuvring','Entertainment & connectivity','Safety & driver assistance','Comfort & interior','Exterior & styling','Other equipment']);
+ expect(groups.flatMap(group=>group.features)).toEqual(features);
 });

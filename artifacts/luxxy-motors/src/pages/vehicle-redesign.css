@@ -301,3 +301,45 @@
 .vehicle-history-mot { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .25rem 1rem; margin-top: .75rem; }
 .vehicle-long-mot { display: inline-flex; align-items: center; min-height: 44px; border: 1px solid #a7d8bd; border-radius: .5rem; padding: .4rem .75rem; background: #edf8f1; color: #18633e; font-size: .8125rem; font-weight: 600; }
 .vehicle-long-mot:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+
+.vehicle-mobile-availability, .vehicle-mobile-actions { display: none; }
+@media (max-width: 639px) {
+  .vehicle-page.vehicle-redesigned { padding-top: 0; }
+  .vehicle-redesigned .vehicle-browse-tools { padding: 0; margin: 0; }
+  .vehicle-redesigned .vehicle-return-link { min-height: 44px; font-size: 12px; }
+  .vehicle-page.vehicle-redesigned .vehicle-detail-grid { row-gap: 12px; }
+  .vehicle-redesigned .vehicle-compact-identity {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 12px; row-gap: 7px; align-items: start;
+  }
+  .vehicle-redesigned .vehicle-compact-identity .vehicle-availability { display: none; }
+  .vehicle-redesigned .vehicle-compact-identity h1 { grid-column: 1; grid-row: 1; font-size: 22px; line-height: 1.2; letter-spacing: -.02em; }
+  .vehicle-redesigned .vehicle-compact-identity .vehicle-price-block { grid-column: 2; grid-row: 1; max-width: 125px; margin: 0; padding: 0; text-align: right; }
+  .vehicle-redesigned .vehicle-compact-identity .luxxy-price { font-size: 23px; line-height: 1.2; letter-spacing: -.025em; }
+  .vehicle-redesigned .vehicle-compact-identity .vehicle-compact-facts { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0; font-size: 12px; line-height: 1.4; }
+  .vehicle-redesigned .vehicle-compact-facts li + li { border: 0; padding: 0; margin: 0; }
+  .vehicle-redesigned .vehicle-compact-facts li + li::before { content: none; }
+  .vehicle-redesigned .vehicle-detail-gallery { position: relative; }
+  .vehicle-mobile-availability { display: block; position: absolute; top: 12px; right: 12px; z-index: 2; pointer-events: none; border: 1px solid rgb(0 0 0 / .08); border-radius: 3px; padding: 4px 8px; background: rgb(255 255 255 / .95); color: #253039; font-size: 12px; line-height: 1.4; }
+  .vehicle-redesigned .vehicle-summary { display: flex; flex-direction: column; padding: 16px; }
+  .vehicle-redesigned .vehicle-summary-main-actions { display: none; }
+  .vehicle-redesigned .vehicle-direct-contact { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 0; gap: 8px; }
+  .vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-direct-contact .vehicle-contact-action { min-height: 48px; height: auto; padding: 8px; font-size: 12px; }
+
+  .vehicle-redesigned .vehicle-benefit-summary { margin-block: 10px 14px; }
+  .customer-site:has(.vehicle-mobile-actions) { padding-bottom: calc(78px + env(safe-area-inset-bottom)); }
+  .vehicle-mobile-actions { display: flex; gap: 8px; position: fixed; inset: auto 0 0; z-index: 40; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid hsl(var(--border)); background: var(--vehicle-panel); }
+  .vehicle-mobile-actions a { display: flex; flex: 1; min-width: 0; min-height: 46px; align-items: center; justify-content: center; gap: 7px; padding: 8px; border: 1px solid var(--vehicle-link); border-radius: 4px; color: var(--vehicle-link); font-size: 13px; font-weight: 600; text-align: center; line-height: 1.3; }
+  .vehicle-mobile-actions a:last-child { background: var(--vehicle-link); color: var(--dealer-page-link-foreground, #fff); }
+  .vehicle-mobile-actions a:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+  .customer-site:has([aria-controls="mobile-navigation"][aria-expanded="true"]) .vehicle-mobile-actions,
+  body:has([role="dialog"][data-state="open"]) .vehicle-mobile-actions,
+  .vehicle-page:has(input:focus, textarea:focus, select:focus) .vehicle-mobile-actions { display: none; }
+}
+
+.vehicle-description-toggle { display: none; }
+@media (max-width: 639px) {
+  .vehicle-description-narrative[data-expanded="false"] > p:first-child { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  .vehicle-description-narrative[data-expanded="false"] > p:not(:first-child) { display: none; }
+  .vehicle-description-toggle { display: inline-flex; align-items: center; min-height: 44px; padding: 6px 0; color: var(--vehicle-link); font-size: 14px; text-decoration: underline; text-underline-offset: 4px; }
+}

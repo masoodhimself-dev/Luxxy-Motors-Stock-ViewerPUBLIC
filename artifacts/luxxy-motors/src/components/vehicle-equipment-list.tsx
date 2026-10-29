@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Armchair, Camera, CarFront, ChevronDown, CircleGauge, MapPin, Phone,
   Radio, SlidersHorizontal, Smartphone, type DealerIcon,
@@ -5,6 +6,7 @@ import {
 import { vehicleFeatureDetails, type VehicleFeatureIconKey } from '@/lib/vehicle-help';
 import { VehicleFeature } from './customer-help';
 import './vehicle-equipment-list.css';
+import { prominentVehicleFeatures, groupVehicleEquipment } from '@/lib/vehicle-content';
 
 // Compact interface glyphs remain readable at 24px. Equipment illustrations
 // belong in the explanation panel, rather than being shrunk into this list.
@@ -37,29 +39,26 @@ function compactIconForFeature(feature: string) {
 }
 
 export function VehicleEquipmentList({ features }: { features: string[] }) {
-  const highlights: { feature: string; Icon: DealerIcon }[] = [];
-  const more: string[] = [];
-  for (const feature of features) {
-    const Icon = compactIconForFeature(feature);
-    if (Icon) highlights.push({ feature, Icon });
-    else more.push(feature);
-  }
-
+  const [expanded, setExpanded] = useState(false);
+  const unique = [...new Set(features)];
+  const highlights = prominentVehicleFeatures(unique, 6);
+  const more = unique.filter(feature => !highlights.includes(feature));
+  const groups = groupVehicleEquipment(unique);
   return <div className="vehicle-equipment-groups">
-    {highlights.length > 0 && <ul className="vehicle-equipment-list vehicle-equipment-highlights" aria-label="Feature highlights">
-      {highlights.map(({ feature, Icon }) => <li key={feature}>
-        <VehicleFeature feature={feature} icon={<Icon size={24} className="vehicle-equipment-icon" aria-hidden="true" />} />
-      </li>)}
+    {!expanded && highlights.length > 0 && <ul className="vehicle-equipment-list vehicle-equipment-highlights" aria-label="Feature highlights">
+      {highlights.map(feature => {
+        const Icon = compactIconForFeature(feature);
+        return <li key={feature}><VehicleFeature feature={feature} icon={Icon ? <Icon size={24} className="vehicle-equipment-icon" aria-hidden="true" /> : undefined} /></li>;
+      })}
     </ul>}
-    {more.length > 0 && <details className="vehicle-equipment-more vehicle-equipment-text-group" open={highlights.length === 0 ? true : undefined}>
-      <summary>
-        <span>More equipment</span>{' '}
-        <span className="vehicle-equipment-count">{more.length} {more.length === 1 ? 'feature' : 'features'}</span>
-        <ChevronDown size={16} aria-hidden="true" />
-      </summary>
-      <ul className="vehicle-equipment-list vehicle-equipment-text-list" aria-label="More equipment">
-        {more.map(feature => <li key={feature}><VehicleFeature feature={feature} /></li>)}
-      </ul>
+    {more.length > 0 && <details open={expanded} className="vehicle-equipment-more vehicle-equipment-text-group">
+      <summary onClick={event => { event.preventDefault(); setExpanded(value => !value); }}><span>{expanded ? "Show less equipment" : "View all equipment"}</span><span className="vehicle-equipment-count">{unique.length} {unique.length === 1 ? 'feature' : 'features'}</span><ChevronDown size={16} aria-hidden="true" /></summary>
+      {groups.map(group => <section key={group.label} className="vehicle-equipment-category" aria-label={group.label}>
+        <h3 className="text-sm font-semibold">{group.label}</h3>
+        <ul className="vehicle-equipment-list vehicle-equipment-text-list" aria-label={group.label}>
+          {group.features.map(feature => <li key={feature}><VehicleFeature feature={feature} /></li>)}
+        </ul>
+      </section>)}
     </details>}
   </div>;
 }

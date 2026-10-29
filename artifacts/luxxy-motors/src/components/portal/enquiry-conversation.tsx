@@ -1,3 +1,5 @@
+import { EnquiryAssistance } from "./enquiry-assistance";
+import type { Car } from "@/lib/stock-context";
 import { EnquiryOriginalMessage } from "./enquiry-original-message";
 import { ConversationMessage } from "./conversation-message";
 import { useRef, useState, type FormEvent, type ReactNode } from "react";
@@ -377,10 +379,14 @@ export function CustomerActivityTimeline({
   entry,
   entries = [entry],
   canEmail = false,
+  cars = [],
+  onInsertText,
 }: {
   entry: Enquiry;
   entries?: readonly Enquiry[];
   canEmail?: boolean;
+  cars?: readonly Car[];
+  onInsertText?: (text:string)=>void;
 }) {
   const records = enquiryGroup(entry, entries);
   const ids = records.map((record) => record.id);
@@ -484,6 +490,7 @@ export function CustomerActivityTimeline({
           {hasMore ? "+" : ""}
         </span>
       </header>
+      {!loading && !hasError && canEmail && <EnquiryAssistance items={items} cars={cars} onInsertText={onInsertText} closed={entry.status === "closed" || entry.callOutcome === "not_interested"} />}
       {loading && (
         <p role="status" className="case-timeline-notice">
           Loading saved activity…

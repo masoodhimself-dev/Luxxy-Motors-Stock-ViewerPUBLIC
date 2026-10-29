@@ -31,6 +31,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isStaff = location.startsWith('/portal');
   const isCustomerTask = /^\/(sign|customer-details|viewing)\//.test(location);
   const isPremiumShowroom = location === '/' || location === '/stock' || /^\/vehicle\/[^/]+\/?$/.test(location);
+  const isVehiclePage = /^\/vehicle\/[^/]+\/?$/.test(location);
   const isBrowsingPage = location === '/stock' || /^\/vehicle\/[^/]+\/?$/.test(location);
   const { settings: dealerConfig, publicEnquiriesEnabled } = useDealerSettings();
   const whatsAppHref = getWhatsAppHref(undefined, dealerConfig);
@@ -196,7 +197,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         data-site-header
         data-scroll-hidden={stockHeader.hidden}
         onFocusCapture={stockHeader.reveal}
-        className={`fixed top-0 left-0 right-0 z-50 w-full border-b transition-all duration-300 ${isBrowsingPage ? 'stock-browsing-header' : ''} ${darkHomeHeader ? "stock-home-header" : ""} ${
+        className={`fixed top-0 left-0 right-0 z-50 w-full border-b transition-all duration-300 ${isBrowsingPage ? 'stock-browsing-header' : ''} ${isVehiclePage ? 'vehicle-page-header' : ''} ${darkHomeHeader ? "stock-home-header" : ""} ${
           scrolled
             ? 'border-primary/15 bg-background shadow-none'
             : 'border-primary/10 bg-background'
@@ -277,7 +278,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </nav>
 
-          <div className="ml-auto flex items-center gap-2 lg:hidden">
+          <div className="site-mobile-actions ml-auto flex items-center gap-2 lg:hidden">
+            {isVehiclePage && dealerConfig.contact.phone && <a className="vehicle-header-call grid h-11 w-11 shrink-0 place-items-center text-primary" href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} aria-label={`Call ${dealerConfig.identity.name}`}><Phone className="h-5 w-5" aria-hidden="true" /></a>}
             <button type="button" onClick={() => setLocation('/saved')} aria-label={`Saved cars${savedCount ? `, ${savedCount} saved` : ''}`} className="relative grid h-11 w-11 place-items-center text-primary"><Heart className="h-5 w-5" />{savedCount > 0 && <span className="absolute right-0 top-0 grid h-4 min-w-4 place-items-center rounded-full bg-accent text-[10px] text-accent-foreground">{savedCount}</span>}</button>
           {/* Mobile Menu Toggle */}
           <button

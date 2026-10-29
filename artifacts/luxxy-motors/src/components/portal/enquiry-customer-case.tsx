@@ -75,11 +75,13 @@ export function EnquiryCustomerCase({
   entry,
   entries = [entry],
   car,
+  cars = [],
   actions,
 }: {
   entry: Enquiry;
   entries?: readonly Enquiry[];
   car?: Car;
+  cars?: readonly Car[];
   actions: EnquiryRecordActions;
 }) {
   const access = useStaffAccess();
@@ -308,6 +310,8 @@ export function EnquiryCustomerCase({
             entry={entry}
             entries={entries}
             canEmail={canReply}
+            cars={cars}
+            onInsertText={canReply && !replyBusy ? (text) => { setInsertion({ id: ++insertionId.current, text }); setFocusRequest(value => value + 1); setRequestedChannel("email"); } : undefined}
           />
           {canReply && (
             <EnquiryReplyDesk

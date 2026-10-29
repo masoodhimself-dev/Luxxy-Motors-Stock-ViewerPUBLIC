@@ -7,6 +7,7 @@ import { VehicleTerm } from '@/components/customer-help';
 import { VehicleEquipmentList } from '@/components/vehicle-equipment-list';
 import { VehicleSourceReport } from '@/components/vehicle-source-report';
 import { readVehicleSourceReport } from '@/lib/vehicle-source-report';
+import { VehicleDescription } from '@/components/vehicle-description';
 import { VehicleSellingPoints } from '@/components/vehicle-selling-points';
 import { browseReturnHref, requestBrowseRestore } from '@/lib/browse-session';
 import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
@@ -79,6 +80,7 @@ export default function CarDetail() {
   const [shareMessage, setShareMessage] = useState('');
   // Keep identity above the gallery until the two-column layout starts.
   const isCompactLayout = useIsMobile(1100);
+  const isPhoneLayout = useIsMobile(640);
   const [, params] = useRoute('/vehicle/:id');
   const [location, setLocation] = useLocation();
   const { stock, isLoading, error } = useStock();
@@ -281,6 +283,7 @@ export default function CarDetail() {
         <div className="vehicle-detail-grid min-w-0">
           {isCompactLayout && vehicleIdentity}
           <div className="vehicle-detail-gallery min-w-0">
+            <span className="vehicle-mobile-availability">{vehicleAvailability(car.inventoryStatus)}</span>
             <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} customerView customerActions={{
               bookingHref: dealerConfig.testDriveBooking?.enabled && (!car.inventoryStatus || car.inventoryStatus === 'available') ? bookingHref : undefined,
               enquiryHref: customerFeatures.enabled('publicEnquiries') ? '#vehicle-enquiry' : undefined,
@@ -295,12 +298,13 @@ export default function CarDetail() {
             {(car.variant || car.trim) && <p className="vehicle-variant text-sm leading-relaxed text-muted-foreground">{car.variant || car.trim}</p>}
             {registrationDetails}
           </div>}
+          {isPhoneLayout && <VehicleSellingPoints car={car} motBadge={motBadge} />}
           <div className="vehicle-primary-actions vehicle-summary-main-actions">{bookingAction}{enquiryAction}</div>
             <div className="vehicle-direct-contact" aria-label="Talk to us about this car">
               <VehicleCall car={car} />
               <VehicleWhatsApp car={car} />
             </div>
-          <VehicleSellingPoints car={car} motBadge={motBadge} />
+          {!isPhoneLayout && <VehicleSellingPoints car={car} motBadge={motBadge} />}
           <aside className="min-w-0 pt-5">
             <dl className="vehicle-key-facts grid grid-cols-2 gap-x-4 gap-y-4">
               {keyFacts.map((fact) => (
@@ -366,7 +370,7 @@ export default function CarDetail() {
                 {websiteText(dealerConfig, "vehicleDescriptionHeading")}
               </h2>
               <div className="vehicle-description-copy mt-4 space-y-4 text-base leading-7 text-foreground">
-                {vehicleDescriptionParagraphs(description).map((paragraph, index) => <p key={index} className="whitespace-pre-line">{paragraph}</p>)}
+                <VehicleDescription key={car.id} paragraphs={vehicleDescriptionParagraphs(description)} />
                 {separateDescriptionNotes && <aside className="rounded-lg border border-border bg-muted/40 p-4 text-sm leading-6" aria-label="Vehicle history and important information"><h3 className="mb-2 font-semibold text-foreground">Vehicle history & important information</h3>{(car.sourceExtras!.vehicleDescriptionDisclosures as unknown[]).filter((note): note is string => typeof note === 'string').map(note => <p key={note} className="whitespace-pre-line">{note}</p>)}</aside>}
                 {typeof car.sourceExtras?.vehicleDescriptionTax === 'string' && <aside className="rounded-lg border border-border p-4 text-sm leading-6" aria-label="Verified vehicle tax"><h3 className="mb-2 font-semibold">Vehicle tax</h3><p>{car.sourceExtras.vehicleDescriptionTax}</p><a href="https://www.gov.uk/vehicle-tax-direct-debit/setting-up" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center underline">About DVLA Direct Debit payments</a></aside>}
                 {Array.isArray(car.sourceExtras?.originalAdvertDescriptions) && <details className="border-t border-border pt-4 text-sm"><summary className="min-h-11 cursor-pointer py-2 font-semibold">Original advert information</summary>{car.sourceExtras.originalAdvertDescriptions.filter((value): value is string => typeof value === 'string').map((value, index) => <p key={index} className="whitespace-pre-line py-2">{value}</p>)}</details>}
@@ -502,6 +506,10 @@ export default function CarDetail() {
           </div>
         </section>
       )}
+      {(bookingAction || enquiryAction) && <nav className="vehicle-mobile-actions" aria-label="Contact about this vehicle">
+        {enquiryAction && <a href="#vehicle-enquiry" onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); openVehicleEnquiry(); }}><CustomerEnquiry className="h-4 w-4" aria-hidden="true" />Enquire</a>}
+        {bookingAction && <a href={bookingHref} onClick={() => recordBookingIntent({ source: 'car_detail', vehicleContext: true })}><Calendar className="h-4 w-4" aria-hidden="true" />Book test drive</a>}
+      </nav>}
     </div>
   );
     }}

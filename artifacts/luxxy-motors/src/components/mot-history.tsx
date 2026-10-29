@@ -30,10 +30,13 @@ function errorText(cause: unknown) {
         ? "MOT history is not connected yet. Please ask the dealership."
         : "MOT history is temporarily unavailable. Please try again later or use GOV.UK.";
 }
-export function MotHistoryResults({ history }: { history: MotHistory }) {
+export function MotHistoryResults({ history, staff = false }: { history: MotHistory; staff?: boolean }) {
   const firstDue = firstMotDue(history);
-  const latest = history.tests[0],
-    pass = history.tests.find((test) => test.result === "PASSED");
+  const ordered = [...history.tests].sort((a, b) => Date.parse(b.completedDate) - Date.parse(a.completedDate));
+  const latest = ordered[0];
+  const visibleTests = staff ? ordered : ordered.filter(test => test.result === "PASSED");
+  // An older pass must never imply a current pass after a more recent failure.
+  const pass = staff ? ordered.find(test => test.result === "PASSED") : latest?.result === "PASSED" ? latest : undefined;
   return (
     <div className="min-w-0 space-y-4" aria-live="polite">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -46,7 +49,7 @@ export function MotHistoryResults({ history }: { history: MotHistory }) {
             DVSA MOT history · Checked {date(history.checkedAt)}
           </p>
         </div>
-        {latest && (
+        {latest && (staff || latest.result === "PASSED") && (
           <span
             className={`rounded-md border px-3 py-2 text-sm font-semibold ${latest.result === "FAILED" ? "border-red-300 bg-red-50 text-red-900" : "border-emerald-300 bg-emerald-50 text-emerald-900"}`}
           >
@@ -77,7 +80,9 @@ export function MotHistoryResults({ history }: { history: MotHistory }) {
           MOT is not due.
         </p>
       )}
-      {history.tests.map((test, index) => (
+      {!staff && latest?.result === "FAILED" && <p className="text-sm text-muted-foreground">Please ask the dealership to confirm the current MOT details.</p>}
+      {!staff && visibleTests.length > 0 && <h3 className="text-sm font-semibold">Passed MOT tests</h3>}
+      {visibleTests.map((test, index) => (
         <details
           key={`${test.completedDate}-${index}`}
           open={index === 0}
@@ -101,7 +106,9 @@ export function MotHistoryResults({ history }: { history: MotHistory }) {
             </p>
           )}
           {test.defects.length ? (
-            <ul className="space-y-2 text-sm">
+            <details open={staff || undefined} className="mt-2 border-t border-border">
+              <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">{staff ? "Defect details" : "Advisories & notes"} ({test.defects.length})</summary>
+            <ul className="space-y-2 pb-3 text-sm">
               {test.defects.map((defect, i) => (
                 <li key={i} className="break-words">
                   <span
@@ -117,6 +124,7 @@ export function MotHistoryResults({ history }: { history: MotHistory }) {
                 </li>
               ))}
             </ul>
+            </details>
           ) : (
             <p className="text-sm text-muted-foreground">
               No defect details were supplied for this test.
@@ -136,7 +144,7 @@ export function MotHistoryResults({ history }: { history: MotHistory }) {
         rel="noopener noreferrer"
         className="inline-flex min-h-11 items-center text-sm underline"
       >
-        Check MOT history on GOV.UK
+        View full MOT history on GOV.UK
       </a>
     </div>
   );
@@ -227,7 +235,7 @@ export function MotHistoryPanel({
         <p className="text-sm text-muted-foreground">{reply.message}</p>
       )}
       {reply?.status === "available" && (
-        <MotHistoryResults history={reply.history} />
+        <MotHistoryResults history={reply.history} staff={staff} />
       )}
     </section>
   );
@@ -299,7 +307,7 @@ export function StaffMotLookupDialog({
           </p>
         )}
         {reply?.status === "available" && (
-          <MotHistoryResults history={reply.history} />
+          <MotHistoryResults history={reply.history} staff />
         )}
       </DialogContent>
     </Dialog>

@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {arrivalTime, stockHighlights, shortTrim, stockRegistrationYear, stockVariant} from './stock-presentation';
+import {arrivalTime, stockHighlights, shortTrim, stockRegistrationYear, stockVariant, isJustArrived} from './stock-presentation';
 import type {Car} from './stock-context';
 describe('stock presentation from supplied data', () => {
   it('does not treat an import timestamp as an arrival date', () => {
@@ -29,4 +29,10 @@ it('uses the supplied full derivative before a trim label, without inventing mis
   expect(car.variant).toBe('1.5 TSI SE DSG Euro 6 (s/s) 5dr');
   expect(stockVariant({trim:'Trophy'} as Car)).toBe('Trophy');
   expect(stockVariant({} as Car)).toBe('');
+});
+
+it('labels genuine recent arrivals, excluding imports, future dates and reserved stock', () => {
+ const now = new Date('2026-10-29T12:00:00Z');
+ expect(isJustArrived({listedAt:'2026-10-28T12:00:00Z'} as Car, now)).toBe(true);
+ for (const extra of [{scrapedAt:now.toISOString()}, {listedAt:'2026-10-30'}, {listedAt:'invalid'}, {listedAt:'2026-10-22T12:00:00Z'}, {listedAt:'2026-10-28',inventoryStatus:'reserved'}]) expect(isJustArrived(extra as Car, now)).toBe(false);
 });

@@ -15,3 +15,15 @@
 @media (prefers-reduced-motion: reduce) {
   .customer-site [data-site-header].stock-browsing-header { transition: none; }
 }
+
+/* The vehicle page needs one small header above the photograph on phones. */
+.vehicle-header-call { display: none; }
+@media (max-width: 639px) {
+  .customer-site .vehicle-page-header .site-header-inner { height: 64px; gap: 8px; }
+  .customer-site .vehicle-page-header .header-phone-row { display: none; }
+  .customer-site .vehicle-page-header .site-mobile-actions { gap: 0; flex-shrink: 0; }
+  .customer-site .vehicle-page-header .vehicle-header-call { display: grid; }
+  .customer-site .vehicle-page-header .site-header-brand { max-width: calc(100% - 140px); }
+  .customer-site .vehicle-page-header .site-header-brand img,
+  .customer-site .vehicle-page-header .site-header-brand svg { height: 38px; max-width: 100%; }
+}

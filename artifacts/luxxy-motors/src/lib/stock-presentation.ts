@@ -28,3 +28,12 @@ export function stockVariant(car: Car): string {
     .replace(/\b\d(?:dr|door)\b/gi, '')
     .replace(/\s+/g, ' ').trim();
 }
+
+/** Supplied listing dates only: imports and checks do not make a car new again. */
+export function isJustArrived(car: Car, now = new Date()): boolean {
+  if (car.inventoryStatus && car.inventoryStatus !== 'available') return false;
+  const listed = arrivalTime(car);
+  if (listed === null) return false;
+  const age = now.getTime() - listed;
+  return age >= 0 && age < 7 * 86400000;
+}

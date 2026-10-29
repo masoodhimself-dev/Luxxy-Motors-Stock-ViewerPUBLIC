@@ -312,3 +312,13 @@
  .home-browse-group { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; width: 100%; }
  .home-browse-button { padding-inline: 10px; font-size: 12px; }
 }
+
+.homepage-art-directed.homepage-premium .home-stock-context { color: inherit; font: inherit; }
+.homepage-art-directed.homepage-premium .home-shopping-shortcuts { padding-top: 16px; }
+@media (max-width: 639px) {
+  .homepage-art-directed.homepage-premium .stock-search-hero { padding-top: calc(var(--site-header-height) + 8px); padding-bottom: 12px; }
+  .homepage-art-directed.homepage-premium .home-hero-heading { font-size: 28px; margin-top: 5px; }
+  .homepage-art-directed.homepage-premium .hero-stock-search { margin-top: 14px; gap: 8px; }
+  .homepage-art-directed.homepage-premium .hero-search-primary-fields { gap: 10px; }
+  .homepage-art-directed.homepage-premium .home-shopping-shortcuts { padding-block: 14px; }
+}

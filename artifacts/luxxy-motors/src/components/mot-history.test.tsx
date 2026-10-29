@@ -34,11 +34,11 @@ beforeEach(() => {
   state.fetch.mockResolvedValue({ status: "available", history });
 });
 it("does not poll or request MOT data until asked and displays the actual result and units", async () => {
-  render(<MotHistoryPanel vehicleId="car-a" />);
+  render(<MotHistoryPanel vehicleId="car-a" staff />);
   expect(state.fetch).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "View MOT history" }));
   await screen.findByText("Latest test: Failed");
-  expect(state.fetch.mock.calls[0][0]).toBe("/api/vehicles/car-a/mot-history");
+  expect(state.fetch.mock.calls[0][0]).toBe("/api/staff/vehicles/car-a/mot-history");
   expect(screen.getByText(/12,345 km/)).toBeVisible();
   expect(screen.getByText("Brake pipe leaking")).toBeVisible();
   expect(screen.getByText(/outstanding safety recall/)).toBeVisible();
@@ -131,4 +131,29 @@ it("displays retryable provider failures rather than fabricated history", async 
     screen.getByRole("button", { name: "View MOT history" }),
   ).toBeEnabled();
   expect(screen.queryByText("Latest test: Passed")).toBeNull();
+});
+
+it("shows passed tests publicly and keeps advisories collapsed while preserving full staff history", () => {
+  const pass = { ...history.tests[0], result: 'PASSED' as const, completedDate: '2026-10-02T10:00:00Z', expiryDate: '2027-10-01', defects: [{text: 'Tyre worn close to limit', type: 'ADVISORY', dangerous: false}] };
+  const combined = { ...history, recall: 'Unknown' as const, tests: [history.tests[0], pass] };
+  const view = render(<MotHistoryResults history={combined} />);
+  expect(screen.getByText('Latest test: Passed')).toBeVisible();
+  expect(screen.queryByText('Latest test: Failed')).toBeNull();
+  expect(screen.queryByText('Brake pipe leaking')).toBeNull();
+  const advisory = screen.getByText('Tyre worn close to limit');
+  expect(advisory.closest('details')).not.toHaveAttribute('open');
+  expect(screen.getByText('Advisories & notes (1)')).toBeVisible();
+  expect(screen.getByRole('link', { name: 'View full MOT history on GOV.UK' })).toHaveAttribute('href', 'https://www.gov.uk/check-mot-history');
+  view.unmount();
+  render(<MotHistoryResults history={combined} staff />);
+  expect(screen.getByText('Brake pipe leaking')).toBeInTheDocument();
+});
+it("does not present an old pass as current after a newer failure", () => {
+  const pass = { ...history.tests[0], completedDate: '2026-09-01', result: 'PASSED' as const, expiryDate: '2027-09-01', defects: [] };
+  render(<MotHistoryResults history={{ ...history, recall: 'Unknown', tests: [pass, history.tests[0]] }} />);
+  expect(screen.queryByText(/Latest test:/)).toBeNull();
+  expect(screen.queryByText(/Last passed MOT expiry:/)).toBeNull();
+  expect(screen.getByText(/confirm the current MOT details/)).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Passed MOT tests' })).toBeVisible();
+  expect(screen.queryByText('Brake pipe leaking')).toBeNull();
 });

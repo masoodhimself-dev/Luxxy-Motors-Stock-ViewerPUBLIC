@@ -281,6 +281,7 @@ export function EnquiryRecordBrowser({
           </section>
         )}
         <EnquiryCustomerCase
+          cars={cars}
           key={selected.id}
           entries={group}
           entry={selected}
@@ -331,6 +332,7 @@ export function EnquiryRecordBrowser({
                   {openedOriginals.has(original.id) && (
                     <div>
                       <EnquiryCustomerCase
+          cars={cars}
                         entry={original}
                         car={cars.find((car) => car.id === original.vehicleId)}
                         actions={actions}

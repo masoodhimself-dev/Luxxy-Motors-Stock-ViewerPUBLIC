@@ -379,7 +379,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
         <div className="stock-search-shade" aria-hidden="true" />
         <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
           <div className="stock-search-panel">
-            <p className="home-hero-eyebrow">{(!demoSite && dealerConfig.hero.announcement) || `Used cars${dealerConfig.address?.city ? ` in ${dealerConfig.address.city}` : ''}`}</p>
+            <p className="home-hero-eyebrow">{(!demoSite && dealerConfig.hero.announcement) || `Used cars${dealerConfig.address?.city ? ` in ${dealerConfig.address.city}` : ''}`}{!isLoading && !error && stock && <span className="home-stock-context"> · {publicCars.length} {publicCars.length === 1 ? 'car' : 'cars'} in stock</span>}</p>
             <h1 id="home-heading" tabIndex={-1} className="home-hero-heading">{dealerConfig.hero.copy}</h1>
             {dealerConfig.presentation?.showHeroDescription && <p className="home-hero-description">{dealerConfig.hero.subcopy}</p>}
             <HeroStockSearch loading={isLoading} buttonLabel={dealerConfig.hero.primaryCta} cars={publicCars} filters={filters} setFilters={setFilters} count={filteredCars.length} onReset={() => setFilters({ ...defaultFilters })} onSearch={() => revealResults('filter_panel')} />
@@ -394,26 +394,14 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
         unavailable={Boolean(error)}
         showVehicles={dealerConfig.presentation?.featuredEnabled !== false && (featuredCars.length > 0 || publicCars.length === 0)}
         shortcuts={!error && publicCars.length > 0 ? <div className="home-shopping-shortcuts container mx-auto px-4 sm:px-6 lg:px-8">
-        {browseChoices.length > 0 && <nav className="home-browse-group" aria-label="Shop by preference">
-          <h3>Quick filters</h3>
+        <nav className="home-browse-group" aria-label="Browse stock categories">
+          <h3>Browse by preference</h3>
           <div className="home-browse-buttons">
-            {browseChoices.map(choice => <Button asChild variant="outline" size="sm" key={choice.href} className="home-browse-button">
-              <Link href={choice.href} aria-label={`${choice.label} · ${choice.count} ${choice.count === 1 ? 'car' : 'cars'}`}>
-                <span>{choice.label}</span><span className="home-browse-count" aria-hidden="true">{choice.count}</span>
-              </Link>
+            {[...browseChoices, ...[...bodyTypes].sort((a, b) => b.count - a.count).slice(0, 2).map(type => ({ label: type.label, href: '/stock?bodyType=' + encodeURIComponent(type.label), count: type.count }))].slice(0, 5).map(choice => <Button asChild variant="outline" size="sm" key={choice.href} className="home-browse-button">
+              <Link href={choice.href} aria-label={`${choice.label} · ${choice.count} ${choice.count === 1 ? 'car' : 'cars'}`}><span>{choice.label}</span><span className="home-browse-count" aria-hidden="true">{choice.count}</span></Link>
             </Button>)}
           </div>
-        </nav>}
-        {bodyTypes.length > 0 && <nav className="home-browse-group" aria-label="Browse by body type">
-          <h3>Body type</h3>
-          <div className="home-browse-buttons">
-            {bodyTypes.map(type => <Button asChild variant="outline" size="sm" key={type.label} className="home-browse-button">
-              <Link href={'/stock?bodyType=' + encodeURIComponent(type.label)} aria-label={`${type.label} · ${type.count} ${type.count === 1 ? 'car' : 'cars'}`}>
-                <span>{type.label}</span><span className="home-browse-count" aria-hidden="true">{type.count}</span>
-              </Link>
-            </Button>)}
-          </div>
-        </nav>}
+        </nav>
         </div> : undefined}
       />}
 

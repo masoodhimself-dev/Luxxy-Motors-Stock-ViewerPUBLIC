@@ -105,6 +105,7 @@ export function EnquiryForm({
   const [additionalContact, setAdditionalContact] = useState(false);
   const [message, setMessage] = useState(initialMessage);
   const messageTouched = useRef(false);
+  const questionRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     if (!messageTouched.current && initialMessage) setMessage(initialMessage);
   }, [initialMessage]);
@@ -310,9 +311,20 @@ export function EnquiryForm({
         </div>
       )}
 
+      {vehicle && type === 'general' && <div className="enquiry-question-shortcuts" role="group" aria-label="Quick questions">
+        {[
+          { label: 'Availability', text: 'Is this car still available?' },
+          ...(dealerConfig.partExchange?.enabled && features.enabled('partExchange') ? [{ label: 'Part exchange', text: 'Can I part exchange my current car for this vehicle?' }] : []),
+          ...(dealerConfig.delivery?.enabled ? [{ label: 'Delivery', text: 'Can you deliver this car to my postcode?' }] : []),
+        ].map(question => <button key={question.label} type="button" aria-pressed={message.includes(question.text)} disabled={!message.includes(question.text) && message.length + question.text.length + 2 > messageLimit} onClick={() => {
+          messageTouched.current = true;
+          setMessage(current => current.includes(question.text) ? current : [current.trim(), question.text].filter(Boolean).join('\n\n'));
+          questionRef.current?.focus();
+        }}>{question.label}</button>)}
+      </div>}
       <label className="block customer-enquiry-question">
         <span className={labelClass}><MessageSquare className="h-4 w-4 text-accent" aria-hidden="true" />Your question{!embedded && includePartExchange && <span className="text-muted-foreground">(optional)</span>}</span>
-        <Textarea id="enquiry-question" required={embedded || !includePartExchange} minLength={1} maxLength={messageLimit} rows={3}
+        <Textarea ref={questionRef} id="enquiry-question" required={embedded || !includePartExchange} minLength={1} maxLength={messageLimit} rows={3}
           value={message} onChange={event => { messageTouched.current = true; setMessage(event.target.value); }}
           placeholder="What would you like to know?" data-testid="textarea-enquiry-message" />
       </label>

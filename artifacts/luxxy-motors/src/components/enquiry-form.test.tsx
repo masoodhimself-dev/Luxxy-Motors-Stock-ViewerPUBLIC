@@ -110,3 +110,23 @@ it('removes the booking topic when the dealership turns online booking off',()=>
  expect(screen.queryByRole('link',{name:'Book a Test Drive'})).not.toBeInTheDocument();
  expect(screen.getByTestId('form-enquiry')).toBeInTheDocument();
 });
+
+it('adds optional vehicle questions without overwriting a draft or sending it', () => {
+ render(<EnquiryForm vehicle={car} embedded initialMessage="I can visit on Saturday." />);
+ const input = screen.getByRole('textbox', { name: 'Your question' });
+ fireEvent.click(screen.getByRole('button', { name: 'Availability' }));
+ expect(input).toHaveValue('I can visit on Saturday.\n\nIs this car still available?');
+ fireEvent.click(screen.getByRole('button', { name: 'Availability' }));
+ expect(input).toHaveValue('I can visit on Saturday.\n\nIs this car still available?');
+ expect(input).toHaveFocus();
+ expect(state.mutate).not.toHaveBeenCalled();
+});
+it('removes delivery and part-exchange prompts when the dealership disables them', () => {
+ state.servicesEnabled = false;
+ render(<EnquiryForm vehicle={car} embedded />);
+ const prompts = screen.getByRole('group', { name: 'Quick questions' });
+ expect(prompts).toHaveTextContent('Availability');
+ expect(prompts).not.toHaveTextContent('Delivery');
+ expect(prompts).not.toHaveTextContent('Part exchange');
+ expect(state.mutate).not.toHaveBeenCalled();
+});

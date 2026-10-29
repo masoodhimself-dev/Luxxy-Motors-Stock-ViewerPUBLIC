@@ -32,3 +32,8 @@
 .customer-enquiry-form-embedded .customer-enquiry-reply { max-width: none; }
 .customer-enquiry-exchange-add { width: 100%; text-align: left; text-decoration: underline; text-underline-offset: 4px; }
 .customer-enquiry-exchange:has(fieldset) { padding-top: 16px; }
+
+.enquiry-question-shortcuts { display: flex; flex-wrap: wrap; gap: 6px; }
+.enquiry-question-shortcuts button { min-height: 44px; padding: 7px 12px; border: 1px solid hsl(var(--border)); border-radius: 3px; color: hsl(var(--foreground)); font-size: 13px; background: transparent; }
+.enquiry-question-shortcuts button[aria-pressed="true"] { border-color: currentColor; }
+.enquiry-question-shortcuts button:disabled { opacity: .5; cursor: not-allowed; }

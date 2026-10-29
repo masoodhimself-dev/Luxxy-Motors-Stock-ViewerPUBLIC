@@ -1,0 +1,14 @@
+.enquiry-assistance { margin: 12px 0 18px; padding: 14px; border: 1px solid #cbd5dc; border-radius: 6px; background: #fafbfc; font-size: 14px; }
+.enquiry-waiting { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0; }
+.enquiry-waiting span,.enquiry-assistance fieldset p,.enquiry-stock-matches p { color: #526474; font-size: 12px; }
+.enquiry-assistance fieldset { margin-top: 12px; }
+.enquiry-assistance legend { font-weight: 600; }
+.enquiry-question-checks { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.enquiry-question-checks label { display: flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; }
+.enquiry-question-checks input { width: 17px; height: 17px; }
+.enquiry-stock-matches { margin-top: 10px; border-top: 1px solid #dce2e7; padding-top: 8px; }
+.enquiry-stock-matches summary { cursor: pointer; min-height: 36px; padding-top: 6px; font-weight: 600; }
+.enquiry-stock-match { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; }
+.enquiry-stock-match a { text-decoration: underline; font-weight: 600; }
+.enquiry-stock-match span { display: block; color: #526474; }
+@media(max-width: 480px) { .enquiry-stock-match { flex-wrap: wrap; } }

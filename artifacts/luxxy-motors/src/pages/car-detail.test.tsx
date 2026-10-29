@@ -415,3 +415,16 @@ it('keeps MOT and delivery actions out of the price header and in their own rele
   expect(screen.getByRole('link', { name: 'History & information' })).toHaveAttribute('href', '#vehicle-records-heading');
   expect(screen.getByRole('link', { name: 'Delivery' })).toHaveAttribute('href', '#vehicle-delivery-heading');
 });
+
+it('keeps the bottom vehicle actions tied to enquiry and booking permissions', () => {
+  featureState.data.features.publicEnquiries = true;
+  featureState.data.features.testDriveBookings = true;
+  const view = renderVehicle('with-plate', { ...dealerConfig, testDriveBooking: { ...defaultBookingSettings, enabled: true } });
+  const actions = screen.getByRole('navigation', { name: 'Contact about this vehicle' });
+  expect(within(actions).getByRole('link', { name: 'Enquire' })).toHaveAttribute('href', '#vehicle-enquiry');
+  expect(within(actions).getByRole('link', { name: 'Book test drive' })).toHaveAttribute('href', '/enquire?type=viewing&vehicleId=with-plate');
+  view.unmount();
+  featureState.data.features.publicEnquiries = false;
+  renderVehicle('with-plate', { ...dealerConfig, testDriveBooking: { ...defaultBookingSettings, enabled: false } });
+  expect(screen.queryByRole('navigation', { name: 'Contact about this vehicle' })).not.toBeInTheDocument();
+});

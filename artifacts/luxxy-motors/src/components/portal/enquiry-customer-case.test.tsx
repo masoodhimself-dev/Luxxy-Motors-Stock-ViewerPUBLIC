@@ -225,6 +225,8 @@ it("passes the exact selected case group and linked vehicle to connected timelin
     entry,
     entries: records,
     canEmail: true,
+    cars: [],
+    onInsertText: expect.any(Function),
   });
   expect(state.checks.mock.calls.at(-1)?.[0]).toMatchObject({
     entry,

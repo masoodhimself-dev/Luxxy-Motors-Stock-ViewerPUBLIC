@@ -44,8 +44,13 @@ export function postcodeRouter(service=postcodeService,database:Pick<typeof pool
    // Join to current settings: never use a location for an old showroom postcode.
    const result=await database.query("SELECT l.latitude,l.longitude FROM dealer_locations l JOIN dealer_settings s ON s.dealer_id=l.dealer_id WHERE l.dealer_id=$1 AND upper(regexp_replace(s.config #>> '{address,postcode}', '\\s', '', 'g'))=replace(l.postcode,' ','')",[currentDealerId()]);
    const dealer=result.rows[0];
+   if(req.query.basis==='road'){
+    if(!dealer || dealer.latitude==null || dealer.longitude==null || location.latitude===null || location.longitude===null){res.status(503).json({error:'The dealership or customer postcode has no usable coordinates.'});return;}
+    const metres=await roads.metres({latitude:Number(dealer.latitude),longitude:Number(dealer.longitude)},{latitude:location.latitude,longitude:location.longitude});
+    res.json({miles:Math.round(metres/1609.344*10)/10,approximate:true,distanceBasis:'driving'});return;
+   }
    res.json({miles:dealer && location.latitude!==null && location.longitude!==null?Math.round(distanceMiles(location as {latitude:number;longitude:number},{latitude:Number(dealer.latitude),longitude:Number(dealer.longitude)})*10)/10:null,approximate:true});
-  }catch(error){if(error instanceof PostcodeError){res.status(error.status).json({error:error.message,code:error.code});return;}res.status(503).json({error:'Distance is unavailable. You can continue without it.'});}
+  }catch(error){if(error instanceof PostcodeError || error instanceof RoadDistanceError){res.status(error.status).json({error:error.message,code:error.code});return;}res.status(503).json({error:'Distance is unavailable. You can continue without it.'});}
  });
  return router;
 }

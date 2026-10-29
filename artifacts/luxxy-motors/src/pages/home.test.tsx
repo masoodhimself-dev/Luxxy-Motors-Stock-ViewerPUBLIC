@@ -708,7 +708,7 @@ describe('homepage browse buttons and body types', () => {
     const section = screen.getByRole('region',{name:'Browse cars'});
     expect(within(section).queryByText('A few good places to start.')).not.toBeInTheDocument();
     expect(within(section).getByRole('link',{name:'Automatic · 1 car'})).toHaveClass('db-btn');
-    const types = within(section).getByRole('navigation',{name:'Browse by body type'});
+    const types = within(section).getByRole('navigation',{name:'Browse stock categories'});
     expect(within(types).getByRole('link',{name:'SUV · 2 cars'})).toHaveAttribute('href','/stock?bodyType=SUV');
     expect(within(types).getByRole('link',{name:'Hatchback · 1 car'})).toHaveAttribute('href','/stock?bodyType=Hatchback');
     expect(within(types).queryByRole('link',{name:/Estate/})).not.toBeInTheDocument();
@@ -730,7 +730,7 @@ describe('homepage browse buttons and body types', () => {
   it('does not show a body-type row when no body types are supplied', () => {
     stockFixture.cars = originalCars.map(car=>({...car,bodyType:null}));
     renderHome(false);
-    expect(screen.queryByRole('navigation',{name:'Browse by body type'})).not.toBeInTheDocument();
+    expect(screen.getByRole('navigation',{name:'Browse stock categories'}).querySelector('a[href*=bodyType]')).toBeNull();
   });
 });
 
