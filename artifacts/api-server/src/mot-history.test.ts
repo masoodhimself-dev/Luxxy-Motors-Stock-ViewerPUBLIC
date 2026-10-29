@@ -270,7 +270,8 @@ test("additive migration and shared quota work across instances without touching
 test("public vehicle checks are scoped to visible tenant stock; arbitrary registration checks require authorised sales staff", async () => {
   const server = createServer(),
     app = express();
-  let calls = 0;
+  let calls = 0,
+    cacheHit = true;
   const id = "12345678-1234-4234-8234-123456789abc",
     missing = "12345678-1234-4234-8234-123456789abd";
   app.use((req, _res, next) => {
@@ -295,7 +296,7 @@ test("public vehicle checks are scoped to visible tenant stock; arbitrary regist
   const find = async (vehicleId: string) =>
     currentDealerId() === "a"
       ? vehicleId === id
-        ? { id, plate: "AB12CDE" }
+        ? { id, plate: "AB12 CDE" }
         : vehicleId === missing
           ? { id: missing, registration: "2019 (68 reg)" }
           : null
@@ -315,6 +316,16 @@ test("public vehicle checks are scoped to visible tenant stock; arbitrary regist
       } as any,
       find as any,
       find as any,
+      async (registration) => {
+        assert.equal(
+          registration,
+          "AB12CDE",
+          "cache keys normalise spaced stock plates",
+        );
+        return cacheHit
+          ? normaliseMotHistory(raw(), "AB12CDE", "2026-10-28T12:00:00Z")
+          : null;
+      },
     ),
   );
   server.on("request", app);
@@ -332,6 +343,28 @@ test("public vehicle checks are scoped to visible tenant stock; arbitrary regist
     };
     assert.equal((await get(`/api/vehicles/${id}/mot-history`)).status, 200);
     assert.equal(calls, 1);
+    const cached = await get(`/api/vehicles/${id}/mot-history?cacheOnly=true`);
+    assert.equal(cached.body.status, "available");
+    cacheHit = false;
+    assert.equal(
+      (await get(`/api/vehicles/${id}/mot-history?cacheOnly=true`)).body.status,
+      "uncached",
+    );
+    cacheHit = true;
+    assert.equal(calls, 1, "cache-only checks must not call DVSA");
+    assert.equal(
+      (
+        await get(`/api/vehicles/${id}/mot-history?cacheOnly=true`, {
+          "x-fixture-dealer": "b",
+        })
+      ).status,
+      404,
+    );
+    assert.equal(
+      (await get(`/api/vehicles/${missing}/mot-history?cacheOnly=true`)).body
+        .status,
+      "registration_missing",
+    );
     const invalidEstimate = await get(
       "/api/mot-mileage-estimate?registration=invalid",
     );
@@ -394,4 +427,28 @@ test("public vehicle checks are scoped to visible tenant stock; arbitrary regist
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
+});
+
+test("newly registered DVSA records can omit tests and retain the official first due date", () => {
+  const history = normaliseMotHistory(
+    {
+      registration: "AB12CDE",
+      make: "FORD",
+      model: "FOCUS",
+      registrationDate: "2025-05-20",
+      motTestDueDate: "2028-05-20",
+    },
+    "AB12CDE",
+    "2026-10-29T10:00:00Z",
+  );
+  assert.equal(history.firstMotDueDate, "2028-05-20");
+  assert.equal(history.registrationDate, "2025-05-20");
+  assert.deepEqual(history.tests, []);
+  assert.throws(() =>
+    normaliseMotHistory(
+      { registration: "AB12CDE" },
+      "AB12CDE",
+      history.checkedAt,
+    ),
+  );
 });

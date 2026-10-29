@@ -12,6 +12,9 @@ export interface MotHistory {
   make: string | null;
   model: string | null;
   checkedAt: string;
+  /** Supplied by DVSA for new vehicles; never inferred from registration bands. */
+  firstMotDueDate?: string | null;
+  registrationDate?: string | null;
   recall: "Yes" | "No" | "Unknown" | "Unavailable";
   tests: MotTest[];
 }

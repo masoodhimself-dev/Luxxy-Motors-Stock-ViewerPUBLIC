@@ -1,4 +1,4 @@
-import {MotHistoryPanel} from '@/components/mot-history';
+import {VehicleQuickChecks} from '@/components/vehicle-quick-checks';
 
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import './vehicle-redesign.css';
@@ -264,6 +264,7 @@ export default function CarDetail() {
         {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <p className="text-sm text-muted-foreground">{car.priceType}</p>}
         {damageDisclosure && <a href="#vehicle-history" className="vehicle-insurance-disclosure"><VehicleFactIcon label="Insurance history" /><span>{damageDisclosure.summary}</span><ArrowRight className="h-4 w-4" /></a>}
       </div>
+      <VehicleQuickChecks key={car.id} vehicleId={car.id} />
     </header>
   );
 
@@ -447,7 +448,7 @@ export default function CarDetail() {
             <a className="vehicle-service-record-request" href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}&question=service`}><VehicleFactIcon label="Service history" /><span>Request service records<span className="vehicle-service-record-note">Ask us to email the available service-book photos and records.</span></span><ArrowRight className="h-4 w-4" /></a>
           </div>
           {sourceReport && <VehicleSourceReport car={car} />}
-          <MotHistoryPanel key={car.id} vehicleId={car.id}/>
+
         </div>
           <div className="vehicle-enquiry-visit-row">
           {customerFeatures.enabled('publicEnquiries') && <section id="vehicle-enquiry" className="vehicle-inline-enquiry min-w-0" aria-labelledby="vehicle-enquiry-heading">

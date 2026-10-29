@@ -46,14 +46,16 @@ export function normaliseMotHistory(
   if (
     typeof record.registration !== "string" ||
     normaliseMotRegistration(record.registration) !== registration ||
-    !Array.isArray(record.motTests) ||
-    record.motTests.length > 500
+    (!Array.isArray(record.motTests) &&
+      !(record.motTests == null && date(record.motTestDueDate))) ||
+    (Array.isArray(record.motTests) && record.motTests.length > 500)
   )
     throw new MotError(
       "unavailable",
       "MOT history could not be verified. Please try again later.",
     );
-  const tests: MotTest[] = record.motTests
+  const tests = (record.motTests ?? []) as unknown[];
+  const normalisedTests: MotTest[] = tests
     .map((value: unknown) => {
       if (!value || typeof value !== "object")
         throw new MotError(
@@ -105,12 +107,14 @@ export function normaliseMotHistory(
     make: text(record.make, 100),
     model: text(record.model, 100),
     checkedAt,
+    firstMotDueDate: date(record.motTestDueDate)?.slice(0, 10) ?? null,
+    registrationDate: date(record.registrationDate)?.slice(0, 10) ?? null,
     recall: ["Yes", "No", "Unknown", "Unavailable"].includes(
       String(record.hasOutstandingRecall),
     )
       ? (record.hasOutstandingRecall as MotHistory["recall"])
       : "Unknown",
-    tests,
+    tests: normalisedTests,
   };
 }
 export interface MotCache {

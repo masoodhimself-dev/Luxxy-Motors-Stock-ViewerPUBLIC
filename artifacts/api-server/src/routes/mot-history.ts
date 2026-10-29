@@ -6,7 +6,7 @@ import { currentDealerId } from "../lib/tenant-context";
 import { requireStaff, requirePermission } from "../middlewares/staff-auth";
 import { MotError, normaliseMotRegistration } from "../lib/mot-history";
 import { estimateMotMileage } from "../lib/mot-mileage-estimate";
-import { motService } from "../lib/mot-storage";
+import { motService, readCachedMot } from "../lib/mot-storage";
 import { findPublicVehicle } from "./stock";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -26,6 +26,7 @@ export function motRouter(
   service = motService,
   publicVehicle = findPublicVehicle,
   staffVehicle = findStaffMotVehicle,
+  cachedHistory = readCachedMot,
 ) {
   const router = Router(),
     limits = new Map<string, { until: number; count: number }>();
@@ -86,6 +87,15 @@ export function motRouter(
             message:
               "Ask the dealership for the registration to check MOT history.",
           });
+          return;
+        }
+        if (req.query.cacheOnly === "true") {
+          const history = await cachedHistory(
+            normaliseMotRegistration(registration),
+          );
+          res.json(
+            history ? { status: "available", history } : { status: "uncached" },
+          );
           return;
         }
         res.json({

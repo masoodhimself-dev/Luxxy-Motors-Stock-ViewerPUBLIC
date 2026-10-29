@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { customFetch } from "@workspace/api-client-react";
+import { firstMotDue } from "@/lib/long-mot";
 import type { MotHistory } from "@workspace/vehicle-meta";
 import { Button } from "./ui/button";
 import {
@@ -30,6 +31,7 @@ function errorText(cause: unknown) {
         : "MOT history is temporarily unavailable. Please try again later or use GOV.UK.";
 }
 export function MotHistoryResults({ history }: { history: MotHistory }) {
+  const firstDue = firstMotDue(history);
   const latest = history.tests[0],
     pass = history.tests.find((test) => test.result === "PASSED");
   return (
@@ -63,7 +65,13 @@ export function MotHistoryResults({ history }: { history: MotHistory }) {
           details.
         </p>
       )}
-      {!latest && (
+      {firstDue && (
+        <p className="rounded-md border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900">
+          First MOT due: {date(firstDue)}. No MOT required before this date,
+          according to the recorded first-MOT due date.
+        </p>
+      )}
+      {!latest && !firstDue && (
         <p className="text-sm text-muted-foreground">
           No MOT tests were returned. This does not confirm exemption or that an
           MOT is not due.
@@ -168,20 +176,35 @@ function useMotRequest(identity: string) {
 export function MotHistoryPanel({
   vehicleId,
   staff = false,
+  autoLoad = false,
+  onHistory,
 }: {
   vehicleId: string;
   staff?: boolean;
+  autoLoad?: boolean;
+  onHistory?: (history: MotHistory) => void;
 }) {
   const { busy, reply, error, load } = useMotRequest(`${staff}:${vehicleId}`);
+  useEffect(() => {
+    if (autoLoad)
+      void load(
+        `/api/${staff ? "staff/" : ""}vehicles/${encodeURIComponent(vehicleId)}/mot-history`,
+      );
+  }, [vehicleId, staff, autoLoad]);
+  useEffect(() => {
+    if (reply?.status === "available") onHistory?.(reply.history);
+  }, [reply, onHistory]);
   return (
     <section
       aria-label="MOT history"
-      className="min-w-0 border-t border-border py-6"
+      className={autoLoad ? "min-w-0" : "min-w-0 border-t border-border py-6"}
     >
-      <h2 className="section-heading mb-3">MOT history</h2>
-      <p className="mb-3 text-sm text-muted-foreground">
-        See recorded MOT results, mileage and advisory notices.
-      </p>
+      {!autoLoad && <h2 className="section-heading mb-3">MOT history</h2>}
+      {!autoLoad && (
+        <p className="mb-3 text-sm text-muted-foreground">
+          See recorded MOT results, mileage and advisory notices.
+        </p>
+      )}
       {!reply && (
         <Button
           type="button"

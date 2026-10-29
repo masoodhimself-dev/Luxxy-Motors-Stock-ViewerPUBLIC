@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-29",
+  "release": "local only; not deployed",
+  "features": [
+    "Long MOT badge with at least nine full calendar months remaining, from fresh DVSA records and latest passed test only",
+    "Official first MOT due date for new vehicles; never inferred from model year or registration band",
+    "Two compact controls directly below the price, above the gallery on phones",
+    "Road-mile delivery calculator uses existing dealership settings; quote retained when reopening",
+    "Cache-only MOT read on arrival; full provider lookup only on user action; no polling"
+  ],
+  "verification": {
+    "focused_interface_tests": 43,
+    "backend_mot_and_mileage_tests": 15,
+    "new_responsive_journeys": 8,
+    "existing_apple_mot_and_part_exchange_journeys": 6,
+    "frontend_typecheck": "passed",
+    "backend_typecheck": "passed",
+    "production_build": "passed"
+  },
+  "coverage": [
+    "Auto Trader and Cazoo public dealership fixtures",
+    "WebKit: 320px small phone, iPhone 13, iPad Pro 11 and 1440px desktop",
+    "Existing MOT and unsaved invoice part-exchange checks: Luxxy, Shore Drive and Multi-Choice on iPhone and iPad",
+    "Latest failure suppresses badge; missing registration, unavailable history, first due date, delivery disabled, retained quote, keyboard focus and mobile title/close-button overlap"
+  ],
+  "protections": [
+    "No live writes or messages",
+    "No changes to invoices, stock, customer records or payments",
+    "No database migration, credential or schedule changes"
+  ],
+  "limits": [
+    "Device profiles are browser simulations, not physical-device testing",
+    "Provider replies and delivery quotes use isolated fixtures; current live provider availability is not retested",
+    "External car-photo requests were deliberately blocked in browser tests; photo fallback in screenshots is expected",
+    "Cars with no fresh cached MOT data show the history button without a badge until checked"
+  ],
+  "official_references": [
+    "https://documentation.history.mot.api.gov.uk/mot-history-api/api-specification/",
+    "https://www.gov.uk/getting-an-mot/when-to-get-an-mot"
+  ]
+}

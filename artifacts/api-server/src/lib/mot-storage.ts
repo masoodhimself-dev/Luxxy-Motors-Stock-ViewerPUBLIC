@@ -18,6 +18,15 @@ export async function reserveMotBudget(
   ) SELECT count(*)::int AS claimed FROM claimed`);
   return result.rows[0]?.claimed === 2;
 }
+export async function readCachedMot(
+  registration: string,
+): Promise<MotHistory | null> {
+  const result = await pool.query(
+    "SELECT data FROM mot_history_cache WHERE registration=$1 AND expires_at>now()",
+    [registration],
+  );
+  return (result.rows[0]?.data as MotHistory | null) ?? null;
+}
 export const motService = createMotService({
   credentials: () => {
     const clientId = process.env.DVSA_MOT_CLIENT_ID?.trim(),
@@ -29,13 +38,7 @@ export const motService = createMotService({
       : null;
   },
   cache: {
-    async read(registration) {
-      const result = await pool.query(
-        "SELECT data FROM mot_history_cache WHERE registration=$1 AND expires_at>now()",
-        [registration],
-      );
-      return (result.rows[0]?.data as MotHistory | null) ?? null;
-    },
+    read: readCachedMot,
     async write(record) {
       await pool.query(
         "INSERT INTO mot_history_cache(registration,data,expires_at) VALUES($1,$2,now()+interval '24 hours') ON CONFLICT(registration) DO UPDATE SET data=excluded.data,expires_at=excluded.expires_at",

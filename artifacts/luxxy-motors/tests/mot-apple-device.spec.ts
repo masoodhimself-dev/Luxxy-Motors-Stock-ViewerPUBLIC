@@ -48,6 +48,8 @@ for (const slug of ["shore", "multi", "luxxy"])
         return route.fulfill({ json: settings });
       if (url.pathname === "/api/stock") return route.fulfill({ json: stock });
       if (url.pathname.endsWith("/mot-history")) {
+        if (url.searchParams.get("cacheOnly") === "true")
+          return route.fulfill({ json: { status: "uncached" } });
         motCalls++;
         if (mode === "missing")
           return route.fulfill({
@@ -74,7 +76,7 @@ for (const slug of ["shore", "multi", "luxxy"])
     });
     await page.goto(`/vehicle/${car.id}`);
     const view = page.getByRole("button", {
-      name: "View MOT history",
+      name: "MOT history",
       exact: true,
     });
     await expect(view).toBeVisible();

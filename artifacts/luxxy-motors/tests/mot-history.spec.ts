@@ -48,6 +48,10 @@ for (const width of [390, 820, 1440])
       return route.continue();
     });
     await page.route("**/api/**mot-history*", (route) => {
+      if (
+        new URL(route.request().url()).searchParams.get("cacheOnly") === "true"
+      )
+        return route.fulfill({ json: { status: "uncached" } });
       calls++;
       return unavailable
         ? route.fulfill({ status: 503, json: { code: "unavailable" } })
@@ -56,7 +60,7 @@ for (const width of [390, 820, 1440])
     const stock = await (await request.get("/api/stock")).json();
     await page.goto(`/vehicle/${stock.cars[0].id}`);
     const view = page.getByRole("button", {
-      name: "View MOT history",
+      name: "MOT history",
       exact: true,
     });
     await expect(view).toBeVisible();
