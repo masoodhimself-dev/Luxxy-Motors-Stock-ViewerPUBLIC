@@ -1,3 +1,4 @@
+import { StockFeedSettings } from "./stock-feed-settings";
 import { AccountInvitations } from "@/components/account-invitations";
 import {
   Store,
@@ -291,6 +292,7 @@ export function DealerSettingsHub() {
             group={selected as "dealership" | "website" | "bookings"}
           />
         )}
+        {selected === "dealership" && <StockFeedSettings />}
         {selected === "paperwork" && <SalesPaperworkSettings />}
         {selected === "emails" && <EmailTemplatesSettings />}
         {selected === "team" && <TeamSettings />}

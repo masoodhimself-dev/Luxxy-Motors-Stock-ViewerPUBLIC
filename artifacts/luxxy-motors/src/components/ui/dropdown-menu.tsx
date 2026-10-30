@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
+import './popup-surfaces.css';
 import { cn } from '@/lib/utils';
 import { Check, ChevronRight, Circle } from '@/components/icons';
 
@@ -67,6 +68,7 @@ const DropdownMenuContent = React.forwardRef<
   <DropdownMenuPrimitive.Portal>
     <DropdownMenuPrimitive.Content
       ref={ref}
+      data-popup-surface="menu"
       sideOffset={sideOffset}
       className={cn(
         'z-50 max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-md border bg-popover p-1 text-popover-foreground',

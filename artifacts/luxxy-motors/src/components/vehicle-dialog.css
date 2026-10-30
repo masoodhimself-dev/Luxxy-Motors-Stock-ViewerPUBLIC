@@ -132,3 +132,23 @@
 @media (prefers-reduced-motion: reduce) {
   .vehicle-action-dialog, .vehicle-action-dialog * { animation: none !important; transition: none !important; }
 }
+
+/* Keep the editable message close to the top on narrow phones. */
+@media (max-width: 639px) {
+ .vehicle-whatsapp-dialog { padding: 18px 16px; gap: 12px; }
+ .vehicle-whatsapp-dialog .vehicle-action-heading { gap: 6px; padding-right: 44px; }
+ .vehicle-whatsapp-dialog h2 { font-size: 20px; padding-right: 0; }
+ .vehicle-whatsapp-dialog .vehicle-action-heading > p[id] { font-size: 13px; line-height: 1.5; }
+ .vehicle-whatsapp-dialog .vehicle-dialog-vehicle { padding: 10px; gap: 10px; }
+ .vehicle-whatsapp-dialog .vehicle-dialog-vehicle > img { width: 64px; height: 48px; }
+ .vehicle-whatsapp-dialog .vehicle-dialog-vehicle-title { font-size: 13px; }
+ .vehicle-whatsapp-dialog .vehicle-dialog-vehicle-price { font-size: 17px; }
+ .vehicle-whatsapp-dialog .vehicle-message-recipient { gap: 8px; }
+ .vehicle-whatsapp-dialog .vehicle-message-recipient-name { font-size: 13px; }
+ .vehicle-whatsapp-dialog .vehicle-action-status { padding: 10px; gap: 8px; }
+ .vehicle-whatsapp-dialog .vehicle-action-status p { font-size: 12px; line-height: 1.5; }
+ .vehicle-whatsapp-dialog .vehicle-message-hint { font-size: 12px; }
+}
+@media (max-width: 359px) {
+ .vehicle-whatsapp-dialog .vehicle-dialog-vehicle > img { display: none; }
+}

@@ -1026,3 +1026,5 @@
     margin-top: 6px;
   }
 }
+
+.portal-car-actions > .cars-start-sale { flex: 1 1 auto; font-size: 12px; padding-inline: 11px; }

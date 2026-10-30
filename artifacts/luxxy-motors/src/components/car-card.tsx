@@ -119,8 +119,8 @@ export function CarCard({
       : car.mileageText
         ? { label: 'Mileage', value: car.mileageText }
         : null,
-    car.fuel ? { label: 'Fuel', value: car.fuel } : null,
     car.transmission ? { label: 'Gearbox', value: car.transmission } : null,
+    car.fuel ? { label: 'Fuel', value: car.fuel } : null,
     car.engineSize ? { label: 'Engine', value: car.engineSize } : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
@@ -277,7 +277,7 @@ export function CarCard({
               ? formatPrice(car.price, car.currency)
               : 'Price on application'}
           </p>
-          {summaryOnly && <p className="featured-car-facts">{[car.year, car.mileage != null ? formatCompactMileage(car.mileage) : car.mileageText, car.fuel, car.transmission].filter(Boolean).join(' · ')}</p>}
+          {summaryOnly && <p className="featured-car-facts">{[car.year, car.mileage != null ? formatCompactMileage(car.mileage) : car.mileageText, car.transmission, car.fuel].filter(Boolean).join(' · ')}</p>}
           {!summaryOnly && <PriceReduction car={car} />}
           {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <span className="text-xs text-muted-foreground">{car.priceType}</span>}
 

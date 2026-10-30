@@ -213,6 +213,7 @@ for (const source of ["cazoo", "autotrader"])
         });
       return route.continue();
     });
+    await page.route("**/api/demo-status", route => route.fulfill({json: {demo: true}}));
     await page.goto("/portal?section=cars");
     const list = page.getByRole("list", { name: "Current cars", exact: true });
     await expect(list.locator(":scope > li")).toHaveCount(2);
@@ -230,6 +231,11 @@ for (const source of ["cazoo", "autotrader"])
         .toBeLessThanOrEqual(page.viewportSize()!.width);
     };
     await overflow();
+    await expect(page.getByText("Preview website", {exact: true})).toHaveCount(0);
+    await expect(page.locator(".cars-feed-line")).toHaveCount(0);
+    const firstActions = list.locator(":scope > li").first().locator(".portal-car-actions");
+    await expect(firstActions.getByRole("button", {name: "New enquiry", exact: true})).toBeVisible();
+    await expect(firstActions.getByRole("button", {name: "Start sale", exact: true})).toBeVisible();
     const output = process.env.CARS_REDESIGN_OUTPUT;
     if (output) {
       await mkdir(output, { recursive: true });

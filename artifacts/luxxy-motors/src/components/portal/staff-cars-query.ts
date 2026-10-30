@@ -5,9 +5,10 @@ import type { StaffCarMeta, StaffCarsFeed } from "@workspace/vehicle-meta";
 export type StaffCar = Car & { staff: StaffCarMeta };
 export type StaffCarsData = { cars: StaffCar[]; feed: StaffCarsFeed };
 export const staffCarsKey = ["staff-cars"];
-export function useStaffCars() {
+export function useStaffCars(enabled = true) {
   return useQuery({
     queryKey: staffCarsKey,
+    enabled,
     queryFn: ({ signal }) =>
       customFetch<StaffCarsData>("/api/staff/cars", { signal }),
     staleTime: 60000,

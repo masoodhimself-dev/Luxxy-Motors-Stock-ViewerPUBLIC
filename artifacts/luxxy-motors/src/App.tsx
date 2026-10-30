@@ -74,7 +74,7 @@ function Router() {
   if (location === '/join') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><JoinDealership /></Suspense></RoutedErrorBoundary>;
   if (location === '/platform') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><Platform /></Suspense></RoutedErrorBoundary>;
   return (
-    <><DemoNotice/><Layout>
+    <>{!/^\/portal(?:\/|$)/.test(location) && <DemoNotice/>}<Layout>
       <RoutedErrorBoundary>
         <Suspense fallback={<RouteLoading />}>
           <Switch>

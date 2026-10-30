@@ -354,7 +354,7 @@ describe('showroom search filters', () => {
     stockFixture.cars = originalCars.map(car => ({ ...car, heroImage: null, images: [] }));
     renderHome(false);
     expect(screen.queryAllByTestId(/^card-vehicle-/)).toHaveLength(0);
-    expect(screen.getByRole('link', { name: 'View all stock' })).toHaveAttribute('href', '/stock?all=1');
+    expect(screen.getByRole('link', { name: /^Browse \d+ cars?$/ })).toHaveAttribute('href', '/stock?all=1');
     expect(screen.queryByText('We have no cars online at the moment. Ask us about our stock.')).not.toBeInTheDocument();
     cleanup();
     renderHome();
@@ -441,7 +441,7 @@ describe('showroom search filters', () => {
     expect(screen.getByRole('heading', { name: /Find your next car/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Explore our cars' })).toBeInTheDocument();
     expect(screen.queryByTestId('input-showroom-search')).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'View all stock' })).toHaveAttribute('href', '/stock?all=1');
+    expect(screen.getByRole('link', { name: /^Browse \d+ cars?$/ })).toHaveAttribute('href', '/stock?all=1');
     expect(screen.queryByRole('button', { name: 'Auto-scroll cars' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Next featured cars' })).toBeInTheDocument();
     expect(screen.getAllByTestId(/^card-vehicle-/)).toHaveLength(2);
@@ -756,4 +756,37 @@ it('shows supplied stock detail, exact mileage and an explicit car link while re
   expect(equipment).not.toHaveTextContent('No parking sensors');
   expect(within(card).getByRole('link',{name:'View car'})).toHaveAttribute('href',`/vehicle/${car.id}`);
   expect(within(card).getByTestId(`button-save-${car.id}`)).toBeInTheDocument();
+});
+
+it('places Multi-Choice photos only on enabled homepage sections, never stock results', () => {
+  overrideSettings = {...dealerConfigFixture, identity: {...dealerConfigFixture.identity, name: 'Multi Choice Motors'}, delivery: {...dealerConfigFixture.delivery, enabled: true}, partExchange: {...dealerConfigFixture.partExchange, enabled: true}};
+  renderHome(false);
+  expect(screen.getByAltText('Vehicle delivery to a UK home')).toBeInTheDocument();
+  expect(screen.getByAltText('A customer handing over car keys for part exchange')).toBeInTheDocument();
+  cleanup();
+  renderHome(true);
+  expect(screen.queryByAltText('Vehicle delivery to a UK home')).not.toBeInTheDocument();
+  cleanup();
+  overrideSettings = {...overrideSettings, delivery: {...overrideSettings.delivery, enabled: false}, partExchange: {...overrideSettings.partExchange, enabled: false}};
+  renderHome(false);
+  expect(screen.queryByAltText('Vehicle delivery to a UK home')).not.toBeInTheDocument();
+  expect(screen.queryByAltText('A customer handing over car keys for part exchange')).not.toBeInTheDocument();
+});
+
+it('keeps hybrid/electric shortcuts consistent with their results and displays the complete stock count', () => {
+ stockFixture.cars = [
+  {...originalCars[0], fuel: 'Petrol Hybrid', price: 4000},
+  {...originalCars[1], fuel: 'Electric', price: 8000},
+  {...originalCars[2], fuel: 'Diesel', price: 6000},
+ ];
+ renderHome(false);
+ expect(screen.getByRole('link', {name: 'Browse 3 cars'})).toHaveAttribute('href', '/stock?all=1');
+ expect(screen.getByRole('link', {name: 'Hybrid & electric · 2 cars'})).toHaveAttribute('href', '/stock?fuel=Hybrid%20%26%20electric');
+ expect(screen.getByRole('link', {name: 'Under £5,000 · 1 car'})).toHaveAttribute('href', '/stock?maxPrice=5000');
+ cleanup();
+ window.history.replaceState({}, '', '/stock?fuel=Hybrid%20%26%20electric');
+ renderHome();
+ expect(resultTitles()).toHaveLength(2);
+ fireEvent.click(screen.getByRole('button', {name: 'Advanced search'}));
+ expect(screen.getByRole('combobox', {name: 'Fuel'})).toHaveValue('Hybrid & electric');
 });

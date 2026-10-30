@@ -1,3 +1,4 @@
+import { Search } from "@/components/icons";
 import type { ReactNode } from 'react';
 
 export function PageHeading({
@@ -31,6 +32,7 @@ export function PageEmptyState({ title, children, action }: {
   title: string; children: ReactNode; action: ReactNode;
 }) {
   return <section className="page-empty-state mx-auto w-full min-w-0 max-w-lg py-10 text-center sm:py-14">
+    <Search className="mx-auto mb-4 h-6 w-6 text-muted-foreground" aria-hidden="true" />
     <h2 className="break-words font-display text-2xl font-semibold tracking-tight text-foreground">{title}</h2>
     <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{children}</p>
     <div className="mt-6 flex flex-wrap justify-center gap-3">{action}</div>

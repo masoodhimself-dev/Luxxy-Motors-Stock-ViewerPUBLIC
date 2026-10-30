@@ -370,3 +370,13 @@ it("keeps a reserved car visible in Reserved when its advert goes missing", () =
     }),
   ).toBeVisible();
 });
+
+it("offers a direct sale beside the next enquiry action only for eligible stock", () => {
+  render(<CarsWorkspace {...props} />);
+  const available = within(screen.getByTestId("portal-car-one"));
+  expect(available.getByRole("button", { name: "New enquiry" })).toBeVisible();
+  fireEvent.click(available.getByRole("button", { name: "Start sale" }));
+  expect(props.onSale).toHaveBeenCalledWith("one");
+  expect(within(screen.getByTestId("portal-car-two")).queryByRole("button", { name: "Start sale" })).not.toBeInTheDocument();
+  expect(screen.queryByText("Official Cazoo CSV")).not.toBeInTheDocument();
+});

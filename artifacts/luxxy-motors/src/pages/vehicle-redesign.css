@@ -343,3 +343,6 @@
   .vehicle-description-narrative[data-expanded="false"] > p:not(:first-child) { display: none; }
   .vehicle-description-toggle { display: inline-flex; align-items: center; min-height: 44px; padding: 6px 0; color: var(--vehicle-link); font-size: 14px; text-decoration: underline; text-underline-offset: 4px; }
 }
+.vehicle-summary-highlights { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 14px; font-size: 12px; line-height: 1.6; color: var(--vehicle-muted); }
+.vehicle-summary-highlights li { max-width: 100%; overflow-wrap: anywhere; }
+.vehicle-summary-highlights li + li::before { content: '·'; margin-right: 12px; }

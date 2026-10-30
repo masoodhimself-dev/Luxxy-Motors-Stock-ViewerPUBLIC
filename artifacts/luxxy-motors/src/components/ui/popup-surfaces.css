@@ -1,0 +1,10 @@
+/* Shared popup ergonomics: no changes to dismissal, permissions or form logic. */
+[data-popup-surface] { overscroll-behavior: contain; scroll-padding-block: 16px; }
+[data-popup-surface] :focus-visible { scroll-margin-block: 16px; }
+[data-popup-close] { flex-shrink: 0; touch-action: manipulation; }
+@media (pointer: coarse) {
+ [data-popup-surface="menu"] :is([role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]) { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+ [data-popup-surface] { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

@@ -232,6 +232,7 @@ export function Filters({
     cars.forEach((car) => {
       if (car.fuel) fuelSet.add(car.fuel);
     });
+    if (cars.some(car => /hybrid|electric/i.test(car.fuel || ''))) fuelSet.add('Hybrid & electric');
     return Array.from(fuelSet).sort();
   }, [cars]);
 

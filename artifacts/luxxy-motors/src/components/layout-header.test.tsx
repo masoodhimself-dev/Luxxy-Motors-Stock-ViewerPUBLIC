@@ -113,14 +113,14 @@ it.each([true, false])('mobile delivery uses the retained general enquiry only w
   expect(state.navigate).toHaveBeenCalledWith(enabled ? '/enquire?type=general' : '/contact');
 });
 
-it('adds an accessible direct-call control to vehicle headers only', () => {
+it('keeps the mobile header compact and the phone number available in navigation', () => {
   state.path = '/vehicle/example';
   state.settings.contact = { ...state.settings.contact, phone: '0204 6286488' };
   const view = render(<Layout><p>Vehicle</p></Layout>);
-  expect(view.container.querySelector('[data-site-header]')).toHaveClass('vehicle-page-header');
-  expect(screen.getByRole('link', { name: 'Call Maxi Autos' })).toHaveAttribute('href', 'tel:02046286488');
-  view.unmount();
-  state.path = '/stock';
-  render(<Layout><p>Stock</p></Layout>);
-  expect(screen.queryByRole('link', { name: 'Call Maxi Autos' })).not.toBeInTheDocument();
+  expect(view.container.querySelector('.header-phone-row')).toBeNull();
+  expect(view.container.querySelector('.vehicle-header-call')).toBeNull();
+  fireEvent.click(screen.getByRole('button', {name: 'Open navigation menu'}));
+  const navigation = screen.getByRole('navigation', {name: 'Mobile navigation'});
+  expect(within(navigation).getByRole('link', {name: 'Call Us'})).toHaveAttribute('href', 'tel:02046286488');
+  expect(within(navigation).getByRole('link', {name: 'Call Us'})).toHaveTextContent('020 4628 6488');
 });

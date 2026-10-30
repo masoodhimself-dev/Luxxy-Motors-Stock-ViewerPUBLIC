@@ -232,7 +232,7 @@ export function EnquiryForm({
           We’ll be in touch.
         </h2>
         <p className="mx-auto mt-5 max-w-md text-sm leading-7 text-primary/70">
-          {`Thank you, ${customerName.trim()}. We’ve received your enquiry and will be in touch.`}
+          {`Thank you, ${customerName.trim()}. Your enquiry has reached ${dealerConfig.identity.name}. The team will contact you during opening hours.`}
         </p>
         {selectedVehicle && (
           <p className="mx-auto mt-5 inline-block border border-border bg-secondary/40 px-4 py-2.5 text-sm font-bold text-primary" data-testid="text-confirmed-vehicle">

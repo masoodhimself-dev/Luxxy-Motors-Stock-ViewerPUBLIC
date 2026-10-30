@@ -322,3 +322,19 @@
   .homepage-art-directed.homepage-premium .hero-search-primary-fields { gap: 10px; }
   .homepage-art-directed.homepage-premium .home-shopping-shortcuts { padding-block: 14px; }
 }
+
+/* Fixed image space prevents layout shifts; responsive sources keep phones light. */
+.dealer-service-photo { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 8px; }
+.home-service-grid .dealer-service-photo { margin-bottom: 18px; }
+.home-opening-status { margin: 6px 0 12px; font-size: 12px; line-height: 1.5; }
+@media (max-width: 640px) {
+ .home-service-grid .dealer-service-photo, .visit-story .dealer-service-photo { max-height: 190px; }
+ .homepage-art-directed.homepage-premium { --home-section-space: 28px; }
+ .homepage-art-directed.homepage-premium .stock-search-hero { padding-bottom: 8px; }
+ .homepage-art-directed.homepage-premium .rolling-stock { padding-top: 20px; }
+}
+
+@media (min-width: 641px) {
+ .home-service-grid[data-service-photos="true"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+ .home-service-grid[data-service-photos="true"] [data-service="warranty"] { grid-column: 1 / -1; }
+}

@@ -15,6 +15,7 @@ import { CustomerFooter } from '@/components/customer-footer';
 import './premium-showroom.css';
 import './stock-browsing-header.css';
 import './portal/portal-workspace.css';
+import './customer-finish.css';
 import { readableAccentForHsl, readableForegroundForHsl } from '@/lib/brand-colour';
 import { customerThemeVariables } from '@/lib/customer-theme';
 export { readableForegroundForHsl } from '@/lib/brand-colour';
@@ -190,7 +191,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div style={brandStyle} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}`}>
+    <div style={brandStyle} data-dealer-brand={dealerConfig.identity.name.toLowerCase().replace(/[^a-z0-9]/g, "") === "multichoicemotors" ? "multi-choice" : undefined} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}`}>
       <a href="#main-content" className="fixed left-4 top-3 z-[100] -translate-y-24 rounded-md bg-primary px-5 py-3 text-primary-foreground focus:translate-y-0">Skip to content</a>
       {!isStaff && <header
         ref={headerRef}
@@ -279,7 +280,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="site-mobile-actions ml-auto flex items-center gap-2 lg:hidden">
-            {isVehiclePage && dealerConfig.contact.phone && <a className="vehicle-header-call grid h-11 w-11 shrink-0 place-items-center text-primary" href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} aria-label={`Call ${dealerConfig.identity.name}`}><Phone className="h-5 w-5" aria-hidden="true" /></a>}
             <button type="button" onClick={() => setLocation('/saved')} aria-label={`Saved cars${savedCount ? `, ${savedCount} saved` : ''}`} className="relative grid h-11 w-11 place-items-center text-primary"><Heart className="h-5 w-5" />{savedCount > 0 && <span className="absolute right-0 top-0 grid h-4 min-w-4 place-items-center rounded-full bg-accent text-[10px] text-accent-foreground">{savedCount}</span>}</button>
           {/* Mobile Menu Toggle */}
           <button
@@ -297,7 +297,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </>}
         </div>
 
-        {!isStaff && dealerConfig.contact.phone && <div className="header-phone-row lg:hidden"><a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}><Phone size={16} aria-hidden="true" />{formatPhoneDisplay(dealerConfig.contact.phone)}</a></div>}
 
         {/* Mobile Nav Dropdown */}
         {mobileMenuOpen && (
@@ -335,8 +334,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <a
                   href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}
                   className="flex min-h-11 items-center justify-center rounded-md border border-border px-3 text-primary hover:bg-secondary"
+                  aria-label="Call Us"
                 >
-                  <span className="flex items-center gap-2 text-sm font-medium"><Phone className="h-4 w-4" /> Call Us</span>
+                  <span className="flex flex-col items-center gap-1 text-sm font-medium"><span className="flex items-center gap-2"><Phone className="h-4 w-4" aria-hidden="true" />Call Us</span><span className="text-xs font-normal">{formatPhoneDisplay(dealerConfig.contact.phone)}</span></span>
                 </a>
               )}
               {whatsAppHref && (

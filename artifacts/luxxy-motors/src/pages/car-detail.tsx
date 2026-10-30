@@ -11,7 +11,7 @@ import { VehicleDescription } from '@/components/vehicle-description';
 import { VehicleSellingPoints } from '@/components/vehicle-selling-points';
 import { browseReturnHref, requestBrowseRestore } from '@/lib/browse-session';
 import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
-import { prioritiseVehicleFeatures, vehicleContent, vehicleDescriptionParagraphs } from '@/lib/vehicle-content';
+import { prominentVehicleFeatures, prioritiseVehicleFeatures, vehicleContent, vehicleDescriptionParagraphs } from '@/lib/vehicle-content';
 import { PriceReduction } from '@/components/price-reduction';
 import { stockRegistrationYear } from '@/lib/stock-presentation';
 import { websiteText } from "@/lib/website-content";
@@ -144,7 +144,7 @@ export default function CarDetail() {
   }
 
   if (!stock || !stock.cars) return <NotFound />;
-  if (!car || ['sold', 'archived', 'hidden'].includes(String(car.inventoryStatus))) return <div className="container mx-auto px-4 py-10 sm:px-6 lg:px-8"><PageHeading eyebrow="Vehicle details" title="This car isn’t in our current stock" description="This car is no longer in our online stock. Browse our current cars, or ask us about this one." /><div className="flex flex-wrap gap-3"><Button asChild><Link href="/stock">Browse current stock</Link></Button><Button asChild variant="outline"><Link href="/contact">Contact us</Link></Button></div>{stock.cars.some(item => item.id !== car?.id && (!item.inventoryStatus || item.inventoryStatus === 'available')) && <section className="mt-10" aria-label="Other cars to consider"><h2 className="section-heading">Other cars to consider</h2><div className="mt-5 grid gap-5 sm:grid-cols-2">{stock.cars.filter(item => item.id !== car?.id && (!item.inventoryStatus || item.inventoryStatus === 'available')).slice(0,3).map(item=><CarCard key={item.id} car={item} />)}</div></section>}</div>;
+  if (!car || ['sold', 'archived', 'hidden'].includes(String(car.inventoryStatus))) return <div className="container mx-auto px-4 py-10 sm:px-6 lg:px-8"><PageHeading eyebrow="Vehicle details" title={car ? `${vehicleDisplayTitle(car)} is no longer available` : "This car isn’t in our current stock"} description="This car is no longer in our online stock. Browse our current cars, or ask us about this one." /><div className="flex flex-wrap gap-3"><Button asChild><Link href="/stock">Browse current stock</Link></Button><Button asChild variant="outline"><Link href="/contact">Contact us</Link></Button></div>{stock.cars.some(item => item.id !== car?.id && (!item.inventoryStatus || item.inventoryStatus === 'available')) && <section className="mt-10" aria-label="Other cars to consider"><h2 className="section-heading">Other cars to consider</h2><div className="mt-5 grid gap-5 sm:grid-cols-2">{stock.cars.filter(item => item.id !== car?.id && (!item.inventoryStatus || item.inventoryStatus === 'available')).slice(0,3).map(item=><CarCard key={item.id} car={item} />)}</div></section>}</div>;
 
   const similarCars = getSimilarCars(car, stock.cars);
   const registration = vehicleRegistration(car);
@@ -196,6 +196,7 @@ export default function CarDetail() {
   const separateDescriptionNotes = car.sourceExtras?.vehicleDescriptionPlacement === 'separate' && typeof car.sourceExtras?.vehicleDescriptionBody === 'string' && Array.isArray(car.sourceExtras?.vehicleDescriptionDisclosures) && car.sourceExtras.vehicleDescriptionDisclosures.length > 0;
   const description = separateDescriptionNotes ? String(car.sourceExtras!.vehicleDescriptionBody) : content.description;
   const features = prioritiseVehicleFeatures(content.features);
+  const equipmentHighlights = prominentVehicleFeatures(content.features, 3);
   const share = async () => {
     try {
       const url = getVehicleShareUrl(car);
@@ -305,6 +306,7 @@ export default function CarDetail() {
               <VehicleWhatsApp car={car} />
             </div>
           {!isPhoneLayout && <VehicleSellingPoints car={car} motBadge={motBadge} />}
+          {equipmentHighlights.length > 0 && <ul className="vehicle-summary-highlights" aria-label="Equipment highlights">{equipmentHighlights.map(feature => <li key={feature}>{feature}</li>)}</ul>}
           <aside className="min-w-0 pt-5">
             <dl className="vehicle-key-facts grid grid-cols-2 gap-x-4 gap-y-4">
               {keyFacts.map((fact) => (
@@ -506,9 +508,9 @@ export default function CarDetail() {
           </div>
         </section>
       )}
-      {(bookingAction || enquiryAction) && <nav className="vehicle-mobile-actions" aria-label="Contact about this vehicle">
+      {(getPhoneHref(dealerConfig) || enquiryAction) && <nav className="vehicle-mobile-actions" aria-label="Contact about this vehicle">
+        {getPhoneHref(dealerConfig) && <VehicleCall car={car} buttonLabel="Call" />}
         {enquiryAction && <a href="#vehicle-enquiry" onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); openVehicleEnquiry(); }}><CustomerEnquiry className="h-4 w-4" aria-hidden="true" />Enquire</a>}
-        {bookingAction && <a href={bookingHref} onClick={() => recordBookingIntent({ source: 'car_detail', vehicleContext: true })}><Calendar className="h-4 w-4" aria-hidden="true" />Book test drive</a>}
       </nav>}
     </div>
   );

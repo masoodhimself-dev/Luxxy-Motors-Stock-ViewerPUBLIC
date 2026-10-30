@@ -68,7 +68,7 @@ it('filters customer photographs by supplied captions and retains all photograph
   expect(await screen.findByRole('dialog')).toBeInTheDocument();
   expect(within(screen.getByRole('dialog')).getByLabelText('Photograph sections')).toBeInTheDocument();
   fireEvent.keyDown(screen.getByRole('dialog'), { key: 'ArrowRight' });
-  expect(screen.getByText('3 / 4')).toBeInTheDocument();
+  expect(within(screen.getByRole('dialog')).getByText('3 / 4')).toBeInTheDocument();
 });
 
 it('retains photograph sections for the staff gallery', () => {

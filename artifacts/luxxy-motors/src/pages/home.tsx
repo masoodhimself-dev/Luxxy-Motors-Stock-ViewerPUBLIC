@@ -1,3 +1,5 @@
+import { ShowroomOpeningStatus } from "@/components/showroom-opening-status";
+import { DealerServicePhoto, hasMultiChoicePhotography } from "@/components/dealer-service-photo";
 import { DeliveryEstimator } from '@/components/delivery-estimator';
 import { bodyTypeKey, stockBodyTypes } from '@/lib/body-types';
 import { VehicleFactIcon } from "@/components/vehicle-fact-icon";
@@ -124,6 +126,8 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   const benefitsByCar = useMemo(() => new Map(publicCars.map(car => [car.id, vehicleBenefits(car)])), [publicCars]);
   const browseChoices = [
     { label: 'Automatic', href: '/stock?transmission=Automatic', count: publicCars.filter(car => /automatic/i.test(car.transmission || '')).length },
+    { label: 'Under £5,000', href: '/stock?maxPrice=5000', count: publicCars.filter(car => car.price != null && car.price > 0 && car.price <= 5000).length },
+    { label: 'Hybrid & electric', href: '/stock?fuel=Hybrid%20%26%20electric', count: publicCars.filter(car => /hybrid|electric/i.test(car.fuel || '')).length },
     { label: 'Under £10k', href: '/stock?maxPrice=10000', count: publicCars.filter(car => car.price != null && car.price <= 10000).length },
     { label: 'ULEZ compliant', href: '/stock?ulez=true', count: publicCars.filter(car => benefitsByCar.get(car.id)?.ulez).length },
   ].filter(choice => choice.count > 0);
@@ -171,7 +175,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
 
     if (filters.make) result = result.filter((c) => c.make === filters.make);
     if (filters.model) result = result.filter((c) => c.model === filters.model);
-    if (filters.fuel) result = result.filter((c) => c.fuel === filters.fuel);
+    if (filters.fuel) result = result.filter((c) => filters.fuel === 'Hybrid & electric' ? /hybrid|electric/i.test(c.fuel || '') : c.fuel === filters.fuel);
     if (filters.bodyType) result = result.filter(car => bodyTypeKey(car.bodyType) === bodyTypeKey(filters.bodyType));
     if (filters.transmission) {
       const transmission = filters.transmission.trim().toLowerCase();
@@ -380,6 +384,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
         <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
           <div className="stock-search-panel">
             <p className="home-hero-eyebrow">{(!demoSite && dealerConfig.hero.announcement) || `Used cars${dealerConfig.address?.city ? ` in ${dealerConfig.address.city}` : ''}`}{!isLoading && !error && stock && <span className="home-stock-context"> · {publicCars.length} {publicCars.length === 1 ? 'car' : 'cars'} in stock</span>}</p>
+            <ShowroomOpeningStatus />
             <h1 id="home-heading" tabIndex={-1} className="home-hero-heading">{dealerConfig.hero.copy}</h1>
             {dealerConfig.presentation?.showHeroDescription && <p className="home-hero-description">{dealerConfig.hero.subcopy}</p>}
             <HeroStockSearch loading={isLoading} buttonLabel={dealerConfig.hero.primaryCta} cars={publicCars} filters={filters} setFilters={setFilters} count={filteredCars.length} onReset={() => setFilters({ ...defaultFilters })} onSearch={() => revealResults('filter_panel')} />
@@ -391,6 +396,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
       {!browseStock && isLoading && <section className="home-stock-loading container mx-auto px-4 sm:px-6 lg:px-8" aria-label="Loading featured cars" aria-busy="true"><p role="status">Loading cars…</p><div className="home-stock-skeletons" aria-hidden="true">{[1, 2, 3, 4].map(n => <div key={n} className="animate-pulse bg-muted" />)}</div></section>}
       {!browseStock && !isLoading && (dealerConfig.presentation?.featuredEnabled !== false || (!error && publicCars.length > 0)) && <RollingStock
         cars={featuredCars}
+        totalCount={!error && stock ? publicCars.length : undefined}
         unavailable={Boolean(error)}
         showVehicles={dealerConfig.presentation?.featuredEnabled !== false && (featuredCars.length > 0 || publicCars.length === 0)}
         shortcuts={!error && publicCars.length > 0 ? <div className="home-shopping-shortcuts container mx-auto px-4 sm:px-6 lg:px-8">
@@ -553,7 +559,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
       {dealerConfig.presentation?.servicesEnabled !== false && [dealerConfig.warranty, dealerConfig.partExchange, dealerConfig.delivery].some(service => service?.enabled) && <div className="home-services home-services-integrated">
         <div>
           <h3 className="sr-only">{websiteText(dealerConfig, "servicesHeading")}</h3>
-          <div className="home-service-grid mt-8 grid gap-8">
+          <div className="home-service-grid mt-8 grid gap-8" data-service-photos={hasMultiChoicePhotography(dealerConfig.identity.name) || undefined}>
             {(
               [
                 ['warranty', dealerConfig.warranty, 'Warranty Enquiry', 'link-warranty-enquiry'],
@@ -565,15 +571,17 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                 ],
                 ['delivery', dealerConfig.delivery, 'Delivery Enquiry', 'link-delivery-enquiry'],
               ] as const
-            ).map(
+            ).slice().sort(([a], [b]) => hasMultiChoicePhotography(dealerConfig.identity.name) ? Number(a === 'warranty') - Number(b === 'warranty') : 0).map(
               ([id, service, subject, testid]) =>
                 service?.enabled && (
                   <article
                     key={id}
                     id={id}
+                    data-service={id}
                     data-home-section
                     className="flex flex-col border-t border-border pt-5"
                   >
+                    {(id === 'delivery' || id === 'part-exchange') && <DealerServicePhoto dealerName={dealerConfig.identity.name} service={id === 'delivery' ? 'vehicle-delivery' : 'part-exchange'} />}
                     <h3
                       id={`${id}-heading`}
                       tabIndex={-1}
@@ -600,7 +608,13 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
         </div>
       </div>}
       </section>}
-      {dealerConfig.presentation?.visitEnabled !== false && <DealershipVisit />}
+      {dealerConfig.presentation?.visitEnabled !== false && <DealershipVisit>
+        {hasMultiChoicePhotography(dealerConfig.identity.name) && <div>
+          <DealerServicePhoto dealerName={dealerConfig.identity.name} service="customer-service" />
+          <h3 className="mt-4 text-base font-semibold">Help choosing your next car</h3>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Ask us about a vehicle or arrange a visit.</p>
+        </div>}
+      </DealershipVisit>}
 
       </>}
     </div>

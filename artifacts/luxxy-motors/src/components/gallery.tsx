@@ -289,7 +289,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
             "gallery-photo absolute inset-0 h-full w-full object-contain",
             true,
           )}
-          {allImages.length > 0 && loadedUrl !== activeUrl && <span className="pointer-events-none absolute left-3 top-3 rounded bg-black/60 px-3 py-2 text-xs text-white" role="status">Loading photo…</span>}
+          {allImages.length > 0 && loadedUrl !== activeUrl && <span className="gallery-photo-loading pointer-events-none absolute inset-0 motion-safe:animate-pulse bg-muted"><span className="sr-only" role="status">Loading photo…</span></span>}
           {allImages.length > 0 && !(interestOpen && !open) && <DialogTrigger asChild>
             <button
               type="button"
@@ -297,9 +297,9 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
               onClick={(event) => { if (swiped.current) { event.preventDefault(); swiped.current = false; } }}
               className="absolute inset-0 cursor-zoom-in focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
             >
-              <span className="absolute bottom-3 right-3 flex items-center gap-2 rounded-sm bg-black/70 px-3 py-2 text-xs text-white">
+              <span className="gallery-photo-counter absolute bottom-3 right-3 flex items-center gap-2 rounded-sm bg-black/70 px-3 py-2 text-xs text-white">
                 <Maximize2 className="h-4 w-4" />
-                View all {allImages.length} photos
+                <span aria-hidden="true">{index + 1} / {allImages.length}</span><span className="sr-only">View all {allImages.length} photos</span>
               </span>
             </button>
           </DialogTrigger>}

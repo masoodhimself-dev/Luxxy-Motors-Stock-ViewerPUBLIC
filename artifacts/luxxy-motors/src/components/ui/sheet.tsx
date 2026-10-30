@@ -4,6 +4,7 @@ import * as React from 'react';
 import * as SheetPrimitive from '@radix-ui/react-dialog';
 import { cn } from '@/lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
+import './popup-surfaces.css';
 import { X } from '@/components/icons';
 
 const Sheet = SheetPrimitive.Root;
@@ -60,10 +61,11 @@ const SheetContent = React.forwardRef<
     <SheetOverlay />
     <SheetPrimitive.Content
       ref={ref}
-      className={cn(sheetVariants({ side }), className)}
+      data-popup-surface="sheet"
+      className={cn(sheetVariants({ side }), "max-h-dvh overflow-y-auto overscroll-contain", className)}
       {...props}
     >
-      <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
+      <SheetPrimitive.Close data-popup-close className="absolute right-4 top-4 grid h-11 w-11 place-items-center rounded-md opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </SheetPrimitive.Close>
@@ -107,7 +109,7 @@ const SheetTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SheetPrimitive.Title
     ref={ref}
-    className={cn('text-lg font-semibold text-foreground', className)}
+    className={cn('pr-12 text-lg font-semibold text-foreground [overflow-wrap:anywhere]', className)}
     {...props}
   />
 ));

@@ -10,7 +10,7 @@ import type { Car } from '@/lib/stock-context';
 type BrowseGesture = { id: number; x: number; y: number; moved: boolean };
 const DRAG_DISTANCE = 10;
 
-export function RollingStock({ cars, unavailable = false, shortcuts, showVehicles = true }: { cars: Car[]; unavailable?: boolean; shortcuts?: ReactNode; showVehicles?: boolean }) {
+export function RollingStock({ cars, unavailable = false, shortcuts, showVehicles = true, totalCount }: { totalCount?: number; cars: Car[]; unavailable?: boolean; shortcuts?: ReactNode; showVehicles?: boolean }) {
   const { settings } = useDealerSettings();
   const viewport = useRef<HTMLDivElement>(null);
   const pointerGesture = useRef<BrowseGesture | null>(null);
@@ -83,7 +83,7 @@ export function RollingStock({ cars, unavailable = false, shortcuts, showVehicle
           <button type="button" onClick={() => browse(-1)} aria-label="Previous featured cars"><ChevronLeft size={18} aria-hidden="true" /></button>
           <button type="button" onClick={() => browse(1)} aria-label="Next featured cars"><ChevronRight size={18} aria-hidden="true" /></button>
         </div>}
-        <Link href="/stock?all=1" className="text-link min-h-11 text-sm">View all stock</Link>
+        <Link href="/stock?all=1" className="text-link min-h-11 text-sm">{totalCount != null ? `Browse ${totalCount} ${totalCount === 1 ? "car" : "cars"}` : "View all stock"}</Link>
       </div>
     </div>
     {showVehicles && (cars.length ? <div

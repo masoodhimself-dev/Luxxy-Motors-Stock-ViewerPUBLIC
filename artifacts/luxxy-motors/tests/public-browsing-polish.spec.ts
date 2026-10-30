@@ -32,6 +32,8 @@ for (const dealer of ["shore", "multi"]) {
     const noOverflow = async () => await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.goto("/");
     await expect(page.locator(".home-stock-context")).toContainText("cars in stock");
+    await expect(page.locator('.header-phone-row')).toHaveCount(0);
+    if (info.project.use.viewport!.width < 1024) expect((await page.locator('[data-site-header]').boundingBox())!.height).toBeLessThanOrEqual(72);
     const shortcuts = page.getByRole("navigation", { name: "Browse stock categories" });
     await expect(shortcuts).toHaveCount(1);
     expect(await shortcuts.getByRole("link").count()).toBeLessThanOrEqual(5);
@@ -63,7 +65,26 @@ for (const dealer of ["shore", "multi"]) {
     await expect(page).toHaveURL(/sort=price-asc/);
     await noOverflow();
     if(process.env.PUBLIC_BROWSING_OUTPUT) await toolbar.screenshot({ path: path.join(process.env.PUBLIC_BROWSING_OUTPUT, `${dealer}-${info.project.name}-toolbar.png`) });
-    await page.goto(`/vehicle/${car.id}`);
+    const savedResultsUrl = page.url();
+    await page.locator(`a[href^="/vehicle/${car.id}"]`).first().click();
+    await expect(page).toHaveURL(new RegExp(`/vehicle/${car.id}`));
+    await page.getByRole("link", {name: "Back to your results", exact: true}).click();
+    await expect(page).toHaveURL(savedResultsUrl);
+    await expect(toolbar.getByLabel("Sort results")).toHaveValue("price-asc");
+    await page.locator(`a[href^="/vehicle/${car.id}"]`).first().click();
+    await expect(page.getByRole("list", {name: "Equipment highlights"})).toBeVisible();
+    await expect(page.locator('.gallery-photo-counter')).toContainText('1 /');
+    await expect.poll(() => page.locator('.gallery-photo-loading').count()).toBe(0);
+    if(process.env.PUBLIC_BROWSING_OUTPUT) {
+      await mkdir(process.env.PUBLIC_BROWSING_OUTPUT, {recursive: true});
+      await page.screenshot({path: path.join(process.env.PUBLIC_BROWSING_OUTPUT, `${dealer}-${info.project.name}-vehicle.png`)});
+    }
+    if (info.project.use.viewport!.width < 640) {
+      const contact = page.getByRole("navigation", {name: "Contact about this vehicle"});
+      await expect(contact.getByRole("link", {name: /Call for/})).toBeVisible();
+      await expect(contact.getByRole("link", {name: "Enquire", exact: true})).toBeVisible();
+      await expect(contact.getByRole("link")).toHaveCount(2);
+    }
     const equipment = page.locator(".vehicle-equipment-groups");
     await expect(equipment.getByRole("list", { name: "Feature highlights" })).toBeVisible();
     await equipment.getByText("View all equipment", { exact: true }).click();
@@ -85,6 +106,10 @@ for (const dealer of ["shore", "multi"]) {
     await expect(question).toBeFocused();
     if(dealer === "multi") await expect(form.getByRole("button", { name: "Delivery", exact: true })).toBeVisible();
     else await expect(form.getByRole("button", { name: "Delivery", exact: true })).toHaveCount(0);
+    await noOverflow();
+    const footer = page.locator('.dealership-footer');
+    await footer.scrollIntoViewIfNeeded();
+    await expect(footer.getByRole('heading', {name: 'Talk to us'})).toBeVisible();
     await noOverflow();
     expect(writes).toEqual([]);
     expect(errors).toEqual([]);

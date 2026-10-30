@@ -347,8 +347,7 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
       ),
     [activity.data, replies.data, canManage, now],
   );
-  const cars = query.data?.cars ?? [],
-    feed = query.data?.feed;
+  const cars = query.data?.cars ?? [];
   const matches = filterStaffCars(
       cars,
       search,
@@ -595,7 +594,6 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
     ["sold", "Sold"],
     ["missing", "Missing from feed"],
   ] as const;
-  const review = feed?.state === "review" || feed?.state === "stale";
   return (
     <section
       className="portal-cars-workspace"
@@ -623,29 +621,6 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
           {refreshing ? "Refreshing…" : "Refresh screen"}
         </Button>
       </header>
-      {feed && (
-        <div className="cars-feed-line" data-review={review}>
-          <span className="cars-feed-indicator" aria-hidden="true" />
-          <span>
-            <strong>{feed.source}</strong>
-            {feed.receivedAt ? (
-              <> · Last file received {formatDateTime(feed.receivedAt)} (UK)</>
-            ) : (
-              <> · No completed stock update recorded</>
-            )}
-            {review && (
-              <>
-                {" "}
-                · {feed.state === "stale" ? "Update overdue" : "Needs review"}
-              </>
-            )}
-            {feed.scheduled && <> · Checks after 07:10 and 19:10 UK</>}
-          </span>
-          <span className="cars-feed-help">
-            Refresh screen reloads saved stock.
-          </span>
-        </div>
-      )}
       {query.isError && (
         <div className="portal-cars-notice" role="alert">
           <strong>Cars could not be refreshed</strong>
@@ -1058,6 +1033,11 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
                     {canManage && interest(car)}
                     <div className="portal-car-actions">
                       {nextAction(car)}
+                      {canManage && workspaceStatus(car) === "available" && !car.staff.sale && (
+                        <Button size="sm" variant="outline" className="cars-start-sale" onClick={() => openSale(car.id)}>
+                          Start sale
+                        </Button>
+                      )}
                       {moreMenu(car)}
                     </div>
                   </li>
