@@ -14,7 +14,7 @@ export default defineConfig({
   projects: [
     { name: 'webkit-responsive', use: { browserName: 'webkit' }, grepInvert: /@pdf/ },
     { name: 'chromium-pdf', use: { browserName: 'chromium', channel: 'chrome' }, grep: /@pdf/ },
-    { name: 'webkit-pdf', use: { browserName: 'webkit' }, grep: /autotrader @pdf/ },
+    { name: 'webkit-pdf', use: { browserName: 'webkit' }, grep: /@pdf/ },
   ],
   webServer: { command: `BASE_PATH=/ '${process.execPath.replace(/'/g, "'\\''")}' node_modules/vite/bin/vite.js --config vite.preview.config.ts --host 127.0.0.1 --port ${port}`, url: baseURL, reuseExistingServer: true },
 });

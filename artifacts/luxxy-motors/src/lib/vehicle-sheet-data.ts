@@ -55,11 +55,33 @@ function confirmedInclusions(car: Car, description: string | null) {
   return { included, qualifications };
 }
 
-/** Canonical shell metadata is set by the server for the current dealership. */
+/** Hosted previews and local addresses must keep the configured public QR target. */
+function isPublicDealershipOrigin(url: URL) {
+  const host = url.hostname.toLowerCase().replace(/\.$/, '');
+  return url.protocol === 'https:' && !url.port && !url.username && !url.password
+    && host.includes('.') && !host.includes(':') && !/^\d+(?:\.\d+){3}$/.test(host)
+    && !/(^|\.)(?:localhost|local|lan|internal|test|invalid|example|home|home\.arpa)$/.test(host)
+    && !/(^|\.)(?:onrender\.com|replit\.app|replit\.dev|replit\.com|repl\.co|github\.dev|gitpod\.io|gitpod\.dev|vercel\.app|netlify\.app|pages\.dev|nip\.io|sslip\.io|localtest\.me)$/.test(host);
+}
+
+/** The live dealership URL wins metadata left over from an older demo alias. */
 export function vehicleSheetLocation(id: string, doc = document) {
   const configured = doc.querySelector<HTMLMetaElement>('meta[name="luxxy-canonical-origin"][data-page-meta]')?.content;
-  const origin = new URL(configured || doc.location.origin).origin;
+  const current = new URL(doc.location.origin);
+  const origin = isPublicDealershipOrigin(current) ? current.origin : new URL(configured || current.origin).origin;
   return { origin, url: `${origin}/vehicle/${encodeURIComponent(id)}` };
+}
+
+/** This tenant-bound asset endpoint can safely use the current dealership alias.
+ * External files and arbitrary resource paths are deliberately never rewritten. */
+export function vehicleSheetLogoUrl(logo: string | undefined, currentOrigin = window.location.origin) {
+  if (!logo) return logo;
+  try {
+    const asset = new URL(logo, currentOrigin), current = new URL(currentOrigin);
+    if (!/^https?:$/.test(asset.protocol) || !/^https?:$/.test(current.protocol) || asset.username || asset.password || asset.hash
+      || !/^\/api\/website-assets\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(asset.pathname)) return logo;
+    return `${current.origin}${asset.pathname}${asset.search}`;
+  } catch { return logo; }
 }
 
 /** Both marketplaces use the same audited normaliser; no missing data is inferred. */
@@ -78,7 +100,7 @@ export function buildVehicleSheetData(car: Car, dealer: DealerConfig, features: 
   const { included, qualifications } = confirmedInclusions(car, data.description);
   return {
     dealer: {
-      name: supplied(dealer.identity.name), logoUrl: dealer.identity.logoAsset,
+      name: supplied(dealer.identity.name), logoUrl: vehicleSheetLogoUrl(dealer.identity.logoAsset),
       accentColour: vehicleSheetAccent(dealer.identity.brandColors?.primaryHsl, dealer.brochure?.accentColour, dealer.brochure?.useWebsiteColour),
       phone: supplied(dealer.contact.phone) ? formatPhoneDisplay(dealer.contact.phone!) : undefined,
       email: email && !/^(?:demo[-@])|@demo\.|@(?:example\.(?:com|org|net)|[^@]+\.(?:test|invalid))$/i.test(email) ? email : undefined,

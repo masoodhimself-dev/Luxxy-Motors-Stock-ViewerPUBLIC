@@ -13,9 +13,9 @@ const scratch = 'A known scratch on the rear door is disclosed.';
 type Source = 'autotrader' | 'cazoo';
 type StockMode = 'current' | 'price' | 'sold' | 'removed' | 'failed' | 'malformed';
 type MotMode = 'current' | 'first-due' | 'uncached' | 'old' | 'failed';
-type FixtureState = { mode: StockMode; mot: MotMode; stockReads: number; vehicleReads: number; motReads: string[]; imageProxyReads: string[]; writes: string[]; errors: string[]; networkIssues: string[]; consoleErrors: string[]; car: Record<string, any>; canonical: string };
+type FixtureState = { mode: StockMode; mot: MotMode; stockReads: number; vehicleReads: number; motReads: string[]; imageProxyReads: string[]; logoReads: string[]; logoPath: string; writes: string[]; errors: string[]; networkIssues: string[]; consoleErrors: string[]; car: Record<string, any>; canonical: string };
 
-async function fixture(page: Page, source: Source, remotePhotos = false): Promise<FixtureState> {
+async function fixture(page: Page, source: Source, remotePhotos = false, legacyLogo = false): Promise<FixtureState> {
   const localOrigin = new URL(test.info().project.use.baseURL as string).origin;
   const original = structuredClone(source === 'autotrader' ? autoFixture : cazooFixture) as Record<string, any>;
   const plate = source === 'autotrader' ? 'AB15 CDE' : 'CD68 EFG';
@@ -27,15 +27,18 @@ async function fixture(page: Page, source: Source, remotePhotos = false): Promis
     sourceExtras: { ...original.sourceExtras, description, advertDescription: description, originalAdvertDescriptions: [description], descriptionOrigin: 'source' },
   };
   const canonical = source === 'autotrader' ? 'https://luxxymotors.uk' : 'https://multichoicemotors.co.uk';
-  const state: FixtureState = { mode: 'current', mot: 'current', stockReads: 0, vehicleReads: 0, motReads: [], imageProxyReads: [], writes: [], errors: [], networkIssues: [], consoleErrors: [], car, canonical };
+  const logoPath = '/api/website-assets/51bf16cb-faf1-43f0-8f40-2cbe544a6b69?version=fixture';
+  const legacyLogoUrl = `https://multi-choice-motors-cazoo-test.demo.luxxyexmaplenumber2.uk${logoPath}`;
+  const state: FixtureState = { mode: 'current', mot: 'current', stockReads: 0, vehicleReads: 0, motReads: [], imageProxyReads: [], logoReads: [], logoPath, writes: [], errors: [], networkIssues: [], consoleErrors: [], car, canonical };
   const settings = await (await page.request.get('/api/dealer-settings')).json();
   const dealer = source === 'autotrader' ? 'Luxxy Motors' : 'Multi-Choice Motors';
-  const publicSettings = { ...settings, identity: { ...settings.identity, name: dealer, logoText: dealer, logoAsset: '', brandColors: { primaryHsl: source === 'autotrader' ? '205 55% 35%' : '39 70% 35%' } },
+  const publicSettings = { ...settings, identity: { ...settings.identity, name: dealer, logoText: dealer, logoAsset: legacyLogo ? legacyLogoUrl : '', brandColors: { primaryHsl: source === 'autotrader' ? '205 55% 35%' : '39 70% 35%' } },
     contact: { phone: '02079460123', whatsapp: '+447700900123', email: 'sales@fixture-motors.co.uk' },
     address: { street: '36A Coldharbour Lane', city: 'Hayes', region: 'London', postcode: 'UB3 3EP' },
     hours: [{ days: 'Mon-Sat', times: '10:00-18:00' }, { days: 'Sunday', times: '10:00-17:00' }],
     legal: { ...settings.legal, companyName: `${dealer} Limited`, companyNumber: '12345678', vatNumber: '' }, brochure: { useWebsiteColour: true, footerNote: 'Please confirm availability before travelling.' } };
   const photo = await readFile(resolve('src/assets/demo-car-hero.jpg'));
+  const logo = await readFile(resolve('src/lib/__fixtures__/vehicle-sheet-dealer-logo.png'));
   page.on('pageerror', error => state.errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') state.consoleErrors.push(message.text()); });
   page.on('requestfailed', request => state.networkIssues.push(`${request.url()} ${request.failure()?.errorText}`));
@@ -52,6 +55,10 @@ async function fixture(page: Page, source: Source, remotePhotos = false): Promis
   }, canonical);
   await page.route('**/*', route => {
     const request = route.request(), url = new URL(request.url());
+    if (legacyLogo && (url.href === legacyLogoUrl || url.href === `${localOrigin}${logoPath}`)) {
+      state.logoReads.push(url.href);
+      return route.fulfill({ body: logo, contentType: 'image/png' });
+    }
     // A CORS-less remote gallery is simulated entirely in the browser route.
     // This exercises the tenant-bound image proxy without contacting a host.
     if (remotePhotos && photoUrls.includes(url.href)) return route.fulfill({ body: photo, contentType: 'image/jpeg' });
@@ -205,8 +212,20 @@ for (const mode of ['current', 'first-due', 'uncached', 'old', 'failed'] as cons
   expect(state.writes).toEqual([]);
 });
 
+test('Cazoo legacy tenant logo is rebased to the current origin before the sheet is prepared', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const state = await fixture(page, 'cazoo', false, true);
+  await showSheet(page, state); const frame = await readySheet(page);
+  const expectedLogo = `${new URL(test.info().project.use.baseURL as string).origin}${state.logoPath}`;
+  await expect(frame.locator('.lvs-logo')).toHaveAttribute('src', expectedLogo);
+  expect(await frame.locator('.lvs-logo').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
+  expect(state.logoReads).toContain(expectedLogo);
+  expect(state.imageProxyReads).toEqual([]);
+  expect(state.writes).toEqual([]);
+});
+
 for (const source of ['autotrader', 'cazoo'] as const) test(`${source} @pdf download is one A4 page and links to the exact canonical car`, async ({ page }) => {
-  const state = await fixture(page, source, source === 'autotrader');
+  const state = await fixture(page, source, source === 'autotrader', source === 'cazoo');
   await page.setViewportSize(test.info().project.name === 'webkit-pdf' ? { width: 390, height: 844 } : { width: 1440, height: 1000 });
   await showSheet(page, state); let frame = await readySheet(page);
   if (source === 'cazoo') {
@@ -214,10 +233,11 @@ for (const source of ['autotrader', 'cazoo'] as const) test(`${source} @pdf down
     frame = await readySheet(page);
     await expect(frame.locator('.lvs-page')).toHaveClass(/lvs-mono/);
     expect(await frame.locator('.lvs-main-photo').evaluate(element => getComputedStyle(element).filter)).toContain('grayscale(1)');
+    await expect(frame.locator('.lvs-logo')).toHaveAttribute('src', `${new URL(test.info().project.use.baseURL as string).origin}${state.logoPath}`);
   }
   const qrProof = await frame.locator('.lvs-page').evaluate(element => {
-    const page = element.getBoundingClientRect(), anchor = element.querySelector<HTMLAnchorElement>('.lvs-qr')!, qr = anchor.getBoundingClientRect(), svg = anchor.querySelector('svg')!, photo = element.querySelector('.lvs-main-photo')!.getBoundingClientRect();
-    return { canonical: anchor.href, pageWidth: page.width, pageHeight: page.height, qr: { x: qr.left - page.left, y: qr.top - page.top, width: qr.width, height: qr.height }, photo: { x: photo.left - page.left, y: photo.top - page.top, width: photo.width, height: photo.height }, modulesWithQuietZone: Number(svg.getAttribute('viewBox')!.split(' ')[2]), path: svg.querySelector('path')!.getAttribute('d') };
+    const page = element.getBoundingClientRect(), anchor = element.querySelector<HTMLAnchorElement>('.lvs-qr')!, qr = anchor.getBoundingClientRect(), svg = anchor.querySelector('svg')!, photo = element.querySelector('.lvs-main-photo')!.getBoundingClientRect(), logo = element.querySelector('.lvs-logo')?.getBoundingClientRect();
+    return { canonical: anchor.href, pageWidth: page.width, pageHeight: page.height, qr: { x: qr.left - page.left, y: qr.top - page.top, width: qr.width, height: qr.height }, photo: { x: photo.left - page.left, y: photo.top - page.top, width: photo.width, height: photo.height }, logo: logo ? { x: logo.left - page.left, y: logo.top - page.top, width: logo.width, height: logo.height } : null, modulesWithQuietZone: Number(svg.getAttribute('viewBox')!.split(' ')[2]), path: svg.querySelector('path')!.getAttribute('d') };
   });
   const downloaded = page.waitForEvent('download', { timeout: 60_000 });
   const exportOutcome = Promise.race([downloaded, page.getByRole('dialog').getByRole('alert').waitFor({ state: 'visible', timeout: 60_000 }).then(async () => {
@@ -261,6 +281,16 @@ for (const source of ['autotrader', 'cazoo'] as const) test(`${source} @pdf down
   }
   expect(colouredPhotoPixels / sampleCount, 'The downloaded PDF must contain the vehicle photograph, rather than a white placeholder.').toBeGreaterThan(.25);
   if (source === 'cazoo') expect(channelDifference).toBe(0);
+  if (qrProof.logo) {
+    let visibleLogoPixels = 0;
+    for (let row = 0; row < 20; row++) for (let column = 0; column < 80; column++) {
+      const x = Math.floor((qrProof.logo.x + qrProof.logo.width * (column + .5) / 80) / qrProof.pageWidth * raster.width);
+      const y = Math.floor((qrProof.logo.y + qrProof.logo.height * (row + .5) / 20) / qrProof.pageHeight * raster.height);
+      const offset = (y * raster.width + x) * channels;
+      if (Math.min(...raster.data.subarray(offset, offset + 3)) < 225) visibleLogoPixels++;
+    }
+    expect(visibleLogoPixels / 1600, 'The actual PDF must preserve the rebased dealership logo.').toBeGreaterThan(.03);
+  }
   await loadingTask.destroy();
   if (source === 'autotrader') expect(state.imageProxyReads.length).toBeGreaterThan(0);
   expect(state.writes).toEqual([]); expect(state.errors).toEqual([]);

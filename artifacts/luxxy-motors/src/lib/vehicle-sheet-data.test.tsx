@@ -2,7 +2,7 @@ import { expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { dealerConfig } from '@/config/dealer';
 import type { Car } from './stock-context';
-import { buildVehicleSheetData, vehicleSheetLocation } from './vehicle-sheet-data';
+import { buildVehicleSheetData, vehicleSheetLocation, vehicleSheetLogoUrl } from './vehicle-sheet-data';
 import { VehicleSheetPage, ellipsise, selectedFeatures, selectedRunningCosts } from './vehicle-sheet/view';
 import { createVehicleQr } from './vehicle-sheet/qr';
 import { validateData, validateVehiclePageUrl } from './vehicle-sheet/validation';
@@ -36,6 +36,29 @@ it('chooses the actual gearbox glyph and shows ellipses for omitted highlights',
 it('rejects local, marketplace, different dealer and temporary QR destinations', () => {
   for (const destination of ['http://localhost:4212/vehicle/x','https://cazoo.co.uk/vehicle/x','https://otherdealer.uk/vehicle/x','https://luxxymotors.uk/vehicle/x?token=secret']) expect(() => validateVehiclePageUrl(destination,{dealerWebsiteOrigin:'https://luxxymotors.uk',vehiclePathPrefix:'/vehicle/'})).toThrow();
   expect(vehicleSheetLocation('actual-id', {querySelector:()=>({content:'https://luxxymotors.uk'}),location:{origin:'http://localhost:4212'}} as unknown as Document).url).toBe(url);
+});
+it.each([
+  ['https://multichoicemotors.co.uk','https://multi-choice-motors-cazoo-test.demo.luxxyexmaplenumber2.uk'],
+  ['https://luxxymotors.uk','https://luxxy-shared-staging.onrender.com'],
+])('uses the actual public dealership origin %s ahead of stale canonical metadata', (current, configured) => {
+  const location=vehicleSheetLocation('actual-id',{querySelector:()=>({content:configured}),location:{origin:current}} as unknown as Document);
+  expect(location).toEqual({origin:current,url:`${current}/vehicle/actual-id`});
+});
+it.each([
+  'http://localhost:4285','https://localhost:4285','http://192.168.1.24:4286','https://192.168.1.24','http://127.0.0.1:4285','https://[::1]','https://showroom.local',
+  'https://luxxy-shared-staging.onrender.com','https://luxxy-shared-staging.onrender.com.','https://preview.replit.app','https://preview.replit.dev','https://preview.repl.co','https://preview.vercel.app','https://preview.pages.dev',
+])('retains configured public QR origin when viewing local or hosted preview %s', current => {
+  expect(vehicleSheetLocation('actual-id',{querySelector:()=>({content:'https://multichoicemotors.co.uk'}),location:{origin:current}} as unknown as Document))
+    .toEqual({origin:'https://multichoicemotors.co.uk',url:'https://multichoicemotors.co.uk/vehicle/actual-id'});
+});
+it('normalises only the known tenant-bound website logo asset path to the current origin', () => {
+  const asset='/api/website-assets/51bf16cb-0000-4000-8000-000000000001?version=2';
+  const current='https://multichoicemotors.co.uk';
+  expect(vehicleSheetLogoUrl(`https://multi-choice-motors-cazoo-test.demo.luxxyexmaplenumber2.uk${asset}`,current)).toBe(current+asset);
+  expect(vehicleSheetLogoUrl(asset,current)).toBe(current+asset);
+  const dealer={...dealerConfig,identity:{...dealerConfig.identity,logoAsset:`https://old-demo.example.uk${asset}`}};
+  expect(buildVehicleSheetData(autoFixture as unknown as Car,dealer,[],undefined,url).dealer?.logoUrl).toBe(window.location.origin+asset);
+  for(const logo of ['https://images.otherdealer.uk/logo.png','/logo.svg','https://otherdealer.uk/api/website-assets/not-an-id',`https://user:secret@otherdealer.uk${asset}`,`https://otherdealer.uk${asset}#fragment`]) expect(vehicleSheetLogoUrl(logo,current)).toBe(logo);
 });
 
 const motCar = { id:'mot-car',title:'Ford Focus',vrm:'JD25KDW',images:[] } as unknown as Car;

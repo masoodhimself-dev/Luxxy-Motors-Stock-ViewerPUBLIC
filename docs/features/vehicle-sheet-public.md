@@ -8,6 +8,8 @@ An optional cache-only MOT read has a separate 2.5-second limit. Only matching, 
 
 The shared Auto Trader/Cazoo mapper retains the canonical exact-car QR, vehicle facts, complete material disclosures, confirmed inclusions and dealer contact/hours. Optional text is shortened with ellipses, equipment is prioritised, and technical costs are summarised. The measured renderer preserves the 10pt body minimum and one A4 page.
 
+On a public dealership domain, the QR uses that domain even if old demo metadata remains. Local and hosted previews retain the configured public destination. Tenant-bound website logo assets use the current origin; arbitrary external logo resources are never rewritten. This prevents an old dealer alias from breaking the PDF's logo export without weakening the stock-photo endpoint.
+
 PDF export is loaded only when requested. It renders the prepared DOM at 300dpi using the isolated iframe’s own fonts, keeps canonical links clickable and applies monochrome to photographs. Closing or switching vehicles cancels pending work. A failed export leaves browser printing available.
 
 The read-only photo endpoint accepts only an exact current vehicle image on the two approved source CDNs. It uses existing pinned-public-DNS/TLS/no-redirect raster fetching, quotas, concurrency limits and a bounded memory cache. No arbitrary image URL, customer data, stock mutation, settings, invoice or payment change is introduced.
@@ -16,6 +18,7 @@ The read-only photo endpoint accepts only an exact current vehicle image on the 
 
 - Isolated release: 1,854 frontend tests passed under the project’s Node24 runtime.
 - Final focused tests after font and optional-MOT hardening: 34 passed.
+- Public-domain and tenant-logo regression checks: 54 focused tests passed, with frontend typechecking and the production build passing.
 - Image endpoint tests: 6 passed against isolated fixtures; no live writes or providers.
 - Responsive browser checks: 17 WebKit cases covering both feeds at 390, 834 and 1440px, including an actual phone PDF download, freshness failures/retry and cached MOT states.
 - Two Chromium downloads checked for one A4 page, canonical links, print typography and ink-saving pixels; QR verification recorded with QA artifacts.
