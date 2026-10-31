@@ -53,6 +53,18 @@ export async function demoEmailEnvelope(
       throw new Error(
         "This demonstration changed while the email was being prepared. Reload before sending.",
       );
+    // A converted dealership must use its separate, approved sender. Never
+    // promote a persisted shared demonstration credential into a live send.
+    // Exact provisioning constants mirror the conversion readiness check;
+    // dealership names or arbitrary words such as "demo" are not guessed at.
+    if (multiTenantEnabled()) {
+      const provision = demoProvisioning();
+      const sender = config.from.match(/<?([^\s<>]+@[^\s<>]+)>?$/)?.[1] ?? "";
+      const sharedKeys = [process.env.DEMO_RESEND_API_KEY, process.env.DEMO_RESEND_STATUS_API_KEY].filter(Boolean);
+      if (sharedKeys.includes(config.apiKey) ||
+        (provision.emailDomain && sender.toLowerCase().endsWith(`@${provision.emailDomain}`)))
+        throw new Error("This live dealership still has a demonstration email sender. Save its verified live email settings before sending.");
+    }
     return { request, config };
   }
   const provision = demoProvisioning();

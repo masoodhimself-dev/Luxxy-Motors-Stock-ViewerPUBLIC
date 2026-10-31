@@ -10,6 +10,7 @@ import { usableVehicleMotHistory } from './vehicle-answer-summary';
 import { vehicleAnswers } from './vehicle-answers';
 import { firstMotDue } from './long-mot';
 import type { VehicleSheetData } from './vehicle-sheet/types';
+import { publicDealershipOrigin } from './public-dealership-url';
 
 const supplied = (value?: string) => {
   const text = value?.trim();
@@ -55,20 +56,9 @@ function confirmedInclusions(car: Car, description: string | null) {
   return { included, qualifications };
 }
 
-/** Hosted previews and local addresses must keep the configured public QR target. */
-function isPublicDealershipOrigin(url: URL) {
-  const host = url.hostname.toLowerCase().replace(/\.$/, '');
-  return url.protocol === 'https:' && !url.port && !url.username && !url.password
-    && host.includes('.') && !host.includes(':') && !/^\d+(?:\.\d+){3}$/.test(host)
-    && !/(^|\.)(?:localhost|local|lan|internal|test|invalid|example|home|home\.arpa)$/.test(host)
-    && !/(^|\.)(?:onrender\.com|replit\.app|replit\.dev|replit\.com|repl\.co|github\.dev|gitpod\.io|gitpod\.dev|vercel\.app|netlify\.app|pages\.dev|nip\.io|sslip\.io|localtest\.me)$/.test(host);
-}
-
-/** The live dealership URL wins metadata left over from an older demo alias. */
+/** Public QR destinations follow the dealership domain, including on old aliases. */
 export function vehicleSheetLocation(id: string, doc = document) {
-  const configured = doc.querySelector<HTMLMetaElement>('meta[name="luxxy-canonical-origin"][data-page-meta]')?.content;
-  const current = new URL(doc.location.origin);
-  const origin = isPublicDealershipOrigin(current) ? current.origin : new URL(configured || current.origin).origin;
+  const origin = publicDealershipOrigin(doc);
   return { origin, url: `${origin}/vehicle/${encodeURIComponent(id)}` };
 }
 

@@ -206,6 +206,11 @@ test('PostgreSQL migrations and two-dealer HTTP imports, settings and vehicle lo
       assert.equal(persistedFooter.status,200);assert.equal(await persistedFooter.text(),'fictional footer image');
       assert.equal(await runWithTenant(b,activeDemo),undefined);
       assert.deepEqual(await runWithTenant(b,()=>demoEmailEnvelope(requestEmail,liveEmailConfig)),{request:requestEmail,config:liveEmailConfig});
+      await assert.rejects(runWithTenant(b,()=>demoEmailEnvelope(requestEmail,{...liveEmailConfig,apiKey:'fictional-demo-key'})),/demonstration email sender/);
+      await assert.rejects(runWithTenant(b,()=>demoEmailEnvelope(requestEmail,{...liveEmailConfig,from:'Previous demo <former@demos.example.test>'})),/demonstration email sender/);
+      // The word in a legitimate business name is not a sender-domain heuristic.
+      const independentLiveConfig={...liveEmailConfig,from:'Demo Cars Ltd <sales@dealer-b.example.test>'};
+      assert.deepEqual(await runWithTenant(b,()=>demoEmailEnvelope(requestEmail,independentLiveConfig)),{request:requestEmail,config:independentLiveConfig});
       await assert.rejects(runWithTenant({...b,demo:true},()=>demoEmailEnvelope(requestEmail,{...liveEmailConfig,apiKey:'fictional-demo-key',from:'Demo <demo@demos.example.test>'})),/changed while the email/);
       const liveAssets=await runWithTenant(b,()=>readSaleWorkspaceAssets(draft,b.dealerId,pool));
       assert.equal(liveAssets.branding.identity.name,b.dealerId);

@@ -92,6 +92,7 @@ const request = (sale: SaleWorkspaceRecord) => ({
 async function record(
   sourceEnquiryId: string | undefined = originalEnquiry,
   vehicleId = car,
+  dealerName = "Fictional Motors",
 ) {
   const now = new Date().toISOString();
   let sequence = 0;
@@ -101,7 +102,7 @@ async function record(
     nextId: randomUUID,
     nextNumber: (type) => `${type.toUpperCase()}-${++sequence}`,
     branding: {
-      identity: { name: "Fictional Motors", logoAsset: "", logoText: "TEST" },
+      identity: { name: dealerName, logoAsset: "", logoText: "TEST" },
       contact: { phone: "", email: "sales@example.test" },
       address: { street: "", city: "", region: "", postcode: "" },
       legal: { companyName: "", companyNumber: "", vatNumber: "" },
@@ -206,6 +207,33 @@ test("manual invoice emails use exact customer cases, durable reply routes and f
       "INSERT INTO enquiries(id,dealer_id,type,status,customer_name,email,phone,vehicle_id,message) VALUES($1::uuid,$2,'general','contacted','Fictional Buyer','buyer@example.test','07700900123',$3::uuid,'Fictional request')",
       [id, dealer, vehicle],
     );
+  await t.test(
+    "new invoice correspondence uses the live dealer identity while its old issued PDF and snapshot stay identical",
+    async () => {
+      await pool.query("INSERT INTO dealer_settings(dealer_id,config) VALUES('invoice-a',$1::jsonb)", [JSON.stringify({
+        identity: { name: 'Multi-Choice Motors' },
+        contact: { email: 'enquiries@multichoice.example.test', phone: '02046286488' },
+        address: { street: '36A Coldharbour Lane', city: 'Hayes', postcode: 'UB3 3EP' },
+      })]);
+      const sale = await record(originalEnquiry, car, "Former Demo Motors — demonstration"),
+        frozen = JSON.parse(JSON.stringify(sale.documents)),
+        archives = structuredClone(sale.documentArchives),
+        payments = structuredClone(sale.payments);
+      await onTenant(() => approveSaleDocumentEmail(request(sale), { config, attempt: async () => undefined }));
+      const queued = await outboxFor(sale), envelope = JSON.parse(queued.payload);
+      assert.match(envelope.text, /Multi-Choice Motors/);
+      assert.match(envelope.text, /enquiries@multichoice\.example\.test/);
+      assert.doesNotMatch(envelope.text, /Former Demo Motors|demonstration/);
+      assert.equal(envelope.from, config.resend.from);
+      assert.match(envelope.reply_to, /^r-[a-f0-9]{48}@replies\.a\.example\.test$/);
+      assert.deepEqual(envelope.to, ['buyer@example.test']);
+      assert.equal(envelope.attachments[0].content, archives![sale.documents[0]!.id]!.content);
+      const after = await rawSale(sale.id);
+      assert.deepEqual(after.documents, frozen);
+      assert.deepEqual(after.documentArchives, archives);
+      assert.deepEqual(after.payments, payments);
+    },
+  );
   await t.test(
     "manual send records outgoing invoice under its exact enquiry and a customer reply returns there, even with same-contact cases",
     async () => {

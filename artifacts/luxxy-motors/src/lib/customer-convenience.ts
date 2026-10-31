@@ -1,3 +1,5 @@
+import { publicDealershipOrigin } from './public-dealership-url';
+
 export function parseShortlist(search: string): string[] | null {
   const value = new URLSearchParams(search).get("cars");
   if (value === null) return null;
@@ -9,7 +11,7 @@ export function parseShortlist(search: string): string[] | null {
 }
 export function shortlistUrl(ids: string[]) {
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-  const url = new URL(`${base}/saved`, window.location.origin);
+  const url = new URL(`${base}/saved`, publicDealershipOrigin());
   url.searchParams.set(
     "cars",
     ids

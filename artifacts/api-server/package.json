@@ -30,7 +30,7 @@
     "test:enquiry-merges": "node ./test-build.mjs src/enquiry-merges.test.ts && node --enable-source-maps --test ./dist-test/enquiry-merges.test.mjs && node ./test-build.mjs src/enquiry-merges-route.test.ts && node --enable-source-maps --test ./dist-test/enquiry-merges-route.test.mjs && node ./test-build.mjs ../luxxy-motors/preview/enquiry-merges.test.ts && node --enable-source-maps --test ./dist-test/enquiry-merges.test.mjs",
     "test:stock-feed": "node ./test-build.mjs src/stock-feed.test.ts && node --test ./dist-test/stock-feed.test.mjs",
     "build:cazoo-demo": "node build-cazoo-demo.mjs",
-    "test:tenancy": "node test-tenancy-build.mjs && node --test dist-test/multitenancy.test.mjs",
+    "test:tenancy": "node test-tenancy-build.mjs && node --test dist-test/multitenancy.test.mjs && node test-tenancy-build.mjs src/legacy-demo-links.test.ts && node --test dist-test/legacy-demo-links.test.mjs",
     "test:platform": "node test-platform-build.mjs && node --test dist-test/platform-console.test.mjs",
     "test:domain": "node ./test-build.mjs src/domain-providers.test.ts && node --test ./dist-test/domain-providers.test.mjs && node ./test-domain-build.mjs && node --test ./dist-test/domain-automation.test.mjs",
     "test:email-workspace": "node test-enquiry-emails-build.mjs src/email-workspace.test.ts && node --test dist-test/email-workspace.test.mjs && node test-enquiry-emails-build.mjs src/staff-email-scope.test.ts && node --test dist-test/staff-email-scope.test.mjs",

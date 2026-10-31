@@ -126,6 +126,33 @@ test("unsafe logos never become email markup and absent website branding uses fi
   });
   assert.deepEqual(publishedEmailAppearance(), defaultEmailAppearance);
 });
+test("new emails use the live origin for retained demo artwork without rewriting external logos or saved settings", () => {
+  const previous = process.env.DEMO_BASE_DOMAIN;
+  process.env.DEMO_BASE_DOMAIN = "demo.example.test";
+  try {
+    const origin = "https://multichoice.example.test";
+    for (const pathname of [
+      "/api/demo-logo?variant=footer",
+      "/api/website-assets/12345678-abcd-abcd-abcd-123456789012",
+    ]) {
+      const settings = { identity: { logoAsset: `https://old.demo.example.test${pathname}` } };
+      const before = JSON.stringify(settings);
+      assert.equal(emailWebsiteBranding(settings, origin).logoUrl, origin + pathname);
+      assert.equal(JSON.stringify(settings), before);
+    }
+    for (const asset of [
+      "https://cdn.example.test/logo.svg",
+      "https://old.demo.example.test/custom-logo.svg",
+      "https://demo.example.test.other.test/api/demo-logo",
+      "https://old.demo.example.test/api/website-assets/not-an-asset",
+    ]) assert.equal(emailWebsiteBranding({ identity: { logoAsset: asset } }, origin).logoUrl, asset);
+    assert.equal(emailWebsiteBranding({ identity: { logoAsset: "https://user:pass@old.demo.example.test/api/demo-logo" } }, origin).logoUrl, "");
+    assert.equal(emailWebsiteBranding({ identity: { logoAsset: "http://old.demo.example.test/api/demo-logo" } }, origin).logoUrl, "");
+  } finally {
+    if (previous === undefined) delete process.env.DEMO_BASE_DOMAIN;
+    else process.env.DEMO_BASE_DOMAIN = previous;
+  }
+});
 test("new configurations always inherit the published brand without exposing spare appearance editing", async () =>
   fixture(async (store, _filename, setWebsite) => {
     const first = await store.listTemplates();

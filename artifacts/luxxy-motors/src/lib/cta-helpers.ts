@@ -5,6 +5,7 @@ import { getVisitorId } from '@/lib/visitor';
 import { trackEvent } from '@/lib/analytics';
 import { formatPrice, vehicleRegistration, vehicleRegistrationLabel } from '@/lib/utils';
 import { customerWhatsAppNumber } from '@/lib/customer-whatsapp';
+import { publicDealershipOrigin } from '@/lib/public-dealership-url';
 
 type DealerContactDetails = {
   contact: {
@@ -57,7 +58,7 @@ function getVehicleLabel(car: Car) {
  */
 export function getVehicleShareUrl(car: Car) {
   const path = `/share/vehicle/${encodeURIComponent(car.id)}`;
-  return typeof window !== 'undefined' ? `${window.location.origin}${path}` : path;
+  return typeof window !== 'undefined' ? `${publicDealershipOrigin()}${path}` : path;
 }
 
 export function getVehicleContactMessage(car: Car, request: string, config: DealerContactDetails = dealerConfig) {

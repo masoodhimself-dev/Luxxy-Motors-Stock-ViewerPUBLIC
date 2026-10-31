@@ -29,6 +29,7 @@ export { saleEmailIdentity } from "./sale-correspondence";
 import { executorQuery } from "./query-executor";
 import { archiveSaleDocument } from "./sale-document-pdf";
 import { invoiceEmailAttachments } from "./invoice-email-attachments";
+import { dealerProfile } from "./enquiry-notifications";
 
 type Executor = Pick<typeof db, "execute">;
 const hash = (value: string) =>
@@ -96,12 +97,15 @@ async function renderInvoice(
   content: string,
 ): Promise<EmailRequest & { bodyText?: string }> {
   const buyer = document.snapshot.draft,
-    branding = document.snapshot.branding,
     to = buyer.email.trim();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to))
     throw new SaleWorkspaceError(
       "The issued document needs a valid customer email. Issue an updated document after correcting the email.",
     );
+  // The attachment remains the exact issued document. Its accompanying new
+  // correspondence uses today's published contact identity, so a converted
+  // dealership does not reintroduce its old demo name or reply details.
+  const profile = await dealerProfile();
   const money = (pence: number) =>
       new Intl.NumberFormat("en-GB", {
         style: "currency",
@@ -120,9 +124,10 @@ async function renderInvoice(
     variables: {
       customer_name: buyer.customer,
       customer_email: to,
-      dealer_name: branding.identity.name,
-      dealer_email: branding.contact.email,
-      dealer_phone: branding.contact.phone,
+      dealer_name: profile.identity.name,
+      dealer_email: profile.contact.email,
+      dealer_phone: profile.contact.phone,
+      dealer_address: profile.contact.address,
       reference: record.reference,
       vehicle_title: buyer.vehicle,
       vehicle_registration: buyer.registration,

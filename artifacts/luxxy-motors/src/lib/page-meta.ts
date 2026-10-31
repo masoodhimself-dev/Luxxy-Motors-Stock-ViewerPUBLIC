@@ -6,6 +6,7 @@ import {
   type PageMetaCopy,
 } from '@workspace/vehicle-meta';
 import type { Car } from '@/lib/stock-context';
+import { publicDealershipOrigin } from './public-dealership-url';
 
 /**
  * Per-route document metadata for the showroom SPA.
@@ -38,14 +39,7 @@ const MANAGED_ATTRIBUTE = 'data-page-meta';
 
 function currentOrigin(): string {
   if (typeof window === 'undefined') return '';
-  const configured = document.head.querySelector<HTMLMetaElement>('meta[name="luxxy-canonical-origin"][data-page-meta]')?.content;
-  if (configured) {
-    try {
-      const url = new URL(configured);
-      if (url.protocol === 'https:' && !url.username && !url.password && url.pathname === '/' && !url.search && !url.hash) return url.origin;
-    } catch { /* Ignore malformed shell metadata. */ }
-  }
-  return window.location.origin;
+  return publicDealershipOrigin();
 }
 
 function upsertTag(selector: string, create: () => HTMLElement, content: string | null) {

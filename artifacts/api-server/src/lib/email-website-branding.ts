@@ -3,6 +3,7 @@ import {
   validateEmailAppearance,
   type EmailAppearance,
 } from "@workspace/vehicle-meta";
+import { demoProvisioning } from "./demo-policy";
 
 export type EmailWebsiteBranding = { logoUrl: string; brandColour: string };
 export type EmailWebsiteSettings = {
@@ -11,6 +12,24 @@ export type EmailWebsiteSettings = {
     brandColors?: { primaryHsl?: string; accentHsl?: string };
   };
 };
+
+/** Converted dealers retain their uploaded artwork, but not its former demo host.
+ * Only our two tenant-scoped asset routes may move; third-party logo URLs stay intact. */
+function publishedLogoUrl(asset: string, origin: string): URL {
+  const url = new URL(asset, origin);
+  const demoDomain = demoProvisioning().domain;
+  const managedAsset = url.pathname === "/api/demo-logo" ||
+    /^\/api\/website-assets\/[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(url.pathname);
+  if (demoDomain && managedAsset && url.protocol === "https:" && !url.username && !url.password &&
+    (!url.port || url.port === "443") &&
+    (url.hostname === demoDomain || url.hostname.endsWith(`.${demoDomain}`))) {
+    const published = new URL(origin);
+    if (published.protocol === "https:" && !published.username && !published.password &&
+      published.pathname === "/" && !published.search && !published.hash)
+      return new URL(`${url.pathname}${url.search}${url.hash}`, published.origin);
+  }
+  return url;
+}
 
 /** Reuse published branding without copying website-only/data URLs into emails. */
 export function emailWebsiteBranding(
@@ -53,7 +72,7 @@ export function emailWebsiteBranding(
   try {
     const asset = settings.identity?.logoAsset?.trim();
     if (asset) {
-      const url = new URL(asset, origin);
+      const url = publishedLogoUrl(asset, origin);
       if (!url.username && !url.password)
         logoUrl = validateEmailAppearance({
           logoUrl: url.href,

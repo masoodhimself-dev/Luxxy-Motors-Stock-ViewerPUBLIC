@@ -3,6 +3,7 @@ import type { RequestHandler } from 'express';
 import { and, eq, isNull } from 'drizzle-orm';
 import { db, dealerDomainsTable, dealershipsTable, dealerImportKeysTable, dealerDemosTable } from '@workspace/db';
 import { multiTenantEnabled, normaliseTenantHost, runWithTenant, type TenantContext } from '../lib/tenant-context';
+import { demoProvisioning } from '../lib/demo-policy';
 export function importSecretDigest(secret: string): string { return createHash('sha256').update(secret).digest('hex'); }
 export function matchesImportSecret(secret: string, digest: string): boolean {
   if (!/^[a-f0-9]{64}$/.test(digest)) return false;
@@ -37,8 +38,30 @@ export const resolveTenant: RequestHandler = (req, res, next) => {
       tenant = { dealerId: dealer.id, canonicalOrigin: dealer.canonicalOrigin, platform: dealer.stockPlatform, retailerId: dealer.retailerId, sourceUrl: dealer.sourceUrl, importSecretHash: key.secretHash, kind: 'import' };
     } else {
       // Never trust a client tenant ID or arbitrary X-Forwarded-Host value.
-      const [row] = await db.select({ dealer: dealershipsTable }).from(dealerDomainsTable).innerJoin(dealershipsTable, eq(dealershipsTable.id, dealerDomainsTable.dealerId)).where(and(eq(dealerDomainsTable.hostname, hostname), eq(dealerDomainsTable.verified, true), eq(dealershipsTable.status, 'active')));
+      const [row] = await db.select({ dealer: dealershipsTable, domain: dealerDomainsTable }).from(dealerDomainsTable).innerJoin(dealershipsTable, eq(dealershipsTable.id, dealerDomainsTable.dealerId)).where(and(eq(dealerDomainsTable.hostname, hostname), eq(dealershipsTable.status, 'active')));
       if (!row) { res.status(421).json({ error: 'Unrecognised dealership domain.' }); return; }
+      const demoBase = demoProvisioning().domain;
+      const oldDemoAlias = Boolean(demoBase && hostname.endsWith(`.${demoBase}`) && /^[a-z0-9][a-z0-9-]*$/.test(hostname.slice(0, -(demoBase.length + 1))) && /^platform-owned-demo=[a-f0-9]{48}$/.test(row.domain.verificationToken));
+      if (oldDemoAlias) {
+        const [promoted] = await db.select({ convertedAt: dealerDemosTable.convertedAt }).from(dealerDemosTable).where(eq(dealerDemosTable.dealerId, row.dealer.id));
+        if (promoted?.convertedAt) {
+          // Conversion intentionally unverifies its platform demo alias. Keep old
+          // printed QR codes and customer links working without serving the live
+          // portal or accepting writes on that former demonstration origin.
+          let canonical: URL | undefined;
+          try { canonical = new URL(row.dealer.canonicalOrigin); } catch { /* fail closed */ }
+          const canonicalHost = canonical && normaliseTenantHost(canonical.host);
+          const safeOrigin = canonical && canonical.protocol === 'https:' && !canonical.username && !canonical.password && !canonical.port && canonical.pathname === '/' && !canonical.search && !canonical.hash && canonicalHost && canonicalHost !== hostname && canonicalHost !== demoBase && !canonicalHost.endsWith(`.${demoBase}`) && canonicalHost !== administratorHost && canonicalHost !== normaliseTenantHost(process.env.STOCK_IMPORT_API_HOST ?? '');
+          const [destination] = safeOrigin ? await db.select({ hostname: dealerDomainsTable.hostname }).from(dealerDomainsTable).where(and(eq(dealerDomainsTable.hostname, canonicalHost), eq(dealerDomainsTable.dealerId, row.dealer.id), eq(dealerDomainsTable.verified, true))) : [];
+          const path = req.originalUrl;
+          if ((req.method === 'GET' || req.method === 'HEAD') && canonical && destination && /^\/(?!\/)/.test(path) && !/[\\\u0000-\u0020\u007f]/.test(path)) {
+            res.set({ 'X-Robots-Tag': 'noindex, nofollow, noarchive', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
+            res.redirect(308, canonical.origin + path); return;
+          }
+          res.status(421).json({ error: 'Unrecognised dealership domain.' }); return;
+        }
+      }
+      if (!row.domain.verified) { res.status(421).json({ error: 'Unrecognised dealership domain.' }); return; }
       tenant = { dealerId: row.dealer.id, canonicalOrigin: row.dealer.canonicalOrigin, platform: row.dealer.stockPlatform, retailerId: row.dealer.retailerId, sourceUrl: row.dealer.sourceUrl, kind: 'website' };
     }
     const [demo] = await db.select().from(dealerDemosTable).where(eq(dealerDemosTable.dealerId, tenant.dealerId));
