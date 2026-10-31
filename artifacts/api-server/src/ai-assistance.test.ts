@@ -4,7 +4,6 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import express from "express";
-import cookieParser from "cookie-parser";
 import { aiAssistanceRouter } from "./lib/ai-assistance-router";
 import { runWithTenant } from "./lib/tenant-context";
 import { getTableConfig } from "drizzle-orm/pg-core";
@@ -351,7 +350,6 @@ test("HTTP routes enforce staff access, dealer ownership, origin, feature eviden
     enquiryId = randomUUID();
   const app = express();
   app.use(express.json());
-  app.use(cookieParser());
   app.use((_req, _res, next) =>
     runWithTenant(
       {
@@ -484,6 +482,17 @@ test("HTTP routes enforce staff access, dealer ownership, origin, feature eviden
     assert.equal(good.status, 200);
     assert.ok(!JSON.stringify(sentFacts).includes("PRIVATE"));
     assert.equal(((await good.json()) as any).remaining, 9);
+    const second = await post("/api/ai/assist", {
+      kind: "question",
+      vehicleId: carId,
+      text: "Are they heated?",
+    });
+    assert.equal(second.status, 200);
+    assert.equal(((await second.json()) as any).remaining, 8);
+    const retained = await fetch(base + "/api/ai/status", {
+      headers: { Cookie: cookie },
+    });
+    assert.equal(((await retained.json()) as any).remaining, 8);
     assert.equal(
       (
         await post(

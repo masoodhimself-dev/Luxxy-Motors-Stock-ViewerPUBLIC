@@ -47,3 +47,5 @@ Commands:
 - The local customer preview serves Multi-Choice public snapshots, accepts AI-only POSTs, and blocks all other mutations. Production database, stock, invoices, payments, message recipients and Render configuration were not changed.
 
 Render verification follow-up: production cookies are always Secure, including when TLS ends at Render’s proxy. Visitor guards use a validated Cloudflare edge address only on Render; malformed or missing edge metadata falls back to the anonymous session, never one shared proxy bucket. Forwarded-for chains are not trusted. This does not change authentication or global Express proxy settings.
+
+The AI router installs its own scoped cookie parser: production has no global parser. The HTTP test intentionally omits application-level cookie parsing and verifies two AI requests plus status retain the same allowance (10 → 9 → 8).

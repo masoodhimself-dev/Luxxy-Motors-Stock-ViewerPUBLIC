@@ -1,5 +1,6 @@
 import { aiConnectionIdentity, aiCookieSecure } from "./ai-request-network";
 import { Router } from "express";
+import cookieParser from "cookie-parser";
 import { randomBytes, createHash, createHmac } from "node:crypto";
 import { z } from "zod";
 import { currentDealerId } from "./tenant-context";
@@ -38,6 +39,9 @@ export function aiAssistanceRouter(deps: Dependencies) {
     store = deps.store,
     rates = new Map<string, { at: number; count: number }>();
   const enabled = deps.configured ?? aiConfigured;
+  // The main application deliberately has no global cookie parser. Own this
+  // dependency here so the anonymous allowance survives actual requests.
+  router.use(["/ai", "/staff/ai"], cookieParser());
   function session(req: any, res: any) {
     let token = req.cookies?.[cookie];
     if (typeof token !== "string" || !/^[a-f0-9]{64}$/.test(token)) {
