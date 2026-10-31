@@ -19,6 +19,7 @@ import { previewSettings } from './preview/settings';
 import { previewStock } from './preview/stock';
 import { salesPreview } from './preview/sales';
 import { brochureOrigin, createBrochureHandler } from '../api-server/src/lib/vehicle-brochure-handler';
+import { createVehicleSheetImageHandler } from '../api-server/src/lib/vehicle-sheet-image';
 import { searchReadiness } from '../api-server/src/lib/search-readiness';
 
 // The same PDF renderer as production, supplied only with archived preview records.
@@ -26,6 +27,10 @@ const previewBrochure = createBrochureHandler({
   findVehicle: async (id) => previewStock.cars.find((car) => car.id === id) ?? null,
   readDealer: async () => brochureDealer(await readPreviewSettings()),
   preview: true,
+});
+const previewSheetImage = createVehicleSheetImageHandler({
+  // Archived local fixture data only; never resolve a production vehicle here.
+  findVehicle: async id => previewStock.cars.find(car => car.id === id && car.sourceStatus !== 'missing' && !['sold', 'unavailable', 'withdrawn', 'archived'].includes(car.inventoryStatus ?? 'available')) ?? null,
 });
 
 // Separate, local-only entry point. Production keeps its existing auth and API.
@@ -86,6 +91,15 @@ export default mergeConfig(
               return;
             }
             const brochure = /^\/api\/vehicles\/([^/]+)\/brochure\.pdf$/.exec(url.pathname);
+            const sheetImage = /^\/api\/vehicles\/([^/]+)\/sheet-image$/.exec(url.pathname);
+            if (sheetImage) {
+              const source = url.searchParams.getAll('source');
+              const result = await previewSheetImage('local-preview', sheetImage[1], source.length === 1 ? source[0] : undefined);
+              res.statusCode = result.status;
+              for (const [name, value] of Object.entries(result.headers)) res.setHeader(name, value);
+              res.end(result.body);
+              return;
+            }
             if (brochure) {
               const result = await previewBrochure(brochure[1], brochureOrigin(req.headers.host));
               res.statusCode = result.status;

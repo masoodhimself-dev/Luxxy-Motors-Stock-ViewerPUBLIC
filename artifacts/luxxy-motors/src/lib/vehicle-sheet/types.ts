@@ -5,13 +5,18 @@ export interface Disclosure { heading?: string; text: string }
 export interface VehiclePhoto { src: string; alt?: string }
 export interface Dealer {
   name?: string; logoUrl?: string; accentColour?: string;
-  phone?: string; email?: string; address?: string | string[]; footerNote?: string;
+  phone?: string; email?: string; address?: string | string[]; postcode?: string;
+  openingHours?: string; footerNote?: string;
 }
 export interface Vehicle {
   title: string; variant?: string; year?: string | number; registrationBand?: string;
   registrationNumber?: string; price?: string; priceNote?: string; mileage?: string;
   fuel?: string; transmission?: string; engine?: string; bodyType?: string; colour?: string;
   doors?: string | number; seats?: string | number;
+  /** Display only freshly checked MOT data for this exact registration. */
+  motSummary?: string; motCheckedDate?: string;
+  /** Confirmed vehicle-specific inclusions, retaining their supplied qualifications. */
+  includedSummary?: string;
   descriptionSummary?: string;
   descriptionSummaryShort?: string;
   /** Explicit editorial attestation. Without true the short summary is NOT used. */

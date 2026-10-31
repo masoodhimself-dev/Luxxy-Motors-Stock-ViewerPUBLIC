@@ -33,13 +33,13 @@ export async function prepareVehicleSheet(host:HTMLElement,data:VehicleSheetData
   const exact=validateVehiclePageUrl(data.document.vehiclePageUrl,options);result.vehiclePageUrl=exact;
   const [assets]=await Promise.all([loadAssets(doc,data,options.assetTimeoutMs,signal),loadFonts(doc,!!text(data.vehicle.registrationNumber))]);cancelled();
   result.warnings.push(...assets.warnings);result.failedAssets=assets.failedAssets;
-  const qr=createVehicleQr(exact);let plan:FitPlan={spacing:'normal',supportingPhotos:true,optionalFeatureLimit:10,summary:'normal'};
+  const qr=createVehicleQr(exact);let plan:FitPlan={spacing:'normal',supportingPhotos:true,optionalFeatureLimit:8,summary:'normal'};
   const plans:{plan:FitPlan;step?:string;detail?:string}[]=[{plan:{...plan}}];
   const next=(step:string,detail:string,changes:Partial<FitPlan>)=>{plan={...plan,...changes};plans.push({plan:{...plan},step,detail});};
   next('tighten-spacing','Reduced only optional section and list spacing.',{spacing:'tight'});
   if(assets.photos.length>1)next('remove-supporting-photos','Retained the main photograph and removed optional supporting views.',{supportingPhotos:false});
   const optionalCount=list(data.vehicle.featureHighlights).map(highlight).filter(x=>text(x.text)&&!x.required).length;
-  for(let count=Math.min(10,optionalCount)-1;count>=6;count--)next('reduce-feature-highlights',`Retained all required highlights and the first ${count} optional highlights.`,{optionalFeatureLimit:count});
+  for(let count=Math.min(8,optionalCount)-1;count>=6;count--)next('reduce-feature-highlights',`Retained all required highlights and the first ${count} optional highlights.`,{optionalFeatureLimit:count});
   if(text(data.vehicle.descriptionSummaryShort)&&data.vehicle.shortSummaryPreservesMaterialFacts===true&&text(data.vehicle.descriptionSummaryShort)!==text(data.vehicle.descriptionSummary))next('use-supplied-short-summary','Used the supplied shorter summary with caller attestation; all separate qualifications remain.',{summary:'short'});
   else if(text(data.vehicle.descriptionSummaryShort)&&data.vehicle.shortSummaryPreservesMaterialFacts!==true)result.warnings.push('Short summary was not used: shortSummaryPreservesMaterialFacts was not true.');
   // The printed sheet is an excerpt. Protected disclosures remain separate and uncut.
