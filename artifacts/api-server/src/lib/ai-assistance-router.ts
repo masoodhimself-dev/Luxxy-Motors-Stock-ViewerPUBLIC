@@ -1,3 +1,4 @@
+import { aiConnectionIdentity, aiCookieSecure } from "./ai-request-network";
 import { Router } from "express";
 import { randomBytes, createHash, createHmac } from "node:crypto";
 import { z } from "zod";
@@ -41,13 +42,13 @@ export function aiAssistanceRouter(deps: Dependencies) {
     let token = req.cookies?.[cookie];
     if (typeof token !== "string" || !/^[a-f0-9]{64}$/.test(token)) {
       token = randomBytes(32).toString("hex");
-      res.cookie(cookie, token, {
-        httpOnly: true,
-        sameSite: "strict",
-        secure: req.secure,
-        path: "/api/ai",
-      });
     }
+    res.cookie(cookie, token, {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: aiCookieSecure(req.secure),
+      path: "/api/ai",
+    });
     return createHash("sha256").update(token).digest("hex");
   }
   router.use(["/ai", "/staff/ai"], (req, res, next) => {
@@ -68,12 +69,10 @@ export function aiAssistanceRouter(deps: Dependencies) {
         limit: 10,
       });
     } catch {
-      res
-        .status(503)
-        .json({
-          enabled: false,
-          error: "AI is unavailable. Normal search and enquiries still work.",
-        });
+      res.status(503).json({
+        enabled: false,
+        error: "AI is unavailable. Normal search and enquiries still work.",
+      });
     }
   });
   const run = async (req: any, res: any, staff = false) => {
@@ -105,7 +104,15 @@ export function aiAssistanceRouter(deps: Dependencies) {
           "Enter your question or search.",
           400,
         );
-      const rateKey = `${dealer}:${req.ip}`,
+      const sessionHash = staff
+        ? aiHash({
+            dealer,
+            staff: req.staff.authUserId,
+            day: new Date().toISOString().slice(0, 10),
+          })
+        : session(req, res);
+      const connection = aiConnectionIdentity(req, sessionHash);
+      const rateKey = `${dealer}:${connection}`,
         now = Date.now();
       let rate = rates.get(rateKey);
       if (!rate || rate.at < now - 60000) {
@@ -169,15 +176,8 @@ export function aiAssistanceRouter(deps: Dependencies) {
           : {}),
       };
       const hash = aiHash({ version: 1, task: body.kind, question, facts });
-      const sessionHash = staff
-        ? aiHash({
-            dealer,
-            staff: req.staff.authUserId,
-            day: new Date().toISOString().slice(0, 10),
-          })
-        : session(req, res);
       const ip = createHmac("sha256", process.env.OPENAI_API_KEY!)
-        .update(String(req.ip ?? "unknown"))
+        .update(connection)
         .digest("hex");
       const cacheKey = staff || body.kind === "question" ? null : hash;
       reservation = await store.reserve({
@@ -234,13 +234,11 @@ export function aiAssistanceRouter(deps: Dependencies) {
           .json({ error: error.message, code: error.code });
         return;
       }
-      res
-        .status(503)
-        .json({
-          error:
-            "AI is temporarily unavailable. Saved answers, normal search and manual replies still work.",
-          code: "ai_unavailable",
-        });
+      res.status(503).json({
+        error:
+          "AI is temporarily unavailable. Saved answers, normal search and manual replies still work.",
+        code: "ai_unavailable",
+      });
     }
   };
   router.get("/staff/ai/status", ...deps.staffAccess, async (req, res) => {

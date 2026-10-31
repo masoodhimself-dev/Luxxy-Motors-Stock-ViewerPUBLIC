@@ -1,3 +1,4 @@
+import { aiConnectionIdentity, aiCookieSecure } from "./lib/ai-request-network";
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -525,4 +526,55 @@ test("global monthly budget protects every dealership", async () => {
     [r.id, 5000000],
   );
   await assert.rejects(store.reserve(input("other")), { code: "budget_limit" });
+});
+
+test("Render visitor limits use validated edge IP, ignore spoofed XFF and avoid a shared proxy bucket", () => {
+  const request = (headers: Record<string, string>, ip = "127.0.0.1") => ({
+    ip,
+    get: (name: string) => headers[name],
+  });
+  assert.equal(
+    aiConnectionIdentity(
+      request({
+        "cf-connecting-ip": "203.0.113.10",
+        "x-forwarded-for": "198.51.100.4",
+      }),
+      "a",
+      true,
+    ),
+    "203.0.113.10",
+  );
+  assert.equal(
+    aiConnectionIdentity(
+      request({ "cf-connecting-ip": "203.0.113.11" }),
+      "b",
+      true,
+    ),
+    "203.0.113.11",
+  );
+  assert.equal(
+    aiConnectionIdentity(
+      request({
+        "cf-connecting-ip": "invalid",
+        "x-forwarded-for": "203.0.113.10",
+      }),
+      "a",
+      true,
+    ),
+    "browser:a",
+  );
+  assert.equal(aiConnectionIdentity(request({}), "b", true), "browser:b");
+  assert.equal(
+    aiConnectionIdentity(
+      request({ "cf-connecting-ip": "203.0.113.10" }),
+      "a",
+      false,
+    ),
+    "127.0.0.1",
+  );
+});
+test("AI cookies are Secure behind HTTPS termination, while HTTP LAN development works", () => {
+  assert.equal(aiCookieSecure(false, true), true);
+  assert.equal(aiCookieSecure(true, false), true);
+  assert.equal(aiCookieSecure(false, false), false);
 });
