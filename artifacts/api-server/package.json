@@ -67,7 +67,8 @@
     "test:delivery-pricing": "node test-enquiry-emails-build.mjs src/delivery-pricing.test.ts && node --test dist-test/delivery-pricing.test.mjs",
     "test:mot": "node test-enquiry-emails-build.mjs src/mot-history.test.ts && node --test dist-test/mot-history.test.mjs && node test-enquiry-emails-build.mjs src/mot-mileage-estimate.test.ts && node --test dist-test/mot-mileage-estimate.test.mjs",
     "test:cazoo-feed": "node test-cazoo-feed-build.mjs && node --test .cache/cazoo-feed/*.test.mjs",
-    "test:staff-cars": "node test-enquiry-emails-build.mjs src/staff-cars.test.ts && node --test dist-test/staff-cars.test.mjs && node test-enquiry-emails-build.mjs src/staff-cars-route.test.ts && node --test dist-test/staff-cars-route.test.mjs"
+    "test:staff-cars": "node test-enquiry-emails-build.mjs src/staff-cars.test.ts && node --test dist-test/staff-cars.test.mjs && node test-enquiry-emails-build.mjs src/staff-cars-route.test.ts && node --test dist-test/staff-cars-route.test.mjs",
+    "test:ai-assistance": "node test-build.mjs src/ai-assistance.test.ts && node --test dist-test/ai-assistance.test.mjs"
   },
   "dependencies": {
     "@clerk/express": "^2.1.64",

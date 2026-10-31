@@ -380,7 +380,7 @@ export async function projectVehicles(vehicles: Vehicle[]) {
 function visible(vehicle: Pick<Vehicle, 'sourceStatus' | 'archivedAt' | 'inventoryStatus' | 'missingCount' | 'priceReviewRequired' | 'sourcePrice' | 'websitePriceOverride'>, settings: Awaited<ReturnType<typeof config>>) {
   return vehicle.sourceStatus === "live" && !vehicle.archivedAt && ["available", "reserved"].includes(vehicle.inventoryStatus) && vehicle.missingCount < settings.missingHideThreshold && !(vehicle.priceReviewRequired && vehicle.sourcePrice == null && vehicle.websitePriceOverride == null);
 }
-router.get("/stock", async (req, res): Promise<void> => {
+export async function readPublicStockCars() {
   const settings = await config();
   const all = await db.select().from(vehiclesTable).where(and(
     eq(vehiclesTable.dealerId, settings.dealerId), eq(vehiclesTable.source, settings.platform),
@@ -389,6 +389,11 @@ router.get("/stock", async (req, res): Promise<void> => {
     or(eq(vehiclesTable.priceReviewRequired, false), isNotNull(vehiclesTable.sourcePrice), isNotNull(vehiclesTable.websitePriceOverride)),
   )).orderBy(vehiclesTable.advertId);
   const cars = await projectVehicles(all.filter((vehicle) => vehicle.source === settings.platform && visible(vehicle, settings)));
+  return cars;
+}
+router.get("/stock", async (req, res): Promise<void> => {
+  const settings = await config();
+  const cars = await readPublicStockCars();
   // Only the source label and check time are needed; don't transfer a whole
   // raw inventory snapshot from Postgres on every public stock page request.
   const [latest] = await db.select({ scrapedAt: stockImportRunsTable.scrapedAt, dealerName: sql<unknown>`${stockImportRunsTable.rawSnapshot} -> 'dealerName'` }).from(stockImportRunsTable).where(and(eq(stockImportRunsTable.dealerId, settings.dealerId), eq(stockImportRunsTable.status, "completed"), eq(stockImportRunsTable.source, settings.platform))).orderBy(desc(stockImportRunsTable.receivedAt)).limit(1);

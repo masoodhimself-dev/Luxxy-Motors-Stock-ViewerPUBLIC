@@ -1,3 +1,4 @@
+import aiAssistanceRouter from './ai-assistance';
 import staffCarsRouter from "./staff-cars";
 import motHistoryRouter from './mot-history';
 import postcodesRouter from './postcodes';
@@ -42,6 +43,7 @@ router.use(['/sales-test', '/test-email-settings'], (_req, res) => {
 router.use(requireStaffOperationAccess);
 router.use(enforceDealerFeatures);
 router.use(dealerFeaturesRouter);
+router.use(aiAssistanceRouter);
 router.use(motHistoryRouter);
 router.use(postcodesRouter);
 router.use('/staff/whatsapp', requireStaff, whatsappConfirmationRouter(), customerEmailPreparationRouter());

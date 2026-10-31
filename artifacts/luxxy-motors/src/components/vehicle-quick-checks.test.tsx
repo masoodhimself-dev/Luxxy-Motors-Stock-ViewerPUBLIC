@@ -25,8 +25,9 @@ vi.mock("./postcode-field", () => ({
 import { VehicleQuickChecks } from "./vehicle-quick-checks";
 function Checks({ vehicleId }: { vehicleId: string }) {
   return <VehicleQuickChecks vehicleId={vehicleId}>
-    {({ motBadge, motAction, deliveryAction }) => <>
+    {({ motBadge, motAction, deliveryAction, requestMotHistory }) => <>
       <header>{motBadge}</header>
+      <button onClick={requestMotHistory}>Load answer MOT</button>
       <section aria-label="Vehicle history">{motAction}</section>
       <section aria-label="Vehicle delivery">{deliveryAction}</section>
     </>}
@@ -136,4 +137,25 @@ it("returns focus to the actual MOT badge when its dialog closes", async () => {
   await screen.findByText("Latest test: Passed");
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
   await waitFor(() => expect(badge).toHaveFocus());
+});
+
+it("loads MOT data for answers once, only after an explicit request", async () => {
+  state.fetch.mockResolvedValue({ status: "uncached" });
+  render(<Checks vehicleId="answer-car" />);
+  await waitFor(() => expect(state.fetch).toHaveBeenCalledTimes(1));
+  state.fetch.mockResolvedValue({ status: "available", history });
+  fireEvent.click(screen.getByRole("button", {name:"Load answer MOT"}));
+  fireEvent.click(screen.getByRole("button", {name:"Load answer MOT"}));
+  await waitFor(() => expect(state.fetch).toHaveBeenCalledTimes(2));
+  expect(state.fetch.mock.calls[1][0]).toBe("/api/vehicles/answer-car/mot-history");
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+it("keeps car answers usable if the MOT lookup fails", async () => {
+  state.fetch.mockResolvedValue({ status: "uncached" });
+  render(<Checks vehicleId="answer-car" />);
+  await waitFor(() => expect(state.fetch).toHaveBeenCalledTimes(1));
+  state.fetch.mockRejectedValue(new Error("Temporarily unavailable"));
+  fireEvent.click(screen.getByRole("button", {name:"Load answer MOT"}));
+  await waitFor(() => expect(state.fetch).toHaveBeenCalledTimes(2));
+  expect(screen.getByRole("button",{name:"Load answer MOT"})).toBeEnabled();
 });

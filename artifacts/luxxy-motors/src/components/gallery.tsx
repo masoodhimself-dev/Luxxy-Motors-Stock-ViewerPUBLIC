@@ -17,7 +17,7 @@ export interface GalleryProps {
   heroImage?: string | null;
   vehicleLabel?: string;
   customerView?: boolean;
-  customerActions?: { bookingHref?: string; enquiryHref?: string; onEnquiry?: () => void; call?: ReactNode };
+  customerActions?: { bookingHref?: string; enquiryHref?: string; onEnquiry?: () => void; onQuestion?: (trigger?: HTMLElement) => void; call?: ReactNode };
 }
 function imageCaption(image: CarImage | string | undefined) {
   return image && typeof image === 'object' ? image.caption || '' : '';
@@ -38,6 +38,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
   const hasCustomerActions = Boolean(customerActions?.bookingHref || customerActions?.enquiryHref || customerActions?.call);
   const [overviewFocusIndex, setOverviewFocusIndex] = useState(0);
   const messageRequested = useRef(false);
+  const questionRequested = useRef<HTMLElement | null>(null);
   const inlineEnquiryRequested = useRef(false);
   const thumbnailRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const overviewRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -256,7 +257,12 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
             contactFromPrompt();
           }}><Calendar aria-hidden="true" />Book a Test Drive<ArrowRight aria-hidden="true" /></Link>}
           <div className="vehicle-gallery-interest-secondary">
-            {customerActions?.enquiryHref && <Link href={customerActions.enquiryHref} className="vehicle-gallery-interest-action" onClick={requestEnquiry}><Mail aria-hidden="true" />Ask a question</Link>}
+            {customerActions?.enquiryHref && <Link href={customerActions.enquiryHref} className="vehicle-gallery-interest-action" onClick={event => {
+              if (customerActions?.onQuestion && event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault();
+                const trigger = event.currentTarget;
+                if (open) { questionRequested.current = trigger; contactFromPrompt(); }
+                else { setInterestOpen(false); requestAnimationFrame(() => customerActions.onQuestion?.(trigger)); } } else requestEnquiry(event);
+            }}><Mail aria-hidden="true" />Ask a question</Link>}
             {customerActions?.call}
           </div>
         </div>
@@ -380,6 +386,12 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
         className={cn('vehicle-lightbox', customerView && 'customer-vehicle-lightbox', overview && 'is-gallery-overview', zoomed && 'is-gallery-zoomed', interestOpen && 'has-gallery-interest')}
         overlayClassName={customerView ? 'vehicle-gallery-backdrop' : undefined}
         onCloseAutoFocus={event => {
+          if (questionRequested.current) {
+            const trigger = questionRequested.current; questionRequested.current = null;
+            messageRequested.current = false; event.preventDefault();
+            requestAnimationFrame(() => customerActions?.onQuestion?.(trigger));
+            return;
+          }
           if (!messageRequested.current) return;
           event.preventDefault();
           messageRequested.current = false;

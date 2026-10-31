@@ -540,6 +540,13 @@
       "when": 1793296800000,
       "tag": "0076_cazoo_feed_authority",
       "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1793451600000,
+      "tag": "0077_ai_assistance",
+      "breakpoints": true
     }
   ]
 }

@@ -43,7 +43,7 @@ test('part exchange opens the valuation page with the interested vehicle', async
   await page.goto('/vehicle/preview-2');
   await expect(page.locator('#vehicle-enquiry input')).toHaveCount(3);
   await expect(page.locator('#vehicle-enquiry select')).toHaveCount(0);
-  await page.getByRole('link', {name:'Value my car', exact:true}).click();
+  await page.getByRole('link', {name:'Part exchange your car', exact:true}).click();
   await expect(page).toHaveURL(/enquire\?type=part_exchange&vehicleId=preview-2/);
   await expect(page.getByRole('heading', {name:/value my car|part.exchange/i}).first()).toBeVisible();
 });

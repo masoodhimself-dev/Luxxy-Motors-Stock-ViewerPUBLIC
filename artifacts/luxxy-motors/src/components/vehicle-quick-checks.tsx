@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { MotHistory } from "@workspace/vehicle-meta";
 import { customFetch } from "@workspace/api-client-react";
 import { useDealerSettings } from "@/lib/dealer-settings-context";
@@ -18,6 +18,8 @@ import { VehicleBadgeIcon } from "./vehicle-badge-icon";
 import { Truck } from "./icons";
 
 type VehicleCheckActions = {
+  motHistory: MotHistory | null;
+  requestMotHistory: () => void;
   motBadge: ReactNode;
   motAction: ReactNode;
   deliveryAction: ReactNode;
@@ -32,6 +34,16 @@ export function VehicleQuickChecks({ vehicleId, children }: {
   const [history, setHistory] = useState<MotHistory | null>(null);
   const [estimate, setEstimate] = useState<DeliveryEstimate | null>(null);
   const lastTrigger = useRef<HTMLButtonElement | null>(null);
+  const answerLookup = useRef<AbortController | null>(null);
+  const requestMotHistory = useCallback(() => {
+    // The customer explicitly opened car answers. Load once, without polling.
+    if (answerLookup.current) return;
+    const controller = new AbortController(); answerLookup.current = controller;
+    customFetch<{status: string; history?: MotHistory}>(`/api/vehicles/${encodeURIComponent(vehicleId)}/mot-history`, {signal:controller.signal})
+      .then(reply => { if (!controller.signal.aborted && reply.status === 'available' && reply.history) setHistory(reply.history); })
+      .catch(() => {});
+  }, [vehicleId]);
+  useEffect(() => () => { answerLookup.current?.abort(); answerLookup.current = null; }, [vehicleId]);
   function open(next: "mot" | "delivery", trigger: HTMLButtonElement) {
     lastTrigger.current = trigger;
     setPanel(next);
@@ -52,7 +64,7 @@ export function VehicleQuickChecks({ vehicleId, children }: {
           reply.status === "available" &&
           reply.history
         )
-          setHistory(reply.history);
+          setHistory(current => current && Date.parse(current.checkedAt) >= Date.parse(reply.history!.checkedAt) ? current : reply.history!);
       })
       .catch(() => {});
     return () => controller.abort();
@@ -112,7 +124,7 @@ export function VehicleQuickChecks({ vehicleId, children }: {
     </Button>
   ) : null;
   return <>
-      {children({ motBadge, motAction, deliveryAction })}
+      {children({ motBadge, motAction, deliveryAction, motHistory: history, requestMotHistory })}
       <Dialog
         open={panel !== null}
         onOpenChange={(open) => {

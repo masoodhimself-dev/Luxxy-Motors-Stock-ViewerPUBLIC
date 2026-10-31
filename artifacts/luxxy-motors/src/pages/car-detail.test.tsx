@@ -219,11 +219,12 @@ describe('vehicle detail link preview', () => {
   });
 });
 
-it('offers printing in the vehicle summary', () => {
+it('offers printing through More vehicle tools', () => {
   renderVehicle('with-plate');
+  fireEvent.click(screen.getByRole('button', { name: 'More vehicle tools' }));
   const link = screen.getByRole('button', { name: 'Print vehicle details for BMW 3 Series' });
   expect(link).toHaveAttribute('type', 'button');
-  expect(link.closest('.vehicle-summary')).not.toBeNull();
+  expect(link.closest('[data-popup-surface="popover"]')).not.toBeNull();
 });
 
 it('requests service records through the contextual enquiry without exposing private uploads', () => {
@@ -232,13 +233,14 @@ it('requests service records through the contextual enquiry without exposing pri
   expect(screen.queryByRole('link', { name: /Download service/ })).not.toBeInTheDocument();
 });
 
-it('omits empty extra options while keeping printing and sharing visible', () => {
+it('omits empty extra options while keeping sharing visible and printing in More', () => {
   window.history.pushState({}, '', '/vehicle/with-plate');
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(getGetDealerSettingsQueryKey(), { ...dealerConfig, partExchange: { ...dealerConfig.partExchange, enabled: false }, onlineReservation: { enabled: false, depositPence: 10000, terms: '' }, presentation: { ...dealerConfig.presentation, comparisonEnabled: false } });
   render(<QueryClientProvider client={client}><SavedCarsProvider><CarDetail /></SavedCarsProvider></QueryClientProvider>);
   expect(screen.queryByTestId('vehicle-secondary-actions')).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Share this vehicle' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'More vehicle tools' }));
   expect(screen.getByRole('button', { name: 'Print vehicle details for BMW 3 Series' })).toBeInTheDocument();
 });
 
@@ -256,16 +258,19 @@ it('discloses a supplied insurance category alongside the price without inferrin
   expect(screen.queryByRole('link', { name: /recorded insurance history/ })).not.toBeInTheDocument();
 });
 
-it('opens the existing car-specific enquiry form and keeps print/share outside collapsed phone options', async () => {
+it('answers questions first and still offers the existing car-specific enquiry form', async () => {
   featureState.data.features.publicEnquiries = true;
   const scrollIntoView = vi.fn();
   Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {configurable: true, value: scrollIntoView});
   window.history.replaceState({}, '', '/vehicle/with-plate');
   const client = new QueryClient({defaultOptions:{queries:{retry:false}}});
   render(<QueryClientProvider client={client}><SavedCarsProvider><CarDetail /></SavedCarsProvider></QueryClientProvider>);
-  const enquiry = await screen.findByRole('link', {name:'Enquire About This Car'});
+  const enquiry = await screen.findByRole('link', {name:'Ask a question'});
   expect(enquiry).toHaveAttribute('href','#vehicle-enquiry');
   fireEvent.click(enquiry);
+  expect(await screen.findByRole('dialog', {name:'Questions about this BMW 3 Series'})).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', {name:'Ask our team'}));
+  await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
   expect(scrollIntoView).toHaveBeenCalledWith({block:'start', behavior:'smooth'});
   expect(screen.getByRole('heading', {name:'Enquire about this BMW 3 Series'})).toHaveFocus();
   expect(screen.getByRole('button',{name:'Share this vehicle'}).closest('[data-testid="vehicle-secondary-actions"]')).toBeNull();

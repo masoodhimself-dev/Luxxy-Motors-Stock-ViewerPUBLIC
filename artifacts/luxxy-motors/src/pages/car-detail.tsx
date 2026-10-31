@@ -1,3 +1,5 @@
+import { AiFeatureExplanation } from '@/components/ai-feature-explanation';
+import { VehicleAnswers } from '@/components/vehicle-answers';
 import {VehicleQuickChecks} from '@/components/vehicle-quick-checks';
 
 import { UKNumberPlate } from '@/components/uk-number-plate';
@@ -10,7 +12,6 @@ import { readVehicleSourceReport } from '@/lib/vehicle-source-report';
 import { VehicleDescription } from '@/components/vehicle-description';
 import { VehicleSellingPoints } from '@/components/vehicle-selling-points';
 import { browseReturnHref, requestBrowseRestore } from '@/lib/browse-session';
-import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
 import { prominentVehicleFeatures, prioritiseVehicleFeatures, vehicleContent, vehicleDescriptionParagraphs } from '@/lib/vehicle-content';
 import { PriceReduction } from '@/components/price-reduction';
 import { stockRegistrationYear } from '@/lib/stock-presentation';
@@ -25,7 +26,7 @@ import { VehicleHistorySummary, VehicleRunningCosts, VehicleSpecificationDetails
 import { vehicleSpecificationGroups, vehicleRunningCosts as getVehicleRunningCosts } from '@/lib/vehicle-extra-facts';
 import { getSimilarCars } from "@/lib/similar-cars";
 import { buyerInformation } from "@/lib/buyer-information";
-import { useEffect, useState, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { Link, useLocation, useRoute } from 'wouter';
 import {
   ArrowLeft,
@@ -46,6 +47,7 @@ import {
   vehicleRegistration,
 } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PageHeading } from '@/components/page-ui';
 import NotFound from '@/pages/not-found';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
@@ -78,6 +80,8 @@ function LedgerRow({ label, value, testId }: { label: string; value: string; tes
 
 export default function CarDetail() {
   const [shareMessage, setShareMessage] = useState('');
+  const [answersOpen, setAnswersOpen] = useState(false);
+  const answersTrigger = useRef<HTMLElement | null>(null);
   // Keep identity above the gallery until the two-column layout starts.
   const isCompactLayout = useIsMobile(1100);
   const isPhoneLayout = useIsMobile(640);
@@ -88,7 +92,7 @@ export default function CarDetail() {
   const customerFeatures = useDealerFeatures();
   const car = stock?.cars?.find((candidate) => candidate.id === params?.id);
 
-  useEffect(() => { setShareMessage(''); }, [car?.id]);
+  useEffect(() => { setShareMessage(''); setAnswersOpen(false); }, [car?.id]);
 
   useEffect(() => {
     if (!car?.id) return;
@@ -191,7 +195,6 @@ export default function CarDetail() {
   const damageDisclosure = vehicleInsuranceDisclosure(car, vehicleContent(car).description);
 
   const hasHandoverInformation = handoverFacts.length > 0 || Boolean(dealerConfig.presentation?.includedInformation?.trim()) || Boolean(damageDisclosure);
-  const hasSecondaryActions = dealerConfig.partExchange?.enabled;
   const content = vehicleContent(car);
   const separateDescriptionNotes = car.sourceExtras?.vehicleDescriptionPlacement === 'separate' && typeof car.sourceExtras?.vehicleDescriptionBody === 'string' && Array.isArray(car.sourceExtras?.vehicleDescriptionDisclosures) && car.sourceExtras.vehicleDescriptionDisclosures.length > 0;
   const description = separateDescriptionNotes ? String(car.sourceExtras!.vehicleDescriptionBody) : content.description;
@@ -228,12 +231,13 @@ export default function CarDetail() {
     </Button>
   ) : null;
   const enquiryAction = customerFeatures.enabled('publicEnquiries') && (
-    <a key="enquiry" className="vehicle-enquiry-action" href="#vehicle-enquiry" onClick={event => {
+    <a key="enquiry" className="vehicle-enquiry-action" href="#vehicle-enquiry" aria-haspopup="dialog" onClick={event => {
       if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       event.preventDefault();
-      openVehicleEnquiry();
+      answersTrigger.current = event.currentTarget;
+      setAnswersOpen(true);
     }}>
-      <CustomerEnquiry className="h-4 w-4" aria-hidden="true" /> Enquire About This Car
+      <CustomerEnquiry className="h-4 w-4" aria-hidden="true" /> Ask a question
     </a>
   );
 
@@ -244,7 +248,7 @@ export default function CarDetail() {
     </dl>
   );
   return <VehicleQuickChecks key={car.id} vehicleId={car.id}>
-    {({ motBadge, motAction, deliveryAction }) => {
+    {({ motBadge, motAction, deliveryAction, motHistory, requestMotHistory }) => {
   const vehicleIdentity = (
     <header className={`min-w-0${isCompactLayout ? ' vehicle-compact-identity' : ''}`} data-testid="vehicle-identity">
       <p className="vehicle-availability luxxy-kicker mb-3">
@@ -289,6 +293,7 @@ export default function CarDetail() {
               bookingHref: dealerConfig.testDriveBooking?.enabled && (!car.inventoryStatus || car.inventoryStatus === 'available') ? bookingHref : undefined,
               enquiryHref: customerFeatures.enabled('publicEnquiries') ? '#vehicle-enquiry' : undefined,
               onEnquiry: customerFeatures.enabled('publicEnquiries') ? openVehicleEnquiry : undefined,
+              onQuestion: customerFeatures.enabled('publicEnquiries') ? trigger => { answersTrigger.current = trigger ?? null; setAnswersOpen(true); } : undefined,
               call: getPhoneHref(dealerConfig) ? <VehicleCall car={car} className="vehicle-gallery-interest-action" /> : undefined,
             }} />
           </div>
@@ -299,15 +304,6 @@ export default function CarDetail() {
             {(car.variant || car.trim) && <p className="vehicle-variant text-sm leading-relaxed text-muted-foreground">{car.variant || car.trim}</p>}
             {registrationDetails}
           </div>}
-          {isPhoneLayout && <VehicleSellingPoints car={car} motBadge={motBadge} />}
-          <div className="vehicle-primary-actions vehicle-summary-main-actions">{bookingAction}{enquiryAction}</div>
-            <div className="vehicle-direct-contact" aria-label="Talk to us about this car">
-              <VehicleCall car={car} />
-              <VehicleWhatsApp car={car} />
-            </div>
-          {!isPhoneLayout && <VehicleSellingPoints car={car} motBadge={motBadge} />}
-          {equipmentHighlights.length > 0 && <ul className="vehicle-summary-highlights" aria-label="Equipment highlights">{equipmentHighlights.map(feature => <li key={feature}>{feature}</li>)}</ul>}
-          <aside className="min-w-0 pt-5">
             <dl className="vehicle-key-facts grid grid-cols-2 gap-x-4 gap-y-4">
               {keyFacts.map((fact) => (
                 <div key={fact.label}>
@@ -320,21 +316,22 @@ export default function CarDetail() {
                 </div>
               ))}
             </dl>
+          <VehicleSellingPoints car={car} motBadge={motBadge} />
+          {equipmentHighlights.length > 0 && <ul className="vehicle-summary-highlights" aria-label="Equipment highlights">{equipmentHighlights.map(feature => <li key={feature}>{feature}</li>)}</ul>}
+          <div className="vehicle-primary-actions vehicle-summary-main-actions">{bookingAction}{enquiryAction}</div>
+          <div className="vehicle-direct-contact" aria-label="Talk to us about this car">
+            <VehicleCall car={car} />
+            <VehicleWhatsApp car={car} />
+          </div>
+          <aside className="min-w-0 pt-5">
             <div className="vehicle-detail-actions" data-testid="desktop-purchase-panel">
 
 
-            {hasSecondaryActions && <MobileActionDisclosure label="More options" testId="vehicle-secondary-actions" className="vehicle-secondary-actions mt-3 border-t border-border md:mt-0 md:border-0">
-              <div className="vehicle-contact-options">
-              <div className="vehicle-secondary-grid">
-              {dealerConfig.partExchange?.enabled && <a href={`/enquire?type=part_exchange&vehicleId=${encodeURIComponent(car.id)}`} className="vehicle-contact-action">Value my car <ArrowRight className="h-4 w-4" /></a>}</div>
-              </div>
-
-
-            </MobileActionDisclosure>}
+            {dealerConfig.partExchange?.enabled && <a href={`/enquire?type=part_exchange&vehicleId=${encodeURIComponent(car.id)}`} className="vehicle-part-exchange-link">Part exchange your car <ArrowRight className="h-4 w-4" aria-hidden="true" /></a>}
               <div className="vehicle-utility-actions" role="group" aria-label="Vehicle tools">
-                <VehiclePrint car={car} dealer={dealerConfig} features={features} description={description} />
                 <Button variant="ghost" onClick={share} aria-label="Share this vehicle"><Share2 className="h-4 w-4" /> Share</Button>
                 <SaveCarButton car={car} variant="inline" className="vehicle-save-control border-transparent bg-transparent" />
+                <Popover><PopoverTrigger asChild><Button variant="ghost" aria-label="More vehicle tools">More <span aria-hidden="true">···</span></Button></PopoverTrigger><PopoverContent align="end" className="w-auto p-3"><VehiclePrint car={car} dealer={dealerConfig} features={features} description={description} /></PopoverContent></Popover>
                 {shareMessage && <span className="text-xs text-muted-foreground" role="status">{shareMessage}</span>}
               </div>
             </div>
@@ -361,6 +358,7 @@ export default function CarDetail() {
                 <h2 id="features-heading" className="section-heading scroll-mt-28">
                   {websiteText(dealerConfig, "vehicleFeaturesHeading")}
                 </h2>
+                <AiFeatureExplanation key={car.id} vehicleId={car.id} features={features} />
                 <VehicleEquipmentList features={features} />
               </section>
             )}
@@ -466,7 +464,7 @@ export default function CarDetail() {
           <div className="vehicle-visit-delivery-stack min-w-0">
             <VehicleVisit car={car} />
             {deliveryAction && <section aria-labelledby="vehicle-delivery-heading" className="mt-8 border-t border-border pt-7">
-              <h2 id="vehicle-delivery-heading" className="section-heading scroll-mt-28">{dealerConfig.delivery?.title || "Delivery to your door"}</h2>
+              <h2 id="vehicle-delivery-heading" tabIndex={-1} className="section-heading scroll-mt-28">{dealerConfig.delivery?.title || "Delivery to your door"}</h2>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">{dealerConfig.delivery?.description || "Enter your postcode for an estimated delivery cost, based on the driving distance from our showroom."}</p>
               {deliveryAction}
             </section>}
@@ -508,6 +506,7 @@ export default function CarDetail() {
           </div>
         </section>
       )}
+      {customerFeatures.enabled('publicEnquiries') && <VehicleAnswers key={car.id} car={car} motHistory={motHistory} onRequestMotHistory={requestMotHistory} open={answersOpen} onOpenChange={setAnswersOpen} onAskTeam={openVehicleEnquiry} onReturnFocus={() => { const trigger = answersTrigger.current; if (trigger?.isConnected && trigger.getClientRects().length) trigger.focus(); else document.querySelector<HTMLAnchorElement>('.vehicle-enquiry-action')?.focus(); }} />}
       {(getPhoneHref(dealerConfig) || enquiryAction) && <nav className="vehicle-mobile-actions" aria-label="Contact about this vehicle">
         {getPhoneHref(dealerConfig) && <VehicleCall car={car} buttonLabel="Call" />}
         {enquiryAction && <a href="#vehicle-enquiry" onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); openVehicleEnquiry(); }}><CustomerEnquiry className="h-4 w-4" aria-hidden="true" />Enquire</a>}

@@ -1,3 +1,4 @@
+import { AiReplyDraft } from './ai-reply-draft';
 import { DirectWhatsApp } from "@/components/direct-whatsapp";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -907,6 +908,7 @@ function EnquiryEmailEditor({
                             </Button>
                           </div>
                         )}
+                      <AiReplyDraft key={entry.id} enquiryId={entry.id} disabled={busy} onApply={text=>change({message:text})} />
                       <fieldset disabled={busy}>
                         {initialRecipient &&
                           /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(

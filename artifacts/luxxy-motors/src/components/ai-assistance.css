@@ -1,0 +1,7 @@
+.ai-car-finder { border: 1px solid hsl(var(--border)); border-radius: 8px; background: hsl(var(--card)); padding: clamp(18px,3vw,28px); margin: 24px auto; max-width: 1396px; }
+.ai-question-form { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px; margin-top: 16px; }
+.ai-question-form input,.ai-question-form button { min-height: 48px; }
+.ai-allowance { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 16px; font-size: 12px; color: hsl(var(--muted-foreground)); }
+.ai-matched-cars { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; margin-top: 20px; }
+.vehicle-answers-dialog .ai-answer { max-height: 180px; overflow-y: auto; border: 1px solid hsl(var(--border)); padding: 12px; font-size: 14px; line-height: 1.6; flex-shrink: 1; min-height: 0; }
+@media(max-width:639px){ .ai-question-form{grid-template-columns:minmax(0,1fr);} .ai-matched-cars{grid-template-columns:minmax(0,1fr);} .ai-car-finder{margin:16px;} }

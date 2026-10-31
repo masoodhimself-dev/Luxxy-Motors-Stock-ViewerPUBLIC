@@ -33,6 +33,10 @@ export function VehiclePrint({ car, dealer, features, description }: { car: Car;
       try {
         const doc = element.contentDocument!;
         doc.open(); doc.write('<!doctype html><html><head><meta charset="utf-8"><title>Vehicle details</title><style>html,body{margin:0;padding:0;background:white}</style></head><body><main></main></body></html>'); doc.close();
+        // Keyboard events in the sheet's iframe do not bubble to the dialog.
+        doc.addEventListener('keydown', event => {
+          if (event.key === 'Escape') { event.preventDefault(); setOpen(false); }
+        }, { signal: controller.signal });
         const { origin, url } = vehicleSheetLocation(car.id);
         const data = buildVehicleSheetData(car, dealer, features, description, url);
         if (data.dealer?.logoUrl) data.dealer.logoUrl = new URL(data.dealer.logoUrl, window.location.origin).href;

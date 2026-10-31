@@ -1,3 +1,4 @@
+import { AiCarFinder } from '@/components/ai-car-finder';
 import { ShowroomOpeningStatus } from "@/components/showroom-opening-status";
 import { DealerServicePhoto, hasMultiChoicePhotography } from "@/components/dealer-service-photo";
 import { DeliveryEstimator } from '@/components/delivery-estimator';
@@ -392,6 +393,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
           {publicEnquiriesEnabled && !isLoading && !error && filteredCars.length < 4 && <p className="home-search-help">Need help choosing? <Link className="text-link" href={'/enquire?type=general&searchRequest='+encodeURIComponent(Object.entries(filters).filter(([k,v])=>k!=='sort' && v).map(([k,v])=>`${k}: ${v}`).join(', ') || 'current stock')}>Ask us <ArrowRight size={16}/></Link></p>}
         </div>
       </section>}
+      {!browseStock && <AiCarFinder cars={publicCars} />}
 
       {!browseStock && isLoading && <section className="home-stock-loading container mx-auto px-4 sm:px-6 lg:px-8" aria-label="Loading featured cars" aria-busy="true"><p role="status">Loading cars…</p><div className="home-stock-skeletons" aria-hidden="true">{[1, 2, 3, 4].map(n => <div key={n} className="animate-pulse bg-muted" />)}</div></section>}
       {!browseStock && !isLoading && (dealerConfig.presentation?.featuredEnabled !== false || (!error && publicCars.length > 0)) && <RollingStock

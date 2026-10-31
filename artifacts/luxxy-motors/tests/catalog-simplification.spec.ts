@@ -62,7 +62,8 @@ for (const width of [320,390,820,1440]) {
     await page.getByTestId(`card-vehicle-${first.id}`).getByRole('link',{name:'View full details for Toyota Yaris',exact:true}).click();
     await expect(page.locator('.vehicle-price-block')).toContainText('Advert states Category S');
     await expect(page.locator('.vehicle-key-facts').getByRole('button',{name:/^(Mileage|Fuel|Year)/})).toHaveCount(0);
-    await page.getByRole('link',{name:'Enquire About This Car',exact:true}).click();
+    await page.getByRole('link',{name:'Ask a question',exact:true}).click();
+    await page.getByRole('dialog',{name:'Questions about this Toyota Yaris'}).getByRole('button',{name:'Ask our team'}).click();
     await expect(page.getByRole('heading',{name:'Enquire about this Toyota Yaris'})).toBeFocused();
     await expect(page.getByTestId('textarea-enquiry-message')).toBeVisible();
     await expect(page).toHaveURL(`/vehicle/${first.id}`);
