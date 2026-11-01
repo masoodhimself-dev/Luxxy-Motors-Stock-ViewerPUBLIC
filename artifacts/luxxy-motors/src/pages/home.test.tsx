@@ -208,7 +208,10 @@ function resultTitles() {
 
 const originalCars = stockFixture.cars.map((car) => ({ ...car }));
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  document.querySelectorAll('[data-stock-photo-test]').forEach(element => element.remove());
+});
 
 beforeEach(() => {
   stockIsLoading=false;
@@ -756,6 +759,63 @@ it('shows supplied stock detail, exact mileage and an explicit car link while re
   expect(equipment).not.toHaveTextContent('No parking sensors');
   expect(within(card).getByRole('link',{name:'View car'})).toHaveAttribute('href',`/vehicle/${car.id}`);
   expect(within(card).getByTestId(`button-save-${car.id}`)).toBeInTheDocument();
+});
+
+function stockPhotoTenant(origin: string) {
+  const meta = document.createElement('meta');
+  meta.name = 'luxxy-canonical-origin';
+  meta.content = origin;
+  meta.setAttribute('data-page-meta', '');
+  meta.setAttribute('data-stock-photo-test', '');
+  document.head.append(meta);
+}
+
+it.each(['card', 'compact'])('keeps Multi-Choice stock photos clean and linked in %s view', layout => {
+  stockPhotoTenant('https://multichoicemotors.co.uk');
+  const car = { ...originalCars[0], imageCount: 2, images: ['https://cdn.example.com/bmw-1.jpg', 'https://cdn.example.com/bmw-rear.jpg'] };
+  stockFixture.cars = [car];
+  renderHome();
+  if (layout === 'compact') {
+    fireEvent.click(screen.getByRole('button', { name: 'View options' }));
+    fireEvent.click(screen.getByTestId('button-stock-view-compact'));
+  }
+  const card = screen.getByTestId(`${layout}-vehicle-${car.id}`);
+  expect(within(card).queryByRole('button', { name: `Previous photo of ${car.title}` })).not.toBeInTheDocument();
+  expect(within(card).queryByRole('button', { name: `Next photo of ${car.title}` })).not.toBeInTheDocument();
+  expect(within(card).queryByTestId(`button-save-${car.id}`)).not.toBeInTheDocument();
+  expect(card.querySelector('.stock-photo-count')).toBeNull();
+  const photograph = within(card).getByRole('link', { name: `View full details for ${car.title}` });
+  expect(photograph).toHaveAttribute('href', `/vehicle/${car.id}`);
+  expect(within(photograph).getByRole('img', { name: 'BMW 1 Series' })).toBeInTheDocument();
+  expect(within(card).getByRole('link', { name: 'View car' })).toHaveAttribute('href', `/vehicle/${car.id}`);
+  fireEvent.click(photograph);
+  expect(window.location.pathname).toBe(`/vehicle/${car.id}`);
+});
+
+it('preserves another dealership’s stock-photo browsing and Save even if its editable name matches Multi-Choice', () => {
+  stockPhotoTenant('https://shoredrive.uk');
+  overrideSettings = { ...dealerConfigFixture, identity: { ...dealerConfigFixture.identity, name: 'Multi Choice Motors' } };
+  const car = { ...originalCars[0], imageCount: 2, images: ['https://cdn.example.com/bmw-1.jpg', 'https://cdn.example.com/bmw-rear.jpg'] };
+  stockFixture.cars = [car];
+  renderHome();
+  const card = screen.getByTestId(`card-vehicle-${car.id}`);
+  expect(within(card).getByRole('button', { name: `Previous photo of ${car.title}` })).toBeInTheDocument();
+  fireEvent.click(within(card).getByRole('button', { name: `Next photo of ${car.title}` }));
+  expect(within(card).getByRole('img', { name: 'BMW 1 Series' })).toHaveAttribute('src', 'https://cdn.example.com/bmw-rear.jpg');
+  expect(within(card).getByTestId(`button-save-${car.id}`)).toBeInTheDocument();
+  expect(card.querySelector('.stock-photo-count')).toHaveTextContent('2 / 2');
+});
+
+it('leaves Multi-Choice’s separate homepage featured photographs and vehicle links intact', () => {
+  stockPhotoTenant('https://multichoicemotors.co.uk');
+  const car = { ...originalCars[0], imageCount: 2, images: ['https://cdn.example.com/bmw-1.jpg', 'https://cdn.example.com/bmw-rear.jpg'] };
+  stockFixture.cars = [car];
+  renderHome(false);
+  expect(document.getElementById('vehicle-results')).toBeNull();
+  const featured = screen.getByRole('region', { name: 'Browse cars' });
+  const photograph = within(featured).getByRole('link', { name: `View full details for ${car.title}` });
+  expect(photograph).toHaveAttribute('href', `/vehicle/${car.id}`);
+  expect(within(photograph).getByRole('img', { name: 'BMW 1 Series' })).toBeInTheDocument();
 });
 
 it('places Multi-Choice photos only on enabled homepage sections, never stock results', () => {

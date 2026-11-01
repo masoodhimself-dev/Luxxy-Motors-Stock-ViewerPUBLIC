@@ -230,6 +230,36 @@ it('offers printing through More vehicle tools', () => {
   expect(link.closest('[data-popup-surface="popover"]')).not.toBeNull();
 });
 
+it('retains Multi-Choice vehicle-page Save and full gallery browsing independently from stock-photo controls', async () => {
+  const meta = document.createElement('meta');
+  meta.name = 'luxxy-canonical-origin';
+  meta.content = 'https://multichoicemotors.co.uk';
+  meta.setAttribute('data-page-meta', '');
+  document.head.append(meta);
+  const car = stockFixture.cars[1];
+  const previous = { images: car.images, imageCount: car.imageCount };
+  window.localStorage.clear();
+  Object.assign(car, { images: [car.heroImage, 'https://cdn.example.com/bmw-rear.jpg'], imageCount: 2 });
+  try {
+    const view = renderVehicle('with-plate');
+    const save = screen.getByTestId('button-save-with-plate');
+    expect(save).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(save);
+    expect(save).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Next photograph' }));
+    expect(screen.getByText('2 / 2', { exact: true })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'View gallery fullscreen' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.keyDown(dialog, { key: 'ArrowLeft' });
+    expect(within(dialog).getByText('1 / 2', { exact: true })).toBeInTheDocument();
+    view.unmount();
+  } finally {
+    Object.assign(car, previous);
+    meta.remove();
+    window.localStorage.clear();
+  }
+});
+
 it('prepares a service-record request in the same-page message form without sending it', async () => {
   featureState.data.features.publicEnquiries = true;
   const scrollIntoView = vi.fn();

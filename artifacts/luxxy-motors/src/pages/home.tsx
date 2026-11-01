@@ -28,6 +28,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useStock } from '@/lib/stock-context';
 import { CarCard } from '@/components/car-card';
+import { stockPhotoControlsEnabled } from '@/lib/stock-photo-controls';
 import { Filters, type FilterState } from '@/components/filters';
 import { cn, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
 import { getContactHref } from '@/lib/cta-helpers';
@@ -510,6 +511,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                       car={car}
                       catalogue
                       stockDetails
+                      photoControls={stockPhotoControlsEnabled()}
                       priority={index < 2}
                       layout={stockView === 'compact' ? 'compact' : 'card'}
                       stretchedLink
