@@ -26,7 +26,7 @@ export function buildPartExchangeMessage(details: PartExchangeDetails, car: Car,
   return [
     `Hi ${dealerName}, I have ${ownCar === 'my car' ? ownCar : `a ${ownCar}`} (${details.registration.trim().toUpperCase()}), and I’d like to part exchange it.`, '',
     `I’m interested in your ${target}${vehicleRegistration(car) ? ` (${vehicleRegistration(car)})` : ''}. Could you give me a valuation?`, '',
-    `${options.mileageEstimated ? 'Estimated mileage (MOT history)' : 'Current mileage'}: ${details.mileage ? Number(details.mileage).toLocaleString('en-GB') : 'Not entered'} miles.`,
+    `${options.mileageEstimated ? 'Estimated mileage' : 'Current mileage'}: ${details.mileage ? Number(details.mileage).toLocaleString('en-GB') : 'Not entered'} miles.`,
     ...(partExchangeMotSummary(options.mot) ? [partExchangeMotSummary(options.mot)!] : []),
     ...(details.condition ? [`Condition: ${details.condition}`] : []),
     ...(details.keys ? [`Keys: ${details.keys}`] : []),

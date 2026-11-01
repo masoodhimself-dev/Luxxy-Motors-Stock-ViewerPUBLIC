@@ -192,6 +192,7 @@ it("uses the existing part-exchange identity/mileage estimate only after staff r
     await vi.advanceTimersByTimeAsync(900);
   });
   expect(state.fetch).not.toHaveBeenCalled();
+  expect(document.querySelector(".enquiry-checks img")).toBeNull();
   fireEvent.click(
     screen.getByRole("button", { name: "Identify car & estimate mileage" }),
   );
@@ -204,6 +205,10 @@ it("uses the existing part-exchange identity/mileage estimate only after staff r
   expect(screen.getByRole("status")).toHaveTextContent(
     "FORD FIESTA · Estimated 55,000",
   );
+  const logo = screen.getByRole("status").querySelector("img");
+  expect(logo).toHaveAttribute("src", "/brand/car-makes/ford.svg");
+  expect(logo).toHaveAttribute("alt", "");
+  expect(logo).toHaveAttribute("aria-hidden", "true");
   expect(screen.getByText(/Customer supplied: 53,000 miles/)).toBeVisible();
   fireEvent.click(
     screen.getByRole("button", { name: "Add mileage estimate to reply" }),
@@ -222,6 +227,14 @@ it("uses the existing part-exchange identity/mileage estimate only after staff r
   expect(
     screen.getByRole("button", { name: "Add mileage estimate to reply" }),
   ).toBeEnabled();
+  fireEvent.change(screen.getByLabelText("Part-exchange registration"), {
+    target: { value: "EF56GHI" },
+  });
+  expect(document.querySelector(".enquiry-checks img")).toBeNull();
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(850);
+  });
+  expect(state.fetch).toHaveBeenCalledTimes(2);
 });
 
 it("asks for a complete registration and does not invent a mileage when history is insufficient", async () => {
@@ -249,9 +262,31 @@ it("asks for a complete registration and does not invent a mileage when history 
   expect(screen.getByRole("status")).toHaveTextContent(
     "Not enough reliable MOT history",
   );
+  expect(screen.getByRole("status").querySelector("img")).toHaveAttribute(
+    "src", "/brand/car-makes/ford.svg",
+  );
   expect(
     screen.queryByRole("button", { name: "Add mileage estimate to reply" }),
   ).not.toBeInTheDocument();
+});
+
+it("never shows a manufacturer logo for a mismatching MOT registration", async () => {
+  vi.useFakeTimers();
+  state.fetch.mockResolvedValue({
+    status: "estimated",
+    registration: "EF56GHI",
+    vehicle: { make: "MERCEDES-BENZ", model: "A CLASS" },
+    estimate: { mileage: 55000 },
+  });
+  render(<EnquiryChecks entry={entry} canManage />);
+  fireEvent.click(screen.getByRole("button", { name: /Part exchange/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Identify car & estimate mileage" }));
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(850);
+  });
+  expect(screen.getByRole("status")).toHaveTextContent("Mileage could not be estimated");
+  expect(screen.getByRole("status").querySelector("img")).toBeNull();
+  expect(screen.queryByText(/MERCEDES-BENZ/)).not.toBeInTheDocument();
 });
 
 it("calculates a road quote only on request, and places a clearly estimated price in the editable reply", async () => {

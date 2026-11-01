@@ -1,0 +1,46 @@
+Homepage part exchange and make-logo placements — 1 November 2026
+
+The Multi-Choice homepage now checks a submitted registration with the existing
+read-only MOT mileage endpoint before opening the part-exchange page. Both
+homepage entry points use an explicit Find my car button. There are no lookups
+while typing. The active request has a 12-second deadline; stale registration,
+concurrent-entry, unmount, timeout and retry cases cannot apply or navigate with
+an old result. A failed lookup offers ordinary manual entry.
+
+Validated make/model, registration year, mileage estimate and MOT facts travel
+in memory for up to five minutes, bound to the page origin and canonical dealer.
+MOT facts and a verified gate are never restored from browser storage or URL
+parameters. The destination consumes the handoff, retains a seed only for its
+Strict Mode effect replay, and clears it on car/registration changes. Existing
+contact answers and customer-owned model/mileage corrections remain intact,
+including when session storage cannot be written.
+
+Customers see concise vehicle/MOT facts and an estimated-mileage label with an
+odometer check, without the calculation explanation. The editable valuation
+message identifies the customer's car and selected current stock car. Sending
+still needs the existing explicit review, contact validation and Send/WhatsApp
+action. Browser checks did not submit anything; the temporary tab draft was
+cleared afterwards.
+
+Supplied make SVGs now decorate Multi-Choice stock-card and vehicle-page titles;
+photos and photo controls are unchanged. Part-exchange lookup results use the
+actual returned make. Portal enquiries show a make logo only after staff run
+the existing on-demand identify-car check. Unknown makes have no invented logo.
+Public cards/vehicle-page logo changes remain canonical Multi-Choice scoped.
+
+Verification: 224 affected frontend tests passed; the final portal/mileage
+subset passed 19/19 after a malformed-make guard. TypeScript and production
+build passed. Responsive stock/vehicle checks at 320, 390, 768 and 1440 pixels
+showed no horizontal overflow. A long Range Rover title wrapped at 320px.
+The actual homepage MOT lookup identified YS67LMK and transferred its make,
+88,000 estimated miles and 23 March 2027 due date. Choosing a Lexus NX generated
+the correct editable enquiry; a manual mileage correction survived a recheck.
+Changing the plate cleared prior lookup facts and manual entry stayed blank.
+
+Testing also reproduced and corrected an existing vehicle-page focus race:
+a delayed scroll frame no longer steals focus from a prepared question.
+The strengthened test checks focus after the frame has completed.
+
+Evidence: workspace output/multi-choice-part-exchange-logos-2026-11-01/.
+These changes are local only, awaiting the next approved deployment.
+No customer, stock, financial, permission or schema records were edited.

@@ -1,12 +1,13 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
-import type { Ref } from 'react';
+import { StrictMode, type Ref } from 'react';
 import { dealerConfig } from '@/config/dealer';
 import type { Car } from '@/lib/stock-context';
 import { partExchangeDraftKey, savePartExchangeDraft, readPartExchangeDraft } from '@/lib/part-exchange-draft';
 import { enquiryDraftKey, saveEnquiryDraft } from '@/lib/enquiry-draft';
 import { PartExchangeForm } from './part-exchange-form';
 import type { PartExchangeMotDetailsResult } from './part-exchange-mot-details';
+import { clearHomepagePartExchangeLookup, prepareHomepagePartExchange, readHomepagePartExchangeLookup, readHomepagePartExchangeRegistration, retainHomepagePartExchangeLookup } from '@/lib/homepage-part-exchange';
 
 const state = vi.hoisted(() => ({ allowed: true, whatsapp: '447700900123', lookup: vi.fn(), latest: null as null | ((value: unknown) => void), result: null as unknown }));
 const mutation = vi.hoisted(() => ({ mutate: vi.fn(), reset: vi.fn(), isPending: false, isSuccess: false, isError: false }));
@@ -29,7 +30,98 @@ const manual = () => { input('input-part-exchange-registration', 'AB12 CDE'); fi
 const review = () => { next(); next(); };
 const contacts = () => { input('input-customer-name', 'Alex Buyer'); input('input-customer-phone', '07700 900123'); };
 const confirm = () => fireEvent.click(screen.getByRole('checkbox', { name: /I’ve checked/ }));
-beforeEach(() => { sessionStorage.clear(); vi.clearAllMocks(); state.allowed = true; state.whatsapp = '447700900123'; state.result = result(); state.latest = null; mutation.isPending = false; mutation.isSuccess = false; mutation.isError = false; });
+beforeEach(() => { sessionStorage.clear(); clearHomepagePartExchangeLookup(); window.history.replaceState({}, '', '/'); vi.clearAllMocks(); state.allowed = true; state.whatsapp = '447700900123'; state.result = result(); state.latest = null; mutation.isPending = false; mutation.isSuccess = false; mutation.isError = false; });
+
+it('opens a fresh homepage lookup with vehicle, mileage and MOT already filled without checking or sending again', () => {
+  prepareHomepagePartExchange('AB12CDE'); retainHomepagePartExchangeLookup(result());
+  render(<PartExchangeForm stockCars={[car]} />);
+  expect(screen.getByTestId('input-part-exchange-registration')).toHaveValue('AB12CDE');
+  expect(screen.getByTestId('input-part-exchange-model')).toHaveValue('Honda Civic');
+  expect(screen.getByTestId('input-part-exchange-mileage')).toHaveValue(65000);
+  expect(screen.getByText('Next MOT due: 2027-10-20')).toBeInTheDocument();
+  expect(screen.getByTestId('button-part-exchange-continue')).not.toBeDisabled();
+  expect(readHomepagePartExchangeRegistration()).toBeNull();
+  next(); fireEvent.change(screen.getByTestId('select-part-exchange-target-vehicle'), { target: { value: car.id } }); next();
+  expect(messageValue()).toContain('I have a Honda Civic (AB12CDE)');
+  expect(messageValue()).toContain('interested in your Ford Focus');
+  expect(state.lookup).not.toHaveBeenCalled(); expect(mutation.mutate).not.toHaveBeenCalled();
+});
+
+it('retains the consumed homepage lookup through Strict Mode effect replay', () => {
+  prepareHomepagePartExchange('AB12CDE'); retainHomepagePartExchangeLookup(result());
+  render(<StrictMode><PartExchangeForm stockCars={[car]} /></StrictMode>);
+  expect(screen.getByTestId('input-part-exchange-model')).toHaveValue('Honda Civic');
+  expect(screen.getByTestId('input-part-exchange-mileage')).toHaveValue(65000);
+  expect(screen.getByText('Next MOT due: 2027-10-20')).toBeInTheDocument();
+  expect(readHomepagePartExchangeLookup('AB12CDE')).toBeNull();
+  expect(state.lookup).not.toHaveBeenCalled(); expect(mutation.mutate).not.toHaveBeenCalled();
+});
+
+it('uses the fresh in-memory car instead of a stale stored plate when storage writes are blocked, preserving contacts', () => {
+  savePartExchangeDraft(partExchangeDraftKey(), { details: { registration: 'CD34EFG', makeModel: 'Old car', mileage: '99000', condition: 'Good', conditionNotes: 'Old damage note', keys: '2 keys', v5: 'Yes', serviceHistory: 'Full history', name: 'Earlier Buyer', phone: '07700900123', email: 'earlier@example.test' }, vehicleId: car.id, delivery: 'website' });
+  const blocked = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw Error('Storage is read-only'); });
+  try {
+    prepareHomepagePartExchange('AB12CDE'); retainHomepagePartExchangeLookup(result());
+    render(<PartExchangeForm stockCars={[car]} />);
+    expect(screen.getByTestId('input-part-exchange-registration')).toHaveValue('AB12CDE');
+    expect(screen.getByTestId('input-part-exchange-model')).toHaveValue('Honda Civic');
+    expect(screen.getByTestId('input-part-exchange-mileage')).toHaveValue(65000);
+    expect(screen.getByLabelText('Anything else about your car? (optional)')).toHaveValue('');
+    next(); next();
+    expect(screen.getByTestId('input-customer-name')).toHaveValue('Earlier Buyer');
+    expect(screen.getByTestId('input-customer-phone')).toHaveValue('07700900123');
+    expect(screen.getByTestId('input-customer-email')).toHaveValue('earlier@example.test');
+    expect(messageValue()).not.toMatch(/Old car|Old damage|99,000/);
+    expect(state.lookup).not.toHaveBeenCalled(); expect(mutation.mutate).not.toHaveBeenCalled();
+  } finally { blocked.mockRestore(); }
+});
+
+it('cannot reuse the consumed homepage verification after the customer changes car and revisits', () => {
+  prepareHomepagePartExchange('AB12CDE'); retainHomepagePartExchangeLookup(result());
+  const view = render(<PartExchangeForm stockCars={[car]} />);
+  input('input-part-exchange-registration', 'CD34 EFG');
+  expect(screen.queryByTestId('input-part-exchange-model')).not.toBeInTheDocument();
+  view.unmount();
+  render(<PartExchangeForm stockCars={[car]} />);
+  expect(screen.getByTestId('input-part-exchange-registration')).toHaveValue('CD34 EFG');
+  expect(screen.queryByTestId('input-part-exchange-model')).not.toBeInTheDocument();
+  expect(screen.queryByText(/Next MOT due/)).not.toBeInTheDocument();
+  expect(screen.queryByTestId('button-part-exchange-continue')).not.toBeInTheDocument();
+  expect(state.lookup).not.toHaveBeenCalled(); expect(mutation.mutate).not.toHaveBeenCalled();
+});
+
+it('allows an explicit homepage manual fallback to edit empty fields without inventing MOT verification', () => {
+  prepareHomepagePartExchange('AB12CDE');
+  window.history.replaceState({}, '', '/enquire?type=part_exchange&manual=true');
+  render(<PartExchangeForm stockCars={[car]} />);
+  expect(screen.getByTestId('input-part-exchange-registration')).toHaveValue('AB12CDE');
+  expect(screen.getByTestId('input-part-exchange-model')).toHaveValue('');
+  expect(screen.getByTestId('input-part-exchange-mileage')).toHaveValue(null);
+  expect(screen.getByTestId('button-part-exchange-continue')).toBeDisabled();
+  expect(screen.queryByText(/Next MOT due|Last recorded mileage/)).not.toBeInTheDocument();
+  expect(state.lookup).not.toHaveBeenCalled(); expect(mutation.mutate).not.toHaveBeenCalled();
+});
+
+it('ignores a manual URL without a valid registration and leaves the form behind its normal choices', () => {
+  window.history.replaceState({}, '', '/enquire?type=part_exchange&manual=true');
+  render(<PartExchangeForm stockCars={[car]} />);
+  expect(screen.queryByTestId('input-part-exchange-model')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('button-part-exchange-continue')).not.toBeInTheDocument();
+  expect(state.lookup).not.toHaveBeenCalled(); expect(mutation.mutate).not.toHaveBeenCalled();
+});
+
+it('does not consume or apply a general homepage lookup inside a vehicle-specific form', () => {
+  prepareHomepagePartExchange('AB12CDE'); retainHomepagePartExchangeLookup(result());
+  const view = render(<PartExchangeForm vehicle={car} stockCars={[car]} />);
+  expect(screen.getByTestId('input-part-exchange-registration')).toHaveValue('');
+  expect(screen.queryByTestId('input-part-exchange-model')).not.toBeInTheDocument();
+  expect(readHomepagePartExchangeLookup('AB12CDE')?.vehicle.make).toBe('HONDA');
+  view.unmount();
+  render(<PartExchangeForm stockCars={[car]} />);
+  expect(screen.getByTestId('input-part-exchange-model')).toHaveValue('Honda Civic');
+  expect(readHomepagePartExchangeLookup('AB12CDE')).toBeNull();
+  expect(state.lookup).not.toHaveBeenCalled(); expect(mutation.mutate).not.toHaveBeenCalled();
+});
 
 it('starts with only registration and explicit lookup/manual choices, with no automatic check', () => {
   render(<PartExchangeForm vehicle={car} stockCars={[car]} />);
@@ -48,7 +140,7 @@ it('reveals matching vehicle details and prepares the actual stock-car enquiry a
   const message = screen.getByRole('textbox', { name: 'Your message' });
   expect((message as HTMLTextAreaElement).value).toContain('I have a Honda Civic (AB12 CDE)');
   expect((message as HTMLTextAreaElement).value).toContain('interested in your Ford Focus');
-  expect((message as HTMLTextAreaElement).value).toContain('Estimated mileage (MOT history): 65,000 miles');
+  expect((message as HTMLTextAreaElement).value).toContain('Estimated mileage: 65,000 miles');
   expect((message as HTMLTextAreaElement).value).toContain('Recorded MOT expiry: 20 Oct 2027');
   expect(mutation.mutate).not.toHaveBeenCalled();
 });

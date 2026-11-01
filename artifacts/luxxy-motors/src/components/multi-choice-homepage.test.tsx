@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { dealerConfig } from '@/config/dealer';
 import type { DealerConfig } from '@/config/dealer';
@@ -8,7 +8,9 @@ import type { FilterState } from './filters';
 import { MultiChoiceHomepage } from './multi-choice-homepage';
 import { partExchangeDraftKey, readPartExchangeDraft, savePartExchangeDraft } from '@/lib/part-exchange-draft';
 import { multiChoiceHomeSections } from '@/lib/multi-choice-home-sections';
-const events = vi.hoisted(() => ({ search: vi.fn(), analytics: vi.fn(), contact: vi.fn() }));
+import { clearHomepagePartExchangeLookup, readHomepagePartExchangeLookup } from '@/lib/homepage-part-exchange';
+const events = vi.hoisted(() => ({ search: vi.fn(), analytics: vi.fn(), contact: vi.fn(), lookup: vi.fn() }));
+vi.mock('@workspace/api-client-react', () => ({ customFetch: (...args: unknown[]) => events.lookup(...args) }));
 vi.mock('@/lib/analytics', () => ({ trackEvent: (...args: unknown[]) => events.analytics(...args) }));
 vi.mock('@/components/ai-car-finder', () => ({ AiCarFinder: () => <div data-testid="ai-finder">Existing AI finder</div> }));
 vi.mock('@/components/delivery-estimator', () => ({ DeliveryEstimator: () => <button type="button">Estimate delivery</button> }));
@@ -20,7 +22,8 @@ function Harness({ config = settings(), stock = cars, loading = false, error = n
   const [filters, setFilters] = useState(() => ({ ...defaultFilters, ...initialFilters }));
   return <MultiChoiceHomepage settings={config} cars={stock} isLoading={loading} error={error} publicEnquiriesEnabled filters={filters} setFilters={setFilters} onSearch={events.search} />;
 }
-beforeEach(() => { sessionStorage.clear(); events.search.mockReset(); events.analytics.mockReset(); window.history.replaceState({}, '', '/'); });
+const motReply = (registration = 'AB12CDE') => ({ status: 'estimated', registration, vehicle: { make: 'FORD', model: 'FOCUS', registrationDate: '2012-04-01' }, estimate: { mileage: 88000, lastTestDate: '2026-01-02', lastTestMileage: 80000, annualMiles: 10000 }, mot: { checkedAt: '2026-11-01T10:00:00Z', dueDate: '2027-01-01', latestTestResult: 'PASSED' } });
+beforeEach(() => { sessionStorage.clear(); clearHomepagePartExchangeLookup(); events.search.mockReset(); events.analytics.mockReset(); events.lookup.mockReset(); events.lookup.mockImplementation((url: string) => Promise.resolve(motReply(new URL(url, window.location.origin).searchParams.get('registration')!))); window.history.replaceState({}, '', '/'); });
 afterEach(cleanup);
 
 it('keeps exclusive and unknown price qualifications visible without inventing a VAT-inclusive price', () => {
@@ -46,7 +49,7 @@ it('searches real stock with dependent make/model and cash budgets without navig
   expect(screen.queryByText(/monthly|APR|finance/i)).not.toBeInTheDocument();
 });
 
-it('supports keyboard tabs and preserves a valid registration in the existing draft only after an explicit valuation action', () => {
+it('supports keyboard tabs and looks up a valid registration only after an explicit action', async () => {
   savePartExchangeDraft(partExchangeDraftKey(), { details: { registration: '', makeModel: '', mileage: '', condition: '', conditionNotes: '', keys: '', v5: '', serviceHistory: '', name: 'Alex Buyer', phone: '07700900123', email: '' }, vehicleId: '', delivery: 'website' });
   render(<Harness />);
   const buy = screen.getByRole('tab', { name: 'Buy a car' }); buy.focus();
@@ -61,11 +64,110 @@ it('supports keyboard tabs and preserves a valid registration in the existing dr
   const form = screen.getByRole('form', { name: 'Start part exchange' });
   fireEvent.submit(form); expect(within(form).getByRole('alert')).toHaveTextContent('complete UK registration'); expect(window.location.pathname).toBe('/');
   fireEvent.change(within(form).getByTestId('homepage-px-registration-hero'), { target: { value: 'ab12cde' } });
-  expect(window.location.pathname).toBe('/');
+  expect(window.location.pathname).toBe('/'); expect(events.lookup).not.toHaveBeenCalled();
   fireEvent.submit(form);
-  expect(window.location.pathname + window.location.search).toBe('/enquire?type=part_exchange');
+  fireEvent.submit(form);
+  await waitFor(() => expect(window.location.pathname + window.location.search).toBe('/enquire?type=part_exchange'));
+  expect(events.lookup).toHaveBeenCalledTimes(1);
+  expect(events.lookup).toHaveBeenCalledWith('/api/mot-mileage-estimate?registration=AB12CDE', { signal: expect.any(AbortSignal) });
+  expect(readHomepagePartExchangeLookup('AB12CDE')?.vehicle).toMatchObject({ make: 'FORD', model: 'FOCUS' });
   const draft = readPartExchangeDraft(partExchangeDraftKey());
   expect(draft?.details).toMatchObject({ name: 'Alex Buyer', phone: '07700900123' }); expect(draft?.details.registration.replace(/\s/g, '')).toBe('AB12CDE');
+});
+
+it('discards a late lookup when the plate changes and can find the new car without submitting an enquiry', async () => {
+  let resolve!: (reply: unknown) => void;
+  events.lookup.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+  render(<Harness />);
+  fireEvent.click(screen.getByRole('tab', { name: 'Part exchange' }));
+  const form = screen.getByRole('form', { name: 'Start part exchange' }), plate = within(form).getByTestId('homepage-px-registration-hero');
+  fireEvent.change(plate, { target: { value: 'AB12CDE' } }); fireEvent.submit(form);
+  const signal = events.lookup.mock.calls[0][1].signal as AbortSignal;
+  expect(within(form).getByRole('button', { name: 'Finding your car…' })).toBeDisabled();
+  fireEvent.change(plate, { target: { value: 'YS67LMK' } }); expect(signal.aborted).toBe(true);
+  resolve(motReply('AB12CDE'));
+  await waitFor(() => expect(within(form).getByRole('button', { name: 'Find my car' })).not.toBeDisabled());
+  expect(window.location.pathname).toBe('/'); expect(readHomepagePartExchangeLookup('AB12CDE')).toBeNull();
+  fireEvent.submit(form);
+  await waitFor(() => expect(window.location.pathname).toBe('/enquire'));
+  expect(readHomepagePartExchangeLookup('YS67LMK')?.registration).toBe('YS67LMK');
+  expect(events.lookup.mock.calls.every(([url]) => String(url).startsWith('/api/mot-mileage-estimate?'))).toBe(true);
+});
+
+it.each(['YS67LMK', 'AB12CDE'])('lets only the latest homepage form navigate when both forms request %s', async secondPlate => {
+  let resolveHero!: (reply: unknown) => void, resolveStrip!: (reply: unknown) => void;
+  events.lookup.mockImplementationOnce(() => new Promise(done => { resolveHero = done; })).mockImplementationOnce(() => new Promise(done => { resolveStrip = done; }));
+  render(<Harness />); fireEvent.click(screen.getByRole('tab', { name: 'Part exchange' }));
+  const hero = screen.getByRole('form', { name: 'Start part exchange' }), strip = screen.getByRole('form', { name: 'Part-exchange valuation' });
+  fireEvent.change(within(hero).getByTestId('homepage-px-registration-hero'), { target: { value: 'AB12CDE' } }); fireEvent.submit(hero);
+  fireEvent.change(within(strip).getByTestId('homepage-px-registration-strip'), { target: { value: secondPlate } }); fireEvent.submit(strip);
+  expect(events.lookup).toHaveBeenCalledTimes(2);
+  await act(async () => { resolveHero(motReply('AB12CDE')); });
+  expect(window.location.pathname).toBe('/'); expect(readHomepagePartExchangeLookup('AB12CDE')).toBeNull();
+  expect(within(hero).getByRole('button', { name: 'Find my car' })).not.toBeDisabled();
+  await act(async () => { resolveStrip(motReply(secondPlate)); });
+  expect(window.location.pathname + window.location.search).toBe('/enquire?type=part_exchange');
+  expect(readHomepagePartExchangeLookup(secondPlate)?.registration).toBe(secondPlate);
+  expect(events.analytics).toHaveBeenCalledTimes(1);
+});
+
+it('releases a superseded stalled form at its deadline without a misleading error or a late navigation', async () => {
+  vi.useFakeTimers();
+  let resolveHero!: (reply: unknown) => void;
+  try {
+    events.lookup.mockImplementationOnce(() => new Promise(done => { resolveHero = done; }));
+    render(<Harness />); fireEvent.click(screen.getByRole('tab', { name: 'Part exchange' }));
+    const hero = screen.getByRole('form', { name: 'Start part exchange' }), strip = screen.getByRole('form', { name: 'Part-exchange valuation' });
+    fireEvent.change(within(hero).getByTestId('homepage-px-registration-hero'), { target: { value: 'AB12CDE' } }); fireEvent.submit(hero);
+    const oldSignal = events.lookup.mock.calls[0][1].signal as AbortSignal;
+    // Editing the other form is a new intent even before its Find button is pressed.
+    fireEvent.change(within(strip).getByTestId('homepage-px-registration-strip'), { target: { value: 'YS67LMK' } });
+    await act(async () => { await vi.advanceTimersByTimeAsync(12_000); });
+    expect(oldSignal.aborted).toBe(true); expect(within(hero).getByRole('button', { name: 'Find my car' })).not.toBeDisabled();
+    expect(within(hero).queryByRole('alert')).not.toBeInTheDocument();
+    await act(async () => { resolveHero(motReply('AB12CDE')); });
+    expect(window.location.pathname).toBe('/'); expect(readHomepagePartExchangeLookup('AB12CDE')).toBeNull();
+  } finally { vi.useRealTimers(); }
+});
+
+it('offers manual entry for a mismatched MOT response and preserves the plate and contact answers', async () => {
+  events.lookup.mockResolvedValueOnce(motReply('YS67LMK'));
+  render(<Harness />);
+  const form = screen.getByRole('form', { name: 'Part-exchange valuation' });
+  fireEvent.change(within(form).getByTestId('homepage-px-registration-strip'), { target: { value: 'AB12CDE' } }); fireEvent.submit(form);
+  expect(await within(form).findByRole('alert')).toHaveTextContent('We couldn’t find your car');
+  expect(window.location.pathname).toBe('/'); expect(readHomepagePartExchangeLookup('AB12CDE')).toBeNull();
+  fireEvent.click(within(form).getByRole('button', { name: 'Enter details manually' }));
+  expect(window.location.pathname + window.location.search).toBe('/enquire?type=part_exchange&manual=true');
+  expect(readPartExchangeDraft(partExchangeDraftKey())?.details.registration).toBe('AB12CDE');
+});
+
+it('aborts lookup on unmount without navigating when its response arrives late', async () => {
+  let resolve!: (reply: unknown) => void;
+  events.lookup.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+  const view = render(<Harness />), form = screen.getByRole('form', { name: 'Part-exchange valuation' });
+  fireEvent.change(within(form).getByTestId('homepage-px-registration-strip'), { target: { value: 'AB12CDE' } }); fireEvent.submit(form);
+  const signal = events.lookup.mock.calls[0][1].signal as AbortSignal;
+  view.unmount(); expect(signal.aborted).toBe(true);
+  resolve(motReply()); await Promise.resolve();
+  expect(window.location.pathname).toBe('/'); expect(readHomepagePartExchangeLookup('AB12CDE')).toBeNull();
+});
+
+it('times out a stalled lookup and allows an explicit retry', async () => {
+  vi.useFakeTimers();
+  try {
+    events.lookup.mockImplementationOnce(() => new Promise(() => {}));
+    render(<Harness />);
+    const form = screen.getByRole('form', { name: 'Part-exchange valuation' });
+    fireEvent.change(within(form).getByTestId('homepage-px-registration-strip'), { target: { value: 'AB12CDE' } }); fireEvent.submit(form);
+    const signal = events.lookup.mock.calls[0][1].signal as AbortSignal;
+    await act(async () => { await vi.advanceTimersByTimeAsync(12_000); });
+    expect(signal.aborted).toBe(true);
+    expect(within(form).getByRole('alert')).toHaveTextContent('Try again');
+    expect(within(form).getByRole('button', { name: 'Find my car' })).not.toBeDisabled();
+    fireEvent.submit(form); await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    expect(events.lookup).toHaveBeenCalledTimes(2); expect(window.location.pathname).toBe('/enquire');
+  } finally { vi.useRealTimers(); }
 });
 
 it('shows only enabled services and keeps AI available without an automatic action', () => {

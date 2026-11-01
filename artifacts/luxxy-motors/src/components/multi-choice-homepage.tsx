@@ -25,7 +25,9 @@ import { editableShowroomWeek, settingsWeekdays } from '@/lib/settings-simplific
 import { responsiveVehicleImage, retryOriginalImage } from '@/lib/responsive-vehicle-image';
 import { trackEvent } from '@/lib/analytics';
 import { deliveryPriceQualification } from '@/lib/delivery-estimate';
-import { prepareHomepagePartExchange } from '@/lib/homepage-part-exchange';
+import { clearHomepagePartExchangeLookup, homepagePartExchangeIntentVersion, prepareHomepagePartExchange, retainHomepagePartExchangeLookup } from '@/lib/homepage-part-exchange';
+import { lookupPartExchangeCar } from '@/lib/part-exchange-lookup';
+import { normaliseExchangeRegistration } from '@/lib/part-exchange-autofill';
 import { multiChoiceHomeSections, multiChoiceReviews, multiChoiceReviewsUrl } from '@/lib/multi-choice-home-sections';
 import { customerDefaultCopy, websiteText } from '@/lib/website-content';
 import './multi-choice-homepage.css';
@@ -35,18 +37,41 @@ type Props = { settings: HomeSettings; cars: StockCar[]; isLoading: boolean; err
 
 function PartExchangeStart({ id }: { id: string }) {
   const [, navigate] = useLocation();
-  const [registration, setRegistration] = useState(''), [error, setError] = useState('');
-  function submit(event: FormEvent) {
+  const [registration, setRegistration] = useState(''), [error, setError] = useState(''), [busy, setBusy] = useState(false), [lookupFailed, setLookupFailed] = useState(false);
+  const currentPlate = useRef(''), request = useRef<AbortController | null>(null), timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  function cancel() { request.current?.abort(); request.current = null; clearTimeout(timer.current); }
+  useEffect(() => cancel, []);
+  async function submit(event: FormEvent) {
     event.preventDefault();
+    if (request.current) return;
+    clearHomepagePartExchangeLookup();
     if (!prepareHomepagePartExchange(registration)) { setError('Enter your complete UK registration to continue.'); return; }
-    trackEvent('showroom_filter_applied', { source: 'homepage_part_exchange', preset: 'part_exchange', filter_count: 0 });
-    navigate('/enquire?type=part_exchange');
+    const plate = normaliseExchangeRegistration(registration), controller = new AbortController(), intent = homepagePartExchangeIntentVersion();
+    request.current = controller;
+    setError(''); setLookupFailed(false); setBusy(true);
+    const active = () => request.current === controller && !controller.signal.aborted && currentPlate.current === plate && homepagePartExchangeIntentVersion() === intent;
+    timer.current = setTimeout(() => {
+      if (request.current !== controller) return;
+      const showError = active();
+      cancel(); setBusy(false);
+      if (showError) { setLookupFailed(true); setError('We couldn’t find your car. Try again or enter the details manually.'); }
+    }, 12_000);
+    try {
+      const details = await lookupPartExchangeCar(plate, controller.signal);
+      if (!active()) return;
+      retainHomepagePartExchangeLookup(details);
+      trackEvent('showroom_filter_applied', { source: 'homepage_part_exchange', preset: 'part_exchange', filter_count: 0 });
+      navigate('/enquire?type=part_exchange');
+    } catch {
+      if (active()) { setLookupFailed(true); setError('We couldn’t find your car. Try again or enter the details manually.'); }
+    } finally {
+      if (request.current === controller) { clearTimeout(timer.current); request.current = null; setBusy(false); }
+    }
   }
-  return <form className="mh-px-form" aria-label={id === 'hero' ? 'Start part exchange' : 'Part-exchange valuation'} onSubmit={submit}>
-    <label><span>Your registration</span><UKNumberPlate value={registration} editable showFlag onChange={value => { setRegistration(value); setError(''); }} testId={`homepage-px-plate-${id}`} inputTestId={`homepage-px-registration-${id}`} /></label>
-    <button className="mh-button" type="submit">Start valuation<ArrowRight size={17} /></button>
-    {error && <p role="alert">{error}</p>}
-    <p className="mh-small">Check your car’s details on the next step. We’ll confirm a valuation with you.</p>
+  return <form className="mh-px-form" aria-label={id === 'hero' ? 'Start part exchange' : 'Part-exchange valuation'} aria-busy={busy} onSubmit={submit}>
+    <label><span>Your registration</span><UKNumberPlate value={registration} editable showFlag onChange={value => { cancel(); currentPlate.current = normaliseExchangeRegistration(value); clearHomepagePartExchangeLookup(); setRegistration(value); setError(''); setBusy(false); setLookupFailed(false); }} testId={`homepage-px-plate-${id}`} inputTestId={`homepage-px-registration-${id}`} /></label>
+    <button className="mh-button" type="submit" disabled={busy}>{busy ? 'Finding your car…' : 'Find my car'}<ArrowRight size={17} /></button>
+    {(busy || error) && <div className="mh-px-feedback" aria-live="polite" aria-atomic="true">{busy && <p role="status">Checking your car…</p>}{error && <p role="alert">{error}</p>}{lookupFailed && <button className="mh-text-link" type="button" onClick={() => { cancel(); clearHomepagePartExchangeLookup(); if (prepareHomepagePartExchange(registration)) navigate('/enquire?type=part_exchange&manual=true'); }}>Enter details manually<ArrowRight size={16} /></button>}</div>}
   </form>;
 }
 

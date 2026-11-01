@@ -36,6 +36,9 @@
 .multi-home .mh-buy-form .mh-button { width: 100%; min-height: 44px; margin-top: 16px; }
 .multi-home .mh-search-more { display: block; width: fit-content; margin: 10px auto 0; min-height: 20px; padding-block: 0; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
 .multi-home .mh-px-form { display: grid; gap: 16px; }
+.multi-home .mh-px-feedback { display: grid; gap: 10px; font-size: 13px; }
+.multi-home .mh-px-feedback p { margin: 0; }
+.multi-home .mh-px-feedback button { justify-self: start; min-height: 44px; border: 0; padding: 6px 0; background: transparent; cursor: pointer; }
 .multi-home .mh-px-form label > span:not(.registration-plate-editable) { display: block; margin-bottom: 6px; }
 .multi-home .mh-px-form .registration-plate-editable { display: inline-grid; grid-template-columns: 12% minmax(0,1fr); --ukrp-width: 100%; width: 100%; aspect-ratio: auto; height: 54px; border-radius: 6px; }
 .multi-home .mh-px-form .ukrp-lettering { min-height: 0; height: 100%; font-size: 34px; }

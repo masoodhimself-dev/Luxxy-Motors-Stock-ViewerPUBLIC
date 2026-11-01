@@ -223,6 +223,7 @@ function ChecksContent({
               registration={checkedRegistration}
               mileage={estimatedMileage}
               onEstimate={setEstimatedMileage}
+              showMakeLogo
             />
           )}
           {estimatedMileage && onInsertText && (

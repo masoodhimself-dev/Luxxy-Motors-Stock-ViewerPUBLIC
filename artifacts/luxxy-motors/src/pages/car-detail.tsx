@@ -65,6 +65,10 @@ import {
 } from '@/lib/cta-helpers';
 import { navigateToHomeTarget } from '@/lib/home-navigation';
 import { vehicleInsuranceDisclosure } from '@/lib/vehicle-history';
+import { MakeLogo } from '@/components/make-logo';
+import { getMakeLogoSrc } from '@/lib/make-logo';
+import { isMultiChoiceWebsite } from '@/lib/multi-home-scope';
+import '@/components/public-vehicle-make-logo.css';
 
 
 function LedgerRow({ label, value, testId }: { label: string; value: string; testId?: string }) {
@@ -86,6 +90,7 @@ export default function CarDetail() {
   const [enquiryExpanded, setEnquiryExpanded] = useState(false);
   const [messageRequest, setMessageRequest] = useState<{id: number; text: string; vehicleId: string}>();
   const messageSequence = useRef(0);
+  const enquiryFocusFrame = useRef<number | null>(null);
   const answersTrigger = useRef<HTMLElement | null>(null);
   // Keep identity above the gallery until the two-column layout starts.
   const isCompactLayout = useIsMobile(1100);
@@ -97,7 +102,10 @@ export default function CarDetail() {
   const customerFeatures = useDealerFeatures();
   const car = stock?.cars?.find((candidate) => candidate.id === params?.id);
 
-  useEffect(() => { setShareMessage(''); setAnswersOpen(false); setEnquiryExpanded(false); setMessageRequest(undefined); }, [car?.id]);
+  useEffect(() => {
+    setShareMessage(''); setAnswersOpen(false); setEnquiryExpanded(false); setMessageRequest(undefined);
+    return () => { cancelAnimationFrame(enquiryFocusFrame.current ?? 0); };
+  }, [car?.id]);
 
   useEffect(() => {
     if (!car?.id) return;
@@ -167,6 +175,7 @@ export default function CarDetail() {
   const registrationYear = stockRegistrationYear({ ...car, registrationBand: registrationBand ?? null }) || registrationBand || 'Unknown';
   const bookingHref = getVehicleBookingHref(car);
   const vehicleLabel = vehicleDisplayTitle(car);
+  const showMakeLogo = isMultiChoiceWebsite() && Boolean(getMakeLogoSrc(car.make));
   const vehicleRunningCostFacts = getVehicleRunningCosts(car);
   const sourceReport = readVehicleSourceReport(car);
 
@@ -227,11 +236,20 @@ export default function CarDetail() {
   };
 
   const openVehicleEnquiry = (message?: string) => {
-    if (message?.trim()) setMessageRequest({id: ++messageSequence.current, text: message.trim(), vehicleId: car.id});
+    const requestedMessage = message?.trim();
+    if (requestedMessage) setMessageRequest({id: ++messageSequence.current, text: requestedMessage, vehicleId: car.id});
     setEnquiryExpanded(true);
-    requestAnimationFrame(() => {
-      document.getElementById('vehicle-enquiry')?.scrollIntoView({block: 'start', behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'});
-      document.getElementById('vehicle-enquiry-heading')?.focus({preventScroll: true});
+    cancelAnimationFrame(enquiryFocusFrame.current ?? 0);
+    enquiryFocusFrame.current = requestAnimationFrame(() => {
+      enquiryFocusFrame.current = null;
+      const enquiry = document.getElementById('vehicle-enquiry');
+      enquiry?.scrollIntoView({block: 'start', behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'});
+      // A prepared question belongs in the editable message. Do not let this
+      // later scroll frame steal focus from the form's message handoff effect.
+      const focusTarget = requestedMessage
+        ? enquiry?.querySelector<HTMLTextAreaElement>('[data-testid="textarea-enquiry-message"]')
+        : document.getElementById('vehicle-enquiry-heading');
+      focusTarget?.focus({preventScroll: true});
     });
   };
   const bookingAction = !settingsLoading && !settingsError && customerFeatures.enabled('testDriveBookings') && dealerConfig.testDriveBooking?.enabled !== false && (!car.inventoryStatus || car.inventoryStatus === 'available') ? (
@@ -275,7 +293,9 @@ export default function CarDetail() {
       <p className="vehicle-availability luxxy-kicker mb-3">
         {vehicleAvailability(car.inventoryStatus)} · {dealerConfig.address?.city || dealerConfig.identity.name}
       </p>
-      <h1 className="font-display text-[2rem] font-semibold leading-tight tracking-tight text-primary">{vehicleLabel}</h1>
+      <h1 className={`font-display text-[2rem] font-semibold leading-tight tracking-tight text-primary${showMakeLogo ? ' make-logo-vehicle-heading' : ''}`}>
+        {showMakeLogo ? <><MakeLogo make={car.make} size={28} /><span>{vehicleLabel}</span></> : vehicleLabel}
+      </h1>
       {isCompactLayout ? (
         <ul className="vehicle-compact-facts" aria-label="Vehicle details">{[
           registrationYear !== 'Unknown' ? registrationYear : null,

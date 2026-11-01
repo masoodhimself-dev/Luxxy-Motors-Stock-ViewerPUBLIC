@@ -787,6 +787,13 @@ it.each(['card', 'compact'])('keeps Multi-Choice stock photos clean and linked i
   expect(within(card).queryByRole('button', { name: `Next photo of ${car.title}` })).not.toBeInTheDocument();
   expect(within(card).queryByTestId(`button-save-${car.id}`)).not.toBeInTheDocument();
   expect(card.querySelector('.stock-photo-count')).toBeNull();
+  const title = within(card).getByRole('heading', { name: 'BMW 1 Series' });
+  const makeLogo = title.querySelector('img');
+  expect(makeLogo).toHaveAttribute('src', '/brand/car-makes/bmw.svg');
+  expect(makeLogo).toHaveAttribute('width', '24');
+  expect(makeLogo).toHaveAttribute('alt', '');
+  expect(makeLogo).toHaveAttribute('aria-hidden', 'true');
+  expect(card.querySelector('.vehicle-card-photo img[src*="car-makes"]')).toBeNull();
   const photograph = within(card).getByRole('link', { name: `View full details for ${car.title}` });
   expect(photograph).toHaveAttribute('href', `/vehicle/${car.id}`);
   expect(within(photograph).getByRole('img', { name: 'BMW 1 Series' })).toBeInTheDocument();
@@ -802,11 +809,21 @@ it('preserves another dealership’s stock-photo browsing and Save even if its e
   stockFixture.cars = [car];
   renderHome();
   const card = screen.getByTestId(`card-vehicle-${car.id}`);
+  expect(within(card).getByRole('heading', { name: 'BMW 1 Series' }).querySelector('img')).toBeNull();
   expect(within(card).getByRole('button', { name: `Previous photo of ${car.title}` })).toBeInTheDocument();
   fireEvent.click(within(card).getByRole('button', { name: `Next photo of ${car.title}` }));
   expect(within(card).getByRole('img', { name: 'BMW 1 Series' })).toHaveAttribute('src', 'https://cdn.example.com/bmw-rear.jpg');
   expect(within(card).getByTestId(`button-save-${car.id}`)).toBeInTheDocument();
   expect(card.querySelector('.stock-photo-count')).toHaveTextContent('2 / 2');
+});
+
+it('does not leave space for a missing make logo on Multi-Choice stock cards', () => {
+  stockPhotoTenant('https://multichoicemotors.co.uk');
+  stockFixture.cars = [{ ...originalCars[0], make: 'Unknown make' }];
+  renderHome();
+  const title = within(screen.getByTestId('card-vehicle-bmw-1-series')).getByRole('heading');
+  expect(title.querySelector('img')).toBeNull();
+  expect(title).not.toHaveClass('make-logo-card-heading');
 });
 
 it('leaves Multi-Choice’s separate homepage featured photographs and vehicle links intact', () => {

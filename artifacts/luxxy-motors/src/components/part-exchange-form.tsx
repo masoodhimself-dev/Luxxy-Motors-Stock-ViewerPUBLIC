@@ -19,6 +19,7 @@ import type { Car } from '@/lib/stock-context';
 import { buildPartExchangeMessage, partExchangeMotSummary, partExchangeWhatsAppMessage, type PartExchangeDetails } from '@/lib/part-exchange';
 import { applyPartExchangeMotDetails, exchangeMileageIsEstimated, normaliseExchangeRegistration, updatePartExchangeAnswer, type PartExchangeAnswers } from '@/lib/part-exchange-autofill';
 import { partExchangeDraftKey, readPartExchangeDraft, savePartExchangeDraft, discardPartExchangeDraft } from '@/lib/part-exchange-draft';
+import { clearHomepagePartExchangeLookup, readHomepagePartExchangeLookup, readHomepagePartExchangeRegistration } from '@/lib/homepage-part-exchange';
 import './part-exchange-form.css';
 
 const steps = ['Your car', 'Your next car', 'Contact & review'];
@@ -46,6 +47,7 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
   const lookupButton = useRef<HTMLButtonElement>(null), heading = useRef<HTMLHeadingElement>(null);
   const activePlate = useRef(''), vehicleTouched = useRef(false), skipDraftSave = useRef(false), hasMounted = useRef(false);
   const draftKey = partExchangeDraftKey(vehicle?.id);
+  const homepageSeed = useRef<{ key: string; registration: string; result: PartExchangeMotDetailsResult | null } | null>(null);
   const registration = normaliseExchangeRegistration(details.registration);
   activePlate.current = registration;
   const hasCurrentCar = Boolean(gate && gate.registration === registration && isUKNumberPlate(registration));
@@ -65,10 +67,26 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
     skipDraftSave.current = true; submitting.current = false; mutation.reset();
     const draft = readPartExchangeDraft(draftKey);
     const enquiry = readEnquiryDraft(enquiryDraftKey(vehicle?.id, 'part_exchange')) ?? readEnquiryDraft(enquiryDraftKey(vehicle?.id, 'general'));
-    setAnswers({ details: draft?.details ?? { ...emptyDetails, name: enquiry?.customerName ?? '', email: enquiry?.email ?? '', phone: enquiry?.phone ?? '', registration: enquiry?.hasPartExchange ? enquiry.exchange.registration : '', mileage: enquiry?.hasPartExchange ? enquiry.exchange.mileage : '', conditionNotes: enquiry?.hasPartExchange ? enquiry.exchange.notes : '' }, autofill: draft?.autofill });
+    let restored: PartExchangeAnswers = { details: draft?.details ?? { ...emptyDetails, name: enquiry?.customerName ?? '', email: enquiry?.email ?? '', phone: enquiry?.phone ?? '', registration: enquiry?.hasPartExchange ? enquiry.exchange.registration : '', mileage: enquiry?.hasPartExchange ? enquiry.exchange.mileage : '', conditionNotes: enquiry?.hasPartExchange ? enquiry.exchange.notes : '' }, autofill: draft?.autofill };
+    if (homepageSeed.current?.key !== draftKey) homepageSeed.current = null;
+    let seed = !vehicle?.id && homepageSeed.current?.key === draftKey ? homepageSeed.current : null;
+    if (!vehicle?.id && !seed) {
+      const carried = readHomepagePartExchangeRegistration();
+      if (carried && isUKNumberPlate(carried)) {
+        seed = { key: draftKey, registration: carried, result: readHomepagePartExchangeLookup(carried) };
+        homepageSeed.current = seed;
+        clearHomepagePartExchangeLookup();
+      }
+    }
+    if (seed) restored = updatePartExchangeAnswer(restored, 'registration', seed.registration);
+    if (seed?.result) restored = applyPartExchangeMotDetails(restored, seed.result);
+    setAnswers(restored);
+    const restoredPlate = normaliseExchangeRegistration(restored.details.registration);
+    const manual = new URLSearchParams(window.location.search).get('manual') === 'true' && isUKNumberPlate(restoredPlate);
+    setGate(seed?.result ? { registration: restoredPlate, mode: 'lookup', result: seed.result } : manual ? { registration: restoredPlate, mode: 'manual' } : null);
     setVehicleId(draft?.vehicleId ?? vehicle?.id ?? ''); setDelivery(draft?.delivery ?? 'website');
-    setMessageDraft(draft?.message ?? emptyMessage); setGate(null); setLookupNotice('');
-    vehicleTouched.current = Boolean(draft); setDraftRestored(Boolean(draft));
+    setMessageDraft(draft?.message ?? emptyMessage); setLookupNotice('');
+    vehicleTouched.current = Boolean(draft); setDraftRestored(Boolean(draft) && !seed);
     setReviewed(false); setStep(0); setFurthestStep(0); setOpened(false); setLaunchError('');
   }, [draftKey]);
   useEffect(() => {
@@ -85,10 +103,11 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
   }, [settingsLoading, settingsError, whatsAppHref, delivery]);
 
   const update = (key: keyof PartExchangeDetails, value: string) => {
-    if (key === 'registration' && normaliseExchangeRegistration(value) !== registration) { setGate(null); setStep(0); setFurthestStep(0); setLookupNotice(''); }
+    if (key === 'registration' && normaliseExchangeRegistration(value) !== registration) { homepageSeed.current = null; setGate(null); setStep(0); setFurthestStep(0); setLookupNotice(''); }
     setAnswers(current => updatePartExchangeAnswer(current, key, value)); setReviewed(false); setLaunchError('');
   };
   const discardDraft = () => {
+    homepageSeed.current = null; clearHomepagePartExchangeLookup();
     discardPartExchangeDraft(draftKey); setAnswers({ details: { ...emptyDetails } }); setGate(null); setVehicleId(vehicle?.id ?? ''); setDelivery('website'); setMessageDraft(emptyMessage);
     setDraftRestored(false); setReviewed(false); setStep(0); setFurthestStep(0); setOpened(false); setLaunchError(''); setLookupNotice(''); mutation.reset();
   };

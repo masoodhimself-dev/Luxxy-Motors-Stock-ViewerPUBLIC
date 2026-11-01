@@ -16,7 +16,7 @@ it('keeps contacts separate in the editable body but attaches their current valu
 });
 it('labels estimated mileage explicitly and never invents an MOT date', () => {
   const message = buildPartExchangeMessage(details, { title: 'Actual car' } as Car, 'Example', { mileageEstimated: true });
-  expect(message).toContain('Estimated mileage (MOT history): 0 miles'); expect(message).not.toContain('MOT due');
+  expect(message).toContain('Estimated mileage: 0 miles'); expect(message).not.toContain('MOT due');
   expect(partExchangeMotSummary({ dueDate: '2027-02-31', firstTest: false, lastPassedDate: null, lastTestDate: null, latestTestResult: null, checkedAt: '2026-11-01T10:00:00Z' })).toBeNull();
 });
 it('keeps a later failed MOT neutral rather than presenting a previous expiry as current', () => {

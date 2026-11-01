@@ -27,6 +27,10 @@ import {
 import { SaveCarButton } from '@/components/saved-car-controls';
 import { ArrowRight, Camera, ChevronLeft, ChevronRight } from '@/components/icons';
 import { trackEvent } from '@/lib/analytics';
+import { MakeLogo } from '@/components/make-logo';
+import { getMakeLogoSrc } from '@/lib/make-logo';
+import { isMultiChoiceWebsite } from '@/lib/multi-home-scope';
+import './public-vehicle-make-logo.css';
 
 
 
@@ -94,6 +98,7 @@ export function CarCard({
   const photoSwipe = usePhotoSwipe(canBrowsePhotos, changePhoto);
 
   const vehicleLabel = vehicleDisplayTitle(car);
+  const showMakeLogo = isMultiChoiceWebsite() && Boolean(getMakeLogoSrc(car.make));
   const registration = vehicleRegistration(car);
   const registrationYear = stockRegistrationYear(car);
   const detailHref = `/vehicle/${car.id}`;
@@ -254,7 +259,8 @@ export function CarCard({
               !isRow && !isCompact && "vehicle-card-heading",
             )}
           >
-            <h3 className="[overflow-wrap:anywhere] font-display text-lg font-semibold leading-snug tracking-tight text-primary">
+            <h3 className={cn("[overflow-wrap:anywhere] font-display text-lg font-semibold leading-snug tracking-tight text-primary", showMakeLogo && 'make-logo-card-heading')}>
+              {showMakeLogo && <MakeLogo make={car.make} size={24} />}
               <Link
                 href={detailHref}
                 onClick={recordVehicleOpen}

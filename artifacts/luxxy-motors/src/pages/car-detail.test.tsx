@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi } from 'vitest';
@@ -230,6 +230,34 @@ it('offers printing through More vehicle tools', () => {
   expect(link.closest('[data-popup-surface="popover"]')).not.toBeNull();
 });
 
+it.each([false, true])('places one decorative make mark beside the Multi-Choice vehicle title (phone: %s)', isPhone => {
+  const meta = document.createElement('meta');
+  meta.name = 'luxxy-canonical-origin';
+  meta.content = 'https://multichoicemotors.co.uk';
+  meta.setAttribute('data-page-meta', '');
+  document.head.append(meta);
+  stockStatus.isPhone = isPhone;
+  try {
+    const view = renderVehicle('with-plate');
+    const title = screen.getByRole('heading', { level: 1, name: 'BMW 3 Series' });
+    const logo = title.querySelector('img');
+    expect(logo).toHaveAttribute('src', '/brand/car-makes/bmw.svg');
+    expect(logo).toHaveAttribute('width', '28');
+    expect(logo).toHaveAttribute('alt', '');
+    expect(logo).toHaveAttribute('aria-hidden', 'true');
+    expect(document.querySelectorAll('h1 img[src*="car-makes"]')).toHaveLength(1);
+    expect(document.querySelector('.vehicle-detail-gallery img[src*="car-makes"]')).toBeNull();
+    view.unmount();
+  } finally { meta.remove(); }
+});
+
+it('keeps other dealerships’ vehicle titles unchanged', () => {
+  renderVehicle('with-plate');
+  const title = screen.getByRole('heading', { level: 1, name: 'BMW 3 Series' });
+  expect(title.querySelector('img')).toBeNull();
+  expect(title).not.toHaveClass('make-logo-vehicle-heading');
+});
+
 it('retains Multi-Choice vehicle-page Save and full gallery browsing independently from stock-photo controls', async () => {
   const meta = document.createElement('meta');
   meta.name = 'luxxy-canonical-origin';
@@ -328,6 +356,9 @@ it('hands a typed quick-answer question to the manual message form without losin
   fireEvent.click(within(dialog).getByRole('button', { name: 'Ask our team' }));
   await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Quick answers' })).not.toBeInTheDocument());
   await waitFor(() => expect(message).toHaveValue('I would like to visit on Saturday.\n\nCan you measure the boot opening for me?'));
+  // The destination page also schedules a focus/scroll frame. Check the final
+  // destination after that frame, rather than the form's earlier draft effect.
+  await act(async () => { await new Promise<void>(resolve => requestAnimationFrame(() => resolve())); });
   expect(disclosure.open).toBe(true);
   expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' });
   expect(message).toHaveFocus();

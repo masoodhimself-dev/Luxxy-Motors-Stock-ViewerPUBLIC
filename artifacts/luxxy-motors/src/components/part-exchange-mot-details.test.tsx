@@ -63,7 +63,7 @@ it("does not look up a valid registration until Find my car is clicked", async (
     screen.getByText(/Last recorded mileage: 85,042 miles/),
   ).toHaveTextContent("1 Jun 2026");
   expect(screen.getByText(/Next MOT due/)).toHaveTextContent("1 Jun 2027");
-  expect(screen.getByText(/Suggested current mileage/)).toHaveTextContent(
+  expect(screen.getByText(/Estimated mileage/)).toHaveTextContent(
     "88,000",
   );
 });
@@ -102,7 +102,7 @@ it("does not skip identification when the customer already entered mileage", asy
   expect(onDetails).toHaveBeenCalledOnce();
   expect(screen.getByText("Ford Focus")).toBeVisible();
   expect(
-    screen.queryByText(/Suggested current mileage/),
+    screen.queryByText(/Estimated mileage/),
   ).not.toBeInTheDocument();
 });
 it("blocks concurrent clicks but permits a subsequent explicit recheck", async () => {
@@ -320,7 +320,7 @@ it("shows a supplied first MOT date without inventing mileage or exemption from 
   await flush();
   expect(screen.getByText(/First MOT due/)).toHaveTextContent("1 Jun 2028");
   expect(
-    screen.queryByText(/Suggested current mileage|Last recorded mileage/),
+    screen.queryByText(/Estimated mileage|Last recorded mileage/),
   ).not.toBeInTheDocument();
 });
 it("preserves a newer failure as a neutral check and does not expose defects or VINs", async () => {

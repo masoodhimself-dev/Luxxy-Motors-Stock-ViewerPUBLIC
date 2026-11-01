@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { customFetch } from "@workspace/api-client-react";
 import { isUKNumberPlate } from "@workspace/vehicle-meta";
+import { MakeLogo } from "./make-logo";
 
 type Vehicle = { make: string | null; model: string | null };
 type Reply =
@@ -17,16 +18,19 @@ export function MotMileageEstimate({
   registration,
   mileage,
   onEstimate,
+  showMakeLogo = false,
 }: {
   registration: string;
   mileage: string;
   onEstimate: (value: string) => void;
+  /** Show the matching MOT response's make beside its existing vehicle label. */
+  showMakeLogo?: boolean;
 }) {
   const plate = registration.toUpperCase().replace(/[\s-]/g, "");
   const current = useRef({ mileage, onEstimate });
   current.current = { mileage, onEstimate };
   const applied = useRef<{ plate: string; value: string } | null>(null);
-  const [status, setStatus] = useState<{ plate: string; text: string } | null>(
+  const [status, setStatus] = useState<{ plate: string; text: string; make?: string | null } | null>(
     null,
   );
   useEffect(() => {
@@ -61,8 +65,9 @@ export function MotMileageEstimate({
           setStatus(null);
           return;
         }
-        const vehicle = [reply.vehicle?.make, reply.vehicle?.model]
-          .filter(Boolean)
+        const make = typeof reply.vehicle?.make === "string" ? reply.vehicle.make : null;
+        const vehicle = [make, reply.vehicle?.model]
+          .filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
           .join(" ");
         const prefix = vehicle ? `${vehicle} · ` : "";
         if (
@@ -77,11 +82,13 @@ export function MotMileageEstimate({
           current.current.onEstimate(value);
           setStatus({
             plate,
+            make,
             text: `${prefix}Estimated ${Number(value).toLocaleString("en-GB")} miles from MOT history, rounded to the nearest 1,000. Please check your odometer and change this if needed.`,
           });
         } else {
           setStatus({
             plate,
+            make,
             text: `${prefix}Not enough reliable MOT history to estimate mileage. Please enter your current odometer reading.`,
           });
         }
@@ -105,8 +112,9 @@ export function MotMileageEstimate({
   )
     return null;
   return (
-    <p role="status" className="mt-2 text-xs leading-5 text-muted-foreground">
-      {status.text}
+    <p role="status" className={`mt-2 text-xs leading-5 text-muted-foreground${showMakeLogo ? " flex items-start gap-3" : ""}`}>
+      {showMakeLogo && <MakeLogo make={status.make} size={32} />}
+      <span>{status.text}</span>
     </p>
   );
 }

@@ -1,0 +1,27 @@
+/* Small make marks belong with the vehicle name, never over its photograph. */
+.make-logo-card-heading,
+.make-logo-vehicle-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.make-logo-card-heading > a,
+.make-logo-vehicle-heading > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.make-logo-card-heading > a { flex: 1; }
+.make-logo-vehicle-heading > img { margin-top: 2px; }
+@media (min-width: 768px) {
+  .stock-redesign.stock-refined .stock-details-card.vehicle-card-grid h3.make-logo-card-heading {
+    display: flex;
+    -webkit-line-clamp: unset;
+    overflow: visible;
+  }
+  .stock-redesign.stock-refined .stock-details-card.vehicle-card-grid h3.make-logo-card-heading > a {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    overflow: hidden;
+  }
+}

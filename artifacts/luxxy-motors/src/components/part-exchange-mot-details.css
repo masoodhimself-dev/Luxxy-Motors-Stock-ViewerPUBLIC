@@ -28,6 +28,9 @@
   margin-top: 4px;
 }
 .part-exchange-mot-details__vehicle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   color: var(--mh-primary, hsl(var(--foreground)));
 }
 @media (max-width: 359px) {
@@ -35,3 +38,7 @@
     width: 100%;
   }
 }
+
+.part-exchange-mot-details__vehicle > img { width: 32px; height: 32px; flex: none; }
+.part-exchange-mot-details__vehicle > span { min-width: 0; }
+.part-exchange-mot-details__year { margin-left: 8px; color: var(--mh-muted, hsl(var(--muted-foreground))); }
