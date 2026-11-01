@@ -21,8 +21,9 @@ import './portal/portal-workspace.css';
 import './customer-finish.css';
 import { readableAccentForHsl, readableForegroundForHsl } from '@/lib/brand-colour';
 import { customerThemeVariables } from '@/lib/customer-theme';
-import { isCustomerWebsiteRoute, multiCustomerThemeVariables } from '@/lib/multi-customer-theme';
-import { useCustomerBodyTheme } from '@/components/multi-customer-theme';
+import { isCustomerWebsiteRoute, multiCustomerThemeVariables, multiPortalThemeVariables } from '@/lib/multi-customer-theme';
+import { useCustomerBodyTheme, usePortalBodyTheme } from '@/components/multi-customer-theme';
+import './portal/multi-choice-portal-theme.css';
 export { readableForegroundForHsl } from '@/lib/brand-colour';
 
 const navLinkClass =
@@ -36,6 +37,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [, vehicleRoute] = useRoute('/vehicle/:id');
   const testDriveHref = vehicleRoute?.id ? `/enquire?type=viewing&vehicleId=${encodeURIComponent(vehicleRoute.id)}` : getEnquiryHref('viewing');
   const isStaff = /^\/portal(?:\/|$)/.test(location);
+  const isMultiPortal = isStaff && isMultiChoiceWebsite();
   const isMultiWebsite = isCustomerWebsiteRoute(location) && isMultiChoiceWebsite();
   const isCustomerTask = /^\/(sign|customer-details|viewing)\//.test(location);
   const isPremiumShowroom = location === '/' || location === '/stock' || /^\/vehicle\/[^/]+\/?$/.test(location);
@@ -95,9 +97,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
       : {}),
     ...(!isStaff ? customerThemeVariables({ ...dealerConfig.presentation, primaryHsl: brandPrimary, accentHsl: customerAccent }) : {}),
     ...(isMultiWebsite ? multiCustomerThemeVariables() : {}),
-  }) as CSSProperties, [brandPrimary, accent, customerAccent, dealerConfig.presentation, isStaff, isMultiWebsite]);
+    ...(isMultiPortal ? multiPortalThemeVariables() : {}),
+  }) as CSSProperties, [brandPrimary, accent, customerAccent, dealerConfig.presentation, isStaff, isMultiWebsite, isMultiPortal]);
 
   useCustomerBodyTheme(brandStyle, isMultiWebsite, !isStaff && isCustomerWebsiteRoute(location));
+  usePortalBodyTheme(brandStyle, isMultiPortal);
 
   useEffect(() => {
     const url = dealerConfig.presentation?.faviconUrl;
@@ -206,7 +210,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   </div>;
 
   return (
-    <div id={isMultiHome ? 'top' : undefined} style={brandStyle} data-dealer-brand={dealerConfig.identity.name.toLowerCase().replace(/[^a-z0-9]/g, "") === "multichoicemotors" ? "multi-choice" : undefined} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}${isMultiWebsite ? ' multi-choice-site' : ''}${isMultiHome ? ' multi-home-shell' : ''}`}>
+    <div id={isMultiHome ? 'top' : undefined} style={brandStyle} data-dealer-brand={dealerConfig.identity.name.toLowerCase().replace(/[^a-z0-9]/g, "") === "multichoicemotors" ? "multi-choice" : undefined} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}${isMultiWebsite ? ' multi-choice-site' : ''}${isMultiPortal ? ' multi-choice-portal' : ''}${isMultiHome ? ' multi-home-shell' : ''}`}>
       <a href="#main-content" className="fixed left-4 top-3 z-[100] -translate-y-24 rounded-md bg-primary px-5 py-3 text-primary-foreground focus:translate-y-0">Skip to content</a>
       {isMultiWebsite && <MultiHomeHeader ref={headerRef} settings={dealerConfig} savedCount={savedCount} testDriveHref={testDriveHref} isHomepage={isMultiHome} enquiriesEnabled={publicEnquiriesEnabled} onLogoClick={isMultiHome ? undefined : handleLogoClick} />}
       {!isStaff && !isMultiWebsite && <header

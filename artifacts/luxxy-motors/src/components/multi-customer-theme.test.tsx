@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { dealerConfig } from '@/config/dealer';
-import { multiCustomerThemeVariables } from '@/lib/multi-customer-theme';
+import { multiCustomerThemeVariables, multiPortalThemeVariables } from '@/lib/multi-customer-theme';
 import { Layout } from './layout';
 import { UKNumberPlate } from './uk-number-plate';
 import { MultiCustomerDocumentTheme } from './multi-customer-theme';
@@ -51,6 +51,7 @@ function page() {
 
 const originalBodyStyle = document.body.getAttribute('style');
 const originalMarker = document.body.getAttribute('data-multi-choice-customer');
+const originalPortalMarker = document.body.getAttribute('data-multi-choice-portal');
 
 beforeEach(() => {
   state.path = '/stock';
@@ -72,6 +73,8 @@ afterEach(() => {
   else document.body.setAttribute('style', originalBodyStyle);
   if (originalMarker === null) document.body.removeAttribute('data-multi-choice-customer');
   else document.body.setAttribute('data-multi-choice-customer', originalMarker);
+  if (originalPortalMarker === null) document.body.removeAttribute('data-multi-choice-portal');
+  else document.body.setAttribute('data-multi-choice-portal', originalPortalMarker);
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -111,8 +114,8 @@ describe('Multi-Choice customer theme scope', () => {
     },
   );
 
-  it.each(['/portal', '/portal/leads/example', '/platform', '/sign-in', '/sign-in/sso-callback', '/sign-up', '/join'])(
-    'excludes staff and account route %s even on the verified dealership domain', path => {
+  it.each(['/platform', '/sign-in', '/sign-in/sso-callback', '/sign-up', '/join'])(
+    'excludes account route %s even on the verified dealership domain', path => {
       state.path = path;
       document.body.style.setProperty('--app-font-sans', 'Existing staff font');
       const { container } = render(page());
@@ -163,7 +166,7 @@ describe('Multi-Choice customer theme scope', () => {
     expect(document.body.style.getPropertyValue('--unrelated-token')).toBe('keep-me');
   });
 
-  it('keeps the theme across public navigation and removes it before staff and other-dealer content', () => {
+  it('switches between public and staff themes and restores tokens before other-dealer content', () => {
     document.body.style.setProperty('--app-font-sans', 'Existing interface font');
     const view = render(page());
     state.path = '/contact';
@@ -174,16 +177,83 @@ describe('Multi-Choice customer theme scope', () => {
     view.rerender(page());
     expect(view.container.querySelector('.multi-choice-site')).toBeNull();
     expect(document.body).not.toHaveAttribute('data-multi-choice-customer');
-    expect(document.body.style.getPropertyValue('--app-font-sans')).toBe('Existing interface font');
+    expect(document.body).toHaveAttribute('data-multi-choice-portal', 'true');
+    expect(document.body.style.getPropertyValue('--app-font-sans')).toContain('Multi Montserrat');
     state.path = '/saved';
     view.rerender(page());
     expect(document.body).toHaveAttribute('data-multi-choice-customer', 'true');
+    expect(document.body).not.toHaveAttribute('data-multi-choice-portal');
     canonical('https://shoredrive.uk');
     view.rerender(page());
     expect(view.container.querySelector('.multi-choice-site')).toBeNull();
     expect(document.body).not.toHaveAttribute('data-multi-choice-customer');
     expect(document.body.style.getPropertyValue('--app-font-sans')).toBe('Existing interface font');
     expect(document.body.style.getPropertyValue('--dealer-page')).toBe('#edf2f4');
+  });
+
+  it.each(['/portal', '/portal/leads/example'])('uses the homepage font and palette in the verified %s shell and body pop-ups', path => {
+    state.path = path;
+    const before = JSON.stringify(state.settings);
+    const { container } = render(page());
+    const shell = container.querySelector<HTMLElement>('.premium-portal.multi-choice-portal');
+    expect(shell).not.toBeNull();
+    expect(shell?.style.getPropertyValue('--portal-ink')).toBe('#192a36');
+    expect(shell?.style.getPropertyValue('--portal-canvas')).toBe('#f9fafb');
+    expect(document.body).toHaveAttribute('data-multi-choice-portal', 'true');
+    expect(document.body).not.toHaveAttribute('data-multi-choice-customer');
+    expect(document.body.style.getPropertyValue('--app-font-sans')).toContain('Multi Montserrat');
+    expect(document.body.style.getPropertyValue('--portal-accent')).toBe('#192a36');
+    expect(document.body).toContainElement(screen.getByRole('dialog'));
+    expect(JSON.stringify(state.settings)).toBe(before);
+    expect(multiPortalThemeVariables()['--mh-accent']).toBe(multiCustomerThemeVariables()['--mh-accent']);
+  });
+
+  it('restores the prior body theme when leaving the portal for an unrelated route or tenant', () => {
+    state.path = '/portal';
+    document.body.style.setProperty('--app-font-sans', 'Existing interface font');
+    document.body.style.setProperty('--portal-accent', '#123456');
+    const view = render(page());
+    expect(document.body).toHaveAttribute('data-multi-choice-portal', 'true');
+    state.path = '/platform';
+    view.rerender(page());
+    expect(document.body).not.toHaveAttribute('data-multi-choice-portal');
+    expect(document.body.style.getPropertyValue('--app-font-sans')).toBe('Existing interface font');
+    expect(document.body.style.getPropertyValue('--portal-accent')).toBe('#123456');
+    state.path = '/portal';
+    canonical('https://shoredrive.uk');
+    view.rerender(page());
+    expect(view.container.querySelector('.multi-choice-portal')).toBeNull();
+    expect(document.body).not.toHaveAttribute('data-multi-choice-portal');
+    expect(document.body.style.getPropertyValue('--app-font-sans')).toBe('Existing interface font');
+  });
+
+  it('restores prior body tokens and marker exactly on portal unmount', () => {
+    state.path = '/portal';
+    document.body.setAttribute('data-multi-choice-portal', 'previous-owner');
+    document.body.style.setProperty('--portal-ink', '#123456');
+    document.body.style.setProperty('--app-font-sans', 'Existing interface font');
+    const { unmount } = render(page());
+    expect(document.body).toHaveAttribute('data-multi-choice-portal', 'true');
+    unmount();
+    expect(document.body).toHaveAttribute('data-multi-choice-portal', 'previous-owner');
+    expect(document.body.style.getPropertyValue('--portal-ink')).toBe('#123456');
+    expect(document.body.style.getPropertyValue('--app-font-sans')).toBe('Existing interface font');
+  });
+
+  it('keeps document and print-copy font tokens isolated from portal headings', () => {
+    state.path = '/portal';
+    const sheet = document.createElement('style');
+    sheet.setAttribute('data-multi-theme-test', '');
+    sheet.textContent = readFileSync('src/components/portal/multi-choice-portal-theme.css', 'utf8');
+    document.head.append(sheet);
+    const printCopy = createPortal(<article className="sales-print-copy invoice-sheet" data-testid="print-copy"><h2 className="font-display">Printed invoice</h2></article>, document.body);
+    render(<Layout><h1>Portal heading</h1><article className="sales-document invoice-sheet" data-testid="invoice-document"><h2 className="font-display">Invoice heading</h2></article>{printCopy}</Layout>);
+    expect(document.body.style.getPropertyValue('--app-font-sans')).toContain('Multi Montserrat');
+    for (const id of ['invoice-document', 'print-copy']) {
+      const font = getComputedStyle(screen.getByTestId(id)).getPropertyValue('--app-font-sans');
+      expect(font).toContain('Inter');
+      expect(font).not.toContain('Multi Montserrat');
+    }
   });
 
   it.each(['loading', 'error'] as const)('retains the verified visual theme while settings are %s', status => {

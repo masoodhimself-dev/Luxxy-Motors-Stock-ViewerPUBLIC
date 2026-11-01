@@ -1,7 +1,7 @@
 import { customerThemeVariables } from './customer-theme';
 import { hexColourToHsl } from './brand-colour';
 
-/** The approved homepage palette, shared by the public website only. */
+/** The approved homepage palette, reused by the public website and its staff portal. */
 export const multiCustomerPalette = {
   primary: '#192a36',
   accent: '#a47a2b',
@@ -80,6 +80,23 @@ export function multiCustomerThemeVariables(): Record<string, string> {
     '--dialog-border': p.border,
     '--dialog-panel': p.surface,
     '--dialog-subtle': p.tint,
+  };
+}
+
+/** Portal presentation shares the homepage palette without changing saved branding. */
+export function multiPortalThemeVariables(): Record<string, string> {
+  const p = multiCustomerPalette;
+  return {
+    ...multiCustomerThemeVariables(),
+    '--portal-ink': p.primary,
+    '--portal-accent': p.primary,
+    '--portal-muted': p.muted,
+    '--portal-canvas': p.background,
+    '--portal-panel': p.surface,
+    '--portal-border': p.border,
+    '--portal-info': p.primary,
+    '--portal-info-soft': p.tint,
+    '--portal-info-border': p.border,
   };
 }
 

@@ -1,0 +1,384 @@
+/* The same Multi-Choice identity as the public website, only on its staff routes.
+   Keep screen presentation separate from issued documents and their print clones. */
+body[data-multi-choice-portal="true"] :is(.sales-document, .invoice-sheet, .receipt-book) {
+  /* Existing staff heading/control rules also consume this variable. Isolate it
+     at the document boundary without replacing any template's own font choices. */
+  --app-font-sans: "Inter", Arial, sans-serif;
+  --font-display: var(--app-font-sans);
+  --font-body: var(--app-font-sans);
+}
+
+@media screen {
+  body[data-multi-choice-portal="true"],
+  body[data-multi-choice-portal="true"] :is(
+    .premium-portal, .portal-premium-workspace, .sales-premium-workspace,
+    .portal-workspace.portal-redesign, .portal-action-dialog, .portal-quick-menu,
+    .portal-car-menu, .staff-diary-detail, .settings-studio.portal-settings-premium,
+    .settings-tabs-workspace, [role="dialog"], [role="alertdialog"], [role="menu"],
+    [role="listbox"], [role="tooltip"], [data-radix-popper-content-wrapper]
+  ) {
+    --app-font-sans: "Multi Montserrat", Arial, sans-serif;
+    --font-display: var(--app-font-sans);
+    --portal-ink: var(--mh-primary, #192a36);
+    --portal-text: var(--portal-ink);
+    --portal-accent: var(--portal-ink);
+    --portal-muted: var(--mh-muted, #59656e);
+    --portal-canvas: var(--mh-bg, #f9fafb);
+    --portal-panel: var(--mh-surface, #fff);
+    --portal-surface: var(--portal-panel);
+    --portal-border: var(--mh-border, #e1e5e8);
+    --portal-soft: var(--mh-tint, #eef9fc);
+    --portal-focus: var(--mh-accent, #a47a2b);
+    --portal-hover: var(--mh-accent-dark, #7c591a);
+    --portal-info: var(--portal-ink);
+    --portal-info-soft: var(--portal-soft);
+    --portal-info-border: var(--portal-border);
+    --portal-neutral: var(--portal-muted);
+    --portal-neutral-soft: var(--portal-canvas);
+    --portal-neutral-border: var(--portal-border);
+    --settings-ink: var(--portal-ink);
+    --settings-muted: var(--portal-muted);
+    --settings-line: var(--portal-border);
+    --settings-accent: var(--portal-accent);
+    font-family: var(--app-font-sans);
+    font-synthesis: none;
+  }
+
+  /* Components set their own tokens, so the override belongs on those roots too.
+     Semantic red/amber/green, MOT, and WhatsApp colours remain independent. */
+  body[data-multi-choice-portal="true"] :is(
+    .premium-portal, .portal-premium-workspace, .sales-premium-workspace,
+    .portal-action-dialog, [role="dialog"], [role="alertdialog"], [role="menu"],
+    [role="listbox"], [data-radix-popper-content-wrapper]
+  ) {
+    --primary: var(--dealer-primary, 204.83 36.71% 15.49%);
+    --primary-foreground: 0 0% 100%;
+    --accent: var(--dealer-accent, 38.571429 65.333333% 29.411765%);
+    --accent-foreground: 0 0% 100%;
+    --foreground: var(--dealer-page-ink-hsl, 204.83 36.71% 15.49%);
+    --muted-foreground: var(--dealer-page-muted-hsl, 205.71 10.55% 39.02%);
+    --background: 210 20% 98.04%;
+    --card: 0 0% 100%;
+    --card-foreground: var(--dealer-panel-ink-hsl, 204.83 36.71% 15.49%);
+    --secondary: var(--dealer-page-subtle-hsl, 192.86 70% 96.08%);
+    --secondary-foreground: var(--dealer-page-ink-hsl, 204.83 36.71% 15.49%);
+    --muted: var(--dealer-page-subtle-hsl, 192.86 70% 96.08%);
+    --border: var(--dealer-page-border-hsl, 205.71 13.21% 89.61%);
+    --input: var(--dealer-panel-input-hsl, 207.272727 12.359551% 82.54902%);
+    --ring: 39.173554 58.454106% 40.588235%;
+    --db-text: var(--portal-ink);
+    --db-surface: var(--portal-panel);
+    --db-soft: var(--portal-soft);
+    --db-border: var(--mh-border-strong, #cdd3d8);
+    --db-action-bg: var(--portal-ink);
+    --db-action-text: #fff;
+    --db-action-hover: var(--portal-hover);
+    --db-action-pressed: var(--portal-ink);
+    --db-selected-bg: var(--portal-soft);
+    --db-selected-border: var(--portal-ink);
+    --db-focus: var(--portal-focus);
+  }
+
+  body[data-multi-choice-portal="true"] :is(
+    h1, h2, h3, h4, h5, h6, button, input, select, textarea, label, legend,
+    .font-display, .font-sans, .db-menu, .db-menu-item
+  ):not(:where(
+    .sales-document, .sales-document *, .invoice-sheet, .invoice-sheet *,
+    .receipt-book, .receipt-book *, .uk-number-plate, .uk-number-plate *,
+    .uk-number-plate-input, .registration-plate, .registration-plate *,
+    .registration-plate-input
+  )) {
+    font-family: var(--app-font-sans);
+  }
+
+  body[data-multi-choice-portal="true"] :is(
+    .portal-workspace.portal-redesign, .portal-action-dialog, .settings-tabs-workspace,
+    .staff-diary-detail, [role="dialog"], [role="alertdialog"], [role="menu"]
+  ) :is(button, a, summary, input, select, textarea, [tabindex]):focus-visible {
+    outline-color: var(--portal-focus);
+  }
+
+  body[data-multi-choice-portal="true"] .portal-workspace.portal-redesign
+    :is(input, select, textarea):not(:where(
+      [type="checkbox"], [type="radio"], [type="color"], .uk-number-plate-input,
+      .registration-plate-input, .invoice-sheet *, .receipt-book *
+    )) {
+    border-color: var(--mh-border-strong, #cdd3d8);
+    color: var(--portal-ink);
+    background-color: var(--portal-panel);
+  }
+
+  body[data-multi-choice-portal="true"] :is(
+    .portal-workspace.portal-redesign, .portal-action-dialog, .portal-settings-premium,
+    [role="dialog"], [role="alertdialog"]
+  ) :is(button.bg-primary, .customer-workspace-heading > button) {
+    background-color: var(--portal-ink);
+    border-color: var(--portal-ink);
+    color: #fff;
+  }
+  body[data-multi-choice-portal="true"] :is(
+    .portal-workspace.portal-redesign, .portal-action-dialog, .portal-settings-premium,
+    [role="dialog"], [role="alertdialog"]
+  ) :is(button.bg-primary, .customer-workspace-heading > button):hover:not(:disabled) {
+    background-color: var(--portal-hover);
+    border-color: var(--portal-hover);
+  }
+
+  /* A single navigation treatment replaces the old blue and per-section hues. */
+  body[data-multi-choice-portal="true"] .portal-workspace.portal-redesign
+    .portal-toolbar-identity { flex: 1 1 auto; }
+  body[data-multi-choice-portal="true"] .portal-workspace.portal-redesign
+    .portal-workspace-brand {
+    width: 148px;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    flex: 0 1 148px;
+  }
+  body[data-multi-choice-portal="true"] .portal-workspace.portal-redesign
+    .portal-workspace-brand img {
+    display: block;
+    width: 148px;
+    max-width: 100%;
+    min-width: 0;
+    height: auto;
+    flex: 0 1 auto;
+    object-position: left center;
+  }
+  body[data-multi-choice-portal="true"] .portal-workspace.portal-redesign
+    .portal-section-nav > button[aria-current="page"] {
+    color: var(--portal-ink);
+    background: var(--portal-soft);
+    border-color: var(--portal-border);
+  }
+  body[data-multi-choice-portal="true"] .portal-workspace.portal-redesign :is(
+    .portal-section-nav > button:hover, .portal-rail-shortcuts > button:hover,
+    .portal-staff-avatar, .customer-workspace-views
+  ) {
+    color: var(--portal-ink);
+    background: var(--portal-soft);
+  }
+  body[data-multi-choice-portal="true"] .portal-workspace.portal-redesign
+    .customer-workspace-views > button[aria-current="page"] {
+    color: var(--portal-ink);
+    background: var(--portal-panel);
+  }
+  body[data-multi-choice-portal="true"] :is(
+    .portal-quick-menu [role="menuitem"]:focus,
+    .portal-quick-menu [role="menuitem"]:hover,
+    .staff-appointment-modes, .staff-appointment-modes button[aria-pressed="true"]
+  ) {
+    color: var(--portal-ink);
+    background: var(--portal-soft);
+  }
+
+  /* Cars keeps the existing list geometry, photographic content and MOT tones. */
+  body[data-multi-choice-portal="true"] .portal-cars-workspace {
+    --cars-line: var(--portal-border);
+    --cars-muted: var(--portal-muted);
+    --cars-paper: var(--portal-panel);
+  }
+  body[data-multi-choice-portal="true"] .portal-cars-tabs button span {
+    background: var(--portal-border);
+  }
+  body[data-multi-choice-portal="true"] .portal-cars-tabs button[aria-pressed="true"] {
+    color: var(--portal-ink);
+    border-bottom-color: var(--portal-focus);
+  }
+
+  /* Inbox, full-screen enquiry cases and tools use the same quiet surfaces. */
+  body[data-multi-choice-portal="true"] .portal-workspace.portal-redesign :is(
+    .enquiry-queue-nav > button[aria-pressed="true"]:not([data-tone="warning"]):not([data-tone="success"]),
+    .enquiry-record-select[aria-pressed="true"]
+  ) {
+    color: var(--portal-ink);
+    border-color: var(--portal-border);
+    background: var(--portal-soft);
+  }
+  body[data-multi-choice-portal="true"] .portal-workspace.portal-redesign
+    .enquiry-record-select[aria-pressed="true"] { border-left-color: var(--portal-focus); }
+  body[data-multi-choice-portal="true"] .portal-workspace.portal-redesign :is(
+    .enquiry-queue-nav > button > span, .enquiry-detail-car,
+    .enquiry-conversation-entry[data-kind="staff"], .enquiry-stock-picker > button[aria-pressed="true"],
+    .enquiry-next-step > label:has(input:checked), .enquiry-selected-car,
+    .enquiry-calendar-day[aria-pressed="true"], .enquiry-car-placeholder
+  ) {
+    color: var(--portal-ink);
+    background: var(--portal-soft);
+    border-color: var(--portal-border);
+  }
+  body[data-multi-choice-portal="true"] .portal-workspace.portal-redesign
+    .enquiry-action-plan:not([data-tone="danger"]):not([data-tone="warning"]):not([data-tone="success"]) {
+    background: var(--portal-soft);
+    border-color: var(--portal-border);
+    border-left-color: var(--portal-focus);
+  }
+  body[data-multi-choice-portal="true"] .portal-workspace.portal-redesign
+    .enquiry-compact-list > li:not([data-tone="danger"]):not([data-tone="warning"]) .enquiry-customer-initial {
+    background: var(--portal-soft);
+    color: var(--portal-muted);
+  }
+  body[data-multi-choice-portal="true"] .portal-workspace.portal-redesign :is(
+    .enquiry-record-row-message, .enquiry-record-row-purpose, .enquiry-action-label,
+    .enquiry-action-plan p, .enquiry-form-intro p, .enquiry-detail-more > summary,
+    .enquiry-context-details > summary, .enquiry-email-records > summary,
+    .enquiry-desk-more > summary, .enquiry-checks-note, .enquiry-checks-heading > span,
+    .enquiry-checks-tools > button span, .staff-appointment-hint,
+    .staff-appointment-exceptions-toggle
+  ) { color: var(--portal-muted); }
+  body[data-multi-choice-portal="true"] .enquiry-checks-tools > button {
+    color: var(--portal-ink);
+    background: var(--portal-canvas);
+    border-color: var(--portal-border);
+  }
+  body[data-multi-choice-portal="true"] .enquiry-checks-tools > button:is(:hover, [aria-expanded="true"]) {
+    background: var(--portal-soft);
+    border-color: var(--portal-focus);
+  }
+  body[data-multi-choice-portal="true"] .enquiries-premium-workspace .enquiry-workspace-heading {
+    background: var(--portal-ink);
+  }
+  body[data-multi-choice-portal="true"] .email-workspace { color: var(--portal-ink); }
+  body[data-multi-choice-portal="true"] .portal-workspace.portal-redesign :is(
+    .email-bubble-outgoing, .email-bubble-outgoing.is-active,
+    .email-message-list > button.selected
+  ) { background: var(--portal-soft); border-color: var(--portal-border); }
+  body[data-multi-choice-portal="true"] .email-workspace :is(
+    .email-record-links a, .email-customer-picker a, .email-empty h3,
+    .email-bubble h4, .email-bubble > header > span, .email-message-toggle
+  ) { color: var(--portal-ink); }
+  body[data-multi-choice-portal="true"] .email-workspace :is(
+    .email-row-meta em, .is-recorded .email-bubble
+  ) { color: var(--portal-muted); background: var(--portal-canvas); }
+  body[data-multi-choice-portal="true"] .email-bubble-attachments { color: var(--portal-muted); }
+
+  /* Sales editor only. The invoice/receipt documents retain their own designs. */
+  body[data-multi-choice-portal="true"] .invoice-builder {
+    --invoice-ink: var(--portal-ink);
+    --invoice-muted: var(--portal-muted);
+    --invoice-line: var(--portal-border);
+    --invoice-accent: var(--portal-ink);
+    --invoice-soft: var(--portal-soft);
+  }
+  body[data-multi-choice-portal="true"] .portal-workspace.portal-redesign :is(
+    .invoice-steps, .invoice-empty, .invoice-selected-car, .invoice-ready-card,
+    .invoice-import, .invoice-optional, .invoice-saved-documents,
+    .invoice-payment-form, .invoice-builder .invoice-check, .invoice-final-paperwork,
+    .invoice-type-choices svg, .invoice-resume-next
+  ) { background: var(--portal-canvas); border-color: var(--portal-border); }
+  body[data-multi-choice-portal="true"] .portal-workspace.portal-redesign
+    .invoice-sale-list > button:hover {
+    background: var(--portal-soft);
+    border-color: var(--portal-focus);
+  }
+  body[data-multi-choice-portal="true"] .invoice-builder :is(
+    .invoice-builder-kicker, .invoice-selected-car p, .invoice-car-context-specs p,
+    .invoice-type-choices span, .invoice-builder-footer > span, .invoice-resume-car p,
+    .invoice-resume-next p, .invoice-resume-edit > span
+  ) { color: var(--portal-muted); }
+  body[data-multi-choice-portal="true"] .invoice-builder summary { color: var(--portal-ink); }
+  body[data-multi-choice-portal="true"] .invoice-car-photo:focus-visible {
+    outline-color: var(--portal-focus);
+  }
+
+  /* Settings navigation and controls no longer reintroduce teal/purple branding. */
+  body[data-multi-choice-portal="true"] .portal-premium-workspace :is(
+    .settings-tabs, .settings-tabs > [role="tab"], #dealer-settings-tab-paperwork,
+    #invoice-settings-tab-design, #website-settings-tab-identity,
+    #dealer-settings-tab-website, #website-settings-tab-contact,
+    #invoice-settings-tab-payment, #dealer-settings-tab-advanced
+  ) {
+    --settings-tab-ink: var(--portal-ink);
+    --settings-tab-soft: var(--portal-soft);
+    --settings-tab-border: var(--portal-border);
+  }
+  body[data-multi-choice-portal="true"] .portal-workspace.portal-redesign
+    .dealer-settings-hub > .settings-tabs > button[aria-selected="true"] {
+    color: var(--portal-ink);
+    background: var(--portal-soft);
+  }
+  body[data-multi-choice-portal="true"] .portal-workspace.portal-redesign :is(
+    .settings-section-icon, .settings-section-icon svg, .settings-service-icon,
+    .settings-service-icon svg, .settings-tabs-heading > span
+  ) { color: var(--portal-ink); }
+  body[data-multi-choice-portal="true"] .portal-workspace.portal-redesign :is(
+    .settings-section-icon, .settings-tabs-heading > span, .settings-draft-notice,
+    .settings-primary-navigation > .settings-tabs
+  ) { background: var(--portal-soft); border-color: var(--portal-border); }
+  body[data-multi-choice-portal="true"] .portal-workspace.portal-redesign
+    .settings-draft-notice { border-left-color: var(--portal-focus); }
+  body[data-multi-choice-portal="true"] .portal-workspace.portal-redesign
+    .settings-tabs-workspace .integration-actions > button:not(.bg-primary) {
+    color: var(--portal-ink);
+  }
+  body[data-multi-choice-portal="true"] .portal-workspace.portal-redesign :is(
+    .settings-tabs-workspace .integration-field code,
+    .settings-tabs-workspace .email-variable-list button
+  ) { background: var(--portal-canvas); }
+  body[data-multi-choice-portal="true"] .portal-workspace.portal-redesign
+    :is(.settings-save-bar, .settings-panel-footer) { border-color: var(--portal-border); }
+  body[data-multi-choice-portal="true"] :is(
+    .portal-settings-premium, .settings-tabs-workspace, .staff-appointment-picker
+  ) input:is([type="checkbox"], [type="radio"]) { accent-color: var(--portal-ink); }
+  body[data-multi-choice-portal="true"] .portal-settings-premium
+    .settings-toggle input:checked + span { background: var(--portal-ink); }
+
+  /* Radix renders outside the route wrapper; the body marker follows the route. */
+  body[data-multi-choice-portal="true"] :is(
+    [role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"],
+    .portal-car-menu, .portal-quick-menu, .staff-diary-detail, .invoice-car-photo-preview
+  ) {
+    color: var(--portal-ink);
+    background-color: var(--portal-panel);
+    border-color: var(--portal-border);
+  }
+  body[data-multi-choice-portal="true"] :is(
+    [role="menuitem"], [role="option"]
+  ):not(.text-destructive):not([data-destructive="true"]):is(:focus, [data-highlighted], [aria-selected="true"]) {
+    color: var(--portal-ink);
+    background-color: var(--portal-soft);
+  }
+  body[data-multi-choice-portal="true"] [role="tooltip"] {
+    color: #fff;
+    background-color: var(--portal-ink);
+  }
+
+  /* Clerk injects its own font declaration inside the account card. This
+     narrowly scoped override leaves authentication pages and other dealers alone. */
+  body[data-multi-choice-portal="true"] :is(
+    .cl-userButtonPopoverCard, .cl-cardBox, .cl-userProfile-root
+  ),
+  body[data-multi-choice-portal="true"] :is(
+    .cl-userButtonPopoverCard, .cl-cardBox, .cl-userProfile-root
+  ) :is(div, span, p, a, button, input, select, textarea, h1, h2, h3, label) {
+    font-family: "Multi Montserrat", Arial, sans-serif !important;
+  }
+
+  @media (max-width: 767px) {
+    /* iOS keeps the page at its normal zoom when editing ordinary form fields. */
+    body[data-multi-choice-portal="true"] :is(
+      .portal-workspace.portal-redesign, .portal-action-dialog, .settings-tabs-workspace,
+      [role="dialog"], [role="alertdialog"]
+    ) :is(
+      input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="file"]),
+      select, textarea
+    ):not(:where(
+      .uk-number-plate-input, .registration-plate-input,
+      .sales-document *, .invoice-sheet *, .receipt-book *
+    )) { font-size: 16px; }
+  }
+
+  @media (max-width: 479px) {
+    body[data-multi-choice-portal="true"] .portal-quick-full-label { display: none; }
+    body[data-multi-choice-portal="true"] .portal-quick-short-label { display: inline; }
+  }
+
+  @media (max-width: 359px) {
+    body[data-multi-choice-portal="true"] .portal-quick-short-label { display: none; }
+    body[data-multi-choice-portal="true"] .portal-toolbar-actions .portal-quick-trigger {
+      gap: 6px;
+      padding-inline: 10px;
+      min-height: 44px;
+    }
+  }
+}

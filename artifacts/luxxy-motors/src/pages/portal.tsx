@@ -25,6 +25,7 @@ import {
 } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { DealerWordmark } from "@/components/brand/wordmark";
+import { isMultiChoiceWebsite } from "@/lib/multi-home-scope";
 import { useDealerSettings } from "@/lib/dealer-settings-context";
 import {
   DealerSettingsHub,
@@ -138,7 +139,7 @@ function PortalToolbar({
             className="portal-workspace-brand"
             aria-label={`${settings.identity.name || "Dealership"} workspace`}
           >
-            <DealerWordmark {...settings.identity} />
+            <DealerWordmark {...settings.identity} logoAsset={isMultiChoiceWebsite() ? '/brand/multi-choice-motors/multi-choice-wordmark.svg' : settings.identity.logoAsset} />
           </Link>
           <span className="portal-toolbar-label">Workspace</span>
         </div>

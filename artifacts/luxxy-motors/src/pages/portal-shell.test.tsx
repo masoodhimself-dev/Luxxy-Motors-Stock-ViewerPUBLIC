@@ -5,7 +5,9 @@ const state = vi.hoisted(() => ({
   permissions: ["sales.manage", "settings.publish", "team.manage"],
   signedIn: true,
   bookingEnabled: true,
+  multiChoice: false,
 }));
+vi.mock('@/lib/multi-home-scope', () => ({ isMultiChoiceWebsite: () => state.multiChoice }));
 vi.mock("@clerk/react", () => ({
   useAuth: () => ({ isLoaded: true, isSignedIn: state.signedIn }),
   useUser: () => ({ user: { firstName: "Operator" } }),
@@ -82,10 +84,10 @@ vi.mock("@/components/portal/history-links", () => ({
   ContextHistoryDialog: () => null,
 }));
 vi.mock("@/components/brand/wordmark", () => ({
-  DealerWordmark: () => <span>Dealer</span>,
+  DealerWordmark: ({ name, logoAsset }: any) => <img alt={name} src={logoAsset} />,
 }));
 vi.mock("@/lib/dealer-settings-context", () => ({
-  useDealerSettings: () => ({ settings: { identity: { name: "Dealer" } } }),
+  useDealerSettings: () => ({ settings: { identity: { name: "Dealer", logoAsset: '/configured-dealer-logo.svg' } } }),
 }));
 vi.mock("@/pages/sales-demo", () => ({
   SalesWorkspace: ({ newSaleVehicleId }: any) => (
@@ -97,12 +99,23 @@ beforeEach(() => {
   state.permissions = ["sales.manage", "settings.publish", "team.manage"];
   state.signedIn = true;
   state.bookingEnabled = true;
+  state.multiChoice = false;
   window.history.replaceState({}, "", "/portal");
   global.ResizeObserver = class {
     observe() {}
     disconnect() {}
     unobserve() {}
   };
+});
+it.each([true, false])('uses the approved Multi-Choice logo on portal headers when signedIn=%s', signedIn => {
+  state.multiChoice = true;
+  state.signedIn = signedIn;
+  render(<Portal />);
+  expect(screen.getByRole('img', { name: 'Dealer' })).toHaveAttribute('src', '/brand/multi-choice-motors/multi-choice-wordmark.svg');
+});
+it('keeps another dealership’s configured portal logo', () => {
+  render(<Portal />);
+  expect(screen.getByRole('img', { name: 'Dealer' })).toHaveAttribute('src', '/configured-dealer-logo.svg');
 });
 afterEach(() => {
   vi.restoreAllMocks();
