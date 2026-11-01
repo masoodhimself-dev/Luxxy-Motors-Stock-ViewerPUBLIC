@@ -812,8 +812,8 @@ it('leaves Multi-Choice’s separate homepage featured photographs and vehicle l
   stockFixture.cars = [car];
   renderHome(false);
   expect(document.getElementById('vehicle-results')).toBeNull();
-  const featured = screen.getByRole('region', { name: 'Browse cars' });
-  const photograph = within(featured).getByRole('link', { name: `View full details for ${car.title}` });
+  const featured = screen.getByRole('region', { name: 'Featured cars' });
+  const photograph = within(featured).getByRole('link', { name: `View ${car.title}` });
   expect(photograph).toHaveAttribute('href', `/vehicle/${car.id}`);
   expect(within(photograph).getByRole('img', { name: 'BMW 1 Series' })).toBeInTheDocument();
 });
@@ -849,4 +849,29 @@ it('keeps hybrid/electric shortcuts consistent with their results and displays t
  expect(resultTitles()).toHaveLength(2);
  fireEvent.click(screen.getByRole('button', {name: 'Advanced search'}));
  expect(screen.getByRole('combobox', {name: 'Fuel'})).toHaveValue('Hybrid & electric');
+});
+
+
+it('uses the new Multi-Choice homepage search to create a shareable stock URL and matching existing results', () => {
+  stockPhotoTenant('https://multichoicemotors.co.uk');
+  renderHome(false);
+  expect(screen.getByTestId('multi-choice-homepage')).toBeInTheDocument();
+  const search = screen.getByRole('form', { name: 'Search used cars' });
+  fireEvent.change(within(search).getByRole('combobox', { name: 'Make' }), { target: { value: 'BMW' } });
+  fireEvent.change(within(search).getByRole('combobox', { name: 'Model' }), { target: { value: '1 Series' } });
+  fireEvent.change(within(search).getByRole('combobox', { name: 'Maximum price' }), { target: { value: '5000' } });
+  fireEvent.submit(search);
+  expect(window.location.pathname).toBe('/stock');
+  const query = new URLSearchParams(window.location.search);
+  expect(query.get('make')).toBe('BMW'); expect(query.get('model')).toBe('1 Series'); expect(query.get('maxPrice')).toBe('5000');
+  cleanup(); renderHome(true);
+  expect(screen.queryByTestId('multi-choice-homepage')).not.toBeInTheDocument(); expect(resultTitles()).toEqual(['BMW 1 Series']);
+});
+
+it('does not activate the new homepage from an editable dealership name or another canonical domain', () => {
+  stockPhotoTenant('https://shoredrive.uk');
+  overrideSettings = { ...dealerConfigFixture, identity: { ...dealerConfigFixture.identity, name: 'Multi Choice Motors' } };
+  renderHome(false);
+  expect(screen.queryByTestId('multi-choice-homepage')).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { level: 1, name: 'Find your next car' })).toBeInTheDocument();
 });

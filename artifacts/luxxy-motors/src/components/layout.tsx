@@ -12,6 +12,9 @@ import { useSavedCars } from '@/lib/saved-cars-context';
 import { isWritableFormControl } from '@/lib/form-draft';
 import { formatPhoneDisplay } from '@/lib/utils';
 import { CustomerFooter } from '@/components/customer-footer';
+import { MultiHomeHeader } from '@/components/multi-home-header';
+import { MultiHomeFooter } from '@/components/multi-home-footer';
+import { isMultiChoiceHomepage } from '@/lib/multi-home-scope';
 import './premium-showroom.css';
 import './stock-browsing-header.css';
 import './portal/portal-workspace.css';
@@ -27,6 +30,7 @@ const mobileNavRowClass =
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
+  const isMultiHome = isMultiChoiceHomepage(location);
   const [, vehicleRoute] = useRoute('/vehicle/:id');
   const testDriveHref = vehicleRoute?.id ? `/enquire?type=viewing&vehicleId=${encodeURIComponent(vehicleRoute.id)}` : getEnquiryHref('viewing');
   const isStaff = location.startsWith('/portal');
@@ -167,7 +171,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       observer.disconnect();
       document.documentElement.style.removeProperty('--site-header-height');
     };
-  }, [isStaff]);
+  }, [isStaff, isMultiHome]);
 
   const handleNav = (target: string) => {
     setMobileMenuOpen(false);
@@ -191,9 +195,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div style={brandStyle} data-dealer-brand={dealerConfig.identity.name.toLowerCase().replace(/[^a-z0-9]/g, "") === "multichoicemotors" ? "multi-choice" : undefined} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}`}>
+    <div id={isMultiHome ? 'top' : undefined} style={brandStyle} data-dealer-brand={dealerConfig.identity.name.toLowerCase().replace(/[^a-z0-9]/g, "") === "multichoicemotors" ? "multi-choice" : undefined} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}${isMultiHome ? ' multi-home-shell' : ''}`}>
       <a href="#main-content" className="fixed left-4 top-3 z-[100] -translate-y-24 rounded-md bg-primary px-5 py-3 text-primary-foreground focus:translate-y-0">Skip to content</a>
-      {!isStaff && <header
+      {isMultiHome && <MultiHomeHeader ref={headerRef} settings={dealerConfig} savedCount={savedCount} testDriveHref={testDriveHref} />}
+      {!isStaff && !isMultiHome && <header
         ref={headerRef}
         data-site-header
         data-scroll-hidden={stockHeader.hidden}
@@ -370,7 +375,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </footer>
       )}
-      {!isStaff && !isCustomerTask && <CustomerFooter settings={dealerConfig} testDriveHref={testDriveHref} enquiriesEnabled={publicEnquiriesEnabled} />}
+      {isMultiHome ? <MultiHomeFooter settings={dealerConfig} /> : !isStaff && !isCustomerTask && <CustomerFooter settings={dealerConfig} testDriveHref={testDriveHref} enquiriesEnabled={publicEnquiriesEnabled} />}
       <div data-home-scroll-spacer aria-hidden="true" className="bg-primary" />
 
     </div>

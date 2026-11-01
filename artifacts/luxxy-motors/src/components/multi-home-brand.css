@@ -1,0 +1,38 @@
+/* Multi-Choice homepage only. Latin subset of the supplied Montserrat fonts;
+   SIL Open Font License and attribution ship alongside the font files. */
+@font-face { font-family: 'Multi Montserrat'; src: url('/brand/multi-choice-motors/fonts/montserrat-latin-400.woff2') format('woff2'); font-style: normal; font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Multi Montserrat'; src: url('/brand/multi-choice-motors/fonts/montserrat-latin-600.woff2') format('woff2'); font-style: normal; font-weight: 600; font-display: swap; }
+@font-face { font-family: 'Multi Montserrat'; src: url('/brand/multi-choice-motors/fonts/montserrat-latin-700.woff2') format('woff2'); font-style: normal; font-weight: 700; font-display: swap; }
+@font-face { font-family: 'Multi Montserrat'; src: url('/brand/multi-choice-motors/fonts/montserrat-latin-800.woff2') format('woff2'); font-style: normal; font-weight: 800; font-display: swap; }
+.customer-site.multi-home-shell, .multi-home-popover, .multi-home-drawer {
+  --app-font-sans: 'Multi Montserrat', Arial, sans-serif;
+  --mh-primary: #192a36;
+  --mh-accent: #a47a2b;
+  --mh-accent-dark: #7c591a;
+  --mh-tint: #eef9fc;
+  --mh-bg: #f9fafb;
+  --mh-surface: #fff;
+  --mh-border: #e1e5e8;
+  --mh-border-strong: #cdd3d8;
+  --mh-photo-bg: #f0f2f3;
+  --mh-dot: #c8cfd4;
+  --mh-text: #192a36;
+  --mh-muted: #59656e;
+  --mh-chip: #eaf4f7;
+  --mh-radius: 8px;
+  --mh-shadow-sm: 0 1px 2px rgb(0 0 0 / 5%);
+  --mh-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 10%), 0 2px 4px -2px rgb(0 0 0 / 10%);
+  --mh-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 10%), 0 4px 6px -4px rgb(0 0 0 / 10%);
+  --site-header-height: 80px;
+  background: var(--mh-bg);
+  color: var(--mh-text);
+  font-family: 'Multi Montserrat', Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.customer-site.multi-home-shell :is(button,input,select,textarea) { font-family: 'Multi Montserrat', Arial, sans-serif; }
+.customer-site.multi-home-shell :is(h1,h2,h3) { font-family: 'Multi Montserrat', Arial, sans-serif; color: var(--mh-primary); }
+.multi-home-shell :is(a,button,input,select,textarea,summary):focus-visible { outline: 3px solid var(--mh-accent); outline-offset: 4px; }
+.multi-home-shell :is(h1,h2,h3,section)[id] { scroll-margin-top: calc(var(--site-header-height) + 16px); }
+@media (min-width: 1100px) { .customer-site.multi-home-shell { --site-header-height: 100px; } }
+@media (prefers-reduced-motion: reduce) { .multi-home-shell *, .multi-home-shell *::before, .multi-home-shell *::after { animation: none !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; } }

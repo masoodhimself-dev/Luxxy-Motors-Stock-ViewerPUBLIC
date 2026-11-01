@@ -1,4 +1,6 @@
 import { AiCarFinder } from '@/components/ai-car-finder';
+import { MultiChoiceHomepage } from '@/components/multi-choice-homepage';
+import { isMultiChoiceHomepage } from '@/lib/multi-home-scope';
 import { ShowroomOpeningStatus } from "@/components/showroom-opening-status";
 import { DealerServicePhoto, hasMultiChoicePhotography } from "@/components/dealer-service-photo";
 import { DeliveryEstimator } from '@/components/delivery-estimator';
@@ -63,7 +65,7 @@ const STOCK_VIEW_KEY = 'luxxy.stock-view.v1';
 
 export default function Home({ browseStock = false }: { browseStock?: boolean }) {
   const demoSite = useDemoStatus();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   useEffect(() => {
     const redirectStock = () => {
       if (!browseStock && ['#stock', '#vehicle-results'].includes(window.location.hash)) setLocation('/stock');
@@ -333,6 +335,17 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
       ))}
     </ul>
   ) : dealerConfig.trustItems?.length ? <ul className="divide-y divide-border">{dealerConfig.trustItems.map(item => <li key={item} className="py-3 text-sm">{item}</li>)}</ul> : null;
+
+  if (!browseStock && isMultiChoiceHomepage(location)) return <MultiChoiceHomepage settings={dealerConfig} cars={publicCars} isLoading={isLoading} error={error} publicEnquiriesEnabled={publicEnquiriesEnabled} filters={filters} setFilters={setFilters} onSearch={next => {
+    const count = publicCars.filter(car => (!next.make || car.make === next.make) && (!next.model || car.model === next.model) && (!next.maxPrice || (car.price != null && car.price > 0 && car.price <= Number(next.maxPrice)))).length;
+    setFilters(next);
+    saveBrowseSession({ filters: next, showAll: true, scrollY: 0 });
+    trackEvent('showroom_filter_applied', { source: 'filter_panel', filter_count: [next.make, next.model, next.maxPrice].filter(Boolean).length, budget_used: Boolean(next.maxPrice), result_count: count });
+    trackEvent('stock_results_opened', { source: 'filter_panel', result_count: count });
+    const query = new URLSearchParams();
+    for (const key of ['make', 'model', 'maxPrice'] as const) if (next[key]) query.set(key, next[key]);
+    setLocation('/stock' + (query.size ? '?' + query.toString() : ''));
+  }} />;
 
   if (isLoading && browseStock)
     return (
