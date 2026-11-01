@@ -1,3 +1,4 @@
+import { startStockMotWorker } from "./lib/mot-stock-checks";
 import { applyCollectedOfficialCazoo, type FeedSqlPool } from './lib/cazoo-feed-apply';
 import { startCustomerReplyWorker } from './lib/customer-email-replies';
 import { startStaffPushWorker } from './lib/staff-push';
@@ -50,6 +51,7 @@ const server = app.listen(port, (err) => {
     startEmailOutboxWorker(logger),
     startCustomerReplyWorker(logger),
     startStaffPushWorker(logger),
+    startStockMotWorker(logger),
   );
   // Separate collection-only feature gate. Import acceptance remains independent.
   if (process.env.CAZOO_SFTP_ENABLED === 'true') {

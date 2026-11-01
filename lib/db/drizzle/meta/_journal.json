@@ -547,6 +547,13 @@
       "when": 1793451600000,
       "tag": "0077_ai_assistance",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1793491200000,
+      "tag": "0078_mot_stock_checks",
+      "breakpoints": true
     }
   ]
 }

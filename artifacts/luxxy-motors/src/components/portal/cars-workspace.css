@@ -32,9 +32,37 @@
   font-weight: 600;
   color: var(--cars-muted);
 }
-.portal-cars-heading > button {
+.cars-heading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.cars-heading-actions > button {
   flex: none;
   min-height: 44px;
+}
+.cars-mot-check-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  padding: 0 0 14px;
+  color: var(--cars-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.cars-mot-check-status p {
+  margin: 0;
+}
+.cars-mot-check-status .cars-mot-check-note {
+  font-size: 11px;
+  margin-top: 2px;
+}
+.cars-mot-check-status progress {
+  width: min(100%, 160px);
+  height: 6px;
+  accent-color: var(--portal-accent, #215a7e);
 }
 .cars-feed-line {
   display: flex;
@@ -255,6 +283,18 @@
 .portal-car-identity:hover strong {
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+.portal-car-make-title,
+.cars-file-heading h3 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.portal-car-make-title > span,
+.cars-file-heading h3 > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .portal-car-variant {
   font-size: 12px;
@@ -823,7 +863,7 @@
     font-size: 12px;
     max-width: 190px;
   }
-  .portal-cars-heading > button {
+  .cars-heading-actions > button {
     font-size: 11px;
     padding-inline: 9px;
   }
@@ -986,6 +1026,13 @@
   .portal-cars-heading {
     align-items: center;
     margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .cars-heading-actions {
+    margin-left: auto;
+  }
+  .cars-mot-check-status {
+    padding-bottom: 10px;
   }
   .portal-cars-toolbar {
     grid-template-columns: minmax(0, 1fr);

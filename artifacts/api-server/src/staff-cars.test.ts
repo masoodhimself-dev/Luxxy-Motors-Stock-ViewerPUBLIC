@@ -138,7 +138,7 @@ test("staff aggregate scopes business reads to the dealer, reads cached MOT in o
     firstSeenAt: new Date("2026-10-01T10:00:00Z"),
     lastSeenAt: now,
     archivedAt: null,
-    vrm: "AB12CDE",
+    vrm: "AB12-CDE",
     sourcePrice: 8000,
     priceReviewRequired: false,
   });

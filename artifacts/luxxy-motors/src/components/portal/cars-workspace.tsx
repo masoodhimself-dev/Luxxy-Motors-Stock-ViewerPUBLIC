@@ -52,6 +52,8 @@ import {
   VehicleInformationBody,
 } from "./enquiry-vehicle-information";
 import { MotHistoryPanel } from "@/components/mot-history";
+import { MakeLogo } from "@/components/make-logo";
+import { CarsMotCheckStatus, useCarsMotChecks } from "./cars-mot-checks";
 import {
   carInTab,
   carIssues,
@@ -107,6 +109,20 @@ export function StaffMotBadge({ summary }: { summary: StaffMotSummary }) {
       </span>
     </span>
   );
+}
+
+/** A later saved bulk result must replace an earlier on-demand check. */
+export function workspaceMotSummary(car: StaffCar, local?: MotHistory, now = Date.now()): StaffMotSummary {
+  const saved = car.staff.mot;
+  if (!local) return saved;
+  const compact = (value: string) => value.replace(/[\s-]/g, "");
+  const registration = compact(vehicleRegistration(car));
+  if (!registration || compact(vehicleRegistration({ registration: local.registration })) !== registration) return saved;
+  const localAt = Date.parse(local.checkedAt);
+  if (!Number.isFinite(localAt) || localAt > now) return saved;
+  const savedAt = Date.parse(saved.checkedAt ?? "");
+  if (Number.isFinite(savedAt) && savedAt <= now && savedAt >= localAt) return saved;
+  return staffMotSummary(local, new Date(now));
 }
 export function CustomerActivity({
   activity,
@@ -270,6 +286,7 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
     [mot, setMot] = useState<Record<string, MotHistory>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [viewOptions, setViewOptions] = useState(false);
+  const motChecks = useCarsMotChecks(canManage);
   const heading = useRef<HTMLHeadingElement>(null),
     lastCarId = useRef<string | null>(carId),
     opener = useRef<HTMLElement | null>(null),
@@ -386,13 +403,13 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
     [carId, panelId, client],
   );
   const summary = (car: StaffCar) =>
-    mot[car.id] ? staffMotSummary(mot[car.id]) : car.staff.mot;
+    workspaceMotSummary(car, mot[car.id]);
   const refresh = async () => {
     setRefreshing(true);
     try {
       await Promise.all([
         query.refetch(),
-        ...(canManage ? [activity.refetch(), replies.refetch()] : []),
+        ...(canManage ? [activity.refetch(), replies.refetch(), motChecks.query.refetch()] : []),
       ]);
     } finally {
       setRefreshing(false);
@@ -611,6 +628,15 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
               : "Find a car, view customer activity or continue a sale."}
           </p>
         </div>
+        <div className="cars-heading-actions">
+        {canManage && <Button
+          size="sm"
+          variant="outline"
+          onClick={() => void motChecks.start()}
+          disabled={motChecks.disabled}
+        >
+          {motChecks.starting || motChecks.active ? "Checking MOTs…" : "Check all MOTs"}
+        </Button>}
         <Button
           size="sm"
           variant="outline"
@@ -620,7 +646,9 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
           <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
           {refreshing ? "Refreshing…" : "Refresh screen"}
         </Button>
+        </div>
       </header>
+      {canManage && <CarsMotCheckStatus checks={motChecks} />}
       {query.isError && (
         <div className="portal-cars-notice" role="alert">
           <strong>Cars could not be refreshed</strong>
@@ -690,7 +718,8 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
                       "Registration not supplied"}
                   </p>
                   <h3 ref={heading} tabIndex={-1}>
-                    {vehicleDisplayTitle(selected)}
+                    <MakeLogo make={selected.make} size={30} />
+                    <span>{vehicleDisplayTitle(selected)}</span>
                   </h3>
                   <p>{selected.variant}</p>
                   <div className="cars-file-status">
@@ -973,7 +1002,10 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
                       >
                         <CarPhoto car={car} />
                         <span>
-                          <strong>{vehicleDisplayTitle(car)}</strong>
+                          <strong className="portal-car-make-title">
+                            <MakeLogo make={car.make} size={24} />
+                            <span>{vehicleDisplayTitle(car)}</span>
+                          </strong>
                           <span className="portal-car-variant">
                             {car.variant || car.trim || "Variant not supplied"}
                           </span>

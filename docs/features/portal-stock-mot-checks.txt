@@ -1,0 +1,49 @@
+Portal stock MOT checks and make logos — 1 November 2026
+
+Portal > Cars now has Check all MOTs beside Refresh screen for staff who already
+have sales.manage permission. One click starts or joins a tenant-bound run and
+returns immediately. A compact progress line shows processed cars and separates
+missing registrations and checks that could not complete. Existing colour-coded
+MOT dates update as results arrive. A newer bulk result replaces an older
+individual check; a local result must still match the car's registration.
+
+The server discovers available/reserved live stock every 30 seconds, including
+new imports, changed registrations and checks older than 24 hours. This does not
+depend on Codex, the staff browser or a portal page staying open. Automatic
+discovery follows the existing active live-dealership job scope. An authorised
+manual check also works for an active demo dealership. Sold, missing, hidden and
+archived cars are excluded. No age-based MOT exemption is inferred from a plate.
+
+The existing DVSA service, credentials, 24-hour public-record cache, request
+coalescing and shared quotas are reused. A five-second lifecycle-managed worker
+processes at most two sequential items per tick; a durable global running lease
+prevents overlapping workers from creating a request burst. Connections are
+released before provider calls, including with a single-connection DB pool.
+Transient failures retry with backoff; missing records never count as successful
+checks. Restart recovery uses leases and saved queue state. Completion checks
+the vehicle's current registration and eligibility again before accepting work.
+
+Additive migration 0078_mot_stock_checks creates tenant-bound run/item tables.
+Only MOT cache and queue metadata are written. Vehicle stock, customer records,
+enquiries, invoices, payments, credentials and stock-feed settings are unchanged.
+The existing staff origin/permission checks apply to the new GET/POST endpoints
+at /api/staff/vehicles/mot-checks. Status reads do not contact DVSA.
+
+Supplied manufacturer SVGs appear beside car titles in portal list rows (24px)
+and the vehicle file (30px). They are decorative, reuse the existing catalogue
+and leave no empty image placeholder for unknown makes.
+
+Validation: 69 focused frontend tests, 13 new backend tests, 16 existing backend
+MOT/staff-car tests and one preview-isolation test passed. Frontend and backend
+TypeScript and production builds passed. Migration replay preserves existing
+stock/invoice/queue fixtures; new columns/indexes match the Drizzle schema and
+the migration journal is contiguous. Tests cover tenant boundaries, origin and
+permission checks, duplicate clicks, new/changed plates, stale workers, retries,
+fresh-cache reuse, a one-connection pool and newer bulk-result precedence.
+
+Browser checks used a clearly labelled memory-only Preview check with local
+snapshot cars; no real provider checks, messages, production migrations or
+business writes were performed. List layouts fit 320, 390, 768 and 1440px;
+the vehicle file and supplied logos were checked on phone and tablet widths.
+Evidence: workspace output/portal-mot-stock-checks-2026-11-01/.
+This batch is saved locally and is not deployed to Render yet.

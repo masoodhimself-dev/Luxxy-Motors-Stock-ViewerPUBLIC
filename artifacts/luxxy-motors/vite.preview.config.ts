@@ -1,4 +1,5 @@
 import { staffMotSummary } from '@workspace/vehicle-meta';
+import { motChecksPreview, previewMotChecks } from './preview/mot-checks';
 import { accountInvitationsPreview } from './preview/account-invitations';
 import { soldVehicleFollowUpsPreview } from './preview/sold-vehicle-follow-ups';
 import { communicationsPreview } from "./preview/communications";
@@ -69,6 +70,7 @@ export default mergeConfig(
             if (await soldVehicleFollowUpsPreview(req, res, url)) return;
             if (await declarationQa(req, res, url)) return;
             if (await plateEntryQa(req, res, url)) return;
+            if (await motChecksPreview(req, res, url)) return;
             if (/^\/api\/(sales|signing|customer-intake-sessions)(\/|$)/.test(url.pathname)) {
               res.statusCode = 410;
               res.end(JSON.stringify({ error: 'The previous sales process has been removed.' }));
@@ -109,7 +111,7 @@ export default mergeConfig(
             }
             const responses: Record<string, unknown> = {
               '/api/stock': previewStock,
-              '/api/staff/cars': {feed:{source:'Local stock preview',receivedAt:previewStock.scrapedAt,appliedAt:previewStock.scrapedAt,state:'current',scheduled:false},cars:previewStock.cars.map(car=>({...car,inventoryStatus:car.inventoryStatus??'available',staff:{source:'autotrader',sourceStatus:'live',inventoryStatus:car.inventoryStatus??'available',published:true,firstSeenAt:previewStock.scrapedAt,lastSeenAt:previewStock.scrapedAt,archivedAt:null,mot:staffMotSummary(null),changes:[],sale:null}}))},
+              '/api/staff/cars': {feed:{source:'Local stock preview',receivedAt:previewStock.scrapedAt,appliedAt:previewStock.scrapedAt,state:'current',scheduled:false},cars:previewStock.cars.map(car=>({...car,inventoryStatus:car.inventoryStatus??'available',staff:{source:'autotrader',sourceStatus:'live',inventoryStatus:car.inventoryStatus??'available',published:true,firstSeenAt:previewStock.scrapedAt,lastSeenAt:previewStock.scrapedAt,archivedAt:null,mot:staffMotSummary(previewMotChecks.history(car.id)),changes:[],sale:null}}))},
               '/api/features': { features: Object.fromEntries(resolveDealerFeatures({}, {}).map(feature => [feature.key, feature.enabled])), evaluatedAt: new Date().toISOString() },
               '/api/dealer-settings': previewSettings,
             };

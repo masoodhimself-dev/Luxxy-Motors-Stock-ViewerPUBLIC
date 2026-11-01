@@ -71,3 +71,5 @@ export * from './cazoo-feed-checks';
 export * from './cazoo-feed-authority';
 
 export * from "./ai-assistance";
+
+export * from "./mot-stock-checks";

@@ -102,7 +102,7 @@ export async function readStaffCars(options: {
   const registrations = [
     ...new Set(
       vehicles
-        .map((v) => vehicleRegistration(v).replace(/\s/g, "").toUpperCase())
+        .map((v) => vehicleRegistration(v).replace(/[\s-]/g, "").toUpperCase())
         .filter(Boolean),
     ),
   ];
@@ -165,7 +165,7 @@ export async function readStaffCars(options: {
     feed,
     cars: cars.map((car, i) => {
       const v = vehicles[i],
-        reg = vehicleRegistration(v).replace(/\s/g, "").toUpperCase(),
+        reg = vehicleRegistration(v).replace(/[\s-]/g, "").toUpperCase(),
         sale = sales.get(v.id);
       const meta: StaffCarMeta = {
         source: v.source as "cazoo" | "autotrader",

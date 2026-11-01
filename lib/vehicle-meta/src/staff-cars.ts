@@ -144,3 +144,28 @@ export function staffMotSummary(
     date: due,
   };
 }
+
+/** Tenant-scoped queue progress; contains no registrations or provider credentials. */
+export type StaffMotCheckStatus = {
+  configured: boolean;
+  automatic: true;
+  current: {
+    total: number;
+    checked: number;
+    needsCheck: number;
+    pending: number;
+    failed: number;
+    missingRegistration: number;
+  };
+  run: null | {
+    id: string;
+    status: "queued" | "running" | "completed" | "completed_with_errors";
+    total: number;
+    checked: number;
+    failed: number;
+    skipped: number;
+    pending: number;
+    startedAt: string;
+    finishedAt: string | null;
+  };
+};

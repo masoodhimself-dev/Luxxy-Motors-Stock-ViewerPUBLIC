@@ -6,7 +6,7 @@ import {
   within,
   waitFor,
 } from "@testing-library/react";
-import { CarsWorkspace, StaffMotBadge } from "./cars-workspace";
+import { CarsWorkspace, StaffMotBadge, workspaceMotSummary } from "./cars-workspace";
 import {
   carNextStep,
   filterStaffCars,
@@ -15,6 +15,7 @@ import {
 } from "./cars-workspace-model";
 import type { StaffCar, StaffCarsData } from "./staff-cars-query";
 import { staffMotSummary } from "@workspace/vehicle-meta";
+import type { MotHistory } from "@workspace/vehicle-meta";
 import type { Enquiry } from "@workspace/api-client-react";
 const state = vi.hoisted(() => ({
   data: undefined as StaffCarsData | undefined,
@@ -29,6 +30,7 @@ const state = vi.hoisted(() => ({
   summaryOptions: [] as any[],
   refetch: vi.fn(),
   invalidate: vi.fn(),
+  motHistory: undefined as MotHistory | undefined,
 }));
 vi.mock("./staff-cars-query", () => ({
   staffCarsKey: ["staff-cars"],
@@ -53,6 +55,12 @@ vi.mock("@/lib/enquiry-summary-query", () => ({
 vi.mock("@tanstack/react-query", () => ({
   useQuery: (options: any) => {
     state.queryOptions.push(options);
+    if (options.queryKey[0] === "staff-cars-mot-checks") return {
+      data: { configured: true, automatic: true, current: { total: 2, checked: 0, needsCheck: 2, pending: 0, failed: 0, missingRegistration: 0 }, run: null },
+      isPending: false,
+      isError: false,
+      refetch: state.refetch,
+    };
     return {
       data: { enquiries: state.replies },
       isPending: false,
@@ -73,8 +81,8 @@ vi.mock("./enquiry-vehicle-information", () => ({
   ),
 }));
 vi.mock("@/components/mot-history", () => ({
-  MotHistoryPanel: ({ vehicleId }: any) => (
-    <button>Check MOT for {vehicleId}</button>
+  MotHistoryPanel: ({ vehicleId, onHistory }: any) => (
+    <button onClick={() => state.motHistory && onHistory?.(state.motHistory)}>Check MOT for {vehicleId}</button>
   ),
 }));
 const now = "2026-10-29T12:00:00Z";
@@ -157,6 +165,7 @@ beforeEach(() => {
   state.replyError = false;
   state.queryOptions = [];
   state.summaryOptions = [];
+  state.motHistory = undefined;
   sessionStorage.clear();
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
 });
@@ -379,4 +388,57 @@ it("offers a direct sale beside the next enquiry action only for eligible stock"
   expect(props.onSale).toHaveBeenCalledWith("one");
   expect(within(screen.getByTestId("portal-car-two")).queryByRole("button", { name: "Start sale" })).not.toBeInTheDocument();
   expect(screen.queryByText("Official Cazoo CSV")).not.toBeInTheDocument();
+});
+
+it("uses the supplied manufacturer SVG beside each vehicle title and on its vehicle file", async () => {
+  render(<CarsWorkspace {...props} />);
+  const row = screen.getByTestId("portal-car-one");
+  const logo = row.querySelector(".portal-car-make-title img");
+  expect(logo).toHaveAttribute("src", "/brand/car-makes/toyota.svg");
+  expect(logo).toHaveAttribute("alt", "");
+  expect(logo).toHaveAttribute("aria-hidden", "true");
+  fireEvent.click(within(row).getByRole("link", { name: "Open vehicle file for Toyota Yaris one" }));
+  await screen.findByText("Vehicle facts: Toyota Yaris one");
+  expect(screen.getByRole("heading", { name: "Toyota Yaris one" }).querySelector("img")).toHaveAttribute("src", "/brand/car-makes/toyota.svg");
+});
+
+it("keeps unknown makes as text without an image placeholder", () => {
+  state.data!.cars = [car("unknown", { make: "Unknown marque" })];
+  render(<CarsWorkspace {...props} />);
+  const title = screen.getByTestId("portal-car-unknown").querySelector(".portal-car-make-title")!;
+  expect(title.querySelector("img")).toBeNull();
+  expect(title.children).toHaveLength(1);
+});
+
+it("exposes the single dealership-wide MOT action only to staff who can manage sales", () => {
+  const view = render(<CarsWorkspace {...props} />);
+  expect(screen.getByRole("button", { name: "Check all MOTs" })).toBeVisible();
+  view.rerender(<CarsWorkspace {...props} canManage={false} />);
+  expect(screen.queryByRole("button", { name: "Check all MOTs" })).not.toBeInTheDocument();
+  expect(state.queryOptions.find(options => options.queryKey[0] === "staff-cars-mot-checks" && options.enabled === false)).toBeDefined();
+});
+
+it("replaces an earlier on-demand MOT summary with a newer saved bulk check", () => {
+  const checkedAt = new Date(Date.now() - 60_000).toISOString();
+  state.motHistory = { registration: "AB12CDE", make: "Toyota", model: "Yaris", checkedAt, recall: "Unknown", tests: [{ completedDate: "2026-10-01", result: "PASSED", expiryDate: "2027-10-01", mileage: "22000", mileageUnit: "MI", defects: [] }] };
+  window.history.replaceState({}, "", "/portal?section=cars&carId=one");
+  const view = render(<CarsWorkspace {...props} />);
+  fireEvent.click(screen.getByRole("button", { name: "Check MOT for one" }));
+  expect(screen.getAllByText(/MOT until · 1 Oct 2027/)).toHaveLength(2);
+  state.data!.cars[0].staff.mot = { state: "current", tone: "green", label: "MOT until", date: "2027-11-01", checkedAt: new Date(Date.now() - 1000).toISOString(), lastMileage: "23000 miles" };
+  view.rerender(<CarsWorkspace {...props} />);
+  expect(screen.getAllByText(/MOT until · 1 Nov 2027/)).toHaveLength(2);
+  expect(screen.queryByText(/MOT until · 1 Oct 2027/)).not.toBeInTheDocument();
+});
+
+it("uses local MOT history only for the same plate and a valid newer check time", () => {
+  const nowAt = Date.parse("2026-11-01T12:00:00Z");
+  const vehicle = car("one");
+  vehicle.staff.mot = { state: "current", tone: "green", label: "Saved MOT", date: "2027-10-01", checkedAt: "2026-11-01T11:00:00Z", lastMileage: null };
+  const local: MotHistory = { registration: "AB12CDE", make: "Toyota", model: "Yaris", checkedAt: "2026-11-01T11:30:00Z", recall: "Unknown", tests: [], firstMotDueDate: "2027-03-01" };
+  expect(workspaceMotSummary(vehicle, local, nowAt).state).toBe("first_due");
+  for (const change of [{ registration: "XY21ZAB" }, { checkedAt: "invalid" }, { checkedAt: "2026-11-01T12:01:00Z" }, { checkedAt: vehicle.staff.mot.checkedAt! }]) {
+    expect(workspaceMotSummary(vehicle, { ...local, ...change }, nowAt)).toBe(vehicle.staff.mot);
+  }
+  expect(workspaceMotSummary({ ...vehicle, plate: "XY21 ZAB" }, local, nowAt)).toBe(vehicle.staff.mot);
 });

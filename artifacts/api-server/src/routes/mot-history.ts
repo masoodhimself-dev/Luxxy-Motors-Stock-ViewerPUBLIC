@@ -9,6 +9,7 @@ import { estimateMotMileage } from "../lib/mot-mileage-estimate";
 import { motVehicleDetails } from "../lib/mot-vehicle-details";
 import { motService, readCachedMot } from "../lib/mot-storage";
 import { findPublicVehicle } from "./stock";
+import { stockMotRepository } from "../lib/mot-stock-checks";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export async function findStaffMotVehicle(id: string) {
@@ -28,6 +29,7 @@ export function motRouter(
   publicVehicle = findPublicVehicle,
   staffVehicle = findStaffMotVehicle,
   cachedHistory = readCachedMot,
+  stockChecks = stockMotRepository,
 ) {
   const router = Router(),
     limits = new Map<string, { until: number; count: number }>();
@@ -107,6 +109,33 @@ export function motRouter(
         fail(res, error);
       }
     };
+  // Durable stock work is staff-only and returns immediately. The server worker owns provider calls.
+  router.get(
+    "/staff/vehicles/mot-checks",
+    requireStaff,
+    requirePermission("sales.manage"),
+    async (_req, res) => {
+      res.set("Cache-Control", "no-store");
+      try {
+        res.json(await stockChecks.status(currentDealerId()));
+      } catch (error) {
+        fail(res, error);
+      }
+    },
+  );
+  router.post(
+    "/staff/vehicles/mot-checks",
+    requireStaff,
+    requirePermission("sales.manage"),
+    limit,
+    async (_req, res) => {
+      try {
+        res.status(202).json(await stockChecks.start(currentDealerId()));
+      } catch (error) {
+        fail(res, error);
+      }
+    },
+  );
   // Public vehicle facts and estimate share one cached lookup; no VIN/defects/customer data.
   router.get("/mot-mileage-estimate", limit, async (req, res) => {
     try {
