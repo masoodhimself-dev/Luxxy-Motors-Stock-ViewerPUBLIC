@@ -1,9 +1,12 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Home from '@/pages/home';
 import { SavedCarsProvider } from '@/lib/saved-cars-context';
 import type { Car } from '@/lib/stock-context';
+import { Link, Route, Switch } from 'wouter';
+import { browseReturnHref, readBrowseSession, requestBrowseRestore } from '@/lib/browse-session';
+import { RouteScrollReset } from '@/components/route-scroll-reset';
 
 const { stockFixture, dealerConfigFixture, recentHandoversState, scrollToHomeTarget, focusHomeTarget } = vi.hoisted(() => {
   const baseCar: Car = {
@@ -875,4 +878,236 @@ it('does not activate the new homepage from an editable dealership name or anoth
   renderHome(false);
   expect(screen.queryByTestId('multi-choice-homepage')).not.toBeInTheDocument();
   expect(screen.getByRole('heading', { level: 1, name: 'Find your next car' })).toBeInTheDocument();
+});
+
+describe('Multi-Choice stock filter integration', () => {
+  beforeEach(() => {
+    window.matchMedia = vi.fn().mockReturnValue({ matches: false });
+    stockFixture.count = originalCars.length;
+    stockFixture.cars = originalCars.map((car, index) => ({
+      ...car,
+      colour: index === 0 || index === 4 ? 'Blue' : 'Silver',
+      engineCC: index === 0 || index === 4 ? 1498 : 1998,
+      engineSize: index === 0 || index === 4 ? '1.5L' : '2.0L',
+    }));
+  });
+
+  function multiStock(href = '/stock') {
+    stockPhotoTenant('https://multichoicemotors.co.uk');
+    window.history.replaceState({}, '', href);
+    return renderHome(true);
+  }
+
+  it('keeps the existing homepage search usable after a multi-make stock search', () => {
+    multiStock('/stock?make=BMW,Volkswagen&model=1%20Series,Golf&maxPrice=10000&colour=Blue');
+    expect(resultTitles()).toEqual(['BMW 1 Series', 'VW Golf']);
+    cleanup();
+    window.history.replaceState({}, '', '/');
+    renderHome(false);
+    const homepage = screen.getByRole('form', { name: 'Search used cars' });
+    expect(within(homepage).getByRole('combobox', { name: 'Make' })).toHaveValue('');
+    expect(within(homepage).getByRole('combobox', { name: 'Model' })).toHaveValue('');
+    expect(within(homepage).getByRole('combobox', { name: 'Maximum price' })).toHaveValue('10000');
+    expect(within(homepage).getByRole('button', { name: 'Search 5 cars' })).toBeEnabled();
+    expect(within(homepage).queryByText(/BMW,Volkswagen/)).not.toBeInTheDocument();
+  });
+
+  function ReturnVehicle() {
+    return <main><h1>Selected vehicle</h1><Link href={browseReturnHref()} onClick={() => requestBrowseRestore()}>Back to your results</Link></main>;
+  }
+
+  function routedStock() {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const tree = () => <QueryClientProvider client={queryClient}><SavedCarsProvider><RouteScrollReset /><Switch><Route path="/stock"><Home browseStock /></Route><Route path="/vehicle/:id"><ReturnVehicle /></Route></Switch></SavedCarsProvider></QueryClientProvider>;
+    const view = render(tree());
+    return { ...view, refresh: () => view.rerender(tree()) };
+  }
+
+  it('uses supplied SVG filter controls and combines multiple makes with a real advanced facet', () => {
+    multiStock();
+    expect(screen.getByTestId('multi-stock-toolbar')).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Make' })).not.toBeInTheDocument();
+    const sidebar = screen.getByRole('complementary', { name: 'Filter cars' });
+    fireEvent.click(within(sidebar).getByRole('button', { name: /^Make/ }));
+    fireEvent.click(within(sidebar).getByRole('checkbox', { name: 'BMW' }));
+    fireEvent.click(within(sidebar).getByRole('checkbox', { name: 'Volkswagen' }));
+    expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series', 'VW Golf']);
+    fireEvent.click(within(sidebar).getByRole('button', { name: /^More filters/ }));
+    fireEvent.click(within(sidebar).getByRole('button', { name: /^Colour(?:\s|$)/ }));
+    fireEvent.click(within(sidebar).getByRole('checkbox', { name: 'Blue' }));
+    expect(resultTitles()).toEqual(['BMW 1 Series', 'VW Golf']);
+    expect(screen.getByTestId('text-filtered-stock-count')).toHaveTextContent('2 cars match your search');
+    expect(new URLSearchParams(location.search).get('make')).toBe('BMW,Volkswagen');
+    expect(new URLSearchParams(location.search).get('colour')).toBe('Blue');
+    expect(screen.getByRole('button', { name: 'Remove colour Blue filter' })).toBeInTheDocument();
+    const makeIcon = within(sidebar).getByRole('button', { name: /^Make/ }).querySelector<HTMLElement>('.multi-stock-icon');
+    expect(makeIcon?.style.maskImage).toContain('/brand/multi-choice-motors/filters/02-filter-make-car.svg');
+  });
+
+  it('returns from the phone filter drawer with the stock controls in view and focus on results', async () => {
+    // Earlier legacy journeys can leave a scheduled scroll behind after cleanup.
+    // Settle it before observing the explicit action in this separate journey.
+    await act(async () => {
+      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    });
+    vi.mocked(scrollToHomeTarget).mockClear();
+    vi.mocked(focusHomeTarget).mockClear();
+    const previousWidth = window.innerWidth;
+    Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 390 });
+    try {
+      multiStock('/stock?make=BMW');
+      fireEvent.click(screen.getByRole('button', { name: 'Filters, 1 active' }));
+      const drawer = screen.getByRole('dialog', { name: 'Filter cars' });
+      expect(scrollToHomeTarget).not.toHaveBeenCalled();
+      expect(focusHomeTarget).not.toHaveBeenCalled();
+      fireEvent.click(within(drawer).getByRole('button', { name: 'Show 2 cars' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      await waitFor(() => {
+        expect(scrollToHomeTarget).toHaveBeenCalledExactlyOnceWith('stock');
+        expect(focusHomeTarget).toHaveBeenCalledExactlyOnceWith('vehicle-results');
+      });
+      expect(scrollToHomeTarget).not.toHaveBeenCalledWith('vehicle-results');
+      expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series']);
+      expect(new URLSearchParams(location.search).get('make')).toBe('BMW');
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: previousWidth });
+    }
+  });
+
+  it('updates results and chips for query-only navigation and clears an empty URL despite saved legacy filters', async () => {
+    sessionStorage.setItem('luxxy.browse.v1', JSON.stringify({ filters: { make: 'Ford', model: 'Fiesta', maxPrice: '6000' }, visibleCount: 36 }));
+    multiStock('/stock?make=BMW&colour=Blue');
+    expect(resultTitles()).toEqual(['BMW 1 Series']);
+    act(() => window.history.pushState({}, '', '/stock?make=Audi&colour=Silver'));
+    await waitFor(() => expect(resultTitles()).toEqual(['Audi A3']));
+    expect(screen.getByRole('button', { name: 'Remove make Audi filter' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove make BMW filter' })).not.toBeInTheDocument();
+
+    act(() => window.history.replaceState({}, '', '/stock'));
+    await waitFor(() => expect(resultTitles()).toHaveLength(originalCars.length));
+    expect(window.location.search).toBe('');
+    expect(screen.queryByLabelText('Applied stock filters')).not.toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: 'Search cars' })).toHaveValue('');
+    expect(screen.getByTestId('text-filtered-stock-count')).toHaveTextContent('5 cars in stock');
+  });
+
+  it('uses the new URL state for empty-result alternatives and clears every advanced filter', async () => {
+    multiStock('/stock?make=BMW&maxPrice=100&colour=Blue&engine=1.5&mileage=40000&page=3');
+    expect(screen.getByRole('heading', { name: 'No matches' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove price limits' }));
+    expect(resultTitles()).toEqual(['BMW 1 Series']);
+    const current = new URLSearchParams(location.search);
+    expect(current.has('maxPrice')).toBe(false);
+    expect(current.has('page')).toBe(false);
+    expect(current.get('colour')).toBe('Blue');
+    expect(current.get('engine')).toBe('1.5');
+    expect(screen.getByRole('button', { name: 'Remove engine size 1.5L filter' })).toBeInTheDocument();
+
+    act(() => window.history.pushState({}, '', '/stock?make=Unavailable&colour=Blue'));
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'No matches' })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Search all makes' }));
+    expect(resultTitles()).toEqual(['BMW 1 Series', 'VW Golf']);
+    expect(new URLSearchParams(location.search).get('colour')).toBe('Blue');
+
+    act(() => window.history.pushState({}, '', '/stock?colour=Blue&engine=9.0&seats=7&mileage=100&page=2'));
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'No matches' })).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('button-clear-filters'));
+    expect(window.location.search).toBe('');
+    expect(screen.queryByLabelText('Applied stock filters')).not.toBeInTheDocument();
+    expect(resultTitles()).toHaveLength(originalCars.length);
+  });
+
+  it('keeps advanced facets, the revealed batch and the selected car when returning from a vehicle', async () => {
+    stockPhotoTenant('https://multichoicemotors.co.uk');
+    stockFixture.cars = Array.from({ length: 16 }, (_, index) => ({
+      ...originalCars[0], id: `return-car-${index}`, advertId: `return-car-${index}`, title: `Return car ${index}`,
+      colour: index === 15 ? 'Red' : 'Blue', engineCC: 1498, seats: 5, mileage: 30000, price: 5000 + index,
+    }));
+    window.history.replaceState({}, '', '/stock?colour=Blue&engine=1.5&seats=5&mileage=50000&sort=price-asc');
+    window.scrollTo = vi.fn();
+    routedStock();
+    expect(resultTitles()).toHaveLength(12);
+    fireEvent.click(screen.getByRole('button', { name: 'Show more cars' }));
+    expect(resultTitles()).toHaveLength(15);
+    expect(new URLSearchParams(location.search).get('page')).toBe('2');
+    const stockHref = '/stock' + window.location.search;
+    expect(readBrowseSession().stockHref).toBe(stockHref);
+
+    const last = screen.getByTestId('card-vehicle-return-car-14');
+    fireEvent.click(within(last).getByRole('link', { name: 'View full details for Return car 14' }));
+    expect(screen.getByRole('heading', { name: 'Selected vehicle' })).toBeInTheDocument();
+    expect(readBrowseSession()).toMatchObject({ vehicleId: 'return-car-14', stockHref });
+    expect(screen.getByRole('link', { name: 'Back to your results' })).toHaveAttribute('href', stockHref);
+
+    fireEvent.click(screen.getByRole('link', { name: 'Back to your results' }));
+    await waitFor(() => expect(resultTitles()).toHaveLength(15));
+    expect('/stock' + window.location.search).toBe(stockHref);
+    expect(screen.getByRole('button', { name: 'Remove colour Blue filter' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove engine size 1.5L filter' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Sort cars' })).toHaveValue('price-asc');
+    await waitFor(() => expect(document.querySelector('[data-stock-link="return-car-14"]')).toHaveFocus());
+  });
+
+  it('retains a linked batch during loading and resets it only after an explicit filter edit', () => {
+    stockPhotoTenant('https://multichoicemotors.co.uk');
+    stockFixture.cars = Array.from({ length: 30 }, (_, index) => ({ ...originalCars[0], id: `loading-car-${index}`, title: `Loading car ${index}` }));
+    sessionStorage.setItem('luxxy.browse.v1', JSON.stringify({ visibleCount: 48 }));
+    window.history.replaceState({}, '', '/stock?make=BMW&page=2');
+    stockIsLoading = true;
+    const view = routedStock();
+    expect(screen.getByLabelText('Loading stock')).toBeInTheDocument();
+    expect(new URLSearchParams(location.search).get('page')).toBe('2');
+    stockIsLoading = false;
+    view.refresh();
+    expect(resultTitles()).toHaveLength(24);
+    expect(screen.getByText('Showing 24 of 30 cars')).toBeInTheDocument();
+    const sidebar = screen.getByRole('complementary', { name: 'Filter cars' });
+    fireEvent.click(within(sidebar).getByRole('button', { name: /^Make/ }));
+    fireEvent.click(within(sidebar).getByRole('checkbox', { name: 'BMW' }));
+    expect(resultTitles()).toHaveLength(12);
+    expect(new URLSearchParams(location.search).has('page')).toBe(false);
+  });
+
+  it('applies an explicit keyword search together with existing facets without altering the car display', () => {
+    multiStock('/stock?colour=Blue');
+    expect(resultTitles()).toEqual(['BMW 1 Series', 'VW Golf']);
+    const input = screen.getByRole('searchbox', { name: 'Search cars' });
+    fireEvent.change(input, { target: { value: 'BMW Petrol' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(resultTitles()).toEqual(['BMW 1 Series']);
+    expect(new URLSearchParams(location.search).get('search')).toBe('BMW Petrol');
+    expect(new URLSearchParams(location.search).get('colour')).toBe('Blue');
+    expect(screen.getByRole('button', { name: 'Remove keyword filter' })).toBeInTheDocument();
+  });
+
+  it.each(['cards', 'compact'] as const)('preserves the existing %s grid, card facts and image geometry across dealership filter scopes', view => {
+    stockPhotoTenant('https://shoredrive.uk');
+    window.history.replaceState({}, '', '/stock');
+    localStorage.setItem('luxxy.stock-view.v1', view);
+    stockFixture.cars = [stockFixture.cars[0]];
+    renderHome(true);
+    const signature = () => {
+      const card = screen.getByTestId(`${view === 'compact' ? 'compact' : 'card'}-vehicle-bmw-1-series`);
+      const image = within(card).getByRole('img', { name: 'BMW 1 Series' });
+      return {
+        grid: card.parentElement?.className,
+        card: card.className,
+        image: Object.fromEntries(['src', 'alt', 'width', 'height', 'loading', 'sizes', 'srcset', 'class'].map(name => [name, image.getAttribute(name)])),
+        price: card.querySelector('.vehicle-card-price')?.textContent,
+        facts: card.querySelector('.vehicle-specs')?.textContent,
+        href: within(card).getByRole('link', { name: 'View car' }).getAttribute('href'),
+      };
+    };
+    const legacyDisplay = signature();
+    expect(screen.queryByTestId('multi-stock-toolbar')).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Make' })).toBeInTheDocument();
+    cleanup();
+    document.querySelectorAll('[data-stock-photo-test]').forEach(element => element.remove());
+    stockPhotoTenant('https://multichoicemotors.co.uk');
+    renderHome(true);
+    expect(screen.getByTestId('multi-stock-toolbar')).toBeInTheDocument();
+    expect(signature()).toEqual(legacyDisplay);
+    // Multi-Choice's already-approved clean-photo treatment stays in place.
+    expect(screen.queryByTestId('button-save-bmw-1-series')).not.toBeInTheDocument();
+  });
 });

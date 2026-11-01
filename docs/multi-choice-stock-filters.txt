@@ -1,0 +1,54 @@
+Multi-Choice public stock filters
+
+Scope
+The enhanced controls run only on /stock for the resolved Multi-Choice website
+(multichoicemotors.co.uk or www.multichoicemotors.co.uk). The shared public stock
+endpoint, tenant resolution, source feeds, permissions and vehicle cards remain
+unchanged. Other dealerships and the homepage keep their existing controls.
+
+Existing links remain valid. The query string is authoritative; an empty /stock
+query means no filters, even when browser session storage contains an old search.
+
+Canonical query parameters
+make, model, fuel, transmission, bodyType, colour: comma-separated selections.
+engine: comma-separated litre groups, for example 1.0,2.0.
+seats: comma-separated supplied seat counts.
+minPrice, maxPrice: cash price in pounds; omit for no minimum/maximum.
+mileage: maximum mileage in miles; omit for any mileage.
+search: text tokens (all must match), including compact or spaced registration.
+ulez=true: existing shared, evidence-based ULEZ decision.
+sort: price-asc, price-desc, mileage-asc, mileage-desc, year-asc, year-desc,
+      arrival-desc. Omit for staff's recommended order, including reserved last.
+page: number of twelve-car batches revealed; omit for the first batch.
+
+Read compatibility aliases: q -> search, body -> bodyType, gearbox -> transmission.
+Canonical names take precedence. Values are bounded and validated. Invalid sorts,
+numeric values and retired parameters are discarded. Filters replace the current
+history entry and reset the revealed batch. Show more cars pushes history, so
+Back restores the previous batch. Vehicle return links retain facets and batch.
+
+Filtering and data
+Selections within one facet use OR; different facets use AND. Facet counts apply
+all other filters. Models are narrowed by selected makes; deliberate removal of
+a make prunes only incompatible known models. Selected zero-result options stay
+removable. Unknown values are not coerced to zero or fabricated. Supplied engine
+capacity is grouped into display litres; EVs have no combustion-engine facet.
+Seats and additional facets are shown only where useful supplied values exist.
+Newest listed is offered only when an actual supported listing date exists.
+
+There is no finance filter and no additional API call per filter choice. Existing
+Automatic and Hybrid & electric shortcut links remain supported. Price bands are
+derived from stock; no fixed price option silently means unlimited.
+
+Assets
+The original 23 supplied SVG files are stored under
+public/brand/multi-choice-motors/filters, with licence and provenance notices.
+Used icons render as static CSS masks so their exact supplied paths inherit the
+control colour. No dynamic SVG injection, external SVG requests or new dependency
+is required. Unused sort/pagination SVGs remain available in the supplied pack.
+
+Verification
+Run the frontend Vitest suite, TypeScript and production Vite build. Focused tests
+cover pure URL/filter functions, real wouter/history integration, drawer controls,
+Home integration, dealer scope, return position and unchanged vehicle rendering.
+Review responsive layouts and keyboard focus in the local read-only preview.

@@ -1,6 +1,10 @@
 import { AiCarFinder } from '@/components/ai-car-finder';
 import { MultiChoiceHomepage } from '@/components/multi-choice-homepage';
-import { isMultiChoiceHomepage } from '@/lib/multi-home-scope';
+import { isMultiChoiceHomepage, isMultiChoiceWebsite } from '@/lib/multi-home-scope';
+import { MultiStockFilters } from '@/components/multi-stock-filters';
+import { useStockSearch } from '@/features/stock-search/use-stock-search';
+import { applyStockFilters } from '@/features/stock-search/apply-filters';
+import { createStockFilters } from '@/features/stock-search/url';
 import { ShowroomOpeningStatus } from "@/components/showroom-opening-status";
 import { DealerServicePhoto, hasMultiChoicePhotography } from "@/components/dealer-service-photo";
 import { DeliveryEstimator } from '@/components/delivery-estimator';
@@ -104,8 +108,10 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   const { savedCount } = useSavedCars();
   const [copyNotice, setCopyNotice] = useState('');
   const [stockOptionsOpen, setStockOptionsOpen] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(() => readBrowseSession().visibleCount || 12);
-  const [filters, setFilters] = useState<FilterState>(() => {
+  const [legacyVisibleCount, setVisibleCount] = useState(() => readBrowseSession().visibleCount || 12);
+  const multiStock = browseStock && isMultiChoiceWebsite();
+  const stockSearch = useStockSearch({ enabled: multiStock, cars: publicCars });
+  const [legacyFilters, setLegacyFilters] = useState<FilterState>(() => {
     if (browseStock && window.location.search) {
       const params = new URLSearchParams(window.location.search);
       const next = { ...defaultFilters };
@@ -115,7 +121,15 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
       }
       return next;
     }
-    const saved = readBrowseSession().filters;
+    const stored = readBrowseSession().filters;
+    // The homepage keeps its existing single-choice controls. A multi-select
+    // stock search must not appear there as one unavailable make or model.
+    const saved = !browseStock && isMultiChoiceWebsite() && stored
+      ? { ...stored,
+          ...(typeof stored.make === 'string' && stored.make.includes(',') ? { make: '', model: '' }
+            : typeof stored.model === 'string' && stored.model.includes(',') ? { model: '' } : {}),
+        }
+      : stored;
     return saved &&
       Object.keys(defaultFilters).every(
         (key) =>
@@ -125,6 +139,15 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
       ? { ...defaultFilters, ...Object.fromEntries(Object.entries(saved).filter(([key]) => key in defaultFilters)) }
       : defaultFilters;
   });
+  const filters = multiStock ? stockSearch.filters : legacyFilters;
+  const visibleCount = multiStock ? stockSearch.visibleCount : legacyVisibleCount;
+  const setFilters: React.Dispatch<React.SetStateAction<FilterState>> = action => {
+    if (multiStock) stockSearch.setFilters(current => {
+      const next = typeof action === 'function' ? action(current) : action;
+      return { ...createStockFilters(), ...next, bodyType: next.bodyType ?? '', ulez: next.ulez === true };
+    });
+    else setLegacyFilters(action);
+  };
 
   const bodyTypes = useMemo(() => stockBodyTypes(publicCars), [publicCars]);
   const benefitsByCar = useMemo(() => new Map(publicCars.map(car => [car.id, vehicleBenefits(car)])), [publicCars]);
@@ -137,16 +160,16 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   ].filter(choice => choice.count > 0);
 
   useEffect(() => {
-    if (!browseStock) return;
+    if (!browseStock || multiStock) return;
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => { if (value) params.set(key, String(value)); });
     const query = params.toString();
     const url = window.location.pathname + (query ? '?' + query : '');
     if (url !== window.location.pathname + window.location.search) window.history.replaceState(window.history.state, '', url);
-  }, [filters, browseStock]);
+  }, [filters, browseStock, multiStock]);
 
   useEffect(() => {
-    if (!browseStock) return;
+    if (!browseStock || multiStock) return;
     const restoreQuery = () => {
       const params = new URLSearchParams(window.location.search);
       const next = {...defaultFilters};
@@ -154,13 +177,14 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
         const value = params.get(key);
         if (value !== null) Object.assign(next, {[key]: typeof next[key] === 'boolean' ? value === 'true' : value});
       }
-      setFilters(next);
+      setLegacyFilters(next);
     };
     window.addEventListener('popstate', restoreQuery);
     return () => window.removeEventListener('popstate', restoreQuery);
-  }, [browseStock]);
+  }, [browseStock, multiStock]);
 
   const filteredCars = useMemo(() => {
+    if (multiStock) return applyStockFilters(recommendedCars, stockSearch.filters).items;
     let result = [...recommendedCars];
 
     const q = filters.search.trim().toLowerCase();
@@ -229,7 +253,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     // The recommended source already honours featured order and reserves last.
     // An explicit customer sort overrides that order across the complete result.
     return result;
-  }, [recommendedCars, filters, benefitsByCar]);
+  }, [recommendedCars, filters, benefitsByCar, multiStock]);
 
   // A benefit refines the current search, so its count must describe that subset.
   // Homepage shortcuts still introduce the complete stock collection.
@@ -242,8 +266,8 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     setVisibleCount(12);
   };
   useEffect(() => {
-    saveBrowseSession({ filters, showAll, visibleCount });
-  }, [filters, showAll, visibleCount]);
+    saveBrowseSession({ filters, showAll, visibleCount, stockHref: multiStock ? '/stock' + window.location.search : undefined });
+  }, [filters, showAll, visibleCount, multiStock]);
 
   useEffect(() => {
     if (!isLoading) {
@@ -257,7 +281,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   }, [isLoading, browseStock]);
 
   const displayedCars = filteredCars.slice(0, visibleCount);
-  const hasFilters = Object.entries(filters).some(([key,value])=>key !== "sort" && Boolean(value));
+  const hasFilters = Object.entries(filters).some(([key,value])=>key !== "sort" && key !== "page" && Boolean(value));
   const stockCount = publicCars.length;
 
   useEffect(() => {
@@ -454,7 +478,23 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
 
       {browseStock && <section id="stock" data-home-section className="browse-stock py-8 md:py-10">
         <div className="container stock-catalogue-layout mx-auto px-4 sm:px-6 lg:px-8">
-          <Filters
+          {multiStock ? <MultiStockFilters
+            cars={publicCars}
+            filters={stockSearch.filters}
+            onChange={stockSearch.onChange}
+            onClear={stockSearch.clear}
+            matchCount={filteredCars.length}
+            onShowResults={() => {
+              trackEvent('stock_results_opened', { source: 'filter_panel', result_count: filteredCars.length });
+              setShowAll(true);
+              requestAnimationFrame(() => {
+                // Start with the controls in view, so the sticky toolbar does
+                // not cover the first vehicle photograph after drawer close.
+                scrollToHomeTarget('stock');
+                focusHomeTarget('vehicle-results');
+              });
+            }}
+          /> : <Filters
             shortcuts={!error && publicCars.length > 0 && <nav className="stock-shopping-shortcuts" aria-label="Shop by preference">
             {publicCars.some(car => /automatic/i.test(car.transmission || '')) && <button type="button" aria-label="Show automatic cars" aria-pressed={filters.transmission === 'Automatic'} onClick={() => applyQuickFilter({ transmission: filters.transmission === 'Automatic' ? '' : 'Automatic' }, false)}>Automatic</button>}
             {publicCars.some(car => car.price != null && car.price <= 10000) && <button type="button" aria-label="Show cars under £10k" aria-pressed={filters.maxPrice === '10000'} onClick={() => applyQuickFilter({ maxPrice: filters.maxPrice === '10000' ? '' : '10000' }, false)}>Under £10k</button>}
@@ -497,7 +537,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
               });
               revealResults('filter_panel');
             }}
-          />
+          />}
 
           <div id="vehicle-results" tabIndex={-1} aria-label="Vehicle results" data-home-section className="mt-2 md:mt-4">
             {!error && <div className="stock-results-bar">
@@ -531,7 +571,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                     />
                   ))}
                 </div>
-                <div className="stock-results-end mt-6 flex flex-col items-center justify-center gap-3"><p className="text-sm text-muted-foreground">Showing {displayedCars.length} of {filteredCars.length} {filteredCars.length === 1 ? 'car' : 'cars'}</p>{visibleCount < filteredCars.length && <Button variant="outline" onClick={()=>setVisibleCount(count=>count+12)}>Show more cars</Button>}</div>
+                <div className="stock-results-end mt-6 flex flex-col items-center justify-center gap-3"><p className="text-sm text-muted-foreground">Showing {displayedCars.length} of {filteredCars.length} {filteredCars.length === 1 ? 'car' : 'cars'}</p>{visibleCount < filteredCars.length && <Button variant="outline" onClick={()=>multiStock ? stockSearch.showMore() : setVisibleCount(count=>count+12)}>Show more cars</Button>}</div>
               </>
             ) : !publicCars.length ? (
               <div className="stock-empty surface px-6 py-8 text-left" data-testid="empty-stock">

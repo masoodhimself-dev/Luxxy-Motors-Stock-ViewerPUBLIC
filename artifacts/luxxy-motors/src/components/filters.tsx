@@ -31,6 +31,7 @@ export interface FilterState {
     | "mileage-asc"
     | "mileage-desc"
     | "year-desc"
+    | "year-asc"
     | "arrival-desc"
     | "";
 }
