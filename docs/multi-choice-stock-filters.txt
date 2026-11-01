@@ -33,7 +33,10 @@ all other filters. Models are narrowed by selected makes; deliberate removal of
 a make prunes only incompatible known models. Selected zero-result options stay
 removable. Unknown values are not coerced to zero or fabricated. Supplied engine
 capacity is grouped into display litres; EVs have no combustion-engine facet.
-Seats and additional facets are shown only where useful supplied values exist.
+The reference's flat accordion row order is retained. A row without supplied
+values explains that the details are unavailable; it never invents values or
+adds a filtering constraint. Vehicle type is informational until the public
+stock contract supplies it.
 Newest listed is offered only when an actual supported listing date exists.
 
 There is no finance filter and no additional API call per filter choice. Existing
@@ -43,9 +46,13 @@ derived from stock; no fixed price option silently means unlimited.
 Assets
 The original 23 supplied SVG files are stored under
 public/brand/multi-choice-motors/filters, with licence and provenance notices.
-Used icons render as static CSS masks so their exact supplied paths inherit the
-control colour. No dynamic SVG injection, external SVG requests or new dependency
-is required. Unused sort/pagination SVGs remain available in the supplied pack.
+Used icons render directly as SVG images from the supplied files, with the
+reference's black strokes and original path geometry. No dynamic SVG injection,
+external SVG requests or new dependency is required. Checkbox ticks use a white
+display treatment on the selected navy background. Unused sort/pagination SVGs
+remain available in the supplied pack. The filter controls use a dedicated
+Montserrat font family and local font faces, scoped to override the shared Inter
+button styles without changing vehicle cards.
 
 Verification
 Run the frontend Vitest suite, TypeScript and production Vite build. Focused tests

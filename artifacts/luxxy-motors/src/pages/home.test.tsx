@@ -932,7 +932,6 @@ describe('Multi-Choice stock filter integration', () => {
     fireEvent.click(within(sidebar).getByRole('checkbox', { name: 'BMW' }));
     fireEvent.click(within(sidebar).getByRole('checkbox', { name: 'Volkswagen' }));
     expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series', 'VW Golf']);
-    fireEvent.click(within(sidebar).getByRole('button', { name: /^More filters/ }));
     fireEvent.click(within(sidebar).getByRole('button', { name: /^Colour(?:\s|$)/ }));
     fireEvent.click(within(sidebar).getByRole('checkbox', { name: 'Blue' }));
     expect(resultTitles()).toEqual(['BMW 1 Series', 'VW Golf']);
@@ -940,8 +939,8 @@ describe('Multi-Choice stock filter integration', () => {
     expect(new URLSearchParams(location.search).get('make')).toBe('BMW,Volkswagen');
     expect(new URLSearchParams(location.search).get('colour')).toBe('Blue');
     expect(screen.getByRole('button', { name: 'Remove colour Blue filter' })).toBeInTheDocument();
-    const makeIcon = within(sidebar).getByRole('button', { name: /^Make/ }).querySelector<HTMLElement>('.multi-stock-icon');
-    expect(makeIcon?.style.maskImage).toContain('/brand/multi-choice-motors/filters/02-filter-make-car.svg');
+    const makeIcon = within(sidebar).getByRole('button', { name: /^Make/ }).querySelector<HTMLImageElement>('img[data-filter-icon="make"]');
+    expect(makeIcon).toHaveAttribute('src', '/brand/multi-choice-motors/filters/02-filter-make-car.svg');
   });
 
   it('returns from the phone filter drawer with the stock controls in view and focus on results', async () => {

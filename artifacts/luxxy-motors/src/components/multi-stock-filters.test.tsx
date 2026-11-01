@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { readFileSync } from "node:fs";
 import {
   act,
   fireEvent,
@@ -195,17 +196,61 @@ afterEach(() => {
 });
 
 describe("Multi-Choice stock controls", () => {
-  it("keeps budget visible, quieter facets collapsed and result/card rendering outside the controls", () => {
+  it("keeps the supplied SVGs, typography and flat reference row order with every section initially collapsed", () => {
     const { container } = render(<Harness />);
+    expect(within(sidebar()).getByRole("heading", { name: "Search Filters" })).toBeVisible();
+    const rows = [...sidebar().querySelectorAll<HTMLButtonElement>(".multi-stock-section__toggle")];
+    const expected = [
+      ["Make", "02-filter-make-car.svg"],
+      ["Model", "05-filter-model-layout-list.svg"],
+      ["Colour", "06-filter-colour-palette.svg"],
+      ["Body Type", "07-filter-body-type-and-vehicle-type-truck.svg"],
+      ["Engine Size", "08-filter-engine-size-and-gearbox-settings.svg"],
+      ["Seats", "09-filter-seats-users.svg"],
+      ["Mileage", "10-filter-mileage-gauge.svg"],
+      ["Max Price", "11-filter-max-price-badge-pound-sterling.svg"],
+      ["Fuel Type", "12-filter-fuel-type-fuel.svg"],
+      ["Gearbox", "08-filter-engine-size-and-gearbox-settings.svg"],
+      ["Vehicle Type", "07-filter-body-type-and-vehicle-type-truck.svg"],
+      ["ULEZ", "13-filter-ulez-leaf.svg"],
+    ];
+    expect(rows.map(row => row.getAttribute("aria-label"))).toEqual(expected.map(([name]) => name));
+    rows.forEach((row, index) => {
+      expect(row).toHaveAttribute("aria-expanded", "false");
+      expect(document.getElementById(row.getAttribute("aria-controls")!)).toHaveAttribute("hidden");
+      const icon = row.querySelector<HTMLImageElement>("img[data-filter-icon]")!;
+      expect(icon).toHaveAttribute("src", `/brand/multi-choice-motors/filters/${expected[index][1]}`);
+      expect(icon).toHaveAttribute("alt", "");
+      expect(icon).toHaveAttribute("aria-hidden", "true");
+      expect(icon).toHaveAttribute("width", index === 0 ? "20" : "16");
+      expect(readFileSync(`public/brand/multi-choice-motors/filters/${expected[index][1]}`, "utf8")).toContain("<svg");
+      expect(row.querySelector('img[data-filter-icon="chevron"]')).toHaveAttribute("src", "/brand/multi-choice-motors/filters/03-chevron-down.svg");
+    });
+    const css = readFileSync("src/components/multi-stock-filters.css", "utf8");
+    expect(css).toMatch(/--app-font-sans:\s*["']Multi Stock Montserrat["']/);
+    for (const weight of [400, 500, 700]) {
+      const path = `/brand/multi-choice-motors/fonts/montserrat-latin-${weight}.woff2`;
+      expect(css).toContain(path);
+      expect(readFileSync(`public${path}`).byteLength).toBeGreaterThan(0);
+    }
+    const sheet = document.createElement("style");
+    sheet.textContent = css;
+    document.head.append(sheet);
+    try {
+      const rowStyle = getComputedStyle(rows[0]);
+      expect(rowStyle.fontSize).toBe("14px");
+      expect(rowStyle.fontWeight).toBe("700");
+      expect(rowStyle.lineHeight).toBe("20px");
+      expect(rowStyle.padding).toBe("20px 8px");
+    } finally {
+      sheet.remove();
+    }
     expect(
-      within(sidebar()).getByRole("combobox", { name: "Min price" }),
-    ).toBeVisible();
+      within(sidebar()).queryByRole("combobox", { name: "Min price" }),
+    ).not.toBeInTheDocument();
     expect(
-      within(sidebar()).getByRole("combobox", { name: "Max price" }),
-    ).toHaveValue("");
-    expect(
-      within(sidebar()).getByRole("button", { name: "Make" }),
-    ).toHaveAttribute("aria-expanded", "false");
+      within(sidebar()).queryByRole("button", { name: "Clear All" }),
+    ).not.toBeInTheDocument();
     expect(
       within(sidebar()).queryByRole("checkbox", { name: "Ford" }),
     ).not.toBeInTheDocument();
@@ -219,7 +264,7 @@ describe("Multi-Choice stock controls", () => {
       screen.getByRole("combobox", { name: "Sort cars" }),
     ).toHaveDisplayValue("Recommended");
     expect(screen.getByRole("status")).toHaveTextContent("6 cars");
-    expect(container.querySelector("article,img,#vehicle-results")).toBeNull();
+    expect(container.querySelector("article,#vehicle-results")).toBeNull();
     expect(
       container.querySelector(".stock-filter-sidebar.multi-stock-filters"),
     ).not.toBeNull();
@@ -315,6 +360,7 @@ describe("Multi-Choice stock controls", () => {
 
   it("uses genuine finite budget caps and preserves custom linked budgets with valid counterpart changes", () => {
     render(<Harness initial={{ minPrice: "7600", maxPrice: "9000" }} />);
+    expand("Max Price, 2 selected");
     const min = within(sidebar()).getByRole("combobox", { name: "Min price" });
     const max = within(sidebar()).getByRole("combobox", { name: "Max price" });
     expect(min).toHaveValue("7600");
@@ -337,7 +383,6 @@ describe("Multi-Choice stock controls", () => {
 
   it("shows useful stock-backed extra facets and labelled colour choices without zero-litre EV claims", () => {
     render(<Harness />);
-    expand("More filters");
     expand("Colour");
     expect(
       within(sidebar()).getByRole("checkbox", { name: "Blue" }),
@@ -347,7 +392,7 @@ describe("Multi-Choice stock controls", () => {
     expect(
       screen.getByRole("button", { name: "Remove colour Blue filter" }),
     ).toBeVisible();
-    expand("Engine size");
+    expand("Engine Size");
     expect(
       within(sidebar()).getByRole("checkbox", { name: "1.0L" }),
     ).toBeEnabled();
@@ -359,19 +404,15 @@ describe("Multi-Choice stock controls", () => {
     ).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("avoids single-value extra sections but preserves an unavailable selected extra facet", () => {
+  it("retains supplied single-value facets and keeps an unavailable selected seat removable", () => {
     const { rerender } = render(<Harness cars={[stock[0]]} />);
-    expand("More filters");
-    expect(
-      within(sidebar()).queryByRole("button", { name: "Seats" }),
-    ).not.toBeInTheDocument();
-    expect(
-      within(sidebar()).queryByRole("button", { name: "Colour" }),
-    ).not.toBeInTheDocument();
+    expand("Seats");
+    expect(within(sidebar()).getByRole("checkbox", { name: "5" })).toHaveAccessibleDescription("1 matching car");
+    expand("Colour");
+    expect(within(sidebar()).getByRole("checkbox", { name: "Blue" })).toHaveAccessibleDescription("1 matching car");
     rerender(
       <Harness key="selected" cars={[stock[0]]} initial={{ seats: "7" }} />,
     );
-    expand("More filters, 1 selected");
     expand("Seats, 1 selected");
     expect(
       within(sidebar()).getByRole("checkbox", { name: "7" }),
@@ -381,9 +422,22 @@ describe("Multi-Choice stock controls", () => {
     ).toBeChecked();
   });
 
+  it("shows honest empty details for missing seats, vehicle type and unconfirmed ULEZ without guessing from the body", () => {
+    render(<Harness cars={[car("unknown-details", { make: "BMW", model: "X5", bodyType: "SUV", fuel: "Electric" })]} />);
+    expand("Seats");
+    expect(within(sidebar()).getByText("Seat details are not supplied for this stock.")).toBeVisible();
+    expect(within(sidebar()).queryByRole("checkbox", { name: "5" })).not.toBeInTheDocument();
+    expand("Vehicle Type");
+    expect(within(sidebar()).getByText("Vehicle type details are not supplied for this stock.")).toBeVisible();
+    expect(within(sidebar()).queryByRole("checkbox", { name: /^(Car|Van)$/ })).not.toBeInTheDocument();
+    expand("ULEZ");
+    expect(within(sidebar()).getByText("No stock is currently confirmed ULEZ compliant.")).toBeVisible();
+    expect(within(sidebar()).queryByRole("checkbox", { name: "ULEZ compliant" })).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("1 car");
+  });
+
   it("offers explicit Any mileage, useful higher bands and a custom linked mileage cap", () => {
     render(<Harness initial={{ mileage: "96000" }} />);
-    expand("More filters, 1 selected");
     expand("Mileage, 1 selected");
     const max = within(sidebar()).getByRole("combobox", {
       name: "Maximum mileage",
@@ -407,6 +461,7 @@ describe("Multi-Choice stock controls", () => {
 
   it("uses existing ULEZ truth, retains a selected zero-result switch and never infers unknown compliance", () => {
     render(<Harness cars={[stock[4]]} initial={{ ulez: true }} />);
+    expand("ULEZ, 1 selected");
     const checkbox = within(sidebar()).getByRole("checkbox", {
       name: "ULEZ compliant",
     });
@@ -482,7 +537,7 @@ describe("Multi-Choice stock controls", () => {
       });
       fireEvent.click(
         location === "sidebar"
-          ? within(sidebar()).getByRole("button", { name: "Clear filters" })
+          ? within(sidebar()).getByRole("button", { name: "Clear All" })
           : screen.getByRole("button", { name: "Clear all" }),
       );
       act(() => vi.advanceTimersByTime(300));

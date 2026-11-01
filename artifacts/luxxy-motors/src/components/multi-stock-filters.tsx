@@ -11,10 +11,8 @@ import type { Car } from "@/lib/stock-context";
 import { stockBudgetOptions } from "@/lib/stock-budget-options";
 import { arrivalTime } from "@/lib/stock-presentation";
 import { formatPrice } from "@/lib/utils";
-import {
-  applyStockFilters,
-  getStockFacetValue,
-} from "@/features/stock-search/apply-filters";
+import { applyStockFilters } from "@/features/stock-search/apply-filters";
+import { vehicleBenefits } from "@/lib/vehicle-benefits";
 import {
   splitStockFacetValues,
   stockValueKey,
@@ -51,6 +49,7 @@ const iconFiles = {
   price: "11-filter-max-price-badge-pound-sterling.svg",
   fuel: "12-filter-fuel-type-fuel.svg",
   transmission: "08-filter-engine-size-and-gearbox-settings.svg",
+  vehicleType: "07-filter-body-type-and-vehicle-type-truck.svg",
   ulez: "13-filter-ulez-leaf.svg",
   filters: "15-mobile-filters-button-filter.svg",
   sort: "16-sort-by-arrow-up-down.svg",
@@ -60,12 +59,16 @@ const iconFiles = {
   clear: "01-clear-all-refresh-ccw.svg",
 } as const;
 function FilterIcon({ name }: { name: keyof typeof iconFiles }) {
-  const url = `url("/brand/multi-choice-motors/filters/${iconFiles[name]}")`;
   return (
-    <span
+    <img
       className="multi-stock-icon"
+      data-filter-icon={name}
+      src={`/brand/multi-choice-motors/filters/${iconFiles[name]}`}
+      width={name === "make" ? 20 : 16}
+      height={name === "make" ? 20 : 16}
+      alt=""
       aria-hidden="true"
-      style={{ maskImage: url, WebkitMaskImage: url }}
+      draggable={false}
     />
   );
 }
@@ -73,14 +76,22 @@ const facetNames: Record<StockFacetKey, string> = {
   make: "Make",
   model: "Model",
   transmission: "Gearbox",
-  fuel: "Fuel type",
-  bodyType: "Body type",
+  fuel: "Fuel Type",
+  bodyType: "Body Type",
   colour: "Colour",
-  engine: "Engine size",
+  engine: "Engine Size",
   seats: "Seats",
 };
-const coreFacets: StockFacetKey[] = ["make", "model", "transmission", "fuel"];
-const moreFacets: StockFacetKey[] = ["bodyType", "colour", "engine", "seats"];
+const facetOrder: StockFacetKey[] = [
+  "make",
+  "model",
+  "colour",
+  "bodyType",
+  "engine",
+  "seats",
+  "fuel",
+  "transmission",
+];
 const selectedValues = (filters: StockFilters, key: StockFacetKey) =>
   splitStockFacetValues(filters[key]);
 const isSelected = (values: string[], value: string) =>
@@ -123,7 +134,7 @@ function FilterSection({
         onClick={() => setOpen((value) => !value)}
       >
         <FilterIcon name={icon} />
-        <span>{title}</span>
+        <span className="multi-stock-section__label">{title}</span>
         {count > 0 && (
           <span className="multi-stock-selection-count" aria-hidden="true">
             {count}
@@ -219,11 +230,13 @@ function CheckboxFacet({
   options,
   filters,
   onChange,
+  emptyText = "No choices in current stock.",
 }: {
   facet: StockFacetKey;
   options: StockFacetOption[];
   filters: StockFilters;
   onChange: Props["onChange"];
+  emptyText?: string;
 }) {
   const [all, setAll] = useState(false),
     selected = selectedValues(filters, facet);
@@ -257,9 +270,7 @@ function CheckboxFacet({
             />
           ))
         ) : (
-          <p className="multi-stock-empty-options">
-            No choices in current stock.
-          </p>
+          <p className="multi-stock-empty-options">{emptyText}</p>
         )}
       </div>
       {ordered.length > limit && (
@@ -282,10 +293,7 @@ function Budget({
 }: Pick<Props, "cars" | "filters" | "onChange">) {
   return (
     <fieldset className="multi-stock-budget">
-      <legend>
-        <FilterIcon name="price" />
-        Budget
-      </legend>
+      <legend className="sr-only">Budget</legend>
       <div>
         {(["minPrice", "maxPrice"] as const).map((key) => (
           <label key={key}>
@@ -349,96 +357,85 @@ function FilterPanel({
   ulezCount: number;
 }) {
   const ulezCountId = useId();
-  const useful = (key: StockFacetKey) =>
-    Boolean(filters[key]) ||
-    new Set(
-      cars
-        .map((car) => getStockFacetValue(car, key))
-        .filter(Boolean)
-        .map(stockValueKey),
-    ).size > 1;
-  const extraFacets = moreFacets.filter(useful);
   const hasMileage =
     Boolean(filters.mileage) ||
     cars.some(
       (car) =>
         typeof car.mileage === "number" &&
         Number.isFinite(car.mileage) &&
-        car.mileage >= 0,
+        car.mileage >= 0 &&
+        car.mileage <= 5_000_000,
     );
-  const extraCount = moreFacets.reduce(
-    (count, key) => count + selectedValues(filters, key).length,
-    filters.mileage ? 1 : 0,
+  const hasUlezChoice =
+    filters.ulez || cars.some((car) => Boolean(vehicleBenefits(car).ulez));
+  const emptyText: Partial<Record<StockFacetKey, string>> = {
+    colour: "Colour details are not supplied for this stock.",
+    bodyType: "Body type details are not supplied for this stock.",
+    engine: "Engine size details are not supplied for this stock.",
+    seats: "Seat details are not supplied for this stock.",
+  };
+  const facet = (key: StockFacetKey) => (
+    <CheckboxFacet
+      key={key}
+      facet={key}
+      options={facets[key]}
+      filters={filters}
+      onChange={onChange}
+      emptyText={emptyText[key]}
+    />
   );
   return (
     <>
-      <Budget cars={cars} filters={filters} onChange={onChange} />
-      {coreFacets.map((facet) => (
-        <CheckboxFacet
-          key={facet}
-          facet={facet}
-          options={facets[facet]}
-          filters={filters}
-          onChange={onChange}
-        />
-      ))}
-      {(extraFacets.length > 0 || hasMileage) && (
-        <FilterSection title="More filters" icon="filters" count={extraCount}>
-          {extraFacets
-            .filter((key) => key === "bodyType" || key === "colour")
-            .map((facet) => (
-              <CheckboxFacet
-                key={facet}
-                facet={facet}
-                options={facets[facet]}
-                filters={filters}
-                onChange={onChange}
-              />
-            ))}
-          {hasMileage && (
-            <FilterSection
-              title="Mileage"
-              icon="mileage"
-              count={filters.mileage ? 1 : 0}
-            >
-              <label className="multi-stock-mileage">
-                <span>Maximum mileage</span>
-                <span className="multi-stock-select-wrap">
-                  <select
-                    value={filters.mileage ?? ""}
-                    onChange={(event) =>
-                      onChange({ mileage: event.target.value })
-                    }
-                  >
-                    <option value="">Any mileage</option>
-                    {mileageOptions(cars, filters.mileage ?? "").map(
-                      (value) => (
-                        <option key={value} value={value}>
-                          Up to {value.toLocaleString("en-GB")} miles
-                        </option>
-                      ),
-                    )}
-                  </select>
-                  <FilterIcon name="chevron" />
-                </span>
-              </label>
-            </FilterSection>
-          )}
-          {extraFacets
-            .filter((key) => key === "engine" || key === "seats")
-            .map((facet) => (
-              <CheckboxFacet
-                key={facet}
-                facet={facet}
-                options={facets[facet]}
-                filters={filters}
-                onChange={onChange}
-              />
-            ))}
-        </FilterSection>
-      )}
-      {(ulezCount > 0 || filters.ulez) && (
-        <section className="multi-stock-ulez">
+      {(
+        ["make", "model", "colour", "bodyType", "engine", "seats"] as const
+      ).map(facet)}
+      <FilterSection
+        title="Mileage"
+        icon="mileage"
+        count={filters.mileage ? 1 : 0}
+      >
+        {hasMileage ? (
+          <label className="multi-stock-mileage">
+            <span>Maximum mileage</span>
+            <span className="multi-stock-select-wrap">
+              <select
+                value={filters.mileage ?? ""}
+                onChange={(event) => onChange({ mileage: event.target.value })}
+              >
+                <option value="">Any mileage</option>
+                {mileageOptions(cars, filters.mileage ?? "").map((value) => (
+                  <option key={value} value={value}>
+                    Up to {value.toLocaleString("en-GB")} miles
+                  </option>
+                ))}
+              </select>
+              <FilterIcon name="chevron" />
+            </span>
+          </label>
+        ) : (
+          <p className="multi-stock-empty-options">
+            Mileage details are not supplied for this stock.
+          </p>
+        )}
+      </FilterSection>
+      <FilterSection
+        title="Max Price"
+        icon="price"
+        count={
+          Number(Boolean(filters.minPrice)) + Number(Boolean(filters.maxPrice))
+        }
+      >
+        <Budget cars={cars} filters={filters} onChange={onChange} />
+      </FilterSection>
+      {facet("fuel")}
+      {facet("transmission")}
+      <FilterSection title="Vehicle Type" icon="vehicleType">
+        <p className="multi-stock-empty-options">
+          Vehicle type details are not supplied for this stock.
+        </p>
+      </FilterSection>
+      <FilterSection title="ULEZ" icon="ulez" count={filters.ulez ? 1 : 0}>
+        {hasUlezChoice ? (
           <label className="multi-stock-option">
             <input
               type="checkbox"
@@ -450,7 +447,6 @@ function FilterPanel({
             <span className="multi-stock-checkbox" aria-hidden="true">
               <FilterIcon name="check" />
             </span>
-            <FilterIcon name="ulez" />
             <span className="multi-stock-option__label">ULEZ compliant</span>
             <span className="multi-stock-option__count" aria-hidden="true">
               {ulezCount}
@@ -460,8 +456,12 @@ function FilterPanel({
               className="sr-only"
             >{`${ulezCount} ${ulezCount === 1 ? "matching car" : "matching cars"}`}</span>
           </label>
-        </section>
-      )}
+        ) : (
+          <p className="multi-stock-empty-options">
+            No stock is currently confirmed ULEZ compliant.
+          </p>
+        )}
+      </FilterSection>
     </>
   );
 }
@@ -477,7 +477,7 @@ function filterChips(
   facets: ReturnType<typeof applyStockFilters>["facets"],
 ): Chip[] {
   const chips: Chip[] = [];
-  for (const key of [...coreFacets, ...moreFacets])
+  for (const key of facetOrder)
     for (const value of selectedValues(filters, key)) {
       const option = facets[key].find(
         (option) => stockValueKey(option.value) === stockValueKey(value),
@@ -615,14 +615,13 @@ export function MultiStockFilters({
         aria-label="Filter cars"
       >
         <div className="multi-stock-sidebar-heading">
-          <h2>Filter cars</h2>
-          <button
-            type="button"
-            onClick={clear}
-            disabled={!activeCount && !query}
-          >
-            Clear filters
-          </button>
+          <h2>Search Filters</h2>
+          {(activeCount > 0 || query) && (
+            <button type="button" onClick={clear}>
+              <FilterIcon name="clear" />
+              Clear All
+            </button>
+          )}
         </div>
         <div className="multi-stock-sidebar-scroll">{panel}</div>
       </aside>
@@ -721,13 +720,33 @@ export function MultiStockFilters({
                 }
               }}
             >
-              <SheetHeader className="multi-stock-drawer-heading">
-                <SheetTitle>Filter cars</SheetTitle>
-                <SheetDescription>
+              <span
+                className="multi-stock-drawer-close-icon"
+                aria-hidden="true"
+              >
+                <FilterIcon name="close" />
+              </span>
+              <SheetHeader className="multi-stock-drawer-heading space-y-0">
+                <SheetTitle className="sr-only">Filter cars</SheetTitle>
+                <p className="multi-stock-drawer-caption" aria-hidden="true">
+                  Filters
+                </p>
+                <SheetDescription className="sr-only">
                   Results update as you choose.
                 </SheetDescription>
               </SheetHeader>
-              <div className="multi-stock-drawer-scroll">{panel}</div>
+              <div className="multi-stock-drawer-scroll">
+                <div className="multi-stock-sidebar-heading">
+                  <h2>Search Filters</h2>
+                  {(activeCount > 0 || query) && (
+                    <button type="button" onClick={clear}>
+                      <FilterIcon name="clear" />
+                      Clear All
+                    </button>
+                  )}
+                </div>
+                {panel}
+              </div>
               <div className="multi-stock-drawer-footer">
                 <button
                   type="button"
