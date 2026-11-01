@@ -1,0 +1,32 @@
+/* Keep dismissal reachable while long test histories scroll inside the dialog. */
+[role="dialog"].vehicle-check-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  overflow: hidden;
+  background: var(--dialog-panel, #fff);
+  color: var(--dialog-ink, #192a36);
+}
+.vehicle-check-dialog h2 { color: var(--dialog-ink, #192a36); }
+.vehicle-check-dialog .vehicle-check-header > p { color: var(--dialog-muted, #576975); }
+.vehicle-check-dialog > [data-popup-close] { border: 0; color: var(--dialog-muted, #576975); background: transparent; opacity: 1; }
+.vehicle-check-dialog .vehicle-check-header {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 24px;
+}
+.vehicle-check-dialog .vehicle-check-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 20px 24px 24px;
+  scroll-padding-block: 16px;
+}
+@media (max-width: 639px) {
+  [role="dialog"].vehicle-check-dialog { width: calc(100% - 24px); max-height: calc(100dvh - 24px); }
+  .vehicle-check-dialog .vehicle-check-header { padding: 20px 16px 16px; }
+  .vehicle-check-dialog .vehicle-check-body { padding: 16px; }
+}

@@ -27,13 +27,15 @@ export function VehicleSellingPoints({
   compact = false,
   omitMileage = false,
   motBadge,
+  omitLabels = [],
 }: {
   car: Car;
   compact?: boolean;
   omitMileage?: boolean;
   motBadge?: ReactNode;
+  omitLabels?: string[];
 }) {
-  const allPoints = vehicleSellingPoints(car).filter(point => !omitMileage || point.label !== "Mileage");
+  const allPoints = vehicleSellingPoints(car).filter(point => (!omitMileage || point.label !== "Mileage") && !omitLabels.includes(point.label));
   const points = compact ? allPoints.slice(0, 3) : allPoints;
   if (!points.length && !motBadge) return null;
   return (

@@ -15,7 +15,7 @@ import { Input } from './ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 
 export function VehicleAnswers({ car, open, onOpenChange, onAskTeam, onReturnFocus, motHistory, onRequestMotHistory }: {
-  car: Car; motHistory?: MotHistory | null; onRequestMotHistory?: () => void; open: boolean; onOpenChange: (open: boolean) => void; onAskTeam: () => void; onReturnFocus: () => void;
+  car: Car; motHistory?: MotHistory | null; onRequestMotHistory?: () => void; open: boolean; onOpenChange: (open: boolean) => void; onAskTeam: (message?: string) => void; onReturnFocus: () => void;
 }) {
   const [search, setSearch] = useState('');
   const ai = useAiAssistance();
@@ -25,7 +25,9 @@ export function VehicleAnswers({ car, open, onOpenChange, onAskTeam, onReturnFoc
   const { settings, isLoading: dealerLoading, isError: dealerError } = useDealerSettings();
   const sectionRequested = useRef<string | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
-  const askTeamChosen = useRef(false);
+  const askTeamChosen = useRef<{ message?: string } | null>(null);
+  const handoffFrame = useRef<number | undefined>(undefined);
+  useEffect(() => () => { cancelAnimationFrame(handoffFrame.current ?? 0); askTeamChosen.current = null; }, [car.id]);
   const answers = useMemo(() => dealerLoading || dealerError ? vehicleAnswers(car, motHistory) : withDealerAnswers(vehicleAnswers(car, motHistory), car, settings), [car, motHistory, settings, dealerLoading, dealerError]);
   useEffect(() => {
     if (open && vehicleRegistration(car) && !usableVehicleMotHistory(car, motHistory)) onRequestMotHistory?.();
@@ -35,19 +37,19 @@ export function VehicleAnswers({ car, open, onOpenChange, onAskTeam, onReturnFoc
   },[open,ai.enabled,car.id]);
   const extra=aiQuestions.filter(q=>!answers.some(a=>a.question.toLowerCase()===q.question.toLowerCase())).map((q,index)=>({id:`ai-${index}`,question:q.question,answer:q.answer,source:'details' as const}));
   const filtered = filterVehicleAnswers([...answers,...extra], search);
-  const askTeam = () => { askTeamChosen.current = true; setSearch(''); onOpenChange(false); };
+  const askTeam = () => { askTeamChosen.current = { message: search.trim() || undefined }; setSearch(''); onOpenChange(false); };
   return <Dialog open={open} onOpenChange={value => { if (!value) setSearch(''); onOpenChange(value); }}>
     <DialogContent className="vehicle-answers-dialog max-w-xl p-5 sm:p-6" onOpenAutoFocus={event => { event.preventDefault(); heading.current?.focus(); }} onCloseAutoFocus={event => {
       event.preventDefault();
-      if (askTeamChosen.current) { askTeamChosen.current = false; requestAnimationFrame(onAskTeam); }
+      if (askTeamChosen.current) { const { message } = askTeamChosen.current; askTeamChosen.current = null; handoffFrame.current = requestAnimationFrame(() => onAskTeam(message)); }
       else if (sectionRequested.current) {
         const section = sectionRequested.current; sectionRequested.current = null;
         requestAnimationFrame(() => { const target = document.getElementById(section); target?.scrollIntoView({block:'start',behavior:window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'}); target?.focus({preventScroll:true}); });
       } else onReturnFocus();
     }}>
       <DialogHeader className="text-left">
-        <DialogTitle ref={heading} tabIndex={-1} aria-label={`Questions about this ${vehicleDisplayTitle(car)}`}>{vehicleDisplayTitle(car)}</DialogTitle>
-        <DialogDescription>Find a quick answer, or ask our team.</DialogDescription>
+        <DialogTitle ref={heading} tabIndex={-1}>Quick answers</DialogTitle>
+        <DialogDescription>Find an answer about this {vehicleDisplayTitle(car)}, or ask our team.</DialogDescription>
       </DialogHeader>
       <label className="grid gap-2 text-sm font-medium">Search these answers<Input value={search} onChange={event => {setSearch(event.target.value);setAiAnswer('');}} placeholder="Try keys, service history or MOT" autoComplete="off" /></label>
       {ai.enabled&&<div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground"><span>{ai.remaining} of 10 AI requests left this session.</span><Button type="button" variant="outline" className="min-h-11" disabled={!search.trim()||ai.busy||!ai.remaining} onClick={async()=>{const reply=await ai.run('question',{vehicleId:car.id,text:search});if(reply)setAiAnswer(reply.answer);}}>{ai.busy?'Preparing answer…':'Ask AI'}</Button></div>}

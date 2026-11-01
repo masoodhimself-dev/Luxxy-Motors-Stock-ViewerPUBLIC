@@ -3,6 +3,7 @@ import { it, expect, vi, beforeEach } from "vitest";
 const state = vi.hoisted(() => ({
   fetch: vi.fn(),
   settings: {
+    identity: { name: "Test Motors" },
     delivery: { enabled: true },
     deliveryPricing: { enabled: true, basePrice: "50", pricePerMile: "1.50" },
     address: { postcode: "HA2 7LU" },
@@ -23,8 +24,8 @@ vi.mock("./postcode-field", () => ({
   ),
 }));
 import { VehicleQuickChecks } from "./vehicle-quick-checks";
-function Checks({ vehicleId }: { vehicleId: string }) {
-  return <VehicleQuickChecks vehicleId={vehicleId}>
+function Checks({ vehicleId, ...props }: { vehicleId: string; vehiclePrice?: number|null; currency?: string|null; priceType?: string|null; onEnquire?: (message:string)=>void }) {
+  return <VehicleQuickChecks vehicleId={vehicleId} {...props}>
     {({ motBadge, motAction, deliveryAction, requestMotHistory }) => <>
       <header>{motBadge}</header>
       <button onClick={requestMotHistory}>Load answer MOT</button>
@@ -55,6 +56,9 @@ const history = {
 beforeEach(() => {
   state.settings.delivery.enabled = true;
   state.settings.deliveryPricing.enabled = true;
+  state.settings.deliveryPricing.basePrice = "50";
+  state.settings.deliveryPricing.pricePerMile = "1.50";
+  state.settings.address.postcode = "HA2 7LU";
   state.fetch.mockReset();
   state.fetch.mockImplementation((url: string) =>
     Promise.resolve(
@@ -158,4 +162,136 @@ it("keeps car answers usable if the MOT lookup fails", async () => {
   fireEvent.click(screen.getByRole("button", {name:"Load answer MOT"}));
   await waitFor(() => expect(state.fetch).toHaveBeenCalledTimes(2));
   expect(screen.getByRole("button",{name:"Load answer MOT"})).toBeEnabled();
+});
+
+it("includes the current vehicle delivery breakdown only on request and closes the dialog", async () => {
+  const onEnquire = vi.fn();
+  render(
+    <Checks
+      vehicleId="car-a"
+      vehiclePrice={2790}
+      currency="GBP"
+      onEnquire={onEnquire}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Delivery estimate" }));
+  fireEvent.change(screen.getByLabelText("Delivery postcode"), {
+    target: { value: "SW1A1AA" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Calculate delivery" }));
+  await screen.findByText("£2,875.10");
+  expect(onEnquire).not.toHaveBeenCalled();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Include estimate in my enquiry" }),
+  );
+  await waitFor(() => expect(onEnquire).toHaveBeenCalledOnce());
+  expect(onEnquire.mock.calls[0][0]).toContain("Car price: £2,790.00");
+  expect(onEnquire.mock.calls[0][0]).toContain("SW1A 1AA");
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
+});
+
+it("updates vehicle price without another route lookup, including after reopening", async () => {
+  const onEnquire = vi.fn();
+  const { rerender } = render(
+    <Checks
+      vehicleId="car-a"
+      vehiclePrice={2790}
+      currency="GBP"
+      onEnquire={onEnquire}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Delivery estimate" }));
+  fireEvent.change(screen.getByLabelText("Delivery postcode"), {
+    target: { value: "SW1A1AA" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Calculate delivery" }));
+  await screen.findByText("£2,875.10");
+  fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
+  rerender(
+    <Checks
+      vehicleId="car-a"
+      vehiclePrice={3000}
+      currency="GBP"
+      onEnquire={onEnquire}
+    />,
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Delivery · est. £85.10" }),
+  );
+  await screen.findByText("£3,085.10");
+  expect(
+    state.fetch.mock.calls.filter(([url]) => url.includes("delivery-estimate")),
+  ).toHaveLength(1);
+  fireEvent.click(
+    screen.getByRole("button", { name: "Include estimate in my enquiry" }),
+  );
+  await waitFor(() => expect(onEnquire).toHaveBeenCalledOnce());
+  expect(onEnquire.mock.calls[0][0]).toContain("Car price: £3,000.00");
+});
+
+it("never reuses a quote on another vehicle or when the showroom changes", async () => {
+  const { rerender } = render(
+    <Checks
+      vehicleId="car-a"
+      vehiclePrice={2790}
+      currency="GBP"
+      onEnquire={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Delivery estimate" }));
+  fireEvent.change(screen.getByLabelText("Delivery postcode"), {
+    target: { value: "SW1A1AA" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Calculate delivery" }));
+  await screen.findByText("£2,875.10");
+  rerender(
+    <Checks
+      vehicleId="car-b"
+      vehiclePrice={9000}
+      currency="GBP"
+      onEnquire={vi.fn()}
+    />,
+  );
+  expect(screen.queryByText("£85.10")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Include estimate in my enquiry" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByLabelText("Delivery postcode")).toHaveValue("");
+  fireEvent.change(screen.getByLabelText("Delivery postcode"), {
+    target: { value: "SW1A1AA" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Calculate delivery" }));
+  await screen.findByText("£9,085.10");
+  fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
+  state.settings.address.postcode = "UB3 3EP";
+  rerender(
+    <Checks
+      vehicleId="car-b"
+      vehiclePrice={9000}
+      currency="GBP"
+      onEnquire={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Delivery estimate" }));
+  expect(screen.queryByText("£85.10")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Include estimate in my enquiry" }),
+  ).not.toBeInTheDocument();
+});
+
+
+it("passes an exclusive vehicle price basis through without presenting a combined price", async () => {
+  const onEnquire=vi.fn();render(<Checks vehicleId="car-a" vehiclePrice={2790} currency="GBP" priceType="+ VAT" onEnquire={onEnquire}/>);
+  fireEvent.click(screen.getByRole("button",{name:"Delivery estimate"}));fireEvent.change(screen.getByLabelText("Delivery postcode"),{target:{value:"SW1A1AA"}});fireEvent.click(screen.getByRole("button",{name:"Calculate delivery"}));
+  await screen.findByText("£85.10");expect(screen.queryByText("Estimated total")).not.toBeInTheDocument();expect(screen.getByText(/The advertised car price excludes VAT/)).toBeVisible();
+  fireEvent.click(screen.getByRole("button",{name:"Include estimate in my enquiry"}));await waitFor(()=>expect(onEnquire).toHaveBeenCalledOnce());
+  expect(onEnquire.mock.calls[0][0]).toContain("excludes VAT");expect(onEnquire.mock.calls[0][0]).not.toContain("Car price:");
 });

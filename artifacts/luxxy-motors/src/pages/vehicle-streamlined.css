@@ -1,0 +1,75 @@
+/* One reading order, the existing dealer palette, and quiet on-demand tools. */
+.vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-specific-facts {
+  display: flex; flex-wrap: wrap; gap: 6px 16px; margin-block: 14px 4px;
+  color: var(--vehicle-ink); font-size: 14px; font-weight: 500; line-height: 1.6;
+}
+.vehicle-page-streamlined .vehicle-specific-facts li { min-width: 0; overflow-wrap: anywhere; }
+.vehicle-page-streamlined .vehicle-specific-facts li + li::before { content: '·'; margin-right: 16px; color: hsl(var(--muted-foreground)); }
+.vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-help-links { display: flex; flex-wrap: wrap; align-items: center; gap: 0 20px; }
+.vehicle-page-streamlined .vehicle-quick-answers { display: inline-flex; align-items: center; min-height: 44px; color: var(--vehicle-link); font-size: 13px; font-weight: 500; text-decoration: underline; text-underline-offset: 4px; }
+.vehicle-page-streamlined .vehicle-help-links .vehicle-context-action { font-size: 13px; }
+.vehicle-page-streamlined .vehicle-help-links .vehicle-context-action svg { display: none; }
+.vehicle-page-streamlined .vehicle-quick-answers:focus-visible,
+.vehicle-page-streamlined summary:focus-visible { outline: 2px solid var(--vehicle-link); outline-offset: 3px; }
+.vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-section-nav { display: flex; flex-wrap: wrap; gap: 0 24px; padding-block: 4px; border-bottom: 1px solid hsl(var(--border)); overflow: visible; }
+.vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-section-nav a { display: flex; align-items: center; justify-content: center; min-height: 48px; padding: 8px 0; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--vehicle-ink); font-weight: 500; font-size: 14px; text-align: center; }
+.vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-section-nav a:hover { border-bottom-color: var(--vehicle-link); }
+.vehicle-page-streamlined .vehicle-page-chapter { min-width: 0; scroll-margin-top: calc(var(--site-header-height, 80px) + 16px); }
+.vehicle-page-streamlined .vehicle-page-chapter:empty { display: none; }
+.vehicle-page-streamlined .vehicle-page-chapter > section,
+.vehicle-page-streamlined .vehicle-page-chapter > .vehicle-information-row { margin-top: 28px; }
+.vehicle-page-streamlined .vehicle-description-copy { max-width: 72ch; }
+.vehicle-page-streamlined .vehicle-included { padding-block: 20px; border-top: 1px solid hsl(var(--border)); }
+.vehicle-page-streamlined .vehicle-included h2 { font-size: 18px; }
+.vehicle-page-streamlined .vehicle-included ul { display: grid; gap: 6px; margin-top: 10px; font-size: 14px; white-space: pre-line; }
+.vehicle-page-streamlined .vehicle-technical-disclosure,
+.vehicle-page-streamlined .vehicle-full-records { margin-top: 20px; border-top: 1px solid hsl(var(--border)); }
+.vehicle-page-streamlined :is(.vehicle-technical-disclosure, .vehicle-full-records) > summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 52px; padding-block: 12px; font-size: 14px; font-weight: 500; cursor: pointer; }
+.vehicle-page-streamlined :is(.vehicle-technical-disclosure, .vehicle-full-records) > summary::after,
+.vehicle-page-streamlined .vehicle-message-disclosure > summary::after { content: '+'; font-size: 22px; font-weight: 400; }
+.vehicle-page-streamlined :is(.vehicle-technical-disclosure, .vehicle-full-records)[open] > summary::after,
+.vehicle-page-streamlined .vehicle-message-disclosure[open] > summary::after { content: '−'; }
+.vehicle-page-streamlined .vehicle-technical-disclosure .vehicle-technical-row { margin-top: 4px; }
+.vehicle-page-streamlined .vehicle-technical-disclosure .vehicle-technical-row > section,
+.vehicle-page-streamlined .vehicle-technical-disclosure .vehicle-costs-panel > section { margin-top: 0; border-top: 0; padding-top: 12px; }
+.vehicle-page-streamlined .vehicle-technical-disclosure h2 { font-size: 18px; }
+.vehicle-page-streamlined .vehicle-full-records > section { margin-top: 0; }
+.vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-records-row dl > div { border: 0; background: transparent; padding: 0; }
+.vehicle-page-streamlined .vehicle-service-record-request { width: 100%; text-align: left; font-size: 14px; font-weight: 500; }
+.vehicle-page-streamlined .vehicle-visit-delivery-chapter { display: grid; gap: 24px; padding-block: 28px; margin-top: 28px; border-top: 1px solid hsl(var(--border)); }
+.vehicle-page-streamlined .vehicle-visit-delivery-chapter > section { margin-top: 0; padding-top: 0; border-top: 0; }
+.vehicle-page-streamlined .vehicle-inline-enquiry.vehicle-message-disclosure { margin-block: 8px 36px; padding: 0; border: 1px solid hsl(var(--border)); border-radius: 6px; background: var(--vehicle-panel); }
+.vehicle-page-streamlined .vehicle-message-disclosure > summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 16px; align-items: center; min-height: 76px; padding: 16px 20px; cursor: pointer; }
+.vehicle-page-streamlined .vehicle-message-disclosure > summary h2 { min-width: 0; font-size: 20px; }
+.vehicle-page-streamlined .vehicle-message-disclosure > summary > span { grid-column: 1; font-size: 13px; color: hsl(var(--muted-foreground)); }
+.vehicle-page-streamlined .vehicle-message-disclosure > summary::after { grid-column: 2; grid-row: 1 / 3; }
+.vehicle-page-streamlined .vehicle-message-body { padding: 4px 20px 24px; }
+.vehicle-page-streamlined .vehicle-photo-request { margin-top: 8px; }
+@media (min-width: 1100px) {
+  .vehicle-page-streamlined .vehicle-overview-chapter { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); column-gap: 48px; align-items: start; }
+  .vehicle-page-streamlined .vehicle-overview-chapter .vehicle-description-section { grid-column: 1; }
+  .vehicle-page-streamlined .vehicle-overview-chapter .vehicle-included { grid-column: 2; }
+  .vehicle-page-streamlined .vehicle-overview-chapter .vehicle-technical-disclosure { grid-column: 1 / -1; }
+  .vehicle-page-streamlined .vehicle-overview-chapter:not(:has(.vehicle-included)) .vehicle-description-section { grid-column: 1 / -1; }
+  .vehicle-page-streamlined .vehicle-visit-delivery-chapter { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px; }
+  .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-inline-enquiry { max-width: 880px; }
+}
+@media (max-width: 1099px) {
+  .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary { padding: 16px 0 8px; border: 0; background: transparent; }
+  .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary .vehicle-specific-facts { margin-top: 12px; font-size: 13px; }
+  .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary .vehicle-primary-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding-top: 0; margin-block: 16px 4px; }
+  .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary .vehicle-summary-main-actions > a { min-height: 48px; padding: 10px; font-size: 13px; line-height: 1.4; text-align: center; }
+  .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary .vehicle-direct-contact { gap: 0 24px; }
+  .vehicle-page-streamlined .vehicle-compact-detail .vehicle-registration { margin-top: 4px; }
+}
+@media (max-width: 639px) {
+  .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-section-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; }
+  .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-section-nav a { min-width: 0; padding: 6px 3px; white-space: normal; font-size: 12px; line-height: 1.35; }
+  .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-section-nav:not(:has(a:nth-child(4))) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-section-nav:not(:has(a:nth-child(3))) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .vehicle-page-streamlined .vehicle-specific-facts { gap: 6px 12px; }
+  .vehicle-page-streamlined .vehicle-specific-facts li + li::before { margin-right: 12px; }
+  .vehicle-page-streamlined .vehicle-message-disclosure > summary { padding-inline: 16px; }
+  .vehicle-page-streamlined .vehicle-message-body { padding-inline: 16px; }
+  .vehicle-page-streamlined .vehicle-message-disclosure > summary h2 { font-size: 19px; }
+}

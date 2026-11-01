@@ -1,0 +1,42 @@
+.delivery-estimator .delivery-estimate-total {
+  margin-top: 16px;
+  padding: 14px 0 0;
+  border-top: 1px solid hsl(var(--border));
+  font-size: 14px;
+  line-height: 1.5;
+}
+.delivery-estimate-total > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 6px;
+}
+.delivery-estimate-total dt {
+  min-width: 0;
+}
+.delivery-estimate-total dd {
+  min-width: 0;
+  max-width: 100%;
+  margin-left: auto;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.delivery-estimate-total .delivery-estimate-total-sum {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid hsl(var(--border));
+  font-weight: 600;
+}
+.delivery-estimate-total-sum dd {
+  font-size: 22px;
+  letter-spacing: -0.025em;
+}
+.delivery-estimator .delivery-estimate-enquiry {
+  min-height: 44px;
+  height: auto;
+  padding: 12px;
+  white-space: normal;
+  line-height: 1.4;
+}

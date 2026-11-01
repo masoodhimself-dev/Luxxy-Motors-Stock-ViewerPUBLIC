@@ -5,6 +5,7 @@ import { showroomHours } from '@/lib/showroom-hours';
 import './enquiry-form.css';
 import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
 import { enquiryDraftKey, readEnquiryDraft, saveEnquiryDraft, discardEnquiryDraft } from '@/lib/enquiry-draft';
+import { appendEnquiryMessage, type EnquiryMessageRequest } from '@/lib/enquiry-message-handoff';
 import { readVehicleExchange } from '@/lib/vehicle-exchange-draft';
 import { responsiveVehicleImage, retryOriginalImage } from '@/lib/responsive-vehicle-image';
 import { UKNumberPlate } from '@/components/uk-number-plate';
@@ -60,12 +61,14 @@ export function EnquiryForm({
   vehicle,
   stockCars = [],
   initialMessage = '',
+  messageRequest,
   onTypeChange,
   onChangeCar,
 }: {
   initialType?: EnquiryType;
   embedded?: boolean;
   initialMessage?: string;
+  messageRequest?: EnquiryMessageRequest;
   vehicle?: Car;
   stockCars?: Car[];
   onTypeChange?: (type: EnquiryType) => void;
@@ -101,13 +104,19 @@ export function EnquiryForm({
   const [draftRestored, setDraftRestored] = useState(false);
   const skipDraftSave = useRef(false);
   const draftKey = enquiryDraftKey(vehicle?.id, initialType);
+  const [restoredDraftKey, setRestoredDraftKey] = useState<string | null>(null);
   const [preferredContact, setPreferredContact] = useState<PreferredContact>('email');
   const [additionalContact, setAdditionalContact] = useState(false);
   const [message, setMessage] = useState(initialMessage);
+  const messageRef = useRef(initialMessage);
+  messageRef.current = message;
+  const writeMessage = (value: string) => { messageRef.current = value; setMessage(value); };
+  const handledRequests = useRef(new Set<number>());
+  const [pendingRequests, setPendingRequests] = useState<EnquiryMessageRequest[]>([]);
   const messageTouched = useRef(false);
   const questionRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
-    if (!messageTouched.current && initialMessage) setMessage(initialMessage);
+    if (!messageTouched.current && initialMessage) writeMessage(initialMessage);
   }, [initialMessage]);
   const mutation = useCreateEnquiry();
   useEffect(() => {
@@ -119,12 +128,23 @@ export function EnquiryForm({
     const draft=readEnquiryDraft(draftKey);
     if (draft) {
       setCustomerName(draft.customerName);setEmail(draft.email);setPhone(draft.phone);
-      setMessage(draft.message); messageTouched.current=Boolean(draft.message);
+      writeMessage(draft.message); messageTouched.current=Boolean(draft.message);
       setPreferredContact(draft.preferredContact);setHasPartExchange(draft.hasPartExchange);setExchange(draft.exchange);
       setDraftSaved(true);
       setDraftRestored(true);
     } else { setDraftSaved(false); setDraftRestored(false); }
+    setPendingRequests([]);
+    setRestoredDraftKey(draftKey);
   }, [draftKey]);
+  const enquiriesEnabled = features.enabled('publicEnquiries');
+  useEffect(() => {
+    if (!messageRequest || restoredDraftKey !== draftKey || mutation.isSuccess || type !== 'general' || !enquiriesEnabled || handledRequests.current.has(messageRequest.id)) return;
+    handledRequests.current.add(messageRequest.id);
+    const result = appendEnquiryMessage(messageRef.current, messageRequest.text, messageLimit);
+    if (result.status === 'too_long') setPendingRequests(current => [...current, { id: messageRequest.id, text: result.request }]);
+    else if (result.status === 'added') { messageTouched.current = true; writeMessage(result.message); }
+    questionRef.current?.focus({ preventScroll: true });
+  }, [messageRequest?.id, messageRequest?.text, restoredDraftKey, draftKey, mutation.isSuccess, type, enquiriesEnabled, messageLimit]);
   useEffect(() => {
     if(skipDraftSave.current) {skipDraftSave.current=false;return;}
     if(mutation.data) return;
@@ -140,7 +160,8 @@ export function EnquiryForm({
   }, [mutation.isSuccess]);
   const discardDraft = () => {
     discardEnquiryDraft(draftKey);setDraftSaved(false);setDraftRestored(false);
-    setCustomerName('');setEmail('');setPhone('');setMessage('');messageTouched.current=true;
+    setCustomerName('');setEmail('');setPhone('');writeMessage('');messageTouched.current=true;
+    setPendingRequests([]);
     setHasPartExchange(false);setExchange({registration:'',mileage:'',notes:''});setAdditionalContact(false);
     setPhoneError('');setNameError('');setEmailError('');
   };
@@ -169,7 +190,7 @@ export function EnquiryForm({
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!features.enabled('publicEnquiries')) return;
-    if (message.trim().length > messageLimit) return;
+    if (message.trim().length > messageLimit || pendingRequests.length) return;
     const contactPhone = phone;
     const normalizedPhone = normalisePhone(contactPhone);
     if (contactPhone.trim() && !normalizedPhone) {
@@ -318,16 +339,32 @@ export function EnquiryForm({
           ...(dealerConfig.delivery?.enabled ? [{ label: 'Delivery', text: 'Can you deliver this car to my postcode?' }] : []),
         ].map(question => <button key={question.label} type="button" aria-pressed={message.includes(question.text)} disabled={!message.includes(question.text) && message.length + question.text.length + 2 > messageLimit} onClick={() => {
           messageTouched.current = true;
-          setMessage(current => current.includes(question.text) ? current : [current.trim(), question.text].filter(Boolean).join('\n\n'));
+          writeMessage(messageRef.current.includes(question.text) ? messageRef.current : [messageRef.current.trim(), question.text].filter(Boolean).join('\n\n'));
           questionRef.current?.focus();
         }}>{question.label}</button>)}
       </div>}
       <label className="block customer-enquiry-question">
         <span className={labelClass}><MessageSquare className="h-4 w-4 text-accent" aria-hidden="true" />Your question{!embedded && includePartExchange && <span className="text-muted-foreground">(optional)</span>}</span>
         <Textarea ref={questionRef} id="enquiry-question" required={embedded || !includePartExchange} minLength={1} maxLength={messageLimit} rows={3}
-          value={message} onChange={event => { messageTouched.current = true; setMessage(event.target.value); }}
+          value={message} onChange={event => { messageTouched.current = true; writeMessage(event.target.value); }}
           placeholder="What would you like to know?" data-testid="textarea-enquiry-message" />
       </label>
+      {pendingRequests.length > 0 && <section aria-label="Requests to add to your enquiry" className="space-y-3 border-y border-border py-3">
+        <p role="alert" className="text-sm leading-6">This request would exceed your message limit. Your draft has not changed. Shorten your message, then add the request, or remove it to continue.</p>
+        {pendingRequests.map(request => <div key={request.id} className="space-y-2">
+          <p className="whitespace-pre-wrap break-words text-sm">{request.text}</p>
+          <div className="flex flex-wrap gap-3">
+            <Button type="button" variant="outline" className="min-h-11" disabled={appendEnquiryMessage(message, request.text, messageLimit).status === 'too_long'} onClick={() => {
+              const result = appendEnquiryMessage(messageRef.current, request.text, messageLimit);
+              if (result.status === 'too_long') return;
+              messageTouched.current = true; writeMessage(result.message);
+              setPendingRequests(current => current.filter(item => item.id !== request.id));
+              questionRef.current?.focus({ preventScroll: true });
+            }}>Add request</Button>
+            <button type="button" className="min-h-11 text-sm underline underline-offset-4" onClick={() => setPendingRequests(current => current.filter(item => item.id !== request.id))}>Remove request</button>
+          </div>
+        </div>)}
+      </section>}
 
           <fieldset className="customer-enquiry-contact">
             <legend className="sr-only">Contact details</legend>
@@ -403,7 +440,7 @@ export function EnquiryForm({
         </div>
       )}
       <div className="space-y-4">
-        <Button key="submit-enquiry" type="submit" size="lg" disabled={mutation.isPending} className="group min-h-12 w-full rounded-md font-display text-[13px] font-semibold tracking-normal shadow-none transition-all" data-testid="button-submit-enquiry">
+        <Button key="submit-enquiry" type="submit" size="lg" disabled={mutation.isPending || pendingRequests.length > 0} className="group min-h-12 w-full rounded-md font-display text-[13px] font-semibold tracking-normal shadow-none transition-all" data-testid="button-submit-enquiry">
           {mutation.isPending ? 'Sending enquiry…' : 'Send enquiry'}
           {!mutation.isPending && <ArrowRight className="ml-3 h-4 w-4 transition-transform group-hover:translate-x-1" />}
         </Button>

@@ -234,3 +234,5 @@ export * from "./sale-delivery.ts";
 export type {MotHistory,MotTest} from './mot-history';
 
 export * from "./staff-cars.ts";
+
+export * from "./uk-postcodes.ts";

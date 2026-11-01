@@ -1,0 +1,13 @@
+.vehicle-photo-request { min-width: 0; border-top: 1px solid hsl(var(--border)); color: hsl(var(--foreground)); font-size: 14px; line-height: 1.6; }
+.vehicle-photo-request > summary { display: flex; min-height: 44px; align-items: center; padding-block: 10px; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; }
+.vehicle-photo-request > summary:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; }
+.vehicle-photo-request__body { display: grid; min-width: 0; gap: 12px; padding-bottom: 16px; }
+.vehicle-photo-request__body p { color: hsl(var(--muted-foreground)); overflow-wrap: anywhere; }
+.vehicle-photo-request__body fieldset { min-width: 0; }
+.vehicle-photo-request__body legend { margin-bottom: 6px; font-weight: 500; }
+.vehicle-photo-request__choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 14px; }
+.vehicle-photo-request__choices label { display: flex; min-height: 44px; align-items: center; gap: 9px; cursor: pointer; }
+.vehicle-photo-request__choices input { width: 18px; height: 18px; flex: none; accent-color: hsl(var(--primary)); }
+.vehicle-photo-request__body textarea { min-width: 0; font-size: 16px; }
+.vehicle-photo-request__body > button { justify-self: start; }
+@media (max-width: 359px) { .vehicle-photo-request__choices { grid-template-columns: minmax(0, 1fr); } }

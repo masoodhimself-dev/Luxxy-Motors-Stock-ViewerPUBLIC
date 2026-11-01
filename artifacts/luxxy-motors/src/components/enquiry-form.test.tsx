@@ -130,3 +130,95 @@ it('removes delivery and part-exchange prompts when the dealership disables them
  expect(prompts).not.toHaveTextContent('Part exchange');
  expect(state.mutate).not.toHaveBeenCalled();
 });
+
+const savedQuestion = (message: string, name = 'Earlier Buyer') => ({ customerName: name, email: 'earlier@example.test', phone: '07700900123', preferredContact: 'email' as const, message, hasPartExchange: false, exchange: { registration: '', mileage: '', notes: '' } });
+
+it('appends a first-render handoff after restoring the draft and preserves its contact details', () => {
+  saveEnquiryDraft(enquiryDraftKey(car.id, 'general'), savedQuestion('I can visit on Saturday.'));
+  render(<EnquiryForm vehicle={car} embedded messageRequest={{ id: 1, text: '  Can I see the boot?  ' }} />);
+  expect(screen.getByTestId('textarea-enquiry-message')).toHaveValue('I can visit on Saturday.\n\nCan I see the boot?');
+  expect(screen.getByTestId('input-customer-name')).toHaveValue('Earlier Buyer');
+  expect(screen.getByTestId('input-customer-email')).toHaveValue('earlier@example.test');
+  expect(readEnquiryDraft(enquiryDraftKey(car.id, 'general'))?.message).toBe('I can visit on Saturday.\n\nCan I see the boot?');
+  expect(state.mutate).not.toHaveBeenCalled();
+});
+
+it('handles each request once while retaining typing and later requests', () => {
+  const { rerender } = render(<EnquiryForm vehicle={car} embedded />);
+  const input = screen.getByTestId('textarea-enquiry-message');
+  fireEvent.change(input, { target: { value: 'My original question.' } });
+  rerender(<EnquiryForm vehicle={car} embedded messageRequest={{ id: 1, text: 'First request' }} />);
+  rerender(<EnquiryForm vehicle={car} embedded messageRequest={{ id: 1, text: 'A changed duplicate ID' }} />);
+  expect(input).toHaveValue('My original question.\n\nFirst request');
+  fireEvent.change(input, { target: { value: 'My edited question.\n\nFirst request' } });
+  rerender(<EnquiryForm vehicle={car} embedded messageRequest={{ id: 2, text: 'Second request' }} />);
+  expect(input).toHaveValue('My edited question.\n\nFirst request\n\nSecond request');
+  expect(state.mutate).not.toHaveBeenCalled();
+});
+
+it('does not duplicate a previously prepared photo request when the same vehicle draft is remounted', () => {
+  const request = { id: 4, text: 'Could you please send photos of:\n• The boot\n\nAdditional detail: Seats folded.' };
+  const first = render(<EnquiryForm vehicle={car} embedded initialMessage="My earlier question." messageRequest={request} />);
+  const expected = `My earlier question.\n\n${request.text}`;
+  expect(screen.getByTestId('textarea-enquiry-message')).toHaveValue(expected);
+  first.unmount();
+  render(<EnquiryForm vehicle={car} embedded messageRequest={request} />);
+  expect(screen.getByTestId('textarea-enquiry-message')).toHaveValue(expected);
+  expect(state.mutate).not.toHaveBeenCalled();
+});
+
+it('preserves an oversize request intact and requires explicit resolution before any submit', () => {
+  const original = 'A'.repeat(1990), request = 'Please send a photograph of the rear seats.';
+  saveEnquiryDraft(enquiryDraftKey(car.id, 'general'), savedQuestion(original));
+  render(<EnquiryForm vehicle={car} embedded messageRequest={{ id: 3, text: request }} />);
+  const input = screen.getByTestId('textarea-enquiry-message');
+  expect(input).toHaveValue(original);
+  expect(screen.getByRole('region', { name: 'Requests to add to your enquiry' })).toHaveTextContent(request);
+  expect(screen.getByRole('alert')).toHaveTextContent('Your draft has not changed');
+  expect(screen.getByRole('button', { name: 'Add request' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Send enquiry' })).toBeDisabled();
+  fireEvent.submit(screen.getByTestId('form-enquiry'));
+  expect(state.mutate).not.toHaveBeenCalled();
+  expect(readEnquiryDraft(enquiryDraftKey(car.id, 'general'))?.message).toBe(original);
+  fireEvent.change(input, { target: { value: 'My shorter original question.' } });
+  expect(screen.getByRole('button', { name: 'Add request' })).toBeEnabled();
+  expect(input).toHaveValue('My shorter original question.');
+  fireEvent.click(screen.getByRole('button', { name: 'Add request' }));
+  expect(input).toHaveValue(`My shorter original question.\n\n${request}`);
+  expect(screen.queryByRole('region', { name: 'Requests to add to your enquiry' })).not.toBeInTheDocument();
+  expect(state.mutate).not.toHaveBeenCalled();
+  fireEvent.submit(screen.getByTestId('form-enquiry'));
+  expect(state.mutate).toHaveBeenCalledOnce();
+  expect(state.mutate.mock.calls[0][0].data.message).toBe(`My shorter original question.\n\n${request}`);
+});
+
+it('lets the customer remove a pending request without changing the original draft', () => {
+  const original = 'A'.repeat(2000);
+  render(<EnquiryForm vehicle={car} embedded initialMessage={original} messageRequest={{ id: 5, text: 'Another question' }} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Remove request' }));
+  expect(screen.getByTestId('textarea-enquiry-message')).toHaveValue(original);
+  expect(screen.getByRole('button', { name: 'Send enquiry' })).toBeEnabled();
+  expect(state.mutate).not.toHaveBeenCalled();
+});
+
+it('counts restored part-exchange details against the limit before applying a first-render request', () => {
+  const original = 'A'.repeat(1900), request = 'R'.repeat(75);
+  saveEnquiryDraft(enquiryDraftKey(car.id, 'general'), { ...savedQuestion(original), hasPartExchange: true, exchange: { registration: 'AB12 CDE', mileage: '20000', notes: '' } });
+  render(<EnquiryForm vehicle={car} embedded messageRequest={{ id: 6, text: request }} />);
+  expect(screen.getByTestId('textarea-enquiry-message')).toHaveValue(original);
+  expect(screen.getByRole('region', { name: 'Requests to add to your enquiry' })).toHaveTextContent(request);
+  expect(state.mutate).not.toHaveBeenCalled();
+});
+
+it('keeps each vehicle’s draft and handoff separate when the selected vehicle remounts', () => {
+  const second = { ...car, id: 'other-fictional-car', title: 'Toyota Yaris' };
+  saveEnquiryDraft(enquiryDraftKey(second.id, 'general'), savedQuestion('Question about the Toyota.', 'Second Buyer'));
+  const { rerender } = render(<EnquiryForm key={car.id} vehicle={car} embedded initialMessage="Question about the Ford." messageRequest={{ id: 1, text: 'Ford photo request' }} />);
+  rerender(<EnquiryForm key={second.id} vehicle={second} embedded messageRequest={{ id: 2, text: 'Toyota photo request' }} />);
+  expect(screen.getByTestId('textarea-enquiry-message')).toHaveValue('Question about the Toyota.\n\nToyota photo request');
+  expect(screen.getByTestId('input-customer-name')).toHaveValue('Second Buyer');
+  rerender(<EnquiryForm key={car.id} vehicle={car} embedded />);
+  expect(screen.getByTestId('textarea-enquiry-message')).toHaveValue('Question about the Ford.\n\nFord photo request');
+  expect(readEnquiryDraft(enquiryDraftKey(second.id, 'general'))?.message).toBe('Question about the Toyota.\n\nToyota photo request');
+  expect(state.mutate).not.toHaveBeenCalled();
+});

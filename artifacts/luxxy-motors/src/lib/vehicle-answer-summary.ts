@@ -10,7 +10,7 @@ const finish = (text: string) => text.trim().replace(/^[,;\s]+|[,;\s]+$/g, '').r
 
 /** Split explicit topic boundaries, never a negation away from its subject. */
 function clauses(text: string) {
-  return text.split(/\n\n|;\s*|\s+comes with\s+|\s+and\s+(?=(?:\d+|one|two|three)\s+(?:remote\s+)?keys?\b|MOT\b)|(?<=HPI clear)\s+(?=ULEZ\b)|\s+and\s+(?=MOT\b)/i)
+  return text.split(/\n\n|;\s*|,\s*(?=HPI\b|ULEZ\b)|\s+comes with\s+|\s+and\s+(?=(?:\d+|one|two|three)\s+(?:remote\s+)?keys?\b|MOT\b)|(?<=HPI clear)\s+(?=ULEZ\b)|\s+and\s+(?=MOT\b)/i)
     .map(value => value.trim()).filter(Boolean);
 }
 
@@ -30,7 +30,16 @@ export function focusedVehicleAnswer(id: string, text: string): string {
   }
   if (id === 'service' && safe) {
     const service = text.match(/\b((?:full|partial|complete|comprehensive|documented|extensive|digital)\s+(?:[\w-]+\s+){0,3}service history)\b/i);
-    if (service) return `It comes with ${service[1][0].toLowerCase()}${service[1].slice(1)}.`;
+    if (service) {
+      // A service-history label must not swallow a separate service date,
+      // mileage or “recently serviced” statement from the description.
+      const servicing = parts.flatMap(part => part.split(/(?<=[.!?])\s+/))
+        .filter(part => /\b(?:serviced|servicing|last service|service (?:on|at|in))\b/i.test(part) && !part.toLowerCase().includes(service[1].toLowerCase()));
+      const historyPart = parts.flatMap(part => part.split(/(?<=[.!?])\s+/)).find(part => part.toLowerCase().includes(service[1].toLowerCase()));
+      if (!historyPart) return text;
+      const suffix = historyPart.slice(historyPart.toLowerCase().indexOf(service[1].toLowerCase()) + service[1].length);
+      return [finish(`It comes with ${service[1][0].toLowerCase()}${service[1].slice(1)}${suffix}`), ...servicing.map(finish)].join(' ');
+    }
   }
   if (id === 'mot' && safe) {
     const expiry = text.match(/\bMOT\s+(?:valid\s+)?(?:until|expires?\s*(?:on)?|expiry\s*(?:date)?\s*[:=-]?)\s+((?:(?:\d{1,2}(?:st|nd|rd|th)?\s+)?(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})|(?:\d{4}-\d{2}-\d{2})|(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}))/i);
@@ -38,9 +47,6 @@ export function focusedVehicleAnswer(id: string, text: string): string {
   }
   if (id === 'insurance' && safe && /\bHPI clear\b/i.test(text)) return 'It is HPI clear.';
   if (id === 'ulez' && safe && /\bULEZ compliant\b/i.test(text)) return 'Yes, it is ULEZ compliant.';
-  if (id === 'condition' && safe && /\bdrives\s+(?:(?:amazingly|very|really)\s+)?well\b/i.test(text)) {
-    return /\bsmooth engine and gearbox\b/i.test(text) ? 'It drives well, with a smooth engine and gearbox.' : 'It drives well.';
-  }
   if (id === 'equipment' && safe) {
     const equipment = text.match(/\b(?:heated\s+(?:(?:front|rear|leather|electric)\s+){0,2}seats?|(?:full\s+)?panoramic\s+(?:roof|sunroof)|(?:electric\s+)?sunroof|(?:adaptive\s+)?cruise\s+control|(?:reverse|reversing|rear[- ]view|360[- ]degree)\s+camera|(?:front\s+and\s+rear\s+|rear\s+|front\s+)?parking\s+sensors?|(?:apple\s+)?carplay|android\s+auto|satellite\s+navigation|sat[- ]?nav|bluetooth|(?:dual[- ]zone\s+)?climate\s+control|air\s+conditioning|isofix)\b/gi);
     if (equipment?.length) {
@@ -49,8 +55,18 @@ export function focusedVehicleAnswer(id: string, text: string): string {
     }
   }
   if (id === 'condition' && safe) {
-    const condition = text.split(/,\s*/).filter(part => /\b(?:condition|maintained|drives|smooth engine|smooth gearbox)\b/i.test(part));
-    if (condition.length) return finish(condition.join(', '));
+    const ownershipPrefix = new RegExp(`^(?:only\\s+)?${number}\\s+(?:previous\\s+)?(?:owners?|keepers?)\\s+(?:from\\s+new\\s*)?[,;:-]?\\s*`, 'i');
+    const condition = parts.flatMap(part => part.split(/(?<=[.!?])\s+/))
+      .map(part => part.replace(ownershipPrefix, '').trim())
+      .map(part => part.split(/,\s*/).filter(clause => /\b(?:condition|maintained|drives|faults?|damage|scratches?|dents?|smooth engine|smooth gearbox)\b/i.test(clause)).join(', '))
+      .filter(Boolean)
+      .map(part => {
+        if (/\bdrives\s+(?:(?:amazingly|very|really)\s+)?well\b/i.test(part) && !/\b(?:condition|maintained)\b/i.test(part)) {
+          return /\bsmooth engine and gearbox\b/i.test(part) ? 'It drives well, with a smooth engine and gearbox.' : 'It drives well.';
+        }
+        return finish(part[0].toUpperCase() + part.slice(1));
+      });
+    if (condition.length) return [...new Set(condition)].join(' ');
   }
   // Unfamiliar or qualified claims stay in their own words, with only explicit
   // unrelated clauses removed. Preserve following qualifications verbatim.

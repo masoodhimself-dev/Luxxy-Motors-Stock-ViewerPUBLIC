@@ -16,6 +16,9 @@ import { DeliveryEstimator, type DeliveryEstimate } from "./delivery-estimator";
 import { VehicleFactIcon } from "./vehicle-fact-icon";
 import { VehicleBadgeIcon } from "./vehicle-badge-icon";
 import { Truck } from "./icons";
+import "./vehicle-checks.css";
+import { useVehicleDialogTheme } from "./vehicle-dialog-vehicle";
+import { deliveryQuoteContext } from "@/lib/delivery-estimate";
 
 type VehicleCheckActions = {
   motHistory: MotHistory | null;
@@ -25,15 +28,55 @@ type VehicleCheckActions = {
   deliveryAction: ReactNode;
 };
 
-export function VehicleQuickChecks({ vehicleId, children }: {
+export function VehicleQuickChecks({
+  vehicleId,
+  vehiclePrice,
+  currency,
+  priceType,
+  onEnquire,
+  children,
+}: {
   vehicleId: string;
+  vehiclePrice?: number | null;
+  currency?: string | null;
+  priceType?: string | null;
+  onEnquire?: (message: string) => void;
   children: (actions: VehicleCheckActions) => ReactNode;
 }) {
   const { settings } = useDealerSettings();
+  const dialogTheme = useVehicleDialogTheme();
   const [panel, setPanel] = useState<"mot" | "delivery" | null>(null);
+  // Radix keeps the dialog mounted during its exit animation. Keep the visible
+  // content stable until it unmounts, rather than switching to the other tool.
+  const lastPanel = useRef<"mot" | "delivery">("mot");
+  const shownPanel = panel ?? lastPanel.current;
   const [history, setHistory] = useState<MotHistory | null>(null);
-  const [estimate, setEstimate] = useState<DeliveryEstimate | null>(null);
+  const quoteContext = JSON.stringify([
+    vehicleId,
+    deliveryQuoteContext(settings),
+  ]);
+  const [savedEstimate, setSavedEstimate] = useState<{
+    context: string;
+    value: DeliveryEstimate;
+  } | null>(null);
+  const estimate =
+    savedEstimate?.context === quoteContext ? savedEstimate.value : null;
+  const acceptEstimate = useCallback(
+    (value: DeliveryEstimate | null) => {
+      setSavedEstimate(value ? { context: quoteContext, value } : null);
+    },
+    [quoteContext],
+  );
   const lastTrigger = useRef<HTMLButtonElement | null>(null);
+  const handoffScope = JSON.stringify([quoteContext, vehiclePrice, currency, priceType]);
+  const currentEnquiry = useRef({ scope: handoffScope, onEnquire });
+  currentEnquiry.current = { scope: handoffScope, onEnquire };
+  const pendingEnquiry = useRef<{scope: string; message: string} | null>(null);
+  const handoffFrame = useRef<number | undefined>(undefined);
+  useEffect(() => () => {
+    cancelAnimationFrame(handoffFrame.current ?? 0);
+    pendingEnquiry.current = null;
+  }, [vehicleId]);
   const answerLookup = useRef<AbortController | null>(null);
   const requestMotHistory = useCallback(() => {
     // The customer explicitly opened car answers. Load once, without polling.
@@ -46,6 +89,7 @@ export function VehicleQuickChecks({ vehicleId, children }: {
   useEffect(() => () => { answerLookup.current?.abort(); answerLookup.current = null; }, [vehicleId]);
   function open(next: "mot" | "delivery", trigger: HTMLButtonElement) {
     lastTrigger.current = trigger;
+    lastPanel.current = next;
     setPanel(next);
   }
   const deliveryEnabled = Boolean(
@@ -73,13 +117,10 @@ export function VehicleQuickChecks({ vehicleId, children }: {
     if (!deliveryEnabled && panel === "delivery") setPanel(null);
   }, [deliveryEnabled, panel]);
   useEffect(() => {
-    setEstimate(null);
-  }, [
-    deliveryEnabled,
-    settings.deliveryPricing?.basePrice,
-    settings.deliveryPricing?.pricePerMile,
-    settings.address?.postcode,
-  ]);
+    setSavedEstimate((saved) =>
+      saved?.context === quoteContext ? saved : null,
+    );
+  }, [quoteContext]);
   const badge = longMot(history),
     firstDue = firstMotDue(history);
   const motBadge = firstDue || badge ? <>
@@ -132,37 +173,60 @@ export function VehicleQuickChecks({ vehicleId, children }: {
         }}
       >
         <DialogContent
-          className="max-w-xl max-h-[85dvh] overflow-y-auto"
+          className="vehicle-check-dialog max-w-xl"
+          style={dialogTheme}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
+            const pending = pendingEnquiry.current;
+            pendingEnquiry.current = null;
+            if (pending && pending.scope === currentEnquiry.current.scope && currentEnquiry.current.onEnquire) {
+              handoffFrame.current = requestAnimationFrame(() => {
+                if (pending.scope === currentEnquiry.current.scope) currentEnquiry.current.onEnquire?.(pending.message);
+              });
+              return;
+            }
             if (lastTrigger.current?.isConnected)
               lastTrigger.current.focus({ preventScroll: true });
           }}
         >
-          <DialogHeader className="text-left">
+          <DialogHeader className="vehicle-check-header text-left">
             <DialogTitle className="pr-12 text-xl">
-              {panel === "delivery" ? "Delivery estimate" : "MOT history"}
+              {shownPanel === "delivery" ? "Delivery estimate" : "MOT history"}
             </DialogTitle>
             <DialogDescription>
-              {panel === "delivery"
+              {shownPanel === "delivery"
                 ? "Enter a postcode for a road-mile delivery estimate."
                 : "Recorded test results, mileage and advisory notices."}
             </DialogDescription>
           </DialogHeader>
-          {panel === "mot" && (
-            <MotHistoryPanel
-              vehicleId={vehicleId}
-              autoLoad
-              onHistory={setHistory}
-            />
-          )}
-          {/* Keep the quote and postcode when closing or switching panels. */}
-          <div hidden={panel !== "delivery"}>
-            <DeliveryEstimator
-              expanded
-              initialEstimate={estimate}
-              onEstimate={setEstimate}
-            />
+          <div className="vehicle-check-body">
+            {shownPanel === "mot" && (
+              <MotHistoryPanel
+                vehicleId={vehicleId}
+                autoLoad
+                onHistory={setHistory}
+              />
+            )}
+            {/* Keep the quote and postcode when closing or switching panels. */}
+            <div hidden={shownPanel !== "delivery"}>
+              <DeliveryEstimator
+                key={vehicleId}
+                expanded
+                initialEstimate={estimate}
+                onEstimate={acceptEstimate}
+                vehiclePrice={vehiclePrice}
+                currency={currency}
+                priceType={priceType}
+                onEnquire={
+                  onEnquire
+                    ? (message) => {
+                        pendingEnquiry.current = {scope: handoffScope, message};
+                        setPanel(null);
+                      }
+                    : undefined
+                }
+              />
+            </div>
           </div>
         </DialogContent>
       </Dialog>

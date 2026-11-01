@@ -19,6 +19,7 @@ const topics = [
   { id: 'insurance', question: 'What is its insurance history?', pattern: /\b(?:HPI|write[ -]?off|written off|category [ABNS]|insurance history|accident)\b/i, label: 'Insurance history' },
   { id: 'delivery', question: 'What delivery options are mentioned?', pattern: /\bdeliver(?:y|ed)\b/i },
 ];
+const placeholderFact = /^(?:contact (?:the )?(?:seller|dealer)(?: for (?:details|more (?:details|information)))?|not (?:known|available|provided|supplied)|unknown|n\/a|[-–—])\.?$/i;
 
 /** Compose topic-specific answers from supplied facts; never invent missing details. */
 export function vehicleAnswers(car: Car, motHistory?: MotHistory | null): VehicleAnswer[] {
@@ -44,7 +45,7 @@ export function vehicleAnswers(car: Car, motHistory?: MotHistory | null): Vehicl
     }
     let value = topic.label ? facts.find(fact => fact.label === topic.label || (topic.id === 'owners' && fact.label === 'Previous keepers'))?.value : null;
     if (topic.id === 'equipment' && features.length) value = features.join('\n');
-    if (value?.trim()) {
+    if (value?.trim() && !placeholderFact.test(value.trim())) {
       const owners = topic.id === 'owners' && /^\d+$/.test(value.trim());
       const fact = facts.find(fact => fact.label === 'Owners' || fact.label === 'Previous keepers');
       const text = owners ? `${value.trim()} ${fact?.label === 'Previous keepers' ? 'previous keepers' : 'recorded owners'}` : value.trim();
@@ -59,7 +60,17 @@ export function vehicleAnswers(car: Car, motHistory?: MotHistory | null): Vehicl
   }
   const historyIds = ['owners', 'service', 'mot', 'condition', 'insurance'];
   const historyAnswers = historyIds.map(id => answers.find(answer => answer.id === id)).filter((answer): answer is VehicleAnswer => Boolean(answer));
-  if (historyAnswers.length) answers.unshift({id:'history',question:'What can you tell me about this car’s history?',answer:historyAnswers.map(answer => answer.answer).join(' '),source:historyAnswers.some(answer => answer.source==='description') ? 'description' : 'details'});
+  if (historyAnswers.length) {
+    const seen = new Set<string>();
+    const history = historyAnswers.flatMap(answer => answer.answer.split(/(?<=[.!?])\s+|\n+/))
+      .filter(sentence => {
+        const key = sentence.trim().toLowerCase().replace(/\s+/g, ' ');
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }).join(' ');
+    answers.unshift({id:'history',question:'What can you tell me about this car’s history?',answer:history,source:historyAnswers.some(answer => answer.source==='description') ? 'description' : 'details'});
+  }
   if (car.mileage != null && Number.isFinite(car.mileage) && car.mileage >= 0) answers.push({ id: 'mileage', question: 'What mileage is recorded?', answer: formatMileage(car.mileage), source: 'details' });
   else if (car.mileageText?.trim()) answers.push({ id: 'mileage', question: 'What mileage is recorded?', answer: car.mileageText.trim(), source: 'details' });
   const specification = [car.year ? `Year: ${car.year}` : '', car.fuel ? `Fuel: ${car.fuel}` : '', car.transmission ? `Transmission: ${car.transmission}` : '', car.engineSize ? `Engine: ${car.engineSize}` : '', car.doors ? `Doors: ${car.doors}` : '', car.seats ? `Seats: ${car.seats}` : '', car.colour ? `Colour: ${car.colour}` : ''].filter(Boolean);
@@ -74,4 +85,17 @@ export function vehicleAnswers(car: Car, motHistory?: MotHistory | null): Vehicl
 export function filterVehicleAnswers(answers: VehicleAnswer[], search: string) {
   const terms = search.toLowerCase().trim().split(/\s+/).filter(Boolean);
   return answers.filter(answer => terms.every(term => `${answer.question} ${answer.answer}`.toLowerCase().includes(term)));
+}
+
+/** A short first view covers distinct buying questions. Search still uses every
+ * answer, including the separate history topics and all dealership details. */
+export function featuredVehicleAnswers(answers: VehicleAnswer[], limit = 5): VehicleAnswer[] {
+  const priority = ['history', 'warranty', 'keys', 'equipment', 'delivery', 'service', 'mot', 'owners', 'condition', 'dealer-booking', 'specification', 'price', 'mileage'];
+  const historyTopics = new Set(['service', 'mot', 'owners', 'condition', 'insurance']);
+  const hasHistory = answers.some(answer => answer.id === 'history');
+  const distinct = answers.filter(answer => !hasHistory || !historyTopics.has(answer.id));
+  return [...distinct].sort((a, b) => {
+    const rank = (id: string) => { const index = priority.indexOf(id); return index < 0 ? priority.length : index; };
+    return rank(a.id) - rank(b.id);
+  }).slice(0, limit);
 }

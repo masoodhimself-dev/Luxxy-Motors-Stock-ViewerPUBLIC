@@ -2,9 +2,8 @@ import { render, screen, fireEvent, within, waitFor } from '@testing-library/rea
 import { beforeAll, expect, it, vi } from 'vitest';
 import { Gallery } from './gallery';
 import type { Car } from '@/lib/stock-context';
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
-vi.mock('@/components/vehicle-call', () => ({ VehicleCall: () => null }));
+vi.mock('@/components/vehicle-call', () => ({ VehicleCall: () => <button type="button">Call us</button> }));
 
 beforeAll(() => { HTMLElement.prototype.scrollIntoView = vi.fn(); });
 it('keeps inline photographs in sync after browsing the enlarged gallery and closing it', async () => {
@@ -17,10 +16,10 @@ it('keeps inline photographs in sync after browsing the enlarged gallery and clo
   fireEvent.keyDown(dialog, { key: 'Escape' });
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   await waitFor(() => expect(document.querySelector('.gallery-photo')).toHaveAttribute('src', images[1]));
-  expect(screen.getByText('2 / 3 photographs')).toBeInTheDocument();
+  expect(screen.getByText('2 / 3')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Next photograph' }));
   await waitFor(() => expect(document.querySelector('.gallery-photo')).toHaveAttribute('src', images[2]));
-  expect(screen.getByText('3 / 3 photographs')).toBeInTheDocument();
+  expect(screen.getByText('3 / 3')).toBeInTheDocument();
 });
 
 it('removes failed images from thumbnails and counts, and handles all failing', () => {
@@ -31,12 +30,12 @@ it('removes failed images from thumbnails and counts, and handles all failing', 
     if (img.isConnected) fireEvent.error(img);
   };
   fail('https://example.com/two.jpg');
-  expect(screen.getByText('1 / 1 photographs')).toBeInTheDocument();
+  expect(screen.getByText('1 / 1')).toBeInTheDocument();
   expect(screen.queryByText('Photograph unavailable')).not.toBeInTheDocument();
   fail('https://example.com/one.jpg');
   expect(screen.getByText('Photos couldn’t be loaded')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Try photos again' }));
-  expect(screen.getByText('1 / 2 photographs')).toBeInTheDocument();
+  expect(screen.getByText('1 / 2')).toBeInTheDocument();
   expect(screen.getByText('Loading photo…')).toBeInTheDocument();
 });
 
@@ -60,10 +59,10 @@ it('filters customer photographs by supplied captions and retains all photograph
   fireEvent.click(screen.getByRole('button', { name: 'Interior' }));
   expect(screen.getByRole('button', { name: 'Interior' })).toHaveAttribute('aria-pressed', 'true');
   await waitFor(() => expect(document.querySelector(`.gallery-photo[src="${labelledPhotos[1].url}"]`)).not.toBeNull());
-  expect(screen.getByText('1 / 1 photographs')).toBeInTheDocument();
+  expect(screen.getByText('1 / 1')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'All photographs' }));
   fireEvent.click(screen.getByRole('button', { name: 'Show photograph 2 of 4' }));
-  expect(screen.getByText('2 / 4 photographs')).toBeInTheDocument();
+  expect(screen.getByText('2 / 4')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'View gallery fullscreen' }));
   expect(await screen.findByRole('dialog')).toBeInTheDocument();
   expect(within(screen.getByRole('dialog')).getByLabelText('Photograph sections')).toBeInTheDocument();
@@ -76,7 +75,7 @@ it('retains photograph sections for the staff gallery', () => {
   expect(screen.getByLabelText('Photograph sections')).toBeInTheDocument();
   screen.getByRole('button', { name: 'Show photograph 2 of 4' }).scrollIntoView = vi.fn();
   fireEvent.click(screen.getByRole('button', { name: 'Interior' }));
-  expect(screen.getByText('1 / 1 photographs')).toBeInTheDocument();
+  expect(screen.getByText('1 / 1')).toBeInTheDocument();
 });
 
 it('does not invent photograph groups for uncaptioned photos', () => {
@@ -144,12 +143,14 @@ it('removes failed overview photos once and keeps selection, counts and numberin
   const overview = within(dialog).getByRole('region', { name: 'All 3 photographs' });
   expect(within(overview).getAllByRole('button')).toHaveLength(3);
   expect(within(overview).getByRole('button', { name: 'View photograph 3 of 3' })).toHaveAttribute('aria-current', 'true');
-  expect(screen.getByText('View all 3 photos')).toBeInTheDocument();
   expect(screen.queryByText('Photograph unavailable')).not.toBeInTheDocument();
   expect(document.querySelector(`img[src="${photos[1]}"]`)).toBeNull();
   fireEvent.click(within(dialog).getByRole('button', { name: 'Back to photo' }));
   expect(within(dialog).getByText('3 / 3')).toBeInTheDocument();
   expect(dialog.querySelector('.vehicle-lightbox-photo img')).toHaveAttribute('src', photos[3]);
+  fireEvent.keyDown(dialog, { key: 'Escape' });
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(screen.getByText('View all 3 photos')).toBeInTheDocument();
 });
 
 it('opens a car-specific enquiry from fullscreen without scrolling to the page footer', async () => {
@@ -164,246 +165,176 @@ it('opens a car-specific enquiry from fullscreen without scrolling to the page f
   expect(window.location.pathname + window.location.search).toBe('/enquire?type=general&vehicleId=gallery-car');
 });
 
-it('closes fullscreen before opening the shared inline enquiry when supplied by the vehicle page', async () => {
-  const car = {id:'gallery-car',title:'Ford Fiesta'} as Car;
+it('closes fullscreen and requests the shared enquiry with zero arguments despite the animation-frame timestamp', async () => {
+  const car = { id: 'gallery-car', title: 'Ford Fiesta' } as Car;
   const onEnquiry = vi.fn();
-  window.history.replaceState({}, '', '/vehicle/gallery-car');
-  render(<Gallery car={car} customerView customerActions={{enquiryHref:'#vehicle-enquiry',onEnquiry}} images={labelledPhotos} />);
-  fireEvent.click(screen.getByRole('button', {name:'View gallery fullscreen'}));
-  const dialog = await screen.findByRole('dialog');
-  const message = within(dialog).getByRole('link', {name:'Message'});
-  expect(message).toHaveAttribute('href','#vehicle-enquiry');
-  fireEvent.click(message);
-  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-  await waitFor(() => expect(onEnquiry).toHaveBeenCalledTimes(1));
-  expect(window.location.pathname + window.location.search).toBe('/vehicle/gallery-car');
+  const originalFrame = globalThis.requestAnimationFrame.bind(globalThis);
+  const frame = vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation(callback => originalFrame(() => callback(123456.75)));
+  try {
+    window.history.replaceState({}, '', '/vehicle/gallery-car');
+    render(<Gallery car={car} customerView customerActions={{ enquiryHref: '#vehicle-enquiry', onEnquiry }} images={labelledPhotos} />);
+    fireEvent.click(screen.getByRole('button', { name: 'View gallery fullscreen' }));
+    const dialog = await screen.findByRole('dialog');
+    const message = within(dialog).getByRole('link', { name: 'Message' });
+    expect(message).toHaveAttribute('href', '#vehicle-enquiry');
+    fireEvent.click(message);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(onEnquiry).toHaveBeenCalledTimes(1));
+    expect(frame).toHaveBeenCalled();
+    expect(onEnquiry.mock.calls).toEqual([[]]);
+    expect(window.location.pathname + window.location.search).toBe('/vehicle/gallery-car');
+  } finally { frame.mockRestore(); }
 });
 
-const promptCar = { id: 'gallery-car', title: 'Ford Fiesta' } as Car;
-const promptPhotos = Array.from({ length: 12 }, (_, i) => `https://example.com/gallery-prompt-${i + 1}.jpg`);
-const promptActions = {
-  bookingHref: '/enquire?type=viewing&vehicleId=gallery-car',
+const browsingCar = { id: 'gallery-car', title: 'Ford Fiesta' } as Car;
+const browsingPhotos = Array.from({ length: 12 }, (_, i) => `https://example.com/gallery-photo-${i + 1}.jpg`);
+const browsingActions = {
   enquiryHref: '/enquire?type=general&vehicleId=gallery-car',
-  call: <a href="tel:07388831790">Call Us</a>,
 };
 
-it('offers vehicle-specific contact options on the tenth photo and lets customers keep browsing without another interruption', async () => {
-  render(<Gallery car={promptCar} customerView customerActions={promptActions} images={promptPhotos} />);
-  for (let photo = 2; photo <= 9; photo++) {
-    fireEvent.click(screen.getByRole('button', { name: 'Next photograph' }));
-    expect(screen.getByText(`${photo} / 12 photographs`)).toBeInTheDocument();
+it('keeps all photos uninterrupted, including the tenth photo and repeated browsing', async () => {
+  const onEnquiry = vi.fn();
+  render(<Gallery car={browsingCar} customerView customerActions={{ ...browsingActions, onEnquiry }} images={browsingPhotos} />);
+  const next = screen.getByRole('button', { name: 'Next photograph' });
+  next.focus();
+  for (let photo = 2; photo <= 12; photo++) {
+    fireEvent.click(next);
+    expect(screen.getByText(`${photo} / 12`)).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Keep browsing' })).not.toBeInTheDocument();
+    expect(next).toHaveFocus();
   }
-  fireEvent.click(screen.getByRole('button', { name: 'Next photograph' }));
-  expect(screen.getByRole('heading', { name: 'Like what you see?' })).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Book a Test Drive' })).toHaveAttribute('href', promptActions.bookingHref);
-  expect(screen.getByRole('link', { name: 'Ask a question' })).toHaveAttribute('href', promptActions.enquiryHref);
-  expect(screen.getByRole('link', { name: 'Call Us' })).toHaveAttribute('href', 'tel:07388831790');
-  fireEvent.click(screen.getByRole('button', { name: 'Keep browsing' }));
-  expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
-  expect(screen.getByText('10 / 12 photographs')).toBeInTheDocument();
-  await waitFor(() => expect(document.querySelector('.gallery-photo')).toHaveAttribute('src', promptPhotos[9]));
-  fireEvent.click(screen.getByRole('button', { name: 'Next photograph' }));
+  fireEvent.click(next);
+  expect(screen.getByText('1 / 12')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Previous photograph' }));
-  expect(screen.getByText('10 / 12 photographs')).toBeInTheDocument();
+  expect(screen.getByText('12 / 12')).toBeInTheDocument();
+  expect(onEnquiry).not.toHaveBeenCalled();
+  await waitFor(() => expect(document.querySelector('.gallery-photo')).toHaveAttribute('src', browsingPhotos[11]));
+});
+
+it('uses one customer counter while retaining supplied captions and accessible fullscreen access', () => {
+  const { container } = render(<Gallery customerView images={labelledPhotos} />);
+  expect(container.querySelectorAll('.gallery-photo-counter')).toHaveLength(1);
+  expect(screen.getAllByText('1 / 4')).toHaveLength(1);
+  expect(screen.queryByText('1 / 4 photographs')).not.toBeInTheDocument();
+  expect(screen.getByText('Front right')).toBeInTheDocument();
+  expect(screen.getByText('View all 4 photos')).toBeInTheDocument();
+  const trigger = screen.getByRole('button', { name: 'View gallery fullscreen' });
+  expect(document.getElementById(trigger.getAttribute('aria-describedby')!)).toHaveTextContent('1 / 4');
+  fireEvent.click(screen.getByRole('button', { name: 'Show photograph 2 of 4' }));
+  expect(screen.getAllByText('2 / 4')).toHaveLength(1);
+  expect(screen.getByText('Interior seats')).toBeInTheDocument();
+});
+
+it('keeps thumbnail keyboard focus while moving through photo ten', async () => {
+  render(<Gallery car={browsingCar} customerView customerActions={browsingActions} images={browsingPhotos} />);
+  const ninth = screen.getByRole('button', { name: 'Show photograph 9 of 12' });
+  fireEvent.click(ninth); ninth.focus();
+  fireEvent.keyDown(ninth, { key: 'ArrowRight' });
+  const tenth = screen.getByRole('button', { name: 'Show photograph 10 of 12' });
+  await waitFor(() => expect(tenth).toHaveFocus());
+  expect(tenth).toHaveAttribute('aria-current', 'true');
+  fireEvent.keyDown(tenth, { key: 'ArrowRight' });
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Show photograph 11 of 12' })).toHaveFocus());
   expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
 });
 
-it('shows the prompt when a customer selects a later thumbnail directly', () => {
-  render(<Gallery car={promptCar} customerView customerActions={{ enquiryHref: promptActions.enquiryHref }} images={promptPhotos} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Show photograph 10 of 12' }));
-  expect(screen.getByRole('heading', { name: 'Like what you see?' })).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Ask a question' })).toBeInTheDocument();
-  expect(screen.queryByRole('link', { name: 'Book a Test Drive' })).not.toBeInTheDocument();
-  expect(screen.queryByRole('link', { name: 'Call Us' })).not.toBeInTheDocument();
-});
-
-it('shows one prompt in fullscreen and dismisses it before Escape closes the gallery', async () => {
-  render(<Gallery car={promptCar} customerView customerActions={promptActions} images={promptPhotos} />);
-  fireEvent.click(screen.getByRole('button', { name: 'View gallery fullscreen' }));
-  const dialog = await screen.findByRole('dialog');
-  for (let i = 0; i < 9; i++) fireEvent.keyDown(dialog, { key: 'ArrowRight' });
-  expect(screen.getAllByRole('heading', { name: 'Like what you see?' })).toHaveLength(1);
-  expect(within(dialog).getByRole('heading', { name: 'Like what you see?' })).toBeInTheDocument();
-  fireEvent.keyDown(dialog, { key: 'Escape' });
-  expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
-  expect(screen.getByRole('dialog')).toBeInTheDocument();
-  expect(within(dialog).getByText('10 / 12')).toBeInTheDocument();
-  fireEvent.keyDown(dialog, { key: 'Escape' });
-  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-});
-
-it('triggers from a deliberate swipe rather than requiring thumbnail buttons', () => {
-  const { container } = render(<Gallery car={promptCar} customerView customerActions={promptActions} images={promptPhotos} />);
+it('lets deliberate swipes pass photo ten without an extra action', () => {
+  const { container } = render(<Gallery car={browsingCar} customerView customerActions={browsingActions} images={browsingPhotos} />);
   const frame = container.querySelector('.vehicle-gallery-frame .touch-pan-y')!;
-  for (let swipe = 0; swipe < 9; swipe++) {
-    fireEvent.touchStart(frame, { touches: [{ clientX: 270, clientY: 120 }], changedTouches: [{ clientX: 270, clientY: 120 }] });
+  for (let swipe = 0; swipe < 10; swipe++) {
+    fireEvent.touchStart(frame, { touches: [{ clientX: 270, clientY: 120 }] });
     fireEvent.touchEnd(frame, { changedTouches: [{ clientX: 130, clientY: 123 }] });
   }
-  expect(screen.getByRole('heading', { name: 'Like what you see?' })).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Keep browsing' }));
-  fireEvent.touchStart(frame, { touches: [{ clientX: 270, clientY: 120 }], changedTouches: [{ clientX: 270, clientY: 120 }] });
-  fireEvent.touchEnd(frame, { changedTouches: [{ clientX: 130, clientY: 123 }] });
-  expect(screen.getByText('11 / 12 photographs')).toBeInTheDocument();
+  expect(screen.getByText('11 / 12')).toBeInTheDocument();
   expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
 
-it('does not interrupt a staff gallery with a customer prompt', () => {
-  render(<Gallery car={promptCar} customerActions={promptActions} images={promptPhotos} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Show photograph 10 of 12' }));
-  expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
-});
-
-it('does not show a contact prompt without configured customer actions', () => {
-  render(<Gallery car={promptCar} customerView images={promptPhotos} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Show photograph 10 of 12' }));
-  expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
-});
-
-it('does not show a contact prompt for a gallery without a vehicle', () => {
-  render(<Gallery customerView customerActions={promptActions} images={promptPhotos} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Show photograph 10 of 12' }));
-  expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
-});
-
-it('keeps short galleries uninterrupted even after cycling through them', () => {
-  render(<Gallery car={promptCar} customerView customerActions={promptActions} images={promptPhotos.slice(0, 9)} />);
-  for (let next = 0; next < 18; next++) fireEvent.click(screen.getByRole('button', { name: 'Next photograph' }));
-  expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
-});
-
-it('does not open the prompt when contact actions load or a failed photo recovers to a later photograph', async () => {
-  const { rerender } = render(<Gallery car={promptCar} customerView images={promptPhotos} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Show photograph 10 of 12' }));
-  rerender(<Gallery car={promptCar} customerView customerActions={promptActions} images={promptPhotos} />);
-  expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
-  const failedPhoto = document.querySelector(`.vehicle-thumbnail-grid img[src="${promptPhotos[9]}"]`)!;
-  fireEvent.error(failedPhoto);
-  expect(screen.getByText('10 / 11 photographs')).toBeInTheDocument();
-  await waitFor(() => expect(document.querySelector('.gallery-photo')).toHaveAttribute('src', promptPhotos[10]));
-  expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Retry photos' }));
-  expect(screen.getByText('1 / 12 photographs')).toBeInTheDocument();
-  expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Show photograph 10 of 12' }));
-  expect(screen.getByRole('heading', { name: 'Like what you see?' })).toBeInTheDocument();
-});
-
-it('lets customers change photo groups without opening or consuming the prompt', () => {
-  const photos = [
-    { url: 'https://example.com/front-group-photo.jpg', caption: 'Front view' },
-    ...promptPhotos.map((url, i) => ({ url, caption: `Interior seats ${i + 1}` })),
-  ];
-  render(<Gallery car={promptCar} customerView customerActions={promptActions} images={photos} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Interior' }));
-  expect(screen.getByText('1 / 12 photographs')).toBeInTheDocument();
-  expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Show photograph 9 of 12' }));
-  fireEvent.click(screen.getByRole('button', { name: 'All photographs' }));
-  expect(screen.getByText('1 / 13 photographs')).toBeInTheDocument();
-  expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Show photograph 10 of 13' }));
-  expect(screen.getByRole('heading', { name: 'Like what you see?' })).toBeInTheDocument();
-});
-
-it('focuses one prompt when choosing the tenth photo from the fullscreen overview and does not repeat it', async () => {
-  render(<Gallery car={promptCar} customerView customerActions={promptActions} images={promptPhotos} />);
+it('keeps fullscreen keyboard browsing uninterrupted with one counter and closes on Escape', async () => {
+  render(<Gallery car={browsingCar} customerView customerActions={browsingActions} images={browsingPhotos} />);
   fireEvent.click(screen.getByRole('button', { name: 'View gallery fullscreen' }));
   const dialog = await screen.findByRole('dialog');
-  fireEvent.click(within(dialog).getByRole('button', { name: 'All photos' }));
-  fireEvent.click(within(dialog).getByRole('button', { name: 'View photograph 10 of 12' }));
-  expect(screen.getAllByRole('heading', { name: 'Like what you see?' })).toHaveLength(1);
-  expect(within(dialog).queryByRole('region', { name: 'All 12 photographs' })).not.toBeInTheDocument();
-  await waitFor(() => expect(within(dialog).getByRole('heading', { name: 'Like what you see?' })).toHaveFocus());
-  expect(within(dialog).getByText('10 / 12')).toBeInTheDocument();
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Keep browsing' }));
-  await waitFor(() => expect(dialog.querySelector('.vehicle-lightbox-photo')).toHaveFocus());
-  fireEvent.click(within(dialog).getByRole('button', { name: 'All photos' }));
-  fireEvent.click(within(dialog).getByRole('button', { name: 'View photograph 10 of 12' }));
-  expect(within(dialog).getByText('10 / 12')).toBeInTheDocument();
+  for (let photo = 2; photo <= 11; photo++) {
+    fireEvent.keyDown(dialog, { key: 'ArrowRight' });
+    expect(within(dialog).getByText(`${photo} / 12`)).toBeInTheDocument();
+    expect(within(dialog).getByRole('link', { name: 'Message' })).toHaveAttribute('href', browsingActions.enquiryHref);
+    expect(within(dialog).getByRole('button', { name: 'Call us' })).toBeInTheDocument();
+  }
+  expect(screen.getAllByText('11 / 12')).toHaveLength(1);
+  expect(dialog.querySelector('.vehicle-gallery-toolbar-count')).toBeNull();
   expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
-});
-
-it('closes fullscreen and opens the correct vehicle enquiry from the prompt', async () => {
-  window.history.replaceState({}, '', '/vehicle/gallery-car');
-  render(<Gallery car={promptCar} customerView customerActions={promptActions} images={promptPhotos} />);
-  fireEvent.click(screen.getByRole('button', { name: 'View gallery fullscreen' }));
-  const dialog = await screen.findByRole('dialog');
-  for (let i = 0; i < 9; i++) fireEvent.keyDown(dialog, { key: 'ArrowRight' });
-  fireEvent.click(within(dialog).getByRole('link', { name: 'Ask a question' }));
-  expect(window.location.pathname + window.location.search).toBe('/enquire?type=general&vehicleId=gallery-car');
+  fireEvent.keyDown(dialog, { key: 'Escape' });
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-  expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
+  expect(screen.getAllByText('11 / 12')).toHaveLength(1);
 });
 
-it('lets Escape dismiss the inline prompt and restores focus without changing the photograph', async () => {
-  const { container } = render(<Gallery car={promptCar} customerView customerActions={promptActions} images={promptPhotos} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Show photograph 10 of 12' }));
-  const heading = screen.getByRole('heading', { name: 'Like what you see?' });
-  await waitFor(() => expect(heading).toHaveFocus());
-  fireEvent.keyDown(heading, { key: 'Escape' });
-  expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
-  expect(screen.getByText('10 / 12 photographs')).toBeInTheDocument();
-  await waitFor(() => expect(container.querySelector('.vehicle-gallery-frame .touch-pan-y')).toHaveFocus());
-  await waitFor(() => expect(container.querySelector('.gallery-photo')).toHaveAttribute('src', promptPhotos[9]));
-  fireEvent.click(screen.getByRole('button', { name: 'Next photograph' }));
-  expect(screen.getByText('11 / 12 photographs')).toBeInTheDocument();
-  expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
-});
-
-it('keeps the prompt available when Escape closes its separate phone-options dialog', async () => {
-  const call = <Dialog>
-    <DialogTrigger asChild><button type="button">Open phone options</button></DialogTrigger>
-    <DialogContent aria-describedby={undefined}><DialogTitle>Call the showroom</DialogTitle><p>07388831790</p></DialogContent>
-  </Dialog>;
-  render(<Gallery car={promptCar} customerView customerActions={{ ...promptActions, call }} images={promptPhotos} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Show photograph 10 of 12' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Open phone options' }));
-  const phoneDialog = await screen.findByRole('dialog', { name: 'Call the showroom' });
-  fireEvent.keyDown(phoneDialog, { key: 'Escape' });
-  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Call the showroom' })).not.toBeInTheDocument());
-  expect(screen.getByRole('heading', { name: 'Like what you see?' })).toBeInTheDocument();
-  expect(screen.getByText('10 / 12 photographs')).toBeInTheDocument();
-});
-
-
-it('keeps next and previous available while the prompt is shown, without repeating it', () => {
-  render(<Gallery car={promptCar} customerView customerActions={promptActions} images={promptPhotos} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Show photograph 10 of 12' }));
-  expect(screen.getByRole('heading', { name: 'Like what you see?' })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Next photograph' })).toBeEnabled();
-  fireEvent.click(screen.getByRole('button', { name: 'Next photograph' }));
-  expect(screen.getByText('11 / 12 photographs')).toBeInTheDocument();
-  expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Previous photograph' }));
-  expect(screen.getByText('10 / 12 photographs')).toBeInTheDocument();
-  expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
-});
-
-it('lets a customer swipe straight past the prompt without choosing an action', () => {
-  render(<Gallery car={promptCar} customerView customerActions={promptActions} images={promptPhotos} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Show photograph 10 of 12' }));
-  const prompt = screen.getByRole('region', { name: 'Like what you see?' });
-  fireEvent.touchStart(prompt, { touches: [{ clientX: 270, clientY: 120 }] });
-  fireEvent.touchEnd(prompt, { changedTouches: [{ clientX: 130, clientY: 123 }] });
-  expect(screen.getByText('11 / 12 photographs')).toBeInTheDocument();
-  expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
-});
-
-it('lets fullscreen keyboard navigation continue straight past the prompt', async () => {
-  render(<Gallery car={promptCar} customerView customerActions={promptActions} images={promptPhotos} />);
+it('selects photo ten from the overview and returns focus to the photo controls', async () => {
+  render(<Gallery car={browsingCar} customerView customerActions={browsingActions} images={browsingPhotos} />);
   fireEvent.click(screen.getByRole('button', { name: 'View gallery fullscreen' }));
   const dialog = await screen.findByRole('dialog');
-  for (let i = 0; i < 9; i++) fireEvent.keyDown(dialog, { key: 'ArrowRight' });
-  expect(within(dialog).getByRole('heading', { name: 'Like what you see?' })).toBeInTheDocument();
-  expect(within(dialog).getByRole('button', { name: 'Next photograph' })).toBeEnabled();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'All photos' }));
+  fireEvent.click(within(dialog).getByRole('button', { name: 'View photograph 10 of 12' }));
+  expect(within(dialog).queryByRole('region', { name: 'All 12 photographs' })).not.toBeInTheDocument();
+  expect(within(dialog).getByText('10 / 12')).toBeInTheDocument();
+  await waitFor(() => expect(within(dialog).getByRole('button', { name: 'All photos' })).toHaveFocus());
   fireEvent.keyDown(dialog, { key: 'ArrowRight' });
   expect(within(dialog).getByText('11 / 12')).toBeInTheDocument();
   expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
 });
 
+it('recovers failed photos and changes groups without interrupting customer browsing', async () => {
+  const photos = [{ url: 'https://example.com/front-group-photo.jpg', caption: 'Front view' }, ...browsingPhotos.map((url, i) => ({ url, caption: `Interior seats ${i + 1}` }))];
+  render(<Gallery car={browsingCar} customerView customerActions={browsingActions} images={photos} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Interior' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Show photograph 10 of 12' }));
+  fireEvent.error(document.querySelector(`.vehicle-thumbnail-grid img[src="${browsingPhotos[9]}"]`)!);
+  expect(screen.getByText('10 / 11')).toBeInTheDocument();
+  await waitFor(() => expect(document.querySelector('.gallery-photo')).toHaveAttribute('src', browsingPhotos[10]));
+  fireEvent.click(screen.getByRole('button', { name: 'Retry photos' }));
+  expect(screen.getByText('1 / 13')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Show photograph 10 of 13' }));
+  expect(screen.getByText('10 / 13')).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
+});
+
+it('opens the explicit fullscreen enquiry after photo ten only when chosen', async () => {
+  const onEnquiry = vi.fn();
+  window.history.replaceState({}, '', '/vehicle/gallery-car');
+  render(<Gallery car={browsingCar} customerView customerActions={{ enquiryHref: '#vehicle-enquiry', onEnquiry }} images={browsingPhotos} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Show photograph 10 of 12' }));
+  fireEvent.click(screen.getByRole('button', { name: 'View gallery fullscreen' }));
+  const dialog = await screen.findByRole('dialog');
+  expect(onEnquiry).not.toHaveBeenCalled();
+  fireEvent.click(within(dialog).getByRole('link', { name: 'Message' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  await waitFor(() => expect(onEnquiry).toHaveBeenCalledTimes(1));
+  expect(window.location.pathname + window.location.search).toBe('/vehicle/gallery-car');
+});
+
+it('does not intercept a modified click on the explicit fullscreen enquiry', async () => {
+  const onEnquiry = vi.fn();
+  render(<Gallery car={browsingCar} customerView customerActions={{ enquiryHref: '#vehicle-enquiry', onEnquiry }} images={browsingPhotos} />);
+  fireEvent.click(screen.getByRole('button', { name: 'View gallery fullscreen' }));
+  const dialog = await screen.findByRole('dialog');
+  fireEvent.click(within(dialog).getByRole('link', { name: 'Message' }), { ctrlKey: true });
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+  expect(onEnquiry).not.toHaveBeenCalled();
+});
+
+it('does not offer a fallback message route when customer enquiries are explicitly disabled', async () => {
+  render(<Gallery car={browsingCar} customerView customerActions={{}} images={browsingPhotos} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Show photograph 10 of 12' }));
+  fireEvent.click(screen.getByRole('button', { name: 'View gallery fullscreen' }));
+  const dialog = await screen.findByRole('dialog');
+  expect(within(dialog).queryByRole('link', { name: 'Message' })).not.toBeInTheDocument();
+  expect(within(dialog).getByRole('button', { name: 'Call us' })).toBeInTheDocument();
+  fireEvent.keyDown(dialog, { key: 'ArrowRight' });
+  expect(within(dialog).getByText('11 / 12')).toBeInTheDocument();
+});
+
 it('adds one extra fullscreen zoom level with keyboard panning and Escape to return', async () => {
-  render(<Gallery customerView images={promptPhotos} />);
+  render(<Gallery customerView images={browsingPhotos} />);
   fireEvent.click(screen.getByRole('button', { name: 'View gallery fullscreen' }));
   const dialog = await screen.findByRole('dialog');
   const frame = dialog.querySelector('.vehicle-lightbox-photo') as HTMLElement;
@@ -428,7 +359,7 @@ it('adds one extra fullscreen zoom level with keyboard panning and Escape to ret
 });
 
 it('supports double-click zoom and resets zoom for another photo or an overview', async () => {
-  render(<Gallery customerView images={promptPhotos} />);
+  render(<Gallery customerView images={browsingPhotos} />);
   fireEvent.click(screen.getByRole('button', { name: 'View gallery fullscreen' }));
   const dialog = await screen.findByRole('dialog');
   const frame = dialog.querySelector('.vehicle-lightbox-photo')!;
