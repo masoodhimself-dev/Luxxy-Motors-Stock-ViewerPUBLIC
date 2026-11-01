@@ -192,7 +192,7 @@ export default function Enquire() {
                 </div>
               ) : null}
 
-              <EnquiryForm initialMessage={type === "general" && params.get("searchRequest") ? params.get("searchRequest")!.slice(0, 500) : vehicle && type === "general" ? questionMessage(params.get("question")) : ""} onTypeChange={setType} onChangeCar={changeCar} initialType={type} vehicle={vehicle} stockCars={stock?.cars ?? []} />
+              {!(type === 'part_exchange' && (isLoading || (!stock && error))) && <EnquiryForm initialMessage={type === "general" && params.get("searchRequest") ? params.get("searchRequest")!.slice(0, 500) : vehicle && type === "general" ? questionMessage(params.get("question")) : ""} onTypeChange={setType} onChangeCar={changeCar} initialType={type} vehicle={vehicle} stockCars={stock?.cars ?? []} />}
             </div>
 
             {dealerConfig.contact.phone && <p className="mt-5 text-sm text-muted-foreground">

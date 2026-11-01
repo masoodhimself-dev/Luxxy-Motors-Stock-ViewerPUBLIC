@@ -6,6 +6,7 @@ import { currentDealerId } from "../lib/tenant-context";
 import { requireStaff, requirePermission } from "../middlewares/staff-auth";
 import { MotError, normaliseMotRegistration } from "../lib/mot-history";
 import { estimateMotMileage } from "../lib/mot-mileage-estimate";
+import { motVehicleDetails } from "../lib/mot-vehicle-details";
 import { motService, readCachedMot } from "../lib/mot-storage";
 import { findPublicVehicle } from "./stock";
 
@@ -106,7 +107,7 @@ export function motRouter(
         fail(res, error);
       }
     };
-  // Public part-exchange forms receive an estimate only, never staff/customer data.
+  // Public vehicle facts and estimate share one cached lookup; no VIN/defects/customer data.
   router.get("/mot-mileage-estimate", limit, async (req, res) => {
     try {
       if (typeof req.query.registration !== "string")
@@ -118,11 +119,11 @@ export function motRouter(
       const registration = normaliseMotRegistration(req.query.registration);
       const history = await service.lookup(registration);
       const estimate = estimateMotMileage(history);
-      const vehicle = { make: history.make, model: history.model };
+      const details = motVehicleDetails(history);
       res.json(
         estimate
-          ? { status: "estimated", registration, vehicle, estimate }
-          : { status: "unavailable", registration, vehicle },
+          ? { status: "estimated", registration, ...details, estimate }
+          : { status: "unavailable", registration, ...details },
       );
     } catch (error) {
       fail(res, error);

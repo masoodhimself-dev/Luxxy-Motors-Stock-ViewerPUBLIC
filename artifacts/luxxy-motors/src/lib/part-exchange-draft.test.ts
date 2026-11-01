@@ -29,4 +29,13 @@ describe('part exchange draft privacy and recovery', () => {
     sessionStorage.setItem('test', JSON.stringify({ savedAt: Date.now(), data: { ...draft, details: { ...draft.details, phone: 123 } } }));
     expect(readPartExchangeDraft('test')).toBeNull();
   });
+  it('restores guarded text/provenance but never trusts a saved lookup gate or MOT facts', () => {
+    const data = { ...draft, autofill: { registration: 'AB12CDE', mileage: '0' }, message: { text: 'My edited message.', source: 'Original prepared message.', edited: true }, gate: { mode: 'lookup', registration: 'AB12CDE' }, mot: { dueDate: '2027-01-01' } };
+    sessionStorage.setItem('test', JSON.stringify({ savedAt: Date.now(), data }));
+    expect(readPartExchangeDraft('test')).toEqual({ ...draft, autofill: { registration: 'AB12CDE', mileage: '0', makeModel: undefined, manualMakeModel: undefined, manualMileage: undefined }, message: data.message });
+  });
+  it('drops mismatched provenance and malformed message metadata while retaining legacy answers', () => {
+    sessionStorage.setItem('test', JSON.stringify({ savedAt: Date.now(), data: { ...draft, autofill: { registration: 'DIFFERENT', mileage: '0' }, message: { text: 'A'.repeat(2001), source: '', edited: true } } }));
+    expect(readPartExchangeDraft('test')).toEqual(draft);
+  });
 });

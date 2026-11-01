@@ -376,6 +376,10 @@ test("public vehicle checks are scoped to visible tenant stock; arbitrary regist
     assert.equal(estimateReply.status, 200);
     assert.equal(estimateReply.body.vehicle.make, "FORD");
     assert.equal(estimateReply.body.registration, "AB12CDE");
+    assert.equal(estimateReply.body.mot.latestTestResult, "FAILED");
+    assert.equal(estimateReply.body.mot.dueDate, "2025-02-09");
+    assert.deepEqual(estimateReply.body.mot.lastReading, {date:"2024-02-10",mileage:42000,unit:"MI"});
+    assert.equal(estimateReply.body.vehicle.registrationDate, null);
     assert.equal(estimateReply.body.history, undefined);
     assert.equal(estimateReply.body.tests, undefined);
     assert.equal(estimateReply.cache, "no-store");

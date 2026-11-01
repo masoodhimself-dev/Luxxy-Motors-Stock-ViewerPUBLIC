@@ -1,0 +1,37 @@
+.part-exchange-mot-details {
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: hsl(var(--muted-foreground));
+  overflow-wrap: anywhere;
+}
+.part-exchange-mot-details__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  margin-bottom: 12px;
+}
+.part-exchange-mot-details__manual {
+  min-height: 44px;
+  padding: 8px 0;
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.part-exchange-mot-details__manual:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+.part-exchange-mot-details p + p,
+.part-exchange-mot-details__facts {
+  margin-top: 4px;
+}
+.part-exchange-mot-details__vehicle {
+  color: hsl(var(--foreground));
+}
+@media (max-width: 359px) {
+  .part-exchange-mot-details__actions > .db-btn {
+    width: 100%;
+  }
+}

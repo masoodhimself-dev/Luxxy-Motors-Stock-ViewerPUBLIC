@@ -1,5 +1,6 @@
 import { vehicleRegistration } from '@/lib/utils';
 import type { Car } from '@/lib/stock-context';
+import type { PartExchangeMotDetailsResult } from '@/components/part-exchange-mot-details';
 
 export type PartExchangeDetails = {
   registration: string; makeModel: string; mileage: string; condition: string;
@@ -7,27 +8,35 @@ export type PartExchangeDetails = {
   name: string; phone: string; email: string;
 };
 
-export function buildPartExchangeMessage(details: PartExchangeDetails, car: Car, dealerName: string) {
+export type PartExchangeMessageOptions = { mileageEstimated?: boolean; mot?: PartExchangeMotDetailsResult['mot'] };
+export function partExchangeMotSummary(mot?: PartExchangeMotDetailsResult['mot']): string | null {
+  if (!mot) return null;
+  if (mot.latestTestResult === 'FAILED') return 'MOT record needs checking.';
+  if (!mot.dueDate) return null;
+  const date = new Date(`${mot.dueDate}T12:00:00Z`);
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== mot.dueDate) return null;
+  const label = mot.firstTest ? 'First MOT due' : 'Recorded MOT expiry';
+  return `${label}: ${date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/London' })}.`;
+}
+
+/** The editable enquiry body stays separate from the customer's contact fields. */
+export function buildPartExchangeMessage(details: PartExchangeDetails, car: Car, dealerName: string, options: PartExchangeMessageOptions = {}) {
+  const ownCar = details.makeModel.trim() || 'my car';
+  const target = car.title?.trim() || [car.make, car.model].filter(Boolean).join(' ') || 'vehicle';
   return [
-    `Hello ${dealerName}, I’d like to discuss a part exchange.`, '',
-    'MY CURRENT CAR',
-    `Registration: ${details.registration.trim().toUpperCase()}`,
-    ...(details.makeModel.trim() ? [`Make / model: ${details.makeModel.trim()}`] : []),
-    `Mileage: ${details.mileage ? Number(details.mileage).toLocaleString('en-GB') : 'Not entered'} miles`,
+    `Hi ${dealerName}, I have ${ownCar === 'my car' ? ownCar : `a ${ownCar}`} (${details.registration.trim().toUpperCase()}), and I’d like to part exchange it.`, '',
+    `I’m interested in your ${target}${vehicleRegistration(car) ? ` (${vehicleRegistration(car)})` : ''}. Could you give me a valuation?`, '',
+    `${options.mileageEstimated ? 'Estimated mileage (MOT history)' : 'Current mileage'}: ${details.mileage ? Number(details.mileage).toLocaleString('en-GB') : 'Not entered'} miles.`,
+    ...(partExchangeMotSummary(options.mot) ? [partExchangeMotSummary(options.mot)!] : []),
     ...(details.condition ? [`Condition: ${details.condition}`] : []),
     ...(details.keys ? [`Keys: ${details.keys}`] : []),
     ...(details.v5 ? [`V5C logbook: ${details.v5}`] : []),
     ...(details.serviceHistory ? [`Service history: ${details.serviceHistory}`] : []),
-    `Damage / faults / other details: ${details.conditionNotes.trim() || 'Not provided'}`, '',
-    'YOUR STOCK VEHICLE',
-    car.title || [car.make, car.model].filter(Boolean).join(' '),
-    ...(vehicleRegistration(car) ? [`Registration: ${vehicleRegistration(car)}`] : []),
-    ...(car.year ? [`Year: ${car.year}`] : []),
-    ...(car.price != null ? [`Advertised price: ${car.currency || 'GBP'} ${car.price.toLocaleString('en-GB')}`] : []), '',
-    'MY CONTACT DETAILS',
-    `Name: ${details.name.trim()}`,
-    `Phone: ${details.phone.trim()}`,
-    ...(details.email.trim() ? [`Email: ${details.email.trim()}`] : []), '',
-    'I will attach photos of my car in this chat. Please let me know what else you need for a valuation.',
+    ...(details.conditionNotes.trim() ? [`Other details: ${details.conditionNotes.trim()}`] : []),
   ].join('\n');
+}
+
+/** WhatsApp has no separate contact fields; show these in the reviewed preview. */
+export function partExchangeWhatsAppMessage(message: string, details: PartExchangeDetails) {
+  return [message.trim(), '', `Name: ${details.name.trim()}`, `Phone: ${details.phone.trim()}`, ...(details.email.trim() ? [`Email: ${details.email.trim()}`] : [])].join('\n');
 }

@@ -15,12 +15,45 @@
   border: 0;
 }
 .part-exchange-form label { min-width: 0; }
+.part-exchange-form .field-label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 500; line-height: 1.5; }
+.part-exchange-registration { max-width: 320px; }
+.part-exchange-car-answers { max-width: 640px; }
+.part-exchange-steps { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+.part-exchange-steps button { display: flex; min-height: 48px; align-items: center; gap: 8px; padding-block: 8px; border-bottom: 2px solid hsl(var(--border)); text-align: left; font-size: 13px; }
+.part-exchange-steps button span { color: hsl(var(--muted-foreground)); }
+.part-exchange-steps button[aria-current="step"] { border-bottom-color: hsl(var(--primary)); font-weight: 600; }
+.part-exchange-steps button:disabled { opacity: .5; cursor: default; }
+.part-exchange-optional { border-top: 1px solid hsl(var(--border)); }
+.part-exchange-optional summary { min-height: 48px; padding-block: 12px; cursor: pointer; font-size: 14px; }
+.part-exchange-optional > div { padding-top: 8px; }
+.part-exchange-selected-car { display: flex; gap: 16px; align-items: center; padding-block: 16px; border-block: 1px solid hsl(var(--border)); }
+.part-exchange-selected-car img { width: 112px; aspect-ratio: 4 / 3; object-fit: contain; }
+.part-exchange-selected-car > div { min-width: 0; }
+.part-exchange-review-car { display: grid; gap: 4px; padding-block: 16px; border-block: 1px solid hsl(var(--border)); font-size: 14px; overflow-wrap: anywhere; }
+.part-exchange-review-car p { color: hsl(var(--muted-foreground)); }
+.part-exchange-contact { display: grid; gap: 20px; grid-template-columns: repeat(2,minmax(0,1fr)); }
+.part-exchange-contact label:last-child { grid-column: 1 / -1; }
+.part-exchange-send-method legend { margin-bottom: 8px; font-size: 14px; font-weight: 500; }
+.part-exchange-send-method label,
+.part-exchange-review-confirm { display: flex; min-height: 48px; align-items: flex-start; gap: 10px; padding-block: 10px; font-size: 14px; line-height: 1.6; }
+.part-exchange-form input[type="radio"],
+.part-exchange-form input[type="checkbox"] { flex: none; width: 18px; height: 18px; margin-top: 3px; accent-color: hsl(var(--primary)); }
+.part-exchange-message-update { padding-block: 12px; border-block: 1px solid hsl(var(--border)); font-size: 14px; }
+.part-exchange-message-update button { min-height: 44px; margin-right: 20px; text-decoration: underline; text-underline-offset: 4px; }
+.part-exchange-actions { display: flex; gap: 16px; align-items: center; justify-content: flex-end; padding-top: 20px; border-top: 1px solid hsl(var(--border)); }
+.part-exchange-draft-notice { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; justify-content: space-between; border-block: 1px solid hsl(var(--border)); padding-block: 12px; font-size: 13px; color: hsl(var(--muted-foreground)); }
+.part-exchange-draft-help { color: hsl(var(--muted-foreground)); font-size: 12px; }
+.part-exchange-form :is(summary,button):focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; }
 .part-exchange-form :is(input:not(.uk-number-plate-input), textarea, select) {
   font-size: 16px;
 }
 .part-exchange-actions > button { flex-shrink: 0; }
 .part-exchange-actions > span { min-width: 0; }
 @media (max-width: 639px) {
+  .part-exchange-contact { grid-template-columns: minmax(0,1fr); }
+  .part-exchange-steps { gap: 8px; }
+  .part-exchange-steps button { display: block; font-size: 12px; }
+  .part-exchange-steps button span { display: block; }
   .part-exchange-actions { flex-direction: column; align-items: stretch; }
   .part-exchange-actions > button { width: 100%; }
 }
