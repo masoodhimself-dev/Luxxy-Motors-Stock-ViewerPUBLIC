@@ -1,21 +1,21 @@
 /* Secondary public pages use the same quiet, readable cards as the showroom. */
-:is(.friendly-enquire, .friendly-contact, .friendly-saved) { color: hsl(var(--foreground)); }
+:is(.friendly-enquire, .friendly-contact, .friendly-saved) { color: var(--mh-primary, hsl(var(--foreground))); }
 :is(.friendly-enquire, .friendly-contact, .friendly-saved) :is(h1, h2, h3) { text-wrap: balance; overflow-wrap: anywhere; }
-.friendly-enquire .enquiry-form-panel { min-width: 0; padding: clamp(20px, 3vw, 32px); border: 1px solid hsl(var(--border)); border-radius: 12px; background: hsl(var(--card)); box-shadow: 0 4px 18px hsl(var(--primary) / .025); }
+.friendly-enquire .enquiry-form-panel { min-width: 0; padding: clamp(20px, 3vw, 32px); border: 1px solid var(--mh-border, hsl(var(--border))); border-radius: var(--mh-radius, 12px); background: var(--mh-surface, hsl(var(--card))); box-shadow: var(--mh-shadow-sm, 0 4px 18px hsl(var(--primary) / .025)); }
 .friendly-enquire .customer-enquiry-form,
 .friendly-contact .customer-enquiry-form { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .friendly-enquire .enquiry-introduction { min-width: 0; }
 .friendly-enquire [data-testid="status-stock-error"] { margin-bottom: 20px; }
-.friendly-enquire .enquiry-introduction > [data-testid="enquiry-vehicle-summary"] { padding: 20px; border: 1px solid hsl(var(--border)); border-radius: 12px; background: hsl(var(--card)); }
-.friendly-contact .contact-talk-panel > .divide-y { margin-top: 24px; border: 1px solid hsl(var(--border)); border-radius: 12px; overflow: hidden; background: hsl(var(--card)); }
+.friendly-enquire .enquiry-introduction > [data-testid="enquiry-vehicle-summary"] { padding: 20px; border: 1px solid var(--mh-border, hsl(var(--border))); border-radius: var(--mh-radius, 12px); background: var(--mh-surface, hsl(var(--card))); }
+.friendly-contact .contact-talk-panel > .divide-y { margin-top: 24px; border: 1px solid var(--mh-border, hsl(var(--border))); border-radius: var(--mh-radius, 12px); overflow: hidden; background: var(--mh-surface, hsl(var(--card))); }
 .friendly-contact .contact-talk-panel [data-testid^="contact-"] { min-height: 88px; padding: 20px; }
-.friendly-contact [data-testid="contact-location"] > .bg-primary { border-radius: 12px; }
-.friendly-contact #contact-message > div:last-child { padding: clamp(20px, 3vw, 32px); border: 1px solid hsl(var(--border)); border-radius: 12px; background: hsl(var(--card)); }
-.friendly-saved .saved-car-list > div { border-radius: 12px; }
+.friendly-contact [data-testid="contact-location"] > .bg-primary { border-radius: var(--mh-radius, 12px); }
+.friendly-contact #contact-message > div:last-child { padding: clamp(20px, 3vw, 32px); border: 1px solid var(--mh-border, hsl(var(--border))); border-radius: var(--mh-radius, 12px); background: var(--mh-surface, hsl(var(--card))); }
+.friendly-saved .saved-car-list > div { border-radius: var(--mh-radius, 12px); }
 .friendly-saved .saved-car-list .vehicle-card { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .friendly-saved .saved-car-list .vehicle-card:hover { transform: none; box-shadow: none; }
 .friendly-saved .saved-car-list > div > .border-t { background: var(--dealer-panel-subtle, hsl(var(--secondary) / .2)); }
-.friendly-saved .saved-car-list summary { color: hsl(var(--foreground)); font-size: 14px; }
+.friendly-saved .saved-car-list summary { color: var(--mh-primary, hsl(var(--foreground))); font-size: 14px; }
 .friendly-saved .saved-car-list summary:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 4px; border-radius: 4px; }
 .friendly-saved .saved-car-list details :is(dl, ul, p) { min-width: 0; }
 .friendly-saved .saved-car-list details dd { overflow-wrap: anywhere; }
@@ -36,12 +36,12 @@
 .friendly-saved .vehicle-card-saved-details { align-items: stretch; }
 .friendly-saved .vehicle-card-saved-details .vehicle-card-details { padding: 20px; gap: 0; }
 .friendly-saved .vehicle-card-saved-details .saved-car-specs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; margin: 16px 0; }
-.saved-spec-label { display: block; color: hsl(var(--muted-foreground)); font-size: 12px; line-height: 1.5; }
-.saved-spec-value { display: block; color: hsl(var(--foreground)); font-size: 14px; font-weight: 500; line-height: 1.6; }
+.saved-spec-label { display: block; color: var(--mh-muted, hsl(var(--muted-foreground))); font-size: 12px; line-height: 1.5; }
+.saved-spec-value { display: block; color: var(--mh-primary, hsl(var(--foreground))); font-size: 14px; font-weight: 500; line-height: 1.6; }
 .saved-car-equipment { margin: 12px 0 16px; }
-.saved-equipment-heading { font-size: 12px; font-weight: 600; color: hsl(var(--muted-foreground)); margin-bottom: 8px; }
+.saved-equipment-heading { font-size: 12px; font-weight: 600; color: var(--mh-muted, hsl(var(--muted-foreground))); margin-bottom: 8px; }
 .saved-car-equipment ul { display: flex; flex-wrap: wrap; gap: 6px; }
-.saved-car-equipment li { max-width: 100%; overflow-wrap: anywhere; padding: 5px 9px; background: hsl(var(--secondary) / .5); border-radius: 5px; font-size: 12px; line-height: 1.5; }
+.saved-car-equipment li { max-width: 100%; overflow-wrap: anywhere; padding: 5px 9px; background: var(--mh-chip, hsl(var(--secondary) / .5)); border-radius: var(--mh-radius, 5px); font-size: 12px; line-height: 1.5; }
 .friendly-saved .vehicle-card-saved-details .vehicle-card-actions { margin-top: 8px; }
 @media (min-width: 480px) and (max-width: 767px) {
   .friendly-saved .vehicle-card-saved-details { flex-direction: column; }
@@ -56,4 +56,24 @@
   .friendly-saved .vehicle-card-saved-details .vehicle-card-details > div:first-child { padding-right: 160px; }
   .friendly-saved .vehicle-card-saved-details .vehicle-card-price { position: absolute; top: 20px; right: 24px; max-width: 150px; margin-top: 0; justify-content: flex-end; }
   .friendly-saved .vehicle-card-saved-details .saved-car-specs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* The secondary pages use the same surfaces as the approved homepage.
+   Only Multi-Choice receives these details; the existing grids stay in place. */
+.multi-choice-site :is(.friendly-contact, .friendly-enquire) .friendly-banner {
+  color: var(--mh-primary);
+}
+.multi-choice-site .friendly-enquire :is([data-testid="status-stock-error"], [data-testid="status-vehicle-unavailable"]) {
+  border-color: var(--mh-border);
+  border-radius: var(--mh-radius);
+  background: var(--mh-tint);
+  color: var(--mh-primary);
+}
+.multi-choice-site .friendly-enquire :is([data-testid="status-stock-error"], [data-testid="status-vehicle-unavailable"]) > svg,
+.multi-choice-site .friendly-enquire :is([data-testid="status-stock-error"], [data-testid="status-vehicle-unavailable"]) > div > p:first-child {
+  color: var(--mh-primary);
+}
+.multi-choice-site .friendly-contact [data-testid="contact-location"] > .bg-primary {
+  background: var(--mh-primary);
+  color: var(--mh-surface);
 }

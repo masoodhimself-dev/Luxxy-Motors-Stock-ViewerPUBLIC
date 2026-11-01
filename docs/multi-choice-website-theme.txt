@@ -39,3 +39,43 @@ Validation:
 
 Evidence: workspace output/multi-choice-site-consistency-2026-11-01/.
 Local preview: http://127.0.0.1:4294/ . No push or deployment performed.
+
+Completion pass — legacy styling retired
+
+The legacy premium-showroom/customer-finish selectors now explicitly exclude
+Multi-Choice at unchanged selector specificity. Other dealerships retain their
+existing rules. Multi-Choice's needed layout primitives live in its own theme.
+The nested homepage-refined palette on /stock is likewise excluded; this fixes
+the old muted-text/background variables that could override the approved theme.
+
+Component styles now use the homepage's colour, radius, shadow and font-weight
+tokens with unchanged fallback values for other dealerships. This includes
+booking picker/date/details/disabled/error/confirmation states; general enquiry
+confirmation; part-exchange and MOT result cards; contact, saved, warranty and
+viewing panels; call/callback, delivery/MOT and feature dialogs; factual badges
+and contextual-help tooltips. Registration lettering, semantic statuses and
+the dark photo viewer remain deliberate exceptions.
+
+The public vehicle A4 sheet uses embedded Montserrat and the approved logo,
+ink, muted text and pale-blue panels for validated Multi-Choice vehicle URLs.
+Existing explicit print accent and ink-saving options are preserved. Actual
+browser verification caught a price line-box overflow with the new font; a
+Multi-Choice-only line-height correction fixes it without reducing text size,
+scaling the page, removing protected text or weakening fit validation.
+Financial invoices and financial PDFs remain unchanged.
+
+Completion validation:
+- Full suite: 2,415 tests in 222 files passed.
+- Final affected workflow/home/print/PDF regressions: 166 passed; additional
+  nested legacy-palette regression included in an 8-test migration run passed.
+- TypeScript and final production build passed.
+- 36 page/viewport checks: nine customer routes at 320, 390, 768 and 1440px;
+  no font or horizontal-overflow failures. Phone callback inputs measured at
+  16px with 4px corners; call/MOT panels use 8px corners and Montserrat.
+- Actual local public PDF exported, rendered with Poppler and visually checked:
+  one 210 x 297mm A4 page, complete photos, readable text, QR and two URL links.
+  Evidence uses read-only cached stock photos; no customer messages or records.
+- Browser checks use responsive Chromium, not physical-device Safari testing.
+
+Completion evidence: output/multi-choice-complete-style-migration-2026-11-01/.
+All changes remain local; no push or deployment was performed.

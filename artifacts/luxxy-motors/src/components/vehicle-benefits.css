@@ -7,7 +7,7 @@
 }
 .vehicle-benefit-check {
   margin-top: 8px;
-  color: #64747e;
+  color: var(--mh-muted, #64747e);
   font-size: 12px;
   line-height: 1.6;
 }
@@ -53,10 +53,10 @@
   min-height: 44px;
   margin: 0;
   padding: 7px 10px;
-  border: 1px solid #e0e3e5;
-  border-radius: 3px;
-  background: #fff;
-  color: #253039;
+  border: 1px solid var(--mh-border, #e0e3e5);
+  border-radius: var(--mh-radius-control, 3px);
+  background: var(--mh-surface, #fff);
+  color: var(--mh-primary, #253039);
   font-family: inherit;
   font-size: 12px;
   font-weight: 400;

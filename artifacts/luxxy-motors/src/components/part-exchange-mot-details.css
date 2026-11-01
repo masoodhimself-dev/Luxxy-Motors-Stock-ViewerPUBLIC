@@ -2,7 +2,7 @@
   min-width: 0;
   font-size: 13px;
   line-height: 1.6;
-  color: hsl(var(--muted-foreground));
+  color: var(--mh-muted, hsl(var(--muted-foreground)));
   overflow-wrap: anywhere;
 }
 .part-exchange-mot-details__actions {
@@ -15,7 +15,7 @@
 .part-exchange-mot-details__manual {
   min-height: 44px;
   padding: 8px 0;
-  color: hsl(var(--primary));
+  color: var(--mh-primary, hsl(var(--primary)));
   text-decoration: underline;
   text-underline-offset: 4px;
 }
@@ -28,7 +28,7 @@
   margin-top: 4px;
 }
 .part-exchange-mot-details__vehicle {
-  color: hsl(var(--foreground));
+  color: var(--mh-primary, hsl(var(--foreground)));
 }
 @media (max-width: 359px) {
   .part-exchange-mot-details__actions > .db-btn {

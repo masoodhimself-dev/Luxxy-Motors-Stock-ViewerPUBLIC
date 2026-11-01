@@ -7,11 +7,11 @@
 .booking-page .booking-car-compact .booking-car-identity > div { font-size: 13px; }
 .booking-page .booking-car-compact .booking-car-identity button { min-height: 44px; font-size: 12px; }
 .booking-page .booking-time-recovery { column-gap: 20px; }
-.booking-page .booking-time-recovery :is(a, button):focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 4px; border-radius: 4px; }
-.booking-page .booking-time-notice { padding: 14px 16px; border: 1px solid hsl(var(--border)); border-radius: 8px; background: hsl(var(--secondary)); font-size: 14px; line-height: 1.6; }
+.booking-page .booking-time-recovery :is(a, button):focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 4px; border-radius: var(--mh-radius-control, 4px); }
+.booking-page .booking-time-notice { padding: 14px 16px; border: 1px solid var(--mh-border, hsl(var(--border))); border-radius: 8px; background: var(--mh-tint, hsl(var(--secondary))); font-size: 14px; line-height: 1.6; }
 .booking-page .booking-time-notice button { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 4px; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
-.booking-page .booking-time-notice button:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; border-radius: 4px; }
-.booking-page .booking-time-checking { color: hsl(var(--muted-foreground)); font-size: 14px; line-height: 1.6; }
+.booking-page .booking-time-notice button:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; border-radius: var(--mh-radius-control, 4px); }
+.booking-page .booking-time-checking { color: var(--mh-muted, hsl(var(--muted-foreground))); font-size: 14px; line-height: 1.6; }
 @media (max-width: 639px) {
   .booking-page .booking-car-compact > img { width: 64px; }
   .booking-page .booking-car-compact { gap: 12px; }
@@ -19,9 +19,9 @@
 
 /* Guided booking owns its surfaces and controls; general enquiry styles must
    not repaint the booking form when routes load in a different order. */
-.booking-page :is(input, textarea, select) { border-radius: 8px; font-size: 16px; }
+.booking-page :is(input, textarea, select) { border-radius: var(--mh-radius-control, 8px); font-size: 16px; }
 .booking-page .booking-car { grid-template-columns: auto minmax(0,1fr); }
-.booking-page { background: hsl(var(--card)); }
+.booking-page { background: var(--mh-bg, hsl(var(--card))); }
 .booking-shell { max-width: 1180px; }
 .booking-intro .luxxy-kicker { display: none; }
 .booking-intro h1 { font-size: 30px; }
@@ -29,7 +29,7 @@
 .booking-panel { min-width: 0; }
 .booking-page .booking-panel { border-radius: 0; box-shadow: none; background: transparent; }
 .booking-layout-active { display: grid; grid-template-columns: 280px minmax(0,1fr); gap: 40px; }
-.booking-layout-active > .booking-panel { border: 0; border-left: 1px solid hsl(var(--border)); padding: 0 0 0 40px; }
+.booking-layout-active > .booking-panel { border: 0; border-left: 1px solid var(--mh-border, hsl(var(--border))); padding: 0 0 0 40px; }
 .booking-context { min-width: 0; }
 .booking-context .booking-car { display: flex; flex-direction: column; align-items: stretch; border: 0; padding: 0; }
 .booking-context .booking-car > img { width: 100%; border-radius: 2px; object-fit: cover; }
@@ -37,22 +37,22 @@
 .booking-context .booking-car-name { font-size: 20px; margin-top: 0; }
 .booking-context .booking-car-identity > div { display: block; }
 .booking-context .booking-car-identity button { margin-top: 10px; }
-.booking-showroom { border-top: 1px solid hsl(var(--border)); margin-top: 24px; padding-top: 14px; font-size: 14px; }
+.booking-showroom { border-top: 1px solid var(--mh-border, hsl(var(--border))); margin-top: 24px; padding-top: 14px; font-size: 14px; }
 .booking-showroom summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
 .booking-progress { margin: 0 0 24px; padding-bottom: 20px; }
 .booking-progress li { position: relative; min-width: 0; }
-.booking-progress li[aria-current=step]::after { content: ''; position: absolute; bottom: -21px; left: 0; width: 100%; height: 3px; background: hsl(var(--primary)); }
+.booking-progress li[aria-current=step]::after { content: ''; position: absolute; bottom: -21px; left: 0; width: 100%; height: 3px; background: var(--mh-primary, hsl(var(--primary))); }
 .booking-date-heading { display: grid; grid-template-columns: minmax(0,1fr) minmax(140px,160px); align-items: center; gap: 12px; margin-top: 22px; }
 .booking-date-heading > label { min-width: 0; }
 .booking-date-heading select { width: 100%; min-width: 0; max-width: none; padding-right: 28px; }
 .booking-page [data-testid=group-viewing-dates] { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); overflow: visible; margin-top: 12px; padding-bottom: 18px; }
-.booking-page [data-testid=group-viewing-dates] button { min-width: 0; min-height: 78px; padding: 10px 6px; text-align: center; border-radius: 4px; }
-.booking-page [data-testid=group-viewing-dates] button[aria-pressed=true] { background: hsl(var(--secondary)); color: hsl(var(--foreground)); border: 2px solid hsl(var(--primary)); }
+.booking-page [data-testid=group-viewing-dates] button { min-width: 0; min-height: 78px; padding: 10px 6px; text-align: center; border-radius: var(--mh-radius-control, 4px); }
+.booking-page [data-testid=group-viewing-dates] button[aria-pressed=true] { background: var(--mh-tint, hsl(var(--secondary))); color: var(--mh-primary, hsl(var(--foreground))); border: 2px solid var(--mh-primary, hsl(var(--primary))); }
 .booking-times-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.booking-times-heading span { font-weight: 400; font-size: 12px; color: hsl(var(--muted-foreground)); }
+.booking-times-heading span { font-weight: 400; font-size: 12px; color: var(--mh-muted, hsl(var(--muted-foreground))); }
 .booking-page [data-testid=group-viewing-slots] { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
-.booking-page [data-testid=group-viewing-slots] button { border-radius: 4px; }
-.booking-continue { border-top: 1px solid hsl(var(--border)); }
+.booking-page [data-testid=group-viewing-slots] button { border-radius: var(--mh-radius-control, 4px); }
+.booking-continue { border-top: 1px solid var(--mh-border, hsl(var(--border))); }
 @media (max-width: 900px) and (min-width:640px) {
  .booking-layout-active { grid-template-columns: 210px minmax(0,1fr); gap: 24px; }
  .booking-layout-active > .booking-panel { padding-left: 24px; }
@@ -65,7 +65,7 @@
  .booking-intro > p:last-child { display: none; }
  .booking-layout-active { display: block; }
  .booking-layout-active > .booking-panel { border: 0; padding: 0; }
- .booking-context .booking-car { display: grid; grid-template-columns: 72px minmax(0,1fr); gap: 12px; border-bottom: 1px solid hsl(var(--border)); padding-bottom: 14px; }
+ .booking-context .booking-car { display: grid; grid-template-columns: 72px minmax(0,1fr); gap: 12px; border-bottom: 1px solid var(--mh-border, hsl(var(--border))); padding-bottom: 14px; }
  .booking-context .booking-car > img { width: 72px; }
  .booking-context .booking-car-name { font-size: 16px; }
  .booking-context .booking-car-identity > p { font-size: 12px; }
@@ -86,7 +86,7 @@
 .booking-page .booking-car { background: transparent; }
 .booking-page .booking-progress { background: transparent; }
 @media(max-width:639px) {
- .booking-page.booking-page { background: hsl(var(--card)); }
+ .booking-page.booking-page { background: var(--mh-bg, hsl(var(--card))); }
  .booking-shell > a { min-height: 32px; }
  .booking-layout-active .booking-step-heading:has(+ [data-testid=section-viewing-availability]) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
  .booking-page [data-testid=group-viewing-dates] button span { overflow: hidden; text-overflow: ellipsis; }
@@ -94,4 +94,42 @@
 @media(max-width:639px) {
  .booking-progress:has(li:nth-child(2)[aria-current=step]) { grid-template-columns: 32px minmax(0,1fr) 32px; }
  .booking-progress:has(li:nth-child(3)[aria-current=step]) { grid-template-columns: 32px 32px minmax(0,1fr); }
+}
+
+/* Picker, loading, disabled and completion screens share the homepage card;
+   the active booking columns and every responsive dimension remain intact. */
+.multi-choice-site .booking-layout:not(.booking-layout-active) > .booking-panel {
+  border-color: var(--mh-border);
+  border-radius: var(--mh-radius);
+  background: var(--mh-surface);
+  box-shadow: var(--mh-shadow-sm);
+}
+.multi-choice-site .booking-page .booking-night-note {
+  border-color: var(--mh-border);
+  border-radius: var(--mh-radius);
+  background: var(--mh-tint);
+}
+.multi-choice-site .booking-page :is([data-testid="group-viewing-dates"], [data-testid="group-viewing-slots"]) button:not([aria-pressed="true"]) {
+  background: var(--mh-surface);
+}
+.multi-choice-site .booking-page [data-testid="group-viewing-dates"] button[aria-pressed="true"] {
+  border-color: var(--mh-primary);
+  background: var(--mh-tint);
+  color: var(--mh-primary);
+}
+.multi-choice-site .booking-page [data-testid="group-viewing-slots"] button[aria-pressed="true"] {
+  border-color: var(--mh-primary);
+  background: var(--mh-primary);
+  color: var(--mh-surface);
+}
+.multi-choice-site .booking-page :is(button, a, input, textarea, select, summary):focus-visible {
+  outline: 3px solid var(--mh-accent);
+  outline-offset: 4px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .multi-choice-site .booking-page :is([data-testid="group-viewing-dates"], [data-testid="group-viewing-slots"]) button:not([aria-pressed="true"]):not(:disabled):hover {
+    background: var(--mh-tint);
+    border-color: var(--mh-border-strong);
+  }
 }

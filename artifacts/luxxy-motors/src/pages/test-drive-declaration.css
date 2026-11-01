@@ -1,7 +1,7 @@
 .declaration-page {
   min-height: 100dvh;
-  background: #f4f7fa;
-  color: #1d2e3a;
+  background: var(--mh-bg, #f4f7fa);
+  color: var(--mh-primary, #1d2e3a);
   padding: 24px 20px 48px;
   font-family: var(--app-font-sans, system-ui, sans-serif);
 }
@@ -15,8 +15,8 @@
   gap: 10px;
   min-height: 56px;
   margin-bottom: 18px;
-  color: #245ca5;
-  font-weight: 650;
+  color: var(--mh-primary, #245ca5);
+  font-weight: var(--document-label-weight, 650);
 }
 .declaration-header > span:first-of-type {
   min-width: 0;
@@ -28,30 +28,30 @@
   align-items: center;
   flex-shrink: 0;
   gap: 5px;
-  color: #5a6b79;
+  color: var(--mh-muted, #5a6b79);
   font-size: 12px;
-  font-weight: 450;
+  font-weight: var(--document-copy-weight, 450);
 }
 .declaration-card {
   padding: 34px;
-  background: #fff;
-  border: 1px solid #d9e1e7;
-  border-radius: 14px;
-  box-shadow: 0 8px 30px #162c4306;
+  background: var(--mh-surface, #fff);
+  border: 1px solid var(--mh-border, #d9e1e7);
+  border-radius: var(--mh-radius, 14px);
+  box-shadow: var(--mh-shadow-sm, 0 8px 30px #162c4306);
 }
 .declaration-eyebrow {
-  color: #245ca5;
+  color: var(--mh-primary, #245ca5);
   font-size: 12px;
-  font-weight: 650;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: var(--document-label-weight, 650);
+  letter-spacing: var(--document-label-spacing, 0.08em);
+  text-transform: var(--document-label-case, uppercase);
 }
 .declaration-card h1 {
   font-size: 30px;
   line-height: 1.2;
-  letter-spacing: -0.035em;
+  letter-spacing: var(--document-heading-tracking, -0.035em);
   margin: 10px 0 26px;
-  font-weight: 650;
+  font-weight: var(--document-heading-weight, 650);
 }
 .declaration-card h1:focus {
   outline: 0;
@@ -59,15 +59,15 @@
 .declaration-card h2 {
   font-size: 17px;
   margin: 26px 0 12px;
-  font-weight: 650;
+  font-weight: var(--document-heading-weight, 650);
 }
 .declaration-visit {
   display: grid;
   gap: 18px;
   padding: 20px;
-  border: 1px solid #c9d9ef;
-  background: #f3f7fe;
-  border-radius: 9px;
+  border: 1px solid var(--mh-border, #c9d9ef);
+  background: var(--mh-tint, #f3f7fe);
+  border-radius: var(--mh-radius, 9px);
 }
 .declaration-visit > div {
   display: flex;
@@ -76,7 +76,7 @@
 }
 .declaration-visit svg {
   flex-shrink: 0;
-  color: #245ca5;
+  color: var(--mh-primary, #245ca5);
   width: 20px;
   height: 20px;
 }
@@ -88,7 +88,7 @@
   overflow-wrap: anywhere;
 }
 .declaration-visit span {
-  color: #586976;
+  color: var(--mh-muted, #586976);
   font-size: 13px;
   margin-top: 3px;
 }
@@ -101,7 +101,7 @@
 .declaration-version,
 .declaration-help,
 .declaration-note {
-  color: #586976;
+  color: var(--mh-muted, #586976);
   font-size: 12px;
   line-height: 1.65;
 }
@@ -132,16 +132,16 @@
   width: 22px;
   height: 22px;
   margin: 1px 0 0;
-  accent-color: #245ca5;
+  accent-color: var(--mh-primary, #245ca5);
 }
 .declaration-card form > button {
   width: 100%;
   min-height: 48px;
-  background: #245ca5;
+  background: var(--mh-primary, #245ca5);
   color: white;
 }
 .declaration-card :is(button, input):focus-visible {
-  outline: 2px solid #245ca5;
+  outline: 2px solid var(--mh-accent, #245ca5);
   outline-offset: 3px;
 }
 .declaration-card button svg {
@@ -152,7 +152,7 @@
   margin-top: 14px;
 }
 .declaration-note {
-  border-top: 1px solid #d9e1e7;
+  border-top: 1px solid var(--mh-border, #d9e1e7);
   margin-top: 28px;
   padding-top: 18px;
 }
@@ -171,7 +171,7 @@
   align-items: center;
   gap: 10px;
   font-size: 14px;
-  color: #586976;
+  color: var(--mh-muted, #586976);
 }
 .declaration-success {
   display: flex;
@@ -179,7 +179,7 @@
   padding: 18px;
   margin-top: 20px;
   border: 1px solid #bfdfcf;
-  border-radius: 9px;
+  border-radius: var(--mh-radius, 9px);
   background: #edf8f2;
   color: #14634a;
   font-size: 14px;
@@ -199,7 +199,7 @@
   }
   .declaration-card {
     padding: 22px 18px;
-    border-radius: 10px;
+    border-radius: var(--mh-radius, 10px);
   }
   .declaration-card h1 {
     font-size: 27px;
@@ -214,7 +214,7 @@
 @media print {
   .declaration-page {
     padding: 0;
-    background: #fff;
+    background: var(--mh-surface, #fff);
   }
   .declaration-card {
     border: 0;
@@ -228,4 +228,19 @@
   .declaration-shell {
     max-width: 100%;
   }
+}
+
+/* Match the public brand using available Montserrat faces. Signing, private
+   tokens, semantic error/success colours and print geometry are unchanged. */
+.multi-choice-standalone .declaration-page {
+  --document-heading-weight: 700;
+  --document-label-weight: 600;
+  --document-copy-weight: 400;
+  --document-heading-tracking: -.02em;
+  --document-label-spacing: 0;
+  --document-label-case: none;
+}
+.multi-choice-standalone .declaration-card :is(button, input):focus-visible {
+  outline: 3px solid var(--mh-accent);
+  outline-offset: 4px;
 }

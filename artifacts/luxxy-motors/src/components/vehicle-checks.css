@@ -9,7 +9,7 @@
   background: var(--dialog-panel, #fff);
   color: var(--dialog-ink, #192a36);
 }
-.vehicle-check-dialog h2 { color: var(--dialog-ink, #192a36); }
+.vehicle-check-dialog h2 { color: var(--dialog-ink, #192a36); font-weight: var(--mh-weight-heading, 600); }
 .vehicle-check-dialog .vehicle-check-header > p { color: var(--dialog-muted, #576975); }
 .vehicle-check-dialog > [data-popup-close] { border: 0; color: var(--dialog-muted, #576975); background: transparent; opacity: 1; }
 .vehicle-check-dialog .vehicle-check-header {
@@ -30,3 +30,6 @@
   .vehicle-check-dialog .vehicle-check-header { padding: 20px 16px 16px; }
   .vehicle-check-dialog .vehicle-check-body { padding: 16px; }
 }
+
+/* Keep the shared dialog radius unchanged outside the verified public theme. */
+body[data-multi-choice-customer="true"] [role="dialog"].vehicle-check-dialog { border-radius: var(--mh-radius-panel, 8px); }

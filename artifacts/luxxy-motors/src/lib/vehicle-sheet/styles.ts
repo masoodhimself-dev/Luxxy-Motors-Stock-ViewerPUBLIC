@@ -1,4 +1,5 @@
 import { embeddedCss } from './generated-assets';
+import { multiChoiceSheetFontsCss } from './multi-choice-fonts';
 
 // Keep the bundled, licensed print fonts and A4 geometry. These refinements are
 // shared by the proof, browser print and the PDF's prepared document.
@@ -36,4 +37,39 @@ export const vehicleSheetRefinementsCss = `
 .lvs-mono .lvs-included{background:#fff;border-color:#444}
 `;
 
-export function installVehicleSheetStyles(doc:Document):void {if(doc.querySelector('style[data-luxxy-vehicle-sheet]'))return;const style=doc.createElement('style');style.dataset.luxxyVehicleSheet='1';style.textContent=embeddedCss+vehicleSheetRefinementsCss;doc.head.appendChild(style);}
+/** Called only after the document's permanent vehicle URL passed validation. */
+export function isMultiChoiceVehicleSheetUrl(exactVehicleUrl: string): boolean {
+  try {
+    const url = new URL(exactVehicleUrl);
+    return url.protocol === 'https:' && !url.port && !url.username && !url.password
+      && ['multichoicemotors.co.uk', 'www.multichoicemotors.co.uk'].includes(url.hostname.toLowerCase());
+  } catch { return false; }
+}
+
+// The existing font alias, measurements and protected text are retained. Colour
+// rules do not override the caller's explicit print accent or monochrome mode.
+export const multiChoiceVehicleSheetCss = `
+${multiChoiceSheetFontsCss}
+.lvs-page:not(.lvs-mono){--lvs-ink:#192a36;--lvs-muted:#59656e;--lvs-line:#e1e5e8}
+.lvs-page h1,.lvs-page h2{font-weight:700}
+.lvs-page h1{line-height:1.25}
+.lvs-price{line-height:1.3}
+.lvs-page h2{text-transform:none;letter-spacing:0}
+.lvs-page:not(.lvs-mono) .lvs-included{background:#eef9fc}
+`;
+
+export function installVehicleSheetStyles(doc: Document, options: { multiChoice?: boolean } = {}): void {
+  if (!doc.querySelector('style[data-luxxy-vehicle-sheet]')) {
+    const style = doc.createElement('style');
+    style.dataset.luxxyVehicleSheet = '1';
+    style.textContent = embeddedCss + vehicleSheetRefinementsCss;
+    doc.head.appendChild(style);
+  }
+  const existing = doc.querySelector<HTMLStyleElement>('style[data-luxxy-vehicle-sheet-theme]');
+  if (!options.multiChoice) { existing?.remove(); return; }
+  if (existing) return;
+  const style = doc.createElement('style');
+  style.dataset.luxxyVehicleSheetTheme = 'multi-choice';
+  style.textContent = multiChoiceVehicleSheetCss;
+  doc.head.appendChild(style);
+}

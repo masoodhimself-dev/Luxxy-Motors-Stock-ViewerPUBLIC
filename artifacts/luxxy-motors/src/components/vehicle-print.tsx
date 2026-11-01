@@ -3,6 +3,7 @@ import { customFetch } from '@workspace/api-client-react';
 import type { MotHistory } from '@workspace/vehicle-meta';
 import { Button } from '@/components/ui/button';
 import { Printer } from '@/components/icons';
+import { isMultiChoiceWebsite } from '@/lib/multi-home-scope';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { Car } from '@/lib/stock-context';
 import type { DealerConfig } from '@/config/dealer';
@@ -103,6 +104,7 @@ export function VehiclePrint({ car, dealer, features: _features, description: _d
         const { origin, url } = vehicleSheetLocation(fresh.car.id);
         const content = vehicleContent(fresh.car);
         const data = buildVehicleSheetData(fresh.car, dealer, content.features, content.description, url, fresh.history ?? undefined);
+        if (isMultiChoiceWebsite() && data.dealer) data.dealer.logoUrl = '/brand/multi-choice-motors/multi-choice-wordmark.svg';
         if (data.dealer?.logoUrl) data.dealer.logoUrl = new URL(data.dealer.logoUrl, window.location.origin).href;
         const { prepareVehicleSheet } = await import('@/lib/vehicle-sheet/controller');
         if (controller.signal.aborted) return;

@@ -532,9 +532,9 @@ body:has(.homepage-refined) footer#contact > div > div:last-child { margin-top: 
 @media (max-width: 639px) { .review-panel { flex-basis: 88%; padding: 20px; } }
 
 /* Balanced homepage palette: cool charcoal, clean white and restrained cyan. */
-body:has(.homepage-refined) header,
-body:has(.homepage-refined) footer,
-.homepage-refined {
+body:has(.homepage-refined):where(:not(:has(.multi-choice-site))) header,
+body:has(.homepage-refined):where(:not(:has(.multi-choice-site))) footer,
+.homepage-refined:where(:not(.multi-choice-site *)) {
  --primary: var(--dealer-primary, 195 22% 13%);
  --primary-foreground: var(--dealer-primary-foreground, 0 0% 100%);
  --foreground: 195 22% 13%;
@@ -659,7 +659,7 @@ body:has(.stock-refined) header { background: #fff; color: #202428; }
 .stock-refined .browse-stock { padding-top: 24px; }
 .stock-refined .vehicle-card-details { background: #fff; border-top: 1px solid #e1e2e3; }
 .stock-refined .vehicle-card-actions > a { color: #254e77; background: transparent; padding-inline: 0; border-radius: 2px; }
-.stock-refined .vehicle-card-actions > a:hover { color: #163552; text-decoration: underline; }
+.stock-refined .vehicle-card-actions > a:hover { color: var(--mh-primary, #163552); text-decoration: underline; }
 .stock-refined .vehicle-card { transition: border-color 160ms; transform: none; }
 .stock-refined .vehicle-card:hover { transform: none; border-color: #939a9f; box-shadow: none; }
 .stock-refined .vehicle-card:hover h3 a { text-decoration: underline; text-underline-offset: 4px; }
@@ -668,11 +668,11 @@ body:has(.stock-refined) header { background: #fff; color: #202428; }
 .stock-refined .vehicle-card-heading p { line-height: 1.5; }
 .stock-refined .vehicle-specs { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 12px; }
 .stock-refined .vehicle-specs svg { display: block; flex-shrink: 0; }
-.stock-refined .stock-card-highlights { color: #44585e; line-height: 1.6; }
+.stock-refined .stock-card-highlights { color: var(--mh-muted, #44585e); line-height: 1.6; }
 .stock-refined .vehicle-card [data-testid^="button-save"] { border-radius: 50%; width: 44px; height: 44px; }
 .stock-refined .vehicle-card [data-testid^="button-save"] svg { width: 16px; height: 16px; color: inherit; }
 .stock-refined [aria-label="Applied filters"] { flex-wrap: wrap; gap: 8px; }
-.stock-refined [aria-label="Applied filters"] button { padding-inline: 10px; background: #edf2f7; border: 1px solid #bac9d7; color: #254e77; border-radius: 4px; white-space: normal; }
+.stock-refined [aria-label="Applied filters"] button { padding-inline: 10px; background: var(--mh-tint, #edf2f7); border: 1px solid var(--mh-border, #bac9d7); color: var(--mh-primary, #254e77); border-radius: 4px; white-space: normal; }
 .stock-results-end { padding-block: 24px; border-bottom: 1px solid hsl(var(--border)); }
 .stock-empty { max-width: 720px; }
 @media(max-width:639px) {
@@ -694,24 +694,24 @@ body:has(.stock-refined) header { background: #fff; color: #202428; }
 .friendly-contact header, .friendly-warranty header { max-width: none; margin-block: 16px 28px; }
 .friendly-contact .friendly-banner { border-bottom: 0; padding-bottom: 0; }
 .friendly-contact [aria-labelledby="talk-heading"] > div:first-of-type { background: var(--dealer-panel, #fff); border: 1px solid hsl(var(--border)); border-radius: 4px; padding-inline: 20px; }
-.friendly-contact [data-testid^="contact-"] > svg:first-child { box-sizing: content-box; padding: 10px; background: #f1f2f2; border-radius: 50%; color: #434b52; }
+.friendly-contact [data-testid^="contact-"] > svg:first-child { box-sizing: content-box; padding: 10px; background: var(--mh-tint, #f1f2f2); border-radius: 50%; color: var(--mh-primary, #434b52); }
 .friendly-contact [data-testid="contact-whatsapp"] > svg:first-child { background: #edf4ef; color: #236243; }
 .friendly-contact [aria-label="Before your visit"] { background: var(--dealer-panel, #eeefef); border: 1px solid hsl(var(--border)); border-radius: 4px; padding: 28px; }
 .friendly-contact [data-testid="contact-location"] > .bg-primary { --primary-foreground: var(--customer-footer-foreground-hsl, 0 0% 100%); background: var(--customer-footer-background, #22272b); color: var(--customer-footer-foreground, #fff); }
 .friendly-warranty #warranty-enquiry { background: var(--dealer-panel, #eef0f1); border: 1px solid hsl(var(--border)); border-radius: 4px; }
 .friendly-warranty [aria-labelledby="warranty-details-heading"] { border-top: 0; }
 .friendly-warranty [aria-labelledby="warranty-details-heading"] dl { background: var(--dealer-panel, #fff); padding-inline: 24px; border: 1px solid hsl(var(--border)); border-radius: 4px; }
-.friendly-warranty [aria-labelledby="warranty-faq-heading"] { border-bottom: 1px solid #d7dadd; }
+.friendly-warranty [aria-labelledby="warranty-faq-heading"] { border-bottom: 1px solid var(--mh-border, #d7dadd); }
 .friendly-enquire .enquiry-introduction { background: transparent; padding: 0; }
 .friendly-enquire .friendly-banner { margin: 0; padding: 0 0 24px; }
 .friendly-page form { background: var(--dealer-panel, #fff); border: 1px solid hsl(var(--border)); padding: 24px; border-radius: 4px; }
 .enquiry-form-panel > section, .enquiry-form-panel > [data-testid="status-enquiry-success"] { background: var(--dealer-panel, #fff); padding: 24px; border: 1px solid hsl(var(--border)); border-radius: 4px; }
-.friendly-shortlist-intro { border-bottom: 1px solid #d7dadd; padding: 0 0 24px; margin-bottom: 28px; }
+.friendly-shortlist-intro { border-bottom: 1px solid var(--mh-border, #d7dadd); padding: 0 0 24px; margin-bottom: 28px; }
 .friendly-shortlist-intro header { margin-bottom: 0; padding-bottom: 0; border: 0; background: transparent; }
 .friendly-saved .vehicle-card-details { background: #fff; }
-.vehicle-summary { background: #fff; border: 1px solid #d7dadd; }
-.vehicle-inline-enquiry { background: #f3f4f4; border-color: #d7dadd; }
-.vehicle-review-card { background: #f5f5f4; border: 1px solid #d7dadd; }
+.vehicle-summary { background: var(--mh-surface, #fff); border: 1px solid var(--mh-border, #d7dadd); }
+.vehicle-inline-enquiry { background: var(--mh-surface, #f3f4f4); border-color: var(--mh-border, #d7dadd); }
+.vehicle-review-card { background: var(--mh-surface, #f5f5f4); border: 1px solid var(--mh-border, #d7dadd); }
 /* A page and its cards may use different dealer colours. Text, controls and
    links follow the surface they are actually drawn on. */
 .customer-site :is(.bg-card, .bg-popover, .surface, .customer-enquiry-form, .enquiry-form-panel, .booking-page, .booking-panel, .saved-car-list > div, .customer-purchase-card, .friendly-contact .contact-talk-panel > .divide-y, .friendly-contact #contact-message > div:last-child, .friendly-contact [aria-label="Before your visit"], .friendly-enquire [data-testid="enquiry-vehicle-summary"], .friendly-warranty #warranty-enquiry, .friendly-warranty [aria-labelledby="warranty-details-heading"] dl) {
@@ -891,9 +891,9 @@ body:has(.customer-site) [role='alert'][class*='bg-destructive/'] { background: 
 }
 
 /* Quiet explanations: no extra help icons or permanent panels. */
-.customer-term-help { position: relative; z-index: 20; display: inline-flex; align-items: center; gap: .5rem; max-width: 100%; padding: 0; border: 0; border-radius: 2px; background: transparent; color: inherit; text-align: inherit; line-height: inherit; cursor: help; text-decoration: underline dotted; text-decoration-color: #87939d; text-underline-offset: 4px; }
+.customer-term-help { position: relative; z-index: 20; display: inline-flex; align-items: center; gap: .5rem; max-width: 100%; padding: 0; border: 0; border-radius: 2px; background: transparent; color: inherit; text-align: inherit; line-height: inherit; cursor: help; text-decoration: underline dotted; text-decoration-color: var(--mh-muted, #87939d); text-underline-offset: 4px; }
 .customer-term-help:hover { text-decoration-color: currentColor; }
-.customer-help-content { z-index: 80; width: max-content; max-width: min(300px, calc(100vw - 32px)); border: 1px solid #3a4551; border-radius: 8px; background: #1f2933; color: #fff; padding: 12px 14px; font-size: 13px; line-height: 1.65; font-weight: 400; text-align: left; box-shadow: 0 6px 20px #15202b20; overflow-wrap: anywhere; }
+.customer-help-content { z-index: 80; width: max-content; max-width: min(300px, calc(100vw - 32px)); border: 1px solid var(--mh-primary, #3a4551); border-radius: var(--mh-radius-panel, 8px); background: var(--mh-primary, #1f2933); color: #fff; padding: 12px 14px; font-size: 13px; line-height: 1.65; font-weight: 400; text-align: left; box-shadow: var(--mh-shadow-md, 0 6px 20px #15202b20); overflow-wrap: anywhere; }
 @media (pointer: coarse) { .customer-term-help { min-height: 32px; } }
 @media print { .customer-help-content { display: none !important; } }
 

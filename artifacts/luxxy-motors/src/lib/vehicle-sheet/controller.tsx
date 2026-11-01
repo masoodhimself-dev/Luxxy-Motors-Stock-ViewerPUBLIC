@@ -1,7 +1,7 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { VehicleSheetPage,selectedFeatures } from './view';
-import { installVehicleSheetStyles } from './styles';
+import { installVehicleSheetStyles, isMultiChoiceVehicleSheetUrl } from './styles';
 import { loadAssets,loadFonts } from './assets';
 import { createVehicleQr } from './qr';
 import { validateData,validateVehiclePageUrl,SheetInputError,text,list,highlight } from './validation';
@@ -31,6 +31,7 @@ export async function prepareVehicleSheet(host:HTMLElement,data:VehicleSheetData
  try {
   cancelled();validateData(data);if(options.assetTimeoutMs!==undefined&&(!Number.isFinite(options.assetTimeoutMs)||options.assetTimeoutMs<=0))throw new SheetInputError('INVALID_TIMEOUT','assetTimeoutMs must be a positive finite number.');if(options.printAccentColour&&!/^#[0-9a-f]{6}$/i.test(options.printAccentColour))throw new SheetInputError('INVALID_COLOUR','printAccentColour must be a six-digit hex colour.');
   const exact=validateVehiclePageUrl(data.document.vehiclePageUrl,options);result.vehiclePageUrl=exact;
+  installVehicleSheetStyles(doc,{multiChoice:isMultiChoiceVehicleSheetUrl(exact)});
   const [assets]=await Promise.all([loadAssets(doc,data,options.assetTimeoutMs,signal),loadFonts(doc,!!text(data.vehicle.registrationNumber))]);cancelled();
   result.warnings.push(...assets.warnings);result.failedAssets=assets.failedAssets;
   const qr=createVehicleQr(exact);let plan:FitPlan={spacing:'normal',supportingPhotos:true,optionalFeatureLimit:8,summary:'normal'};
