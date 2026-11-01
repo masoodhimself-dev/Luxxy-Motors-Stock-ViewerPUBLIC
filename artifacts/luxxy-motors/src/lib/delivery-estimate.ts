@@ -85,7 +85,7 @@ export function usableDeliveryEstimate(
 /** Combine only known consumer-price bases; never infer or calculate VAT. */
 export function deliveryPriceQualification(priceType?: string | null): string | null {
   const basis = priceType?.trim().replace(/\s+/g, " ") ?? "";
-  if (/^(?:|fixed(?: price)?|vat included|inc\.?\s*vat|incl\.?\s*vat|inclusive(?: of)? vat|including vat)$/i.test(basis)) return null;
+  if (/^(?:|(?:fixed|retail)(?: price)?|vat included|inc\.?\s*vat|incl\.?\s*vat|inclusive(?: of)? vat|including vat)$/i.test(basis)) return null;
   if (/^(?:\+\s*vat|ex(?:cl(?:uding)?)?\.?\s*vat|vat exclusive)$/i.test(basis))
     return "The advertised car price excludes VAT. This estimate covers delivery only; please confirm the full car price and VAT with the dealership.";
   return "The car’s price basis needs confirmation. This estimate covers delivery only; please confirm the full car price and any applicable VAT with the dealership.";

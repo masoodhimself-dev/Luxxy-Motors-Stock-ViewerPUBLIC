@@ -38,3 +38,9 @@ it.each(["+ VAT", "+VAT", "exVAT", "ex VAT", "excl. VAT", "excluding VAT", "VAT 
 it("does not turn a zero/price-on-application car into a free-car total", () => {
   expect(deliveryVehicleTotal(0, "GBP", 8510, "fixed")).toBeNull();
 });
+
+
+it.each(["retail", "retail price"])("combines the official Cazoo consumer price basis %s", priceType => {
+  expect(deliveryVehicleTotal(8790, "GBP", 4936, priceType)).toEqual({vehiclePence:879000,totalPence:883936});
+  expect(deliveryVehicleTotal(8790, "GBP", 4936, "retail + VAT")).toBeNull();
+});

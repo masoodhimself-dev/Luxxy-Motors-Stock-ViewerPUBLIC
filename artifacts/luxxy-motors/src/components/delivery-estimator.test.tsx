@@ -244,3 +244,13 @@ it("updates a changed price basis without another route request or stale combine
 it("shows delivery alone for a price-on-application/zero-price car", async () => {
   render(<DeliveryEstimator expanded vehiclePrice={0} currency="GBP" priceType="fixed"/>);await calculate();expect(screen.queryByText("Car price")).not.toBeInTheDocument();expect(screen.queryByText("Estimated total")).not.toBeInTheDocument();
 });
+
+
+it("shows the official Cazoo retail car plus delivery total without relaxing VAT or POA safeguards", async () => {
+  state.settings.deliveryPricing.basePrice="40.00";state.settings.deliveryPricing.pricePerMile="1.20";
+  state.fetch.mockResolvedValue({...quote,roadMiles:7.8,basePricePence:4000,pricePerMilePence:120,mileageChargePence:936,totalPence:4936});
+  const onEnquire=vi.fn();render(<DeliveryEstimator expanded vehiclePrice={8790} currency="GBP" priceType="retail" onEnquire={onEnquire}/>);
+  fireEvent.change(screen.getByLabelText("Delivery postcode"),{target:{value:"SW1A1AA"}});fireEvent.click(screen.getByRole("button",{name:"Calculate delivery"}));
+  await screen.findByText("£8,839.36");expect(screen.getByText("£8,790.00")).toBeVisible();expect(screen.getByText("£49.36")).toBeVisible();expect(onEnquire).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button",{name:"Include estimate in my enquiry"}));expect(onEnquire.mock.calls[0][0]).toContain("Estimated total for car and delivery: £8,839.36");expect(state.fetch).toHaveBeenCalledTimes(1);
+});
