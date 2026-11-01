@@ -4,7 +4,7 @@ import type { DealerConfig } from "@/config/dealer";
 import { getPhoneHref } from "@/lib/cta-helpers";
 import { formatPhoneDisplay } from "@/lib/utils";
 import { multiChoiceHomeSections } from "@/lib/multi-choice-home-sections";
-import { Menu, Phone, ChevronDown, MoreHorizontal, Heart } from "./icons";
+import { Menu, Phone, ChevronDown, Heart } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import {
   Sheet,
@@ -24,8 +24,7 @@ export const MultiHomeHeader = forwardRef<
   { settings: MultiHomeSettings; savedCount: number; testDriveHref: string }
 >(function MultiHomeHeader({ settings, savedCount, testDriveHref }, ref) {
   const [drawerOpen, setDrawerOpen] = useState(false),
-    [servicesOpen, setServicesOpen] = useState(false),
-    [moreOpen, setMoreOpen] = useState(false);
+    [servicesOpen, setServicesOpen] = useState(false);
   const sections = multiChoiceHomeSections(settings),
     phoneHref = getPhoneHref(settings),
     phone = formatPhoneDisplay(settings.contact.phone ?? "");
@@ -35,6 +34,7 @@ export const MultiHomeHeader = forwardRef<
   useEffect(() => {
     const resize = () => {
       if (window.innerWidth >= 1100) setDrawerOpen(false);
+      else setServicesOpen(false);
     };
     window.addEventListener("resize", resize);
     return () => window.removeEventListener("resize", resize);
@@ -42,7 +42,6 @@ export const MultiHomeHeader = forwardRef<
   function close() {
     setDrawerOpen(false);
     setServicesOpen(false);
-    setMoreOpen(false);
   }
   return (
     <header ref={ref} data-site-header className="multi-home-header">
@@ -66,7 +65,7 @@ export const MultiHomeHeader = forwardRef<
         >
           <Link href="/stock">Search cars</Link>
           {sections.partExchange && <a href="#part-exchange">Part exchange</a>}
-          {(sections.warranty || sections.delivery) && (
+          {(sections.warranty || sections.delivery || canBook) && (
             <Popover open={servicesOpen} onOpenChange={setServicesOpen}>
               <PopoverTrigger asChild>
                 <button type="button" className="multi-home-header__disclosure">
@@ -75,6 +74,11 @@ export const MultiHomeHeader = forwardRef<
               </PopoverTrigger>
               <PopoverContent className="multi-home-popover" align="start">
                 <nav aria-label="Services">
+                  {canBook && (
+                    <Link href={testDriveHref} onClick={close}>
+                      {settings.bookViewing.ctaLabel}
+                    </Link>
+                  )}
                   {sections.warranty && (
                     <a href="#warranty" onClick={close}>
                       Warranty
@@ -89,37 +93,19 @@ export const MultiHomeHeader = forwardRef<
               </PopoverContent>
             </Popover>
           )}
+          <a href="#about">About us</a>
           {sections.reviews && <a href="#reviews">Reviews</a>}
-          <a href="#contact">Contact</a>
-          <Popover open={moreOpen} onOpenChange={setMoreOpen}>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className="multi-home-header__more"
-                aria-label="More links"
-              >
-                <MoreHorizontal aria-hidden="true" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="multi-home-popover" align="end">
-              <nav aria-label="More dealership links">
-                <Link href="/saved" onClick={close}>
-                  <Heart aria-hidden="true" />
-                  {savedLabel}
-                </Link>
-                <a href="#about" onClick={close}>
-                  About us
-                </a>
-                {canBook && (
-                  <Link href={testDriveHref} onClick={close}>
-                    {settings.bookViewing.ctaLabel}
-                  </Link>
-                )}
-              </nav>
-            </PopoverContent>
-          </Popover>
+          <a href="#contact">Contact us</a>
         </nav>
         <div className="multi-home-header__actions">
+          <Link
+            href="/saved"
+            className="multi-home-header__saved"
+            aria-label={savedLabel}
+          >
+            <Heart aria-hidden="true" />
+            {savedCount > 0 && <span aria-hidden="true">{savedCount}</span>}
+          </Link>
           {phoneHref && (
             <a
               href={phoneHref}
@@ -142,7 +128,7 @@ export const MultiHomeHeader = forwardRef<
             </SheetTrigger>
             <SheetContent side="right" className="multi-home-drawer">
               <SheetHeader>
-                <SheetTitle>Multi-Choice Motors</SheetTitle>
+                <SheetTitle>{settings.identity.name}</SheetTitle>
                 <SheetDescription>
                   Cars, services and your next visit.
                 </SheetDescription>
@@ -172,7 +158,7 @@ export const MultiHomeHeader = forwardRef<
                   </a>
                 )}
                 <a href="#contact" onClick={close}>
-                  Contact
+                  Contact us
                 </a>
                 <Link href="/saved" onClick={close}>
                   <Heart aria-hidden="true" />

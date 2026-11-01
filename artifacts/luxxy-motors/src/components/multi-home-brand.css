@@ -1,6 +1,7 @@
 /* Multi-Choice homepage only. Latin subset of the supplied Montserrat fonts;
    SIL Open Font License and attribution ship alongside the font files. */
 @font-face { font-family: 'Multi Montserrat'; src: url('/brand/multi-choice-motors/fonts/montserrat-latin-400.woff2') format('woff2'); font-style: normal; font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Multi Montserrat'; src: url('/brand/multi-choice-motors/fonts/montserrat-latin-500.woff2') format('woff2'); font-style: normal; font-weight: 500; font-display: swap; }
 @font-face { font-family: 'Multi Montserrat'; src: url('/brand/multi-choice-motors/fonts/montserrat-latin-600.woff2') format('woff2'); font-style: normal; font-weight: 600; font-display: swap; }
 @font-face { font-family: 'Multi Montserrat'; src: url('/brand/multi-choice-motors/fonts/montserrat-latin-700.woff2') format('woff2'); font-style: normal; font-weight: 700; font-display: swap; }
 @font-face { font-family: 'Multi Montserrat'; src: url('/brand/multi-choice-motors/fonts/montserrat-latin-800.woff2') format('woff2'); font-style: normal; font-weight: 800; font-display: swap; }

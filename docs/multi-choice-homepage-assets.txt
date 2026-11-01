@@ -1,0 +1,47 @@
+Multi-Choice homepage asset sources — 1 November 2026
+
+Scope: the homepage at the verified multichoicemotors.co.uk canonical origin only.
+
+Body-type icons
+The user explicitly requested the eight body-type icons shown in their screenshot
+on 1 November 2026. These replace the earlier original placeholder profiles.
+Source: user-provided heston-assets/svgs/bodytype-*.svg from the supplied design pack.
+Files are served as passive images from brand/multi-choice-motors/body-types/.
+The misspelt source filename convertable is normalised to convertible.
+Only invalid non-finite source path segments are removed; artwork is otherwise retained.
+No reference-site logo, photography, reviews, finance interface or business promises are reused.
+
+Other interface icons
+Lucide React (existing dependency): Smile, ShieldCheck, Truck, Tag, CircleCheck,
+Handshake, Calendar, MapPin, Car, Heart, Search, Phone, Mail, ArrowRight,
+ArrowUpRight, ChevronDown, ChevronLeft, ChevronRight, Menu, Star.
+Used for benefits, header navigation, search, service/contact information,
+review controls and generic body-type fallback. Decorative icons are hidden
+from assistive technology. WhatsApp uses the existing official brand mark
+from react-icons rather than a generated approximation.
+
+Hero artwork
+Built-in imagegen background-extraction edit of the user's
+Range Rover and Mondeo Forecourt.png. Prompt: remove the surrounding trees,
+sky and pavement, retain both existing cars and their relative arrangement,
+keep a subtle contact shadow, and output actual alpha transparency without
+added text or vehicles. Optimised as hero-cars-1200.webp (1200 x 528, 102744 bytes).
+Only the existing forecourt asset's ID is mapped to this cutout. A later
+staff-selected hero photo keeps its configured URL and presentation.
+
+Typography and logo
+Self-hosted Latin Montserrat subsets: 400, 500, 600, 700, 800. SIL Open Font
+License is shipped with the font files. The logo now uses the exact user-supplied outlined paths from
+Multichoice-Motors-SVG.zip / Multichoice-Motors-Navy-Header.svg. The supplied
+white/light version is retained for dark surfaces. The same paths are recoloured
+navy for white surfaces. Both hero number plates were updated with this artwork
+using the built-in imagegen editing tool; other vehicle presentation was retained.
+
+Business copy
+The six reference dealer promises are not copied. Existing published Multi-Choice
+wording remains authoritative; neutral fallback benefits are marked TODO(copy)
+in source for review. Unconfigured reviews and promotions remain absent.
+
+Brand scope: all verified Multi-Choice public customer-page headers and footers
+use the new local logo. Staff screens, invoices, dealer configuration and other
+dealerships are unchanged.

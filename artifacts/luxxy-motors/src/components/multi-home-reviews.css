@@ -1,0 +1,39 @@
+.multi-home .multi-home-reviews { text-align: center; }
+.multi-home .multi-home-reviews__heading { position: relative; display: flex; align-items: center; justify-content: center; gap: 20px; margin-bottom: 24px; }
+.multi-home .multi-home-reviews__heading[data-controls] { padding-inline: 96px; }
+.multi-home .multi-home-reviews__heading h2 { min-width: 0; font-size: 24px; line-height: 1.35; overflow-wrap: anywhere; }
+.multi-home .multi-home-reviews__arrows { position: absolute; right: 0; display: flex; gap: 4px; }
+.multi-home .multi-home-reviews__arrows button { display: grid; width: 44px; height: 44px; place-items: center; border-radius: 50%; color: var(--mh-primary); background: transparent; }
+.multi-home .multi-home-reviews__arrows button:hover:not(:disabled) { background: var(--mh-tint); }
+.multi-home .multi-home-reviews__arrows button:disabled { opacity: .3; cursor: default; }
+.multi-home .multi-home-reviews__viewport { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(230px, calc((100% - 64px) / 5)); align-items: start; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: thin; padding: 4px 2px 14px; overscroll-behavior-x: contain; }
+.multi-home .multi-home-reviews__card { min-width: 0; min-height: 210px; display: flex; flex-direction: column; align-items: flex-start; padding: 16px; text-align: left; background: var(--mh-surface, #fff); border: 1px solid var(--mh-border); border-radius: var(--mh-radius, 8px); box-shadow: var(--mh-shadow-sm); scroll-snap-align: start; }
+.multi-home .multi-home-reviews__rating { display: flex; gap: 3px; color: var(--mh-accent-dark); margin-bottom: 10px; }
+.multi-home .multi-home-reviews__text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 5; overflow: hidden; max-block-size: 7.25em; margin: 0; color: var(--mh-text); font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; white-space: pre-line; }
+.multi-home .multi-home-reviews__text[data-expanded] { display: block; max-block-size: none; overflow: visible; -webkit-line-clamp: unset; }
+.multi-home .multi-home-reviews__expand { display: inline-flex; align-items: center; min-height: 44px; margin: 0; padding: 4px 0; color: var(--mh-primary); font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.multi-home .multi-home-reviews__card figcaption { display: grid; gap: 3px; margin-top: auto; padding-top: 14px; font-size: 12px; line-height: 1.5; color: var(--mh-muted); overflow-wrap: anywhere; }
+.multi-home .multi-home-reviews__card figcaption strong { font-weight: 600; color: var(--mh-text); }
+.multi-home .multi-home-reviews__dots { display: none; }
+.multi-home .multi-home-reviews__source { margin-top: 8px; }
+@media (max-width: 1279px) {
+  .multi-home .multi-home-reviews__viewport { grid-auto-columns: calc((100% - 32px) / 3); }
+}
+@media (max-width: 900px) {
+  .multi-home .multi-home-reviews__viewport { grid-auto-columns: calc((100% - 16px) / 2); }
+}
+@media (max-width: 767px) {
+  .multi-home .multi-home-reviews__heading { justify-content: space-between; gap: 12px; text-align: left; }
+  .multi-home .multi-home-reviews__heading[data-controls] { padding-inline: 0; }
+  .multi-home .multi-home-reviews__heading h2 { font-size: 24px; }
+  .multi-home .multi-home-reviews__arrows { position: static; flex: none; }
+  .multi-home .multi-home-reviews__arrows button { width: 44px; height: 44px; }
+  .multi-home .multi-home-reviews__viewport { grid-auto-columns: 100%; }
+  .multi-home .multi-home-reviews__dots { display: flex; width: fit-content; max-width: 100%; margin: 0 auto; overflow-x: auto; scrollbar-width: thin; }
+  .multi-home .multi-home-reviews__dots button { flex: 0 0 44px; display: grid; place-items: center; height: 44px; }
+  .multi-home .multi-home-reviews__dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--mh-dot); }
+  .multi-home .multi-home-reviews__dots [aria-pressed='true'] span { background: var(--mh-primary); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .multi-home .multi-home-reviews__viewport { scroll-behavior: auto; }
+}

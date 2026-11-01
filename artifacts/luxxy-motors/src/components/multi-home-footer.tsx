@@ -1,11 +1,35 @@
 import { Link } from "wouter";
 import type { MultiHomeSettings } from "./multi-home-header";
 import { multiChoiceHomeSections } from "@/lib/multi-choice-home-sections";
+import { getEnquiryHref } from "@/lib/cta-helpers";
+import { Facebook, Instagram, Twitter } from "./icons";
 import "./multi-home-chrome.css";
 
-export function MultiHomeFooter({ settings }: { settings: MultiHomeSettings }) {
+export function MultiHomeFooter({
+  settings,
+  enquiriesEnabled = false,
+}: {
+  settings: MultiHomeSettings;
+  enquiriesEnabled?: boolean;
+}) {
   const sections = multiChoiceHomeSections(settings),
     legal = settings.legal;
+  const socialLinks = [
+    { label: "Instagram", href: settings.social.instagram, Icon: Instagram },
+    { label: "Facebook", href: settings.social.facebook, Icon: Facebook },
+    { label: "X / Twitter", href: settings.social.twitter, Icon: Twitter },
+  ].flatMap((item) => {
+    try {
+      const url = new URL(item.href || "");
+      return ["https:", "http:"].includes(url.protocol) &&
+        !url.username &&
+        !url.password
+        ? [{ ...item, href: url.href }]
+        : [];
+    } catch {
+      return [];
+    }
+  });
   return (
     <footer
       className="multi-home-footer"
@@ -19,7 +43,25 @@ export function MultiHomeFooter({ settings }: { settings: MultiHomeSettings }) {
         <Link href="/saved">Saved cars</Link>
         <a href="#about">About us</a>
         <a href="#contact">Contact</a>
+        {enquiriesEnabled && (
+          <Link href={getEnquiryHref("general")}>Send an enquiry</Link>
+        )}
       </nav>
+      {socialLinks.length > 0 && (
+        <nav aria-label="Follow us" className="multi-home-footer__social">
+          {socialLinks.map(({ label, href, Icon }) => (
+            <a
+              key={label}
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={label}
+            >
+              <Icon size={20} aria-hidden="true" />
+            </a>
+          ))}
+        </nav>
+      )}
       <a
         href="#top"
         className="multi-home-footer__brand"

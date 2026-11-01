@@ -14,7 +14,7 @@ import { formatPhoneDisplay } from '@/lib/utils';
 import { CustomerFooter } from '@/components/customer-footer';
 import { MultiHomeHeader } from '@/components/multi-home-header';
 import { MultiHomeFooter } from '@/components/multi-home-footer';
-import { isMultiChoiceHomepage } from '@/lib/multi-home-scope';
+import { isMultiChoiceHomepage, isMultiChoiceWebsite } from '@/lib/multi-home-scope';
 import './premium-showroom.css';
 import './stock-browsing-header.css';
 import './portal/portal-workspace.css';
@@ -34,17 +34,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [, vehicleRoute] = useRoute('/vehicle/:id');
   const testDriveHref = vehicleRoute?.id ? `/enquire?type=viewing&vehicleId=${encodeURIComponent(vehicleRoute.id)}` : getEnquiryHref('viewing');
   const isStaff = location.startsWith('/portal');
+  const isMultiWebsite = !isStaff && isMultiChoiceWebsite();
   const isCustomerTask = /^\/(sign|customer-details|viewing)\//.test(location);
   const isPremiumShowroom = location === '/' || location === '/stock' || /^\/vehicle\/[^/]+\/?$/.test(location);
   const isVehiclePage = /^\/vehicle\/[^/]+\/?$/.test(location);
   const isBrowsingPage = location === '/stock' || /^\/vehicle\/[^/]+\/?$/.test(location);
-  const { settings: dealerConfig, publicEnquiriesEnabled } = useDealerSettings();
+  const { settings: dealerConfig, publicEnquiriesEnabled, isLoading: settingsLoading, isError: settingsError } = useDealerSettings();
   const whatsAppHref = getWhatsAppHref(undefined, dealerConfig);
   const { savedCount } = useSavedCars();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const darkHomeHeader = location === '/' && !scrolled && !mobileMenuOpen;
-  const headerLogo = darkHomeHeader
+  const headerLogo = isMultiWebsite
+    ? '/brand/multi-choice-motors/multi-choice-wordmark.svg'
+    : darkHomeHeader
     ? dealerConfig.presentation?.footerLogoUrl || dealerConfig.identity.logoAsset
     : dealerConfig.identity.logoAsset;
   const headerRef = useRef<HTMLElement>(null);
@@ -56,6 +59,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // Dealer-selected colours must agree with Settings. Adjust text contrast,
   // retaining the supplied hue rather than silently substituting a template.
   const brandPrimary = dealerConfig.identity.brandColors?.primaryHsl;
+  // Public presentation only: leave saved dealership branding, staff and invoice
+  // generation unchanged while the supplied Multi-Choice logo is adopted.
+  const footerSettings = isMultiWebsite ? {
+    ...dealerConfig,
+    identity: { ...dealerConfig.identity, logoAsset: '/brand/multi-choice-motors/multi-choice-wordmark.svg' },
+    presentation: { ...dealerConfig.presentation, footerLogoUrl: readableForegroundForHsl(brandPrimary ?? '195 22% 13%') === '0 0% 100%'
+      ? '/brand/multi-choice-motors/multi-choice-wordmark-white.svg'
+      : '/brand/multi-choice-motors/multi-choice-wordmark.svg' },
+  } : dealerConfig;
   const brandAccent = dealerConfig.identity.brandColors?.accentHsl;
   const customerAccent = readableAccentForHsl(brandAccent ?? '203.226 58.491% 31.176%');
   const accent = isStaff ? brandAccent : customerAccent;
@@ -193,6 +205,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
     }
     handleNav('top');
   };
+
+  // Never show another dealer's build-time defaults while this tenant loads.
+  if (isMultiHome && (settingsLoading || settingsError)) return <div className="luxxy-shell customer-site multi-home-shell min-h-[100dvh]">
+    <header ref={headerRef} data-site-header className="multi-home-header"><div className="multi-home-header__inner"><a href="#main-content" className="multi-home-header__brand" aria-label="Multi-Choice Motors home"><img src="/brand/multi-choice-motors/multi-choice-wordmark.svg" alt="Multi-Choice Motors" width="205" height="43" /></a></div></header>
+    <main id="main-content" className="multi-home-loading" aria-busy={settingsLoading || undefined}>
+      <h1>{settingsError ? 'Website details are temporarily unavailable' : 'Loading Multi-Choice Motors…'}</h1>
+      {settingsError ? <><p>Please reload the page to try again.</p><button type="button" onClick={() => window.location.reload()}>Reload page</button></> : <p role="status">Getting the dealership’s latest information.</p>}
+    </main>
+  </div>;
 
   return (
     <div id={isMultiHome ? 'top' : undefined} style={brandStyle} data-dealer-brand={dealerConfig.identity.name.toLowerCase().replace(/[^a-z0-9]/g, "") === "multichoicemotors" ? "multi-choice" : undefined} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}${isMultiHome ? ' multi-home-shell' : ''}`}>
@@ -375,7 +396,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </footer>
       )}
-      {isMultiHome ? <MultiHomeFooter settings={dealerConfig} /> : !isStaff && !isCustomerTask && <CustomerFooter settings={dealerConfig} testDriveHref={testDriveHref} enquiriesEnabled={publicEnquiriesEnabled} />}
+      {isMultiHome ? <MultiHomeFooter settings={dealerConfig} enquiriesEnabled={publicEnquiriesEnabled} /> : !isStaff && !isCustomerTask && <CustomerFooter settings={footerSettings} testDriveHref={testDriveHref} enquiriesEnabled={publicEnquiriesEnabled} />}
       <div data-home-scroll-spacer aria-hidden="true" className="bg-primary" />
 
     </div>

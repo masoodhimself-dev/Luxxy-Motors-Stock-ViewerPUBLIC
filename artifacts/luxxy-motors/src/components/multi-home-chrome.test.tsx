@@ -68,11 +68,26 @@ it("uses the original vector logo and published phone with compact, functional n
   expect(
     screen.queryByRole("link", { name: "Reviews" }),
   ).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "More links" }));
   expect(screen.getByRole("link", { name: "Saved cars (2)" })).toHaveAttribute(
     "href",
     "/saved",
   );
+  expect(screen.getByRole("link", { name: "About us" })).toHaveAttribute(
+    "href",
+    "#about",
+  );
+  expect(screen.getByRole("link", { name: "Contact us" })).toHaveAttribute(
+    "href",
+    "#contact",
+  );
+  expect(
+    screen.queryByRole("button", { name: "More links" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen
+      .getByRole("link", { name: /Call Multi-Choice Motors/ })
+      .querySelector("svg"),
+  ).toHaveClass("lucide-phone");
   expect(
     screen.queryByRole("link", { name: dealerConfig.bookViewing.ctaLabel }),
   ).not.toBeInTheDocument();
@@ -171,7 +186,7 @@ it("closes the mobile drawer when the viewport changes to desktop", async () => 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
   );
 });
-it("keeps the enabled booking route available without adding a primary navigation button", async () => {
+it("keeps the enabled booking route in the clearly labelled Services menu", async () => {
   const settings = config();
   settings.testDriveBooking = { enabled: true };
   render(
@@ -184,10 +199,54 @@ it("keeps the enabled booking route available without adding a primary navigatio
   expect(
     screen.queryByRole("link", { name: settings.bookViewing.ctaLabel }),
   ).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "More links" }));
+  fireEvent.click(screen.getByRole("button", { name: "Services" }));
   expect(
     screen.getByRole("link", { name: settings.bookViewing.ctaLabel }),
   ).toHaveAttribute("href", "/enquire?type=viewing");
+});
+it("offers booking independently when optional warranty and delivery sections are off", () => {
+  const settings = config();
+  settings.presentation = { servicesEnabled: false };
+  settings.testDriveBooking = { enabled: true };
+  render(
+    <MultiHomeHeader
+      settings={settings}
+      savedCount={0}
+      testDriveHref="/enquire?type=viewing"
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Services" }));
+  const services = within(screen.getByRole("navigation", { name: "Services" }));
+  expect(
+    services.getByRole("link", { name: settings.bookViewing.ctaLabel }),
+  ).toHaveAttribute("href", "/enquire?type=viewing");
+  expect(
+    services.queryByRole("link", { name: "Warranty" }),
+  ).not.toBeInTheDocument();
+  expect(
+    services.queryByRole("link", { name: "Delivery" }),
+  ).not.toBeInTheDocument();
+});
+it("closes a desktop Services disclosure when resizing to phone navigation", async () => {
+  vi.stubGlobal("innerWidth", 1440);
+  render(
+    <MultiHomeHeader
+      settings={config()}
+      savedCount={0}
+      testDriveHref="/enquire?type=viewing"
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Services" }));
+  expect(
+    screen.getByRole("navigation", { name: "Services" }),
+  ).toBeInTheDocument();
+  vi.stubGlobal("innerWidth", 390);
+  fireEvent(window, new Event("resize"));
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("navigation", { name: "Services" }),
+    ).not.toBeInTheDocument(),
+  );
 });
 it("closes the mobile drawer on navigation and includes Reviews only for actual configured evidence", async () => {
   const settings = config();
@@ -240,5 +299,50 @@ it("keeps the footer compact and uses only supplied company and legal details", 
   );
   expect(
     screen.queryByText(/Opening hours|020 4628 6488|Hayes/),
+  ).not.toBeInTheDocument();
+});
+it("preserves configured social profiles without inventing links or accepting unsafe URLs", () => {
+  const settings = config();
+  settings.social = {
+    instagram: "https://www.instagram.com/multichoicemotors/",
+    facebook: "https://www.facebook.com/multichoicemotors/",
+    twitter: "https://x.com/multichoicemotors",
+  };
+  const { rerender } = render(<MultiHomeFooter settings={settings} />);
+  const social = within(screen.getByRole("navigation", { name: "Follow us" }));
+  for (const [name, href] of [
+    ["Instagram", settings.social.instagram],
+    ["Facebook", settings.social.facebook],
+    ["X / Twitter", settings.social.twitter],
+  ]) {
+    const link = social.getByRole("link", { name });
+    expect(link).toHaveAttribute("href", href);
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  }
+  settings.social = {
+    instagram: "javascript:alert(1)",
+    facebook: "https://user:password@example.com",
+    twitter: "",
+  };
+  rerender(<MultiHomeFooter settings={settings} />);
+  expect(
+    screen.queryByRole("navigation", { name: "Follow us" }),
+  ).not.toBeInTheDocument();
+});
+it("offers the public enquiry route only when its feature is allowed", () => {
+  const settings = config();
+  const { rerender } = render(<MultiHomeFooter settings={settings} />);
+  expect(
+    screen.queryByRole("link", { name: "Send an enquiry" }),
+  ).not.toBeInTheDocument();
+  rerender(<MultiHomeFooter settings={settings} enquiriesEnabled />);
+  expect(screen.getByRole("link", { name: "Send an enquiry" })).toHaveAttribute(
+    "href",
+    "/enquire?type=general",
+  );
+  rerender(<MultiHomeFooter settings={settings} enquiriesEnabled={false} />);
+  expect(
+    screen.queryByRole("link", { name: "Send an enquiry" }),
   ).not.toBeInTheDocument();
 });

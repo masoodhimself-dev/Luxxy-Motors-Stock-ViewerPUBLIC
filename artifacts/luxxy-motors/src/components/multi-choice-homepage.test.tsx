@@ -54,6 +54,11 @@ it('supports keyboard tabs and preserves a valid registration in the existing dr
   fireEvent.keyDown(buy, { key: 'ArrowRight' });
   expect(screen.getByRole('tab', { name: 'Part exchange' })).toHaveAttribute('aria-selected', 'true');
   expect(screen.getByRole('tab', { name: 'Part exchange' })).toHaveFocus();
+  fireEvent.keyDown(screen.getByRole('tab', { name: 'Part exchange' }), { key: 'Home' });
+  expect(buy).toHaveAttribute('aria-selected', 'true'); expect(buy).toHaveFocus();
+  fireEvent.keyDown(buy, { key: 'End' });
+  expect(screen.getByRole('tab', { name: 'Part exchange' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('tab', { name: 'Part exchange' })).toHaveFocus();
   const form = screen.getByRole('form', { name: 'Start part exchange' });
   fireEvent.submit(form); expect(within(form).getByRole('alert')).toHaveTextContent('complete UK registration'); expect(window.location.pathname).toBe('/');
   fireEvent.change(within(form).getByTestId('homepage-px-registration-hero'), { target: { value: 'ab12cde' } });
@@ -166,4 +171,180 @@ it('shows an orphaned saved model and asks the customer to choose a make or expl
   fireEvent.change(model, { target: { value: '' } });
   expect(within(search).queryByText(/clear the saved model/)).not.toBeInTheDocument();
   fireEvent.submit(search); expect(events.search).toHaveBeenCalledWith(expect.objectContaining({ make: '', model: '' }));
+});
+
+
+it('keeps all six published dealership reasons and updates their content without replacing it with defaults', () => {
+  const config = settings();
+  config.whyBuy = Array.from({ length: 6 }, (_, index) => ({ title: `Published reason ${index + 1}`, description: `The dealership’s supplied explanation ${index + 1}.` }));
+  const view = render(<Harness config={config} />);
+  let rail = screen.getByRole('group', { name: 'Reasons to choose us; scroll for more' });
+  expect(within(rail).getAllByRole('article')).toHaveLength(6);
+  for (const reason of config.whyBuy) {
+    expect(within(rail).getByRole('heading', { name: reason.title })).toBeInTheDocument();
+    expect(within(rail).getByText(reason.description)).toBeInTheDocument();
+  }
+  const replacement = { ...config, whyBuy: config.whyBuy.map((reason, index) => index === 5 ? { title: 'Updated final reason', description: 'The latest published explanation.' } : reason) };
+  view.rerender(<Harness config={replacement} />);
+  rail = screen.getByRole('group', { name: 'Reasons to choose us; scroll for more' });
+  expect(within(rail).getAllByRole('article')).toHaveLength(6);
+  expect(within(rail).getByRole('heading', { name: 'Updated final reason' })).toBeInTheDocument();
+  expect(within(rail).queryByText('Published reason 6')).not.toBeInTheDocument();
+});
+
+it('lets a keyboard user choose a mobile reason and reports the selected slide, respecting reduced motion', () => {
+  vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })));
+  try {
+    render(<Harness />);
+    const rail = screen.getByRole('group', { name: 'Reasons to choose us; scroll for more' });
+    Object.defineProperty(rail, 'getBoundingClientRect', { value: () => ({ left: 20, width: 350 }) });
+    within(rail).getAllByRole('article').forEach((card, index) => {
+      Object.defineProperty(card, 'getBoundingClientRect', { value: () => ({ left: 20 + index * 314 - rail.scrollLeft, width: 300 }) });
+    });
+    const scroll = vi.fn((options: { left: number }) => { rail.scrollLeft = options.left; fireEvent.scroll(rail); });
+    Object.defineProperty(rail, 'scrollTo', { configurable: true, value: scroll });
+    const controls = within(screen.getByRole('group', { name: 'Choose a reason' })).getAllByRole('button');
+    controls[2].focus(); fireEvent.click(controls[2], { detail: 0 });
+    expect(scroll).toHaveBeenLastCalledWith({ left: 628, behavior: 'auto' });
+    expect(controls[2]).toHaveAttribute('aria-pressed', 'true'); expect(controls[0]).toHaveAttribute('aria-pressed', 'false');
+    expect(controls[2]).toHaveFocus();
+    controls[0].focus(); fireEvent.click(controls[0], { detail: 0 });
+    expect(scroll).toHaveBeenLastCalledWith({ left: 0, behavior: 'auto' });
+    expect(controls[0]).toHaveAttribute('aria-pressed', 'true');
+    expect(events.search).not.toHaveBeenCalled(); expect(events.analytics).not.toHaveBeenCalled();
+  } finally { vi.unstubAllGlobals(); }
+});
+
+it('keeps featured carousel controls keyboard-operable without opening a car and honours motion preferences', () => {
+  const media = vi.fn(() => ({ matches: true })); vi.stubGlobal('matchMedia', media);
+  try {
+    render(<Harness />);
+    const rail = screen.getByRole('group', { name: 'Featured cars; scroll for more' });
+    const first = within(rail).getAllByRole('article')[0];
+    Object.defineProperty(first, 'getBoundingClientRect', { value: () => ({ width: 320 }) });
+    const scroll = vi.fn(); Object.defineProperty(rail, 'scrollBy', { configurable: true, value: scroll });
+    const previous = screen.getByRole('button', { name: 'Previous featured cars' }), next = screen.getByRole('button', { name: 'Next featured cars' });
+    previous.focus(); fireEvent.click(previous, { detail: 0 }); expect(scroll).toHaveBeenLastCalledWith({ left: -320, behavior: 'auto' });
+    next.focus(); fireEvent.click(next, { detail: 0 }); expect(scroll).toHaveBeenLastCalledWith({ left: 320, behavior: 'auto' });
+    expect(next).toHaveFocus(); expect(window.location.pathname).toBe('/'); expect(events.analytics).not.toHaveBeenCalled();
+    media.mockReturnValue({ matches: false }); fireEvent.click(next, { detail: 0 });
+    expect(scroll).toHaveBeenLastCalledWith({ left: 320, behavior: 'smooth' });
+  } finally { vi.unstubAllGlobals(); }
+});
+
+it('recovers a featured photograph when a stock refresh supplies a new source for the same car', () => {
+  const original = car('same-car', { title: 'Ford Focus', heroImage: 'https://photos.example.test/old.jpg' });
+  const view = render(<Harness stock={[original]} />);
+  let card = screen.getByRole('article', { name: 'Ford Focus' });
+  fireEvent.error(within(card).getByRole('img', { name: 'Ford Focus' }));
+  expect(within(card).getByText('Photograph unavailable')).toBeInTheDocument();
+  view.rerender(<Harness stock={[{ ...original, heroImage: 'https://photos.example.test/new.jpg' }]} />);
+  card = screen.getByRole('article', { name: 'Ford Focus' });
+  expect(within(card).getByRole('img', { name: 'Ford Focus' })).toHaveAttribute('src', 'https://photos.example.test/new.jpg');
+  expect(within(card).queryByText('Photograph unavailable')).not.toBeInTheDocument();
+});
+
+it('keeps the published featured, visit and review section headings', () => {
+  const config = settings();
+  config.presentation = { ...config.presentation,
+    websiteCopy: { featuredHeading: 'Our selected cars', visitHeading: 'Visit our Hayes showroom', reviewsHeading: 'Customer stories' },
+    reviews: [{ rating: 5, review: 'Helpful throughout our visit.', name: 'Published customer', source: 'Dealer feedback', date: 'October 2026' }],
+  };
+  render(<Harness config={config} />);
+  expect(screen.getByRole('heading', { name: 'Our selected cars' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Visit our Hayes showroom' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Customer stories' })).toBeInTheDocument();
+});
+
+it('preserves published warranty and delivery copy and actions, while keeping disabled service sections absent', () => {
+  const config = settings();
+  config.warranty = { enabled: true, title: 'Warranty support', description: 'Please check the policy details with us for your chosen car.', ctaLabel: 'Read our cover information' };
+  config.delivery = { enabled: true, title: 'Delivery to your postcode', description: 'We will confirm delivery availability and arrangements with you.', ctaLabel: 'Talk to us about delivery' };
+  const view = render(<Harness config={config} />);
+  const warranty = document.getElementById('warranty')!, delivery = document.getElementById('delivery')!;
+  expect(within(warranty).getByRole('heading', { name: 'Warranty support' })).toBeInTheDocument();
+  expect(within(warranty).getByText(config.warranty.description)).toBeInTheDocument();
+  expect(within(warranty).getByRole('link', { name: 'Read our cover information' })).toHaveAttribute('href', '/warranty');
+  expect(within(delivery).getByRole('heading', { name: 'Delivery to your postcode' })).toBeInTheDocument();
+  expect(within(delivery).getByText(config.delivery.description)).toBeInTheDocument();
+  expect(within(delivery).getByRole('link', { name: 'Talk to us about delivery' })).toHaveAttribute('href', '/enquire?type=general');
+  view.rerender(<Harness config={{ ...config, warranty: { ...config.warranty, enabled: false }, delivery: { ...config.delivery, enabled: false } }} />);
+  expect(document.getElementById('warranty')).toBeNull(); expect(document.getElementById('delivery')).toBeNull();
+});
+
+it('retains published team and arrival details in the visit section and respects its visibility switch', () => {
+  const config = settings();
+  config.presentation = { ...config.presentation, teamImageUrl: 'https://multichoicemotors.co.uk/our-team.jpg', teamImageAlt: 'Our showroom team', teamIntroduction: 'Our team can help you choose your next car.', websiteCopy: { teamHeading: 'Meet our Hayes team' }, visitInstructions: 'Please check in at reception when you arrive.', parkingInstructions: 'Use the marked visitor parking bays.' };
+  const view = render(<Harness config={config} />);
+  const visit = document.getElementById('find-us')!;
+  expect(within(visit).getByRole('img', { name: 'Our showroom team' })).toHaveAttribute('src', 'https://multichoicemotors.co.uk/our-team.jpg');
+  expect(within(visit).getByRole('heading', { name: 'Meet our Hayes team' })).toBeInTheDocument();
+  expect(within(visit).getByText(config.presentation.teamIntroduction!)).toBeInTheDocument();
+  expect(within(visit).getByText(config.presentation.visitInstructions!)).toBeInTheDocument();
+  expect(within(visit).getByText(config.presentation.parkingInstructions!)).toBeInTheDocument();
+  view.rerender(<Harness config={{ ...config, presentation: { ...config.presentation, visitEnabled: false } }} />);
+  expect(document.getElementById('find-us')).toBeNull();
+  expect(screen.queryByRole('img', { name: 'Our showroom team' })).not.toBeInTheDocument();
+});
+
+it('loads the real showroom map only on request, retains directions and withholds maps for sample addresses', () => {
+  const config = settings(), view = render(<Harness config={config} />);
+  expect(screen.queryByTitle('Dealership location')).not.toBeInTheDocument();
+  const directions = screen.getByRole('link', { name: /Open map and directions/ });
+  expect(directions).toHaveAttribute('target', '_blank');
+  fireEvent.click(screen.getByRole('button', { name: 'Show map' }));
+  const frame = screen.getByTitle('Dealership location');
+  expect(frame).toHaveAttribute('loading', 'lazy');
+  expect(frame).toHaveAttribute('referrerpolicy', 'no-referrer-when-downgrade');
+  const source = new URL(frame.getAttribute('src')!);
+  expect(source.protocol).toBe('https:'); expect(['www.google.com', 'maps.google.com']).toContain(source.hostname);
+  expect(source.searchParams.get('q') || source.searchParams.get('query')).toContain('UB3 3EP');
+  expect(directions).toBeInTheDocument();
+  view.rerender(<Harness config={{ ...config, address: { street: 'Sample road', city: 'Example town', postcode: 'UB3 3EP' } }} />);
+  expect(screen.queryByTitle('Dealership location')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Show map' })).not.toBeInTheDocument();
+});
+
+
+it('does not offer an empty delivery calculator when delivery pricing is disabled', () => {
+  const config = settings(); config.deliveryPricing = { enabled: false, basePrice: '40', pricePerMile: '1.20' };
+  const view = render(<Harness config={config} />);
+  let delivery = document.getElementById('delivery')!;
+  expect(within(delivery).queryByText('Estimate delivery')).not.toBeInTheDocument();
+  expect(delivery.querySelector('details')).toBeNull();
+  expect(within(delivery).getByRole('link', { name: config.delivery!.ctaLabel })).toBeInTheDocument();
+  view.rerender(<Harness config={{ ...config, deliveryPricing: { ...config.deliveryPricing, enabled: true } }} />);
+  delivery = document.getElementById('delivery')!;
+  expect(within(delivery).getByRole('button', { name: 'Estimate delivery' })).toBeInTheDocument();
+});
+
+it('retains published trust points only as the fallback when no detailed reasons are supplied', () => {
+  const config = settings(); config.whyBuy = []; config.trustItems = ['Independent dealership', 'Visit us in Hayes', 'Ask us about your next car', ' '];
+  const view = render(<Harness config={config} />);
+  let about = document.getElementById('about')!;
+  const trustList = within(about).getByRole('list');
+  for (const item of config.trustItems.filter(item => item.trim())) expect(within(trustList).getByText(item)).toBeInTheDocument();
+  expect(trustList.querySelectorAll('li')).toHaveLength(3);
+  view.rerender(<Harness config={{ ...config, whyBuy: [{ title: 'Our published approach', description: 'Speak with our team before choosing your next car.' }] }} />);
+  about = document.getElementById('about')!;
+  expect(within(about).getByRole('heading', { name: 'Our published approach' })).toBeInTheDocument();
+  expect(within(about).queryByText('Independent dealership')).not.toBeInTheDocument();
+});
+
+it('preserves the published hero announcement as escaped text', () => {
+  const config = settings(); config.hero = { ...config.hero, announcement: '<img src=x onerror=alert(1)> New arrivals & showroom visits' };
+  render(<Harness config={config} />);
+  expect(screen.getByText(config.hero.announcement!)).toBeInTheDocument();
+  expect(document.querySelector('.mh-announcement img')).toBeNull();
+  expect(screen.getByRole('heading', { level: 1, name: 'Find your next car' })).toBeInTheDocument();
+});
+
+it('updates only the known original forecourt artwork and keeps a later staff-selected hero photograph exactly', () => {
+  const config = settings();
+  config.presentation = { ...config.presentation, heroImageUrl: 'https://multichoicemotors.co.uk/api/website-assets/12f86896-51f9-4e38-be24-b8ab5d243c9c' };
+  const view = render(<Harness config={config} />);
+  expect(screen.getByRole('img', { name: 'Our Range Rover and Ford Mondeo' })).toHaveAttribute('src', '/brand/multi-choice-motors/hero-cars-1200.webp');
+  const custom = 'https://multichoicemotors.co.uk/photos/our-new-forecourt.webp?version=2';
+  view.rerender(<Harness config={{ ...config, presentation: { ...config.presentation, heroImageUrl: custom } }} />);
+  expect(screen.getByRole('img', { name: 'Our Range Rover and Ford Mondeo' })).toHaveAttribute('src', custom);
 });

@@ -4,6 +4,9 @@ import { dealerConfig } from "@/config/dealer";
 const state = vi.hoisted(() => ({
   path: "/",
   settings: {} as typeof dealerConfig,
+  publicEnquiriesEnabled: false,
+  isLoading: false,
+  isError: false,
 }));
 vi.mock("wouter", () => ({
   useLocation: () => [state.path, vi.fn()],
@@ -17,7 +20,9 @@ vi.mock("wouter", () => ({
 vi.mock("@/lib/dealer-settings-context", () => ({
   useDealerSettings: () => ({
     settings: state.settings,
-    publicEnquiriesEnabled: false,
+    publicEnquiriesEnabled: state.publicEnquiriesEnabled,
+    isLoading: state.isLoading,
+    isError: state.isError,
   }),
 }));
 vi.mock("@/lib/saved-cars-context", () => ({
@@ -32,10 +37,23 @@ vi.mock("./multi-home-header", async () => {
   };
 });
 vi.mock("./multi-home-footer", () => ({
-  MultiHomeFooter: () => <footer data-testid="new-home-footer" />,
+  MultiHomeFooter: ({ enquiriesEnabled }: { enquiriesEnabled: boolean }) => (
+    <footer
+      data-testid="new-home-footer"
+      data-enquiries-enabled={String(enquiriesEnabled)}
+    />
+  ),
 }));
 vi.mock("./customer-footer", () => ({
-  CustomerFooter: () => <footer data-testid="existing-footer" />,
+  CustomerFooter: ({ settings }: { settings: typeof dealerConfig }) => (
+    <footer
+      data-testid="existing-footer"
+      data-logo={
+        settings.presentation?.footerLogoUrl || settings.identity.logoAsset
+      }
+      data-identity-logo={settings.identity.logoAsset}
+    />
+  ),
 }));
 import { Layout } from "./layout";
 function canonical(value: string) {
@@ -48,6 +66,9 @@ function canonical(value: string) {
 }
 beforeEach(() => {
   state.path = "/";
+  state.publicEnquiriesEnabled = false;
+  state.isLoading = false;
+  state.isError = false;
   state.settings = {
     ...dealerConfig,
     identity: { ...dealerConfig.identity, name: "Multi-Choice Motors" },
@@ -106,6 +127,112 @@ it("does not apply the homepage design to another dealer with the same editable 
   expect(screen.queryByTestId("new-home-header")).not.toBeInTheDocument();
   expect(screen.getByTestId("existing-footer")).toBeInTheDocument();
 });
+it.each(["/stock", "/vehicle/car", "/contact", "/saved", "/enquire"])(
+  "uses the supplied logo only in the public %s shell without changing saved branding",
+  (path) => {
+    state.path = path;
+    state.settings = {
+      ...state.settings,
+      identity: {
+        ...state.settings.identity,
+        logoAsset: "/configured-old-logo.svg",
+        brandColors: { primaryHsl: "195 22% 13%" },
+      },
+      presentation: {
+        ...state.settings.presentation,
+        footerLogoUrl: "/configured-old-footer.svg",
+      },
+    };
+    render(
+      <Layout>
+        <p>Public page</p>
+      </Layout>,
+    );
+    expect(document.querySelector("[data-site-header] img")).toHaveAttribute(
+      "src",
+      "/brand/multi-choice-motors/multi-choice-wordmark.svg",
+    );
+    expect(screen.getByTestId("existing-footer")).toHaveAttribute(
+      "data-logo",
+      "/brand/multi-choice-motors/multi-choice-wordmark-white.svg",
+    );
+    expect(screen.getByTestId("existing-footer")).toHaveAttribute(
+      "data-identity-logo",
+      "/brand/multi-choice-motors/multi-choice-wordmark.svg",
+    );
+    expect(document.querySelector(".multi-home-shell")).toBeNull();
+    expect(state.settings.identity.logoAsset).toBe("/configured-old-logo.svg");
+    expect(state.settings.presentation?.footerLogoUrl).toBe(
+      "/configured-old-footer.svg",
+    );
+  },
+);
+it("keeps the navy logo readable when Multi-Choice has selected a light footer colour", () => {
+  state.path = "/stock";
+  state.settings = {
+    ...state.settings,
+    identity: {
+      ...state.settings.identity,
+      brandColors: { primaryHsl: "0 0% 100%" },
+    },
+  };
+  render(
+    <Layout>
+      <p>Stock</p>
+    </Layout>,
+  );
+  expect(screen.getByTestId("existing-footer")).toHaveAttribute(
+    "data-logo",
+    "/brand/multi-choice-motors/multi-choice-wordmark.svg",
+  );
+});
+it("preserves another dealership’s configured public header and footer even with the Multi-Choice display name", () => {
+  canonical("https://shoredrive.uk");
+  state.path = "/stock";
+  state.settings = {
+    ...state.settings,
+    identity: { ...state.settings.identity, logoAsset: "/shore-logo.svg" },
+    presentation: {
+      ...state.settings.presentation,
+      footerLogoUrl: "/shore-footer.svg",
+    },
+  };
+  render(
+    <Layout>
+      <p>Other dealership</p>
+    </Layout>,
+  );
+  expect(document.querySelector("[data-site-header] img")).toHaveAttribute(
+    "src",
+    "/shore-logo.svg",
+  );
+  expect(screen.getByTestId("existing-footer")).toHaveAttribute(
+    "data-logo",
+    "/shore-footer.svg",
+  );
+});
+it("passes the feature-controlled public enquiry gate to the homepage footer", () => {
+  state.publicEnquiriesEnabled = true;
+  const { rerender } = render(
+    <Layout>
+      <p>Homepage</p>
+    </Layout>,
+  );
+  expect(screen.getByTestId("new-home-footer")).toHaveAttribute(
+    "data-enquiries-enabled",
+    "true",
+  );
+  state.publicEnquiriesEnabled = false;
+  rerender(
+    <Layout>
+      <p>Homepage</p>
+    </Layout>,
+  );
+  expect(screen.getByTestId("new-home-footer")).toHaveAttribute(
+    "data-enquiries-enabled",
+    "false",
+  );
+});
 it("keeps staff portal chrome owned by the portal", () => {
   state.path = "/portal";
   render(
@@ -117,3 +244,32 @@ it("keeps staff portal chrome owned by the portal", () => {
   expect(screen.queryByTestId("existing-footer")).not.toBeInTheDocument();
   expect(document.querySelector("[data-site-header]")).toBeNull();
 });
+
+it.each(["isLoading", "isError"] as const)(
+  "withholds build-time contact defaults while tenant settings are %s",
+  (status) => {
+    state.settings = dealerConfig;
+    state[status] = true;
+    render(
+      <Layout>
+        <p>Unready page content</p>
+      </Layout>,
+    );
+    expect(
+      screen.getByRole("img", { name: "Multi-Choice Motors" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Unready page content")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("new-home-header")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("new-home-footer")).not.toBeInTheDocument();
+    expect(document.querySelector('a[href^="tel:"]')).toBeNull();
+    expect(document.querySelector('a[href^="mailto:"]')).toBeNull();
+    if (status === "isError")
+      expect(
+        screen.getByRole("button", { name: "Reload page" }),
+      ).toBeInTheDocument();
+    else
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Getting the dealership",
+      );
+  },
+);

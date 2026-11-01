@@ -1,11 +1,9 @@
 import { publicDealershipOrigin } from "./public-dealership-url";
 
-/** This presentation belongs to one resolved dealership's homepage only. */
-export function isMultiChoiceHomepage(
-  location: string,
+/** Branding belongs to this resolved website, never to an editable dealer name. */
+export function isMultiChoiceWebsite(
   doc?: Pick<Document, "querySelector" | "location">,
 ): boolean {
-  if (location !== "/") return false;
   const source =
     doc ?? (typeof document === "undefined" ? undefined : document);
   if (!source) return false;
@@ -21,4 +19,12 @@ export function isMultiChoiceHomepage(
   } catch {
     return false;
   }
+}
+
+/** The homepage layout stays separate from the website-wide logo choice. */
+export function isMultiChoiceHomepage(
+  location: string,
+  doc?: Pick<Document, "querySelector" | "location">,
+): boolean {
+  return location === "/" && isMultiChoiceWebsite(doc);
 }

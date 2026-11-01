@@ -158,7 +158,7 @@ vi.mock('@/lib/demo-status',()=>({useDemoStatus:()=>demoSiteMode}));
 vi.mock('@/lib/dealer-features', () => ({ useDealerFeatures: () => ({ enabled: () => true }) }));
 
 let overrideSettings: typeof dealerConfigFixture & {
-  presentation?: { websiteTemplate?: 'existing' | 'classic' | 'premium' | 'focused'; showHeroDescription?: boolean; websiteCopy?: { stockIntroduction?: string }; heroImageUrl?: string; heroImageAlt?: string; heroImagePosition?: 'center' | 'left' | 'right' | 'top' | 'bottom'; showroomImageUrl?: string; showroomImageAlt?: string };
+  presentation?: { websiteTemplate?: 'existing' | 'classic' | 'premium' | 'focused'; showHeroDescription?: boolean; websiteCopy?: { stockIntroduction?: string; featuredHeading?: string }; heroImageUrl?: string; heroImageAlt?: string; heroImagePosition?: 'center' | 'left' | 'right' | 'top' | 'bottom'; showroomImageUrl?: string; showroomImageAlt?: string };
 } = dealerConfigFixture;
 
 vi.mock('@/lib/dealer-settings-context', () => ({
@@ -808,11 +808,12 @@ it('preserves another dealership’s stock-photo browsing and Save even if its e
 
 it('leaves Multi-Choice’s separate homepage featured photographs and vehicle links intact', () => {
   stockPhotoTenant('https://multichoicemotors.co.uk');
+  overrideSettings = { ...dealerConfigFixture, presentation: { websiteCopy: { featuredHeading: 'Our selected stock' } } };
   const car = { ...originalCars[0], imageCount: 2, images: ['https://cdn.example.com/bmw-1.jpg', 'https://cdn.example.com/bmw-rear.jpg'] };
   stockFixture.cars = [car];
   renderHome(false);
   expect(document.getElementById('vehicle-results')).toBeNull();
-  const featured = screen.getByRole('region', { name: 'Featured cars' });
+  const featured = screen.getByRole('region', { name: 'Our selected stock' });
   const photograph = within(featured).getByRole('link', { name: `View ${car.title}` });
   expect(photograph).toHaveAttribute('href', `/vehicle/${car.id}`);
   expect(within(photograph).getByRole('img', { name: 'BMW 1 Series' })).toBeInTheDocument();
