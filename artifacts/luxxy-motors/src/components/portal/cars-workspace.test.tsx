@@ -1,6 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import {
   fireEvent,
+  act,
   render,
   screen,
   within,
@@ -217,6 +218,47 @@ it("supports direct sold vehicle links and routes staff to the existing sale wit
     screen.queryByRole("button", { name: "Start sale" }),
   ).not.toBeInTheDocument();
   expect(props.onSale).not.toHaveBeenCalled();
+});
+it("starts a vehicle file with compact navigation and keeps bulk controls on the Cars list", async () => {
+  window.history.replaceState({}, "", "/portal?section=cars&carId=one");
+  const view = render(<CarsWorkspace {...props} />);
+  expect(view.container.querySelector('.portal-cars-workspace')).toHaveAttribute('data-view', 'file');
+  expect(view.container.querySelector('.portal-cars-heading')).toBeNull();
+  expect(screen.getByRole('heading', { name: 'Vehicle file' })).toHaveClass('sr-only');
+  expect(screen.queryByRole('button', { name: 'Check all MOTs' })).not.toBeInTheDocument();
+  expect(screen.queryByText('Vehicle information and customer work in one place.')).not.toBeInTheDocument();
+  const navigation = screen.getByRole('navigation', { name: 'Browse vehicle files' });
+  expect(within(navigation).getByRole('link', { name: 'Next car' })).toHaveAttribute('href', expect.stringContaining('carId=two'));
+  fireEvent.click(within(navigation).getByRole('button', { name: 'Refresh vehicle file' }));
+  await waitFor(() => expect(state.refetch).toHaveBeenCalled());
+  expect(screen.getByRole('button', { name: 'Check MOT for one' })).toBeVisible();
+  fireEvent.click(screen.getByRole('link', { name: 'Back to Cars' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Check all MOTs' })).toBeVisible());
+  expect(view.container.querySelector('.portal-cars-workspace')).toHaveAttribute('data-view', 'list');
+});
+it("cancels a pending list scroll restoration before opening another vehicle file", () => {
+  const frames = new Map<number, FrameRequestCallback>();
+  let nextFrame = 0;
+  const request = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+    frames.set(++nextFrame, callback);
+    return nextFrame;
+  });
+  const cancel = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(id => { frames.delete(id); });
+  try {
+    window.history.replaceState({}, '', '/portal?section=cars&carId=one');
+    render(<CarsWorkspace {...props} />);
+    expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 0, left: 0, behavior: 'instant' });
+    sessionStorage.setItem(`staff-cars-scroll:${window.location.host}`, '640');
+    fireEvent.click(screen.getByRole('link', { name: 'Back to Cars' }));
+    expect(frames.size).toBe(1);
+    fireEvent.click(screen.getByRole('link', { name: 'Open vehicle file for Toyota Yaris two' }));
+    act(() => { for (const callback of frames.values()) callback(0); });
+    expect(frames.size).toBe(0);
+    expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 0, left: 0, behavior: 'instant' });
+  } finally {
+    request.mockRestore();
+    cancel.mockRestore();
+  }
 });
 it("chooses the actual merged child reply as the next action", () => {
   state.entries = [

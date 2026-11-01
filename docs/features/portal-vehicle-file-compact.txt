@@ -1,0 +1,27 @@
+Compact portal vehicle file — 1 November 2026
+
+Vehicle files start with a slim Back/previous/next/refresh toolbar and the car's
+identity. The repeated Vehicle file title/intro, dealership-wide Check all MOTs
+and bulk progress line remain on the Cars list instead of taking space above
+every car. The section keeps its accessible heading. Existing enquiry, booking,
+sale, advert, history, MOT and customer tools remain available.
+
+File-only spacing uses smaller header, action and content padding. Phones have
+a bounded 220px photo preview with full gallery access; gallery and facts share
+a row only when the actual main column has enough room. Previous/next/refresh
+controls retain 44px targets. Public pages and the Cars list are unchanged.
+
+Fixed a navigation race as part of the scroll work: a pending Cars-list scroll
+restoration is cancelled before another file opens. Files, including direct
+links, reset to the top immediately. Back still restores list filters/position.
+The regression test failed before the fix and passes afterwards.
+
+Verification: 36 focused Cars/MOT/model tests passed; TypeScript and production
+build passed. Browser checks at 320,390,768,1440px had no horizontal overflow,
+including a long Range Rover title. Fullscreen photos still open and close.
+At390px the first photo moved from729px to456px from the viewport top, saving
+about273px before the photo. Opening a car from far down the list now has
+scrollY=0. No records, invoices, payments or backend behaviour were changed.
+
+Evidence: workspace output/portal-vehicle-file-compact-2026-11-01/.
+Saved locally; not deployed to Render yet.

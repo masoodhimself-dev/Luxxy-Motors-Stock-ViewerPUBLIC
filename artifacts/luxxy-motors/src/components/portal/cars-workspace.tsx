@@ -288,7 +288,7 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
   const [viewOptions, setViewOptions] = useState(false);
   const motChecks = useCarsMotChecks(canManage);
   const heading = useRef<HTMLHeadingElement>(null),
-    lastCarId = useRef<string | null>(carId),
+    lastCarId = useRef<string | null>(null),
     opener = useRef<HTMLElement | null>(null),
     customersSection = useRef<HTMLElement | null>(null),
     moreTriggers = useRef(new Map<string, HTMLButtonElement>());
@@ -317,17 +317,19 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
     } catch {}
   };
   useEffect(() => {
+    let restoreFrame: number | undefined;
     if (carId) {
       heading.current?.focus({ preventScroll: true });
-      if (carId !== lastCarId.current) window.scrollTo(0, 0);
+      if (carId !== lastCarId.current) window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     } else if (lastCarId.current) {
       try {
         const saved = Number(sessionStorage.getItem(scrollKey));
-        requestAnimationFrame(() => window.scrollTo(0, saved || 0));
+        restoreFrame = requestAnimationFrame(() => window.scrollTo({ top: saved || 0, left: 0, behavior: 'instant' }));
       } catch {}
     }
     lastCarId.current = carId;
     setPanelId(null);
+    return () => { if (restoreFrame !== undefined) cancelAnimationFrame(restoreFrame); };
   }, [carId]);
   const activity = useEnquirySummaries(undefined, {
     query: {
@@ -617,15 +619,14 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
       aria-labelledby="portal-cars-title"
       data-activity={canManage ? "visible" : "hidden"}
       data-options={viewOptions ? "open" : "closed"}
+      data-view={carId ? "file" : "list"}
     >
-      <header className="portal-cars-heading">
+      {carId ? <h2 id="portal-cars-title" className="sr-only">Vehicle file</h2> : <header className="portal-cars-heading">
         <div>
           <p className="cars-eyebrow">Your dealership</p>
-          <h2 id="portal-cars-title">{carId ? "Vehicle file" : "Cars"}</h2>
+          <h2 id="portal-cars-title">Cars</h2>
           <p>
-            {carId
-              ? "Vehicle information and customer work in one place."
-              : "Find a car, view customer activity or continue a sale."}
+            Find a car, view customer activity or continue a sale.
           </p>
         </div>
         <div className="cars-heading-actions">
@@ -647,8 +648,8 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
           {refreshing ? "Refreshing…" : "Refresh screen"}
         </Button>
         </div>
-      </header>
-      {canManage && <CarsMotCheckStatus checks={motChecks} />}
+      </header>}
+      {canManage && !carId && <CarsMotCheckStatus checks={motChecks} />}
       {query.isError && (
         <div className="portal-cars-notice" role="alert">
           <strong>Cars could not be refreshed</strong>
@@ -708,6 +709,16 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
                     <ChevronRight size={18} />
                   </Link>
                 )}
+                <Button
+                  className="cars-file-refresh"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={refreshing ? "Refreshing vehicle file" : "Refresh vehicle file"}
+                  onClick={() => void refresh()}
+                  disabled={refreshing || query.isPending}
+                >
+                  <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} aria-hidden="true" />
+                </Button>
               </nav>
             </div>
             <article className="cars-vehicle-file">

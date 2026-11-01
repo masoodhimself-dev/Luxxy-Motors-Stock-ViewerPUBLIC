@@ -704,6 +704,142 @@
 .cars-file-sidebar .cars-issue {
   color: #805e26;
 }
+
+/* Vehicle files start with the car, rather than repeating the stock workspace.
+   Keep this density local to the file so the list and enquiry dialogs retain
+   their existing layout. */
+.portal-cars-workspace[data-view="file"] .cars-file-navigation {
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.portal-cars-workspace[data-view="file"] .cars-file-navigation nav {
+  flex: none;
+  gap: 4px;
+  white-space: nowrap;
+}
+.portal-cars-workspace[data-view="file"] .cars-file-navigation nav > :is(a, button) {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid var(--cars-line);
+  border-radius: 4px;
+  background: var(--cars-paper);
+  color: var(--portal-ink, #202a30);
+}
+.portal-cars-workspace[data-view="file"] .cars-back {
+  flex: 0 1 auto;
+  gap: 5px;
+  line-height: 1.35;
+}
+.portal-cars-workspace[data-view="file"] .cars-file-heading {
+  gap: 12px;
+  padding: 16px 16px 12px;
+}
+.portal-cars-workspace[data-view="file"] .cars-file-heading h3 {
+  margin-block: 3px;
+  font-size: 24px;
+  line-height: 1.25;
+}
+.portal-cars-workspace[data-view="file"] .cars-file-heading > div > p {
+  margin-block: 0;
+}
+.portal-cars-workspace[data-view="file"] .cars-file-status {
+  gap: 6px;
+  margin-top: 8px;
+}
+.portal-cars-workspace[data-view="file"] .cars-file-price {
+  font-size: 24px;
+  line-height: 1.3;
+}
+.portal-cars-workspace[data-view="file"] .cars-file-actions {
+  gap: 8px;
+  padding: 0 16px 12px;
+}
+.portal-cars-workspace[data-view="file"] .cars-file-actions > :is(a, button) {
+  min-height: 44px;
+}
+.portal-cars-workspace[data-view="file"] .cars-file-main {
+  container: cars-file-main / inline-size;
+  padding: 16px;
+}
+.portal-cars-workspace[data-view="file"] .cars-file-sidebar {
+  padding-inline: 16px;
+}
+.portal-cars-workspace[data-view="file"] .cars-file-sidebar > section {
+  padding-block: 16px;
+}
+.portal-cars-workspace[data-view="file"] .cars-file-sidebar h4 {
+  margin-bottom: 8px;
+}
+.portal-cars-workspace[data-view="file"] .staff-vehicle-body > * + * {
+  margin-top: 12px;
+}
+.portal-cars-workspace[data-view="file"] .enquiry-vehicle-overview {
+  gap: 16px;
+}
+.portal-cars-workspace[data-view="file"] .vehicle-gallery-frame {
+  padding: 4px;
+  box-shadow: none;
+}
+.portal-cars-workspace[data-view="file"] .vehicle-gallery-frame > div {
+  max-height: 300px;
+}
+.portal-cars-workspace[data-view="file"] .vehicle-thumbnail-grid {
+  gap: 6px;
+  margin-top: 8px;
+  padding-bottom: 4px;
+}
+.portal-cars-workspace[data-view="file"] .vehicle-thumbnail-grid > button {
+  flex-basis: 64px;
+  width: 64px;
+  min-height: 44px;
+}
+@container cars-file-main (min-width: 540px) {
+  .portal-cars-workspace[data-view="file"] .enquiry-vehicle-overview {
+    grid-template-columns: minmax(0, 1.1fr) minmax(200px, 0.9fr);
+  }
+}
+@container portal-cars (max-width: 599px) {
+  .portal-cars-workspace[data-view="file"] .cars-file-heading {
+    padding: 12px 12px 10px;
+  }
+  .portal-cars-workspace[data-view="file"] .cars-file-heading h3 {
+    font-size: 21px;
+  }
+  .portal-cars-workspace[data-view="file"] .cars-file-price {
+    font-size: 22px;
+  }
+  .portal-cars-workspace[data-view="file"] .cars-file-actions {
+    padding: 0 12px 10px;
+  }
+  .portal-cars-workspace[data-view="file"] .cars-file-main {
+    padding: 12px;
+  }
+  .portal-cars-workspace[data-view="file"] .cars-file-sidebar {
+    padding-inline: 12px;
+  }
+  .portal-cars-workspace[data-view="file"] .cars-file-sidebar > section {
+    padding-block: 12px;
+  }
+  .portal-cars-workspace[data-view="file"] .vehicle-gallery-frame > div {
+    max-height: 220px;
+  }
+}
+@container portal-cars (max-width: 359px) {
+  .portal-cars-workspace[data-view="file"] .cars-file-navigation nav > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
 .cars-panel-navigation {
   display: flex;
   justify-content: space-between;
