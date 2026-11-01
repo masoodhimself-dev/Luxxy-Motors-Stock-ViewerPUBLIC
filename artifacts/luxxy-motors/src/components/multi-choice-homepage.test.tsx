@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { dealerConfig } from '@/config/dealer';
 import type { DealerConfig } from '@/config/dealer';
@@ -12,7 +12,6 @@ const events = vi.hoisted(() => ({ search: vi.fn(), analytics: vi.fn(), contact:
 vi.mock('@/lib/analytics', () => ({ trackEvent: (...args: unknown[]) => events.analytics(...args) }));
 vi.mock('@/components/ai-car-finder', () => ({ AiCarFinder: () => <div data-testid="ai-finder">Existing AI finder</div> }));
 vi.mock('@/components/delivery-estimator', () => ({ DeliveryEstimator: () => <button type="button">Estimate delivery</button> }));
-vi.mock('@/components/showroom-opening-status', () => ({ ShowroomOpeningStatus: () => null }));
 const defaultFilters: FilterState = { make: '', model: '', minPrice: '', maxPrice: '', fuel: '', transmission: '', bodyType: '', search: '', ulez: false, sort: '' };
 const car = (id: string, extra: Record<string, unknown>) => ({ id, advertId: id, make: 'Ford', model: 'Focus', title: 'Ford Focus', price: 5000, year: 2020, mileage: 20000, fuel: 'Petrol', transmission: 'Manual', images: [], heroImage: `https://photos.example.test/${id}.jpg`, inventoryStatus: 'available', sourceExtras: null, ...extra } as unknown as Car);
 const cars = [car('ford', { bodyType: 'Hatchback' }), car('toyota', { title: 'Toyota Yaris', make: 'Toyota', model: 'Yaris', price: 9000, bodyType: 'Hatchback' }), car('ford-auto', { title: 'Ford Fiesta', model: 'Fiesta', price: 7000, bodyType: 'Saloon' })];
@@ -256,20 +255,25 @@ it('keeps the published featured, visit and review section headings', () => {
   expect(screen.getByRole('heading', { name: 'Customer stories' })).toBeInTheDocument();
 });
 
-it('preserves published warranty and delivery copy and actions, while keeping disabled service sections absent', () => {
+it('keeps delivery on demand inside the FAQ and warranty on its dedicated page without a duplicate service block', async () => {
   const config = settings();
   config.warranty = { enabled: true, title: 'Warranty support', description: 'Please check the policy details with us for your chosen car.', ctaLabel: 'Read our cover information' };
   config.delivery = { enabled: true, title: 'Delivery to your postcode', description: 'We will confirm delivery availability and arrangements with you.', ctaLabel: 'Talk to us about delivery' };
   const view = render(<Harness config={config} />);
-  const warranty = document.getElementById('warranty')!, delivery = document.getElementById('delivery')!;
-  expect(within(warranty).getByRole('heading', { name: 'Warranty support' })).toBeInTheDocument();
-  expect(within(warranty).getByText(config.warranty.description)).toBeInTheDocument();
-  expect(within(warranty).getByRole('link', { name: 'Read our cover information' })).toHaveAttribute('href', '/warranty');
-  expect(within(delivery).getByRole('heading', { name: 'Delivery to your postcode' })).toBeInTheDocument();
+  const delivery = document.getElementById('delivery')! as HTMLDetailsElement;
+  expect(document.querySelector('.mh-services')).toBeNull();
+  expect(document.getElementById('warranty')).toBeNull();
+  expect(screen.getByRole('link', { name: 'Warranty information' })).toHaveAttribute('href', '/warranty');
+  expect(delivery.tagName).toBe('DETAILS');
+  expect(delivery.open).toBe(false);
   expect(within(delivery).getByText(config.delivery.description)).toBeInTheDocument();
-  expect(within(delivery).getByRole('link', { name: 'Talk to us about delivery' })).toHaveAttribute('href', '/enquire?type=general');
+  window.history.replaceState({}, '', '/#delivery');
+  fireEvent(window, new HashChangeEvent('hashchange'));
+  await waitFor(() => expect(delivery.open).toBe(true));
+  expect(within(delivery).getByRole('link', { name: 'Ask about delivery' })).toHaveAttribute('href', '/enquire?type=general');
   view.rerender(<Harness config={{ ...config, warranty: { ...config.warranty, enabled: false }, delivery: { ...config.delivery, enabled: false } }} />);
-  expect(document.getElementById('warranty')).toBeNull(); expect(document.getElementById('delivery')).toBeNull();
+  expect(document.getElementById('delivery')).toBeNull();
+  expect(screen.queryByRole('link', { name: 'Warranty information' })).not.toBeInTheDocument();
 });
 
 it('retains published team and arrival details in the visit section and respects its visibility switch', () => {
@@ -309,13 +313,14 @@ it('loads the real showroom map only on request, retains directions and withhold
 it('does not offer an empty delivery calculator when delivery pricing is disabled', () => {
   const config = settings(); config.deliveryPricing = { enabled: false, basePrice: '40', pricePerMile: '1.20' };
   const view = render(<Harness config={config} />);
-  let delivery = document.getElementById('delivery')!;
+  let delivery = document.getElementById('delivery')! as HTMLDetailsElement;
   expect(within(delivery).queryByText('Estimate delivery')).not.toBeInTheDocument();
   expect(delivery.querySelector('details')).toBeNull();
-  expect(within(delivery).getByRole('link', { name: config.delivery!.ctaLabel })).toBeInTheDocument();
+  expect(delivery.open).toBe(false);
   view.rerender(<Harness config={{ ...config, deliveryPricing: { ...config.deliveryPricing, enabled: true } }} />);
-  delivery = document.getElementById('delivery')!;
-  expect(within(delivery).getByRole('button', { name: 'Estimate delivery' })).toBeInTheDocument();
+  delivery = document.getElementById('delivery')! as HTMLDetailsElement;
+  expect(within(delivery).getByRole('button', { name: 'Estimate delivery', hidden: true })).toBeInTheDocument();
+  expect(delivery.open).toBe(false);
 });
 
 it('retains published trust points only as the fallback when no detailed reasons are supplied', () => {

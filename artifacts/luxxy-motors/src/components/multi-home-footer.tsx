@@ -22,7 +22,6 @@ export function MultiHomeFooter({
       ? "/enquire?type=part_exchange"
       : sectionHref("part-exchange");
   const PartExchangeLink = !isHomepage && enquiriesEnabled ? Link : "a";
-  const WarrantyLink = isHomepage ? "a" : Link;
   const ContactLink = isHomepage ? "a" : Link;
   const LogoLink = isHomepage ? "a" : Link;
   const socialLinks = [
@@ -54,9 +53,9 @@ export function MultiHomeFooter({
           </PartExchangeLink>
         )}
         {sections.warranty && (
-          <WarrantyLink href={isHomepage ? "#warranty" : "/warranty"}>
+          <Link href="/warranty">
             Warranty
-          </WarrantyLink>
+          </Link>
         )}
         {sections.delivery && <a href={sectionHref("delivery")}>Delivery</a>}
         <Link href="/saved">Saved cars</Link>

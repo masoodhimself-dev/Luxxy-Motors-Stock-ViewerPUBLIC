@@ -52,7 +52,6 @@ export const MultiHomeHeader = forwardRef<
       ? "/enquire?type=part_exchange"
       : sectionHref("part-exchange");
   const PartExchangeLink = !isHomepage && enquiriesEnabled ? Link : "a";
-  const WarrantyLink = isHomepage ? "a" : Link;
   const ContactLink = isHomepage ? "a" : Link;
   const LogoLink = isHomepage ? "a" : Link;
   const savedLabel =
@@ -124,12 +123,12 @@ export const MultiHomeHeader = forwardRef<
                     </Link>
                   )}
                   {sections.warranty && (
-                    <WarrantyLink
-                      href={isHomepage ? "#warranty" : "/warranty"}
+                    <Link
+                      href="/warranty"
                       onClick={close}
                     >
                       Warranty
-                    </WarrantyLink>
+                    </Link>
                   )}
                   {sections.delivery && (
                     <a href={sectionHref("delivery")} onClick={close}>
@@ -201,12 +200,12 @@ export const MultiHomeHeader = forwardRef<
                   </PartExchangeLink>
                 )}
                 {sections.warranty && (
-                  <WarrantyLink
-                    href={isHomepage ? "#warranty" : "/warranty"}
+                  <Link
+                    href="/warranty"
                     onClick={close}
                   >
                     Warranty
-                  </WarrantyLink>
+                  </Link>
                 )}
                 {sections.delivery && (
                   <a href={sectionHref("delivery")} onClick={close}>

@@ -21,7 +21,6 @@
 .multi-home .mh-hero-introduction > p { margin-top: 12px; }
 .multi-home h1 em { font-weight: 800; font-style: italic; }
 .multi-home .mh-announcement { margin-bottom: 12px; font-size: 13px; }
-.multi-home .home-opening-status { display: inline-block; margin: 12px 0 0; font-size: 12px; color: var(--mh-muted); }
 .multi-home .mh-hero-photo { margin-top: 28px; margin-inline: auto; width: 100%; max-width: 576px; aspect-ratio: 16/9; border-radius: 8px; background: transparent; }
 .multi-home .mh-search-card { position: relative; min-width: 0; background: white; border: 1px solid var(--mh-border); border-radius: 8px; box-shadow: var(--mh-shadow-lg); padding: 24px; }
 .multi-home .mh-hero-photo--cutout { aspect-ratio: 1200/529; border-radius: 0; }
@@ -100,16 +99,13 @@
 .multi-home .mh-makes a:hover { border-color: var(--mh-primary); }
 .multi-home .mh-faqs { max-width: 768px; margin-inline: auto; }
 .multi-home .mh-faqs h2 { text-align: center; margin-bottom: 28px; }
-.multi-home .mh-faqs details { border-top: 1px solid var(--mh-border-strong); }
-.multi-home .mh-faqs summary { min-height: 58px; display: flex; gap: 20px; align-items: center; justify-content: space-between; padding-block: 16px; cursor: pointer; font-size: 15px; font-weight: 600; list-style: none; }
-.multi-home .mh-faqs summary::-webkit-details-marker { display: none; }
-.multi-home .mh-faqs summary > svg { flex: none; }
-.multi-home .mh-faqs details[open] > summary > svg { transform: rotate(180deg); }
-.multi-home .mh-faqs details > div { padding-bottom: 18px; font-size: 14px; }
-.multi-home .mh-services { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; }
-.multi-home .mh-services article { border-top: 1px solid var(--mh-border); padding-top: 24px; scroll-margin-top: 120px; }
-.multi-home .mh-services h2 { font-size: 24px; margin-block: 12px; }
-.multi-home .mh-services p { margin-bottom: 12px; font-size: 14px; }
+.multi-home .mh-faqs > details { border-top: 1px solid var(--mh-border-strong); scroll-margin-top: 120px; }
+.multi-home .mh-faqs > details > summary { min-height: 58px; display: flex; gap: 20px; align-items: center; justify-content: space-between; padding-block: 16px; cursor: pointer; font-size: 15px; font-weight: 600; list-style: none; }
+.multi-home .mh-faqs > details > summary::-webkit-details-marker { display: none; }
+.multi-home .mh-faqs > details > summary > svg { flex: none; }
+.multi-home .mh-faqs > details[open] > summary > svg { transform: rotate(180deg); }
+.multi-home .mh-faqs > details > div { padding-bottom: 18px; font-size: 14px; }
+.multi-home .mh-faqs .delivery-estimator { margin-block: 16px; }
 .multi-home .mh-find-us { text-align: center; }
 .multi-home .mh-find-us address { margin-top: 12px; font-style: normal; }
 .multi-home .mh-map-panel { margin-top: 24px; height: 500px; border: 1px solid var(--mh-border); border-radius: 8px; overflow: hidden; background: var(--mh-tint); }
@@ -182,7 +178,6 @@
  .multi-home .mh-car-photo { aspect-ratio: 4/3; }
  .multi-home .mh-car-variant { min-height: 0; }
  .multi-home .mh-makes > div { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
- .multi-home .mh-services { grid-template-columns: minmax(0,1fr); gap: 28px; }
  .multi-home .mh-map-panel { height: 300px; }
  .multi-home .mh-contact-grid { grid-template-columns: minmax(0,1fr); }
  .multi-home .mh-contact-grid a { min-height: 140px; }

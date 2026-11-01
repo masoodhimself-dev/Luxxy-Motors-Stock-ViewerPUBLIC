@@ -114,7 +114,7 @@ it("offers enabled services in a disclosure and closes it after following a link
   fireEvent.click(screen.getByRole("button", { name: "Services" }));
   expect(screen.getByRole("link", { name: "Warranty" })).toHaveAttribute(
     "href",
-    "#warranty",
+    "/warranty",
   );
   fireEvent.click(screen.getByRole("link", { name: "Delivery" }));
   await waitFor(() =>
