@@ -5,6 +5,7 @@ import { ShieldCheck, FileCheck2, RefreshCw } from '@/components/icons';
 import { customFetch } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import './invoice-verification.css';
+import { MultiCustomerDocumentTheme } from '@/components/multi-customer-theme';
 
 export type InvoiceProof = {
   verified: true; number: string; title: string; issuedAt: string; dealer: string; vehicle: string;
@@ -13,6 +14,9 @@ export type InvoiceProof = {
 };
 const money = (v: number) => new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format(v/100);
 export default function InvoiceVerification() {
+  return <MultiCustomerDocumentTheme><InvoiceVerificationContent /></MultiCustomerDocumentTheme>;
+}
+function InvoiceVerificationContent() {
   const [, params] = useRoute<{saleId:string;documentId:string;token:string}>('/verify-invoice/:saleId/:documentId/:token');
   const { saleId='', documentId='', token='' } = params ?? {};
   const incompleteLink = !saleId || !documentId || !token;

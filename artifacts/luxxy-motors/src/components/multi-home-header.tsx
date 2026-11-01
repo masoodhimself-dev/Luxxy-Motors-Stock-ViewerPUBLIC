@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useState } from "react";
+import { forwardRef, useEffect, useState, type MouseEvent } from "react";
 import { Link } from "wouter";
 import type { DealerConfig } from "@/config/dealer";
 import { getPhoneHref } from "@/lib/cta-helpers";
@@ -21,14 +21,40 @@ export type MultiHomeSettings = DealerConfig & {
 };
 export const MultiHomeHeader = forwardRef<
   HTMLElement,
-  { settings: MultiHomeSettings; savedCount: number; testDriveHref: string }
->(function MultiHomeHeader({ settings, savedCount, testDriveHref }, ref) {
+  {
+    settings: MultiHomeSettings;
+    savedCount: number;
+    testDriveHref: string;
+    isHomepage?: boolean;
+    enquiriesEnabled?: boolean;
+    onLogoClick?: () => void;
+  }
+>(function MultiHomeHeader(
+  {
+    settings,
+    savedCount,
+    testDriveHref,
+    isHomepage = true,
+    enquiriesEnabled = true,
+    onLogoClick,
+  },
+  ref,
+) {
   const [drawerOpen, setDrawerOpen] = useState(false),
     [servicesOpen, setServicesOpen] = useState(false);
   const sections = multiChoiceHomeSections(settings),
     phoneHref = getPhoneHref(settings),
     phone = formatPhoneDisplay(settings.contact.phone ?? "");
   const canBook = Boolean(settings.testDriveBooking?.enabled);
+  const sectionHref = (id: string) => `${isHomepage ? "" : "/"}#${id}`;
+  const partExchangeHref =
+    !isHomepage && enquiriesEnabled
+      ? "/enquire?type=part_exchange"
+      : sectionHref("part-exchange");
+  const PartExchangeLink = !isHomepage && enquiriesEnabled ? Link : "a";
+  const WarrantyLink = isHomepage ? "a" : Link;
+  const ContactLink = isHomepage ? "a" : Link;
+  const LogoLink = isHomepage ? "a" : Link;
   const savedLabel =
     savedCount > 0 ? `Saved cars (${savedCount})` : "Saved cars";
   useEffect(() => {
@@ -46,11 +72,25 @@ export const MultiHomeHeader = forwardRef<
   return (
     <header ref={ref} data-site-header className="multi-home-header">
       <div className="multi-home-header__inner">
-        <a
-          href="#top"
+        <LogoLink
+          href={isHomepage ? "#top" : "/"}
           className="multi-home-header__brand"
           aria-label={`${settings.identity.name} home`}
-          onClick={close}
+          onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+            close();
+            if (
+              !isHomepage &&
+              onLogoClick &&
+              event.button === 0 &&
+              !event.metaKey &&
+              !event.ctrlKey &&
+              !event.shiftKey &&
+              !event.altKey
+            ) {
+              event.preventDefault();
+              onLogoClick();
+            }
+          }}
         >
           <img
             src="/brand/multi-choice-motors/multi-choice-wordmark.svg"
@@ -58,13 +98,17 @@ export const MultiHomeHeader = forwardRef<
             width="205"
             height="43"
           />
-        </a>
+        </LogoLink>
         <nav
           aria-label="Primary navigation"
           className="multi-home-header__desktop"
         >
           <Link href="/stock">Search cars</Link>
-          {sections.partExchange && <a href="#part-exchange">Part exchange</a>}
+          {sections.partExchange && (
+            <PartExchangeLink href={partExchangeHref} onClick={close}>
+              Part exchange
+            </PartExchangeLink>
+          )}
           {(sections.warranty || sections.delivery || canBook) && (
             <Popover open={servicesOpen} onOpenChange={setServicesOpen}>
               <PopoverTrigger asChild>
@@ -80,12 +124,15 @@ export const MultiHomeHeader = forwardRef<
                     </Link>
                   )}
                   {sections.warranty && (
-                    <a href="#warranty" onClick={close}>
+                    <WarrantyLink
+                      href={isHomepage ? "#warranty" : "/warranty"}
+                      onClick={close}
+                    >
                       Warranty
-                    </a>
+                    </WarrantyLink>
                   )}
                   {sections.delivery && (
-                    <a href="#delivery" onClick={close}>
+                    <a href={sectionHref("delivery")} onClick={close}>
                       Delivery
                     </a>
                   )}
@@ -93,9 +140,20 @@ export const MultiHomeHeader = forwardRef<
               </PopoverContent>
             </Popover>
           )}
-          <a href="#about">About us</a>
-          {sections.reviews && <a href="#reviews">Reviews</a>}
-          <a href="#contact">Contact us</a>
+          <a href={sectionHref("about")} onClick={close}>
+            About us
+          </a>
+          {sections.reviews && (
+            <a href={sectionHref("reviews")} onClick={close}>
+              Reviews
+            </a>
+          )}
+          <ContactLink
+            href={isHomepage ? "#contact" : "/contact"}
+            onClick={close}
+          >
+            Contact us
+          </ContactLink>
         </nav>
         <div className="multi-home-header__actions">
           <Link
@@ -138,33 +196,39 @@ export const MultiHomeHeader = forwardRef<
                   Search cars
                 </Link>
                 {sections.partExchange && (
-                  <a href="#part-exchange" onClick={close}>
+                  <PartExchangeLink href={partExchangeHref} onClick={close}>
                     Part exchange
-                  </a>
+                  </PartExchangeLink>
                 )}
                 {sections.warranty && (
-                  <a href="#warranty" onClick={close}>
+                  <WarrantyLink
+                    href={isHomepage ? "#warranty" : "/warranty"}
+                    onClick={close}
+                  >
                     Warranty
-                  </a>
+                  </WarrantyLink>
                 )}
                 {sections.delivery && (
-                  <a href="#delivery" onClick={close}>
+                  <a href={sectionHref("delivery")} onClick={close}>
                     Delivery
                   </a>
                 )}
                 {sections.reviews && (
-                  <a href="#reviews" onClick={close}>
+                  <a href={sectionHref("reviews")} onClick={close}>
                     Reviews
                   </a>
                 )}
-                <a href="#contact" onClick={close}>
+                <ContactLink
+                  href={isHomepage ? "#contact" : "/contact"}
+                  onClick={close}
+                >
                   Contact us
-                </a>
+                </ContactLink>
                 <Link href="/saved" onClick={close}>
                   <Heart aria-hidden="true" />
                   {savedLabel}
                 </Link>
-                <a href="#about" onClick={close}>
+                <a href={sectionHref("about")} onClick={close}>
                   About us
                 </a>
                 {canBook && (

@@ -86,13 +86,14 @@ afterEach(() => {
   document.querySelector('meta[name="luxxy-canonical-origin"]')?.remove();
   vi.unstubAllGlobals();
 });
-it("replaces only the exact dealership homepage chrome and preserves skip/main landmarks", () => {
+it("uses the verified dealership homepage chrome and preserves skip/main landmarks", () => {
   const { container } = render(
     <Layout>
       <p>Homepage</p>
     </Layout>,
   );
   expect(container.querySelector(".multi-home-shell")).not.toBeNull();
+  expect(container.querySelector(".multi-choice-site")).not.toBeNull();
   expect(screen.getByTestId("new-home-header")).toBeInTheDocument();
   expect(screen.getByTestId("new-home-footer")).toBeInTheDocument();
   expect(screen.queryByTestId("existing-footer")).not.toBeInTheDocument();
@@ -103,7 +104,7 @@ it("replaces only the exact dealership homepage chrome and preserves skip/main l
   );
 });
 it.each(["/stock", "/vehicle/car", "/contact", "/saved", "/enquire"])(
-  "retains existing chrome on the same dealership’s %s page",
+  "shares Multi-Choice chrome on the customer %s page while retaining the homepage-only layout boundary",
   (path) => {
     state.path = path;
     const { container } = render(
@@ -112,8 +113,10 @@ it.each(["/stock", "/vehicle/car", "/contact", "/saved", "/enquire"])(
       </Layout>,
     );
     expect(container.querySelector(".multi-home-shell")).toBeNull();
-    expect(screen.queryByTestId("new-home-header")).not.toBeInTheDocument();
-    expect(screen.getByTestId("existing-footer")).toBeInTheDocument();
+    expect(container.querySelector(".multi-choice-site")).not.toBeNull();
+    expect(screen.getByTestId("new-home-header")).toBeInTheDocument();
+    expect(screen.getByTestId("new-home-footer")).toBeInTheDocument();
+    expect(screen.queryByTestId("existing-footer")).not.toBeInTheDocument();
   },
 );
 it("does not apply the homepage design to another dealer with the same editable name", () => {
@@ -128,7 +131,7 @@ it("does not apply the homepage design to another dealer with the same editable 
   expect(screen.getByTestId("existing-footer")).toBeInTheDocument();
 });
 it.each(["/stock", "/vehicle/car", "/contact", "/saved", "/enquire"])(
-  "uses the supplied logo only in the public %s shell without changing saved branding",
+  "uses the shared public %s chrome without changing saved header or footer artwork",
   (path) => {
     state.path = path;
     state.settings = {
@@ -148,18 +151,9 @@ it.each(["/stock", "/vehicle/car", "/contact", "/saved", "/enquire"])(
         <p>Public page</p>
       </Layout>,
     );
-    expect(document.querySelector("[data-site-header] img")).toHaveAttribute(
-      "src",
-      "/brand/multi-choice-motors/multi-choice-wordmark.svg",
-    );
-    expect(screen.getByTestId("existing-footer")).toHaveAttribute(
-      "data-logo",
-      "/brand/multi-choice-motors/multi-choice-wordmark-white.svg",
-    );
-    expect(screen.getByTestId("existing-footer")).toHaveAttribute(
-      "data-identity-logo",
-      "/brand/multi-choice-motors/multi-choice-wordmark.svg",
-    );
+    expect(screen.getByTestId("new-home-header")).toBeInTheDocument();
+    expect(screen.getByTestId("new-home-footer")).toBeInTheDocument();
+    expect(screen.queryByTestId("existing-footer")).not.toBeInTheDocument();
     expect(document.querySelector(".multi-home-shell")).toBeNull();
     expect(state.settings.identity.logoAsset).toBe("/configured-old-logo.svg");
     expect(state.settings.presentation?.footerLogoUrl).toBe(
@@ -167,7 +161,7 @@ it.each(["/stock", "/vehicle/car", "/contact", "/saved", "/enquire"])(
     );
   },
 );
-it("keeps the navy logo readable when Multi-Choice has selected a light footer colour", () => {
+it("uses the shared public chrome without changing a previously saved light branding choice", () => {
   state.path = "/stock";
   state.settings = {
     ...state.settings,
@@ -181,10 +175,10 @@ it("keeps the navy logo readable when Multi-Choice has selected a light footer c
       <p>Stock</p>
     </Layout>,
   );
-  expect(screen.getByTestId("existing-footer")).toHaveAttribute(
-    "data-logo",
-    "/brand/multi-choice-motors/multi-choice-wordmark.svg",
-  );
+  expect(screen.getByTestId("new-home-header")).toBeInTheDocument();
+  expect(screen.getByTestId("new-home-footer")).toBeInTheDocument();
+  expect(state.settings.identity.brandColors?.primaryHsl).toBe("0 0% 100%");
+  expect(document.querySelector<HTMLElement>(".multi-choice-site")?.style.getPropertyValue("--mh-primary")).toBe("#192a36");
 });
 it("preserves another dealership’s configured public header and footer even with the Multi-Choice display name", () => {
   canonical("https://shoredrive.uk");

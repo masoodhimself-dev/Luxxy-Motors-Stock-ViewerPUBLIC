@@ -1,0 +1,41 @@
+Multi-Choice customer website consistency — 1 November 2026
+
+Design source: the approved current homepage. Montserrat 400/500/600/700/800;
+dark ink #192a36, gold detail #a47a2b, readable dark gold #7c591a, page #f9fafb,
+white panels, pale blue #eef9fc, muted text #59656e, border #e1e5e8.
+
+The shared presentation helper is src/lib/multi-customer-theme.ts. Layout
+applies it only to verified multichoicemotors.co.uk / www origins on public
+routes. Homepage navigation and footer now serve all public browsing pages.
+Links on inner pages point to working routes or the correct homepage section.
+The existing unsaved-form guard still protects normal logo navigation.
+
+Body-rendered dialogs, menus, sheets and tooltips use the same typography and
+palette. One effect owns the body variables and route marker and restores
+their previous values on departure. Vehicle dialogs use the same helper so
+inline saved-brand colours cannot reintroduce the old public palette.
+
+Invoice verification and test-drive declarations use a minimal theme wrapper;
+they retain their existing privacy boundary, access checks and quiet layouts.
+No showroom navigation, analytics or additional providers are introduced there.
+Valid document/booking states are covered by existing automated fixtures;
+responsive browser checks use incomplete/unavailable links only.
+
+Preserved: stock grids, cards, ordering and photographs; original supplied
+filter SVGs and reference spacing; specialist registration plate lettering;
+semantic MOT/error/success colours; WhatsApp identity; dark gallery surface;
+staff portal and other dealerships; PDFs, saved settings and business logic.
+No customer records, stock, invoices, payments or messages were changed.
+
+Validation:
+- Full frontend suite: 2,387 tests across 219 files passed.
+- Final affected theme/chrome/layout/filter tests: 114 passed.
+- TypeScript check and production Vite build passed.
+- Read-only browser checks: homepage, stock, vehicle, saved cars, all three
+  enquiry variants, contact and warranty at 320px, 390px and 768px; additional
+  desktop checks, public link/error states, mobile navigation, delivery and
+  quick-answer dialogs and gallery. Fonts and horizontal overflow measured.
+- Responsive Chromium checks are not physical-device Safari certification.
+
+Evidence: workspace output/multi-choice-site-consistency-2026-11-01/.
+Local preview: http://127.0.0.1:4294/ . No push or deployment performed.

@@ -21,6 +21,8 @@ import './portal/portal-workspace.css';
 import './customer-finish.css';
 import { readableAccentForHsl, readableForegroundForHsl } from '@/lib/brand-colour';
 import { customerThemeVariables } from '@/lib/customer-theme';
+import { isCustomerWebsiteRoute, multiCustomerThemeVariables } from '@/lib/multi-customer-theme';
+import { useCustomerBodyTheme } from '@/components/multi-customer-theme';
 export { readableForegroundForHsl } from '@/lib/brand-colour';
 
 const navLinkClass =
@@ -33,8 +35,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isMultiHome = isMultiChoiceHomepage(location);
   const [, vehicleRoute] = useRoute('/vehicle/:id');
   const testDriveHref = vehicleRoute?.id ? `/enquire?type=viewing&vehicleId=${encodeURIComponent(vehicleRoute.id)}` : getEnquiryHref('viewing');
-  const isStaff = location.startsWith('/portal');
-  const isMultiWebsite = !isStaff && isMultiChoiceWebsite();
+  const isStaff = /^\/portal(?:\/|$)/.test(location);
+  const isMultiWebsite = isCustomerWebsiteRoute(location) && isMultiChoiceWebsite();
   const isCustomerTask = /^\/(sign|customer-details|viewing)\//.test(location);
   const isPremiumShowroom = location === '/' || location === '/stock' || /^\/vehicle\/[^/]+\/?$/.test(location);
   const isVehiclePage = /^\/vehicle\/[^/]+\/?$/.test(location);
@@ -92,22 +94,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         }
       : {}),
     ...(!isStaff ? customerThemeVariables({ ...dealerConfig.presentation, primaryHsl: brandPrimary, accentHsl: customerAccent }) : {}),
-  }) as CSSProperties, [brandPrimary, accent, customerAccent, dealerConfig.presentation, isStaff]);
+    ...(isMultiWebsite ? multiCustomerThemeVariables() : {}),
+  }) as CSSProperties, [brandPrimary, accent, customerAccent, dealerConfig.presentation, isStaff, isMultiWebsite]);
 
-  useEffect(() => {
-    if (isStaff) return;
-    // Radix menus and dialogs live beneath body rather than the showroom shell.
-    // Carry the same dealer palette there, then restore it on staff routes.
-    const entries = Object.entries(brandStyle) as [string, string][];
-    const previous = entries.map(([key]) => [key, document.body.style.getPropertyValue(key)] as const);
-    for (const [key, value] of entries) document.body.style.setProperty(key, value);
-    return () => {
-      for (const [key, value] of previous) {
-        if (value) document.body.style.setProperty(key, value);
-        else document.body.style.removeProperty(key);
-      }
-    };
-  }, [brandStyle, isStaff]);
+  useCustomerBodyTheme(brandStyle, isMultiWebsite, !isStaff && isCustomerWebsiteRoute(location));
 
   useEffect(() => {
     const url = dealerConfig.presentation?.faviconUrl;
@@ -183,7 +173,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       observer.disconnect();
       document.documentElement.style.removeProperty('--site-header-height');
     };
-  }, [isStaff, isMultiHome]);
+  }, [isStaff, isMultiHome, isMultiWebsite]);
 
   const handleNav = (target: string) => {
     setMobileMenuOpen(false);
@@ -207,7 +197,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   // Never show another dealer's build-time defaults while this tenant loads.
-  if (isMultiHome && (settingsLoading || settingsError)) return <div className="luxxy-shell customer-site multi-home-shell min-h-[100dvh]">
+  if (isMultiHome && (settingsLoading || settingsError)) return <div style={brandStyle} className="luxxy-shell customer-site multi-choice-site multi-home-shell min-h-[100dvh]">
     <header ref={headerRef} data-site-header className="multi-home-header"><div className="multi-home-header__inner"><a href="#main-content" className="multi-home-header__brand" aria-label="Multi-Choice Motors home"><img src="/brand/multi-choice-motors/multi-choice-wordmark.svg" alt="Multi-Choice Motors" width="205" height="43" /></a></div></header>
     <main id="main-content" className="multi-home-loading" aria-busy={settingsLoading || undefined}>
       <h1>{settingsError ? 'Website details are temporarily unavailable' : 'Loading Multi-Choice Motors…'}</h1>
@@ -216,10 +206,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   </div>;
 
   return (
-    <div id={isMultiHome ? 'top' : undefined} style={brandStyle} data-dealer-brand={dealerConfig.identity.name.toLowerCase().replace(/[^a-z0-9]/g, "") === "multichoicemotors" ? "multi-choice" : undefined} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}${isMultiHome ? ' multi-home-shell' : ''}`}>
+    <div id={isMultiHome ? 'top' : undefined} style={brandStyle} data-dealer-brand={dealerConfig.identity.name.toLowerCase().replace(/[^a-z0-9]/g, "") === "multichoicemotors" ? "multi-choice" : undefined} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}${isMultiWebsite ? ' multi-choice-site' : ''}${isMultiHome ? ' multi-home-shell' : ''}`}>
       <a href="#main-content" className="fixed left-4 top-3 z-[100] -translate-y-24 rounded-md bg-primary px-5 py-3 text-primary-foreground focus:translate-y-0">Skip to content</a>
-      {isMultiHome && <MultiHomeHeader ref={headerRef} settings={dealerConfig} savedCount={savedCount} testDriveHref={testDriveHref} />}
-      {!isStaff && !isMultiHome && <header
+      {isMultiWebsite && <MultiHomeHeader ref={headerRef} settings={dealerConfig} savedCount={savedCount} testDriveHref={testDriveHref} isHomepage={isMultiHome} enquiriesEnabled={publicEnquiriesEnabled} onLogoClick={isMultiHome ? undefined : handleLogoClick} />}
+      {!isStaff && !isMultiWebsite && <header
         ref={headerRef}
         data-site-header
         data-scroll-hidden={stockHeader.hidden}
@@ -396,7 +386,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </footer>
       )}
-      {isMultiHome ? <MultiHomeFooter settings={dealerConfig} enquiriesEnabled={publicEnquiriesEnabled} /> : !isStaff && !isCustomerTask && <CustomerFooter settings={footerSettings} testDriveHref={testDriveHref} enquiriesEnabled={publicEnquiriesEnabled} />}
+      {isMultiWebsite && !isCustomerTask ? <MultiHomeFooter settings={dealerConfig} enquiriesEnabled={publicEnquiriesEnabled} isHomepage={isMultiHome} /> : !isStaff && !isCustomerTask && <CustomerFooter settings={footerSettings} testDriveHref={testDriveHref} enquiriesEnabled={publicEnquiriesEnabled} />}
       <div data-home-scroll-spacer aria-hidden="true" className="bg-primary" />
 
     </div>

@@ -8,12 +8,23 @@ import "./multi-home-chrome.css";
 export function MultiHomeFooter({
   settings,
   enquiriesEnabled = false,
+  isHomepage = true,
 }: {
   settings: MultiHomeSettings;
   enquiriesEnabled?: boolean;
+  isHomepage?: boolean;
 }) {
   const sections = multiChoiceHomeSections(settings),
     legal = settings.legal;
+  const sectionHref = (id: string) => `${isHomepage ? "" : "/"}#${id}`;
+  const partExchangeHref =
+    !isHomepage && enquiriesEnabled
+      ? "/enquire?type=part_exchange"
+      : sectionHref("part-exchange");
+  const PartExchangeLink = !isHomepage && enquiriesEnabled ? Link : "a";
+  const WarrantyLink = isHomepage ? "a" : Link;
+  const ContactLink = isHomepage ? "a" : Link;
+  const LogoLink = isHomepage ? "a" : Link;
   const socialLinks = [
     { label: "Instagram", href: settings.social.instagram, Icon: Instagram },
     { label: "Facebook", href: settings.social.facebook, Icon: Facebook },
@@ -37,12 +48,22 @@ export function MultiHomeFooter({
     >
       <nav aria-label="Dealership links" className="multi-home-footer__links">
         <Link href="/stock">Search cars</Link>
-        {sections.partExchange && <a href="#part-exchange">Part exchange</a>}
-        {sections.warranty && <a href="#warranty">Warranty</a>}
-        {sections.delivery && <a href="#delivery">Delivery</a>}
+        {sections.partExchange && (
+          <PartExchangeLink href={partExchangeHref}>
+            Part exchange
+          </PartExchangeLink>
+        )}
+        {sections.warranty && (
+          <WarrantyLink href={isHomepage ? "#warranty" : "/warranty"}>
+            Warranty
+          </WarrantyLink>
+        )}
+        {sections.delivery && <a href={sectionHref("delivery")}>Delivery</a>}
         <Link href="/saved">Saved cars</Link>
-        <a href="#about">About us</a>
-        <a href="#contact">Contact</a>
+        <a href={sectionHref("about")}>About us</a>
+        <ContactLink href={isHomepage ? "#contact" : "/contact"}>
+          Contact
+        </ContactLink>
         {enquiriesEnabled && (
           <Link href={getEnquiryHref("general")}>Send an enquiry</Link>
         )}
@@ -62,8 +83,8 @@ export function MultiHomeFooter({
           ))}
         </nav>
       )}
-      <a
-        href="#top"
+      <LogoLink
+        href={isHomepage ? "#top" : "/"}
         className="multi-home-footer__brand"
         aria-label={`${settings.identity.name} home`}
       >
@@ -74,7 +95,7 @@ export function MultiHomeFooter({
           height="40"
           loading="lazy"
         />
-      </a>
+      </LogoLink>
       <div className="multi-home-footer__legal">
         <p>
           © {new Date().getFullYear()}{" "}
