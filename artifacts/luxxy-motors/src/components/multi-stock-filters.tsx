@@ -13,6 +13,7 @@ import { arrivalTime } from "@/lib/stock-presentation";
 import { formatPrice } from "@/lib/utils";
 import { applyStockFilters } from "@/features/stock-search/apply-filters";
 import { vehicleBenefits } from "@/lib/vehicle-benefits";
+import { MakeLogo } from "./make-logo";
 import {
   splitStockFacetValues,
   stockValueKey,
@@ -191,11 +192,13 @@ function FacetOption({
   option,
   selected,
   colour,
+  make,
   onToggle,
 }: {
   option: StockFacetOption;
   selected: boolean;
   colour: boolean;
+  make: boolean;
   onToggle: () => void;
 }) {
   const countId = useId(),
@@ -213,6 +216,11 @@ function FacetOption({
       <span className="multi-stock-checkbox" aria-hidden="true">
         <FilterIcon name="check" />
       </span>
+      {make && (
+        <span className="multi-stock-option__make-logo" aria-hidden="true">
+          <MakeLogo make={option.label} size={24} />
+        </span>
+      )}
       {colour && <ColourSwatch value={option.label} />}
       <span className="multi-stock-option__label">{option.label}</span>
       <span className="multi-stock-option__count" aria-hidden="true">
@@ -263,6 +271,7 @@ function CheckboxFacet({
               key={stockValueKey(option.value)}
               option={option}
               colour={facet === "colour"}
+              make={facet === "make"}
               selected={isSelected(selected, option.value)}
               onToggle={() =>
                 onChange(toggleFacet(filters, facet, option.value))

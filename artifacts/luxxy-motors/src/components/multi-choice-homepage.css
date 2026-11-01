@@ -95,7 +95,9 @@
 .multi-home .mh-empty { padding: 32px; background: white; border: 1px solid var(--mh-border); border-radius: 8px; }
 .multi-home .mh-empty p { margin-block: 10px; }
 .multi-home .mh-makes > div { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 14px; margin-top: 26px; }
-.multi-home .mh-makes a { display: flex; min-height: 48px; justify-content: center; align-items: center; border: 1px solid var(--mh-border-strong); border-radius: 999px; background: white; font-size: 14px; font-weight: 500; }
+.multi-home .mh-makes a { display: flex; min-width: 0; min-height: 56px; justify-content: center; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--mh-border-strong); border-radius: 999px; background: white; font-size: 14px; font-weight: 500; }
+.multi-home .mh-makes .mh-make-logo { width: 24px; height: 24px; flex: none; }
+.multi-home .mh-makes a > span { min-width: 0; overflow-wrap: anywhere; text-align: left; }
 .multi-home .mh-makes a:hover { border-color: var(--mh-primary); }
 .multi-home .mh-faqs { max-width: 768px; margin-inline: auto; }
 .multi-home .mh-faqs h2 { text-align: center; margin-bottom: 28px; }

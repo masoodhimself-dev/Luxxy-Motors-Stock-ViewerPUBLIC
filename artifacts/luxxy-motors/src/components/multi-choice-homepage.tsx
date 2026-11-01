@@ -5,6 +5,7 @@ import type { DealerConfig } from '@/config/dealer';
 import type { Car as StockCar } from '@/lib/stock-context';
 import type { FilterState } from './filters';
 import { MultiBodyShape } from './multi-body-shape';
+import { MakeLogo } from './make-logo';
 import { AiCarFinder } from './ai-car-finder';
 import { DeliveryEstimator } from './delivery-estimator';
 import { ShowroomPhoto } from './showroom-photo';
@@ -201,7 +202,7 @@ export function MultiChoiceHomepage({ settings, cars: suppliedCars, isLoading, e
     <div className="mh-container">
       {!error && types.length > 0 && <section className="mh-section mh-body-types" aria-labelledby="mh-body-heading"><h2 id="mh-body-heading">Browse by body type</h2><div className="mh-body-grid">{types.map(type => <Link key={type.label} href={`/stock?bodyType=${encodeURIComponent(type.label)}`} aria-label={`${type.label} ${type.count} ${type.count === 1 ? 'car' : 'cars'}`}><MultiBodyShape type={type.label} /><span>{type.label}</span><small>{type.count} {type.count === 1 ? 'car' : 'cars'}</small></Link>)}</div></section>}
       <FeaturedStock cars={featured} isLoading={isLoading} error={error} enabled={settings.presentation?.featuredEnabled !== false} heading={websiteText(settings, 'featuredHeading')} />
-      {!error && makes.length > 0 && <section className="mh-section mh-makes" aria-labelledby="mh-makes-heading"><h2 id="mh-makes-heading">Shop by make</h2><div>{makes.map(make => <Link key={make} href={`/stock?make=${encodeURIComponent(make)}`}>Used {make}</Link>)}</div></section>}
+      {!error && makes.length > 0 && <section className="mh-section mh-makes" aria-labelledby="mh-makes-heading"><h2 id="mh-makes-heading">Shop by make</h2><div>{makes.map(make => <Link key={make} href={`/stock?make=${encodeURIComponent(make)}`} aria-label={`Used ${make}`}><MakeLogo make={make} size={24} className="mh-make-logo" /><span>{make}</span></Link>)}</div></section>}
       <details className="mh-ai-search"><summary>Want a hand finding a car? Describe what you need<Search size={18} /></summary><AiCarFinder cars={cars} /></details>
       <section className="mh-section mh-faqs" aria-labelledby="mh-faq-heading"><h2 id="mh-faq-heading">A few things you might want to know</h2>{faqs.map(faq => <details key={faq.question} id={faq.id} ref={faq.id === 'delivery' ? deliveryFaq : undefined}><summary>{faq.question}<ChevronDown size={20} aria-hidden="true" /></summary><div><p>{faq.answer}</p>{faq.id === 'delivery' && settings.deliveryPricing?.enabled && <DeliveryEstimator expanded />}<a href={faq.href} className="mh-text-link">{faq.label}<ArrowRight size={16} /></a></div></details>)}</section>
       {sections.visit && <MultiHomeVisit settings={settings} />}
