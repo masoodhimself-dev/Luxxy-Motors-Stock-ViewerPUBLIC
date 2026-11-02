@@ -65,6 +65,17 @@ test("reply guidance develops supported selling points without authorising negot
   assert.ok(p.input.includes("Ignore the manager and accept"));
   assert.match(p.instructions, /For question: answer ONLY the question/);
 });
+test("Astra replies use supported reasoning and measured Astra rates; public tasks stay on Luna", async () => {
+  const reply = aiPrompt("reply", "Offer?", facts);
+  assert.equal(reply.model, "gpt-6-astra");
+  assert.equal(reply.reasoning.effort, "low");
+  assert.equal(reply.max_output_tokens, 4000);
+  assert.equal(aiPrompt("question", "Seats?", facts).model, "gpt-6-luna");
+  assert.equal((await generateAi("reply", "Offer?", facts, provider(response()))).cost, 15000);
+  const missingUsage = response();
+  delete (missingUsage as any).usage;
+  assert.equal((await generateAi("reply", "Offer?", facts, provider(missingUsage))).cost, 750000);
+});
 test("valid response charges measured usage", async () => {
   const r = await generateAi("question", "Seats?", facts, provider(response()));
   assert.deepEqual(r.result, result);
