@@ -36,7 +36,7 @@
     "test:domain": "node ./test-build.mjs src/domain-providers.test.ts && node --test ./dist-test/domain-providers.test.mjs && node ./test-domain-build.mjs && node --test ./dist-test/domain-automation.test.mjs",
     "test:email-workspace": "node test-enquiry-emails-build.mjs src/email-workspace.test.ts && node --test dist-test/email-workspace.test.mjs && node test-enquiry-emails-build.mjs src/staff-email-scope.test.ts && node --test dist-test/staff-email-scope.test.mjs",
     "test:push": "node test-enquiry-emails-build.mjs src/staff-push.test.ts && node --test dist-test/staff-push.test.mjs && node test-build.mjs ../luxxy-motors/preview/communications-push.test.ts && node --test dist-test/communications-push.test.mjs",
-    "test:email-design": "node test-build.mjs src/email-design.test.ts && node --test dist-test/email-design.test.mjs && node test-build.mjs src/customer-email-copy.test.ts && node --test dist-test/customer-email-copy.test.mjs && node test-enquiry-emails-build.mjs src/enquiry-emails.test.ts && node --test dist-test/enquiry-emails.test.mjs && node test-build.mjs ../luxxy-motors/preview/communications-email.test.ts && node --test dist-test/communications-email.test.mjs",
+    "test:email-design": "node test-build.mjs src/email-design.test.ts && node --test dist-test/email-design.test.mjs && node test-build.mjs src/customer-email-copy.test.ts && node --test dist-test/customer-email-copy.test.mjs && node test-enquiry-emails-build.mjs src/enquiry-emails.test.ts && node --test dist-test/enquiry-emails.test.mjs && node test-build.mjs ../luxxy-motors/preview/communications-email.test.ts && node --test dist-test/communications-email.test.mjs && node test-enquiry-emails-build.mjs src/enquiry-vehicle-pdf.test.ts && node --test dist-test/enquiry-vehicle-pdf.test.mjs",
     "test:capacity:guards": "node test-capacity-run.mjs",
     "test:capacity": "node test-capacity-run.mjs --benchmark",
     "test:shutdown": "node test-shutdown-build.mjs && node --test .cache/shutdown-tests/service-lifecycle.test.mjs",
@@ -71,7 +71,8 @@
     "test:staff-cars": "node test-enquiry-emails-build.mjs src/staff-cars.test.ts && node --test dist-test/staff-cars.test.mjs && node test-enquiry-emails-build.mjs src/staff-cars-route.test.ts && node --test dist-test/staff-cars-route.test.mjs",
     "test:ai-assistance": "node test-build.mjs src/ai-assistance.test.ts && node --test dist-test/ai-assistance.test.mjs",
     "test:mot-stock": "node test-mot-stock-checks-build.mjs && node --test dist-test/mot-stock-checks.test.mjs",
-    "test:cazoo-leads": "node test-cazoo-leads-build.mjs && node --test .cache/cazoo-leads/cazoo-leads.test.mjs"
+    "test:cazoo-leads": "node test-cazoo-leads-build.mjs && node --test .cache/cazoo-leads/cazoo-leads.test.mjs",
+    "test:enquiry-resolution": "node test-enquiry-resolution-build.mjs && node --test .cache/enquiry-resolution/enquiry-resolution.test.mjs"
   },
   "dependencies": {
     "@clerk/express": "^2.1.64",

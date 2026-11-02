@@ -10,6 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import type { Enquiry } from "@workspace/api-client-react";
+import { useState } from "react";
 
 const featureState = vi.hoisted(() => ({
   allowed: true,
@@ -97,22 +98,31 @@ vi.mock("./enquiry-workspace-tools", () => ({
   TodayDesk: () => null,
   CustomerHistory: () => null,
 }));
-vi.mock("./enquiry-record-browser", () => ({
-  EnquiryRecordBrowser: ({
+vi.mock("./inbox-workspace", () => ({
+  InboxWorkspace: ({
     entries,
     selectedId,
     actions,
+    onBack,
+    missingRequested,
   }: {
     entries: Enquiry[];
     selectedId: string | null;
+    onBack: () => void | boolean;
+    missingRequested: boolean;
     actions: {
       onAppointment: (entry: Enquiry) => void;
       onDeletedEnquiry?: (id: string) => void;
     };
-  }) => (
-    <section aria-label="Customer records">
+  }) => {
+    // The board is covered separately; this fixture exercises controller callbacks
+    // and real route/cache changes without mounting the customer reply editor.
+    const [search,setSearch]=useState('');
+    return <div>
+      <label>Search enquiries<input value={search} onChange={event=>{if(onBack()!==false)setSearch(event.target.value);}}/></label>
+      {missingRequested ? <button onClick={onBack}>Show all enquiries</button> : <section aria-label="Customer records">
       <p data-testid="selected-enquiry">{selectedId ?? "none"}</p>
-      {entries.map((entry) => (
+      {entries.filter(entry=>entry.customerName.toLowerCase().includes(search.toLowerCase())).map((entry) => (
         <div key={entry.id}>
           <p>
             {entry.customerName} · {entry.reference}
@@ -129,8 +139,9 @@ vi.mock("./enquiry-record-browser", () => ({
           )}
         </div>
       ))}
-    </section>
-  ),
+    </section>}
+    </div>;
+  },
 }));
 import { EnquiriesPanel } from "./enquiries-panel";
 

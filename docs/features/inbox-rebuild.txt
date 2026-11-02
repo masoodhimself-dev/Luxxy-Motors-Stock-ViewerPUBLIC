@@ -1,0 +1,52 @@
+Conversation-first Inbox — 2 November 2026
+
+Approved design
+The customer queue and selected conversation form one workspace. Website, Cazoo,
+phone, part-exchange, warranty, delivery and viewing enquiries use the same queue.
+Four filters: Needs you, All, Test drives, Done. Plain status words accompany amber,
+blue and green so colour is never the only signal. A source label is independent
+of the work status. Relative times use recorded activity, not future appointment dates.
+
+Phone and tablet
+Under 900px, selecting a customer replaces the list with the full conversation.
+Back returns to the same list/filter. Vehicle/MOT and customer history are closed
+until opened. On larger screens, an optional details rail opens only if space exists.
+Original enquiries, linked cases and earlier messages remain accessible.
+
+Reply workflow
+The email/WhatsApp/private-note editor is immediately available to authorised
+staff. Existing drafts are restored per enquiry; saved AI drafts are identified.
+Recipients, subject and templates are available in the compact To disclosure.
+AI suggestions remain editable. Reviewed-send, idempotency, permissions, stale
+revision and uncertain-delivery safeguards remain in use. This release does not
+switch on automatic replies, autonomous negotiation or overnight AI conversations.
+No AI-handling label is inferred merely because an enquiry came from Cazoo.
+
+Draft safety
+The implicit desktop preview is pinned so a new lead cannot replace it mid-edit.
+Cached conversations remain mounted on a background refresh error. Navigation
+asks before discarding unsaved messages/notes. Confirmed discard unmounts the old
+editor. Linked originals remain distinct and are never inferred from shared names.
+
+Vehicle PDF
+An explicit Attach vehicle PDF option uses the existing deterministic brochure
+renderer. No extra AI call. Same-dealer public stock only, up to four photos,
+8MB PDF maximum and existing combined attachment limits. Recorded public vehicle
+facts are used; selecting the PDF does not perform a new live MOT check.
+PDF bytes are bound to the reviewed email hash. Changes to stock/dealer/photos
+require a fresh review. A formerly selected PDF remains removable if unavailable.
+WhatsApp never silently carries PDF/email attachments into a handoff.
+
+Mark done
+POST /api/staff/enquiries/:id/resolution requires sales.manage, tenant scope and
+expected workspace revision. It closes only the selected original, keeps linked
+records and all history, and writes a staff audit event. Outstanding appointments,
+follow-ups or unresolved email work block closing. Existing Set follow-up brings
+closed work back to Needs you; this release does not invent a separate reopen state.
+Local preview resolution uses archived fixtures with no email transport.
+
+Verification
+Targeted component/model/integration tests, isolated PostgreSQL route tests,
+PDF preview/hash/stock-change tests and WebKit layout/workflow checks at 375,
+390, 820 and 1440px. Production frontend/backend builds and TypeScript checks.
+No customer emails sent and no production enquiries edited during this work.

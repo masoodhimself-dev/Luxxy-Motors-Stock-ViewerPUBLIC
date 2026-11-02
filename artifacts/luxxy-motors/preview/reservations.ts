@@ -1,5 +1,6 @@
 // Local-only durable reservation sandbox. Never imported by the production entry point.
 import { randomUUID, randomBytes } from 'node:crypto';
+import { z } from 'zod/v4';
 import type { Enquiry } from '@workspace/api-client-react';
 import { EnquiryMergeError, parseEnquiryMergeInput, planEnquiryMerge, showroomAvailability, vehicleRegistrationLabel } from '@workspace/vehicle-meta';
 import { bookingDateIsInWindow, bookingPolicyFromConfig, bookingPolicyError, bookingPressure, getSlotsForDate, isValidDateString, slotIsAvailable, validStaffAppointmentDateTime, withinBookingHours, type BookingPolicy, type OccupiedBooking } from '../../api-server/src/lib/booking-slots';
@@ -221,6 +222,31 @@ export async function handlePreviewBooking(req: IncomingMessage, url: URL, state
       .map(({ id, reference, customerName, vehicleTitle, assignedToName, appointmentAt, appointmentDurationMinutes, appointmentBufferMinutes }) => ({ id, reference, customerName, vehicleTitle, assignedToName, appointmentAt, appointmentDurationMinutes, appointmentBufferMinutes }))
       .sort((a, b) => a.appointmentAt!.localeCompare(b.appointmentAt!) || a.id.localeCompare(b.id));
     return { status: 200, data: { date, timezone: 'Europe/London', appointments } };
+  }
+  const resolution = /^\/api\/staff\/enquiries\/([^/]+)\/resolution$/.exec(path);
+  if (req.method === 'POST' && resolution) {
+    const staffId = typeof req.headers?.['x-preview-staff-id'] === 'string' ? req.headers['x-preview-staff-id'] : 'preview-alex';
+    const { readPreviewMergeStaff } = await import('./operations');
+    const member = (await (options.readMergeStaff ?? readPreviewMergeStaff)()).find(member => member.id === staffId);
+    if (!member) throw new ReservationError('Sign in to use the dealer portal.', 401);
+    if (!roleHasPermission(member.role, 'sales.manage')) throw new ReservationError('Your staff role does not allow this action.', 403);
+    const parsed = z.object({ expectedRevision: z.number().int().min(0), status: z.literal('closed') }).strict().safeParse(await body(req));
+    if (!z.string().uuid().safeParse(resolution[1]).success || !parsed.success) throw new ReservationError('Check the enquiry and requested status.', 400);
+    const entry = enquiries.find(entry => entry.id === resolution[1] && entry.dealerId === 'local-preview');
+    if (!entry) throw new ReservationError('Enquiry not found.', 404);
+    if ((entry.workspaceRevision ?? 0) !== parsed.data.expectedRevision) throw new ReservationError('This enquiry changed. Refresh and review it before changing its status.', 409);
+    if (entry.appointmentAt && !entry.appointmentCancelledAt && !['completed', 'no_show'].includes(entry.attendance ?? 'scheduled')) throw new ReservationError('Record the test-drive outcome or cancel the appointment before marking this enquiry done.', 409);
+    if (entry.followUpAt && !entry.followUpCompletedAt) throw new ReservationError('Complete or cancel the outstanding follow-up before marking this enquiry done.', 409);
+    // The local receiving adapter has no transport. Still preserve any explicitly seeded reply attention.
+    const attention = entry as PreviewEnquiry & { pendingEmailReplies?: number; emailRepliesToReview?: number };
+    if ((attention.pendingEmailReplies ?? 0) > 0 || (attention.emailRepliesToReview ?? 0) > 0) throw new ReservationError('Reply to or mark the incoming email handled before marking this enquiry done.', 409);
+    if (entry.status === 'closed') return { status: 200, data: { id: entry.id, status: entry.status, workspaceRevision: entry.workspaceRevision ?? 0, updatedAt: entry.updatedAt, changed: false } };
+    const now = new Date().toISOString();
+    const detail = { action: 'enquiry_resolution', previousStatus: entry.status, status: 'closed', expectedRevision: parsed.data.expectedRevision, staffId: member.id, staffName: member.name, note: 'Marked done. Messages and linked records have been kept.' };
+    // Validation completes before mutating; the outer serial queue persists record and audit together.
+    entry.status = 'closed'; entry.workspaceRevision = (entry.workspaceRevision ?? 0) + 1; entry.updatedAt = now;
+    entry.events = [...(entry.events ?? []), { id: randomUUID(), kind: 'conversation_logged', actor: 'dealer', summary: 'Enquiry marked done', vehicleId: entry.vehicleId, vehicleTitle: entry.vehicleTitle, vehicleUrl: entry.vehicleUrl, occurredAt: now, staffId: member.id, staffName: member.name, note: detail.note, detail }];
+    return { status: 200, data: { id: entry.id, status: entry.status, workspaceRevision: entry.workspaceRevision, updatedAt: entry.updatedAt, changed: true } };
   }
   const statusChange = /^\/api\/enquiries\/([^/]+)\/status$/.exec(path);
   if (req.method === 'PATCH' && statusChange) {

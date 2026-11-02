@@ -30,6 +30,7 @@ import { appointmentLabel } from "@/lib/test-drive-dates";
 import { FollowUpFields, followUpIso } from "./enquiry-follow-up";
 import { workspaceError } from "./enquiry-workspace-tools";
 import { enquiryGroup } from "@/lib/enquiry-groups";
+import { inboxRelativeTime } from "@/lib/inbox-model";
 import {
   CalendarDays,
   Mail,
@@ -75,7 +76,11 @@ export function ConversationEditor({
     time ||
     followUpNote.trim(),
   );
-  const { requestClose, discardPrompt } = usePopupDraftGuard({ dirty, blocked: () => busy.current, onClose });
+  const { requestClose, discardPrompt } = usePopupDraftGuard({
+    dirty,
+    blocked: () => busy.current,
+    onClose,
+  });
   async function save(event: FormEvent) {
     event.preventDefault();
     if (busy.current) return;
@@ -132,7 +137,11 @@ export function ConversationEditor({
         {entry.vehicleTitle || "General showroom enquiry"}
         {entry.vehicleRegistration ? ` · ${entry.vehicleRegistration}` : ""}
       </p>
-      <form noValidate onSubmit={(event) => void save(event)} className="portal-popup-form">
+      <form
+        noValidate
+        onSubmit={(event) => void save(event)}
+        className="portal-popup-form"
+      >
         <fieldset disabled={saving} className="grid min-w-0 gap-4">
           <label className="grid gap-1.5 text-sm font-medium">
             Conversation note
@@ -237,7 +246,10 @@ export function ConversationEditor({
         if (!open) requestClose();
       }}
     >
-      <DialogContent className="portal-action-dialog enquiry-action-dialog enquiry-conversation-dialog portal-popup-form-dialog" closeDisabled={saving}>
+      <DialogContent
+        className="portal-action-dialog enquiry-action-dialog enquiry-conversation-dialog portal-popup-form-dialog"
+        closeDisabled={saving}
+      >
         <DialogHeader>
           <DialogTitle>Log another conversation</DialogTitle>
           <DialogDescription>{entry.customerName}</DialogDescription>
@@ -392,13 +404,20 @@ export function CustomerActivityTimeline({
   canEmail = false,
   cars = [],
   onInsertText,
+  compact = false,
+  activityOnly = false,
 }: {
   entry: Enquiry;
   entries?: readonly Enquiry[];
   canEmail?: boolean;
   cars?: readonly Car[];
-  onInsertText?: (text:string)=>void;
+  onInsertText?: (text: string) => void;
+  /** The Inbox keeps messages in focus; full activity remains the default elsewhere. */
+  compact?: boolean;
+  /** Website actions and booking changes are opened from Customer details. */
+  activityOnly?: boolean;
 }) {
+  const [visibleCount, setVisibleCount] = useState(4);
   const records = enquiryGroup(entry, entries);
   const ids = records.map((record) => record.id);
   const conversations = useInfiniteQuery({
@@ -474,11 +493,62 @@ export function CustomerActivityTimeline({
     ? (emails.data?.pages.flatMap((page) => page.messages) ?? [])
     : [];
   const items = buildCaseActivity(loadedRecords, journal);
+  const conversationItems = items.filter(
+    (item) => !["event", "appointment"].includes(item.kind),
+  );
+  const relevantItems = activityOnly
+    ? items.filter((item) => ["event", "appointment"].includes(item.kind))
+    : compact
+      ? conversationItems
+      : items;
+  const unreadKeys = new Set(
+    journal
+      .filter(
+        (message) =>
+          message.kind === "reply" &&
+          ["reply_needed", "review"].includes(message.status),
+      )
+      .map((message) => `email:${message.key}`),
+  );
+  // Never put a reply needing attention behind the earlier-message control.
+  const visibleItems = compact
+    ? relevantItems.filter(
+        (item, index) => index < visibleCount || unreadKeys.has(item.key),
+      )
+    : relevantItems;
+  const hiddenCount = relevantItems.length - visibleItems.length;
+  // The newest message sits next to the reply editor; the full history keeps its existing latest-first order.
+  const displayedItems = compact ? [...visibleItems].reverse() : visibleItems;
   const hasMore = conversations.hasNextPage || (canEmail && emails.hasNextPage);
   const loadingOlder =
     conversations.isFetchingNextPage || (canEmail && emails.isFetchingNextPage);
   const loading = conversations.isPending || (canEmail && emails.isPending);
   const hasError = conversations.isError || (canEmail && emails.isError);
+  const earlierControl = (hiddenCount > 0 || hasMore) && (
+    <Button
+      type="button"
+      variant="ghost"
+      className="case-timeline-older"
+      disabled={loadingOlder}
+      onClick={() => {
+        if (compact) setVisibleCount((count) => count + 4);
+        if (!compact || hiddenCount === 0) {
+          if (conversations.hasNextPage) void conversations.fetchNextPage();
+          if (canEmail && emails.hasNextPage) void emails.fetchNextPage();
+        }
+      }}
+    >
+      {loadingOlder
+        ? compact
+          ? "Loading earlier messages…"
+          : "Loading older activity…"
+        : compact
+          ? activityOnly
+            ? "Load earlier activity"
+            : "Load earlier messages"
+          : "Load older activity"}
+    </Button>
+  );
   const Icon = (kind: string) =>
     kind === "email" || kind === "customer-email"
       ? Mail
@@ -490,18 +560,38 @@ export function CustomerActivityTimeline({
             ? FileText
             : MessageSquare;
   return (
-    <section className="customer-case-timeline" aria-label="Customer activity">
-      <header className="case-timeline-heading">
-        <div>
-          <h4>Activity</h4>
-          <p>Messages and notes together · latest first</p>
-        </div>
-        <span>
-          {items.length} {items.length === 1 ? "record" : "records"}
-          {hasMore ? "+" : ""}
-        </span>
-      </header>
-      {!loading && !hasError && canEmail && <EnquiryAssistance items={items} cars={cars} onInsertText={onInsertText} closed={entry.status === "closed" || entry.callOutcome === "not_interested"} />}
+    <section
+      className={`customer-case-timeline${compact ? " case-timeline-compact" : ""}`}
+      aria-label={
+        activityOnly
+          ? "Website and booking activity"
+          : compact
+            ? "Customer conversation"
+            : "Customer activity"
+      }
+    >
+      {!compact && (
+        <header className="case-timeline-heading">
+          <div>
+            <h4>Activity</h4>
+            <p>Messages and notes together · latest first</p>
+          </div>
+          <span>
+            {items.length} {items.length === 1 ? "record" : "records"}
+            {hasMore ? "+" : ""}
+          </span>
+        </header>
+      )}
+      {!compact && !loading && !hasError && canEmail && (
+        <EnquiryAssistance
+          items={items}
+          cars={cars}
+          onInsertText={onInsertText}
+          closed={
+            entry.status === "closed" || entry.callOutcome === "not_interested"
+          }
+        />
+      )}
       {loading && (
         <p role="status" className="case-timeline-notice">
           Loading saved activity…
@@ -526,8 +616,9 @@ export function CustomerActivityTimeline({
           </Button>
         </div>
       )}
+      {compact && earlierControl}
       <ol className="case-timeline-items">
-        {items.map((item) => {
+        {displayedItems.map((item) => {
           const ItemIcon = Icon(item.kind);
           return (
             <li key={item.key}>
@@ -542,11 +633,19 @@ export function CustomerActivityTimeline({
                 <div className="case-timeline-body">
                   <header>
                     <span className="case-timeline-channel">
-                      {item.channel}
+                      {compact &&
+                      ["original", "customer-email"].includes(item.kind)
+                        ? item.author || entry.customerName
+                        : item.channel}
                     </span>
                     {item.at ? (
-                      <time dateTime={item.at}>
-                        {appointmentLabel(item.at)}
+                      <time
+                        dateTime={item.at}
+                        title={compact ? appointmentLabel(item.at) : undefined}
+                      >
+                        {compact
+                          ? inboxRelativeTime(item.at)
+                          : appointmentLabel(item.at)}
                       </time>
                     ) : (
                       <span className="case-timeline-undated">
@@ -554,7 +653,9 @@ export function CustomerActivityTimeline({
                       </span>
                     )}
                   </header>
-                  <h5>{item.title}</h5>
+                  {(!compact || item.kind !== "original") && (
+                    <h5>{item.title}</h5>
+                  )}
                   {item.status && (
                     <span className="case-timeline-status">{item.status}</span>
                   )}
@@ -564,7 +665,10 @@ export function CustomerActivityTimeline({
                     ) : (
                       <ConversationMessage text={item.body} />
                     ))}
-                  {(item.author || records.length > 1) && (
+                  {((item.author &&
+                    (!compact ||
+                      !["original", "customer-email"].includes(item.kind))) ||
+                    records.length > 1) && (
                     <p className="case-timeline-meta">
                       {item.author}
                       {records.length > 1
@@ -615,23 +719,16 @@ export function CustomerActivityTimeline({
           );
         })}
       </ol>
-      {!loading && !hasError && !items.length && (
-        <p className="case-timeline-notice">No activity recorded yet.</p>
+      {!loading && !hasError && !relevantItems.length && (
+        <p className="case-timeline-notice">
+          {activityOnly
+            ? "No website or booking activity recorded."
+            : compact
+              ? "No messages recorded yet."
+              : "No activity recorded yet."}
+        </p>
       )}
-      {hasMore && (
-        <Button
-          type="button"
-          variant="outline"
-          className="case-timeline-older"
-          disabled={loadingOlder}
-          onClick={() => {
-            if (conversations.hasNextPage) void conversations.fetchNextPage();
-            if (canEmail && emails.hasNextPage) void emails.fetchNextPage();
-          }}
-        >
-          {loadingOlder ? "Loading older activity…" : "Load older activity"}
-        </Button>
-      )}
+      {!compact && earlierControl}
     </section>
   );
 }

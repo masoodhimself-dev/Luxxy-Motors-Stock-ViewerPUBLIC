@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Enquiry } from "@workspace/api-client-react";
 
@@ -205,37 +205,95 @@ it("refreshes incoming reply bodies and review actions when the selected or expl
       ? { messages, hasMore: false }
       : { events: [], total: 0, nextCursor: null },
   );
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const content = (primaryRevision: number, linkedRevision: number, unrelatedRevision = 1) => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const content = (
+    primaryRevision: number,
+    linkedRevision: number,
+    unrelatedRevision = 1,
+  ) => {
     const primary = record("one", { workspaceRevision: primaryRevision });
-    return <QueryClientProvider client={client}><CustomerActivityTimeline
-      entry={primary}
-      entries={[primary, record("two", { mergedIntoId: primary.id, workspaceRevision: linkedRevision }), record("other", { workspaceRevision: unrelatedRevision })]}
-      canEmail
-    /></QueryClientProvider>;
+    return (
+      <QueryClientProvider client={client}>
+        <CustomerActivityTimeline
+          entry={primary}
+          entries={[
+            primary,
+            record("two", {
+              mergedIntoId: primary.id,
+              workspaceRevision: linkedRevision,
+            }),
+            record("other", { workspaceRevision: unrelatedRevision }),
+          ]}
+          canEmail
+        />
+      </QueryClientProvider>
+    );
   };
   const view = render(content(1, 1));
   const timeline = screen.getByRole("region", { name: "Customer activity" });
-  const journalReads = () => state.fetch.mock.calls.filter(([url]) => String(url).includes("/staff/email?"));
+  const journalReads = () =>
+    state.fetch.mock.calls.filter(([url]) =>
+      String(url).includes("/staff/email?"),
+    );
   await waitFor(() => expect(journalReads()).toHaveLength(1));
   expect(screen.queryByText("Email details")).not.toBeInTheDocument();
-  messages = [email("reply:new-primary", { kind: "reply", status: "reply_needed", message: "Fresh reply for the selected customer" })];
+  messages = [
+    email("reply:new-primary", {
+      kind: "reply",
+      status: "reply_needed",
+      message: "Fresh reply for the selected customer",
+    }),
+  ];
   view.rerender(content(2, 1));
-  expect(await screen.findByText("Fresh reply for the selected customer")).toBeVisible();
+  expect(
+    await screen.findByText("Fresh reply for the selected customer"),
+  ).toBeVisible();
   expect(screen.getAllByText("Email details")).toHaveLength(1);
-  expect(screen.getByRole("region", { name: "Customer activity" })).toBe(timeline);
-  messages = [...messages, email("reply:new-linked", { enquiry_id: "two", kind: "reply", status: "reply_needed", message: "Fresh reply on the explicitly merged enquiry" })];
+  expect(screen.getByRole("region", { name: "Customer activity" })).toBe(
+    timeline,
+  );
+  messages = [
+    ...messages,
+    email("reply:new-linked", {
+      enquiry_id: "two",
+      kind: "reply",
+      status: "reply_needed",
+      message: "Fresh reply on the explicitly merged enquiry",
+    }),
+  ];
   view.rerender(content(2, 2));
-  expect(await screen.findByText("Fresh reply on the explicitly merged enquiry")).toBeVisible();
+  expect(
+    await screen.findByText("Fresh reply on the explicitly merged enquiry"),
+  ).toBeVisible();
   expect(screen.getAllByText("Email details")).toHaveLength(2);
   await waitFor(() => expect(journalReads()).toHaveLength(3));
-  messages = [...messages, email("reply:unrelated", { enquiry_id: "other", kind: "reply", status: "reply_needed", message: "Private unrelated customer reply" })];
+  messages = [
+    ...messages,
+    email("reply:unrelated", {
+      enquiry_id: "other",
+      kind: "reply",
+      status: "reply_needed",
+      message: "Private unrelated customer reply",
+    }),
+  ];
   view.rerender(content(2, 2, 2));
   expect(journalReads()).toHaveLength(3);
-  expect(screen.queryByText("Private unrelated customer reply")).not.toBeInTheDocument();
-  expect(journalReads().every(([url]) => String(url).endsWith("&enquiryId=one"))).toBe(true);
-  expect(state.fetch.mock.calls.some(([url]) => String(url).includes("/other/"))).toBe(false);
-  expect(state.fetch.mock.calls.every(([, options]) => !options?.method || options.method === "GET")).toBe(true);
+  expect(
+    screen.queryByText("Private unrelated customer reply"),
+  ).not.toBeInTheDocument();
+  expect(
+    journalReads().every(([url]) => String(url).endsWith("&enquiryId=one")),
+  ).toBe(true);
+  expect(
+    state.fetch.mock.calls.some(([url]) => String(url).includes("/other/")),
+  ).toBe(false);
+  expect(
+    state.fetch.mock.calls.every(
+      ([, options]) => !options?.method || options.method === "GET",
+    ),
+  ).toBe(true);
 });
 
 it("reviews the saved incoming sender on demand and marks only that reply handled after staff confirmation", async () => {
@@ -346,8 +404,16 @@ it("embeds the existing private-note editor without a dialog and retains callbac
   );
   fireEvent.click(screen.getByRole("button", { name: "Save conversation" }));
   await waitFor(() => expect(saved).toHaveBeenCalled());
-  await waitFor(() => expect(screen.getByRole('region', { name: 'Private conversation note for Alex' })).not.toHaveAttribute('data-message-dirty'));
-  expect(screen.getByRole('textbox', { name: 'Conversation note' })).toHaveValue('');
+  await waitFor(() =>
+    expect(
+      screen.getByRole("region", {
+        name: "Private conversation note for Alex",
+      }),
+    ).not.toHaveAttribute("data-message-dirty"),
+  );
+  expect(
+    screen.getByRole("textbox", { name: "Conversation note" }),
+  ).toHaveValue("");
   expect(state.save).toHaveBeenCalledWith({
     id: "one",
     data: {
@@ -358,4 +424,115 @@ it("embeds the existing private-note editor without a dialog and retains callbac
     },
   });
   expect(state.fetch).not.toHaveBeenCalled();
+});
+
+it("keeps compact conversations short and chronological, hides the checklist and preserves the original behind earlier messages", async () => {
+  const messages = Array.from({ length: 6 }, (_, index) =>
+    email(`mail-${index + 1}`, {
+      created_at: `2026-10-28T${String(index + 10).padStart(2, "0")}:00:00Z`,
+      message: `Saved reply ${index + 1}`,
+      subject: `Message ${index + 1}`,
+    }),
+  );
+  state.fetch.mockImplementation(async (url: string) =>
+    url.includes("/staff/email?")
+      ? { messages, hasMore: false }
+      : { events: [], total: 0, nextCursor: null },
+  );
+  show({ compact: true, canEmail: true });
+  expect(await screen.findByText("Saved reply 6")).toBeVisible();
+  const conversation = screen.getByRole("region", {
+    name: "Customer conversation",
+  });
+  expect(within(conversation).getAllByRole("listitem")).toHaveLength(4);
+  expect(
+    within(conversation)
+      .getAllByRole("listitem")
+      .map((item) => item.textContent),
+  ).toEqual([
+    expect.stringContaining("Saved reply 3"),
+    expect.stringContaining("Saved reply 4"),
+    expect.stringContaining("Saved reply 5"),
+    expect.stringContaining("Saved reply 6"),
+  ]);
+  expect(
+    screen.queryByRole("heading", { name: "Activity" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("region", { name: "Reply assistance" }),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByText("Original question")).not.toBeInTheDocument();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Load earlier messages" }),
+  );
+  expect(screen.getByText("Original question")).toBeVisible();
+  expect(screen.getByText("Saved reply 1")).toBeVisible();
+  expect(within(conversation).getAllByRole("listitem")).toHaveLength(7);
+  expect(
+    state.fetch.mock.calls.every(
+      ([, options]) => !options?.method || options.method === "GET",
+    ),
+  ).toBe(true);
+});
+
+it("never folds an unread or review-needed reply behind the four-message limit", async () => {
+  state.fetch.mockImplementation(async (url: string) =>
+    url.includes("/staff/email?")
+      ? {
+          messages: [
+            email("reply:old-unread", {
+              kind: "reply",
+              status: "reply_needed",
+              message: "Unanswered older customer question",
+              created_at: "2026-10-28T09:30:00Z",
+            }),
+            ...Array.from({ length: 5 }, (_, index) =>
+              email(`later-${index}`, {
+                message: `Later saved message ${index}`,
+                created_at: `2026-10-28T${index + 10}:00:00Z`,
+              }),
+            ),
+          ],
+          hasMore: false,
+        }
+      : { events: [], total: 0, nextCursor: null },
+  );
+  show({ compact: true, canEmail: true });
+  expect(
+    await screen.findByText("Unanswered older customer question"),
+  ).toBeVisible();
+  expect(screen.getByText("Reply needed")).toBeVisible();
+  expect(screen.getAllByRole("listitem")).toHaveLength(5);
+  expect(
+    screen.getByRole("button", { name: "Load earlier messages" }),
+  ).toBeVisible();
+});
+
+it("keeps website actions outside the compact conversation and available in the activity-only view", async () => {
+  const websiteAction = {
+    ...call,
+    id: "call-intent",
+    kind: "call_intent",
+    actor: "customer",
+    summary: "Customer tapped Call",
+    note: "",
+  } as Enquiry["events"][number];
+  state.fetch.mockResolvedValue({
+    events: [websiteAction],
+    total: 1,
+    nextCursor: null,
+  });
+  const current = record("one", { events: [websiteAction] });
+  const view = show({ entry: current, compact: true });
+  expect(await screen.findByText("Original question")).toBeVisible();
+  expect(screen.queryByText("Customer tapped Call")).not.toBeInTheDocument();
+  view.unmount();
+  show({ entry: current, compact: true, activityOnly: true });
+  expect(await screen.findByText("Customer tapped Call")).toBeVisible();
+  expect(screen.queryByText("Original question")).not.toBeInTheDocument();
+  expect(
+    screen.getByText(
+      "Website action only; this does not confirm a call or message was completed.",
+    ),
+  ).toBeVisible();
 });

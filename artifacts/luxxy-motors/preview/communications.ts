@@ -8,6 +8,8 @@ import { enquiryGroup } from "../src/lib/enquiry-groups";
 import { readPreviewEnquiries, readPreviewSettings } from "./reservations";
 import { previewStock } from './stock';
 import { previewEnquiryGallery } from './enquiry-gallery';
+import { createEnquiryVehiclePdf, EnquiryVehiclePdfError } from '../../api-server/src/lib/enquiry-vehicle-pdf';
+import { brochureDealer } from '../../api-server/src/lib/vehicle-brochure';
 const drafts = new Map<
   string,
   {
@@ -25,6 +27,7 @@ const contentSchema = z
     templateId: z.enum(['enquiry_message','invoice_copy','vehicle_details','service_history','pre_accident_photos','appointment_details']).optional(),
     includeVehicle: z.boolean(),
     includeAppointment: z.boolean(),
+    attachVehiclePdf: z.boolean().default(false),
     photoIds: z.array(z.string()).max(6),
     documentIds: z.array(z.string()).max(3),
     vehiclePhotoIndices: z.array(z.number().int().min(0).max(99)).max(4).default([]),
@@ -237,6 +240,7 @@ export async function communicationsPreview(
         reference: entry.reference,
         revision: entry.workspaceRevision ?? 0,
         vehicleAvailable: !!entry.vehicleTitle,
+        vehiclePdfAvailable: previewStock.cars.some(car => car.id === entry.vehicleId && car.sourceStatus !== 'missing' && ['available', 'reserved'].includes(car.inventoryStatus ?? 'available')),
         appointmentAvailable: !!entry.appointmentAt,
         reviewRequest: Boolean(reviewReminderEmail(entry.followUpNote,entry.customerName,entry.vehicleTitle || '',settings.identity.name)),
         defaults: reviewReminderEmail(entry.followUpNote,entry.customerName,entry.vehicleTitle || '',settings.identity.name) || {subject:defaults.subject,message:defaults.bodyText},
@@ -318,6 +322,20 @@ export async function communicationsPreview(
         const links:string[]=[];
         for(const index of parsed.data.vehiclePhotoIndices){const photo=media.vehiclePhotos.find(photo=>photo.index===index);if(!photo){send(409,{error:'A car photo changed. Choose it again.'});return true;}links.push(`Car photo ${index+1}: ${photo.url}`);}
         const attachments: Array<{ id: string; filename: string; byteSize: number }> = [];
+        const attachmentDigests: Array<{ id: string; digest: string }> = [];
+        if (parsed.data.attachVehiclePdf) {
+          const generate = createEnquiryVehiclePdf({
+            findVehicle: async id => previewStock.cars.find(car => car.id === id && car.sourceStatus !== 'missing' && ['available', 'reserved'].includes(car.inventoryStatus ?? 'available')) ?? null,
+            readDealer: async () => brochureDealer(settings),
+            // This fixture-only preview never fetches a live image or sends mail.
+            loadPhotos: async photos => photos,
+            preview: true,
+          });
+          if (!entry.vehicleId) { send(409, { error: 'A vehicle PDF needs a linked stock car.' }); return true; }
+          const attachment = await generate(entry.vehicleId, `http://${req.headers.host}`);
+          attachments.push({ id: attachment.id, filename: attachment.filename, byteSize: Buffer.byteLength(attachment.content, 'base64') });
+          attachmentDigests.push({ id: attachment.id, digest: createHash('sha256').update(attachment.content).digest('hex') });
+        }
         const facts: EmailFacts = [];
         if (parsed.data.includeVehicle) {
           if (!car && !entry.vehicleTitle) { send(400, { error: 'There is no vehicle information on this enquiry.' }); return true; }
@@ -332,7 +350,7 @@ export async function communicationsPreview(
           subject: rendered.subject,
           text: rendered.text,
           html: rendered.html,
-          previewHash: createHash('sha256').update(JSON.stringify({ to: parsed.data.to, ...rendered, attachments, stockChange: parsed.data.stockChange })).digest('hex'),
+          previewHash: createHash('sha256').update(JSON.stringify({ to: parsed.data.to, ...rendered, attachments, attachmentDigests, stockChange: parsed.data.stockChange })).digest('hex'),
           attachments,
         });
         return true;
@@ -343,7 +361,8 @@ export async function communicationsPreview(
         "Local preview cannot send email. Use the authenticated backend to test delivery.",
     });
     return true;
-  } catch {
+  } catch (error) {
+    if (error instanceof EnquiryVehiclePdfError) { send(error.status, { error: error.message }); return true; }
     send(400, {
       error: "Could not load or save local preview communications.",
     });

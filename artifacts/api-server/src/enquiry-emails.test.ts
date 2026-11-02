@@ -279,6 +279,7 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
     assert.equal(context.data.photos.length, 1);
     assert.equal(context.data.photos[0].category, "pre_accident");
     assert.equal(context.data.ready, true);
+    assert.equal(context.data.vehiclePdfAvailable, true);
     assert.ok(
       context.data.templates.some((t: any) => t.id === "service_history"),
     );
@@ -775,6 +776,40 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
       ).status,
       "unknown",
     );
+
+    // A real template PDF goes through the same reviewed, scoped and
+    // idempotent send flow as other attachments (recording transport only).
+    failure = null;
+    const pdfDraft = { ...queuedDraft, attachVehiclePdf: true };
+    const pdfPreview = await call(base + "/email-preview", pdfDraft);
+    assert.equal(pdfPreview.status, 200);
+    assert.equal(pdfPreview.data.attachments.length, 1);
+    assert.match(pdfPreview.data.attachments[0].filename, /\.pdf$/);
+    assert.ok(pdfPreview.data.attachments[0].byteSize > 1000);
+    assert.equal((await call(base + "/email-preview", pdfDraft)).data.previewHash, pdfPreview.data.previewHash);
+    const pdfPayload = { ...pdfDraft, requestId: randomUUID(), previewHash: pdfPreview.data.previewHash };
+    assert.equal((await call(base + "/email", { ...pdfPayload, attachVehiclePdf: false })).status, 409, "PDF cannot be removed after review without a new preview");
+    await db.update(vehiclesTable).set({ sourcePrice: 8400 }).where(eq(vehiclesTable.id, cars[0]));
+    assert.equal((await call(base + "/email", pdfPayload)).status, 409, "a changed PDF price needs a fresh preview");
+    await db.update(vehiclesTable).set({ sourcePrice: 8600, inventoryStatus: "sold" }).where(eq(vehiclesTable.id, cars[0]));
+    assert.equal((await call(base + "/email-context")).data.vehiclePdfAvailable, false);
+    assert.equal((await call(base + "/email-preview", pdfDraft)).status, 409, "sold stock cannot be attached");
+    await db.update(vehiclesTable).set({ inventoryStatus: "available" }).where(eq(vehiclesTable.id, cars[0]));
+    await db.update(enquiriesTable).set({ vehicleId: cars[1] }).where(eq(enquiriesTable.id, enquiries[0]));
+    assert.equal((await call(base + "/email-context")).data.vehiclePdfAvailable, false);
+    assert.equal((await call(base + "/email-preview", pdfDraft)).status, 409, "a cross-dealer link cannot disclose another dealer's PDF");
+    await db.update(enquiriesTable).set({ vehicleId: cars[0] }).where(eq(enquiriesTable.id, enquiries[0]));
+    // The earlier fictional HTTP-429 test deliberately cooled this account.
+    await db.execute(sql`UPDATE email_account_throttle SET next_allowed_at=now()-interval '1 second'`);
+    const beforePdfSend = sends.length;
+    const pdfSent = await call(base + "/email", pdfPayload);
+    assert.equal(pdfSent.status, 201);
+    assert.equal(pdfSent.data.delivery.status, "sent", JSON.stringify(pdfSent.data));
+    assert.equal(pdfSent.data.delivery.documentCount, 1);
+    assert.equal(sends.length, beforePdfSend + 1);
+    assert.equal(Buffer.from(sends.at(-1).attachments[0].content, "base64").subarray(0, 5).toString(), "%PDF-");
+    assert.equal((await call(base + "/email", pdfPayload)).status, 200);
+    assert.equal(sends.length, beforePdfSend + 1, "an exact retry does not send a second PDF email");
   } finally {
     await new Promise<void>((r) => server.close(() => r()));
     await engine.close();

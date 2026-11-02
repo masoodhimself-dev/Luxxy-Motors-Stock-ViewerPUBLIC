@@ -10,6 +10,7 @@ import {
   enquiriesTable,
   enquiryEmailsTable,
   enquiryEventsTable,
+  dealerSettingsTable,
   vehiclesTable,
 } from "@workspace/db";
 import {
@@ -57,6 +58,9 @@ import {
 import { dealerProfile } from "../lib/enquiry-notifications";
 import { siteOrigin } from "../lib/enquiry-links";
 import { enquiryGalleryContext, selectedEnquiryGallery, EnquiryGalleryError } from "../lib/enquiry-gallery";
+import { createEnquiryVehiclePdf, EnquiryVehiclePdfError } from "../lib/enquiry-vehicle-pdf";
+import { brochureDealer } from "../lib/vehicle-brochure";
+import { findVisibleStockVehicle } from "./stock";
 
 
 export const draftSchema = z
@@ -86,6 +90,7 @@ export const draftSchema = z
       .optional(),
     includeVehicle: z.boolean(),
     includeAppointment: z.boolean(),
+    attachVehiclePdf: z.boolean().default(false),
     photoIds: z
       .array(z.string().uuid())
       .max(6)
@@ -128,7 +133,7 @@ const describe = (
   subject: row.subject,
   status: row.status,
   photoCount: row.photoIds.length + row.attachmentManifest.filter(a => a.filename.startsWith("enquiry-photo-")).length,
-  documentCount: row.documentIds.length,
+  documentCount: row.documentIds.length + row.attachmentManifest.filter(a => a.id.startsWith("vehicle-pdf:")).length,
   createdAt: row.createdAt,
   finishedAt: row.finishedAt,
   error: row.error,
@@ -138,6 +143,17 @@ const dependencies = {
   settings: () => dealerIntegrationsStore.readPrivate(),
   send: sendEmailWithSettings,
 };
+
+async function enquiryVehiclePdf(enquiry: { dealerId: string; vehicleId: string | null }, executor: typeof db) {
+  if (!enquiry.vehicleId || enquiry.dealerId !== currentDealerId()) throw new EnquiryVehiclePdfError("A vehicle PDF needs a linked stock car from this dealership.");
+  return createEnquiryVehiclePdf({
+    findVehicle: id => findVisibleStockVehicle(id, executor),
+    readDealer: async () => {
+      const [settings] = await executor.select({ config: dealerSettingsTable.config }).from(dealerSettingsTable).where(eq(dealerSettingsTable.dealerId, enquiry.dealerId));
+      return brochureDealer(settings?.config);
+    },
+  })(enquiry.vehicleId, siteOrigin());
+}
 
 async function entry(id: string, executor: typeof db = db) {
   if (!uuid(id)) throw new EmailError("Enquiry not found.", 404);
@@ -201,7 +217,7 @@ async function invoiceAttachments(
 }
 async function preview(
   id: string,
-  rawInput: Omit<Draft, "vehiclePhotoIndices"> & Partial<Pick<Draft, "vehiclePhotoIndices">>,
+  rawInput: Omit<Draft, "vehiclePhotoIndices" | "attachVehiclePdf"> & Partial<Pick<Draft, "vehiclePhotoIndices" | "attachVehiclePdf">>,
   config: PrivateDealerSettings,
   profile: Awaited<ReturnType<typeof dealerProfile>>,
   executor: typeof db = db,
@@ -329,6 +345,7 @@ async function preview(
       filename: string;
       content: string;
     }> = [];
+    if (input.attachVehiclePdf) attachments.push(await enquiryVehiclePdf(enquiry, executor));
     const requiredPhotoCategory =
       input.templateId === "service_history"
         ? "service_book"
@@ -565,7 +582,7 @@ export function createEnquiryEmailRouter(
       res.set("Retry-After", "15").status(503).json({ error: error.message });
       return;
     }
-    if (error instanceof EmailError || error instanceof EnquiryGalleryError) {
+    if (error instanceof EmailError || error instanceof EnquiryGalleryError || error instanceof EnquiryVehiclePdfError) {
       res.status(error.status).json({ error: error.message });
       return;
     }
@@ -728,6 +745,7 @@ export function createEnquiryEmailRouter(
         reference: enquiry.reference,
         revision: enquiry.workspaceRevision,
         vehicleAvailable: Boolean(linkedVehicle),
+        vehiclePdfAvailable: Boolean(enquiry.vehicleId && await findVisibleStockVehicle(enquiry.vehicleId)),
         appointmentAvailable: Boolean(enquiry.appointmentAt),
         reviewRequest: Boolean(reviewReminderEmail(enquiry.followUpNote, enquiry.customerName, enquiry.vehicleTitle || '', profile.identity.name)),
         defaults: reviewReminderEmail(enquiry.followUpNote, enquiry.customerName, enquiry.vehicleTitle || '', profile.identity.name) || { subject: defaults.subject, message: defaults.bodyText },
@@ -789,6 +807,9 @@ export function createEnquiryEmailRouter(
           requestHash = hash(
             JSON.stringify({
               ...input,
+              // Keep retries of emails approved before the PDF option existed
+              // byte-for-byte compatible when no PDF was requested.
+              attachVehiclePdf: input.attachVehiclePdf || undefined,
               documentIds: input.documentIds.length
                 ? input.documentIds
                 : undefined,
@@ -1018,7 +1039,7 @@ export function createEnquiryEmailRouter(
             channel: "email",
             staffId: req.staff!.authUserId,
             staffName: staffLabel(req),
-            note: `To: ${input.to}\nSubject: ${result!.rendered.subject}\n${result!.rendered.bodyText}\n${input.photoIds.length} photo(s) and ${input.documentIds.length} invoice(s) attached.${input.vehiclePhotoIndices.length ? `\n${input.vehiclePhotoIndices.length} car photo link(s) included.` : ""}${finished.error ? "\n" + finished.error : ""}`,
+            note: `To: ${input.to}\nSubject: ${result!.rendered.subject}\n${result!.rendered.bodyText}\n${input.photoIds.length} photo(s) and ${input.documentIds.length} invoice(s) attached.${input.attachVehiclePdf ? "\nVehicle PDF attached." : ""}${input.vehiclePhotoIndices.length ? `\n${input.vehiclePhotoIndices.length} car photo link(s) included.` : ""}${finished.error ? "\n" + finished.error : ""}`,
           },
         });
         res.status(201).json({

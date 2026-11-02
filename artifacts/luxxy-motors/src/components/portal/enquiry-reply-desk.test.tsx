@@ -131,10 +131,10 @@ const entry = {
   customerName: "Alex Smith",
   reference: "ENQ-ONE",
   phone: "07700900123",
+  email: "alex@example.com",
 } as Enquiry;
 const props = () => ({ entry, onSaved: vi.fn() });
-const channel = (name: string) =>
-  screen.getByRole("button", { name });
+const channel = (name: string) => screen.getByRole("button", { name });
 const message = () => screen.getByLabelText("Customer reply text");
 const note = () => screen.getByLabelText("Private note text");
 
@@ -150,14 +150,17 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-it("mounts inline editors only after staff open a channel and never sends implicitly", () => {
+it("opens the inline reply immediately while preserving the private-note editor and never sending implicitly", () => {
   render(<EnquiryReplyDesk {...props()} />);
   expect(
-    screen.queryByLabelText("Customer reply text"),
+    screen.getByRole("heading", { name: "Reply" }),
+  ).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: "Write a reply" }),
   ).not.toBeInTheDocument();
-  expect(state.emailMounts).not.toHaveBeenCalled();
-  expect(state.noteMounts).not.toHaveBeenCalled();
-  fireEvent.click(channel("Email"));
+  expect(channel("Email")).toHaveAttribute("aria-pressed", "true");
+  expect(state.emailMounts).toHaveBeenCalledExactlyOnceWith(entry.id);
+  expect(state.noteMounts).toHaveBeenCalledExactlyOnceWith(entry.id);
   expect(
     screen.getByRole("region", { name: "Mock customer reply editor" }),
   ).toHaveAttribute("data-inline", "true");
@@ -176,12 +179,12 @@ it("keeps email, WhatsApp and private-note edits mounted while staff switch chan
   fireEvent.click(channel("WhatsApp"));
   expect(message()).toHaveValue("Please see the car details.");
   expect(screen.getByText("Editor channel: whatsapp")).toBeVisible();
-  fireEvent.click(channel("Call / private note"));
+  fireEvent.click(channel("Note"));
   fireEvent.change(note(), { target: { value: "Asked for a call tomorrow." } });
   fireEvent.click(channel("Email"));
   expect(message()).toHaveValue("Please see the car details.");
   expect(note()).toHaveValue("Asked for a call tomorrow.");
-  fireEvent.click(channel("Call / private note"));
+  fireEvent.click(channel("Note"));
   expect(note()).toBeVisible();
   expect(state.emailMounts).toHaveBeenCalledTimes(1);
   expect(state.noteMounts).toHaveBeenCalledTimes(1);
@@ -191,7 +194,7 @@ it("keeps email, WhatsApp and private-note edits mounted while staff switch chan
 it("opens an editable email for inserted check text without losing the private note or reinserting it", async () => {
   const input = props();
   const { rerender } = render(<EnquiryReplyDesk {...input} />);
-  fireEvent.click(channel("Call / private note"));
+  fireEvent.click(channel("Note"));
   fireEvent.change(note(), { target: { value: "Internal price discussion." } });
   rerender(
     <EnquiryReplyDesk
@@ -207,17 +210,14 @@ it("opens an editable email for inserted check text without losing the private n
   fireEvent.change(message(), {
     target: { value: "Hello Alex. Estimated delivery: £57.40." },
   });
-  fireEvent.click(channel("Call / private note"));
+  fireEvent.click(channel("Note"));
   rerender(
     <EnquiryReplyDesk
       {...input}
       insertion={{ id: 1, text: "Estimated delivery: £57.40." }}
     />,
   );
-  expect(channel("Call / private note")).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  expect(channel("Note")).toHaveAttribute("aria-pressed", "true");
   expect(message()).toHaveValue("Hello Alex. Estimated delivery: £57.40.");
   expect(state.send).not.toHaveBeenCalled();
 });
@@ -247,21 +247,18 @@ it("prevents channel switching during submission and does not rewind a consumed 
   fireEvent.click(
     screen.getByRole("button", { name: "Begin email submission" }),
   );
-  for (const name of ["Email", "WhatsApp", "Call / private note"])
+  for (const name of ["Email", "WhatsApp", "Note"])
     expect(channel(name)).toBeDisabled();
-  fireEvent.click(channel("Call / private note"));
+  fireEvent.click(channel("Note"));
   expect(channel("Email")).toHaveAttribute("aria-pressed", "true");
   fireEvent.click(
     screen.getByRole("button", { name: "Finish email operation" }),
   );
-  fireEvent.click(channel("Call / private note"));
+  fireEvent.click(channel("Note"));
   rerender(
     <EnquiryReplyDesk {...input} focusRequest={1} requestedChannel="email" />,
   );
-  expect(channel("Call / private note")).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  expect(channel("Note")).toHaveAttribute("aria-pressed", "true");
   expect(note()).toBeVisible();
   expect(state.send).not.toHaveBeenCalled();
 });
@@ -269,15 +266,29 @@ it("prevents channel switching during submission and does not rewind a consumed 
 it("reports submission state so surrounding check-insertion actions can be disabled, then clears it for a new customer", () => {
   const input = props();
   const busy = vi.fn();
-  const { rerender } = render(<EnquiryReplyDesk {...input} onBusyChange={busy} />);
+  const { rerender } = render(
+    <EnquiryReplyDesk {...input} onBusyChange={busy} />,
+  );
   expect(busy).toHaveBeenLastCalledWith(false);
   fireEvent.click(channel("Email"));
-  fireEvent.click(screen.getByRole("button", { name: "Begin email submission" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Begin email submission" }),
+  );
   expect(busy).toHaveBeenLastCalledWith(true);
-  fireEvent.click(screen.getByRole("button", { name: "Finish email operation" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Finish email operation" }),
+  );
   expect(busy).toHaveBeenLastCalledWith(false);
-  fireEvent.click(screen.getByRole("button", { name: "Begin email submission" }));
-  rerender(<EnquiryReplyDesk {...input} entry={{ ...entry, id: "customer-two" }} onBusyChange={busy} />);
+  fireEvent.click(
+    screen.getByRole("button", { name: "Begin email submission" }),
+  );
+  rerender(
+    <EnquiryReplyDesk
+      {...input}
+      entry={{ ...entry, id: "customer-two" }}
+      onBusyChange={busy}
+    />,
+  );
   expect(busy).toHaveBeenLastCalledWith(false);
   expect(channel("Email")).toBeEnabled();
   expect(state.send).not.toHaveBeenCalled();
@@ -323,7 +334,7 @@ it("refreshes only the saved private-note editor, preserving a prepared customer
   fireEvent.change(message(), {
     target: { value: "Your details are attached." },
   });
-  fireEvent.click(channel("Call / private note"));
+  fireEvent.click(channel("Note"));
   fireEvent.change(note(), {
     target: { value: "Customer called about finance." },
   });
@@ -353,7 +364,7 @@ it("clears a completed sent reply without replaying its inserted text or losing 
     />,
   );
   await waitFor(() => expect(message()).toHaveValue("MOT details reviewed."));
-  fireEvent.click(channel("Call / private note"));
+  fireEvent.click(channel("Note"));
   fireEvent.change(note(), { target: { value: "Follow up tomorrow." } });
   fireEvent.click(channel("Email"));
   fireEvent.click(
@@ -376,7 +387,7 @@ it("isolates both editor buffers when the selected customer key changes", () => 
   fireEvent.change(message(), {
     target: { value: "Private to Alex's enquiry." },
   });
-  fireEvent.click(channel("Call / private note"));
+  fireEvent.click(channel("Note"));
   fireEvent.change(note(), { target: { value: "Alex's internal note." } });
   rerender(
     <EnquiryReplyDesk
@@ -384,15 +395,40 @@ it("isolates both editor buffers when the selected customer key changes", () => 
       entry={{ ...entry, id: "customer-two", customerName: "Sam Jones" }}
     />,
   );
-  expect(
-    screen.queryByLabelText("Customer reply text"),
-  ).not.toBeInTheDocument();
-  fireEvent.click(channel("Email"));
+  expect(message()).toBeVisible();
+  expect(channel("Email")).toHaveAttribute("aria-pressed", "true");
   expect(message()).toHaveValue("");
   expect(note()).toHaveValue("");
   expect(screen.getByText("Sam Jones · customer-two")).toBeVisible();
   expect(
     screen.queryByText("Alex Smith · customer-one"),
   ).not.toBeInTheDocument();
+  expect(state.send).not.toHaveBeenCalled();
+});
+
+it("defaults to a private note when no customer email is recorded, while allowing staff to choose Email explicitly", () => {
+  render(<EnquiryReplyDesk {...props()} entry={{ ...entry, email: null }} />);
+  expect(channel("Note")).toHaveAttribute("aria-pressed", "true");
+  expect(note()).toBeVisible();
+  expect(message()).not.toBeVisible();
+  expect(state.send).not.toHaveBeenCalled();
+  fireEvent.change(note(), { target: { value: "Customer asked us to call." } });
+  fireEvent.click(channel("Email"));
+  expect(message()).toBeVisible();
+  expect(note()).toHaveValue("Customer asked us to call.");
+  expect(state.send).not.toHaveBeenCalled();
+});
+
+it("uses the private-note fallback for an explicit email focus request without an address", () => {
+  render(
+    <EnquiryReplyDesk
+      {...props()}
+      entry={{ ...entry, email: " " }}
+      focusRequest={1}
+      requestedChannel="email"
+    />,
+  );
+  expect(channel("Note")).toHaveAttribute("aria-pressed", "true");
+  expect(note()).toBeVisible();
   expect(state.send).not.toHaveBeenCalled();
 });

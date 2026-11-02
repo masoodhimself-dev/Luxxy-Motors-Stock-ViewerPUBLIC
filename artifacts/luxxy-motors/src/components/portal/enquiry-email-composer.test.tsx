@@ -702,7 +702,8 @@ it('keeps four selected existing stock-photo links and excludes removed upload a
   await screen.findByRole('region',{name:'Email preview'});
   const reviewed=JSON.parse(calls('/email-preview')[0][1].body);
   expect(reviewed.vehiclePhotoIndices).toEqual([0,1,2,3]);
-  expect(Object.keys(reviewed).sort()).toEqual(['documentIds','expectedRevision','includeAppointment','includeVehicle','message','photoIds','subject','to','vehiclePhotoIndices'].sort());
+  expect(Object.keys(reviewed).sort()).toEqual(['attachVehiclePdf','documentIds','expectedRevision','includeAppointment','includeVehicle','message','photoIds','subject','to','vehiclePhotoIndices'].sort());
+  expect(reviewed.attachVehiclePdf).toBe(false);
   expect(calls('/email')).toHaveLength(0);
 });
 
@@ -761,4 +762,142 @@ it('keeps an archived price draft protected until staff explicitly starts curren
  expect(screen.getByRole('textbox',{name:'Message'})).toHaveValue('Original staff message');
  fireEvent.click(screen.getByRole('button',{name:'Save draft'}));await screen.findByText('Draft saved · not sent');
  expect(JSON.parse(calls('/email-draft')[0][1].body).content).not.toHaveProperty('stockChange');
+});
+
+it('keeps inline address, subject and template controls collapsed until staff need them', async () => {
+  render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><EnquiryEmailComposer inline entry={entry} onClose={state.close}/></QueryClientProvider>);
+  expect(await screen.findByRole('textbox', {name:'Message'})).toBeVisible();
+  const details=screen.getByText('Edit address, subject or template').closest('details')!;
+  expect(details).not.toHaveAttribute('open');
+  expect(details.querySelector('summary')).toHaveTextContent('To: alex@example.test');
+  expect(screen.getByRole('textbox', {name:'Subject'})).not.toBeVisible();
+  expect(screen.getByRole('textbox', {name:'Customer email'})).not.toBeVisible();
+  fireEvent.click(details.querySelector('summary')!);
+  await waitFor(()=>expect(details).toHaveAttribute('open'));
+  expect(screen.getByRole('textbox', {name:'Subject'})).toBeVisible();
+  expect(screen.getByRole('textbox', {name:'Customer email'})).toBeVisible();
+  expect(screen.getByRole('combobox', {name:'Email template'})).toBeVisible();
+  fireEvent.change(screen.getByRole('textbox', {name:'Subject'}), {target:{value:'My concise subject'}});
+  expect(screen.getByRole('textbox', {name:'Message'})).toHaveValue('Original staff message');
+  expect(calls('/email')).toHaveLength(0);
+});
+
+it('keeps message details open in the standalone email window', async () => {
+  mount();
+  await screen.findByRole('textbox', {name:'Message'});
+  expect(screen.getByText('Edit address, subject or template').closest('details')).toHaveAttribute('open');
+  expect(screen.getByRole('textbox', {name:'Customer email'})).toBeVisible();
+  expect(screen.getByRole('textbox', {name:'Subject'})).toBeVisible();
+  expect(screen.getByRole('combobox', {name:'Email template'})).toBeVisible();
+});
+
+it('offers the vehicle PDF only when available, with explicit opt-in and no automatic save or send', async () => {
+  const original=state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async(url:string,options:unknown)=>url.endsWith('/email-context')?{...context(),vehiclePdfAvailable:true}:original(url,options));
+  mount();
+  const pdf=await screen.findByRole('checkbox', {name:/^Attach vehicle PDF/});
+  expect(pdf).not.toBeChecked();
+  expect(screen.getByText('Photos, specifications and recorded vehicle details')).toBeVisible();
+  expect(calls('/email-draft')).toHaveLength(0);
+  expect(calls('/email-preview')).toHaveLength(0);
+  expect(calls('/email')).toHaveLength(0);
+  fireEvent.click(pdf);
+  expect(pdf).toBeChecked();
+  expect(calls('/email-draft')).toHaveLength(0);
+  expect(calls('/email')).toHaveLength(0);
+});
+
+it('does not offer a vehicle PDF when the server has no printable current car', async () => {
+  mount();
+  await screen.findByRole('textbox', {name:'Message'});
+  expect(screen.queryByRole('checkbox', {name:/^Attach vehicle PDF/})).not.toBeInTheDocument();
+});
+
+it('saves an opted-in PDF with the draft and includes it in the server-reviewed preview', async () => {
+  const original=state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async(url:string,options:unknown)=>{
+    if(url.endsWith('/email-context')) return {...context(),vehiclePdfAvailable:true};
+    const result=await original(url,options);
+    return url.endsWith('/email-preview')?{...result,attachments:[{id:'vehicle-pdf',filename:'Ford-Fiesta-vehicle-details.pdf',byteSize:82000}]}:result;
+  });
+  mount();
+  fireEvent.click(await screen.findByRole('checkbox', {name:/^Attach vehicle PDF/}));
+  fireEvent.click(screen.getByRole('button', {name:'Save draft'}));
+  await screen.findByText('Draft saved · not sent');
+  expect(JSON.parse(calls('/email-draft')[0][1].body).content).toMatchObject({attachVehiclePdf:true,message:'Original staff message'});
+  fireEvent.click(screen.getByRole('button', {name:'Review email'}));
+  await screen.findByRole('region', {name:'Email preview'});
+  expect(JSON.parse(calls('/email-preview')[0][1].body)).toMatchObject({attachVehiclePdf:true});
+  expect(screen.getByText('Ford-Fiesta-vehicle-details.pdf · 81 KB')).toBeVisible();
+  expect(screen.getByRole('button', {name:'Send email'})).toBeEnabled();
+  expect(calls('/email')).toHaveLength(0);
+});
+
+it('requires a fresh review after removing the PDF from an already reviewed message', async () => {
+  const original=state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async(url:string,options:unknown)=>url.endsWith('/email-context')?{...context(),vehiclePdfAvailable:true}:original(url,options));
+  mount();
+  fireEvent.click(await screen.findByRole('checkbox', {name:/^Attach vehicle PDF/}));
+  fireEvent.click(screen.getByRole('button', {name:'Review email'}));
+  await screen.findByRole('region', {name:'Email preview'});
+  expect(JSON.parse(calls('/email-preview')[0][1].body).attachVehiclePdf).toBe(true);
+  fireEvent.click(screen.getByRole('button', {name:'Edit message'}));
+  fireEvent.click(screen.getByRole('checkbox', {name:/^Attach vehicle PDF/}));
+  expect(screen.queryByRole('region', {name:'Email preview'})).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', {name:'Send email'})).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', {name:'Review email'}));
+  await screen.findByRole('region', {name:'Email preview'});
+  expect(calls('/email-preview')).toHaveLength(2);
+  expect(JSON.parse(calls('/email-preview')[1][1].body).attachVehiclePdf).toBe(false);
+  expect(calls('/email')).toHaveLength(0);
+});
+
+it('restores a previously opted-in PDF without selecting it for unrelated fresh messages', async () => {
+  const original=state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async(url:string,options:unknown)=>url.endsWith('/email-context')?{...context(),vehiclePdfAvailable:true,savedDraft:{version:4,status:'draft',content:{to:'alex@example.test',subject:'Saved subject',message:'Saved message',includeVehicle:true,attachVehiclePdf:true,includeAppointment:false,photoIds:[],documentIds:[],expectedRevision:2}}}:original(url,options));
+  mount();
+  expect(await screen.findByRole('checkbox', {name:/^Attach vehicle PDF/})).toBeChecked();
+  expect(screen.getByRole('textbox', {name:'Message'})).toHaveValue('Saved message');
+  expect(calls('/email')).toHaveLength(0);
+});
+
+it('never offers PDF attachment or email sending in the WhatsApp editor', async () => {
+  const original=state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async(url:string,options:unknown)=>url.endsWith('/email-context')?{...context(),vehiclePdfAvailable:true}:original(url,options));
+  render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><EnquiryEmailComposer inline channel="whatsapp" entry={entry} customerPhone="07700900123" onClose={state.close}/></QueryClientProvider>);
+  await screen.findByRole('textbox', {name:'Message'});
+  expect(screen.queryByRole('checkbox', {name:/^Attach vehicle PDF/})).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', {name:'Save draft'})).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', {name:'Review email'})).not.toBeInTheDocument();
+  expect(screen.getByRole('button', {name:'WhatsApp'})).toBeEnabled();
+  expect(calls('/email')).toHaveLength(0);
+  expect(calls('/email-preview')).toHaveLength(0);
+});
+
+it('blocks a saved PDF from silently carrying into a WhatsApp handoff', async () => {
+  const original=state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async(url:string,options:unknown)=>url.endsWith('/email-context')?{...context(),vehiclePdfAvailable:true,savedDraft:{version:4,status:'draft',content:{to:'alex@example.test',subject:'Saved subject',message:'Saved message',includeVehicle:true,attachVehiclePdf:true,includeAppointment:false,photoIds:[],documentIds:[],expectedRevision:2}}}:original(url,options));
+  render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><EnquiryEmailComposer inline channel="whatsapp" entry={entry} customerPhone="07700900123" onClose={state.close}/></QueryClientProvider>);
+  await screen.findByRole('textbox', {name:'Message'});
+  expect(screen.getByRole('button', {name:'WhatsApp'})).toBeDisabled();
+  expect(screen.getByText(/Selected email attachments cannot be included in this handoff/)).toBeVisible();
+  expect(calls('/email')).toHaveLength(0);
+  expect(state.fetch.mock.calls.some(([url])=>String(url).includes('/whatsapp/enquiries'))).toBe(false);
+});
+
+it('lets staff remove a saved PDF when the current car is no longer printable', async () => {
+  const original=state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async(url:string,options:unknown)=>url.endsWith('/email-context')?{...context(),vehiclePdfAvailable:false,savedDraft:{version:4,status:'draft',content:{to:'alex@example.test',subject:'Saved subject',message:'Keep this staff reply',includeVehicle:true,attachVehiclePdf:true,includeAppointment:false,photoIds:[],documentIds:[],expectedRevision:2}}}:original(url,options));
+  mount();
+  const pdf=await screen.findByRole('checkbox',{name:/^Attach vehicle PDF/});
+  expect(pdf).toBeChecked();
+  expect(pdf).toBeEnabled();
+  expect(screen.getByText('PDF unavailable for this car. Remove it to continue.')).toBeVisible();
+  fireEvent.click(pdf);
+  expect(screen.queryByRole('checkbox',{name:/^Attach vehicle PDF/})).not.toBeInTheDocument();
+  expect(screen.getByRole('textbox',{name:'Message'})).toHaveValue('Keep this staff reply');
+  fireEvent.click(screen.getByRole('button',{name:'Review email'}));
+  await screen.findByRole('region',{name:'Email preview'});
+  expect(JSON.parse(calls('/email-preview')[0][1].body).attachVehiclePdf).toBe(false);
+  expect(calls('/email')).toHaveLength(0);
 });

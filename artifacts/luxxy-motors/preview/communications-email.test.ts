@@ -109,3 +109,23 @@ test('local gallery choices use usable image URLs in the reviewed message', asyn
   assert.ok(reviewed.data.text.includes(context.data.vehiclePhotos[0].url));
   assert.doesNotMatch(reviewed.data.text,/\[object Object\]/);
 });
+
+test('local vehicle PDF review is opt-in, reproducible and never enables sending or live fetching', async t => {
+  const fetchMock = t.mock.method(globalThis, 'fetch', async () => { throw new Error('No preview network'); });
+  const car = previewStock.cars[0];
+  const entry = { ...fixture, vehicleId: car.id, vehicleTitle: car.title };
+  const context = await call(`${path}/email-context`, 'GET', undefined, entry);
+  assert.equal(context.data.vehiclePdfAvailable, true);
+  assert.equal(context.data.ready, false);
+  const withPdf = { ...content, attachVehiclePdf: true };
+  const reviewed = await call(`${path}/email-preview`, 'POST', withPdf, entry);
+  assert.equal(reviewed.status, 200);
+  assert.equal(reviewed.data.attachments.length, 1);
+  assert.match(reviewed.data.attachments[0].filename, /\.pdf$/);
+  assert.ok(reviewed.data.attachments[0].byteSize > 1000);
+  assert.equal((await call(`${path}/email-preview`, 'POST', withPdf, entry)).data.previewHash, reviewed.data.previewHash);
+  assert.notEqual((await call(`${path}/email-preview`, 'POST', content, entry)).data.previewHash, reviewed.data.previewHash);
+  assert.equal((await call(`${path}/email-preview`, 'POST', withPdf, { ...entry, vehicleId: null })).status, 409);
+  assert.equal((await call(`${path}/email`, 'POST', withPdf, entry)).status, 503);
+  assert.equal(fetchMock.mock.callCount(), 0);
+});

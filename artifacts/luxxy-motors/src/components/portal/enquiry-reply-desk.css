@@ -1,8 +1,10 @@
 .enquiry-reply-desk {
   min-width: 0;
   display: grid;
-  gap: 12px;
-  padding: 16px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px 8px;
+  padding: 14px;
   border: 1px solid var(--portal-border);
   border-radius: 9px;
   background: var(--portal-panel);
@@ -14,6 +16,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  align-self: center;
 }
 .enquiry-reply-desk h4 {
   font-size: 14px;
@@ -27,12 +30,30 @@
 }
 .enquiry-reply-channels {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-wrap: nowrap;
+  justify-self: end;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 6px;
+  background: var(--portal-canvas);
 }
 .enquiry-reply-channels button {
-  min-height: 44px;
-  font-size: 12px;
+  min-height: 36px;
+  height: auto;
+  gap: 5px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.enquiry-reply-channels button svg {
+  width: 14px;
+  height: 14px;
+}
+.enquiry-reply-editor,
+.enquiry-reply-notice {
+  min-width: 0;
+  grid-column: 1/-1;
 }
 .enquiry-inline-heading {
   display: grid;
@@ -98,12 +119,9 @@
   .enquiry-reply-desk {
     padding: 12px;
   }
-  .enquiry-reply-channels {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .enquiry-reply-channels button:last-child {
-    grid-column: 1/-1;
+  .enquiry-reply-channels button {
+    min-height: 44px;
+    padding-inline: 7px;
   }
   .enquiry-email-inline :is(input, textarea, select) {
     font-size: 16px;

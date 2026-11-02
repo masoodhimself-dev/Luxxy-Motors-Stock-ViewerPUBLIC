@@ -298,3 +298,21 @@
 .enquiry-email-upload-qr > div { min-width: 0; display: grid; gap: 9px; font-size: 13px; line-height: 1.6; }
 .enquiry-email-upload-qr > div button { justify-self: start; }
 @media(max-width:600px) { .enquiry-email-media { padding: 12px; }.enquiry-email-upload-qr { flex-direction: column; align-items: center; }.enquiry-email-upload-qr > div { width: 100%; }.enquiry-email-media-actions button { flex: 1 1 100%; min-height: 44px; height: auto; white-space: normal; }.enquiry-email-media-grid img { height: 120px; } }
+
+.enquiry-message-details { min-width:0; border-bottom:1px solid var(--portal-border,#e1e5eb); }
+.enquiry-message-details>summary { display:flex; flex-wrap:wrap; gap:4px 14px; justify-content:space-between; cursor:pointer; min-height:40px; align-items:center; font-size:12px; font-weight:500; padding:5px 0; overflow-wrap:anywhere; }
+.enquiry-message-details>summary span { color:var(--portal-muted); font-size:11px; }
+.enquiry-message-details>div { display:grid; gap:12px; padding:12px 0; }
+.enquiry-email-form .enquiry-vehicle-pdf-choice { display:flex; gap:9px; align-items:center; min-height:44px; padding:9px 11px; border:1px solid var(--portal-border,#e1e5eb); border-radius:7px; font-size:12px; font-weight:600; }
+.enquiry-vehicle-pdf-choice input { width:16px; height:16px; }
+.enquiry-vehicle-pdf-choice span { display:grid; gap:3px; }
+.enquiry-vehicle-pdf-choice small { font-size:11px; color:var(--portal-muted); font-weight:400; }
+.inbox-desk .enquiry-email-form,.inbox-desk .enquiry-email-form fieldset { gap:12px; }
+.inbox-desk .enquiry-email-inline { border:0; padding:0; }
+.inbox-desk .enquiry-email-form>details { margin-top:0; }
+.inbox-desk .enquiry-email-actions { padding:10px 0 0; background:#fff; }
+.inbox-desk .enquiry-email-actions button { min-height:42px; }
+.inbox-desk .enquiry-customer-case .enquiry-reply-desk { margin-top:0; }
+.inbox-desk .enquiry-email-inclusions label { font-size:12px; }
+.enquiry-email-inline .enquiry-email-form .enquiry-vehicle-pdf-choice { display:flex; align-items:center; gap:10px; }
+.enquiry-email-save-state[data-dirty=true] { color:var(--portal-muted); background:#f5f6f9; padding:5px 9px; font-size:11px; }

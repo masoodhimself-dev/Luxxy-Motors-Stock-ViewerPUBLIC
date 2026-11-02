@@ -50,6 +50,7 @@ type EmailContext = {
   reference: string;
   revision: number;
   vehicleAvailable: boolean;
+  vehiclePdfAvailable?: boolean;
   appointmentAvailable: boolean;
   defaults: { subject: string; message: string };
   ready: boolean;
@@ -72,6 +73,7 @@ type EmailDraft = {
   subject: string;
   message: string;
   includeVehicle: boolean;
+  attachVehiclePdf?: boolean;
   includeAppointment: boolean;
   photoIds: string[];
   documentIds: string[];
@@ -132,7 +134,7 @@ function EmailEditorFrame({
         className="enquiry-email-inline"
         aria-label="Customer reply editor"
       >
-        <header className="enquiry-inline-heading">
+        <header className="enquiry-inline-heading sr-only">
           <h4>{title}</h4>
           <p>{customerName} · Review before sending</p>
         </header>
@@ -289,6 +291,7 @@ function EnquiryEmailEditor({
     subject: "",
     message: "",
     includeVehicle: false,
+    attachVehiclePdf: false,
     includeAppointment: false,
     photoIds: [],
     documentIds: [],
@@ -301,6 +304,7 @@ function EnquiryEmailEditor({
     "save" | "review" | "send" | "status" | null
   >(null);
   const busy = busyAction !== null;
+  const [messageDetailsOpen, setMessageDetailsOpen] = useState(false);
   const [showPrivatePhotos, setShowPrivatePhotos] = useState(false);
   const { requestClose: close, discardPrompt } = usePopupDraftGuard({
     dirty,
@@ -329,8 +333,8 @@ function EnquiryEmailEditor({
     initialized.current = true;
     savedVersion.current = data.version ?? 0;
     if (data.savedDraft) {
-      setDraft(data.savedDraft.content);
-      setSaveNotice("Saved draft restored · not sent");
+      setDraft({ ...data.savedDraft.content, attachVehiclePdf: data.savedDraft.content.attachVehiclePdf ?? false });
+      setSaveNotice(data.savedDraft.source === "ai" ? "AI draft ready · check the details before sending" : "Saved draft restored · not sent");
       return;
     }
     setSuggestionApplied(Boolean(suggestedContent));
@@ -359,6 +363,7 @@ function EnquiryEmailEditor({
         suggestedContent || data.reviewRequest
           ? false
           : data.appointmentAvailable,
+      attachVehiclePdf: false,
       photoIds: [],
       documentIds: [],
       expectedRevision: data.revision,
@@ -578,6 +583,7 @@ function EnquiryEmailEditor({
   const data = initialized.current ? context.data : undefined;
   const preparingMessage = messageMode || channel === "whatsapp";
   const whatsappAttachments = Boolean(
+    draft.attachVehiclePdf ||
     draft.photoIds.length ||
     draft.documentIds.length ||
     draft.vehiclePhotoIndices?.length,
@@ -684,7 +690,7 @@ function EnquiryEmailEditor({
             <p>
               {delivery.photoCount} vehicle photo
               {delivery.photoCount === 1 ? "" : "s"} ·{" "}
-              {delivery.documentCount ?? 0} invoice(s) · recorded in enquiry
+              {delivery.documentCount ?? 0} document(s) · recorded in enquiry
               history
             </p>
             <Button
@@ -754,7 +760,7 @@ function EnquiryEmailEditor({
                   </Button>
                 </div>
               )}
-              {!data.ready && (
+              {!data.ready && features.enabled("customerEmails") && (
                 <p role="status" className="enquiry-email-readiness">
                   Email is not enabled for this dealership. Ask the platform
                   administrator to connect the sender. Review wording in{" "}
@@ -765,7 +771,7 @@ function EnquiryEmailEditor({
                 </p>
               )}
               {saveNotice && (
-                <p className="enquiry-email-save-state" role="status">
+                <p className="enquiry-email-save-state" data-dirty={dirty} role="status">
                   {saveNotice}
                 </p>
               )}
@@ -947,6 +953,9 @@ function EnquiryEmailEditor({
                               </Button>
                             </div>
                           )}
+                        <details className="enquiry-message-details" open={!inline || messageDetailsOpen} onToggle={event=>{ if(inline) setMessageDetailsOpen(event.currentTarget.open); }}>
+                          <summary>To: {draft.to || "Add customer email"}<span>Edit address, subject or template</span></summary>
+                          <div>
                         <label>
                           {preparingMessage
                             ? "Customer email (optional for WhatsApp)"
@@ -1048,6 +1057,8 @@ function EnquiryEmailEditor({
                             }
                           />
                         </label>
+                          </div>
+                        </details>
                         <label>
                           Message
                           <Textarea
@@ -1141,6 +1152,10 @@ function EnquiryEmailEditor({
                             ))}
                           </fieldset>
                         )}
+                        {channel !== "whatsapp" && (data.vehiclePdfAvailable || draft.attachVehiclePdf) && <label className="enquiry-vehicle-pdf-choice">
+                          <input type="checkbox" checked={Boolean(draft.attachVehiclePdf)} disabled={!data.vehiclePdfAvailable && !draft.attachVehiclePdf} onChange={event=>change({attachVehiclePdf:event.target.checked})}/>
+                          <span>Attach vehicle PDF<small>{data.vehiclePdfAvailable ? "Photos, specifications and recorded vehicle details" : "PDF unavailable for this car. Remove it to continue."}</small></span>
+                        </label>}
                         {(data.vehicleAvailable ||
                           data.appointmentAvailable) && (
                           <div

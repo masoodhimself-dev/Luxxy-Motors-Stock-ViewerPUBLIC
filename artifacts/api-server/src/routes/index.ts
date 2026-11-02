@@ -16,6 +16,7 @@ import { Router, type IRouter } from "express";
 import healthRouter from "./health";
 import stockRouter from "./stock";
 import enquiriesRouter from "./enquiries";
+import enquiryResolutionRouter from "./enquiry-resolution";
 import enquiryMergesRouter from './enquiry-merges';
 import dealerSettingsRouter from "./dealer-settings";
 import leadsRouter from "./leads";
@@ -74,6 +75,7 @@ router.use(vehicleBrochureRouter);
 router.use(vehicleSheetImageRouter);
 router.use(enquiriesRouter);
 router.use(enquiryMergesRouter);
+router.use(enquiryResolutionRouter);
 router.use(viewingsRouter);
 router.use(contactIntentsRouter);
 

@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+import { InboxWorkspace } from "./inbox-workspace";
 import { OptionalJourneyPostcode } from "@/components/postcode-field";
 import {
   applyReplyAttention,
@@ -95,12 +97,9 @@ import { EnquiryEmailComposer } from "./enquiry-email-composer";
 import { EnquiryMergeDialog } from "./enquiry-merge";
 import {
   enquiryGroup,
-  enquiryGroupSearchText,
-  enquiryRootRecords,
   primaryEnquiry,
 } from "@/lib/enquiry-groups";
 import {
-  EnquiryRecordBrowser,
   type EnquiryRecordActions,
 } from "./enquiry-record-browser";
 import { CallbacksDesk } from "./enquiry-callbacks";
@@ -1355,11 +1354,15 @@ export function EnquiriesPanel({
   embedded = false,
   initialView = "history",
   onOpenCustomer,
+  inboxTools,
+  onQuickEnquiry,
 }: {
   canEmail?: boolean;
   embedded?: boolean;
   initialView?: "history" | "calendar";
   onOpenCustomer?: (id: string) => void;
+  inboxTools?: ReactNode;
+  onQuickEnquiry?: () => void;
 } = {}) {
   const features = useDealerFeatures();
   const {
@@ -1469,6 +1472,7 @@ export function EnquiriesPanel({
     if (requestedDeskView === "calendar" || initialView === "calendar") return;
     if (!requestedEnquiry) {
       openedEnquiry.current = null;
+      if (embedded) setSelectedEnquiryId(null);
       return;
     }
     if (!query.data || openedEnquiry.current === requestedEnquiry) return;
@@ -1558,94 +1562,6 @@ export function EnquiriesPanel({
     query.data &&
     !query.data.some((entry) => entry.id === requestedEnquiry),
   );
-  const roots = enquiryRootRecords(allEntries).filter((entry) =>
-    enquiryGroup(entry, allEntries).some((original) =>
-      scoped.some((item) => item.id === original.id),
-    ),
-  );
-  const matchesQueue = (original: Enquiry, value: string) => {
-    const summary = enquiryPresentation(original);
-    if (value === "all") return true;
-    if (value === "reply") return summary.action === "respond";
-    if (value === "done") return summary.action === "none";
-    if (value === "followups")
-      return (
-        Boolean(original.followUpAt && !original.followUpCompletedAt) ||
-        summary.action === "follow_up"
-      );
-    if (value === "due")
-      return Boolean(
-        original.followUpAt &&
-        !original.followUpCompletedAt &&
-        Date.parse(original.followUpAt) <= Date.now(),
-      );
-    if (value === "due-today")
-      return (
-        Boolean(
-          original.followUpAt &&
-          !original.followUpCompletedAt &&
-          londonDate(new Date(original.followUpAt)) <= londonDate(),
-        ) ||
-        (summary.action === "follow_up" && !original.followUpAt)
-      );
-    if (value === "visits")
-      return Boolean(
-        original.appointmentAt &&
-        !original.appointmentCancelledAt &&
-        original.attendance !== "completed" &&
-        original.attendance !== "no_show",
-      );
-    if (value === "upcoming")
-      return Boolean(
-        original.appointmentAt &&
-        !original.appointmentCancelledAt &&
-        Date.parse(original.appointmentAt) > Date.now(),
-      );
-    return Boolean(
-      original.appointmentAt &&
-      !original.appointmentCancelledAt &&
-      londonDate(new Date(original.appointmentAt)) === londonDate(),
-    );
-  };
-  const queues = [
-    { value: "all", label: "All enquiries", tone: "muted" },
-    { value: "reply", label: "Needs reply", tone: "info" },
-    { value: "due-today", label: "Due today", tone: "warning" },
-    { value: "visits", label: "Test drives", tone: "info" },
-  ];
-  const groupPriority = (entry: Enquiry) =>
-    Math.min(
-      ...enquiryGroup(entry, allEntries).map(
-        (original) => enquiryPresentation(original).priority,
-      ),
-    );
-  const entries = roots
-    .filter(
-      (entry) =>
-        contains(enquiryGroupSearchText(entry, allEntries), search) &&
-        (filter === "done"
-          ? enquiryGroup(entry, allEntries).every((original) =>
-              matchesQueue(original, filter),
-            )
-          : enquiryGroup(entry, allEntries).some((original) =>
-              matchesQueue(original, filter),
-            )),
-    )
-    .sort(
-      (a, b) =>
-        groupPriority(a) - groupPriority(b) ||
-        (
-          enquiryGroup(a, allEntries)
-            .filter((item) => item.followUpAt && !item.followUpCompletedAt)
-            .map((item) => item.followUpAt!)
-            .sort()[0] ?? "9999"
-        ).localeCompare(
-          enquiryGroup(b, allEntries)
-            .filter((item) => item.followUpAt && !item.followUpCompletedAt)
-            .map((item) => item.followUpAt!)
-            .sort()[0] ?? "9999",
-        ),
-    );
   function clearSelectedRecord() {
     if (!confirmSettingsNavigation()) return false;
     setSelectedEnquiryId(null);
@@ -1768,7 +1684,7 @@ export function EnquiriesPanel({
   };
   return (
     <Panel
-      className={`enquiries-premium-workspace${mode === "history" ? " enquiry-case-mode" : ""}`}
+      className={`enquiries-premium-workspace${mode === "history" ? " enquiry-case-mode enquiry-inbox-mode" : ""}`}
     >
       {!embedded && (
         <div className="enquiry-workspace-heading bg-[#213e61] px-5 py-4 text-white">
@@ -1816,94 +1732,7 @@ export function EnquiriesPanel({
           </TabsList>
         </Tabs>
       )}
-      {mode === "history" ? (
-        <div className="enquiry-simple-toolbar" aria-label="Workspace actions">
-          <label>
-            <span className="sr-only">Search enquiries</span>
-            <Input
-              value={search}
-              onChange={(event) => {
-                if (!clearSelectedRecord()) return;
-                setSearch(event.target.value);
-              }}
-              placeholder="Search name, phone, email or car"
-            />
-          </label>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Refresh enquiries and stock"
-            disabled={query.isFetching}
-            onClick={() => {
-              query.refetch();
-              if (canEmail) void replyAttention.refetch();
-              directory.refetch();
-              client.invalidateQueries({ queryKey: ["/api/stock"] });
-            }}
-          >
-            <RefreshCw
-              className={`h-4 w-4${query.isFetching ? " animate-spin" : ""}`}
-              aria-hidden
-            />
-          </Button>
-          <details className="enquiry-simple-filters">
-            <summary>
-              Filters
-              {ownerScope !== "all" ||
-              !queues.some((queue) => queue.value === filter)
-                ? " · active"
-                : ""}
-            </summary>
-            <div>
-              <label className={field}>
-                Enquiry ownership
-                <NativeSelect
-                  value={ownerScope}
-                  onChange={(e) => {
-                    if (clearSelectedRecord()) setOwnerScope(e.target.value);
-                  }}
-                >
-                  <option value="all">All owners</option>
-                  <option value="mine" disabled={!directory.data}>
-                    My enquiries
-                  </option>
-                  <option value="unassigned">Unassigned</option>
-                </NativeSelect>
-              </label>
-              <label className={field}>
-                Show
-                <NativeSelect
-                  value={filter}
-                  onChange={(e) => {
-                    if (clearSelectedRecord()) setFilter(e.target.value);
-                  }}
-                >
-                  <option value="all">All enquiries</option>
-                  <option value="reply">Needs reply</option>
-                  <option value="followups">Follow-ups</option>
-                  <option value="due">Overdue follow-ups</option>
-                  <option value="due-today">Due today</option>
-                  <option value="visits">Active test drives</option>
-                  <option value="upcoming">Upcoming test drives</option>
-                  <option value="today">Today’s test drives</option>
-                  <option value="done">No task scheduled</option>
-                </NativeSelect>
-              </label>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  if (!clearSelectedRecord()) return;
-                  setMode("callbacks");
-                  setGlobalSearch("");
-                }}
-              >
-                Callbacks ({callbackCount})
-              </Button>
-            </div>
-          </details>
-        </div>
-      ) : (
+      {mode === "history" ? null : (
         <>
           {mode !== "calendar" && (
             <div
@@ -2059,7 +1888,7 @@ export function EnquiriesPanel({
             </Button>
           </p>
         )}
-        {mode !== "new" && !editing && (
+        {mode !== "new" && mode !== "history" && !editing && (
           <BookingAccessNotice access={bookingAccess} />
         )}
         {notice && (
@@ -2071,7 +1900,7 @@ export function EnquiriesPanel({
             {notice}
           </div>
         )}
-        {missingRequested && (
+        {missingRequested && mode !== "history" && (
           <Button variant="outline" onClick={clearSelectedRecord}>
             Show all enquiries
           </Button>
@@ -2250,65 +2079,30 @@ export function EnquiriesPanel({
             </div>
           )}
           {mode === "history" && (
-            <div
-              role="tabpanel"
-              id="desk-panel-history"
-              aria-labelledby={embedded ? undefined : "desk-tab-history"}
-              aria-label={embedded ? "Customer enquiries" : undefined}
-              className="enquiry-ledger-sheet enquiry-record-sheet enquiry-history-sheet border border-slate-200 bg-white"
-            >
-              <div
-                className="enquiry-queue-nav"
-                role="group"
-                aria-label="Filter enquiries by next step"
-              >
-                {queues.map((queue) => (
-                  <button
-                    type="button"
-                    key={queue.value}
-                    data-tone={queue.tone}
-                    aria-pressed={filter === queue.value}
-                    onClick={() => {
-                      if (clearSelectedRecord()) setFilter(queue.value);
-                    }}
-                  >
-                    {queue.label}
-                    <span>
-                      {
-                        roots.filter((entry) =>
-                          queue.value === "done"
-                            ? enquiryGroup(entry, allEntries).every(
-                                (original) =>
-                                  matchesQueue(original, queue.value),
-                              )
-                            : enquiryGroup(entry, allEntries).some((original) =>
-                                matchesQueue(original, queue.value),
-                              ),
-                        ).length
-                      }
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              {query.isLoading && <p role="status">Loading enquiries…</p>}
-              {query.isError && (
-                <p role="alert">
-                  Enquiries could not be loaded. Use Refresh to try again.
-                </p>
-              )}
-              {!query.isLoading && !query.isError && !missingRequested && (
-                <EnquiryRecordBrowser
-                  entries={entries}
-                  allEntries={allEntries}
-                  cars={stock?.cars ?? []}
-                  selectedId={selectedEnquiryId}
-                  onSelect={selectRecord}
-                  onBack={clearSelectedRecord}
-                  actions={recordActions}
-                />
-              )}
-            </div>
+            <InboxWorkspace
+              entries={allEntries}
+              cars={stock?.cars ?? []}
+              selectedId={selectedEnquiryId}
+              onSelect={selectRecord}
+              onBack={clearSelectedRecord}
+              actions={recordActions}
+              loading={query.isLoading}
+              error={query.isError}
+              refreshing={query.isFetching}
+              missingRequested={missingRequested}
+              onRefresh={() => {
+                void query.refetch();
+                if (canEmail) void replyAttention.refetch();
+                void directory.refetch();
+                void client.invalidateQueries({ queryKey: ["/api/stock"] });
+              }}
+              onNewEnquiry={canEmail ? () => {
+                if (!confirmSettingsNavigation()) return;
+                if (onQuickEnquiry) onQuickEnquiry();
+                else { setMode("new"); setGlobalSearch(""); }
+              } : undefined}
+              tools={inboxTools}
+            />
           )}
         </div>
       </div>

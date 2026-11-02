@@ -134,8 +134,9 @@ export async function publicPriceReductions(
   vehicles: Vehicle[],
   now = new Date(),
   platform?: string,
+  executor: Query = db,
 ) {
-  const activePlatform = platform ?? (await activeStockPlatform());
+  const activePlatform = platform ?? (await activeStockPlatform(executor));
   const result = new Map<
     string,
     {
@@ -148,7 +149,7 @@ export async function publicPriceReductions(
   >();
   if (!vehicles.length) return result;
   const since = new Date(now.getTime() - 14 * 86_400_000);
-  const changes = await db
+  const changes = await executor
     .selectDistinctOn([vehicleChangesTable.vehicleId], {
       vehicleId: vehicleChangesTable.vehicleId,
       oldValue: vehicleChangesTable.oldValue,

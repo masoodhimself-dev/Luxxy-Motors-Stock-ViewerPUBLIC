@@ -429,3 +429,9 @@
 /* One level of Inbox navigation: conversations, bookings, email records. */
 .customer-workspace-views { grid-template-columns:repeat(3,minmax(0,1fr)); }
 @media(max-width:600px){ .customer-workspace-views { display:flex;gap:4px;overflow-x:auto; } .customer-workspace-views>button { flex:1 0 106px;min-width:0;padding:10px 8px; } .customer-workspace-views>button svg { display:none; } .customer-workspace-views>button small { display:none; } }
+
+.customer-notifications-workspace.inbox-rebuilt { display:block; min-width:0; }
+.inbox-secondary-heading { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:16px; }
+.inbox-secondary-heading h2 { font-size:22px; font-weight:650; }
+.inbox-secondary-heading>nav { display:flex; gap:5px; margin-left:auto; }
+@media(max-width:600px) { .inbox-secondary-heading { gap:6px; } .inbox-secondary-heading h2 { font-size:19px; } .inbox-secondary-heading>nav { margin-left:0; width:100%; } }

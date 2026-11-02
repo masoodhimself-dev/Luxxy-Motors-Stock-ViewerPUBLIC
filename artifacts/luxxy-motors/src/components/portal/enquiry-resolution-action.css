@@ -1,0 +1,23 @@
+.enquiry-resolution-control {
+  min-width: 0;
+}
+.enquiry-resolution-control > button {
+  min-height: 38px;
+  height: auto;
+  padding: 8px 10px;
+  gap: 6px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+.enquiry-resolution-control > p {
+  max-width: 48ch;
+  margin-top: 8px;
+  color: #9b322b;
+  font-size: 12px;
+  line-height: 1.6;
+}
+@media (max-width: 899px) {
+  .enquiry-resolution-control > button {
+    min-height: 44px;
+  }
+}

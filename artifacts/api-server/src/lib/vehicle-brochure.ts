@@ -278,6 +278,8 @@ export function renderVehicleBrochure(input: {
   vehicleUrl: string;
   preview?: boolean;
   generatedAt?: Date;
+  /** Email approvals compare exact bytes. Reproducible copies omit volatile dates. */
+  reproducibleIdentity?: string;
 }): Buffer {
   const { vehicle, dealer } = input;
   const options = brochureOptions(dealer.brochure, dealer.primaryHsl);
@@ -299,6 +301,13 @@ export function renderVehicleBrochure(input: {
     compress: true,
     putOnlyUsedFonts: true,
   });
+  if (input.reproducibleIdentity) {
+    if (!/^[a-f0-9]{32}$/i.test(input.reproducibleIdentity)) throw new Error("Invalid brochure identity");
+    doc.setFileId(input.reproducibleIdentity);
+    // Fixed metadata is intentional for reproducible output; no fictitious
+    // preparation date is displayed in this attachment.
+    doc.setCreationDate(new Date("2000-01-01T00:00:00Z"));
+  }
   const ink = "#202c29";
   const muted = "#5b6562";
   const accent = options.accentColour;
@@ -567,7 +576,7 @@ export function renderVehicleBrochure(input: {
   }
   if (options.footerNote) text(options.footerNote, 9, muted);
   text(
-    `Prepared ${date}. Details and price reflect the stock information available when this PDF was created. Please confirm availability and any unconfirmed details with the showroom.`,
+    `${input.reproducibleIdentity ? "" : `Prepared ${date}. `}Details and price reflect the stock information available when this PDF was created. Please confirm availability and any unconfirmed details with the showroom.`,
     9,
     muted,
   );
@@ -631,7 +640,7 @@ export function renderVehicleBrochure(input: {
     doc.setFontSize(8);
     doc.setTextColor(muted);
     doc.text(
-      `Prepared ${date}${input.preview ? " / Archived preview" : ""}`,
+      `${input.reproducibleIdentity ? "Vehicle details" : `Prepared ${date}`}${input.preview ? " / Archived preview" : ""}`,
       margin,
       285,
     );

@@ -353,10 +353,10 @@ router.post("/stock/imports/grok", async (req, res): Promise<void> => {
   await importAdmission.run(req, res, () => importStock(req, res, "grok"));
 });
 
-export async function projectVehicles(vehicles: Vehicle[]) {
-  const reductions = await publicPriceReductions(vehicles);
+export async function projectVehicles(vehicles: Vehicle[], executor: typeof db = db) {
+  const reductions = await publicPriceReductions(vehicles, new Date(), undefined, executor);
   const ids = vehicles.map((vehicle) => vehicle.id);
-  const images = ids.length ? await db.select().from(vehicleImagesTable).where(and(inArray(vehicleImagesTable.vehicleId, ids), eq(vehicleImagesTable.isActive, true))).orderBy(vehicleImagesTable.sortOrder) : [];
+  const images = ids.length ? await executor.select().from(vehicleImagesTable).where(and(inArray(vehicleImagesTable.vehicleId, ids), eq(vehicleImagesTable.isActive, true))).orderBy(vehicleImagesTable.sortOrder) : [];
   const byVehicle = new Map<string, VehicleImage[]>();
   for (const image of images) {
     const gallery = byVehicle.get(image.vehicleId);
@@ -422,12 +422,12 @@ export async function listPublicStockSitemapEntries(): Promise<{ id: string }[]>
 }
 
 /** Read-only brochure lookup: match /stock across every import source. */
-export async function findVisibleStockVehicle(id: string): Promise<PublicVehicle | null> {
+export async function findVisibleStockVehicle(id: string, executor: typeof db = db): Promise<PublicVehicle | null> {
   if (!UUID_PATTERN.test(id)) return null;
-  const settings = await config();
-  const [vehicle] = await db.select().from(vehiclesTable).where(and(eq(vehiclesTable.id, id), eq(vehiclesTable.dealerId, settings.dealerId)));
+  const settings = await config(executor);
+  const [vehicle] = await executor.select().from(vehiclesTable).where(and(eq(vehiclesTable.id, id), eq(vehiclesTable.dealerId, settings.dealerId)));
   if (!vehicle || vehicle.source !== settings.platform || !visible(vehicle, settings)) return null;
-  const [projected] = await projectVehicles([vehicle]);
+  const [projected] = await projectVehicles([vehicle], executor);
   return projected ?? null;
 }
 

@@ -209,3 +209,88 @@
     width: 100%;
   }
 }
+
+/* Inbox mode is a conversation, with the newest message beside the reply field. */
+.customer-case-timeline.case-timeline-compact .case-timeline-items {
+  display: grid;
+  gap: 8px;
+}
+.customer-case-timeline.case-timeline-compact .case-timeline-items > li {
+  padding: 0;
+}
+.customer-case-timeline.case-timeline-compact .case-timeline-items > li::before,
+.customer-case-timeline.case-timeline-compact .case-timeline-marker {
+  display: none;
+}
+.customer-case-timeline.case-timeline-compact .case-timeline-item {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+.customer-case-timeline.case-timeline-compact .case-timeline-body {
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--portal-border, #dce3e8);
+  border-radius: 7px;
+  background: var(--portal-panel, #fff);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.customer-case-timeline.case-timeline-compact
+  .case-timeline-item[data-kind="email"] {
+  margin-left: 22px;
+}
+.customer-case-timeline.case-timeline-compact
+  .case-timeline-item[data-kind="email"]
+  .case-timeline-body {
+  background: var(--portal-soft, #eef4f8);
+}
+.customer-case-timeline.case-timeline-compact
+  .case-timeline-item:is([data-kind="original"], [data-kind="customer-email"]) {
+  margin-right: 22px;
+}
+.customer-case-timeline.case-timeline-compact
+  .case-timeline-item:is([data-kind="call"], [data-kind="internal"])
+  .case-timeline-body {
+  background: #fff9ed;
+  border-color: #eadfbd;
+}
+.customer-case-timeline.case-timeline-compact .case-timeline-body > header {
+  align-items: center;
+  gap: 4px 10px;
+}
+.customer-case-timeline.case-timeline-compact .case-timeline-body h5 {
+  font-size: 12px;
+}
+.customer-case-timeline.case-timeline-compact .case-timeline-body time {
+  flex-basis: auto;
+  font-size: 10px;
+}
+.customer-case-timeline.case-timeline-compact .case-timeline-status {
+  padding: 1px 6px;
+  font-size: 10px;
+}
+.customer-case-timeline.case-timeline-compact .case-timeline-older {
+  min-height: 36px;
+  margin: 0 0 8px;
+  padding: 6px 0;
+  color: var(--portal-muted, #586976);
+  font-size: 11px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+@media (max-width: 639px) {
+  .customer-case-timeline.case-timeline-compact
+    .case-timeline-item[data-kind="email"] {
+    margin-left: 12px;
+  }
+  .customer-case-timeline.case-timeline-compact
+    .case-timeline-item:is(
+      [data-kind="original"],
+      [data-kind="customer-email"]
+    ) {
+    margin-right: 12px;
+  }
+  .customer-case-timeline.case-timeline-compact .case-timeline-older {
+    min-height: 44px;
+  }
+}

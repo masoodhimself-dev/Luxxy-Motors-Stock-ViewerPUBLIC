@@ -189,9 +189,13 @@ function show(
   return { actions, client };
 }
 function openVehicleChecks() {
-  const details = screen.getByText("Vehicle & checks").closest("details")!;
-  details.open = true;
-  fireEvent(details, new Event("toggle"));
+  fireEvent.click(screen.getByRole("button", { name: "Car & MOT" }));
+}
+function openMoreActions() {
+  fireEvent.keyDown(
+    screen.getByRole("button", { name: "More enquiry actions" }),
+    { key: "ArrowDown" },
+  );
 }
 beforeEach(() => {
   vi.clearAllMocks();
@@ -225,20 +229,22 @@ it("passes the exact selected case group and linked vehicle to connected timelin
     entry,
     entries: records,
     canEmail: true,
+    compact: true,
     cars: [],
-    onInsertText: expect.any(Function),
-  });
-  expect(state.checks.mock.calls.at(-1)?.[0]).toMatchObject({
-    entry,
-    car,
-    canManage: true,
     onInsertText: expect.any(Function),
   });
   expect(state.reply.mock.calls.at(-1)?.[0]).toMatchObject({
     entry,
     focusRequest: 0,
   });
+  expect(state.checks).not.toHaveBeenCalled();
   openVehicleChecks();
+  expect(state.checks.mock.calls.at(-1)?.[0]).toMatchObject({
+    entry,
+    car,
+    canManage: true,
+    onInsertText: expect.any(Function),
+  });
   fireEvent.click(screen.getByRole("button", { name: "Vehicle information" }));
   expect(actions.onVehicle).toHaveBeenCalledWith(car);
   expect(state.fetch).not.toHaveBeenCalled();
@@ -246,16 +252,15 @@ it("passes the exact selected case group and linked vehicle to connected timelin
 
 it("opens the inline channel for the selected customer rather than redirecting to email records", () => {
   const { actions } = show();
-  fireEvent.click(
-    within(
-      screen.getByRole("region", { name: "Recommended next action" }),
-    ).getByRole("button", { name: "Respond" }),
-  );
+  expect(
+    screen.queryByRole("region", { name: "Recommended next action" }),
+  ).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "customer@example.com" }));
   expect(screen.getByTestId("requested-channel")).toHaveTextContent("email");
   expect(screen.getByTestId("focus-request")).toHaveTextContent("1");
-  fireEvent.click(screen.getByRole("button", { name: "customer@example.com" }));
-  expect(screen.getByTestId("focus-request")).toHaveTextContent("2");
-  fireEvent.click(screen.getByRole("button", { name: "Log call" }));
+  expect(screen.getByTestId("focus-request")).toHaveTextContent("1");
+  openMoreActions();
+  fireEvent.click(screen.getByRole("menuitem", { name: "Log call" }));
   expect(screen.getByTestId("requested-channel")).toHaveTextContent("note");
   expect(actions.onEmail).not.toHaveBeenCalled();
   expect(actions.onConversation).not.toHaveBeenCalled();
@@ -290,28 +295,27 @@ it("inserts checked information into an editable draft only and blocks insertion
   ).toBeDisabled();
 });
 
-it("keeps Respond functional without email access by opening the existing conversation action", () => {
+it("keeps Log call functional without email access by opening the existing conversation action", () => {
   const { actions } = show({ onEmail: false });
-  fireEvent.click(
-    within(
-      screen.getByRole("region", { name: "Recommended next action" }),
-    ).getByRole("button", { name: "Respond" }),
-  );
+  openMoreActions();
+  fireEvent.click(screen.getByRole("menuitem", { name: "Log call" }));
   expect(actions.onConversation).toHaveBeenCalledWith(entry);
   expect(state.reply).not.toHaveBeenCalled();
   expect(state.timeline.mock.calls.at(-1)?.[0].canEmail).toBe(false);
+  openVehicleChecks();
   expect(state.checks.mock.calls.at(-1)?.[0].onInsertText).toBeUndefined();
 });
 
 it("hides disabled booking entry points and keeps Start sale tied to the real selected enquiry", () => {
   show({ canBook: false });
+  openMoreActions();
   expect(
-    screen.queryByRole("button", { name: "Book test drive" }),
+    screen.queryByRole("menuitem", { name: "Book test drive" }),
   ).not.toBeInTheDocument();
   expect(
-    screen.queryByRole("button", { name: "Book another test drive" }),
+    screen.queryByRole("menuitem", { name: "Book another test drive" }),
   ).not.toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "Start sale" })).toHaveAttribute(
+  expect(screen.getByRole("menuitem", { name: "Start sale" })).toHaveAttribute(
     "href",
     "/portal?section=sales&enquiryId=enquiry-one",
   );
@@ -320,8 +324,10 @@ it("hides disabled booking entry points and keeps Start sale tied to the real se
 
 it("keeps manual follow-up and booking actions bound to this enquiry", () => {
   const { actions } = show();
-  fireEvent.click(screen.getByRole("button", { name: "Set follow-up" }));
-  fireEvent.click(screen.getByRole("button", { name: "Book test drive" }));
+  openMoreActions();
+  fireEvent.click(screen.getByRole("menuitem", { name: "Set follow-up" }));
+  openMoreActions();
+  fireEvent.click(screen.getByRole("menuitem", { name: "Book test drive" }));
   expect(actions.onFollowUp).toHaveBeenCalledWith(entry);
   expect(actions.onBook).toHaveBeenCalledWith(entry);
   expect(state.fetch).not.toHaveBeenCalled();
@@ -334,16 +340,22 @@ it("shows pending incoming-email review and opens it in the same selected case",
     emailRepliesToReview: 1,
   } as Enquiry;
   const { actions } = show({ current });
-  expect(screen.getByText("Email needs review")).toBeVisible();
+  expect(screen.getByText("Needs you")).toHaveAttribute(
+    "title",
+    "Email needs review",
+  );
   expect(
     screen.getByRole("heading", { name: "Review incoming email" }),
   ).toBeVisible();
   expect(
     screen.getByText(
-      "Check the sender before replying. Other scheduled work remains in place.",
+      "Check the sender and message in the conversation before replying.",
     ),
   ).toBeVisible();
-  fireEvent.click(screen.getByRole("button", { name: "Read & reply" }));
+  expect(
+    screen.queryByRole("button", { name: "Read & reply" }),
+  ).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "customer@example.com" }));
   expect(screen.getByTestId("focus-request")).toHaveTextContent("1");
   expect(state.reply.mock.calls.at(-1)?.[0].entry).toEqual(current);
   expect(actions.onEmail).not.toHaveBeenCalled();
@@ -365,7 +377,7 @@ it.each(["readonly", "access-error"])(
       screen.queryByRole("button", { name: "Set follow-up" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Book test drive" }),
+      screen.queryByRole("menuitem", { name: "Book test drive" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "Start sale" }),
@@ -374,6 +386,7 @@ it.each(["readonly", "access-error"])(
       screen.queryByRole("region", { name: "Mock inline reply" }),
     ).not.toBeInTheDocument();
     expect(state.timeline.mock.calls.at(-1)?.[0].canEmail).toBe(false);
+    openVehicleChecks();
     expect(state.checks.mock.calls.at(-1)?.[0]).toMatchObject({
       canManage: false,
       onInsertText: undefined,
@@ -383,3 +396,124 @@ it.each(["readonly", "access-error"])(
     expect(state.claim).not.toHaveBeenCalled();
   },
 );
+
+it("keeps both detail panels closed even on a wide desktop and opens one panel at a time before the conversation", () => {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(() => ({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })),
+  );
+  show();
+  expect(screen.getByRole("button", { name: "Car & MOT" })).toHaveAttribute(
+    "aria-expanded",
+    "false",
+  );
+  expect(
+    screen.getByRole("button", { name: "Customer details" }),
+  ).toHaveAttribute("aria-expanded", "false");
+  expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+  expect(state.checks).not.toHaveBeenCalled();
+  expect(
+    screen.getByRole("region", { name: "Mock customer activity" }),
+  ).toBeVisible();
+  expect(
+    screen.getByRole("region", { name: "Mock inline reply" }),
+  ).toBeVisible();
+  openVehicleChecks();
+  const panel = screen.getByRole("complementary", {
+    name: "Vehicle and checks",
+  });
+  const timeline = screen.getByRole("region", {
+    name: "Mock customer activity",
+  });
+  expect(
+    panel.compareDocumentPosition(timeline) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Customer details" }));
+  expect(
+    screen.queryByRole("complementary", { name: "Vehicle and checks" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByRole("complementary", { name: "Customer details and history" }),
+  ).toBeVisible();
+  expect(screen.getByText("ENQ-ONE")).toBeVisible();
+  expect(screen.getByText("Sam")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Close details" }));
+  expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+});
+
+it("takes a requested test drive through the existing review and reschedule actions without silently confirming or recording attendance", () => {
+  const current = {
+    ...entry,
+    type: "viewing",
+    appointmentAt: "2099-11-03T11:00:00Z",
+    appointmentStatus: "pending",
+  } as Enquiry;
+  const { actions } = show({ current });
+  const booking = screen.getByRole("region", {
+    name: "Current test-drive appointment",
+  });
+  expect(booking).toHaveTextContent("Test-drive request");
+  expect(booking).toHaveTextContent("Awaiting your confirmation");
+  expect(
+    screen.queryByRole("button", { name: "Record attendance" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("region", { name: "Recommended next action" }),
+  ).not.toBeInTheDocument();
+  fireEvent.click(
+    within(booking).getByRole("button", { name: "Review & confirm" }),
+  );
+  fireEvent.click(
+    within(booking).getByRole("button", { name: "Suggest another time" }),
+  );
+  expect(actions.onUpdate).toHaveBeenCalledWith(current);
+  expect(actions.onAppointment).toHaveBeenCalledWith(current);
+  expect(state.claim).not.toHaveBeenCalled();
+  expect(state.fetch).not.toHaveBeenCalled();
+});
+
+it("keeps customer history scoped to the selected record and assignment behind the customer panel", () => {
+  const current = { ...entry, assignedToId: null, assignedToName: null };
+  const { actions } = show({ current });
+  expect(
+    screen.queryByRole("button", { name: "Customer history" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Assign to me" }),
+  ).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Customer details" }));
+  fireEvent.click(screen.getByRole("button", { name: "Customer history" }));
+  expect(actions.onCustomerHistory).toHaveBeenCalledWith(current);
+  fireEvent.click(screen.getByRole("button", { name: "Assign to me" }));
+  expect(state.claim).toHaveBeenCalledWith({
+    id: current.id,
+    data: { expectedRevision: 1, assignedToId: "staff-one" },
+  });
+});
+
+it("keeps the activity journal on demand inside Customer details, away from the direct conversation", () => {
+  show();
+  expect(state.timeline.mock.calls.at(-1)?.[0]).toMatchObject({
+    compact: true,
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Customer details" }));
+  const activity = screen
+    .getByText("Website & booking activity")
+    .closest("details")!;
+  expect(activity).not.toHaveAttribute("open");
+  expect(state.timeline.mock.calls.some(([props]) => props.activityOnly)).toBe(
+    false,
+  );
+  activity.open = true;
+  fireEvent(activity, new Event("toggle"));
+  expect(
+    state.timeline.mock.calls.some(
+      ([props]) =>
+        props.activityOnly && props.compact && props.entry.id === entry.id,
+    ),
+  ).toBe(true);
+});
