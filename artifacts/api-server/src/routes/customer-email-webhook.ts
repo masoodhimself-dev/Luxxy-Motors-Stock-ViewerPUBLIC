@@ -1,3 +1,4 @@
+import { acceptCazooLeadEvent, cazooLeadsEnabled } from "../lib/cazoo-leads";
 import { Router, raw } from "express";
 import { Webhook } from "svix";
 import { acceptReplyEvent } from "../lib/customer-email-replies";
@@ -12,7 +13,7 @@ export function createCustomerEmailWebhook() {
         "X-Content-Type-Options": "nosniff",
       });
       const secret = process.env.RESEND_RECEIVING_WEBHOOK_SECRET;
-      if (process.env.EMAIL_REPLIES_ENABLED !== "true" || !secret) {
+      if ((process.env.EMAIL_REPLIES_ENABLED !== "true" && !cazooLeadsEnabled()) || !secret) {
         res.sendStatus(503);
         return;
       }
@@ -32,6 +33,7 @@ export function createCustomerEmailWebhook() {
       }
       try {
         await acceptReplyEvent(event);
+        await acceptCazooLeadEvent(event);
         res.sendStatus(200);
       } catch {
         res.sendStatus(503);

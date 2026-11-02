@@ -25,7 +25,7 @@ export function createCazooLeadRouter() {
       res.json({
         enabled:
           cazooLeadsEnabled() &&
-          Boolean(process.env.CAZOO_LEADS_WEBHOOK_SECRET),
+          Boolean(process.env.CAZOO_LEADS_WEBHOOK_SECRET || process.env.RESEND_RECEIVING_WEBHOOK_SECRET),
         mailbox: cazooLeadMailboxes()[dealer] ?? null,
         receipts: rows.rows.map((r) => ({
           ...r,

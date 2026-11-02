@@ -1,3 +1,4 @@
+import { createCustomerEmailWebhook } from "./routes/customer-email-webhook";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile, readdir } from "node:fs/promises";
@@ -136,6 +137,7 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
       }),
     ],
   );
+  await engine.exec("INSERT INTO dealer_demos(dealer_id,recipient,expires_at,updated_by,converted_at) VALUES('cazoo-a','owner@example.test',now()+interval '7 days','fixture',now())");
   const first = await queue();
   await t.test(
     "unmapped and mixed recipients cannot pick a dealership",
@@ -413,6 +415,7 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
     async () => {
       const app = express();
       app.use("/webhook", createCazooLeadWebhook());
+    app.use("/shared", createCustomerEmailWebhook());
       const server = app.listen(0, "127.0.0.1");
       await new Promise<void>((resolve) => server.once("listening", resolve));
       const origin = `http://127.0.0.1:${(server.address() as any).port}`;
@@ -455,6 +458,12 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
           200,
         );
         assert.ok(await receipt(provider));
+      process.env.RESEND_RECEIVING_WEBHOOK_SECRET = process.env.CAZOO_LEADS_WEBHOOK_SECRET;
+      const sharedProvider = randomUUID(), sharedBody = JSON.stringify({ type: "email.received", data: { email_id: sharedProvider, to: [address] } });
+      const sharedSignature = new Webhook(process.env.RESEND_RECEIVING_WEBHOOK_SECRET!).sign(id, date, sharedBody);
+      assert.equal((await fetch(origin + "/shared", { method: "POST", headers: { "Content-Type": "application/json", "svix-id": id, "svix-timestamp": String(Math.floor(date.getTime() / 1000)), "svix-signature": sharedSignature }, body: sharedBody })).status, 200);
+      assert.ok(await receipt(sharedProvider));
+
         process.env.CAZOO_LEADS_ENABLED = "false";
         assert.equal(
           (

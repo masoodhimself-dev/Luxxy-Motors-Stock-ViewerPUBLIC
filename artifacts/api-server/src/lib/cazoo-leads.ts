@@ -74,7 +74,7 @@ export async function acceptCazooLeadEvent(
   if (entries.length !== 1 || new Set(recipients).size !== 1) return;
   const [dealer, address] = entries[0]!;
   await executor.execute(
-    sql`INSERT INTO cazoo_lead_receipts(provider_id,dealer_id,mailbox) SELECT ${e.data.email_id}::uuid,id,${address} FROM dealerships WHERE id=${dealer} AND status='active' AND NOT EXISTS(SELECT 1 FROM dealer_demos WHERE dealer_id=${dealer}) ON CONFLICT(provider_id) DO NOTHING`,
+    sql`INSERT INTO cazoo_lead_receipts(provider_id,dealer_id,mailbox) SELECT ${e.data.email_id}::uuid,id,${address} FROM dealerships WHERE id=${dealer} AND status='active' AND NOT EXISTS(SELECT 1 FROM dealer_demos WHERE dealer_id=${dealer} AND converted_at IS NULL) ON CONFLICT(provider_id) DO NOTHING`,
   );
 }
 
@@ -297,7 +297,7 @@ export async function processCazooLeads(
     const lease = new Date(Date.now() + 180000);
     const row = (
       await db.execute(
-        sql`WITH candidate AS (SELECT r.id FROM cazoo_lead_receipts r JOIN dealerships d ON d.id=r.dealer_id WHERE d.status='active' AND NOT EXISTS(SELECT 1 FROM dealer_demos WHERE dealer_id=d.id) AND r.attempts<8 AND ((r.status='pending' AND r.next_attempt_at<=now()) OR (r.status='processing' AND r.lease_until<=now())) ORDER BY r.next_attempt_at,r.id FOR UPDATE OF r SKIP LOCKED LIMIT 1) UPDATE cazoo_lead_receipts r SET status='processing',attempts=attempts+1,lease_until=${lease} FROM candidate WHERE r.id=candidate.id RETURNING r.*`,
+        sql`WITH candidate AS (SELECT r.id FROM cazoo_lead_receipts r JOIN dealerships d ON d.id=r.dealer_id WHERE d.status='active' AND NOT EXISTS(SELECT 1 FROM dealer_demos WHERE dealer_id=d.id AND converted_at IS NULL) AND r.attempts<8 AND ((r.status='pending' AND r.next_attempt_at<=now()) OR (r.status='processing' AND r.lease_until<=now())) ORDER BY r.next_attempt_at,r.id FOR UPDATE OF r SKIP LOCKED LIMIT 1) UPDATE cazoo_lead_receipts r SET status='processing',attempts=attempts+1,lease_until=${lease} FROM candidate WHERE r.id=candidate.id RETURNING r.*`,
       )
     ).rows[0];
     if (!row) break;
