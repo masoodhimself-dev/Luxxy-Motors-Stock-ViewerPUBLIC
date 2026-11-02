@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { useRef, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 const state = vi.hoisted(() => ({
   create: vi.fn(),
@@ -204,11 +205,120 @@ function fill() {
     target: { value: " 07700 900123 " },
   });
 }
+
+function mountWithExternalOpener() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const onCreated = vi.fn();
+  function Desk({ showOpener = true }: { showOpener?: boolean }) {
+    const opener = useRef<HTMLButtonElement>(null);
+    const [open, setOpen] = useState(false);
+    return <>
+      <input aria-label="Previous workspace field" />
+      {showOpener && <button ref={opener} onClick={() => setOpen(true)}>Quick actions</button>}
+      <QuickEnquiryDialog open={open} onOpenChange={setOpen} onCreated={onCreated} returnFocusRef={opener} />
+    </>;
+  }
+  const desk = (showOpener = true) => <QueryClientProvider client={client}><Desk showOpener={showOpener} /></QueryClientProvider>;
+  const view = render(desk());
+  const opener = screen.getByRole('button', { name: 'Quick actions' });
+  // Safari can leave a field focused when its external opener is tapped.
+  screen.getByRole('textbox', { name: 'Previous workspace field' }).focus();
+  fireEvent.click(opener);
+  return { ...view, opener, onCreated, removeOpener: () => view.rerender(desk(false)) };
+}
+
+it.each(['Cancel', 'Close', 'Escape'])('returns focus to its external opener after %s', async action => {
+  const view = mountWithExternalOpener();
+  expect(screen.getByRole('dialog', { name: 'New enquiry' })).toBeVisible();
+  if (action === 'Escape') fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+  else fireEvent.click(screen.getByRole('button', { name: action, exact: true }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  await waitFor(() => expect(view.opener).toHaveFocus());
+  expect(state.create).not.toHaveBeenCalled();
+  expect(state.createBooking).not.toHaveBeenCalled();
+});
+
+it('keeps the dirty form open when discard is cancelled and returns focus only after confirmed close', async () => {
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  try {
+    const view = mountWithExternalOpener();
+    fill();
+    const name = screen.getByRole('combobox', { name: 'Customer name' });
+    name.focus();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel', exact: true }));
+    expect(screen.getByRole('dialog', { name: 'New enquiry' })).toBeVisible();
+    expect(name).toHaveValue('  Alex Smith  ');
+    expect(view.opener).not.toHaveFocus();
+    confirm.mockReturnValue(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel', exact: true }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(view.opener).toHaveFocus());
+    expect(state.create).not.toHaveBeenCalled();
+  } finally { confirm.mockRestore(); }
+});
+
+it('returns focus after saving through the external opener without saving again', async () => {
+  const view = mountWithExternalOpener();
+  fill();
+  fireEvent.click(screen.getByRole('button', { name: 'Save enquiry', exact: true }));
+  await waitFor(() => expect(view.onCreated).toHaveBeenCalledOnce());
+  await waitFor(() => expect(view.opener).toHaveFocus());
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(state.create).toHaveBeenCalledOnce();
+  expect(state.createBooking).not.toHaveBeenCalled();
+});
+
+it('keeps focus in message composition and returns to the external opener after Done', async () => {
+  const view = mountWithExternalOpener();
+  fill();
+  fireEvent.click(screen.getByRole('button', { name: 'Save & message' }));
+  const writeMessage = await screen.findByRole('button', { name: 'Write a message' });
+  const focusOpener = vi.spyOn(view.opener, 'focus');
+  try {
+    fireEvent.click(writeMessage);
+    const back = await screen.findByRole('button', { name: 'Return to saved enquiry' });
+    back.focus();
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
+    expect(back).toHaveFocus();
+    expect(focusOpener).not.toHaveBeenCalled();
+    fireEvent.click(back);
+    fireEvent.click(await screen.findByRole('button', { name: 'Done' }));
+    await waitFor(() => expect(view.opener).toHaveFocus());
+    expect(view.onCreated).toHaveBeenCalledOnce();
+    expect(state.create).toHaveBeenCalledOnce();
+  } finally { focusOpener.mockRestore(); }
+});
+
+it('does not focus an external opener that was removed while the dialog was open', async () => {
+  const view = mountWithExternalOpener();
+  const focusOpener = vi.spyOn(view.opener, 'focus');
+  try {
+    view.removeOpener();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel', exact: true }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
+    expect(focusOpener).not.toHaveBeenCalled();
+    expect(state.create).not.toHaveBeenCalled();
+  } finally { focusOpener.mockRestore(); }
+});
+
 it('prefills the Cars test-drive handoff without saving or messaging', () => {
   mount(true, 'car-one', true);
+  expect(screen.getByRole('dialog', { name: 'Book test drive' })).toBeVisible();
   expect(screen.getByRole('checkbox', { name: 'Book a Test Drive' })).toBeChecked();
   expect(screen.getByRole('article', { name: 'Selected car' })).toHaveTextContent('Ford Focus');
   expect(state.create).not.toHaveBeenCalled();
+});
+
+it('updates the dialog title when switching between a new enquiry and booking a test drive', () => {
+  mount(true, 'car-one');
+  expect(screen.getByRole('dialog', { name: 'New enquiry' })).toBeVisible();
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Book a Test Drive' }));
+  expect(screen.getByRole('dialog', { name: 'Book test drive' })).toBeVisible();
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Book a Test Drive' }));
+  expect(screen.getByRole('dialog', { name: 'New enquiry' })).toBeVisible();
+  expect(state.create).not.toHaveBeenCalled();
+  expect(state.createBooking).not.toHaveBeenCalled();
 });
 it("autofills a recent customer while keeping the chosen car and notes for this enquiry", () => {
   const recent = { id: "old-enquiry", reference: "ENQ-OLD", customerName: "Amelia Taylor", phone: "07700900124", email: "amelia@example.test", vehicleId: "old-car", vehicleTitle: "Previous car", createdAt: "2026-10-01T10:00:00Z" };

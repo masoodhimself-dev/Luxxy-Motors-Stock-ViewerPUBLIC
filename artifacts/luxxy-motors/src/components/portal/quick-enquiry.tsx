@@ -1,5 +1,5 @@
 import { OptionalJourneyPostcode } from '@/components/postcode-field';
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type RefObject } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getGetEnquiriesQueryKey,
@@ -42,6 +42,7 @@ type Props = {
   onContinueEnquiry?: (id: string) => void;
   initialVehicleId?: string | null;
   initialBookTestDrive?: boolean;
+  returnFocusRef?: RefObject<HTMLElement | null>;
 };
 const emptyForm = { name: "", phone: "", email: "", vehicleId: "", notes: "" };
 function saveError(error: unknown) {
@@ -52,7 +53,7 @@ function saveError(error: unknown) {
 }
 
 /** Enquiry-only capture stays silent; optional test drives use the booking policy. */
-export function QuickEnquiryDialog({ open, onOpenChange, onCreated, onContinueEnquiry, initialVehicleId, initialBookTestDrive = false }: Props) {
+export function QuickEnquiryDialog({ open, onOpenChange, onCreated, onContinueEnquiry, initialVehicleId, initialBookTestDrive = false, returnFocusRef }: Props) {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -259,6 +260,14 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated, onContinueEn
         aria-busy={pending}
         data-saving={pending}
         data-booking={booking}
+        onCloseAutoFocus={(event) => {
+          // Opening the message composer keeps focus in that customer workflow.
+          if (messaging) { event.preventDefault(); return; }
+          if (returnFocusRef?.current?.isConnected) {
+            event.preventDefault();
+            returnFocusRef.current.focus({ preventScroll: true });
+          }
+        }}
         onEscapeKeyDown={(event) => {
           if (submitting.current || pending) event.preventDefault();
         }}
@@ -269,7 +278,7 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated, onContinueEn
         <DialogHeader className="quick-enquiry-heading">
           <DialogTitle>
             <MessageSquarePlus aria-hidden size={21} />
-            Quick enquiry
+            {booking ? 'Book test drive' : 'New enquiry'}
           </DialogTitle>
           <DialogDescription>
             {booking ? "Save the enquiry and test drive together." : "Find the car while you’re on the call, then save the customer’s details."}

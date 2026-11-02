@@ -12,13 +12,11 @@ import {
   LoaderCircle,
   Lock,
   Sale,
-  Plus,
   Settings2,
   ExternalLink,
   CalendarDays,
   Mail,
   CustomerEnquiry,
-  ChevronDown,
   CheckCircle2,
   X,
   CarFront,
@@ -31,13 +29,10 @@ import {
   DealerSettingsHub,
   useStaffAccess,
 } from "@/components/portal/dealer-administration";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { PortalQuickActions } from "@/components/portal/portal-quick-actions";
+import { useStaffCars } from "@/components/portal/staff-cars-query";
+import { workspaceStatus } from "@/components/portal/cars-workspace-model";
+import { vehicleDisplayTitle, vehicleRegistration } from "@/lib/utils";
 import {
   QuickEnquiryDialog,
   type QuickEnquiryResult,
@@ -235,7 +230,14 @@ function AccessDenied({ email }: { email: string | null }) {
 }
 
 function PortalDesk() {
-  const { settings } = useDealerSettings();
+  const {
+    settings,
+    isLoading: settingsLoading,
+    isError: settingsError,
+  } = useDealerSettings();
+  const features = useDealerFeatures();
+  // Observe stock already loaded by the Cars workspace without another request.
+  const staffCars = useStaffCars(false);
   const [tab, setTab] = useState<TabKey>(() =>
     requestedSection(window.location.search),
   );
@@ -246,7 +248,8 @@ function PortalDesk() {
   const [quickEnquiryOpen, setQuickEnquiryOpen] = useState(false);
   const [quickBookTestDrive, setQuickBookTestDrive] = useState(false);
   const [motLookupOpen, setMotLookupOpen] = useState(false);
-  const motLookupTrigger = useRef<HTMLButtonElement>(null);
+  const quickActionsTrigger = useRef<HTMLButtonElement>(null);
+  const quickEnquiryTrigger = useRef<HTMLElement | null>(null);
   const [quickEnquiryVehicleId, setQuickEnquiryVehicleId] = useState<
     string | null
   >(null);
@@ -283,6 +286,28 @@ function PortalDesk() {
     indexable: false,
   });
   const canSell = access.data?.permissions.includes("sales.manage") ?? false;
+  const bookingEnabled =
+    !settingsLoading &&
+    !settingsError &&
+    !features.isLoading &&
+    !features.isError &&
+    features.enabled("testDriveBookings") &&
+    (settings.testDriveBooking ?? defaultBookingSettings).enabled;
+  const selectedCarId =
+    tab === "cars" ? new URLSearchParams(search).get("carId") : null;
+  const selectedCar = !staffCars.isError
+    ? staffCars.data?.cars.find((car) => car.id === selectedCarId)
+    : undefined;
+  const actionVehicle = selectedCar
+    ? {
+        id: selectedCar.id,
+        title: vehicleDisplayTitle(selectedCar),
+        registration: vehicleRegistration(selectedCar),
+        canBook: workspaceStatus(selectedCar) === "available",
+        canStartSale:
+          workspaceStatus(selectedCar) === "available" && !selectedCar.staff.sale,
+      }
+    : undefined;
   const visibleTabs = tabs.filter(
     (item) =>
       item.key !== "settings" ||
@@ -388,6 +413,10 @@ function PortalDesk() {
   }
   function quickEnquiry(vehicleId?: string, bookTestDrive = false) {
     if (!canSell) return;
+    quickEnquiryTrigger.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
     setQuickEnquiryVehicleId(vehicleId || null);
     setQuickBookTestDrive(bookTestDrive);
     setQuickEnquiryOpen(true);
@@ -401,73 +430,30 @@ function PortalDesk() {
       <PortalInstallMetadata />
       {motLookupOpen && canSell && (
         <StaffMotLookupDialog
-          returnFocusRef={motLookupTrigger}
+          returnFocusRef={quickActionsTrigger}
+          initialRegistration={actionVehicle?.registration}
           onClose={() => setMotLookupOpen(false)}
         />
       )}
       <PortalToolbar staffName={staffName} account={<UserButton />}>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              className="portal-quick-trigger"
-              ref={motLookupTrigger}
-              aria-label="Quick actions"
-            >
-              <Plus size={16} aria-hidden="true" />
-              <span className="portal-quick-full-label">Quick add</span>
-              <span className="portal-quick-short-label">Add</span>
-              <ChevronDown size={14} aria-hidden="true" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="portal-quick-menu">
-            {canSell && (
-              <>
-                <DropdownMenuItem
-                  data-action="enquiry"
-                  onSelect={() => quickEnquiry()}
-                >
-                  <CustomerEnquiry aria-hidden="true" />
-                  Quick enquiry
-                </DropdownMenuItem>
-                <DropdownMenuItem data-action="sale" onSelect={() => newSale()}>
-                  <Sale aria-hidden="true" />
-                  New sale
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  data-action="mot"
-                  onSelect={() => setMotLookupOpen(true)}
-                >
-                  <CheckCircle2 aria-hidden="true" />
-                  Check MOT
-                </DropdownMenuItem>
-              </>
-            )}
-            <DropdownMenuItem
-              data-action="calendar"
-              onSelect={() =>
-                go(
-                  "/portal?section=notifications&workView=test-drives&deskView=calendar",
-                )
-              }
-            >
-              <CalendarDays aria-hidden="true" />
-              Calendar
-            </DropdownMenuItem>
-            {canSell && (
-              <DropdownMenuItem
-                data-action="drafts"
-                onSelect={() =>
-                  go("/portal?section=notifications&workView=email&view=drafts")
-                }
-              >
-                <Mail aria-hidden="true" />
-                Saved email drafts
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <PortalQuickActions
+          canManage={canSell}
+          bookingEnabled={bookingEnabled}
+          vehicle={actionVehicle}
+          triggerRef={quickActionsTrigger}
+          onEnquiry={(vehicleId, bookTestDrive) => {
+            quickEnquiry(vehicleId, bookTestDrive);
+            quickEnquiryTrigger.current = quickActionsTrigger.current;
+          }}
+          onSale={newSale}
+          onMot={() => setMotLookupOpen(true)}
+          onCalendar={() =>
+            go("/portal?section=notifications&workView=test-drives&deskView=calendar")
+          }
+          onDrafts={() =>
+            go("/portal?section=notifications&workView=email&view=drafts")
+          }
+        />
       </PortalToolbar>
       <h1 className="sr-only">Dealership workspace</h1>
       <div className="portal-workspace-inner portal-app-layout mx-auto">
@@ -644,6 +630,7 @@ function PortalDesk() {
       {canSell && (
         <QuickEnquiryDialog
           open={quickEnquiryOpen}
+          returnFocusRef={quickEnquiryTrigger}
           initialVehicleId={quickEnquiryVehicleId}
           initialBookTestDrive={quickBookTestDrive}
           onOpenChange={setQuickEnquiryOpen}
