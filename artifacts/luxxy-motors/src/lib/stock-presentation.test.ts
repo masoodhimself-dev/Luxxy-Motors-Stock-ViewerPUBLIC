@@ -31,8 +31,9 @@ it('uses the supplied full derivative before a trim label, without inventing mis
   expect(stockVariant({} as Car)).toBe('');
 });
 
-it('labels genuine recent arrivals, excluding imports, future dates and reserved stock', () => {
+it('labels genuine arrivals for fourteen days, excluding imports, future dates and reserved stock', () => {
  const now = new Date('2026-10-29T12:00:00Z');
  expect(isJustArrived({listedAt:'2026-10-28T12:00:00Z'} as Car, now)).toBe(true);
- for (const extra of [{scrapedAt:now.toISOString()}, {listedAt:'2026-10-30'}, {listedAt:'invalid'}, {listedAt:'2026-10-22T12:00:00Z'}, {listedAt:'2026-10-28',inventoryStatus:'reserved'}]) expect(isJustArrived(extra as Car, now)).toBe(false);
+ expect(isJustArrived({listedAt:'2026-10-15T12:00:00.001Z'} as Car, now)).toBe(true);
+ for (const extra of [{scrapedAt:now.toISOString()}, {listedAt:'2026-10-30'}, {listedAt:'invalid'}, {listedAt:'2026-10-15T12:00:00Z'}, {listedAt:'2026-10-28',inventoryStatus:'reserved'}]) expect(isJustArrived(extra as Car, now)).toBe(false);
 });

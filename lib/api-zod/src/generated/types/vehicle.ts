@@ -85,4 +85,9 @@ export interface Vehicle {
   /** @minLength 1 */
   id: string;
   readonly inventoryStatus?: VehicleInventoryStatus;
+  /**
+     * When this vehicle was first added to the website inventory. Later stock checks do not reset this date.
+     * @nullable
+     */
+  readonly listedAt?: Date | null;
 }

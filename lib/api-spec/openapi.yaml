@@ -2521,6 +2521,11 @@ components:
           type: string
           readOnly: true
           enum: [available, reserved, sold, hidden, archived]
+        listedAt:
+          type: [string, "null"]
+          format: date-time
+          readOnly: true
+          description: When this vehicle was first added to the website inventory. Later stock checks do not reset this date.
       required:
         - id
         - advertId

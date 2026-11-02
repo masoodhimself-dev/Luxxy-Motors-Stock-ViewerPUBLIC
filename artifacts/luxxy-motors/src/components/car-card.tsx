@@ -5,7 +5,8 @@ import { vehicleSellingPoints } from '@/lib/vehicle-selling-points';
 import { vehicleInsuranceDisclosure } from '@/lib/vehicle-history';
 import { prioritiseVehicleFeatures, prominentVehicleFeatures, vehicleContent } from '@/lib/vehicle-content';
 import { PriceReduction } from '@/components/price-reduction';
-import { shortTrim, stockHighlights, stockRegistrationYear, stockVariant, isJustArrived } from '@/lib/stock-presentation';
+import { StockPhotoBadge } from '@/components/stock-photo-badge';
+import { shortTrim, stockHighlights, stockRegistrationYear, stockVariant } from '@/lib/stock-presentation';
 import { customerRegistrationDetails } from '@/lib/customer-vehicle-meta';
 import { responsiveVehicleImage, retryOriginalImage } from "@/lib/responsive-vehicle-image";
 import { vehicleAvailability } from '@/lib/customer-convenience';
@@ -243,7 +244,7 @@ export function CarCard({
             {galleryUrls.length > 1 ? `${activeIndex + 1} / ${galleryUrls.length}` : photoCount}
           </span>
         )}
-        {stockDetails && isJustArrived(car) && <span className="stock-just-arrived">Just arrived</span>}
+        {stockDetails && <StockPhotoBadge car={car} />}
         {!catalogue && displayBadges.length > 0 && (photoControls || displayBadges[0] !== 'Available') && (
           <span className="absolute left-3 top-3 max-w-[70%] rounded-sm bg-primary px-2 py-1 text-xs text-primary-foreground">
             {displayBadges[0]}
@@ -283,7 +284,7 @@ export function CarCard({
               : 'Price on application'}
           </p>
           {summaryOnly && <p className="featured-car-facts">{[car.year, car.mileage != null ? formatCompactMileage(car.mileage) : car.mileageText, car.transmission, car.fuel].filter(Boolean).join(' · ')}</p>}
-          {!summaryOnly && <PriceReduction car={car} />}
+          {!summaryOnly && !stockDetails && <PriceReduction car={car} />}
           {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <span className="text-xs text-muted-foreground">{car.priceType}</span>}
 
         </div>

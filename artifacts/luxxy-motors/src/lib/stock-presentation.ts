@@ -1,4 +1,5 @@
 import type { Car } from './stock-context';
+export const STOCK_ARRIVAL_LIFETIME = 14 * 86400000;
 export function arrivalTime(car: Car): number | null {
   const value = car.listedAt ?? car.firstListedAt ?? car.dateAdded;
   if (typeof value !== 'string') return null;
@@ -35,5 +36,5 @@ export function isJustArrived(car: Car, now = new Date()): boolean {
   const listed = arrivalTime(car);
   if (listed === null) return false;
   const age = now.getTime() - listed;
-  return age >= 0 && age < 7 * 86400000;
+  return age >= 0 && age < STOCK_ARRIVAL_LIFETIME;
 }

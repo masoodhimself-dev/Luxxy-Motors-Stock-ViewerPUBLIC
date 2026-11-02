@@ -20,6 +20,7 @@ export interface Car {
   price: number | null;
   priceType: string | null;
   currency: string | null;
+  listedAt?: string | null;
   mileage: number | null;
   mileageText: string | null;
   registration: string | null;

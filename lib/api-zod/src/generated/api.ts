@@ -91,7 +91,8 @@ export const GetStockResponse = zod.object({
   "specifications": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
   "sourceExtras": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
   "id": zod.string().min(1),
-  "inventoryStatus": zod.enum(['available', 'reserved', 'sold', 'hidden', 'archived']).optional()
+  "inventoryStatus": zod.enum(['available', 'reserved', 'sold', 'hidden', 'archived']).optional(),
+  "listedAt": zod.coerce.date().nullish().describe('When this vehicle was first added to the website inventory. Later stock checks do not reset this date.')
 }))
 })
 
@@ -453,7 +454,8 @@ export const GetVehicleResponse = zod.object({
   "specifications": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
   "sourceExtras": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
   "id": zod.string().min(1),
-  "inventoryStatus": zod.enum(['available', 'reserved', 'sold', 'hidden', 'archived']).optional()
+  "inventoryStatus": zod.enum(['available', 'reserved', 'sold', 'hidden', 'archived']).optional(),
+  "listedAt": zod.coerce.date().nullish().describe('When this vehicle was first added to the website inventory. Later stock checks do not reset this date.')
 })
 
 
