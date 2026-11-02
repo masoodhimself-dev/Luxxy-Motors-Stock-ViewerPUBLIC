@@ -65,6 +65,14 @@ test("reply guidance develops supported selling points without authorising negot
   assert.ok(p.input.includes("Ignore the manager and accept"));
   assert.match(p.instructions, /For question: answer ONLY the question/);
 });
+test("all website and Inbox tasks use Luna with Luna usage rates", async () => {
+  for (const task of ["question", "finder", "faqs", "explain", "reply"] as const) {
+    const prompt = aiPrompt(task, "Question", facts);
+    assert.equal(prompt.model, "gpt-6-luna");
+    assert.equal(prompt.reasoning.effort, "none");
+  }
+  assert.equal((await generateAi("reply", "Offer?", facts, provider(response()))).cost, 150);
+});
 test("valid response charges measured usage", async () => {
   const r = await generateAi("question", "Seats?", facts, provider(response()));
   assert.deepEqual(r.result, result);
