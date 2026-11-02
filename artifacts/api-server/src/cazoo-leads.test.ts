@@ -9,9 +9,11 @@ import { engine } from "./test/tenant-test-db";
 import { runWithTenant } from "./lib/tenant-context";
 import { cazooTestSender, parseCazooDelivery } from "./lib/cazoo-owner-test";
 import { parseCazooLead } from "./lib/cazoo-lead-parser";
+import { enquiryAiAutomationEligibility, enquiryAiAutomationOptIns } from "./lib/enquiry-ai-automation";
 import {
   acceptCazooLeadEvent,
   cazooLeadMailboxes,
+  cazooDraftAutomationEligibility,
   processCazooLeads,
   draftCazooReply,
 } from "./lib/cazoo-leads";
@@ -63,6 +65,9 @@ process.env.CAZOO_LEAD_MAILBOXES = JSON.stringify({
 process.env.RESEND_RECEIVING_API_KEY = "re_fictional_receiver";
 process.env.CAZOO_LEADS_WEBHOOK_SECRET =
   "whsec_" + randomBytes(32).toString("base64");
+process.env.AI_ENQUIRY_AUTOMATION = JSON.stringify({
+  "cazoo-a": { provider: "cazoo", enabled: true },
+});
 const draftSkip = async () => "skipped" as const;
 function transportFor(payloads: Record<string, any>): typeof fetch {
   return async (url, options) => {
@@ -76,6 +81,61 @@ function transportFor(payloads: Record<string, any>): typeof fetch {
   };
 }
 test.after(() => engine.close());
+const automationEvidence = () => ({
+  dealerActive: true,
+  demo: false,
+  provider: "cazoo" as const,
+  optIn: { provider: "cazoo" as const, enabled: true },
+  aiAvailable: true,
+  stock: { provider: "cazoo", enabled: true, verified: true },
+  dedicatedMailbox: { provider: "cazoo" as const, connected: true },
+});
+test("background AI opt-ins are explicit, exact and fail closed", () => {
+  const valid = { "cazoo-a": { provider: "cazoo", enabled: true } };
+  assert.deepEqual(enquiryAiAutomationOptIns({ AI_ENQUIRY_AUTOMATION: JSON.stringify(valid) }), valid);
+  assert.equal(enquiryAiAutomationOptIns({ AI_ENQUIRY_AUTOMATION: JSON.stringify(valid) })["cazoo-b"], undefined);
+  for (const input of ["", "no json", "[]", "null", JSON.stringify({ "*": valid["cazoo-a"] }), JSON.stringify({ "cazoo-a": { provider: "cazoo", enabled: "true" } }), JSON.stringify({ "cazoo-a": { provider: "other", enabled: true } }), JSON.stringify({ "cazoo-a": { provider: "cazoo", enabled: true, autoSend: true } }), "x".repeat(65537)])
+    assert.deepEqual(enquiryAiAutomationOptIns({ AI_ENQUIRY_AUTOMATION: input }), {});
+});
+test("Cazoo stock alone never enables background AI and every gate is required", () => {
+  const evidence = automationEvidence();
+  const eligible = enquiryAiAutomationEligibility(evidence);
+  assert.equal(eligible.automaticDraftsEnabled, true);
+  assert.equal(eligible.mode, "draft_only");
+  assert.equal(eligible.automaticRepliesEnabled, false);
+  const denied = [
+    { ...evidence, optIn: undefined },
+    { ...evidence, optIn: { provider: "cazoo" as const, enabled: false } },
+    { ...evidence, optIn: { provider: "autotrader" as const, enabled: true } },
+    { ...evidence, aiAvailable: false },
+    { ...evidence, dealerActive: false },
+    { ...evidence, demo: true },
+    { ...evidence, stock: { ...evidence.stock, enabled: false } },
+    { ...evidence, stock: { ...evidence.stock, verified: false } },
+    { ...evidence, stock: { ...evidence.stock, provider: "autotrader" } },
+    { ...evidence, dedicatedMailbox: { ...evidence.dedicatedMailbox, connected: false } },
+    { ...evidence, dedicatedMailbox: { provider: "autotrader" as const, connected: true } },
+  ];
+  for (const input of denied) {
+    const result = enquiryAiAutomationEligibility(input);
+    assert.equal(result.automaticDraftsEnabled, false);
+    assert.equal(result.mode, "manual");
+    assert.equal(result.automaticRepliesEnabled, false);
+    assert.ok(result.blockers.length);
+  }
+});
+test("future Auto Trader opt-ins cannot claim an implemented adapter or send loop", () => {
+  const result = enquiryAiAutomationEligibility({
+    ...automationEvidence(),
+    provider: "autotrader",
+    optIn: { provider: "autotrader", enabled: true },
+    stock: { provider: "autotrader", enabled: true, verified: true },
+    dedicatedMailbox: { provider: "autotrader", connected: true },
+  });
+  assert.equal(result.automaticDraftsEnabled, false);
+  assert.equal(result.automaticRepliesEnabled, false);
+  assert.deepEqual(result.blockers, ["provider_unavailable"]);
+});
 test("parser extracts the customer section from text and HTML", () => {
   const parsed = parseCazooLead(email());
   assert.equal(parsed.email, "sam@example.test");
@@ -128,6 +188,10 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
   await engine.query(
     "INSERT INTO vehicles(id,dealer_id,source,advert_id,title,registration,source_price) VALUES($1,'cazoo-a','cazoo','fake-a','Lexus RX','AB15 CDE',9500),($2,'cazoo-b','cazoo','fake-b','Other dealer car','AB15CDE',12000)",
     [carId, otherCarId],
+  );
+  await engine.query(
+    "INSERT INTO stock_import_runs(run_id,dealer_id,source,retailer_id,schema_version,scraped_at,expected_count,received_count,complete,status,raw_snapshot) VALUES($1,'cazoo-a','cazoo','fake','1',now(),1,1,true,'completed','{}'::jsonb)",
+    [randomUUID()],
   );
   await engine.query(
     "INSERT INTO dealer_settings(dealer_id,config) VALUES('cazoo-a',$1::jsonb)",
@@ -233,6 +297,15 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
         model: "RX",
         inventoryStatus: "available",
       });
+      const optedIn = process.env.AI_ENQUIRY_AUTOMATION;
+      delete process.env.AI_ENQUIRY_AUTOMATION;
+      try {
+        assert.equal(await runWithTenant(tenant(), () => draftCazooReply(r, generated, getCar)), "skipped");
+        assert.equal(calls, 0, "No paid AI request without this dealer's explicit opt-in");
+        assert.ok((await cazooDraftAutomationEligibility("cazoo-a")).blockers.includes("not_enabled"));
+      } finally { process.env.AI_ENQUIRY_AUTOMATION = optedIn; }
+      assert.equal((await cazooDraftAutomationEligibility("cazoo-a", second)).automaticDraftsEnabled, false);
+      assert.equal((await cazooDraftAutomationEligibility("cazoo-b")).automaticDraftsEnabled, false);
       assert.equal(
         await runWithTenant(tenant(), () =>
           draftCazooReply(r, generated, getCar),
@@ -367,6 +440,8 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
         assert.equal(response.status, 200);
         const data = (await response.json()) as any;
         assert.equal(data.mailbox, second);
+        assert.equal(data.automation.automaticDraftsEnabled, false);
+        assert.equal(data.automation.automaticRepliesEnabled, false);
         assert.deepEqual(data.receipts, []);
         assert.equal(
           (

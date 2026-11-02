@@ -1,0 +1,13 @@
+.ai-reply-draft--compact { display: contents; }
+.ai-reply-action { gap: 7px; }
+.ai-reply-info { width: 28px; min-width: 28px; font: 600 12px/1 Georgia, serif; color: var(--portal-muted, #64717f); }
+.ai-reply-draft--compact :is(.ai-reply-explanation,.ai-reply-notice,.ai-reply-suggestion) { flex-basis: 100%; order: 2; margin: 0; }
+.ai-reply-explanation { color: var(--portal-muted, #64717f); font-size: 12px; line-height: 1.6; padding: 8px 10px; background: #f6f8fa; border-radius: 6px; }
+.ai-reply-error { color: #943c32; background: #fff2ef; }
+.ai-reply-notice { color: #426653; font-size: 12px; line-height: 1.5; }
+.ai-reply-suggestion { min-width: 0; padding: 12px; border: 1px solid #d6e2ec; border-radius: 8px; background: #f6f9fc; }
+.ai-reply-suggestion header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.ai-reply-suggestion header strong { font-size: 12px; }
+.ai-reply-suggestion header button { height: 30px; width: 30px; }
+.ai-reply-suggestion p { overflow-wrap: anywhere; }
+.ai-reply-replace-note { margin-block: 10px; font-size: 12px; line-height: 1.5; color: var(--portal-muted, #64717f); }

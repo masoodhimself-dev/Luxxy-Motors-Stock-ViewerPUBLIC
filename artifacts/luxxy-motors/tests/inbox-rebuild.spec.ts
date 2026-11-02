@@ -124,7 +124,7 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
   const filterBounds = await desk.locator('[aria-label="Filter conversations"]').boundingBox();
   for (const button of await desk.locator('[data-filter]').all()) {
     const bounds = await button.boundingBox();
-    expect(bounds!.x + bounds!.width <= filterBounds!.x + filterBounds!.width + 1, 'All four filters fit without horizontal scrolling').toBe(true);
+    expect(bounds!.x + bounds!.width <= filterBounds!.x + filterBounds!.width + 1, 'All primary filters fit without horizontal scrolling').toBe(true);
   }
   await fits(page);
   await mkdir(output, { recursive: true });
@@ -151,17 +151,26 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
   await expect(message).toHaveValue(/thank you for your offer/);
   await expect(message).not.toHaveValue(/Unsaved message that must not disappear/);
   await message.fill('Hi Ellie, thank you for your offer. I can help with the Audi.');
-  await customer.getByRole('button', { name: 'Car & MOT', exact: true }).click();
-  const tools = customer.getByRole('complementary', { name: 'Vehicle and checks', exact: true });
+  await customer.getByRole('button', { name: 'Details', exact: true }).click();
+  const tools = page.getByRole('dialog', { name: 'Enquiry details', exact: true });
   await expect(tools).toBeVisible();
   await expect(tools.getByRole('button', { name: /MOT history/ })).toBeVisible();
   await fits(page);
   await page.screenshot({ path: path.join(output, `${info.project.name}-car-tools.png`), fullPage: true });
   await tools.getByRole('button', { name: 'Close details', exact: true }).click();
   await expect(message).toHaveValue('Hi Ellie, thank you for your offer. I can help with the Audi.');
+  if (mobile) {
+    expect((await message.boundingBox())!.height, 'Compact phone message field').toBeLessThanOrEqual(125);
+  }
+  if (!mobile) {
+    const sendBounds=await customer.getByRole('button',{name:'Review & send',exact:true}).boundingBox();
+    expect(sendBounds!.y+sendBounds!.height <= info.project.use.viewport!.height, 'Review action stays in the desktop viewport').toBe(true);
+  }
   await page.screenshot({ path: path.join(output, `${info.project.name}-reply.png`), fullPage: true });
+  await customer.getByRole('button', { name: 'Attach', exact: true }).click();
   await customer.getByRole('checkbox', { name: /Attach vehicle PDF/ }).check();
-  await customer.getByRole('button', { name: 'Review email', exact: true }).click();
+  await customer.getByRole('button', { name: 'Attach', exact: true }).click();
+  await customer.getByRole('button', { name: 'Review & send', exact: true }).click();
   await expect(customer.getByText('Audi-A5-MW62VLP.pdf', { exact: false })).toBeVisible();
   expect(previews).toHaveLength(1); expect(previews[0].attachVehiclePdf).toBe(true);
   expect(savedDrafts).toHaveLength(1); expect(savedDrafts[0].attachVehiclePdf).toBe(true);
@@ -178,7 +187,8 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
     await expect(desk.locator('[data-filter="all"]')).toHaveAttribute('aria-pressed', 'true');
   }
   await page.goto('/portal?section=notifications&workView=customers');
-  await desk.locator('[data-filter="test-drives"]').click();
+  await desk.locator('.inbox-tools-menu > summary').click();
+  await desk.getByRole('button', { name: 'Test drives', exact: true }).click();
   await expect(desk.getByRole('button', { name: 'Open enquiry for Alex Morgan, Audi A5', exact: true })).toBeVisible();
   await desk.getByRole('button', { name: 'Open enquiry for Alex Morgan, Audi A5', exact: true }).click();
   await expect(page.getByRole('article', { name: 'Customer workspace for Alex Morgan', exact: true }).getByText(/requested|request|approval/i).first()).toBeVisible();

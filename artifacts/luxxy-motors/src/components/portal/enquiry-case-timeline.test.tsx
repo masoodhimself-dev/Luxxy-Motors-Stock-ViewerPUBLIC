@@ -536,3 +536,24 @@ it("keeps website actions outside the compact conversation and available in the 
     ),
   ).toBeVisible();
 });
+
+
+it("keeps customer and sent messages in the compact thread while placing private notes and calls in Activity", async () => {
+  state.fetch.mockImplementation(async (url: string) => url.includes("/staff/email?")
+    ? { messages: [email("reply:1", { kind: "reply", status: "reply_needed", message: "Customer follow-up" }), email("sent", { message: "Staff email answer" })], hasMore: false }
+    : { events: [call], total: 1, nextCursor: null });
+  const entry = record("one", { staffNote: "Private negotiation limit" });
+  const view = show({ entry, compact: true, messagesOnly: true, canEmail: true });
+  expect(await screen.findByText("Customer follow-up")).toBeVisible();
+  expect(screen.getByText("Staff email answer")).toBeVisible();
+  expect(screen.getByText("Original question")).toBeVisible();
+  expect(screen.queryByText("Private negotiation limit")).not.toBeInTheDocument();
+  expect(screen.queryByText("Customer called about delivery")).not.toBeInTheDocument();
+  view.unmount();
+  show({ entry, compact: true, backgroundOnly: true, canEmail: true });
+  expect(await screen.findByText("Customer called about delivery")).toBeVisible();
+  expect(screen.getByText("Private negotiation limit")).toBeVisible();
+  expect(screen.queryByText("Customer follow-up")).not.toBeInTheDocument();
+  expect(screen.queryByText("Staff email answer")).not.toBeInTheDocument();
+  expect(screen.queryByText("Original question")).not.toBeInTheDocument();
+});

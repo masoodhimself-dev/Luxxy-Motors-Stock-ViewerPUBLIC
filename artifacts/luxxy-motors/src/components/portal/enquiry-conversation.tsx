@@ -406,6 +406,8 @@ export function CustomerActivityTimeline({
   onInsertText,
   compact = false,
   activityOnly = false,
+  messagesOnly = false,
+  backgroundOnly = false,
 }: {
   entry: Enquiry;
   entries?: readonly Enquiry[];
@@ -416,6 +418,8 @@ export function CustomerActivityTimeline({
   compact?: boolean;
   /** Website actions and booking changes are opened from Customer details. */
   activityOnly?: boolean;
+  messagesOnly?: boolean;
+  backgroundOnly?: boolean;
 }) {
   const [visibleCount, setVisibleCount] = useState(4);
   const records = enquiryGroup(entry, entries);
@@ -496,7 +500,12 @@ export function CustomerActivityTimeline({
   const conversationItems = items.filter(
     (item) => !["event", "appointment"].includes(item.kind),
   );
-  const relevantItems = activityOnly
+  const messageKinds = ["original", "customer-email", "email", "whatsapp"];
+  const relevantItems = backgroundOnly
+    ? items.filter(item=>!messageKinds.includes(item.kind))
+    : messagesOnly
+      ? items.filter(item=>messageKinds.includes(item.kind))
+      : activityOnly
     ? items.filter((item) => ["event", "appointment"].includes(item.kind))
     : compact
       ? conversationItems
@@ -563,7 +572,7 @@ export function CustomerActivityTimeline({
     <section
       className={`customer-case-timeline${compact ? " case-timeline-compact" : ""}`}
       aria-label={
-        activityOnly
+        backgroundOnly ? "Enquiry activity" : activityOnly
           ? "Website and booking activity"
           : compact
             ? "Customer conversation"

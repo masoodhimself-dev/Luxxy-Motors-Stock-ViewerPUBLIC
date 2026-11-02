@@ -89,7 +89,7 @@ describe('the rebuilt Inbox queue', () => {
     expect(within(screen.getByTestId('enquiry-Sam')).getByText('Booked')).toHaveAttribute('data-tone', 'success');
   });
 
-  it('switches the four filters and searches customers, number plates and incoming messages', () => {
+  it('switches attention filters and searches customers, number plates and incoming messages', () => {
     const active = record('Ellie', { source: 'cazoo', latestReplyText: 'Could I visit Friday?' });
     const done = record('Done customer', { status: 'closed' });
     const booked = record('Booked customer', { status: 'closed', type: 'viewing',
@@ -113,6 +113,8 @@ describe('the rebuilt Inbox queue', () => {
 
   it('hands new-enquiry, refresh and tools actions through without triggering a reply', () => {
     const api = show({ entries: [record('Ellie')], tools: <button>Calendar</button> });
+    expect(screen.getByRole('navigation', { name: 'Inbox tools' })).not.toBeVisible();
+    fireEvent.click(screen.getByText('Tools', { selector: 'summary' }));
     expect(screen.getByRole('navigation', { name: 'Inbox tools' })).toBeVisible();
     expect(api.caseActions.onEmail).not.toHaveBeenCalled();
     expect(screen.queryByText(/AI handling|auto.?sending|AI is replying/i)).not.toBeInTheDocument();

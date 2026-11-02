@@ -10,7 +10,7 @@ import {
 } from "../../api-server/src/lib/email-template-preview";
 
 for (const width of [320, 390, 820, 1440]) {
-  test(`all 22 email layouts fit ${width}px in light/dark mode with unchanged copy`, async ({
+  test(`all default email layouts fit ${width}px in light/dark mode with unchanged copy`, async ({
     page,
   }, info) => {
     await page.setViewportSize({ width, height: 1100 });

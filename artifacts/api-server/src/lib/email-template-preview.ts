@@ -49,6 +49,12 @@ export function previewEmailTemplate(
     { label: "Vehicle", value: variables.vehicle_title! },
     { label: "Registration", value: variables.vehicle_registration! },
   ];
+  if (id === "dealer_notification")
+    facts.push(
+      { label: "Customer", value: variables.customer_name! },
+      { label: "Email", value: variables.customer_email! },
+      { label: "Phone", value: "07700 900456" },
+    );
   const booking =
     template.category === "Bookings" || id === "appointment_details";
   if (booking) {

@@ -18,6 +18,11 @@ import { AiAssistanceStore } from "./ai-assistance-store";
 import { publicAiCar, publicAiDealer } from "./ai-public-facts";
 import { runBoundedDealerJob } from "./tenant-jobs";
 import { serviceLifecycle, startLifecycleWorker } from "./service-lifecycle";
+import { platformStockConnection } from "./platform-stock-connection";
+import {
+  enquiryAiAutomationEligibility,
+  enquiryAiAutomationOptIns,
+} from "./enquiry-ai-automation";
 
 type Executor = Pick<typeof db, "execute">;
 /** Owner-provisioned exact mailboxes. Never route by subject, stock or body recipients. */
@@ -46,6 +51,61 @@ export function cazooLeadsEnabled() {
     process.env.CAZOO_LEADS_ENABLED === "true" &&
     Boolean(process.env.RESEND_RECEIVING_API_KEY)
   );
+}
+
+/** No registry label alone can enable background AI work for a dealership. */
+export async function cazooDraftAutomationEligibility(
+  dealer: string,
+  receiptMailbox?: string,
+) {
+  const configuredMailbox = cazooLeadMailboxes()[dealer];
+  const base = {
+    provider: "cazoo" as const,
+    optIn: enquiryAiAutomationOptIns()[dealer],
+    aiAvailable: aiConfigured(),
+    dedicatedMailbox: {
+      provider: "cazoo" as const,
+      connected: Boolean(
+        cazooLeadsEnabled() &&
+        (process.env.CAZOO_LEADS_WEBHOOK_SECRET || process.env.RESEND_RECEIVING_WEBHOOK_SECRET) &&
+        configuredMailbox &&
+        (receiptMailbox === undefined || receiptMailbox === configuredMailbox),
+      ),
+    },
+  };
+  try {
+    const registered = (await pool.query(
+      `SELECT d.*,
+       EXISTS(SELECT 1 FROM dealer_demos m WHERE m.dealer_id=d.id AND m.converted_at IS NULL) AS demo,
+       EXISTS(SELECT 1 FROM stock_import_runs r WHERE r.dealer_id=d.id AND r.source=d.stock_platform AND r.retailer_id=d.retailer_id AND r.status='completed' AND r.complete=true) AS stock_verified
+       FROM dealerships d WHERE d.id=$1`,
+      [dealer],
+    )).rows[0];
+    const connection = registered ? await platformStockConnection({
+      id: dealer,
+      stockPlatform: registered.stock_platform,
+      retailerId: registered.retailer_id,
+      sourceUrl: registered.source_url,
+    }) : null;
+    return enquiryAiAutomationEligibility({
+      ...base,
+      dealerActive: registered?.status === "active",
+      demo: registered?.demo !== false,
+      stock: {
+        provider: connection?.platform ?? null,
+        enabled: connection?.enabled ?? false,
+        verified: registered?.stock_verified === true,
+      },
+    });
+  } catch {
+    // Missing/decryption/database evidence is not proof of an enabled connection.
+    return enquiryAiAutomationEligibility({
+      ...base,
+      dealerActive: false,
+      demo: false,
+      stock: { provider: null, enabled: false, verified: false },
+    });
+  }
 }
 export async function acceptCazooLeadEvent(
   event: unknown,
@@ -184,7 +244,8 @@ export async function draftCazooReply(
     !enquiry.email
   )
     return "skipped";
-  if (!aiConfigured()) return "skipped";
+  if (!(await cazooDraftAutomationEligibility(dealer, row.mailbox)).automaticDraftsEnabled)
+    return "skipped";
   if (
     (
       await db.execute(

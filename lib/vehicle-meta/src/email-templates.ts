@@ -55,7 +55,7 @@ const signoff = "\n\nThanks,\n{{dealer_name}}";
 export const defaultEmailTemplates: readonly EmailTemplate[] = [
   {
     id: "invoice_copy",
-    label: "Send a saved invoice",
+    label: "Saved invoice",
     category: "Enquiries",
     subject: "Your invoice — {{vehicle_title}}",
     body:
@@ -100,24 +100,24 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     subject: "Your appointment details — {{vehicle_title}}",
     body:
       greeting +
-      "Please check the date, time and booking status below. Reply if anything needs changing." +
+      "Your appointment details are below. Please check the booking status before travelling. Reply if anything needs changing." +
       signoff,
   },
   {
     id: "enquiry_message",
-    label: "Customer message from enquiries",
+    label: "Enquiry reply",
     category: "Enquiries",
     subject: "{{vehicle_title}} — {{dealer_name}}",
     body: greeting + "{{message}}" + signoff,
   },
   {
     id: "enquiry_acknowledgement",
-    label: "Enquiry acknowledgement",
+    label: "Enquiry received",
     category: "Enquiries",
     subject: "Your enquiry: {{dealer_name}}",
     body:
       greeting +
-      "Thanks for your enquiry. We’ll get back to you during opening hours." +
+      "Thanks for your message. We’ll reply during opening hours." +
       signoff,
   },
   {
@@ -125,7 +125,8 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     label: "New enquiry for the team",
     category: "Enquiries",
     subject: "New enquiry — {{customer_name}} · {{vehicle_title}}",
-    body: "A customer has contacted {{dealer_name}} about {{vehicle_title}}.\n\nCustomer: {{customer_name}}\nEmail: {{customer_email}}\nPreferred contact: {{preferred_contact}}\nMessage: {{message}}",
+    // Customer and vehicle details are supplied once in the fact rows.
+    body: "Preferred contact: {{preferred_contact}}\n\n{{message}}",
   },
   {
     id: "callback",
@@ -134,7 +135,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     subject: "Your callback request: {{dealer_name}}",
     body:
       greeting +
-      "We’ve received your request. We’ll call you during opening hours." +
+      "Thanks for requesting a callback. We’ll call you during opening hours." +
       signoff,
   },
   {
@@ -144,7 +145,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     subject: "Test drive requested — {{vehicle_title}}",
     body:
       greeting +
-      "Your test drive is not confirmed yet. We’ll contact you to confirm your requested time before you travel." +
+      "Your test drive is not confirmed yet. Please wait for our confirmation before travelling." +
       signoff,
   },
   {
@@ -154,7 +155,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     subject: "Your {{dealer_name}} test drive — {{vehicle_title}}",
     body:
       greeting +
-      "Your test drive is confirmed. Your visit details are below.\n\n{{visit_instructions}}\n{{parking_instructions}}" +
+      "Your test drive is confirmed. Check your visit details below.\n\n{{visit_instructions}}\n{{parking_instructions}}" +
       signoff,
   },
   {
@@ -164,7 +165,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     subject: "Your test drive has changed — {{vehicle_title}}",
     body:
       greeting +
-      "Your test-drive details have changed. Check the date, time and booking status below before travelling.\n\n{{visit_instructions}}\n{{parking_instructions}}" +
+      "Your test drive has changed. Please check the new date, time and booking status below before travelling.\n\n{{visit_instructions}}\n{{parking_instructions}}" +
       signoff,
   },
   {
@@ -174,7 +175,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     subject: "Test drive cancelled — {{vehicle_title}}",
     body:
       greeting +
-      "Your test drive has been cancelled. Reply if you’d like to arrange another time." +
+      "Your test drive has been cancelled. Reply to arrange another time." +
       signoff,
   },
   {
@@ -184,7 +185,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     subject: "Reminder: your {{dealer_name}} test drive",
     body:
       greeting +
-      "Your test drive is coming up. Your visit details are below.\n\n{{visit_instructions}}\n{{parking_instructions}}" +
+      "Your test drive is coming up. Check your visit details below.\n\n{{visit_instructions}}\n{{parking_instructions}}" +
       signoff,
   },
   {
@@ -409,7 +410,7 @@ const emailPresentation: Record<string, { title: string; kicker: string }> = {
     kicker: "Your showroom visit",
   },
   booking_change: {
-    title: "Your test drive has been updated",
+    title: "Your test drive has changed",
     kicker: "Your showroom visit",
   },
   booking_cancellation: {

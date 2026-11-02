@@ -316,3 +316,25 @@
 .inbox-desk .enquiry-email-inclusions label { font-size:12px; }
 .enquiry-email-inline .enquiry-email-form .enquiry-vehicle-pdf-choice { display:flex; align-items:center; gap:10px; }
 .enquiry-email-save-state[data-dirty=true] { color:var(--portal-muted); background:#f5f6f9; padding:5px 9px; font-size:11px; }
+
+.enquiry-email-content-options { display: grid; gap: 17px; min-width: 0; }
+.enquiry-email-content-tray:not([hidden]) { display: grid; gap: 14px; min-width: 0; padding: 14px; border: 1px solid var(--portal-border, #dbe2e8); border-radius: 8px; background: #f8fafb; }
+.enquiry-email-content-tray[hidden] { display: none; }
+.enquiry-email-content-tray h5 { margin: 0; font-size: 13px; font-weight: 600; }
+.enquiry-email-form--compact fieldset { gap: 10px; }
+.enquiry-email-form--compact > fieldset > label > textarea { min-height: 130px; border-radius: 8px; }
+.enquiry-compact-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; }
+.enquiry-compact-tools > button { min-height: 36px; padding-inline: 8px; font-size: 12px; font-weight: 500; gap: 6px; }
+.enquiry-compact-tools > .ai-reply-info { min-height: 28px; padding-inline: 0; }
+.enquiry-email-added { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; padding: 0 2px; color: var(--portal-muted, #64717f); font-size: 11px; line-height: 1.5; text-align: left; overflow-wrap: anywhere; }
+.enquiry-email-added span { color: var(--portal-heading, #192d39); text-decoration: underline; text-underline-offset: 3px; flex-shrink: 0; }
+.enquiry-email-form--compact .enquiry-message-details > summary { min-height: 32px; padding-block: 2px 6px; font-size: 12px; }
+.enquiry-email-form--compact .enquiry-message-details > summary > span { font-size: 11px; }
+.enquiry-email-form--compact .enquiry-email-actions { margin-top: 0; padding-top: 2px; justify-content: flex-end; }
+.enquiry-email-form--compact .enquiry-email-actions > button { gap: 7px; font-size: 12px; }
+.enquiry-email-form--compact .enquiry-email-service-book { background: #fff; padding: 12px; border-radius: 7px; }
+.enquiry-email-form--compact .enquiry-email-service-book > summary { padding-block: 6px; min-height: 36px; font-size: 12px; }
+@media (max-width: 600px) {
+  .enquiry-email-form--compact .enquiry-email-actions { flex-wrap: nowrap; }
+  .enquiry-email-form--compact .enquiry-email-actions > button { flex: 1 1 auto; }
+}

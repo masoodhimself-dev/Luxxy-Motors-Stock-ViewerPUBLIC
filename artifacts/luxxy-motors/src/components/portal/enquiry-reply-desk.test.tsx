@@ -432,3 +432,20 @@ it("uses the private-note fallback for an explicit email focus request without a
   expect(note()).toBeVisible();
   expect(state.send).not.toHaveBeenCalled();
 });
+
+
+it("preserves compact email and private-note drafts when the channel selector changes", () => {
+  render(<EnquiryReplyDesk {...props()} compact />);
+  const select = screen.getByRole("combobox", { name: "Reply channel" });
+  fireEvent.change(message(), { target: { value: "Current email draft" } });
+  fireEvent.change(select, { target: { value: "note" } });
+  fireEvent.change(note(), { target: { value: "Internal call note" } });
+  fireEvent.change(select, { target: { value: "whatsapp" } });
+  expect(message()).toHaveValue("Current email draft");
+  expect(note()).toHaveValue("Internal call note");
+  fireEvent.change(select, { target: { value: "email" } });
+  expect(message()).toHaveValue("Current email draft");
+  expect(state.emailMounts).toHaveBeenCalledTimes(1);
+  expect(state.noteMounts).toHaveBeenCalledTimes(1);
+  expect(state.send).not.toHaveBeenCalled();
+});

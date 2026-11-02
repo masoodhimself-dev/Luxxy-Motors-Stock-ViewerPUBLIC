@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from "react";
+import { useId, useRef, useState, type ReactNode } from "react";
 import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -17,6 +17,7 @@ import {
   X,
   History,
 } from "@/components/icons";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -48,6 +49,11 @@ import { HistoryLinks } from "./history-links";
 import type { EnquiryRecordActions } from "./enquiry-record-browser";
 import type { ReplyInsertion } from "./enquiry-email-composer";
 import "./enquiry-customer-case.css";
+
+function CaseDetailsSurface({compact,children,onClose}:{compact:boolean;children:ReactNode;onClose:()=>void}) {
+  if (!compact) return <>{children}</>;
+  return <Dialog open onOpenChange={open=>{if(!open)onClose();}}><DialogContent className="enquiries-premium-workspace inbox-detail-dialog" aria-describedby={undefined}><DialogTitle className="sr-only">Enquiry details</DialogTitle>{children}</DialogContent></Dialog>;
+}
 
 function ClaimEnquiry({ entry }: { entry: Enquiry }) {
   const directory = useGetStaffDirectory();
@@ -96,12 +102,14 @@ export function EnquiryCustomerCase({
   car,
   cars = [],
   actions,
+  compact = false,
 }: {
   entry: Enquiry;
   entries?: readonly Enquiry[];
   car?: Car;
   cars?: readonly Car[];
   actions: EnquiryRecordActions;
+  compact?: boolean;
 }) {
   const access = useStaffAccess();
   const canManage =
@@ -118,7 +126,7 @@ export function EnquiryCustomerCase({
   >("email");
   const [insertion, setInsertion] = useState<ReplyInsertion>();
   const [replyBusy, setReplyBusy] = useState(false);
-  const [context, setContext] = useState<"vehicle" | "customer" | null>(null);
+  const [context, setContext] = useState<"vehicle" | "customer" | "activity" | null>(null);
   const [activityOpen, setActivityOpen] = useState(false);
   const contextId = useId();
   const insertionId = useRef(0);
@@ -190,11 +198,16 @@ export function EnquiryCustomerCase({
     presentation.action === "update";
   return (
     <article
-      className="enquiry-customer-case"
+      className={`enquiry-customer-case${compact ? " enquiry-case-compact" : ""}`}
       data-context-open={context ? "true" : "false"}
       aria-label={`Customer workspace for ${entry.customerName}`}
     >
       <header className="enquiry-case-header">
+        {compact ? <>
+          <div className="enquiry-case-heading"><div className="enquiry-case-identity"><h3>{entry.customerName}</h3></div><span className="enquiry-state-label" data-tone={state.tone} title={state.detail}>{state.label}</span></div>
+          <div className="enquiry-case-vehicle-strip"><strong>{entry.vehicleTitle || "General enquiry"}</strong>{entry.vehicleRegistration && <span>{entry.vehicleRegistration}</span>}{(car?.price ?? entry.vehiclePrice)!=null && <span>{formatPrice((car?.price ?? entry.vehiclePrice)!)}</span>}</div>
+        </> : <>
+
         <div className="enquiry-case-heading">
           <span className="enquiry-case-avatar" aria-hidden>
             {entry.customerName.trim().slice(0, 1).toUpperCase() || "?"}
@@ -258,7 +271,10 @@ export function EnquiryCustomerCase({
             <span>{formatPrice((car?.price ?? entry.vehiclePrice)!)}</span>
           )}
         </div>
+        </>}
         <div className="enquiry-case-toolbar" aria-label="Enquiry tools">
+          {compact ? <Button type="button" size="sm" variant="ghost" aria-expanded={context!==null} onClick={()=>toggleContext(context ?? "vehicle")}><UserRound size={16} aria-hidden/>Details</Button> : <>
+
           <Button
             type="button"
             size="sm"
@@ -285,6 +301,7 @@ export function EnquiryCustomerCase({
             <UserRound size={16} aria-hidden />
             Customer details
           </Button>
+          </>}
           {canManage && (
             <EnquiryResolutionAction
               entry={entry}
@@ -355,17 +372,17 @@ export function EnquiryCustomerCase({
         data-context-open={context ? "true" : "false"}
       >
         {context && (
-          <aside
+          <CaseDetailsSurface compact={compact} onClose={()=>setContext(null)}><aside
             className="enquiry-case-context"
             aria-label={
-              context === "vehicle"
+              compact ? "Enquiry details" : context === "vehicle"
                 ? "Vehicle and checks"
                 : "Customer details and history"
             }
           >
             <div className="enquiry-case-panel-heading">
               <h4>
-                {context === "vehicle" ? "Car & MOT" : "Customer details"}
+                {compact ? "Details" : context === "vehicle" ? "Car & MOT" : "Customer details"}
               </h4>
               <Button
                 type="button"
@@ -377,7 +394,8 @@ export function EnquiryCustomerCase({
                 <X size={17} aria-hidden />
               </Button>
             </div>
-            {context === "vehicle" ? (
+            {compact && <nav className="enquiry-case-detail-tabs" aria-label="Enquiry details sections">{([{id:"vehicle",label:"Car & MOT"},{id:"customer",label:"Customer"},{id:"activity",label:"Activity"}] as const).map(item=><Button key={item.id} size="sm" variant={context===item.id?"default":"ghost"} aria-pressed={context===item.id} onClick={()=>{setContext(item.id);setActivityOpen(false);}}>{item.label}</Button>)}</nav>}
+            {compact && context === "activity" ? <div className="enquiry-case-panel-body"><CustomerActivityTimeline compact backgroundOnly entry={entry} entries={entries} canEmail={canReply} cars={cars}/></div> : context === "vehicle" ? (
               <div
                 id={`${contextId}-vehicle`}
                 className="enquiry-case-panel-body"
@@ -456,6 +474,7 @@ export function EnquiryCustomerCase({
                 id={`${contextId}-customer`}
                 className="enquiry-case-panel-body"
               >
+                {compact && <div className="enquiry-case-contact" aria-label="Customer contact details">{entry.phone && <a href={`tel:${entry.phone.replace(/[^+\d]/g, "")}`}><Phone size={15} aria-hidden/>{entry.phone}</a>}{entry.email && (canReply ? <button type="button" onClick={()=>{setContext(null);reply("email");}}><Mail size={15} aria-hidden/>{entry.email}</button> : <span><Mail size={15} aria-hidden/>{entry.email}</span>)}<span>{presentation.source} · {presentation.purpose}</span>{!entry.phone&&!entry.email&&<span>No contact details recorded</span>}</div>}
                 <dl className="enquiry-case-customer-facts">
                   <div>
                     <dt>Assigned to</dt>
@@ -538,7 +557,7 @@ export function EnquiryCustomerCase({
                 )}
               </div>
             )}
-          </aside>
+          </aside></CaseDetailsSurface>
         )}
         <div className="enquiry-case-main">
           {bookingRequested ? (
@@ -653,6 +672,7 @@ export function EnquiryCustomerCase({
           )}
           <CustomerActivityTimeline
             compact
+            messagesOnly={compact}
             entry={entry}
             entries={entries}
             canEmail={canReply}
@@ -661,6 +681,7 @@ export function EnquiryCustomerCase({
           />
           {canReply && (
             <EnquiryReplyDesk
+              compact={compact}
               key={entry.id}
               entry={entry}
               insertion={insertion}

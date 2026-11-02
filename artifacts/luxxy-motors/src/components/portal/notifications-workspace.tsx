@@ -18,6 +18,7 @@ export function NotificationsWorkspace({canEmail,onQuickEnquiry,onNewSale}: {
   const tools=<>
     <button type="button" onClick={()=>navigate('/portal?section=notifications&workView=test-drives&deskView=calendar')}><CalendarDays size={16} aria-hidden/>Calendar</button>
     {canEmail&&<button type="button" onClick={()=>choose('email')}><Mail size={16} aria-hidden/>Email records</button>}
+    <DeviceNotifications canEmail={canEmail}/>
   </>;
   return <section className="customer-notifications-workspace inbox-rebuilt" data-calendar={calendar} aria-label="Customer notifications workspace">
     {view==='customers' ? <EnquiriesPanel embedded initialView="history" canEmail={canEmail} inboxTools={tools} onQuickEnquiry={onQuickEnquiry}/>
@@ -35,6 +36,5 @@ export function NotificationsWorkspace({canEmail,onQuickEnquiry,onNewSale}: {
         {view==='email'&&(canEmail?<EmailWorkspace embedded/>:<div role="status"><p>Email access isn’t included in your staff role.</p><Button variant="outline" onClick={()=>choose('customers')}>Back to Inbox</Button></div>)}
       </div>
     </>}
-    <DeviceNotifications canEmail={canEmail}/>
   </section>;
 }

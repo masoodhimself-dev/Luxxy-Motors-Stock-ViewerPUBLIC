@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Enquiry } from "@workspace/api-client-react";
 import type { Car } from "@/lib/stock-context";
@@ -8,6 +8,7 @@ import type { EnquiryChecksProps } from "./enquiry-checks";
 
 const state = vi.hoisted(() => ({
   manage: true,
+  dirty: false,
   accessError: false,
   timeline: vi.fn(),
   checks: vi.fn(),
@@ -60,7 +61,7 @@ vi.mock("./enquiry-reply-desk", () => ({
   }) => {
     state.reply(props);
     return (
-      <section aria-label="Mock inline reply">
+      <section aria-label="Mock inline reply" data-message-dirty={state.dirty ? "true" : undefined}>
         <p>Inline reply for {props.entry.id}</p>
         <p data-testid="requested-channel">{props.requestedChannel}</p>
         <p data-testid="focus-request">{props.focusRequest}</p>
@@ -159,6 +160,7 @@ function show(
     car?: Car;
     canBook?: boolean;
     onEmail?: boolean;
+    compact?: boolean;
   } = {},
 ) {
   const actions: EnquiryRecordActions = {
@@ -179,6 +181,7 @@ function show(
   render(
     <QueryClientProvider client={client}>
       <EnquiryCustomerCase
+        compact={options.compact}
         entry={options.current ?? entry}
         entries={options.entries ?? [options.current ?? entry]}
         car={options.car ?? car}
@@ -213,6 +216,7 @@ beforeEach(() => {
     })),
   );
   state.manage = true;
+  state.dirty = false;
   state.accessError = false;
 });
 
@@ -230,6 +234,7 @@ it("passes the exact selected case group and linked vehicle to connected timelin
     entries: records,
     canEmail: true,
     compact: true,
+    messagesOnly: false,
     cars: [],
     onInsertText: expect.any(Function),
   });
@@ -516,4 +521,54 @@ it("keeps the activity journal on demand inside Customer details, away from the 
         props.activityOnly && props.compact && props.entry.id === entry.id,
     ),
   ).toBe(true);
+});
+
+
+it("keeps compact car and customer details folded and passes message-only mode without remounting the reply", () => {
+  show({ compact: true });
+  expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+  expect(screen.queryByText(entry.email!)).not.toBeInTheDocument();
+  expect(state.timeline.mock.calls.at(-1)?.[0]).toMatchObject({ compact: true, messagesOnly: true });
+  expect(state.reply.mock.calls.at(-1)?.[0]).toMatchObject({ entry, compact: true });
+  const editor = screen.getByRole("region", { name: "Mock inline reply" });
+  fireEvent.click(screen.getByRole("button", { name: "Details" }));
+  expect(screen.getByRole("button", { name: "Car & MOT" })).toHaveAttribute("aria-pressed", "true");
+  expect(state.checks.mock.calls.at(-1)?.[0]).toMatchObject({ entry, car, canManage: true });
+  fireEvent.click(screen.getByRole("button", { name: "Customer" }));
+  expect(screen.getByRole("button", { name: entry.email! })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Activity" }));
+  expect(state.timeline.mock.calls.some(([props]) => props.backgroundOnly === true)).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "Close details" }));
+  expect(screen.getByRole("region", { name: "Mock inline reply" })).toBe(editor);
+});
+
+it("does not offer an email reply from compact customer details without staff reply permission", () => {
+  state.manage = false;
+  show({ compact: true });
+  fireEvent.click(screen.getByRole("button", { name: "Details" }));
+  fireEvent.click(screen.getByRole("button", { name: "Customer" }));
+  expect(screen.getByText(entry.email!)).toBeVisible();
+  expect(screen.queryByRole("button", { name: entry.email! })).not.toBeInTheDocument();
+  expect(screen.queryByRole("region", { name: "Mock inline reply" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "More enquiry actions" })).not.toBeInTheDocument();
+});
+
+it("closes compact details with Escape and restores the trigger focus", async () => {
+  show({ compact: true });
+  const trigger = screen.getByRole("button", { name: "Details" });
+  trigger.focus();
+  fireEvent.click(trigger);
+  expect(screen.getByRole("button", { name: "Close details" })).toBeVisible();
+  fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
+  expect(screen.queryByRole("button", { name: "Close details" })).not.toBeInTheDocument();
+  await waitFor(() => expect(trigger).toHaveFocus());
+});
+
+
+it("keeps compact Mark done in the case scope and blocks it while a reply or private note is unsaved", () => {
+  state.dirty = true;
+  show({ compact: true });
+  fireEvent.click(screen.getByRole("button", { name: "Mark done" }));
+  expect(screen.getByRole("alert")).toHaveTextContent("Save or discard your reply and private note");
+  expect(state.fetch).not.toHaveBeenCalled();
 });

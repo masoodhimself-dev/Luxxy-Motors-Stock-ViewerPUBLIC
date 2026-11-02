@@ -86,3 +86,32 @@ body[data-dealer-portal=true] .inbox-desk-heading-actions>button:last-child:not(
 body[data-dealer-portal=true] .inbox-desk .enquiry-email-actions>button:not([class*='outline']):last-of-type { background:#090943; color:white; }
 body[data-dealer-portal=true] .inbox-desk .inbox-desk-search input { border:0!important; border-radius:0!important; }
 @media(max-width:420px) { .inbox-desk-filters { gap:0; width:100%; } .inbox-desk-filters button { flex:1; gap:5px; padding:8px 6px; font-size:11px; } .inbox-desk-filters button span { min-width:18px; padding:1px 4px; font-size:10px; } }
+
+/* A compact list and a fixed conversation desk; supporting tools stay folded. */
+.inbox-desk-row { min-height:104px; padding:12px 16px; gap:3px; }
+.inbox-status { padding:1px 0; background:transparent!important; }
+.inbox-status::before { content:""; width:7px; height:7px; border-radius:50%; background:currentColor; }
+.inbox-tools-menu { position:relative; margin-left:auto; font-size:12px; color:var(--inbox-muted); }
+.inbox-tools-menu>summary { min-height:40px; padding:10px 8px; cursor:pointer; }
+.inbox-tools-menu[open]>.inbox-desk-tools { position:absolute; right:0; top:100%; z-index:30; display:grid; min-width:210px; padding:8px; border:1px solid var(--inbox-line); border-radius:8px; background:white; box-shadow:0 10px 30px #192b3618; }
+.inbox-tools-menu .device-alerts { border:0; margin:0; padding:0; }
+.inbox-tools-menu .device-alerts-toggle { padding:7px 8px; font-size:12px; }
+.inbox-tools-menu .device-alerts:has(.device-alerts-toggle[aria-expanded=true]) { width:min(330px,80vw); max-height:55dvh; overflow:auto; }
+@media(min-width:900px) {
+ .inbox-desk { display:grid; grid-template-columns:310px minmax(0,1fr); grid-template-rows:auto auto minmax(0,1fr); height:calc(100dvh - 155px); min-height:560px; overflow:hidden; }
+ .inbox-desk-heading { grid-column:1; grid-row:1; flex-wrap:wrap; gap:12px; padding:16px; border-right:1px solid var(--inbox-line); }
+ .inbox-desk-heading h2 { font-size:24px; }
+ .inbox-desk-search { flex-basis:100%; order:3; margin:0; }
+ .inbox-desk-navigation { grid-column:1; grid-row:2; padding:0 10px 8px; gap:0; border-right:1px solid var(--inbox-line); }
+ .inbox-desk-filters { gap:0; }
+ .inbox-desk-filters button { gap:5px; padding:7px 8px; font-size:12px; }
+ .inbox-desk-heading-actions { gap:3px; }
+ .inbox-desk-heading-actions>button { padding:7px 8px; font-size:11px; }
+ .inbox-desk-columns { display:contents; }
+ .inbox-desk-list { grid-column:1; grid-row:3; position:static; min-height:0; height:100%; max-height:none; overflow:auto; }
+ .inbox-desk-conversation { grid-column:2; grid-row:1/-1; display:flex; flex-direction:column; gap:0; height:100%; min-height:0; padding:18px 20px 12px; overflow:hidden; }
+ .inbox-desk-conversation>.enquiry-customer-case { flex:1; min-height:0; }
+ .inbox-desk-conversation>.inbox-outside-filter,.inbox-desk-conversation>.inbox-linked-records { flex:none; }
+ .inbox-desk>.inbox-desk-empty,.inbox-desk>div[role=alert] { grid-column:1/-1; }
+}
+@media(max-width:899px) { .inbox-desk-row { min-height:104px; } .inbox-desk-tools { width:auto; border:0; } .inbox-desk-navigation { flex-wrap:nowrap; } .inbox-desk-filters { flex:initial; } }

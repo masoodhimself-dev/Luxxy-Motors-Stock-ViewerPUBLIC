@@ -1,6 +1,7 @@
 import { AiReplyDraft } from './ai-reply-draft';
 import { DirectWhatsApp } from "@/components/direct-whatsapp";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { ChevronDown, Paperclip, Send } from "@/components/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { customFetch, type Enquiry } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
@@ -105,6 +106,7 @@ export type InitialEmailContent = {
 export type ReplyInsertion = { id: number; text: string };
 function EmailEditorFrame({
   inline,
+  hideHeading = false,
   title,
   customerName,
   onClose,
@@ -112,6 +114,7 @@ function EmailEditorFrame({
   children,
 }: {
   inline?: boolean;
+  hideHeading?: boolean;
   title: string;
   customerName: string;
   onClose: () => void;
@@ -134,10 +137,12 @@ function EmailEditorFrame({
         className="enquiry-email-inline"
         aria-label="Customer reply editor"
       >
-        <header className="enquiry-inline-heading sr-only">
-          <h4>{title}</h4>
-          <p>{customerName} · Review before sending</p>
-        </header>
+        {!hideHeading && (
+          <header className="enquiry-inline-heading sr-only">
+            <h4>{title}</h4>
+            <p>{customerName} · Review before sending</p>
+          </header>
+        )}
         {children}
       </section>
     );
@@ -240,6 +245,7 @@ function EnquiryEmailEditor({
   initialRecipient,
   messageMode,
   inline,
+  compact = false,
   channel = "email",
   customerPhone,
   insertion,
@@ -256,6 +262,7 @@ function EnquiryEmailEditor({
   initialRecipient?: string;
   messageMode?: boolean;
   inline?: boolean;
+  compact?: boolean;
   channel?: "email" | "whatsapp";
   customerPhone?: string | null;
   insertion?: ReplyInsertion;
@@ -305,6 +312,8 @@ function EnquiryEmailEditor({
   >(null);
   const busy = busyAction !== null;
   const [messageDetailsOpen, setMessageDetailsOpen] = useState(false);
+  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
+  const attachmentsId = useId();
   const [showPrivatePhotos, setShowPrivatePhotos] = useState(false);
   const { requestClose: close, discardPrompt } = usePopupDraftGuard({
     dirty,
@@ -630,10 +639,94 @@ function EnquiryEmailEditor({
           )
         ? `Choose at least one ${photoCategory === "pre_accident" ? "pre-accident" : "service-book"} photo to attach, or use a different template.`
         : "";
+  const additions = [
+    draft.attachVehiclePdf ? "Vehicle PDF" : "",
+    draft.photoIds.length ? `${draft.photoIds.length} history photo${draft.photoIds.length === 1 ? "" : "s"}` : "",
+    draft.documentIds.length ? `${draft.documentIds.length} invoice${draft.documentIds.length === 1 ? "" : "s"}` : "",
+    draft.vehiclePhotoIndices?.length ? `${draft.vehiclePhotoIndices.length} car photo${draft.vehiclePhotoIndices.length === 1 ? "" : "s"}` : "",
+    draft.includeVehicle ? "Vehicle details" : "",
+    draft.includeAppointment ? "Appointment details" : "",
+  ].filter(Boolean);
+  const templateChoice = data && Boolean(data.templates?.length) ? (
+                          <label>
+                            Start from a template
+                            <select
+                              aria-label="Email template"
+                              value={draft.templateId ?? ""}
+                              onChange={(event) => {
+                                const selected = data.templates?.find(
+                                  (t) => t.id === event.target.value,
+                                );
+                                if (!selected) {
+                                  change({ templateId: undefined });
+                                  return;
+                                }
+                                if (selected) {
+                                  const category =
+                                    selected.id === "service_history"
+                                      ? "service_book"
+                                      : selected.id === "pre_accident_photos"
+                                        ? "pre_accident"
+                                        : null;
+                                  change({
+                                    templateId: selected.id,
+                                    subject: selected.subject,
+                                    message: selected.message,
+                                    includeAppointment:
+                                      selected.id === "appointment_details" &&
+                                      data.appointmentAvailable,
+                                    documentIds:
+                                      selected.id === "invoice_copy"
+                                        ? data.invoices?.[0]
+                                          ? [data.invoices[0].id]
+                                          : []
+                                        : draft.documentIds,
+                                    photoIds: category
+                                      ? data.photos
+                                          .filter(
+                                            (p) =>
+                                              (p.category ?? "service_book") ===
+                                              category,
+                                          )
+                                          .map((p) => p.id)
+                                      : draft.photoIds,
+                                  });
+                                }
+                              }}
+                            >
+                              <option value="">Custom message</option>
+                              {data.templates?.map((t) => (
+                                <option
+                                  key={t.id}
+                                  value={t.id}
+                                  disabled={
+                                    (t.id === "invoice_copy" &&
+                                      !data.invoices?.length) ||
+                                    (t.id === "appointment_details" &&
+                                      !data.appointmentAvailable) ||
+                                    (t.id === "service_history" &&
+                                      !data.photos.some(
+                                        (p) =>
+                                          (p.category ?? "service_book") ===
+                                          "service_book",
+                                      )) ||
+                                    (t.id === "pre_accident_photos" &&
+                                      !data.photos.some(
+                                        (p) => p.category === "pre_accident",
+                                      ))
+                                  }
+                                >
+                                  {t.label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        ) : null;
   return (
     <EmailEditorFrame
       busy={busy}
       inline={inline}
+      hideHeading={compact && !preview && !delivery}
       onClose={close}
       customerName={entry.customerName}
       title={
@@ -727,7 +820,9 @@ function EnquiryEmailEditor({
                     ? "Checking email availability…"
                     : features.isError
                       ? "Email availability could not be checked. Sending is paused; your draft is safe."
-                      : "Email sending is switched off by platform administration. You can still prepare and save drafts."}
+                      : compact
+                        ? "Email sending is off. You can save drafts."
+                        : "Email sending is switched off by platform administration. You can still prepare and save drafts."}
                 </p>
               )}
               {sendBlockedReason && (
@@ -873,7 +968,7 @@ function EnquiryEmailEditor({
                         event.preventDefault();
                         void review();
                       }}
-                      className="enquiry-email-form"
+                      className={`enquiry-email-form${compact ? " enquiry-email-form--compact" : ""}`}
                     >
                       {suggestedContent && (
                         <div className="enquiry-email-readiness" role="status">
@@ -928,7 +1023,7 @@ function EnquiryEmailEditor({
                             </Button>
                           </div>
                         )}
-                      <AiReplyDraft key={entry.id} enquiryId={entry.id} disabled={busy} onApply={text=>change({message:text})} />
+                      {!compact && <AiReplyDraft key={entry.id} enquiryId={entry.id} disabled={busy} onApply={text=>change({message:text})} />}
                       <fieldset disabled={busy}>
                         {initialRecipient &&
                           /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
@@ -954,7 +1049,7 @@ function EnquiryEmailEditor({
                             </div>
                           )}
                         <details className="enquiry-message-details" open={!inline || messageDetailsOpen} onToggle={event=>{ if(inline) setMessageDetailsOpen(event.currentTarget.open); }}>
-                          <summary>To: {draft.to || "Add customer email"}<span>Edit address, subject or template</span></summary>
+                          <summary>To: {draft.to || "Add customer email"}<span>{compact ? "Edit" : "Edit address, subject or template"}</span></summary>
                           <div>
                         <label>
                           {preparingMessage
@@ -970,81 +1065,7 @@ function EnquiryEmailEditor({
                             }
                           />
                         </label>
-                        {Boolean(data.templates?.length) && (
-                          <label>
-                            Start from a template
-                            <select
-                              aria-label="Email template"
-                              value={draft.templateId ?? ""}
-                              onChange={(event) => {
-                                const selected = data.templates?.find(
-                                  (t) => t.id === event.target.value,
-                                );
-                                if (!selected) {
-                                  change({ templateId: undefined });
-                                  return;
-                                }
-                                if (selected) {
-                                  const category =
-                                    selected.id === "service_history"
-                                      ? "service_book"
-                                      : selected.id === "pre_accident_photos"
-                                        ? "pre_accident"
-                                        : null;
-                                  change({
-                                    templateId: selected.id,
-                                    subject: selected.subject,
-                                    message: selected.message,
-                                    includeAppointment:
-                                      selected.id === "appointment_details" &&
-                                      data.appointmentAvailable,
-                                    documentIds:
-                                      selected.id === "invoice_copy"
-                                        ? data.invoices?.[0]
-                                          ? [data.invoices[0].id]
-                                          : []
-                                        : draft.documentIds,
-                                    photoIds: category
-                                      ? data.photos
-                                          .filter(
-                                            (p) =>
-                                              (p.category ?? "service_book") ===
-                                              category,
-                                          )
-                                          .map((p) => p.id)
-                                      : draft.photoIds,
-                                  });
-                                }
-                              }}
-                            >
-                              <option value="">Custom message</option>
-                              {data.templates?.map((t) => (
-                                <option
-                                  key={t.id}
-                                  value={t.id}
-                                  disabled={
-                                    (t.id === "invoice_copy" &&
-                                      !data.invoices?.length) ||
-                                    (t.id === "appointment_details" &&
-                                      !data.appointmentAvailable) ||
-                                    (t.id === "service_history" &&
-                                      !data.photos.some(
-                                        (p) =>
-                                          (p.category ?? "service_book") ===
-                                          "service_book",
-                                      )) ||
-                                    (t.id === "pre_accident_photos" &&
-                                      !data.photos.some(
-                                        (p) => p.category === "pre_accident",
-                                      ))
-                                  }
-                                >
-                                  {t.label}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                        )}
+                        {!compact && templateChoice}
 
                         <label>
                           Subject
@@ -1060,7 +1081,7 @@ function EnquiryEmailEditor({
                           </div>
                         </details>
                         <label>
-                          Message
+                          {compact ? <span className="sr-only">Message</span> : "Message"}
                           <Textarea
                             required
                             rows={5}
@@ -1072,6 +1093,21 @@ function EnquiryEmailEditor({
                           />
                         </label>
 
+                        {compact && (
+                          <div className="enquiry-compact-tools">
+                            <AiReplyDraft key={entry.id} enquiryId={entry.id} disabled={busy} compact message={draft.message} onApply={text=>change({message:text})} />
+                            <Button type="button" variant="ghost" aria-expanded={attachmentsOpen} aria-controls={attachmentsId} onClick={() => setAttachmentsOpen(value => !value)}>
+                              <Paperclip size={16} aria-hidden /> Attach <ChevronDown size={14} aria-hidden />
+                            </Button>
+                          </div>
+                        )}
+                        {compact && additions.length > 0 && (
+                          <button type="button" className="enquiry-email-added" aria-expanded={attachmentsOpen} aria-controls={attachmentsId} onClick={() => setAttachmentsOpen(value => !value)}>
+                            Included: {additions.join(" · ")} <span>Edit</span>
+                          </button>
+                        )}
+                        <div id={attachmentsId} hidden={compact && !attachmentsOpen} className={compact ? "enquiry-email-content-tray" : "enquiry-email-content-options"}>
+                          {compact && <><h5>Add to this reply</h5>{templateChoice}</>}
                         {Boolean(data.vehiclePhotos?.length) && (
                           <details className="enquiry-email-service-book">
                             <summary>Car photographs · optional links</summary>
@@ -1257,6 +1293,7 @@ function EnquiryEmailEditor({
                             ))}
                           </details>
                         )}
+                        </div>
                       </fieldset>
                       {missingAttachment && (
                         <p
@@ -1321,7 +1358,7 @@ function EnquiryEmailEditor({
                           >
                             {busyAction === "review"
                               ? "Preparing preview…"
-                              : "Review email"}
+                              : compact ? <><Send size={16} aria-hidden /> Review &amp; send</> : "Review email"}
                           </Button>
                         )}
                         {!inline && (
@@ -1402,6 +1439,7 @@ export function EnquiryEmailComposer(props: {
   initialRecipient?: string;
   messageMode?: boolean;
   inline?: boolean;
+  compact?: boolean;
   channel?: "email" | "whatsapp";
   customerPhone?: string | null;
   insertion?: ReplyInsertion;

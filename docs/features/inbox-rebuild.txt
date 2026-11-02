@@ -50,3 +50,29 @@ Targeted component/model/integration tests, isolated PostgreSQL route tests,
 PDF preview/hash/stock-change tests and WebKit layout/workflow checks at 375,
 390, 820 and 1440px. Production frontend/backend builds and TypeScript checks.
 No customer emails sent and no production enquiries edited during this work.
+
+Simplification follow-up — 2 November 2026
+The approved compact desk replaces stacked case headers with customer, car,
+status and Details. The Details dialog traps keyboard focus, closes on Escape
+and restores the opener; tabs reveal Car & MOT, Customer, or Activity. Readonly
+contact data stays readonly. Customer messages stay in the main thread; private
+notes and routine activity are on demand. Mark done stays in the case header so
+its case-scoped unsaved-draft guard cannot be lost in a portal.
+
+Needs you, All and Done are primary filters. Test drives, Calendar, Email records
+and Device alerts remain under Tools; selecting Test drives closes the menu.
+The compact channel selector keeps mounted email/WhatsApp/private-note drafts.
+Optional templates, PDF, invoices, photos and included details live under Attach,
+with a visible summary for selected additions. AI can fill an empty editor;
+existing or newly typed text needs explicit replacement. Reviewed send and manual
+Save draft remain. No automatic-send or fabricated AI-handling state is shown.
+
+Automatic background AI drafts require explicit owner opt-in in addition to
+verified stock, AI service and dedicated receiving-mailbox readiness. See
+cazoo-lead-inbox.md for provisioning. Cazoo stock alone never grants consent.
+Auto Trader uses the same provider capability contract but has no released
+adapter. Manual AI drafting is independent of this automation entitlement.
+
+All 18 default outgoing email templates were reviewed. Short labels and simple
+booking/acknowledgement wording remove repetition while preserving required
+facts. Saved dealer-custom copy and frozen historical templates are untouched.

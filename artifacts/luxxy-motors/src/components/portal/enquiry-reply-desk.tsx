@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Enquiry } from "@workspace/api-client-react";
 import { Mail, MessageCircle, Phone } from "@/components/icons";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Button } from "@/components/ui/button";
 import { ConversationEditor } from "./enquiry-conversation";
 import {
@@ -16,6 +17,7 @@ type ReplyDeskProps = {
   focusRequest?: number;
   requestedChannel?: "email" | "whatsapp" | "note";
   onBusyChange?: (busy: boolean) => void;
+  compact?: boolean;
 };
 export function EnquiryReplyDesk(props: ReplyDeskProps) {
   return <ReplyDesk key={props.entry.id} {...props} />;
@@ -27,6 +29,7 @@ function ReplyDesk({
   focusRequest = 0,
   requestedChannel = "email",
   onBusyChange,
+  compact = false,
 }: ReplyDeskProps) {
   const defaultChannel = (requested: "email" | "whatsapp" | "note") =>
     requested === "email" && !entry.email?.trim() ? "note" : requested;
@@ -64,13 +67,11 @@ function ReplyDesk({
   return (
     <section
       ref={container}
-      className="enquiry-reply-desk"
+      className={`enquiry-reply-desk${compact ? " enquiry-reply-compact" : ""}`}
       aria-label="Reply and staff notes"
     >
-      <header>
-        <h4>Reply</h4>
-      </header>
-      <div
+      {!compact && <header><h4>Reply</h4></header>}
+      {compact ? <label className="enquiry-reply-channel-select"><span className="sr-only">Reply channel</span><NativeSelect aria-label="Reply channel" disabled={busy} value={channel} onChange={event=>{setChannel(event.target.value as typeof channel);setNotice("");}}><option value="email">Email</option><option value="whatsapp">WhatsApp</option><option value="note">Private note</option></NativeSelect></label> : <div
         className="enquiry-reply-channels"
         role="group"
         aria-label="Reply channel"
@@ -97,12 +98,13 @@ function ReplyDesk({
             {item.label}
           </Button>
         ))}
-      </div>
+      </div>}
       <div className="enquiry-reply-editor">
         <div hidden={channel === "note"}>
           <EnquiryEmailComposer
             key={emailVersion}
             inline
+            compact={compact}
             entry={entry}
             customerPhone={entry.phone}
             channel={channel === "whatsapp" ? "whatsapp" : "email"}

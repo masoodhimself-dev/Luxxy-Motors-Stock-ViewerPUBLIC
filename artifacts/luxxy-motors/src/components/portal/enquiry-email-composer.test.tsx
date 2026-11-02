@@ -901,3 +901,68 @@ it('lets staff remove a saved PDF when the current car is no longer printable', 
   expect(JSON.parse(calls('/email-preview')[0][1].body).attachVehiclePdf).toBe(false);
   expect(calls('/email')).toHaveLength(0);
 });
+
+it('compact Inbox keeps templates, PDFs and invoice options inside Attach without changing the message', async () => {
+  const original=state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async(url:string,options:unknown)=>url.endsWith('/email-context')?{...context(),vehiclePdfAvailable:true}:original(url,options));
+  render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><EnquiryEmailComposer inline compact entry={entry} onClose={state.close}/></QueryClientProvider>);
+  await screen.findByRole('textbox', {name:'Message'});
+  const attach=screen.getByRole('button', {name:'Attach'});
+  const tray=document.getElementById(attach.getAttribute('aria-controls')!)!;
+  expect(attach).toHaveAttribute('aria-expanded', 'false');
+  expect(tray).toHaveAttribute('hidden');
+  expect(screen.queryByText('Edit address, subject or template')).not.toBeInTheDocument();
+  expect(screen.getByText('To: alex@example.test').closest('details')).not.toHaveAttribute('open');
+  expect(screen.getByRole('button', {name:/Included: Vehicle details · Appointment details/})).toBeVisible();
+  fireEvent.click(attach);
+  expect(tray).not.toHaveAttribute('hidden');
+  expect(screen.getByRole('combobox', {name:'Email template'})).toBeVisible();
+  expect(screen.getByRole('checkbox', {name:/^Attach vehicle PDF/})).not.toBeChecked();
+  expect(screen.getByRole('checkbox', {name:/Full invoice/})).toBeVisible();
+  fireEvent.click(attach);
+  expect(tray).toHaveAttribute('hidden');
+  expect(screen.getByRole('textbox', {name:'Message'})).toHaveValue('Original staff message');
+  expect(calls('/email')).toHaveLength(0);
+  expect(calls('/email-draft')).toHaveLength(0);
+});
+
+it('compact PDF selection remains visible in the summary and requires the server review before send', async () => {
+  const original=state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async(url:string,options:unknown)=>url.endsWith('/email-context')?{...context(),vehiclePdfAvailable:true}:original(url,options));
+  render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><EnquiryEmailComposer inline compact entry={entry} onClose={state.close}/></QueryClientProvider>);
+  await screen.findByRole('textbox', {name:'Message'});
+  fireEvent.click(screen.getByRole('button', {name:'Attach'}));
+  fireEvent.click(screen.getByRole('checkbox', {name:/^Attach vehicle PDF/}));
+  fireEvent.click(screen.getByRole('button', {name:'Attach'}));
+  expect(screen.getByRole('button', {name:/Included: Vehicle PDF/})).toBeVisible();
+  fireEvent.click(screen.getByRole('button', {name:'Review & send'}));
+  await screen.findByRole('region', {name:'Email preview'});
+  expect(calls('/email')).toHaveLength(0);
+  expect(JSON.parse(calls('/email-preview')[0][1].body)).toMatchObject({attachVehiclePdf:true});
+  expect(screen.getByRole('button', {name:'Send email'})).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', {name:'Edit message'}));
+  expect(screen.getByRole('textbox', {name:'Message'})).toHaveValue('Original staff message');
+  expect(screen.getByRole('button', {name:/Included: Vehicle PDF/})).toBeVisible();
+});
+
+it('compact editor omits repeated prepare heading but retains the reviewed email title', async () => {
+  render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><EnquiryEmailComposer inline compact entry={entry} onClose={state.close}/></QueryClientProvider>);
+  await screen.findByRole('textbox', {name:'Message'});
+  expect(screen.queryByRole('heading', {name:'Prepare customer email'})).not.toBeInTheDocument();
+  expect(screen.queryByText('Alex · Review before sending')).not.toBeInTheDocument();
+  expect(screen.getByRole('region', {name:'Customer reply editor'})).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', {name:'Review & send'}));
+  await screen.findByRole('region', {name:'Email preview'});
+  expect(screen.getByRole('heading', {name:'Review customer email'})).toBeInTheDocument();
+  expect(calls('/email')).toHaveLength(0);
+});
+
+it('compact Inbox gives one short notice when platform email sending is off', async () => {
+  state.features = { customerEmails: false };
+  render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><EnquiryEmailComposer inline compact entry={entry} onClose={state.close}/></QueryClientProvider>);
+  await screen.findByRole('textbox', {name:'Message'});
+  expect(screen.getByText('Email sending is off. You can save drafts.')).toBeVisible();
+  expect(screen.queryByText(/Email sending is switched off by platform administration/)).not.toBeInTheDocument();
+  expect(screen.getByRole('button', {name:'Save draft'})).toBeEnabled();
+  expect(calls('/email')).toHaveLength(0);
+});

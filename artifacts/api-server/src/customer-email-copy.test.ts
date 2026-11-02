@@ -14,6 +14,7 @@ test('default customer copy stays short and preserves actionable booking states'
     assert.ok(!rendered.subject.includes('{{'));
   }
   assert.match(previewEmailTemplate('booking_request', template('booking_request')).bodyText, /not confirmed yet/);
+  assert.match(previewEmailTemplate('booking_request', template('booking_request')).bodyText, /wait for our confirmation before travelling/);
   const cancelled = previewEmailTemplate('booking_cancellation', template('booking_cancellation'));
   assert.match(cancelled.bodyText, /cancelled/);
   assert.ok(!cancelled.html.includes('Manage your test drive'));
@@ -23,6 +24,15 @@ test('default customer copy stays short and preserves actionable booking states'
     assert.ok(rendered.text.includes(sampleEmailVariables.parking_instructions!));
     assert.ok(rendered.text.includes(sampleEmailVariables.appointment_time!));
   }
+});
+
+test('team enquiry notices show the customer details once and keep the message and contact preference', () => {
+  const rendered = previewEmailTemplate('dealer_notification', template('dealer_notification'));
+  for (const value of [sampleEmailVariables.customer_name!, sampleEmailVariables.customer_email!, sampleEmailVariables.message!]) {
+    assert.equal(rendered.text.split(value).length - 1, 1, `${value} should not be repeated in the message and facts`);
+  }
+  assert.match(rendered.text, /Preferred contact: Phone call/);
+  assert.match(rendered.text, /Phone: 07700 900456/);
 });
 
 test('zero-balance statements report the issued balance without asking for another payment', () => {

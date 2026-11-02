@@ -130,3 +130,12 @@
     flex: 1 1 130px;
   }
 }
+
+.enquiry-reply-desk.enquiry-reply-compact { display:block; border:0; border-top:1px solid var(--portal-border); border-radius:0; padding:10px 0 0; background:var(--portal-panel,#fff); }
+.enquiry-reply-channel-select { display:block; width:135px; margin-bottom:7px; }
+.enquiry-reply-channel-select select { min-height:36px; padding:6px 28px 6px 10px; font-size:12px; }
+.enquiry-reply-compact .enquiry-email-inline>div[role=status] { font-size:11px; }
+.enquiry-reply-compact .enquiry-email-form--compact .enquiry-email-actions { position:sticky; bottom:0; z-index:3; padding:8px 0 2px; background:var(--portal-panel,#fff); border-top:1px solid var(--portal-border); }
+.enquiry-reply-compact .enquiry-email-form--compact>fieldset>label>textarea { min-height:96px; max-height:170px; }
+@media(min-width:900px) { .enquiry-case-compact .enquiry-case-main>.enquiry-reply-desk { max-height:65%; } }
+.enquiry-reply-compact .enquiry-email-readiness { border:0; background:none; padding:0; margin:4px 0 8px; font-size:12px; line-height:1.5; }
