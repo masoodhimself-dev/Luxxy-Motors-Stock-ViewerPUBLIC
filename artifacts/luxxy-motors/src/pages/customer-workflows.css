@@ -58,8 +58,7 @@
   .friendly-saved .vehicle-card-saved-details .saved-car-specs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
-/* The secondary pages use the same surfaces as the approved homepage.
-   Only Multi-Choice receives these details; the existing grids stay in place. */
+/* Secondary pages share the approved showroom surfaces across dealerships. */
 .dealer-site-theme :is(.friendly-contact, .friendly-enquire) .friendly-banner {
   color: var(--mh-primary);
 }
@@ -76,4 +75,25 @@
 .dealer-site-theme .friendly-contact [data-testid="contact-location"] > .bg-primary {
   background: var(--mh-primary);
   color: var(--mh-surface);
+}
+
+/* Car messages keep the question close to its vehicle and avoid a second hero. */
+.customer-site.dealer-site-theme .friendly-message .enquiry-page-container { max-width: 1160px; }
+.friendly-message .enquiry-dealer-name { display: none; }
+.friendly-message .friendly-banner { padding: 0; border: 0; }
+.friendly-message .friendly-banner h1 { font-size: clamp(26px, 2.8vw, 34px); line-height: 1.2; letter-spacing: -.025em; }
+.friendly-message .friendly-banner > p:last-child { margin-top: 10px; max-width: 48ch; font-size: 14px; line-height: 1.6; }
+.friendly-message .enquiry-form-panel { box-shadow: none; }
+@media (min-width: 1024px) {
+  .friendly-message .enquiry-page-layout { grid-template-columns: 280px minmax(0, 1fr); gap: 32px; }
+}
+@media (max-width: 1023px) {
+  .friendly-message { padding-top: 8px; }
+  .friendly-message .enquiry-page-layout { margin-top: 8px; gap: 20px; }
+  .friendly-message .enquiry-back-link { font-size: 13px; }
+  .friendly-message .enquiry-form-panel { padding: 20px; }
+}
+@media (max-width: 639px) {
+  .friendly-message .enquiry-page-layout { gap: 16px; }
+  .friendly-message .enquiry-form-panel { padding: 16px; }
 }

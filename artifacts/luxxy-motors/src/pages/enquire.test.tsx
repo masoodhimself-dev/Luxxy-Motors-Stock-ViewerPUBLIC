@@ -38,3 +38,29 @@ it('keeps a failed initial part-exchange stock load out of the form while retain
   view.unmount(); window.history.pushState({}, '', '/enquire?type=general'); render(<Enquire />);
   expect(screen.getByTestId('enquiry-form-under-test')).toHaveAttribute('data-type', 'general');
 });
+
+it('waits for a requested message vehicle before mounting the form and keeps input on stock refresh', () => {
+  window.history.pushState({}, '', '/enquire?type=general&vehicleId=requested-car');
+  const view = render(<Enquire />);
+  expect(screen.getByTestId('loading-enquiry-vehicle')).toBeInTheDocument();
+  expect(state.form).not.toHaveBeenCalled();
+  state.stock = { cars: [car] }; state.isLoading = false;
+  view.rerender(<Enquire />);
+  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Ask about this car');
+  expect(screen.getByRole('link', { name: 'Back to car' })).toHaveAttribute('href', '/vehicle/requested-car');
+  expect(screen.getByTestId('enquiry-form-under-test')).toHaveAttribute('data-vehicle', car.id);
+  fireEvent.change(screen.getByRole('textbox', { name: 'Example registration' }), { target: { value: 'Customer draft' } });
+  state.stock = { cars: [{ ...car }] }; state.isLoading = true;
+  view.rerender(<Enquire />);
+  expect(screen.getByRole('textbox', { name: 'Example registration' })).toHaveValue('Customer draft');
+  expect(screen.queryByTestId('loading-enquiry-vehicle')).not.toBeInTheDocument();
+});
+
+it('lets customers send a general message when a requested car is no longer in stock', () => {
+  window.history.pushState({}, '', '/enquire?type=general&vehicleId=gone-car');
+  state.stock = { cars: [car] }; state.isLoading = false;
+  render(<Enquire />);
+  expect(screen.getByTestId('status-vehicle-unavailable')).toBeInTheDocument();
+  expect(screen.getByTestId('enquiry-form-under-test')).toHaveAttribute('data-vehicle', '');
+  expect(screen.getByRole('link', { name: 'Back to showroom' })).toHaveAttribute('href', '/');
+});

@@ -44,11 +44,16 @@ export default function Enquire() {
   useEffect(() => { setType(requestedType && enquiryTypes.includes(requestedType) ? requestedType : 'general'); }, [requestedType]);
   const vehicleId = params.get('vehicleId');
   const vehicle = stock?.cars.find((car) => car.id === vehicleId);
+  const waitingForStock = isLoading && !stock;
+  const isCarMessage = type === 'general' && Boolean(vehicle);
+  const title = websiteText(dealerConfig, `${type}Title`);
+  const description = websiteText(dealerConfig, `${type}Description`);
   const copy = {
     ...headings[type],
     eyebrow: type === 'viewing' ? `Visit ${dealerConfig.identity.name}` : type === 'general' ? dealerConfig.identity.name : headings[type].eyebrow,
-    title: websiteText(dealerConfig, `${type}Title`),
-    description: websiteText(dealerConfig, `${type}Description`),
+    title: isCarMessage && title === 'How can we help?' ? 'Ask about this car' : title,
+    description: isCarMessage && description === 'Tell us what you’d like to know. We’ll get back to you.'
+      ? 'Send your question straight to the showroom. Choose how you’d like us to reply.' : description,
   };
   const selectedVehicleName = vehicle ? vehicleName(vehicle) : 'your next car';
 
@@ -73,19 +78,19 @@ export default function Enquire() {
   if (type === 'viewing') return <TestDriveBooking vehicle={vehicle} stockCars={stock?.cars ?? []} isLoading={isLoading} error={error} missingVehicle={Boolean(vehicleId && !vehicle)} />;
 
   return (
-    <div className="friendly-page friendly-enquire luxxy-shell min-h-screen bg-background pb-20 pt-4 sm:pt-8 md:pt-12">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+    <div className={`friendly-page friendly-enquire luxxy-shell min-h-screen bg-background pb-20 pt-4 sm:pt-8 md:pt-12${type === 'general' ? ' friendly-message' : ''}`}>
+      <div className="container enquiry-page-container mx-auto px-4 sm:px-6 lg:px-8">
         <Link
-          href="/"
-          className="inline-flex min-h-11 items-center gap-3 font-display text-[12px] font-normal text-primary transition-colors hover:text-accent group"
+          href={isCarMessage ? `/vehicle/${encodeURIComponent(vehicle!.id)}` : '/'}
+          className="enquiry-back-link inline-flex min-h-11 items-center gap-3 font-display text-[12px] font-normal text-primary transition-colors hover:text-accent group"
         >
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-          Back to showroom
+          {isCarMessage ? 'Back to car' : 'Back to showroom'}
         </Link>
-        <div className="mt-3 grid items-start gap-5 sm:mt-5 sm:gap-6 lg:grid-cols-[320px_minmax(0,1fr)] xl:gap-12">
+        <div className="enquiry-page-layout mt-3 grid items-start gap-5 sm:mt-5 sm:gap-6 lg:grid-cols-[320px_minmax(0,1fr)] xl:gap-12">
           <section className="enquiry-introduction flex flex-col">
             <div className="friendly-banner">
-            <p className="mb-2 font-display text-[12px] font-semibold tracking-normal text-accent sm:mb-4">
+            <p className="enquiry-dealer-name mb-2 font-display text-[12px] font-semibold tracking-normal text-accent sm:mb-4">
               {copy.eyebrow}
             </p>
             <h1 className="heading-2 text-primary">{copy.title}</h1>
@@ -164,7 +169,7 @@ export default function Enquire() {
 
           <section className="min-w-0" aria-labelledby="enquiry-form-heading">
             <div className="enquiry-form-panel">
-              {isLoading ? (
+              {waitingForStock ? (
                 <div className="space-y-6 py-12" data-testid="loading-enquiry-vehicle">
                   <div className="h-4 w-44 animate-pulse bg-primary/20 border border-primary" />
                   <div className="h-12 w-3/4 animate-pulse bg-primary/20 border border-primary" />
@@ -192,7 +197,7 @@ export default function Enquire() {
                 </div>
               ) : null}
 
-              {!(type === 'part_exchange' && (isLoading || (!stock && error))) && <EnquiryForm initialMessage={type === "general" && params.get("searchRequest") ? params.get("searchRequest")!.slice(0, 500) : vehicle && type === "general" ? questionMessage(params.get("question")) : ""} onTypeChange={setType} onChangeCar={changeCar} initialType={type} vehicle={vehicle} stockCars={stock?.cars ?? []} />}
+              {!((waitingForStock && (type === 'part_exchange' || Boolean(vehicleId))) || (type === 'part_exchange' && !stock && error)) && <EnquiryForm key={`${type}:${vehicle?.id ?? 'general'}`} initialMessage={type === "general" && params.get("searchRequest") ? params.get("searchRequest")!.slice(0, 500) : vehicle && type === "general" ? questionMessage(params.get("question")) : ""} onTypeChange={setType} onChangeCar={changeCar} initialType={type} vehicle={vehicle} stockCars={stock?.cars ?? []} />}
             </div>
 
             {dealerConfig.contact.phone && <p className="mt-5 text-sm text-muted-foreground">

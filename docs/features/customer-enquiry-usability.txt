@@ -1,0 +1,9 @@
+Customer vehicle enquiry form review — 2 November 2026
+
+The general car-message page uses the approved showroom font and palette. Phone layout has a compact selected-car row, less introductory space and a direct Back to car link. Desktop uses a bounded form width with selected-car details alongside it. Optional extras remain collapsed.
+
+Functional fixes cover draft isolation when changing vehicles or enquiry types, trimmed inline validation and focus, reply-by-email/phone/WhatsApp requirements, removing optional extra contact information, blocking edits and navigation inside the form while sending, accurate confirmation of the submitted reply choice, clearing sent questions when starting another enquiry, and not showing disabled part-exchange fields from old drafts. API payloads and dealer feature permissions are unchanged.
+
+Validation: 79 frontend tests passed across EnquiryForm, Enquire, Contact and CarDetail. Current-source frontend typecheck passed. Production build passed, with existing large-bundle warnings. Visual review at 320, 393, 820 and 1440 pixels found no horizontal overflow. Both standalone and inline form behavior are covered by tests.
+
+Deployment is separate from this local change.

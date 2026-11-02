@@ -35,7 +35,6 @@
 
 .enquiry-question-shortcuts { display: flex; flex-wrap: wrap; gap: 6px; }
 .enquiry-question-shortcuts button { min-height: 44px; padding: 7px 12px; border: 1px solid var(--mh-border, hsl(var(--border))); border-radius: var(--mh-radius-control, 3px); color: hsl(var(--foreground)); font-size: 13px; background: transparent; }
-.enquiry-question-shortcuts button[aria-pressed="true"] { border-color: currentColor; }
 .enquiry-question-shortcuts button:disabled { opacity: .5; cursor: not-allowed; }
 
 /* Submitted and restored enquiries remain part of the same customer website. */
@@ -74,7 +73,22 @@
   background: var(--mh-surface);
   color: var(--mh-primary);
 }
-.dealer-site-theme .enquiry-question-shortcuts button[aria-pressed="true"] {
-  border-color: var(--mh-primary);
-  background: var(--mh-tint);
+
+.customer-enquiry-fields { margin: 0; padding: 0; border: 0; }
+.customer-enquiry-fields:disabled { opacity: .72; }
+.customer-enquiry-fields:disabled :is(input, textarea, select, button) { cursor: wait; }
+.customer-enquiry-form .customer-enquiry-contact .customer-enquiry-remove-contact { min-height: 44px; justify-self: start; grid-column: 1 / -1; font-size: 14px; }
+.enquiry-question-shortcuts button[data-selected="true"] { border-color: var(--mh-primary, currentColor); background: var(--mh-tint, hsl(var(--secondary))); }
+.dealer-site-theme .enquiry-question-shortcuts button[data-selected="true"] { border-color: var(--mh-primary); background: var(--mh-tint); }
+.customer-enquiry-vehicle { border: 0; border-bottom: 1px solid var(--mh-border, hsl(var(--border))); border-radius: 0; padding: 0 0 16px; background: transparent; }
+.customer-enquiry-vehicle .customer-enquiry-vehicle-photo { width: 76px; object-fit: cover; }
+.customer-enquiry-vehicle .customer-enquiry-vehicle-eyebrow { display: none; }
+.customer-enquiry-vehicle .customer-enquiry-vehicle-name { margin-top: 0; font-size: 16px; }
+.customer-enquiry-vehicle .customer-enquiry-vehicle-meta { font-size: 12px; line-height: 1.5; }
+.customer-enquiry-vehicle .customer-enquiry-vehicle-change { font-size: 12px; }
+@media (max-width: 639px) {
+  .customer-enquiry-form .enquiry-question-shortcuts { gap: 8px; }
+  .customer-enquiry-form .enquiry-question-shortcuts button { font-size: 12px; padding: 7px 10px; }
+  .customer-enquiry-vehicle .customer-enquiry-vehicle-photo { width: 72px; }
+  .customer-enquiry-vehicle .customer-enquiry-vehicle-meta { max-width: 28ch; }
 }
