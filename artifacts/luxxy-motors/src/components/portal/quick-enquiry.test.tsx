@@ -240,7 +240,7 @@ it.each(['Cancel', 'Close', 'Escape'])('returns focus to its external opener aft
   const view = mountWithExternalOpener();
   expect(screen.getByRole('dialog', { name: 'New enquiry' })).toBeVisible();
   if (action === 'Escape') fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
-  else fireEvent.click(screen.getByRole('button', { name: action, exact: true }));
+  else fireEvent.click(screen.getByRole('button', { name: action }));
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   await waitFor(() => expect(view.opener).toHaveFocus());
   expect(state.create).not.toHaveBeenCalled();
@@ -254,12 +254,12 @@ it('keeps the dirty form open when discard is cancelled and returns focus only a
     fill();
     const name = screen.getByRole('combobox', { name: 'Customer name' });
     name.focus();
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.getByRole('dialog', { name: 'New enquiry' })).toBeVisible();
     expect(name).toHaveValue('  Alex Smith  ');
     expect(view.opener).not.toHaveFocus();
     confirm.mockReturnValue(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     await waitFor(() => expect(view.opener).toHaveFocus());
     expect(state.create).not.toHaveBeenCalled();
@@ -269,7 +269,7 @@ it('keeps the dirty form open when discard is cancelled and returns focus only a
 it('returns focus after saving through the external opener without saving again', async () => {
   const view = mountWithExternalOpener();
   fill();
-  fireEvent.click(screen.getByRole('button', { name: 'Save enquiry', exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: 'Save enquiry' }));
   await waitFor(() => expect(view.onCreated).toHaveBeenCalledOnce());
   await waitFor(() => expect(view.opener).toHaveFocus());
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -303,7 +303,7 @@ it('does not focus an external opener that was removed while the dialog was open
   const focusOpener = vi.spyOn(view.opener, 'focus');
   try {
     view.removeOpener();
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
     expect(focusOpener).not.toHaveBeenCalled();

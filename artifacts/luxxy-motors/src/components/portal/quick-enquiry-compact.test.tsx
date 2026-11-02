@@ -382,7 +382,7 @@ it("lets staff cancel an untouched direct booking handoff without a discard warn
   const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
   try {
     const view = mount(true, "car-one", true);
-    fireEvent.click(screen.getByRole("button", { name: "Cancel", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(confirm).not.toHaveBeenCalled();
     expect(view.onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
     expect(state.create).not.toHaveBeenCalled();
@@ -462,7 +462,7 @@ it("blocks duplicate saves and closing while its compact form is saving", async 
   fireEvent.submit(form);
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
   expect(state.create).toHaveBeenCalledOnce();
-  expect(screen.getByRole("button", { name: "Cancel", exact: true })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
   expect(view.onOpenChange).not.toHaveBeenCalled();
   await act(async () => { resolve({ id: "enquiry-new", reference: "ENQ-123" }); });
   await waitFor(() => expect(view.onCreated).toHaveBeenCalledOnce());

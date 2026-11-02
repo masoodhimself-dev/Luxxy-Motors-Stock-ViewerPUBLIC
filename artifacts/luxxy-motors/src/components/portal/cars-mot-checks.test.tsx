@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, act } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, type QueryObserverOptions } from "@tanstack/react-query";
 import type { StaffMotCheckStatus } from "@workspace/vehicle-meta";
 import { CarsMotCheckStatus, carsMotChecksKey, motChecksAreActive, useCarsMotChecks } from "./cars-mot-checks";
 
@@ -114,7 +114,7 @@ it("distinguishes failures and unusable registrations and recognises automatic a
 it("polls progress only while a manual run or automatic arrival check is active", async () => {
   const { client } = mount();
   await screen.findByText("1 of 3 current cars checked");
-  const interval = client.getQueryCache().find({ queryKey: carsMotChecksKey })!.options.refetchInterval as (query: any) => number | false;
+  const interval = (client.getQueryCache().find({ queryKey: carsMotChecksKey })!.options as QueryObserverOptions<StaffMotCheckStatus>).refetchInterval as (query: any) => number | false;
   expect(interval({ state: { data: status() } })).toBe(false);
   expect(interval({ state: { data: running() } })).toBe(3_000);
   expect(interval({ state: { data: status({ current: { ...status().current, pending: 1 } }) } })).toBe(3_000);

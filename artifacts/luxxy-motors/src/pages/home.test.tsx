@@ -310,7 +310,7 @@ describe('shared showroom data and controls', () => {
     window.history.replaceState({}, '', '/stock?maxPrice=5000&fuel=Petrol&transmission=Automatic'); renderHome();
     expect(resultTitles()).toEqual(['BMW 1 Series', 'VW Golf']);
     expect(screen.getByRole('button', { name: 'Remove gearbox Automatic filter' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Clear all', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all' }));
     expect(resultTitles()).toHaveLength(5); expect(window.location.search).toBe('');
   });
 
@@ -417,7 +417,7 @@ describe('shared homepage and dealer content', () => {
     expect(resultTitles()).toEqual(['BMW 1 Series']);
     fireEvent.click(screen.getByRole('button', { name: 'Remove body type SUV filter' }));
     expect(resultTitles()).toEqual(['BMW 1 Series', 'Ford Fiesta', 'Audi A3', 'VW Golf']);
-    fireEvent.click(screen.getByRole('button', { name: 'Clear all', exact: true })); expect(resultTitles()).toHaveLength(5);
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all' })); expect(resultTitles()).toHaveLength(5);
   });
 });
 

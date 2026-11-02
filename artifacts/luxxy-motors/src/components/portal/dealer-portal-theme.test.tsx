@@ -56,7 +56,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   document.querySelectorAll('[data-dealer-portal-test]').forEach(element => element.remove());
-  if (originalCanonical !== undefined) canonical(originalCanonical);
+  if (originalCanonical != null) canonical(originalCanonical);
   if (originalBodyStyle === null) document.body.removeAttribute('style');
   else document.body.setAttribute('style', originalBodyStyle);
   if (originalPortalMarker === null) document.body.removeAttribute('data-dealer-portal');
