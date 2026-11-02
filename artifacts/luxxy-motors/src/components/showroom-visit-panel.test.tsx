@@ -42,13 +42,13 @@ it('shows Sunday closed and the next confirmed opening in UK time', () => {
   vi.setSystemTime(new Date('2026-10-18T13:00:00Z'));
   render(<ShowroomVisitPanel />);
   expect(screen.getByRole('status')).toHaveTextContent('Closed today');
-  expect(screen.getByRole('status')).toHaveTextContent('Opens tomorrow at 08:00 (UK time)');
+  expect(screen.getByRole('status')).toHaveTextContent('Opens tomorrow at 08:00');
 });
 it('uses the winter clock without interpreting the visitor’s timezone as showroom time', () => {
   vi.setSystemTime(new Date('2026-12-28T07:30:00Z'));
   render(<ShowroomVisitPanel />);
   expect(screen.getByRole('status')).toHaveTextContent('Closed now');
-  expect(screen.getByRole('status')).toHaveTextContent('Opens today at 08:00 (UK time)');
+  expect(screen.getByRole('status')).toHaveTextContent('Opens today at 08:00');
 });
 it('refreshes an open page when the showroom closes', () => {
   vi.setSystemTime(new Date('2026-10-19T16:59:50Z'));

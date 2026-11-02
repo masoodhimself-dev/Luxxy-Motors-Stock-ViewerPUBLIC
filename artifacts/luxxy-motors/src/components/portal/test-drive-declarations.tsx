@@ -178,7 +178,7 @@ export function TestDriveDeclarations({
       (record) => record.id === link.id && record.status === "pending",
     );
   const message = link
-    ? `Hello ${booking.customerName},\n\nPlease read and sign your test-drive declaration before your visit for ${booking.vehicleTitle || "your chosen car"}.\n\n${link.url}\n\nThis private link expires ${declarationTime(link.expiresAt)} (UK time). Please bring your driving licence. We will confirm the licence and insurance arrangements before you drive.\n\nIf any car or appointment details are wrong, please reply before signing.`
+    ? `Hello ${booking.customerName},\n\nPlease read and sign your test-drive declaration before your visit for ${booking.vehicleTitle || "your chosen car"}.\n\n${link.url}\n\nThis private link expires ${declarationTime(link.expiresAt)}. Please bring your driving licence. We will confirm the licence and insurance arrangements before you drive.\n\nIf any car or appointment details are wrong, please reply before signing.`
     : "";
   if (email && link)
     return (
@@ -188,7 +188,7 @@ export function TestDriveDeclarations({
           subject: "Your test-drive declaration",
           message,
           link: link.url,
-          appendText: `Test-drive declaration: ${link.url}\nLink expires ${declarationTime(link.expiresAt)} (UK time).`,
+          appendText: `Test-drive declaration: ${link.url}\nLink expires ${declarationTime(link.expiresAt)}.`,
         }}
         onClose={() => setEmail(false)}
         sendBlockedReason={query.isError ? 'The declaration status could not be checked. Refresh it before sending.' : !currentLink ? 'This declaration link is no longer awaiting a signature. Close this email to check the record or create a replacement before sending.' : undefined}

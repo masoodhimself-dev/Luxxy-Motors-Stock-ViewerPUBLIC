@@ -450,7 +450,7 @@ async function preview(
       dealer_name: profile.identity.name,
       vehicle_title: car?.websiteTitleOverride || car?.title || enquiry.vehicleTitle || '',
       vehicle_registration: car ? vehicleRegistrationLabel(car) : enquiry.vehicleRegistration || '',
-      appointment_time: enquiry.appointmentAt ? new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', dateStyle: 'full', timeStyle: 'short' }).format(enquiry.appointmentAt) + ' (UK time)' : '',
+      appointment_time: enquiry.appointmentAt ? new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', dateStyle: 'full', timeStyle: 'short' }).format(enquiry.appointmentAt) + (layoutVersion === 'legacy-v1' ? ' (UK time)' : '') : '',
       message: rendered.bodyText,
     } };
   });
@@ -602,7 +602,7 @@ export function createEnquiryEmailRouter(
                 timeZone: "Europe/London",
                 dateStyle: "full",
                 timeStyle: "short",
-              }).format(enquiry.appointmentAt) + " (UK time)"
+              }).format(enquiry.appointmentAt)
             : "",
           appointment_status: enquiry.appointmentAt
             ? enquiry.appointmentCancelledAt
@@ -662,7 +662,7 @@ export function createEnquiryEmailRouter(
               timeZone: "Europe/London",
               dateStyle: "full",
               timeStyle: "short",
-            }).format(enquiry.appointmentAt) + " (UK time)"
+            }).format(enquiry.appointmentAt)
           : "",
         appointment_status: enquiry.appointmentAt
           ? enquiry.appointmentCancelledAt

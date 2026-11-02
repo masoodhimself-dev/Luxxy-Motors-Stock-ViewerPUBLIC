@@ -522,7 +522,7 @@ export function TestDriveBooking({
               <p className="mt-2 text-sm text-muted-foreground">
                 {mutation.data.appointmentDurationMinutes ??
                   config.durationMinutes}{" "}
-                minutes · London time
+                minutes
               </p>
               <div className="mt-5 border-y border-border py-5 text-sm leading-6">
                 <p className="font-semibold">
@@ -754,7 +754,7 @@ export function TestDriveBooking({
                   data-testid="section-viewing-availability"
                 >
                   <p className="text-sm leading-6 text-muted-foreground">
-                    {config.durationMinutes}-minute appointments · London time
+                    {config.durationMinutes}-minute appointments
                     {approval ? " · We’ll confirm your request" : ""}
                   </p>
                   <div className="booking-date-heading"><h3 className="font-semibold">Choose a date</h3><label><span className="sr-only">Choose a test-drive date</span><NativeSelect data-testid="select-viewing-date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)}>{dates.map(date => <option key={date} value={date}>{new Intl.DateTimeFormat("en-GB", { timeZone: bookingTimezone, weekday: "short", day: "numeric", month: "short" }).format(new Date(`${date}T12:00:00Z`))}</option>)}</NativeSelect></label></div>
@@ -787,7 +787,7 @@ export function TestDriveBooking({
                       </button>
                     ))}
                   </div>
-                  <p className="booking-times-heading mb-3 text-sm font-semibold">{bookingDateLabel(selectedDate)}<span>London time</span></p>
+                  <p className="booking-times-heading mb-3 text-sm font-semibold">{bookingDateLabel(selectedDate)}</p>
                   {availability.isLoading || availability.isFetching ? (
                     <div
                       role="status"

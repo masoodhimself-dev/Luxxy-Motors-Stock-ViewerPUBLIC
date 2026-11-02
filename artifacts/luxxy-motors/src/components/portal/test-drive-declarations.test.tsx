@@ -17,6 +17,7 @@ vi.mock("./enquiry-email-composer", () => ({
     <section aria-label="Prepared declaration email">
       <p>{initialContent.subject}</p>
       <p>{initialContent.message}</p>
+      <p>{initialContent.appendText}</p>
       <textarea
         aria-label="Prepared message"
         defaultValue={initialContent.message}
@@ -137,6 +138,10 @@ it("creates only on request, provides a signing link, and prepares an unsent ema
   expect(
     await screen.findByRole("region", { name: "Prepared declaration email" }),
   ).toHaveTextContent("Your test-drive declaration");
+  const prepared = screen.getByRole("region", { name: "Prepared declaration email" });
+  expect(prepared).toHaveTextContent("This private link expires 20 Oct 2099, 13:00.");
+  expect(prepared).toHaveTextContent("Link expires 20 Oct 2099, 13:00.");
+  expect(prepared).not.toHaveTextContent(/UK time|London time/);
   expect(
     state.fetch.mock.calls.filter((call) => call[1]?.method === "POST"),
   ).toHaveLength(1);

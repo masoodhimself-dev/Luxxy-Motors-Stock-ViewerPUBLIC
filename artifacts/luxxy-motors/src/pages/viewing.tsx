@@ -134,7 +134,7 @@ export default function Viewing() {
       {bookedCar && getThumbnailUrl(bookedCar) && <ShowroomPhoto src={getThumbnailUrl(bookedCar)!} alt={booking.vehicleTitle || 'Your selected car'} fit="contain" className="mt-5 aspect-[16/9] max-h-64 w-full overflow-hidden rounded-lg bg-secondary" />}
       <div className="mt-6 space-y-4 text-sm text-primary">
         {booking.vehicleTitle && <p className="font-medium">{booking.vehicleUrl ? <Link href={booking.vehicleUrl} className="underline decoration-border underline-offset-4 hover:decoration-primary">{booking.vehicleTitle}</Link> : booking.vehicleTitle}</p>}
-        <p className="flex items-start gap-3"><CalendarDays className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" /><span>{booking.appointmentAt ? appointmentLabel(booking.appointmentAt) : 'Not scheduled'}<span className="mt-1 block text-xs text-muted-foreground">{booking.durationMinutes ?? 30} minutes · UK time</span></span></p>
+        <p className="flex items-start gap-3"><CalendarDays className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" /><span>{booking.appointmentAt ? appointmentLabel(booking.appointmentAt) : 'Not scheduled'}<span className="mt-1 block text-xs text-muted-foreground">{booking.durationMinutes ?? 30} minutes</span></span></p>
         {address && <p className="flex items-start gap-3"><MapPin className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" /><span>{address}</span></p>}
       </div>
       {!isCancelled && mode === 'idle' && <div className="mt-6 flex flex-wrap gap-3">

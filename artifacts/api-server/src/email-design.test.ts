@@ -13,10 +13,43 @@ import {
 } from "./lib/email-template-preview";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import {
+  renderHtml,
+  renderPlainText,
+  type View,
+} from "../../../lib/vehicle-meta/src/email-layout/components";
 const template = {
   subject: "Your car — {{customer_name}}",
   body: "Hi {{customer_name}},\n\nHere are your details.\nAnother line.\n\nThanks,\n{{dealer_name}}",
 };
+test("structured appointment layouts keep their clock values and internal keys without displaying timezone guidance", () => {
+  const view: View = {
+    templateId: "booking_change", subject: "Your test drive", headline: "Your test drive has changed",
+    dealerName: "Example Motors", greeting: "Hi Alex,", paragraphs: [], fileNames: [], secondary: [],
+    palette: { brand: "#24577A", buttonText: "#FFFFFF", link: "#24577A" },
+    appointmentDisplay: { day: "Wednesday", date: "15 July", year: "2026", time: "13:00", timezone: "Europe/London" },
+    sections: [{ title: "Appointment", facts: [
+      { label: "Status", value: "confirmed" },
+      { label: "New time (UK time)", value: "Wednesday 15 July 2026 at 13:00" },
+      { label: "Previous time (UK time)", value: "Tuesday 14 July 2026 at 12:00" },
+      { label: "Duration", value: "30 minutes" },
+    ] }],
+  };
+  const before = JSON.stringify(view);
+  for (const appointmentDisplay of [view.appointmentDisplay, undefined]) {
+    const renderedView = { ...view, appointmentDisplay };
+    const html = renderHtml(renderedView), text = renderPlainText(renderedView);
+    assert.match(html, />Time<\/p>/);
+    assert.match(html, /13:00/);
+    assert.match(html, /Previously: Tuesday 14 July 2026 at 12:00/);
+    assert.match(text, /Time: Wednesday 15 July 2026 at 13:00/);
+    assert.match(text, /Previous time: Tuesday 14 July 2026 at 12:00/);
+    assert.doesNotMatch(html + text, /UK time|London time|Europe\/London/);
+  }
+  assert.equal(JSON.stringify(view), before);
+  const customBody = "Please use UK time for this call, as we discussed.";
+  assert.equal(renderEmailTemplate({ subject: "Your message", body: customBody }, sampleEmailVariables, []).bodyText, customBody);
+});
 test("new layout resolves branding variables and never adds another greeting or rewrites dealer copy", () => {
   const saved = {
     subject: "A note from {{dealer_name}}",

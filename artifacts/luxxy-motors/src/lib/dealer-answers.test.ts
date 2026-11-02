@@ -7,7 +7,7 @@ const car = {id:'honda',inventoryStatus:'available'} as Car;
 const dealer = {identity:{name:'Multi Choice Motors'},contact:{phone:'02046286488',whatsapp:'+447564580875',email:'enquiries@multichoicemotors.co.uk'},address:{street:'36A Coldharbour Lane',city:'Hayes',postcode:'UB3 3EP'},hours:[{days:'Monday – Saturday',times:'10:00 – 18:00'},{days:'Sunday',times:'10:00 – 17:00'}],warranty:{enabled:true,description:'Warranty options are available on eligible vehicles.'},delivery:{enabled:true,description:'Delivery may be available.'},deliveryPricing:{enabled:true},partExchange:{enabled:true},testDriveBooking:{enabled:true}} as unknown as DealerConfig & {testDriveBooking:{enabled:boolean}};
 it('answers dealer hours, address, contact and booking from the active dealer settings', () => {
  const answers = withDealerAnswers([],car,dealer);
- expect(answers.find(a=>a.id==='dealer-hours')?.answer).toContain('Sunday: 10:00 – 17:00');
+ expect(answers.find(a=>a.id==='dealer-hours')?.answer).toBe('Monday – Saturday: 10:00 – 18:00\nSunday: 10:00 – 17:00');
  expect(answers.find(a=>a.id==='dealer-location')?.answer).toContain('UB3 3EP');
  expect(answers.find(a=>a.id==='dealer-contact')?.answer).toContain('enquiries@multichoicemotors.co.uk');
  expect(answers.find(a=>a.id==='dealer-booking')?.href).toBe('/enquire?type=viewing&vehicleId=honda');

@@ -333,7 +333,7 @@ async function enquiryEmail(
           { label: "Appointment status", value: appointmentState(enquiry) },
           {
             label: "Appointment",
-            value: `${formatAppointment(enquiry.appointmentAt)} (UK time)`,
+            value: `${formatAppointment(enquiry.appointmentAt)}${layoutVersion === "legacy-v1" ? " (UK time)" : ""}`,
           },
           {
             label: "Duration",

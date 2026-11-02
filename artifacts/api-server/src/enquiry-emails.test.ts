@@ -302,11 +302,18 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
       (item: any) => item.id === "appointment_details",
     ).message;
     assert.match(appointmentCopy, /5 January 2027/);
-    assert.match(appointmentCopy, /11:00 \(UK time\)/);
+    assert.match(appointmentCopy, /11:00/);
+    assert.doesNotMatch(appointmentCopy, /UK time|London time/);
     assert.match(appointmentCopy, /Awaiting showroom approval/);
     assert.match(appointmentCopy, /30 minutes/);
     assert.match(appointmentCopy, /driving licence/);
     assert.match(appointmentCopy, /visitor parking bay/);
+    await db.update(enquiriesTable).set({ appointmentAt: new Date("2027-07-05T11:00:00Z") }).where(eq(enquiriesTable.id, enquiries[0]!));
+    const summerContext = await call(base + "/email-context");
+    const summerAppointmentCopy = summerContext.data.templates.find((item: any) => item.id === "appointment_details").message;
+    assert.match(summerAppointmentCopy, /5 July 2027.*12:00/s);
+    assert.doesNotMatch(summerAppointmentCopy, /UK time|London time/);
+    await db.update(enquiriesTable).set({ appointmentAt: new Date("2027-01-05T11:00:00Z") }).where(eq(enquiriesTable.id, enquiries[0]!));
     assert.equal(
       (await call(base + "/email-preview", { ...draft, photoIds: [] })).status,
       400,

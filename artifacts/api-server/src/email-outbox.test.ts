@@ -48,6 +48,7 @@ import {
   rebuildStaffOutboxEmail,
 } from "./routes/enquiry-emails";
 import { dealerProfile } from "./lib/enquiry-notifications";
+import { notificationVersion } from "./lib/enquiry-links";
 
 process.env.MULTI_TENANT_ENABLED = "true";
 process.env.NODE_ENV = "test";
@@ -684,6 +685,35 @@ test("durable immutable email outbox: retry, restart, ownership, freshness, boun
             "failed",
           );
           assert.equal(external, 0);
+        },
+      );
+      await t.test(
+        "new viewing emails omit timezone wording while legacy rebuilds and London summer/winter clocks stay intact",
+        async () => {
+          for (const [instant, clock, calendarTime] of [
+            ["2026-07-15T12:00:00Z", "13:00", "20260715T120000Z"],
+            ["2026-12-15T12:00:00Z", "12:00", "20261215T120000Z"],
+          ]) {
+            const [enquiry] = await db.insert(enquiriesTable).values({
+              dealerId: "a", type: "viewing", customerName: "Fictional viewing customer",
+              email: "buyer@example.test", message: "Fictional appointment",
+              appointmentAt: new Date(instant!), appointmentStatus: "confirmed",
+              customerNotificationStatus: "sending", customerNotificationAttemptedAt: new Date(),
+            }).returning();
+            for (const layoutVersion of ["legacy-v1", "correspondence-v1"] as const) {
+              const request = await rebuildAutomaticOutboxEmail({
+                kind: "customer", dealer_id: "a", enquiry_id: enquiry!.id,
+                send_key: `timezone-${layoutVersion}-${instant}`,
+                validation: { workspaceRevision: 0, appointmentRevision: 0, version: notificationVersion(enquiry!), layoutVersion },
+              } as unknown as EmailOutbox);
+              assert.match(request.text!, new RegExp(clock!));
+              if (layoutVersion === "legacy-v1") assert.match(request.text!, /\(UK time\)/);
+              else assert.doesNotMatch(request.html + request.text, /UK time|London time/);
+              const calendar = Buffer.from(request.attachments![0]!.content, "base64").toString("utf8");
+              assert.ok(calendar.includes(`DTSTART:${calendarTime}`));
+            }
+            assert.equal(enquiry!.appointmentAt!.toISOString(), new Date(instant!).toISOString());
+          }
         },
       );
       await t.test(

@@ -198,7 +198,7 @@ function TestDriveDeclarationContent() {
                   <CalendarDays aria-hidden="true" />
                   <div>
                     <strong>{declarationTime(record.appointmentAt)}</strong>
-                    <span>UK time · {record.durationMinutes} minutes</span>
+                    <span>{record.durationMinutes} minutes</span>
                   </div>
                 </div>
               </div>
@@ -209,7 +209,7 @@ function TestDriveDeclarationContent() {
                     <strong>Thank you. Your declaration is saved.</strong>
                     <p>
                       {record.signedAt &&
-                        `Signed ${declarationTime(record.signedAt)} (UK time). `}
+                        `Signed ${declarationTime(record.signedAt)}. `}
                       The showroom will check your driving licence and insurance
                       arrangements before you drive.
                     </p>
@@ -272,8 +272,8 @@ function TestDriveDeclarationContent() {
                     )}
                   </Button>
                   <p className="declaration-help">
-                    This link expires {declarationTime(record.expiresAt)} (UK
-                    time). If any car or appointment details are wrong, ask the
+                    This link expires {declarationTime(record.expiresAt)}.
+                    If any car or appointment details are wrong, ask the
                     showroom for a replacement before signing.
                   </p>
                 </form>

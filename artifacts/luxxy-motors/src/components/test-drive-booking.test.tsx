@@ -76,7 +76,8 @@ it('sends the reviewed booking once, waits for the response and shows the saved 
   expect(within(confirmation).getByRole('heading', { name: 'Your test drive is booked' })).toBeInTheDocument();
   expect(confirmation).toHaveTextContent('Ford Fiesta');
   expect(confirmation).toHaveTextContent('17 October');
-  expect(confirmation).toHaveTextContent('30 minutes · London time');
+  expect(confirmation).toHaveTextContent('30 minutes');
+  expect(confirmation).not.toHaveTextContent(/\b(?:UK|London) time\b/i);
   expect(confirmation).toHaveTextContent('Your booking details are saved here');
   expect(confirmation).not.toHaveTextContent('Confirmation email sent');
   expect(within(confirmation).getByRole('link', { name: 'Manage test drive' })).toHaveAttribute('href', '/viewing/fictional-booking');
@@ -89,7 +90,7 @@ it('formats quick dates in London even when the visitor is in a different timezo
     // Reproduce a visitor in UTC+14 without changing the test process timezone.
     return new original(locale, { timeZone: 'Pacific/Kiritimati', ...options });
   });
-  render(booking());
+  const { container } = render(booking());
   const tomorrow = screen.getByTestId('button-viewing-date-2026-10-17');
   expect(tomorrow).toHaveTextContent('17 Oct');
   expect(tomorrow).not.toHaveTextContent('18 Oct');
@@ -97,6 +98,8 @@ it('formats quick dates in London even when the visitor is in a different timezo
   expect(later).toHaveTextContent('Sun');
   expect(later).toHaveTextContent('18 Oct');
   expect(dateFormat).toHaveBeenCalled();
+  expect(container).toHaveTextContent('30-minute appointments');
+  expect(container).not.toHaveTextContent(/\b(?:UK|London) time\b/i);
 });
 
 it('refreshes available days when an open booking page crosses London midnight', () => {

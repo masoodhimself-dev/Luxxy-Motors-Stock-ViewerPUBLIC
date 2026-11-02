@@ -24,6 +24,7 @@ describe.each(['delivery', 'collection'] as const)('%s handover messages', metho
     expect(text).toContain(`Status: ${method === 'delivery' ? 'Delivered' : 'Collected'}.`);
     expect(text).toContain('Received: ');
     expect(text).not.toContain('Planned date:');
+    expect(text).not.toMatch(/UK time|London time/);
     if (method === 'delivery') expect(text).toContain('Delivery address: 123 Test Road');
     expect(text).toContain('Please reply if any details need changing or you have any questions.\n\nTest Motors');
   });
@@ -43,6 +44,13 @@ describe.each(['delivery', 'collection'] as const)('%s handover messages', metho
     expect(text).toContain('Receiving the car: Planned recipient');
     expect(text).not.toContain('Received by:');
     expect(text).not.toContain('Unconfirmed recipient');
-    expect(text).toMatch(/Planned date: Tuesday,? 3 November 2026, 14:00–16:00 \(UK time\)\./);
+    expect(text).toMatch(/Planned date: Tuesday,? 3 November 2026, 14:00–16:00\./);
+    expect(text).not.toMatch(/UK time|London time/);
   });
+});
+
+it.each([['2026-07-15T12:00:00Z', '13:00:00'], ['2026-12-15T12:00:00Z', '12:00:00']])('keeps the London clock for completed handover %s without a timezone label', (completedAt, time) => {
+  const text = message('delivery', { completedAt });
+  expect(text).toContain(time);
+  expect(text).not.toMatch(/UK time|London time/);
 });

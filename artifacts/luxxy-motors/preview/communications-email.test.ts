@@ -54,7 +54,8 @@ test('local composer gets saved templates and prose only, with actual UK appoint
   assert.equal(result.data.ready, false);
   assert.doesNotMatch(result.data.defaults.message, /showroom@example\.test|020 0000 0000/);
   const appointment = result.data.templates.find((template: any) => template.id === 'appointment_details');
-  assert.match(appointment.message, /11:30 \(UK time\)/);
+  assert.match(appointment.message, /11:30/);
+  assert.doesNotMatch(appointment.message, /UK time|London time/);
   assert.match(appointment.message, /Awaiting showroom approval/);
   assert.match(appointment.message, /45 minutes/);
   assert.match(appointment.message, /Please arrive five minutes early\./);
@@ -63,6 +64,10 @@ test('local composer gets saved templates and prose only, with actual UK appoint
   const noAppointment = await call(`${path}/email-context`, 'GET', undefined, { ...fixture, appointmentAt: null });
   const emptyAppointment = noAppointment.data.templates.find((template: any) => template.id === 'appointment_details');
   assert.doesNotMatch(emptyAppointment.message, /Confirmed|Awaiting|minutes|11:30/);
+  const winter = await call(`${path}/email-context`, 'GET', undefined, { ...fixture, appointmentAt: '2026-12-15T10:30:00.000Z' });
+  const winterAppointment = winter.data.templates.find((template: any) => template.id === 'appointment_details');
+  assert.match(winterAppointment.message, /15 December 2026.*10:30/s);
+  assert.doesNotMatch(winterAppointment.message, /UK time|London time/);
 });
 
 test('local review renders exact shared HTML, protects facts and never sends email', async t => {
@@ -74,7 +79,8 @@ test('local review renders exact shared HTML, protects facts and never sends ema
   assert.match(result.data.html, /Example Motors/);
   assert.match(result.data.html, /&lt;script&gt;bad\(\)&lt;\/script&gt;/);
   assert.doesNotMatch(result.data.html, /<script>/);
-  assert.match(result.data.text, /11:30 \(UK time\)/);
+  assert.match(result.data.text, /11:30/);
+  assert.doesNotMatch(result.data.html + result.data.text, /UK time|London time/);
   assert.match(result.data.text, /Awaiting showroom approval/);
   assert.match(result.data.text, /showroom@example\.test/);
   assert.doesNotMatch(result.data.subject + result.data.text + result.data.html, /PREVIEW-EMAIL-TEST|Enquiry reference:/);

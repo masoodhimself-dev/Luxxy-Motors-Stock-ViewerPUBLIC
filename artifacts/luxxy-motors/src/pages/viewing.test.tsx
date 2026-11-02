@@ -58,11 +58,13 @@ function openReschedule() { fireEvent.click(screen.getByTestId('button-viewing-r
 function chooseTime() { fireEvent.click(within(screen.getByTestId('group-viewing-slots')).getByRole('button', { name: '10:00 am' })); }
 
 it('shows useful booking details without exposing its internal reference', () => {
-  mount();
+  const { container } = mount();
   expect(screen.getByText('Hello, Fictional Customer.')).toBeInTheDocument();
   expect(screen.getByText('Ford Fiesta')).toBeInTheDocument();
   expect(screen.getByText(/20 October/)).toBeInTheDocument();
   expect(screen.queryByText(/TD-FICTIONAL/)).not.toBeInTheDocument();
+  expect(container).toHaveTextContent('30 minutes');
+  expect(container).not.toHaveTextContent(/\b(?:UK|London) time\b/i);
   expect(screen.getByTestId('link-viewing-calendar')).toHaveAttribute('download', 'test-drive.ics');
 });
 

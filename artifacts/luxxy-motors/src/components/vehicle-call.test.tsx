@@ -28,7 +28,7 @@ it('shows the car, full showroom location, closing time and direct call action t
 });
 it('shows confirmed Sunday closure and next opening without forcing a form',()=>{
  vi.setSystemTime(new Date('2026-10-18T13:00:00Z'));show();const dialog=open();
- expect(dialog).toHaveTextContent('Closed today');expect(dialog).toHaveTextContent('Opens tomorrow at 08:00 (UK time)');
+ expect(dialog).toHaveTextContent('Closed today');expect(dialog).toHaveTextContent('Opens tomorrow at 08:00');
  expect(screen.queryByRole('textbox',{name:'Your name'})).not.toBeInTheDocument();
  fireEvent.click(within(dialog).getByRole('button',{name:'Request a callback'}));
  expect(screen.getByRole('textbox',{name:'Your name'})).toBeVisible();

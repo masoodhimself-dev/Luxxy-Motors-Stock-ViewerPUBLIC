@@ -15,8 +15,8 @@ export function saleHandoverMessage(sale: Pick<SaleWorkspaceRecord, 'draft'>, de
   if (v.completedAt) lines.push(`Status: ${v.method === 'delivery' ? 'Delivered' : 'Collected'}.`);
   else if (v.stage === 'unsuccessful') lines.push('We need to rearrange your delivery. Please contact us to agree a new time.');
   else if (v.stage === 'on_way') lines.push('Your car is on its way.');
-  if (v.completedAt) lines.push(`Received: ${new Date(v.completedAt).toLocaleString('en-GB',{timeZone:'Europe/London'})} (UK time).`);
-  else if (date) lines.push(`${v.stage === 'unsuccessful' ? 'Previous planned date' : 'Planned date'}: ${date}${v.timeWindow ? `, ${v.timeWindow}` : ''} (UK time).`);
+  if (v.completedAt) lines.push(`Received: ${new Date(v.completedAt).toLocaleString('en-GB',{timeZone:'Europe/London'})}.`);
+  else if (date) lines.push(`${v.stage === 'unsuccessful' ? 'Previous planned date' : 'Planned date'}: ${date}${v.timeWindow ? `, ${v.timeWindow}` : ''}.`);
   else if (!v.completedAt) lines.push('The date and time are still to be arranged. We’ll confirm these with you.');
   if (v.method === 'delivery' && v.address) lines.push(`Delivery address: ${v.address}`);
   if (v.completedAt) {

@@ -76,7 +76,7 @@ export function VehicleCall({
               {detailsReady && hours.state === 'unknown' && <p>Today’s hours aren’t confirmed. Please check before travelling.</p>}
               {detailsReady && hours.state === 'closed' && !hours.next && <p>Contact us to arrange your next visit.</p>}
               {settingsError && <p>Please confirm our hours before travelling.</p>}
-              <small>UK time · Regular showroom hours</small>
+              <small>Regular showroom hours</small>
             </div>
             <div className="vehicle-call-location">
               <h3><MapPin size={16} aria-hidden="true" />Our showroom</h3>

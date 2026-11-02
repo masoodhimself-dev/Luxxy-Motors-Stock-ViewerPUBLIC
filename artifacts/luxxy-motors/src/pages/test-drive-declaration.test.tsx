@@ -36,9 +36,12 @@ async function complete() {
   fireEvent.click(screen.getByRole("checkbox"));
 }
 it("shows the exact car and statement without signing, cookies or customer account requests", async () => {
-  render(<TestDriveDeclarationPage />);
+  const { container } = render(<TestDriveDeclarationPage />);
   expect(await screen.findByText("AB22 CDE")).toBeVisible();
   expect(screen.getByText(declaration.statement)).toBeVisible();
+  expect(container).toHaveTextContent('30 minutes');
+  expect(container).toHaveTextContent(/This link expires .*\. If any car or appointment details are wrong/);
+  expect(container).not.toHaveTextContent(/\b(?:UK|London) time\b/i);
   expect(
     screen.getByRole("button", { name: "Sign declaration" }),
   ).toBeDisabled();
@@ -127,8 +130,10 @@ it("displays an existing signed confirmation without sending another acceptance"
       signedAt: "2026-10-18T10:00:00Z",
     }),
   );
-  render(<TestDriveDeclarationPage />);
+  const { container } = render(<TestDriveDeclarationPage />);
   await screen.findByRole("heading", { name: "Declaration received" });
+  expect(container).toHaveTextContent('Signed 18 Oct 2026, 11:00.');
+  expect(container).not.toHaveTextContent(/\b(?:UK|London) time\b/i);
   expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   expect(state.fetch.mock.calls.every((call) => call[1].method === "GET")).toBe(
     true,

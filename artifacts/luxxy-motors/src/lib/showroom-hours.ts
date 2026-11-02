@@ -15,7 +15,7 @@ export function showroomOpeningLabel(at: Date | string, now = new Date()) {
     : dateKey(date) === dateKey(tomorrow) ? 'tomorrow'
       : new Intl.DateTimeFormat('en-GB', { timeZone: showroomTimezone, weekday: 'long', day: 'numeric', month: 'short' }).format(date);
   const time = new Intl.DateTimeFormat('en-GB', { timeZone: showroomTimezone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date);
-  return `${day} at ${time} (UK time)`;
+  return `${day} at ${time}`;
 }
 
 export function showroomHours(hours: DealerHour[], now = new Date()) {

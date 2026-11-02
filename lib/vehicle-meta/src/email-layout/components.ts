@@ -159,10 +159,10 @@ function appointmentTime(s: Section, view: View): string {
   let html = "";
   if (time && d) {
     html = table(
-      `<tr><td class="when-date" width="50%" valign="top" style="width:50%;padding:15px 20px 15px 0;border-top:1px solid ${SYSTEM.rule};border-bottom:1px solid ${SYSTEM.rule};">${d.day ? `<p class="secondary" style="margin:0 0 4px;${small}">${t(d.day)}</p>` : ""}<p style="margin:0;${copy}font-size:22px;line-height:28px;font-weight:bold;letter-spacing:-.4px;">${t(d.date)}</p>${d.year ? `<p class="secondary" style="margin:3px 0 0;${small}">${t(d.year)}</p>` : ""}</td><td class="when-time" valign="top" style="padding:15px 0 15px 22px;border-top:1px solid ${SYSTEM.rule};border-bottom:1px solid ${SYSTEM.rule};border-left:1px solid ${SYSTEM.rule};"><p class="secondary" style="margin:0 0 4px;${small}">UK time${d.timezone ? " · " + t(d.timezone) : ""}</p><p style="margin:0;${copy}font-size:22px;line-height:28px;font-weight:bold;letter-spacing:-.4px;">${t(d.time)}</p>${duration ? `<p class="secondary" style="margin:3px 0 0;${small}">${t(duration.value)}</p>` : ""}</td></tr>`,
+      `<tr><td class="when-date" width="50%" valign="top" style="width:50%;padding:15px 20px 15px 0;border-top:1px solid ${SYSTEM.rule};border-bottom:1px solid ${SYSTEM.rule};">${d.day ? `<p class="secondary" style="margin:0 0 4px;${small}">${t(d.day)}</p>` : ""}<p style="margin:0;${copy}font-size:22px;line-height:28px;font-weight:bold;letter-spacing:-.4px;">${t(d.date)}</p>${d.year ? `<p class="secondary" style="margin:3px 0 0;${small}">${t(d.year)}</p>` : ""}</td><td class="when-time" valign="top" style="padding:15px 0 15px 22px;border-top:1px solid ${SYSTEM.rule};border-bottom:1px solid ${SYSTEM.rule};border-left:1px solid ${SYSTEM.rule};"><p class="secondary" style="margin:0 0 4px;${small}">Time</p><p style="margin:0;${copy}font-size:22px;line-height:28px;font-weight:bold;letter-spacing:-.4px;">${t(d.time)}</p>${duration ? `<p class="secondary" style="margin:3px 0 0;${small}">${t(duration.value)}</p>` : ""}</td></tr>`,
     );
   } else if (time) {
-    html = `<p class="secondary" style="margin:0 0 5px;${small}">${t(time.label)}</p><p style="margin:0;${copy}font-size:20px;line-height:28px;font-weight:bold;">${t(time.value)}</p>${duration ? `<p class="secondary" style="margin:5px 0 0;${small}">${t(duration.value)}</p>` : ""}`;
+    html = `<p class="secondary" style="margin:0 0 5px;${small}">Time</p><p style="margin:0;${copy}font-size:20px;line-height:28px;font-weight:bold;">${t(time.value)}</p>${duration ? `<p class="secondary" style="margin:5px 0 0;${small}">${t(duration.value)}</p>` : ""}`;
   } else if (duration)
     html = `<p style="margin:0;${copy}">Duration: ${t(duration.value)}</p>`;
   if (previous)
@@ -384,7 +384,7 @@ export function renderPlainText(view: View): string {
         parts.push(
           (b.section.facts ?? [])
             .filter((f) => f.label !== "Address" && f.label !== "Status")
-            .map((f) => `${f.label}: ${f.value}`)
+            .map((f) => `${f.label === "Previous time (UK time)" ? "Previous time" : f.label.includes("(UK time)") ? "Time" : f.label}: ${f.value}`)
             .join("\n"),
         );
         break;
