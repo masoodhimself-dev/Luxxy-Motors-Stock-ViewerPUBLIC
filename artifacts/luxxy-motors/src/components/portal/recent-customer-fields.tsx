@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react';
 import { canonicalCustomerEmail, canonicalCustomerName, canonicalCustomerPhone } from '@workspace/vehicle-meta';
 import { Check, Clock3, Mail, Phone, UserRound, X } from '@/components/icons';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import './recent-customer-fields.css';
 
 export type CustomerContact = { customerName: string; phone?: string | null; email?: string | null };
 export type RecentCustomer = CustomerContact & { id: string; lastUsedAt?: string | null; detail?: string };
-type ContactField = 'customerName' | 'phone' | 'email';
+export type ContactField = 'customerName' | 'phone' | 'email';
 type RecentCustomerFieldsProps = {
   value: CustomerContact;
   onChange: (contact: CustomerContact) => void;
@@ -23,6 +23,10 @@ type RecentCustomerFieldsProps = {
   nameMinLength?: number;
   phoneRequired?: boolean;
   emailRequired?: boolean;
+  compact?: boolean;
+  showIcons?: boolean;
+  errors?: Partial<Record<ContactField, string>>;
+  inputRefs?: Partial<Record<ContactField, RefObject<HTMLInputElement | null>>>;
   className?: string;
 };
 
@@ -67,15 +71,18 @@ function lastUsedLabel(value?: string | null) {
   return `Last used ${new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value!))}`;
 }
 
-export function RecentCustomerFields({ value, onChange, customers, onSelect, disabled = false, suggestionsDisabled = false, nameLabel = 'Customer name', phoneLabel = 'Phone number', emailLabel = 'Email (optional)', nameRequired = false, nameMaxLength = 120, nameMinLength = 2, phoneRequired = false, emailRequired = false, className = '' }: RecentCustomerFieldsProps) {
+export function RecentCustomerFields({ value, onChange, customers, onSelect, disabled = false, suggestionsDisabled = false, nameLabel = 'Customer name', phoneLabel = 'Phone number', emailLabel = 'Email (optional)', nameRequired = false, nameMaxLength = 120, nameMinLength = 2, phoneRequired = false, emailRequired = false, compact = false, showIcons = !compact, errors, inputRefs, className = '' }: RecentCustomerFieldsProps) {
   const id = useId();
   const [focused, setFocused] = useState<ContactField | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [review, setReview] = useState<{ customer: RecentCustomer; formKey: string } | null>(null);
   const [selected, setSelected] = useState<{ name: string; formKey: string } | null>(null);
+  const [emailExpanded, setEmailExpanded] = useState(false);
+  const focusEmailOnExpand = useRef(false);
   const inputs = useRef<Partial<Record<ContactField, HTMLInputElement | null>>>({});
   const activeOption = useRef<HTMLButtonElement | null>(null);
+  const emailVisible = !compact || emailRequired || emailExpanded || Boolean(value.email) || Boolean(errors?.email);
   const fields = [
     { field: 'customerName' as const, label: nameLabel, required: nameRequired, type: 'text', icon: UserRound },
     { field: 'phone' as const, label: phoneLabel, required: phoneRequired, type: 'tel', icon: Phone },
@@ -94,6 +101,16 @@ export function RecentCustomerFields({ value, onChange, customers, onSelect, dis
   }, [value.customerName, nameMaxLength, nameMinLength, nameRequired]);
   useEffect(() => { setActiveIndex(-1); }, [matchKey]);
   useEffect(() => { if (menuOpen && activeIndex >= 0) activeOption.current?.scrollIntoView?.({ block: 'nearest' }); }, [menuOpen, activeIndex]);
+  useEffect(() => {
+    // Keep the field open when an autofilled address is later cleared for editing.
+    if (value.email || errors?.email || emailRequired) setEmailExpanded(true);
+  }, [value.email, errors?.email, emailRequired]);
+  useEffect(() => {
+    if (emailVisible && focusEmailOnExpand.current) {
+      focusEmailOnExpand.current = false;
+      inputs.current.email?.focus();
+    }
+  }, [emailVisible]);
   function apply(customer: RecentCustomer) {
     const contact = { customerName: clean(customer.customerName), phone: clean(customer.phone), email: clean(customer.email) };
     setReview(null); setDismissed(true); setActiveIndex(-1);
@@ -110,13 +127,13 @@ export function RecentCustomerFields({ value, onChange, customers, onSelect, dis
     setReview(null); setSelected(null); setDismissed(false); setActiveIndex(-1);
     onChange({ ...value, [field]: text });
   }
-  return <div className={`recent-customer-fields ${className}`} onBlur={event => {
+  return <div className={`recent-customer-fields${compact ? ' recent-customer-fields-compact' : ''}${!showIcons ? ' recent-customer-fields-no-icons' : ''} ${className}`} onBlur={event => {
     if (!event.currentTarget.contains(event.relatedTarget as Node | null)) { setFocused(null); setDismissed(false); setActiveIndex(-1); }
   }}>
-    <p className="recent-customer-fields-hint" id={`${id}-hint`}>{suggestionsDisabled || disabled ? 'Enter or edit the customer details.' : 'Type a name, phone number or email to autofill recent customer details.'}</p>
-    {fields.map(({ field, label, required, type, icon: Icon }) => <div className={`recent-customer-field recent-customer-field-${field}`} key={field}>
+    <p className={`recent-customer-fields-hint${compact ? ' sr-only' : ''}`} id={`${id}-hint`}>{suggestionsDisabled || disabled ? 'Enter or edit the customer details.' : compact ? 'Type to find a recent customer, or enter new details.' : 'Type a name, phone number or email to autofill recent customer details.'}</p>
+    {fields.filter(({ field }) => field !== 'email' || emailVisible).map(({ field, label, required, type, icon: Icon }) => <div className={`recent-customer-field recent-customer-field-${field}`} id={`${id}-${field}-field`} key={field}>
       <label htmlFor={`${id}-${field}`}>{label}</label>
-      <div className="recent-customer-input-wrap"><Icon size={17} aria-hidden="true" /><Input id={`${id}-${field}`} ref={node => { inputs.current[field] = node; }} name={field} type={type} value={value[field] ?? ''} required={required} disabled={disabled} autoComplete="off" minLength={field === 'customerName' && nameRequired ? nameMinLength : undefined} maxLength={field === 'customerName' ? nameMaxLength : field === 'email' ? 320 : 40} role="combobox" aria-autocomplete="list" aria-expanded={menuOpen && focused === field} aria-controls={menuOpen && focused === field ? `${id}-suggestions` : undefined} aria-activedescendant={menuOpen && focused === field && activeIndex >= 0 && activeIndex < matches.length ? `${id}-option-${activeIndex}` : undefined} aria-describedby={`${id}-hint`} onChange={event => change(field, event.target.value)} onFocus={() => { setFocused(field); setDismissed(false); setActiveIndex(-1); }} onKeyDown={event => {
+      <div className="recent-customer-input-wrap">{showIcons && <Icon size={17} aria-hidden="true" />}<Input id={`${id}-${field}`} ref={node => { inputs.current[field] = node; const external = inputRefs?.[field]; if (external) external.current = node; }} name={field} type={type} value={value[field] ?? ''} required={required} disabled={disabled} autoComplete="off" minLength={field === 'customerName' && nameRequired ? nameMinLength : undefined} maxLength={field === 'customerName' ? nameMaxLength : field === 'email' ? 320 : 40} role="combobox" aria-autocomplete="list" aria-expanded={menuOpen && focused === field} aria-controls={menuOpen && focused === field ? `${id}-suggestions` : undefined} aria-activedescendant={menuOpen && focused === field && activeIndex >= 0 && activeIndex < matches.length ? `${id}-option-${activeIndex}` : undefined} aria-invalid={errors?.[field] ? true : undefined} aria-describedby={`${id}-hint${errors?.[field] ? ` ${id}-${field}-error` : ''}`} onChange={event => change(field, event.target.value)} onFocus={() => { setFocused(field); setDismissed(false); setActiveIndex(-1); }} onKeyDown={event => {
         if (event.nativeEvent.isComposing) return;
         if (event.key === 'Escape') { if (menuOpen) event.preventDefault(); setDismissed(true); setActiveIndex(-1); }
         else if (event.key === 'Tab') { setDismissed(true); setActiveIndex(-1); }
@@ -128,6 +145,7 @@ export function RecentCustomerFields({ value, onChange, customers, onSelect, dis
           if (activeIndex >= 0 && matches[activeIndex]) choose(matches[activeIndex]);
         }
       }} /></div>
+      {errors?.[field] && <p id={`${id}-${field}-error`} className="recent-customer-error" role="alert">{errors[field]}</p>}
       {menuOpen && focused === field && <div className="recent-customer-popup">
         <p className="recent-customer-popup-title">Recent customers <span>Choose to autofill</span></p>
         <ul role="listbox" id={`${id}-suggestions`} aria-label="Recent customer suggestions">{matches.map((customer, index) => <li key={`${customer.id}-${index}`} role="none"><button ref={node => { if (index === activeIndex) activeOption.current = node; }} type="button" role="option" id={`${id}-option-${index}`} aria-selected={index === activeIndex} tabIndex={-1} className="recent-customer-option" onMouseDown={event => event.preventDefault()} onMouseEnter={() => setActiveIndex(index)} onClick={() => choose(customer)}>
@@ -137,6 +155,7 @@ export function RecentCustomerFields({ value, onChange, customers, onSelect, dis
         </button></li>)}</ul>
       </div>}
     </div>)}
+    {!emailVisible && <button type="button" className="recent-customer-add-email" disabled={disabled} aria-expanded={false} aria-controls={`${id}-email-field`} onClick={() => { focusEmailOnExpand.current = true; setEmailExpanded(true); }}>Add email</button>}
     {currentReview && <section className="recent-customer-review" role="group" aria-live="polite" aria-label={`Review contact details for ${currentReview.customer.customerName}`}>
       <strong>Replace the details already entered?</strong>
       <p>Check with the customer before replacing different contact details.</p>

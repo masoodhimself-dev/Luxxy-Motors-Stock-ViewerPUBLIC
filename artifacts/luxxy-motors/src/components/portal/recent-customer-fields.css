@@ -6,6 +6,10 @@
 .recent-customer-input-wrap > svg { position: absolute; z-index: 1; top: 50%; left: .85rem; transform: translateY(-50%); color: #738391; pointer-events: none; }
 /* Keep room for the icon even when portal/dialog input rules load after this component. */
 .recent-customer-fields .recent-customer-field .recent-customer-input-wrap > input.luxxy-control[role="combobox"] { min-height: 46px; padding-left: 2.4rem; }
+.recent-customer-fields-no-icons .recent-customer-field .recent-customer-input-wrap > input.luxxy-control[role="combobox"] { padding-left: .75rem; }
+.recent-customer-add-email { justify-self: start; min-height: 44px; padding: .5rem 0; color: var(--portal-ink, #192a36); font-size: .875rem; text-decoration: underline; text-underline-offset: 3px; }
+.recent-customer-add-email:disabled { opacity: .5; cursor: default; }
+.recent-customer-error { margin: .35rem 0 0; color: var(--portal-danger, #922118); font-size: .8125rem; line-height: 1.5; }
 .recent-customer-popup { position: absolute; top: calc(100% + .35rem); left: 0; right: 0; z-index: 40; width: 100%; min-width: 0; border: 1px solid #c6d5df; border-radius: .75rem; background: #fff; color: #1d303e; box-shadow: 0 12px 32px #203b5026; overflow: hidden; }
 .recent-customer-popup-title { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .25rem .75rem; margin: 0; padding: .65rem .85rem; background: #f1f6f9; border-bottom: 1px solid #e0e9ef; color: #385469; font-size: .75rem; font-weight: 700; }
 .recent-customer-popup-title span { color: #60798a; font-weight: 400; }

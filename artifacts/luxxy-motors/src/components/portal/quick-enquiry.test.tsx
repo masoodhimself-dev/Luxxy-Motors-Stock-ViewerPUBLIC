@@ -197,6 +197,15 @@ function mount(open = true, initialVehicleId?: string, initialBookTestDrive = fa
   );
   return { ...view, invalidate, onOpenChange, onCreated, onContinueEnquiry };
 }
+function emailInput() {
+  if (!screen.queryByRole("combobox", { name: "Email (optional)" })) fireEvent.click(screen.getByRole("button", { name: "Add email" }));
+  return screen.getByRole("combobox", { name: "Email (optional)" });
+}
+function carSearch() {
+  if (!screen.queryByRole("combobox", { name: /Car.*optional/i })) fireEvent.click(screen.getByRole("button", { name: "Change car" }));
+  return screen.getByRole("combobox", { name: /Car.*optional/i });
+}
+
 function fill() {
   fireEvent.change(screen.getByRole("combobox", { name: "Customer name" }), {
     target: { value: "  Alex Smith  " },
@@ -375,11 +384,11 @@ it("lets staff cancel a preselected car enquiry without a discard warning until 
 it("captures a general enquiry in place using the no-email mode and the current staff owner", async () => {
   const view = mount();
   fill();
-  fireEvent.change(screen.getByRole("combobox", { name: "Email (optional)" }), {
+  fireEvent.change(emailInput(), {
     target: { value: " alex@example.test " },
   });
-  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Ford" } });
-  fireEvent.click(screen.getByRole("button", { name: /Ford Focus/ }));
+  fireEvent.change(carSearch(), { target: { value: "Ford" } });
+  fireEvent.click(screen.getByRole("option", { name: /Ford Focus/ }));
   fireEvent.change(screen.getByRole("textbox", { name: "Notes (optional)" }), {
     target: { value: "  Please call about the service history.  " },
   });
@@ -451,6 +460,7 @@ it.each([
 ])("validates %s before making any request", async (field, value, message) => {
   mount();
   fill();
+  if (field === "Email (optional)") emailInput();
   fireEvent.change(screen.getByLabelText(field), {
     target: { value },
   });
@@ -573,7 +583,7 @@ it("allows a general enquiry when stock is unavailable and keeps closed dialogs 
   fill();
   expect(
     screen.getByText(
-      "Stock could not load. You can still take a general enquiry.",
+      "Cars could not load. You can still take a general enquiry.",
     ),
   ).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Save enquiry" }));
@@ -593,12 +603,12 @@ async function chooseTestDrive() {
   turnOnTestDrive();
   fireEvent.click(await screen.findByRole("button", { name: "15:00" }));
 }
-const bookingButton = () => screen.getByRole("button", { name: "Save enquiry & book test drive" });
+const bookingButton = () => screen.getByRole("button", { name: "Save booking" });
 
 it("books one test drive atomically through normal staff creation without the quick no-email header", async () => {
   const view = mount(true, "car-one");
   fill();
-  fireEvent.change(screen.getByRole("combobox", { name: "Email (optional)" }), { target: { value: " alex@example.test " } });
+  fireEvent.change(emailInput(), { target: { value: " alex@example.test " } });
   fireEvent.change(screen.getByRole("textbox", { name: "Notes (optional)" }), { target: { value: "  Would like a test drive.  " } });
   expect(screen.getByRole("checkbox", { name: /^Book a Test Drive/ })).not.toBeChecked();
   await chooseTestDrive();
@@ -651,8 +661,8 @@ it("requires a current available car and a selected time before booking", async 
   fireEvent.submit(bookingButton().closest("form")!);
   expect(await screen.findByRole("alert")).toHaveTextContent(/available.*car|car.*available|choose.*car/i);
   expect(state.createBooking).not.toHaveBeenCalled();
-  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Ford" } });
-  fireEvent.click(screen.getByRole("button", { name: /Ford Focus/ }));
+  fireEvent.change(carSearch(), { target: { value: "Ford" } });
+  fireEvent.click(screen.getByRole("option", { name: /Ford Focus/ }));
   fireEvent.submit(bookingButton().closest("form")!);
   expect(await screen.findByRole("alert")).toHaveTextContent(/time/i);
   expect(state.create).not.toHaveBeenCalled();
@@ -677,8 +687,8 @@ it("clears the chosen time when the car changes", async () => {
   fill();
   await chooseTestDrive();
   expect(screen.getByRole("button", { name: "15:00" })).toHaveAttribute("aria-pressed", "true");
-  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Toyota" } });
-  fireEvent.click(screen.getByRole("button", { name: /Toyota Yaris/ }));
+  fireEvent.change(carSearch(), { target: { value: "Toyota" } });
+  fireEvent.click(screen.getByRole("option", { name: /Toyota Yaris/ }));
   expect(await screen.findByRole("button", { name: "15:00" })).toHaveAttribute("aria-pressed", "false");
   fireEvent.submit(bookingButton().closest("form")!);
   expect(await screen.findByRole("alert")).toHaveTextContent(/time/i);
@@ -897,7 +907,7 @@ it("offers a valid exact email match, never name-only, partial phone, a closed c
   fireEvent.click(screen.getByRole("button", { name: /No specific car/ }));
   fireEvent.change(screen.getByRole("combobox", { name: "Phone number" }), { target: { value: "07700" } });
   expect(screen.queryByRole("button", { name: "Continue Alex Smith enquiry" })).not.toBeInTheDocument();
-  fireEvent.change(screen.getByRole("combobox", { name: "Email (optional)" }), { target: { value: " ALEX@example.test " } });
+  fireEvent.change(emailInput(), { target: { value: " ALEX@example.test " } });
   expect(screen.getByRole("region", { name: "Existing enquiries for this contact" })).toHaveTextContent("Exact email match");
   expect(screen.getAllByRole("button", { name: "Continue Alex Smith enquiry" })).toHaveLength(1);
 });

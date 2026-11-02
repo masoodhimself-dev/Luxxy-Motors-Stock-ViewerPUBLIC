@@ -1,13 +1,14 @@
-import { useState } from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { createRef, useState, type ComponentProps } from 'react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { findRecentCustomers, recentCustomerPhonePrefix, RecentCustomerFields, type CustomerContact, type RecentCustomer } from './recent-customer-fields';
 
 const alex: RecentCustomer = { id: 'alex-new', customerName: 'Alex Customer', phone: '07700900123', email: 'alex@example.test', lastUsedAt: '2026-10-18T09:00:00Z', detail: 'ENQ-102 · Ford Fiesta' };
 const jamie: RecentCustomer = { id: 'jamie', customerName: 'Jamie Customer', phone: '07700900456', email: 'jamie@example.test', lastUsedAt: '2026-10-17T09:00:00Z' };
-function Harness({ initial = { customerName: '', phone: '', email: '' }, customers = [alex, jamie], onSelect = vi.fn(), disabled = false, suggestionsDisabled = false }: { initial?: CustomerContact; customers?: RecentCustomer[]; onSelect?: (customer: RecentCustomer) => void; disabled?: boolean; suggestionsDisabled?: boolean }) {
+type HarnessProps = { initial?: CustomerContact; customers?: RecentCustomer[]; onSelect?: (customer: RecentCustomer) => void; disabled?: boolean; suggestionsDisabled?: boolean } & Pick<ComponentProps<typeof RecentCustomerFields>, 'compact' | 'showIcons' | 'errors' | 'inputRefs' | 'nameRequired' | 'phoneRequired' | 'emailRequired'>;
+function Harness({ initial = { customerName: '', phone: '', email: '' }, customers = [alex, jamie], onSelect = vi.fn(), disabled = false, suggestionsDisabled = false, ...props }: HarnessProps) {
   const [value, setValue] = useState(initial);
-  return <form onSubmit={event => event.preventDefault()}><RecentCustomerFields value={value} onChange={setValue} customers={customers} onSelect={onSelect} disabled={disabled} suggestionsDisabled={suggestionsDisabled} /><button type="submit">Save enquiry</button></form>;
+  return <form onSubmit={event => event.preventDefault()}><RecentCustomerFields value={value} onChange={setValue} customers={customers} onSelect={onSelect} disabled={disabled} suggestionsDisabled={suggestionsDisabled} {...props} /><button type="submit">Save enquiry</button></form>;
 }
 const field = (name = 'Customer name') => screen.getByRole('combobox', { name });
 function typeName(value = 'Al') { fireEvent.focus(field()); fireEvent.change(field(), { target: { value } }); }
@@ -53,6 +54,105 @@ describe('recent customer suggestions', () => {
 });
 
 describe('RecentCustomerFields', () => {
+  it('keeps all fields, visible helper text and decorative icons for default consumers', () => {
+    const { container } = render(<Harness />);
+    expect(screen.getAllByRole('combobox')).toHaveLength(3);
+    expect(field('Email (optional)')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Add email' })).not.toBeInTheDocument();
+    expect(screen.getByText('Type a name, phone number or email to autofill recent customer details.')).not.toHaveClass('sr-only');
+    expect(container.querySelectorAll('.recent-customer-input-wrap > svg')).toHaveLength(3);
+  });
+
+  it('shows required name and phone immediately in compact mode and focuses email only after Add email', () => {
+    const { container } = render(<Harness compact nameRequired phoneRequired />);
+    expect(field()).toBeRequired();
+    expect(field('Phone number')).toBeRequired();
+    expect(screen.getAllByRole('combobox')).toHaveLength(2);
+    expect(screen.queryByRole('combobox', { name: 'Email (optional)' })).not.toBeInTheDocument();
+    expect(container.querySelectorAll('.recent-customer-input-wrap > svg')).toHaveLength(0);
+    const helper = screen.getByText('Type to find a recent customer, or enter new details.');
+    expect(helper).toHaveClass('sr-only');
+    expect(field()).toHaveAttribute('aria-describedby', helper.id);
+    fireEvent.click(screen.getByRole('button', { name: 'Add email' }));
+    expect(field('Email (optional)')).toHaveFocus();
+    expect(field('Email (optional)')).not.toBeRequired();
+    expect(screen.queryByRole('button', { name: 'Add email' })).not.toBeInTheDocument();
+    fireEvent.change(field('Email (optional)'), { target: { value: 'new@example.test' } });
+    expect(field('Email (optional)')).toHaveValue('new@example.test');
+    fireEvent.change(field('Email (optional)'), { target: { value: '' } });
+    expect(field('Email (optional)')).toBeVisible();
+  });
+
+  it('keeps required email visible and respects an explicit icon preference in compact mode', () => {
+    const { container } = render(<Harness compact emailRequired showIcons />);
+    expect(field('Email (optional)')).toBeRequired();
+    expect(screen.queryByRole('button', { name: 'Add email' })).not.toBeInTheDocument();
+    expect(container.querySelectorAll('.recent-customer-input-wrap > svg')).toHaveLength(3);
+  });
+
+  it('keeps a supplied email visible and reveals an explicitly autofilled email without moving focus away from the active name field', () => {
+    const first = render(<Harness compact initial={{ customerName: '', phone: '', email: 'saved@example.test' }} />);
+    expect(field('Email (optional)')).toHaveValue('saved@example.test');
+    expect(screen.queryByRole('button', { name: 'Add email' })).not.toBeInTheDocument();
+    first.unmount();
+    render(<Harness compact />);
+    act(() => field().focus());
+    fireEvent.change(field(), { target: { value: 'Al' } });
+    expect(screen.queryByRole('combobox', { name: 'Email (optional)' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('option', { name: /Alex Customer/ }));
+    expect(field('Email (optional)')).toHaveValue(alex.email);
+    expect(field()).toHaveFocus();
+    expect(screen.queryByRole('button', { name: 'Add email' })).not.toBeInTheDocument();
+  });
+
+  it('reveals an email error, links inline validation and supplies refs for parent-directed focus', () => {
+    const inputRefs = { customerName: createRef<HTMLInputElement>(), phone: createRef<HTMLInputElement>(), email: createRef<HTMLInputElement>() };
+    const view = render(<Harness compact nameRequired phoneRequired inputRefs={inputRefs} />);
+    expect(inputRefs.customerName.current).toBe(field());
+    expect(inputRefs.phone.current).toBe(field('Phone number'));
+    expect(inputRefs.email.current).toBeNull();
+    view.rerender(<Harness compact nameRequired phoneRequired inputRefs={inputRefs} errors={{ customerName: 'Enter a name.', phone: 'Enter a contact number.', email: 'Check the email address.' }} />);
+    for (const [label, message] of [['Customer name', 'Enter a name.'], ['Phone number', 'Enter a contact number.'], ['Email (optional)', 'Check the email address.']]) {
+      const input = field(label), error = screen.getByText(message);
+      expect(input).toHaveAttribute('aria-invalid', 'true');
+      expect(input.getAttribute('aria-describedby')?.split(' ')).toContain(error.id);
+      expect(error).toHaveAttribute('role', 'alert');
+    }
+    expect(inputRefs.email.current).toBe(field('Email (optional)'));
+    act(() => inputRefs.customerName.current?.focus());
+    expect(field()).toHaveFocus();
+    act(() => inputRefs.email.current?.focus());
+    expect(field('Email (optional)')).toHaveFocus();
+    view.rerender(<Harness compact nameRequired phoneRequired inputRefs={inputRefs} />);
+    expect(field('Email (optional)')).toBeVisible();
+    expect(field('Email (optional)')).not.toHaveAttribute('aria-invalid');
+    view.unmount();
+    expect(inputRefs.customerName.current).toBeNull();
+    expect(inputRefs.phone.current).toBeNull();
+    expect(inputRefs.email.current).toBeNull();
+  });
+
+  it('keeps compact Add email disabled along with the contact fields', () => {
+    render(<Harness compact disabled />);
+    expect(screen.getByRole('button', { name: 'Add email' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Add email' }));
+    expect(screen.queryByRole('combobox', { name: 'Email (optional)' })).not.toBeInTheDocument();
+    expect(field()).toBeDisabled();
+  });
+
+  it('preserves explicit conflict review and keyboard autofill in compact mode', () => {
+    render(<Harness compact initial={{ customerName: '', phone: '07700900999', email: '' }} />);
+    typeName();
+    fireEvent.keyDown(field(), { key: 'ArrowDown' });
+    fireEvent.keyDown(field(), { key: 'Enter' });
+    expect(screen.getByRole('group', { name: 'Review contact details for Alex Customer' })).toBeVisible();
+    expect(field('Phone number')).toHaveValue('07700900999');
+    expect(screen.queryByRole('combobox', { name: 'Email (optional)' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Use these details' }));
+    expect(field('Phone number')).toHaveValue(alex.phone);
+    expect(field('Email (optional)')).toHaveValue(alex.email);
+  });
+
   it('keeps blank fields and no-match queries unobtrusive and editable for a new customer', () => {
     render(<Harness initial={{ customerName: '', phone: null, email: undefined }} />);
     expect(field()).toHaveValue(''); expect(field('Phone number')).toHaveValue(''); expect(field('Email (optional)')).toHaveValue('');
