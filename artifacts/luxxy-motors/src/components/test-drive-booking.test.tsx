@@ -212,14 +212,44 @@ it('explains background rechecks on details and review and resumes once the chec
 
 it('keeps practical visit guidance on the first step and a compact car on later steps', () => {
   render(booking());
-  expect(screen.getByText('Showroom details & before your visit')).toBeInTheDocument();
+  expect(screen.getByText('Showroom & visit details')).toBeInTheDocument();
   fireEvent.click(within(screen.getByTestId('group-viewing-slots')).getByRole('button'));
   fireEvent.click(screen.getByTestId('button-continue-to-details'));
-  expect(screen.getByText('Showroom details & before your visit')).toBeInTheDocument();
+  expect(screen.getByText('Showroom & visit details')).toBeInTheDocument();
   expect(screen.getByTestId('card-enquiry-vehicle')).toHaveClass('booking-car-compact');
   expect(screen.getByTestId('card-enquiry-vehicle')).toHaveTextContent('Ford Fiesta');
   fireEvent.click(screen.getByRole('button', { name: 'Change time' }));
-  expect(screen.getByText('Showroom details & before your visit')).toBeInTheDocument();
+  expect(screen.getByText('Showroom & visit details')).toBeInTheDocument();
+});
+
+it('summarises the chosen time before continuing and clears it when the date changes', () => {
+  render(booking());
+  const summary = screen.getByTestId('selected-viewing-time');
+  expect(summary).toHaveTextContent('Choose a time to continue');
+  expect(screen.getByTestId('button-continue-to-details')).toBeDisabled();
+  fireEvent.click(within(screen.getByTestId('group-viewing-slots')).getByRole('button'));
+  expect(summary).toHaveTextContent('16 Oct');
+  expect(summary).toHaveTextContent('10:00');
+  expect(summary).toHaveTextContent('30 minutes');
+  expect(screen.getByTestId('button-continue-to-details')).toBeEnabled();
+  fireEvent.click(screen.getByTestId('button-viewing-date-2026-10-17'));
+  expect(summary).toHaveTextContent('Choose a time to continue');
+  expect(summary).not.toHaveTextContent('16 Oct');
+  expect(screen.getByTestId('button-continue-to-details')).toBeDisabled();
+});
+
+it('keeps neighbouring date buttons in place and retains every permitted date in the selector', () => {
+  state.daysAhead = 12;
+  render(booking());
+  const dates = screen.getByTestId('group-viewing-dates');
+  const original = within(dates).getAllByRole('button').map(button => button.getAttribute('data-testid'));
+  fireEvent.click(screen.getByTestId('button-viewing-date-2026-10-20'));
+  expect(within(dates).getAllByRole('button').map(button => button.getAttribute('data-testid'))).toEqual(original);
+  const selector = screen.getByTestId('select-viewing-date');
+  expect(within(selector).getAllByRole('option')).toHaveLength(13);
+  fireEvent.change(selector, { target: { value: '2026-10-26' } });
+  expect(screen.getByTestId('button-viewing-date-2026-10-26')).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.getByTestId('button-continue-to-details')).toBeDisabled();
 });
 
 it('offers the next permitted date and direct contact when a day has no slots', () => {

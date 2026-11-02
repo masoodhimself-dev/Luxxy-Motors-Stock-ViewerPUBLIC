@@ -17,6 +17,7 @@ import {
   CalendarPlus,
   Check,
   CheckCircle2,
+  ChevronDown,
   Clock3,
   MapPin,
   MessageCircle,
@@ -153,9 +154,9 @@ export function TestDriveBooking({
   const [selectedDate, setSelectedDate] = useState(
     () => dates[0] ?? londonDate(),
   );
-  // Keep five consecutive permitted dates around the selected date. The selector
-  // always retains every date allowed by the existing booking policy.
-  const dateWindowStart = Math.min(Math.max(dates.indexOf(selectedDate) - 2, 0), Math.max(dates.length - 5, 0));
+  // Keep date buttons in a stable group while choosing between neighbouring days.
+  // The full selector retains every date allowed by the booking policy.
+  const dateWindowStart = Math.floor(Math.max(dates.indexOf(selectedDate), 0) / 5) * 5;
   const quickDates = dates.slice(dateWindowStart, dateWindowStart + 5);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -369,13 +370,13 @@ export function TestDriveBooking({
         <p className="booking-car-name mt-1 text-base font-semibold leading-snug sm:text-lg">
           {vehicleDisplayTitle(currentCar)}
         </p>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="booking-car-meta mt-1 text-sm text-muted-foreground">
           {[customerRegistrationDetails(currentCar), currentCar.transmission]
             .filter(Boolean)
             .join(" · ")}
         </p>
-        <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3">
-          <p className="font-semibold tabular-nums">
+        <div className="booking-car-actions mt-1 flex flex-wrap items-center justify-between gap-x-3">
+          <p className="booking-car-price font-semibold tabular-nums">
             {currentCar.price != null
               ? formatPrice(currentCar.price, currentCar.currency)
               : "Price on application"}
@@ -458,7 +459,6 @@ export function TestDriveBooking({
         <div className={`booking-layout ${!pickingCar && !mutation.isSuccess && !isLoading && !settingsLoading && !error && !settingsError && config.enabled ? 'booking-layout-active' : ''}`}>
           {!pickingCar && !mutation.isSuccess && !isLoading && !settingsLoading && !error && !settingsError && config.enabled && <aside className="booking-context" aria-label="Your selected car and showroom">
             {selectedCarCard}
-            <details className="booking-showroom"><summary>Showroom details & before your visit</summary><p className="mb-3 text-sm leading-6">Please bring your driving licence. Contact our team if you have any questions before your visit.</p>{visitDetails}</details>
           </aside>}
         <div className="booking-panel rounded-sm border border-border bg-card p-5 sm:p-8">
           {isLoading || settingsLoading ? (
@@ -757,6 +757,8 @@ export function TestDriveBooking({
                     {config.durationMinutes}-minute appointments
                     {approval ? " · We’ll confirm your request" : ""}
                   </p>
+                  <div className="booking-availability-grid">
+                  <div className="booking-date-column">
                   <div className="booking-date-heading"><h3 className="font-semibold">Choose a date</h3><label><span className="sr-only">Choose a test-drive date</span><NativeSelect data-testid="select-viewing-date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)}>{dates.map(date => <option key={date} value={date}>{new Intl.DateTimeFormat("en-GB", { timeZone: bookingTimezone, weekday: "short", day: "numeric", month: "short" }).format(new Date(`${date}T12:00:00Z`))}</option>)}</NativeSelect></label></div>
                   <div
                     role="group"
@@ -787,7 +789,9 @@ export function TestDriveBooking({
                       </button>
                     ))}
                   </div>
-                  <p className="booking-times-heading mb-3 text-sm font-semibold">{bookingDateLabel(selectedDate)}</p>
+                  </div>
+                  <div className="booking-time-column">
+                  <h3 className="booking-times-heading text-sm font-semibold">Available times<span>{bookingDateLabel(selectedDate)}</span></h3>
                   {availability.isLoading || availability.isFetching ? (
                     <div
                       role="status"
@@ -852,19 +856,26 @@ export function TestDriveBooking({
                       {currentCar && getVehicleWhatsAppHref(currentCar, 'arrange a test drive', settings) && <a href={getVehicleWhatsAppHref(currentCar, 'arrange a test drive', settings)} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-2 text-sm underline underline-offset-4"><MessageCircle size={16} aria-hidden="true" />WhatsApp</a>}
                     </div>
                   ) : <Link href={timeHelpHref} className="mt-3 inline-flex min-h-11 items-center text-sm text-muted-foreground underline underline-offset-4">Can’t find a suitable time?</Link>}
+                  </div>
+                  </div>
+                  <div className="booking-selection-footer">
+                    <div className="booking-selection-summary" data-selected={Boolean(selectedTime)} role="status" aria-live="polite" data-testid="selected-viewing-time">
+                      {selectedTime ? <><CheckCircle2 aria-hidden="true" /><p><strong>{new Intl.DateTimeFormat("en-GB", { timeZone: bookingTimezone, weekday: "short", day: "numeric", month: "short" }).format(new Date(`${selectedDate}T12:00:00Z`))} at {selectedTime.label}</strong><span>{config.durationMinutes} minutes</span></p></> : <><Clock3 aria-hidden="true" /><p>Choose a time to continue</p></>}
+                    </div>
                   <Button
                     type="button"
                     disabled={
                       !selectedTime || availability.isFetching || availability.isError || !dates.length
                     }
-                    className="booking-continue mt-5 min-h-12 w-full"
+                    className="booking-continue min-h-12"
                     data-testid="button-continue-to-details"
                     onClick={() => setStep(2)}
                   >
                     Continue to your details
                     <ArrowRight size={17} />
                   </Button>
-                  <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                  </div>
+                  <p className="booking-confirmation-note mt-3 text-xs leading-5 text-muted-foreground">
                     {approval
                       ? "We’ll check your requested time and contact you to confirm."
                       : "Your time is confirmed only after you complete the booking."}
@@ -1144,6 +1155,10 @@ export function TestDriveBooking({
             </>
           )}
         </div>
+          {!pickingCar && !mutation.isSuccess && !isLoading && !settingsLoading && !error && !settingsError && config.enabled && <details className="booking-showroom">
+            <summary><MapPin aria-hidden="true" /><span>Showroom &amp; visit details</span><ChevronDown aria-hidden="true" /></summary>
+            <div className="booking-showroom-content"><p className="mb-3 text-sm leading-6">Please bring your driving licence. Contact our team if you have any questions before your visit.</p>{visitDetails}</div>
+          </details>}
         </div>
       </div>
     </div>
