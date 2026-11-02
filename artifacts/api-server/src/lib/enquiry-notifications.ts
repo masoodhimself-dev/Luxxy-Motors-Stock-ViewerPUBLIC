@@ -18,6 +18,7 @@ import {
   effectiveResendSettings,
 } from "./dealer-integrations-store";
 import { serviceLifecycle } from "./service-lifecycle";
+import { notificationVehicleFacts } from "./notification-email-copy";
 import {
   and,
   desc,
@@ -326,13 +327,13 @@ async function enquiryEmail(
           ? "callback"
           : "enquiry_acknowledgement";
   const facts = [
-    { label: "Vehicle", value: vehicleLabel(enquiry, dealer.identity.name) },
+    ...notificationVehicleFacts(enquiry.vehicleTitle),
     ...(isViewing
       ? [
           { label: "Appointment status", value: appointmentState(enquiry) },
           {
             label: "Appointment",
-            value: `${formatAppointment(enquiry.appointmentAt)} (${bookingTimezone})`,
+            value: `${formatAppointment(enquiry.appointmentAt)} (UK time)`,
           },
           {
             label: "Duration",

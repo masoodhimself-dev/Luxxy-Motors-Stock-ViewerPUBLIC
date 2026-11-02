@@ -60,7 +60,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     subject: "Your invoice — {{vehicle_title}}",
     body:
       greeting +
-      "Your invoice is attached, ready to download and keep. If anything needs explaining, reply to this email and we’ll help." +
+      "Your invoice is attached. Reply if you have any questions." +
       signoff,
   },
   {
@@ -70,7 +70,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     subject: "{{vehicle_title}} — vehicle details",
     body:
       greeting +
-      "Here’s a closer look at {{vehicle_title}}. You’ll find the car’s details below. Have a question or want to take it for a drive? Reply to this email and we’ll help you arrange it." +
+      "Here are the vehicle details you asked for. Reply if you have any questions." +
       signoff,
   },
   {
@@ -80,7 +80,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     subject: "{{vehicle_title}} — service history",
     body:
       greeting +
-      "The service-book photos we discussed are attached. Take a look in your own time, and reply if you’d like us to explain any of the entries." +
+      "The service-book photos you requested are attached. Reply if you have any questions." +
       signoff,
   },
   {
@@ -90,7 +90,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     subject: "{{vehicle_title}} — requested photos",
     body:
       greeting +
-      "The pre-accident photos we discussed are attached. If you’d like to talk through them or ask about the car’s history, just reply to this email." +
+      "The pre-accident photos you requested are attached. Reply if you’d like to discuss the car’s history." +
       signoff,
   },
   {
@@ -100,7 +100,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     subject: "Your appointment details — {{vehicle_title}}",
     body:
       greeting +
-      "Here are your appointment details. Check the date, time and confirmation status below. If you need to change anything, reply or give us a call." +
+      "Please check the date, time and booking status below. Reply if anything needs changing." +
       signoff,
   },
   {
@@ -114,10 +114,10 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     id: "enquiry_acknowledgement",
     label: "Enquiry acknowledgement",
     category: "Enquiries",
-    subject: "Your {{dealer_name}} enquiry — {{vehicle_title}}",
+    subject: "Your enquiry: {{dealer_name}}",
     body:
       greeting +
-      "Thanks for getting in touch about {{vehicle_title}}. We’ve received your enquiry and will be in touch. If there’s anything else you’d like to ask, reply to this email." +
+      "Thanks for your enquiry. We’ll get back to you during opening hours." +
       signoff,
   },
   {
@@ -131,10 +131,10 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     id: "callback",
     label: "Callback request",
     category: "Enquiries",
-    subject: "Your callback request — {{vehicle_title}}",
+    subject: "Your callback request: {{dealer_name}}",
     body:
       greeting +
-      "Thanks for requesting a call about {{vehicle_title}}. We’ve received your request and will call you as soon as we can." +
+      "We’ve received your request. We’ll call you during opening hours." +
       signoff,
   },
   {
@@ -144,7 +144,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     subject: "Test drive requested — {{vehicle_title}}",
     body:
       greeting +
-      "Thanks for requesting a test drive of {{vehicle_title}} at {{appointment_time}}. We’ll check the time and contact you to confirm.\n\nYour appointment is not confirmed yet." +
+      "Your test drive is not confirmed yet. We’ll contact you to confirm your requested time before you travel." +
       signoff,
   },
   {
@@ -154,7 +154,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     subject: "Your {{dealer_name}} test drive — {{vehicle_title}}",
     body:
       greeting +
-      "You’re booked in to test drive {{vehicle_title}}. Check your visit details below — we look forward to meeting you.\n\n{{visit_instructions}}\n{{parking_instructions}}" +
+      "Your test drive is confirmed. Your visit details are below.\n\n{{visit_instructions}}\n{{parking_instructions}}" +
       signoff,
   },
   {
@@ -164,7 +164,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     subject: "Your test drive has changed — {{vehicle_title}}",
     body:
       greeting +
-      "We’ve updated your test drive of {{vehicle_title}}. Please check the new date, time and status below before setting off.\n\n{{visit_instructions}}\n{{parking_instructions}}" +
+      "Your test-drive details have changed. Check the date, time and booking status below before travelling.\n\n{{visit_instructions}}\n{{parking_instructions}}" +
       signoff,
   },
   {
@@ -174,7 +174,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     subject: "Test drive cancelled — {{vehicle_title}}",
     body:
       greeting +
-      "Your test drive of {{vehicle_title}} has been cancelled. If you’d like to arrange another time, reply or call us — we’ll be happy to help." +
+      "Your test drive has been cancelled. Reply if you’d like to arrange another time." +
       signoff,
   },
   {
@@ -184,7 +184,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     subject: "Reminder: your {{dealer_name}} test drive",
     body:
       greeting +
-      "We’re looking forward to seeing you for your test drive of {{vehicle_title}}. Here’s a reminder of your visit details.\n\n{{visit_instructions}}\n{{parking_instructions}}" +
+      "Your test drive is coming up. Your visit details are below.\n\n{{visit_instructions}}\n{{parking_instructions}}" +
       signoff,
   },
   {
@@ -194,7 +194,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     subject: "Invoice {{document_number}} — {{dealer_name}}",
     body:
       greeting +
-      "Your invoice for {{vehicle_title}} is attached. Keep a copy for your records. If you have a question about the invoice, reply and we’ll help." +
+      "Your invoice is attached. Reply if you have any questions." +
       signoff,
   },
   {
@@ -204,7 +204,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     subject: "Receipt {{document_number}} — {{dealer_name}}",
     body:
       greeting +
-      "Your payment receipt for {{vehicle_title}} is attached. The details below reflect the issued document. Thank you — please keep the receipt for your records." +
+      "Your receipt is attached. It shows the payments recorded when it was issued." +
       signoff,
   },
   {
@@ -214,7 +214,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     subject: "Balance statement {{document_number}} — {{dealer_name}}",
     body:
       greeting +
-      "Your balance statement for {{vehicle_title}} is attached. It shows the balance recorded when the document was issued. Reply or call us if you’d like to discuss the next payment." +
+      "Your balance statement is attached. It shows the balance when it was issued. Reply if you have any questions." +
       signoff,
   },
   {
@@ -224,7 +224,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     subject: "{{document_type}} {{document_number}} — {{dealer_name}}",
     body:
       greeting +
-      "Your {{document_type}} for {{vehicle_title}} is attached. Keep it for your records." +
+      "Your {{document_type}} is attached. Reply if you have any questions." +
       signoff,
   },
 ];
@@ -389,7 +389,7 @@ const emailPresentation: Record<string, { title: string; kicker: string }> = {
   },
   enquiry_message: { title: "A message for you", kicker: "Your dealership" },
   enquiry_acknowledgement: {
-    title: "Thanks for getting in touch",
+    title: "Enquiry received",
     kicker: "Your enquiry",
   },
   dealer_notification: {
@@ -397,7 +397,7 @@ const emailPresentation: Record<string, { title: string; kicker: string }> = {
     kicker: "Showroom team",
   },
   callback: {
-    title: "We’ve received your callback request",
+    title: "Callback request received",
     kicker: "Let’s talk",
   },
   booking_request: {
@@ -595,9 +595,6 @@ export function renderEmailTemplate(
     copy.headline ? interpolate(copy.headline) : presentation.title,
   );
   const dealer = String(variables.dealer_name ?? "").trim();
-  const factText = details
-    .map((fact) => `${fact.label}: ${fact.value}`)
-    .join("\n");
   const attachments = (options.attachments ?? []).filter((name) => name.trim());
   const actionUrl = options.actionUrl
     ? secureEmailLink(options.actionUrl)
@@ -605,6 +602,12 @@ export function renderEmailTemplate(
         options.templateId !== "booking_cancellation"
       ? secureEmailLink(variables.manage_url)
       : undefined;
+  // A management link already has its labelled action in both alternatives.
+  // Use the same fact list for HTML, text and the protected approval content.
+  const displayedDetails = details.filter((fact) => !actionUrl || String(fact.value).trim() !== actionUrl);
+  const factText = displayedDetails
+    .map((fact) => `${fact.label}: ${fact.value}`)
+    .join("\n");
   const actionLabel = options.actionLabel?.trim() || "Manage your test drive";
   const contactEmail =
     typeof variables.dealer_email === "string" &&
@@ -642,8 +645,7 @@ export function renderEmailTemplate(
     dealer,
     logoUrl: branding.logoUrl,
     brandColour: branding.brandColour,
-    details: details
-      .filter((fact) => !actionUrl || fact.value !== actionUrl)
+    details: displayedDetails
       .map((fact) => ({ label: fact.label, value: String(fact.value) })),
     attachments,
     actionUrl,

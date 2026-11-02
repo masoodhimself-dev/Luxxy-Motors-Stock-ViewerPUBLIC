@@ -1,0 +1,15 @@
+Customer email wording review — 2 November 2026
+
+Reviewed all 17 standard customer templates and the separate appointment follow-up, sold-car update/cancellation, review request and handover message helpers. The dealer notification was checked as a staff-facing message and retained. Shortened 16 standard bodies; the staff-written enquiry_message placeholder remains unchanged.
+
+Each standard message leads with its purpose and one useful next step. Removed repeated car details from prose where they already appear in the supplied facts, shortened acknowledgements and callbacks, kept pending-booking warnings and visit instructions, preserved issue-time financial wording and removed the assumption of a next payment from balance statements. Booking times are labelled UK time. General enquiries no longer appear as fictional vehicle facts.
+
+The email layout no longer repeats the purpose above its heading. Exact management links appear once in HTML and plain text. Logo images have neutral backing for dark mode. Saved dealer-written copy remains exact, the legacy renderer is untouched, and approved queued envelopes remain frozen.
+
+Other fixes: sold-car cancellation subjects explicitly say cancelled; review requests are brief, optional and ask for an honest review; completed handovers name the recorded recipient rather than the planned recipient.
+
+Validation: 123 targeted tests passed: 19 email design, 3 customer copy, 20 outbox, 11 enquiry-workflow/website-branding, and 70 frontend email helpers/editor/composer/preview tests. Current-source backend and frontend typechecks passed. Production build passed with existing large-bundle warnings. Fixtures include all 18 defaults (including staff notification), pending/cancelled bookings, zero balance, missing optional fields, long facts and exact custom wording.
+
+Browser limitation: the browser security policy rejected opening local HTML preview files. The HTML and plain-text outputs were checked directly; these are generated local samples, not a claim of live Gmail, Outlook or iPhone Mail client testing.
+
+No real email was sent, no production setting or record was changed, and nothing was deployed. New defaults apply to future messages after release; dealer custom wording is preserved.

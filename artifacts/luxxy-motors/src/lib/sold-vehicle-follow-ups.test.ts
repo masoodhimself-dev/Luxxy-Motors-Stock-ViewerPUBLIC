@@ -6,6 +6,7 @@ it('writes an accurate cancellation only after the booking was cancelled', () =>
  const result = soldVehicleEmail(review, 'enquiry', 'Luxxy Motors');
  expect(result.content?.message).toMatch(/Thursday.*22 October.*11:00/);
  expect(result.content?.message).toContain('we’ve cancelled your test drive');
+ expect(result.content?.subject).toBe('Test drive cancelled: Toyota Yaris');
  expect(result.content?.message).toContain('Luxxy Motors');
  expect(result.content?.message).not.toMatch(/refund|deposit|invoice/i);
  expect(soldVehicleEmail({ ...review, customers: [{ ...review.customers[0], cancelledByReview: false, appointmentCancelledAt: null }] }, 'enquiry', '').error).toContain('Cancel the appointment');
@@ -14,6 +15,8 @@ it('prepares optional interest wording without claiming any appointment was canc
  const result = soldVehicleEmail({ ...review, customers: [{ ...review.customers[0], kind: 'interest' }] }, 'enquiry', 'Dealer');
  expect(result.content?.message).toContain('has now sold');
  expect(result.content?.message).not.toContain('cancelled');
+ expect(result.content?.subject).toBe('Toyota Yaris has sold');
+ expect(result.content?.subject).not.toContain('cancelled');
 });
 it('blocks unsold, missing, completed, and no-email customers', () => {
  expect(soldVehicleEmail({ ...review, sold: false }, 'enquiry', '').error).toBeTruthy();
@@ -28,6 +31,15 @@ it('updates a customer after a missed appointment without claiming it was cancel
  const result = soldVehicleEmail({ ...review, customers: [{ ...review.customers[0], cancelledByReview: false, appointmentCancelledAt: null, appointmentAt: '2020-01-01T10:00:00Z' }] }, 'enquiry', 'Dealer');
  expect(result.content?.message).toContain('has now sold');
  expect(result.content?.message).not.toContain('cancelled');
+ expect(result.content?.subject).not.toContain('cancelled');
+});
+
+it('keeps sold update wording optional and leaves the reviewed sale and customer unchanged', () => {
+ const before = JSON.stringify(review);
+ const result = soldVehicleEmail(review, 'enquiry', 'Example Motors');
+ expect(result.content?.message).toContain('Reply if you’d like help finding a similar car.');
+ expect(result.content?.message).not.toMatch(/reserved|refund|deposit|payment|invoice/i);
+ expect(JSON.stringify(review)).toBe(before);
 });
 
 // These fixture appointments are future visits; keep that independent of the wall clock.

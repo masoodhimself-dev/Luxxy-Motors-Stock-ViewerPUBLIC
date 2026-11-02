@@ -4,6 +4,7 @@ import {
   defaultEmailAppearance,
   defaultEmailTemplates,
   renderEmailTemplate,
+  protectedEmailText,
   type EmailFacts,
 } from "@workspace/vehicle-meta";
 import {
@@ -417,6 +418,45 @@ test("prose links exclude sentence punctuation while private action URLs stay ex
   assert.ok(rendered.text.includes(capability));
 });
 
+test('HTML, text and protected facts show an action URL once while retaining every other fact and exact custom prose', () => {
+  const url = 'https://example.test/viewing/fictional-token?token=A%2FB%2BC';
+  const body = 'Dear Alex,\n\nPlease keep this wording exactly.\n\nKind regards,\nYour showroom';
+  const rendered = renderEmailTemplate({ subject: 'Your appointment', body }, sampleEmailVariables,
+    [{ label: 'Manage booking', value: ` ${url} ` }, { label: 'Appointment status', value: 'Pending' }, { label: 'Amount received', value: 0 }],
+    defaultEmailAppearance, { templateId: 'booking_request', actionUrl: url });
+  assert.equal(rendered.bodyText, body);
+  for (const output of [rendered.html, rendered.text, protectedEmailText(rendered)]) {
+    assert.equal(output.split(url).length - 1, 1);
+    assert.ok(!output.includes('Manage booking'));
+    assert.ok(output.includes('Pending'));
+    assert.ok(output.includes('Amount received'));
+  }
+  assert.match(rendered.text, /Amount received: 0/);
+});
+
+test('compatibility emails omit repeated purpose metadata while keeping document identifiers and issue dates in the facts', () => {
+  const rendered = renderEmailTemplate({ subject: 'Your invoice', body: 'Please keep the attached document for your records.' }, sampleEmailVariables,
+    [{ label: 'Document', value: 'Invoice INV-FICTIONAL-123' }, { label: 'Issued', value: '2 November 2026' }, { label: 'Balance at issue', value: '£0.00' }],
+    defaultEmailAppearance, { templateId: 'invoice' });
+  const body = rendered.html.split('<body')[1]!;
+  assert.equal(body.split('Invoice INV-FICTIONAL-123').length - 1, 1);
+  assert.equal(body.split('2 November 2026').length - 1, 1);
+  assert.match(rendered.text, /Document: Invoice INV-FICTIONAL-123/);
+  assert.match(rendered.text, /Balance at issue: £0.00/);
+  const enquiry = renderEmailTemplate({ subject: 'Your enquiry', body: 'Here are the details you requested.' }, sampleEmailVariables, [], defaultEmailAppearance, { templateId: 'enquiry_message' });
+  assert.ok(!enquiry.html.includes('Your vehicle enquiry'));
+});
+
+test('dealer logo images keep a small neutral backing when the email shell uses dark mode', () => {
+  const rendered = renderEmailTemplate(template, sampleEmailVariables, [], { ...defaultEmailAppearance, logoUrl: 'https://example.test/fictional-dark-wordmark.svg' });
+  assert.match(rendered.html, /class="email-logo"[^>]*bgcolor="#FFFFFF"[^>]*background-color:#FFFFFF/);
+  assert.match(rendered.html, /<td bgcolor="#FFFFFF" style="padding:6px;background-color:#FFFFFF;">\s*<img/);
+  assert.match(rendered.html, /prefers-color-scheme:dark/);
+  assert.match(rendered.html, /width="180"/);
+  const plain = renderEmailTemplate(template, sampleEmailVariables, []);
+  assert.ok(!plain.html.includes('class="email-logo"'));
+});
+
 test("logo geometry has an explicit email-client width and a readable text fallback", () => {
   const rendered = renderEmailTemplate(template, sampleEmailVariables, [], {
     ...defaultEmailAppearance,
@@ -499,6 +539,27 @@ test("write fictional visual samples only when explicitly requested", async () =
   );
   await writeFile(path.join(directory, "long-facts.html"), long.html, "utf8");
   samples.push({ id: "long-facts", label: "Long facts and attachment names" });
+  const extra = [
+    {
+      id: 'custom-markup', label: 'Custom wording stays escaped',
+      rendered: renderEmailTemplate({ subject: 'A fictional custom message', body: 'Dear {{customer_name}},\n\n<strong>This stays plain text.</strong> & so does <script>this</script>.\n\nKind regards,\nThe showroom' }, sampleEmailVariables,
+        [{ label: 'Vehicle', value: sampleEmailVariables.vehicle_title }], defaultEmailAppearance, { templateId: 'enquiry_message' }),
+    },
+    {
+      id: 'zero-balance', label: 'Invoice with zero balance recorded at issue',
+      rendered: renderEmailTemplate(defaultEmailTemplates.find(item => item.id === 'invoice')!, { ...sampleEmailVariables, balance: '£0.00', amount_received: '£12,500.00' },
+        [{ label: 'Vehicle', value: sampleEmailVariables.vehicle_title }, { label: 'Document', value: 'Invoice INV-SAMPLE' }, { label: 'Issued', value: '2 November 2026' }, { label: 'Payments recorded at issue', value: '£12,500.00' }, { label: 'Balance at issue', value: '£0.00' }],
+        defaultEmailAppearance, { templateId: 'invoice', attachments: ['INV-SAMPLE.pdf'] }),
+    },
+    {
+      id: 'missing-optional', label: 'Message without optional customer name, contact fields or car facts',
+      rendered: renderEmailTemplate(defaultEmailTemplates.find(item => item.id === 'enquiry_message')!, { dealer_name: 'Example Motors', customer_name: '', message: 'Here is the information you requested. Reply if you have any questions.' }, [], defaultEmailAppearance, { templateId: 'enquiry_message' }),
+    },
+  ];
+  for (const item of extra) {
+    await writeFile(path.join(directory, item.id + '.html'), item.rendered.html, 'utf8');
+    samples.push({ id: item.id, label: item.label });
+  }
   await writeFile(
     path.join(directory, "index.html"),
     '<!doctype html><meta charset="utf-8"><title>Fictional email design samples</title><style>body{font:16px Arial;margin:32px;color:#172d3e}a{color:#24577a}li{margin:14px 0}</style><h1>Email design samples</h1><p>Fictional records. No email was sent. The optional logo is an offline SVG used only in this visual fixture.</p><ul>' +

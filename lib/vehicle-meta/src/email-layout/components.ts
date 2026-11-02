@@ -331,9 +331,11 @@ function blockHtml(b: Block, view: View): string {
 }
 export function renderHtml(view: View): string {
   const phone = view.phone && phoneLink(view.phone),
-    meta = metadata(view);
+    // Existing correspondence already supplies its purpose as the headline.
+    // Document numbers, issue dates and statuses remain in the supplied facts.
+    meta = view.preserveCopy ? "" : metadata(view);
   const identity = view.logo
-    ? `<img src="${e(view.logo)}" width="180" alt="${e(view.dealerName)}" style="display:block;border:0;width:180px;max-width:100%;height:auto;max-height:56px;object-fit:contain;object-position:left center;font-family:${SYSTEM.font};font-size:16px;color:${SYSTEM.ink};">`
+    ? `<table role="presentation" class="email-logo" width="192" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF" style="width:192px;max-width:100%;border-collapse:collapse;background-color:#FFFFFF;"><tr><td bgcolor="#FFFFFF" style="padding:6px;background-color:#FFFFFF;"><img src="${e(view.logo)}" width="180" alt="${e(view.dealerName)}" style="display:block;border:0;width:180px;max-width:100%;height:auto;max-height:56px;object-fit:contain;object-position:left center;font-family:${SYSTEM.font};font-size:16px;color:${SYSTEM.ink};"></td></tr></table>`
     : t(view.dealerName);
   const header = table(
     `<tr><td class="dealer-name" valign="middle" style="${copy}font-size:20px;line-height:26px;font-weight:bold;letter-spacing:-.5px;">${identity}${view.heading ? `<p class="secondary" style="margin:4px 0 0;${small}font-weight:normal;letter-spacing:normal;">${t(view.heading)}</p>` : ""}</td>${view.phone ? `<td class="header-phone" width="140" align="right" valign="middle" style="width:140px;${small}">${phone ? `<a href="${e(phone)}" style="color:${view.palette.link};text-decoration:none;">${t(view.phone)}</a>` : t(view.phone)}</td>` : ""}</tr>`,

@@ -19,7 +19,9 @@ export function saleHandoverMessage(sale: Pick<SaleWorkspaceRecord, 'draft'>, de
   else if (date) lines.push(`${v.stage === 'unsuccessful' ? 'Previous planned date' : 'Planned date'}: ${date}${v.timeWindow ? `, ${v.timeWindow}` : ''} (UK time).`);
   else if (!v.completedAt) lines.push('The date and time are still to be arranged. We’ll confirm these with you.');
   if (v.method === 'delivery' && v.address) lines.push(`Delivery address: ${v.address}`);
-  if (v.recipient) lines.push(`Receiving the car: ${v.recipient}`);
+  if (v.completedAt) {
+    if (v.completedRecipient) lines.push(`Received by: ${v.completedRecipient}`);
+  } else if (v.recipient) lines.push(`Receiving the car: ${v.recipient}`);
   lines.push('', 'Please reply if any details need changing or you have any questions.', '', dealer);
   return lines.join('\n');
 }

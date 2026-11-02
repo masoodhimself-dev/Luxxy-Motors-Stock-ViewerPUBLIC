@@ -73,13 +73,13 @@ export function soldVehicleEmail(review: SoldVehicleFollowUpReview, enquiryId: s
   }) : '';
   const message = cancelled
     ? `The ${vehicle} you were due to view${date ? ` on ${date}` : ''} has now sold, so we’ve cancelled your test drive. Sorry for the inconvenience.`
-    : `A quick update—the ${vehicle} you ${customer.kind === 'appointment' ? 'arranged to view' : 'asked about'} has now sold.`;
+    : `The ${vehicle} you ${customer.kind === 'appointment' ? 'arranged to view' : 'asked about'} has now sold.`;
   return { content: {
     label: cancelled ? 'Test drive cancellation' : 'Sold car update',
     applyLabel: cancelled ? 'Use cancellation wording' : 'Use sold update wording',
-    subject: cancelled ? `Your test drive of the ${vehicle}` : `An update about the ${vehicle}`,
+    subject: cancelled ? `Test drive cancelled: ${vehicle}` : `${vehicle} has sold`,
     message: [`Hi ${customer.customerName.trim() || 'there'},`, message,
-      'If you’re still looking, reply here or give us a call. We’ll be happy to help you find a similar car.',
+      'Reply if you’d like help finding a similar car.',
       `Kind regards,\n${dealerName.trim() || 'The showroom team'}`].join('\n\n'),
   } };
 }

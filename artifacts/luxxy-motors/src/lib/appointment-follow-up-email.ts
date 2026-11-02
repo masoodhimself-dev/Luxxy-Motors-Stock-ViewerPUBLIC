@@ -13,17 +13,19 @@ export function appointmentFollowUpEmail(entry: Enquiry, car: Car | undefined, d
   const vehicle = car ? vehicleDisplayTitle(car) : entry.vehicleTitle?.trim();
   const about = vehicle ? `the ${vehicle}` : 'the car';
   const opening = entry.attendance === 'no_show'
-    ? `We missed you at your appointment to see ${about}. If you’d like to arrange another time, let us know what works for you.`
+    ? `We missed you at your appointment to see ${about}.`
     : entry.attendance === 'completed'
       ? `Thanks for coming to see ${about}.`
-      : `Just following up about your appointment to see ${about}.`;
+      : `We’re following up on your appointment to see ${about}.`;
+  const nextStep = entry.attendance === 'no_show'
+    ? 'Reply if you’d like to arrange another time or have any questions.'
+    : 'Reply if you have any questions or would like to discuss the next step.';
   const deposit = car?.inventoryStatus === 'available'
-    ? 'If you’d like to leave a deposit, let us know. We’ll confirm availability and explain how it works before you make any payment.'
+    ? 'If you’d like to leave a deposit, we’ll confirm availability and explain the terms before you pay.'
     : '';
   return {
     subject: vehicle ? `Any questions about the ${vehicle}?` : 'Following up on your appointment',
-    message: [`Hi ${entry.customerName?.trim() || 'there'},`, opening,
-      'Reply here or give us a call if you have any questions about the car or its history.',
+    message: [`Hi ${entry.customerName?.trim() || 'there'},`, opening, nextStep,
       deposit, `Kind regards,\n${dealerName.trim() || 'The showroom team'}`].filter(Boolean).join('\n\n'),
     label: 'Appointment follow-up',
   };
