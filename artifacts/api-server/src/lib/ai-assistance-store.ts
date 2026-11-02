@@ -3,7 +3,6 @@ import {
   AiError,
   AI_MONTHLY_MICRO_USD,
   AI_RESERVATION_MICRO_USD,
-  AI_REPLY_RESERVATION_MICRO_USD,
   type AiResult,
 } from "./ai-assistance";
 type Client = {
@@ -146,7 +145,7 @@ export class AiAssistanceStore {
             )
           ).rows[0].spent,
         );
-        if (spend + (input.staff ? AI_REPLY_RESERVATION_MICRO_USD : AI_RESERVATION_MICRO_USD) > AI_MONTHLY_MICRO_USD)
+        if (spend + AI_RESERVATION_MICRO_USD > AI_MONTHLY_MICRO_USD)
           throw new AiError(
             "budget_limit",
             "The monthly AI allowance has been reached. Normal search and enquiries are still available.",
@@ -183,7 +182,7 @@ export class AiAssistanceStore {
           input.hash,
           input.cacheKey,
           today.slice(0, 7),
-          cache ? 0 : input.staff ? AI_REPLY_RESERVATION_MICRO_USD : AI_RESERVATION_MICRO_USD,
+          cache ? 0 : AI_RESERVATION_MICRO_USD,
           cache ? "succeeded" : "reserved",
           cache ? JSON.stringify(cache) : null,
         ],
