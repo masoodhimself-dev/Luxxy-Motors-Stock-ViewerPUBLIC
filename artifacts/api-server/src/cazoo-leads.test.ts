@@ -7,6 +7,7 @@ import express from "express";
 import { Webhook } from "svix";
 import { engine } from "./test/tenant-test-db";
 import { runWithTenant } from "./lib/tenant-context";
+import { cazooTestSender, parseCazooDelivery } from "./lib/cazoo-owner-test";
 import { parseCazooLead } from "./lib/cazoo-lead-parser";
 import {
   acceptCazooLeadEvent,
@@ -482,4 +483,52 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
       }
     },
   );
+});
+
+
+test("owner testing is exact, temporary, authenticated and cannot consume a genuine correlation", async () => {
+  const now = Date.now(), owner = "owner@example.test";
+  process.env.CAZOO_OWNER_TEST_SENDERS = JSON.stringify({ "cazoo-a": { email: owner, expiresAt: new Date(now + 7 * 86400000).toISOString() } });
+  try {
+    assert.equal(cazooTestSender("cazoo-a", now)?.email, owner);
+    assert.equal(cazooTestSender("cazoo-b", now), null);
+    assert.equal(cazooTestSender("cazoo-a", now + 8 * 86400000), null);
+    const id = randomUUID(), forwarded = email(id, { from: `Owner <${owner}>`, subject: "Fwd: Enquiry - Lexus RX AB15CDE - sam", text: "Previous dealer reply: we can accept £5,000.\n---------- Forwarded message ---------\n" + text().split("\n").map(line => "> " + line).join("\n") });
+    const parsed = parseCazooDelivery("cazoo-a", forwarded, now);
+    assert.equal(parsed.testDelivery, true);
+    assert.equal(parsed.lead.email, owner);
+    assert.equal(parsed.lead.customerName, "Owner test");
+    assert.equal(parsed.lead.phone, null);
+    assert.equal(parsed.lead.registration, "AB15CDE");
+    assert.equal(parsed.lead.message, "Do you accept px for a Lexus GS450h 2008?");
+    assert.notEqual(parsed.lead.correlationId, "a".repeat(32));
+    assert.equal(parseCazooDelivery("cazoo-a", forwarded, now).lead.correlationId, parsed.lead.correlationId);
+    for (const change of [{ from: "other@example.test" }, { from: "owner@example.test.attacker.test" }, { authentication: null }, { authentication: { dmarc: "fail" } }])
+      assert.throws(() => parseCazooDelivery("cazoo-a", {...forwarded,...change}, now));
+    assert.throws(() => parseCazooDelivery("cazoo-b", forwarded, now));
+    assert.throws(() => parseCazooDelivery("cazoo-a", forwarded, now + 8 * 86400000));
+    assert.equal(parseCazooDelivery("cazoo-a", email(), now).testDelivery, false);
+    const simple = parseCazooDelivery("cazoo-a", {...forwarded, subject:"Enquiry - Lexus RX AB15CDE - Test", text:"Is it available for a viewing tomorrow?"}, now);
+    assert.equal(simple.lead.message, "Is it available for a viewing tomorrow?");
+    assert.throws(() => parseCazooDelivery("cazoo-a", {...forwarded, text: text() + "\n" + text("b".repeat(32))}, now));
+    assert.throws(() => parseCazooDelivery("cazoo-a", {...forwarded, subject:"Hello", text:"A plain test with no car reference"}, now));
+
+    await queue(id);
+    await processCazooLeads(transportFor({[id]:forwarded}), draftSkip);
+    const receiptRow = await receipt(id);
+    assert.equal(receiptRow.status,"imported");
+    assert.equal(receiptRow.error_code,"owner_test");
+    const enquiry = (await engine.query<any>("SELECT * FROM enquiries WHERE id=$1", [receiptRow.enquiry_id])).rows[0];
+    assert.equal(enquiry.vehicle_id,carId);
+    assert.equal(enquiry.email,owner);
+    assert.equal(enquiry.phone,null);
+    assert.match(enquiry.staff_note,/Owner test/);
+    assert.notEqual(receiptRow.correlation_id,"a".repeat(32));
+    const generated = async () => ({result:{answer:"Hi, we accept part exchange. Please share your registration and current mileage.",vehicleIds:[],questions:[],evidence:[carId]},cost:1});
+    assert.equal(await runWithTenant(tenant(),()=>draftCazooReply(receiptRow,generated,async()=>({id:carId,make:"Lexus",model:"RX",inventoryStatus:"available"}))),"ready");
+    const draft = (await engine.query<any>("SELECT content FROM enquiry_email_drafts WHERE enquiry_id=$1",[receiptRow.enquiry_id])).rows[0];
+    assert.equal(draft.content.to,owner);
+    assert.ok(!JSON.stringify(draft.content).includes("sam@example.test"));
+    assert.equal((await engine.query<any>("SELECT count(*)::int AS n FROM email_outbox")).rows[0].n,0);
+  } finally { delete process.env.CAZOO_OWNER_TEST_SENDERS; }
 });

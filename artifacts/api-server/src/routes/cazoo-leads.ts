@@ -5,6 +5,7 @@ import { requireStaff, requirePermission } from "../middlewares/staff-auth";
 import { enforceStaffWriteOrigin } from "../middlewares/staff-write-origin";
 import { currentDealerId } from "../lib/tenant-context";
 import { cazooLeadMailboxes, cazooLeadsEnabled } from "../lib/cazoo-leads";
+import { cazooTestSender } from "../lib/cazoo-owner-test";
 export function createCazooLeadRouter() {
   const router = Router();
   router.use(
@@ -27,6 +28,7 @@ export function createCazooLeadRouter() {
           cazooLeadsEnabled() &&
           Boolean(process.env.CAZOO_LEADS_WEBHOOK_SECRET || process.env.RESEND_RECEIVING_WEBHOOK_SECRET),
         mailbox: cazooLeadMailboxes()[dealer] ?? null,
+        ownerTest: cazooTestSender(dealer),
         receipts: rows.rows.map((r) => ({
           ...r,
           receivedAt: new Date(String(r.receivedAt)).toISOString(),

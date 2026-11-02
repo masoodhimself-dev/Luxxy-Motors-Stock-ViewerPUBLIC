@@ -7,6 +7,7 @@ const state = vi.hoisted(() => ({
   mutate: vi.fn(),
   data: {
     enabled: true,
+    ownerTest: { email: "owner@example.test", expiresAt: "2026-11-09T10:00:00Z" },
     mailbox: "cazoo@leads.example.test",
     receipts: [
       {
@@ -51,6 +52,8 @@ it("keeps lead connection collapsed and exposes review-only drafts and inert fai
   fireEvent(details, new Event("toggle"));
   expect(state.enabled.at(-1)).toBe(true);
   expect(screen.getByText("cazoo@leads.example.test")).toBeVisible();
+  expect(screen.getByText("owner@example.test")).toBeVisible();
+  expect(screen.getByText(/Test replies are addressed to this email only/)).toBeVisible();
   expect(
     screen.getByText("AI draft ready — review before sending."),
   ).toBeVisible();

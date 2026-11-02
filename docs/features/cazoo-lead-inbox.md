@@ -29,3 +29,23 @@ Cazoo direct-delivery leads become ordinary dealer-scoped Inbox enquiries (`sour
 `pnpm --filter @workspace/api-server test:cazoo-leads`
 
 The tests use isolated PGlite fixtures and mocked receiving/AI providers. No customer email is sent and no production data is imported. Include existing customer reply, email workspace and AI assistance regression checks. The local preview honestly shows "Not connected yet" until the real receiving setup is completed.
+
+
+## Temporary owner test delivery
+
+`CAZOO_OWNER_TEST_SENDERS` is an owner-managed JSON map from exact dealer ID to
+`{email, expiresAt}`. Addresses must be exact (no domains/wildcards), expiry must
+be within the next eight days, and provider DMARC must pass. No rule changes
+normal Cazoo sender verification or recipient-to-dealer routing.
+
+An authorised owner can forward a single known-layout Cazoo enquiry or send a
+plain question with subject `Enquiry - Audi A5 MW62VLP - Test`. Forwarding
+headers and previous dealer replies are excluded from extraction. Imported
+contact is always Owner test at the approved owner email, with no original
+customer phone. A namespaced provider-ID hash prevents the test consuming the
+real Cazoo correlation ID. Tests are labelled in the receipt and staff note.
+Drafts remain review-only and use the existing budget and daily limit.
+
+Remove the environment rule to end testing immediately; otherwise it expires
+automatically. The signed receiving webhook, authentication and all unrelated
+dealership behaviour remain unchanged.

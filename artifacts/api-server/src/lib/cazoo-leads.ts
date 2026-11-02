@@ -5,8 +5,8 @@ import { mailbox, retrieveReply } from "./customer-email-replies";
 import {
   cazooEmailText,
   CazooLeadError,
-  parseCazooLead,
 } from "./cazoo-lead-parser";
+import { parseCazooDelivery } from "./cazoo-owner-test";
 import { openLeadForEnquiry } from "./leads";
 import {
   aiConfigured,
@@ -93,7 +93,7 @@ export async function importCazooReceipt(
     !email.to.map(mailbox).includes(String(row.mailbox))
   )
     throw new CazooLeadError("recipient_mismatch");
-  const lead = parseCazooLead(email);
+  const { lead, testDelivery } = parseCazooDelivery(dealer, email);
   return db.transaction(async (tx) => {
     // Serialise correlation checks, including distinct provider IDs for the same lead.
     await tx.execute(
@@ -147,17 +147,15 @@ export async function importCazooReceipt(
         vehiclePrice: car
           ? Number(car.website_price_override ?? car.source_price) || null
           : null,
-        staffNote: car
-          ? null
-          : "Cazoo car could not be matched uniquely. Check the registration before replying.",
+        staffNote: [testDelivery ? "Owner test email. The reply address is restricted to the approved owner test address; forwarded customer contact details were not imported." : null, !car ? "Cazoo car could not be matched uniquely. Check the registration before replying." : null].filter(Boolean).join(" ") || null,
       })
       .returning();
     await openLeadForEnquiry(tx, enquiry!);
     await tx.execute(
-      sql`INSERT INTO enquiry_events(id,dealer_id,enquiry_id,kind,actor,summary,detail) VALUES(${randomUUID()}::uuid,${dealer},${id}::uuid,'conversation_logged','customer','Cazoo enquiry received',${JSON.stringify({ channel: "email", direction: "inbound", source: "cazoo" })}::jsonb)`,
+      sql`INSERT INTO enquiry_events(id,dealer_id,enquiry_id,kind,actor,summary,detail) VALUES(${randomUUID()}::uuid,${dealer},${id}::uuid,'conversation_logged','customer',${testDelivery ? 'Owner test Cazoo enquiry received' : 'Cazoo enquiry received'},${JSON.stringify({ channel: "email", direction: "inbound", source: "cazoo", ...(testDelivery ? { ownerTest: true } : {}) })}::jsonb)`,
     );
     await tx.execute(
-      sql`UPDATE cazoo_lead_receipts SET status='imported',correlation_id=${lead.correlationId},enquiry_id=${id}::uuid,subject=${email.subject.slice(0, 200)},review_text=NULL,error_code=${car ? null : "vehicle_not_matched"},lease_until=NULL,draft_status=${car ? "pending" : "skipped"} WHERE id=${row.id}::uuid AND dealer_id=${dealer}`,
+      sql`UPDATE cazoo_lead_receipts SET status='imported',correlation_id=${lead.correlationId},enquiry_id=${id}::uuid,subject=${email.subject.slice(0, 200)},review_text=NULL,error_code=${car ? (testDelivery ? "owner_test" : null) : "vehicle_not_matched"},lease_until=NULL,draft_status=${car ? "pending" : "skipped"} WHERE id=${row.id}::uuid AND dealer_id=${dealer}`,
     );
     return id;
   });

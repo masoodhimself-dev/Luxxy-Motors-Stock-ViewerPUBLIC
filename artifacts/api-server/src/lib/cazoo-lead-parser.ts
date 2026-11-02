@@ -48,6 +48,11 @@ export function parseCazooLead(email: {
   // The signed webhook authenticates delivery, not the apparent email sender.
   if (email.authentication?.dmarc?.toLowerCase() !== "pass")
     throw new CazooLeadError("sender_authentication_unverified");
+  return parseCazooLeadBody(email);
+}
+
+/** Known-layout extraction; caller must separately authenticate the delivery. */
+export function parseCazooLeadBody(email: { subject: string; text?: string | null; html?: string | null }): CazooLead {
   const subject =
     /^Enquiry\s*[-–—]\s*(.+?)\s+([A-Z0-9]{2,4}\s?[A-Z0-9]{2,4})\s*[-–—]\s*([^\r\n]+)$/i.exec(
       email.subject.trim(),

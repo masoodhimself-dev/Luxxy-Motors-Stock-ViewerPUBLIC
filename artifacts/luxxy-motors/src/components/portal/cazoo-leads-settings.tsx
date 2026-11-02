@@ -18,8 +18,11 @@ type Connection = {
   enabled: boolean;
   mailbox: string | null;
   receipts: Receipt[];
+  ownerTest?: { email: string; expiresAt: string } | null;
 };
 const reasons: Record<string, string> = {
+  owner_test: "Owner test — the original customer’s contact details were not imported.",
+  owner_test_format: "For a test, forward one original Cazoo lead, or use subject: Enquiry - Audi A5 MW62VLP - Test and write your question in the message.",
   sender_not_cazoo: "Sender is not the expected Cazoo address.",
   sender_authentication_unverified:
     "The sender could not be authenticated. Check the original email.",
@@ -94,6 +97,7 @@ export function CazooLeadsSettings() {
                   address. Your usual email address stays unchanged.
                 </p>
               )}
+              {query.data.ownerTest && <p role="status">Owner testing is enabled for <strong>{query.data.ownerTest.email}</strong> until {formatDateTime(query.data.ownerTest.expiresAt)}. Test replies are addressed to this email only.</p>}
               <p>
                 {query.data.receipts.length
                   ? "Recent Cazoo emails"
