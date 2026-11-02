@@ -1,4 +1,7 @@
-import { MotMileageEstimate } from './mot-mileage-estimate';
+import { PartExchangeMotDetails, type PartExchangeMotDetailsResult } from './part-exchange-mot-details';
+import { normaliseExchangeRegistration } from '@/lib/part-exchange-autofill';
+import { dvsaVehicleName } from '@/lib/dvsa-vehicle-name';
+import { partExchangeMotSummary, partExchangeValuationQuestion } from '@/lib/part-exchange';
 import { FeatureUnavailable } from './feature-unavailable';
 import { useDealerFeatures } from '@/lib/dealer-features';
 import { showroomHours } from '@/lib/showroom-hours';
@@ -19,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Textarea } from '@/components/ui/textarea';
 import { Car } from '@/lib/stock-context';
-import { formatPrice, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
+import { formatPrice, getThumbnailUrl, vehicleDisplayTitle, isUKNumberPlate } from '@/lib/utils';
 import { customerRegistrationDetails } from '@/lib/customer-vehicle-meta';
 import { getPhoneHref, getWhatsAppHref, type EnquiryType } from '@/lib/cta-helpers';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
@@ -34,6 +37,7 @@ const typeLabels: Record<EnquiryType, string> = {
 
 const labelClass = 'field-label flex items-center gap-2';
 type PreferredContact = 'email' | 'phone' | 'whatsapp';
+type ExchangeGate = { registration: string; mode: 'lookup'; result: PartExchangeMotDetailsResult } | { registration: string; mode: 'manual' };
 
 const contactOptions: Array<{ value: PreferredContact; label: string }> = [
   { value: 'email', label: 'Email' },
@@ -89,10 +93,22 @@ export function EnquiryForm({
   const phoneInputRef = useRef<HTMLInputElement>(null);
   const [hasPartExchange, setHasPartExchange] = useState(() => Boolean(readVehicleExchange(vehicle?.id)));
   const [exchange, setExchange] = useState(() => readVehicleExchange(vehicle?.id) ?? { registration: '', mileage: '', notes: '' });
+  const [exchangeGate, setExchangeGate] = useState<ExchangeGate | null>(null);
+  const [exchangeError, setExchangeError] = useState('');
+  const [estimatedExchangeMileage, setEstimatedExchangeMileage] = useState<string | undefined>();
+  const exchangeMileageEdited = useRef(Boolean(exchange.mileage));
+  const exchangePlateRef = useRef<HTMLInputElement>(null), exchangeMileageRef = useRef<HTMLInputElement>(null), exchangeLookupRef = useRef<HTMLButtonElement>(null);
+  const exchangePlate = normaliseExchangeRegistration(exchange.registration);
+  const exchangeReady = Boolean(exchangeGate && exchangeGate.registration === exchangePlate && isUKNumberPlate(exchangePlate));
+  const exchangeLookup = exchangeReady && exchangeGate?.mode === 'lookup' ? exchangeGate.result : undefined;
+  const exchangeMileageEstimated = !exchangeMileageEdited.current && estimatedExchangeMileage !== undefined && exchange.mileage === estimatedExchangeMileage;
   const includePartExchange = hasPartExchange && dealerConfig.partExchange?.enabled && features.enabled('partExchange');
   const exchangeSummary = includePartExchange && vehicle ? [
     'Part exchange', `Registration: ${exchange.registration.trim().toUpperCase()}`,
-    `Mileage: ${exchange.mileage} miles`, `Other details: ${exchange.notes.trim() || 'None supplied'}`,
+    ...(exchangeLookup ? [`Vehicle: ${dvsaVehicleName(exchangeLookup.vehicle)}`] : []),
+    `${exchangeMileageEstimated ? 'Estimated mileage' : 'Mileage'}: ${exchange.mileage} miles`,
+    ...(partExchangeMotSummary(exchangeLookup?.mot) ? [partExchangeMotSummary(exchangeLookup?.mot)!] : []),
+    `Other details: ${exchange.notes.trim() || 'None supplied'}`,
   ].join('\n') : '';
   const messageLimit = 2000 - (exchangeSummary ? exchangeSummary.length + 2 : 0);
   const [customerName, setCustomerName] = useState('');
@@ -105,6 +121,8 @@ export function EnquiryForm({
   const [draftSaved,setDraftSaved] = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
   const draftKey = enquiryDraftKey(vehicle?.id, initialType);
+  const exchangeContext = useRef({ draftKey, plate: exchangePlate, included: Boolean(includePartExchange) });
+  exchangeContext.current = { draftKey, plate: exchangePlate, included: Boolean(includePartExchange) };
   const [restoredDraftKey, setRestoredDraftKey] = useState<string | null>(null);
   const [preferredContact, setPreferredContact] = useState<PreferredContact>('email');
   const [additionalContact, setAdditionalContact] = useState(false);
@@ -116,6 +134,7 @@ export function EnquiryForm({
   const handledRequests = useRef(new Set<number>());
   const [pendingRequests, setPendingRequests] = useState<EnquiryMessageRequest[]>([]);
   const messageTouched = useRef(false);
+  const generatedExchangeQuestion = useRef<string | null>(null);
   const questionRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     if (!mutation.isPending && !messageTouched.current && initialMessage) writeMessage(initialMessage);
@@ -126,10 +145,12 @@ export function EnquiryForm({
   }, [initialType, draftKey, mutation.reset]);
   useEffect(() => {
     const draft=readEnquiryDraft(draftKey);
+    setExchangeGate(null);setExchangeError('');setEstimatedExchangeMileage(undefined);generatedExchangeQuestion.current=null;
     if (draft) {
       setCustomerName(draft.customerName);setEmail(draft.email);setPhone(draft.phone);
       writeMessage(draft.message); messageTouched.current=Boolean(draft.message);
       setPreferredContact(draft.preferredContact);setHasPartExchange(draft.hasPartExchange);setExchange(draft.exchange);
+      exchangeMileageEdited.current=Boolean(draft.exchange.mileage);
       setDraftSaved(true);
       setDraftRestored(true);
     } else {
@@ -138,6 +159,7 @@ export function EnquiryForm({
       writeMessage(initialMessage);messageTouched.current=false;
       setPreferredContact('email');setHasPartExchange(Boolean(exchangeDraft));
       setExchange(exchangeDraft ?? {registration:'',mileage:'',notes:''});
+      exchangeMileageEdited.current=Boolean(exchangeDraft?.mileage);
       setDraftSaved(false);setDraftRestored(false);
     }
     setAdditionalContact(false);setPhoneError('');setNameError('');setEmailError('');setMessageError('');
@@ -172,6 +194,7 @@ export function EnquiryForm({
     setCustomerName('');setEmail('');setPhone('');writeMessage('');messageTouched.current=true;
     setPendingRequests([]);
     setHasPartExchange(false);setExchange({registration:'',mileage:'',notes:''});setAdditionalContact(false);
+    setExchangeGate(null);setExchangeError('');setEstimatedExchangeMileage(undefined);exchangeMileageEdited.current=false;generatedExchangeQuestion.current=null;
     setPhoneError('');setNameError('');setEmailError('');setMessageError('');
   };
   const isPartExchange = type === 'part_exchange';
@@ -181,6 +204,45 @@ export function EnquiryForm({
   const phoneRequired = preferredContact !== 'email';
   const phoneHref = getPhoneHref(dealerConfig);
   const whatsAppHref = getWhatsAppHref(undefined, dealerConfig);
+
+  const clearGeneratedExchangeQuestion = () => {
+    if (generatedExchangeQuestion.current && messageRef.current === generatedExchangeQuestion.current) writeMessage('');
+    generatedExchangeQuestion.current = null;
+  };
+  const changeExchangeRegistration = (registration: string) => {
+    if (sending.current) return;
+    const changed = normaliseExchangeRegistration(registration) !== exchangePlate;
+    exchangeContext.current.plate = normaliseExchangeRegistration(registration);
+    if (changed) {
+      setExchangeGate(null);setEstimatedExchangeMileage(undefined);exchangeMileageEdited.current=false;
+      clearGeneratedExchangeQuestion();
+    }
+    setExchange(current => ({ ...current, registration, ...(changed ? { mileage: '', notes: '' } : {}) }));
+    setExchangeError('');
+  };
+  const foundExchangeCar = (result: PartExchangeMotDetailsResult) => {
+    if (sending.current || exchangeContext.current.draftKey !== draftKey || !exchangeContext.current.included || exchangeContext.current.plate !== result.registration) return;
+    setExchangeGate({ registration: result.registration, mode: 'lookup', result });setExchangeError('');
+    if (!exchangeMileageEdited.current) {
+      setExchange(current => ({...current, mileage: result.mileage ?? ''}));
+      setEstimatedExchangeMileage(result.mileage);
+    }
+    if (vehicle && !messageRef.current.trim()) {
+      const question = partExchangeValuationQuestion({ registration: result.registration, makeModel: dvsaVehicleName(result.vehicle) }, vehicle, dealerConfig.identity.name);
+      generatedExchangeQuestion.current = question;
+      writeMessage(question);
+    }
+  };
+  const enterExchangeManually = () => {
+    if (sending.current) return;
+    if (!isUKNumberPlate(exchangePlate)) { setExchangeError('Enter your complete UK registration before continuing manually.');exchangePlateRef.current?.focus();return; }
+    setExchangeGate({registration: exchangePlate, mode: 'manual'});setExchangeError('');
+    setEstimatedExchangeMileage(undefined);
+  };
+  const removeExchange = () => {
+    exchangeContext.current.included = false;
+    setHasPartExchange(false);setExchangeError('');clearGeneratedExchangeQuestion();
+  };
 
   const changeType = (nextType: EnquiryType) => {
     if (mutation.isPending || nextType === type) return;
@@ -199,6 +261,15 @@ export function EnquiryForm({
     event.preventDefault();
     if (mutation.isPending || restoredDraftKey !== draftKey || !features.enabled('publicEnquiries')) return;
     if (pendingRequests.length) return;
+    if (includePartExchange && vehicle) {
+      if (!exchangeReady) {
+        setExchangeError(isUKNumberPlate(exchangePlate) ? 'Find your car or choose manual entry before sending.' : 'Enter your complete UK registration to find your car.');
+        (isUKNumberPlate(exchangePlate) ? exchangeLookupRef : exchangePlateRef).current?.focus();return;
+      }
+      if (!exchange.mileage.trim() || !Number.isInteger(Number(exchange.mileage)) || Number(exchange.mileage) < 0 || Number(exchange.mileage) > 1000000) {
+        setExchangeError('Enter your current mileage between 0 and 1,000,000 miles.');exchangeMileageRef.current?.focus();return;
+      }
+    }
     const name = customerName.trim(), question = message.trim(), contactEmail = email.trim();
     const questionError = (embedded || !includePartExchange) && !question ? 'Enter your question so we can help.'
       : message.length > messageLimit ? `Please shorten your message by ${message.length - messageLimit} characters to include your part-exchange details.` : '';
@@ -303,6 +374,7 @@ export function EnquiryForm({
           onClick={() => {
             writeMessage('');messageTouched.current=true;setPendingRequests([]);
             setHasPartExchange(false);setExchange({registration:'',mileage:'',notes:''});
+            setExchangeGate(null);setExchangeError('');setEstimatedExchangeMileage(undefined);exchangeMileageEdited.current=false;generatedExchangeQuestion.current=null;
             setNameError('');setEmailError('');setPhoneError('');setSubmittedContact(null);
             mutation.reset();
             requestAnimationFrame(() => questionRef.current?.focus());
@@ -368,7 +440,7 @@ export function EnquiryForm({
       <label className="block customer-enquiry-question">
         <span className={labelClass}><MessageSquare className="h-4 w-4 text-accent" aria-hidden="true" />Your question{!embedded && includePartExchange && <span className="text-muted-foreground">(optional)</span>}</span>
         <Textarea ref={questionRef} id="enquiry-question" required={embedded || !includePartExchange} minLength={1} maxLength={messageLimit} rows={3}
-          value={message} onChange={event => { messageTouched.current = true; writeMessage(event.target.value); }}
+          value={message} onChange={event => { messageTouched.current = true; generatedExchangeQuestion.current=null; writeMessage(event.target.value); }}
           onInvalid={() => setMessageError('Enter your question so we can help.')} aria-invalid={Boolean(messageError)} aria-describedby={messageError ? 'customer-question-help' : undefined}
           placeholder="What would you like to know?" data-testid="textarea-enquiry-message" />
         {messageError && <span id="customer-question-help" role="alert" className="mt-2 block text-sm text-destructive">{messageError}</span>}
@@ -439,26 +511,32 @@ export function EnquiryForm({
           {!hasPartExchange ? <button type="button" className="customer-enquiry-exchange-add" onClick={() => setHasPartExchange(true)}>Add a part exchange (optional)</button> : <fieldset className="space-y-4 border-t border-border pt-4">
           <legend className="sr-only">Part-exchange details</legend>
           <div className="space-y-4" data-testid="enquiry-part-exchange-details">
-            <p className="text-sm text-muted-foreground">Just your registration and approximate mileage for now. We can discuss condition, keys and paperwork when we speak.</p>
-            <div className="max-w-sm">
+            <p className="text-sm text-muted-foreground">Find your car using its registration.</p>
+            <div className="max-w-sm" onKeyDown={event => {
+              if (event.key !== 'Enter' || sending.current) return;
+              event.preventDefault();
+              if (isUKNumberPlate(exchangePlate)) exchangeLookupRef.current?.click();
+              else setExchangeError('Enter your complete UK registration to find your car.');
+            }}>
               <label className="block">
                 <span className={labelClass}>Registration</span>
-                <UKNumberPlate value={exchange.registration} editable
-                  onChange={registration => setExchange(current => ({ ...current, registration }))}
+                <UKNumberPlate value={exchange.registration} editable inputRef={exchangePlateRef}
+                  onChange={changeExchangeRegistration}
                   testId="enquiry-part-exchange-plate" />
               </label>
             </div>
-            <label className="block max-w-sm">
+            {!mutation.isPending && <PartExchangeMotDetails key={draftKey} registration={exchange.registration} mileage={exchange.mileage} mileageEstimated={exchangeMileageEstimated} lookupButtonRef={exchangeLookupRef} initialResult={exchangeLookup} onDetails={foundExchangeCar} onManualEntry={enterExchangeManually} />}
+            {exchangeError && <p role="alert" className="text-sm text-destructive">{exchangeError}</p>}
+            {exchangeReady && <div className="space-y-4" data-testid="enquiry-part-exchange-car-details"><label className="block max-w-sm">
               <span className={labelClass}>Current mileage (miles)</span>
-              <Input required type="number" min={0} max={1000000} step={1} inputMode="numeric"
+              <Input ref={exchangeMileageRef} required type="number" min={0} max={1000000} step={1} inputMode="numeric"
                 value={exchange.mileage}
-                onChange={event => setExchange(current => ({ ...current, mileage: event.target.value }))} />
+                onChange={event => {exchangeMileageEdited.current=true;setEstimatedExchangeMileage(undefined);setExchangeError('');setExchange(current => ({ ...current, mileage: event.target.value }));}} />
             </label>
-            {!mutation.isPending && <MotMileageEstimate registration={exchange.registration} mileage={exchange.mileage} onEstimate={mileage => { if (!sending.current) setExchange(current => ({...current, mileage})); }} />}
             <details className="border-t border-border pt-3"><summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-primary">Anything to mention? (optional)</summary><label className="block"><span className={labelClass}>Anything we should know about your car?</span>
               <Textarea rows={3} maxLength={400} value={exchange.notes} onChange={event => setExchange(current => ({ ...current, notes: event.target.value }))} />
-            </label></details>
-            <button type="button" className="text-link min-h-11 text-sm" onClick={() => setHasPartExchange(false)}>Remove part exchange</button>
+            </label></details></div>}
+            <button type="button" className="text-link min-h-11 text-sm" onClick={removeExchange}>Remove part exchange</button>
           </div>
         </fieldset>}</div>}
         {message.length > messageLimit && !messageError && <p role="alert" className="text-sm text-destructive">Please shorten your message by {message.length - messageLimit} characters to include your part-exchange details.</p>}

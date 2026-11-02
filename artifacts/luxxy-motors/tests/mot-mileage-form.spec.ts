@@ -84,10 +84,13 @@ for (const form of ["enquiry", "valuation", "booking"])
               exact: true,
             });
     await reg.fill("AB12 CDE");
+    if (form === "enquiry" || form === "valuation") {
+      await expect(mileage).toHaveCount(0);
+      await page.getByRole('button', {name: 'Find my car', exact: true}).click();
+    }
     await expect(mileage).toHaveValue("65000");
-    await expect(
-      page.getByRole("status").filter({ hasText: "FORD FOCUS" }),
-    ).toContainText("Estimated 65,000");
+    await expect(page.getByRole("status").filter({ hasText: /Ford Focus|FORD FOCUS/ }))
+      .toContainText(form === "booking" ? "Estimated 65,000" : "Estimated mileage: 65,000");
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
@@ -106,7 +109,7 @@ for (const form of ["enquiry", "valuation", "booking"])
     await mileage.fill("65432");
     await expect(mileage).toHaveValue("65432");
     await expect(
-      page.getByRole("status").filter({ hasText: "Estimated 65,000" }),
+      page.getByRole("status").filter({ hasText: /Estimated(?: mileage:)? 65,000/ }),
     ).toHaveCount(0);
     expect(writes).toEqual([]);
     expect(errors).toEqual([]);

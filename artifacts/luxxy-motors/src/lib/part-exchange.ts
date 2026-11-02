@@ -20,12 +20,15 @@ export function partExchangeMotSummary(mot?: PartExchangeMotDetailsResult['mot']
 }
 
 /** The editable enquiry body stays separate from the customer's contact fields. */
-export function buildPartExchangeMessage(details: PartExchangeDetails, car: Car, dealerName: string, options: PartExchangeMessageOptions = {}) {
+export function partExchangeValuationQuestion(details: Pick<PartExchangeDetails, 'makeModel' | 'registration'>, car: Car, dealerName: string) {
   const ownCar = details.makeModel.trim() || 'my car';
   const target = car.title?.trim() || [car.make, car.model].filter(Boolean).join(' ') || 'vehicle';
+  return `Hi ${dealerName}, I have ${ownCar === 'my car' ? ownCar : `a ${ownCar}`} (${details.registration.trim().toUpperCase()}), and I’d like to part exchange it.\n\nI’m interested in your ${target}${vehicleRegistration(car) ? ` (${vehicleRegistration(car)})` : ''}. Could you give me a valuation?`;
+}
+
+export function buildPartExchangeMessage(details: PartExchangeDetails, car: Car, dealerName: string, options: PartExchangeMessageOptions = {}) {
   return [
-    `Hi ${dealerName}, I have ${ownCar === 'my car' ? ownCar : `a ${ownCar}`} (${details.registration.trim().toUpperCase()}), and I’d like to part exchange it.`, '',
-    `I’m interested in your ${target}${vehicleRegistration(car) ? ` (${vehicleRegistration(car)})` : ''}. Could you give me a valuation?`, '',
+    partExchangeValuationQuestion(details, car, dealerName), '',
     `${options.mileageEstimated ? 'Estimated mileage' : 'Current mileage'}: ${details.mileage ? Number(details.mileage).toLocaleString('en-GB') : 'Not entered'} miles.`,
     ...(partExchangeMotSummary(options.mot) ? [partExchangeMotSummary(options.mot)!] : []),
     ...(details.condition ? [`Condition: ${details.condition}`] : []),

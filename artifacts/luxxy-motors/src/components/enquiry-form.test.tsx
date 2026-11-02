@@ -52,6 +52,7 @@ it('adds a part exchange in one action, removes it from submission, and retains 
   expect(screen.getByTestId('enquiry-part-exchange-details')).toBeVisible();
   expect(screen.queryByRole('radio')).not.toBeInTheDocument();
   fireEvent.change(screen.getByRole('textbox', { name: 'Your car’s UK registration number' }), { target: { value: 'AB12 CDE' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Enter details manually' }));
   fireEvent.change(screen.getByRole('spinbutton', { name: 'Current mileage (miles)' }), { target: { value: '20000' } });
   fireEvent.click(screen.getByRole('button', { name: 'Remove part exchange' }));
   expect(screen.queryByTestId('enquiry-part-exchange-details')).not.toBeInTheDocument();
@@ -335,6 +336,7 @@ it('freezes editable fields, navigation and message handoffs while a request is 
   fillValidEnquiry();
   fireEvent.click(screen.getByRole('button', { name: 'Add a part exchange (optional)' }));
   fireEvent.change(screen.getByRole('textbox', { name: 'Your car’s UK registration number' }), { target: { value: 'AB12 CDE' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Enter details manually' }));
   fireEvent.change(screen.getByRole('spinbutton', { name: 'Current mileage (miles)' }), { target: { value: '20000' } });
   fireEvent.submit(screen.getByTestId('form-enquiry'));
   expect(state.mutate).toHaveBeenCalledOnce();
@@ -380,6 +382,7 @@ it('confirms the chosen reply method with optional email and starts another enqu
   fireEvent.change(screen.getByTestId('input-customer-phone'), { target: { value: '07700900123' } });
   fireEvent.click(screen.getByRole('button', { name: 'Add a part exchange (optional)' }));
   fireEvent.change(screen.getByRole('textbox', { name: 'Your car’s UK registration number' }), { target: { value: 'AB12 CDE' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Enter details manually' }));
   fireEvent.change(screen.getByRole('spinbutton', { name: 'Current mileage (miles)' }), { target: { value: '20000' } });
   fireEvent.submit(screen.getByTestId('form-enquiry'));
   const onSuccess = state.mutate.mock.calls[0][1].onSuccess;
