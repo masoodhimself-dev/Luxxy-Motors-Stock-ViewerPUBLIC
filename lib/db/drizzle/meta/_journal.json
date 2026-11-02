@@ -554,6 +554,13 @@
       "when": 1793491200000,
       "tag": "0078_mot_stock_checks",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1793620800000,
+      "tag": "0079_cazoo_lead_receipts",
+      "breakpoints": true
     }
   ]
 }

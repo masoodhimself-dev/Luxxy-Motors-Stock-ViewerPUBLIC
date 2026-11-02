@@ -1,3 +1,4 @@
+import cazooLeadsRouter from "./cazoo-leads";
 import aiAssistanceRouter from './ai-assistance';
 import staffCarsRouter from "./staff-cars";
 import motHistoryRouter from './mot-history';
@@ -58,6 +59,7 @@ router.use(enquiryEmailsRouter);
 router.use(staffNotificationsRouter);
 router.use(staffPushRouter);
 router.use(staffEmailRouter);
+router.use(cazooLeadsRouter);
 router.use(dealerIntegrationsRouter);
 router.use(dealerOperationsRouter);
 router.use(dealerRelationshipsRouter);

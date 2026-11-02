@@ -57,6 +57,11 @@ export default mergeConfig(
             if (!url.pathname.startsWith('/api/')) return next();
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Cache-Control', 'no-store');
+            if (url.pathname === '/api/staff/cazoo-leads' && req.method === 'GET') {
+              // Honest local setup state; never retrieve real marketplace leads in the preview.
+              res.end(JSON.stringify({ enabled: false, mailbox: null, receipts: [] }));
+              return;
+            }
             if (url.pathname === '/api/staff/search-visibility' && req.method === 'GET') {
               res.end(JSON.stringify({ ...searchReadiness(await readPreviewSettings(), brochureOrigin(req.headers.host)), preview: true }));
               return;

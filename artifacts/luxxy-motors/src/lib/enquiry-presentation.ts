@@ -61,6 +61,7 @@ export function enquirySourceLabel(entry: Enquiry): string {
     case 'website_callback': return 'Website callback';
     case 'website': return 'Website';
     case 'email': return 'Email';
+    case 'cazoo': return 'Cazoo';
     case 'chat': return 'Website chat';
     default: return 'Enquiry';
   }

@@ -129,6 +129,7 @@ export function leadSourceFromEnquiry(enquiry: Enquiry): LeadSource {
       return "walk_in";
     case "marketplace":
     case "autotrader":
+    case "cazoo":
       return "marketplace";
     case "social":
     case "facebook":

@@ -1,3 +1,4 @@
+import { CazooLeadsSettings } from "./cazoo-leads-settings";
 import { StockFeedSettings } from "./stock-feed-settings";
 import { AccountInvitations } from "@/components/account-invitations";
 import {
@@ -294,7 +295,7 @@ export function DealerSettingsHub() {
         )}
         {selected === "dealership" && <StockFeedSettings />}
         {selected === "paperwork" && <SalesPaperworkSettings />}
-        {selected === "emails" && <EmailTemplatesSettings />}
+        {selected === "emails" && <><CazooLeadsSettings /><EmailTemplatesSettings /></>}
         {selected === "team" && <TeamSettings />}
       </div>
     </section>

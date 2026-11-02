@@ -1,3 +1,4 @@
+import { createCazooLeadWebhook } from "./routes/cazoo-lead-webhook";
 import { createCustomerEmailWebhook } from './routes/customer-email-webhook';
 import accountInvitationsRouter from './routes/account-invitations';
 import demoOnboardingRouter from './routes/demo-onboarding';
@@ -59,6 +60,7 @@ app.use('/api', (req, res, next) => {
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
 app.use('/api/webhooks/customer-email', createCustomerEmailWebhook());
+app.use('/api/webhooks/cazoo-leads', createCazooLeadWebhook());
 
 app.use(cors({ credentials: true, origin: true }));
 app.use(importAdmission.middleware);

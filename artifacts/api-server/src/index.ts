@@ -1,3 +1,4 @@
+import { startCazooLeadWorker } from "./lib/cazoo-leads";
 import { startStockMotWorker } from "./lib/mot-stock-checks";
 import { applyCollectedOfficialCazoo, type FeedSqlPool } from './lib/cazoo-feed-apply';
 import { startCustomerReplyWorker } from './lib/customer-email-replies';
@@ -50,6 +51,7 @@ const server = app.listen(port, (err) => {
     startReminderWorker(logger),
     startEmailOutboxWorker(logger),
     startCustomerReplyWorker(logger),
+    startCazooLeadWorker(logger),
     startStaffPushWorker(logger),
     startStockMotWorker(logger),
   );
