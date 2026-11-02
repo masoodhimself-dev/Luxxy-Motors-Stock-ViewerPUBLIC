@@ -593,6 +593,14 @@ export interface DealerPresentation {
   reviewsUrl?: string;
   /** @maxLength 1000 */
   includedInformation?: string;
+  /**
+     * Dealership-wide items included with every vehicle. Entries are trimmed and duplicates removed on publication. An explicit empty list hides the section; omission retains the previous setting and legacy per-vehicle behavior when never configured.
+     * @maxItems 12
+     * @items.minLength 1
+     * @items.maxLength 160
+     * @items.pattern \S
+     */
+  includedItems?: string[];
 }
 
 export type DealerBrochureGalleryLayout = typeof DealerBrochureGalleryLayout[keyof typeof DealerBrochureGalleryLayout];

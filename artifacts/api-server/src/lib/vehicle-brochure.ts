@@ -15,6 +15,7 @@ export type BrochureDealer = {
   phone?: string;
   email?: string;
   address?: string;
+  includedItems?: string[];
   brochure?: BrochureOptions;
 };
 export type BrochureOptions = {
@@ -56,6 +57,7 @@ export function brochureDealer(config: unknown): BrochureDealer {
     identity = record(value.identity),
     contact = record(value.contact),
     address = record(value.address),
+    presentation = record(value.presentation),
     primaryHsl = brochureText(record(identity.brandColors).primaryHsl);
   return {
     name: brochureText(identity.name) || "Vehicle showroom",
@@ -67,6 +69,7 @@ export function brochureDealer(config: unknown): BrochureDealer {
       .filter(Boolean)
       .join(", "),
     brochure: brochureOptions(value.brochure, primaryHsl),
+    ...(Object.hasOwn(presentation, 'includedItems') ? { includedItems: configuredBrochureInclusions(presentation.includedItems) } : {}),
   };
 }
 export type BrochurePhoto = { url: string; caption: string };
@@ -92,6 +95,16 @@ function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function configuredBrochureInclusions(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  return value.map(item => brochureText(item).slice(0, 160)).filter(item => {
+    const key = item.toLocaleLowerCase('en-GB');
+    if (!item || seen.has(key)) return false;
+    seen.add(key); return true;
+  }).slice(0, 12);
 }
 
 export function brochurePhotos(vehicle: BrochureVehicle): BrochurePhoto[] {
@@ -273,6 +286,13 @@ export function renderVehicleBrochure(input: {
     options.includeGallery ? options.photoLimit : 1,
   );
   const details = brochureDetails(vehicle);
+  const hasConfiguredInclusions = Object.hasOwn(dealer, 'includedItems');
+  const includedItems = configuredBrochureInclusions(dealer.includedItems);
+  // A dealership-wide list owns the public inclusion summary. Keep all raw
+  // source descriptions, service history, keys and disclosures unchanged.
+  const buyer = hasConfiguredInclusions
+    ? details.buyer.filter(([label]) => !['Warranty', 'Included with this car'].includes(label))
+    : details.buyer;
   const doc = new jsPDF({
     unit: "mm",
     format: "a4",
@@ -510,10 +530,14 @@ export function renderVehicleBrochure(input: {
       muted,
     );
   }
-  // Keep the standard six-row buyer summary together when it fits on a page.
+  if (hasConfiguredInclusions && includedItems.length) {
+    heading("What's included");
+    for (const item of includedItems) text(`- ${item}`, 10, ink);
+  }
+  // Keep the buyer summary together when it fits on a page.
   ensure(100);
   heading("Before you decide");
-  rows(details.buyer);
+  rows(buyer);
   if (options.includeFeatures && details.features.length) {
     heading("Features and equipment");
     for (const feature of details.features)

@@ -11,6 +11,7 @@ import { vehicleAnswers } from './vehicle-answers';
 import { firstMotDue } from './long-mot';
 import type { VehicleSheetData } from './vehicle-sheet/types';
 import { publicDealershipOrigin } from './public-dealership-url';
+import { vehiclePageInclusions } from './vehicle-page-summary';
 
 const supplied = (value?: string) => {
   const text = value?.trim();
@@ -88,6 +89,9 @@ export function buildVehicleSheetData(car: Car, dealer: DealerConfig, features: 
   const category = vehicleInsuranceDisclosure(car, data.description || undefined);
   const disclosures = [...new Set([...data.sourceNotes, ...(category && !material.some(sentence => /\bcat(?:egory)?\s*[sn]\b/i.test(sentence)) ? [category.label] : []), ...material, ...featureConditions, ...costConditions, ...priceConditions].filter(Boolean))];
   const { included, qualifications } = confirmedInclusions(car, data.description);
+  const hasConfiguredInclusions = Boolean(dealer.presentation && Object.hasOwn(dealer.presentation, 'includedItems'));
+  const includedSummary = hasConfiguredInclusions ? vehiclePageInclusions(car, dealer.presentation).join(' · ') : included.map(row => `${row.label}: ${row.value}`).join(' · ');
+  const historyInclusions = hasConfiguredInclusions ? [...included, ...qualifications].filter(row => row.label !== 'Warranty') : qualifications;
   return {
     dealer: {
       name: supplied(dealer.identity.name), logoUrl: vehicleSheetLogoUrl(dealer.identity.logoAsset),
@@ -106,15 +110,16 @@ export function buildVehicleSheetData(car: Car, dealer: DealerConfig, features: 
       mileage: fact('Mileage'), fuel: fact('Fuel'), transmission: fact('Gearbox'),
       engine: fact('Engine', 'Engine size'), bodyType: fact('Body type'), colour: fact('Colour'), doors: fact('Doors'), seats: fact('Seats'),
       ...cachedMotSummary(car, motHistory),
-      includedSummary: included.map(row => `${row.label}: ${row.value}`).join(' · ') || undefined,
+      includedSummary: includedSummary || undefined,
       descriptionSummary: data.description || undefined,
       featureHighlights: prioritiseVehicleFeatures(data.features),
       // Source expiry strings are not a verified MOT status. Confirmed inclusions
       // have their own concise block; all conditions and conflicts stay visible.
       historyFacts: [...data.history.filter(row => row.label !== 'MOT expiry'
         && !(row.label === 'Availability' && /^available$/i.test(row.value))
+        && !(hasConfiguredInclusions && ['Warranty', 'Included with this car'].includes(row.label))
         && !(category && row.label === 'Insurance history' && /\bcat(?:egory)?\s*[snbcd]\b/i.test(row.value))
-        && ![...included, ...qualifications].some(item => item.label === row.label)), ...qualifications],
+        && ![...included, ...qualifications].some(item => item.label === row.label)), ...historyInclusions],
       runningCosts: data.runningCosts,
       disclosures,
       photos: data.photos.map(photo => ({ src: new URL(photo.src, window.location.origin).href, alt: photo.caption || vehicleDisplayTitle(car) })),

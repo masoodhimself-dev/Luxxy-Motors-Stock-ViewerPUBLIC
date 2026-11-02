@@ -60,9 +60,16 @@ export function vehiclePageSummary(car: Car): VehicleSummaryFact[] {
   return facts.slice(0, 3);
 }
 
-/** Only an explicit supplied inclusion belongs beneath this heading. Optional
- * warranty details remain in the full buying information instead. */
-export function vehiclePageInclusions(car: Car): string[] {
+/** A saved dealership list owns this section for every car, including an empty
+ * list. Older dealerships without the setting retain their supplied car facts.
+ * General handover notes are deliberately independent of these inclusions. */
+export function vehiclePageInclusions(car: Car, presentation?: { includedItems?: readonly string[] }): string[] {
+  if (presentation && Object.hasOwn(presentation, 'includedItems')) {
+    const configured = presentation.includedItems;
+    return Array.isArray(configured)
+      ? [...new Set(configured.map(item => typeof item === 'string' ? item.trim() : '').filter(Boolean))]
+      : [];
+  }
   const included = buyerInformation(car).find(item => item.label === 'Included with this car')?.value;
   const warranty = stockCardSellingPoints(car).find(point => /warranty included$/i.test(point));
   return [...new Set([warranty, included].filter((item): item is string => Boolean(item?.trim())))];

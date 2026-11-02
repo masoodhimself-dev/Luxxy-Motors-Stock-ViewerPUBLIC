@@ -120,6 +120,39 @@ it('keeps optional, extra-cost and conflicting inclusion claims out of the inclu
   expect(data.vehicle.descriptionSummary).toContain('It costs an additional £300.');
   expect(data.vehicle.historyFacts).toContainEqual({label:'Warranty',value:'A warranty is available. It costs an additional £300.'});
 });
+it('prints the dealership inclusion list on every car and retains car history separately', () => {
+  const dealer={...dealerConfig,presentation:{...dealerConfig.presentation,includedItems:['6 months warranty', '12 months roadside assistance']}};
+  const car={...motCar,warranty:'3 months',serviceHistory:'Full service history',numberOfKeys:2,includedItems:['Owner handbook']};
+  const original=JSON.stringify(car);
+  for(const source of [car,{...car,id:'different',warranty:'12 months'}]) {
+    const data=buildVehicleSheetData(source,dealer,[],undefined,url);
+    expect(data.vehicle.includedSummary).toBe('6 months warranty · 12 months roadside assistance');
+    expect(data.vehicle.historyFacts).not.toContainEqual(expect.objectContaining({label:'Warranty'}));
+    expect(data.vehicle.historyFacts).not.toContainEqual(expect.objectContaining({label:'Included with this car'}));
+    expect(data.vehicle.historyFacts).toContainEqual(expect.objectContaining({label:'Service history',value:expect.stringMatching(/full service history/i)}));
+    expect(data.vehicle.historyFacts).toContainEqual(expect.objectContaining({label:'Keys',value:expect.stringMatching(/two keys/i)}));
+    const output=renderToStaticMarkup(<VehicleSheetPage data={data} assets={{photos:[],warnings:[],failedAssets:[]}} plan={{spacing:'tight',supportingPhotos:false,optionalFeatureLimit:6,summary:'normal'}} qr={createVehicleQr(url)} options={{dealerWebsiteOrigin:'https://luxxymotors.uk'}}/>);
+    expect(output).toContain('What’s included');expect(output).toContain('6 months warranty');expect(output).not.toContain('Owner handbook');
+  }
+  expect(JSON.stringify(car)).toBe(original);
+});
+it('omits the printed included block for an empty saved list and keeps absent-setting behaviour', () => {
+  const car={...motCar,warranty:'3 months included',numberOfKeys:2};
+  const configured=buildVehicleSheetData(car,{...dealerConfig,presentation:{...dealerConfig.presentation,includedItems:[]}},[],undefined,url);
+  expect(configured.vehicle.includedSummary).toBeUndefined();
+  expect(configured.vehicle.historyFacts).not.toContainEqual(expect.objectContaining({label:'Warranty'}));
+  const output=renderToStaticMarkup(<VehicleSheetPage data={configured} assets={{photos:[],warnings:[],failedAssets:[]}} plan={{spacing:'tight',supportingPhotos:false,optionalFeatureLimit:6,summary:'normal'}} qr={createVehicleQr(url)} options={{dealerWebsiteOrigin:'https://luxxymotors.uk'}}/>);
+  expect(output).not.toContain('What’s included');
+  expect(buildVehicleSheetData(car,{...dealerConfig,presentation:{}},[],undefined,url).vehicle.includedSummary).toContain('3 months included');
+});
+it('preserves raw descriptions and material qualifications alongside configured print inclusions', () => {
+  const description='Warranty is available at extra cost. No service history is supplied.';
+  const data=buildVehicleSheetData({...motCar,description},{...dealerConfig,presentation:{includedItems:['Owner handbook']}},[],undefined,url);
+  expect(data.vehicle.includedSummary).toBe('Owner handbook');
+  expect(data.vehicle.descriptionSummary).toBe(description);
+  expect(data.vehicle.disclosures).toContain('No service history is supplied.');
+  expect(data.vehicle.historyFacts).toContainEqual({label:'Service history',value:'No service history is supplied.'});
+});
 it('limits optional highlights to eight while preserving every mandatory statement', () => {
   const data=buildVehicleSheetData(motCar,dealerConfig,[],undefined,url);
   data.vehicle.featureHighlights=[...Array.from({length:12},(_,index)=>`Feature ${index+1}`),{text:'A supplied material qualification',required:true}];

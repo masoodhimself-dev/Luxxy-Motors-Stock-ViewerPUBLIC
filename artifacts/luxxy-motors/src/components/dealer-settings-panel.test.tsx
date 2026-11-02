@@ -51,12 +51,12 @@ function show(
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   clients.push(client);
-  render(
+  const view = render(
     <QueryClientProvider client={client}>
       <DealerSettingsPanel group={group} />
     </QueryClientProvider>,
   );
-  return { writes, getSaved: () => saved };
+  return { writes, getSaved: () => saved, unmount: view.unmount };
 }
 afterEach(() => {
   clients.splice(0).forEach((client) => client.clear());
@@ -117,23 +117,83 @@ it("preserves nonstandard existing showroom hours without crashing or changing t
   expect(writes).toHaveLength(0);
 });
 
-it("does not review or publish the previous colour while an invalid hex edit is visible", async () => {
-  const { writes } = show("website");
+it("keeps website colours fixed while publishing a logo or photograph edit", async () => {
+  const settings = structuredClone(previewSettings);
+  settings.presentation = { ...settings.presentation, includedItems: ["6 months warranty"] };
+  const { writes, getSaved } = show("website", settings);
   await screen.findByRole("heading", { name: "Website brand" });
-  fireEvent.change(screen.getByLabelText("Main colour hex code"), {
-    target: { value: "#123456" },
-  });
-  fireEvent.change(screen.getByLabelText("Accent colour hex code"), {
-    target: { value: "#nope" },
-  });
+  expect(screen.queryByLabelText(/colour hex code/i)).not.toBeInTheDocument();
+  expect(screen.queryByLabelText(/colour picker/i)).not.toBeInTheDocument();
+  expect(screen.getByText(/Website colours and fonts are managed by Dealer OS/)).toBeVisible();
+  fireEvent.change(screen.getByLabelText("Photograph description"), { target: { value: "Our showroom" } });
   fireEvent.click(screen.getByRole("button", { name: "Review brand" }));
-  expect(screen.getByRole("alert")).toHaveTextContent(
-    "Check the highlighted brand colour",
-  );
-  expect(screen.getByRole("button", { name: "Review brand" })).toBeVisible();
-  expect(
-    screen.queryByRole("button", { name: "Publish brand" }),
-  ).not.toBeInTheDocument();
+  expect(writes).toHaveLength(0);
+  fireEvent.click(screen.getByRole("button", { name: "Publish brand" }));
+  await screen.findByText("Website brand published.");
+  expect(writes).toHaveLength(1);
+  expect(getSaved().identity.brandColors).toEqual(settings.identity.brandColors);
+  expect(getSaved().presentation?.heroImageAlt).toBe("Our showroom");
+  expect(getSaved().presentation?.includedItems).toEqual(["6 months warranty"]);
+});
+
+it("publishes the dealership-wide inclusion list without changing unrelated presentation or brand settings", async () => {
+  const settings = structuredClone(previewSettings);
+  settings.presentation = { ...settings.presentation, heroImageAlt: "Existing showroom", includedInformation: "Bring your documents." };
+  const { writes, getSaved } = show("dealership", settings);
+  const items = await screen.findByLabelText(/Included items/);
+  fireEvent.change(items, { target: { value: " 6 months warranty \n\nPre-delivery inspection\n6 MONTHS WARRANTY" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save details" }));
+  await screen.findByText("Dealership details saved.");
+  expect(writes).toHaveLength(1);
+  expect(writes[0].revision).toBe("4");
+  expect(getSaved().presentation).toEqual({ ...settings.presentation, includedItems: ["6 months warranty", "Pre-delivery inspection"] });
+  expect(getSaved().identity.brandColors).toEqual(settings.identity.brandColors);
+  expect(getSaved().warranty).toEqual(settings.warranty);
+  expect(items).toHaveValue("6 months warranty\nPre-delivery inspection");
+});
+
+it("clears a saved list explicitly and retains that empty state after reloading", async () => {
+  const settings = structuredClone(previewSettings);
+  settings.presentation = { ...settings.presentation, includedItems: ["6 months warranty"] };
+  const { writes, getSaved, unmount } = show("dealership", settings);
+  fireEvent.change(await screen.findByLabelText(/Included items/), { target: { value: "" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save details" }));
+  await screen.findByText("Dealership details saved.");
+  expect(writes[0].body.presentation.includedItems).toEqual([]);
+  expect(getSaved().presentation?.includedItems).toEqual([]);
+  unmount();
+  show("dealership", getSaved());
+  expect(await screen.findByLabelText(/Included items/)).toHaveValue("");
+  expect(screen.queryByText("Currently using individual vehicle details.")).not.toBeInTheDocument();
+});
+
+it("can hide legacy vehicle inclusions without entering a replacement list", async () => {
+  const { writes } = show("dealership");
+  fireEvent.click(await screen.findByRole("button", { name: "Hide this section on all cars" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save details" }));
+  await screen.findByText("Dealership details saved.");
+  expect(writes[0].body.presentation.includedItems).toEqual([]);
+});
+
+it("does not replace individual vehicle inclusions when saving unrelated business details", async () => {
+  const { writes } = show("dealership");
+  fireEvent.change(await screen.findByLabelText("Dealership name"), { target: { value: "Another dealer" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save details" }));
+  await screen.findByText("Dealership details saved.");
+  expect(writes[0].body.presentation).not.toHaveProperty("includedItems");
+});
+
+it("keeps overlong inclusion drafts without publishing them", async () => {
+  const { writes } = show("dealership");
+  const items = await screen.findByLabelText(/Included items/);
+  fireEvent.change(items, { target: { value: "a".repeat(161) } });
+  fireEvent.click(screen.getByRole("button", { name: "Save details" }));
+  expect(screen.getByRole("alert")).toHaveTextContent("Add up to 12 included items");
+  expect(items).toHaveValue("a".repeat(161));
+  expect(writes).toHaveLength(0);
+  fireEvent.change(items, { target: { value: Array.from({ length: 13 }, (_, i) => `Item ${i + 1}`).join("\n") } });
+  fireEvent.click(screen.getByRole("button", { name: "Save details" }));
+  expect(screen.getByRole("alert")).toHaveTextContent("Add up to 12 included items");
   expect(writes).toHaveLength(0);
 });
 

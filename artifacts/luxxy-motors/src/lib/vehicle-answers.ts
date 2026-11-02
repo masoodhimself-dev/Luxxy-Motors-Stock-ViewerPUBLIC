@@ -90,7 +90,7 @@ export function filterVehicleAnswers(answers: VehicleAnswer[], search: string) {
 /** A short first view covers distinct buying questions. Search still uses every
  * answer, including the separate history topics and all dealership details. */
 export function featuredVehicleAnswers(answers: VehicleAnswer[], limit = 5): VehicleAnswer[] {
-  const priority = ['history', 'warranty', 'keys', 'equipment', 'delivery', 'service', 'mot', 'owners', 'condition', 'dealer-booking', 'specification', 'price', 'mileage'];
+  const priority = ['history', 'included', 'warranty', 'keys', 'equipment', 'delivery', 'service', 'mot', 'owners', 'condition', 'dealer-booking', 'specification', 'price', 'mileage'];
   const historyTopics = new Set(['service', 'mot', 'owners', 'condition', 'insurance']);
   const hasHistory = answers.some(answer => answer.id === 'history');
   const distinct = answers.filter(answer => !hasHistory || !historyTopics.has(answer.id));

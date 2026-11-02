@@ -24,7 +24,6 @@ import {
   BookingHoursNotice,
 } from "./settings-availability-notices";
 import { WebsiteImageField } from "./website-image-field";
-import { ColourField, isValidHsl } from "./brand/colour-field";
 import { DealerWordmark } from "./brand/wordmark";
 import { Input } from "./ui/input";
 import { NativeSelect } from "./ui/native-select";
@@ -59,6 +58,10 @@ const defaultTestDriveBooking: DealerTestDriveBooking = {
   confirmationMode: "instant",
 };
 const copy = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
+const cleanIncludedItems = (items: string[]) =>
+  items.map(item => item.trim()).filter((item, index, all) =>
+    item && all.findIndex(other => other.toLocaleLowerCase('en-GB') === item.toLocaleLowerCase('en-GB')) === index,
+  );
 function bookingErrors(booking: DealerTestDriveBooking) {
   const errors: Record<string, string> = {};
   if (!booking.enabled) return errors;
@@ -737,18 +740,6 @@ export function DealerSettingsPanel({
       return;
     setError("");
     setNotice("");
-    // The hex editor deliberately keeps an invalid draft local instead of
-    // replacing the last valid HSL value. Do not publish that older value while
-    // an invalid colour is still visible in the form.
-    if (
-      group === "website" &&
-      (event.currentTarget as HTMLFormElement).querySelector(
-        '[aria-invalid="true"]',
-      )
-    ) {
-      setError("Check the highlighted brand colour before publishing.");
-      return;
-    }
     const errors =
       group === "bookings"
         ? bookingErrors(form.testDriveBooking ?? defaultTestDriveBooking)
@@ -772,12 +763,12 @@ export function DealerSettingsPanel({
         errors.review =
           "Enter the Google review link from your Business Profile.";
     }
-    if (
-      group === "website" &&
-      (!isValidHsl(form.identity.brandColors.primaryHsl) ||
-        !isValidHsl(form.identity.brandColors.accentHsl))
-    )
-      errors.colour = "Choose valid brand colours.";
+    const includedItems = form.presentation?.includedItems;
+    if (group === "dealership" && includedItems !== undefined) {
+      const items = cleanIncludedItems(includedItems);
+      if (items.length > 12 || items.some(item => item.length > 160))
+        errors.includedItems = "Add up to 12 included items, with no more than 160 characters each.";
+    }
     if (group === 'dealership' && form.deliveryPricing && (!validDeliveryMoney(form.deliveryPricing.basePrice) || !validDeliveryMoney(form.deliveryPricing.pricePerMile))) errors.delivery = 'Enter delivery prices from £0 to £99,999.99 with no more than two decimal places.';
     if (Object.keys(errors).length) {
       setError(Object.values(errors).join(" "));
@@ -838,7 +829,6 @@ export function DealerSettingsPanel({
         ...data.identity,
         logoText: form.identity.logoText,
         logoAsset: form.identity.logoAsset,
-        brandColors: copy(form.identity.brandColors),
       };
       data.presentation = {
         ...data.presentation,
@@ -854,6 +844,10 @@ export function DealerSettingsPanel({
       data.legal = copy(form.legal);
       data.delivery = copy(form.delivery);
       if (form.deliveryPricing) data.deliveryPricing = copy(form.deliveryPricing);
+      if (includedItems !== undefined) data.presentation = {
+        ...data.presentation,
+        includedItems: cleanIncludedItems(includedItems),
+      };
     }
     update.mutate(
       { data },
@@ -1000,6 +994,37 @@ export function DealerSettingsPanel({
                 />
               </section>
               <DeliveryPricingSettings value={form.deliveryPricing} deliveryEnabled={form.delivery.enabled} onDeliveryEnabled={enabled => field('delivery', {...form.delivery, enabled})} onChange={value => field('deliveryPricing', value)} />
+              <section className="admin-card space-y-4" aria-labelledby="settings-included-heading">
+                <h3 id="settings-included-heading">What’s included with every car</h3>
+                <p className="text-sm text-muted-foreground">
+                  Choose what your dealership provides with every car. This list replaces
+                  the “What’s included” section on all your vehicle pages.
+                </p>
+                <Field label="Included items" hint="One item per line · up to 12">
+                  <Textarea
+                    rows={5}
+                    value={(form.presentation?.includedItems ?? []).join("\n")}
+                    onChange={event => field("presentation", {
+                      ...form.presentation,
+                      includedItems: event.target.value.split("\n"),
+                    })}
+                    placeholder={"6 months warranty\nPre-delivery inspection"}
+                    aria-describedby="settings-included-help"
+                    data-testid="textarea-dealer-included-items"
+                  />
+                </Field>
+                <p id="settings-included-help" className="text-sm text-muted-foreground">
+                  Only list items included with every car. Clear a saved list to hide the section.
+                </p>
+                {form.presentation?.includedItems === undefined && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+                    <p className="text-muted-foreground">Currently using individual vehicle details.</p>
+                    <Button type="button" variant="outline" onClick={() => field("presentation", {
+                      ...form.presentation, includedItems: [],
+                    })}>Hide this section on all cars</Button>
+                  </div>
+                )}
+              </section>
               <section className="admin-card space-y-4">
                 <h3>Company details</h3>
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -1042,36 +1067,9 @@ export function DealerSettingsPanel({
                   setUploads((n) => Math.max(0, n + (busy ? 1 : -1)))
                 }
               />
-              <div className="grid gap-4 sm:grid-cols-2">
-                <ColourField
-                  testId="brand-main"
-                  label="Main colour"
-                  value={form.identity.brandColors.primaryHsl}
-                  onChange={(value) =>
-                    field("identity", {
-                      ...form.identity,
-                      brandColors: {
-                        ...form.identity.brandColors,
-                        primaryHsl: value,
-                      },
-                    })
-                  }
-                />
-                <ColourField
-                  testId="brand-accent"
-                  label="Accent colour"
-                  value={form.identity.brandColors.accentHsl}
-                  onChange={(value) =>
-                    field("identity", {
-                      ...form.identity,
-                      brandColors: {
-                        ...form.identity.brandColors,
-                        accentHsl: value,
-                      },
-                    })
-                  }
-                />
-              </div>
+              <p className="text-sm text-muted-foreground">
+                Website colours and fonts are managed by Dealer OS for a consistent design.
+              </p>
               <WebsiteImageField
                 label="Homepage photograph"
                 kind="photo"
@@ -1111,7 +1109,7 @@ export function DealerSettingsPanel({
                 >
                   <h4 className="font-semibold">Ready to publish</h4>
                   <p>
-                    Your logo, colours and homepage photograph will be used on
+                    Your logo and homepage photograph will be used on
                     the website. Existing invoices and payments stay unchanged.
                   </p>
                 </div>

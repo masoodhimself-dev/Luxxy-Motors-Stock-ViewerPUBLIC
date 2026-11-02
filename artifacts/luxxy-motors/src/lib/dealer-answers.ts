@@ -2,6 +2,7 @@ import type { DealerConfig } from '@/config/dealer';
 import type { Car } from './stock-context';
 import type { VehicleAnswer } from './vehicle-answers';
 import { formatPhoneDisplay } from './utils';
+import { vehiclePageInclusions } from './vehicle-page-summary';
 
 type AnswerDealer = DealerConfig & { testDriveBooking?: { enabled?: boolean } };
 /** Only the active dealership's public settings can supplement car-specific answers. */
@@ -9,12 +10,23 @@ export function withDealerAnswers(carAnswers: VehicleAnswer[], car: Car, dealer:
   const answers = carAnswers.map(answer => ({...answer}));
   const vehicleId = encodeURIComponent(car.id);
   const enquiry = `/enquire?type=general&vehicleId=${vehicleId}`;
-  const warranty = answers.find(answer => answer.id === 'warranty');
+  const hasConfiguredInclusions = Boolean(dealer.presentation && Object.hasOwn(dealer.presentation, 'includedItems'));
+  const included = hasConfiguredInclusions ? vehiclePageInclusions(car, dealer.presentation) : [];
+  if (hasConfiguredInclusions) {
+    // The saved list owns the promise for every car. Do not infer new cover
+    // from unrelated text or repeat an older car-specific warranty claim.
+    const previous = answers.findIndex(answer => answer.id === 'warranty');
+    if (previous >= 0) answers.splice(previous, 1);
+    const warrantyItems = included.filter(item => /\bwarrant(?:y|ies)\b/i.test(item));
+    answers.push({id:'warranty',question:'Does this car come with a warranty?',answer:warrantyItems.length ? `${warrantyItems.join('\n')}\n\nAsk our team for the full cover, cost and terms for this car.` : 'Ask our team to confirm the warranty cover, duration, cost and terms for this car.',source:'dealer',href:dealer.warranty?.enabled ? `/warranty?vehicleId=${vehicleId}` : enquiry,linkLabel:dealer.warranty?.enabled ? 'Warranty information' : 'Ask about warranty'});
+    if (included.length) answers.push({id:'included',question:'What’s included with this car?',answer:included.join('\n'),source:'dealer'});
+  }
+  const warranty = hasConfiguredInclusions ? undefined : answers.find(answer => answer.id === 'warranty');
   if (warranty) {
     warranty.question = 'Does this car come with a warranty?';
     warranty.answer += '\n\nAsk our team for the full cover, cost and terms for this car.';
     if (dealer.warranty?.enabled) { warranty.href = `/warranty?vehicleId=${vehicleId}`; warranty.linkLabel = 'Warranty information'; }
-  } else {
+  } else if (!hasConfiguredInclusions) {
     const description = dealer.warranty?.enabled ? dealer.warranty.description?.trim() : '';
     answers.push({id:'warranty',question:'Does this car come with a warranty?',answer:description ? `${description}\n\nPlease confirm the cover, duration, cost and exclusions for this car with our team.` : 'Warranty cover hasn’t been specified for this car. Ask our team whether cover is available and to confirm its duration, cost and terms.',source:'dealer',href:dealer.warranty?.enabled ? `/warranty?vehicleId=${vehicleId}` : enquiry,linkLabel:dealer.warranty?.enabled ? 'Warranty information' : 'Ask about warranty'});
   }

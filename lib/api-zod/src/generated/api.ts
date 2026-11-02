@@ -3391,6 +3391,12 @@ export const getDealerSettingsResponsePresentationReviewsUrlMax = 2048;
 export const getDealerSettingsResponsePresentationReviewsUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
 export const getDealerSettingsResponsePresentationIncludedInformationMax = 1000;
 
+export const getDealerSettingsResponsePresentationIncludedItemsItemMax = 160;
+
+
+export const getDealerSettingsResponsePresentationIncludedItemsItemRegExp = new RegExp('\\S');
+export const getDealerSettingsResponsePresentationIncludedItemsMax = 12;
+
 export const getDealerSettingsResponseBrochureTitleMax = 60;
 
 export const getDealerSettingsResponseBrochureIntroductionMax = 300;
@@ -3629,7 +3635,8 @@ export const GetDealerSettingsResponse = zod.object({
   "visitInstructions": zod.string().max(getDealerSettingsResponsePresentationVisitInstructionsMax).optional(),
   "parkingInstructions": zod.string().max(getDealerSettingsResponsePresentationParkingInstructionsMax).optional(),
   "reviewsUrl": zod.string().max(getDealerSettingsResponsePresentationReviewsUrlMax).regex(getDealerSettingsResponsePresentationReviewsUrlRegExp).optional(),
-  "includedInformation": zod.string().max(getDealerSettingsResponsePresentationIncludedInformationMax).optional()
+  "includedInformation": zod.string().max(getDealerSettingsResponsePresentationIncludedInformationMax).optional(),
+  "includedItems": zod.array(zod.string().min(1).max(getDealerSettingsResponsePresentationIncludedItemsItemMax).regex(getDealerSettingsResponsePresentationIncludedItemsItemRegExp)).max(getDealerSettingsResponsePresentationIncludedItemsMax).optional().describe('Dealership-wide items included with every vehicle. Entries are trimmed and duplicates removed on publication. An explicit empty list hides the section; omission retains the previous setting and legacy per-vehicle behavior when never configured.')
 }).optional().describe('Optional showroom content. Empty values are not presented as factual claims.'),
   "brochure": zod.object({
   "title": zod.string().max(getDealerSettingsResponseBrochureTitleMax).optional(),
@@ -3909,6 +3916,12 @@ export const updateDealerSettingsBodyOnePresentationReviewsUrlMax = 2048;
 export const updateDealerSettingsBodyOnePresentationReviewsUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
 export const updateDealerSettingsBodyOnePresentationIncludedInformationMax = 1000;
 
+export const updateDealerSettingsBodyOnePresentationIncludedItemsItemMax = 160;
+
+
+export const updateDealerSettingsBodyOnePresentationIncludedItemsItemRegExp = new RegExp('\\S');
+export const updateDealerSettingsBodyOnePresentationIncludedItemsMax = 12;
+
 export const updateDealerSettingsBodyOneBrochureTitleMax = 60;
 
 export const updateDealerSettingsBodyOneBrochureIntroductionMax = 300;
@@ -4147,7 +4160,8 @@ export const UpdateDealerSettingsBody = zod.object({
   "visitInstructions": zod.string().max(updateDealerSettingsBodyOnePresentationVisitInstructionsMax).optional(),
   "parkingInstructions": zod.string().max(updateDealerSettingsBodyOnePresentationParkingInstructionsMax).optional(),
   "reviewsUrl": zod.string().max(updateDealerSettingsBodyOnePresentationReviewsUrlMax).regex(updateDealerSettingsBodyOnePresentationReviewsUrlRegExp).optional(),
-  "includedInformation": zod.string().max(updateDealerSettingsBodyOnePresentationIncludedInformationMax).optional()
+  "includedInformation": zod.string().max(updateDealerSettingsBodyOnePresentationIncludedInformationMax).optional(),
+  "includedItems": zod.array(zod.string().min(1).max(updateDealerSettingsBodyOnePresentationIncludedItemsItemMax).regex(updateDealerSettingsBodyOnePresentationIncludedItemsItemRegExp)).max(updateDealerSettingsBodyOnePresentationIncludedItemsMax).optional().describe('Dealership-wide items included with every vehicle. Entries are trimmed and duplicates removed on publication. An explicit empty list hides the section; omission retains the previous setting and legacy per-vehicle behavior when never configured.')
 }).optional().describe('Optional showroom content. Empty values are not presented as factual claims.'),
   "brochure": zod.object({
   "title": zod.string().max(updateDealerSettingsBodyOneBrochureTitleMax).optional(),
@@ -4422,6 +4436,12 @@ export const updateDealerSettingsResponsePresentationReviewsUrlMax = 2048;
 export const updateDealerSettingsResponsePresentationReviewsUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
 export const updateDealerSettingsResponsePresentationIncludedInformationMax = 1000;
 
+export const updateDealerSettingsResponsePresentationIncludedItemsItemMax = 160;
+
+
+export const updateDealerSettingsResponsePresentationIncludedItemsItemRegExp = new RegExp('\\S');
+export const updateDealerSettingsResponsePresentationIncludedItemsMax = 12;
+
 export const updateDealerSettingsResponseBrochureTitleMax = 60;
 
 export const updateDealerSettingsResponseBrochureIntroductionMax = 300;
@@ -4660,7 +4680,8 @@ export const UpdateDealerSettingsResponse = zod.object({
   "visitInstructions": zod.string().max(updateDealerSettingsResponsePresentationVisitInstructionsMax).optional(),
   "parkingInstructions": zod.string().max(updateDealerSettingsResponsePresentationParkingInstructionsMax).optional(),
   "reviewsUrl": zod.string().max(updateDealerSettingsResponsePresentationReviewsUrlMax).regex(updateDealerSettingsResponsePresentationReviewsUrlRegExp).optional(),
-  "includedInformation": zod.string().max(updateDealerSettingsResponsePresentationIncludedInformationMax).optional()
+  "includedInformation": zod.string().max(updateDealerSettingsResponsePresentationIncludedInformationMax).optional(),
+  "includedItems": zod.array(zod.string().min(1).max(updateDealerSettingsResponsePresentationIncludedItemsItemMax).regex(updateDealerSettingsResponsePresentationIncludedItemsItemRegExp)).max(updateDealerSettingsResponsePresentationIncludedItemsMax).optional().describe('Dealership-wide items included with every vehicle. Entries are trimmed and duplicates removed on publication. An explicit empty list hides the section; omission retains the previous setting and legacy per-vehicle behavior when never configured.')
 }).optional().describe('Optional showroom content. Empty values are not presented as factual claims.'),
   "brochure": zod.object({
   "title": zod.string().max(updateDealerSettingsResponseBrochureTitleMax).optional(),

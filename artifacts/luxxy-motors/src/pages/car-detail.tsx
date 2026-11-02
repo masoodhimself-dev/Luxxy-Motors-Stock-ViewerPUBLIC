@@ -217,7 +217,7 @@ export default function CarDetail() {
   const description = separateDescriptionNotes ? String(car.sourceExtras!.vehicleDescriptionBody) : content.description;
   const features = prioritiseVehicleFeatures(content.features);
   const summaryFacts = vehiclePageSummary(car);
-  const includedItems = vehiclePageInclusions(car);
+  const includedItems = vehiclePageInclusions(car, settingsLoading || settingsError ? undefined : dealerConfig.presentation);
   const hasOverview = Boolean(description?.trim()) || includedItems.length > 0 || hasSpecifications || vehicleRunningCostFacts.length > 0;
   const repeatedBadgeLabels = summaryFacts.flatMap(fact => fact.id === 'owners' ? ['Owners', 'Previous keepers'] : fact.id === 'service' ? ['Service history'] : []);
   const share = async () => {

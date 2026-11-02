@@ -40,45 +40,30 @@ test("private settings require deliberate discard and are never restored from br
   expect(writes).toBe(0);
 });
 
-test("the single brand keeps its HSL contract and invalid hex edits cannot be published", async ({
-  page,
-}) => {
-  let settings = structuredClone(previewSettings),
-    revision = 0,
-    updates = 0;
-  await page.route("**/api/dealer-settings", async (route) => {
+test("website branding preserves fixed colours while dealers publish their photograph", async ({ page }) => {
+  let settings = structuredClone(previewSettings), revision = 0, updates = 0;
+  await page.route("**/api/dealer-settings", async route => {
     if (route.request().method() === "PATCH") {
       expect(route.request().headers()["if-match"]).toBe(String(revision));
       settings = route.request().postDataJSON();
       revision++;
       updates++;
     }
-    await route.fulfill({
-      json: settings,
-      headers: { "x-settings-revision": String(revision) },
-    });
+    await route.fulfill({ json: settings, headers: { "x-settings-revision": String(revision) } });
   });
   await page.goto("/portal?section=settings&settingsTab=website");
-  await page.getByLabel("Main colour hex code").fill("#123456");
-  await page.getByLabel("Accent colour hex code").fill("#nope");
+  await expect(page.getByLabel("Main colour hex code")).toHaveCount(0);
+  await expect(page.getByLabel("Accent colour hex code")).toHaveCount(0);
+  await page.getByLabel("Photograph description", { exact: true }).fill("Our dealership");
   await page.getByRole("button", { name: "Review brand", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText(
-    "highlighted brand colour",
-  );
   expect(updates).toBe(0);
-  await page.getByLabel("Accent colour hex code").fill("#996633");
-  await page.getByRole("button", { name: "Review brand", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Publish brand", exact: true })
-    .click();
-  await expect(page.getByRole("status")).toContainText(
-    "Website brand published.",
-  );
-  expect(settings.identity.brandColors.primaryHsl).toMatch(/^210 /);
-  expect(settings.identity.brandColors.accentHsl).toMatch(/^30 /);
+  await page.getByRole("button", { name: "Publish brand", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Website brand published.");
+  expect(settings.identity.brandColors).toEqual(previewSettings.identity.brandColors);
   expect(updates).toBe(1);
   await page.reload();
-  await expect(page.getByLabel("Main colour hex code")).toHaveValue("#123456");
+  await expect(page.getByLabel("Photograph description", { exact: true })).toHaveValue("Our dealership");
+  await expect(page.getByLabel("Main colour hex code")).toHaveCount(0);
 });
 
 test("budget ranges stay valid and applied filters can be removed when collapsed", async ({

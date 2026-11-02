@@ -197,3 +197,41 @@ describe("explicit vehicle inclusions", () => {
     expect(vehiclePageInclusions(car())).toEqual([]);
   });
 });
+
+
+describe("dealership-wide vehicle inclusions", () => {
+  it("uses the saved dealership list for cars with different inferred warranties and extras", () => {
+    const presentation = { includedItems: ["6 months warranty", "12 months roadside assistance"] };
+    const source = car({ description: "3 months warranty included.", includedItems: ["Owner handbook"] });
+    expect(vehiclePageInclusions(source, presentation)).toEqual(presentation.includedItems);
+    expect(vehiclePageInclusions(car({ id: "another-car", make: "Ford", description: "12 months warranty included.", includedItems: ["Charging cable"] }), presentation)).toEqual(presentation.includedItems);
+  });
+
+  it("treats an explicitly empty saved list as authoritative rather than restoring inferred inclusions", () => {
+    expect(vehiclePageInclusions(car({ description: "6 months warranty included.", includedItems: ["Two keys"] }), { includedItems: [] })).toEqual([]);
+  });
+
+  it("keeps the per-car fallback when the dealership has never configured an inclusion list", () => {
+    const source = car({ description: "6 months warranty included.", includedItems: ["Owner handbook"] });
+    expect(vehiclePageInclusions(source, {})).toEqual(vehiclePageInclusions(source));
+    expect(vehiclePageInclusions(source)).toEqual(["6-month warranty included", "Owner handbook"]);
+  });
+
+  it("uses only the supplied dealership configuration and returns a new list without changing saved settings or car facts", () => {
+    const first = { includedItems: Object.freeze(["6 months warranty"]) };
+    const second = { includedItems: Object.freeze(["Fresh MOT"]) };
+    const source = car({ description: "3 months warranty included.", includedItems: ["Two keys"] });
+    const before = JSON.stringify({ source, first, second });
+    const result = vehiclePageInclusions(source, first);
+    result.push("Unpublished draft");
+    expect(vehiclePageInclusions(source, second)).toEqual(["Fresh MOT"]);
+    expect(vehiclePageInclusions(source, {})).toEqual(["3-month warranty included", "Two keys"]);
+    expect(vehiclePageInclusions(source, first)).toEqual(["6 months warranty"]);
+    expect(JSON.stringify({ source, first, second })).toBe(before);
+  });
+
+  it("does not promote general handover notes into the dealership inclusion list", () => {
+    const presentation: { includedInformation: string; includedItems?: string[] } = { includedInformation: "Confirm the handover documents with our team." };
+    expect(vehiclePageInclusions(car(), presentation)).toEqual([]);
+  });
+});

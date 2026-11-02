@@ -1,0 +1,14 @@
+Dealership-wide vehicle inclusions and managed website colours
+2 November 2026
+
+Settings > Business > What's included with every car lets an owner enter up to 12 items, one per line (160 characters per item). Save details publishes the list for all of that dealership's cars. Whitespace and case-insensitive duplicates are removed. An explicit empty list hides the inclusion section. Until a dealer configures a list, existing per-car inclusion behavior is retained.
+
+The saved list is presentation.includedItems in the existing tenant-bound settings JSON. No schema migration, stock edit, invoice edit, or permission expansion is needed. Existing general handover information remains separate. Version conflicts and settings history continue to work.
+
+Vehicle pages, their quick answers, public print sheets and downloadable brochures respect the configured list. Warranty answers quote only explicit warranty items and do not infer a duration from unrelated text. Original vehicle descriptions, history and disclosures are retained.
+
+Dealership Brand settings allow logo and homepage photograph edits but no website colour controls. Server-side validation rejects dealer colour changes, including legacy presentation overrides. Restoring settings preserves the current colours. Only the existing explicitly identified platform administrator context may change managed colours through an authorized settings publication.
+
+Validation: 155 frontend tests, 34 backend tests, current-source frontend/backend type checks, library declaration build and frontend production build passed. Browser review covered the inclusion editor at 393px and 1440px with no horizontal overflow. Example items were entered as an unsaved local draft only; no live settings or records changed.
+
+This change is local and has not been deployed to Render.

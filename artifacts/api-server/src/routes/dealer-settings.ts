@@ -2,6 +2,8 @@ import { normalisePostcode, validPostcodeSyntax } from '../lib/postcodes';
 import { postcodeService, persistDealerLocation, settingsPostcode } from '../lib/postcode-storage';
 import { bookingSettingsUpdate } from '../lib/booking-settings-update';
 import { googleReviewUrl } from '@workspace/vehicle-meta';
+import { isPlatformAdmin } from '../lib/platform-admin';
+import { normaliseIncludedItems, websiteColourPolicy } from '../lib/website-colour-policy';
 import { currentDealerId, multiTenantEnabled } from "../lib/tenant-context";
 import { bookingPolicyError, defaultBookingPolicy } from "../lib/booking-slots";
 import { preserveGoogleReviewUrl, preserveTestDriveBooking, preserveBrochure, preservePresentation, publicSettingsLinkError } from "../lib/settings-content";
@@ -141,7 +143,8 @@ export async function getDealerIdentity(): Promise<{ name: string; location: str
   };
 }
 
-async function validatePublication(incoming: Record<string, unknown>, previous: Record<string, unknown>, client: SettingsQueryClient) {
+async function validatePublication(input: Record<string, unknown>, previous: Record<string, unknown>, client: SettingsQueryClient, colourPolicy: { allowChanges?: boolean; restoring?: boolean } = {}) {
+  const incoming = normaliseIncludedItems(websiteColourPolicy(input, previous, colourPolicy));
   const parsed = UpdateDealerSettingsBody.safeParse({ ...incoming, ...(!Object.prototype.hasOwnProperty.call(incoming, 'deliveryPricing') && previous.deliveryPricing ? { deliveryPricing: previous.deliveryPricing } : {}) });
   if (!parsed.success) {
     throw new SettingsVersionError(parsed.error.message, 400);
@@ -186,7 +189,7 @@ router.patch('/dealer-settings/bookings', requireStaff, requirePermission('setti
 router.patch("/dealer-settings", requireStaff, requirePermission('settings.publish'), async (req, res): Promise<void> => {
   try {
     const location = await postcodeService.lookup(settingsPostcode(req.body ?? {})).catch(() => null);
-    const result = await new PostgresSettingsVersionStore(dealerId(), pool).publish({ persist: (config, client) => persistDealerLocation(client, dealerId(), config, location), config: req.body, expectedRevision: expectedSettingsRevision(req.headers['if-match']), actor: staffLabel(req), validate: validatePublication });
+    const result = await new PostgresSettingsVersionStore(dealerId(), pool).publish({ persist: (config, client) => persistDealerLocation(client, dealerId(), config, location), config: req.body, expectedRevision: expectedSettingsRevision(req.headers['if-match']), actor: staffLabel(req), validate: (incoming, previous, client) => validatePublication(incoming, previous, client, { allowChanges: isPlatformAdmin(req.staff?.authUserId) }) });
     res.setHeader('x-settings-revision', String(result.revision)); res.setHeader('ETag', `"${result.revision}"`);
     res.json(UpdateDealerSettingsResponse.parse(result.config as Settings));
   } catch (error) { settingsFailure(req, res, error); }
@@ -204,7 +207,7 @@ router.post('/staff/settings-history/:version/restore', requireStaff, requirePer
     if (!/^\d+$/.test(req.params.version)) throw new SettingsVersionError('Settings version not found.', 404);
     const restore = await pool.query('SELECT config FROM dealer_settings_versions WHERE dealer_id=$1 AND revision=$2', [dealerId(), Number(req.params.version)]);
     const location = await postcodeService.lookup(settingsPostcode(restore.rows[0]?.config ?? {})).catch(() => null);
-    const result = await new PostgresSettingsVersionStore(dealerId(), pool).publish({ persist: (config, client) => persistDealerLocation(client, dealerId(), config, location), expectedRevision: expectedSettingsRevision(req.headers['if-match']), actor: staffLabel(req), restoredFrom: Number(req.params.version), validate: validatePublication });
+    const result = await new PostgresSettingsVersionStore(dealerId(), pool).publish({ persist: (config, client) => persistDealerLocation(client, dealerId(), config, location), expectedRevision: expectedSettingsRevision(req.headers['if-match']), actor: staffLabel(req), restoredFrom: Number(req.params.version), validate: (incoming, previous, client) => validatePublication(incoming, previous, client, { restoring: true }) });
     res.setHeader('x-settings-revision', String(result.revision)); res.setHeader('ETag', `"${result.revision}"`);
     res.json({ revision: result.revision, config: UpdateDealerSettingsResponse.parse(result.config) });
   } catch (error) { settingsFailure(req, res, error); }

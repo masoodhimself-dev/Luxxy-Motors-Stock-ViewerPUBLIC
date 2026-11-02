@@ -2294,6 +2294,11 @@ components:
         parkingInstructions: { type: string, maxLength: 1000 }
         reviewsUrl: { type: string, maxLength: 2048, pattern: "^(https://[^\\s]+)?$" }
         includedInformation: { type: string, maxLength: 1000 }
+        includedItems:
+          type: array
+          maxItems: 12
+          description: Dealership-wide items included with every vehicle. Entries are trimmed and duplicates removed on publication. An explicit empty list hides the section; omission retains the previous setting and legacy per-vehicle behavior when never configured.
+          items: { type: string, minLength: 1, maxLength: 160, pattern: "\\S" }
     DealerBrochure:
       type: object
       additionalProperties: false

@@ -50,6 +50,38 @@ test('public details preserve zero values, supplied history and missing buyer in
   assert.equal(brochureDetails({ ...vehicle, writeOffCategory: 'S' }).history, 'Category S');
 });
 
+test('server brochures use dealership inclusions on every car, clear explicitly and preserve absent-setting behavior and raw facts', () => {
+  const car = { ...vehicle, warranty: '3 months from source', includedItems: ['Owner handbook'], serviceHistory: 'Full service history', numberOfKeys: 2, writeOffCategory: 'S', description: 'Raw supplier warranty conditions and vehicle description.' };
+  const before = JSON.stringify(car);
+  const config = { identity: { name: 'Fictional dealer' }, presentation: { includedItems: ['6 months warranty', '12 months roadside assistance'] } };
+  const render = (source: BrochureVehicle, settings: unknown) => contentStreams(renderVehicleBrochure({ vehicle: source, dealer: brochureDealer(settings), photos: [], totalPhotos: 0, vehicleUrl: '' }));
+  for (const source of [car, { ...car, id: 'second-car', warranty: '12 months from source' }]) {
+    const text = render(source, config);
+    assert.ok(text.includes("What's included"));
+    for (const included of config.presentation.includedItems) assert.ok(text.includes(included), included);
+    assert.ok(!text.includes('months from source')); assert.ok(!text.includes('Owner handbook'));
+    for (const fact of ['Full service history', '2 keys', 'Category S', car.description]) assert.ok(text.includes(fact), fact);
+  }
+  const cleared = render(car, { ...config, presentation: { includedItems: [] } });
+  assert.ok(!cleared.includes("What's included")); assert.ok(!cleared.includes('months from source')); assert.ok(!cleared.includes('Owner handbook'));
+  const legacy = render(car, { ...config, presentation: {} });
+  assert.ok(legacy.includes('3 months from source')); assert.ok(legacy.includes('Owner handbook'));
+  assert.deepEqual(brochureDetails(car).buyer.filter(([label]) => ['Warranty', 'Included with this car'].includes(label)), [['Warranty', '3 months from source'], ['Included with this car', 'Owner handbook']]);
+  assert.equal(JSON.stringify(car), before);
+});
+
+test('publishing or clearing dealership inclusions invalidates an existing server brochure cache', async () => {
+  let includedItems = ['6 months warranty'];
+  const generate = createBrochureHandler({ findVehicle: async () => ({ ...vehicle, warranty: '3 months from source' }), readDealer: async () => brochureDealer({ identity: { name: 'Fictional dealer' }, presentation: { includedItems } }), loadPhotos: async photos => photos });
+  const included = await generate(vehicle.id, 'https://example.com');
+  assert.equal(included.status, 200); assert.ok(contentStreams(included.body as Buffer).includes('6 months warranty'));
+  includedItems = [];
+  const cleared = await generate(vehicle.id, 'https://example.com');
+  assert.equal(cleared.status, 200); assert.notDeepEqual(included.body, cleared.body);
+  const text = contentStreams(cleared.body as Buffer);
+  assert.ok(!text.includes("What's included")); assert.ok(!text.includes('months from source'));
+});
+
 test('brochure number plates prefer supplied plate and VRM without mistaking a year band for a plate', () => {
   const numberPlate = (fields: Partial<BrochureVehicle>) => brochureDetails({ ...vehicle, ...fields }).specs.find(([key]) => key === 'Number plate')?.[1];
   assert.equal(numberPlate({ plate: ' ab12 cde ', vrm: 'XY34 ZZZ', registration: '2019 (19 reg)' }), 'AB12 CDE');

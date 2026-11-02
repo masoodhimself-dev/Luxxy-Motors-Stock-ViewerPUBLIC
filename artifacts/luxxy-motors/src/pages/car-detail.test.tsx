@@ -645,3 +645,71 @@ it('keeps mobile contact to Call and Message while respecting enquiry permission
   renderVehicle('with-plate', { ...dealerConfig, testDriveBooking: { ...defaultBookingSettings, enabled: false } });
   expect(within(screen.getByRole('navigation', { name: 'Contact about this vehicle' })).queryByRole('link', { name: 'Message' })).not.toBeInTheDocument();
 });
+
+
+describe('dealership-wide What’s included', () => {
+  const restoreCar = (car: typeof stockFixture.cars[number], original: typeof car) => {
+    Object.assign(car, original);
+    for (const key of Object.keys(car)) if (!Object.hasOwn(original, key)) Reflect.deleteProperty(car, key);
+  };
+
+  it.each(['band-only', 'with-plate'])('shows the same saved dealership inclusions for %s instead of inferred car inclusions', id => {
+    const car = stockFixture.cars.find(item => item.id === id)!;
+    const original = { ...car };
+    Object.assign(car, { description: id === 'band-only' ? '3 months warranty included.' : '12 months warranty included.', includedItems: ['Feed-only handbook'] });
+    const settings = {
+      ...dealerConfig,
+      identity: { ...dealerConfig.identity, name: 'Current Dealer' },
+      presentation: { ...dealerConfig.presentation, includedItems: ['6 months warranty', '12 months roadside assistance'], includedInformation: 'Please bring photo identification to handover.' },
+    };
+    const before = JSON.stringify(settings);
+    try {
+      renderVehicle(id, settings);
+      const section = screen.getByRole('region', { name: 'What’s included' });
+      expect(within(section).getAllByRole('listitem').map(item => item.textContent)).toEqual(['6 months warranty', '12 months roadside assistance']);
+      expect(section).not.toHaveTextContent('Feed-only handbook');
+      expect(section).not.toHaveTextContent('3-month warranty included');
+      expect(section).not.toHaveTextContent('12-month warranty included');
+      expect(screen.getByText('Please bring photo identification to handover.').closest('section')).not.toBe(section);
+      expect(JSON.stringify(settings)).toBe(before);
+    } finally { restoreCar(car, original); }
+  });
+
+  it('hides the inclusion section for an explicitly empty dealership list despite feed warranty claims', () => {
+    const car = stockFixture.cars[1];
+    const original = { ...car };
+    Object.assign(car, { description: '3 months warranty included.', includedItems: ['Feed-only handbook'] });
+    try {
+      renderVehicle(car.id, { ...dealerConfig, presentation: { ...dealerConfig.presentation, includedItems: [] } });
+      expect(screen.queryByRole('region', { name: 'What’s included' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'What’s included' })).not.toBeInTheDocument();
+    } finally { restoreCar(car, original); }
+  });
+
+  it('retains inferred car inclusions for a dealership without the new setting', () => {
+    const car = stockFixture.cars[1];
+    const original = { ...car };
+    Object.assign(car, { description: '3 months warranty included.', includedItems: ['Owner handbook'] });
+    const presentation = { ...dealerConfig.presentation };
+    delete presentation.includedItems;
+    try {
+      renderVehicle(car.id, { ...dealerConfig, presentation });
+      const section = screen.getByRole('region', { name: 'What’s included' });
+      expect(within(section).getAllByRole('listitem').map(item => item.textContent)).toEqual(['3-month warranty included', 'Owner handbook']);
+    } finally { restoreCar(car, original); }
+  });
+
+  it('uses only the active dealership’s saved list and does not keep a previous dealer’s inclusion claims', () => {
+    const first = { ...dealerConfig, identity: { ...dealerConfig.identity, name: 'First Dealer' }, presentation: { ...dealerConfig.presentation, includedItems: ['First dealer warranty promise'] } };
+    const second = { ...dealerConfig, identity: { ...dealerConfig.identity, name: 'Second Dealer' }, presentation: { ...dealerConfig.presentation, includedItems: ['Second dealer preparation check'] } };
+    const before = JSON.stringify({ first, second });
+    const view = renderVehicle('with-plate', first);
+    expect(screen.getByRole('region', { name: 'What’s included' })).toHaveTextContent('First dealer warranty promise');
+    view.unmount();
+    renderVehicle('band-only', second);
+    const section = screen.getByRole('region', { name: 'What’s included' });
+    expect(within(section).getAllByRole('listitem').map(item => item.textContent)).toEqual(['Second dealer preparation check']);
+    expect(section).not.toHaveTextContent('First dealer warranty promise');
+    expect(JSON.stringify({ first, second })).toBe(before);
+  });
+});
