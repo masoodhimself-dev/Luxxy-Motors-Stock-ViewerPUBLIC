@@ -30,6 +30,7 @@ import { lookupPartExchangeCar } from '@/lib/part-exchange-lookup';
 import { normaliseExchangeRegistration } from '@/lib/part-exchange-autofill';
 import { multiChoiceHomeSections, multiChoiceReviews, multiChoiceReviewsUrl } from '@/lib/multi-choice-home-sections';
 import { customerDefaultCopy, websiteText } from '@/lib/website-content';
+import { isMultiChoiceWebsite } from '@/lib/multi-home-scope';
 import './multi-choice-homepage.css';
 
 type HomeSettings = DealerConfig & Partial<Pick<DealerSettings, 'testDriveBooking'>>;
@@ -159,7 +160,9 @@ function OpeningTimes({ settings }: { settings: HomeSettings }) {
   return <section className="mh-section mh-hours" aria-labelledby="mh-hours-heading"><h2 id="mh-hours-heading">Opening times</h2><p>All times are UK time. Please confirm your visit before travelling on bank holidays.</p>{week ? <dl className="mh-hours-grid">{[1, 2, 3, 4, 5, 6, 0].map(day => { const entry = week[day], name = settingsWeekdays[day]; return <div key={day} data-today={today === name || undefined}><dt>{name}{today === name && <span className="sr-only"> (today)</span>}</dt><dd>{entry.state === 'closed' ? 'Closed' : entry.state === 'open' ? `${entry.open} – ${entry.close}` : 'Please confirm'}</dd></div>; })}</dl> : settings.hours?.length ? <dl className="mh-hours-grid">{settings.hours.map(row => <div key={row.days}><dt>{row.days}</dt><dd>{row.times}</dd></div>)}</dl> : <p>Please contact us to confirm our opening hours.</p>}</section>;
 }
 
-export function MultiChoiceHomepage({ settings, cars: suppliedCars, isLoading, error, publicEnquiriesEnabled, filters, setFilters, onSearch }: Props) {
+/** Shared public homepage; every dealership supplies its own published content. */
+export function DealershipHomepage({ settings, cars: suppliedCars, isLoading, error, publicEnquiriesEnabled, filters, setFilters, onSearch }: Props) {
+  const multiChoice = isMultiChoiceWebsite();
   const cars = suppliedCars.filter(car => !['sold', 'archived', 'hidden', 'withdrawn'].includes(String(car.inventoryStatus).toLowerCase()));
   const sections = multiChoiceHomeSections(settings);
   const [tab, setTab] = useState<'buy' | 'px'>('buy');
@@ -176,7 +179,7 @@ export function MultiChoiceHomepage({ settings, cars: suppliedCars, isLoading, e
   const featured = homepageFeaturedCars(cars, settings.featuredVehicleIds);
   const configuredPhoto = settings.presentation?.heroImageUrl;
   // Replace only the existing Multi-Choice forecourt artwork; later staff-selected photos stay authoritative.
-  const cutout = Boolean(configuredPhoto?.includes('/api/website-assets/12f86896-51f9-4e38-be24-b8ab5d243c9c'));
+  const cutout = multiChoice && Boolean(configuredPhoto?.includes('/api/website-assets/12f86896-51f9-4e38-be24-b8ab5d243c9c'));
   const photo = cutout ? '/brand/multi-choice-motors/hero-cars-1200.webp' : configuredPhoto || getThumbnailUrl(featured.find(car => getThumbnailUrl(car)) || cars.find(car => getThumbnailUrl(car)));
   const headline = customerDefaultCopy(settings.hero.copy, 'Find your next car.', ['Find Your Next Car']);
   const lastWord = headline.lastIndexOf(' ');
@@ -187,13 +190,20 @@ export function MultiChoiceHomepage({ settings, cars: suppliedCars, isLoading, e
   const canBook = settings.testDriveBooking?.enabled === true;
   const enquiry = publicEnquiriesEnabled ? '/enquire?type=general' : '/contact';
   // Dealer-approved homepage wording; published Settings content still takes precedence.
-  const defaultReasons = [
+  const defaultReasons = multiChoice ? [
     { title: 'Service You Can Trust', text: 'Experience a seamless car-buying journey backed by our expert customer care team.', Icon: Smile },
     { title: '6 month warranty', text: 'Our cars come with a 6-month warranty as standard, with options to extend up to 36 months for added peace of mind.', Icon: ShieldCheck },
     { title: 'Same day drive away', text: 'Complete your purchase on the same day, no need for multiple visits.', Icon: Truck },
     { title: 'Competitive prices', text: 'Our cars are price-checked daily to ensure great value.', Icon: Tag },
     { title: 'Multipoint inspection', text: 'Quality matters. That’s why we triple-check everything.', Icon: CircleCheck },
     { title: 'Hassle & haggle-free', text: 'No awkward haggling, no high mark-ups, and no pressure to buy.', Icon: Handshake },
+  ] : [
+    { title: 'Browse our current stock', text: 'Explore the cars available and compare the ones that interest you.', Icon: Car },
+    { title: 'The details in one place', text: 'Check each car’s price, mileage and specification before you decide.', Icon: CircleCheck },
+    { title: 'Ask us about a car', text: 'Contact our team with questions about the car you have in mind.', Icon: Smile },
+    { title: 'Plan your visit', text: 'Confirm the showroom address and opening times before travelling.', Icon: MapPin },
+    { title: 'Talk through the next steps', text: 'Ask us about payment, paperwork and collection arrangements.', Icon: Handshake },
+    { title: 'Keep your favourites', text: 'Save cars while you browse so you can find them again.', Icon: Tag },
   ];
   const reasonIcon = (text: string) => /warrant|cover|protect/i.test(text) ? ShieldCheck : /deliver|transport/i.test(text) ? Truck : /price|value|budget/i.test(text) ? Tag : /inspect|check|prepar/i.test(text) ? CircleCheck : /exchange|trade|hagg/i.test(text) ? Handshake : /visit|location|hayes/i.test(text) ? MapPin : /test drive|appointment/i.test(text) ? Calendar : Smile;
   const providedReasons = (settings.whyBuy ?? []).filter(reason => reason.title.trim() && reason.description.trim()).slice(0, 6).map(reason => ({ title: reason.title, text: reason.description, Icon: reasonIcon(`${reason.title} ${reason.description}`), href: '/contact' }));
@@ -212,7 +222,7 @@ export function MultiChoiceHomepage({ settings, cars: suppliedCars, isLoading, e
     ...(sections.delivery ? [{ id: 'delivery' as const, question: 'Can you deliver my car?', answer: settings.delivery?.description?.trim() || 'Ask our team to confirm delivery availability, cost and arrangements for your postcode.', href: enquiry, label: 'Ask about delivery' }] : []),
     { question: 'Where can I see the car?', answer: location.isSample || !location.lines.length ? 'Contact us to confirm the showroom address and arrange your visit.' : `${settings.identity.name} is at ${location.lines.join(', ')}. Check our opening times and confirm your visit before travelling.`, href: sections.visit ? '#find-us' : '/contact', label: 'Plan your visit' },
   ];
-  return <div className="multi-home" data-testid="multi-choice-homepage">
+  return <div className="multi-home" data-testid="multi-choice-homepage" data-dealership-homepage>
     <section className="mh-hero" aria-labelledby="home-heading"><div className="mh-container mh-hero-grid"><div className="mh-hero-introduction">{settings.hero.announcement?.trim() && <p className="mh-announcement">{settings.hero.announcement}</p>}<h1 id="home-heading" tabIndex={-1}>{lastWord > 0 ? <>{headline.slice(0, lastWord)} <em>{headline.slice(lastWord + 1)}</em></> : headline}</h1>{settings.presentation?.showHeroDescription && settings.hero.subcopy && <p>{settings.hero.subcopy}</p>}{photo && <ShowroomPhoto src={photo} alt={settings.presentation?.heroImageAlt || `${settings.identity.name} cars`} priority fit={cutout ? 'contain' : 'cover'} position={settings.presentation?.heroImagePosition} className={`mh-hero-photo${cutout ? ' mh-hero-photo--cutout' : ''}`} />}</div>
       <div className="mh-search-card"><a className="mh-hero-badge" href="/stock">Explore<br />our cars</a><div role="tablist" aria-label="Find your next car" className="mh-search-tabs" onKeyDown={event => { if (!sections.partExchange || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return; event.preventDefault(); const index = event.key === 'Home' ? 0 : event.key === 'End' ? 1 : tab === 'buy' ? 1 : 0; setTab(index ? 'px' : 'buy'); tabs.current[index]?.focus(); }}>
         <button type="button" ref={element => { tabs.current[0] = element; }} id={`${tabId}-buy-tab`} role="tab" aria-selected={tab === 'buy'} aria-controls={`${tabId}-buy`} tabIndex={tab === 'buy' ? 0 : -1} onClick={() => setTab('buy')}>Buy a car</button>
@@ -237,3 +247,6 @@ export function MultiChoiceHomepage({ settings, cars: suppliedCars, isLoading, e
     {whatsapp && <a className="mh-whatsapp-float" href={whatsapp} target="_blank" rel="noopener noreferrer" aria-label="Chat with us on WhatsApp" onClick={() => recordContactIntent({ channel: 'whatsapp', source: 'homepage' })}><SiWhatsapp size={27} /></a>}
   </div>;
 }
+
+/** Compatibility export for existing imports of the approved layout. */
+export const MultiChoiceHomepage = DealershipHomepage;

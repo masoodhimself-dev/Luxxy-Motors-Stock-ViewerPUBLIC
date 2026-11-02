@@ -31,16 +31,19 @@ vi.mock("@/lib/saved-cars-context", () => ({
 vi.mock("./multi-home-header", async () => {
   const React = await import("react");
   return {
-    MultiHomeHeader: React.forwardRef<HTMLElement, any>((_props, ref) => (
-      <header ref={ref} data-testid="new-home-header" />
+    MultiHomeHeader: React.forwardRef<HTMLElement, any>(({ settings }, ref) => (
+      <header ref={ref} data-testid="new-home-header" data-logo={settings.identity.logoAsset} data-name={settings.identity.name} />
     )),
   };
 });
 vi.mock("./multi-home-footer", () => ({
-  MultiHomeFooter: ({ enquiriesEnabled }: { enquiriesEnabled: boolean }) => (
+  MultiHomeFooter: ({ settings, enquiriesEnabled }: { settings: typeof dealerConfig; enquiriesEnabled: boolean }) => (
     <footer
       data-testid="new-home-footer"
       data-enquiries-enabled={String(enquiriesEnabled)}
+      data-logo={settings.presentation?.footerLogoUrl || settings.identity.logoAsset}
+      data-identity-logo={settings.identity.logoAsset}
+      data-name={settings.identity.name}
     />
   ),
 }));
@@ -93,7 +96,7 @@ it("uses the verified dealership homepage chrome and preserves skip/main landmar
     </Layout>,
   );
   expect(container.querySelector(".multi-home-shell")).not.toBeNull();
-  expect(container.querySelector(".multi-choice-site")).not.toBeNull();
+  expect(container.querySelector(".dealer-site-theme")).not.toBeNull();
   expect(screen.getByTestId("new-home-header")).toBeInTheDocument();
   expect(screen.getByTestId("new-home-footer")).toBeInTheDocument();
   expect(screen.queryByTestId("existing-footer")).not.toBeInTheDocument();
@@ -104,7 +107,7 @@ it("uses the verified dealership homepage chrome and preserves skip/main landmar
   );
 });
 it.each(["/stock", "/vehicle/car", "/contact", "/saved", "/enquire"])(
-  "shares Multi-Choice chrome on the customer %s page while retaining the homepage-only layout boundary",
+  "shares the approved chrome on the customer %s page while retaining the homepage-only layout boundary",
   (path) => {
     state.path = path;
     const { container } = render(
@@ -113,22 +116,31 @@ it.each(["/stock", "/vehicle/car", "/contact", "/saved", "/enquire"])(
       </Layout>,
     );
     expect(container.querySelector(".multi-home-shell")).toBeNull();
-    expect(container.querySelector(".multi-choice-site")).not.toBeNull();
+    expect(container.querySelector(".dealer-site-theme")).not.toBeNull();
     expect(screen.getByTestId("new-home-header")).toBeInTheDocument();
     expect(screen.getByTestId("new-home-footer")).toBeInTheDocument();
     expect(screen.queryByTestId("existing-footer")).not.toBeInTheDocument();
   },
 );
-it("does not apply the homepage design to another dealer with the same editable name", () => {
+it("applies the shared homepage design to another dealer while preserving its editable identity", () => {
   canonical("https://shoredrive.uk");
+  state.settings = {
+    ...state.settings,
+    identity: { ...state.settings.identity, logoAsset: "/shore-home.svg" },
+    presentation: { ...state.settings.presentation, footerLogoUrl: "/shore-home-footer.svg" },
+  };
+  const before = JSON.stringify(state.settings);
   const { container } = render(
     <Layout>
       <p>Another dealership</p>
     </Layout>,
   );
-  expect(container.querySelector(".multi-home-shell")).toBeNull();
-  expect(screen.queryByTestId("new-home-header")).not.toBeInTheDocument();
-  expect(screen.getByTestId("existing-footer")).toBeInTheDocument();
+  expect(container.querySelector(".multi-home-shell.dealer-site-theme")).not.toBeNull();
+  expect(screen.getByTestId("new-home-header")).toHaveAttribute("data-logo", "/shore-home.svg");
+  expect(screen.getByTestId("new-home-footer")).toHaveAttribute("data-logo", "/shore-home-footer.svg");
+  expect(screen.getByTestId("new-home-header")).toHaveAttribute("data-name", "Multi-Choice Motors");
+  expect(screen.queryByTestId("existing-footer")).not.toBeInTheDocument();
+  expect(JSON.stringify(state.settings)).toBe(before);
 });
 it.each(["/stock", "/vehicle/car", "/contact", "/saved", "/enquire"])(
   "uses the shared public %s chrome without changing saved header or footer artwork",
@@ -178,10 +190,10 @@ it("uses the shared public chrome without changing a previously saved light bran
   expect(screen.getByTestId("new-home-header")).toBeInTheDocument();
   expect(screen.getByTestId("new-home-footer")).toBeInTheDocument();
   expect(state.settings.identity.brandColors?.primaryHsl).toBe("0 0% 100%");
-  expect(document.querySelector<HTMLElement>(".multi-choice-site")?.style.getPropertyValue("--mh-primary")).toBe("#192a36");
+  expect(document.querySelector<HTMLElement>(".dealer-site-theme")?.style.getPropertyValue("--mh-primary")).toBe("#192a36");
 });
-it("preserves another dealership’s configured public header and footer even with the Multi-Choice display name", () => {
-  canonical("https://shoredrive.uk");
+it.each(["https://shoredrive.uk", "https://multichoicemotors.co.uk.other.example"])("preserves configured public artwork on %s even with the Multi-Choice display name", origin => {
+  canonical(origin);
   state.path = "/stock";
   state.settings = {
     ...state.settings,
@@ -196,14 +208,17 @@ it("preserves another dealership’s configured public header and footer even wi
       <p>Other dealership</p>
     </Layout>,
   );
-  expect(document.querySelector("[data-site-header] img")).toHaveAttribute(
-    "src",
+  expect(screen.getByTestId("new-home-header")).toHaveAttribute(
+    "data-logo",
     "/shore-logo.svg",
   );
-  expect(screen.getByTestId("existing-footer")).toHaveAttribute(
+  expect(screen.getByTestId("new-home-footer")).toHaveAttribute(
     "data-logo",
     "/shore-footer.svg",
   );
+  expect(screen.getByTestId("new-home-footer")).toHaveAttribute("data-identity-logo", "/shore-logo.svg");
+  expect(document.querySelector('[data-logo*="/brand/multi-choice-motors/"]')).toBeNull();
+  expect(screen.queryByTestId("existing-footer")).not.toBeInTheDocument();
 });
 it("passes the feature-controlled public enquiry gate to the homepage footer", () => {
   state.publicEnquiriesEnabled = true;

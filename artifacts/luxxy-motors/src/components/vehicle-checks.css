@@ -32,4 +32,4 @@
 }
 
 /* Keep the shared dialog radius unchanged outside the verified public theme. */
-body[data-multi-choice-customer="true"] [role="dialog"].vehicle-check-dialog { border-radius: var(--mh-radius-panel, 8px); }
+body[data-dealer-customer="true"] [role="dialog"].vehicle-check-dialog { border-radius: var(--mh-radius-panel, 8px); }

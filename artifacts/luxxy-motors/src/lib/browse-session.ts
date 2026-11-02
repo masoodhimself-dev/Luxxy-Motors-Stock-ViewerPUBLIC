@@ -1,5 +1,4 @@
 import type { FilterState } from "@/components/filters";
-import { isMultiChoiceWebsite } from './multi-home-scope';
 const KEY = "luxxy.browse.v1";
 type BrowseSession = {
   filters?: FilterState;
@@ -67,7 +66,7 @@ export function restoreBrowsePosition(skip = false) {
 /** A local, shareable search URL; never an external return destination. */
 export function browseReturnHref() {
   const savedHref = readBrowseSession().stockHref;
-  if (isMultiChoiceWebsite() && typeof savedHref === 'string' && /^\/stock(?:\?[^#]*)?$/.test(savedHref)) return savedHref;
+  if (typeof savedHref === 'string' && /^\/stock(?:\?[^#]*)?$/.test(savedHref)) return savedHref;
   const params = new URLSearchParams();
   Object.entries(readBrowseSession().filters ?? {}).forEach(([key, value]) => { if (value) params.set(key, String(value)); });
   return '/stock' + (params.size ? '?' + params.toString() : '');

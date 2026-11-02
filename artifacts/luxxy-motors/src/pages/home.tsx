@@ -1,6 +1,5 @@
 import { AiCarFinder } from '@/components/ai-car-finder';
-import { MultiChoiceHomepage } from '@/components/multi-choice-homepage';
-import { isMultiChoiceHomepage, isMultiChoiceWebsite } from '@/lib/multi-home-scope';
+import { DealershipHomepage } from '@/components/multi-choice-homepage';
 import { MultiStockFilters } from '@/components/multi-stock-filters';
 import { useStockSearch } from '@/features/stock-search/use-stock-search';
 import { applyStockFilters } from '@/features/stock-search/apply-filters';
@@ -109,7 +108,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   const [copyNotice, setCopyNotice] = useState('');
   const [stockOptionsOpen, setStockOptionsOpen] = useState(false);
   const [legacyVisibleCount, setVisibleCount] = useState(() => readBrowseSession().visibleCount || 12);
-  const multiStock = browseStock && isMultiChoiceWebsite();
+  const multiStock = browseStock;
   const stockSearch = useStockSearch({ enabled: multiStock, cars: publicCars });
   const [legacyFilters, setLegacyFilters] = useState<FilterState>(() => {
     if (browseStock && window.location.search) {
@@ -124,7 +123,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     const stored = readBrowseSession().filters;
     // The homepage keeps its existing single-choice controls. A multi-select
     // stock search must not appear there as one unavailable make or model.
-    const saved = !browseStock && isMultiChoiceWebsite() && stored
+    const saved = !browseStock && stored
       ? { ...stored,
           ...(typeof stored.make === 'string' && stored.make.includes(',') ? { make: '', model: '' }
             : typeof stored.model === 'string' && stored.model.includes(',') ? { model: '' } : {}),
@@ -360,7 +359,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     </ul>
   ) : dealerConfig.trustItems?.length ? <ul className="divide-y divide-border">{dealerConfig.trustItems.map(item => <li key={item} className="py-3 text-sm">{item}</li>)}</ul> : null;
 
-  if (!browseStock && isMultiChoiceHomepage(location)) return <MultiChoiceHomepage settings={dealerConfig} cars={publicCars} isLoading={isLoading} error={error} publicEnquiriesEnabled={publicEnquiriesEnabled} filters={filters} setFilters={setFilters} onSearch={next => {
+  if (!browseStock && location === '/') return <DealershipHomepage settings={dealerConfig} cars={publicCars} isLoading={isLoading} error={error} publicEnquiriesEnabled={publicEnquiriesEnabled} filters={filters} setFilters={setFilters} onSearch={next => {
     const count = publicCars.filter(car => (!next.make || car.make === next.make) && (!next.model || car.model === next.model) && (!next.maxPrice || (car.price != null && car.price > 0 && car.price <= Number(next.maxPrice)))).length;
     setFilters(next);
     saveBrowseSession({ filters: next, showAll: true, scrollY: 0 });

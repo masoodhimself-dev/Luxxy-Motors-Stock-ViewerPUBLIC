@@ -532,9 +532,9 @@ body:has(.homepage-refined) footer#contact > div > div:last-child { margin-top: 
 @media (max-width: 639px) { .review-panel { flex-basis: 88%; padding: 20px; } }
 
 /* Balanced homepage palette: cool charcoal, clean white and restrained cyan. */
-body:has(.homepage-refined):where(:not(:has(.multi-choice-site))) header,
-body:has(.homepage-refined):where(:not(:has(.multi-choice-site))) footer,
-.homepage-refined:where(:not(.multi-choice-site *)) {
+body:has(.homepage-refined):where(:not(:has(.dealer-site-theme))) header,
+body:has(.homepage-refined):where(:not(:has(.dealer-site-theme))) footer,
+.homepage-refined:where(:not(.dealer-site-theme *)) {
  --primary: var(--dealer-primary, 195 22% 13%);
  --primary-foreground: var(--dealer-primary-foreground, 0 0% 100%);
  --foreground: 195 22% 13%;

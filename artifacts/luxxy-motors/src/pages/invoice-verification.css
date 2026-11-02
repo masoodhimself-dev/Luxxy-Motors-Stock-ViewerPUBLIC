@@ -2,7 +2,7 @@
 .invoice-proof-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}.invoice-proof-actions button,.invoice-proof-actions a{min-height:44px}
 
 /* This is the verification screen, never a change to issued invoice PDFs. */
-.multi-choice-standalone .invoice-proof {
+.dealer-document-theme .invoice-proof {
   --document-heading-weight: 700;
   --document-heading-tracking: -.02em;
 }

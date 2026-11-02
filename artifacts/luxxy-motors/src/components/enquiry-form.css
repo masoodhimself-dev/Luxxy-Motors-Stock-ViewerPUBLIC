@@ -39,42 +39,42 @@
 .enquiry-question-shortcuts button:disabled { opacity: .5; cursor: not-allowed; }
 
 /* Submitted and restored enquiries remain part of the same customer website. */
-.multi-choice-site .luxxy-reveal[data-testid="status-enquiry-success"] {
+.dealer-site-theme .luxxy-reveal[data-testid="status-enquiry-success"] {
   animation: none;
 }
-.multi-choice-site .luxxy-reveal[data-testid="status-enquiry-success"] > span:first-child {
+.dealer-site-theme .luxxy-reveal[data-testid="status-enquiry-success"] > span:first-child {
   border-color: var(--mh-border);
   border-radius: var(--mh-radius);
   background: var(--mh-tint);
   color: var(--mh-primary);
 }
-.multi-choice-site .luxxy-reveal[data-testid="status-enquiry-success"] .luxxy-label {
+.dealer-site-theme .luxxy-reveal[data-testid="status-enquiry-success"] .luxxy-label {
   color: var(--mh-muted);
   letter-spacing: normal;
   font-weight: 500;
   line-height: 1.5;
 }
-.multi-choice-site .luxxy-reveal[data-testid="status-enquiry-success"] > p:not(.luxxy-label):not([data-testid="text-confirmed-vehicle"]) {
+.dealer-site-theme .luxxy-reveal[data-testid="status-enquiry-success"] > p:not(.luxxy-label):not([data-testid="text-confirmed-vehicle"]) {
   color: var(--mh-muted);
 }
-.multi-choice-site .luxxy-reveal[data-testid="status-enquiry-success"] > div {
+.dealer-site-theme .luxxy-reveal[data-testid="status-enquiry-success"] > div {
   border-color: var(--mh-border);
   border-radius: var(--mh-radius);
   background: var(--mh-surface);
 }
-.multi-choice-site [data-testid="text-confirmed-vehicle"] {
+.dealer-site-theme [data-testid="text-confirmed-vehicle"] {
   border-color: var(--mh-border);
   border-radius: var(--mh-radius-control, 4px);
   background: var(--mh-tint);
   font-weight: 600;
 }
-.multi-choice-site .enquiry-question-shortcuts button {
+.dealer-site-theme .enquiry-question-shortcuts button {
   border-color: var(--mh-border-strong);
   border-radius: var(--mh-radius-control, 4px);
   background: var(--mh-surface);
   color: var(--mh-primary);
 }
-.multi-choice-site .enquiry-question-shortcuts button[aria-pressed="true"] {
+.dealer-site-theme .enquiry-question-shortcuts button[aria-pressed="true"] {
   border-color: var(--mh-primary);
   background: var(--mh-tint);
 }

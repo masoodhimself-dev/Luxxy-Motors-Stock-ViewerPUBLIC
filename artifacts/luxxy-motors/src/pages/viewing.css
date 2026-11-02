@@ -16,13 +16,13 @@
  .viewing-page [data-testid=group-viewing-slots] { grid-template-columns:repeat(3,minmax(0,1fr)); }
 }
 
-.multi-choice-site .viewing-page [data-testid="status-viewing-pending"],
-.multi-choice-site .viewing-page [data-testid="status-availability-empty"] {
+.dealer-site-theme .viewing-page [data-testid="status-viewing-pending"],
+.dealer-site-theme .viewing-page [data-testid="status-availability-empty"] {
   border-radius: var(--mh-radius);
   background: var(--mh-tint);
   color: var(--mh-primary);
 }
-.multi-choice-site .viewing-page [data-testid="status-availability-error"] {
+.dealer-site-theme .viewing-page [data-testid="status-availability-error"] {
   border-color: hsl(var(--destructive) / .35);
   border-radius: var(--mh-radius);
   background: var(--customer-error-surface, var(--mh-surface));

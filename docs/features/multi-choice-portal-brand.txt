@@ -1,37 +1,39 @@
-Multi-Choice portal brand alignment — 1 November 2026
+Shared dealership portal design — 1 November 2026
 
-The portal now uses the supplied Multi-Choice SVG wordmark in its shared toolbar,
-including access/loading screens. Cars, Inbox, Sales editor, Settings and their
-body-rendered menus/dialogs use the approved homepage palette and locally hosted
-Multi Montserrat font. The old Inter and separate blue/teal component defaults
-are overridden only on canonical Multi-Choice portal routes.
+Every dealership portal uses the approved Multi-Choice design: Cars, Inbox,
+Sales editor, Settings and their body-rendered menus/dialogs share its palette
+and locally hosted Multi Montserrat font. The route selects this presentation
+for existing and future dealerships; a domain or editable dealer name does not
+select a separate staff design.
 
 One shared palette provides dark ink actions, restrained gold focus/hover details,
 white panels, pale blue selection surfaces and the existing light background.
 Semantic MOT/status red, amber and green remain unchanged. Registration inputs
 retain their dedicated UK plate lettering. Ordinary phone form controls use at
 least 16px text to prevent iOS focus zoom. Phone headers use Add, or the existing
-accessible plus/chevron action on the smallest screens, so the full logo fits.
+accessible plus/chevron action on the smallest screens, so the dealership logo fits.
 
-The route body marker carries tokens into Radix menus, enquiry/MOT tools and
-account surfaces. It restores prior body tokens when leaving staff routes, on
-tenant changes or on unmount. Another dealership's editable name cannot activate
-this theme. The supplied portal wordmark does not change saved branding values.
+The data-dealer-portal body marker carries tokens into Radix menus, enquiry/MOT
+tools and account surfaces. It restores prior body tokens when leaving staff
+routes or on unmount. Switching dealerships within the portal retains the shared
+presentation. The toolbar keeps each dealership's configured logo/name; the
+verified Multi-Choice website retains its supplied SVG wordmark. Saved dealership
+branding continues to represent the configured identity for messages and new
+documents.
 
 Invoice/receipt document roots keep their original font tokens, including print
 copies, so inherited portal heading styles cannot change financial paperwork.
-No records, permissions, stored settings, emails, invoices, payments or backend
-behaviour were changed. The brand editor continues to represent its editable
-configured logo for messages/new documents; the portal toolbar uses the approved
-website wordmark.
+The shared theme retains its screen-only rules, financial document exclusions,
+specialist plate fonts and semantic status colours. No records, permissions,
+stored settings, emails, invoices, payments or backend behaviour are changed.
 
-Verification: 94 affected frontend tests passed; frontend TypeScript and the
-production build passed. Browser checks cover Cars, Inbox, Settings, the unsaved
-invoice editor, Quick enquiry, menus and the MOT dialog. Layouts were checked at
-320, 390, 768 and 1440 pixels with no page overflow and no logo/action overlap.
-Real form fields, menus and headings report Multi Montserrat; the invoice editor
-registration control still reports Forecourt Plate UK. Only an empty local
-verification form was opened and discarded; nothing was sent or saved.
+Focused regression coverage includes current and future dealership origins,
+local development, nested staff routes, body-rendered pop-ups, tenant changes,
+route cleanup, unchanged saved identity/settings, and invoice/receipt print-copy
+font isolation. Portal shell tests retain the domain-specific wordmark check and
+another dealership's configured logo check.
 
-Evidence: workspace output/multi-choice-portal-brand-2026-11-01/.
+The earlier Multi-Choice-only visual verification checked Cars, Inbox, Settings,
+the unsaved invoice editor, Quick enquiry, menus and the MOT dialog at 320, 390,
+768 and 1440 pixels. Evidence: workspace output/multi-choice-portal-brand-2026-11-01/.
 Saved locally for the next approved Render batch; not deployed yet.

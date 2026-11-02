@@ -5,6 +5,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { dealerConfig } from "@/config/dealer";
 import { MultiHomeHeader, type MultiHomeSettings } from "./multi-home-header";
@@ -43,6 +44,12 @@ const config = (): MultiHomeSettings => ({
 });
 beforeEach(() => {
   router.navigate.mockReset();
+  const meta = document.createElement('meta');
+  meta.name = 'luxxy-canonical-origin';
+  meta.content = 'https://multichoicemotors.co.uk';
+  meta.setAttribute('data-page-meta', '');
+  meta.setAttribute('data-public-chrome-test', '');
+  document.head.append(meta);
   vi.stubGlobal(
     "ResizeObserver",
     class {
@@ -51,7 +58,56 @@ beforeEach(() => {
     },
   );
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  document.querySelectorAll('[data-public-chrome-test]').forEach(node => node.remove());
+});
+
+it('uses another dealership’s own logos, contact details and name in the shared chrome', () => {
+  document.querySelector<HTMLMetaElement>('[data-public-chrome-test]')!.content = 'https://shoredrive.uk';
+  const settings = { ...config(), identity: { name: 'Shore Drive', logoAsset: '/shore-logo.svg' }, contact: { phone: '02079460123' }, legal: { companyName: 'Shore Drive Ltd' }, presentation: { footerLogoUrl: '/shore-footer.svg' } };
+  const before = JSON.stringify(settings);
+  const view = render(<><MultiHomeHeader settings={settings} savedCount={0} testDriveHref="/enquire?type=viewing" /><MultiHomeFooter settings={settings} /></>);
+  expect(view.container.querySelector('header img')).toHaveAttribute('src', '/shore-logo.svg');
+  expect(view.container.querySelector('footer img')).toHaveAttribute('src', '/shore-footer.svg');
+  expect(screen.getByRole('link', { name: /Call Shore Drive/ })).toHaveAttribute('href', 'tel:02079460123');
+  expect(screen.getByText(/Shore Drive Ltd/)).toBeInTheDocument();
+  expect(view.container.innerHTML).not.toContain('/brand/multi-choice-motors/multi-choice-wordmark');
+  expect(JSON.stringify(settings)).toBe(before);
+});
+
+it('keeps a dealership name visible when no uploaded logo is configured', () => {
+  document.querySelector<HTMLMetaElement>('[data-public-chrome-test]')!.content = 'https://new-dealer.example';
+  const settings = { ...config(), identity: { name: 'New Dealership' } };
+  render(<MultiHomeHeader settings={settings} savedCount={0} testDriveHref="/enquire?type=viewing" />);
+  expect(screen.getByRole('link', { name: 'New Dealership home' })).toHaveTextContent('New Dealership');
+  expect(screen.queryByRole('img')).not.toBeInTheDocument();
+});
+
+it.each([
+  { primaryHsl: '210 50% 20%', background: 'rgb(26, 51, 77)', foreground: 'rgb(255, 255, 255)', logo: '/shore-white-footer.svg' },
+  { primaryHsl: '0 0% 100%', background: 'rgb(255, 255, 255)', foreground: 'rgb(20, 20, 20)', logo: '/shore-dark-footer.svg' },
+  { primaryHsl: undefined, background: 'rgb(25, 42, 54)', foreground: 'rgb(255, 255, 255)', logo: '/shore-white-footer.svg' },
+])('keeps custom footer logo $logo on its original $background surface and removes that panel when cleared', ({ primaryHsl, background, foreground, logo }) => {
+  document.querySelector<HTMLMetaElement>('[data-public-chrome-test]')!.content = 'https://shoredrive.uk';
+  const settings = { ...config(), identity: { name: 'Shore Drive', logoAsset: '/shore-header.svg', brandColors: { primaryHsl } }, presentation: { footerLogoUrl: logo } };
+  const before = JSON.stringify(settings);
+  const view = render(<MultiHomeFooter settings={settings} />);
+  const brand = screen.getByRole('link', { name: 'Shore Drive home' });
+  expect(brand).toHaveClass('multi-home-footer__brand--custom');
+  expect(brand).toHaveStyle({ backgroundColor: background, color: foreground });
+  expect(within(brand).getByRole('img')).toHaveAttribute('src', logo);
+  expect(JSON.stringify(settings)).toBe(before);
+  view.rerender(<MultiHomeFooter settings={{ ...settings, presentation: { footerLogoUrl: '' } }} />);
+  expect(brand).not.toHaveClass('multi-home-footer__brand--custom');
+  expect(brand.style.backgroundColor).toBe('');
+  expect(within(brand).getByRole('img')).toHaveAttribute('src', '/shore-header.svg');
+});
+
+it('gives custom footer assets room inside their contrasting logo panel', () => {
+  const css = readFileSync(`${process.cwd()}/src/components/multi-home-chrome.css`, 'utf8');
+  expect(css).toMatch(/\.multi-home-footer__brand--custom\s*\{[^}]*box-sizing:\s*content-box;[^}]*padding:\s*10px 16px;[^}]*border-radius:\s*8px;/);
+});
 it("uses the original vector logo and published phone with compact, functional navigation", () => {
   render(
     <MultiHomeHeader

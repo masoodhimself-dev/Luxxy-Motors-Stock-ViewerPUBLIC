@@ -251,11 +251,11 @@ it.each([false, true])('places one decorative make mark beside the Multi-Choice 
   } finally { meta.remove(); }
 });
 
-it('keeps other dealerships’ vehicle titles unchanged', () => {
+it('shares the decorative manufacturer mark across all dealerships', () => {
   renderVehicle('with-plate');
   const title = screen.getByRole('heading', { level: 1, name: 'BMW 3 Series' });
-  expect(title.querySelector('img')).toBeNull();
-  expect(title).not.toHaveClass('make-logo-vehicle-heading');
+  expect(title.querySelector('img')).toHaveAttribute('src', '/brand/car-makes/bmw.svg');
+  expect(title).toHaveClass('make-logo-vehicle-heading');
 });
 
 it('retains Multi-Choice vehicle-page Save and full gallery browsing independently from stock-photo controls', async () => {

@@ -67,7 +67,6 @@ import { navigateToHomeTarget } from '@/lib/home-navigation';
 import { vehicleInsuranceDisclosure } from '@/lib/vehicle-history';
 import { MakeLogo } from '@/components/make-logo';
 import { getMakeLogoSrc } from '@/lib/make-logo';
-import { isMultiChoiceWebsite } from '@/lib/multi-home-scope';
 import '@/components/public-vehicle-make-logo.css';
 
 
@@ -175,7 +174,7 @@ export default function CarDetail() {
   const registrationYear = stockRegistrationYear({ ...car, registrationBand: registrationBand ?? null }) || registrationBand || 'Unknown';
   const bookingHref = getVehicleBookingHref(car);
   const vehicleLabel = vehicleDisplayTitle(car);
-  const showMakeLogo = isMultiChoiceWebsite() && Boolean(getMakeLogoSrc(car.make));
+  const showMakeLogo = Boolean(getMakeLogoSrc(car.make));
   const vehicleRunningCostFacts = getVehicleRunningCosts(car);
   const sourceReport = readVehicleSourceReport(car);
 

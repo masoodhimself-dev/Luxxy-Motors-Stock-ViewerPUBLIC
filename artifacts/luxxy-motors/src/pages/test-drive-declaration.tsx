@@ -17,11 +17,11 @@ import {
   type PublicTestDriveDeclaration,
 } from "@/lib/test-drive-declarations";
 import "./test-drive-declaration.css";
-import { MultiCustomerDocumentTheme } from '@/components/multi-customer-theme';
+import { CustomerDocumentTheme } from '@/components/multi-customer-theme';
 
 /** Deliberately outside the showroom shell, analytics and staff sign-in. */
 export default function TestDriveDeclarationPage() {
-  return <MultiCustomerDocumentTheme><TestDriveDeclarationContent /></MultiCustomerDocumentTheme>;
+  return <CustomerDocumentTheme><TestDriveDeclarationContent /></CustomerDocumentTheme>;
 }
 function TestDriveDeclarationContent() {
   const [, params] = useRoute("/test-drive-declaration/:token");

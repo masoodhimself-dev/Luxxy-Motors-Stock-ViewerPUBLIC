@@ -4,6 +4,8 @@ import type { DealerConfig } from "@/config/dealer";
 import { getPhoneHref } from "@/lib/cta-helpers";
 import { formatPhoneDisplay } from "@/lib/utils";
 import { multiChoiceHomeSections } from "@/lib/multi-choice-home-sections";
+import { isMultiChoiceWebsite } from "@/lib/multi-home-scope";
+import { DealerWordmark } from "./brand/wordmark";
 import { Menu, Phone, ChevronDown, Heart } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import {
@@ -91,12 +93,12 @@ export const MultiHomeHeader = forwardRef<
             }
           }}
         >
-          <img
+          {isMultiChoiceWebsite() ? <img
             src="/brand/multi-choice-motors/multi-choice-wordmark.svg"
             alt={settings.identity.name}
             width="205"
             height="43"
-          />
+          /> : <DealerWordmark {...settings.identity} />}
         </LogoLink>
         <nav
           aria-label="Primary navigation"

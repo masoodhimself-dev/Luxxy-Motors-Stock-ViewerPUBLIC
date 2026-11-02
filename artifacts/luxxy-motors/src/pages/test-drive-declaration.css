@@ -232,7 +232,7 @@
 
 /* Match the public brand using available Montserrat faces. Signing, private
    tokens, semantic error/success colours and print geometry are unchanged. */
-.multi-choice-standalone .declaration-page {
+.dealer-document-theme .declaration-page {
   --document-heading-weight: 700;
   --document-label-weight: 600;
   --document-copy-weight: 400;
@@ -240,7 +240,7 @@
   --document-label-spacing: 0;
   --document-label-case: none;
 }
-.multi-choice-standalone .declaration-card :is(button, input):focus-visible {
+.dealer-document-theme .declaration-card :is(button, input):focus-visible {
   outline: 3px solid var(--mh-accent);
   outline-offset: 4px;
 }

@@ -98,37 +98,37 @@
 
 /* Picker, loading, disabled and completion screens share the homepage card;
    the active booking columns and every responsive dimension remain intact. */
-.multi-choice-site .booking-layout:not(.booking-layout-active) > .booking-panel {
+.dealer-site-theme .booking-layout:not(.booking-layout-active) > .booking-panel {
   border-color: var(--mh-border);
   border-radius: var(--mh-radius);
   background: var(--mh-surface);
   box-shadow: var(--mh-shadow-sm);
 }
-.multi-choice-site .booking-page .booking-night-note {
+.dealer-site-theme .booking-page .booking-night-note {
   border-color: var(--mh-border);
   border-radius: var(--mh-radius);
   background: var(--mh-tint);
 }
-.multi-choice-site .booking-page :is([data-testid="group-viewing-dates"], [data-testid="group-viewing-slots"]) button:not([aria-pressed="true"]) {
+.dealer-site-theme .booking-page :is([data-testid="group-viewing-dates"], [data-testid="group-viewing-slots"]) button:not([aria-pressed="true"]) {
   background: var(--mh-surface);
 }
-.multi-choice-site .booking-page [data-testid="group-viewing-dates"] button[aria-pressed="true"] {
+.dealer-site-theme .booking-page [data-testid="group-viewing-dates"] button[aria-pressed="true"] {
   border-color: var(--mh-primary);
   background: var(--mh-tint);
   color: var(--mh-primary);
 }
-.multi-choice-site .booking-page [data-testid="group-viewing-slots"] button[aria-pressed="true"] {
+.dealer-site-theme .booking-page [data-testid="group-viewing-slots"] button[aria-pressed="true"] {
   border-color: var(--mh-primary);
   background: var(--mh-primary);
   color: var(--mh-surface);
 }
-.multi-choice-site .booking-page :is(button, a, input, textarea, select, summary):focus-visible {
+.dealer-site-theme .booking-page :is(button, a, input, textarea, select, summary):focus-visible {
   outline: 3px solid var(--mh-accent);
   outline-offset: 4px;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .multi-choice-site .booking-page :is([data-testid="group-viewing-dates"], [data-testid="group-viewing-slots"]) button:not([aria-pressed="true"]):not(:disabled):hover {
+  .dealer-site-theme .booking-page :is([data-testid="group-viewing-dates"], [data-testid="group-viewing-slots"]) button:not([aria-pressed="true"]):not(:disabled):hover {
     background: var(--mh-tint);
     border-color: var(--mh-border-strong);
   }

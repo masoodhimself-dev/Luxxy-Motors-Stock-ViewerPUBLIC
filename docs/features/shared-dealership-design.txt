@@ -1,0 +1,36 @@
+Shared dealership design — 1 November 2026
+
+The approved public website and portal presentation now applies to every
+dealership route. A future dealership needs no domain allowlist entry or visual
+feature flag. Public pages use dealer-site-theme and the data-dealer-customer
+body marker; portal pages use dealer-portal-theme and data-dealer-portal.
+The existing shared theme factory provides Montserrat, dark ink actions,
+restrained gold focus details, white panels and pale blue selection surfaces.
+
+The shared homepage, navigation, stock filters, clean stock photographs,
+manufacturer logos, vehicle pages, customer forms, dialogs and minimal public
+document screens follow this presentation. The stock card layout stays intact.
+Route-owned body tokens reach portalled dialogs and are restored on departure.
+MOT/status colours, accessible focus and dedicated registration lettering stay
+independent. Portal financial document and print-copy fonts remain isolated.
+
+Each dealership still supplies its own identity, uploaded logos, photos, stock,
+contacts, address, opening hours, published copy, legal information and enabled
+services. A configured footer logo retains its original contrasting background
+in a small panel. Missing artwork can fall back to that dealer's own stock photo
+or a text wordmark. Empty published content uses neutral defaults.
+
+Multi-Choice's supplied wordmark, branded hero artwork and approved service
+promises remain restricted to its verified website origin. An editable dealer
+name cannot opt another tenant into that identity. Other dealers do not inherit
+the six-month warranty, inspection, daily price-check or same-day promises.
+
+Saved settings, permissions, API contracts, feeds and tenant data are unchanged.
+This is shared application code, not a settings migration. Separate websites or
+deployments must run the same release before they show the shared design.
+
+Verification covers current/new/lookalike/local domains, original dealership
+identity, optional services, settings loading and errors, stock searching and
+sorting, supplied SVGs, saved search return URLs, body pop-ups, route cleanup,
+specialist lettering, semantic statuses and invoice/receipt print boundaries.
+Local previews are read-only. No deployment is included in this change.

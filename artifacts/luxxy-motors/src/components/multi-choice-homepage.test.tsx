@@ -23,8 +23,39 @@ function Harness({ config = settings(), stock = cars, loading = false, error = n
   return <MultiChoiceHomepage settings={config} cars={stock} isLoading={loading} error={error} publicEnquiriesEnabled filters={filters} setFilters={setFilters} onSearch={events.search} />;
 }
 const motReply = (registration = 'AB12CDE') => ({ status: 'estimated', registration, vehicle: { make: 'FORD', model: 'FOCUS', registrationDate: '2012-04-01' }, estimate: { mileage: 88000, lastTestDate: '2026-01-02', lastTestMileage: 80000, annualMiles: 10000 }, mot: { checkedAt: '2026-11-01T10:00:00Z', dueDate: '2027-01-01', latestTestResult: 'PASSED' } });
-beforeEach(() => { sessionStorage.clear(); clearHomepagePartExchangeLookup(); events.search.mockReset(); events.analytics.mockReset(); events.lookup.mockReset(); events.lookup.mockImplementation((url: string) => Promise.resolve(motReply(new URL(url, window.location.origin).searchParams.get('registration')!))); window.history.replaceState({}, '', '/'); });
-afterEach(cleanup);
+beforeEach(() => { sessionStorage.clear(); clearHomepagePartExchangeLookup(); events.search.mockReset(); events.analytics.mockReset(); events.lookup.mockReset(); events.lookup.mockImplementation((url: string) => Promise.resolve(motReply(new URL(url, window.location.origin).searchParams.get('registration')!))); window.history.replaceState({}, '', '/'); const meta = document.createElement('meta'); meta.name = 'luxxy-canonical-origin'; meta.content = 'https://multichoicemotors.co.uk'; meta.setAttribute('data-page-meta', ''); meta.setAttribute('data-homepage-test', ''); document.head.append(meta); });
+afterEach(() => { cleanup(); document.querySelectorAll('[data-homepage-test]').forEach(node => node.remove()); });
+
+it('uses the shared homepage with only another dealership’s published content and neutral fallback reasons', () => {
+  document.querySelector<HTMLMetaElement>('[data-homepage-test]')!.content = 'https://shoredrive.uk';
+  const config: DealerConfig = { ...settings(), identity: { name: 'Shore Drive' }, contact: { phone: '02079460123', email: 'hello@shoredrive.uk' }, address: { street: '10 Shore Road', city: 'Brighton', postcode: 'BN1 1AA' }, presentation: { heroImageUrl: '/shore-showroom.jpg', heroImageAlt: 'Shore Drive showroom' }, trustItems: [], whyBuy: [{ title: 'Our published approach', description: 'Ask about the vehicle records before your visit.' }] };
+  const before = JSON.stringify(config);
+  const view = render(<Harness config={config} />);
+  expect(screen.getByRole('img', { name: 'Shore Drive showroom' })).toHaveAttribute('src', '/shore-showroom.jpg');
+  expect(screen.getByText('Ask about the vehicle records before your visit.')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: /Email us\s*hello@shoredrive.uk/ })).toHaveAttribute('href', 'mailto:hello@shoredrive.uk');
+  expect(view.container.textContent).not.toMatch(/6.month warranty|36 months|price.checked daily|triple.check|same day drive away|hayes|coldharbour/i);
+  expect(view.container.innerHTML).not.toContain('multichoicemotors.co.uk');
+  expect(JSON.stringify(config)).toBe(before);
+});
+
+it('uses the dealership’s own stock photograph when no hero is configured and leaves a neutral introduction when no photos exist', () => {
+  document.querySelector<HTMLMetaElement>('[data-homepage-test]')!.content = 'https://new-dealer.example';
+  const config = { ...settings(), identity: { name: 'New Dealership' }, presentation: {}, whyBuy: [], trustItems: [] };
+  const view = render(<Harness config={config} />);
+  expect(screen.getByRole('img', { name: 'New Dealership cars' })).toHaveAttribute('src', 'https://photos.example.test/toyota.jpg');
+  view.rerender(<Harness config={config} stock={[]} />);
+  expect(document.querySelector('.mh-hero-photo')).toBeNull();
+  expect(screen.getByRole('heading', { level: 1, name: 'Find your next car' })).toBeInTheDocument();
+  expect(screen.queryByText(/6.month warranty/i)).not.toBeInTheDocument();
+});
+
+it('does not substitute Multi-Choice artwork based on another dealer’s matching uploaded asset path', () => {
+  document.querySelector<HTMLMetaElement>('[data-homepage-test]')!.content = 'https://shoredrive.uk';
+  const ownPhoto = '/api/website-assets/12f86896-51f9-4e38-be24-b8ab5d243c9c';
+  render(<Harness config={{ ...settings(), presentation: { heroImageUrl: ownPhoto, heroImageAlt: 'Our own uploaded photo' } }} />);
+  expect(screen.getByRole('img', { name: 'Our own uploaded photo' })).toHaveAttribute('src', ownPhoto);
+});
 
 it('keeps exclusive and unknown price qualifications visible without inventing a VAT-inclusive price', () => {
   render(<Harness stock={[car('exclusive', { title: 'VAT-exclusive car', priceType: 'VAT exclusive' }), car('unknown', { title: 'Unconfirmed price car', priceType: 'supplier-special' }), car('poa', { title: 'POA car', price: 0, priceType: 'retail' })]} />);

@@ -1,7 +1,7 @@
 import { customerThemeVariables } from './customer-theme';
 import { hexColourToHsl } from './brand-colour';
 
-/** The approved homepage palette, reused by the public website and its staff portal. */
+/** The shared Dealer OS design foundation for all public websites and staff portals. */
 export const multiCustomerPalette = {
   primary: '#192a36',
   accent: '#a47a2b',
@@ -83,7 +83,7 @@ export function multiCustomerThemeVariables(): Record<string, string> {
   };
 }
 
-/** Portal presentation shares the homepage palette without changing saved branding. */
+/** Every portal shares the public design foundation without changing saved branding. */
 export function multiPortalThemeVariables(): Record<string, string> {
   const p = multiCustomerPalette;
   return {

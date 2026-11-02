@@ -6,7 +6,6 @@ import { hslToHex, isValidHsl } from '@/components/brand/colour-field';
 import { formatPrice, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
 import { customerRegistrationDetails } from '@/lib/customer-vehicle-meta';
 import { responsiveVehicleImage, retryOriginalImage } from '@/lib/responsive-vehicle-image';
-import { isMultiChoiceWebsite } from '@/lib/multi-home-scope';
 import { isCustomerWebsiteRoute, multiCustomerThemeVariables } from '@/lib/multi-customer-theme';
 import { useLocation } from 'wouter';
 import './vehicle-dialog.css';
@@ -20,9 +19,9 @@ const contrast = (first: string, second: string) => (Math.max(luminance(first), 
 export function useVehicleDialogTheme(): CSSProperties {
   const { settings } = useDealerSettings();
   const [location] = useLocation();
-  const multiChoice = isCustomerWebsiteRoute(location) && isMultiChoiceWebsite();
+  const sharedDesign = isCustomerWebsiteRoute(location) || /^\/portal(?:\/|$)/.test(location);
   return useMemo(() => {
-    if (multiChoice) return multiCustomerThemeVariables() as CSSProperties;
+    if (sharedDesign) return multiCustomerThemeVariables() as CSSProperties;
     const configuredAccent = settings.identity.brandColors?.accentHsl;
     const defaultAccent = !configuredAccent || ['30.000 40.659% 35.686%', '190 86% 44%', '42 82% 49%'].includes(configuredAccent);
     const accent = !defaultAccent && isValidHsl(configuredAccent!) ? hslToHex(configuredAccent!) : '#215a7e';
@@ -45,7 +44,7 @@ export function useVehicleDialogTheme(): CSSProperties {
       '--dialog-panel': panel,
       '--dialog-subtle': subtle,
     } as CSSProperties;
-  }, [settings.identity.brandColors?.accentHsl, settings.presentation?.headingColour, settings.presentation?.panelColour, settings.presentation?.pageColour, multiChoice]);
+  }, [settings.identity.brandColors?.accentHsl, settings.presentation?.headingColour, settings.presentation?.panelColour, settings.presentation?.pageColour, sharedDesign]);
 }
 
 /** Only supplied vehicle facts are shown; missing or failed photography disappears. */

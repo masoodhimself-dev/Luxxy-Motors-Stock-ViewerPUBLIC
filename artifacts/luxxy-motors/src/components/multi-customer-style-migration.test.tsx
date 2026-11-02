@@ -51,9 +51,9 @@ const car = {
 const otherCar = { ...car, id: 'style-second-car', title: 'Honda Jazz', make: 'Honda', model: 'Jazz' };
 const theme = multiCustomerThemeVariables() as CSSProperties;
 
-function Fixture({ multi = true, children }: { multi?: boolean; children: ReactNode }) {
-  useCustomerBodyTheme(theme, multi, multi);
-  return <div className={`customer-site${multi ? ' multi-choice-site' : ''}`} style={multi ? theme : undefined}><main>{children}</main></div>;
+function Fixture({ children }: { children: ReactNode }) {
+  useCustomerBodyTheme(theme);
+  return <div className="customer-site dealer-site-theme" style={theme}><main>{children}</main></div>;
 }
 
 function setCanonical(multi: boolean) {
@@ -160,8 +160,8 @@ afterEach(() => {
   vi.useRealTimers(); vi.restoreAllMocks();
 });
 
-describe('Multi-Choice style migration on real customer workflows', () => {
-  it('retires the old nested stock palette without changing another dealer’s catalogue', () => {
+describe('Shared dealership style migration on real customer workflows', () => {
+  it('retires the old nested stock palette for current and future dealership catalogues', () => {
     const source = readFileSync('src/index.css', 'utf8');
     const start = source.indexOf('/* Balanced homepage palette:');
     expect(start).toBeGreaterThan(-1);
@@ -173,9 +173,11 @@ describe('Multi-Choice style migration on real customer workflows', () => {
     const stock = screen.getByTestId('stock-scope');
     expect(getComputedStyle(stock).getPropertyValue('--muted-foreground').trim()).not.toBe('195 7% 36%');
     expect(getComputedStyle(stock).getPropertyValue('--background').trim()).not.toBe('195 14% 97%');
-    view.rerender(<Fixture multi={false}><div className="homepage-refined" data-testid="stock-scope">Stock results</div></Fixture>);
-    expect(getComputedStyle(screen.getByTestId('stock-scope')).getPropertyValue('--muted-foreground').trim()).toBe('195 7% 36%');
-    expect(getComputedStyle(screen.getByTestId('stock-scope')).getPropertyValue('--background').trim()).toBe('195 14% 97%');
+    setCanonical(false);
+    view.rerender(<Fixture><div className="homepage-refined" data-testid="stock-scope">Stock results</div></Fixture>);
+    expect(document.body).toHaveAttribute('data-dealer-customer', 'true');
+    expect(getComputedStyle(screen.getByTestId('stock-scope')).getPropertyValue('--muted-foreground').trim()).not.toBe('195 7% 36%');
+    expect(getComputedStyle(screen.getByTestId('stock-scope')).getPropertyValue('--background').trim()).not.toBe('195 14% 97%');
   });
   it('keeps the actual public car picker and booking details on the homepage control style after route CSS loads', () => {
     const view = render(<Fixture><TestDriveBooking stockCars={[car, otherCar]} /></Fixture>);
@@ -292,25 +294,23 @@ describe('Multi-Choice style migration on real customer workflows', () => {
     expect(state.mutate).not.toHaveBeenCalled();
   });
 
-  it('preserves the original callback and booking geometry for a different dealership despite late shared styles', () => {
+  it('uses the shared callback and booking geometry for another dealership despite late route styles', () => {
     setCanonical(false);
-    const view = render(<Fixture multi={false}><VehicleCall car={car} /></Fixture>);
+    const view = render(<Fixture><VehicleCall car={car} /></Fixture>);
     const dialog = openCall();
-    expect(document.body).not.toHaveAttribute('data-multi-choice-customer');
-    expect(property(dialog, 'border-radius')).toBe('16px');
-    expect(property(dialog, 'font-family')).toContain('Inter');
-    expect(property(dialog, 'font-family')).not.toContain('Multi Montserrat');
-    expect(property(within(dialog).getByRole('heading', { level: 2 }), 'font-weight')).toBe('600');
-    expect(dialog.style.getPropertyValue('--dialog-accent')).not.toBe('#192a36');
+    expect(document.body).toHaveAttribute('data-dealer-customer', 'true');
+    expect(property(dialog, 'border-radius')).toBe('8px');
+    expect(property(dialog, 'font-family')).toContain('Multi Montserrat');
+    expect(property(within(dialog).getByRole('heading', { level: 2 }), 'font-weight')).toBe('700');
+    expect(dialog.style.getPropertyValue('--dialog-accent')).toBe('#192a36');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Request a callback' }));
-    expect(property(within(dialog).getByRole('textbox', { name: 'Your name' }), 'border-radius')).toBe('7px');
+    expect(property(within(dialog).getByRole('textbox', { name: 'Your name' }), 'border-radius')).toBe('4px');
     view.unmount();
-    render(<Fixture multi={false}><TestDriveBooking vehicle={car} stockCars={[car]} /></Fixture>);
+    render(<Fixture><TestDriveBooking vehicle={car} stockCars={[car]} /></Fixture>);
     toDetails();
     const bookingInput = screen.getByTestId('input-customer-name');
-    expect(property(bookingInput, 'border-radius')).toBe('8px');
-    expect(property(bookingInput, 'font-family')).toContain('Inter');
-    expect(property(bookingInput, 'font-family')).not.toContain('Multi Montserrat');
+    expect(property(bookingInput, 'border-radius')).toBe('4px');
+    expect(property(bookingInput, 'font-family')).toContain('Multi Montserrat');
     expect(state.mutate).not.toHaveBeenCalled();
   });
 });

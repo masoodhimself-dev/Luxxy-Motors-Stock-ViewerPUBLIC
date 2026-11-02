@@ -2,6 +2,9 @@ import { Link } from "wouter";
 import type { MultiHomeSettings } from "./multi-home-header";
 import { multiChoiceHomeSections } from "@/lib/multi-choice-home-sections";
 import { getEnquiryHref } from "@/lib/cta-helpers";
+import { isMultiChoiceWebsite } from "@/lib/multi-home-scope";
+import { hexColourToHsl, hslColourToHex, readableForegroundForHsl } from "@/lib/brand-colour";
+import { DealerWordmark } from "./brand/wordmark";
 import { Facebook, Instagram, Twitter } from "./icons";
 import "./multi-home-chrome.css";
 
@@ -16,6 +19,12 @@ export function MultiHomeFooter({
 }) {
   const sections = multiChoiceHomeSections(settings),
     legal = settings.legal;
+  const multiChoice = isMultiChoiceWebsite();
+  const footerLogo = settings.presentation?.footerLogoUrl?.trim();
+  // A custom footer mark was selected for the dealer's original footer colour.
+  // Keep that contrast in a small logo panel within the shared light footer.
+  const customFooterLogo = !multiChoice && Boolean(footerLogo);
+  const logoPanelBackground = hslColourToHex(settings.identity.brandColors?.primaryHsl ?? "", "#192a36");
   const sectionHref = (id: string) => `${isHomepage ? "" : "/"}#${id}`;
   const partExchangeHref =
     !isHomepage && enquiriesEnabled
@@ -84,16 +93,17 @@ export function MultiHomeFooter({
       )}
       <LogoLink
         href={isHomepage ? "#top" : "/"}
-        className="multi-home-footer__brand"
+        className={`multi-home-footer__brand${customFooterLogo ? " multi-home-footer__brand--custom" : ""}`}
+        style={customFooterLogo ? { backgroundColor: logoPanelBackground, color: `hsl(${readableForegroundForHsl(hexColourToHsl(logoPanelBackground))})` } : undefined}
         aria-label={`${settings.identity.name} home`}
       >
-        <img
+        {multiChoice ? <img
           src="/brand/multi-choice-motors/multi-choice-wordmark.svg"
           alt={settings.identity.name}
           width="190"
           height="40"
           loading="lazy"
-        />
+        /> : <DealerWordmark {...settings.identity} logoAsset={footerLogo || settings.identity.logoAsset} />}
       </LogoLink>
       <div className="multi-home-footer__legal">
         <p>

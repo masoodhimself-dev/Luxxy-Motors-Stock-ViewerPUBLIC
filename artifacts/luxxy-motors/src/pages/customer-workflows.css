@@ -60,20 +60,20 @@
 
 /* The secondary pages use the same surfaces as the approved homepage.
    Only Multi-Choice receives these details; the existing grids stay in place. */
-.multi-choice-site :is(.friendly-contact, .friendly-enquire) .friendly-banner {
+.dealer-site-theme :is(.friendly-contact, .friendly-enquire) .friendly-banner {
   color: var(--mh-primary);
 }
-.multi-choice-site .friendly-enquire :is([data-testid="status-stock-error"], [data-testid="status-vehicle-unavailable"]) {
+.dealer-site-theme .friendly-enquire :is([data-testid="status-stock-error"], [data-testid="status-vehicle-unavailable"]) {
   border-color: var(--mh-border);
   border-radius: var(--mh-radius);
   background: var(--mh-tint);
   color: var(--mh-primary);
 }
-.multi-choice-site .friendly-enquire :is([data-testid="status-stock-error"], [data-testid="status-vehicle-unavailable"]) > svg,
-.multi-choice-site .friendly-enquire :is([data-testid="status-stock-error"], [data-testid="status-vehicle-unavailable"]) > div > p:first-child {
+.dealer-site-theme .friendly-enquire :is([data-testid="status-stock-error"], [data-testid="status-vehicle-unavailable"]) > svg,
+.dealer-site-theme .friendly-enquire :is([data-testid="status-stock-error"], [data-testid="status-vehicle-unavailable"]) > div > p:first-child {
   color: var(--mh-primary);
 }
-.multi-choice-site .friendly-contact [data-testid="contact-location"] > .bg-primary {
+.dealer-site-theme .friendly-contact [data-testid="contact-location"] > .bg-primary {
   background: var(--mh-primary);
   color: var(--mh-surface);
 }

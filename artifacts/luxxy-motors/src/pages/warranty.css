@@ -8,19 +8,19 @@
 @media (prefers-reduced-motion: reduce) { .friendly-warranty .warranty-policy-checklist summary > span { transition: none; } }
 
 /* Match the showroom materials without changing configured warranty content. */
-.multi-choice-site .friendly-warranty .warranty-enquiry-panel {
+.dealer-site-theme .friendly-warranty .warranty-enquiry-panel {
   border-color: var(--mh-border);
   border-radius: var(--mh-radius);
   background: var(--mh-surface);
   box-shadow: var(--mh-shadow-sm);
 }
-.multi-choice-site .friendly-warranty .warranty-policy-checklist {
+.dealer-site-theme .friendly-warranty .warranty-policy-checklist {
   border-color: var(--mh-border);
 }
-.multi-choice-site .friendly-warranty .warranty-policy-checklist summary {
+.dealer-site-theme .friendly-warranty .warranty-policy-checklist summary {
   color: var(--mh-primary);
 }
-.multi-choice-site .friendly-warranty .warranty-policy-checklist summary:focus-visible {
+.dealer-site-theme .friendly-warranty .warranty-policy-checklist summary:focus-visible {
   outline: 3px solid var(--mh-accent);
   outline-offset: 4px;
 }

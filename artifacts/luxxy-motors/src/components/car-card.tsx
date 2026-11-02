@@ -29,7 +29,6 @@ import { ArrowRight, Camera, ChevronLeft, ChevronRight } from '@/components/icon
 import { trackEvent } from '@/lib/analytics';
 import { MakeLogo } from '@/components/make-logo';
 import { getMakeLogoSrc } from '@/lib/make-logo';
-import { isMultiChoiceWebsite } from '@/lib/multi-home-scope';
 import './public-vehicle-make-logo.css';
 
 
@@ -98,7 +97,7 @@ export function CarCard({
   const photoSwipe = usePhotoSwipe(canBrowsePhotos, changePhoto);
 
   const vehicleLabel = vehicleDisplayTitle(car);
-  const showMakeLogo = isMultiChoiceWebsite() && Boolean(getMakeLogoSrc(car.make));
+  const showMakeLogo = Boolean(getMakeLogoSrc(car.make));
   const registration = vehicleRegistration(car);
   const registrationYear = stockRegistrationYear(car);
   const detailHref = `/vehicle/${car.id}`;

@@ -2,8 +2,8 @@
 
 /* The same homepage typography and materials on every public customer route.
    Route-specific grids, photography and stock-card geometry remain authoritative. */
-.customer-site.multi-choice-site,
-.multi-choice-site.multi-choice-standalone {
+.customer-site.dealer-site-theme,
+.dealer-site-theme.dealer-document-theme {
   --app-font-sans: 'Multi Montserrat', Arial, sans-serif;
   --font-display: var(--app-font-sans);
   --font-body: var(--app-font-sans);
@@ -21,92 +21,92 @@
   line-height: 1.6;
   font-synthesis: none;
 }
-.multi-choice-site :is(h1, h2, h3, h4, .font-display, .font-sans, button, select, textarea),
-.multi-choice-site input:not(.uk-number-plate-input):not(.ukrp-text) {
+.dealer-site-theme :is(h1, h2, h3, h4, .font-display, .font-sans, button, select, textarea),
+.dealer-site-theme input:not(.uk-number-plate-input):not(.ukrp-text) {
   font-family: 'Multi Montserrat', Arial, sans-serif;
 }
-.customer-site.multi-choice-site main :is(h1, h2) { font-weight: 700; }
-.customer-site.multi-choice-site main h3 { font-weight: 600; }
-.customer-site.multi-choice-site :is(main .container, .site-header-inner) { max-width: var(--customer-content-width); padding-inline: clamp(16px, 3vw, 40px); }
-.customer-site.multi-choice-site :is(.page-heading, .home-dealer-information, .vehicle-records-section) { gap: var(--customer-space-3); }
-.customer-site.multi-choice-site main .page-heading h1 { font-size: clamp(28px, 3.2vw, 38px); line-height: 1.25; }
-.customer-site.multi-choice-site main .section-heading { font-size: clamp(22px, 2.3vw, 30px); line-height: 1.25; }
-.customer-site.multi-choice-site main p { text-wrap: pretty; }
-.customer-site.multi-choice-site .section-heading { border-left: 0; padding-left: 0; }
-.customer-site.multi-choice-site .luxxy-kicker { color: var(--mh-muted); letter-spacing: 0; text-transform: none; font-weight: 500; }
-.multi-choice-site :is(a, button, input, select, textarea, summary):focus-visible {
+.customer-site.dealer-site-theme main :is(h1, h2) { font-weight: 700; }
+.customer-site.dealer-site-theme main h3 { font-weight: 600; }
+.customer-site.dealer-site-theme :is(main .container, .site-header-inner) { max-width: var(--customer-content-width); padding-inline: clamp(16px, 3vw, 40px); }
+.customer-site.dealer-site-theme :is(.page-heading, .home-dealer-information, .vehicle-records-section) { gap: var(--customer-space-3); }
+.customer-site.dealer-site-theme main .page-heading h1 { font-size: clamp(28px, 3.2vw, 38px); line-height: 1.25; }
+.customer-site.dealer-site-theme main .section-heading { font-size: clamp(22px, 2.3vw, 30px); line-height: 1.25; }
+.customer-site.dealer-site-theme main p { text-wrap: pretty; }
+.customer-site.dealer-site-theme .section-heading { border-left: 0; padding-left: 0; }
+.customer-site.dealer-site-theme .luxxy-kicker { color: var(--mh-muted); letter-spacing: 0; text-transform: none; font-weight: 500; }
+.dealer-site-theme :is(a, button, input, select, textarea, summary):focus-visible {
   outline: 3px solid var(--mh-accent);
   outline-offset: 4px;
 }
-.customer-site.multi-choice-site .db-btn { border-radius: 4px; font-weight: 600; box-shadow: none; }
-.customer-site.multi-choice-site .db-btn[class*='border-input'] { background: transparent; }
-.customer-site.multi-choice-site .db-btn.bg-accent {
+.customer-site.dealer-site-theme .db-btn { border-radius: 4px; font-weight: 600; box-shadow: none; }
+.customer-site.dealer-site-theme .db-btn[class*='border-input'] { background: transparent; }
+.customer-site.dealer-site-theme .db-btn.bg-accent {
   background: var(--mh-primary);
   border-color: var(--mh-primary);
   color: var(--mh-surface);
 }
-.customer-site.multi-choice-site .db-btn:is(.bg-primary, .bg-accent):hover {
+.customer-site.dealer-site-theme .db-btn:is(.bg-primary, .bg-accent):hover {
   background: var(--mh-accent-dark);
   border-color: var(--mh-accent-dark);
 }
-.customer-site.multi-choice-site main :is(input:not([type='checkbox']):not([type='radio']):not(.uk-number-plate-input):not(.ukrp-text), select, textarea) {
+.customer-site.dealer-site-theme main :is(input:not([type='checkbox']):not([type='radio']):not(.uk-number-plate-input):not(.ukrp-text), select, textarea) {
   border-radius: 4px;
   background-color: var(--mh-surface);
   color: var(--mh-primary);
   line-height: 1.5;
 }
-.customer-site.multi-choice-site main :is(input, select, textarea)::placeholder { color: var(--mh-muted); opacity: 1; }
-.customer-site.multi-choice-site:not(.multi-home-shell) main :is(input:not([type='checkbox']):not([type='radio']):not(.uk-number-plate-input):not(.ukrp-text), select, textarea) { border-color: hsl(var(--input)); }
-.customer-site.multi-choice-site :is(.page-empty-state, .warranty-enquiry-panel, .enquiry-form-panel) {
+.customer-site.dealer-site-theme main :is(input, select, textarea)::placeholder { color: var(--mh-muted); opacity: 1; }
+.customer-site.dealer-site-theme:not(.multi-home-shell) main :is(input:not([type='checkbox']):not([type='radio']):not(.uk-number-plate-input):not(.ukrp-text), select, textarea) { border-color: hsl(var(--input)); }
+.customer-site.dealer-site-theme :is(.page-empty-state, .warranty-enquiry-panel, .enquiry-form-panel) {
   border-radius: 8px;
   border-color: var(--mh-border);
   background: var(--mh-surface);
 }
-.customer-site.multi-choice-site :is(.vehicle-inline-enquiry, .vehicle-review-card, .enquiry-review-card) {
+.customer-site.dealer-site-theme :is(.vehicle-inline-enquiry, .vehicle-review-card, .enquiry-review-card) {
   background: var(--mh-surface);
   border-color: var(--mh-border);
 }
-.customer-site.multi-choice-site .vehicle-page {
+.customer-site.dealer-site-theme .vehicle-page {
   --vehicle-link: var(--mh-primary);
   --vehicle-accent: var(--mh-primary);
 }
-.customer-site.multi-choice-site .vehicle-summary { --vehicle-accent: var(--mh-primary); }
-.customer-site.multi-choice-site .vehicle-summary .vehicle-booking-action { background: var(--mh-primary); color: var(--mh-surface); }
-.customer-site.multi-choice-site .vehicle-summary .vehicle-booking-action:hover { background: var(--mh-accent-dark); }
-.customer-site.multi-choice-site .friendly-shortlist-intro { border-color: var(--mh-border); }
-.customer-site.multi-choice-site [data-home-scroll-spacer] { display: none; }
+.customer-site.dealer-site-theme .vehicle-summary { --vehicle-accent: var(--mh-primary); }
+.customer-site.dealer-site-theme .vehicle-summary .vehicle-booking-action { background: var(--mh-primary); color: var(--mh-surface); }
+.customer-site.dealer-site-theme .vehicle-summary .vehicle-booking-action:hover { background: var(--mh-accent-dark); }
+.customer-site.dealer-site-theme .friendly-shortlist-intro { border-color: var(--mh-border); }
+.customer-site.dealer-site-theme [data-home-scroll-spacer] { display: none; }
 
 /* Layout primitives retained independently of the retired customer finish. */
-.customer-site.multi-choice-site .vehicle-card { border: 1px solid var(--mh-border); box-shadow: none; overflow: hidden; transition: border-color 150ms ease; }
-.customer-site.multi-choice-site .vehicle-card .vehicle-card-price { align-items: baseline; gap: 8px; margin-block: 16px; }
-.customer-site.multi-choice-site .vehicle-card :is(.vehicle-card-photo img, .vehicle-card-photo > a) { object-fit: contain; background: var(--mh-photo-bg); }
-.customer-site.multi-choice-site .vehicle-page .gallery-photo { object-fit: contain; }
-.customer-site.multi-choice-site .vehicle-gallery-frame { overflow: hidden; background: var(--mh-photo-bg); }
-.customer-site.multi-choice-site .gallery-photo-counter { min-height: 32px; padding: 6px 10px; gap: 6px; border-radius: var(--mh-radius-control); background: rgb(25 42 54 / .78); font-variant-numeric: tabular-nums; }
-.customer-site.multi-choice-site .gallery-photo-counter svg { width: 14px; height: 14px; }
-.customer-site.multi-choice-site .gallery-browse-arrow { min-width: 44px; min-height: 44px; border-radius: var(--mh-radius-control); box-shadow: none; }
-.customer-site.multi-choice-site .vehicle-selling-points :is(.vehicle-badge, .vehicle-long-mot) { min-height: 44px; padding: 8px 10px; gap: 6px; border-radius: var(--mh-radius-control); font-size: 12px; font-weight: 400; }
-.customer-site.multi-choice-site .vehicle-selling-points :is(.vehicle-highlight-icon, svg) { width: 16px; height: 16px; flex-shrink: 0; }
-.customer-site.multi-choice-site :is(.vehicle-equipment-text-group > summary, .vehicle-records-section summary, .delivery-estimator summary) { min-height: 48px; padding-block: 12px; font-size: 15px; font-weight: 600; line-height: 1.5; }
-.customer-site.multi-choice-site :is(.vehicle-equipment-text-group > summary, .vehicle-records-section summary, .delivery-estimator summary) > svg { width: 16px; height: 16px; }
-.customer-site.multi-choice-site .vehicle-primary-actions .vehicle-enquiry-action { background: transparent; color: var(--vehicle-link); border: 1px solid var(--vehicle-link); border-radius: var(--mh-radius-control); }
-.customer-site.multi-choice-site .vehicle-primary-actions:not(:has(.vehicle-booking-action)) .vehicle-enquiry-action { background: var(--vehicle-link); color: var(--mh-surface); }
-.customer-site.multi-choice-site .page-empty-state { padding: 32px 24px; margin-block: 24px; }
-.customer-site.multi-choice-site .page-empty-state h2 { font-size: 24px; }
+.customer-site.dealer-site-theme .vehicle-card { border: 1px solid var(--mh-border); box-shadow: none; overflow: hidden; transition: border-color 150ms ease; }
+.customer-site.dealer-site-theme .vehicle-card .vehicle-card-price { align-items: baseline; gap: 8px; margin-block: 16px; }
+.customer-site.dealer-site-theme .vehicle-card :is(.vehicle-card-photo img, .vehicle-card-photo > a) { object-fit: contain; background: var(--mh-photo-bg); }
+.customer-site.dealer-site-theme .vehicle-page .gallery-photo { object-fit: contain; }
+.customer-site.dealer-site-theme .vehicle-gallery-frame { overflow: hidden; background: var(--mh-photo-bg); }
+.customer-site.dealer-site-theme .gallery-photo-counter { min-height: 32px; padding: 6px 10px; gap: 6px; border-radius: var(--mh-radius-control); background: rgb(25 42 54 / .78); font-variant-numeric: tabular-nums; }
+.customer-site.dealer-site-theme .gallery-photo-counter svg { width: 14px; height: 14px; }
+.customer-site.dealer-site-theme .gallery-browse-arrow { min-width: 44px; min-height: 44px; border-radius: var(--mh-radius-control); box-shadow: none; }
+.customer-site.dealer-site-theme .vehicle-selling-points :is(.vehicle-badge, .vehicle-long-mot) { min-height: 44px; padding: 8px 10px; gap: 6px; border-radius: var(--mh-radius-control); font-size: 12px; font-weight: 400; }
+.customer-site.dealer-site-theme .vehicle-selling-points :is(.vehicle-highlight-icon, svg) { width: 16px; height: 16px; flex-shrink: 0; }
+.customer-site.dealer-site-theme :is(.vehicle-equipment-text-group > summary, .vehicle-records-section summary, .delivery-estimator summary) { min-height: 48px; padding-block: 12px; font-size: 15px; font-weight: 600; line-height: 1.5; }
+.customer-site.dealer-site-theme :is(.vehicle-equipment-text-group > summary, .vehicle-records-section summary, .delivery-estimator summary) > svg { width: 16px; height: 16px; }
+.customer-site.dealer-site-theme .vehicle-primary-actions .vehicle-enquiry-action { background: transparent; color: var(--vehicle-link); border: 1px solid var(--vehicle-link); border-radius: var(--mh-radius-control); }
+.customer-site.dealer-site-theme .vehicle-primary-actions:not(:has(.vehicle-booking-action)) .vehicle-enquiry-action { background: var(--vehicle-link); color: var(--mh-surface); }
+.customer-site.dealer-site-theme .page-empty-state { padding: 32px 24px; margin-block: 24px; }
+.customer-site.dealer-site-theme .page-empty-state h2 { font-size: 24px; }
 
 /* Radix dialogs, sheets, menus, tooltips and toast content live outside Layout.
-   The route marker is restored on departure, so staff and other dealers retain
-   their existing appearance. A photo lightbox keeps its dark viewing surface. */
-body[data-multi-choice-customer='true'] :is([role='dialog'], [role='alertdialog'], [role='tooltip'], [role='listbox'], [role='menu'], [data-radix-popper-content-wrapper], [data-radix-toast-viewport]) {
+   The route marker is restored on departure, so account/platform surfaces keep
+   their independent appearance. Every dealership uses these customer rules. A photo lightbox keeps its dark viewing surface. */
+body[data-dealer-customer='true'] :is([role='dialog'], [role='alertdialog'], [role='tooltip'], [role='listbox'], [role='menu'], [data-radix-popper-content-wrapper], [data-radix-toast-viewport]) {
   --app-font-sans: 'Multi Montserrat', Arial, sans-serif;
   --font-display: var(--app-font-sans);
   font-family: var(--app-font-sans);
 }
-body[data-multi-choice-customer='true'] :is([role='dialog'], [role='alertdialog'], [role='tooltip'], [role='listbox'], [role='menu']) :is(h1, h2, h3, h4, button, select, textarea, .font-display, .font-sans),
-body[data-multi-choice-customer='true'] :is([role='dialog'], [role='alertdialog']) input:not(.uk-number-plate-input):not(.ukrp-text) {
+body[data-dealer-customer='true'] :is([role='dialog'], [role='alertdialog'], [role='tooltip'], [role='listbox'], [role='menu']) :is(h1, h2, h3, h4, button, select, textarea, .font-display, .font-sans),
+body[data-dealer-customer='true'] :is([role='dialog'], [role='alertdialog']) input:not(.uk-number-plate-input):not(.ukrp-text) {
   font-family: 'Multi Montserrat', Arial, sans-serif;
 }
-body[data-multi-choice-customer='true'] :is([role='dialog'], [role='alertdialog']):not(.customer-vehicle-lightbox):not(.vehicle-photo-lightbox) {
+body[data-dealer-customer='true'] :is([role='dialog'], [role='alertdialog']):not(.customer-vehicle-lightbox):not(.vehicle-photo-lightbox) {
   --foreground: var(--dealer-panel-ink-hsl);
   --background: 0 0% 100%;
   --muted-foreground: var(--dealer-panel-muted-hsl);
@@ -121,42 +121,42 @@ body[data-multi-choice-customer='true'] :is([role='dialog'], [role='alertdialog'
   --ring: var(--dealer-panel-accent-hsl);
   color: var(--mh-primary);
 }
-body[data-multi-choice-customer='true'] :is([role='dialog'], [role='alertdialog']):not(.customer-vehicle-lightbox):not(.vehicle-photo-lightbox) .db-btn { border-radius: 4px; }
-body[data-multi-choice-customer='true'] .vehicle-action-dialog :is(input:not([type='checkbox']), textarea) { border-color: var(--mh-border-strong); }
-body[data-multi-choice-customer='true'] .vehicle-action-dialog :is(input, textarea)::placeholder { color: var(--mh-muted); }
-body[data-multi-choice-customer='true'] .customer-help-content { border-color: var(--mh-border); background: var(--mh-primary); color: var(--mh-surface); box-shadow: var(--mh-shadow-md); }
-.customer-site.multi-choice-site .customer-term-help,
-body[data-multi-choice-customer='true'] .customer-term-help { text-decoration-color: var(--mh-muted); }
+body[data-dealer-customer='true'] :is([role='dialog'], [role='alertdialog']):not(.customer-vehicle-lightbox):not(.vehicle-photo-lightbox) .db-btn { border-radius: 4px; }
+body[data-dealer-customer='true'] .vehicle-action-dialog :is(input:not([type='checkbox']), textarea) { border-color: var(--mh-border-strong); }
+body[data-dealer-customer='true'] .vehicle-action-dialog :is(input, textarea)::placeholder { color: var(--mh-muted); }
+body[data-dealer-customer='true'] .customer-help-content { border-color: var(--mh-border); background: var(--mh-primary); color: var(--mh-surface); box-shadow: var(--mh-shadow-md); }
+.customer-site.dealer-site-theme .customer-term-help,
+body[data-dealer-customer='true'] .customer-term-help { text-decoration-color: var(--mh-muted); }
 
 /* Private customer documents retain their isolated, quiet layout. No new
    analytics, navigation, providers or access to staff/customer records. */
-.multi-choice-standalone :is(.invoice-proof, .declaration-page) { background: var(--mh-bg); color: var(--mh-primary); font-family: var(--app-font-sans); }
-.multi-choice-standalone :is(.invoice-proof article, .declaration-card) { border-color: var(--mh-border); border-radius: 8px; background: var(--mh-surface); box-shadow: var(--mh-shadow-sm); }
-.multi-choice-standalone :is(.invoice-proof-eyebrow, .declaration-header, .declaration-eyebrow, .declaration-visit svg) { color: var(--mh-primary); }
-.multi-choice-standalone :is(.invoice-proof p:not(.invoice-proof-notice), .invoice-proof dt, .declaration-private, .declaration-visit span, .declaration-version, .declaration-help, .declaration-note, .declaration-status) { color: var(--mh-muted); }
-.multi-choice-standalone .declaration-eyebrow { text-transform: none; letter-spacing: 0; }
-.multi-choice-standalone .declaration-visit { background: var(--mh-tint); border-color: var(--mh-border); border-radius: 8px; }
-.multi-choice-standalone .declaration-accept input { accent-color: var(--mh-primary); }
-.multi-choice-standalone .declaration-card form > button { background: var(--mh-primary); }
-.multi-choice-standalone .declaration-card form > button:hover { background: var(--mh-accent-dark); }
-.multi-choice-standalone .declaration-card :is(button, input):focus-visible { outline-color: var(--mh-accent); }
+.dealer-document-theme :is(.invoice-proof, .declaration-page) { background: var(--mh-bg); color: var(--mh-primary); font-family: var(--app-font-sans); }
+.dealer-document-theme :is(.invoice-proof article, .declaration-card) { border-color: var(--mh-border); border-radius: 8px; background: var(--mh-surface); box-shadow: var(--mh-shadow-sm); }
+.dealer-document-theme :is(.invoice-proof-eyebrow, .declaration-header, .declaration-eyebrow, .declaration-visit svg) { color: var(--mh-primary); }
+.dealer-document-theme :is(.invoice-proof p:not(.invoice-proof-notice), .invoice-proof dt, .declaration-private, .declaration-visit span, .declaration-version, .declaration-help, .declaration-note, .declaration-status) { color: var(--mh-muted); }
+.dealer-document-theme .declaration-eyebrow { text-transform: none; letter-spacing: 0; }
+.dealer-document-theme .declaration-visit { background: var(--mh-tint); border-color: var(--mh-border); border-radius: 8px; }
+.dealer-document-theme .declaration-accept input { accent-color: var(--mh-primary); }
+.dealer-document-theme .declaration-card form > button { background: var(--mh-primary); }
+.dealer-document-theme .declaration-card form > button:hover { background: var(--mh-accent-dark); }
+.dealer-document-theme .declaration-card :is(button, input):focus-visible { outline-color: var(--mh-accent); }
 
 @media (max-width: 767px) {
-  .customer-site.multi-choice-site :is(input:not([type='checkbox']):not([type='radio']):not(.uk-number-plate-input):not(.ukrp-text), select, textarea),
-  body[data-multi-choice-customer='true'] :is([role='dialog'], [role='alertdialog']) :is(input:not([type='checkbox']):not([type='radio']):not(.uk-number-plate-input):not(.ukrp-text), select, textarea) { font-size: 16px; }
+  .customer-site.dealer-site-theme :is(input:not([type='checkbox']):not([type='radio']):not(.uk-number-plate-input):not(.ukrp-text), select, textarea),
+  body[data-dealer-customer='true'] :is([role='dialog'], [role='alertdialog']) :is(input:not([type='checkbox']):not([type='radio']):not(.uk-number-plate-input):not(.ukrp-text), select, textarea) { font-size: 16px; }
 }
 @media (max-width: 639px) {
-  .customer-site.multi-choice-site .vehicle-redesigned .vehicle-compact-identity h1 { font-size: 24px; line-height: 1.2; }
-  .customer-site.multi-choice-site .vehicle-redesigned .vehicle-compact-identity .vehicle-availability { margin-bottom: 8px; }
-  .customer-site.multi-choice-site .vehicle-redesigned .vehicle-detail-grid { gap: 16px; }
-  .customer-site.multi-choice-site .page-heading { margin-bottom: 24px; padding-bottom: 16px; gap: 16px; }
+  .customer-site.dealer-site-theme .vehicle-redesigned .vehicle-compact-identity h1 { font-size: 24px; line-height: 1.2; }
+  .customer-site.dealer-site-theme .vehicle-redesigned .vehicle-compact-identity .vehicle-availability { margin-bottom: 8px; }
+  .customer-site.dealer-site-theme .vehicle-redesigned .vehicle-detail-grid { gap: 16px; }
+  .customer-site.dealer-site-theme .page-heading { margin-bottom: 24px; padding-bottom: 16px; gap: 16px; }
 }
-@media (hover: hover) and (pointer: fine) { .customer-site.multi-choice-site .vehicle-card:hover { border-color: var(--mh-muted); } }
+@media (hover: hover) and (pointer: fine) { .customer-site.dealer-site-theme .vehicle-card:hover { border-color: var(--mh-muted); } }
 @media (prefers-reduced-motion: reduce) {
-  .multi-choice-site :is(.vehicle-card, .gallery-browse-arrow) { transition: none; }
-  .multi-choice-site .gallery-photo-loading { animation: none; }
+  .dealer-site-theme :is(.vehicle-card, .gallery-browse-arrow) { transition: none; }
+  .dealer-site-theme .gallery-photo-loading { animation: none; }
 }
 @media print {
-  .multi-choice-standalone .declaration-page { background: white; padding: 0; }
-  .multi-choice-standalone .declaration-card { border: 0; border-radius: 0; padding: 0; box-shadow: none; }
+  .dealer-document-theme .declaration-page { background: white; padding: 0; }
+  .dealer-document-theme .declaration-card { border: 0; border-radius: 0; padding: 0; box-shadow: none; }
 }
