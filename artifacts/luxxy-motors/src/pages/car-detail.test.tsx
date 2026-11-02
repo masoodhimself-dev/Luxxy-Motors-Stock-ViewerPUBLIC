@@ -304,6 +304,31 @@ it('prepares a service-record request in the same-page message form without send
   expect(screen.queryByTestId('status-enquiry-success')).not.toBeInTheDocument();
 });
 
+it('shows vehicle context only with the expanded message form and retains the unsent draft when closed', async () => {
+  featureState.data.features.publicEnquiries = true;
+  const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: 'not_connected' }), { status: 200, headers: { 'content-type': 'application/json' } }));
+  vi.stubGlobal('fetch', fetchMock);
+  Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: vi.fn() });
+  renderVehicle('with-plate', { ...dealerConfig, identity: { ...dealerConfig.identity, name: 'This Dealer' }, presentation: { includedItems: ['6 months warranty'] } });
+  const disclosure = document.getElementById('vehicle-enquiry') as HTMLDetailsElement;
+  expect(screen.queryByTestId('vehicle-enquiry-information')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('link', { name: 'Message the showroom' }));
+  const sidebar = await screen.findByTestId('vehicle-enquiry-information');
+  expect(within(sidebar).getByRole('heading', { name: 'BMW 3 Series' })).toBeInTheDocument();
+  expect(sidebar).toHaveTextContent('6 months warranty');
+  expect(sidebar).toHaveTextContent('Why choose This Dealer');
+  const message = screen.getByTestId('textarea-enquiry-message');
+  fireEvent.change(message, { target: { value: 'Can I see this car on Saturday?' } });
+  await act(async () => { disclosure.open = false; fireEvent(disclosure, new Event('toggle')); });
+  await waitFor(() => expect(screen.queryByTestId('vehicle-enquiry-information')).not.toBeInTheDocument());
+  fireEvent.click(screen.getByRole('link', { name: 'Message the showroom' }));
+  await screen.findByTestId('vehicle-enquiry-information');
+  expect(screen.getByTestId('textarea-enquiry-message')).toBe(message);
+  expect(message).toHaveValue('Can I see this car on Saturday?');
+  expect(screen.queryByTestId('status-enquiry-success')).not.toBeInTheDocument();
+  expect(fetchMock.mock.calls.every(([, options]) => !options?.method || options.method === 'GET')).toBe(true);
+});
+
 it('keeps service and part-exchange contact routes usable when online enquiries are disabled', () => {
   featureState.data.features.partExchange = true;
   renderVehicle('with-plate', { ...dealerConfig, partExchange: { ...dealerConfig.partExchange!, enabled: true } });

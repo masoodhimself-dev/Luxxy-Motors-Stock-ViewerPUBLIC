@@ -38,13 +38,17 @@
 .vehicle-page-streamlined .vehicle-service-record-request { width: 100%; text-align: left; font-size: 14px; font-weight: 500; }
 .vehicle-page-streamlined .vehicle-visit-delivery-chapter { display: grid; gap: 24px; padding-block: 28px; margin-top: 28px; border-top: 1px solid hsl(var(--border)); }
 .vehicle-page-streamlined .vehicle-visit-delivery-chapter > section { margin-top: 0; padding-top: 0; border-top: 0; }
-.vehicle-page-streamlined .vehicle-inline-enquiry.vehicle-message-disclosure { margin-block: 8px 36px; padding: 0; border: 1px solid hsl(var(--border)); border-radius: 6px; background: var(--vehicle-panel); }
+.vehicle-page-streamlined .vehicle-inline-enquiry.vehicle-message-disclosure { display: block; margin-block: 8px 36px; padding: 0; border: 1px solid hsl(var(--border)); border-radius: 6px; background: var(--vehicle-panel); }
 .vehicle-page-streamlined .vehicle-message-disclosure > summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 16px; align-items: center; min-height: 76px; padding: 16px 20px; cursor: pointer; }
 .vehicle-page-streamlined .vehicle-message-disclosure > summary h2 { min-width: 0; font-size: 20px; }
 .vehicle-page-streamlined .vehicle-message-disclosure > summary > span { grid-column: 1; font-size: 13px; color: hsl(var(--muted-foreground)); }
 .vehicle-page-streamlined .vehicle-message-disclosure > summary::after { grid-column: 2; grid-row: 1 / 3; }
-.vehicle-page-streamlined .vehicle-message-body { padding: 4px 20px 24px; }
+.vehicle-page-streamlined .vehicle-message-body { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 28px; padding: 4px 20px 24px; }
+.vehicle-page-streamlined .vehicle-message-body > form { min-width: 0; }
 .vehicle-page-streamlined .vehicle-photo-request { margin-top: 8px; }
+@media (min-width: 1000px) {
+  .vehicle-page-streamlined .vehicle-message-body { grid-template-columns: minmax(0, 1fr) minmax(300px, .64fr); gap: 36px; }
+}
 @media (min-width: 1100px) {
   .vehicle-page-streamlined .vehicle-overview-chapter { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); column-gap: 48px; align-items: start; }
   .vehicle-page-streamlined .vehicle-overview-chapter .vehicle-description-section { grid-column: 1; }
@@ -52,7 +56,6 @@
   .vehicle-page-streamlined .vehicle-overview-chapter .vehicle-technical-disclosure { grid-column: 1 / -1; }
   .vehicle-page-streamlined .vehicle-overview-chapter:not(:has(.vehicle-included)) .vehicle-description-section { grid-column: 1 / -1; }
   .vehicle-page-streamlined .vehicle-visit-delivery-chapter { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px; }
-  .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-inline-enquiry { max-width: 880px; }
 }
 @media (max-width: 1099px) {
   .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary { padding: 16px 0 8px; border: 0; background: transparent; }
@@ -63,6 +66,8 @@
   .vehicle-page-streamlined .vehicle-compact-detail .vehicle-registration { margin-top: 4px; }
 }
 @media (max-width: 639px) {
+  /* The open form already handles contact; keep its fields unobstructed. */
+  .vehicle-page-streamlined:has(#vehicle-enquiry[open]) .vehicle-mobile-actions { display: none; }
   .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-section-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; }
   .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-section-nav a { min-width: 0; padding: 6px 3px; white-space: normal; font-size: 12px; line-height: 1.35; }
   .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-section-nav:not(:has(a:nth-child(4))) { grid-template-columns: repeat(3, minmax(0, 1fr)); }

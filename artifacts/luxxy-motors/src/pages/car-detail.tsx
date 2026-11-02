@@ -21,6 +21,7 @@ import { websiteText } from "@/lib/website-content";
 import { VehicleWhatsApp } from '@/components/vehicle-whatsapp';
 import { VehicleCall } from '@/components/vehicle-call';
 import { EnquiryForm } from '@/components/enquiry-form';
+import { VehicleEnquiryInformation } from '@/components/vehicle-enquiry-information';
 import { VehiclePrint } from '@/components/vehicle-print';
 import { vehicleAvailability } from '@/lib/customer-convenience';
 import { VehicleVisit } from '@/components/vehicle-buying-guide';
@@ -515,7 +516,10 @@ export default function CarDetail() {
         </div>
         {enquiriesEnabled && <details id="vehicle-enquiry" className="vehicle-inline-enquiry vehicle-message-disclosure" open={enquiryExpanded} onToggle={event => setEnquiryExpanded(event.currentTarget.open)}>
           <summary><h2 id="vehicle-enquiry-heading" tabIndex={-1} className="section-heading">Message the showroom</h2><span>Ask about this {vehicleLabel}</span></summary>
-          <div className="vehicle-message-body"><EnquiryForm key={car.id} vehicle={car} initialType="general" embedded messageRequest={messageRequest?.vehicleId === car.id ? messageRequest : undefined} /></div>
+          <div className="vehicle-message-body">
+            <EnquiryForm key={car.id} vehicle={car} initialType="general" embedded messageRequest={messageRequest?.vehicleId === car.id ? messageRequest : undefined} />
+            {enquiryExpanded && <VehicleEnquiryInformation key={`information-${car.id}`} car={car} motHistory={motHistory} requestMotHistory={requestMotHistory} dealer={settingsLoading || settingsError ? undefined : dealerConfig} includedItems={includedItems} />}
+          </div>
         </details>}
       </div>
       {similarCars.length > 0 && (
