@@ -164,6 +164,15 @@ it("keeps car answers usable if the MOT lookup fails", async () => {
   expect(screen.getByRole("button",{name:"Load answer MOT"})).toBeEnabled();
 });
 
+it('removes the previous car’s MOT badge while the new vehicle’s cache is loading', async () => {
+  const view = render(<Checks vehicleId="car-a" />);
+  await screen.findByRole('button', { name: /Long MOT/ });
+  state.fetch.mockImplementation(() => new Promise(() => {}));
+  view.rerender(<Checks vehicleId="car-b" />);
+  expect(screen.queryByRole('button', { name: /Long MOT/ })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'MOT history' })).toBeVisible();
+});
+
 it("includes the current vehicle delivery breakdown only on request and closes the dialog", async () => {
   const onEnquire = vi.fn();
   render(

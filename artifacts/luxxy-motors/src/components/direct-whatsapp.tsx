@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { customerWhatsAppUrl } from "@/lib/customer-whatsapp";
+import { usePopupDraftGuard } from "@/components/portal/popup-draft-guard";
 
 type Props = {
   saleId?: string;
@@ -64,8 +65,22 @@ export function DirectWhatsApp({
     phone: string;
     message: string;
   } | null>(null);
+  const inFlight = useRef(false);
+  const initialPhone = useRef(confirmedPhone || customerPhone);
+  const { requestClose, discardPrompt } = usePopupDraftGuard({
+    enabled: open,
+    dirty: !saved && (opened || text !== message || phone !== initialPhone.current),
+    blocked: () => inFlight.current,
+    onClose: () => setOpen(false),
+    ...(opened && !saved ? {
+      discardTitle: "Leave this message?",
+      discardDescription: "Your WhatsApp activity has not been recorded in the enquiry.",
+      discardLabel: "Leave without recording",
+    } : {}),
+  });
   useEffect(() => {
     if (!open) return;
+    initialPhone.current = confirmedPhone || customerPhone;
     setPhone(confirmedPhone || customerPhone);
     setText(message);
     setOpened(false);
@@ -101,7 +116,10 @@ export function DirectWhatsApp({
         setResolved(row || null);
         setSaleChecked(Boolean(saleId && result.saleCustomer));
         const checkedPhone = result.saleCustomer?.phone || row?.phone;
-        if (!confirmedPhone && checkedPhone) setPhone(checkedPhone);
+        if (!confirmedPhone && checkedPhone) {
+          initialPhone.current = checkedPhone;
+          setPhone(checkedPhone);
+        }
       })
       .catch(() => {
         if (active)
@@ -135,6 +153,8 @@ export function DirectWhatsApp({
         : customerName.trim().length >= 2),
   );
   async function begin() {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setError("");
     setBusy(true);
     try {
@@ -145,11 +165,13 @@ export function DirectWhatsApp({
         cause instanceof Error ? cause.message : "Reopen the current record.",
       );
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   }
   async function confirm() {
-    if (!ready || busy || saved || !opened) return;
+    if (!ready || busy || inFlight.current || saved || !opened) return;
+    inFlight.current = true;
     setBusy(true);
     setError("");
     attempt.current ??= {
@@ -189,6 +211,7 @@ export function DirectWhatsApp({
           "Confirmation was not confirmed. Retry here with the same message; check history before starting a new message.",
       );
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   }
@@ -206,17 +229,18 @@ export function DirectWhatsApp({
       <Dialog
         open={open}
         onOpenChange={(value) => {
-          if (!busy) setOpen(value);
+          if (!value) requestClose();
         }}
       >
-        <DialogContent className="max-h-[90dvh] overflow-y-auto">
+        <DialogContent className="portal-action-dialog max-h-[90dvh] overflow-y-auto" closeDisabled={busy && inFlight.current}>
           <DialogHeader>
             <DialogTitle>Send on WhatsApp</DialogTitle>
             <DialogDescription>
-              Open WhatsApp, send the message, then confirm here to save a copy
-              in the customer’s enquiry. Nothing sends automatically.
+              Send in WhatsApp, then return here and choose “I’ve sent it” to record the message.
             </DialogDescription>
           </DialogHeader>
+          {discardPrompt}
+          {busy && !inFlight.current && <p role="status">Checking customer details…</p>}
           <p>{resolved?.customerName || customerName}</p>
           <label>
             Customer number
@@ -233,7 +257,7 @@ export function DirectWhatsApp({
           <label>
             Message
             <Textarea
-              rows={7}
+              rows={4}
               value={text}
               maxLength={8000}
               disabled={busy || saved || Boolean(attempt.current)}
@@ -255,7 +279,7 @@ export function DirectWhatsApp({
               Saved as staff-confirmed WhatsApp in the customer’s enquiry.
             </p>
           ) : (
-            <div className="flex flex-wrap gap-3">
+            <div className="portal-popup-actions">
               {ready && !busy && (
                 <a
                   className="inline-flex min-h-11 items-center rounded-md bg-primary px-4 py-2 text-primary-foreground"
@@ -289,6 +313,7 @@ export function DirectWhatsApp({
               )}
             </div>
           )}
+          <Button type="button" variant="outline" disabled={busy && inFlight.current} onClick={requestClose}>{saved ? "Done" : "Cancel"}</Button>
         </DialogContent>
       </Dialog>
     </>

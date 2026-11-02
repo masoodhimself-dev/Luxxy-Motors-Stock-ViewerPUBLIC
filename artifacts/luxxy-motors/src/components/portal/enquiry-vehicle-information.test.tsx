@@ -37,7 +37,7 @@ const car = {
   },
   features: ["Heated seats"],
 } as unknown as Car;
-it("keeps the same complete supplied facts in a phone-ready side panel", () => {
+it("keeps the same complete supplied facts in a phone-ready side panel", async () => {
   const close = vi.fn();
   render(
     <EnquiryVehicleInformation
@@ -54,6 +54,7 @@ it("keeps the same complete supplied facts in a phone-ready side panel", () => {
   expect(dialog).toHaveTextContent("Registration not supplied");
   expect(dialog).toHaveTextContent("Full supplied vehicle description.");
   expect(dialog).not.toHaveTextContent("preparation");
+  expect(within(dialog).queryByRole("button", { name: "View MOT history" })).not.toBeInTheDocument();
   for (const name of [
     "MOT history",
     "Running costs",
@@ -64,7 +65,7 @@ it("keeps the same complete supplied facts in a phone-ready side panel", () => {
     fireEvent.click(within(dialog).getByText(name, { selector: "summary" }));
   }
   expect(
-    within(dialog).getByRole("button", { name: "View MOT history" }),
+    await within(dialog).findByRole("button", { name: "View MOT history" }),
   ).toBeVisible();
   expect(dialog).toHaveTextContent("4,871 mm");
   expect(dialog).toHaveTextContent("£200");

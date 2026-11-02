@@ -203,6 +203,7 @@ export function TestDriveDeclarations({
     >
       <DialogContent
         className="portal-action-dialog portal-action-dialog-wide test-drive-declarations"
+        closeDisabled={busy}
         onEscapeKeyDown={(event) => {
           if (busy) event.preventDefault();
         }}

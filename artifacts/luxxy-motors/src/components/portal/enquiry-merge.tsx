@@ -10,6 +10,7 @@ import { deskMatches } from '@/lib/enquiry-desk-model';
 import { appointmentLabel } from '@/lib/test-drive-dates';
 import { differingMergeContacts, hasActiveAppointment, mergeGroup, mergeRequest, mergeRoot, mergeContactSuggestion, mergeSuggestionRank, overlappingMergeAppointments } from './enquiry-merge-model';
 import './enquiry-merge.css';
+import { usePopupDraftGuard } from './popup-draft-guard';
 
 export type MergeResult = { primaryId: string; recordIds: string[]; cancelledAppointmentIds: string[] };
 function mergeError(error: unknown) {
@@ -37,6 +38,7 @@ export function EnquiryMergeDialog({ entry, entries, onRefresh, onClose, onSaved
   const [error, setError] = useState('');
   const [conflict, setConflict] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const busy = useRef(false);
   const mutation = useMutation({ mutationFn: (data: ReturnType<typeof mergeRequest>) => customFetch<MergeResult>(`/api/staff/enquiries/${encodeURIComponent(primaryId)}/merge`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data), responseType: 'json' }), retry: false });
   const primary = snapshot.find(item => item.id === primaryId);
@@ -54,7 +56,14 @@ export function EnquiryMergeDialog({ entry, entries, onRefresh, onClose, onSaved
   const overlaps = overlappingMergeAppointments(kept);
   const available = Boolean(primary && !('mergedIntoId' in primary && primary.mergedIntoId) && !missing && primaryGroup.every(item => selectedIds.includes(item.id)));
   const valid = available && records.length >= 2 && records.length <= 20 && reason.trim().length >= 2 && reason.trim().length <= 1000 && (!different || differentConfirmed) && (!overlaps.length || overlapConfirmed) && (!cancelled.length || cancelConfirmed);
-  const locked = mutation.isPending || refreshing;
+  const locked = submitting || mutation.isPending || refreshing;
+  const initialIds = initialGroup.map(item => item.id);
+  const initialKeepIds = initialGroup.filter(hasActiveAppointment).map(item => item.id);
+  const { requestClose, discardPrompt } = usePopupDraftGuard({
+    dirty: Boolean(reason || differentConfirmed || overlapConfirmed || cancelConfirmed || selectedIds.length !== initialIds.length || selectedIds.some(id => !initialIds.includes(id)) || keepIds.length !== initialKeepIds.length || keepIds.some(id => !initialKeepIds.includes(id))),
+    blocked: () => busy.current || refreshing,
+    onClose,
+  });
   function resetReview() { setReview(false); setDifferentConfirmed(false); setOverlapConfirmed(false); setCancelConfirmed(false); setError(''); }
   function toggleCandidate(candidate: Enquiry) {
     const group = mergeGroup(candidate, snapshot);
@@ -66,6 +75,7 @@ export function EnquiryMergeDialog({ entry, entries, onRefresh, onClose, onSaved
   }
   async function refreshRecords() {
     if (busy.current) return;
+    busy.current = true;
     setRefreshing(true);
     try {
       const fresh = await onRefresh();
@@ -78,17 +88,18 @@ export function EnquiryMergeDialog({ entry, entries, onRefresh, onClose, onSaved
       setSnapshot(fresh); setConflict(false); resetReview();
       setError('Records refreshed. Check the details and appointment choices, then review the merge again.');
     } catch { setError('Records could not be refreshed. Your selections are still here; try refreshing again.'); }
-    finally { setRefreshing(false); }
+    finally { busy.current = false; setRefreshing(false); }
   }
   async function submit() {
     if (!valid || !review || conflict || busy.current) return;
-    busy.current = true; setError('');
+    busy.current = true; setSubmitting(true); setError('');
     try { const result = await mutation.mutateAsync(mergeRequest(records, kept.map(item => item.id), reason, differentConfirmed, overlapConfirmed)); await onSaved(result); }
     catch (cause) { setError(mergeError(cause)); if (isConflict(cause)) { setConflict(true); setReview(false); } }
-    finally { busy.current = false; }
+    finally { busy.current = false; setSubmitting(false); }
   }
-  return <Dialog open onOpenChange={open => { if (!open && !busy.current && !refreshing) onClose(); }}><DialogContent className="portal-action-dialog enquiry-action-dialog enquiry-merge-dialog">
+  return <Dialog open onOpenChange={open => { if (!open) requestClose(); }}><DialogContent className="portal-action-dialog enquiry-action-dialog enquiry-merge-dialog" closeDisabled={locked}>
     <DialogHeader><DialogTitle className="pr-12">Merge enquiries & appointments</DialogTitle><DialogDescription>Bring related records into one case. Original customer, car, messages and history stay on each record.</DialogDescription></DialogHeader>
+    {discardPrompt}
     {!available && <p role="alert" className="enquiry-merge-warning">The main record or a linked original has changed or could not be loaded. Refresh records before continuing.</p>}
     {primary && <section aria-label="Main record" className="enquiry-merge-primary"><OriginalSummary entry={primary} main /><p>The merged case keeps {primary.customerName} as its main customer record. Existing appointments and follow-ups remain on their original records.</p>{primaryGroup.length > 1 && <p>{primaryGroup.length - 1} already linked {primaryGroup.length === 2 ? 'record is' : 'records are'} included automatically.</p>}</section>}
     <fieldset disabled={locked || conflict} className="enquiry-merge-fields">
@@ -104,6 +115,6 @@ export function EnquiryMergeDialog({ entry, entries, onRefresh, onClose, onSaved
     {review && <p className="enquiry-merge-review-note">{records.length} original records linked to {primary?.customerName}. {kept.length} appointments kept; {cancelled.length} cancelled. Follow-up tasks and all conversation history are retained.</p>}
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     {conflict && <p className="text-sm">A record changed while you were reviewing. Refresh and review the latest details before submitting again.</p>}
-    <div className="enquiry-merge-footer">{conflict || !available ? <Button type="button" disabled={locked} onClick={() => void refreshRecords()}>{refreshing ? 'Refreshing…' : 'Refresh records'}</Button> : review ? <><Button type="button" disabled={locked || !valid} onClick={() => void submit()}><GitMerge aria-hidden className="mr-2 h-4 w-4" />{mutation.isPending ? 'Merging…' : 'Merge records'}</Button><Button type="button" variant="outline" disabled={locked} onClick={() => setReview(false)}>Back to choices</Button></> : <Button type="button" disabled={locked || !valid} onClick={() => setReview(true)}>Review merge</Button>}<Button type="button" variant="outline" disabled={locked} onClick={onClose}>Cancel</Button></div>
+    <div className="enquiry-merge-footer">{conflict || !available ? <Button type="button" disabled={locked} onClick={() => void refreshRecords()}>{refreshing ? 'Refreshing…' : 'Refresh records'}</Button> : review ? <><Button type="button" disabled={locked || !valid} onClick={() => void submit()}><GitMerge aria-hidden className="mr-2 h-4 w-4" />{submitting ? 'Merging…' : 'Merge records'}</Button><Button type="button" variant="outline" disabled={locked} onClick={() => setReview(false)}>Back to choices</Button></> : <Button type="button" disabled={locked || !valid} onClick={() => setReview(true)}>Review merge</Button>}<Button type="button" variant="outline" disabled={locked} onClick={requestClose}>Cancel</Button></div>
   </DialogContent></Dialog>;
 }

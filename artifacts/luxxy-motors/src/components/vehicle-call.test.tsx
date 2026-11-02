@@ -72,3 +72,22 @@ it('makes callback the first contact action when closed, with calling still avai
  expect(dialog).toHaveTextContent('Ask us to call you back when we reopen.');
  expect(state.mutate).not.toHaveBeenCalled();
 });
+
+it('focuses the telephone field when a callback number cannot be used', () => {
+ show();const dialog=open();fireEvent.click(within(dialog).getByRole('button',{name:'Request a callback'}));
+ fireEvent.change(screen.getByRole('textbox',{name:'Your name'}),{target:{value:'Alex Buyer'}});
+ fireEvent.change(screen.getByRole('textbox',{name:'Telephone'}),{target:{value:'no number'}});
+ fireEvent.submit(screen.getByRole('form',{name:'Request a callback'}));
+ expect(screen.getByRole('textbox',{name:'Telephone'})).toHaveFocus();
+ expect(screen.getByRole('textbox',{name:'Telephone'})).toHaveAccessibleDescription('Enter a valid phone number so we can call you.');
+ expect(state.mutate).not.toHaveBeenCalled();
+});
+
+it('keeps the callback form in place while its request is sending', () => {
+ const view=show();const dialog=open();fireEvent.click(within(dialog).getByRole('button',{name:'Request a callback'}));
+ state.pending=true;view.rerender(<VehicleCall car={car}/>);
+ expect(screen.getByRole('button',{name:'Back to contact details'})).toBeDisabled();
+ expect(screen.getByRole('button',{name:'Close'})).toBeDisabled();
+ fireEvent.keyDown(document,{key:'Escape'});
+ expect(screen.getByRole('form',{name:'Request a callback'})).toBeVisible();
+});

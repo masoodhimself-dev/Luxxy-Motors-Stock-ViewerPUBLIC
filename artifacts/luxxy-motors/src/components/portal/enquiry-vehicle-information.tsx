@@ -1,6 +1,6 @@
 import type { MotHistory } from "@workspace/vehicle-meta";
 import { MotHistoryPanel } from "../mot-history";
-import { useRef, type ReactNode, type RefObject } from "react";
+import { useRef, useState, type ReactNode, type RefObject } from "react";
 import type { Car } from "@/lib/stock-context";
 import { vehicleContent } from "@/lib/vehicle-content";
 import { buyerInformation } from "@/lib/buyer-information";
@@ -172,6 +172,7 @@ export function VehicleInformationBody({
   onMotHistory?: (history: MotHistory) => void;
 }) {
   const { description, features } = vehicleContent(car);
+  const [motRequestedFor, setMotRequestedFor] = useState<string | null>(null);
   const facts: [string, unknown][] = [
     [
       "Price",
@@ -206,6 +207,8 @@ export function VehicleInformationBody({
   const runningCosts = vehicleRunningCosts(car);
   const recordFacts = vehicleHistoryFacts(car);
   const specificationGroups = vehicleSpecificationGroups(car);
+  const primaryLabels = new Set(["Price", "Year", "Registration / plate", "Mileage", "Fuel", "Transmission"]);
+  const suppliedFacts = facts.filter(([, value]) => value !== null && value !== undefined && value !== "");
   return (
     <div className="staff-vehicle-body">
       <HistoryLinks vehicleId={car.id} />
@@ -226,24 +229,38 @@ export function VehicleInformationBody({
         </div>
         <section>
           <h3 className="mb-3 font-semibold">At a glance</h3>
-          <dl className="enquiry-vehicle-facts divide-y divide-border text-sm">
-            {facts
-              .filter(
-                ([, value]) =>
-                  value !== null && value !== undefined && value !== "",
-              )
+          <dl className="staff-vehicle-key-facts text-sm">
+            {suppliedFacts.filter(([label]) => primaryLabels.has(label))
               .map(([label, value]) => (
-                <div
-                  key={label}
-                  className="flex min-w-0 justify-between gap-4 py-2"
-                >
+                <div key={label}>
                   <dt className="text-muted-foreground">{label}</dt>
-                  <dd className="text-right font-medium">{String(value)}</dd>
+                  <dd className="font-medium">{String(value)}</dd>
                 </div>
               ))}
           </dl>
         </section>
       </div>
+      {canManage && includeMot && (
+        <details key={`mot-${car.id}`} className="staff-vehicle-fact-group" onToggle={event => {
+          if (event.currentTarget.open) setMotRequestedFor(car.id);
+        }}>
+          <summary>MOT history</summary>
+          {motRequestedFor === car.id && <MotHistoryPanel vehicleId={car.id} staff autoLoad onHistory={onMotHistory} />}
+        </details>
+      )}
+      {suppliedFacts.some(([label]) => !primaryLabels.has(label)) && (
+        <details className="staff-vehicle-fact-group">
+          <summary>More vehicle details</summary>
+          <dl className="enquiry-vehicle-facts divide-y divide-border text-sm">
+            {suppliedFacts.filter(([label]) => !primaryLabels.has(label)).map(([label, value]) => (
+              <div key={label} className="flex min-w-0 justify-between gap-4 py-2">
+                <dt className="text-muted-foreground">{label}</dt>
+                <dd className="text-right font-medium">{String(value)}</dd>
+              </div>
+            ))}
+          </dl>
+        </details>
+      )}
       <details className="staff-vehicle-fact-group">
         <summary>History & condition</summary>
         <dl className="grid gap-4 text-sm sm:grid-cols-2">
@@ -270,12 +287,6 @@ export function VehicleInformationBody({
           <p className="mt-3 text-sm">History check: {extra.writeOffCheck}</p>
         )}
       </details>
-      {canManage && includeMot && (
-        <details className="staff-vehicle-fact-group">
-          <summary>MOT history</summary>
-          <MotHistoryPanel vehicleId={car.id} staff onHistory={onMotHistory} />
-        </details>
-      )}
       {description && (
         <section className="border-t border-border pt-4">
           <h3 className="mb-2 font-semibold">

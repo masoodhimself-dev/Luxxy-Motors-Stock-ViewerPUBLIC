@@ -28,6 +28,7 @@ import {
   withinBookingHours,
 } from "../../../../api-server/src/lib/booking-slots";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { usePopupDraftGuard } from "./popup-draft-guard";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetStaffDirectory,
@@ -1180,7 +1181,7 @@ function AppointmentEditor({
   bookingAccess: BookingAccess;
   booking: Enquiry;
   onClose: () => void;
-  onSaved: (entry: Enquiry) => void;
+  onSaved: (entry: Enquiry) => void | Promise<void>;
 }) {
   const [time, setTime] = useState("");
   const [cancelling, setCancelling] = useState(false);
@@ -1188,10 +1189,17 @@ function AppointmentEditor({
   const [allowOutsideHours, setAllowOutsideHours] = useState(false);
   const [allowDoubleBooking, setAllowDoubleBooking] = useState(false);
   const [reviewException, setReviewException] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const busy = useRef(false);
   const mutation = useChangeStaffAppointment();
   const { settings } = useDealerSettings();
+  const { requestClose, discardPrompt } = usePopupDraftGuard({
+    dirty: Boolean(time || allowOutsideHours || allowDoubleBooking),
+    blocked: () => busy.current,
+    onClose,
+  });
   async function save(confirmed = false) {
-    if (mutation.isPending) return;
+    if (busy.current) return;
     if (!cancelling && (!bookingAccess.enabled || !time)) return;
     if (
       !cancelling &&
@@ -1201,8 +1209,10 @@ function AppointmentEditor({
       setReviewException(true);
       return;
     }
+    busy.current = true;
+    setSaving(true);
     try {
-      onSaved(
+      await onSaved(
         await mutation.mutateAsync({
           id: booking.id,
           data: {
@@ -1220,22 +1230,26 @@ function AppointmentEditor({
       );
     } catch {
       /* Keep edit open with the error. */
+    } finally {
+      busy.current = false;
+      setSaving(false);
     }
   }
   return (
     <Dialog
       open
       onOpenChange={(open) => {
-        if (!open && !mutation.isPending) onClose();
+        if (!open) requestClose();
       }}
     >
-      <DialogContent className="portal-action-dialog enquiry-action-dialog">
+      <DialogContent className="portal-action-dialog enquiry-action-dialog" closeDisabled={saving}>
         <DialogHeader>
           <DialogTitle className="pr-10">
             {cancelling ? "Cancel this appointment?" : "Change appointment"}
           </DialogTitle>
           <DialogDescription>{booking.customerName}</DialogDescription>
         </DialogHeader>
+        {discardPrompt}
         <div className="enquiry-appointment-summary border-y border-border py-3 text-sm">
           <p className="font-semibold">{booking.vehicleTitle}</p>
           <p className="mt-1">
@@ -1251,6 +1265,7 @@ function AppointmentEditor({
         ) : !bookingAccess.enabled ? (
           <BookingAccessNotice access={bookingAccess} />
         ) : (
+          <fieldset disabled={saving}>
           <StaffAppointmentPicker
             bookingId={booking.id}
             initialDate={
@@ -1267,6 +1282,7 @@ function AppointmentEditor({
             allowDoubleBooking={allowDoubleBooking}
             onDoubleBooking={setAllowDoubleBooking}
           />
+          </fieldset>
         )}
         {!cancelling && time && (
           <p className="text-sm font-medium">
@@ -1282,16 +1298,16 @@ function AppointmentEditor({
             booking has changed.
           </p>
         )}
-        <div className="flex flex-wrap gap-2">
+        <div className="portal-popup-actions">
           <Button
             disabled={
-              mutation.isPending ||
+              saving ||
               (!cancelling && (!bookingAccess.enabled || !time))
             }
             variant={cancelling ? "destructive" : "default"}
             onClick={() => void save()}
           >
-            {mutation.isPending
+            {saving
               ? "Saving…"
               : cancelling
                 ? "Confirm cancellation"
@@ -1301,8 +1317,8 @@ function AppointmentEditor({
           </Button>
           <Button
             variant="outline"
-            disabled={mutation.isPending}
-            onClick={onClose}
+            disabled={saving}
+            onClick={requestClose}
           >
             Keep existing appointment
           </Button>
@@ -1310,7 +1326,7 @@ function AppointmentEditor({
         {!cancelling && (
           <Button
             variant="ghost"
-            disabled={mutation.isPending}
+            disabled={saving}
             onClick={() => setCancelling(true)}
           >
             Cancel appointment instead

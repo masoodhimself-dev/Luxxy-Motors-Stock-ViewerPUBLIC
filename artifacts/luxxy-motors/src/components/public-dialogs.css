@@ -1,0 +1,74 @@
+/* Customer sheets keep the title and next action in sight while longer details scroll. */
+[role="dialog"].vehicle-answers-dialog,
+[role="dialog"].vehicle-whatsapp-dialog,
+[role="dialog"].vehicle-print-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow: hidden;
+}
+.vehicle-answers-dialog > :not(.public-dialog-scroll),
+.vehicle-whatsapp-dialog > :not(.public-dialog-scroll),
+.vehicle-print-dialog > :not(.public-dialog-scroll) { flex-shrink: 0; }
+.public-dialog-scroll {
+  flex: 1 1 auto;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: 12px;
+  padding: 3px;
+  scrollbar-width: thin;
+}
+.vehicle-answers-dialog .vehicle-answers-heading { margin-bottom: 0; padding-bottom: 14px; }
+.vehicle-answers-dialog .vehicle-answers-heading h2 { padding-right: 36px; }
+.vehicle-answers-dialog .vehicle-answers-contact { margin-top: 0; }
+.vehicle-answers-dialog .vehicle-answers-contact > p { margin-bottom: 10px; }
+.vehicle-answers-dialog .vehicle-answers-list { min-width: 0; overflow: visible; }
+.vehicle-answers-dialog .vehicle-answers-list :is(button,p) { overflow-wrap: anywhere; }
+.public-dialog-reset {
+  justify-self: start;
+  min-height: 44px;
+  padding: 8px 0;
+  color: var(--dialog-accent, hsl(var(--primary)));
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.vehicle-whatsapp-dialog .vehicle-action-footer {
+  padding-top: 14px;
+  border-top: 1px solid var(--dialog-border);
+}
+.vehicle-whatsapp-dialog .vehicle-action-footer > .vehicle-action-note { font-size: 12px; }
+.vehicle-whatsapp-dialog textarea { min-height: 124px; }
+.vehicle-print-dialog .vehicle-print-actions { padding-right: 4px; }
+.vehicle-print-dialog .vehicle-print-preview { display: block; }
+@media (max-width: 639px) {
+  [role="dialog"].vehicle-answers-dialog,
+  [role="dialog"].vehicle-whatsapp-dialog {
+    top: auto;
+    right: auto;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-width: none;
+    max-height: calc(100dvh - max(12px, env(safe-area-inset-top)));
+    translate: none;
+    transform: none;
+    border-radius: var(--mh-radius-panel, 16px) var(--mh-radius-panel, 16px) 0 0;
+    padding: 20px 16px max(16px, env(safe-area-inset-bottom));
+    gap: 14px;
+  }
+  .vehicle-whatsapp-dialog .vehicle-action-heading { padding-right: 36px; }
+  .vehicle-answers-dialog .vehicle-answers-contact > p { display: none; }
+  .vehicle-whatsapp-dialog .public-dialog-scroll { gap: 12px; }
+  .vehicle-whatsapp-dialog .vehicle-action-status { padding: 10px; }
+}
+@media (max-height: 480px) {
+  .vehicle-whatsapp-dialog .vehicle-action-heading > p[id],
+  .vehicle-answers-dialog .vehicle-answers-contact > p { display: none; }
+  .vehicle-whatsapp-dialog .vehicle-action-heading > .vehicle-action-eyebrow { display: none; }
+}

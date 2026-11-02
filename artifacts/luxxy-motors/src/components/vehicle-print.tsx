@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Printer } from '@/components/icons';
 import { isMultiChoiceWebsite } from '@/lib/multi-home-scope';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import './public-dialogs.css';
 import type { Car } from '@/lib/stock-context';
 import type { DealerConfig } from '@/config/dealer';
 import { vehicleDisplayTitle, vehicleRegistration } from '@/lib/utils';
@@ -139,9 +140,9 @@ export function VehiclePrint({ car, dealer, features: _features, description: _d
   return <>
     <button id="print-vehicle-details" type="button" className="text-link min-h-11 text-sm" onClick={() => { setStatus('checking'); setError(''); setOpen(true); }} data-testid="button-print-vehicle" aria-label={`Print vehicle details for ${vehicleDisplayTitle(car)}`}><Printer aria-hidden="true" className="h-4 w-4" />Print vehicle details</button>
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-4xl p-4 sm:p-6">
+      <DialogContent className="vehicle-print-dialog max-w-4xl p-4 sm:p-6">
         <DialogHeader><DialogTitle>Vehicle details</DialogTitle><DialogDescription>One A4 page. Scan the QR code for the full description, equipment and photos.</DialogDescription></DialogHeader>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="vehicle-print-actions flex flex-wrap items-center gap-2">
           <Button type="button" className="min-h-11" disabled={!ready} onClick={() => { frame.current?.contentWindow?.focus(); frame.current?.contentWindow?.print(); }}><Printer className="h-4 w-4" aria-hidden="true" />Print A4 sheet</Button>
           <Button type="button" variant="outline" className="min-h-11" disabled={!ready} onClick={() => void download()}>{downloading ? 'Preparing PDF…' : 'Download PDF'}</Button>
           <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 px-2 text-sm"><input type="checkbox" checked={monochrome} disabled={downloading} onChange={event => setMonochrome(event.target.checked)} className="h-4 w-4 accent-current" />Ink-saving</label>
@@ -149,7 +150,7 @@ export function VehiclePrint({ car, dealer, features: _features, description: _d
         {(status === 'checking' || status === 'preparing') && <p role="status">{status === 'checking' ? 'Checking current price and availability…' : 'Preparing your sheet…'}</p>}
         {status === 'ready' && <p className="text-xs text-muted-foreground">Price and availability checked for this sheet.</p>}
         {error && <div><p role="alert" className="text-destructive">{error}</p>{status === 'error' && <Button type="button" variant="outline" className="mt-2 min-h-11" onClick={() => setRetry(value => value + 1)}>Try again</Button>}</div>}
-        <div className="min-w-0 overflow-hidden bg-muted" aria-busy={status === 'checking' || status === 'preparing'}><div ref={setContainer} className="relative w-full max-w-[794px] mx-auto" /></div>
+        <div className="public-dialog-scroll vehicle-print-preview min-w-0 bg-muted" aria-busy={status === 'checking' || status === 'preparing'}><div ref={setContainer} className="relative w-full max-w-[794px] mx-auto" /></div>
       </DialogContent>
     </Dialog>
   </>;

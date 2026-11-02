@@ -220,7 +220,7 @@ export function DeleteEnquiry({
             Check again
           </Button>
         )}
-        <AlertDialogFooter className="gap-2 sm:gap-0">
+        <AlertDialogFooter className="gap-2">
           <AlertDialogCancel disabled={busy}>Keep enquiry</AlertDialogCancel>
           <Button
             type="button"

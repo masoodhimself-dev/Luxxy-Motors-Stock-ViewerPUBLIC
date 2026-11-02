@@ -50,7 +50,15 @@ export function VehicleQuickChecks({
   // content stable until it unmounts, rather than switching to the other tool.
   const lastPanel = useRef<"mot" | "delivery">("mot");
   const shownPanel = panel ?? lastPanel.current;
-  const [history, setHistory] = useState<MotHistory | null>(null);
+  const [savedHistory, setSavedHistory] = useState<{ vehicleId: string; value: MotHistory } | null>(null);
+  const currentVehicle = useRef(vehicleId);
+  currentVehicle.current = vehicleId;
+  const history = savedHistory?.vehicleId === vehicleId ? savedHistory.value : null;
+  const acceptHistory = useCallback((value: MotHistory | null) => {
+    if (currentVehicle.current !== vehicleId) return;
+    setSavedHistory(value ? { vehicleId, value } : null);
+  }, [vehicleId]);
+  const heading = useRef<HTMLHeadingElement>(null);
   const quoteContext = JSON.stringify([
     vehicleId,
     deliveryQuoteContext(settings),
@@ -83,9 +91,9 @@ export function VehicleQuickChecks({
     if (answerLookup.current) return;
     const controller = new AbortController(); answerLookup.current = controller;
     customFetch<{status: string; history?: MotHistory}>(`/api/vehicles/${encodeURIComponent(vehicleId)}/mot-history`, {signal:controller.signal})
-      .then(reply => { if (!controller.signal.aborted && reply.status === 'available' && reply.history) setHistory(reply.history); })
+      .then(reply => { if (!controller.signal.aborted && reply.status === 'available' && reply.history) acceptHistory(reply.history); })
       .catch(() => {});
-  }, [vehicleId]);
+  }, [vehicleId, acceptHistory]);
   useEffect(() => () => { answerLookup.current?.abort(); answerLookup.current = null; }, [vehicleId]);
   function open(next: "mot" | "delivery", trigger: HTMLButtonElement) {
     lastTrigger.current = trigger;
@@ -108,7 +116,7 @@ export function VehicleQuickChecks({
           reply.status === "available" &&
           reply.history
         )
-          setHistory(current => current && Date.parse(current.checkedAt) >= Date.parse(reply.history!.checkedAt) ? current : reply.history!);
+          setSavedHistory(current => current?.vehicleId === vehicleId && Date.parse(current.value.checkedAt) >= Date.parse(reply.history!.checkedAt) ? current : { vehicleId, value: reply.history! });
       })
       .catch(() => {});
     return () => controller.abort();
@@ -175,6 +183,7 @@ export function VehicleQuickChecks({
         <DialogContent
           className="vehicle-check-dialog max-w-xl"
           style={dialogTheme}
+          onOpenAutoFocus={event => { event.preventDefault(); heading.current?.focus({ preventScroll: true }); }}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
             const pending = pendingEnquiry.current;
@@ -190,7 +199,7 @@ export function VehicleQuickChecks({
           }}
         >
           <DialogHeader className="vehicle-check-header text-left">
-            <DialogTitle className="pr-12 text-xl">
+            <DialogTitle ref={heading} tabIndex={-1} className="pr-12 text-xl">
               {shownPanel === "delivery" ? "Delivery estimate" : "MOT history"}
             </DialogTitle>
             <DialogDescription>
@@ -202,9 +211,10 @@ export function VehicleQuickChecks({
           <div className="vehicle-check-body">
             {shownPanel === "mot" && (
               <MotHistoryPanel
+                key={vehicleId}
                 vehicleId={vehicleId}
                 autoLoad
-                onHistory={setHistory}
+                onHistory={acceptHistory}
               />
             )}
             {/* Keep the quote and postcode when closing or switching panels. */}

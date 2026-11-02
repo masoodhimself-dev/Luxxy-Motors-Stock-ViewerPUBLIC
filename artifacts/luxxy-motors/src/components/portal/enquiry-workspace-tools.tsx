@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   assessCustomerContact,
   type CustomerContactMatch,
@@ -32,6 +32,7 @@ import {
 } from "@/lib/enquiry-desk-model";
 import { attendanceError } from "../../../../api-server/src/lib/enquiry-workspace";
 import "./enquiry-history.css";
+import { usePopupDraftGuard } from "./popup-draft-guard";
 
 export function workspaceError(error: unknown) {
   const e = error as { data?: { error?: string } };
@@ -96,9 +97,21 @@ export function WorkspaceEditor({
   const [owner, setOwner] = useState(entry.assignedToId ?? "");
   const [outcome, setOutcome] = useState(entry.callOutcome ?? "");
   const [note, setNote] = useState(entry.staffNote ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const busy = useRef(false);
   const mutation = useUpdateEnquiryWorkspace();
   const refresh = useRefreshDesk();
+  const { requestClose, discardPrompt } = usePopupDraftGuard({
+    dirty: owner !== (entry.assignedToId ?? "") || outcome !== (entry.callOutcome ?? "") || note !== (entry.staffNote ?? ""),
+    blocked: () => busy.current,
+    onClose,
+  });
   async function save() {
+    if (busy.current) return;
+    busy.current = true;
+    setSaving(true);
+    setError("");
     try {
       await mutation.mutateAsync({
         id: entry.id,
@@ -111,20 +124,28 @@ export function WorkspaceEditor({
       });
       await refresh();
       onClose();
-    } catch {}
+    } catch (cause) {
+      setError(workspaceError(cause));
+    } finally {
+      busy.current = false;
+      setSaving(false);
+    }
   }
   return (
     <Dialog
       open
       onOpenChange={(open) => {
-        if (!open && !mutation.isPending) onClose();
+        if (!open) requestClose();
       }}
     >
-      <DialogContent className="portal-action-dialog enquiry-action-dialog">
+      <DialogContent className="portal-action-dialog enquiry-action-dialog portal-popup-form-dialog" closeDisabled={saving}>
         <DialogHeader>
           <DialogTitle>Update enquiry</DialogTitle>
           <DialogDescription>{entry.customerName}</DialogDescription>
         </DialogHeader>
+        {discardPrompt}
+        <form className="portal-popup-form" onSubmit={event => { event.preventDefault(); void save(); }}>
+        <fieldset disabled={saving}>
         <OwnerSelect value={owner} onChange={setOwner} />
         <label className="grid gap-1.5 text-sm font-medium">
           Call outcome
@@ -160,18 +181,23 @@ export function WorkspaceEditor({
             rows={4}
           />
         </label>
+        </fieldset>
         <p className="text-xs text-muted-foreground">
           Original call notes are retained. Schedule a follow-up from the
           enquiry before choosing Callback requested.
         </p>
-        {mutation.isError && (
+        {error && (
           <p role="alert" className="text-sm text-destructive">
-            {workspaceError(mutation.error)}
+            {error}
           </p>
         )}
-        <Button onClick={() => void save()} disabled={mutation.isPending}>
-          {mutation.isPending ? "Saving…" : "Save enquiry update"}
-        </Button>
+        <div className="portal-popup-actions">
+          <Button type="button" variant="outline" disabled={saving} onClick={requestClose}>Cancel</Button>
+          <Button type="submit" disabled={saving}>
+            {saving ? "Saving…" : "Save changes"}
+          </Button>
+        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

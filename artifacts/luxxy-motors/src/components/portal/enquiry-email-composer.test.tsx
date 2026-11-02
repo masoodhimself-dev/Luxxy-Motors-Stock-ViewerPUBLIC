@@ -447,6 +447,10 @@ it.each([
       await screen.findByRole("combobox", { name: "Email template" }),
       { target: { value: templateId } },
     );
+    if (templateId !== "invoice_copy") {
+      fireEvent.click(screen.getByText(/Service-book & history photos/, { selector: "summary" }));
+      await screen.findByRole("checkbox", { name: checkbox });
+    }
     expect(screen.getByRole("checkbox", { name: checkbox })).toBeChecked();
     expect(screen.getByRole("button", { name: "Review email" })).toBeEnabled();
     fireEvent.click(screen.getByRole("checkbox", { name: checkbox }));
@@ -461,6 +465,80 @@ it.each([
     expect(calls("/email-draft")).toHaveLength(0);
   },
 );
+
+it("keeps edited emails on Close until staff choose to discard the changes", async () => {
+  mount();
+  fireEvent.change(await screen.findByRole("textbox", { name: "Message" }), { target: { value: "Please keep this draft" } });
+  fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  expect(state.close).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue("Please keep this draft");
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+  expect(state.close).toHaveBeenCalledWith("draft");
+  expect(calls("/email")).toHaveLength(0);
+});
+
+it("opens the preview at its heading and leaves private photo requests on demand", async () => {
+  mount();
+  await screen.findByRole("textbox", { name: "Message" });
+  expect(state.fetch.mock.calls.some(call => String(call[0]).includes("/photos/"))).toBe(false);
+  const body = document.querySelector(".enquiry-email-scroll")!;
+  body.scrollTop = 400;
+  fireEvent.click(screen.getByRole("button", { name: "Review email" }));
+  const title = await screen.findByRole("heading", { name: "Review customer email" });
+  expect(title).toHaveFocus();
+  expect(body.scrollTop).toBe(0);
+  expect(calls("/email")).toHaveLength(0);
+});
+
+it("disables discard choices during a draft save and removes the warning once the same edits are saved", async () => {
+  let finish!: (value: object) => void;
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation((url: string, options?: unknown) => url.endsWith("/email-draft")
+    ? new Promise(resolve => { finish = resolve; }) : original(url, options));
+  mount();
+  fireEvent.change(await screen.findByRole("textbox", { name: "Message" }), { target: { value: "Save this fictional note." } });
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+  expect(screen.getByRole("button", { name: "Keep editing" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Discard changes" })).toBeDisabled();
+  await act(async () => { finish({ version: 5 }); });
+  await screen.findByText("Draft saved · not sent");
+  expect(screen.queryByRole("button", { name: "Discard changes" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(state.close).toHaveBeenCalledWith("draft");
+  expect(calls("/email")).toHaveLength(0);
+});
+
+it.each([
+  { action: "Close", status: "sent", result: "sent", heading: "Submitted to Resend" },
+  { action: "Escape", status: "sent", result: "sent", heading: "Submitted to Resend" },
+  { action: "Outside", status: "sent", result: "sent", heading: "Submitted to Resend" },
+  { action: "Close", status: "unknown", result: "draft", heading: "Acceptance unconfirmed" },
+])("returns $result after $action dismisses a $status email without sending another copy", async ({ action, status, result, heading }) => {
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options?: { method?: string }) => url.endsWith("/email") && options?.method === "POST"
+    ? { delivery: { id: "accepted-close-fixture", requestId: "close-fixture-request", to: "alex@example.test", subject: "Reviewed reply", status, photoCount: 0, createdAt: "2026-11-02T10:00:00Z", error: null } }
+    : original(url, options));
+  mount();
+  await screen.findByRole("textbox", { name: "Message" });
+  fireEvent.click(screen.getByRole("button", { name: "Review email" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Send email" }));
+  await screen.findByRole("heading", { name: heading });
+  await waitFor(() => expect(screen.getByRole("button", { name: "Close" })).toBeEnabled());
+  if (action === "Escape") fireEvent.keyDown(document, { key: "Escape" });
+  else if (action === "Outside") {
+    // Radix defers its document listener until the opening pointer event ends.
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
+    const overlay = document.querySelector("[data-popup-overlay]")!;
+    fireEvent.pointerDown(overlay, { button: 0, pointerType: "mouse" });
+    fireEvent.click(overlay, { button: 0 });
+  }
+  else fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  await waitFor(() => expect(state.close).toHaveBeenCalledExactlyOnceWith(result));
+  expect(calls("/email")).toHaveLength(1);
+});
 
 it('refreshes a queued email from its journal without making a second send request', async () => {
   const original = state.fetch.getMockImplementation()!;

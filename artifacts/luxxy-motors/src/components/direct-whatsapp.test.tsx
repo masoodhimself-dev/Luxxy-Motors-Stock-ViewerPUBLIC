@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 const state = vi.hoisted(() => ({ api: vi.fn() }));
 vi.mock("@workspace/api-client-react", () => ({
@@ -194,4 +194,43 @@ it("fails closed when the sale cannot be validated", async () => {
     screen.queryByRole("link", { name: "Open WhatsApp" }),
   ).not.toBeInTheDocument();
   expect(writes()).toHaveLength(0);
+});
+
+it("keeps edited text on dismissal and resets its discard prompt for the next opening", async () => {
+  show();
+  await open();
+  fireEvent.change(screen.getByRole("textbox", { name: "Message" }), { target: { value: "Please call about your visit." } });
+  fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  expect(screen.getByRole("alert")).toHaveTextContent("Discard your changes?");
+  fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue("Please call about your visit.");
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  await open();
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue("Your visit is confirmed.");
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  expect(writes()).toHaveLength(0);
+});
+
+it("warns that an opened WhatsApp handoff has not been recorded and locks closure while recording", async () => {
+  let finish!: (value: object) => void;
+  const original = state.api.getMockImplementation()!;
+  state.api.mockImplementation((path: string) => path.endsWith("/confirm-whatsapp") ? new Promise(resolve => { finish = resolve; }) : original(path));
+  show();
+  fireEvent.click(await open());
+  fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  expect(screen.getByRole("alert")).toHaveTextContent("Your WhatsApp activity has not been recorded");
+  fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  fireEvent.click(screen.getByRole("button", { name: "I’ve sent it" }));
+  expect(screen.getByRole("button", { name: "Close" })).toBeDisabled();
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+  expect(screen.getByRole("dialog")).toBeInTheDocument();
+  await waitFor(() => expect(writes()).toHaveLength(1));
+  await act(async () => { finish({ enquiryId: enquiry.id }); });
+  fireEvent.click(screen.getByRole("button", { name: "Done" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  expect(writes()).toHaveLength(1);
 });

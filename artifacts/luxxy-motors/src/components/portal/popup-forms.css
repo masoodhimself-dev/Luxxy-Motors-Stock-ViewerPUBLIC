@@ -1,0 +1,17 @@
+.portal-popup-form { display: grid; min-width: 0; gap: 16px; }
+.portal-popup-form > fieldset { display: grid; min-width: 0; gap: 14px; border: 0; padding: 0; margin: 0; }
+.portal-popup-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding-top: 12px; border-top: 1px solid var(--portal-border, #d8e2e8); }
+.portal-popup-actions > button { min-height: 44px; height: auto; white-space: normal; }
+.portal-popup-discard { padding: 12px; border: 1px solid var(--portal-warning-border, #e4cf9c); border-radius: 6px; background: var(--portal-warning-soft, #fff7e5); font-size: 14px; line-height: 1.5; }
+.portal-popup-discard > p { margin: 0 0 10px; }
+.portal-popup-discard > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.portal-popup-discard:focus { outline: 2px solid var(--portal-accent, #192e39); outline-offset: 2px; }
+.portal-action-dialog.portal-popup-form-dialog { display: flex; flex-direction: column; gap: 0; padding: 0; overflow: hidden; }
+.portal-action-dialog.portal-popup-form-dialog > [data-popup-header] { flex: 0 0 auto; margin: 0; padding: 18px 68px 16px 20px; border-bottom: 1px solid var(--portal-border, #d8e2e8); }
+.portal-popup-form-dialog > .portal-popup-form { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 20px; }
+.portal-popup-form-dialog > .portal-popup-discard { flex: 0 0 auto; margin: 12px 20px 0; }
+.portal-popup-form-dialog > p { flex: 0 0 auto; margin: 0; padding: 12px 20px 0; }
+.portal-popup-form-dialog .portal-popup-actions { position: sticky; bottom: -20px; z-index: 1; margin: 0 -20px -20px; padding: 12px 20px max(12px, env(safe-area-inset-bottom)); background: var(--portal-panel, #fff); }
+@media (max-width: 479px) {
+  .portal-popup-actions > button { flex: 1 1 auto; }
+}

@@ -1,5 +1,7 @@
 .vehicle-feature-trigger { text-align: left; cursor: pointer; }
 [role="dialog"].vehicle-feature-panel {
+  display: flex;
+  flex-direction: column;
   width: min(480px, calc(100vw - 32px));
   max-width: 480px;
   max-height: min(720px, calc(100dvh - 32px));
@@ -10,12 +12,12 @@
   background: var(--dealer-panel, hsl(var(--card)));
   color: var(--dealer-panel-ink, hsl(var(--card-foreground)));
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
   overscroll-behavior: contain;
   animation: none;
 }
 .vehicle-feature-overlay { background: var(--mh-overlay, #101b244d); }
-.vehicle-feature-panel-content { min-width: 0; }
+.vehicle-feature-panel-content { min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; scroll-padding-block: 12px; }
 .vehicle-feature-eyebrow {
   margin: 0 48px 24px 0;
   font-size: 12px;
@@ -59,6 +61,7 @@
   color: inherit;
 }
 .vehicle-feature-dismiss {
+  flex-shrink: 0;
   display: grid;
   place-items: center;
   min-height: 48px;
@@ -71,6 +74,12 @@
   font-size: 15px;
   font-weight: var(--mh-weight-label, 600);
   cursor: pointer;
+}
+@media (max-height: 560px) {
+  [role="dialog"].vehicle-feature-panel { padding: 22px; gap: 16px; }
+  .vehicle-feature-artwork { width: 72px; height: 72px; margin-bottom: 14px; }
+  .vehicle-feature-artwork svg { width: 54px; height: 54px; }
+  .vehicle-feature-eyebrow { margin-bottom: 14px; }
 }
 .vehicle-feature-dismiss:hover { filter: brightness(.95); }
 .vehicle-feature-dismiss:focus-visible,

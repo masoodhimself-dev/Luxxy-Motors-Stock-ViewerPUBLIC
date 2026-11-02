@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { VehicleWhatsApp } from './vehicle-whatsapp';
 import type { Car } from '@/lib/stock-context';
@@ -22,4 +22,29 @@ it('prepares a customer-editable message with the car year, price and registrati
   expect(decodeURIComponent(href!)).toContain('2018 Ford Fiesta · £7,995');
   fireEvent.change(message, { target: { value: 'Can I visit tomorrow?' } });
   expect(decodeURIComponent(screen.getByRole('link', { name: 'Continue to WhatsApp' }).getAttribute('href')!)).toContain('Can I visit tomorrow?');
+});
+
+it('keeps a customer’s edited draft after dismissal and offers an explicit reset', async () => {
+  render(<VehicleWhatsApp car={car} />);
+  fireEvent.click(screen.getByRole('button', { name: 'WhatsApp about Ford Fiesta' }));
+  const prepared = (screen.getByRole('textbox', { name: 'Your message' }) as HTMLTextAreaElement).value;
+  fireEvent.change(screen.getByRole('textbox', { name: 'Your message' }), { target: { value: 'Could you confirm whether both keys are included?' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  fireEvent.click(screen.getByRole('button', { name: 'WhatsApp about Ford Fiesta' }));
+  expect(screen.getByRole('textbox', { name: 'Your message' })).toHaveValue('Could you confirm whether both keys are included?');
+  fireEvent.click(screen.getByRole('button', { name: 'Reset message' }));
+  expect(screen.getByRole('textbox', { name: 'Your message' })).toHaveValue(prepared);
+});
+
+it('starts a new car with its own message and closes the previous car’s sheet', () => {
+  const { rerender } = render(<VehicleWhatsApp car={car} />);
+  fireEvent.click(screen.getByRole('button', { name: 'WhatsApp about Ford Fiesta' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Your message' }), { target: { value: 'A question about the Fiesta' } });
+  rerender(<VehicleWhatsApp car={{ ...car, id: 'other-car', title: 'Volvo V90', make: 'Volvo', model: 'V90', plate: 'CD21 EFG' }} />);
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'WhatsApp about Volvo V90' }));
+  const value = (screen.getByRole('textbox', { name: 'Your message' }) as HTMLTextAreaElement).value;
+  expect(value).toContain('Volvo V90');
+  expect(value).not.toContain('Fiesta');
 });

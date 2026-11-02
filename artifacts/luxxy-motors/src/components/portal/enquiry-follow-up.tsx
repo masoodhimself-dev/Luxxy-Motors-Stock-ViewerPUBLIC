@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type RefObject } from "react";
 import {
   useChangeStaffFollowUp,
   type Enquiry,
@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { usePopupDraftGuard } from "./popup-draft-guard";
 
 export function followUpLocal(value: string) {
   const date = new Date(value);
@@ -38,20 +39,26 @@ export function FollowUpFields({
   onTime,
   onNote,
   noteMaxLength = 1000,
+  timeRef,
+  invalid,
 }: {
   time: string;
   note: string;
   onTime: (value: string) => void;
   onNote: (value: string) => void;
   noteMaxLength?: number;
+  timeRef?: RefObject<HTMLInputElement | null>;
+  invalid?: boolean;
 }) {
   return (
     <div className="grid gap-3 rounded-sm border border-border bg-muted/30 p-3">
       <label className="grid gap-1.5 text-sm font-medium">
-        Follow-up date and time (UK)
+        Follow-up date and time
         <Input
+          ref={timeRef}
           type="datetime-local"
           required
+          aria-invalid={invalid || undefined}
           value={time}
           onChange={(e) => onTime(e.target.value)}
         />
@@ -80,30 +87,42 @@ export function FollowUpEditor({
 }: {
   entry: Enquiry;
   onClose: () => void;
-  onSaved: (entry: Enquiry) => void;
+  onSaved: (entry: Enquiry) => void | Promise<void>;
 }) {
   const [time, setTime] = useState(
     entry.followUpAt ? followUpLocal(entry.followUpAt) : "",
   );
   const [note, setNote] = useState(entry.followUpNote ?? "");
   const [error, setError] = useState("");
+  const [invalidTime, setInvalidTime] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const timeInput = useRef<HTMLInputElement>(null);
   const busy = useRef(false);
   const mutation = useChangeStaffFollowUp();
   const outstanding = entry.followUpAt && !entry.followUpCompletedAt;
+  const { requestClose, discardPrompt } = usePopupDraftGuard({
+    dirty: time !== (entry.followUpAt ? followUpLocal(entry.followUpAt) : "") || note !== (entry.followUpNote ?? ""),
+    blocked: () => busy.current,
+    onClose,
+  });
   async function save(action: "schedule" | "complete" | "cancel") {
     if (busy.current) return;
     setError("");
+    setInvalidTime(false);
     const at = followUpIso(time);
     if (
       action === "schedule" &&
       (!at || new Date(at).getTime() <= Date.now())
     ) {
-      setError("Choose a valid future UK date and time.");
+      setError("Choose a date and time in the future.");
+      setInvalidTime(true);
+      timeInput.current?.focus();
       return;
     }
     busy.current = true;
+    setSaving(true);
     try {
-      onSaved(
+      await onSaved(
         await mutation.mutateAsync({
           id: entry.id,
           data: {
@@ -120,16 +139,17 @@ export function FollowUpEditor({
       );
     } finally {
       busy.current = false;
+      setSaving(false);
     }
   }
   return (
     <Dialog
       open
       onOpenChange={(open) => {
-        if (!open && !busy.current) onClose();
+        if (!open) requestClose();
       }}
     >
-      <DialogContent className="portal-action-dialog enquiry-action-dialog">
+      <DialogContent className="portal-action-dialog enquiry-action-dialog portal-popup-form-dialog" closeDisabled={saving}>
         <DialogHeader>
           <DialogTitle className="pr-10">
             {outstanding ? "Manage follow-up" : "Request a follow-up"}
@@ -138,6 +158,8 @@ export function FollowUpEditor({
             {entry.customerName}
           </DialogDescription>
         </DialogHeader>
+        {discardPrompt}
+        <form className="portal-popup-form" noValidate onSubmit={event => { event.preventDefault(); void save("schedule"); }}>
         <p className="text-sm">
           {entry.vehicleTitle || "General enquiry"} · {entry.phone}
         </p>
@@ -146,12 +168,14 @@ export function FollowUpEditor({
             Currently due: {appointmentLabel(entry.followUpAt!)}
           </p>
         )}
-        <fieldset disabled={mutation.isPending}>
+        <fieldset disabled={saving}>
           <FollowUpFields
             time={time}
             note={note}
-            onTime={setTime}
+            onTime={value => { setTime(value); setInvalidTime(false); }}
             onNote={setNote}
+            timeRef={timeInput}
+            invalid={invalidTime}
           />
         </fieldset>
         {error && (
@@ -159,32 +183,36 @@ export function FollowUpEditor({
             {error}
           </p>
         )}
-        <div className="flex flex-wrap gap-2">
+        <div className="portal-popup-actions">
+          <Button type="button" variant="outline" disabled={saving} onClick={requestClose}>Cancel</Button>
           <Button
-            disabled={mutation.isPending}
-            onClick={() => save("schedule")}
+            type="submit"
+            disabled={saving}
           >
-            Save follow-up
+            {saving ? "Saving…" : "Save follow-up"}
           </Button>
           {outstanding && (
             <>
               <Button
                 variant="outline"
-                disabled={mutation.isPending}
+                type="button"
+                disabled={saving}
                 onClick={() => save("complete")}
               >
-                Mark follow-up done
+                Mark done
               </Button>
               <Button
                 variant="ghost"
-                disabled={mutation.isPending}
+                type="button"
+                disabled={saving}
                 onClick={() => save("cancel")}
               >
-                Remove follow-up
+                Remove
               </Button>
             </>
           )}
         </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

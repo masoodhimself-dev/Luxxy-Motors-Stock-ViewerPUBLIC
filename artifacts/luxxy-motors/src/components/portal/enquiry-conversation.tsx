@@ -43,6 +43,7 @@ import {
 } from "./enquiry-activity-model";
 import "./enquiry-history.css";
 import "./enquiry-case-timeline.css";
+import { usePopupDraftGuard } from "./popup-draft-guard";
 
 export function ConversationEditor({
   entry,
@@ -61,7 +62,10 @@ export function ConversationEditor({
   const [time, setTime] = useState("");
   const [followUpNote, setFollowUpNote] = useState("");
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const busy = useRef(false);
+  const noteInput = useRef<HTMLTextAreaElement>(null);
+  const timeInput = useRef<HTMLInputElement>(null);
   const mutation = useLogEnquiryConversation();
   const outstanding = Boolean(entry.followUpAt && !entry.followUpCompletedAt);
   const dirty = Boolean(
@@ -71,17 +75,20 @@ export function ConversationEditor({
     time ||
     followUpNote.trim(),
   );
+  const { requestClose, discardPrompt } = usePopupDraftGuard({ dirty, blocked: () => busy.current, onClose });
   async function save(event: FormEvent) {
     event.preventDefault();
     if (busy.current) return;
     setError("");
     if (!note.trim()) {
       setError("Add a note about this conversation.");
+      noteInput.current?.focus();
       return;
     }
     const nextAt = schedule ? followUpIso(time) : null;
     if (schedule && (!nextAt || Date.parse(nextAt) <= Date.now())) {
-      setError("Choose a valid future UK date and time.");
+      setError("Choose a date and time in the future.");
+      timeInput.current?.focus();
       return;
     }
     if (outcome === "callback_requested" && !schedule && !outstanding) {
@@ -89,6 +96,7 @@ export function ConversationEditor({
       return;
     }
     busy.current = true;
+    setSaving(true);
     try {
       const updated = await mutation.mutateAsync({
         id: entry.id,
@@ -114,20 +122,22 @@ export function ConversationEditor({
       setError(workspaceError(cause));
     } finally {
       busy.current = false;
+      setSaving(false);
     }
   }
   const content = (
     <>
+      {discardPrompt}
       <p className="text-sm">
         {entry.vehicleTitle || "General showroom enquiry"}
         {entry.vehicleRegistration ? ` · ${entry.vehicleRegistration}` : ""}
       </p>
-      <form onSubmit={(event) => void save(event)} className="grid gap-4">
-        <fieldset disabled={mutation.isPending} className="grid min-w-0 gap-4">
+      <form noValidate onSubmit={(event) => void save(event)} className="portal-popup-form">
+        <fieldset disabled={saving} className="grid min-w-0 gap-4">
           <label className="grid gap-1.5 text-sm font-medium">
             Conversation note
             <Textarea
-              autoFocus={!inline}
+              ref={noteInput}
               required
               rows={4}
               maxLength={2000}
@@ -174,6 +184,7 @@ export function ConversationEditor({
               onTime={setTime}
               onNote={setFollowUpNote}
               noteMaxLength={500}
+              timeRef={timeInput}
             />
           )}
           {!schedule && outstanding && (
@@ -193,15 +204,15 @@ export function ConversationEditor({
             {error}
           </p>
         )}
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit" disabled={mutation.isPending}>
-            {mutation.isPending ? "Saving…" : "Save conversation"}
+        <div className="portal-popup-actions">
+          <Button type="submit" disabled={saving}>
+            {saving ? "Saving…" : "Save conversation"}
           </Button>
           <Button
             type="button"
             variant="outline"
-            disabled={mutation.isPending}
-            onClick={onClose}
+            disabled={saving}
+            onClick={requestClose}
           >
             Cancel
           </Button>
@@ -223,10 +234,10 @@ export function ConversationEditor({
     <Dialog
       open
       onOpenChange={(open) => {
-        if (!open && !busy.current) onClose();
+        if (!open) requestClose();
       }}
     >
-      <DialogContent className="portal-action-dialog enquiry-action-dialog enquiry-conversation-dialog">
+      <DialogContent className="portal-action-dialog enquiry-action-dialog enquiry-conversation-dialog portal-popup-form-dialog" closeDisabled={saving}>
         <DialogHeader>
           <DialogTitle>Log another conversation</DialogTitle>
           <DialogDescription>{entry.customerName}</DialogDescription>

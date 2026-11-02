@@ -163,6 +163,7 @@ export function SalesWorkspace({
   });
   const [deleteDraftOpen, setDeleteDraftOpen] = useState(false);
   const [releaseReservationOpen, setReleaseReservationOpen] = useState(false);
+  const keepReservationRef = useRef<HTMLButtonElement>(null);
   const [draft, setDraft] = useState<SaleDraft | null>(null);
   const [kind, setKind] = useState<"deposit" | "full">("full");
   const [step, setStep] = useState(0);
@@ -1759,21 +1760,21 @@ export function SalesWorkspace({
         </>
       )}
       {deleteDraftOpen && record && <Dialog open onOpenChange={open => { if (!busy && !open) { setDeleteDraftOpen(false); setProblem(''); } }}>
-        <DialogContent className="z-[90]" overlayClassName="z-[89]" onOpenAutoFocus={event => { event.preventDefault(); document.getElementById('keep-sale-draft')?.focus(); }}>
+        <DialogContent className="portal-action-dialog sales-action-dialog z-[90]" closeDisabled={busy} aria-busy={busy} overlayClassName="z-[89]" onOpenAutoFocus={event => { event.preventDefault(); document.getElementById('keep-sale-draft')?.focus(); }}>
           <DialogHeader><DialogTitle>Delete this draft?</DialogTitle><DialogDescription>This permanently removes only this unused or clearly labelled test draft. Invoices, payments, stock and customer enquiry records are kept.</DialogDescription></DialogHeader>
           <p>{record.draft.customer || 'No customer added'}{record.draft.vehicle ? ` — ${record.draft.vehicle}` : ''}</p>
           {problem && <div><p role="alert">{problem}</p><Button variant="outline" disabled={busy} onClick={() => run(async () => {
             const latest = await customFetch<{ sale: SaleWorkspaceRecord }>(`/api/sale-workspace/${record.id}`);
             setDeleteDraftOpen(false); accept({ sale: latest.sale }); setMessage('Latest draft loaded. Review it before deleting.');
           })}>Reload saved sales</Button></div>}
-          <DialogFooter className="gap-2 sm:gap-0"><Button id="keep-sale-draft" variant="outline" disabled={busy} onClick={() => { setDeleteDraftOpen(false); setProblem(''); }}>Keep draft</Button><Button variant="destructive" disabled={busy || !canDeleteDraft || dirty || Boolean(problem)} onClick={deleteSavedDraft}>{busy ? 'Deleting…' : 'Delete draft permanently'}</Button></DialogFooter>
+          <DialogFooter><Button id="keep-sale-draft" variant="outline" disabled={busy} onClick={() => { setDeleteDraftOpen(false); setProblem(''); }}>Keep draft</Button><Button variant="destructive" disabled={busy || !canDeleteDraft || dirty || Boolean(problem)} onClick={deleteSavedDraft}>{busy ? 'Deleting…' : 'Delete draft permanently'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>}
       {record && <Dialog open={releaseReservationOpen} onOpenChange={open => { if (!busy) setReleaseReservationOpen(open); }}>
-        <DialogContent className="z-[90]" overlayClassName="z-[89]">
+        <DialogContent className="portal-action-dialog sales-action-dialog z-[90]" closeDisabled={busy} aria-busy={busy} overlayClassName="z-[89]" onOpenAutoFocus={event => { event.preventDefault(); keepReservationRef.current?.focus(); }}>
           <DialogHeader><DialogTitle>Release this reservation?</DialogTitle><DialogDescription>The reservation will be removed. The car may become available to customers if it is still in published stock. The sale, invoices and payment history will be kept. No message will be sent.</DialogDescription></DialogHeader>
           {problem && <p role="alert">{problem}</p>}
-          <DialogFooter><Button variant="outline" disabled={busy} onClick={() => setReleaseReservationOpen(false)}>Keep reserved</Button><Button disabled={busy || dirty || total?.confirmedPaid !== 0 || total?.pending !== 0} onClick={() => run(async () => {
+          <DialogFooter><Button ref={keepReservationRef} variant="outline" disabled={busy} onClick={() => setReleaseReservationOpen(false)}>Keep reserved</Button><Button disabled={busy || dirty || total?.confirmedPaid !== 0 || total?.pending !== 0} onClick={() => run(async () => {
             await command('/lifecycle', {status:'released'});
             setReleaseReservationOpen(false);
             setMessage('Reservation released. Check the car’s published stock status before promising it to another customer.');

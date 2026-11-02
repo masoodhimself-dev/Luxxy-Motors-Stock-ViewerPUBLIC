@@ -372,6 +372,3 @@
 .vehicle-answers-dialog .vehicle-answers-list { min-width: 0; }
 .vehicle-answers-dialog .vehicle-answers-list p { overflow-wrap: anywhere; }
 .vehicle-answers-dialog .vehicle-answers-contact { background: hsl(var(--background)); }
-[role="dialog"].vehicle-answers-dialog { display: flex; flex-direction: column; gap: 16px; max-height: calc(100dvh - 32px); overflow: hidden; }
-.vehicle-answers-dialog > :not(.vehicle-answers-list) { flex-shrink: 0; }
-.vehicle-answers-dialog .vehicle-answers-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; }

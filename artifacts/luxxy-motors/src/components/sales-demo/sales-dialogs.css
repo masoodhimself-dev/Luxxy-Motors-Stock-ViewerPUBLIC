@@ -1,0 +1,104 @@
+/* Keep payment and handover tools compact without hiding financial checks. */
+.sales-action-dialog:has(> form) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sales-action-dialog > [data-popup-header] {
+  flex-shrink: 0;
+}
+.sales-action-dialog > form {
+  min-height: 0;
+  min-width: 0;
+  padding: 3px;
+  margin: -3px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: 12px 80px;
+}
+.sales-action-dialog > form [data-popup-footer] {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  background: hsl(var(--card));
+  padding-top: 12px;
+}
+.sales-action-dialog .sales-dialog-fields {
+  gap: 14px;
+}
+.sales-action-dialog .sales-dialog-fields label {
+  gap: 6px;
+}
+.sales-action-dialog .sales-dialog-balance {
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+}
+.sales-action-dialog .sales-dialog-balance strong {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sales-action-dialog .sales-payment-options > summary {
+  display: list-item;
+  min-height: 44px;
+  align-content: center;
+  color: hsl(var(--primary));
+}
+.sales-action-dialog.portal-action-dialog .sales-primary-action {
+  background: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+.sales-action-dialog .sales-confirm-check input {
+  accent-color: hsl(var(--primary));
+}
+.sales-action-dialog .sales-completion-summary {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) minmax(0, 2fr);
+  gap: 8px 16px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.sales-action-dialog .sales-completion-summary dt {
+  color: hsl(var(--muted-foreground));
+}
+.sales-action-dialog .sales-completion-summary dd {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.sales-action-dialog .sales-action-error {
+  margin-block: 0;
+}
+.sales-action-dialog .sales-original-payment {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.sales-action-dialog .sales-original-payment time {
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+}
+.sales-action-dialog [role="alert"] {
+  overflow-wrap: anywhere;
+}
+@media (min-width: 480px) {
+  .sales-action-dialog .sales-dialog-fields .sales-field-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+  }
+  .sales-action-dialog .sales-field-grid > label {
+    min-width: 0;
+  }
+  .sales-action-dialog .sales-field-grid :is(input, select) {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .sales-action-dialog .sales-field-grid input[type="date"] {
+    padding-inline: 6px;
+  }
+}

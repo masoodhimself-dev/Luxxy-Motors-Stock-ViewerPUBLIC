@@ -73,3 +73,41 @@ it('cancels a queued team handoff when its vehicle is unmounted before focus res
     expect(askTeam).not.toHaveBeenCalled();
   } finally { vi.useRealTimers(); }
 });
+
+it('ignores a late AI answer when the customer has changed their question', async () => {
+  let resolve!: (value: { answer: string }) => void;
+  const reply = new Promise<{ answer: string }>(done => { resolve = done; });
+  state.ai.enabled = true;
+  state.ai.run.mockImplementation((kind: string) => kind === 'faqs' ? Promise.resolve(null) : reply);
+  render(<Answers />);
+  fireEvent.change(screen.getByRole('textbox', { name: 'Search these answers' }), { target: { value: 'Are both keys included?' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Ask AI' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Search these answers' }), { target: { value: 'Can I collect on Saturday?' } });
+  await act(async () => resolve({ answer: 'A late answer to the key question' }));
+  expect(screen.queryByText('A late answer to the key question')).not.toBeInTheDocument();
+  expect(screen.getByRole('textbox', { name: 'Search these answers' })).toHaveValue('Can I collect on Saturday?');
+});
+
+it('does not reuse generated answers or unfinished searches for a different car', async () => {
+  let resolve!: (value: { questions: { question: string; answer: string }[] }) => void;
+  state.ai.enabled = true;
+  state.ai.run.mockImplementationOnce(() => new Promise(done => { resolve = done; })).mockResolvedValue(null);
+  const view = render(<VehicleAnswers car={vehicle} open onOpenChange={vi.fn()} onAskTeam={askTeam} onReturnFocus={vi.fn()} />);
+  fireEvent.change(screen.getByRole('textbox', { name: 'Search these answers' }), { target: { value: 'A question about the Volvo' } });
+  view.rerender(<VehicleAnswers car={{ ...vehicle, id: 'ford', make: 'Ford', model: 'Focus' }} open onOpenChange={vi.fn()} onAskTeam={askTeam} onReturnFocus={vi.fn()} />);
+  await act(async () => resolve({ questions: [{ question: 'Only for the old Volvo?', answer: 'Old car’s answer' }] }));
+  expect(screen.getByRole('textbox', { name: 'Search these answers' })).toHaveValue('');
+  expect(screen.queryByText('Only for the old Volvo?')).not.toBeInTheDocument();
+  expect(state.ai.run).toHaveBeenLastCalledWith('faqs', { vehicleId: 'ford' });
+});
+
+it('lets a customer ask their typed AI question with Enter', async () => {
+  state.ai.enabled = true;
+  state.ai.run.mockImplementation((kind: string) => Promise.resolve(kind === 'question' ? { answer: 'You can ask about collection.' } : null));
+  render(<Answers />);
+  const search = screen.getByRole('textbox', { name: 'Search these answers' });
+  fireEvent.change(search, { target: { value: '  Collection details?  ' } });
+  fireEvent.keyDown(search, { key: 'Enter' });
+  await screen.findByText('You can ask about collection.');
+  expect(state.ai.run).toHaveBeenLastCalledWith('question', { vehicleId: 'volvo', text: 'Collection details?' });
+});

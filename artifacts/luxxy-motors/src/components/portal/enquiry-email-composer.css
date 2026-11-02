@@ -1,13 +1,31 @@
-.enquiry-email-dialog {
+.portal-action-dialog.enquiry-email-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
   width: min(760px, calc(100vw - 32px));
   max-width: 760px;
   max-height: calc(100dvh - 32px);
-  overflow-y: auto;
-  padding: 26px;
-  border-radius: 18px;
+  overflow: hidden;
+  padding: 0;
+  border-radius: 8px;
   background: #fff;
   color: #223244;
 }
+.portal-action-dialog.enquiry-email-dialog > div:first-child {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 18px 68px 16px 20px;
+  border-bottom: 1px solid var(--portal-border, #d8e2e8);
+}
+.portal-action-dialog.enquiry-email-dialog > .enquiry-email-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 20px;
+}
+.enquiry-email-scroll > div > .portal-popup-discard { margin-bottom: 16px; }
 .enquiry-email-form,
 .enquiry-email-form fieldset {
   display: grid;
@@ -78,6 +96,7 @@
   font-size: 15px;
   font-weight: 650;
 }
+.enquiry-email-service-book > summary { min-height: 44px; display: list-item; cursor: pointer; padding-block: 10px; font-size: 14px; font-weight: 600; }
 .enquiry-email-service-book h3 span {
   margin-left: 6px;
   color: #6a7885;
@@ -125,6 +144,16 @@
 .enquiry-email-actions button {
   min-height: 44px;
 }
+.enquiry-email-dialog .enquiry-email-actions {
+  position: sticky;
+  bottom: -20px;
+  z-index: 1;
+  margin: 0 -20px -20px;
+  padding: 12px 20px max(12px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--portal-border, #d8e2e8);
+  background: #fff;
+}
+.enquiry-email-dialog .enquiry-email-history { margin-top: 32px; }
 .enquiry-email-review {
   display: grid;
   gap: 16px;
@@ -216,14 +245,29 @@
   line-height: 1.6;
 }
 @media (max-width: 600px) {
-  .enquiry-email-dialog {
-    padding: 20px;
+  .portal-action-dialog.enquiry-email-dialog {
+    max-height: calc(100dvh - 20px);
   }
+  .portal-action-dialog.enquiry-email-dialog > div:first-child {
+    padding-left: 16px;
+  }
+  .portal-action-dialog.enquiry-email-dialog > .enquiry-email-scroll {
+    padding: 16px;
+  }
+  .enquiry-email-dialog .enquiry-email-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    bottom: -16px;
+    margin-inline: -16px;
+    margin-bottom: -16px;
+    padding-inline: 16px;
+  }
+  .enquiry-email-dialog .enquiry-email-actions > button { min-width: 0; width: 100%; overflow-wrap: normal; word-break: normal; white-space: normal; }
   .enquiry-email-photos {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .enquiry-email-photos img {
-    height: 170px;
+    height: 110px;
   }
   .enquiry-email-actions > button {
     flex: 1;

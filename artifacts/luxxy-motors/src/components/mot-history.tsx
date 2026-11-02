@@ -3,6 +3,7 @@ import { customFetch } from "@workspace/api-client-react";
 import { firstMotDue } from "@/lib/long-mot";
 import type { MotHistory } from "@workspace/vehicle-meta";
 import { Button } from "./ui/button";
+import "./staff-mot-popup.css";
 import {
   Dialog,
   DialogContent,
@@ -259,7 +260,7 @@ export function StaffMotLookupDialog({
       }}
     >
       <DialogContent
-        className="portal-action-dialog max-w-2xl"
+        className="portal-action-dialog staff-mot-dialog"
         onCloseAutoFocus={(event) => {
           // Safari does not focus buttons on tap; return explicitly to the opener
           // instead of refocusing the allowance field and reopening its keyboard.
@@ -269,11 +270,10 @@ export function StaffMotLookupDialog({
           }
         }}
       >
-        <DialogHeader>
+        <DialogHeader className="staff-mot-heading">
           <DialogTitle>Check MOT history</DialogTitle>
           <DialogDescription>
-            Check a stock car or part exchange. This does not change the
-            invoice, allowance, customer or vehicle records.
+            Check a stock car or part exchange by registration.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -283,7 +283,7 @@ export function StaffMotLookupDialog({
               `/api/staff/mot-history?registration=${encodeURIComponent(registration.trim())}`,
             );
           }}
-          className="space-y-3"
+          className="staff-mot-search"
         >
           <label className="block text-sm font-medium">
             Registration number
@@ -301,14 +301,17 @@ export function StaffMotLookupDialog({
             {busy ? "Checking MOT history…" : "Check MOT"}
           </Button>
         </form>
+        <div className="staff-mot-results">
         {error && (
           <p role="alert" className="text-sm text-destructive">
             {error}
           </p>
         )}
+        {reply?.status === "registration_missing" && <p role="status">{reply.message}</p>}
         {reply?.status === "available" && (
           <MotHistoryResults history={reply.history} staff />
         )}
+        </div>
       </DialogContent>
     </Dialog>
   );

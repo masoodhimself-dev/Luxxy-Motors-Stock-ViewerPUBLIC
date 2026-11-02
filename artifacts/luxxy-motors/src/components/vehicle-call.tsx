@@ -3,7 +3,7 @@ import { showroomHours, showroomOpeningLabel } from '@/lib/showroom-hours';
 import { useCreateEnquiry } from '@workspace/api-client-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useEffect, useState, useRef, type MouseEvent } from 'react';
+import { useEffect, useId, useState, useRef, type MouseEvent } from 'react';
 import { CheckCircle2, CircleAlert, Clock3, Copy, Phone, MapPin, ArrowUpRight } from '@/components/icons';
 import {
   Dialog,
@@ -35,6 +35,8 @@ export function VehicleCall({
   const dialogTheme = useVehicleDialogTheme();
   const trigger = useRef<HTMLAnchorElement>(null);
   const dialogTitle = useRef<HTMLHeadingElement>(null);
+  const phoneInput = useRef<HTMLInputElement>(null);
+  const phoneErrorId = useId();
   const [open, setOpen] = useState(false);
   const [callbackForm, setCallbackForm] = useState(false);
   const [copyStatus, setCopyStatus] = useState('');
@@ -142,6 +144,7 @@ export function VehicleCall({
         <DialogContent
           style={dialogTheme}
           className="vehicle-action-dialog vehicle-call-dialog"
+          closeDisabled={callback.isPending}
           data-callback={showCallback}
           onEscapeKeyDown={event => { if (callback.isPending) event.preventDefault(); }}
           onInteractOutside={event => { if (callback.isPending) event.preventDefault(); }}
@@ -194,6 +197,7 @@ export function VehicleCall({
               const normalizedPhone = customer.phone.trim().replace(/[\s().\-/]/g, '');
               if (!/^\+?\d{7,15}$/.test(normalizedPhone)) {
                 setPhoneError('Enter a valid phone number so we can call you.');
+                phoneInput.current?.focus();
                 return;
               }
               setPhoneError('');
@@ -211,10 +215,10 @@ export function VehicleCall({
             }}>
               <div className="vehicle-action-form-grid">
                 <label className="vehicle-action-field">Your name<Input disabled={callback.isPending} required minLength={2} maxLength={120} autoComplete="name" value={customer.name} onChange={event => setCustomer({ ...customer, name: event.target.value })} /></label>
-                <label className="vehicle-action-field">Telephone<Input disabled={callback.isPending} required type="tel" inputMode="tel" minLength={7} maxLength={40} autoComplete="tel" aria-invalid={Boolean(phoneError)} aria-describedby={phoneError ? 'callback-phone-error' : undefined} value={customer.phone} onChange={event => { setCustomer({ ...customer, phone: event.target.value }); setPhoneError(''); }} /></label>
+                <label className="vehicle-action-field">Telephone<Input ref={phoneInput} disabled={callback.isPending} required type="tel" inputMode="tel" minLength={7} maxLength={40} autoComplete="tel" aria-invalid={Boolean(phoneError)} aria-describedby={phoneError ? phoneErrorId : undefined} value={customer.phone} onChange={event => { setCustomer({ ...customer, phone: event.target.value }); setPhoneError(''); }} /></label>
               </div>
               <details className="vehicle-call-optional-email"><summary>Add an email for confirmation (optional)</summary><label className="vehicle-action-field">Email<Input disabled={callback.isPending} type="email" autoComplete="email" value={customer.email} onChange={event => setCustomer({ ...customer, email: event.target.value })} /></label></details>
-              {phoneError && <p id="callback-phone-error" role="alert" className="vehicle-action-feedback vehicle-action-feedback-error">{phoneError}</p>}
+              {phoneError && <p id={phoneErrorId} role="alert" className="vehicle-action-feedback vehicle-action-feedback-error">{phoneError}</p>}
               {callback.isError && <p role="alert" className="vehicle-action-feedback vehicle-action-feedback-error"><CircleAlert size={18} aria-hidden="true" /><span>We couldn’t send your request. Please try again.</span></p>}
               <p className="vehicle-action-privacy">We’ll use these details to respond to your request.{privacyUrl && <> <a className="underline underline-offset-4" href={privacyUrl}>Privacy policy</a></>}</p>
               <Button type="submit" className="vehicle-action-primary" disabled={callback.isPending}>{callback.isPending ? 'Sending…' : 'Request a callback'}</Button>
@@ -227,7 +231,7 @@ export function VehicleCall({
             <p className="vehicle-action-label">Our phone number</p>
             <a href={href} className="vehicle-phone-number"><Phone size={18} aria-hidden="true" /><span>{formatPhoneDisplay(settings.contact.phone)}</span></a>
           </div>}
-          {showCallback && !callback.isSuccess && <button type="button" className="vehicle-call-callback-link" onClick={() => setCallbackForm(false)}>Back to contact details</button>}
+          {showCallback && !callback.isSuccess && <button type="button" className="vehicle-call-callback-link" disabled={callback.isPending} onClick={() => setCallbackForm(false)}>Back to contact details</button>}
 
           </div>
         </DialogContent>

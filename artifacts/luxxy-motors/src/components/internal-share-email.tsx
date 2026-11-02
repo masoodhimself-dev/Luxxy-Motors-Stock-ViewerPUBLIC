@@ -99,6 +99,7 @@ export function InternalShareEmail({
   const [prepared, setPrepared] = useState<Prepared | null>(null);
   const attempt = useRef<Preparation | null>(null),
     currentEmail = useRef(email);
+  const inFlight = useRef(false);
   currentEmail.current = email;
   const identity = JSON.stringify([
     saleId,
@@ -194,7 +195,8 @@ export function InternalShareEmail({
         ? canCreate && name.trim().length >= 2
         : Boolean(customer));
   async function begin() {
-    if (busy || (!locked && !ready)) return;
+    if (busy || inFlight.current || (!locked && !ready)) return;
+    inFlight.current = true;
     const body = attempt.current || {
       requestId: crypto.randomUUID(),
       ...(saleId
@@ -220,6 +222,7 @@ export function InternalShareEmail({
           "The email could not be prepared. Retry here; no email or WhatsApp message was sent.",
       );
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   }
@@ -258,17 +261,17 @@ export function InternalShareEmail({
     <Dialog
       open={open}
       onOpenChange={(value) => {
-        if (!busy) onOpenChange(value);
+        if (!busy && !inFlight.current) onOpenChange(value);
       }}
     >
-      <DialogContent className="max-h-[90dvh] overflow-y-auto">
+      <DialogContent className="portal-action-dialog max-h-[90dvh] overflow-y-auto" closeDisabled={busy}>
         <DialogHeader>
           <DialogTitle>Prepare customer email</DialogTitle>
           <DialogDescription>
             Use the dealership email system. Review the message before sending.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 [&_label]:grid [&_label]:gap-2">
+        <form className="portal-popup-form [&_label]:grid [&_label]:gap-2" onSubmit={event => { event.preventDefault(); void begin(); }}>
           {enquiryId || saleId ? (
             <p>
               Save the email against{" "}
@@ -361,6 +364,7 @@ export function InternalShareEmail({
             <div>
               <p role="alert">{lookupError}</p>
               <Button
+                type="button"
                 variant="outline"
                 onClick={() => setLookupRetry((value) => value + 1)}
               >
@@ -369,10 +373,11 @@ export function InternalShareEmail({
             </div>
           )}
           {error && <p role="alert">{error}</p>}
+          <div className="portal-popup-actions">
+          <Button type="button" variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button
-            type="button"
+            type="submit"
             disabled={busy || (!locked && !ready)}
-            onClick={() => void begin()}
           >
             {busy
               ? "Preparing email…"
@@ -380,7 +385,8 @@ export function InternalShareEmail({
                 ? "Retry email preparation"
                 : "Continue to email"}
           </Button>
-        </div>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

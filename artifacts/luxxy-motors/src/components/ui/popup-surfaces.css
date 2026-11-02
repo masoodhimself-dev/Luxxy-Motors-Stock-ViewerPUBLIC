@@ -2,9 +2,30 @@
 [data-popup-surface] { overscroll-behavior: contain; scroll-padding-block: 16px; }
 [data-popup-surface] :focus-visible { scroll-margin-block: 16px; }
 [data-popup-close] { flex-shrink: 0; touch-action: manipulation; }
+[data-popup-surface] { scrollbar-width: thin; }
+[data-popup-header] { min-width: 0; }
+[data-popup-title]:focus { outline: none; }
+[data-popup-footer] > :is(button, a) { min-height: 44px; max-width: 100%; white-space: normal; }
+/* The dedicated quick-enquiry sheet already follows the visual viewport. These
+   temporary overrides only apply while a software keyboard reduces the space. */
+[data-popup-surface="dialog"][data-popup-keyboard]:not(.quick-enquiry-dialog) {
+ animation: none !important;
+ transition: none !important;
+ top: calc(var(--popup-viewport-top) + 12px) !important;
+ bottom: auto !important;
+ left: 50% !important;
+ max-height: calc(var(--popup-viewport-height) - 24px) !important;
+ transform: translateX(-50%) !important;
+ translate: none !important;
+}
+@media (max-width: 639px) {
+ [data-popup-footer] > :is(button, a) { flex: 1 1 120px; }
+ /* Prevent Safari's automatic input zoom on small screens. */
+ [data-popup-surface] :is(input:not([type="checkbox"]):not([type="radio"]):not(.uk-number-plate-input), select, textarea) { font-size: max(16px, 1em); }
+}
 @media (pointer: coarse) {
  [data-popup-surface="menu"] :is([role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]) { min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) {
- [data-popup-surface] { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+ [data-popup-surface], [data-popup-overlay] { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }

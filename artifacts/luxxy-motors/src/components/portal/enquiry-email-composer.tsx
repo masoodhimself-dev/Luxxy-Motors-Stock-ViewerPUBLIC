@@ -18,6 +18,7 @@ import { requestUuid } from "@/lib/request-uuid";
 import { useDealerFeatures } from "@/lib/dealer-features";
 import { CustomerEmailPreview } from "./customer-email-preview";
 import "./enquiry-email-composer.css";
+import { usePopupDraftGuard } from "./popup-draft-guard";
 
 type Delivery = {
   id: string;
@@ -105,14 +106,26 @@ function EmailEditorFrame({
   title,
   customerName,
   onClose,
+  busy,
   children,
 }: {
   inline?: boolean;
   title: string;
   customerName: string;
   onClose: () => void;
+  busy?: boolean;
   children: ReactNode;
 }) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  const scroll = useRef<HTMLDivElement>(null);
+  const previousTitle = useRef(title);
+  useEffect(() => {
+    if (!inline && previousTitle.current !== title) {
+      if (scroll.current) scroll.current.scrollTop = 0;
+      heading.current?.focus({ preventScroll: true });
+    }
+    previousTitle.current = title;
+  }, [title, inline]);
   if (inline)
     return (
       <section
@@ -133,12 +146,12 @@ function EmailEditorFrame({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="portal-action-dialog enquiry-email-dialog">
+      <DialogContent className="portal-action-dialog enquiry-email-dialog" closeDisabled={busy}>
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle ref={heading} tabIndex={-1}>{title}</DialogTitle>
           <DialogDescription>{customerName}</DialogDescription>
         </DialogHeader>
-        {children}
+        <div ref={scroll} className="enquiry-email-scroll">{children}</div>
       </DialogContent>
     </Dialog>
   );
@@ -288,10 +301,20 @@ function EnquiryEmailEditor({
     "save" | "review" | "send" | "status" | null
   >(null);
   const busy = busyAction !== null;
+  const [showPrivatePhotos, setShowPrivatePhotos] = useState(false);
+  const { requestClose: close, discardPrompt } = usePopupDraftGuard({
+    dirty,
+    blocked: () => busyRef.current,
+    onClose: () => onClose(delivery?.status === "sent" ? "sent" : "draft"),
+  });
   useEffect(() => {
     onBusyChange?.(busy);
   }, [busy, onBusyChange]);
   const [error, setError] = useState("");
+  const errorNotice = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (error) errorNotice.current?.focus();
+  }, [error]);
   const appliedInsertion = useRef<number | null>(null);
   useEffect(() => {
     if (
@@ -440,17 +463,6 @@ function EnquiryEmailEditor({
       busyRef.current = false;
       setBusyAction(null);
     }
-  }
-  function close() {
-    if (busyRef.current) return;
-    if (
-      dirty &&
-      !window.confirm(
-        "Close without saving your latest changes? The last saved draft will remain.",
-      )
-    )
-      return;
-    onClose("draft");
   }
   async function review() {
     if (busyRef.current) return;
@@ -614,6 +626,7 @@ function EnquiryEmailEditor({
         : "";
   return (
     <EmailEditorFrame
+      busy={busy}
       inline={inline}
       onClose={close}
       customerName={entry.customerName}
@@ -630,6 +643,7 @@ function EnquiryEmailEditor({
       }
     >
       <div data-message-dirty={dirty ? "true" : undefined}>
+        {discardPrompt}
         {!initialized.current && !context.isError && (
           <p role="status">Loading latest email details…</p>
         )}
@@ -938,7 +952,6 @@ function EnquiryEmailEditor({
                             ? "Customer email (optional for WhatsApp)"
                             : "Customer email"}
                           <Input
-                            autoFocus={!inline}
                             type="email"
                             required={!preparingMessage}
                             maxLength={254}
@@ -1039,7 +1052,7 @@ function EnquiryEmailEditor({
                           Message
                           <Textarea
                             required
-                            rows={7}
+                            rows={5}
                             maxLength={12000}
                             value={draft.message}
                             onChange={(event) =>
@@ -1167,15 +1180,13 @@ function EnquiryEmailEditor({
                           </div>
                         )}
                         {data.vehicleId && data.photos.length > 0 && (
-                          <section
+                          <details
                             className="enquiry-email-service-book"
                             aria-label="Private vehicle-photo attachments"
+                            onToggle={event => setShowPrivatePhotos(event.currentTarget.open)}
                           >
-                            <h3>
-                              Service-book &amp; history photos{" "}
-                              <span>Optional</span>
-                            </h3>
-                            {data.photos.length ? (
+                            <summary>Service-book &amp; history photos{draft.photoIds.length ? ` · ${draft.photoIds.length} selected` : " · optional"}</summary>
+                            {showPrivatePhotos && (data.photos.length ? (
                               <>
                                 <p>
                                   Select the pages to attach. Inspect them for
@@ -1228,8 +1239,8 @@ function EnquiryEmailEditor({
                                 </a>{" "}
                                 to upload them.
                               </p>
-                            )}
-                          </section>
+                            ))}
+                          </details>
                         )}
                       </fieldset>
                       {missingAttachment && (
@@ -1343,7 +1354,7 @@ function EnquiryEmailEditor({
           )
         )}
         {error && (
-          <p role="alert" className="enquiry-email-error">
+          <p ref={errorNotice} tabIndex={-1} role="alert" className="enquiry-email-error">
             {error}
             {!delivery &&
               sendingRequest.current &&

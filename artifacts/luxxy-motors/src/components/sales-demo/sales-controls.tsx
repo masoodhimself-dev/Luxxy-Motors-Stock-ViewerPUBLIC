@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { usePopupDraftGuard } from "@/components/portal/popup-draft-guard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Receipt, WalletCards, Truck, CheckCircle2 } from "@/components/icons";
 import { pence, saleStaffLabel, totals, type SaleDraft } from "./model";
+import "./sales-dialogs.css";
 import type {
   SaleWorkspacePayment,
   SaleWorkspacePaymentInput,
@@ -153,6 +155,12 @@ export function PaymentDialog({
     status: "pending",
   });
   const confirmed = form.status === "confirmed";
+  const initialForm = useRef(form);
+  const { requestClose, discardPrompt } = usePopupDraftGuard({
+    dirty: JSON.stringify(form) !== JSON.stringify(initialForm.current),
+    blocked: () => busy,
+    onClose,
+  });
   const paymentAmount = pence(form.amount);
   const localProblem =
     form.amount && (!Number.isSafeInteger(paymentAmount) || paymentAmount <= 0)
@@ -178,11 +186,13 @@ export function PaymentDialog({
     <Dialog
       open
       onOpenChange={(open) => {
-        if (!open && !busy) onClose();
+        if (!open) requestClose();
       }}
     >
       <DialogContent
         className="portal-action-dialog sales-action-dialog"
+        closeDisabled={busy}
+        aria-busy={busy}
         onEscapeKeyDown={(e) => {
           if (busy) e.preventDefault();
         }}
@@ -200,6 +210,7 @@ export function PaymentDialog({
               : "Record one payment at a time. Only money confirmed as received reduces the balance."}
           </DialogDescription>
         </DialogHeader>
+        {discardPrompt}
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -216,7 +227,6 @@ export function PaymentDialog({
             <label>
               Payment amount (£)
               <Input
-                autoFocus
                 inputMode="decimal"
                 maxLength={16}
                 value={form.amount}
@@ -338,7 +348,7 @@ export function PaymentDialog({
               </p>
             )}
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose}>
+              <Button type="button" variant="outline" onClick={requestClose}>
                 Cancel
               </Button>
               <Button
@@ -391,10 +401,31 @@ export function ReversePaymentDialog({
   const [date, setDate] = useState(todayLondon());
   const [method, setMethod] = useState(payment.method);
   const [refundConfirmed, setRefundConfirmed] = useState(false);
+  const values = { reason, amount, kind, date, method, refundConfirmed };
+  const initialValues = useRef(values);
+  const { requestClose, discardPrompt } = usePopupDraftGuard({
+    dirty: JSON.stringify(values) !== JSON.stringify(initialValues.current),
+    blocked: () => busy,
+    onClose,
+  });
   const pending = payment.status === "pending";
+  const originalPaymentDate = validPaymentDate(payment.date)
+    ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).format(new Date(`${payment.date}T12:00:00Z`))
+    : payment.date;
   const correctionPence = pence(amount);
+  const localProblem = !validPaymentDate(date)
+    ? "Choose a valid date."
+    : date > todayLondon()
+      ? "Choose today or an earlier date."
+      : !pending && date < payment.date
+        ? "Choose a date on or after the original payment."
+        : !pending && amount && (!Number.isSafeInteger(correctionPence) || correctionPence <= 0)
+          ? "Enter an amount greater than zero, with no more than two decimal places."
+          : !pending && correctionPence > availablePence
+            ? "The amount exceeds the payment available to refund or correct."
+            : "";
   const valid =
-    Boolean(reason.trim()) && Boolean(date) && date <= todayLondon() && (pending || date >= payment.date) &&
+    Boolean(reason.trim()) && !localProblem &&
     (pending ||
       (Boolean(method.trim()) && (kind !== "refund" || refundConfirmed) && Number.isSafeInteger(correctionPence) &&
         correctionPence > 0 &&
@@ -403,11 +434,13 @@ export function ReversePaymentDialog({
     <Dialog
       open
       onOpenChange={(open) => {
-        if (!open && !busy) onClose();
+        if (!open) requestClose();
       }}
     >
       <DialogContent
         className="portal-action-dialog sales-action-dialog"
+        closeDisabled={busy}
+        aria-busy={busy}
         onEscapeKeyDown={(e) => {
           if (busy) e.preventDefault();
         }}
@@ -422,9 +455,10 @@ export function ReversePaymentDialog({
           <DialogDescription>
             {pending
               ? "The pending entry stays in the history, marked cancelled."
-              : invoiceOnly ? "Existing invoices stay unchanged. This adds an adjustment to the payment history; it does not send money. Check with your manager or accountant what further paperwork is appropriate." : "Keep the original receipt and add a separate adjustment to the payment history. This records a refund or correction; it does not send money."}
+              : invoiceOnly ? "Invoices stay unchanged. Record the adjustment here, then check any further paperwork with your manager or accountant. No money is sent." : "Record a refund or correct an entry. No money is sent; the original receipt and payment history are kept."}
           </DialogDescription>
         </DialogHeader>
+        {discardPrompt}
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -433,9 +467,10 @@ export function ReversePaymentDialog({
           }}
         >
           <fieldset disabled={busy} className="sales-dialog-fields">
-            <p>
-              {payment.method} · {saleMoney(payment.amountPence)} ·{" "}
-              {payment.date}
+            <p className="sales-original-payment">
+              <strong>{saleMoney(payment.amountPence)}</strong>
+              <span>{payment.method}</span>
+              <time dateTime={payment.date}>{originalPaymentDate}</time>
             </p>
             {!pending && (
               <>
@@ -468,31 +503,34 @@ export function ReversePaymentDialog({
                   <Input value={method} maxLength={100} onChange={(e) => setMethod(e.target.value)} />
                 </label>
                 {kind === "refund" && (
-                  <label>
+                  <label className="sales-confirm-check">
                     <input type="checkbox" checked={refundConfirmed} onChange={(e) => setRefundConfirmed(e.target.checked)} />
-                    {" "}I confirm the money has already been refunded. This only records it.
+                    <span>I confirm the money has already been refunded.<small>This records the refund. No money is sent.</small></span>
                   </label>
                 )}
               </>
             )}
             <label>
               {pending ? "Cancellation date" : kind === "refund" ? "Refund date" : "Correction date"}
-              <Input type="date" value={date} max={todayLondon()} onChange={(e) => setDate(e.target.value)} />
+              <Input type="date" required value={date} min={pending ? undefined : payment.date} max={todayLondon()} onChange={(e) => setDate(e.target.value)} />
             </label>
             <label>
               Reason
               <Textarea
+                rows={2}
+                required
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
               />
             </label>
+            {localProblem && <p role="alert" className="sales-action-error">{localProblem}</p>}
             {problem && (
               <p role="alert" className="sales-action-error">
                 {problem}
               </p>
             )}
             <DialogFooter>
-              <Button variant="outline" type="button" onClick={onClose}>
+              <Button variant="outline" type="button" onClick={requestClose}>
                 Back
               </Button>
               <Button
@@ -890,16 +928,25 @@ export function HandoverDialog({
     draft.fulfilment?.recipient || draft.customer,
   );
   const [acknowledge, setAcknowledge] = useState(false);
+  const initialRecipient = useRef(recipient);
+  const { requestClose, discardPrompt } = usePopupDraftGuard({
+    dirty: recipient !== initialRecipient.current || acknowledge,
+    blocked: () => busy,
+    onClose,
+  });
   const delivery = draft.fulfilment?.method === "delivery";
+  const valid = Boolean(recipient.trim()) && (balance <= 0 || acknowledge);
   return (
     <Dialog
       open
       onOpenChange={(open) => {
-        if (!open && !busy) onClose();
+        if (!open) requestClose();
       }}
     >
       <DialogContent
         className="portal-action-dialog sales-action-dialog"
+        closeDisabled={busy}
+        aria-busy={busy}
         onEscapeKeyDown={(e) => {
           if (busy) e.preventDefault();
         }}
@@ -916,17 +963,18 @@ export function HandoverDialog({
             and staff member are saved with the handover record.
           </DialogDescription>
         </DialogHeader>
+        {discardPrompt}
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            onSave(recipient, acknowledge);
+            if (valid && !busy) onSave(recipient, acknowledge);
           }}
         >
           <fieldset disabled={busy} className="sales-dialog-fields">
             <label>
               Received by
               <Input
-                autoFocus
+                required
                 value={recipient}
                 onChange={(e) => setRecipient(e.target.value)}
               />
@@ -958,12 +1006,12 @@ export function HandoverDialog({
               </p>
             )}
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose}>
+              <Button type="button" variant="outline" onClick={requestClose}>
                 Cancel
               </Button>
               <Button
                 type="submit"
-                disabled={!recipient.trim() || (balance > 0 && !acknowledge)}
+                disabled={busy || !valid}
                 className="sales-primary-action"
               >
                 {busy ? "Saving…" : "Confirm handover"}

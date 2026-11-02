@@ -15,18 +15,27 @@ import { showroomHours } from '@/lib/showroom-hours';
 import { getWhatsAppHref, getVehicleContactMessage, recordContactIntent } from '@/lib/cta-helpers';
 import { vehicleDisplayTitle } from '@/lib/utils';
 import type { Car } from '@/lib/stock-context';
+import './public-dialogs.css';
 
-export function VehicleWhatsApp({
-  car,
-  compact = false,
-}: {
+type VehicleWhatsAppProps = {
   car: Car;
   compact?: boolean;
-}) {
+};
+
+export function VehicleWhatsApp(props: VehicleWhatsAppProps) {
+  // Keep a draft when the sheet is dismissed, but never reuse it for another car.
+  return <VehicleWhatsAppSheet key={props.car.id} {...props} />;
+}
+
+function VehicleWhatsAppSheet({
+  car,
+  compact = false,
+}: VehicleWhatsAppProps) {
   const { settings } = useDealerSettings();
   const dialogTheme = useVehicleDialogTheme();
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState('');
+  const preparedMessage = useRef<string | null>(null);
   const [hours, setHours] = useState(() => showroomHours(settings.hours ?? []));
   const trigger = useRef<HTMLButtonElement>(null);
   const dialogTitle = useRef<HTMLHeadingElement>(null);
@@ -36,9 +45,10 @@ export function VehicleWhatsApp({
   function show() {
     const current = showroomHours(settings.hours ?? []);
     setHours(current);
-    setMessage(
-      `${getVehicleContactMessage(car, 'get more information about this vehicle', settings)}${current.state === 'closed' ? '\n\nPlease reply when you reopen.' : ''}`,
-    );
+    if (preparedMessage.current === null) {
+      preparedMessage.current = `${getVehicleContactMessage(car, 'get more information about this vehicle', settings)}${current.state === 'closed' ? '\n\nPlease reply when you reopen.' : ''}`;
+      setMessage(preparedMessage.current);
+    }
     setOpen(true);
   }
 
@@ -69,11 +79,11 @@ export function VehicleWhatsApp({
           }}
         >
           <div className="vehicle-action-heading">
-            <p className="vehicle-action-eyebrow"><SiWhatsapp aria-hidden="true" />WhatsApp Us</p>
-            <DialogTitle ref={dialogTitle} tabIndex={-1}>Review your WhatsApp message</DialogTitle>
-            <DialogDescription>Check or edit your message. WhatsApp opens next; you choose when to send it.</DialogDescription>
+            <DialogTitle ref={dialogTitle} tabIndex={-1}>Message on WhatsApp</DialogTitle>
+            <DialogDescription>Add your question, then open WhatsApp.</DialogDescription>
           </div>
 
+          <div className="public-dialog-scroll">
           <VehicleDialogVehicle car={car} />
 
           <div className="vehicle-message-recipient">
@@ -94,6 +104,8 @@ export function VehicleWhatsApp({
           <div className="vehicle-message-field">
             <label className="vehicle-action-field">Your message<Textarea rows={5} maxLength={2000} value={message} onChange={event => setMessage(event.target.value)} /></label>
             <div className="vehicle-message-hint"><p>Add a question or tell us when you’d like to visit.</p><span aria-hidden="true">{message.length}/2000</span></div>
+            {preparedMessage.current !== message && <button type="button" className="public-dialog-reset" onClick={() => setMessage(preparedMessage.current ?? '')}>Reset message</button>}
+          </div>
           </div>
 
           <div className="vehicle-action-footer">

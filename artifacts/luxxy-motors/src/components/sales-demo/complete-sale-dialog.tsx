@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import type { SaleDraft } from "./model";
 import { saleMoney } from "./sales-controls";
+import "./sales-dialogs.css";
 export function CompleteSaleDialog({
   draft,
   total,
@@ -30,6 +31,7 @@ export function CompleteSaleDialog({
   onComplete: () => void;
 }) {
   const [acknowledge, setAcknowledge] = useState(false);
+  const canComplete = acknowledge && Boolean(terms.trim()) && Number.isSafeInteger(balance) && balance === 0;
   return (
     <Dialog
       open
@@ -37,7 +39,7 @@ export function CompleteSaleDialog({
         if (!open && !busy) onClose();
       }}
     >
-      <DialogContent className="portal-action-dialog sales-action-dialog">
+      <DialogContent className="portal-action-dialog sales-action-dialog" closeDisabled={busy} aria-busy={busy}>
         <DialogHeader>
           <DialogTitle>Complete sale</DialogTitle>
           <DialogDescription>
@@ -87,6 +89,7 @@ export function CompleteSaleDialog({
           <input
             type="checkbox"
             checked={acknowledge}
+            disabled={busy}
             onChange={(e) => setAcknowledge(e.target.checked)}
           />
           I have reviewed the customer, vehicle, received payments and terms.
@@ -101,14 +104,8 @@ export function CompleteSaleDialog({
             Back
           </Button>
           <Button
-            disabled={
-              busy ||
-              !acknowledge ||
-              !terms.trim() ||
-              !Number.isSafeInteger(balance) ||
-              balance !== 0
-            }
-            onClick={onComplete}
+            disabled={busy || !canComplete}
+            onClick={() => { if (canComplete && !busy) onComplete(); }}
           >
             {busy ? "Completing…" : "Complete sale & issue pack"}
           </Button>
