@@ -286,6 +286,56 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/StaffDirectory"
+  /staff/enquiries/{id}/archive:
+    post:
+      operationId: archiveEnquiry
+      summary: Archive an enquiry for 30 days
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EnquiryArchiveInput' }
+      responses:
+        '200':
+          description: Updated enquiry
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Enquiry' }
+        '409':
+          description: Enquiry changed or a protected operation is still in progress
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+  /staff/enquiries/{id}/restore:
+    post:
+      operationId: restoreEnquiry
+      summary: Restore an archived enquiry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EnquiryArchiveInput' }
+      responses:
+        '200':
+          description: Updated enquiry
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Enquiry' }
+        '409':
+          description: Enquiry changed or a protected operation is still in progress
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /staff/enquiries/{id}/workspace:
     patch:
       operationId: updateEnquiryWorkspace
@@ -2815,10 +2865,21 @@ components:
           type: string
           enum: [scheduled, arrived, completed, no_show]
       required: [expectedRevision]
+    EnquiryArchiveInput:
+      type: object
+      additionalProperties: false
+      required: [expectedRevision]
+      properties:
+        expectedRevision: { type: integer, minimum: 0 }
     Enquiry:
       type: object
       additionalProperties: false
       properties:
+        archivedAt: { type: [string, "null"], format: date-time }
+        archiveDeleteAt: { type: [string, "null"], format: date-time }
+        archiveHoldReason: { type: [string, "null"] }
+        aiProvider: { type: [string, "null"], enum: [cazoo, null] }
+        aiDraftStatus: { type: [string, "null"], enum: [pending, generating, ready, failed, null] }
         mergedIntoId: { type: [string, "null"], description: Main case ID; originals remain editable and retain their own appointments and history. }
         mergedAt: { type: [string, "null"], format: date-time }
         mergedBy: { type: [string, "null"] }

@@ -52,7 +52,7 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
   });
   const bookingAt = new Date(); bookingAt.setHours(11, 0, 0, 0); bookingAt.setDate(bookingAt.getDate() + 1);
   const records = [
-    record(ids.cazoo, 'Ellie Carter', { source: 'cazoo', message: 'Would you consider £4,000? I would like to see the Audi.', createdAt: at(5), updatedAt: at(5) }),
+    record(ids.cazoo, 'Ellie Carter', { source: 'cazoo', aiProvider:'cazoo',aiDraftStatus:'ready', message: 'Would you consider £4,000? I would like to see the Audi.', createdAt: at(5), updatedAt: at(5) }),
     record(ids.website, 'Sam Patel', { type: 'part_exchange', partExchangeRegistration: 'AB12CDE', partExchangeMileage: 45000, message: 'Can I part exchange my Ford Fiesta?' }),
     record(ids.booking, 'Alex Morgan', { type: 'viewing', appointmentAt: bookingAt.toISOString(), appointmentStatus: 'pending', appointmentDurationMinutes: 60, message: 'Please book a test drive tomorrow.' }),
     record(ids.closed, 'Jamie Wood', { status: 'closed', callOutcome: 'not_interested', message: 'Thank you, I have bought another car.', createdAt: at(1440), updatedAt: at(60) }),
@@ -65,6 +65,13 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
     if (url.origin !== origin) { external.push(url.origin); await route.abort(); return; }
     if (!p.startsWith('/api/')) { await route.continue(); return; }
     if (!['GET', 'HEAD'].includes(req.method())) {
+      if(p===`/api/staff/enquiries/${ids.cazoo}/archive`||p===`/api/staff/enquiries/${ids.cazoo}/restore`){
+        const entry=records.find(item=>item.id===ids.cazoo)!;
+        expect(req.postDataJSON().expectedRevision).toBe(entry.workspaceRevision);
+        const archiving=p.endsWith('/archive');
+        Object.assign(entry,{workspaceRevision:entry.workspaceRevision+1,archivedAt:archiving?at(0):null,archiveDeleteAt:archiving?new Date(Date.now()+30*86400000).toISOString():null,archiveHoldReason:null});
+        await route.fulfill({json:entry});return;
+      }
       if (p === `/api/staff/enquiries/${ids.cazoo}/email-draft`) {
         savedDrafts.push(req.postDataJSON().content);
         await route.fulfill({ json: { version: 1 + savedDrafts.length } }); return;
@@ -87,6 +94,7 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
     if (p === '/api/staff/email') { await route.fulfill({ json: { messages: [], hasMore: false } }); return; }
     if (p === '/api/staff/email-drafts') { await route.fulfill({ json: { drafts: [], hasMore: false } }); return; }
     if (/\/conversations$/.test(p)) { await route.fulfill({ json: { events: [], total: 0, nextCursor: null } }); return; }
+    if(p.endsWith('/ai-checks')){await route.fulfill({json:{requestId:'fixture-ai-check',model:'gpt-6-luna',createdAt:at(4),contextAudit:{checkedAt:at(4),questions:[{question:'What is the MOT history?',topic:'mot',outcome:'unavailable',source:'DVSA MOT history',checkedAt:at(4)},{question:'Parking sensors?',topic:'equipment',outcome:'not_recorded',source:'Published vehicle listing',checkedAt:at(4)}],lookups:[{kind:'mot',status:'unavailable',source:'DVSA MOT history',checkedAt:at(4),errorCode:'not_found'}]}}});return;}
     if (/\/email-context$/.test(p)) {
       const entry = records.find(item => p.includes(item.id))!;
       const content = { to: entry.email, subject: 'Your Audi A5 enquiry', message: 'Hi Ellie, thank you for your offer. Our sales team will review it and get back to you.', includeVehicle: false, attachVehiclePdf: false, includeAppointment: false, photoIds: [], documentIds: [], vehiclePhotoIndices: [], expectedRevision: 1 };
@@ -117,6 +125,7 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
     await leaveMessage(page, () => desk.locator('[data-filter="all"]').click(), true);
   }
   await desk.locator('[data-filter="all"]').click();
+  await desk.getByRole('tab',{name:'AI enquiries 1'}).click();
   await expect(desk.getByRole('button', { name: 'Open enquiry for Ellie Carter, Audi A5', exact: true })).toBeVisible();
   await expect(desk.locator('.inbox-source').filter({ hasText: 'Cazoo' })).toBeVisible();
   await expect(desk.locator('.inbox-status').filter({ hasText: 'Needs you' }).first()).toBeVisible();
@@ -140,13 +149,14 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
   const mobile = info.project.use.viewport!.width < 900;
   const leaveAction = () => mobile
     ? desk.getByRole('button', { name: 'Back to Inbox', exact: true }).click()
-    : desk.getByRole('button', { name: 'Open enquiry for Sam Patel, Audi A5', exact: true }).click();
+    : desk.getByRole('tab', { name: /^Enquiries/ }).click();
   await leaveMessage(page, leaveAction, false);
   await expect(customer).toBeVisible();
   await expect(message).toHaveValue('Unsaved message that must not disappear without confirmation.');
   await leaveMessage(page, leaveAction, true);
   await expect(page.locator('[aria-label="Customer workspace for Ellie Carter"]')).toHaveCount(0);
   await expect(page.locator('textarea').filter({ hasText: 'Unsaved message that must not disappear without confirmation.' })).toHaveCount(0);
+  await desk.getByRole('tab',{name:'AI enquiries 1'}).click();
   await desk.getByRole('button', { name: 'Open enquiry for Ellie Carter, Audi A5', exact: true }).click();
   await expect(message).toHaveValue(/thank you for your offer/);
   await expect(message).not.toHaveValue(/Unsaved message that must not disappear/);
@@ -184,9 +194,11 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
     await page.goBack();
     await expect(page).not.toHaveURL(/enquiryId=/);
     await expect(desk.locator('.inbox-desk-list')).toBeVisible();
-    await expect(desk.locator('[data-filter="all"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(desk.getByRole('tab',{name:'AI enquiries 1'})).toHaveAttribute('aria-selected','true');
+    await expect(desk.locator('[data-filter="needs-you"]')).toHaveAttribute('aria-pressed', 'true');
   }
   await page.goto('/portal?section=notifications&workView=customers');
+  await desk.getByRole('tab',{name:/^Enquiries/}).click();
   await desk.locator('.inbox-tools-menu > summary').click();
   await desk.getByRole('button', { name: 'Test drives', exact: true }).click();
   await expect(desk.getByRole('button', { name: 'Open enquiry for Alex Morgan, Audi A5', exact: true })).toBeVisible();
@@ -198,6 +210,20 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   await page.goto('/portal?section=enquiries&enquiryId=' + ids.cazoo);
   await expect(page.getByRole('article', { name: 'Customer workspace for Ellie Carter', exact: true })).toBeVisible();
+  await expect(desk.locator('[role=tab][id$="-ai"]')).toHaveAttribute('aria-selected','true');
+  const finalCase=page.getByRole('article',{name:'Customer workspace for Ellie Carter',exact:true});
+  await finalCase.getByText('What AI checked',{exact:true}).click();
+  await expect(finalCase.getByText('Could not verify',{exact:true})).toBeVisible();
+  await page.screenshot({path:path.join(output,`${info.project.name}-ai-checks.png`),fullPage:true});
+  await finalCase.getByText('What AI checked',{exact:true}).click();
+  await finalCase.getByRole('button',{name:'More enquiry actions',exact:true}).click();
+  await page.getByRole('menuitem',{name:'Archive enquiry',exact:true}).click();
+  await page.getByRole('alertdialog').getByRole('button',{name:'Archive enquiry',exact:true}).click();
+  await expect(finalCase.getByRole('region',{name:'Archived enquiry',exact:true})).toBeVisible();
+  await expect(finalCase.getByRole('textbox',{name:'Message',exact:true})).toHaveCount(0);
+  await page.screenshot({path:path.join(output,`${info.project.name}-archived.png`),fullPage:true});
+  await finalCase.getByRole('button',{name:'Restore enquiry',exact:true}).click();
+  await expect(finalCase.getByRole('textbox',{name:'Message',exact:true})).toBeVisible();
   expect(unexpectedWrites).toEqual([]);
   expect(external).toEqual([]);
   expect(errors).toEqual([]);

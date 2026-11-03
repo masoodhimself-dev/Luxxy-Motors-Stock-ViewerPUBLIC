@@ -199,6 +199,8 @@ router.post("/viewings/:token/reschedule", async (req, res): Promise<void> => {
       await ensureBookingAvailable(tx, dealerId(), appointmentAt, policy, enquiry.id);
       const [changed] = await tx.update(enquiriesTable).set({
         appointmentAt,
+        archivedAt: null, archiveDeleteAt: null, archiveReviewAt: null, archiveHoldReason: null,
+        workspaceRevision: sql`${enquiriesTable.workspaceRevision} + 1`,
         attendance: "scheduled",
         appointmentOutsideHours: false,
         appointmentDoubleBooked: false,
@@ -291,6 +293,8 @@ router.post("/viewings/:token/cancel", async (req, res): Promise<void> => {
       .update(enquiriesTable)
       .set({
         appointmentCancelledAt: new Date(),
+        archivedAt: null, archiveDeleteAt: null, archiveReviewAt: null, archiveHoldReason: null,
+        workspaceRevision: sql`${enquiriesTable.workspaceRevision} + 1`,
         appointmentRevision: sql`${enquiriesTable.appointmentRevision} + 1`,
         customerNotificationStatus: "pending", customerNotificationError: null, customerNotificationAttemptedAt: null, customerNotificationSentAt: null,
         dealerNotificationStatus: "pending", dealerNotificationError: null, dealerNotificationAttemptedAt: null, dealerNotificationSentAt: null,

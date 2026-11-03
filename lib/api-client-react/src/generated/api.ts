@@ -31,6 +31,7 @@ import type {
   DealerSettingsInput,
   DemoSignatureInput,
   Enquiry,
+  EnquiryArchiveInput,
   EnquiryAvailability,
   EnquiryConversationInput,
   EnquiryInput,
@@ -717,6 +718,150 @@ export function useGetStaffDirectory<TData = Awaited<ReturnType<typeof getStaffD
 
 
 
+
+export const getArchiveEnquiryUrl = (id: string,) => {
+
+
+
+
+  return `/api/staff/enquiries/${id}/archive`
+}
+
+/**
+ * @summary Archive an enquiry for 30 days
+ */
+export const archiveEnquiry = async (id: string,
+    enquiryArchiveInput: EnquiryArchiveInput, options?: Parameters<typeof customFetch>[1]): Promise<Enquiry> => {
+
+  return customFetch<Enquiry>(getArchiveEnquiryUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(enquiryArchiveInput)
+  }
+);}
+
+
+
+
+
+export const getArchiveEnquiryMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof archiveEnquiry>>, TError,{id: string;data: BodyType<EnquiryArchiveInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof archiveEnquiry>>, TError,{id: string;data: BodyType<EnquiryArchiveInput>}, TContext> => {
+
+const mutationKey = ['archiveEnquiry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof archiveEnquiry>>, {id: string;data: BodyType<EnquiryArchiveInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  archiveEnquiry(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ArchiveEnquiryMutationResult = NonNullable<Awaited<ReturnType<typeof archiveEnquiry>>>
+    export type ArchiveEnquiryMutationBody = BodyType<EnquiryArchiveInput>
+    export type ArchiveEnquiryMutationError = ErrorType<ApiError>
+
+    /**
+ * @summary Archive an enquiry for 30 days
+ */
+export const useArchiveEnquiry = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof archiveEnquiry>>, TError,{id: string;data: BodyType<EnquiryArchiveInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof archiveEnquiry>>,
+        TError,
+        {id: string;data: BodyType<EnquiryArchiveInput>},
+        TContext
+      > => {
+      return useMutation(getArchiveEnquiryMutationOptions(options));
+    }
+
+export const getRestoreEnquiryUrl = (id: string,) => {
+
+
+
+
+  return `/api/staff/enquiries/${id}/restore`
+}
+
+/**
+ * @summary Restore an archived enquiry
+ */
+export const restoreEnquiry = async (id: string,
+    enquiryArchiveInput: EnquiryArchiveInput, options?: Parameters<typeof customFetch>[1]): Promise<Enquiry> => {
+
+  return customFetch<Enquiry>(getRestoreEnquiryUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(enquiryArchiveInput)
+  }
+);}
+
+
+
+
+
+export const getRestoreEnquiryMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreEnquiry>>, TError,{id: string;data: BodyType<EnquiryArchiveInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreEnquiry>>, TError,{id: string;data: BodyType<EnquiryArchiveInput>}, TContext> => {
+
+const mutationKey = ['restoreEnquiry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreEnquiry>>, {id: string;data: BodyType<EnquiryArchiveInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  restoreEnquiry(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreEnquiryMutationResult = NonNullable<Awaited<ReturnType<typeof restoreEnquiry>>>
+    export type RestoreEnquiryMutationBody = BodyType<EnquiryArchiveInput>
+    export type RestoreEnquiryMutationError = ErrorType<ApiError>
+
+    /**
+ * @summary Restore an archived enquiry
+ */
+export const useRestoreEnquiry = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreEnquiry>>, TError,{id: string;data: BodyType<EnquiryArchiveInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof restoreEnquiry>>,
+        TError,
+        {id: string;data: BodyType<EnquiryArchiveInput>},
+        TContext
+      > => {
+      return useMutation(getRestoreEnquiryMutationOptions(options));
+    }
 
 export const getUpdateEnquiryWorkspaceUrl = (id: string,) => {
 

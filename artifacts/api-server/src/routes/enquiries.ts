@@ -75,9 +75,12 @@ import { enquiryConversationPage } from "../lib/enquiry-conversation-history";
 import { HistoryCursorError, parseHistoryCursor } from "../lib/history-cursor";
 import { quickEnquiryCapture } from "../lib/quick-enquiry-capture";
 import { testEnquiryDeletionRouter } from "../lib/test-enquiry-deletion";
+import { EnquiryArchiveStore, enquiryAiStates, archiveEnquiryInput } from '../lib/enquiry-archive';
+import { EnquiryDeletionError } from '../lib/enquiry-deletion';
 
 const router: IRouter = Router();
 router.use(testEnquiryDeletionRouter());
+const archiveStore = new EnquiryArchiveStore();
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const settings = () => ({
@@ -130,6 +133,7 @@ router.patch("/staff/enquiries/:id/workspace", requireStaff, async (req, res) =>
     const updated = await db.transaction(async tx => {
       const [entry] = await tx.select().from(enquiriesTable).where(and(eq(enquiriesTable.id, String(req.params.id)), eq(enquiriesTable.dealerId, settings().dealerId))).for("update");
       if (!entry) return null;
+      if (entry.archivedAt) throw new BookingConflict('Restore this enquiry before changing its details.');
       if (entry.workspaceRevision !== input.expectedRevision) throw new BookingConflict("This enquiry changed. Refresh and review it before saving.");
       if (input.attendance) {
         if (input.expectedAppointmentRevision !== entry.appointmentRevision) throw new BookingConflict("The appointment changed. Refresh before recording attendance.");
@@ -162,6 +166,7 @@ router.post("/staff/enquiries/:id/conversations", requireStaff, requirePermissio
     const updated = await db.transaction(async tx => {
       const [entry] = await tx.select().from(enquiriesTable).where(and(eq(enquiriesTable.id, id), eq(enquiriesTable.dealerId, settings().dealerId))).for("update");
       if (!entry) return null;
+      if (entry.archivedAt) throw new ConversationError('Restore this enquiry before adding a conversation.', 409);
       const change = conversationChange(entry, parsed.data, { id: req.staff!.authUserId, name: staffLabel(req) });
       const [row] = await tx.update(enquiriesTable).set(change.update).where(and(eq(enquiriesTable.id, id), eq(enquiriesTable.dealerId, settings().dealerId))).returning();
       await tx.insert(enquiryEventsTable).values({ dealerId: entry.dealerId, enquiryId: id, vehicleId: entry.vehicleId, vehicleTitle: entry.vehicleTitle, vehicleUrl: entry.vehicleUrl, kind: 'conversation_logged', actor: 'dealer', summary: change.summary, detail: change.detail, occurredAt: change.occurredAt });
@@ -284,14 +289,39 @@ export function toEnquiryResponse(
     events?: EnquiryEventView[];
     managePath?: string | null;
     calendarIcs?: string | null;
+    ai?: { aiProvider: 'cazoo'; aiDraftStatus: string };
   } = {},
 ) {
+  const { archiveReviewAt: _archiveReviewAt, ...record } = enquiry;
   return {
-    ...enquiry,
+    ...record,
+    archivedAt: enquiry.archivedAt ?? null,
+    archiveDeleteAt: enquiry.archiveDeleteAt ?? null,
+    archiveHoldReason: enquiry.archiveHoldReason ?? null,
+    aiProvider: options.ai?.aiProvider ?? null,
+    aiDraftStatus: options.ai?.aiDraftStatus ?? null,
     events: options.events ?? [],
     managePath: options.managePath ?? null,
     calendarIcs: options.calendarIcs ?? null,
   };
+}
+
+for (const action of ['archive', 'restore'] as const) {
+  router.post(`/staff/enquiries/:id/${action}`, requireStaff, requirePermission('sales.manage'), async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const id = String(req.params.id), input = archiveEnquiryInput.safeParse(req.body);
+    if (!uuidPattern.test(id) || !input.success) { res.status(400).json(errorResponse('Refresh this enquiry before continuing.')); return; }
+    try {
+      await archiveStore.change(settings().dealerId, id, input.data.expectedRevision, action === 'archive');
+      const [entry] = await db.select().from(enquiriesTable).where(and(eq(enquiriesTable.id, id), eq(enquiriesTable.dealerId, settings().dealerId)));
+      if (!entry) { res.status(404).json(errorResponse('Enquiry not found.')); return; }
+      const states = await enquiryAiStates(settings().dealerId, [id]);
+      res.json(toEnquiryResponse(entry, { events: await eventsForEnquiry(id), ai: states.get(id) }));
+    } catch (error) {
+      if (error instanceof EnquiryDeletionError) { res.status(error.status).json(errorResponse(error.message)); return; }
+      req.log.error('Unable to change enquiry archive'); res.status(503).json(errorResponse('Unable to change the archive. Refresh and try again.'));
+    }
+  });
 }
 
 router.get("/enquiries", requireStaff, async (req, res): Promise<void> => {
@@ -312,10 +342,11 @@ router.get("/enquiries", requireStaff, async (req, res): Promise<void> => {
       .where(and(...conditions))
       .orderBy(desc(enquiriesTable.createdAt));
     const events = req.get("x-enquiry-timeline") === "omit" ? new Map() : await eventsForEnquiries(enquiries.map((entry) => entry.id));
+    const aiStates = await enquiryAiStates(settings().dealerId, enquiries.map(entry => entry.id));
     res.json(
       GetEnquiriesResponse.parse(
         enquiries.map((enquiry) =>
-          toEnquiryResponse(enquiry, { events: events.get(enquiry.id) ?? [] }),
+          toEnquiryResponse(enquiry, { events: events.get(enquiry.id) ?? [], ai: aiStates.get(enquiry.id) }),
         ),
       ),
     );
@@ -621,6 +652,7 @@ router.post("/staff/enquiries/:id/follow-up", requireStaff, async (req, res): Pr
     const updated = await db.transaction(async tx => {
       const [entry] = await tx.select().from(enquiriesTable).where(and(eq(enquiriesTable.id, id), eq(enquiriesTable.dealerId, settings().dealerId))).for("update");
       if (!entry) return null;
+      if (entry.archivedAt) throw new BookingConflict('Restore this enquiry before changing its follow-up.');
       if (entry.followUpRevision !== input.expectedRevision) throw new BookingConflict("This follow-up changed. Refresh before editing it.");
       if (input.action !== "schedule" && (!entry.followUpAt || entry.followUpCompletedAt)) throw new BookingConflict("There is no outstanding follow-up to update.");
       const [changed] = await tx.update(enquiriesTable).set({
@@ -657,6 +689,7 @@ router.post("/staff/enquiries/:id/appointment", requireStaff, async (req, res): 
       if (!before?.appointmentAt || before.type !== "viewing") return null;
       await lockBookingDays(tx, settings().dealerId, [before.appointmentAt, ...(input.appointmentAt ? [input.appointmentAt] : [])]);
       const [current] = await tx.select().from(enquiriesTable).where(tenantAnd(eq(enquiriesTable.id, id), tenantEq(enquiriesTable.dealerId, currentDealerId()))).for("update");
+      if (current?.archivedAt) throw new BookingConflict('Restore this enquiry before changing its appointment.');
       if (!current || current.appointmentRevision !== input.expectedRevision || current.appointmentCancelledAt || !current.appointmentAt || current.appointmentAt.getTime() <= Date.now()) throw new BookingConflict("This appointment changed. Refresh and try again.");
       if (input.action === "reschedule") await ensureBookingVehicleAvailable(tx, settings().dealerId, current.vehicleId);
       const exception = input.action === "reschedule" ? await checkStaffAppointment(tx, settings().dealerId, input.appointmentAt!, policy, input, id) : null;
@@ -753,6 +786,7 @@ router.post("/test-drive-bookings/:id/decision", requireStaff, async (req, res):
     const outcome = await db.transaction(async (tx) => {
       const [booking] = await tx.select().from(enquiriesTable).where(and(eq(enquiriesTable.id, String(req.params.id)), eq(enquiriesTable.dealerId, settings().dealerId), eq(enquiriesTable.type, "viewing"))).for("update");
       if (!booking) return null;
+      if (booking.archivedAt) throw new BookingConflict('Restore this enquiry before deciding its appointment.');
       if (booking.appointmentRevision !== parsed.data.expectedRevision) throw new BookingConflict("This test drive has changed. Refresh the booking before deciding.");
       if (parsed.data.decision === "decline" && booking.appointmentCancelledAt) return { booking, changed: false };
       if (parsed.data.decision === "confirm" && booking.appointmentStatus === "confirmed" && !booking.appointmentCancelledAt) return { booking, changed: false };

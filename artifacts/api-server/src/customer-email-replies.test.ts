@@ -4,7 +4,8 @@ import { readFile, readdir } from "node:fs/promises";
 import { randomBytes, randomUUID } from "node:crypto";
 import express from "express";
 import { Webhook } from "svix";
-import { engine } from "./test/tenant-test-db";
+import { engine, db } from "./test/tenant-test-db";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { runWithTenant } from "./lib/tenant-context";
 import {
   routeCustomerReply,
@@ -536,4 +537,48 @@ test("receiving routes and enquiry history are durable, tenant isolated and neve
       }
     },
   );
+  await t.test('a verified customer reply restores an archived enquiry and puts it back in the active queue', async () => {
+    const id = randomUUID();
+    await engine.query("INSERT INTO enquiries(id,dealer_id,type,customer_name,message,status,archived_at,archive_delete_at)VALUES($1,'reply-a','general','Fictional buyer','Original','closed',now(),now()+interval '30 days')", [id]);
+    await runWithTenant(tenant(), async () => {
+      const replyAddress = (await routeCustomerReply({ ...request, idempotencyKey: randomUUID() }, id)).replyTo!;
+      const provider = await event(replyAddress);
+      payload = incoming(provider, replyAddress, { text: 'Can I visit tomorrow?' });
+      await processCustomerReplies(log, transport);
+      const restored = (await engine.query<any>('SELECT archived_at,archive_delete_at,archive_hold_reason,status,workspace_revision FROM enquiries WHERE id=$1', [id])).rows[0];
+      assert.equal(restored.archived_at, null); assert.equal(restored.archive_delete_at, null); assert.equal(restored.archive_hold_reason, null);
+      assert.equal(restored.status, 'new'); assert.equal(restored.workspace_revision, 1); assert.equal((await row(provider)).status, 'received');
+    });
+  });
+
+  await t.test('reply processing locks case membership and enquiry rows before the receipt, matching archive/deletion order', async () => {
+    const source = randomUUID(), primary = randomUUID();
+    for (const id of [source, primary]) await engine.query("INSERT INTO enquiries(id,dealer_id,type,customer_name,message,status)VALUES($1,'reply-a','general','Fictional buyer','Original','contacted')", [id]);
+    await engine.query('UPDATE enquiries SET merged_into_id=$2 WHERE id=$1', [source, primary]);
+    await runWithTenant(tenant(), async () => {
+      const replyAddress = (await routeCustomerReply({ ...request, idempotencyKey: randomUUID() }, source)).replyTo!;
+      const provider = await event(replyAddress);
+      payload = incoming(provider, replyAddress, { text: 'Please check this for me' });
+      const originalTransaction = db.transaction, dialect = new PgDialect();
+      const trace: { sql: string; params: unknown[] }[] = [];
+      (db as any).transaction = (work: (tx: any) => Promise<unknown>) => originalTransaction.call(db, async (tx) => {
+        const execute = tx.execute.bind(tx);
+        (tx as any).execute = (query: any) => { trace.push(dialect.sqlToQuery(query)); return execute(query); };
+        return work(tx);
+      });
+      try { await processCustomerReplies(log, transport); }
+      finally { (db as any).transaction = originalTransaction; }
+      const locks = trace.filter(query => /FOR UPDATE/i.test(query.sql));
+      assert.equal(locks.length, 3);
+      assert.match(locks[0].sql, /FROM enquiries WHERE dealer_id=/);
+      assert.ok(locks[0].params.includes('reply-a')); assert.ok(locks[0].params.includes(source));
+      assert.match(locks[1].sql, /FROM enquiries WHERE dealer_id=/);
+      assert.ok(locks[1].params.includes(primary));
+      assert.match(locks[2].sql, /FROM enquiry_email_replies m/);
+      assert.match(locks[2].sql, /m\.dealer_id=/); assert.match(locks[2].sql, /m\.lease_until=/);
+      assert.deepEqual(trace.filter(query => /pg_advisory_xact_lock/.test(query.sql)).map(query => query.params[0]), [`sale-workspace:reply-a`, `enquiry-merge:reply-a`, `enquiry-email:reply-a:${source}`]);
+      assert.equal((await row(provider)).status, 'received'); assert.equal((await row(provider)).enquiry_id, primary);
+    });
+  });
+
 });

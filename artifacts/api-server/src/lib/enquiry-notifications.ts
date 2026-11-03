@@ -421,14 +421,14 @@ function claimable(
   staleBefore: Date,
   kind: OutboxKind,
 ) {
-  return or(
+  return and(isNull(enquiriesTable.archivedAt), or(
     eq(status, "pending"),
     and(
       eq(status, "sending"),
       or(isNull(attemptedAt), lt(attemptedAt, staleBefore)),
       sql`NOT EXISTS(SELECT 1 FROM email_outbox q WHERE q.dealer_id=${currentDealerId()} AND q.enquiry_id=${enquiriesTable.id} AND q.kind=${kind} AND (q.validation->>'appointmentRevision')::integer=${enquiriesTable.appointmentRevision})`,
     ),
-  );
+  ));
 }
 
 async function processCustomerConfirmation(
@@ -560,6 +560,7 @@ export async function deliverEnquiryNotifications(
   enquiry: Enquiry,
   log: Logger,
 ) {
+  if (enquiry.archivedAt) return enquiry;
   const dealer = await getDealerProfile();
   await Promise.all([
     processCustomerConfirmation(enquiry, log, dealer),
@@ -591,6 +592,7 @@ async function processReminder(enquiry: Enquiry, log: Logger) {
     .where(
       and(
         eq(enquiriesTable.id, enquiry.id),
+        isNull(enquiriesTable.archivedAt),
         eq(enquiriesTable.appointmentRevision, enquiry.appointmentRevision),
         eq(enquiriesTable.type, "viewing"),
         eq(enquiriesTable.appointmentStatus, "confirmed"),
@@ -661,7 +663,7 @@ export async function rebuildAutomaticOutboxEmail(
       ),
     );
   if (
-    !enquiry ||
+    !enquiry || enquiry.archivedAt ||
     row.dealer_id !== currentDealerId() ||
     enquiry.workspaceRevision !== row.validation.workspaceRevision ||
     notificationVersion(enquiry) !== row.validation.version ||
@@ -711,6 +713,7 @@ export async function processDueNotifications(log: Logger) {
     .where(
       and(
         eq(enquiriesTable.dealerId, currentDealerId()),
+        isNull(enquiriesTable.archivedAt),
         or(
           claimable(
             enquiriesTable.customerNotificationStatus,
@@ -741,6 +744,7 @@ export async function processDueNotifications(log: Logger) {
     .where(
       and(
         eq(enquiriesTable.dealerId, currentDealerId()),
+        isNull(enquiriesTable.archivedAt),
         eq(enquiriesTable.type, "viewing"),
         // Match processReminder's claim: legacy null statuses cannot consume this batch.
         eq(enquiriesTable.appointmentStatus, "confirmed"),

@@ -7,6 +7,7 @@ import type { Logger } from "pino";
 import { currentDealerId } from "./tenant-context";
 import { forEachActiveDealer } from "./tenant-jobs";
 import { compactCompletedStockSnapshots } from './stock-snapshot-retention';
+import { purgeArchivedEnquiries } from './enquiry-archive';
 
 export const retentionPolicy = {
   archiveDays: 7,
@@ -98,6 +99,8 @@ export function startRetentionWorker(log: Logger) {
         const counts = await retainDealerData();
         if (Object.values(counts).some(Boolean))
           log.info({ dealerId: currentDealerId(), ...counts }, 'Data retention completed');
+        const enquiries = await purgeArchivedEnquiries(currentDealerId());
+        if (enquiries.deleted || enquiries.held) log.info({ dealerId: currentDealerId(), ...enquiries }, 'Enquiry archive retention completed');
         // This stock-only policy remains disabled until an operator opts in.
         const snapshots = await compactCompletedStockSnapshots(currentDealerId());
         if (snapshots.enabled && (snapshots.compacted || snapshots.hashBackfilled || snapshots.integritySkipped))

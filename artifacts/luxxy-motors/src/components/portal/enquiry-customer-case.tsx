@@ -45,6 +45,8 @@ import { EnquiryReplyDesk } from "./enquiry-reply-desk";
 import { EnquiryChecks } from "./enquiry-checks";
 import { AppointmentExceptionLabels } from "./enquiry-calendar";
 import { DeleteEnquiry } from "./delete-enquiry";
+import { EnquiryArchiveDialog, RestoreEnquiryAction } from "./enquiry-archive";
+import { EnquiryAiChecks } from "./enquiry-ai-checks";
 import { HistoryLinks } from "./history-links";
 import type { EnquiryRecordActions } from "./enquiry-record-browser";
 import type { ReplyInsertion } from "./enquiry-email-composer";
@@ -115,7 +117,8 @@ export function EnquiryCustomerCase({
   const canManage =
     access.data?.permissions.includes("sales.manage") === true &&
     !access.isError;
-  const canReply = canManage && Boolean(actions.onEmail);
+  const archived=Boolean(entry.archivedAt);
+  const canReply = canManage && Boolean(actions.onEmail) && !archived;
   const presentation = enquiryPresentation(entry);
   const state = inboxState(entry);
   const pendingReply = ((entry as InboxEnquiry).pendingEmailReplies ?? 0) > 0;
@@ -128,6 +131,8 @@ export function EnquiryCustomerCase({
   const [replyBusy, setReplyBusy] = useState(false);
   const [context, setContext] = useState<"vehicle" | "customer" | "activity" | null>(null);
   const [activityOpen, setActivityOpen] = useState(false);
+  const [archiveOpen,setArchiveOpen]=useState(false);
+  const workspace=useRef<HTMLElement>(null);
   const contextId = useId();
   const insertionId = useRef(0);
   const cache = useQueryClient();
@@ -139,7 +144,7 @@ export function EnquiryCustomerCase({
   );
   const visitFinished =
     entry.attendance === "completed" || entry.attendance === "no_show";
-  const canBook = (!future || visitFinished) && actions.canBook !== false;
+  const canBook = !archived && (!future || visitFinished) && actions.canBook !== false;
   const outstanding = Boolean(entry.followUpAt && !entry.followUpCompletedAt);
   const bookingRequested = Boolean(
     entry.appointmentAt &&
@@ -193,11 +198,16 @@ export function EnquiryCustomerCase({
   const needsSenderReview =
     ((entry as InboxEnquiry).emailRepliesToReview ?? 0) > 0;
   const needsAction =
-    needsSenderReview ||
+    !archived && (needsSenderReview ||
     presentation.action === "follow_up" ||
-    presentation.action === "update";
+    presentation.action === "update");
+  async function saveCase(updated:Enquiry) {
+    cache.setQueryData<Enquiry[]>(enquirySummaryKey(),current=>current?.map(item=>item.id===updated.id?updated:item));
+    await refresh();
+  }
   return (
     <article
+      ref={workspace}
       className={`enquiry-customer-case${compact ? " enquiry-case-compact" : ""}`}
       data-context-open={context ? "true" : "false"}
       aria-label={`Customer workspace for ${entry.customerName}`}
@@ -302,14 +312,14 @@ export function EnquiryCustomerCase({
             Customer details
           </Button>
           </>}
-          {canManage && (
+          {canManage && !archived && (
             <EnquiryResolutionAction
               entry={entry}
               disabled={replyBusy}
               linkedCount={entries.length}
             />
           )}
-          {canManage && (
+          {canManage && !archived && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -362,6 +372,8 @@ export function EnquiryCustomerCase({
                     Merge records
                   </DropdownMenuItem>
                 )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem disabled={replyBusy} onSelect={()=>setArchiveOpen(true)}>Archive enquiry</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -495,7 +507,7 @@ export function EnquiryCustomerCase({
                     </div>
                   )}
                 </dl>
-                {canManage && <ClaimEnquiry entry={entry} />}
+                {canManage && !archived && <ClaimEnquiry entry={entry} />}
                 <div className="enquiry-case-history-actions">
                   {actions.onCustomerHistory && (
                     <Button
@@ -560,6 +572,7 @@ export function EnquiryCustomerCase({
           </aside></CaseDetailsSurface>
         )}
         <div className="enquiry-case-main">
+          {archived&&<section className="enquiry-archive-banner" aria-label="Archived enquiry"><div><h4>Archived enquiry</h4><p>{entry.archiveHoldReason ? <>Kept with linked business records. {entry.archiveHoldReason}</> : entry.archiveDeleteAt ? <>Scheduled for deletion on {new Date(entry.archiveDeleteAt).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}. Restore it to keep working on it.</> : <>Automatic work is paused. Restore this enquiry to reply.</>}</p></div>{canManage&&<RestoreEnquiryAction entry={entry} onSaved={saveCase}/>}</section>}
           {bookingRequested ? (
             <section
               className="enquiry-case-appointment"
@@ -573,7 +586,7 @@ export function EnquiryCustomerCase({
                 <AppointmentExceptionLabels booking={entry} />
                 <span>Awaiting your confirmation</span>
               </div>
-              {canManage && (
+              {canManage && !archived && (
                 <div className="enquiry-case-booking-actions">
                   <Button
                     type="button"
@@ -614,7 +627,7 @@ export function EnquiryCustomerCase({
                   <p>{appointmentLabel(entry.appointmentAt)}</p>
                   <AppointmentExceptionLabels booking={entry} />
                 </div>
-                {canManage && !entry.appointmentCancelledAt && (
+                {canManage && !archived && !entry.appointmentCancelledAt && (
                   <details className="enquiry-case-visit-tools">
                     <summary>Manage visit</summary>
                     <div>
@@ -679,6 +692,7 @@ export function EnquiryCustomerCase({
             cars={cars}
             onInsertText={canReply && !replyBusy ? insertIntoReply : undefined}
           />
+          {canManage && <EnquiryAiChecks id={entry.id}/>}
           {canReply && (
             <EnquiryReplyDesk
               compact={compact}
@@ -688,18 +702,12 @@ export function EnquiryCustomerCase({
               focusRequest={focusRequest}
               requestedChannel={requestedChannel}
               onBusyChange={setReplyBusy}
-              onSaved={async (updated) => {
-                cache.setQueryData<Enquiry[]>(enquirySummaryKey(), (current) =>
-                  current?.map((item) =>
-                    item.id === updated.id ? updated : item,
-                  ),
-                );
-                await refresh();
-              }}
+              onSaved={saveCase}
             />
           )}
         </div>
       </div>
+      {canManage&&<EnquiryArchiveDialog entry={entry} open={archiveOpen} onOpenChange={setArchiveOpen} onSaved={saveCase} hasUnsavedDraft={()=>Boolean(workspace.current?.querySelector('[data-message-dirty="true"]'))}/>}
     </article>
   );
 }

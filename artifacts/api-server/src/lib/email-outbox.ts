@@ -284,12 +284,20 @@ export function deliverEmailOutbox(
           return existing;
         const token = randomUUID();
         const claimed = await db.transaction(async (tx) => {
+          // Same first row as archive/restore: either delivery starts first and
+          // archive refuses its sending state, or archive wins and delivery cancels.
+          const enquiry = (await tx.execute(sql`SELECT archived_at FROM enquiries WHERE dealer_id=${dealer} AND id=${existing.enquiry_id}::uuid FOR UPDATE`)).rows[0];
           const row = (
             await tx.execute(
               sql`SELECT * FROM email_outbox WHERE id=${id}::uuid AND dealer_id=${dealer} AND status='queued' AND next_attempt_at<=${now} FOR UPDATE SKIP LOCKED`,
             )
           ).rows[0] as unknown as EmailOutbox | undefined;
           if (!row) return undefined;
+          if (!enquiry || enquiry.archived_at) {
+            const cancelled = (await tx.execute(sql`UPDATE email_outbox SET status='cancelled',error_code='enquiry_archived',finished_at=${now},updated_at=${now} WHERE id=${id}::uuid AND dealer_id=${dealer} RETURNING *`)).rows[0] as unknown as EmailOutbox;
+            await syncTarget(cancelled, tx);
+            return cancelled;
+          }
           if (
             row.attempts >= 3 ||
             instant(row.retry_deadline) <= now.getTime()

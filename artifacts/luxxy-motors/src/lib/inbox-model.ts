@@ -3,11 +3,12 @@ import { enquiryPresentation, enquiryPurpose, enquirySourceLabel } from './enqui
 import type { InboxEnquiry } from './enquiry-reply-attention';
 import { canonicalCustomerPhone } from '@workspace/vehicle-meta';
 
-export type InboxFilter = 'needs-you' | 'all' | 'test-drives' | 'done';
+export type InboxFilter = 'needs-you' | 'all' | 'test-drives' | 'done' | 'archive';
+export type InboxFolder = 'enquiries' | 'ai' | 'archive';
 export type InboxStateKey = 'needs-you' | 'waiting' | 'booked' | 'done';
 export type InboxState = {
   key: InboxStateKey;
-  label: 'Needs you' | 'Waiting' | 'Booked' | 'Done';
+  label: 'Needs you' | 'Waiting' | 'Booked' | 'Done' | 'Archived';
   tone: 'warning' | 'info' | 'success' | 'muted';
   /** The recorded task or outcome behind the simplified status. */
   detail: string;
@@ -31,6 +32,7 @@ const timestamp = (value: string | null | undefined) => {
 
 /** Simplifies existing recorded work. It never infers that AI is handling a case. */
 export function inboxState(entry: InboxEnquiry, now = Date.now()): InboxState {
+  if (entry.archivedAt) return { key:'done', label:'Archived', tone:'muted', detail:'Archived', nextAction:'Restore enquiry', purpose:enquiryPurpose(entry), source:enquirySourceLabel(entry), priority:99 };
   const presentation = enquiryPresentation(entry, now);
   const appointment = timestamp(entry.appointmentAt);
   const followUp = !entry.followUpCompletedAt ? timestamp(entry.followUpAt) : null;
@@ -57,6 +59,23 @@ export function inboxState(entry: InboxEnquiry, now = Date.now()): InboxState {
     nextAction: (entry.emailRepliesToReview ?? 0) > 0 ? 'Review incoming email' : presentation.nextAction, purpose: presentation.purpose,
     source: presentation.source, priority: presentation.priority,
   };
+}
+
+/** Only recorded provider automation belongs here; a Cazoo source or a manual AI draft is not enough. */
+export function isAiEnquiry(entry: InboxEnquiry): boolean {
+  return Boolean(entry.aiProvider && entry.aiDraftStatus && ['pending','generating','ready','failed'].includes(entry.aiDraftStatus));
+}
+
+/** Keep explicit combined cases together when switching folders. */
+export function inboxFolderEntries(entries: readonly InboxEnquiry[], folder: InboxFolder): InboxEnquiry[] {
+  return entries.filter(entry => {
+    const members = enquiryGroup(entry, entries) as InboxEnquiry[];
+    const active = members.filter(member => !member.archivedAt);
+    if (folder === 'archive') return active.length === 0;
+    if (!active.length) return false;
+    const automated = active.some(isAiEnquiry);
+    return folder === 'ai' ? automated : !automated;
+  });
 }
 
 /** A merged original can still carry a new reply or appointment of its own. */
@@ -123,6 +142,7 @@ export function inboxFilter(entries: readonly InboxEnquiry[], filter: InboxFilte
     const latest = Math.max(...members.map(member => timestamp(inboxLastActivity(member)) ?? 0));
     return { entry, members, state, latest, index };
   }).filter(({ members, state }) => {
+    if (filter === 'archive' ? members.some(member=>!member.archivedAt) : members.every(member=>Boolean(member.archivedAt))) return false;
     if (search.trim() && !search.trim().split(/\s+/).every(term => members.some(member => inboxMatches(member, term)))) return false;
     if (filter === 'needs-you') return state.key === 'needs-you';
     if (filter === 'done') return state.key === 'done';

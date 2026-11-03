@@ -5,6 +5,7 @@ import {
   AI_RESERVATION_MICRO_USD,
   type AiResult,
 } from "./ai-assistance";
+import type { EnquiryAiAudit } from "./enquiry-ai-context";
 type Client = {
   query: (text: string, values?: any[]) => Promise<{ rows: any[] }>;
   release: () => void;
@@ -43,6 +44,14 @@ export class AiAssistanceStore {
         : Math.max(0, 10 - r.rows[0].used_count)
       : 10;
   }
+  async latestEnquiryChecks(dealer: string, enquiryId: string) {
+    const row = (await this.database.query(
+      "SELECT id,created_at,context_audit FROM ai_assistance_requests WHERE dealer_id=$1 AND status='succeeded' AND context_audit->>'enquiryId'=$2 ORDER BY created_at DESC,id DESC LIMIT 1",
+      [dealer, enquiryId],
+    )).rows[0];
+    if (!row?.context_audit || row.context_audit.version !== 1) return null;
+    return { requestId: row.id, model: row.context_audit.model, createdAt: new Date(row.created_at).toISOString(), contextAudit: row.context_audit as EnquiryAiAudit };
+  }
   async reserve(input: {
     dealer: string;
     session: string;
@@ -51,7 +60,10 @@ export class AiAssistanceStore {
     hash: string;
     cacheKey: string | null;
     staff: boolean;
+    contextAudit?: EnquiryAiAudit;
   }) {
+    if (input.contextAudit && (!input.staff || input.contextAudit.version !== 1 || !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(input.contextAudit.enquiryId) || Buffer.byteLength(JSON.stringify(input.contextAudit)) > 64000))
+      throw new AiError("invalid_context", "AI check information could not be recorded safely.", 400);
     await this.cleanup();
     const client = await this.database.connect();
     try {
@@ -172,7 +184,7 @@ export class AiAssistanceStore {
         [input.session],
       );
       await client.query(
-        "INSERT INTO ai_assistance_requests(id,dealer_id,session_hash,ip_hash,request_id,request_hash,cache_key,month_key,cost_micro_usd,status,result) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
+        "INSERT INTO ai_assistance_requests(id,dealer_id,session_hash,ip_hash,request_id,request_hash,cache_key,month_key,cost_micro_usd,status,result,context_audit) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)",
         [
           id,
           input.dealer,
@@ -185,6 +197,7 @@ export class AiAssistanceStore {
           cache ? 0 : AI_RESERVATION_MICRO_USD,
           cache ? "succeeded" : "reserved",
           cache ? JSON.stringify(cache) : null,
+          input.contextAudit ? JSON.stringify(input.contextAudit) : null,
         ],
       );
       await client.query("COMMIT");
@@ -225,6 +238,45 @@ export class AiAssistanceStore {
       throw e;
     } finally {
       c.release();
+    }
+  }
+  /** Linearise a staff result against archive, merge and workspace edits. */
+  async completeForEnquiry(input: {
+    id: string;
+    dealer: string;
+    enquiryId: string;
+    expectedWorkspaceRevision: number;
+    generated?: { result: AiResult; cost: number };
+  }) {
+    const client = await this.database.connect();
+    try {
+      await client.query("BEGIN");
+      const enquiry = (await client.query(
+        "SELECT workspace_revision,archived_at,archive_delete_at,merged_into_id FROM enquiries WHERE dealer_id=$1 AND id=$2::uuid FOR UPDATE",
+        [input.dealer, input.enquiryId],
+      )).rows[0];
+      if (!enquiry) throw new AiError("not_found", "Enquiry not found.", 404);
+      if (enquiry.archived_at || enquiry.archive_delete_at)
+        throw new AiError("enquiry_archived", "This enquiry was archived while the reply was being prepared. No draft was saved.", 409);
+      if (enquiry.merged_into_id || !Number.isSafeInteger(input.expectedWorkspaceRevision) || Number(enquiry.workspace_revision) !== input.expectedWorkspaceRevision)
+        throw new AiError("enquiry_changed", "This enquiry changed while the reply was being prepared. Refresh it and try again.", 409);
+      const request = (await client.query(
+        "SELECT status,result,context_audit FROM ai_assistance_requests WHERE id=$1 AND dealer_id=$2 FOR UPDATE",
+        [input.id, input.dealer],
+      )).rows[0];
+      if (!request || request.context_audit?.enquiryId !== input.enquiryId ||
+        (input.generated ? request.status !== "reserved" : request.status !== "succeeded" || !request.result))
+        throw new AiError("request_used", "This reply request is no longer available. Start a new request.", 409);
+      if (input.generated) await client.query(
+        "UPDATE ai_assistance_requests SET status='succeeded',result=$3,cost_micro_usd=$4 WHERE id=$1 AND dealer_id=$2 AND status='reserved'",
+        [input.id, input.dealer, JSON.stringify(input.generated.result), input.generated.cost],
+      );
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
     }
   }
   async fail(id: string, dealer: string) {

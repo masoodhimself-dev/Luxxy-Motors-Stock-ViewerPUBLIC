@@ -46,6 +46,7 @@ export const aiAssistanceRequestsTable = pgTable(
     costMicroUsd: integer("cost_micro_usd").notNull().default(0),
     status: text("status").notNull(),
     result: jsonb("result"),
+    contextAudit: jsonb("context_audit"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -58,6 +59,7 @@ export const aiAssistanceRequestsTable = pgTable(
     ),
     index("ai_assistance_month").on(t.monthKey),
     index("ai_assistance_ip_day").on(t.ipHash, t.createdAt),
+    index("ai_assistance_enquiry_audit").on(t.dealerId, sql`(${t.contextAudit}->>'enquiryId')`, t.createdAt.desc()).where(sql`${t.contextAudit} is not null`),
     check(
       "ai_assistance_requests_cost_micro_usd_check",
       sql`${t.costMicroUsd}>=0`,

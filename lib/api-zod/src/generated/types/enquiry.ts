@@ -5,6 +5,8 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { EnquiryAiDraftStatus } from './enquiryAiDraftStatus';
+import type { EnquiryAiProvider } from './enquiryAiProvider';
 import type { EnquiryAppointmentStatus } from './enquiryAppointmentStatus';
 import type { EnquiryAttendance } from './enquiryAttendance';
 import type { EnquiryEvent } from './enquiryEvent';
@@ -12,6 +14,16 @@ import type { EnquiryStatus } from './enquiryStatus';
 import type { EnquiryType } from './enquiryType';
 
 export interface Enquiry {
+  /** @nullable */
+  archivedAt?: Date | null;
+  /** @nullable */
+  archiveDeleteAt?: Date | null;
+  /** @nullable */
+  archiveHoldReason?: string | null;
+  /** @nullable */
+  aiProvider?: EnquiryAiProvider;
+  /** @nullable */
+  aiDraftStatus?: EnquiryAiDraftStatus;
   /**
      * Main case ID; originals remain editable and retain their own appointments and history.
      * @nullable

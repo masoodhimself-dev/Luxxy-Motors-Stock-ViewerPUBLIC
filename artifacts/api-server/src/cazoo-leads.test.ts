@@ -439,6 +439,34 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
       );
     },
   );
+  await t.test("background drafts share verified MOT context/audit and archived cases make no calls", async () => {
+    const provider = await queue();
+    await processCazooLeads(transportFor({ [provider]: email(provider, { text: text("f".repeat(32)).replace("Do you accept px for a Lexus GS450h 2008?", "What is the MOT expiry and any advisories? Does it have pqrking sensors, what is reg?") }) }), draftSkip);
+    const row = await receipt(provider);
+    let generated = 0, lookedUp = 0;
+    const getCar = async () => ({ id: carId, registration: "AB15CDE", make: "Lexus", model: "RX", inventoryStatus: "available", features: [], specifications: { features: ["Rear parking sensors"] } });
+    const lookup = async (registration: string) => { lookedUp++; assert.equal(registration, "AB15CDE"); return { registration, make: "Lexus", model: "RX", checkedAt: new Date().toISOString(), recall: "Unknown" as const, tests: [{ completedDate: "2026-01-01", result: "PASSED" as const, expiryDate: "2027-01-01", mileage: "50000", mileageUnit: "MI" as const, defects: [{ text: "Tyre worn", type: "ADVISORY", dangerous: false }] }] }; };
+    const generate = async (_task: any, _question: string, facts: any) => {
+      generated++;
+      assert.equal(facts.cars[0].mot.latest.result, "PASSED");
+      assert.deepEqual(facts.cars[0].features, ["Rear parking sensors"]);
+      assert.ok(facts.verification.questions.some((check: any) => check.topic === "registration"));
+      return { result: { answer: "The recorded MOT expiry is 1 January 2027 and it lists a tyre advisory. Rear parking sensors are listed. The registration is AB15CDE.", vehicleIds: [], questions: [], evidence: [carId] }, cost: 1 };
+    };
+    await engine.query("UPDATE enquiries SET archived_at=now(),archive_delete_at=now()+interval '30 days' WHERE id=$1", [row.enquiry_id]);
+    assert.equal(await runWithTenant(tenant(), () => draftCazooReply(row, generate, getCar, lookup)), "skipped");
+    assert.equal(lookedUp, 0);
+    assert.equal(generated, 0);
+    await engine.query("UPDATE enquiries SET archived_at=NULL,archive_delete_at=NULL WHERE id=$1", [row.enquiry_id]);
+    assert.equal(await runWithTenant(tenant(), () => draftCazooReply(row, generate, getCar, lookup)), "ready");
+    assert.equal(lookedUp, 1);
+    assert.equal(generated, 1);
+    const audit = (await engine.query<any>("SELECT context_audit FROM ai_assistance_requests WHERE dealer_id='cazoo-a' AND request_id=$1", [row.id])).rows[0].context_audit;
+    assert.equal(audit.enquiryId, row.enquiry_id);
+    assert.equal(audit.lookups[0].status, "verified");
+    assert.ok(!JSON.stringify(audit).includes("sam@example.test"));
+    assert.equal((await engine.query<any>("SELECT count(*)::int AS n FROM email_outbox")).rows[0].n, 0);
+  });
   await t.test(
     "bad layouts stay visible and missing vehicles never match another dealer",
     async () => {

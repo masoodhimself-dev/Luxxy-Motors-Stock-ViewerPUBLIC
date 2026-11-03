@@ -5,8 +5,8 @@ import { currentDealerId } from './tenant-context';
 import { requirePermission, requireStaff } from '../middlewares/staff-auth';
 
 type Row = Record<string, any>;
-type Client = { query: (text: string, values?: any[]) => Promise<{ rows: Row[] }>; release: () => void };
-type Database = { connect: () => Promise<Client> };
+export type EnquiryDeletionClient = { query: (text: string, values?: any[]) => Promise<{ rows: Row[] }>; release: () => void };
+type Database = { connect: () => Promise<EnquiryDeletionClient> };
 export type EnquiryDeletionAssessment = { id: string; expectedRevision: number; canDelete: boolean; reason: string | null };
 const revisionSchema = z.number().int().min(0);
 const idSchema = z.string().uuid();
@@ -29,7 +29,7 @@ function hasDocumentReference(value: unknown): boolean {
 }
 
 /** Locks and checks the selected enquiry only; names and contact details are never ownership links. */
-async function assess(client: Client, dealer: string, id: string) {
+export async function assessEnquiryDeletion(client: EnquiryDeletionClient, dealer: string, id: string) {
   const entry = (await client.query('SELECT * FROM enquiries WHERE dealer_id=$1 AND id=$2::uuid FOR UPDATE', [dealer, id])).rows[0];
   if (!entry) throw new EnquiryDeletionError('Enquiry not found.', 404);
   const result = (reason: string | null, shares: Row[] = []) => ({ entry, shares, view: { id, expectedRevision: entry.workspace_revision, canDelete: reason === null, reason } satisfies EnquiryDeletionAssessment });
@@ -39,7 +39,7 @@ async function assess(client: Client, dealer: string, id: string) {
   const childTables = ['enquiry_emails', 'enquiry_email_drafts', 'enquiry_email_replies', 'enquiry_email_reply_routes', 'email_outbox', 'enquiry_photos', 'enquiry_photo_upload_sessions', 'customer_email_preparations', 'test_drive_declarations', 'stock_change_customer_outcomes', 'stock_change_contact_events', 'staff_push_deliveries', 'vehicle_watch_reply_routes', 'staff_ai_draft_generations'];
   const children = (await client.query(childTables.map(table => `SELECT dealer_id FROM ${table} WHERE enquiry_id=$1::uuid`).join(' UNION ALL '), [id])).rows;
   if (children.some(child => child.dealer_id !== dealer)) return result('This enquiry has an inconsistent dealership link and is protected.');
-  if (entry.appointment_at && !entry.appointment_cancelled_at && entry.attendance === 'scheduled') return result('Cancel or complete the test-drive appointment before deleting this enquiry.');
+  if (entry.appointment_at && !entry.appointment_cancelled_at && ['scheduled', 'arrived'].includes(entry.attendance)) return result('Cancel or complete the test-drive appointment before deleting this enquiry.');
   // Both sales implementations are retained. Any financial or reserved link blocks deletion.
   if ((await client.query('SELECT id FROM sales WHERE enquiry_id=$1::uuid LIMIT 1', [id])).rows.length || (await client.query("SELECT id FROM sale_workspace WHERE dealer_id=$1 AND state::text LIKE '%'||$2||'%' LIMIT 1", [dealer, id])).rows.length) return result('This enquiry is linked to a sale, invoice, payment or reservation and is protected.');
   const leads = (await client.query('SELECT * FROM leads WHERE enquiry_id=$1::uuid ORDER BY id FOR UPDATE', [id])).rows;
@@ -74,7 +74,7 @@ async function assess(client: Client, dealer: string, id: string) {
 export class EnquiryDeletionStore {
   constructor(private database: Database = pool, private options: { clock?: () => Date } = {}) {}
   private now() { return this.options.clock?.() ?? new Date(); }
-  private async transaction<T>(dealer: string, work: (client: Client) => Promise<T>): Promise<T> {
+  private async transaction<T>(dealer: string, work: (client: EnquiryDeletionClient) => Promise<T>): Promise<T> {
     const client = await this.database.connect();
     try {
       await client.query('BEGIN');
@@ -87,28 +87,47 @@ export class EnquiryDeletionStore {
     finally { client.release(); }
   }
   async inspect(dealer: string, id: string) {
-    return this.transaction(dealer, async client => (await assess(client, dealer, id)).view);
+    return this.transaction(dealer, async client => (await assessEnquiryDeletion(client, dealer, id)).view);
   }
   async remove(dealer: string, id: string, expectedRevision: number, actor: string, confirmDelete: boolean) {
     if (confirmDelete !== true || !revisionSchema.safeParse(expectedRevision).success || !actor) throw new EnquiryDeletionError('Review the enquiry and confirm permanent deletion of it and its conversation.', 400);
     return this.transaction(dealer, async client => {
       await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`enquiry-email:${dealer}:${id}`]);
-      const assessed = await assess(client, dealer, id);
+      const assessed = await assessEnquiryDeletion(client, dealer, id);
       if (assessed.view.expectedRevision !== expectedRevision) throw new EnquiryDeletionError('This enquiry changed. Refresh and review it before deleting.', 409);
       if (!assessed.view.canDelete) throw new EnquiryDeletionError(assessed.view.reason!, 409);
-      const now = this.now();
-      for (const share of assessed.shares) await client.query("UPDATE customer_phone_shares SET revoked_at=coalesce(revoked_at,$3),payload='{}'::jsonb WHERE dealer_id=$1 AND id=$2::uuid", [dealer, share.id, now]);
-      await client.query("UPDATE staff_push_deliveries SET status='cancelled',lease_until=NULL,finished_at=coalesce(finished_at,$3),enquiry_id=NULL WHERE dealer_id=$1 AND enquiry_id=$2::uuid AND status='pending'", [dealer, id, now]);
-      await client.query('UPDATE staff_push_deliveries SET enquiry_id=NULL WHERE dealer_id=$1 AND enquiry_id=$2::uuid', [dealer, id]);
-      await client.query('UPDATE vehicle_watch_reply_routes SET enquiry_id=NULL WHERE dealer_id=$1 AND enquiry_id=$2::uuid', [dealer, id]);
-      // Accounting for AI usage survives; discard generated customer text without changing usage totals.
-      await client.query("UPDATE staff_ai_draft_generations SET result=NULL WHERE dealer_id=$1 AND enquiry_id=$2::uuid", [dealer, id]);
-      // FK cascades remove only this enquiry's conversation, drafts, reply capabilities and photos.
-      // Leads are deliberately retained by their ON DELETE SET NULL link; customers are untouched.
-      await client.query('DELETE FROM enquiries WHERE dealer_id=$1 AND id=$2::uuid', [dealer, id]);
-      return { deleted: true as const, id };
+      return deleteAssessed(client, dealer, id, assessed, this.now());
     });
   }
+  /** Retention uses exactly the same locks and protections as explicit deletion. */
+  async purgeArchived(dealer: string, id: string) {
+    return this.transaction(dealer, async client => {
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`enquiry-email:${dealer}:${id}`]);
+      const assessed = await assessEnquiryDeletion(client, dealer, id);
+      const entry = assessed.entry, now = this.now();
+      if (!entry.archived_at || !entry.archive_delete_at || new Date(entry.archive_delete_at).getTime() > now.getTime() || new Date(entry.archived_at).getTime() > now.getTime() - 30 * 86400000) return { deleted: false, held: false, id };
+      if (!assessed.view.canDelete) {
+        await client.query('UPDATE enquiries SET archive_hold_reason=$3,archive_review_at=$4 WHERE dealer_id=$1 AND id=$2::uuid AND archived_at IS NOT NULL', [dealer, id, assessed.view.reason, new Date(now.getTime() + 86400000)]);
+        return { deleted: false, held: true, id };
+      }
+      return { ...await deleteAssessed(client, dealer, id, assessed, now), held: false };
+    });
+  }
+
+}
+
+async function deleteAssessed(client: EnquiryDeletionClient, dealer: string, id: string, assessed: Awaited<ReturnType<typeof assessEnquiryDeletion>>, now: Date) {
+  for (const share of assessed.shares) await client.query("UPDATE customer_phone_shares SET revoked_at=coalesce(revoked_at,$3),payload='{}'::jsonb WHERE dealer_id=$1 AND id=$2::uuid", [dealer, share.id, now]);
+  await client.query("UPDATE staff_push_deliveries SET status='cancelled',lease_until=NULL,finished_at=coalesce(finished_at,$3),enquiry_id=NULL WHERE dealer_id=$1 AND enquiry_id=$2::uuid AND status='pending'", [dealer, id, now]);
+  await client.query('UPDATE staff_push_deliveries SET enquiry_id=NULL WHERE dealer_id=$1 AND enquiry_id=$2::uuid', [dealer, id]);
+  await client.query('UPDATE vehicle_watch_reply_routes SET enquiry_id=NULL WHERE dealer_id=$1 AND enquiry_id=$2::uuid', [dealer, id]);
+  // Accounting for AI usage survives; discard generated customer text without changing usage totals.
+  await client.query("UPDATE staff_ai_draft_generations SET result=NULL WHERE dealer_id=$1 AND enquiry_id=$2::uuid", [dealer, id]);
+  await client.query("UPDATE ai_assistance_requests SET result=NULL,context_audit=NULL WHERE dealer_id=$1 AND context_audit->>'enquiryId'=$2", [dealer, id]);
+  // FK cascades remove only this enquiry's conversation, drafts, reply capabilities and photos.
+  // Leads are deliberately retained by their ON DELETE SET NULL link; customers are untouched.
+  await client.query('DELETE FROM enquiries WHERE dealer_id=$1 AND id=$2::uuid', [dealer, id]);
+  return { deleted: true as const, id };
 }
 
 function respondError(res: Response, error: unknown) {

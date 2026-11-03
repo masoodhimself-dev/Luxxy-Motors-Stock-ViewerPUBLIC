@@ -83,7 +83,7 @@ export function vehicleActivityById(
   };
   const grouped = new Map<string, ActivityGroup>();
   for (const entry of entries) {
-    if (!entry.vehicleId) continue;
+    if (!entry.vehicleId || entry.archivedAt) continue;
     const group: ActivityGroup = grouped.get(entry.vehicleId) ?? {
       cases: new Map(),
       appointments: [],

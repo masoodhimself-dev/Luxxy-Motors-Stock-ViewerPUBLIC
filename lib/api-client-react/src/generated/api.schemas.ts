@@ -1075,6 +1075,34 @@ export interface EnquiryWorkspaceUpdate {
   attendance?: EnquiryWorkspaceUpdateAttendance;
 }
 
+export interface EnquiryArchiveInput {
+  /** @minimum 0 */
+  expectedRevision: number;
+}
+
+/**
+ * @nullable
+ */
+export type EnquiryAiProvider = typeof EnquiryAiProvider[keyof typeof EnquiryAiProvider] | null;
+
+
+export const EnquiryAiProvider = {
+  cazoo: 'cazoo',
+} as const;
+
+/**
+ * @nullable
+ */
+export type EnquiryAiDraftStatus = typeof EnquiryAiDraftStatus[keyof typeof EnquiryAiDraftStatus] | null;
+
+
+export const EnquiryAiDraftStatus = {
+  pending: 'pending',
+  generating: 'generating',
+  ready: 'ready',
+  failed: 'failed',
+} as const;
+
 export type EnquiryAttendance = typeof EnquiryAttendance[keyof typeof EnquiryAttendance];
 
 
@@ -1172,6 +1200,16 @@ export interface EnquiryEvent {
 }
 
 export interface Enquiry {
+  /** @nullable */
+  archivedAt?: string | null;
+  /** @nullable */
+  archiveDeleteAt?: string | null;
+  /** @nullable */
+  archiveHoldReason?: string | null;
+  /** @nullable */
+  aiProvider?: EnquiryAiProvider;
+  /** @nullable */
+  aiDraftStatus?: EnquiryAiDraftStatus;
   /**
      * Main case ID; originals remain editable and retain their own appointments and history.
      * @nullable

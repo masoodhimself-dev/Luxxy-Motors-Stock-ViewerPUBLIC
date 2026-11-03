@@ -239,6 +239,14 @@ test("durable immutable email outbox: retry, restart, ownership, freshness, boun
       };
     }
     await runWithTenant(a, async () => {
+      await t.test('archived enquiries cancel queued delivery without a provider call even if they were archived after preparation', async () => {
+        const f = await fixture('archived-cancel');
+        await db.update(enquiriesTable).set({ archivedAt: f.now, archiveDeleteAt: new Date(f.now.getTime() + 30 * 86400000) }).where(eq(enquiriesTable.id, f.id));
+        const result = await deliverEmailOutbox(f.row.id, { ...f.options, now: f.now, send: async () => assert.fail('An archived enquiry must not send') });
+        assert.equal(result?.status, 'cancelled');
+        assert.equal(result?.error_code, 'enquiry_archived');
+        assert.equal(result?.attempts, 0);
+      });
       await t.test(
         "429 honors Retry-After and reuses identical payload/key after a restart-equivalent invocation",
         async () => {

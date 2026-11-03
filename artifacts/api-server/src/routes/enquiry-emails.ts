@@ -155,7 +155,7 @@ async function enquiryVehiclePdf(enquiry: { dealerId: string; vehicleId: string 
   })(enquiry.vehicleId, siteOrigin());
 }
 
-async function entry(id: string, executor: typeof db = db) {
+async function entry(id: string, executor: typeof db = db, allowArchived = false) {
   if (!uuid(id)) throw new EmailError("Enquiry not found.", 404);
   const [row] = await executor
     .select()
@@ -167,6 +167,7 @@ async function entry(id: string, executor: typeof db = db) {
       ),
     );
   if (!row) throw new EmailError("Enquiry not found.", 404);
+  if (row.archivedAt && !allowArchived) throw new EmailError('Restore this enquiry before preparing or sending a message.', 409);
   if (row.mergedIntoId)
     throw new EmailError(
       "This enquiry was merged. Open the current enquiry before preparing a reply.",
@@ -596,7 +597,7 @@ export function createEnquiryEmailRouter(
     res.setHeader("Cache-Control", "no-store, private");
     try {
       await recoverEmailOutbox();
-      const enquiry = await entry(String(req.params.id)),
+      const enquiry = await entry(String(req.params.id), db, true),
         config = await deps.settings(),
         profile = await dealerProfile();
       const template = {

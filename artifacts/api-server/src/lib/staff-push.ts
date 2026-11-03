@@ -82,9 +82,9 @@ export async function enqueueStaffPush() {
     UNION ALL SELECT s.id,'reply:'||r.id::text,'enquiries',r.enquiry_id,NULL::integer,NULL::timestamptz,least(r.received_at+interval '24 hours',now()+interval '1 hour')
       FROM devices s JOIN enquiry_email_replies r ON r.dealer_id=s.dealer_id WHERE s.role IN ('owner','salesperson') AND s.pref_enquiries AND r.resolved_at IS NULL AND r.status IN ('received','review') AND r.received_at>=s.event_since AND r.received_at>now()-interval '24 hours'
     UNION ALL SELECT s.id,'reminder:'||e.id::text||':'||e.appointment_revision::text,'reminders',e.id,e.appointment_revision,e.appointment_at,e.appointment_at
-      FROM devices s JOIN enquiries e ON e.dealer_id=s.dealer_id WHERE s.pref_reminders AND e.status<>'closed' AND e.appointment_status='confirmed' AND e.appointment_cancelled_at IS NULL AND e.attendance='scheduled' AND e.appointment_at>now() AND e.appointment_at>=s.created_at AND e.appointment_at<=now()+s.lead*interval '1 minute'
+      FROM devices s JOIN enquiries e ON e.dealer_id=s.dealer_id WHERE e.archived_at IS NULL AND s.pref_reminders AND e.status<>'closed' AND e.appointment_status='confirmed' AND e.appointment_cancelled_at IS NULL AND e.attendance='scheduled' AND e.appointment_at>now() AND e.appointment_at>=s.created_at AND e.appointment_at<=now()+s.lead*interval '1 minute'
     UNION ALL SELECT s.id,'followup:'||e.id::text||':'||e.follow_up_revision::text,'followups',e.id,e.follow_up_revision,e.follow_up_at,e.follow_up_at+interval '24 hours'
-      FROM devices s JOIN enquiries e ON e.dealer_id=s.dealer_id WHERE s.pref_followups AND e.status<>'closed' AND e.follow_up_completed_at IS NULL AND e.follow_up_at>=s.event_since AND e.follow_up_at<=now() AND e.follow_up_at>now()-interval '24 hours'
+      FROM devices s JOIN enquiries e ON e.dealer_id=s.dealer_id WHERE e.archived_at IS NULL AND s.pref_followups AND e.status<>'closed' AND e.follow_up_completed_at IS NULL AND e.follow_up_at>=s.event_since AND e.follow_up_at<=now() AND e.follow_up_at>now()-interval '24 hours'
     UNION ALL SELECT s.id,'email:'||m.id::text||':'||coalesce(c.last_event,m.status),'emailFailures',e.id,NULL::integer,NULL::timestamptz,now()+interval '1 hour'
       FROM devices s JOIN enquiry_emails m ON m.dealer_id=s.dealer_id JOIN enquiries e ON e.id=m.enquiry_id AND e.dealer_id=s.dealer_id LEFT JOIN email_delivery_checks c ON c.dealer_id=m.dealer_id AND c.message_key='enquiry:'||m.id::text AND c.provider_id=m.provider_id
       WHERE s.role IN ('owner','salesperson') AND s.pref_email_failures AND coalesce(c.last_event,m.status) IN ('failed','unknown','bounced','complained','suppressed') AND coalesce(c.checked_at,m.finished_at,m.created_at)>=s.event_since AND coalesce(c.checked_at,m.finished_at,m.created_at)>now()-interval '24 hours'
@@ -129,7 +129,7 @@ export async function processStaffPush(log:Pick<Logger,'warn'>,sender:PushSender
     let targetId=job.enquiry_id?String(job.enquiry_id):null;
     if(job.enquiry_id) {
       const enquiry=(await db.execute(sql`SELECT * FROM enquiries WHERE id=${job.enquiry_id}::uuid AND dealer_id=${dealer}`)).rows[0];
-      if(!enquiry || (category==='enquiries' && enquiry.merged_into_id)) allowed=false;
+      if(!enquiry || enquiry.archived_at || (category==='enquiries' && enquiry.merged_into_id)) allowed=false;
       else if(category==='bookings') allowed=allowed && Number(enquiry.appointment_revision)===Number(job.revision);
       else if(category==='emailFailures') {
         if(String(job.event_key).startsWith('email:')) {

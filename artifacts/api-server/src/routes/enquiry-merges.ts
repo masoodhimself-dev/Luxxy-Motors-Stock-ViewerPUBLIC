@@ -18,6 +18,7 @@ router.post('/staff/enquiries/:id/merge', requireStaff, requirePermission('sales
       // that might otherwise observe an old membership while groups are flattened.
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`enquiry-merge:${dealer}`}))`);
       const records = await tx.select().from(enquiriesTable).where(and(eq(enquiriesTable.dealerId, dealer), or(inArray(enquiriesTable.id, input.recordIds), inArray(enquiriesTable.mergedIntoId, input.recordIds)))).orderBy(asc(enquiriesTable.id)).for('update');
+      if (records.some(record => record.archivedAt)) throw new EnquiryMergeError('Restore archived enquiries before merging them.', 409);
       const plan = planEnquiryMerge(input, records, { id: req.staff!.authUserId, name: staffLabel(req) });
       for (const change of plan.updates) {
         await tx.update(enquiriesTable).set(change.update).where(and(eq(enquiriesTable.dealerId, dealer), eq(enquiriesTable.id, change.id)));

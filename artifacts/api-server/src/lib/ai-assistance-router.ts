@@ -7,6 +7,8 @@ import { currentDealerId } from "./tenant-context";
 import { enforceStaffWriteOrigin } from "../middlewares/staff-write-origin";
 import { AiError, aiConfigured, aiHash, generateAi } from "./ai-assistance";
 import { AiAssistanceStore } from "./ai-assistance-store";
+import { buildEnquiryAiContext, enquiryAiContextHash, enquiryIsArchived } from "./enquiry-ai-context";
+import type { MotHistory } from "@workspace/vehicle-meta";
 import {
   publicAiCar,
   publicAiDealer,
@@ -31,6 +33,7 @@ type Dependencies = {
   getEnquiry: (dealer: string, id: string) => Promise<any | null>;
   staffAccess: import("express").RequestHandler[];
   motFact?: (car: any) => Promise<any>;
+  replyMotLookup?: (registration: string) => Promise<MotHistory>;
   generate?: typeof generateAi;
   configured?: () => boolean;
 };
@@ -136,6 +139,8 @@ export function aiAssistanceRouter(deps: Dependencies) {
           "settings_unavailable",
           "Dealer information is unavailable. Please try later.",
         );
+      let replyContext: Awaited<ReturnType<typeof buildEnquiryAiContext>> | undefined;
+      let expectedWorkspaceRevision: number | undefined;
       let cars: any[] = [],
         question = redactAiText(body.text ?? ""),
         enquiry: any = null;
@@ -144,11 +149,15 @@ export function aiAssistanceRouter(deps: Dependencies) {
           throw new AiError("enquiry_required", "Choose an enquiry.", 400);
         enquiry = await deps.getEnquiry(dealer, body.enquiryId);
         if (!enquiry) throw new AiError("not_found", "Enquiry not found.", 404);
-        question = redactAiText(enquiry.message, [enquiry.customerName]);
-        if (enquiry.vehicleId) {
-          const car = await deps.getCar(enquiry.vehicleId);
-          if (car) cars = [publicAiCar(car)];
-        }
+        if (enquiryIsArchived(enquiry)) throw new AiError("enquiry_archived", "Restore this enquiry before preparing an AI reply.", 409);
+        expectedWorkspaceRevision = enquiry.workspaceRevision;
+        const car = enquiry.vehicleId ? await deps.getCar(enquiry.vehicleId) : null;
+        replyContext = await buildEnquiryAiContext({ enquiry: { ...enquiry, id: body.enquiryId }, car, config, lookupMot: deps.replyMotLookup });
+        const current = await deps.getEnquiry(dealer, body.enquiryId);
+        if (!current) throw new AiError("not_found", "Enquiry not found.", 404);
+        if (enquiryIsArchived(current)) throw new AiError("enquiry_archived", "Restore this enquiry before preparing an AI reply.", 409);
+        question = replyContext.question;
+        cars = replyContext.facts.cars;
       } else if (body.kind === "finder") {
         cars = (await deps.getCars())
           .filter((c) => c.inventoryStatus === "available")
@@ -170,16 +179,16 @@ export function aiAssistanceRouter(deps: Dependencies) {
           "Choose one of this car’s listed features.",
           400,
         );
-      if (deps.motFact && cars.length === 1 && body.kind !== "finder")
+      if (!staff && deps.motFact && cars.length === 1 && body.kind !== "finder")
         cars[0].mot = await deps.motFact(cars[0]);
-      const facts = {
+      const facts = replyContext?.facts ?? {
         dealer: publicAiDealer(config),
         cars,
         ...(staff
           ? { enquiry: { type: enquiry.type, message: question } }
           : {}),
       };
-      const hash = aiHash({ version: 1, task: body.kind, question, facts });
+      const hash = replyContext ? enquiryAiContextHash(replyContext) : aiHash({ version: 1, task: body.kind, question, facts });
       const ip = createHmac("sha256", process.env.OPENAI_API_KEY!)
         .update(connection)
         .digest("hex");
@@ -192,8 +201,10 @@ export function aiAssistanceRouter(deps: Dependencies) {
         hash,
         cacheKey,
         staff,
+        ...(replyContext ? { contextAudit: replyContext.contextAudit } : {}),
       });
       if (reservation.cached) {
+        if (staff) await store.completeForEnquiry({ id: reservation.id, dealer, enquiryId: body.enquiryId!, expectedWorkspaceRevision: expectedWorkspaceRevision! });
         res.json({
           ...reservation.cached,
           remaining: reservation.remaining,
@@ -217,7 +228,8 @@ export function aiAssistanceRouter(deps: Dependencies) {
           : "No verified matches were found in this selection. Try changing your requirements or use the full stock filters.";
       }
       // Never persist personal staff reply text in a public answer cache.
-      await store.complete(
+      if (staff) await store.completeForEnquiry({ id: reservation.id, dealer, enquiryId: body.enquiryId!, expectedWorkspaceRevision: expectedWorkspaceRevision!, generated });
+      else await store.complete(
         reservation.id,
         dealer,
         generated.result,
@@ -266,6 +278,18 @@ export function aiAssistanceRouter(deps: Dependencies) {
     }
   });
   router.post("/ai/assist", (req, res) => void run(req, res));
+  router.get("/staff/enquiries/:id/ai-checks", ...deps.staffAccess, async (req, res) => {
+    res.set("Cache-Control", "no-store, private");
+    const id = String(req.params.id);
+    if (!/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(id)) { res.sendStatus(404); return; }
+    try {
+      const dealer = currentDealerId();
+      if (!await deps.getEnquiry(dealer, id)) { res.sendStatus(404); return; }
+      const checks = await store.latestEnquiryChecks(dealer, id);
+      if (!checks) { res.status(404).json({ error: "No saved AI checks for this enquiry yet." }); return; }
+      res.json(checks);
+    } catch { res.status(503).json({ error: "AI checks could not be loaded." }); }
+  });
   router.post(
     "/staff/ai/reply",
     ...deps.staffAccess,

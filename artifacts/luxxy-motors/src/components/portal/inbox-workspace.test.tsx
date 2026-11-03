@@ -69,6 +69,29 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('the rebuilt Inbox queue', () => {
+  it('separates automated enquiries and Archive without hiding ordinary Cazoo leads or web bookings',()=>{
+    const manual=record('Manual',{source:'cazoo'}), automated=record('AI customer',{source:'cazoo',aiProvider:'cazoo',aiDraftStatus:'ready'});
+    const archived=record('Archived customer',{archivedAt:'2026-11-01T10:00:00Z',archiveDeleteAt:'2026-12-01T10:00:00Z'});
+    show({entries:[manual,automated,archived]});
+    expect(screen.getByRole('tab',{name:'Enquiries 1'})).toHaveAttribute('aria-selected','true');
+    expect(screen.getByTestId('enquiry-Manual')).toBeVisible();
+    expect(screen.queryByTestId('enquiry-AI customer')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab',{name:'AI enquiries 1'}));
+    expect(screen.getByTestId('enquiry-AI customer')).toBeVisible();
+    expect(screen.getByText('Draft ready')).toBeVisible();
+    expect(screen.queryByTestId('enquiry-Manual')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab',{name:'Archive 1'}));
+    expect(screen.getByTestId('enquiry-Archived customer')).toBeVisible();
+    expect(screen.queryByRole('group',{name:'Filter conversations'})).not.toBeInTheDocument();
+    expect(screen.getByText('Recover for 30 days. Linked business records are protected.')).toBeVisible();
+  });
+  it('opens an AI deep link in its own folder and protects an unsaved reply when tabs change',()=>{
+    show({entries:[record('AI customer',{source:'cazoo',aiProvider:'cazoo',aiDraftStatus:'ready'}),record('Manual')],selectedId:'AI customer',onBack:()=>false});
+    expect(screen.getByRole('tab',{name:'AI enquiries 1'})).toHaveAttribute('aria-selected','true');
+    fireEvent.click(screen.getByRole('tab',{name:'Archive 0'}));
+    expect(screen.getByRole('tab',{name:'AI enquiries 1'})).toHaveAttribute('aria-selected','true');
+    expect(screen.getByRole('region',{name:'Selected case AI customer'})).toBeVisible();
+  });
   it('keeps website, Cazoo and pending bookings together, with accurate colours and elapsed times', () => {
     const website = record('Alex');
     const cazoo = record('Ellie', { source: 'cazoo', latestReplyText: 'Is it still available?' });
@@ -246,6 +269,6 @@ describe('Inbox loading and empty states', () => {
     expect(screen.getByRole('heading', { name: 'You’re up to date' })).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Show all enquiries' }));
     expect(screen.getByRole('heading', { name: 'Your Inbox is ready' })).toBeVisible();
-    expect(screen.getByText('Website enquiries, Cazoo leads and test-drive requests will appear here.')).toBeVisible();
+    expect(screen.getByText('Website enquiries and test-drive requests will appear here.')).toBeVisible();
   });
 });

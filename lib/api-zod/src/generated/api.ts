@@ -535,6 +535,234 @@ export const GetStaffDirectoryResponse = zod.object({
 
 
 /**
+ * @summary Archive an enquiry for 30 days
+ */
+export const ArchiveEnquiryParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const archiveEnquiryBodyExpectedRevisionMin = 0;
+
+
+
+export const ArchiveEnquiryBody = zod.object({
+  "expectedRevision": zod.number().int().min(archiveEnquiryBodyExpectedRevisionMin)
+})
+
+export const archiveEnquiryResponseWorkspaceRevisionMultipleOf = 1;
+
+export const archiveEnquiryResponseFollowUpNoteMax = 1000;
+
+export const archiveEnquiryResponseFollowUpRevisionMin = 0;
+export const archiveEnquiryResponseFollowUpRevisionMultipleOf = 1;
+
+
+
+
+export const archiveEnquiryResponseVehiclePriceMultipleOf = 1;
+
+export const archiveEnquiryResponseAppointmentRevisionMin = 0;
+export const archiveEnquiryResponseAppointmentRevisionMultipleOf = 1;
+
+
+
+export const archiveEnquiryResponsePartExchangeMileageMultipleOf = 1;
+
+
+
+export const ArchiveEnquiryResponse = zod.object({
+  "archivedAt": zod.coerce.date().nullish(),
+  "archiveDeleteAt": zod.coerce.date().nullish(),
+  "archiveHoldReason": zod.string().nullish(),
+  "aiProvider": zod.union([zod.literal('cazoo'),zod.literal(null)]).nullish(),
+  "aiDraftStatus": zod.union([zod.literal('pending'),zod.literal('generating'),zod.literal('ready'),zod.literal('failed'),zod.literal(null)]).nullish(),
+  "mergedIntoId": zod.string().nullish().describe('Main case ID; originals remain editable and retain their own appointments and history.'),
+  "mergedAt": zod.coerce.date().nullish(),
+  "mergedBy": zod.string().nullish(),
+  "assignedToId": zod.string().nullish(),
+  "assignedToName": zod.string().nullish(),
+  "callOutcome": zod.string().nullish(),
+  "staffNote": zod.string().nullish(),
+  "attendance": zod.enum(['scheduled', 'arrived', 'completed', 'no_show']).optional(),
+  "workspaceRevision": zod.number().multipleOf(archiveEnquiryResponseWorkspaceRevisionMultipleOf).optional(),
+  "appointmentOutsideHours": zod.boolean().optional().describe('Staff arranged outside configured booking hours or a closed date.'),
+  "appointmentDoubleBooked": zod.boolean().optional().describe('Staff explicitly allowed an overlapping active appointment.'),
+  "appointmentOverCapacity": zod.boolean().optional().describe('Staff explicitly allowed a booking above daily capacity.'),
+  "followUpAt": zod.coerce.date().nullish(),
+  "followUpNote": zod.string().max(archiveEnquiryResponseFollowUpNoteMax).nullish(),
+  "followUpCompletedAt": zod.coerce.date().nullish(),
+  "followUpRevision": zod.number().min(archiveEnquiryResponseFollowUpRevisionMin).multipleOf(archiveEnquiryResponseFollowUpRevisionMultipleOf).optional(),
+  "id": zod.string().min(1),
+  "reference": zod.string().min(1),
+  "dealerId": zod.string().min(1),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleRegistration": zod.string().nullable(),
+  "vehiclePrice": zod.number().multipleOf(archiveEnquiryResponseVehiclePriceMultipleOf).nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
+  "appointmentRevision": zod.number().min(archiveEnquiryResponseAppointmentRevisionMin).multipleOf(archiveEnquiryResponseAppointmentRevisionMultipleOf).optional(),
+  "appointmentStatus": zod.union([zod.literal('pending'),zod.literal('confirmed'),zod.literal(null)]).nullish(),
+  "appointmentDurationMinutes": zod.number().nullish(),
+  "appointmentBufferMinutes": zod.number().nullish(),
+  "appointmentCancelledAt": zod.coerce.date().nullable(),
+  "managePath": zod.string().nullable().describe('Customer self-service reschedule\/cancel path. Only returned when the enquiry is created.'),
+  "calendarIcs": zod.string().nullable().describe('iCalendar invite for a booked viewing. Only returned when the enquiry is created.'),
+  "events": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent', 'conversation_logged', 'records_merged']),
+  "actor": zod.enum(['customer', 'dealer', 'system']),
+  "summary": zod.string(),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "note": zod.string().optional(),
+  "staffId": zod.string().optional(),
+  "staffName": zod.string().optional(),
+  "callOutcome": zod.enum(['information_given', 'test_drive_booked', 'callback_requested', 'no_answer', 'not_interested']).optional(),
+  "followUpAt": zod.coerce.date().nullish(),
+  "occurredAt": zod.coerce.date()
+})),
+  "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
+  "status": zod.enum(['new', 'contacted', 'closed']),
+  "customerName": zod.string().min(1),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "preferredContact": zod.string().nullable(),
+  "message": zod.string(),
+  "partExchangeRegistration": zod.string().nullable(),
+  "partExchangeMileage": zod.number().multipleOf(archiveEnquiryResponsePartExchangeMileageMultipleOf).nullable(),
+  "partExchangeCondition": zod.string().nullable(),
+  "customerNotificationStatus": zod.string(),
+  "customerNotificationError": zod.string().nullable(),
+  "customerNotificationSentAt": zod.coerce.date().nullable(),
+  "dealerNotificationStatus": zod.string(),
+  "dealerNotificationError": zod.string().nullable(),
+  "dealerNotificationSentAt": zod.coerce.date().nullable(),
+  "reminderStatus": zod.string(),
+  "reminderError": zod.string().nullable(),
+  "reminderSentAt": zod.coerce.date().nullable(),
+  "source": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Restore an archived enquiry
+ */
+export const RestoreEnquiryParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const restoreEnquiryBodyExpectedRevisionMin = 0;
+
+
+
+export const RestoreEnquiryBody = zod.object({
+  "expectedRevision": zod.number().int().min(restoreEnquiryBodyExpectedRevisionMin)
+})
+
+export const restoreEnquiryResponseWorkspaceRevisionMultipleOf = 1;
+
+export const restoreEnquiryResponseFollowUpNoteMax = 1000;
+
+export const restoreEnquiryResponseFollowUpRevisionMin = 0;
+export const restoreEnquiryResponseFollowUpRevisionMultipleOf = 1;
+
+
+
+
+export const restoreEnquiryResponseVehiclePriceMultipleOf = 1;
+
+export const restoreEnquiryResponseAppointmentRevisionMin = 0;
+export const restoreEnquiryResponseAppointmentRevisionMultipleOf = 1;
+
+
+
+export const restoreEnquiryResponsePartExchangeMileageMultipleOf = 1;
+
+
+
+export const RestoreEnquiryResponse = zod.object({
+  "archivedAt": zod.coerce.date().nullish(),
+  "archiveDeleteAt": zod.coerce.date().nullish(),
+  "archiveHoldReason": zod.string().nullish(),
+  "aiProvider": zod.union([zod.literal('cazoo'),zod.literal(null)]).nullish(),
+  "aiDraftStatus": zod.union([zod.literal('pending'),zod.literal('generating'),zod.literal('ready'),zod.literal('failed'),zod.literal(null)]).nullish(),
+  "mergedIntoId": zod.string().nullish().describe('Main case ID; originals remain editable and retain their own appointments and history.'),
+  "mergedAt": zod.coerce.date().nullish(),
+  "mergedBy": zod.string().nullish(),
+  "assignedToId": zod.string().nullish(),
+  "assignedToName": zod.string().nullish(),
+  "callOutcome": zod.string().nullish(),
+  "staffNote": zod.string().nullish(),
+  "attendance": zod.enum(['scheduled', 'arrived', 'completed', 'no_show']).optional(),
+  "workspaceRevision": zod.number().multipleOf(restoreEnquiryResponseWorkspaceRevisionMultipleOf).optional(),
+  "appointmentOutsideHours": zod.boolean().optional().describe('Staff arranged outside configured booking hours or a closed date.'),
+  "appointmentDoubleBooked": zod.boolean().optional().describe('Staff explicitly allowed an overlapping active appointment.'),
+  "appointmentOverCapacity": zod.boolean().optional().describe('Staff explicitly allowed a booking above daily capacity.'),
+  "followUpAt": zod.coerce.date().nullish(),
+  "followUpNote": zod.string().max(restoreEnquiryResponseFollowUpNoteMax).nullish(),
+  "followUpCompletedAt": zod.coerce.date().nullish(),
+  "followUpRevision": zod.number().min(restoreEnquiryResponseFollowUpRevisionMin).multipleOf(restoreEnquiryResponseFollowUpRevisionMultipleOf).optional(),
+  "id": zod.string().min(1),
+  "reference": zod.string().min(1),
+  "dealerId": zod.string().min(1),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleRegistration": zod.string().nullable(),
+  "vehiclePrice": zod.number().multipleOf(restoreEnquiryResponseVehiclePriceMultipleOf).nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
+  "appointmentRevision": zod.number().min(restoreEnquiryResponseAppointmentRevisionMin).multipleOf(restoreEnquiryResponseAppointmentRevisionMultipleOf).optional(),
+  "appointmentStatus": zod.union([zod.literal('pending'),zod.literal('confirmed'),zod.literal(null)]).nullish(),
+  "appointmentDurationMinutes": zod.number().nullish(),
+  "appointmentBufferMinutes": zod.number().nullish(),
+  "appointmentCancelledAt": zod.coerce.date().nullable(),
+  "managePath": zod.string().nullable().describe('Customer self-service reschedule\/cancel path. Only returned when the enquiry is created.'),
+  "calendarIcs": zod.string().nullable().describe('iCalendar invite for a booked viewing. Only returned when the enquiry is created.'),
+  "events": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent', 'conversation_logged', 'records_merged']),
+  "actor": zod.enum(['customer', 'dealer', 'system']),
+  "summary": zod.string(),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "note": zod.string().optional(),
+  "staffId": zod.string().optional(),
+  "staffName": zod.string().optional(),
+  "callOutcome": zod.enum(['information_given', 'test_drive_booked', 'callback_requested', 'no_answer', 'not_interested']).optional(),
+  "followUpAt": zod.coerce.date().nullish(),
+  "occurredAt": zod.coerce.date()
+})),
+  "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
+  "status": zod.enum(['new', 'contacted', 'closed']),
+  "customerName": zod.string().min(1),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "preferredContact": zod.string().nullable(),
+  "message": zod.string(),
+  "partExchangeRegistration": zod.string().nullable(),
+  "partExchangeMileage": zod.number().multipleOf(restoreEnquiryResponsePartExchangeMileageMultipleOf).nullable(),
+  "partExchangeCondition": zod.string().nullable(),
+  "customerNotificationStatus": zod.string(),
+  "customerNotificationError": zod.string().nullable(),
+  "customerNotificationSentAt": zod.coerce.date().nullable(),
+  "dealerNotificationStatus": zod.string(),
+  "dealerNotificationError": zod.string().nullable(),
+  "dealerNotificationSentAt": zod.coerce.date().nullable(),
+  "reminderStatus": zod.string(),
+  "reminderError": zod.string().nullable(),
+  "reminderSentAt": zod.coerce.date().nullable(),
+  "source": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Assign an enquiry, record call outcome or update attendance
  */
 export const UpdateEnquiryWorkspaceParams = zod.object({
@@ -584,6 +812,11 @@ export const updateEnquiryWorkspaceResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const UpdateEnquiryWorkspaceResponse = zod.object({
+  "archivedAt": zod.coerce.date().nullish(),
+  "archiveDeleteAt": zod.coerce.date().nullish(),
+  "archiveHoldReason": zod.string().nullish(),
+  "aiProvider": zod.union([zod.literal('cazoo'),zod.literal(null)]).nullish(),
+  "aiDraftStatus": zod.union([zod.literal('pending'),zod.literal('generating'),zod.literal('ready'),zod.literal('failed'),zod.literal(null)]).nullish(),
   "mergedIntoId": zod.string().nullish().describe('Main case ID; originals remain editable and retain their own appointments and history.'),
   "mergedAt": zod.coerce.date().nullish(),
   "mergedBy": zod.string().nullish(),
@@ -756,6 +989,11 @@ export const logEnquiryConversationResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const LogEnquiryConversationResponse = zod.object({
+  "archivedAt": zod.coerce.date().nullish(),
+  "archiveDeleteAt": zod.coerce.date().nullish(),
+  "archiveHoldReason": zod.string().nullish(),
+  "aiProvider": zod.union([zod.literal('cazoo'),zod.literal(null)]).nullish(),
+  "aiDraftStatus": zod.union([zod.literal('pending'),zod.literal('generating'),zod.literal('ready'),zod.literal('failed'),zod.literal(null)]).nullish(),
   "mergedIntoId": zod.string().nullish().describe('Main case ID; originals remain editable and retain their own appointments and history.'),
   "mergedAt": zod.coerce.date().nullish(),
   "mergedBy": zod.string().nullish(),
@@ -915,6 +1153,11 @@ export const createStaffEnquiryResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const CreateStaffEnquiryResponse = zod.object({
+  "archivedAt": zod.coerce.date().nullish(),
+  "archiveDeleteAt": zod.coerce.date().nullish(),
+  "archiveHoldReason": zod.string().nullish(),
+  "aiProvider": zod.union([zod.literal('cazoo'),zod.literal(null)]).nullish(),
+  "aiDraftStatus": zod.union([zod.literal('pending'),zod.literal('generating'),zod.literal('ready'),zod.literal('failed'),zod.literal(null)]).nullish(),
   "mergedIntoId": zod.string().nullish().describe('Main case ID; originals remain editable and retain their own appointments and history.'),
   "mergedAt": zod.coerce.date().nullish(),
   "mergedBy": zod.string().nullish(),
@@ -1030,6 +1273,11 @@ export const changeStaffFollowUpResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const ChangeStaffFollowUpResponse = zod.object({
+  "archivedAt": zod.coerce.date().nullish(),
+  "archiveDeleteAt": zod.coerce.date().nullish(),
+  "archiveHoldReason": zod.string().nullish(),
+  "aiProvider": zod.union([zod.literal('cazoo'),zod.literal(null)]).nullish(),
+  "aiDraftStatus": zod.union([zod.literal('pending'),zod.literal('generating'),zod.literal('ready'),zod.literal('failed'),zod.literal(null)]).nullish(),
   "mergedIntoId": zod.string().nullish().describe('Main case ID; originals remain editable and retain their own appointments and history.'),
   "mergedAt": zod.coerce.date().nullish(),
   "mergedBy": zod.string().nullish(),
@@ -1144,6 +1392,11 @@ export const changeStaffAppointmentResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const ChangeStaffAppointmentResponse = zod.object({
+  "archivedAt": zod.coerce.date().nullish(),
+  "archiveDeleteAt": zod.coerce.date().nullish(),
+  "archiveHoldReason": zod.string().nullish(),
+  "aiProvider": zod.union([zod.literal('cazoo'),zod.literal(null)]).nullish(),
+  "aiDraftStatus": zod.union([zod.literal('pending'),zod.literal('generating'),zod.literal('ready'),zod.literal('failed'),zod.literal(null)]).nullish(),
   "mergedIntoId": zod.string().nullish().describe('Main case ID; originals remain editable and retain their own appointments and history.'),
   "mergedAt": zod.coerce.date().nullish(),
   "mergedBy": zod.string().nullish(),
@@ -1270,6 +1523,11 @@ export const getEnquiriesResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const GetEnquiriesResponseItem = zod.object({
+  "archivedAt": zod.coerce.date().nullish(),
+  "archiveDeleteAt": zod.coerce.date().nullish(),
+  "archiveHoldReason": zod.string().nullish(),
+  "aiProvider": zod.union([zod.literal('cazoo'),zod.literal(null)]).nullish(),
+  "aiDraftStatus": zod.union([zod.literal('pending'),zod.literal('generating'),zod.literal('ready'),zod.literal('failed'),zod.literal(null)]).nullish(),
   "mergedIntoId": zod.string().nullish().describe('Main case ID; originals remain editable and retain their own appointments and history.'),
   "mergedAt": zod.coerce.date().nullish(),
   "mergedBy": zod.string().nullish(),
@@ -1407,6 +1665,11 @@ export const createEnquiryResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const CreateEnquiryResponse = zod.object({
+  "archivedAt": zod.coerce.date().nullish(),
+  "archiveDeleteAt": zod.coerce.date().nullish(),
+  "archiveHoldReason": zod.string().nullish(),
+  "aiProvider": zod.union([zod.literal('cazoo'),zod.literal(null)]).nullish(),
+  "aiDraftStatus": zod.union([zod.literal('pending'),zod.literal('generating'),zod.literal('ready'),zod.literal('failed'),zod.literal(null)]).nullish(),
   "mergedIntoId": zod.string().nullish().describe('Main case ID; originals remain editable and retain their own appointments and history.'),
   "mergedAt": zod.coerce.date().nullish(),
   "mergedBy": zod.string().nullish(),
@@ -1569,6 +1832,11 @@ export const updateEnquiryStatusResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const UpdateEnquiryStatusResponse = zod.object({
+  "archivedAt": zod.coerce.date().nullish(),
+  "archiveDeleteAt": zod.coerce.date().nullish(),
+  "archiveHoldReason": zod.string().nullish(),
+  "aiProvider": zod.union([zod.literal('cazoo'),zod.literal(null)]).nullish(),
+  "aiDraftStatus": zod.union([zod.literal('pending'),zod.literal('generating'),zod.literal('ready'),zod.literal('failed'),zod.literal(null)]).nullish(),
   "mergedIntoId": zod.string().nullish().describe('Main case ID; originals remain editable and retain their own appointments and history.'),
   "mergedAt": zod.coerce.date().nullish(),
   "mergedBy": zod.string().nullish(),
@@ -5145,6 +5413,11 @@ export const getTestDriveBookingsResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const GetTestDriveBookingsResponseItem = zod.object({
+  "archivedAt": zod.coerce.date().nullish(),
+  "archiveDeleteAt": zod.coerce.date().nullish(),
+  "archiveHoldReason": zod.string().nullish(),
+  "aiProvider": zod.union([zod.literal('cazoo'),zod.literal(null)]).nullish(),
+  "aiDraftStatus": zod.union([zod.literal('pending'),zod.literal('generating'),zod.literal('ready'),zod.literal('failed'),zod.literal(null)]).nullish(),
   "mergedIntoId": zod.string().nullish().describe('Main case ID; originals remain editable and retain their own appointments and history.'),
   "mergedAt": zod.coerce.date().nullish(),
   "mergedBy": zod.string().nullish(),
@@ -5260,6 +5533,11 @@ export const decideTestDriveBookingResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const DecideTestDriveBookingResponse = zod.object({
+  "archivedAt": zod.coerce.date().nullish(),
+  "archiveDeleteAt": zod.coerce.date().nullish(),
+  "archiveHoldReason": zod.string().nullish(),
+  "aiProvider": zod.union([zod.literal('cazoo'),zod.literal(null)]).nullish(),
+  "aiDraftStatus": zod.union([zod.literal('pending'),zod.literal('generating'),zod.literal('ready'),zod.literal('failed'),zod.literal(null)]).nullish(),
   "mergedIntoId": zod.string().nullish().describe('Main case ID; originals remain editable and retain their own appointments and history.'),
   "mergedAt": zod.coerce.date().nullish(),
   "mergedBy": zod.string().nullish(),

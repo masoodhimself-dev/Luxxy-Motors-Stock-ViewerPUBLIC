@@ -1,16 +1,21 @@
 import { redactAiText } from "./ai-assistance";
+import { vehicleRegistration } from "@workspace/vehicle-meta";
 const text = (value: unknown, max = 2000) =>
   typeof value === "string" ? value.trim().slice(0, max) : null;
 export function publicAiCar(car: Record<string, any>, compact = false) {
   const extras = car.sourceExtras ?? {},
     spec = car.specifications ?? {};
-  const features =
-    [car.features, spec.features, extras.features, extras.featureList].find(
-      Array.isArray,
-    ) ?? [];
+  // The public projection can contain an empty top-level list alongside the
+  // published specification/feed lists. Merge them instead of masking the latter.
+  const features = [...new Map(
+    [car.features, spec.features, extras.features, extras.featureList]
+      .flatMap((value) => Array.isArray(value) ? value : [])
+      .filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
+      .map((value) => [value.trim().toLowerCase(), value.trim()] as const),
+  ).values()];
   return {
     id: car.id,
-    registration: car.vrm ?? car.plate ?? car.registration,
+    registration: vehicleRegistration(car) || null,
     make: car.make,
     model: car.model,
     variant: car.variant,
@@ -21,16 +26,14 @@ export function publicAiCar(car: Record<string, any>, compact = false) {
     transmission: car.transmission,
     fuel: car.fuel,
     engineSize: car.engineSize,
+    bodyType: car.bodyType,
     doors: car.doors,
     seats: car.seats,
     colour: car.colour,
     owners: car.owners,
     inventoryStatus: car.inventoryStatus,
     description: text(
-      car.description ??
-        spec.description ??
-        extras.description ??
-        extras.advertDescription,
+      [car.description, spec.description, extras.description, extras.advertDescription].find((value) => typeof value === "string" && value.trim()),
       compact ? 220 : 6500,
     ),
     features: features
@@ -39,7 +42,7 @@ export function publicAiCar(car: Record<string, any>, compact = false) {
       .map((f: string) => f.slice(0, 120)),
     writeOffCategory: car.writeOffCategory,
     serviceHistory: text(
-      car.serviceHistory ?? spec.serviceHistory ?? extras.serviceHistory,
+      [car.serviceHistory, spec.serviceHistory, extras.serviceHistory].find((value) => typeof value === "string" && value.trim()),
     ),
     numberOfKeys: car.numberOfKeys ?? extras.numberOfKeys ?? null,
   };
@@ -67,6 +70,9 @@ export function publicAiDealer(config: Record<string, any>) {
     delivery: config.delivery,
     deliveryPricing: config.deliveryPricing,
     partExchange: config.partExchange,
+    includedItems: Array.isArray(config.presentation?.includedItems)
+      ? config.presentation.includedItems.filter((value: unknown) => typeof value === "string").slice(0, 12).map((value: string) => value.slice(0, 160))
+      : [],
     testDriveBooking: config.testDriveBooking
       ? {
           enabled: config.testDriveBooking.enabled,

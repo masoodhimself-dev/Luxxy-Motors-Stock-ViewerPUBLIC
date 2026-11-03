@@ -5,6 +5,7 @@ import { requireStaff, requirePermission } from "../middlewares/staff-auth";
 import { AiAssistanceStore } from "../lib/ai-assistance-store";
 import { aiAssistanceRouter } from "../lib/ai-assistance-router";
 import { readPublicStockCars, findVisibleStockVehicle } from "./stock";
+import { motService } from "../lib/mot-storage";
 export default aiAssistanceRouter({
   store: new AiAssistanceStore(pool),
   getSettings: async (dealer) =>
@@ -16,6 +17,7 @@ export default aiAssistanceRouter({
     ).rows[0]?.config,
   getCars: readPublicStockCars,
   getCar: findVisibleStockVehicle,
+  replyMotLookup: (registration) => motService.lookup(registration),
   getEnquiry: async (dealer, id) =>
     (
       await db

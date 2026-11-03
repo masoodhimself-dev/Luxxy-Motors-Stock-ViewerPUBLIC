@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import type { Enquiry } from '@workspace/api-client-react';
 import { ArrowLeft, CalendarDays, CheckCircle2, Inbox, Plus, RefreshCw, Search } from '@/components/icons';
 import { Button } from '@/components/ui/button';
@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import type { Car } from '@/lib/stock-context';
 import { enquiryGroup, primaryEnquiry } from '@/lib/enquiry-groups';
 import { enquiryPresentation, enquiryRequestText } from '@/lib/enquiry-presentation';
-import { inboxCaseState, inboxFilter, inboxLastActivity, inboxRelativeTime, inboxState, type InboxFilter } from '@/lib/inbox-model';
+import { inboxCaseState, inboxFilter, inboxFolderEntries, inboxLastActivity, inboxRelativeTime, inboxState, isAiEnquiry, type InboxFilter, type InboxFolder } from '@/lib/inbox-model';
 import type { InboxEnquiry } from '@/lib/enquiry-reply-attention';
 import { EnquiryCustomerCase } from './enquiry-customer-case';
 import type { EnquiryRecordActions } from './enquiry-record-browser';
@@ -15,6 +15,7 @@ import './inbox-workspace.css';
 const filters: {id: InboxFilter; label: string}[] = [
   {id:'needs-you',label:'Needs you'}, {id:'all',label:'All'}, {id:'done',label:'Done'},
 ];
+const folders: {id:InboxFolder;label:string}[] = [{id:'enquiries',label:'Enquiries'},{id:'ai',label:'AI enquiries'},{id:'archive',label:'Archive'}];
 
 /** The conversation is the workspace. Bookings, email delivery and car tools stay within reach. */
 export function InboxWorkspace({ entries, cars, selectedId, onSelect, onBack, actions, loading=false,
@@ -25,14 +26,22 @@ export function InboxWorkspace({ entries, cars, selectedId, onSelect, onBack, ac
   refreshing?:boolean; onRefresh:()=>void; onNewEnquiry?:()=>void; tools?:ReactNode; missingRequested?:boolean;
 }) {
   const [filter,setFilter]=useState<InboxFilter>('needs-you');
+  const [folder,setFolder]=useState<InboxFolder>('enquiries');
   const [search,setSearch]=useState('');
   const [now,setNow]=useState(Date.now);
   const [previewEntry,setPreviewEntry]=useState<Enquiry|null>(null);
   const [autoPreview,setAutoPreview]=useState(true);
   const detail=useRef<HTMLDivElement>(null), selectedButton=useRef<HTMLButtonElement>(null);
+  const folderId=useId(), openedId=useRef<string|null>(null);
   useEffect(()=>{const timer=window.setInterval(()=>setNow(Date.now()),60_000);return()=>window.clearInterval(timer);},[]);
-  const visible=inboxFilter(entries,filter,search,now);
+  const folderEntries=inboxFolderEntries(entries,folder);
+  const visible=inboxFilter(folderEntries,folder==='archive'?'archive':filter,search,now);
   const explicit=entries.find(entry=>entry.id===selectedId);
+  useEffect(()=>{
+    if (!explicit || openedId.current===explicit.id) return;
+    openedId.current=explicit.id;
+    setFolder(explicit.archivedAt ? 'archive' : enquiryGroup(explicit,entries).some(isAiEnquiry) ? 'ai' : 'enquiries');
+  },[explicit?.id]);
   const root=explicit ? primaryEnquiry(explicit,entries) : missingRequested || !autoPreview ? undefined : (entries.find(entry=>entry.id===previewEntry?.id) ?? previewEntry ?? visible[0]);
   useEffect(()=>{if(autoPreview && !previewEntry && root) setPreviewEntry(root);},[autoPreview,previewEntry,root]);
   const group=root ? enquiryGroup(root,entries) : [];
@@ -61,11 +70,18 @@ export function InboxWorkspace({ entries, cars, selectedId, onSelect, onBack, ac
         {onNewEnquiry && <Button size="sm" onClick={onNewEnquiry}><Plus size={17} aria-hidden/>New enquiry</Button>}
       </div>
     </header>
+    <div className="inbox-folder-tabs" role="tablist" aria-label="Inbox folders">
+      {folders.map((item,index)=><button key={item.id} id={`${folderId}-${item.id}`} type="button" role="tab" aria-selected={folder===item.id}
+        aria-controls={`${folderId}-panel`} tabIndex={folder===item.id?0:-1}
+        onClick={()=>resetSelection(()=>{setFolder(item.id);setFilter('needs-you');setSearch('');})}
+        onKeyDown={event=>{let next:number|undefined;if(event.key==='ArrowRight')next=(index+1)%folders.length;if(event.key==='ArrowLeft')next=(index+folders.length-1)%folders.length;if(event.key==='Home')next=0;if(event.key==='End')next=folders.length-1;if(next!==undefined){event.preventDefault();const button=event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role=tab]')[next];button?.click();button?.focus();}}}
+      >{item.label}{' '}<span>{loading||error?'—':inboxFilter(inboxFolderEntries(entries,item.id),item.id==='archive'?'archive':'all','',now).length}</span></button>)}
+    </div>
     <div className="inbox-desk-navigation">
-      <div className="inbox-desk-filters" role="group" aria-label="Filter conversations">
+      {folder==='archive' ? <p className="inbox-archive-note">Recover for 30 days. Linked business records are protected.</p> : <div className="inbox-desk-filters" role="group" aria-label="Filter conversations">
         {filters.map(item=><button type="button" key={item.id} aria-pressed={filter===item.id} data-filter={item.id}
-          onClick={()=>resetSelection(()=>setFilter(item.id))}>{item.label}<span>{loading||error?'—':inboxFilter(entries,item.id,'',now).length}</span></button>)}
-      </div>
+          onClick={()=>resetSelection(()=>setFilter(item.id))}>{item.label}<span>{loading||error?'—':inboxFilter(folderEntries,item.id,'',now).length}</span></button>)}
+      </div>}
       <details className="inbox-tools-menu" onKeyDown={event=>{if(event.key==="Escape"){event.currentTarget.open=false;event.currentTarget.querySelector("summary")?.focus();}}}><summary>Tools</summary><nav className="inbox-desk-tools" aria-label="Inbox tools">
         <button type="button" aria-pressed={filter==='test-drives'} onClick={event=>{resetSelection(()=>setFilter('test-drives'));event.currentTarget.closest("details")?.removeAttribute("open");}}><CalendarDays size={16} aria-hidden/>Test drives</button>
         {tools}
@@ -74,11 +90,11 @@ export function InboxWorkspace({ entries, cars, selectedId, onSelect, onBack, ac
     {loading ? <div className="inbox-desk-empty" role="status"><Inbox size={28} aria-hidden/><h3>Loading your Inbox…</h3></div>
     :error && !entries.length ? <div className="inbox-desk-empty" role="alert"><h3>Enquiries couldn’t be loaded</h3><p>Your saved conversations are unchanged.</p><Button variant="outline" onClick={onRefresh}>Retry enquiries</Button></div>
     : <>{error&&<div role="alert" className="inbox-outside-filter">The latest update couldn’t be loaded. Your conversation and draft are kept.<Button variant="ghost" size="sm" onClick={onRefresh}>Retry update</Button></div>}<div className="inbox-desk-columns">
-      <aside className="inbox-desk-list" aria-label="Conversations">
+      <aside className="inbox-desk-list" id={`${folderId}-panel`} role="tabpanel" aria-labelledby={`${folderId}-${folder}`}>
         <p className="inbox-desk-count" aria-live="polite">{visible.length} {visible.length===1?'conversation':'conversations'}</p>
         {!visible.length ? <div className="inbox-desk-empty" role="status">
-          {filter==='needs-you'&&!search ? <><CheckCircle2 size={28} aria-hidden/><h3>You’re up to date</h3><p>Nothing needs your attention right now.</p></> : <><Inbox size={28} aria-hidden/><h3>{search?'No matching conversations':entries.length?'Nothing here yet':'Your Inbox is ready'}</h3><p>{search?'Try a name, registration or email address.':entries.length?'Try All to see your other enquiries.':'Website enquiries, Cazoo leads and test-drive requests will appear here.'}</p></>}
-          {(search||filter!=='all')&&<Button variant="outline" size="sm" onClick={()=>resetSelection(()=>{setSearch('');setFilter('all');})}>Show all enquiries</Button>}
+          {folder==='archive'&&!search ? <><Inbox size={28} aria-hidden/><h3>No archived enquiries</h3><p>Archived conversations stay recoverable here for 30 days.</p></> : folder==='ai'&&!folderEntries.length&&!search ? <><Inbox size={28} aria-hidden/><h3>No AI enquiries yet</h3><p>Enquiries appear here when connected provider automation prepares a reply. Website enquiries and manual AI drafts stay in Enquiries.</p></> : filter==='needs-you'&&!search ? <><CheckCircle2 size={28} aria-hidden/><h3>You’re up to date</h3><p>Nothing needs your attention right now.</p></> : <><Inbox size={28} aria-hidden/><h3>{search?'No matching conversations':entries.length?'Nothing here yet':'Your Inbox is ready'}</h3><p>{search?'Try a name, registration or email address.':entries.length?'Try All to see your other enquiries.':'Website enquiries and test-drive requests will appear here.'}</p></>}
+          {(search||folder!=='archive'&&filter!=='all')&&<Button variant="outline" size="sm" onClick={()=>resetSelection(()=>{setSearch('');setFilter('all');})}>{folder==='archive'?'Clear search':'Show all enquiries'}</Button>}
         </div> : <ul>{visible.map(entry=>{
           const state=inboxCaseState(entry,entries,now);
           const members=enquiryGroup(entry,entries) as InboxEnquiry[];
@@ -89,14 +105,14 @@ export function InboxWorkspace({ entries, cars, selectedId, onSelect, onBack, ac
             <span className="inbox-desk-row-top"><strong>{entry.customerName}</strong><time dateTime={at??undefined} title={at?new Date(at).toLocaleString('en-GB'):undefined}>{inboxRelativeTime(at,now)}</time></span>
             <span className="inbox-desk-row-car">{entry.vehicleTitle||'General enquiry'}{entry.vehicleRegistration&&` · ${entry.vehicleRegistration}`}</span>
             <span className="inbox-desk-row-preview">{latest.latestReplyText||enquiryRequestText(latest)||state.nextAction}</span>
-            <span className="inbox-desk-row-tags"><span className="inbox-source">{enquiryPresentation(entry).source}</span><span className="inbox-status" data-tone={state.tone}>{state.label}</span>{members.length>1&&<span>{members.length} linked</span>}</span>
+            <span className="inbox-desk-row-tags"><span className="inbox-source">{enquiryPresentation(entry).source}</span><span className="inbox-status" data-tone={state.tone}>{state.label}</span>{entry.aiDraftStatus&&entry.aiProvider&&<span className="inbox-ai-status">{entry.aiDraftStatus==='ready'?'Draft ready':entry.aiDraftStatus==='failed'?'Draft needs checking':'Preparing draft'}</span>}{members.length>1&&<span>{members.length} linked</span>}</span>
           </button></li>;
         })}</ul>}
       </aside>
       <div className="inbox-desk-conversation" ref={detail} tabIndex={-1} aria-label={selected?`Conversation with ${selected.customerName}`:'Conversation'}>
         {selected ? <>
           <div className="inbox-conversation-back"><Button size="sm" variant="ghost" onClick={()=>{if(onBack()!==false) {setAutoPreview(false);setPreviewEntry(null);requestAnimationFrame(()=>selectedButton.current?.focus());}}}><ArrowLeft size={17} aria-hidden/>Back to Inbox</Button></div>
-          {!selectedVisible&&<div className="inbox-outside-filter" role="status">This conversation is outside your current filter.<Button variant="ghost" size="sm" onClick={()=>{setFilter('all');setSearch('');}}>Show in All</Button></div>}
+          {!selectedVisible&&<div className="inbox-outside-filter" role="status">This conversation is outside your current filter.<Button variant="ghost" size="sm" onClick={()=>{setFolder(selected.archivedAt?'archive':isAiEnquiry(selected)?'ai':'enquiries');setFilter('all');setSearch('');}}>{selected.archivedAt?'View Archive':'Show in All'}</Button></div>}
           {group.length>1&&<details className="inbox-linked-records"><summary>{group.length} linked enquiries</summary><div>{group.map(original=><Button key={original.id} size="sm" variant={original.id===selected.id?'default':'outline'} onClick={()=>onSelect(original.id)}>{original.vehicleTitle||'General enquiry'} · {enquiryPresentation(original).purpose}</Button>)}</div></details>}
           <EnquiryCustomerCase compact key={selected.id} entry={selected} entries={entries} car={cars.find(car=>car.id===selected.vehicleId)} cars={cars} actions={actions}/>
         </> : <div className="inbox-desk-empty">

@@ -12,10 +12,10 @@ import {
   aiConfigured,
   aiHash,
   generateAi,
-  redactAiText,
 } from "./ai-assistance";
 import { AiAssistanceStore } from "./ai-assistance-store";
-import { publicAiCar, publicAiDealer } from "./ai-public-facts";
+import { buildEnquiryAiContext, enquiryAiContextHash, enquiryIsArchived } from "./enquiry-ai-context";
+import type { MotHistory } from "@workspace/vehicle-meta";
 import { runBoundedDealerJob } from "./tenant-jobs";
 import { serviceLifecycle, startLifecycleWorker } from "./service-lifecycle";
 import { platformStockConnection } from "./platform-stock-connection";
@@ -235,6 +235,7 @@ export async function draftCazooReply(
     const { findVisibleStockVehicle } = await import("../routes/stock");
     return findVisibleStockVehicle(id);
   },
+  lookupMot?: (registration: string) => Promise<MotHistory>,
 ) {
   const dealer = String(row.dealer_id),
     id = String(row.enquiry_id);
@@ -245,6 +246,7 @@ export async function draftCazooReply(
   if (
     !enquiry ||
     enquiry.mergedIntoId ||
+    enquiryIsArchived(enquiry) ||
     enquiry.status !== "new" ||
     !enquiry.email
   )
@@ -267,12 +269,10 @@ export async function draftCazooReply(
   if (!config) return "skipped";
   const car = enquiry.vehicleId ? await getCar(enquiry.vehicleId) : null;
   if (!car) return "skipped";
-  const question = redactAiText(enquiry.message, [enquiry.customerName]);
-  const facts = {
-    dealer: publicAiDealer(config),
-    cars: [publicAiCar(car)],
-    enquiry: { type: enquiry.type, message: question },
-  };
+  const context = await buildEnquiryAiContext({ enquiry, car, config, lookupMot });
+  const { question, facts } = context;
+  const [afterLookup] = await db.select().from(enquiriesTable).where(and(eq(enquiriesTable.id, id), eq(enquiriesTable.dealerId, dealer)));
+  if (!afterLookup || enquiryIsArchived(afterLookup) || afterLookup.status !== "new" || afterLookup.workspaceRevision !== enquiry.workspaceRevision) return "skipped";
   // Uses the existing shared monthly budget plus a conservative ten automated drafts/dealer/day.
   const day = new Date().toISOString().slice(0, 10),
     session = aiHash({ dealer, day, task: "cazoo-drafts" });
@@ -284,27 +284,32 @@ export async function draftCazooReply(
       session,
       ip: session,
       requestId: String(row.id),
-      hash: aiHash({ question, facts }),
+      hash: enquiryAiContextHash(context),
       cacheKey: null,
       staff: true,
+      contextAudit: context.contextAudit,
     });
     const generated = reservation.cached
       ? { result: reservation.cached, cost: 0 }
       : await generate("reply", question, facts);
-    if (!reservation.cached)
-      await store.complete(
-        reservation.id,
-        dealer,
-        generated.result,
-        generated.cost,
-        null,
-      );
+    const [afterGeneration] = await db.select().from(enquiriesTable).where(and(eq(enquiriesTable.id, id), eq(enquiriesTable.dealerId, dealer)));
+    if (!afterGeneration || enquiryIsArchived(afterGeneration)) {
+      if (!reservation.cached) await store.fail(reservation.id, dealer);
+      return "skipped";
+    }
+    await store.completeForEnquiry({
+      id: reservation.id,
+      dealer,
+      enquiryId: id,
+      expectedWorkspaceRevision: enquiry.workspaceRevision,
+      ...(!reservation.cached ? { generated } : {}),
+    });
     const message = generated.result.answer.trim();
     if (!message || message.length > 12000) throw new Error("Invalid draft");
     return await db.transaction(async (tx) => {
       const current = (
         await tx.execute(
-          sql`SELECT workspace_revision,status,merged_into_id FROM enquiries WHERE id=${id}::uuid AND dealer_id=${dealer} FOR UPDATE`,
+          sql`SELECT workspace_revision,status,merged_into_id,archived_at,archive_delete_at FROM enquiries WHERE id=${id}::uuid AND dealer_id=${dealer} FOR UPDATE`,
         )
       ).rows[0];
       const sent = (
@@ -316,6 +321,7 @@ export async function draftCazooReply(
         !current ||
         current.status !== "new" ||
         current.merged_into_id ||
+        enquiryIsArchived(current) ||
         sent ||
         Number(current.workspace_revision) !== enquiry.workspaceRevision
       )

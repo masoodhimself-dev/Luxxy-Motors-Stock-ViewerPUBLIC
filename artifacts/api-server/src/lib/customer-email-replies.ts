@@ -235,9 +235,26 @@ export async function processCustomerReplies(
         throw new Error("Receiving configuration unavailable.");
       const email = await retrieveReply(String(row.provider_id), transport);
       await db.transaction(async (tx) => {
+        // Archive/deletion take the case row before any reply row. Match their
+        // advisory-lock order, and freeze same-dealer merge membership while
+        // resolving the retained original to its surviving conversation.
+        for (const key of [`sale-workspace:${dealer}`, `enquiry-merge:${dealer}`, `enquiry-email:${dealer}:${String(row.enquiry_id)}`])
+          await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${key}))`);
+        let enquiry = String(row.enquiry_id);
+        for (let depth = 0; depth < 20; depth++) {
+          const parent = (
+            await tx.execute(
+              sql`SELECT id,merged_into_id FROM enquiries WHERE dealer_id=${dealer} AND id=${enquiry}::uuid FOR UPDATE`,
+            )
+          ).rows[0];
+          if (!parent) throw new Error("Enquiry unavailable.");
+          if (!parent.merged_into_id) break;
+          if (depth === 19) throw new Error("Merge chain too long.");
+          enquiry = String(parent.merged_into_id);
+        }
         const locked = (
           await tx.execute(
-            sql`SELECT m.*,r.recipient,r.reply_address FROM enquiry_email_replies m JOIN enquiry_email_reply_routes r ON r.id=m.route_id AND r.dealer_id=m.dealer_id WHERE m.id=${id}::uuid AND m.status='processing' AND m.lease_until=${lease} FOR UPDATE OF m`,
+            sql`SELECT m.*,r.recipient,r.reply_address FROM enquiry_email_replies m JOIN enquiry_email_reply_routes r ON r.id=m.route_id AND r.dealer_id=m.dealer_id WHERE m.id=${id}::uuid AND m.dealer_id=${dealer} AND m.enquiry_id=${String(row.enquiry_id)}::uuid AND m.route_id=${String(row.route_id)}::uuid AND m.provider_id=${String(row.provider_id)}::uuid AND m.status='processing' AND m.lease_until=${lease} FOR UPDATE OF m`,
           )
         ).rows[0];
         if (!locked) return;
@@ -266,19 +283,6 @@ export async function processCustomerReplies(
         )
           .slice(0, 24000)
           .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "");
-        // Keep the recorded case, following only same-dealer merges to the surviving conversation.
-        let enquiry = String(row.enquiry_id);
-        for (let depth = 0; depth < 20; depth++) {
-          const parent = (
-            await tx.execute(
-              sql`SELECT id,merged_into_id FROM enquiries WHERE dealer_id=${dealer} AND id=${enquiry}::uuid FOR UPDATE`,
-            )
-          ).rows[0];
-          if (!parent) throw new Error("Enquiry unavailable.");
-          if (!parent.merged_into_id) break;
-          if (depth === 19) throw new Error("Merge chain too long.");
-          enquiry = String(parent.merged_into_id);
-        }
         const review = Boolean(reason);
         await tx.execute(
           sql`UPDATE enquiry_email_replies SET enquiry_id=${enquiry}::uuid,status=${review ? "review" : "received"},sender=${sender},subject=${email.subject.slice(0, 200)},message=${message},message_id=${safeMessageId(email.message_id)},attachment_names=${JSON.stringify(email.attachments.map((a) => a.filename || "Unnamed attachment"))}::jsonb,error_code=${reason},lease_until=NULL,received_at=now() WHERE id=${id}::uuid AND dealer_id=${dealer}`,
@@ -288,7 +292,7 @@ export async function processCustomerReplies(
             sql`INSERT INTO enquiry_events(id,dealer_id,enquiry_id,kind,actor,summary,detail) VALUES(${randomUUID()}::uuid,${dealer},${enquiry}::uuid,'conversation_logged','customer','Customer email received',${JSON.stringify({ note: message, channel: "email", direction: "inbound", replyId: id })}::jsonb)`,
           );
           await tx.execute(
-            sql`UPDATE enquiries SET workspace_revision=workspace_revision+1,updated_at=now() WHERE id=${enquiry}::uuid AND dealer_id=${dealer}`,
+            sql`UPDATE enquiries SET archived_at=NULL,archive_delete_at=NULL,archive_review_at=NULL,archive_hold_reason=NULL,status=CASE WHEN archived_at IS NOT NULL THEN 'new'::enquiry_status ELSE status END,workspace_revision=workspace_revision+1,updated_at=now() WHERE id=${enquiry}::uuid AND dealer_id=${dealer}`,
           );
         }
       });

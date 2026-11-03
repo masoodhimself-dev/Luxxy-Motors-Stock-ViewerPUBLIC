@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Enquiry } from '@workspace/api-client-react';
 import type { InboxEnquiry } from './enquiry-reply-attention';
-import { inboxCaseState, inboxFilter, inboxLastActivity, inboxMatches, inboxRelativeTime, inboxState } from './inbox-model';
+import { inboxCaseState, inboxFilter, inboxFolderEntries, inboxLastActivity, inboxMatches, inboxRelativeTime, inboxState, isAiEnquiry } from './inbox-model';
 
 const now = Date.parse('2026-11-02T12:00:00Z');
 const record = (id = 'enquiry', changes: Partial<InboxEnquiry> = {}): InboxEnquiry => ({
@@ -10,6 +10,34 @@ const record = (id = 'enquiry', changes: Partial<InboxEnquiry> = {}): InboxEnqui
   email: 'ellie@example.com', phone: '07700 900123', message: 'Would you accept a part exchange?',
   events: [], createdAt: '2026-11-01T10:00:00Z', updatedAt: '2026-11-01T10:00:00Z', ...changes,
 } as Enquiry);
+
+describe('AI and archived Inbox folders',()=>{
+  it('uses actual automated provider metadata, never source alone or an ordinary AI draft',()=>{
+    const connected=record('automated',{source:'cazoo',aiProvider:'cazoo',aiDraftStatus:'ready'});
+    const sourceOnly=record('source-only',{source:'cazoo'});
+    const manual=record('manual',{source:'website'});
+    const all=[connected,sourceOnly,manual];
+    expect(isAiEnquiry(connected)).toBe(true);
+    expect(isAiEnquiry(sourceOnly)).toBe(false);
+    expect(inboxFolderEntries(all,'ai')).toEqual([connected]);
+    expect(inboxFolderEntries(all,'enquiries')).toEqual([sourceOnly,manual]);
+  });
+  it('keeps archived records searchable in Archive and out of every active filter',()=>{
+    const archived=record('archived',{archivedAt:'2026-11-01T12:00:00Z',archiveDeleteAt:'2026-12-01T12:00:00Z',pendingEmailReplies:1,appointmentAt:'2026-11-03T10:00:00Z'});
+    const active=record('active');
+    for(const filter of ['needs-you','all','done','test-drives'] as const) expect(inboxFilter([archived,active],filter,'',now)).not.toContain(archived);
+    expect(inboxFilter([archived,active],'archive','ENQ-archived',now)).toEqual([archived]);
+    expect(inboxFolderEntries([archived,active],'archive')).toEqual([archived]);
+    expect(inboxState(archived,now).label).toBe('Archived');
+  });
+  it('keeps explicitly linked automatic and manual records in one case and folder',()=>{
+    const parent=record('parent');
+    const child=record('child',{mergedIntoId:parent.id,source:'cazoo',aiProvider:'cazoo',aiDraftStatus:'failed'});
+    expect(inboxFolderEntries([parent,child],'ai')).toEqual([parent,child]);
+    expect(inboxFilter(inboxFolderEntries([parent,child],'ai'),'all','',now)).toEqual([parent]);
+    expect(inboxFolderEntries([parent,child],'enquiries')).toEqual([]);
+  });
+});
 
 describe('simplified Inbox status', () => {
   it('shows new requests and received replies as needing a person, never AI handling', () => {
