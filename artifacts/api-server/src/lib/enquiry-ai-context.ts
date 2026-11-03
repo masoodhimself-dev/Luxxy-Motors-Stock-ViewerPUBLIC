@@ -105,7 +105,7 @@ export async function buildEnquiryAiContext(input: {
   const projectedCar = input.car ? publicAiCar(input.car) : null, dealer = publicAiDealer(input.config);
   // Keep a useful listing beside the verified history without allowing a rich
   // advert to consume the whole request. Requested equipment is prioritised.
-  const equipmentTerms = normalQuestion(question).match(/\b(?:heated seats|parking sensors|camera|sat[ -]?nav|carplay|android auto|sunroof|bluetooth|isofix|cruise control|air conditioning|climate control|leather|towbar)\b/gi) ?? [];
+  const equipmentTerms: string[] = normalQuestion(question).match(/\b(?:heated seats|parking sensors|camera|sat[ -]?nav|carplay|android auto|sunroof|bluetooth|isofix|cruise control|air conditioning|climate control|leather|towbar)\b/gi) ?? [];
   const prioritizedFeatures = projectedCar ? [...projectedCar.features].sort((a, b) => Number(equipmentTerms.some((term) => b.toLowerCase().includes(term.toLowerCase()))) - Number(equipmentTerms.some((term) => a.toLowerCase().includes(term.toLowerCase())))) : [];
   const car = projectedCar ? { ...projectedCar, description: projectedCar.description?.slice(0, 4500) ?? null, serviceHistory: projectedCar.serviceHistory?.slice(0, 1000) ?? null, features: prioritizedFeatures.slice(0, 50), listingDetailsTruncated: Boolean((projectedCar.description?.length ?? 0) > 4500 || (projectedCar.serviceHistory?.length ?? 0) > 1000 || prioritizedFeatures.length > 50) } : null;
   const audit: EnquiryAiAudit = { version: 1, enquiryId: String(input.enquiry.id ?? ""), vehicleId: car?.id ?? null, model: AI_MODEL, checkedAt, questions: [], lookups: [], vehicleFacts: car };
