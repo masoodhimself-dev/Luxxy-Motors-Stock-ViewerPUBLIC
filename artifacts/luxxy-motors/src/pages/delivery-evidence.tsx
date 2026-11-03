@@ -58,28 +58,41 @@ function DeliveryEvidenceContent() {
     current = useRef({ record, report, photos });
   current.current = { record, report, photos };
   async function call(path = "", body?: unknown) {
-    const response = await fetch(
-      `/api/delivery-evidence/${encodeURIComponent(token)}${path}`,
-      {
-        method: body ? "POST" : "GET",
-        credentials: "omit",
-        cache: "no-store",
-        referrerPolicy: "no-referrer",
-        ...(body
-          ? {
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(body),
-            }
-          : {}),
-      },
-    );
-    const data = await response.json();
-    if (!response.ok)
-      throw new Error(
-        data.error ||
-          "Could not connect to the showroom. Keep this page open and retry.",
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 25_000);
+    try {
+      const response = await fetch(
+        `/api/delivery-evidence/${encodeURIComponent(token)}${path}`,
+        {
+          method: body ? "POST" : "GET",
+          credentials: "omit",
+          cache: "no-store",
+          referrerPolicy: "no-referrer",
+          signal: controller.signal,
+          ...(body
+            ? {
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+              }
+            : {}),
+        },
       );
-    return data;
+      const data = await response.json();
+      if (!response.ok)
+        throw new Error(
+          data.error ||
+            "Could not connect to the showroom. Keep this page open and retry.",
+        );
+      return data;
+    } catch (cause) {
+      if (controller.signal.aborted)
+        throw new Error(
+          "The connection timed out. Keep this page open and retry when reception returns.",
+        );
+      throw cause;
+    } finally {
+      clearTimeout(timer);
+    }
   }
   useEffect(() => {
     let stopped = false;
@@ -181,38 +194,55 @@ function DeliveryEvidenceContent() {
   useEffect(() => {
     if (!record || received || !key.current || loading) return;
     const sequence = ++saveSequence.current;
+    const localKey = key.current,
+      generation = version.current;
     const timer = window.setTimeout(() => {
       void saveDeliveryLocalDraft({
-        key: key.current,
+        key: localKey,
         savedAt: Date.now(),
         record,
         report,
         photos,
       })
         .then(() => {
-          if (sequence === saveSequence.current)
+          if (
+            sequence === saveSequence.current &&
+            generation === version.current
+          )
             setLocal(
               "Saved on this device. Waiting for upload until you submit.",
             );
         })
-        .catch(() =>
-          setLocal(
-            "Could not save on this device. Keep the page open; use the printed declaration as backup.",
-          ),
-        );
+        .catch(() => {
+          if (generation === version.current)
+            setLocal(
+              "Could not save on this device. Keep the page open; use the printed declaration as backup.",
+            );
+        });
     }, 350);
     return () => clearTimeout(timer);
   }, [record, report, photos, received, loading]);
   useEffect(() => {
     const prevent = (e: BeforeUnloadEvent) => {
-      if (record && !received && photos.some((p) => !p.saved)) {
+      if (
+        record &&
+        !received &&
+        (photos.length > 0 ||
+          report.handoverAt ||
+          report.mileage ||
+          report.notes ||
+          report.location ||
+          report.acknowledged ||
+          report.documentsProvided ||
+          report.outcome === "not-delivered")
+      ) {
         e.preventDefault();
         e.returnValue = "";
       }
     };
     window.addEventListener("beforeunload", prevent);
     return () => window.removeEventListener("beforeunload", prevent);
-  }, [record, received, photos]);
+  }, [record, received, photos, report]);
   const edit = (patch: Partial<DeliveryReport>) => {
     setReport((r) => ({ ...r, ...patch, requestId: requestUuid() }));
     setError("");

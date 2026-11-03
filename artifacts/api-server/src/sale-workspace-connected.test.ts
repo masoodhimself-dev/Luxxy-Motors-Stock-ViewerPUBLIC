@@ -3,6 +3,7 @@ import test from 'node:test';
 import { randomUUID } from 'node:crypto';
 import { SaleWorkspaceError, saleWorkspaceTotals, saleCompletionChecklistItems, type SaleWorkspaceDraft, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 import { PostgresSaleWorkspaceStore, readSaleWorkspaceAssets, recordStripeReservationDeposit, recordStripeReservationRefund, type SaleWorkspaceDatabase } from './lib/sale-workspace-store';
+import { readSaleReviewContext } from './lib/sale-review-context';
 const vehicleId = '00000000-0000-4000-8000-000000000001';
 const reservationId = '00000000-0000-4000-8000-000000000002';
 const draft = (): SaleWorkspaceDraft => ({ id: '', customer: 'Test buyer', email: 'buyer@test.invalid', phone: '', address: '', vehicleId, vehicle: 'A real stock car', registration: 'AB12 CDE', price: '12000', partExchange: false, pxRegistration: '', pxDescription: '', pxValue: '', deposit: '', paymentMethod: '', notes: '', collection: '', preparation: false, documents: false, handover: false });
@@ -21,6 +22,7 @@ function fixture(reservationTerms = 'TEST APPROVED RESERVATION') {
     if (q.startsWith('SELECT stage FROM leads')) return { rows: [{ stage: 'reserved' }] };
     if (q.startsWith('SELECT l.vehicle_id FROM leads')) return { rows: [{ vehicle_id: vehicleId }] };
     if (q.startsWith('SELECT id FROM leads')) return { rows: [] };
+    if (q.startsWith('SELECT state -')) return {rows:[...records.values()].map(state=>({state:clone(state),list_ledger_known:true,list_payment_entries:state.payments,list_has_correction_notes:!!state.corrections?.length}))};
     if (q.startsWith('SELECT state') && q.includes('FROM sale_workspace')) {
       let list = [...records.values()];
       if (q.includes("state->'requests'")) list = list.filter(s => s.requests?.[p[1]]);
@@ -43,7 +45,7 @@ function fixture(reservationTerms = 'TEST APPROVED RESERVATION') {
     return { query: async (q, p) => { if (q === 'ROLLBACK') { records = new Map(before.records); numbers = before.numbers; vehicle = before.vehicle; } return query(q, p); }, release: () => {} };
   } };
   const store = new PostgresSaleWorkspaceStore('fixture-dealer', async (d, client) => ({ ...await readSaleWorkspaceAssets(d, 'fixture-dealer', client), paperwork: { saleTerms: 'TEST APPROVED TERMS', reservationTerms } }), database);
-  return { database, store, vehicle: () => clone(vehicle), statements, seed: (sale: SaleWorkspaceRecord) => records.set(sale.id, clone(sale)), reviewed:(sale:SaleWorkspaceRecord)=>{const saved=records.get(sale.id)!;assert.equal(saved.revision,sale.revision,'Fixture reviews must match the persisted revision');saved.finalReview={id:randomUUID(),checkedAt:new Date().toISOString(),reviewedRevision:saved.revision,status:'passed',issues:[],summary:'Fixture AI review passed for this exact saved revision'};records.set(saved.id,clone(saved));} };
+  return { database, store, vehicle: () => clone(vehicle), statements, seed: (sale: SaleWorkspaceRecord) => records.set(sale.id, clone(sale)), reviewed:async(sale:SaleWorkspaceRecord)=>{const saved=records.get(sale.id)!;assert.equal(saved.revision,sale.revision,'Fixture reviews must match the persisted revision');const context=await readSaleReviewContext(database,'fixture-dealer',saved);saved.finalReview={id:randomUUID(),checkedAt:new Date().toISOString(),reviewedRevision:saved.revision,contextHash:context.hash,status:'passed',issues:[],summary:'Fixture AI review passed for this exact saved revision'};records.set(saved.id,clone(saved));} };
 }
 
 test('a cleared released enquiry can start one new sale without changing its original history', async () => {
@@ -54,7 +56,7 @@ test('a cleared released enquiry can start one new sale without changing its ori
   await assert.rejects(create(), /already exists/);
   const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   first = (await f.store.mutate({ id: first.id, expectedRevision: first.revision, requestId: randomUUID(), actor: 'Staff', command: { action: 'invoice-payment', payment: { amount: '100', method: 'Cash', date, reference: '', kind: 'deposit', status: 'confirmed' } } })).sale;
-  f.reviewed(first);
+  await f.reviewed(first);
   first = (await f.store.mutate({ id: first.id, expectedRevision: first.revision, requestId: randomUUID(), actor: 'Staff', command: { action: 'issue-invoice', kind: 'deposit', acknowledge: true } })).sale;
   const invoiceId = first.documents.at(-1)!.id, invoiceHash = (await f.store.pdf(first.id, invoiceId)).archive.sha256;
   first = (await f.store.mutate({ id: first.id, expectedRevision: first.revision, requestId: randomUUID(), actor: 'Staff', command: { action: 'reverse', paymentId: first.payments[0].id, kind: 'refund', reason: 'Customer changed their mind', date, invoiceOnly: true } })).sale;
@@ -91,7 +93,7 @@ test('production availability mutations reject a competing buyer and preserve Gr
   await assert.rejects(f.store.mutate({ id: b.id, expectedRevision: b.revision, requestId: randomUUID(), actor: 'Staff B', command: { action: 'lifecycle', status: 'reserved' } }), (e: unknown) => e instanceof SaleWorkspaceError && e.status === 409);
   assert.equal((await f.store.get(b.id)).revision, 1);
   const checked = await f.store.mutate({ id: a.id, expectedRevision: reserved.sale.revision, requestId: randomUUID(), actor: 'Staff A', command: { action: 'checklists', completion: Object.fromEntries(saleCompletionChecklistItems.map(item => [item.id, 'checked'])) } });
-  f.reviewed(checked.sale);
+  await f.reviewed(checked.sale);
   await f.store.mutate({ id: a.id, expectedRevision: checked.sale.revision, requestId: randomUUID(), actor: 'Staff A', command: { action: 'handover', recipient: 'Buyer', acknowledgeOutstanding: true } });
   assert.equal(f.vehicle().inventory_status, 'sold'); assert.equal(f.vehicle().source_status, 'live'); assert.equal(f.vehicle().source_price, 12345);
   assert.equal((await f.store.get(a.id)).lifecycle?.status, 'sold');
@@ -158,7 +160,7 @@ test('A4 rejection rolls back invoice numbering and issuance without changing a 
   const f=fixture('x'.repeat(601));
   let sale=(await f.store.mutate({draft:draft(),requestId:randomUUID(),actor:'Staff'})).sale;
   sale=(await f.store.mutate({id:sale.id,expectedRevision:sale.revision,requestId:randomUUID(),actor:'Staff',command:{action:'invoice-payment',payment:{amount:'500',method:'Cash',date:new Date().toISOString().slice(0,10),reference:'A4-RECEIVED',kind:'deposit',status:'confirmed'}}})).sale;
-  f.reviewed(sale);
+  await f.reviewed(sale);
   const before=JSON.stringify(await f.store.get(sale.id));
   await assert.rejects(f.store.mutate({id:sale.id,expectedRevision:sale.revision,requestId:randomUUID(),actor:'Staff',command:{action:'issue-invoice',kind:'deposit',acknowledge:true}}),/600 characters/);
   assert.equal(JSON.stringify(await f.store.get(sale.id)),before);
@@ -168,7 +170,7 @@ test('A4 rejection rolls back invoice numbering and issuance without changing a 
 test('email acceptance merges into the current revision without overwriting a concurrent payment', async () => {
   const f = fixture();
   let a = (await f.store.mutate({ draft: draft(), requestId: randomUUID(), actor: 'Staff' })).sale;
-  f.reviewed(a);
+  await f.reviewed(a);
   a = (await f.store.mutate({ id: a.id, expectedRevision: a.revision, requestId: randomUUID(), actor: 'Staff', command: { action: 'document', type: 'invoice' } })).sale;
   const delivery = { id: 'email-request-test', documentId: a.documents[0].id, to: a.draft.email, status: 'sending' as const, attemptedAt: new Date().toISOString() };
   a = (await f.store.mutate({ id: a.id, expectedRevision: a.revision, requestId: 'email-start-test', actor: 'Staff', command: { action: 'email-status', delivery } })).sale;
@@ -189,7 +191,7 @@ test('deposit and completion atomically update stock and archives; stock conflic
   assert.equal((await f.store.get(b.id)).payments.length, 0);
   const paid = await f.store.mutate({ id: a.id, requestId: randomUUID(), expectedRevision: reserved.sale.revision, actor: 'Staff', command: { action: 'payment', payment: { ...payment, amount: '11500', kind: 'final-payment' } } });
   const checked = await f.store.mutate({ id: a.id, expectedRevision: paid.sale.revision, requestId: randomUUID(), actor: 'Staff', command: { action: 'checklists', completion: Object.fromEntries(saleCompletionChecklistItems.map(item => [item.id, 'checked'])) } });
-  f.reviewed(checked.sale);
+  await f.reviewed(checked.sale);
   const requestId = randomUUID();
   const finished = await f.store.mutate({ id: a.id, requestId, expectedRevision: checked.sale.revision, actor: 'Staff', command: { action: 'complete-sale', acknowledge: true } });
   assert.equal(f.vehicle().inventory_status, 'sold'); assert.ok(finished.sale.completedAt); assert.equal(finished.sale.draft.fulfilment?.completedAt, undefined);
@@ -201,9 +203,25 @@ test('deposit and completion atomically update stock and archives; stock conflic
 test('the production store requires a passed review of the exact revision before issuing an invoice',async()=>{
  const f=fixture();const sale=(await f.store.mutate({draft:draft(),requestId:randomUUID(),actor:'Staff'})).sale;
  const invoice=(record:SaleWorkspaceRecord)=>f.store.mutate({id:record.id,expectedRevision:record.revision,requestId:randomUUID(),actor:'Staff',command:{action:'document',type:'invoice'}});
- await assert.rejects(invoice(sale),/Run the final checks/);f.reviewed(sale);
+ await assert.rejects(invoice(sale),/Run the final checks/);await f.reviewed(sale);
  const changed=(await f.store.mutate({id:sale.id,expectedRevision:sale.revision,requestId:randomUUID(),actor:'Staff',command:{action:'update',draft:{...sale.draft,notes:'Saved after the review'}}})).sale;
- await assert.rejects(invoice(changed),/Run the final checks/);f.reviewed(changed);assert.equal((await invoice(changed)).document?.type,'invoice');
+ await assert.rejects(invoice(changed),/Run the final checks/);await f.reviewed(changed);assert.equal((await invoice(changed)).document?.type,'invoice');
+});
+
+test('the store exposes external review staleness and returned list labels without returning private return notes',async()=>{
+ const f=fixture();const sale=(await f.store.mutate({draft:draft(),requestId:randomUUID(),actor:'Staff'})).sale;
+ await f.reviewed(sale);
+ const reviewed=await f.store.get(sale.id);
+ assert.equal(reviewed.finalReviewContextStale,false);
+ reviewed.finalReview!.contextHash='b'.repeat(64);f.seed(reviewed);
+ assert.equal((await f.store.get(sale.id)).finalReviewContextStale,true);
+ await assert.rejects(f.store.mutate({id:sale.id,expectedRevision:sale.revision,requestId:randomUUID(),actor:'Staff',command:{action:'document',type:'invoice'}}),/final checks|review/i);
+ const returned={...reviewed,returnReplacement:{transferId:randomUUID(),otherSaleId:randomUUID(),otherReference:'SALE-REPLACEMENT',direction:'returned' as const,creditPence:1200000,reason:'Private reason',condition:'Private condition',mileage:42000,at:new Date().toISOString(),actor:'Private staff'}};
+ f.seed(returned);
+ const listed=(await f.store.list()).sales.find(row=>row.id===sale.id)!;
+ assert.equal(listed.returnReplacement?.direction,'returned');
+ assert.equal(listed.returnReplacement?.otherReference,'SALE-REPLACEMENT');
+ assert.doesNotMatch(JSON.stringify(listed),/Private reason|Private condition|Private staff/);
 });
 
 test('deposits without reservation terms atomically reserve stock and archive one receipt and statement', async () => {

@@ -46,3 +46,23 @@ it('loads both archived print variants with the staff bearer token without sendi
   expect(requests.every(r => r.method === 'GET' && r.authorization === 'Bearer fictional-staff-token')).toBe(true);
   expect(screen.queryByRole('button', { name: 'Issue terms for this sale' })).not.toBeInTheDocument();
 });
+it('notifies the saved deal when new terms change its review context', async () => {
+  const onIssued = vi.fn();
+  vi.stubGlobal('fetch', vi.fn(async (url, init) => init?.method === 'POST' ? Response.json({ id: 'new-document' }) : Response.json(String(url).endsWith('/api/sales-terms') ? { published: { id: 'v1', version: 1 } } : { documents: [] })));
+  render(<SaleTermsDocuments saleId="sale-1" saleRevision={4} onIssued={onIssued}/>);
+  fireEvent.click(await screen.findByRole('button', {name:'Issue terms for this sale'}));
+  await waitFor(() => expect(onIssued).toHaveBeenCalledWith('sale-1'));
+});
+it('cannot attach a late terms result to a different open deal', async () => {
+  let finish!: (response: Response) => void;
+  const onIssued = vi.fn();
+  vi.stubGlobal('fetch', vi.fn(async (url, init) => init?.method === 'POST' ? new Promise<Response>(resolve => { finish = resolve; }) : Response.json(String(url).endsWith('/api/sales-terms') ? { published: { id: 'v1', version: 1 } } : { documents: [] })));
+  const view = render(<SaleTermsDocuments saleId="sale-1" saleRevision={4} onIssued={onIssued}/>);
+  fireEvent.click(await screen.findByRole('button', {name:'Issue terms for this sale'}));
+  await waitFor(() => expect(finish).toBeTypeOf('function'));
+  view.rerender(<SaleTermsDocuments saleId="sale-2" saleRevision={2} onIssued={onIssued}/>);
+  await screen.findByRole('button', {name:'Issue terms for this sale'});
+  finish(Response.json({id:'old-document'}));
+  await waitFor(() => expect(screen.getByRole('button', {name:'Issue terms for this sale'})).toBeEnabled());
+  expect(onIssued).not.toHaveBeenCalled();
+});

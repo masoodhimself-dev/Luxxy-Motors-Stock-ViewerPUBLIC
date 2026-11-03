@@ -239,3 +239,4 @@ export * from "./uk-postcodes.ts";
 
 export * from './full-sales-terms.ts';
 export * from './sale-operations.ts';
+export * from './sales-document-presentation.ts';

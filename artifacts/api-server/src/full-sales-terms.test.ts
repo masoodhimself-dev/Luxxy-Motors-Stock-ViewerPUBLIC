@@ -6,6 +6,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { applicableSalesTerms, isConfirmedCategoryS, normaliseFullSalesTerms, saleWorkspaceBranding, salesTermsReviewPoints, type SalesTermsSnapshot } from '@workspace/vehicle-meta';
 import { renderFullSalesTerms } from '@workspace/vehicle-meta/full-sales-terms-pdf';
 import { FullSalesTermsStore } from './lib/full-sales-terms-store';
+import { readSaleReviewContext } from './lib/sale-review-context';
 import { shoreDriveTermsDraft } from './lib/shore-drive-terms-draft';
 const content = { title: 'Sale terms', sections: [{ heading: 'Our agreement', paragraphs: ['The agreed vehicle and price are recorded on the invoice.'], condition: 'all' as const }, { heading: 'Category S', paragraphs: ['The vehicle has a confirmed Category S record.'], condition: 'category-s' as const }] };
 test('full terms validate boundaries, retain exact supplied wording and filter only confirmed Category S', () => {
@@ -40,7 +41,7 @@ test('tenant draft, explicit publication, issue snapshots and retries preserve h
   try {
     await engine.exec('CREATE TABLE dealer_settings(dealer_id text primary key,config jsonb); CREATE TABLE sale_workspace(id uuid primary key,dealer_id text,state jsonb); CREATE TABLE vehicles(id uuid primary key,dealer_id text,write_off_category text);');
     await engine.exec(await readFile('../../lib/db/drizzle/0082_sales_terms.sql', 'utf8'));
-    const database = { async query(sql: string, values: any[] = []) { if (sql.includes('pg_advisory_xact_lock')) return { rows: [] }; return engine.query(sql, values); }, async connect() { return { query: database.query, release() {} }; } };
+    const database = { async query(sql: string, values: any[] = []) { if (sql.includes('pg_advisory_xact_lock')) return { rows: [] }; return engine.query<Record<string, any>>(sql, values); }, async connect() { return { query: database.query, release() {} }; } };
     const shore = new FullSalesTermsStore(database, 'shore-drive-limited', 'https://shore.example.test'), other = new FullSalesTermsStore(database, 'other', 'https://other.example.test');
     assert.equal((await shore.settings()).suppliedDraft, true); assert.equal((await shore.settings()).published, null); assert.deepEqual((await other.settings()).draft.sections, []);
     assert.equal((await engine.query('SELECT * FROM dealer_sales_terms')).rows.length, 0, 'Reading a supplied review draft cannot apply it');
@@ -64,6 +65,7 @@ test('tenant draft, explicit publication, issue snapshots and retries preserve h
     await database.query('UPDATE sale_workspace SET state=$2 WHERE id=$1', [saleId, { ...sale, revision: 4 }]);
     await assert.rejects(shore.issue(saleId, { ...input, expectedSaleRevision: 4 }, 'Salesperson'), /Run the final checks/);
     assert.equal((await database.query('SELECT id FROM sale_terms_documents')).rows.length, 0, 'Missing, unavailable and older-review checks cannot create customer terms');
+    Object.assign(sale.finalReview, {contextHash: (await readSaleReviewContext(database, 'shore-drive-limited', sale as any)).hash});
     await database.query('UPDATE sale_workspace SET state=$2 WHERE id=$1', [saleId, sale]);
     const issued = await shore.issue(saleId, input, 'Salesperson'); assert.equal(issued.snapshot.sections.length, 2);
     assert.equal((await shore.issue(saleId, input, 'Salesperson')).replayed, true);
@@ -76,6 +78,9 @@ test('tenant draft, explicit publication, issue snapshots and retries preserve h
     assert.deepEqual(((await database.query('SELECT state FROM sale_workspace WHERE id=$1', [saleId])).rows[0] as { state: unknown }).state, sale);
     assert.equal((await shore.list(saleId)).length, 1);
     const unknownCatId = randomUUID(); await database.query('INSERT INTO sale_workspace VALUES($1,$2,$3)', [unknownCatId, 'shore-drive-limited', { ...sale, id: unknownCatId, draft: { ...sale.draft, vehicleId: '' } }]);
+    const genericSale = { ...sale, id: unknownCatId, draft: { ...sale.draft, vehicleId: '' }, finalReview: {...sale.finalReview} };
+    Object.assign(genericSale.finalReview, {contextHash: (await readSaleReviewContext(database, 'shore-drive-limited', genericSale as any)).hash});
+    await database.query('UPDATE sale_workspace SET state=$2 WHERE id=$1', [unknownCatId, genericSale]);
     const latest = await shore.settings(), generic = await shore.issue(unknownCatId, { requestId: randomUUID(), expectedSaleRevision: 3, termsVersionId: latest.published!.id }, 'Salesperson'); assert.equal(generic.snapshot.sections.length, 1);
   } finally { await engine.close(); }
 });

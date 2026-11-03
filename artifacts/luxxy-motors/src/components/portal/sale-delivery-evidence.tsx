@@ -38,9 +38,11 @@ const labels: Record<DeliveryJob["status"], string> = {
 export function SaleDeliveryEvidence({
   saleId,
   revision,
+  readOnly = false,
 }: {
   saleId: string;
   revision: number;
+  readOnly?: boolean;
 }) {
   const base = `/api/staff/sales/${saleId}/delivery-evidence`,
     query = useQuery({
@@ -80,6 +82,7 @@ export function SaleDeliveryEvidence({
     [preview],
   );
   useEffect(() => {
+    setBusy(false);
     setLink(undefined);
     setError("");
     setPreview(undefined);
@@ -101,16 +104,18 @@ export function SaleDeliveryEvidence({
         job: DeliveryJob;
         url: string;
       }>(base, attempt.current);
+      if (currentSaleId.current !== saleId) return;
       setLink({ id: result.job.id, url: result.url });
       attempt.current = undefined;
       await query.refetch();
+      if (currentSaleId.current !== saleId) return;
       setNotice(
         "Driver link is ready. It expires in 72 hours. Generating a new link withdraws the previous open link.",
       );
     } catch (cause) {
-      setError(declarationError(cause));
+      if (currentSaleId.current === saleId) setError(declarationError(cause));
     } finally {
-      setBusy(false);
+      if (currentSaleId.current === saleId) setBusy(false);
     }
   }
   async function revoke(id: string) {
@@ -118,13 +123,15 @@ export function SaleDeliveryEvidence({
     setError("");
     try {
       await declarationRequest(`${base}/${id}/revoke`, {});
+      if (currentSaleId.current !== saleId) return;
       if (link?.id === id) setLink(undefined);
       await query.refetch();
+      if (currentSaleId.current !== saleId) return;
       setNotice("Driver link withdrawn. Saved evidence is retained.");
     } catch (cause) {
-      setError(declarationError(cause));
+      if (currentSaleId.current === saleId) setError(declarationError(cause));
     } finally {
-      setBusy(false);
+      if (currentSaleId.current === saleId) setBusy(false);
     }
   }
   async function print(id: string) {
@@ -141,14 +148,18 @@ export function SaleDeliveryEvidence({
         responseType: "text",
         cache: "no-store",
       });
+      if (currentSaleId.current !== saleId) {
+        popup.close();
+        return;
+      }
       popup.document.open();
       popup.document.write(html);
       popup.document.close();
     } catch (cause) {
       popup.close();
-      setError(declarationError(cause));
+      if (currentSaleId.current === saleId) setError(declarationError(cause));
     } finally {
-      setBusy(false);
+      if (currentSaleId.current === saleId) setBusy(false);
     }
   }
   async function photo(job: DeliveryJob, image: DeliveryJob["photos"][number]) {
@@ -165,9 +176,9 @@ export function SaleDeliveryEvidence({
         label: `${image.phase} · ${image.slot}`,
       });
     } catch (cause) {
-      setError(declarationError(cause));
+      if (currentSaleId.current === saleId) setError(declarationError(cause));
     } finally {
-      setBusy(false);
+      if (currentSaleId.current === saleId) setBusy(false);
     }
   }
   async function savePaper(e: React.FormEvent) {
@@ -183,15 +194,17 @@ export function SaleDeliveryEvidence({
         keys: Number(fields.keys),
         handoverAt: new Date(fields.handoverAt).toISOString(),
       });
+      if (currentSaleId.current !== saleId) return;
       setPaper(undefined);
       await query.refetch();
+      if (currentSaleId.current !== saleId) return;
       setNotice(
         "Signed paper declaration saved. Handover remains a separate staff action.",
       );
     } catch (cause) {
-      setError(declarationError(cause));
+      if (currentSaleId.current === saleId) setError(declarationError(cause));
     } finally {
-      setBusy(false);
+      if (currentSaleId.current === saleId) setBusy(false);
     }
   }
   const editPaper = (patch: Partial<NonNullable<typeof paper>>) =>
@@ -220,12 +233,14 @@ export function SaleDeliveryEvidence({
           <RefreshCw />
         </Button>
       </header>
-      <div className="sale-evidence-actions">
-        <Button size="sm" onClick={create} disabled={busy}>
-          {busy ? <LoaderCircle className="animate-spin" /> : <Camera />}
-          Generate driver link
-        </Button>
-      </div>
+      {!readOnly && (
+        <div className="sale-evidence-actions">
+          <Button size="sm" onClick={create} disabled={busy}>
+            {busy ? <LoaderCircle className="animate-spin" /> : <Camera />}
+            Generate driver link
+          </Button>
+        </div>
+      )}
       {link && (
         <div className="sale-evidence-link">
           <label htmlFor={`delivery-link-${saleId}`}>Private driver link</label>
@@ -268,11 +283,12 @@ export function SaleDeliveryEvidence({
         <p>Loading delivery file…</p>
       ) : query.isError ? (
         <p role="alert">{declarationError(query.error)}</p>
-      ) : !query.data?.jobs.length ? (
+      ) : !query.data?.jobs?.length ? (
         <p className="sale-evidence-empty">
           <FileText />
-          Save the delivery address and date, then generate a driver link. Print
-          the declaration before the driver leaves.
+          {readOnly
+            ? "No delivery evidence is saved for this sale."
+            : "Save the delivery address and date, then generate a driver link. Print the declaration before the driver leaves."}
         </p>
       ) : (
         <div className="sale-evidence-history">
@@ -306,7 +322,7 @@ export function SaleDeliveryEvidence({
                     <Printer />
                     Print backup declaration
                   </Button>
-                  {!job.submission && job.current !== false && (
+                  {!readOnly && !job.submission && job.current !== false && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -333,7 +349,7 @@ export function SaleDeliveryEvidence({
                       Upload signed paper
                     </Button>
                   )}
-                  {job.status === "open" && (
+                  {!readOnly && job.status === "open" && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -347,6 +363,14 @@ export function SaleDeliveryEvidence({
                 {job.submission && (
                   <>
                     <dl>
+                      <div>
+                        <dt>Evidence source</dt>
+                        <dd>
+                          {job.submission.source === "paper"
+                            ? "Signed paper declaration"
+                            : "Driver report"}
+                        </dd>
+                      </div>
                       <div>
                         <dt>Outcome</dt>
                         <dd>
@@ -466,9 +490,17 @@ export function SaleDeliveryEvidence({
                     if (file) {
                       setBusy(true);
                       void deliveryPhotoData(file)
-                        .then((dataUrl) => editPaper({ dataUrl }))
-                        .catch((cause) => setError(cause.message))
-                        .finally(() => setBusy(false));
+                        .then((dataUrl) => {
+                          if (currentSaleId.current === saleId)
+                            editPaper({ dataUrl });
+                        })
+                        .catch((cause) => {
+                          if (currentSaleId.current === saleId)
+                            setError(cause.message);
+                        })
+                        .finally(() => {
+                          if (currentSaleId.current === saleId) setBusy(false);
+                        });
                     }
                   }}
                 />

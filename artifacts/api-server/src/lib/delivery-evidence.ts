@@ -1,3 +1,4 @@
+import { replaceLiteralIgnoreCase } from "./literal-redaction";
 import { createHash } from "node:crypto";
 import { pool } from "@workspace/db";
 import { z } from "zod/v4";
@@ -163,12 +164,134 @@ export function deliveryJobContext(
 }
 export const deliveryContextHash = (snapshot: DeliverySnapshot) =>
   digest(JSON.stringify(snapshot));
+/** Run inside the sale mutation transaction. Withdrawal is permanent, including a
+ * change which staff later undo, so an old driver cannot resume a stale job. */
+export async function revokeChangedDeliveryEvidence(
+  client: SettingsQueryClient,
+  input: {
+    dealerId: string;
+    saleId: string;
+    before: Row;
+    after: Row;
+    actor: string;
+  },
+) {
+  const relevant = (state: Row) => ({
+    snapshot: deliveryJobContext(state, ""),
+    method: state.draft?.fulfilment?.method ?? "collection",
+    completedAt: state.draft?.fulfilment?.completedAt ?? null,
+    unsuccessful: state.draft?.fulfilment?.stage === "unsuccessful",
+    closed:
+      ["released", "cancelled", "returned"].includes(state.lifecycle?.status) ||
+      state.returnReplacement?.direction === "returned",
+  });
+  if (
+    JSON.stringify(relevant(input.before)) ===
+    JSON.stringify(relevant(input.after))
+  )
+    return;
+  await client.query(
+    "UPDATE sale_delivery_evidence SET revoked_at=now(),revoked_by=$3 WHERE dealer_id=$1 AND sale_id=$2 AND revoked_at IS NULL AND submitted_at IS NULL",
+    [input.dealerId, input.saleId, input.actor],
+  );
+}
+
+/** Bounded metadata for review. Photos, contacts and raw device coordinates never
+ * enter the model input; the digest also detects evidence added without a sale edit. */
+export async function getDeliveryEvidenceReview(
+  client: SettingsQueryClient,
+  input: { dealerId: string; saleId: string },
+) {
+  const state = (
+    await client.query(
+      "SELECT state FROM sale_workspace WHERE dealer_id=$1 AND id=$2",
+      [input.dealerId, input.saleId],
+    )
+  ).rows[0]?.state;
+  const config = (
+    await client.query(
+      "SELECT config FROM dealer_settings WHERE dealer_id=$1",
+      [input.dealerId],
+    )
+  ).rows[0]?.config;
+  const snapshot = state
+    ? deliveryJobContext(state, config?.identity?.name || "The dealership")
+    : null;
+  const context =
+    state && snapshot ? currentJobSnapshot({ state, snapshot }) : null;
+  const rows = (
+    await client.query(
+      `SELECT j.id,j.snapshot,j.context_hash,j.created_at,j.expires_at,j.revoked_at,j.submitted_at,j.submission,j.submission_hash,
+      (SELECT count(*)::integer FROM sale_delivery_evidence_photos p WHERE p.dealer_id=j.dealer_id AND p.job_id=j.id AND phase='arrival') AS arrival_photos,
+      (SELECT count(*)::integer FROM sale_delivery_evidence_photos p WHERE p.dealer_id=j.dealer_id AND p.job_id=j.id AND phase='departure') AS departure_photos,
+      (SELECT count(*)::integer FROM sale_delivery_evidence_photos p WHERE p.dealer_id=j.dealer_id AND p.job_id=j.id AND phase='paper') AS paper_photos
+      FROM sale_delivery_evidence j WHERE j.dealer_id=$1 AND j.sale_id=$2 ORDER BY j.created_at DESC,j.id DESC LIMIT 30`,
+      [input.dealerId, input.saleId],
+    )
+  ).rows;
+  const safeNotes = (row: Row) => {
+    let notes = String(row.submission?.notes ?? "").slice(0, 1200);
+    for (const value of [
+      row.snapshot?.customer,
+      row.snapshot?.recipient,
+      row.snapshot?.driver,
+      row.snapshot?.phone,
+      row.snapshot?.address,
+      row.submission?.driverName,
+      row.submission?.recipientName,
+    ])
+      if (typeof value === "string" && value.length >= 2)
+        notes = replaceLiteralIgnoreCase(notes, value, "[private]");
+    return notes
+      .replace(/https?:\/\/\S+|[\w.+-]+@[\w.-]+\.[a-z]{2,}/gi, "[private]")
+      .replace(/(?:\+?\d[\d ().-]{6,}\d)/g, "[private]")
+      .slice(0, 600);
+  };
+  const summary = rows.map((row) => ({
+    status: row.submitted_at ? "received" : status(row, context),
+    current: !["superseded", "revoked"].includes(status(row, context)),
+    matchesDeal:
+      !!snapshot && deliveryContextHash(snapshot) === row.context_hash,
+    source: row.submission?.source === "paper" ? "paper" : "driver",
+    outcome: row.submission?.outcome ?? null,
+    receivedAt: iso(row.submitted_at),
+    handoverAt: row.submission?.handoverAt ?? null,
+    arrivalPhotoCount: Number(row.arrival_photos),
+    departurePhotoCount: Number(row.departure_photos),
+    signedPaperCount: Number(row.paper_photos),
+    paperEntryChecked: row.submission?.paperEntryChecked === true,
+    acknowledged: row.submission?.acknowledged === true,
+    documentsProvided: row.submission?.documentsProvided === true,
+    keys: row.submission?.keys ?? null,
+    mileage: row.submission?.mileage ?? null,
+    conditionNotes: safeNotes(row),
+    locationRecorded: !!row.submission?.location,
+    accuracyMetres: row.submission?.location?.accuracy ?? null,
+  }));
+  return {
+    hash: digest(
+      JSON.stringify(
+        rows.map((row, index) => ({
+          id: row.id,
+          reportHash: row.submission_hash,
+          ...summary[index],
+        })),
+      ),
+    ),
+    summary,
+  };
+}
 function currentJobSnapshot(
   context: { state: Row; snapshot: DeliverySnapshot } | null,
 ) {
   return context &&
     context.state.returnReplacement?.direction !== "returned" &&
-    context.state.lifecycle?.status !== "released"
+    !["released", "cancelled", "returned"].includes(
+      context.state.lifecycle?.status,
+    ) &&
+    context.state.draft?.fulfilment?.method === "delivery" &&
+    context.state.draft?.fulfilment?.stage !== "unsuccessful" &&
+    !context.state.draft?.fulfilment?.completedAt
     ? context.snapshot
     : null;
 }
@@ -290,14 +413,14 @@ export class PostgresDeliveryEvidence {
     if (!context) throw new DeliveryEvidenceError("Sale not found.", 404);
     const rows = (
       await this.database.query(
-        "SELECT * FROM sale_delivery_evidence WHERE dealer_id=$1 AND sale_id=$2 ORDER BY created_at DESC LIMIT 30",
+        "SELECT * FROM sale_delivery_evidence WHERE dealer_id=$1 AND sale_id=$2 ORDER BY created_at DESC,id DESC LIMIT 30",
         [currentDealerId(), saleId],
       )
     ).rows;
     const photos = (
       await this.database.query(
-        "SELECT p.id,p.job_id,p.phase,p.slot,p.captured_at,p.received_at,p.byte_size FROM sale_delivery_evidence_photos p JOIN sale_delivery_evidence j ON j.id=p.job_id AND j.dealer_id=p.dealer_id WHERE p.dealer_id=$1 AND j.sale_id=$2 ORDER BY received_at",
-        [currentDealerId(), saleId],
+        "SELECT p.id,p.job_id,p.phase,p.slot,p.captured_at,p.received_at,p.byte_size FROM sale_delivery_evidence_photos p JOIN sale_delivery_evidence j ON j.id=p.job_id AND j.dealer_id=p.dealer_id WHERE p.dealer_id=$1 AND j.sale_id=$2 AND p.job_id=ANY($3::uuid[]) ORDER BY received_at LIMIT 510",
+        [currentDealerId(), saleId, rows.map((row) => row.id)],
       )
     ).rows;
     return {
@@ -313,6 +436,25 @@ export class PostgresDeliveryEvidence {
             receivedAt: iso(p.received_at),
             byteSize: p.byte_size,
           })),
+      })),
+    };
+  }
+  async vehicleSales(vehicleId: string) {
+    const rows = (
+      await this.database.query(
+        `SELECT s.id AS sale_id,s.reference,s.revision,count(j.id)::integer AS evidence_count
+       FROM sale_delivery_evidence j JOIN sale_workspace s ON s.id=j.sale_id AND s.dealer_id=j.dealer_id
+       WHERE j.dealer_id=$1 AND j.vehicle_id=$2 GROUP BY s.id,s.reference,s.revision
+       ORDER BY max(j.created_at) DESC LIMIT 30`,
+        [currentDealerId(), vehicleId],
+      )
+    ).rows;
+    return {
+      sales: rows.map((row) => ({
+        saleId: row.sale_id,
+        reference: row.reference,
+        revision: Number(row.revision),
+        evidenceCount: Number(row.evidence_count),
       })),
     };
   }
@@ -333,6 +475,7 @@ export class PostgresDeliveryEvidence {
             "This request was used for different delivery details.",
             409,
           );
+        this.usable(prior, currentJobSnapshot(context), true);
         return {
           job: view(prior, currentJobSnapshot(context)),
           url: siteUrl(`/delivery-evidence/${input.token}`),
@@ -614,6 +757,8 @@ export class PostgresDeliveryEvidence {
         ...input,
         dataUrl: undefined,
         source: "paper",
+        paperEntryChecked: true,
+        acknowledged: input.outcome === "delivered",
         recordedBy: actor,
         location: null,
         locationReason: "Signed paper declaration — no device location",
@@ -677,4 +822,5 @@ export type DeliveryEvidenceService = Pick<
   | "staffJob"
   | "staffPhoto"
   | "paper"
+  | "vehicleSales"
 >;

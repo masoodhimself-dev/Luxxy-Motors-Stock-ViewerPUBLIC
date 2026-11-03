@@ -36,6 +36,7 @@ import { SaleFinalReview } from '@/components/sales-demo/sale-final-review';
 import { SaleDeliveryEvidence } from '@/components/portal/sale-delivery-evidence';
 import { SaleTermsDocuments } from '@/components/sale-terms-documents';
 import { SaleDeliveryCharge } from '@/components/sales-demo/sale-delivery-charge';
+import { SaleReturnReplace, SaleReplacementRefund } from '@/components/sales-demo/sale-return-replace';
 import {
   vehicleDisplayTitle,
   vehicleRegistration,
@@ -149,6 +150,9 @@ export function SalesWorkspace({
   const access = useStaffAccess();
   const canManageSales = access.data?.permissions.includes('sales.manage') === true;
   const canRecordPayments = access.data?.permissions.includes('payments.record') === true || canManageSales;
+  const canRefundPayments = access.data?.permissions.includes('payments.refund') === true;
+  const [returnDraftDirty, setReturnDraftDirty] = useState(false);
+  const [refundDraftDirty, setRefundDraftDirty] = useState(false);
   const [filter, setFilter] = useState(''), [listSearch, setListSearch] = useState('');
   const [openingId, setOpeningId] = useState<string | null>(null);
   const openRequest = useRef(0), openController = useRef<AbortController | null>(null);
@@ -212,7 +216,7 @@ export function SalesWorkspace({
     draft && JSON.stringify(draft) !== JSON.stringify(record?.draft),
   );
   const checklistReady = Boolean(record && !detailsDirty && saleWorkspaceChecklistProgress(record).ready);
-  const dirty = detailsDirty || Boolean(payment.amount.trim());
+  const dirty = detailsDirty || Boolean(payment.amount.trim()) || returnDraftDirty || refundDraftDirty;
   const canDeleteDraft = Boolean(record?.emptyDraftDeletable && access.data?.permissions.includes('sales.manage'));
   const rows = record?.payments ?? [];
   const total = draft
@@ -752,7 +756,7 @@ export function SalesWorkspace({
         <Button type="button" variant="ghost" disabled={busy} onClick={draft ? leave : () => onExit ? onExit() : navigate('/portal')}><ArrowLeft size={17} /><span>{draft ? 'Sales' : 'Workspace'}</span></Button>
         <span className="sale-desk-heading-divider" />
         <div><strong>{draft ? record?.reference || 'New sale' : 'Sales'}</strong><small>{settings.identity.name}</small></div>
-        {draft && <span className="sale-desk-save-status" role="status">{busy ? 'Working…' : detailsDirty ? 'Unsaved changes' : record ? 'Saved' : 'Not saved yet'}</span>}
+        {draft && <span className="sale-desk-save-status" role="status">{busy ? 'Working…' : detailsDirty ? 'Unsaved changes' : returnDraftDirty ? 'Return not confirmed' : refundDraftDirty ? 'Refund not recorded' : record ? 'Saved' : 'Not saved yet'}</span>}
       </div>
       <div className="sale-desk-header-actions">
         {draft && canManageSales && <Button variant={detailsDirty ? 'default' : 'outline'} disabled={busy || (!detailsDirty && Boolean(record))} onClick={save}>{busy ? 'Saving…' : 'Save details'}</Button>}
@@ -1163,15 +1167,17 @@ export function SalesWorkspace({
             {dealSection === 'extras' && checklistPanel(true)}
             </section>
             <div className="sale-desk-section-actions"><Button variant="outline" onClick={() => changeSection(dealSection === 'vehicle' ? 'deal' : 'payments')} disabled={busy || dealSection === 'vehicle'}>{dealSection === 'vehicle' ? 'Select the car and agreed price' : 'Go to payments'}<ArrowRight size={16}/></Button>{dealSection === 'vehicle' && <Button onClick={() => {setDealSection('customer');setStep(1);}} disabled={busy}>Customer details<ArrowRight size={16}/></Button>}</div>
-            {/* SALES_EXTENSION_RETURN_REPLACE: for saved completed sales */}
             {record && <details className="sale-desk-fold"><summary>Sale actions</summary>
               {record.lifecycle?.status === 'reserved' && !record.completedAt && canManageSales && <div className="invoice-draft-delete"><p>Release this reservation when received and pending payments are clear.</p><Button variant="outline" disabled={busy || dirty || total?.confirmedPaid !== 0 || total?.pending !== 0} onClick={() => {setProblem('');setReleaseReservationOpen(true);}}>Release reservation</Button></div>}
               {canDeleteDraft && <div className="invoice-draft-delete"><p>No issued invoice or payment is attached to this removable draft.</p><Button variant="outline" disabled={busy || dirty} onClick={() => {setProblem('');setDeleteDraftOpen(true);}}><Trash2 size={16}/>Delete draft</Button></div>}
               {!canDeleteDraft && record.lifecycle?.status !== 'reserved' && <p>Issued documents and payment history are retained with this sale.</p>}
             </details>}
           </>}
+          {/* Persist across tabs so an unfinished return is kept while staff check the original documents. */}
+          {record && <div hidden={workspaceTab !== 'deal'}><SaleReturnReplace key={`return:${record.id}`} sale={record} cars={stock?.cars ?? []} onSaved={sale => accept({sale})} onOpenSale={id => void open({id})} disabled={busy || detailsDirty || Boolean(payment.amount.trim())} canReturn={canManageSales && canRefundPayments} canInspect={canManageSales} onDirtyChange={setReturnDraftDirty}/></div>}
           {/* SALES_EXTENSION_PAYMENT_REQUESTS: mount for workspaceTab === 'payments', saved and clean record */}
           {workspaceTab === 'payments' && record && !detailsDirty && !payment.amount.trim() && canRecordPayments && <SalePaymentRequests sale={record} onSaved={sale=>accept({sale})}/>}
+          {record && canRefundPayments && <div hidden={workspaceTab !== 'payments'}><SaleReplacementRefund key={`refund-credit:${record.id}`} sale={record} onSaved={sale => accept({sale})} disabled={busy || detailsDirty || Boolean(payment.amount.trim())} onDirtyChange={setRefundDraftDirty}/></div>}
           {workspaceTab === 'payments' && <section className="sale-desk-sheet sale-desk-payments">
             <div className="sale-desk-inline-heading"><div><h2>Money received</h2><p>Record each payment after you have checked it arrived.</p></div>{total!.balance > 0 && canRecordPayments && !released && <Button onClick={() => setPaymentFormOpen(!paymentFormOpen)} disabled={busy}><Plus size={16}/>{paymentFormOpen ? 'Close payment entry' : 'Add received payment'}</Button>}</div>{!rows.length && <p className="sale-desk-empty-inline">No payments recorded.</p>}
             {payment.amount.trim() && <p className="invoice-message">An unsaved payment is kept here. Save it before issuing documents or leaving this sale.</p>}
@@ -1339,8 +1345,8 @@ export function SalesWorkspace({
                       )}</fieldset>
           </section>}
           {workspaceTab === 'invoices' && <>
-            {record && <SaleFinalReview sale={record} onSaved={sale=>accept({sale})} disabled={busy || detailsDirty || !!payment.amount.trim()} onNavigate={field=>{setWorkspaceTab(field==='handover'?'handover':field==='payments'?'payments':field==='invoices'?'invoices':'deal');if(field==='customer')setDealSection('customer');if(field==='vehicle')setDealSection('vehicle');}}/>}
-            {record && !detailsDirty && <SaleTermsDocuments saleId={record.id} saleRevision={record.revision} canIssue={canManageSales && !busy && !payment.amount.trim()}/>}
+            {record && <SaleFinalReview canReview={access.data?.permissions.includes('payments.record') === true} sale={record} onSaved={sale=>accept({sale})} disabled={busy || detailsDirty || !!payment.amount.trim()} onNavigate={field=>{setWorkspaceTab(field==='handover'?'handover':field==='payments'?'payments':field==='invoices'?'invoices':'deal');if(field==='customer')setDealSection('customer');if(field==='vehicle')setDealSection('vehicle');}}/>}
+            {record && !detailsDirty && <SaleTermsDocuments onIssued={saleId=>setRecord(current=>current?.id===saleId?{...current,finalReviewContextStale:true}:current)} saleId={record.id} saleRevision={record.revision} canIssue={canManageSales && !busy && !payment.amount.trim()}/>}
             {issued ? <section className="sale-desk-sheet">
                   <div className="invoice-ready-card">
                     <Invoice size={32} />
@@ -1559,7 +1565,7 @@ export function SalesWorkspace({
           </>}
           {workspaceTab === 'handover' && <>
             {/* SALES_EXTENSION_DELIVERY_EVIDENCE: saved and clean record */}
-            {record && !detailsDirty && !payment.amount.trim() && <SaleFinalReview sale={record} onSaved={sale=>accept({sale})} disabled={busy}/>}
+            {record && !detailsDirty && !payment.amount.trim() && <SaleFinalReview canReview={access.data?.permissions.includes('payments.record') === true} sale={record} onSaved={sale=>accept({sale})} disabled={busy}/>}
             <section className="sale-desk-sheet">
               {payment.amount.trim() ? <p className="invoice-error">Save or clear the payment entry in Payments before confirming the handover.</p> : record && !detailsDirty ? <SaleHandover key={`handover:${record.id}`} sale={record} onSaved={sale => accept({sale})} /> : <><SaleHandoverFields draft={draft} value={handoverDefaults(draft)} onChange={value => update('fulfilment', value)} disabled={busy || !canManageSales || Boolean(record?.draft.fulfilment?.completedAt)}/><p className="invoice-note">Save these details to continue with the handover.</p><Button onClick={save} disabled={busy || !canManageSales}>Save arrangements</Button></>}
             </section>

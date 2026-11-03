@@ -20,8 +20,9 @@ export function createDeliveryEvidenceRouter(
 ) {
   const router = Router(),
     buckets = new Map<string, { until: number; count: number }>();
-  const staff = "/staff/sales/:saleId/delivery-evidence";
-  router.use([staff, "/delivery-evidence"], (req, res, next) => {
+  const staff = "/staff/sales/:saleId/delivery-evidence",
+    vehicle = "/staff/vehicles/:vehicleId/delivery-evidence";
+  router.use([staff, vehicle, "/delivery-evidence"], (req, res, next) => {
     res.set({
       "Cache-Control": "no-store, private",
       "Referrer-Policy": "no-referrer",
@@ -70,26 +71,22 @@ export function createDeliveryEvidenceRouter(
       buckets.set(key, bucket);
     }
     if (++bucket.count > 90) {
-      res
-        .set("Retry-After", "60")
-        .status(429)
-        .json({
-          error: "Too many requests. Keep your photos and retry shortly.",
-        });
+      res.set("Retry-After", "60").status(429).json({
+        error: "Too many requests. Keep your photos and retry shortly.",
+      });
       return;
     }
     next();
   });
   router.use(staff, requireStaff, requirePermission("sales.manage"));
+  router.use(vehicle, requireStaff, requirePermission("sales.manage"));
   const fail = (req: Request, res: Response, error: unknown) => {
     if (error instanceof z.ZodError) {
-      res
-        .status(400)
-        .json({
-          error:
-            error.issues.find((i) => i.code === "custom")?.message ||
-            "Check the delivery fields and try again.",
-        });
+      res.status(400).json({
+        error:
+          error.issues.find((i) => i.code === "custom")?.message ||
+          "Check the delivery fields and try again.",
+      });
       return;
     }
     if (
@@ -100,26 +97,30 @@ export function createDeliveryEvidenceRouter(
       return;
     }
     if ((error as { code?: string })?.code === "23505") {
-      res
-        .status(409)
-        .json({
-          error: "This request was already used. Refresh the delivery file.",
-        });
+      res.status(409).json({
+        error: "This request was already used. Refresh the delivery file.",
+      });
       return;
     }
     req.log?.warn("Delivery evidence request failed");
-    res
-      .status(503)
-      .json({
-        error:
-          "Could not save or load the delivery evidence. Keep your photos and retry the same request.",
-      });
+    res.status(503).json({
+      error:
+        "Could not save or load the delivery evidence. Keep your photos and retry the same request.",
+    });
   };
   const ids = (req: Request) => {
-    for (const key of ["saleId", "jobId", "photoId"])
+    for (const key of ["saleId", "jobId", "photoId", "vehicleId"])
       if (req.params[key] && !z.uuid().safeParse(req.params[key]).success)
         throw new DeliveryEvidenceError("Delivery job not found.", 404);
   };
+  router.get(vehicle, async (req, res) => {
+    try {
+      ids(req);
+      res.json(await service.vehicleSales(String(req.params.vehicleId)));
+    } catch (e) {
+      fail(req, res, e);
+    }
+  });
   router.get(staff, async (req, res) => {
     try {
       ids(req);

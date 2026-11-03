@@ -83,10 +83,31 @@ const databaseName = "dealer-delivery-evidence-v1";
 function database(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(databaseName, 1);
+    let settled = false;
+    const timer = window.setTimeout(() => {
+      settled = true;
+      reject(new Error("Device storage did not respond."));
+    }, 4000);
     request.onupgradeneeded = () =>
       request.result.createObjectStore("drafts", { keyPath: "key" });
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      clearTimeout(timer);
+      if (settled) {
+        request.result.close();
+        return;
+      }
+      settled = true;
+      resolve(request.result);
+    };
+    const failed = (error: Error | DOMException | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(error || new Error("Device storage is unavailable."));
+    };
+    request.onerror = () => failed(request.error);
+    request.onblocked = () =>
+      failed(new Error("Device storage is unavailable."));
   });
 }
 export async function deliveryLocalKey(token: string) {
@@ -107,6 +128,8 @@ export async function deliveryLocalDraft(
       const r = db.transaction("drafts").objectStore("drafts").get(key);
       r.onsuccess = () => {
         const value = r.result as DeliveryLocalDraft | undefined;
+        if (value && Date.now() - value.savedAt >= 7 * 86400_000)
+          void clearDeliveryLocalDraft(key).catch(() => undefined);
         resolve(
           value && Date.now() - value.savedAt < 7 * 86400_000
             ? value

@@ -84,6 +84,13 @@ export type SaleWorkspaceBranding = {
 export type SaleWorkspaceVehicleSnapshot = { id?: string; title?: string; year?: number | null; fuel?: string | null; transmission?: string | null; mileage?: number | null; colour?: string | null; owners?: number | null; writeOffCategory?: string | null; serviceHistory?: string | null; description?: string | null; registration?: string | null; engineSize?: string | null; bodyType?: string | null; doors?: number | null; seats?: number | null; emissionClass?: string | null; imageUrl?: string | null; photoDataUrl?: string | null };
 export type SaleWorkspaceDocument = {
   id: string; number: string; type: 'invoice' | 'statement' | 'receipt' | 'handover' | 'terms' | 'reservation' | 'vehicle-details' | 'payment-request' | 'credit-note' | 'delivery-invoice';
+  /** Only newly prepared documents opt into the current stationery. */
+  templateVersion?: 'sales-workspace-v2';
+  /** Frozen transaction fields; customer documents never parse amounts from prose. */
+  transaction?:
+    | { kind: 'payment-request'; requestKind: 'deposit' | 'balance' | 'other'; amountPence: number; dueDate: string; paymentReference: string; saleReference: string; note?: string }
+    | { kind: 'delivery-invoice'; amountPence: number; saleReference: string; invoiceReferences: string[]; deliveryAddress: string; previousDeliveryPence: number; totalDeliveryPence: number }
+    | { kind: 'return-credit'; amountPence: number; originalSaleReference: string; replacementSaleReference: string; originalInvoiceReferences: string[]; reason: string; condition: string; mileage: number };
   title: string; issuedAt: string; issuedBy: string; version: number; invoiceKind?: 'deposit' | 'full';
   paymentId?: string; paymentAmountPence?: number; balanceAtIssue: number;
   content?: string;
@@ -171,7 +178,14 @@ export type SaleWorkspaceRecord = {
   providerPayments?: Record<string, { paymentId: string; eventId: string; refundEvents?: Record<string, { amountRefundedPence: number }> }>;
   paymentRequests?: import('./sale-operations.ts').SalePaymentRequest[];
   finalReview?: import('./sale-operations.ts').SaleFinalReview;
+  reviewHistory?: Array<{kind:'final'|'replacement';review:import('./sale-operations.ts').SaleFinalReview}>;
+  /** Staff response only: facts outside the sale revision changed since review. */
+  finalReviewContextStale?: boolean;
+  replacementReview?: import('./sale-operations.ts').SaleReplacementReview;
   returnReplacement?: { transferId: string; otherSaleId: string; otherReference: string; direction: 'returned' | 'replacement'; creditPence: number; reason: string; condition: string; mileage: number; at: string; actor: string };
+  returnReplacementHistory?: NonNullable<SaleWorkspaceRecord['returnReplacement']>[];
+  /** Staff inspection attestation on the original returned deal; never changes its ledger. */
+  returnInspection?: { at: string; actor: string; note: string };
 };
 export type SaleWorkspaceMutation = { sale: SaleWorkspaceRecord; document?: SaleWorkspaceDocument; replayed?: boolean; preview?: boolean };
 export type SaleWorkspacePaymentInput = { amount: string; method: string; date: string; reference: string; kind: 'deposit' | 'part-payment' | 'final-payment'; status: 'pending' | 'confirmed' };
@@ -200,6 +214,8 @@ export type SaleWorkspaceContext = {
   reviewUrl?: string; branding: SaleWorkspaceBranding; vehicle?: SaleWorkspaceVehicleSnapshot;
   paperwork?: { saleTerms: string; reservationTerms: string };
   requireFinalReview?: boolean;
+  /** Current external evidence/terms/vehicle digest, read under the mutation lock. */
+  reviewContextHash?: string;
 };
 
 export class SaleWorkspaceError extends Error {
@@ -393,7 +409,9 @@ function issueDocument(record: SaleWorkspaceRecord, context: SaleWorkspaceContex
   const suppliedVehicle = context.vehicle ?? previousVehicle;
   const vehicle = suppliedVehicle && { ...suppliedVehicle, ...(!suppliedVehicle.photoDataUrl && suppliedVehicle.id === record.draft.vehicleId && previousVehicle?.photoDataUrl ? { photoDataUrl: previousVehicle.photoDataUrl } : {}) };
   const document: SaleWorkspaceDocument = {
-    id: context.nextId(), number: context.nextNumber(type), type, title, issuedAt: context.now, issuedBy: context.actor,
+    id: context.nextId(), number: context.nextNumber(type), type, title,
+    ...(['invoice', 'statement', 'receipt', 'payment-request', 'credit-note', 'delivery-invoice'].includes(type) ? { templateVersion: 'sales-workspace-v2' as const } : {}),
+    issuedAt: context.now, issuedBy: context.actor,
     version: record.documents.filter(item => item.type === type).length + 1,
     ...(payment ? { paymentId: payment.id, paymentAmountPence: payment.signedAmountPence } : {}),
     balanceAtIssue: amount.balance,
@@ -447,7 +465,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
   }
   if (!Number.isSafeInteger(input.expectedRevision) || input.expectedRevision !== current.revision) throw new SaleWorkspaceError('This sale changed on another device. Reload it before saving.', 409);
   if (current.returnReplacement?.direction === 'returned' && command.action !== 'email-status' && command.action !== 'correction-note' && !(command.action === 'document' && command.type === 'statement')) throw new SaleWorkspaceError('This vehicle was returned and its credit transferred. Open the replacement deal for further financial actions.', 409);
-  if (context.requireFinalReview && (['issue-invoice','complete-sale','finish-invoice-sale','handover'].includes(command.action) || command.action === 'document' && command.type === 'invoice' || command.action === 'lifecycle' && command.status === 'sold') && !(current.finalReview?.status === 'passed' && current.finalReview.reviewedRevision === current.revision)) throw new SaleWorkspaceError('Run the final checks for this saved revision before issuing an invoice or confirming handover.',409);
+  if (context.requireFinalReview && (['issue-invoice','complete-sale','finish-invoice-sale','handover'].includes(command.action) || command.action === 'document' && command.type === 'invoice' || command.action === 'lifecycle' && command.status === 'sold') && !((current.finalReview?.status === 'passed' || current.finalReview?.status === 'overridden') && current.finalReview.reviewedRevision === current.revision && !!context.reviewContextHash && current.finalReview.contextHash === context.reviewContextHash)) throw new SaleWorkspaceError('Run the final checks for this saved revision and current delivery evidence before issuing an invoice or confirming handover.',409);
   const record = clone(current);
   let document: SaleWorkspaceDocument | undefined;
   if (command.action === 'update') {

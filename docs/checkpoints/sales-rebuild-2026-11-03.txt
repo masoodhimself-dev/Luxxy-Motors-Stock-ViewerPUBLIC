@@ -1,3 +1,5 @@
+SUPERSEDED: local implementation and final validation continued after resume. See sales-rebuild-completed-2026-11-03.txt. The old remaining-work list below is historical.
+
 SALES REBUILD - SAFE LOCAL CHECKPOINT
 3 November 2026, before the user's 3pm departure
 

@@ -23,9 +23,9 @@ Mount `routes/sales-terms.ts` on the API route collection. It supplies authentic
 - `POST /sales-terms/sales/:saleId`: `{requestId,expectedSaleRevision,termsVersionId}` issues an immutable terms document; requires `sales.manage`.
 - `GET /sales-terms/sales/:saleId/:documentId/pdf?copies=dealer|both`: downloads the chosen stored archive.
 
-`FullSalesTermsSettings` sits below the existing short invoice summaries. `SaleTermsDocuments` belongs in the sales Invoices tab; props are `saleId`, `saleRevision`, and `canIssue` (derive from staff permissions).
+`FullSalesTermsSettings` sits below the existing short invoice summaries. `SaleTermsDocuments` belongs in the sales Invoices tab; props are `saleId`, `saleRevision`, `canIssue`, and optional `onIssued` to mark the displayed review stale after a new frozen terms document (derive from staff permissions).
 
-Any empty-sale deletion guard must reject sales with rows in `sale_terms_documents`. The issue transaction locks the sale row and requires a passed final check for that exact saved revision before snapshotting and cannot change its financial ledger, status, invoice numbering or payment history. A retry with the same request ID returns the same document; a reused request ID with changed input is rejected. The browser keeps its request ID after an uncertain network result.
+Any empty-sale deletion guard must reject sales with rows in `sale_terms_documents`. The issue transaction locks the sale row and requires a passed final check or explicit audited staff override for that exact saved revision and supporting-facts digest before snapshotting and cannot change its financial ledger, status, invoice numbering or payment history. A retry with the same request ID returns the same document; a reused request ID with changed input is rejected. The browser keeps its request ID after an uncertain network result.
 
 ## Print layout and checks
 

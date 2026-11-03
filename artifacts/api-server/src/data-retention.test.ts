@@ -103,6 +103,15 @@ test("retention isolates dealers, waits seven days, preserves financial records 
     reserved = draft({ lifecycle: { status: "reserved" } }),
     linked = draft({ customerAccess: { tokenHash: "keep" } }),
     oldOther = draft();
+  const externalTerms = draft(), externalEvidence = draft();
+  const protectedDrafts = [externalTerms, externalEvidence,
+    draft({ draft: { creditEntries: [{ id: 'transfer', signedAmountPence: 10000 }] } }),
+    draft({ draft: { returnCreditPence: 10000 } }),
+    draft({ returnReplacement: { direction: 'returned' } }),
+    draft({ returnReplacementHistory: [] }),
+    draft({ returnInspection: { at: now.toISOString(), actor: 'Fixture', note: 'Keep inspection' } }),
+    draft({ paymentRequests: [{ id: 'request-with-history' }] }),
+  ];
   for (const [dealer, state] of [
     ["a", plain],
     ["a", paid],
@@ -110,6 +119,7 @@ test("retention isolates dealers, waits seven days, preserves financial records 
     ["a", reserved],
     ["a", linked],
     ["b", oldOther],
+    ...protectedDrafts.map(state => ['a', state] as const),
   ] as const)
     await engine.query(
       "INSERT INTO sale_workspace(id,dealer_id,reference,revision,state,updated_at) VALUES($1,$2,$3,1,$4::jsonb,$5)",
@@ -121,6 +131,8 @@ test("retention isolates dealers, waits seven days, preserves financial records 
         ago(100).toISOString(),
       ],
     );
+  await engine.query("INSERT INTO sale_terms_documents(id,dealer_id,sale_id,request_id,request_hash,snapshot,dealer_pdf,both_pdf,created_by) VALUES($1,'a',$2,$3,'fixture-hash','{\"terms\":\"KEEP TERMS\"}'::jsonb,'DEALER-PDF','BOTH-PDF','Fixture')", [randomUUID(), externalTerms.id, randomUUID()]);
+  await engine.query("INSERT INTO sale_delivery_evidence(id,dealer_id,sale_id,vehicle_id,request_id,create_hash,token_hash,context_hash,snapshot,created_at,created_by,expires_at) VALUES($1,'a',$2,$3,$4,'fixture-hash',$5,'context','{\"evidence\":\"KEEP EVIDENCE\"}'::jsonb,$6,'Fixture',$7)", [randomUUID(), externalEvidence.id, ids[2], randomUUID(), 'a'.repeat(64), ago(100).toISOString(), ago(99).toISOString()]);
   const result = await runWithTenant(tenant("a"), () => retainDealerData(now));
   assert.equal(result.archivedCars, 2);
   assert.equal(result.abandonedDrafts, 1);
@@ -140,7 +152,10 @@ test("retention isolates dealers, waits seven days, preserves financial records 
   );
   const sales = (await engine.query<any>("SELECT id,state FROM sale_workspace"))
     .rows;
-  assert.equal(sales.length, 5);
+  assert.equal(sales.length, 5 + protectedDrafts.length);
+  for (const protectedDraft of protectedDrafts) assert.ok(sales.some(row => row.id === protectedDraft.id), 'Linked external documents and credit/return history must survive draft retention');
+  assert.equal((await engine.query<any>("SELECT dealer_pdf FROM sale_terms_documents WHERE sale_id=$1", [externalTerms.id])).rows[0].dealer_pdf, 'DEALER-PDF');
+  assert.equal((await engine.query<any>("SELECT snapshot FROM sale_delivery_evidence WHERE sale_id=$1", [externalEvidence.id])).rows[0].snapshot.evidence, 'KEEP EVIDENCE');
   assert.ok(!sales.some((s) => s.id === plain.id));
   assert.equal(
     sales.find((s) => s.id === issued.id).state.documentArchives.invoice

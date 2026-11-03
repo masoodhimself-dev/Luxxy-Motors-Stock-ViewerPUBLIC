@@ -6,6 +6,7 @@ import { invoicePalette } from './invoice-palette.ts';
 import { saleWorkspacePence, type SaleWorkspaceDocument } from './sale-workspace.ts';
 import { compactInvoicePdf } from './compact-invoice-pdf.ts';
 import { compactInvoicePdf as legacyCompactInvoicePdf } from './legacy-compact-invoice-pdf.ts';
+import { salesWorkspaceDocumentPdf } from './sales-workspace-document-pdf.ts';
 
 /** One renderer for draft previews, newly issued archives, downloads and email attachments.
  * It reads only the supplied snapshot and never requests a logo or another remote asset.
@@ -14,6 +15,7 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
   const document = customerSaleDocument(input);
   const { draft, branding, vehicle, totals } = document.snapshot;
   const design = branding.invoiceSettings;
+  if (document.templateVersion === 'sales-workspace-v2' && ['invoice', 'receipt', 'statement', 'payment-request', 'credit-note', 'delivery-invoice'].includes(document.type)) return salesWorkspaceDocumentPdf(document, options);
   if (document.type === 'invoice' && design?.layoutVersion === 'classic-ledger-v1') return compactInvoicePdf(document, options);
   if (document.type === 'invoice' && (design?.style === 'understated' || design?.style === 'branded')) return legacyCompactInvoicePdf(document, options);
   const palette = invoicePalette(branding.presentation?.linkColour);

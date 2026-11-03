@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { invoicePalette, customerSaleDocument, saleWorkspaceBranding, saleWorkspaceTotals, compactInvoiceStyle } from "@workspace/vehicle-meta";
+import { invoicePalette, customerSaleDocument, saleWorkspaceBranding, saleWorkspaceTotals, compactInvoiceStyle, salesDocumentPresentation } from "@workspace/vehicle-meta";
 import { customFetch } from "@workspace/api-client-react";
 import type {
   SaleWorkspaceDocument,
@@ -109,6 +109,7 @@ export function buildDraftSaleDocument({ draft, dealer, vehicle, documentType, s
   return {
     id: `draft-${draft.id}`, number: 'DRAFT', type: documentType === 'Deposit receipt' ? 'receipt' : 'invoice',
     title: documentType, issuedAt: preparedAt ?? new Date().toISOString(), issuedBy: '', version: 1,
+    templateVersion: 'sales-workspace-v2',
     balanceAtIssue: amount.balance,
     ...(documentType==='Sales invoice' && compactInvoiceStyle(saleWorkspaceBranding(dealer).invoiceSettings?.style) ? { invoiceKind:'full' as const, ...(invoiceTerms ? {content:invoiceTerms} : {}) } : {}),
     ...(documentType === 'Deposit receipt' && receiptPayment ? { paymentId: receiptPayment.id, paymentAmountPence: receiptPayment.signedAmountPence } : {}),
@@ -424,6 +425,7 @@ export function PdfSalesDocument(props: PdfSalesDocumentProps) {
     {error && <p role="alert" className="sales-pdf-document-error">{error}</p>}
     <PdfCanvasPages key={identity} blob={next?.blob ?? null} title={next?.document.title ?? document.title} fitPage={props.fitPage} unavailable={Boolean(error)} onRendered={publishCandidate} onRenderFailed={publishCandidate} />
     <div className="sr-only" aria-label="Document text equivalent">
+      {document.templateVersion === 'sales-workspace-v2' && ['invoice', 'receipt', 'statement', 'payment-request', 'credit-note', 'delivery-invoice'].includes(document.type) ? <CurrentSalesDocument document={document} textOnly /> : <>
       <h2>{document.title}</h2><p>{document.snapshot.branding.identity.name}</p><p>{document.number}</p><p>{draft.customer}</p><p>{draft.address}</p><p>{draft.email}</p><p>{draft.phone}</p><p>{draft.vehicle}</p><p>{draft.registration}</p>
       {document.snapshot.vehicle && <dl>{Object.entries(document.snapshot.vehicle).filter(([key, value]) => !['id', 'title', 'description', 'photoDataUrl'].includes(key) && value != null && value !== '').map(([key, value]) => <div key={key}><dt>{key.replace(/([A-Z])/g, ' $1')}</dt><dd>{String(value)}</dd></div>)}</dl>}
       {['invoice', 'statement'].includes(document.type) && <section aria-label="Agreed sale"><p>Vehicle price {money(amount.price)}</p>{draft.adjustments?.map((row, index) => <p key={index}>{row.description} {money(pence(row.amount) * (row.kind === 'discount' ? -1 : 1))}</p>)}{draft.exchanges?.map((row, index) => <p key={index}>Part exchange {row.registration} {row.description} {money(-pence(row.value))}</p>)}</section>}
@@ -433,6 +435,7 @@ export function PdfSalesDocument(props: PdfSalesDocumentProps) {
       {(document.type === 'statement'||document.type==='invoice') && <section aria-label="Payment history">{document.snapshot.payments.filter(row=>document.type==='statement'||row.status==='confirmed').map(row => <p key={row.id}>{row.date} {row.kind} {row.method} {row.status} {row.reference} {money(row.signedAmountPence)}</p>)}</section>}
       <DocumentExtras branding={document.snapshot.branding}/>
       {document.type === 'vehicle-details' && document.snapshot.vehicle?.description && <p>{document.snapshot.vehicle.description}</p>}
+      </>}
     </div>
   </article>;
 }
@@ -1223,12 +1226,36 @@ function IssuedDocumentFooter({
   );
 }
 
+/** Accessible text review of the exact frozen fields used by the v2 PDF. */
+function CurrentSalesDocument({ document, textOnly = false }: { document: SaleWorkspaceDocument; textOnly?: boolean }) {
+  const data = salesDocumentPresentation(document);
+  const { branding } = document.snapshot;
+  return <article className="sales-document invoice-sheet invoice-issued" aria-label={document.title} {...documentAttributes(branding)} style={documentColours(branding.presentation?.linkColour)}>
+    <header className="invoice-header">
+      {textOnly ? <p>{data.dealer.name}</p> : <DocumentDealer branding={branding} />}
+      <div className="invoice-heading"><h2>{data.type}</h2><dl className="invoice-reference"><div><dt>Document no.</dt><dd>{data.number}</dd></div><div><dt>Issued</dt><dd>{data.issueDate}</dd></div></dl></div>
+    </header>
+    <aside className="invoice-issued-note"><strong>{data.settlementStatus}</strong><span>{data.notice}</span></aside>
+    <IssuedDocumentParties document={document} />
+    {data.facts && <dl className="invoice-receipt-facts">{data.facts.map((row, index) => <div key={index}><dt>{row.label}</dt><dd className="invoice-multiline">{row.value}</dd></div>)}</dl>}
+    {data.saleLines.length > 0 && <section className="invoice-section"><div className="invoice-section-heading"><h3>{data.saleLinesHeading ?? 'Sale breakdown'}</h3><span>All amounts in GBP</span></div><table className="invoice-items" aria-label={data.saleLinesHeading ?? 'Sale breakdown'}><thead><tr><th scope="col">Description</th><th scope="col">Amount</th></tr></thead><tbody>{data.saleLines.map(row => <tr key={row.id}><td>{row.description}</td><td>{row.amount}</td></tr>)}</tbody></table></section>}
+    {!data.hidePaymentHistory && <section className="invoice-section invoice-payment-section"><div className="invoice-section-heading"><h3>{data.paymentHistory?.heading ?? 'Payment history'}</h3><span>{data.paymentHistory?.countLabel}</span></div>{data.confirmedPayments.length ? <table className="invoice-payments" aria-label={data.paymentHistory?.heading ?? 'Payment history'}><thead><tr><th scope="col">Date</th><th scope="col">Description / method</th><th scope="col">Amount</th></tr></thead><tbody>{data.confirmedPayments.map(row => <tr key={row.id}><td>{row.date}</td><td>{row.description}<small>{row.method}</small></td><td>{row.amount}</td></tr>)}</tbody></table> : <p>{data.paymentHistory?.emptyLabel}</p>}</section>}
+    {Boolean(data.pendingPayments?.length) && <section className="invoice-section invoice-pending-section"><h3>Pending payments - not deducted</h3><table className="invoice-payments" aria-label="Pending payments - not deducted"><thead><tr><th scope="col">Date</th><th scope="col">Description / method</th><th scope="col">Amount</th></tr></thead><tbody>{data.pendingPayments!.map(row => <tr key={row.id}><td>{row.date}</td><td>{row.description}<small>{row.method}</small></td><td>{row.amount}</td></tr>)}</tbody></table></section>}
+    <div className="invoice-summary" data-balance={document.balanceAtIssue < 0 ? 'credit' : document.balanceAtIssue === 0 ? 'settled' : 'outstanding'}><dl className="invoice-totals">{data.summaryRows?.map((row, index) => <div key={index}><dt>{row.emphasis ? <strong>{row.label}</strong> : row.label}</dt><dd>{row.emphasis ? <strong>{row.amount}</strong> : row.amount}</dd></div>)}</dl></div>
+    {data.pendingNote && <p className="invoice-receipt-note">{data.pendingNote}</p>}
+    {Boolean(data.paymentInstructions?.length) && <section className="invoice-payment-instructions"><h3>Payment instructions</h3>{data.paymentInstructions!.map((row, index) => <p key={index}>{row}</p>)}</section>}
+    {Boolean(data.terms?.length) && <section className="invoice-notes"><h3>{data.termsHeading}</h3>{data.terms!.map((row, index) => <p key={index}>{row}</p>)}</section>}
+    <footer className="invoice-footer">{data.footerLines?.map((row, index) => <p key={index}>{row}</p>)}<div className="invoice-footer-reference"><span>{data.dealer.name}</span><span>{data.number}</span></div></footer>
+  </article>;
+}
+
 function IssuedSalesDocument({
   document,
 }: {
   document: SaleWorkspaceDocument;
 }) {
   const { draft, branding, totals: amount } = document.snapshot;
+  if (document.templateVersion === 'sales-workspace-v2' && ['invoice', 'receipt', 'statement', 'payment-request', 'credit-note', 'delivery-invoice'].includes(document.type)) return <CurrentSalesDocument document={document} />;
   if (["terms", "reservation", "vehicle-details"].includes(document.type))
     return (
       <article

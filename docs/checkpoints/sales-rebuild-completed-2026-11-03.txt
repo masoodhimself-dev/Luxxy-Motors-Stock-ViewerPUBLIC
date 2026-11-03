@@ -1,0 +1,42 @@
+SALES REBUILD — LOCAL IMPLEMENTATION COMPLETE, 3 NOVEMBER 2026
+
+This supersedes the remaining-work list in sales-rebuild-2026-11-03.txt.
+Worktree: /private/tmp/luxxy-public-vehicle-sheet-release
+Branch: codex/multi-choice-homepage-redesign
+Nothing in this continuation was deployed or written to live customer records.
+No actual email/WhatsApp send, bank payment, provider charge/refund, or live handover took place.
+
+DELIVERED
+Four-tab full-screen Sales desk with persistent desktop accounting summary, mobile layout and existing Quick actions. Car/customer/extras edits, payment entries, return and refund drafts survive tab changes; unsaved navigation is protected.
+Payment requests distinguish requested funds from actual received money. Private expiring/revocable customer links, PDF/email preparation, WhatsApp/copy-link sharing and invoice requests are implemented. Customer payment reports do not alter the ledger.
+Delivery charges are first-class exact-pence items. An additional charge after an issued vehicle invoice creates a separate delivery-only invoice; old invoice bytes remain unchanged.
+New financial documents share consistent stationery and frozen typed transactions. Cash, refunds and credit transfers are labelled separately. Historical PDFs retain their previous renderer/bytes; nonfinancial documents retain their own labels/signature content. Official shipped Multi-Choice artwork is frozen only for the explicit trusted path or matching verified tenant domain; other dealers keep their own branding.
+Return & replace reviews the proposed original/replacement figures before mutation. Exact credit difference supports higher/equal/lower replacement prices, confirmed manual refund records, repeated linked replacements, original receipt preservation and one-time transfer. Atomic revision, stock, tenant and retry checks prevent duplicate allocation. Missing/archived/noncurrent replacement stock is blocked.
+Returned vehicles are hidden awaiting inspection. Explicit permissioned inspection records condition/actor/time, clears only the exact original linked lead and can restore a matching sold-retention archive on a current live stock listing. Unknown/manual archives or changed ownership remain protected. Pending old sold follow-ups are closed without claiming appointments were cancelled.
+Private driver evidence includes required arrival photos, explicit device location permission/accuracy, actual handover time, recipient acknowledgement, keys/documents and condition notes. Original reports/photos are immutable and available from deal and vehicle file. Changed arrangements permanently revoke pending driver links, including save-then-revert. A prefilled printable declaration and later signed-paper image entry support limited reception.
+Final AI review uses exact deterministic ledger/snapshot calculations first, then the existing real Luna Responses integration with bounded redacted facts. It includes configured warranty, applicable published terms, frozen document identity and bounded delivery evidence, and binds its result to the sale revision and external supporting-fact digest. Conflicting identity, warranty and evidence are surfaced; later valid cash payments/delivery supplements are not mistaken for historical invoice arithmetic errors.
+User explicitly requested staff bypass/ignore. Authorised staff can record an explicit final/proposed override with reason and confirmation. Status is Staff override, never AI passed. Ignored AI advice/model/time is preserved and folded in the UI, with durable review history across later checks. Hard ledger, stock and permission rules remain enforced. New facts invalidate both reviews and overrides.
+Privacy redaction now handles names/addresses containing regex punctuation and unequal case; customer contacts, secrets, raw device coordinates, photos and private image URLs are excluded from model input. Existing concurrency/provider timeout/AI usage caps remain in force.
+Retention protects external terms/evidence and credit/return relations, avoiding deletion through restricted foreign keys.
+
+VALIDATION
+Fresh project-reference build and API/frontend nonincremental typechecks passed.
+Final combined frontend suite: 22 files, 240 tests passed, including original Sales51/list29, PDF/HTML40, review13, returns20, requests7, public payment8, driver7, inspection5, terms5 and navigation/safety cases.
+Final sale operation suite: 12/12, including PGlite integration and actual higher/equal/lower proposal/replacement paths, missing/archived stock, changed-fact races, duplicate/replayed commands, explicit staff overrides, preserved AI advice and provider input privacy.
+Core/connected/delivery/context integration suite: 55 backend/PGlite tests passed during independent integration audit.
+Additional PDF/official-logo/terms/retention/inspection suites passed, with historical-byte regression and actual A4 PDF render proofs. Counts overlap prior verification totals; do not add them as unique tests without checking.
+Production Vite and API builds passed; pre-existing sourcemap and large-chunk warnings remain nonfatal.
+Real component browser fixtures passed desktop/tablet/phone overflow and page-error checks. Driver offline->reconnect flow uploaded five photos then acknowledged a report; no real uploads. Final and proposed override views tested with local fixture writes only.
+Ten screenshots were supplied to the user, plus the recorded staff override screen. Actual A4 invoice and five companion PDF proofs were rendered and visually checked.
+
+ARTIFACTS (shared workspace output, outside Git)
+output/sales-workspace-v2-2026-11-03/: four main tabs, staff/customer request views and return/refund desktop/mobile screenshots.
+output/sales-rebuild-2026-11-03/: driver recovery and staff override screenshots/browser reports.
+output/pdf/sales-rebuild-2026-11-03/current-documents/: v2-sales-invoice plus request, credit, refund and delivery invoice actual PDF/PNG proofs.
+
+DEPLOYMENT / HONEST LIMITS
+Deployment remains pending a user request. Before live release apply registered migrations 0081_delivery_evidence and 0082_sales_terms and confirm existing AI/email configuration. Do not perform live financial test actions or customer sends as a deployment check.
+Shore Drive's supplied original terms remain its own review draft; no automatic legal rewrite, publication, warranty purchase or assurance of actual provider cover. Other dealers start with their own blank/full terms settings. Dealer/both-copy printing works; printing is not electronic acceptance.
+AI reviews saved evidence, not bank settlement, physical condition, legal compliance or actual delivery truth. It uses existing global AI allowances; configuration/quota/provider failure is displayed honestly, and explicit staff override is available.
+Driver offline support is an already-open page's IndexedDB queue, not a guaranteed offline-reload shell. Carry the printed declaration. Signed-paper upload accepts JPEG/PNG/WebP; signed PDF import and further uploads after final report are future extensions.
+Payments are manually confirmed bank/cash records. No new card processor was activated. Stock status is controlled within this platform; this does not introduce an outbound API to withdraw adverts from unrelated marketplaces.

@@ -1,3 +1,4 @@
+import { replaceLiteralIgnoreCase } from "./literal-redaction";
 import { createHash } from "node:crypto";
 export const AI_MODEL = "gpt-6-luna";
 export const AI_SESSION_LIMIT = 10;
@@ -30,10 +31,7 @@ export function redactAiText(value: string, names: string[] = []) {
     .replace(/(?:\+?\d[\d ()-]{8,}\d)/g, "[phone removed]")
     .replace(/\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/gi, "[postcode removed]");
   for (const name of names.filter((n) => n.trim().length > 2))
-    result = result.replace(
-      new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"),
-      "[customer]",
-    );
+    result = replaceLiteralIgnoreCase(result, name, "[customer]");
   return result.slice(0, 3000);
 }
 const objectSchema = {

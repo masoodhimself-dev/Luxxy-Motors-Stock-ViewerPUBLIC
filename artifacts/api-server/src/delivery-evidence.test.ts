@@ -8,9 +8,13 @@ import { runWithTenant } from "./lib/tenant-context";
 import {
   PostgresDeliveryEvidence,
   deliverySubmissionInput,
+  revokeChangedDeliveryEvidence,
+  getDeliveryEvidenceReview,
 } from "./lib/delivery-evidence";
 import { deliveryDeclarationHtml } from "./lib/delivery-declaration";
 import type { NormalisedWebsiteImage } from "./lib/website-asset-image";
+import { PostgresSaleWorkspaceStore } from "./lib/sale-workspace-store";
+import type { SaleWorkspaceFulfilment } from "@workspace/vehicle-meta";
 process.env.MULTI_TENANT_ENABLED = "true";
 const dealer = (id: string) => ({
   dealerId: id,
@@ -40,8 +44,26 @@ const state = {
   id: saleId,
   reference: "SALE-1001",
   revision: 3,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  documents: [],
+  events: [],
   lifecycle: { status: "reserved" },
-  payments: [{ amountPence: 50000, status: "confirmed" }],
+  payments: [
+    {
+      id: randomUUID(),
+      amount: "500.00",
+      amountPence: 50000,
+      signedAmountPence: 50000,
+      status: "confirmed",
+      method: "Bank transfer",
+      kind: "deposit",
+      date: "2026-11-03",
+      reference: "Deposit",
+      recordedAt: new Date().toISOString(),
+      recordedBy: "staff-a",
+    },
+  ],
   draft: {
     vehicleId,
     vehicle: "Example estate",
@@ -52,6 +74,7 @@ const state = {
     price: "9000",
     fulfilment: {
       method: "delivery",
+      viewed: "viewed",
       recipient: "Example Recipient",
       address: "1 Example Street",
       scheduledDate: "2026-11-03",
@@ -81,7 +104,7 @@ const report = () => ({
   handoverAt: new Date().toISOString(),
   mileage: 42000,
   outcome: "delivered",
-  notes: "Small mark on rear bumper noted.",
+    notes: "Small mark on rear bumper noted. example driver phoned EXAMPLE RECIPIENT.",
   keys: 2,
   documentsProvided: true,
   acknowledged: true,
@@ -248,6 +271,31 @@ test("delivery evidence has isolated capabilities, immutable reports, bounded ph
     assert.equal(history.jobs[0].photos.length, 5);
     assert.equal(history.jobs[0].submission.driverName, "Example Driver");
     assert.equal(history.jobs[0].submission.location.accuracy, 24);
+    const reviewBefore = await getDeliveryEvidenceReview(pool, {
+      dealerId: a.dealerId,
+      saleId,
+    });
+    assert.equal(reviewBefore.summary[0].outcome, "delivered");
+    assert.equal(reviewBefore.summary[0].arrivalPhotoCount, 5);
+    assert.equal(reviewBefore.summary[0].accuracyMetres, 24);
+    assert.equal(reviewBefore.summary[0].acknowledged, true);
+    assert.doesNotMatch(
+      JSON.stringify(reviewBefore),
+      /51\.5|-0\.12|Example (Driver|Recipient|Customer)|NEVER-PUBLIC|02000000000|Example Street/i,
+    );
+    assert.equal(
+      (await getDeliveryEvidenceReview(pool, { dealerId: b.dealerId, saleId }))
+        .summary.length,
+      0,
+    );
+    assert.equal(
+      (await within(() => service.vehicleSales(vehicleId))).sales[0].saleId,
+      saleId,
+    );
+    assert.deepEqual(
+      (await within(() => service.vehicleSales(vehicleId), b)).sales,
+      [],
+    );
     const unchanged = (
       await engine.query<any>("SELECT state FROM sale_workspace WHERE id=$1", [
         saleId,
@@ -362,6 +410,185 @@ test("delivery evidence has isolated capabilities, immutable reports, bounded ph
       returnedHistory.jobs.find((j) => j.id === job4.job.id)?.status,
       "received",
       "Return closes access but keeps historical evidence available to staff",
+    );
+    await engine.query(
+      "UPDATE sale_workspace SET state=$2::jsonb WHERE id=$1",
+      [saleId, JSON.stringify(state)],
+    );
+    const permanent = creation("f".repeat(64));
+    await within(() => service.create(saleId, permanent, "staff-a"));
+    const changed = structuredClone(state);
+    changed.draft.fulfilment.address = "Another delivery address";
+    const client = await pool.connect();
+    await client.query("BEGIN");
+    await revokeChangedDeliveryEvidence(client, {
+      dealerId: a.dealerId,
+      saleId,
+      before: state,
+      after: changed,
+      actor: "staff-a",
+    });
+    await client.query(
+      "UPDATE sale_workspace SET state=$2::jsonb WHERE id=$1",
+      [saleId, JSON.stringify(changed)],
+    );
+    await client.query("COMMIT");
+    await client.query("BEGIN");
+    await revokeChangedDeliveryEvidence(client, {
+      dealerId: a.dealerId,
+      saleId,
+      before: changed,
+      after: state,
+      actor: "staff-a",
+    });
+    await client.query(
+      "UPDATE sale_workspace SET state=$2::jsonb WHERE id=$1",
+      [saleId, JSON.stringify(state)],
+    );
+    await client.query("COMMIT");
+    await assert.rejects(
+      within(() => service.read(permanent.token)),
+      /withdrawn/,
+      "Reverting an arrangement must never re-enable the old driver link",
+    );
+    const rollback = creation("0".repeat(64));
+    await within(() => service.create(saleId, rollback, "staff-a"));
+    await client.query("BEGIN");
+    await revokeChangedDeliveryEvidence(client, {
+      dealerId: a.dealerId,
+      saleId,
+      before: state,
+      after: changed,
+      actor: "staff-a",
+    });
+    await client.query("ROLLBACK");
+    assert.equal(
+      (await within(() => service.read(rollback.token))).status,
+      "open",
+      "A failed sale save must not withdraw the current job",
+    );
+    const paymentOnly = structuredClone(state);
+    paymentOnly.payments.push({
+      ...state.payments[0],
+      id: randomUUID(),
+      amount: "100.00",
+      amountPence: 10000,
+      signedAmountPence: 10000,
+    });
+    await revokeChangedDeliveryEvidence(client, {
+      dealerId: a.dealerId,
+      saleId,
+      before: state,
+      after: paymentOnly,
+      actor: "staff-a",
+    });
+    assert.equal(
+      (await within(() => service.read(rollback.token))).status,
+      "open",
+      "Payment updates do not invalidate the delivery assignment",
+    );
+    for (const closed of [
+      { ...state, lifecycle: { status: "released" } },
+      { ...state, lifecycle: { status: "cancelled" } },
+      { ...state, returnReplacement: { direction: "returned" } },
+      {
+        ...state,
+        draft: {
+          ...state.draft,
+          fulfilment: { ...state.draft.fulfilment, method: "collection" },
+        },
+      },
+    ]) {
+      await client.query(
+        "UPDATE sale_workspace SET state=$2::jsonb WHERE id=$1",
+        [saleId, JSON.stringify(closed)],
+      );
+      await assert.rejects(
+        within(() => service.read(rollback.token)),
+        /arrangements changed/,
+      );
+    }
+    await client.query(
+      "UPDATE sale_workspace SET state=$2::jsonb WHERE id=$1",
+      [saleId, JSON.stringify(state)],
+    );
+    const reviewAfter = await getDeliveryEvidenceReview(client, {
+      dealerId: a.dealerId,
+      saleId,
+    });
+    assert.notEqual(
+      reviewBefore.hash,
+      reviewAfter.hash,
+      "New jobs and reports invalidate a previous final review even without a sale revision edit",
+    );
+    const beforeImmutable = (
+      await within(() => service.list(saleId))
+    ).jobs.find((j) => j.id === created.job.id);
+    await revokeChangedDeliveryEvidence(client, {
+      dealerId: a.dealerId,
+      saleId,
+      before: state,
+      after: changed,
+      actor: "staff-a",
+    });
+    const afterImmutable = (await within(() => service.list(saleId))).jobs.find(
+      (j) => j.id === created.job.id,
+    );
+    assert.deepEqual(
+      afterImmutable,
+      beforeImmutable,
+      "Previously received evidence remains immutable on a job change",
+    );
+    client.release();
+    const integrated = creation("1".repeat(64));
+    await within(() => service.create(saleId, integrated, "staff-a"));
+    const store = new PostgresSaleWorkspaceStore(
+      a.dealerId,
+      async () => ({
+        branding: {
+          identity: {
+            name: "Example Dealership",
+            logoAsset: "",
+            logoText: "EXAMPLE",
+          },
+          contact: { phone: "", email: "" },
+          address: { street: "", city: "", region: "", postcode: "" },
+          legal: { companyName: "", companyNumber: "", vatNumber: "" },
+        },
+      }),
+      pool,
+    );
+    const saved = await within(() =>
+      store.mutate({
+        id: saleId,
+        expectedRevision: 3,
+        requestId: randomUUID(),
+        actor: "staff-a",
+        command: {
+          action: "fulfilment",
+          fulfilment: {
+            ...state.draft.fulfilment,
+            address: "Changed by actual sale save",
+          } as SaleWorkspaceFulfilment,
+        },
+      }),
+    );
+    await within(() =>
+      store.mutate({
+        id: saleId,
+        expectedRevision: saved.sale.revision,
+        requestId: randomUUID(),
+        actor: "staff-a",
+        command: {
+          action: "fulfilment",
+          fulfilment: state.draft.fulfilment as SaleWorkspaceFulfilment,
+        },
+      }),
+    );
+    await assert.rejects(
+      within(() => service.read(integrated.token)),
+      /withdrawn/,
+      "The actual sale persistence transaction permanently withdraws changed driver jobs",
     );
   } finally {
     await engine.close();

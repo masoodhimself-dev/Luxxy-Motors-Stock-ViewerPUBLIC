@@ -20,6 +20,8 @@ import { currentDealerId } from "../lib/tenant-context";
 import {
   saleOperation,
   runSaleFinalReview,
+  runSaleReplacementReview,
+  overrideSaleReview,
   saleTokenHash,
 } from "../lib/sale-operations-store";
 import { archiveSaleDocument } from "../lib/sale-document-pdf";
@@ -76,6 +78,16 @@ for (const [action, permission] of [
     },
   );
 }
+for (const proposed of [false, true]) router.post(`/sale-operations/:id/${proposed ? 'override-replacement-review' : 'override-final-review'}`, requirePermission(proposed ? 'sales.manage' : 'payments.record'), ...(proposed ? [requirePermission('payments.refund')] : []), async (req, res) => {
+  try { if (!uuid(req.params.id)) throw new SaleWorkspaceError('Deal not found.', 404); if (Buffer.byteLength(JSON.stringify(req.body ?? {})) > 24000) throw new SaleWorkspaceError('The action is too large.', 413); res.json(await overrideSaleReview(req.params.id, req.body ?? {}, staffLabel(req), proposed)); } catch (error) { failure(req, res, error); }
+});
+router.post('/sale-operations/:id/replacement-review', requirePermission('sales.manage'), requirePermission('payments.refund'), async (req, res) => {
+  try {
+    if (!uuid(req.params.id)) throw new SaleWorkspaceError('Deal not found.', 404);
+    if (Buffer.byteLength(JSON.stringify(req.body ?? {})) > 24000) throw new SaleWorkspaceError('The action is too large.', 413);
+    res.json(await runSaleReplacementReview(req.params.id, req.body ?? {}, staffLabel(req)));
+  } catch (error) { failure(req, res, error); }
+});
 router.post(
   "/sale-operations/:id/final-review",
   requirePermission("payments.record"),

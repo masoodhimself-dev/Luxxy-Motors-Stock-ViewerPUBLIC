@@ -7,6 +7,7 @@ import type {
 import { dealerConfig } from "@/config/dealer";
 import { emptyDraft } from "./model";
 import { SalesDocument } from "./sales-document";
+import { saleWorkspaceTotals } from "@workspace/vehicle-meta";
 
 const payment = (
   overrides: Partial<SaleWorkspacePayment> = {},
@@ -78,6 +79,44 @@ const document = (
     },
   },
   ...overrides,
+});
+
+describe('current sales stationery text review', () => {
+  it('matches invoice delivery, cash and transferred-credit rows without calling credit new money', () => {
+    const doc = document({ type: 'invoice', title: 'Sales invoice', templateVersion: 'sales-workspace-v2', invoiceKind: 'full' });
+    doc.snapshot.draft.price = '10000'; doc.snapshot.draft.deliveryCharge = '200';
+    doc.snapshot.draft.creditEntries = [{ id: 'carry', sourceSaleId: 'prior', reference: 'SALE-PRIOR', signedAmountPence: 100000, at: doc.issuedAt }];
+    doc.snapshot.totals = saleWorkspaceTotals(doc.snapshot.draft, doc.snapshot.payments); doc.balanceAtIssue = doc.snapshot.totals.balance;
+    render(<SalesDocument issuedDocument={doc} />);
+    const breakdown = screen.getByRole('table', { name: 'Sale breakdown' });
+    expect(within(breakdown).getByText('Delivery').closest('tr')).toHaveTextContent('£200.00');
+    expect(screen.getByText('Cash payments / refunds').closest('div')).toHaveTextContent('£500.00');
+    expect(screen.getByText('Transferred credit (net)').closest('div')).toHaveTextContent('£1,000.00');
+    expect(screen.getByText('Balance remaining').closest('div')).toHaveTextContent('£8,700.00');
+    expect(screen.getByText('1 payment entry / 1 credit entry')).toBeInTheDocument();
+    expect(screen.queryByText('Total received at issue')).not.toBeInTheDocument();
+  });
+  it('reviews a request as a request with its reference and due date', () => {
+    const doc = document({ type: 'payment-request', title: 'Payment request', templateVersion: 'sales-workspace-v2', transaction: { kind: 'payment-request', requestKind: 'deposit', amountPence: 50000, dueDate: '2026-11-10', paymentReference: 'SALE-42', saleReference: 'SALE-42' } });
+    render(<SalesDocument issuedDocument={doc} />);
+    expect(screen.getByText('Awaiting payment - not a receipt')).toBeInTheDocument();
+    expect(screen.getByText('10 Nov 2026')).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'Payment requested' })).toHaveTextContent('£500.00');
+    expect(screen.queryByText('Vehicle price')).not.toBeInTheDocument();
+    expect(screen.queryByText('Payment received')).not.toBeInTheDocument();
+    expect(screen.queryByText('Deposit reference')).not.toBeInTheDocument();
+  });
+  it('identifies a credit refund as money refunded and keeps remaining credit separate', () => {
+    const refund = payment({ id: 'refund', kind: 'refund', amount: '1500', amountPence: 150000, signedAmountPence: -150000 });
+    const doc = document({ type: 'receipt', title: 'Credit refund receipt', templateVersion: 'sales-workspace-v2', paymentId: refund.id, paymentAmountPence: -150000 });
+    doc.snapshot.draft.price = '8500'; doc.snapshot.draft.creditEntries = [{ id: 'carry', sourceSaleId: 'prior', reference: 'SALE-PRIOR', signedAmountPence: 1000000, at: doc.issuedAt }];
+    doc.snapshot.payments = [refund]; doc.snapshot.totals = saleWorkspaceTotals(doc.snapshot.draft, [refund]); doc.balanceAtIssue = 0;
+    render(<SalesDocument issuedDocument={doc} />);
+    expect(screen.getByRole('heading', { name: 'Refund Receipt' })).toBeInTheDocument();
+    expect(screen.getByText('Amount refunded').closest('tr')).toHaveTextContent('£1,500.00');
+    expect(screen.getByText('Cash payments / refunds').closest('div')).toHaveTextContent('-£1,500.00');
+    expect(screen.queryByText('Payment received')).not.toBeInTheDocument();
+  });
 });
 
 describe("issued sale documents", () => {

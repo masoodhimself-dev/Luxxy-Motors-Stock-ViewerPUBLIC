@@ -14,7 +14,7 @@ const present = (s: string | null | undefined): s is string => typeof s === 'str
  */
 export function renderInvoice(data: InvoiceData, options: RenderOptions) {
   if (!present(data.number) || !present(data.issueDate)) throw new Error('Invoice number and issue date are required.');
-  if (data.type !== 'Deposit Invoice' && data.type !== 'Sales Invoice') throw new Error('Unsupported invoice type.');
+  if (!['Deposit Invoice', 'Sales Invoice', 'Payment Request', 'Delivery Invoice', 'Return Credit Note', 'Payment Receipt', 'Refund Receipt', 'Payment Adjustment', 'Balance Statement'].includes(data.type)) throw new Error('Unsupported invoice type.');
   for (const [name, amount] of Object.entries(data.totals)) if (!present(amount)) throw new Error(`Missing supplied total: ${name}`);
   for (const group of [data.saleLines, data.confirmedPayments]) {
     const seen = new Set<string>();
@@ -27,7 +27,7 @@ export function renderInvoice(data: InvoiceData, options: RenderOptions) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: false, putOnlyUsedFonts: true, precision: 5 });
   if (options.creationDate) doc.setCreationDate(options.creationDate);
   if (options.fileId) doc.setFileId(options.fileId);
-  doc.setProperties({ title: `${data.type} ${data.number}`, subject: 'Vehicle invoice', creator: 'Classic ledger invoice renderer' });
+  doc.setProperties({ title: `${data.type} ${data.number}`, subject: data.type === 'Deposit Invoice' || data.type === 'Sales Invoice' ? 'Vehicle invoice' : data.type, creator: 'Classic ledger invoice renderer' });
   for (const [file, family, style, bytes] of [
     ['DejaVuSans.ttf', 'Ledger', 'normal', options.fonts.regularTtf],
     ['DejaVuSans-Bold.ttf', 'Ledger', 'bold', options.fonts.boldTtf],
@@ -133,7 +133,7 @@ export function renderInvoice(data: InvoiceData, options: RenderOptions) {
   const limit = Math.min(L.contentLimit, footerRuleY - 3);
   function header(continued = false) {
     const num = wrap(data.number, 84, 9.5, 'bold');
-    const date = wrap('Issued ' + data.issueDate, 84, 9.2);
+    const date = wrap((data.issueDateLabel ?? 'Issued') + ' ' + data.issueDate, 84, 9.2);
     text(data.type + (continued ? ' - continued' : ''), 196, 14.5, continued ? 12 : 14, 'bold', colours.ink, 'right');
     num.forEach((s, i) => text(s, 196, 22 + i * 4, 9.5, 'bold', colours.ink, 'right'));
     const dateTop = 22 + num.length * 4 + 1;
@@ -174,7 +174,7 @@ export function renderInvoice(data: InvoiceData, options: RenderOptions) {
   }
   const left = partyRows(data.dealer), right = partyRows(data.customer);
   if (left.length || right.length) {
-    ensure(9); if (left.length) label('From', 14, y); if (right.length) label('Bill to', 110, y); y += 4.5;
+    ensure(9); if (left.length) label('From', 14, y); if (right.length) label(data.customerLabel ?? 'Bill to', 110, y); y += 4.5;
     for (let i = 0; i < Math.max(left.length, right.length); i++) {
       if (y + 4.1 > limit) { next(); if (i < left.length) label('From - continued', 14, y); if (i < right.length) label('Bill to - continued', 110, y); y += 4.5; }
       if (left[i]) text(left[i].s, 14, y, left[i].size, left[i].weight);
@@ -237,7 +237,7 @@ export function renderInvoice(data: InvoiceData, options: RenderOptions) {
     const starts = cols.map((_, i) => 14 + cols.slice(0, i).reduce((a, b) => a + b, 0));
     function tableHead(continued: boolean) {
       label(title + (continued ? ' - continued' : ''), 14, y);
-      if (showCount) text(`${input.length} confirmed payments`, 196, y, 8.5, 'normal', colours.muted, 'right');
+      if (showCount) text(data.paymentHistory?.countLabel ?? `${input.length} confirmed payments`, 196, y, 8.5, 'normal', colours.muted, 'right');
       y += 5.4;
       heads.forEach((h, i) => text(h, i === heads.length - 1 ? 196 : starts[i], y, 8.5, 'bold', colours.muted, i === heads.length - 1 ? 'right' : 'left'));
       y += 4.2; rule(y, 14, 182, colours.muted, 0.2);
@@ -252,7 +252,7 @@ export function renderInvoice(data: InvoiceData, options: RenderOptions) {
     // Keep the heading with the first measured row, including wrapped descriptions.
     const firstHeight = input[0] ? rowHeight(input[0].values) : 5.1;
     ensure(headHeight + Math.min(firstHeight, Math.max(5.1, limit - 110))); head(false);
-    if (!input.length) { ensure(5.1); text('No confirmed payments supplied', 14, y + 0.9, 9.2); y += 5.1; }
+    if (!input.length) { ensure(5.1); text(data.paymentHistory?.emptyLabel ?? 'No confirmed payments supplied', 14, y + 0.9, 9.2); y += 5.1; }
     for (const row of input) {
       const cells = row.values.map((s, i) => wrap(s, cols[i] - (i === cols.length - 1 ? 0 : 2), 9.2));
       const n = Math.max(1, ...cells.map(c => c.length));
@@ -275,16 +275,21 @@ export function renderInvoice(data: InvoiceData, options: RenderOptions) {
     }
     y += 2;
   }
-  if (data.saleLines.length) table('Sale breakdown', L.saleColumns, ['Description', 'Amount'], data.saleLines.map(r => ({ id: r.id, values: [r.description, r.amount] })), 'sale-line');
-  table('Payment history', L.paymentColumns, ['Date', 'Description', 'Method', 'Amount'], data.confirmedPayments.map(p => ({ id: p.id, values: [p.date, p.description, p.method, p.amount] })), 'payment', true);
+  if (data.notice) { paragraph(data.notice, 14, L.width, 9.2); y += 3; }
+  for (const fact of data.facts ?? []) { paragraph(`${fact.label}: ${fact.value}`, 14, L.width, 9.2); y += .5; }
+  if (data.facts?.length) y += 2;
+  if (data.saleLines.length) table(data.saleLinesHeading ?? 'Sale breakdown', L.saleColumns, ['Description', 'Amount'], data.saleLines.map(r => ({ id: r.id, values: [r.description, r.amount] })), 'sale-line');
+  if (!data.hidePaymentHistory) table(data.paymentHistory?.heading ?? 'Payment history', L.paymentColumns, ['Date', 'Description', 'Method', 'Amount'], data.confirmedPayments.map(p => ({ id: p.id, values: [p.date, p.description, p.method, p.amount] })), 'payment', true);
+  if (data.pendingPayments?.length) table('Pending payments - not deducted', L.paymentColumns, ['Date', 'Description', 'Method', 'Amount'], data.pendingPayments.map(p => ({ id: p.id, values: [p.date, p.description, p.method, p.amount] })), 'payment');
 
   // Supplied totals are rendered once, after every payment. No arithmetic or status inference.
-  const totalRows = [['Sale total', data.totals.saleTotal], [data.receivedLabel ?? 'Payments received', data.totals.paymentsReceived], [data.balanceLabel ?? 'Balance remaining', data.totals.balanceRemaining]];
-  const totalAmountWidth = Math.max(29, ...totalRows.map(([, val], i) => width(val, i === 2 ? 10.3 : 9.7, 'bold') + 0.2));
-  const totalLabelWidth = Math.max(...totalRows.map(([label], i) => width(label, 9.2, i === 2 ? 'bold' : 'normal')));
+  const totalRows = data.summaryRows?.map(row => [row.label, row.amount]) ?? [['Sale total', data.totals.saleTotal], [data.receivedLabel ?? 'Payments received', data.totals.paymentsReceived], [data.balanceLabel ?? 'Balance remaining', data.totals.balanceRemaining]];
+  const prominent = (index: number) => data.summaryRows ? Boolean(data.summaryRows[index].emphasis) : index === 2;
+  const totalAmountWidth = Math.max(29, ...totalRows.map(([, val], i) => width(val, prominent(i) ? 10.3 : 9.7, 'bold') + 0.2));
+  const totalLabelWidth = Math.max(...totalRows.map(([label], i) => width(label, 9.2, prominent(i) ? 'bold' : 'normal')));
   const settlementWidth = Math.max(68, totalLabelWidth + 5 + totalAmountWidth);
   const settlementLeft = 196 - settlementWidth;
-  const measuredTotals = totalRows.map(([k, val], i) => ({ label: k, lines: wrap(val, totalAmountWidth, i === 2 ? 10.3 : 9.7, 'bold'), size: i === 2 ? 10.3 : 9.7 }));
+  const measuredTotals = totalRows.map(([k, val], i) => ({ label: k, lines: wrap(val, totalAmountWidth, prominent(i) ? 10.3 : 9.7, 'bold'), size: prominent(i) ? 10.3 : 9.7 }));
   const statusLines = wrap(data.settlementStatus, settlementWidth, 8.8, 'bold');
   const totalsH = 1 + measuredTotals.reduce((n, r) => n + Math.max(6, r.lines.length * 4), 0) + (statusLines.length ? statusLines.length * 4 + 1 : 0);
   const instructionLines = (data.paymentInstructions ?? []).flatMap(s => wrap(s, Math.min(99, settlementLeft - 29), 9.1));
@@ -295,7 +300,7 @@ export function renderInvoice(data: InvoiceData, options: RenderOptions) {
   rule(totalTop, settlementLeft, settlementWidth, colours.ink, 0.35);
   let ty = totalTop + 2;
   for (let i = 0; i < measuredTotals.length; i++) {
-    const r = measuredTotals[i]; text(r.label, settlementLeft, ty, 9.2, i === 2 ? 'bold' : 'normal');
+    const r = measuredTotals[i]; text(r.label, settlementLeft, ty, 9.2, prominent(i) ? 'bold' : 'normal');
     r.lines.forEach((s, j) => text(s, 196, ty + j * 4, r.size, 'bold', colours.ink, 'right'));
     ty += Math.max(6, r.lines.length * 4);
   }
@@ -311,7 +316,7 @@ export function renderInvoice(data: InvoiceData, options: RenderOptions) {
   if (page === settlementPage) y = Math.max(y, totalTop + totalsH);
   y += 2;
   if (data.pendingNote) { paragraph(data.pendingNote, 14, L.width, 9.1); y += 3; }
-  if (data.draft && !data.verification) { paragraph('Verification QR added on issue', 14, L.width, 8.7); y += 2; }
+  if (data.draft && !data.verification && data.showDraftVerificationNote !== false && (data.type === 'Sales Invoice' || data.type === 'Deposit Invoice')) { paragraph('Verification QR added on issue', 14, L.width, 8.7); y += 2; }
 
   // Terms and QR occupy a compact final band; long terms flow without font shrinking.
   let qr: ReturnType<typeof qrcode> | undefined;

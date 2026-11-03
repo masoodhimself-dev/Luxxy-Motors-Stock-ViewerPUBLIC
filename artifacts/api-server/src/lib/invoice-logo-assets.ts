@@ -1,11 +1,23 @@
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import type { SaleWorkspaceBranding } from '@workspace/vehicle-meta';
 import { websiteAssetLimits, websiteImageHeader, type WebsiteAssetMime } from './website-asset-image';
+import { builtInMultiChoiceLogoPath, builtInMultiChoiceLogoPngDataUrl } from './built-in-invoice-logo';
+import { currentTenant } from './tenant-context';
 
 type LogoReadClient = { query: (text: string, parameters?: any[]) => Promise<{ rows: Record<string, any>[] }> };
 const assetPath = /^\/api\/website-assets\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 // Both invoice renderers accept embedded raster data below 1.5 million characters.
 const pdfDataUrlLimit = 1_500_000;
+
+function usesShippedMultiChoiceLogo(dealerId: string, canonicalOrigin: string) {
+  const tenant = currentTenant();
+  if (!tenant || tenant.dealerId !== dealerId) return false;
+  try {
+    const url = new URL(canonicalOrigin), tenantUrl = new URL(tenant.canonicalOrigin);
+    return url.protocol === 'https:' && !url.username && !url.password && !url.port && url.pathname === '/' && !url.search && !url.hash &&
+      ['multichoicemotors.co.uk', 'www.multichoicemotors.co.uk'].includes(url.hostname) && tenantUrl.origin === url.origin && tenantUrl.pathname === '/' && !tenantUrl.search && !tenantUrl.hash && !tenantUrl.username && !tenantUrl.password;
+  } catch { return false; }
+}
 
 function ownedAssetId(value: string, canonicalOrigin: string): string | undefined {
   const relative = assetPath.exec(value);
@@ -52,7 +64,21 @@ async function pdfRaster(bytes: Buffer, mimeType: WebsiteAssetMime, originalData
 export async function embedInvoiceLogoAsset(branding: SaleWorkspaceBranding, dealerId: string, client: LogoReadClient, canonicalOrigin: string): Promise<SaleWorkspaceBranding> {
   const result: SaleWorkspaceBranding = { ...branding, identity: { ...branding.identity, logoAsset: '' } };
   const value = branding.identity.logoAsset;
-  if (typeof value !== 'string' || !value || branding.invoiceSettings?.showLogo === false) return result;
+  if (branding.invoiceSettings?.showLogo === false) return result;
+  // The public header deliberately uses this official logo for this verified
+  // tenant domain. Match it even when old settings still contain an empty or
+  // superseded asset. Names and global fallback domains never select a brand.
+  if (usesShippedMultiChoiceLogo(dealerId, canonicalOrigin)) {
+    result.identity.logoAsset = builtInMultiChoiceLogoPngDataUrl;
+    return result;
+  }
+  if (typeof value !== 'string' || !value) return result;
+  // The only shipped static logo. Its exact source SVG was rasterised at build
+  // time; this cannot turn an arbitrary filesystem path or URL into a read.
+  if (value === builtInMultiChoiceLogoPath) {
+    result.identity.logoAsset = builtInMultiChoiceLogoPngDataUrl;
+    return result;
+  }
   if (value.startsWith('data:')) {
     if (value.length > Math.ceil(websiteAssetLimits.bytes / 3) * 4 + 32) return result;
     const match = /^data:(image\/(?:png|jpeg|jpg));base64,([A-Za-z0-9+/]+={0,2})$/.exec(value);

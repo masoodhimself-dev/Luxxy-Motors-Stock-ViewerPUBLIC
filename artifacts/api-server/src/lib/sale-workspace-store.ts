@@ -7,6 +7,8 @@ import { archiveSaleDocument } from './sale-document-pdf';
 import { embedInvoiceLogoAsset } from './invoice-logo-assets';
 import { attachInvoiceVerification, invoiceVerificationView } from './invoice-verification';
 import { siteOrigin } from './enquiry-links';
+import { revokeChangedDeliveryEvidence } from './delivery-evidence';
+import { assertSaleReviewContext, readSaleReviewContext } from './sale-review-context';
 import { createSoldVehicleFollowUps } from './sold-vehicle-follow-ups';
 import { changeSaleWorkspace, createSaleWorkspace, saleWorkspaceTotals, publicSaleWorkspace, currentInvoiceBranding, saleWorkspaceBranding, saleWorkspaceFingerprint, saleWorkspaceNumber, SaleWorkspaceError, type SaleWorkspaceBranding, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceMutation, type SaleWorkspaceRecord, type SaleWorkspaceVehicleSnapshot, type SaleWorkspacePayment } from '@workspace/vehicle-meta';
 
@@ -60,14 +62,16 @@ export class PostgresSaleWorkspaceStore {
       const totals=saleWorkspaceTotals(draft,(row.list_payment_entries ?? []) as SaleWorkspacePayment[]);
       const handover=draft.fulfilment ? {method:draft.fulfilment.method,status:saleHandoverStatus({...draft.fulfilment,address:draft.fulfilment.address ?? ''})} : null;
       const listHasRefunds=(row.list_payment_entries ?? []).some((payment: SaleWorkspacePayment)=>payment.status==='confirmed' && payment.signedAmountPence<0);
-      return {listSummary:true as const,listTotalDue:totals.totalDue,listPaid:totals.confirmedPaid,listPending:totals.pending,listLedgerKnown:row.list_ledger_known === true,listBalance:totals.balance,listHandover:handover,listHasCorrectionNotes:row.list_has_correction_notes === true,listHasRefunds,id:record.id,reference:record.reference,revision:record.revision,createdAt:record.createdAt,updatedAt:record.updatedAt,...(record.completedAt?{completedAt:record.completedAt}:{}),...(record.lifecycle?{lifecycle:record.lifecycle}:{}),draft:identity,documents:[],payments:[],events:[],emptyDraftDeletable:canDeleteEmptySaleDraft({...record,...row.deletion_evidence},true)};
+      return {listSummary:true as const,listTotalDue:totals.totalDue,listPaid:totals.confirmedPaid,listPending:totals.pending,listLedgerKnown:row.list_ledger_known === true,listBalance:totals.balance,listHandover:handover,listHasCorrectionNotes:row.list_has_correction_notes === true,listHasRefunds,id:record.id,reference:record.reference,revision:record.revision,createdAt:record.createdAt,updatedAt:record.updatedAt,...(record.completedAt?{completedAt:record.completedAt}:{}),...(record.lifecycle?{lifecycle:record.lifecycle}:{}),...(record.returnReplacement?{returnReplacement:{direction:record.returnReplacement.direction,otherSaleId:record.returnReplacement.otherSaleId,otherReference:record.returnReplacement.otherReference,creditPence:record.returnReplacement.creditPence,at:record.returnReplacement.at}}:{}),draft:identity,documents:[],payments:[],events:[],emptyDraftDeletable:canDeleteEmptySaleDraft({...record,...row.deletion_evidence},true)};
     });
     return {sales,hasMore:result.rows.length>50};
   }
   async get(id: string): Promise<SaleWorkspaceRecord> {
     const result = await this.database.query('SELECT state FROM sale_workspace WHERE dealer_id = $1 AND id = $2::uuid', [this.dealerId, id]);
     if (!result.rows[0]) throw new SaleWorkspaceError('Sale not found.', 404);
-    return staffSaleWorkspace(result.rows[0].state);
+    const sale = result.rows[0].state as SaleWorkspaceRecord;
+    const reviewContext = (sale.finalReview?.status === 'passed' || sale.finalReview?.status === 'overridden') ? await readSaleReviewContext(this.database,this.dealerId,sale) : undefined;
+    return staffSaleWorkspace({...sale,...(reviewContext?{finalReviewContextStale:sale.finalReview?.contextHash!==reviewContext.hash}:{})});
   }
   /** Remove only unused empty or clearly labelled test drafts; never cascade financial history. */
   async deleteEmptyDraft(id: string, expectedRevision: unknown) {
@@ -108,7 +112,10 @@ export class PostgresSaleWorkspaceStore {
     // snapshot provides all required context without another database checkout.
     const context: SaleWorkspaceContext = { now: new Date().toISOString(), actor, nextId: randomUUID, nextNumber: () => { throw new Error('Email finalization cannot issue documents'); }, branding: document.snapshot.branding };
     const result = changeSaleWorkspace(current, command, { requestId, expectedRevision: current.revision }, context);
-    if (!result.replayed) await client.query('UPDATE sale_workspace SET revision = $3, state = $4::jsonb, updated_at = $5 WHERE dealer_id = $1 AND id = $2::uuid', [this.dealerId, id, result.sale.revision, JSON.stringify(result.sale), result.sale.updatedAt]);
+    if (!result.replayed) {
+      await revokeChangedDeliveryEvidence(client,{dealerId:this.dealerId,saleId:id,before:current,after:result.sale,actor});
+      await client.query('UPDATE sale_workspace SET revision = $3, state = $4::jsonb, updated_at = $5 WHERE dealer_id = $1 AND id = $2::uuid', [this.dealerId, id, result.sale.revision, JSON.stringify(result.sale), result.sale.updatedAt]);
+    }
     return { ...result, sale: staffSaleWorkspace(result.sale) };
   }
   /** Provider acceptance is merged under a row lock; concurrent payments survive. */
@@ -211,13 +218,15 @@ export class PostgresSaleWorkspaceStore {
       const counter = await client.query('SELECT numbers FROM sale_workspace_counters WHERE dealer_id = $1 FOR UPDATE', [this.dealerId]);
       const numbers = counter.rows[0].numbers as Record<string, number>;
       const now = new Date().toISOString();
+      const finalAction = input.command && (['issue-invoice','complete-sale','finish-invoice-sale','handover'].includes(input.command.action) || input.command.action==='document' && input.command.type==='invoice' || input.command.action==='lifecycle' && input.command.status==='sold');
+      const reviewedContext = current && finalAction && !current.requests?.[input.requestId] ? await assertSaleReviewContext(client,this.dealerId,current) : undefined;
       const draft = input.command?.action === 'update' ? input.command.draft : current?.draft ?? input.draft as SaleWorkspaceDraft;
       const assets = await this.assets(draft, client);
       if (input.command?.action === 'issue-invoice' && assets.vehicle?.imageUrl) {
         const photo = (await loadBrochurePhotos([{ url: assets.vehicle.imageUrl.replace(/w\d+-h\d+/, 'w480-h360'), caption: '' }], process.env.VEHICLE_PDF_IMAGE_HOSTS ?? '', 4000))[0];
         if (photo?.bytes && photo.format) assets.vehicle.photoDataUrl = `data:image/${photo.format === 'JPEG' ? 'jpeg' : 'png'};base64,${Buffer.from(photo.bytes).toString('base64')}`;
       }
-      const context: SaleWorkspaceContext = { now, actor: input.actor, nextId: randomUUID, nextNumber: type => saleWorkspaceNumber(numbers, type, now, assets.branding.invoiceSettings), ...assets, requireFinalReview: true };
+      const context: SaleWorkspaceContext = { now, actor: input.actor, nextId: randomUUID, nextNumber: type => saleWorkspaceNumber(numbers, type, now, assets.branding.invoiceSettings), ...assets, requireFinalReview: true, reviewContextHash:reviewedContext?.hash };
       const mutation = current
         ? changeSaleWorkspace(current, input.command!, { expectedRevision: input.expectedRevision!, requestId: input.requestId }, context)
         : createSaleWorkspace({ draft: input.draft, requestId: input.requestId }, context, saleWorkspaceNumber(numbers, 'sale', now, assets.branding.invoiceSettings));
@@ -237,6 +246,7 @@ export class PostgresSaleWorkspaceStore {
           if (document.type === 'invoice') attachInvoiceVerification(document, mutation.sale.id, siteOrigin());
           (mutation.sale.documentArchives ??= {})[document.id] = archiveSaleDocument(document);
         }
+        if (current) await revokeChangedDeliveryEvidence(client,{dealerId:this.dealerId,saleId:current.id,before:current,after:mutation.sale,actor:input.actor});
         await client.query('INSERT INTO sale_workspace (id, dealer_id, reference, revision, state, created_at, updated_at) VALUES ($1::uuid, $2, $3, $4, $5::jsonb, $6, $7) ON CONFLICT (id) DO UPDATE SET revision = EXCLUDED.revision, state = EXCLUDED.state, updated_at = EXCLUDED.updated_at', [mutation.sale.id, this.dealerId, mutation.sale.reference, mutation.sale.revision, JSON.stringify(mutation.sale), mutation.sale.createdAt, mutation.sale.updatedAt]);
         await client.query('UPDATE sale_workspace_counters SET numbers = $2::jsonb WHERE dealer_id = $1', [this.dealerId, JSON.stringify(numbers)]);
       }
@@ -276,6 +286,7 @@ export async function recordStripeReservationDeposit(input: StripeReservationDep
     mutation.document.snapshot.branding = await embedInvoiceLogoAsset(mutation.document.snapshot.branding, input.dealerId, client, siteOrigin());
     (mutation.sale.documentArchives ??= {})[mutation.document.id] = archiveSaleDocument(mutation.document);
   }
+  await revokeChangedDeliveryEvidence(client,{dealerId:input.dealerId,saleId:current.id,before:current,after:mutation.sale,actor:context.actor});
   await client.query('INSERT INTO sale_workspace (id, dealer_id, reference, revision, state, created_at, updated_at) VALUES ($1::uuid, $2, $3, $4, $5::jsonb, $6, $7) ON CONFLICT (id) DO UPDATE SET revision = EXCLUDED.revision, state = EXCLUDED.state, updated_at = EXCLUDED.updated_at', [mutation.sale.id, input.dealerId, mutation.sale.reference, mutation.sale.revision, JSON.stringify(mutation.sale), mutation.sale.createdAt, mutation.sale.updatedAt]);
   await client.query('UPDATE sale_workspace_counters SET numbers = $2::jsonb WHERE dealer_id = $1', [input.dealerId, JSON.stringify(numbers)]);
   await client.query("UPDATE vehicles SET audit_metadata = audit_metadata || $3::jsonb WHERE dealer_id = $1 AND id = $2::uuid", [input.dealerId, input.vehicleId, JSON.stringify({ saleWorkspaceId: mutation.sale.id, saleWorkspaceStatus: 'reserved' })]);
@@ -300,6 +311,7 @@ export async function recordStripeReservationRefund(input: { dealerId: string; r
   if (difference === 0) {
     // Persist no-op event identities too, so a replay after a later correction cannot revive old totals.
     (provider.refundEvents ??= {})[input.eventId] = { amountRefundedPence: input.amountRefundedPence };
+    await revokeChangedDeliveryEvidence(client,{dealerId:input.dealerId,saleId:current.id,before:current,after:current,actor:'Stripe verified refund'});
     await client.query('UPDATE sale_workspace SET revision = $3, state = $4::jsonb, updated_at = $5 WHERE dealer_id = $1 AND id = $2::uuid', [input.dealerId, current.id, current.revision, JSON.stringify(current), current.updatedAt]);
     return publicSaleWorkspace(current);
   }
@@ -318,6 +330,7 @@ export async function recordStripeReservationRefund(input: { dealerId: string; r
     mutation.document.snapshot.branding = await embedInvoiceLogoAsset(mutation.document.snapshot.branding, input.dealerId, client, siteOrigin());
     (mutation.sale.documentArchives ??= {})[mutation.document.id] = archiveSaleDocument(mutation.document);
   }
+  await revokeChangedDeliveryEvidence(client,{dealerId:input.dealerId,saleId:current.id,before:current,after:mutation.sale,actor:context.actor});
   await client.query('UPDATE sale_workspace SET revision = $3, state = $4::jsonb, updated_at = $5 WHERE dealer_id = $1 AND id = $2::uuid', [input.dealerId, current.id, mutation.sale.revision, JSON.stringify(mutation.sale), now]);
   await client.query('UPDATE sale_workspace_counters SET numbers = $2::jsonb WHERE dealer_id = $1', [input.dealerId, JSON.stringify(numbers)]);
   return publicSaleWorkspace(mutation.sale);

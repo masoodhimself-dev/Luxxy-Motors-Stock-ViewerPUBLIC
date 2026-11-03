@@ -154,6 +154,42 @@ it("shows only the delivery job and asks for device location only on explicit ac
     maximumAge: 0,
   });
 });
+it("bounds a stalled connection and keeps the driver able to recover", async () => {
+  vi.useFakeTimers();
+  try {
+    state.fetch.mockImplementation(
+      (_url: string, options: RequestInit) =>
+        new Promise((_resolve, reject) =>
+          options.signal?.addEventListener("abort", () =>
+            reject(new DOMException("Aborted", "AbortError")),
+          ),
+        ),
+    );
+    render(<DeliveryEvidencePage />);
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(25_000);
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent("connection timed out");
+    expect(state.fetch.mock.calls[0][1].signal.aborted).toBe(true);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+it("protects an entered report before leaving even when there are no unuploaded photos", async () => {
+  render(<DeliveryEvidencePage />);
+  await screen.findByText("AB20 XYZ");
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Mileage" }), {
+    target: { value: "43000" },
+  });
+  const event = new Event("beforeunload", { cancelable: true });
+  window.dispatchEvent(event);
+  expect(event.defaultPrevented).toBe(true);
+});
 it("uploads five photos before report, reuses request identities and waits for server acknowledgement", async () => {
   render(<DeliveryEvidencePage />);
   await screen.findByText("AB20 XYZ");

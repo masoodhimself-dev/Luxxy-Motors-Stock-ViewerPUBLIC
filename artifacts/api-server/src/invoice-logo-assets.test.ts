@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { defaultInvoiceSettings, saleWorkspaceTotals, type SaleWorkspaceBranding, type SaleWorkspaceDraft, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 import { embedInvoiceLogoAsset } from './lib/invoice-logo-assets';
+import { builtInMultiChoiceLogoPath, builtInMultiChoiceLogoPngDataUrl, builtInMultiChoiceLogoSvgSha256 } from './lib/built-in-invoice-logo';
 import { PostgresSaleWorkspaceStore, type SaleWorkspaceDatabase } from './lib/sale-workspace-store';
+import { readSaleReviewContext } from './lib/sale-review-context';
+import { runWithTenant } from './lib/tenant-context';
 
 const dealerId = 'shore-drive-logo-fixture';
 const origin = 'https://www.shoredrive.uk';
@@ -37,6 +41,53 @@ function assetClient(row: Record<string, any> | null = image()) {
     },
   };
 }
+
+test('the exact shipped Multi-Choice SVG freezes its faithful transparent raster without a read or fetch', async () => {
+  const db = assetClient(), source = branding(builtInMultiChoiceLogoPath), before = clone(source);
+  const frozen = await embedInvoiceLogoAsset(source, dealerId, db, origin);
+  assert.equal(frozen.identity.logoAsset, builtInMultiChoiceLogoPngDataUrl);
+  assert.deepEqual(source, before); assert.equal(db.queries.length, 0);
+  const svg = readFileSync(new URL('../../luxxy-motors/public/brand/multi-choice-motors/multi-choice-wordmark.svg', import.meta.url));
+  assert.equal(createHash('sha256').update(svg).digest('hex'), builtInMultiChoiceLogoSvgSha256, 'Regenerate the built-in PNG when the official SVG changes');
+  const official = await loadImage(svg), frozenImage = await loadImage(Buffer.from(frozen.identity.logoAsset.split(',')[1], 'base64'));
+  assert.equal(frozenImage.width, 1392); assert.equal(frozenImage.height, 294);
+  const expected = createCanvas(1392, 294), actual = createCanvas(1392, 294);
+  expected.getContext('2d').drawImage(official, 0, 0, 1392, 294); actual.getContext('2d').drawImage(frozenImage, 0, 0);
+  assert.deepEqual(actual.getContext('2d').getImageData(0, 0, 1392, 294).data, expected.getContext('2d').getImageData(0, 0, 1392, 294).data, 'The approved wordmark shape and colours match every pixel');
+  assert.equal(actual.getContext('2d').getImageData(0, 0, 1, 1).data[3], 0, 'Transparency is retained');
+});
+
+test('static logo allowlist rejects lookalikes, URL variants and arbitrary SVG files', async () => {
+  for (const value of [builtInMultiChoiceLogoPath + '?v=1', builtInMultiChoiceLogoPath + '#logo', origin + builtInMultiChoiceLogoPath, builtInMultiChoiceLogoPath.replace('wordmark.svg', 'wordmark-white.svg'), '/brand/other/logo.svg', '/brand/multi-choice-motors/../multi-choice-motors/multi-choice-wordmark.svg']) {
+    const db = assetClient();
+    assert.equal((await embedInvoiceLogoAsset(branding(value), dealerId, db, origin)).identity.logoAsset, '', value);
+    assert.equal(db.queries.length, 0);
+  }
+  const source = branding(builtInMultiChoiceLogoPath); source.invoiceSettings!.showLogo = false;
+  assert.equal((await embedInvoiceLogoAsset(source, dealerId, assetClient(), origin)).identity.logoAsset, '');
+});
+
+test('the verified current Multi-Choice tenant uses the official website logo despite empty or legacy settings', async () => {
+  for (const canonicalOrigin of ['https://multichoicemotors.co.uk', 'https://www.multichoicemotors.co.uk']) for (const configured of ['', '/brand/old-multi-choice-logo.svg', assetPath]) {
+    const db = assetClient(), source = branding(configured), before = clone(source);
+    const tenant = { dealerId, canonicalOrigin, platform: 'cazoo' as const, retailerId: '', sourceUrl: '' };
+    const frozen = await runWithTenant(tenant, () => embedInvoiceLogoAsset(source, dealerId, db, canonicalOrigin));
+    assert.equal(frozen.identity.logoAsset, builtInMultiChoiceLogoPngDataUrl); assert.deepEqual(source, before); assert.equal(db.queries.length, 0);
+  }
+  for (const [currentDealer, currentOrigin, suppliedOrigin] of [
+    ['other-dealer', 'https://multichoicemotors.co.uk', 'https://multichoicemotors.co.uk'],
+    [dealerId, 'https://another-dealer.example', 'https://multichoicemotors.co.uk'],
+    [dealerId, origin, origin],
+    [dealerId, 'http://multichoicemotors.co.uk', 'http://multichoicemotors.co.uk'],
+    [dealerId, 'https://multichoicemotors.co.uk.evil.example', 'https://multichoicemotors.co.uk.evil.example'],
+  ]) {
+    const frozen = await runWithTenant({ dealerId: currentDealer, canonicalOrigin: currentOrigin, platform: 'cazoo' as const, retailerId: '', sourceUrl: '' }, () => embedInvoiceLogoAsset(branding(''), dealerId, assetClient(), suppliedOrigin));
+    assert.equal(frozen.identity.logoAsset, '', `${currentDealer} ${currentOrigin}`);
+  }
+  const source = branding(''); source.invoiceSettings!.showLogo = false;
+  const frozen = await runWithTenant({ dealerId, canonicalOrigin: 'https://multichoicemotors.co.uk', platform: 'cazoo' as const, retailerId: '', sourceUrl: '' }, () => embedInvoiceLogoAsset(source, dealerId, assetClient(), 'https://multichoicemotors.co.uk'));
+  assert.equal(frozen.identity.logoAsset, '');
+});
 
 test('same-dealer uploaded PNG and JPEG logos freeze into new branding without changing settings', async () => {
   for (const format of ['png', 'jpeg'] as const) for (const url of [assetPath, `${origin}${assetPath}`]) {
@@ -135,6 +186,7 @@ function saleFixture() {
     }
     if (q.startsWith('SELECT numbers')) return { rows: [{ numbers: clone(numbers) }] };
     if (q.startsWith('SELECT inventory_status')) return { rows: [clone(vehicle)] };
+    if (q.startsWith('SELECT to_jsonb(v) AS data')) return { rows: [{ data: { ...clone(vehicle), id: vehicleId, title: '2020 Test Car', plate: 'AB20 XYZ' } }] };
     if (q.startsWith('SELECT id FROM leads')) return { rows: [] };
     if (q.startsWith('SELECT state') && q.includes('FROM sale_workspace')) {
       let values = [...records.values()];
@@ -154,7 +206,16 @@ function saleFixture() {
     return { query: async (q, p) => { if (q === 'ROLLBACK') { records = new Map(before.records); numbers = before.numbers; vehicle = before.vehicle; } return query(q, p); }, release() {} };
   } };
   const store = new PostgresSaleWorkspaceStore(dealerId, async () => ({ branding: branding(currentLogo), paperwork: { saleTerms: 'Approved terms.', reservationTerms: 'Approved reservation terms.' } }), database);
-  return { store, logoQueries, saved: (id: string) => clone(records.get(id)!), setLogo(url: string, next = image()) { currentLogo = url; currentImage = next; } };
+  return { store, logoQueries, saved: (id: string) => clone(records.get(id)!), setLogo(url: string, next = image()) { currentLogo = url; currentImage = next; },
+    async approve(id: string) {
+      // The provider result is a fixture, but its supporting-record fingerprint
+      // is computed by the production reader and the actual issue gate still runs.
+      const record = records.get(id)!;
+      const reviewed = await readSaleReviewContext({ query }, dealerId, record);
+      assert.deepEqual(reviewed.issues, []);
+      record.finalReview = { id: randomUUID(), reviewedRevision: record.revision, contextHash: reviewed.hash, checkedAt: new Date().toISOString(), status: 'passed', issues: [], summary: 'Fixture review passed' };
+    },
+  };
 }
 const draft = (): SaleWorkspaceDraft => ({ id: '', customer: 'Fictional logo-test buyer', email: 'buyer@example.test', phone: '', address: '1 Example Road', vehicleId, vehicle: '2020 Test Car', registration: 'AB20 XYZ', price: '12000', partExchange: false, pxRegistration: '', pxDescription: '', pxValue: '', deposit: '', paymentMethod: '', notes: '', collection: '', preparation: false, documents: false, handover: false });
 
@@ -162,6 +223,7 @@ test('a new deposit/full invoice embeds the current logo while old issued PDFs a
   const f = saleFixture();
   let sale = (await f.store.mutate({ draft: draft(), requestId: randomUUID(), actor: 'Fixture staff' })).sale;
   sale = (await f.store.mutate({ id: sale.id, expectedRevision: sale.revision, requestId: randomUUID(), actor: 'Fixture staff', command: { action: 'invoice-payment', payment: { amount: '500', method: 'Cash', date: new Date().toISOString().slice(0, 10), reference: 'ALREADY-RECEIVED', kind: 'deposit', status: 'confirmed' } } })).sale;
+  await f.approve(sale.id);
   sale = (await f.store.mutate({ id: sale.id, expectedRevision: sale.revision, requestId: randomUUID(), actor: 'Fixture staff', command: { action: 'issue-invoice', kind: 'deposit', acknowledge: true } })).sale;
   const oldDocument = clone(sale.documents[0]), oldArchive = clone((await f.store.pdf(sale.id, oldDocument.id)).archive), payments = clone(sale.payments);
   assert.equal(f.logoQueries.length, 0);
@@ -169,6 +231,7 @@ test('a new deposit/full invoice embeds the current logo while old issued PDFs a
   sale = (await f.store.mutate({ id: sale.id, expectedRevision: sale.revision, requestId: randomUUID(), actor: 'Fixture staff', command: { action: 'update', draft: { ...sale.draft, notes: 'Notes reviewed without touching money.' } } })).sale;
   assert.equal(f.logoQueries.length, 0, 'saving a draft must not hydrate old issued documents');
   const input = { id: sale.id, expectedRevision: sale.revision, requestId: randomUUID(), actor: 'Fixture staff', command: { action: 'issue-invoice' as const, kind: 'full' as const, acknowledge: true } };
+  await f.approve(sale.id);
   const issued = await f.store.mutate(input), fresh = issued.sale.documents.at(-1)!;
   assert.equal(fresh.snapshot.branding.identity.logoAsset, logo.dataUrl);
   assert.deepEqual(issued.sale.documents[0], oldDocument); assert.deepEqual(issued.sale.payments, payments);
@@ -197,6 +260,7 @@ test('both newly issued deposit and full invoices archive the logo without addin
     sale = (await f.store.mutate({ id: sale.id, expectedRevision: sale.revision, requestId: randomUUID(), actor: 'Fixture staff', command: { action: 'invoice-payment', payment: { amount: '500', method: 'Cash', date: new Date().toISOString().slice(0, 10), reference: 'EXISTING-MONEY', kind: 'deposit', status: 'confirmed' } } })).sale;
     const before = clone(sale.payments);
     assert.equal(f.logoQueries.length, 0);
+    await f.approve(sale.id);
     const issued = await f.store.mutate({ id: sale.id, expectedRevision: sale.revision, requestId: randomUUID(), actor: 'Fixture staff', command: { action: 'issue-invoice', kind, acknowledge: true } });
     assert.deepEqual(issued.sale.payments, before);
     const doc = issued.sale.documents.at(-1)!;

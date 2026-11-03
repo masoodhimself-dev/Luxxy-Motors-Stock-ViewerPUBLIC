@@ -40,7 +40,7 @@ export interface ConfirmedPayment {
   amount: string;
 }
 export interface InvoiceData {
-  type: 'Deposit Invoice' | 'Sales Invoice';
+  type: 'Deposit Invoice' | 'Sales Invoice' | 'Payment Request' | 'Delivery Invoice' | 'Return Credit Note' | 'Payment Receipt' | 'Refund Receipt' | 'Payment Adjustment' | 'Balance Statement';
   number: string;
   issueDate: string;
   dealer: Party;
@@ -62,6 +62,17 @@ export interface InvoiceData {
   verification?: { url: string; explanation: string; heading?: string };
   /** Exact company/VAT identifiers or other supplied footer lines. Nothing is invented. */
   footerLines?: readonly string[];
+  /** New stationery overrides. Omitted for frozen classic-ledger-v1 documents. */
+  issueDateLabel?: string;
+  customerLabel?: string;
+  saleLinesHeading?: string;
+  paymentHistory?: { heading: string; countLabel?: string; emptyLabel?: string };
+  hidePaymentHistory?: boolean;
+  summaryRows?: readonly { label: string; amount: string; emphasis?: boolean }[];
+  notice?: string;
+  facts?: readonly { label: string; value: string }[];
+  showDraftVerificationNote?: boolean;
+  pendingPayments?: readonly ConfirmedPayment[];
 }
 export interface FontAssets {
   /** Base64 encoded TTF bytes (without a data-URL prefix). */

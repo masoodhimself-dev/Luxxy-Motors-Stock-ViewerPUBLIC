@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { applicableSalesTerms, currentInvoiceBranding, normaliseFullSalesTerms, saleWorkspaceBranding, salesTermsReviewPoints, type FullSalesTermsContent, type FullSalesTermsSettings, type FullSalesTermsVersion, type SaleWorkspaceRecord, type SalesTermsSnapshot } from '@workspace/vehicle-meta';
 import { fullSalesTermsPdfBytes } from '@workspace/vehicle-meta/full-sales-terms-pdf';
 import { embedInvoiceLogoAsset } from './invoice-logo-assets';
+import { assertSaleReviewContext } from './sale-review-context';
 import { shoreDriveTermsDraft } from './shore-drive-terms-draft';
 
 type Query = { query: (sql: string, values?: any[]) => Promise<{ rows: any[] }> };
@@ -69,11 +70,13 @@ export class FullSalesTermsStore {
     return this.transaction(async client => {
       const existing = (await client.query('SELECT id,request_hash,snapshot,created_at FROM sale_terms_documents WHERE dealer_id=$1 AND request_id=$2::uuid', [this.dealerId, input.requestId])).rows[0];
       if (existing) { if (existing.request_hash !== fingerprint) throw new SalesTermsError('This request was already used for different terms. Reload before continuing.', 409); return { ...existing, replayed: true }; }
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`sale-workspace:${this.dealerId}`]);
       // Share the sale row lock with every other sales mutation before freezing the customer and vehicle.
       const record = (await client.query('SELECT state FROM sale_workspace WHERE dealer_id=$1 AND id=$2::uuid FOR UPDATE', [this.dealerId, saleId])).rows[0]?.state as SaleWorkspaceRecord | undefined;
       if (!record) throw new SalesTermsError('Sale not found.', 404);
       if (record.revision !== input.expectedSaleRevision) throw new SalesTermsError('The sale changed. Review it before issuing these terms.', 409);
-      if (record.finalReview?.status !== 'passed' || record.finalReview.reviewedRevision !== record.revision) throw new SalesTermsError('Run the final checks for this saved sale before issuing its terms.', 409);
+      try { await assertSaleReviewContext(client, this.dealerId, record); }
+      catch (error) { throw new SalesTermsError('Run the final checks or record a staff override for this saved sale before issuing its terms.', 409); }
       const settings = await this.read(client), published = settings.published;
       if (!published || published.id !== input.termsVersionId) throw new SalesTermsError('The dealership terms changed. Review the current version.', 409);
       if (!record.draft.customer.trim() || !record.draft.vehicle.trim() || !record.draft.registration.trim()) throw new SalesTermsError('Add the customer, vehicle and registration before issuing the terms.');

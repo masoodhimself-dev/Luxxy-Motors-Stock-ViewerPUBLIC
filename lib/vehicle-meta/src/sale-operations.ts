@@ -35,12 +35,32 @@ export type SaleFinalReview = {
   id: string;
   checkedAt: string;
   reviewedRevision: number;
-  status: "passed" | "attention" | "unavailable";
+  status: "passed" | "attention" | "unavailable" | "overridden";
   issues: SaleReviewIssue[];
   model?: string;
   summary: string;
   inputTokens?: number;
   outputTokens?: number;
+  /** Binds non-sale facts (vehicle, terms and delivery evidence) to the check. */
+  contextHash?: string;
+  override?: { actor: string; reason: string; at: string; ignoredReview?: Pick<SaleFinalReview, 'id' | 'status' | 'summary' | 'issues' | 'model' | 'checkedAt'> };
+};
+export type SaleReplacementProposal = {
+  replacementVehicleId: string;
+  replacementPrice: string;
+  agreedCredit: string;
+  reason: string;
+  condition: string;
+  mileage: number;
+  financeConfirmed: true;
+  acknowledge: true;
+};
+export type SaleReplacementReview = SaleFinalReview & {
+  proposalKey: string;
+  proposal: SaleReplacementProposal;
+  /** Retry identity is retained with the proposal, never used as customer access. */
+  requestId: string;
+  requestFingerprint: string;
 };
 export const saleMoney = (pence: number) =>
   new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(
@@ -113,6 +133,7 @@ export function operationDocument(
     id: context.nextId(),
     number: context.nextNumber(type),
     type,
+    ...(['invoice', 'statement', 'receipt', 'payment-request', 'credit-note', 'delivery-invoice'].includes(type) ? { templateVersion: 'sales-workspace-v2' as const } : {}),
     title,
     issuedAt: context.now,
     issuedBy: context.actor,
@@ -201,6 +222,7 @@ export function requestSalePayment(
     "Payment request",
     `${label} requested: ${saleMoney(amountPence)}\nPayment reference: ${record.reference}\nDue date: ${dueDate}\n${note ? note + "\n" : ""}\nThis is a request for payment. It is not an invoice or confirmation that money has been received.\n${context.branding.invoiceSettings?.paymentInstructions || "Contact the dealership for payment instructions."}`,
   );
+  document.transaction = { kind: 'payment-request', requestKind: kind, amountPence, dueDate, paymentReference: record.reference, saleReference: record.reference, ...(note ? { note } : {}) };
   const request: SalePaymentRequest = {
     id: context.nextId(),
     documentId: document.id,
@@ -278,6 +300,7 @@ export function salePaymentRequestAvailable(
 }
 export function saleDeterministicReview(
   record: SaleWorkspaceRecord,
+  options: { allowCustomerCredit?: boolean } = {},
 ): SaleReviewIssue[] {
   const issues: SaleReviewIssue[] = [],
     d = record.draft,
@@ -355,12 +378,26 @@ export function saleDeterministicReview(
     if (reversed > original.amountPence)
       error("payments", "Refunds exceed the original payment.");
   }
+  // Issued snapshots are immutable, so later payments must not be compared
+  // against an old balance. Check the arithmetic inside each saved snapshot.
+  for (const document of record.documents) {
+    if (!['invoice', 'statement', 'receipt', 'payment-request', 'credit-note', 'delivery-invoice'].includes(document.type)) continue;
+    const snapshot = document.snapshot;
+    if (!snapshot?.draft || !Array.isArray(snapshot.payments) || !snapshot.totals) {
+      error('invoices', 'An issued financial document has an incomplete saved snapshot. Review the original paperwork.');
+      continue;
+    }
+    const calculated = saleWorkspaceTotals(snapshot.draft, snapshot.payments);
+    if (Object.entries(calculated).some(([key, value]) => !Number.isSafeInteger(value) || snapshot.totals[key as keyof typeof calculated] !== value) || document.balanceAtIssue !== calculated.balance) {
+      error('invoices', 'An issued document’s saved amounts do not match its original ledger. Review the original paperwork and correction history.');
+    }
+  }
   if (totals.pending > 0)
     warn(
       "payments",
       `${saleMoney(totals.pending)} is awaiting confirmation and has not reduced the balance.`,
     );
-  if (totals.balance < 0)
+  if (totals.balance < 0 && !options.allowCustomerCredit)
     error(
       "payments",
       `${saleMoney(-totals.balance)} is customer credit. Record its refund or agreed allocation before issuing the final invoice.`,
@@ -391,7 +428,7 @@ export function saleDeterministicReview(
 }
 export function finalReviewCurrent(sale: SaleWorkspaceRecord) {
   return (
-    sale.finalReview?.status === "passed" &&
+    (sale.finalReview?.status === "passed" || sale.finalReview?.status === "overridden") &&
     sale.finalReview.reviewedRevision === sale.revision
   );
 }
@@ -495,6 +532,11 @@ export function returnAndReplaceSale(
     at: context.now,
     actor: context.actor,
   };
+  const earlierLinks = [...(current.returnReplacementHistory ?? []), ...(current.returnReplacement ? [clone(current.returnReplacement)] : [])];
+  if (earlierLinks.length) {
+    returned.returnReplacementHistory = clone(earlierLinks);
+    replacement.returnReplacementHistory = clone(earlierLinks);
+  }
   returned.returnReplacement = {
     ...common,
     otherSaleId: replacement.id,
@@ -526,6 +568,7 @@ export function returnAndReplaceSale(
     "Return credit note",
     `Vehicle returned: ${current.draft.vehicle} (${current.draft.registration})\nAgreed credit: ${saleMoney(amount)}\nCredit transferred to replacement sale ${replacement.reference}. No cash refund recorded.\nReason: ${reason}\nReturned mileage: ${input.mileage}\nCondition: ${condition}`,
   );
+  creditDocument.transaction = { kind: 'return-credit', amountPence: amount, originalSaleReference: current.reference, replacementSaleReference: replacement.reference, originalInvoiceReferences: current.documents.filter(document => document.type === 'invoice').map(document => document.number), reason, condition, mileage: Number(input.mileage) };
   finishSaleOperation(
     returned,
     context,

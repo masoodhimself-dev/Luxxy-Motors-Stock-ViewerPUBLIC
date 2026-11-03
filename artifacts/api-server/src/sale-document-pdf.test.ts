@@ -7,7 +7,11 @@ import { jsPDF } from 'jspdf';
 import { saleDocumentPdfBytes } from '@workspace/vehicle-meta/sale-document-pdf';
 import { compactInvoicePdf } from '../../../lib/vehicle-meta/src/legacy-compact-invoice-pdf';
 import { createSaleWorkspace, changeSaleWorkspace, defaultInvoiceSettings, invoiceBranding, invoicePalette, saleWorkspaceTotals, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceDocument, type SaleWorkspacePayment } from '@workspace/vehicle-meta';
-import { saleDocumentPdf } from './lib/sale-document-pdf';
+import { saleDocumentPdf as renderSaleDocumentPdf } from './lib/sale-document-pdf';
+// The original regression cases exercise frozen historic snapshots. New v2
+// scenarios below call renderSaleDocumentPdf with the explicit new marker.
+const saleDocumentPdf = (document: SaleWorkspaceDocument) => renderSaleDocumentPdf({ ...document, templateVersion: undefined });
+import { salesDocumentPresentation } from '../../../lib/vehicle-meta/src/sales-document-presentation';
 const draft: SaleWorkspaceDraft = { id: 'draft-test', customer: 'Jamie Taylor', email: '', phone: '', address: '12 Station Road, London', vehicleId: 'test-car', vehicle: '2018 Touring Estate', registration: 'AB18 XYZ', price: '12000', partExchange: false, pxRegistration: '', pxDescription: '', pxValue: '', deposit: '', paymentMethod: '', notes: '', collection: '', preparation: false, documents: false, handover: false, adjustments: [{ description: 'Agreed delivery', amount: '100', kind: 'fee' }], exchanges: [] };
 let id = 0;
 const context: SaleWorkspaceContext = { now: '2026-10-10T10:00:00.000Z', actor: 'Test staff', nextId: () => `id-${++id}`, nextNumber: type => `${type}-${++id}`, branding: { invoiceSettings: { ...defaultInvoiceSettings }, identity: { name: 'Northfield Motors', logoText: 'NORTHFIELD', logoAsset: '' }, contact: { phone: '', email: '' }, address: { street: '24 Station Road', city: 'London', region: '', postcode: '' }, legal: { companyName: '', companyNumber: '', vatNumber: '' }, presentation: { linkColour: '#215a7e' } }, vehicle: { year: 2018, fuel: 'Petrol', transmission: 'Automatic', mileage: 42000 } };
@@ -129,7 +133,7 @@ test('branded PDF is deterministic, A4 and contains issued totals and page refer
   const text = bytes.toString('latin1');
   assert.match(readablePdfText(text), /Northfield Motors/); assert.match(readablePdfText(text), /£12,100.00/); assert.match(readablePdfText(text), /(?:\b1\s*\/\s*1\b|Page 1 of 1)/); const box = text.match(/MediaBox \[0 0 ([\d.]+) ([\d.]+)\]/); assert.ok(box); assert.ok(Math.abs(Number(box[1]) - 595.28) < .01); assert.ok(Math.abs(Number(box[2]) - 841.89) < .01);
   assert.doesNotMatch(readablePdfText(text), /Issued document|GBP|Payments at issue|draft-test|Separate receipts record payments/);
-  const sameRenderer = saleDocumentPdfBytes(result.document, { fileId: createHash('sha256').update(result.document.id).digest('hex').slice(0, 32) });
+  const sameRenderer = saleDocumentPdfBytes({ ...result.document, templateVersion: undefined }, { fileId: createHash('sha256').update(result.document.id).digest('hex').slice(0, 32) });
   assert.deepEqual(bytes, Buffer.from(sameRenderer));
   if (process.env.LUXXY_PDF_SAMPLE_PATH) {
     const exampleDraft = { ...result.document.snapshot.draft, vehicle: '2018 BMW 320i M Sport Touring', customer: 'Jamie Taylor', address: '12 Example Close\nLondon', email: 'jamie@example.test', phone: '07700 900123',
@@ -209,7 +213,7 @@ test('drafts are identified without claiming an empty draft is paid, and ink sav
   const result = changeSaleWorkspace(sale, { action: 'document', type: 'invoice' }, { expectedRevision: sale.revision, requestId: 'draft-design-invoice' }, context);
   assert.ok(result.document);
   const empty = { ...result.document, balanceAtIssue: 0, snapshot: { ...result.document.snapshot, totals: { ...result.document.snapshot.totals, totalDue: 0, confirmedPaid: 0 } } };
-  const draftPdf = Buffer.from(saleDocumentPdfBytes(empty, { draft: true })).toString('latin1');
+  const draftPdf = Buffer.from(saleDocumentPdfBytes({ ...empty, templateVersion: undefined }, { draft: true })).toString('latin1');
   assert.match(readablePdfText(draftPdf), /Draft/i);
   assert.doesNotMatch(readablePdfText(draftPdf), /Paid in full|ISSUED ON/);
   const { defaultInvoiceSettings, invoiceBranding } = await import('@workspace/vehicle-meta');
@@ -703,4 +707,113 @@ test('Classic ledger keeps an ordinary rich vehicle heading, plate, photo and fa
     assert.deepEqual(imagePages, [heading.page], 'The car photo is drawn exactly on its vehicle heading page');
   }
   assert.ok(observedVehiclePages.size > 1, 'The eight address heights exercise vehicle blocks before and after an A4 page break');
+});
+
+function saveV2Sample(name: string, document: SaleWorkspaceDocument) {
+  if (!process.env.SALES_V2_DOCUMENT_SAMPLE_DIR) return;
+  mkdirSync(process.env.SALES_V2_DOCUMENT_SAMPLE_DIR, { recursive: true });
+  writeFileSync(`${process.env.SALES_V2_DOCUMENT_SAMPLE_DIR}/${name}.pdf`, renderSaleDocumentPdf(document));
+}
+
+function workspaceV2Document(): SaleWorkspaceDocument {
+  const document = ledgerInvoiceFixture(0);
+  if (process.env.SALES_V2_DOCUMENT_LOGO) document.snapshot.branding.identity = { ...document.snapshot.branding.identity, name: 'Multi-Choice Motors', logoText: 'MULTICHOICE MOTORS', logoAsset: 'data:image/png;base64,' + readFileSync(process.env.SALES_V2_DOCUMENT_LOGO).toString('base64') };
+  document.templateVersion = 'sales-workspace-v2';
+  document.snapshot.draft.price = '10000';
+  document.snapshot.draft.deliveryCharge = '200';
+  document.snapshot.draft.adjustments = [];
+  document.snapshot.branding.invoiceSettings!.paymentInstructions = 'Please quote your sale reference when making payment.';
+  document.snapshot.payments = [{ id: 'new-deposit', amount: '500', amountPence: 50000, signedAmountPence: 50000, kind: 'deposit', status: 'confirmed', date: '2026-11-03', method: 'Bank transfer', reference: 'DEPOSIT-REF', recordedAt: context.now, recordedBy: 'Private staff' }];
+  document.snapshot.totals = saleWorkspaceTotals(document.snapshot.draft, document.snapshot.payments);
+  document.balanceAtIssue = document.snapshot.totals.balance;
+  document.issuedAt = '2026-11-03T15:00:00Z';
+  return document;
+}
+
+test('v2 invoice reconciles first-class delivery and deposit with the frozen original balance', () => {
+  const document = workspaceV2Document(), before = JSON.stringify(document);
+  const text = renderSaleDocumentPdf(document).toString('latin1'), readable = readablePdfText(text);
+  for (const expected of ['Delivery', '£200.00', '£10,200.00', '£500.00', '£9,700.00', 'Cash payments / refunds']) assert.ok(readable.includes(expected), expected);
+  assertTextOnA4(text); assertRowsDoNotCollide(text); assert.equal(pageCount(text), 1);
+  assert.equal(JSON.stringify(document), before);
+  saveV2Sample('v2-sales-invoice', document);
+  const afterPayment = structuredClone(document);
+  afterPayment.snapshot.payments.push({ ...afterPayment.snapshot.payments[0], id: 'later', amountPence: 970000, signedAmountPence: 970000, amount: '9700' });
+  afterPayment.snapshot.totals = saleWorkspaceTotals(afterPayment.snapshot.draft, afterPayment.snapshot.payments);
+  afterPayment.balanceAtIssue = 0;
+  assert.deepEqual(renderSaleDocumentPdf(document), renderSaleDocumentPdf(JSON.parse(before)), 'Later state cannot rewrite original issued bytes');
+});
+
+test('v2 payment request prints amount, due date and reference without claiming receipt or charging the car', () => {
+  const document = workspaceV2Document();
+  document.type = 'payment-request'; document.title = 'Payment request'; document.number = 'REQ-2026-0042';
+  document.transaction = { kind: 'payment-request', requestKind: 'deposit', amountPence: 50000, dueDate: '2026-11-10', paymentReference: 'SALE-2026-0042', saleReference: 'SALE-2026-0042', note: 'Please use the reference above.' };
+  const readable = readablePdfText(renderSaleDocumentPdf(document).toString('latin1'));
+  for (const expected of ['Payment Request', '£500.00', '10 Nov 2026', 'SALE-2026-0042', 'not a tax invoice or confirmation']) assert.ok(readable.includes(expected), expected);
+  assert.doesNotMatch(readable, /Vehicle price|DEPOSIT-REF|£10,200.00|Payments received|No balance outstanding/);
+  const text = renderSaleDocumentPdf(document).toString('latin1'); assertTextOnA4(text); assertRowsDoNotCollide(text); assert.equal(pageCount(text), 1);
+  saveV2Sample('v2-payment-request', document);
+});
+
+test('v2 replacement invoice separates transferred credit from cash and exposes the cheaper-car refund', () => {
+  const document = workspaceV2Document();
+  document.snapshot.draft.price = '8500'; document.snapshot.draft.deliveryCharge = '';
+  document.snapshot.payments = [];
+  document.snapshot.draft.creditEntries = [{ id: 'transfer', sourceSaleId: 'original', reference: 'SALE-ORIGINAL', signedAmountPence: 1000000, at: document.issuedAt }];
+  document.snapshot.totals = saleWorkspaceTotals(document.snapshot.draft, []); document.balanceAtIssue = document.snapshot.totals.balance;
+  const data = salesDocumentPresentation(document);
+  assert.deepEqual(data.summaryRows, [{ label: 'Sale total', amount: '£8,500.00' }, { label: 'Cash payments / refunds', amount: '£0.00' }, { label: 'Transferred credit (net)', amount: '£10,000.00' }, { label: 'Refund / credit due', amount: '£1,500.00', emphasis: true }]);
+  assert.equal(data.paymentHistory?.countLabel, '0 payment entries / 1 credit entry');
+  const text = renderSaleDocumentPdf(document).toString('latin1'), readable = readablePdfText(text);
+  for (const expected of ['£8,500.00', '£10,000.00', '£1,500.00', 'Credit from SALE-ORIGINAL', 'Credit transfer']) assert.ok(readable.includes(expected), expected);
+  assert.doesNotMatch(readable, /1 confirmed payments|Payments received|Paid in full/);
+  assertTextOnA4(text); assertRowsDoNotCollide(text); saveV2Sample('v2-replacement-credit', document);
+  const payment: SaleWorkspacePayment = { id: 'refund', amount: '1500', amountPence: 150000, signedAmountPence: -150000, date: '2026-11-03', method: 'Bank transfer', kind: 'refund', status: 'confirmed', reference: 'SALE-ORIGINAL', recordedBy: '', recordedAt: document.issuedAt, reason: 'Refund of replacement credit' };
+  document.snapshot.payments = [payment]; document.snapshot.totals = saleWorkspaceTotals(document.snapshot.draft, [payment]); document.balanceAtIssue = document.snapshot.totals.balance;
+  document.type = 'receipt'; document.title = 'Credit refund receipt'; document.paymentId = payment.id; document.paymentAmountPence = payment.signedAmountPence;
+  document.number = 'RCP-2026-0042';
+  const receipt = renderSaleDocumentPdf(document).toString('latin1'), receiptText = readablePdfText(receipt);
+  assert.equal(document.balanceAtIssue, 0); assert.match(receiptText, /Refund Receipt/); assert.match(receiptText, /Amount refunded/); assert.match(receiptText, /-£1,500.00/); assert.doesNotMatch(receiptText, /Amount received|Payment received/);
+  assertTextOnA4(receipt); assertRowsDoNotCollide(receipt); saveV2Sample('v2-credit-refund-receipt', document);
+});
+
+test('v2 return credit and later delivery documents charge or credit only their own frozen amount', () => {
+  const original = workspaceV2Document(), before = renderSaleDocumentPdf(original);
+  const credit = structuredClone(original);
+  credit.type = 'credit-note'; credit.title = 'Return credit note'; credit.verification = undefined;
+  credit.number = 'CN-2026-0042';
+  credit.transaction = { kind: 'return-credit', amountPence: 1000000, originalSaleReference: 'SALE-ORIGINAL', replacementSaleReference: 'SALE-REPLACEMENT', originalInvoiceReferences: [original.number], reason: 'Replacement agreed', condition: 'Returned in recorded condition', mileage: 22500 };
+  const creditPdf = renderSaleDocumentPdf(credit).toString('latin1'), creditText = readablePdfText(creditPdf);
+  for (const expected of ['Return Credit Note', '£10,000.00', 'SALE-REPLACEMENT', 'Credit transferred - no cash refund', 'Cash refund recorded']) assert.ok(creditText.includes(expected), expected);
+  assert.doesNotMatch(creditText, /Vehicle price|DEPOSIT-REF|£10,200.00/); assertTextOnA4(creditPdf); assertRowsDoNotCollide(creditPdf); saveV2Sample('v2-return-credit-note', credit);
+  const delivery = structuredClone(original);
+  delivery.type = 'delivery-invoice'; delivery.title = 'Delivery invoice'; delivery.verification = undefined;
+  delivery.number = 'DEL-INV-2026-0042';
+  delivery.transaction = { kind: 'delivery-invoice', amountPence: 20000, saleReference: 'SALE-ORIGINAL', invoiceReferences: [original.number], deliveryAddress: '12 Station Road, London', previousDeliveryPence: 0, totalDeliveryPence: 20000 };
+  const deliveryPdf = renderSaleDocumentPdf(delivery).toString('latin1'), deliveryText = readablePdfText(deliveryPdf);
+  assert.match(deliveryText, /Delivery Invoice/); assert.match(deliveryText, /£200.00/); assert.doesNotMatch(deliveryText, /Vehicle price|DEPOSIT-REF|£10,200.00|£10,000.00|Payments received/);
+  assertTextOnA4(deliveryPdf); assertRowsDoNotCollide(deliveryPdf); saveV2Sample('v2-delivery-invoice', delivery);
+  assert.deepEqual(renderSaleDocumentPdf(original), before, 'Linked documents never alter the vehicle invoice');
+});
+
+test('v2 statements retain pending references separately and never deduct unconfirmed money', () => {
+  const document = workspaceV2Document(); document.type = 'statement'; document.title = 'Balance statement';
+  document.snapshot.payments.push({ ...document.snapshot.payments[0], id: 'pending', status: 'pending', reference: 'AWAITING-REF', amount: '100', amountPence: 10000, signedAmountPence: 10000 });
+  document.snapshot.totals = saleWorkspaceTotals(document.snapshot.draft, document.snapshot.payments); document.balanceAtIssue = document.snapshot.totals.balance;
+  const data = salesDocumentPresentation(document), text = renderSaleDocumentPdf(document).toString('latin1'), readable = readablePdfText(text);
+  assert.equal(data.pendingPayments?.[0].description, 'Deposit / AWAITING-REF');
+  assert.equal(data.totals.paymentsReceived, '£500.00'); assert.equal(data.totals.balanceRemaining, '£9,700.00');
+  assert.match(readable, /PENDING PAYMENTS - NOT DEDUCTED/); assert.match(readable, /AWAITING-REF/); assert.match(readable, /£9,700.00/);
+  assertTextOnA4(text); assertRowsDoNotCollide(text);
+});
+
+test('marked handover and reservation documents retain their own wording and signature renderer', () => {
+  for (const type of ['handover', 'reservation'] as const) {
+    const document = workspaceV2Document(); document.type = type; document.title = type === 'handover' ? 'Vehicle handover' : 'Reservation agreement';
+    document.content = `Approved ${type} wording retained in full.`; document.verification = undefined;
+    const text = renderSaleDocumentPdf(document).toString('latin1'), readable = readablePdfText(text);
+    assert.match(readable, new RegExp(`Approved ${type} wording retained in full`)); assert.match(readable, /Customer signature/); assert.match(readable, /Dealer signature/);
+    assert.doesNotMatch(readable, /Sales Invoice|Vehicle price/); assertTextOnA4(text); assertRowsDoNotCollide(text);
+    assert.throws(() => salesDocumentPresentation(document), /dedicated renderer/);
+  }
 });

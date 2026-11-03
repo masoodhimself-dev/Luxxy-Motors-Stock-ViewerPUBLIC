@@ -24,6 +24,8 @@ import {
 import {
   saleOperation as persistedSaleOperation,
   runSaleFinalReview,
+  runSaleReplacementReview,
+  overrideSaleReview,
   saleTokenHash,
 } from "./lib/sale-operations-store";
 import { engine } from "./test/tenant-test-db";
@@ -146,6 +148,8 @@ test("payment requests are documents, never receipts, payments or reservations",
     );
   assert.deepEqual(original, before);
   assert.equal(mutation.document.type, "payment-request");
+  assert.equal(mutation.document.templateVersion, 'sales-workspace-v2');
+  assert.deepEqual(mutation.document.transaction, { kind: 'payment-request', requestKind: 'deposit', amountPence: 50000, dueDate: '2026-11-10', paymentReference: original.reference, saleReference: original.reference, note: 'Agreed reservation deposit' });
   assert.equal(mutation.sale.payments.length, 0);
   assert.equal(mutation.sale.lifecycle, undefined);
   assert.equal(
@@ -390,6 +394,8 @@ for (const [replacementPrice, expectedBalance] of [
     );
     assert.equal(original.returnReplacement, undefined);
     assert.equal(mutation.creditDocument.type, "credit-note");
+    assert.equal(mutation.creditDocument.templateVersion, 'sales-workspace-v2');
+    assert.equal(mutation.creditDocument.transaction?.kind, 'return-credit');
     assert.equal(mutation.replacement.lifecycle?.status, "reserved");
   });
 test("return credit cannot bypass outstanding funds, unresolved finance or part-exchange property", () => {
@@ -543,6 +549,35 @@ test("final checks reject duplicate credit transfers and incorrect refund signs,
     saleDeterministicReview(duplicate).some((i) => i.severity === "error"),
     "Duplicate transfer ID must be rejected deterministically",
   );
+});
+
+test('financial checks validate frozen document arithmetic without comparing old balances to later payments or delivery', () => {
+  const original = paid();
+  assert.equal(saleDeterministicReview(original).filter(issue => issue.field === 'invoices').length, 0);
+  const changed = structuredClone(original);
+  changed.draft.deliveryCharge = '200';
+  changed.draft.fulfilment!.method = 'delivery';
+  changed.draft.fulfilment!.address = '1 Example Road';
+  assert.equal(saleDeterministicReview(changed).filter(issue => issue.field === 'invoices').length, 0, 'A later delivery charge cannot rewrite or invalidate historical snapshot arithmetic');
+  const corrupted = structuredClone(original);
+  corrupted.documents[0].snapshot.totals.balance += 1;
+  assert.ok(saleDeterministicReview(corrupted).some(issue => issue.field === 'invoices' && /original ledger/.test(issue.message)));
+  const wrongBalance = structuredClone(original);
+  wrongBalance.documents[0].balanceAtIssue += 1;
+  assert.ok(saleDeterministicReview(wrongBalance).some(issue => issue.field === 'invoices' && /original ledger/.test(issue.message)));
+});
+
+test('successive replacements preserve earlier links and conserve credit without inventing cash', () => {
+  const first = returnAndReplaceSale(paid(), returnInput('10000'), context(), 'SALE-1002');
+  first.replacement.completedAt = context().now;
+  first.replacement.lifecycle!.status = 'sold';
+  const next = returnAndReplaceSale(first.replacement, returnInput('8500'), context(), 'SALE-1003');
+  assert.equal(next.returned.payments.length, 0);
+  assert.equal(next.replacement.payments.length, 0);
+  assert.equal(next.returned.returnReplacementHistory?.[0].otherSaleId, first.returned.id);
+  assert.equal(next.replacement.returnReplacementHistory?.[0].otherSaleId, first.returned.id);
+  assert.equal(saleWorkspaceTotals(next.returned.draft, next.returned.payments).balance, 0);
+  assert.equal(saleWorkspaceTotals(next.replacement.draft, next.replacement.payments).balance, -150000);
 });
 
 const dealer = (id: string) => ({
@@ -832,6 +867,9 @@ test("stored operations enforce tenant/revision boundaries, preserve later deliv
         context().now,
       ],
     );
+    const pendingEnquiry = randomUUID(), contactedEnquiry = randomUUID();
+    for (const enquiryId of [pendingEnquiry, contactedEnquiry]) await engine.query("INSERT INTO enquiries(id,dealer_id,type,customer_name,message) VALUES($1,$2,'general','Fictional interested buyer','Earlier vehicle enquiry')",[enquiryId,a.dealerId]);
+    for (const [enquiryId,status] of [[pendingEnquiry,'pending'],[contactedEnquiry,'contacted']] as const) await engine.query("INSERT INTO sold_vehicle_follow_ups(dealer_id,sale_id,vehicle_id,enquiry_id,related_enquiry_ids,kind,status,updated_by) VALUES($1,$2,$3,$4,$5::jsonb,'interest',$6,'Staff A')",[a.dealerId,original.id,oldId,enquiryId,JSON.stringify([enquiryId]),status]);
     const swap = {
       action: "return-replace",
       requestId: randomUUID(),
@@ -851,7 +889,7 @@ test("stored operations enforce tenant/revision boundaries, preserve later deliv
         error instanceof Error &&
         "status" in error &&
         error.status === 409 &&
-        /Run final checks/.test(error.message),
+        /Check the proposed/.test(error.message),
     );
     assert.equal(
       (
@@ -873,10 +911,22 @@ test("stored operations enforce tenant/revision boundaries, preserve later deliv
     );
     assert.equal(originalChecked.review?.status, "passed");
     swap.expectedRevision = originalChecked.sale.revision;
+    await assert.rejects(within(() => saleOperation(original.id, swap, 'Staff A')), /Check the proposed/, 'Checking the original sale alone must never approve a different proposed exchange');
+    const exchangeCheckInput = { ...swap, requestId: randomUUID() };
+    const proposed = await within(() => runSaleReplacementReview(original.id, exchangeCheckInput, 'Staff A', ai as typeof fetch));
+    assert.equal(proposed.review.status, 'passed');
+    assert.match(proposed.proposalKey, /^[a-f0-9]{64}$/);
+    assert.equal((await within(() => runSaleReplacementReview(original.id, exchangeCheckInput, 'Staff A', ai as typeof fetch))).replayed, true, 'A lost review response reuses its result without another model call');
+    swap.expectedRevision = proposed.sale.revision;
+    Object.assign(swap, { proposalKey: proposed.proposalKey });
+    await assert.rejects(within(() => saleOperation(original.id, { ...swap, requestId: randomUUID(), replacementPrice: '8500.01' }, 'Staff A')), /Check the proposed/, 'Changing the proposed price must invalidate the check');
     const swapped = await within(() =>
       saleOperation(original.id, swap, "Staff A"),
     );
     assert.ok(swapped.replacementId);
+    const followUps = (await engine.query<{enquiry_id:string;status:string;cancelled_at:unknown;note:string}>("SELECT enquiry_id,status,cancelled_at,note FROM sold_vehicle_follow_ups WHERE dealer_id=$1 AND sale_id=$2",[a.dealerId,original.id])).rows;
+    assert.equal(followUps.find(row=>row.enquiry_id===pendingEnquiry)?.status,'not_needed'); assert.equal(followUps.find(row=>row.enquiry_id===pendingEnquiry)?.cancelled_at, null, 'Closing a sold follow-up must not claim an appointment was cancelled');
+    assert.equal(followUps.find(row=>row.enquiry_id===contactedEnquiry)?.status,'contacted','Already-contacted history must stay intact');
     const replacement = (
       await engine.query<{ state: SaleWorkspaceRecord }>(
         "SELECT state FROM sale_workspace WHERE id=$1",
@@ -978,6 +1028,60 @@ test("stored operations enforce tenant/revision boundaries, preserve later deliv
       ),
       /refund exceeds/,
     );
+    for (const [price, expectedBalance] of [['12000', 200000], ['10000', 0], ['9000', -100000]] as const) {
+      const original = paid(); original.reference = `MATRIX-${price}`;
+      const candidateId = randomUUID();
+      await engine.query("INSERT INTO vehicles(id,dealer_id,source,advert_id,title,source_price,plate,inventory_status,audit_metadata) VALUES($1,$2,'cazoo',$3,'Original car',10000,'AB20 XYZ','sold',$4::jsonb),($5,$2,'cazoo',$6,'Replacement car',$7,'RE20 ABC','available','{}'::jsonb)", [original.draft.vehicleId, a.dealerId, `old-${price}`, JSON.stringify({saleWorkspaceId:original.id}), candidateId, `candidate-${price}`, Number(price)]);
+      await engine.query('INSERT INTO sale_workspace(id,dealer_id,reference,revision,state,created_at,updated_at) VALUES($1,$2,$3,$4,$5::jsonb,$6,$6)', [original.id,a.dealerId,original.reference,original.revision,JSON.stringify(original),context().now]);
+      const proposal = { requestId: randomUUID(), expectedRevision: original.revision, replacementVehicleId: candidateId, replacementPrice: price, agreedCredit: '10000', reason: 'Agreed vehicle replacement', condition: 'Returned without further damage, both keys received.', mileage: 45000, financeConfirmed: true, acknowledge: true };
+      await assert.rejects(within(() => runSaleReplacementReview(original.id, proposal, `Matrix ${price}`, ai as typeof fetch), b), /not found/);
+      if (price === '12000') {
+        await engine.query('UPDATE vehicles SET website_title_override=$2,raw_source_data=$3::jsonb WHERE id=$1', [candidateId, 'Replacement car buyer@example.invalid', JSON.stringify({sourceExtras:{serviceHistory:'Example Buyer buyer@example.invalid +447700900123 https://private.example/' + privateToken}})]);
+        for (const change of ["source_status='missing'", "missing_count=1", "archived_at=now()"]) {
+          await engine.exec(`UPDATE vehicles SET ${change} WHERE id='${candidateId}'`);
+          await assert.rejects(within(() => runSaleReplacementReview(original.id, proposal, `Matrix ${price}`, ai as typeof fetch)), /not available/);
+          await engine.query("UPDATE vehicles SET source_status='live',missing_count=0,archived_at=NULL WHERE id=$1",[candidateId]);
+        }
+        const racing = async (...args: Parameters<typeof fetch>) => { await engine.query("UPDATE vehicles SET colour='Red' WHERE id=$1", [candidateId]); return ai(...args); };
+        await assert.rejects(within(() => runSaleReplacementReview(original.id, proposal, `Matrix ${price}`, racing as typeof fetch)), /changed during the check/);
+        const untouched = (await engine.query<{state:SaleWorkspaceRecord}>('SELECT state FROM sale_workspace WHERE id=$1',[original.id])).rows[0].state;
+        assert.equal(untouched.revision, original.revision); assert.equal(untouched.replacementReview, undefined);
+        await engine.query('UPDATE vehicles SET colour=NULL WHERE id=$1', [candidateId]);
+      }
+      const checked = price === '9000' ? await within(() => overrideSaleReview(original.id, { ...proposal, confirm: true, overrideReason: 'Manager checked the agreement and replacement personally.' }, `Matrix ${price}`, true)) : await within(() => runSaleReplacementReview(original.id, proposal, `Matrix ${price}`, ai as typeof fetch));
+      assert.equal(checked.review.status, price === '9000' ? 'overridden' : 'passed');
+      if (price === '12000') { const candidateInput = JSON.parse(reviewInputs.at(-1)!).input; assert.doesNotMatch(candidateInput,/buyer@example\.invalid|Example Buyer|447700900123|private\.example/); const facts=JSON.parse(candidateInput).proposedExchange.replacement.facts; assert.equal(Object.hasOwn(facts,'imageUrl'),false); assert.equal(Object.hasOwn(facts,'photoDataUrl'),false); }
+      assert.equal((await engine.query<{inventory_status:string}>('SELECT inventory_status FROM vehicles WHERE id=$1',[candidateId])).rows[0].inventory_status,'available','Checking does not reserve stock');
+      const command = {...proposal,action:'return-replace',requestId:randomUUID(),expectedRevision:checked.sale.revision,proposalKey:checked.proposalKey};
+      await engine.query("UPDATE vehicles SET colour='Blue' WHERE id=$1",[candidateId]);
+      await assert.rejects(within(() => saleOperation(original.id, command, `Matrix ${price}`)), /Check the proposed/);
+      await engine.query('UPDATE vehicles SET colour=NULL WHERE id=$1',[candidateId]);
+      const result = await within(() => saleOperation(original.id, command, `Matrix ${price}`));
+      const replacement = (await engine.query<{state:SaleWorkspaceRecord}>('SELECT state FROM sale_workspace WHERE id=$1',[result.replacementId])).rows[0].state;
+      assert.equal(saleWorkspaceTotals(replacement.draft,replacement.payments).balance,expectedBalance);
+      assert.equal(replacement.payments.length,0); assert.equal(result.sale.payments.length,1);
+      assert.equal(result.document?.templateVersion,'sales-workspace-v2'); assert.equal(result.document?.transaction?.kind,'return-credit');
+      assert.equal((await within(() => saleOperation(original.id, command, `Matrix ${price}`))).replacementId,result.replacementId);
+    }
+
+    const manual = create(); manual.reference = 'STAFF-OVERRIDE-TEST';
+    await engine.query('INSERT INTO sale_workspace(id,dealer_id,reference,revision,state,created_at,updated_at) VALUES($1,$2,$3,$4,$5::jsonb,$6,$6)',[manual.id,a.dealerId,manual.reference,manual.revision,JSON.stringify(manual),context().now]);
+    manual.finalReview = {id:randomUUID(),checkedAt:context().now,reviewedRevision:manual.revision,status:'attention',summary:'Check the warranty duration before continuing.',model:'fixture-luna',issues:[{field:'invoices',severity:'error',message:'Warranty wording conflicts with configured cover.'}]};
+    await engine.query('UPDATE sale_workspace SET state=$2::jsonb WHERE id=$1',[manual.id,JSON.stringify(manual)]);
+    const staffDecision = {requestId:randomUUID(),expectedRevision:manual.revision,confirm:true,reason:'Manager reviewed the figures and customer agreement.'};
+    await assert.rejects(within(()=>overrideSaleReview(manual.id,{...staffDecision,confirm:false},'Manager')),/Confirm/);
+    const manualChecked = await within(()=>overrideSaleReview(manual.id,staffDecision,'Manager'));
+    assert.equal(manualChecked.review.override?.ignoredReview?.id,manual.finalReview!.id); assert.equal(manualChecked.review.override?.ignoredReview?.summary,manual.finalReview!.summary); assert.equal(manualChecked.review.override?.ignoredReview?.model,'fixture-luna'); assert.deepEqual(manualChecked.review.override?.ignoredReview?.issues,manual.finalReview!.issues); assert.ok(manualChecked.review.issues.some(issue=>issue.message===manual.finalReview!.issues[0].message)); assert.equal(manualChecked.sale.reviewHistory?.[0].review.id,manual.finalReview!.id);
+    assert.equal(manualChecked.review.status,'overridden'); assert.equal(manualChecked.review.model,undefined); assert.equal(manualChecked.review.override?.actor,'Manager'); assert.equal(finalReviewCurrent(manualChecked.sale),true);
+    assert.equal((await within(()=>overrideSaleReview(manual.id,staffDecision,'Manager'))).replayed,true);
+    await engine.query("UPDATE sale_workspace SET state=jsonb_set(state,'{finalReview,checkedAt}',to_jsonb((now()-interval '11 seconds')::text)) WHERE id=$1",[manual.id]);
+    const laterAi = await within(()=>runSaleFinalReview(manual.id,manualChecked.sale.revision,'Manager',ai as typeof fetch));
+    assert.equal(laterAi.review?.status,'passed'); assert.ok(laterAi.sale.reviewHistory?.some(entry=>entry.review.override?.ignoredReview?.id===manual.finalReview!.id));
+
+    manual.revision=laterAi.sale.revision+1; manual.draft.price='invalid';
+    await engine.query('UPDATE sale_workspace SET revision=$2,state=$3::jsonb WHERE id=$1',[manual.id,manual.revision,JSON.stringify(manual)]);
+    await assert.rejects(within(()=>overrideSaleReview(manual.id,{...staffDecision,requestId:randomUUID(),expectedRevision:manual.revision},'Manager')),/Fix the saved deal/);
+
     // AI admission is production code too; exhausting an allowance never enables finalization.
     const ageReview = () =>
       engine.query(

@@ -54,6 +54,7 @@ import {
 import { MotHistoryPanel } from "@/components/mot-history";
 import { MakeLogo } from "@/components/make-logo";
 import { CarsMotCheckStatus, useCarsMotChecks } from "./cars-mot-checks";
+import { VehicleDeliveryEvidence } from "./vehicle-delivery-evidence";
 import {
   carInTab,
   carIssues,
@@ -800,6 +801,7 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
                     includeMot={false}
                     published={selected.staff.published}
                   />
+                  {canManage && <VehicleDeliveryEvidence key={selected.id} vehicleId={selected.id}/>}
                 </div>
                 <aside className="cars-file-sidebar">
                   {canManage && (
