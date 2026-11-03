@@ -31,6 +31,7 @@ import { trackEvent } from '@/lib/analytics';
 import { MakeLogo } from '@/components/make-logo';
 import { getMakeLogoSrc } from '@/lib/make-logo';
 import './public-vehicle-make-logo.css';
+import { RecommendedCarSummary } from './recommended-car-summary';
 
 
 
@@ -46,6 +47,8 @@ export function CarCard({
   summaryOnly = false,
   savedDetails = false,
   stockDetails = false,
+  recommendationDetails = false,
+  recommendationInclusions,
   analyticsSource = 'showroom',
 }: {
   car: Car;
@@ -58,6 +61,8 @@ export function CarCard({
   summaryOnly?: boolean;
   savedDetails?: boolean;
   stockDetails?: boolean;
+  recommendationDetails?: boolean;
+  recommendationInclusions?: string[];
   analyticsSource?: 'showroom' | 'similar_cars' | 'saved_cars';
 }) {
   const displayBadges = [...new Set([vehicleAvailability(car.inventoryStatus), ...badges])];
@@ -148,6 +153,7 @@ export function CarCard({
         'vehicle-card group flex relative',
         savedDetails && 'vehicle-card-saved-details',
         stockDetails && 'stock-details-card',
+        recommendationDetails && 'vehicle-card-recommended',
         catalogue && 'vehicle-card-catalogue',
         catalogue && isCompact && 'vehicle-card-catalogue-compact',
         isRow
@@ -252,6 +258,7 @@ export function CarCard({
         )}
       </div>
       <div className={cn('vehicle-card-details flex min-w-0 flex-1 flex-col p-4', isRow && 'md:p-6')}>
+        {recommendationDetails ? <RecommendedCarSummary car={car} onOpen={recordVehicleOpen} stretchedLink={stretchedLink} includedItems={recommendationInclusions} /> : <>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div
             className={cn(
@@ -323,6 +330,7 @@ export function CarCard({
           </>
         )}
 
+        </>}
       </div>
     </article>
   );

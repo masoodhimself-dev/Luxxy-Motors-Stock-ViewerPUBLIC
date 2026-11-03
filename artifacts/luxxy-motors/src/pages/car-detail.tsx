@@ -550,6 +550,8 @@ export default function CarDetail() {
                   key={similarCar.id}
                   car={similarCar}
                   photoControls={false}
+                  recommendationDetails
+                  recommendationInclusions={vehiclePageInclusions(similarCar, settingsLoading || settingsError ? undefined : dealerConfig.presentation)}
                   stretchedLink
                   analyticsSource="similar_cars"
                 />
