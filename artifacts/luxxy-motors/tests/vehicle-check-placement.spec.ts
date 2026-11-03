@@ -60,12 +60,14 @@ for (const dealer of ["shore", "multi"]) {
     await expect(header.getByRole("button", { name: "MOT history", exact: true })).toHaveCount(0);
     await expect(header.getByRole("button", { name: /Delivery/ })).toHaveCount(0);
     const highlights = page.locator(".vehicle-summary").getByRole("list", { name: "Vehicle highlights" });
-    await expect(highlights.getByRole("button", { name: dealer === "shore" ? "MOT not required until 05/2028" : /Long MOT/ })).toBeVisible();
+    await expect(page.locator('.vehicle-help-links').getByRole('button', { name: dealer === 'shore' ? /^First MOT due/ : /^MOT expires/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Quick answers', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Questions about this car' })).toBeVisible();
     await expect(highlights.getByRole("button", { name: "999cc engine", exact: true })).toBeVisible();
     await expect.poll(() => page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: innerWidth }))).toEqual({ width: info.project.use.viewport!.width, viewport: info.project.use.viewport!.width });
     if (process.env.VEHICLE_CHECK_PLACEMENT_OUTPUT) {
       await mkdir(process.env.VEHICLE_CHECK_PLACEMENT_OUTPUT, { recursive: true });
-      await highlights.screenshot({ path: `${process.env.VEHICLE_CHECK_PLACEMENT_OUTPUT}/${dealer}-${info.project.name}-badges.png` });
+      await page.locator('.vehicle-help-links').screenshot({ path: `${process.env.VEHICLE_CHECK_PLACEMENT_OUTPUT}/${dealer}-${info.project.name}-mot-summary.png` });
     }
     if (info.project.use.viewport!.width < 640) {
       const headerBar = page.locator('[data-site-header]');

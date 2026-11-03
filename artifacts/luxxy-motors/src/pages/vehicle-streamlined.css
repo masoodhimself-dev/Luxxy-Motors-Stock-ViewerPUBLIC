@@ -6,10 +6,14 @@
 .vehicle-page-streamlined .vehicle-specific-facts li { min-width: 0; overflow-wrap: anywhere; }
 .vehicle-page-streamlined .vehicle-specific-facts li + li::before { content: '·'; margin-right: 16px; color: hsl(var(--muted-foreground)); }
 .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-help-links { display: flex; flex-wrap: wrap; align-items: center; gap: 0 20px; }
-.vehicle-page-streamlined .vehicle-quick-answers { display: inline-flex; align-items: center; min-height: 44px; color: var(--vehicle-link); font-size: 13px; font-weight: 500; text-decoration: underline; text-underline-offset: 4px; }
+.vehicle-page-streamlined .vehicle-mot-expiry { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding-block: 8px; color: var(--vehicle-link); font-size: 13px; font-weight: 400; line-height: 1.5; text-align: left; }
+.vehicle-page-streamlined .vehicle-mot-expiry strong { font-weight: 600; }
+.vehicle-page-streamlined .vehicle-mot-expiry svg { width: 16px; height: 16px; flex: 0 0 16px; }
+.vehicle-page-streamlined .vehicle-mot-expiry:hover { text-decoration: underline; text-underline-offset: 4px; }
+.vehicle-page-streamlined .vehicle-help-links:empty { display: none; }
 .vehicle-page-streamlined .vehicle-help-links .vehicle-context-action { font-size: 13px; }
 .vehicle-page-streamlined .vehicle-help-links .vehicle-context-action svg { display: none; }
-.vehicle-page-streamlined .vehicle-quick-answers:focus-visible,
+.vehicle-page-streamlined .vehicle-mot-expiry:focus-visible,
 .vehicle-page-streamlined summary:focus-visible { outline: 2px solid var(--vehicle-link); outline-offset: 3px; }
 .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-section-nav { display: flex; flex-wrap: wrap; gap: 0 24px; padding-block: 4px; border-bottom: 1px solid hsl(var(--border)); overflow: visible; }
 .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-section-nav a { display: flex; align-items: center; justify-content: center; min-height: 48px; padding: 8px 0; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--vehicle-ink); font-weight: 500; font-size: 14px; text-align: center; }

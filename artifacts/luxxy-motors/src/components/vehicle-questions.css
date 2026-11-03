@@ -1,0 +1,9 @@
+.vehicle-questions { margin-top: 28px; padding-block: 24px 4px; border-top: 1px solid hsl(var(--border)); scroll-margin-top: calc(var(--site-header-height, 80px) + 16px); }
+.vehicle-questions .section-heading { font-size: 20px; }
+.vehicle-questions-list { margin-top: 12px; }
+.vehicle-questions-list h3 button { min-height: 52px; gap: 16px; font-family: inherit; font-size: 14px; font-weight: 500; line-height: 1.5; color: var(--vehicle-ink, hsl(var(--foreground))); }
+.vehicle-question-answer { max-width: 72ch; white-space: pre-line; font-size: 14px; line-height: 1.75; }
+.vehicle-question-link { display: inline-flex; align-items: center; min-height: 44px; margin-top: 4px; color: var(--vehicle-link, hsl(var(--primary))); text-decoration: underline; text-underline-offset: 4px; }
+.vehicle-questions-contact { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; margin-top: 12px; color: hsl(var(--muted-foreground)); font-size: 13px; line-height: 1.6; }
+.vehicle-questions-contact button { min-height: 44px; color: var(--vehicle-link, hsl(var(--primary))); font-weight: 500; text-decoration: underline; text-underline-offset: 4px; }
+.vehicle-questions :is(button, a):focus-visible { outline: 2px solid var(--vehicle-link, hsl(var(--ring))); outline-offset: 3px; border-radius: 2px; }

@@ -23,6 +23,7 @@ import { deliveryQuoteContext } from "@/lib/delivery-estimate";
 type VehicleCheckActions = {
   motHistory: MotHistory | null;
   requestMotHistory: () => void;
+  openMotHistory: (trigger: HTMLButtonElement) => void;
   motBadge: ReactNode;
   motAction: ReactNode;
   deliveryAction: ReactNode;
@@ -87,7 +88,7 @@ export function VehicleQuickChecks({
   }, [vehicleId]);
   const answerLookup = useRef<AbortController | null>(null);
   const requestMotHistory = useCallback(() => {
-    // The customer explicitly opened car answers. Load once, without polling.
+    // An explicit customer action requested the record. Load once, without polling.
     if (answerLookup.current) return;
     const controller = new AbortController(); answerLookup.current = controller;
     customFetch<{status: string; history?: MotHistory}>(`/api/vehicles/${encodeURIComponent(vehicleId)}/mot-history`, {signal:controller.signal})
@@ -173,7 +174,7 @@ export function VehicleQuickChecks({
     </Button>
   ) : null;
   return <>
-      {children({ motBadge, motAction, deliveryAction, motHistory: history, requestMotHistory })}
+      {children({ motBadge, motAction, deliveryAction, motHistory: history, requestMotHistory, openMotHistory: trigger => open('mot', trigger) })}
       <Dialog
         open={panel !== null}
         onOpenChange={(open) => {

@@ -1,4 +1,5 @@
 import { VehicleAnswers } from '@/components/vehicle-answers';
+import { vehicleEnquiryMot } from '@/lib/vehicle-enquiry-information';
 import { VehiclePhotoRequest } from '@/components/vehicle-photo-request';
 import {VehicleQuickChecks} from '@/components/vehicle-quick-checks';
 
@@ -86,12 +87,10 @@ function LedgerRow({ label, value, testId }: { label: string; value: string; tes
 
 export default function CarDetail() {
   const [shareMessage, setShareMessage] = useState('');
-  const [answersOpen, setAnswersOpen] = useState(false);
   const [enquiryExpanded, setEnquiryExpanded] = useState(false);
   const [messageRequest, setMessageRequest] = useState<{id: number; text: string; vehicleId: string}>();
   const messageSequence = useRef(0);
   const enquiryFocusFrame = useRef<number | null>(null);
-  const answersTrigger = useRef<HTMLElement | null>(null);
   // Keep identity above the gallery until the two-column layout starts.
   const isCompactLayout = useIsMobile(1100);
   const isPhoneLayout = useIsMobile(640);
@@ -103,7 +102,7 @@ export default function CarDetail() {
   const car = stock?.cars?.find((candidate) => candidate.id === params?.id);
 
   useEffect(() => {
-    setShareMessage(''); setAnswersOpen(false); setEnquiryExpanded(false); setMessageRequest(undefined);
+    setShareMessage(''); setEnquiryExpanded(false); setMessageRequest(undefined);
     return () => { cancelAnimationFrame(enquiryFocusFrame.current ?? 0); };
   }, [car?.id]);
 
@@ -111,7 +110,7 @@ export default function CarDetail() {
     if (!car?.id) return;
     const scrollToSection = () => {
       const id = window.location.hash.slice(1);
-      if (['vehicle-description-heading', 'features-heading', 'vehicle-overview-heading', 'vehicle-running-costs-heading', 'vehicle-records-heading', 'buyer-information-heading', 'vehicle-history', 'vehicle-overview-section', 'vehicle-history-section', 'vehicle-visit-delivery', 'vehicle-delivery-heading', 'vehicle-enquiry', 'vehicle-source-report-heading'].includes(id)) {
+      if (['vehicle-description-heading', 'features-heading', 'vehicle-overview-heading', 'vehicle-running-costs-heading', 'vehicle-records-heading', 'buyer-information-heading', 'vehicle-history', 'vehicle-overview-section', 'vehicle-questions', 'vehicle-history-section', 'vehicle-visit-delivery', 'vehicle-delivery-heading', 'vehicle-enquiry', 'vehicle-source-report-heading'].includes(id)) {
         if (id === 'vehicle-enquiry') setEnquiryExpanded(true);
         const target = document.getElementById(id);
         for (let parent = target?.parentElement; parent; parent = parent.parentElement) {
@@ -271,14 +270,6 @@ export default function CarDetail() {
       event.preventDefault(); openVehicleEnquiry();
     }}><CustomerEnquiry className="h-4 w-4" aria-hidden="true" />Message the showroom</a>
   );
-  const quickAnswersAction = enquiriesEnabled && (
-    <button type="button" className="vehicle-quick-answers" aria-haspopup="dialog" onClick={event => {
-      answersTrigger.current = event.currentTarget;
-      setAnswersOpen(true);
-    }}>
-      Quick answers
-    </button>
-  );
 
   const registrationDetails = registration && (
     <dl className="vehicle-registration">
@@ -287,7 +278,8 @@ export default function CarDetail() {
     </dl>
   );
   return <VehicleQuickChecks key={car.id} vehicleId={car.id} vehiclePrice={car.price} currency={car.currency} priceType={car.priceType} onEnquire={enquiriesEnabled ? openVehicleEnquiry : undefined}>
-    {({ motBadge, motAction, deliveryAction, motHistory, requestMotHistory }) => {
+    {({ motAction, deliveryAction, motHistory, requestMotHistory, openMotHistory }) => {
+  const motSummary = vehicleEnquiryMot(car, motHistory);
   const vehicleIdentity = (
     <header className={`min-w-0${isCompactLayout ? ' vehicle-compact-identity' : ''}`} data-testid="vehicle-identity">
       <p className="vehicle-availability luxxy-kicker mb-3">
@@ -356,9 +348,14 @@ export default function CarDetail() {
               ))}
             </dl>}
           {summaryFacts.length > 0 && <ul className="vehicle-specific-facts" aria-label="About this car">{summaryFacts.map(fact => <li key={fact.id}>{fact.text}</li>)}</ul>}
-          <VehicleSellingPoints car={car} motBadge={motBadge} omitMileage omitLabels={repeatedBadgeLabels} />
+          <VehicleSellingPoints car={car} omitMileage omitLabels={repeatedBadgeLabels} />
           <div className="vehicle-primary-actions vehicle-summary-main-actions">{bookingAction}{enquiryAction}</div>
-          <div className="vehicle-help-links">{quickAnswersAction}{deliveryAction}</div>
+          <div className="vehicle-help-links">
+            {motSummary && <button type="button" className="vehicle-mot-expiry" onClick={event => openMotHistory(event.currentTarget)} aria-label={`${motSummary.label} ${motSummary.value}. View MOT history`}>
+              <VehicleFactIcon label="MOT" /><span>{motSummary.label} <strong>{motSummary.value}</strong></span>
+            </button>}
+            {deliveryAction}
+          </div>
           <div className="vehicle-direct-contact" aria-label="Talk to us about this car">
             <VehicleCall car={car} />
             <VehicleWhatsApp car={car} />
@@ -431,6 +428,7 @@ export default function CarDetail() {
 
             </details>}
           </div>}
+          {enquiriesEnabled && <VehicleAnswers key={car.id} car={car} motHistory={motHistory} onAskTeam={openVehicleEnquiry} />}
           <div className="vehicle-page-chapter vehicle-equipment-chapter">
             {features.length > 0 && (
               <section
@@ -560,7 +558,6 @@ export default function CarDetail() {
           </div>
         </section>
       )}
-      {customerFeatures.enabled('publicEnquiries') && <VehicleAnswers key={car.id} car={car} motHistory={motHistory} onRequestMotHistory={requestMotHistory} open={answersOpen} onOpenChange={setAnswersOpen} onAskTeam={openVehicleEnquiry} onReturnFocus={() => { const trigger = answersTrigger.current; if (trigger?.isConnected && trigger.getClientRects().length) trigger.focus(); else document.querySelector<HTMLButtonElement>('.vehicle-quick-answers')?.focus(); }} />}
       {(getPhoneHref(dealerConfig) || enquiryAction) && <nav className="vehicle-mobile-actions" aria-label="Contact about this vehicle">
         {getPhoneHref(dealerConfig) && <VehicleCall car={car} buttonLabel="Call" />}
         {enquiryAction && <a href="#vehicle-enquiry" onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); openVehicleEnquiry(); }}><CustomerEnquiry className="h-4 w-4" aria-hidden="true" />Message</a>}
