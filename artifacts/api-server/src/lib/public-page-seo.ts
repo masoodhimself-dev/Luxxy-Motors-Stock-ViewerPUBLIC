@@ -39,7 +39,7 @@ function isNonIndexablePage(pathname: string): boolean {
     // Clerk owns its OAuth subroutes. These capability screens also validate
     // their complete URL in the page/API; route status must not reveal tokens.
     || /^\/(?:sign-in|sign-up|verify-invoice)(?:\/|$)/.test(pathname)
-    || /^\/test-drive-declaration\//.test(pathname);
+    || /^\/(?:test-drive-declaration|delivery-evidence|payment-request)\//.test(pathname);
 }
 const object = (value: unknown): ObjectValue => value && typeof value === 'object' && !Array.isArray(value) ? value as ObjectValue : {};
 const text = (value: unknown): string => typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';

@@ -26,6 +26,8 @@ const Warranty = lazy(() => import('@/pages/warranty'));
 const InvoiceVerification = lazy(() => import('@/pages/invoice-verification'));
 const Viewing = lazy(() => import("@/pages/viewing"));
 const TestDriveDeclaration = lazy(() => import('@/pages/test-drive-declaration'));
+const DeliveryEvidence = lazy(() => import('@/pages/delivery-evidence'));
+const PaymentRequest = lazy(() => import('@/pages/payment-request'));
 import './index.css';
 
 // This entry point is selected only by vite.preview.config.ts during development.
@@ -33,7 +35,7 @@ const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false 
 
 function PreviewLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  return location === '/join' || location === '/platform' || location === '/verify-invoice' || location.startsWith('/verify-invoice/') || location.startsWith('/test-drive-declaration/') ? <>{children}</> : <Layout>{children}</Layout>;
+  return location === '/join' || location === '/platform' || location === '/verify-invoice' || location.startsWith('/verify-invoice/') || location.startsWith('/test-drive-declaration/') || location.startsWith('/delivery-evidence/') || location.startsWith('/payment-request/') ? <>{children}</> : <Layout>{children}</Layout>;
 }
 
 captureInvitationToken();
@@ -64,6 +66,8 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="/verify-invoice/*?" component={InvoiceVerification}/>
                   <Route path="/viewing/:token" component={Viewing} />
                   <Route path="/test-drive-declaration/:token" component={TestDriveDeclaration}/>
+                  <Route path="/delivery-evidence/:token" component={DeliveryEvidence}/>
+                  <Route path="/payment-request/:token" component={PaymentRequest}/>
                   <Route path="/sign/:token" component={RetiredSalesPage} />
                   <Route path="/customer-details/:token" component={RetiredSalesPage} />
                   <Route component={NotFound} />

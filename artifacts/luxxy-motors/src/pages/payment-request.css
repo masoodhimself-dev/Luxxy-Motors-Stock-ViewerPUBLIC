@@ -1,0 +1,49 @@
+.customer-payment-page { min-height: 100dvh; padding: 32px 20px 48px; color: #192c38; background: #f3f7f9; font-family: var(--app-font-sans); }
+.customer-payment-shell { width: 100%; max-width: 640px; margin: 0 auto; }
+.customer-payment-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 22px; }
+.customer-payment-header > strong { font-size: 16px; }
+.customer-payment-header > span { display: inline-flex; align-items: center; gap: 6px; color: #62717d; font-size: 11px; }
+.customer-payment-card { min-width: 0; margin-bottom: 18px; padding: 28px; border: 1px solid #dce3e8; border-radius: 10px; background: #fff; }
+.customer-payment-card h1 { margin: 18px 0 12px; font-size: clamp(26px,5vw,34px); font-weight: 700; line-height: 1.2; letter-spacing: -.03em; }
+.customer-payment-card h2 { display: flex; align-items: center; gap: 9px; margin: 0 0 14px; font-size: 19px; font-weight: 650; }
+.customer-payment-card p { color: #62717d; font-size: 14px; line-height: 1.7; }
+.customer-payment-card .db-btn { min-height: 46px; border-radius: 6px; font-size: 13px; padding: 11px 16px; }
+.customer-payment-kind { display: flex; align-items: center; gap: 8px; color: #536977; font-size: 13px; font-weight: 600; }
+.customer-payment-car { display: flex; align-items: center; gap: 14px; margin: 24px 0; padding: 18px 0; border-block: 1px solid #e5eaee; }
+.customer-payment-car > svg { flex-shrink: 0; }
+.customer-payment-car > div { min-width: 0; }
+.customer-payment-car strong { display: block; margin-bottom: 9px; font-size: 18px; font-weight: 600; overflow-wrap: anywhere; }
+.customer-payment-totals { display: grid; gap: 14px; }
+.customer-payment-totals > div { display: flex; align-items: start; justify-content: space-between; gap: 20px; font-size: 13px; }
+.customer-payment-totals dt { color: #62717d; }
+.customer-payment-totals dd { font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; overflow-wrap: anywhere; }
+.customer-payment-card .customer-payment-note { margin-top: 22px; padding-top: 18px; border-top: 1px solid #e5eaee; white-space: pre-wrap; overflow-wrap: anywhere; }
+.customer-payment-instructions { white-space: pre-wrap; overflow-wrap: anywhere; color: #192c38 !important; }
+.customer-payment-reference { margin: 18px 0; }
+.customer-payment-reference strong { display: block; margin-top: 5px; color: #192c38; font-size: 17px; }
+.customer-payment-confirm { padding: 18px; border: 1px solid #dce3e8; border-radius: 7px; background: #f6f9fb; }
+.customer-payment-confirm h3 { margin: 0 0 8px; font-size: 15px; font-weight: 600; }
+.customer-payment-confirm > div { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.customer-payment-documents { display: flex; flex-wrap: wrap; gap: 10px; }
+.customer-payment-card .customer-payment-small { margin-top: 18px; font-size: 12px; }
+.customer-payment-contact { padding: 10px 6px; text-align: center; font-size: 13px; }
+.customer-payment-contact > strong, .customer-payment-contact > span { display: block; }
+.customer-payment-contact > span { margin-top: 6px; color: #62717d; }
+.customer-payment-contact > div { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px 20px; margin-top: 16px; }
+.customer-payment-contact a { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+.customer-payment-notice, .customer-payment-error, .customer-payment-pending { display: flex; align-items: start; gap: 9px; padding: 16px; margin-bottom: 18px; border: 1px solid #bfdfcf; border-radius: 7px; color: #14634a; background: #edf8f2; font-size: 13px; line-height: 1.6; }
+.customer-payment-notice > svg, .customer-payment-pending > svg { flex-shrink: 0; margin-top: 2px; }
+.customer-payment-error { color: #a5303e; border-color: #edc5cb; background: #fff0f1; }
+.customer-payment-card .customer-payment-pending { margin: 0; color: #87510b; border-color: #ead2a5; background: #fff6e5; }
+.customer-payment-home { display: inline-flex; margin-left: 16px; min-height: 44px; align-items: center; font-size: 13px; text-decoration: underline; }
+@media (max-width: 540px) {
+  .customer-payment-page { padding: 20px 12px 32px; }
+  .customer-payment-header { padding-inline: 5px; margin-bottom: 18px; }
+  .customer-payment-header > strong { font-size: 15px; }
+  .customer-payment-card { padding: 22px 18px; }
+  .customer-payment-card h1 { font-size: 28px; }
+  .customer-payment-totals > div { gap: 14px; font-size: 12px; }
+  .customer-payment-documents .db-btn { width: 100%; }
+  .customer-payment-confirm { padding: 14px; }
+  .customer-payment-confirm > div { flex-direction: column; }
+}

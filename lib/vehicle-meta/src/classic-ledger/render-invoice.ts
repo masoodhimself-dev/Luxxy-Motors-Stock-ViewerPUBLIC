@@ -279,7 +279,7 @@ export function renderInvoice(data: InvoiceData, options: RenderOptions) {
   table('Payment history', L.paymentColumns, ['Date', 'Description', 'Method', 'Amount'], data.confirmedPayments.map(p => ({ id: p.id, values: [p.date, p.description, p.method, p.amount] })), 'payment', true);
 
   // Supplied totals are rendered once, after every payment. No arithmetic or status inference.
-  const totalRows = [['Sale total', data.totals.saleTotal], ['Payments received', data.totals.paymentsReceived], [data.balanceLabel ?? 'Balance remaining', data.totals.balanceRemaining]];
+  const totalRows = [['Sale total', data.totals.saleTotal], [data.receivedLabel ?? 'Payments received', data.totals.paymentsReceived], [data.balanceLabel ?? 'Balance remaining', data.totals.balanceRemaining]];
   const totalAmountWidth = Math.max(29, ...totalRows.map(([, val], i) => width(val, i === 2 ? 10.3 : 9.7, 'bold') + 0.2));
   const totalLabelWidth = Math.max(...totalRows.map(([label], i) => width(label, 9.2, i === 2 ? 'bold' : 'normal')));
   const settlementWidth = Math.max(68, totalLabelWidth + 5 + totalAmountWidth);

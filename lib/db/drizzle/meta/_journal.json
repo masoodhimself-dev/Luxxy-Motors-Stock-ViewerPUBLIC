@@ -568,6 +568,20 @@
       "when": 1793692800000,
       "tag": "0080_enquiry_archive_ai_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1793700000000,
+      "tag": "0081_delivery_evidence",
+      "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1793700001000,
+      "tag": "0082_sales_terms",
+      "breakpoints": true
     }
   ]
 }

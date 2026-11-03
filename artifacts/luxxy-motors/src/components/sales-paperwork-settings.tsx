@@ -8,6 +8,7 @@ import {
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 import "./integration-settings.css";
+import { FullSalesTermsSettings } from './full-sales-terms-settings';
 type Paperwork = {
   revision: number;
   saleTerms: string;
@@ -225,6 +226,7 @@ export function SalesPaperworkSettings() {
           </div>
         </fieldset>
       )}
+      <FullSalesTermsSettings />
     </section>
   );
 }

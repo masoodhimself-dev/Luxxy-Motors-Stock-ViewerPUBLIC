@@ -14,6 +14,9 @@ export function customerSaleDocument(document: SaleWorkspaceDocument): SaleWorks
     deposit: '', paymentMethod: original.paymentMethod, notes: document.type === 'vehicle-details' ? original.notes : '', collection: original.collection, preparation: false, documents: true, handover: original.handover,
     exchanges: original.exchanges?.map(r => ({ registration: r.registration, description: r.description, value: r.value })),
     adjustments: original.adjustments?.map(r => ({ description: r.description, amount: r.amount, kind: r.kind })), payments: paymentRows,
+    ...(original.deliveryCharge !== undefined ? {deliveryCharge:original.deliveryCharge} : {}),
+    ...(original.creditEntries ? {creditEntries:original.creditEntries.map(c=>({id:c.id,sourceSaleId:c.sourceSaleId,reference:c.reference,signedAmountPence:c.signedAmountPence,at:c.at}))} : {}),
+    ...(original.returnCreditPence !== undefined ? {returnCreditPence:original.returnCreditPence} : {}),
     ...(f ? { fulfilment: { method: f.method, viewed: f.viewed, address: f.address, recipient: f.recipient, phone: f.phone, scheduledDate: f.scheduledDate, timeWindow: f.timeWindow, instructions: '',
       ...(f.completedAt ? { completedAt: f.completedAt, completedRecipient: f.completedRecipient } : {}) } } : {}) };
   return copy({ id: document.id, number: document.number, type: document.type, title: document.title, ...(document.invoiceKind ? { invoiceKind: document.invoiceKind } : {}), issuedAt: document.issuedAt, issuedBy: '', version: document.version, ...(document.content ? { content: document.content } : {}),

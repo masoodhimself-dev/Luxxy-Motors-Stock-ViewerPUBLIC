@@ -28,6 +28,11 @@ export type SaleWorkspaceDraft = {
   sourceEnquiryId?: string; sourceReservationId?: string;
   appointment?: { at: string; status: string };
   fulfilment?: SaleWorkspaceFulfilment;
+  /** First-class charge, independent of payment and counted once. */
+  deliveryCharge?: string;
+  /** Server-created transfers. Never accepted from an editable draft payload. */
+  creditEntries?: Array<{ id: string; sourceSaleId: string; reference: string; signedAmountPence: number; at: string }>;
+  returnCreditPence?: number;
 };
 export type SaleWorkspaceTotals = {
   price: number; allowance: number; adjustments: number; totalDue: number;
@@ -78,7 +83,7 @@ export type SaleWorkspaceBranding = {
 };
 export type SaleWorkspaceVehicleSnapshot = { id?: string; title?: string; year?: number | null; fuel?: string | null; transmission?: string | null; mileage?: number | null; colour?: string | null; owners?: number | null; writeOffCategory?: string | null; serviceHistory?: string | null; description?: string | null; registration?: string | null; engineSize?: string | null; bodyType?: string | null; doors?: number | null; seats?: number | null; emissionClass?: string | null; imageUrl?: string | null; photoDataUrl?: string | null };
 export type SaleWorkspaceDocument = {
-  id: string; number: string; type: 'invoice' | 'statement' | 'receipt' | 'handover' | 'terms' | 'reservation' | 'vehicle-details';
+  id: string; number: string; type: 'invoice' | 'statement' | 'receipt' | 'handover' | 'terms' | 'reservation' | 'vehicle-details' | 'payment-request' | 'credit-note' | 'delivery-invoice';
   title: string; issuedAt: string; issuedBy: string; version: number; invoiceKind?: 'deposit' | 'full';
   paymentId?: string; paymentAmountPence?: number; balanceAtIssue: number;
   content?: string;
@@ -157,13 +162,16 @@ export type SaleWorkspaceRecord = {
   requests?: Record<string, { fingerprint: string; documentId?: string }>;
   completedAt?: string; packDocumentIds?: string[];
   reviewReminder?: { enquiryId: string; at: string; url: string; cancelledAt?: string };
-  lifecycle?: { status: "draft" | "reserved" | "sold" | "released"; vehicleId: string; changedAt: string };
+  lifecycle?: { status: "draft" | "reserved" | "sold" | "released" | "returned"; vehicleId: string; changedAt: string };
   customerAccess?: { tokenHash: string; expiresAt: string; revokedAt?: string };
   documentArchives?: Record<string, { content: string; sha256: string }>;
   emailDeliveries?: Array<{ id: string; documentId: string; to: string; status: "prepared" | "sending" | "sent" | "failed" | "unknown"; attemptedAt: string; sentAt?: string; error?: string; providerId?: string }>;
   customerLinkEmail?: { id: string; to: string; status: "prepared" | "sending" | "sent" | "failed"; attemptedAt: string; sentAt?: string; error?: string };
   checklists?: SaleWorkspaceChecklists;
   providerPayments?: Record<string, { paymentId: string; eventId: string; refundEvents?: Record<string, { amountRefundedPence: number }> }>;
+  paymentRequests?: import('./sale-operations.ts').SalePaymentRequest[];
+  finalReview?: import('./sale-operations.ts').SaleFinalReview;
+  returnReplacement?: { transferId: string; otherSaleId: string; otherReference: string; direction: 'returned' | 'replacement'; creditPence: number; reason: string; condition: string; mileage: number; at: string; actor: string };
 };
 export type SaleWorkspaceMutation = { sale: SaleWorkspaceRecord; document?: SaleWorkspaceDocument; replayed?: boolean; preview?: boolean };
 export type SaleWorkspacePaymentInput = { amount: string; method: string; date: string; reference: string; kind: 'deposit' | 'part-payment' | 'final-payment'; status: 'pending' | 'confirmed' };
@@ -191,6 +199,7 @@ export type SaleWorkspaceContext = {
   nextNumber: (type: SaleWorkspaceDocument['type']) => string;
   reviewUrl?: string; branding: SaleWorkspaceBranding; vehicle?: SaleWorkspaceVehicleSnapshot;
   paperwork?: { saleTerms: string; reservationTerms: string };
+  requireFinalReview?: boolean;
 };
 
 export class SaleWorkspaceError extends Error {
@@ -219,8 +228,8 @@ export function saleWorkspaceTotals(draft: SaleWorkspaceDraft, ledger = draft.pa
   const price = saleWorkspacePence(draft.price);
   const exchangeRows = draft.exchanges ?? (draft.partExchange ? [{ registration: draft.pxRegistration, description: draft.pxDescription, value: draft.pxValue }] : []);
   const allowance = exchangeRows.reduce((sum, row) => addSalePence(sum, saleWorkspacePence(row.value)), 0);
-  const adjustments = (draft.adjustments ?? []).reduce((sum, row) => addSalePence(sum, saleWorkspacePence(row.amount) * (row.kind === 'discount' ? -1 : 1)), 0);
-  const confirmedPaid = ledger.filter(row => row.status === 'confirmed').reduce((sum, row) => addSalePence(sum, row.signedAmountPence), 0);
+  const adjustments = addSalePence(addSalePence((draft.adjustments ?? []).reduce((sum, row) => addSalePence(sum, saleWorkspacePence(row.amount) * (row.kind === 'discount' ? -1 : 1)), 0), saleWorkspacePence(draft.deliveryCharge ?? '')), -(draft.returnCreditPence ?? 0));
+  const confirmedPaid = (draft.creditEntries ?? []).reduce((sum, entry) => addSalePence(sum, entry.signedAmountPence), ledger.filter(row => row.status === 'confirmed').reduce((sum, row) => addSalePence(sum, row.signedAmountPence), 0));
   const pending = ledger.filter(row => row.status === 'pending').reduce((sum, row) => addSalePence(sum, row.amountPence), 0);
   const totalDue = addSalePence(addSalePence(price, adjustments), -allowance);
   return { price, allowance, adjustments, totalDue, deposit: confirmedPaid, confirmedPaid, pending, balance: addSalePence(totalDue, -confirmedPaid) };
@@ -274,6 +283,9 @@ export function cleanSaleWorkspaceDraft(input: unknown, reference: string, ledge
   if (previous && 'roadTaxGuide' in previous) draft.roadTaxGuide = previous.roadTaxGuide;
   if (previous?.appointment) draft.appointment = clone(previous.appointment);
   draft.id = reference; draft.deposit = ''; draft.partExchange = source.partExchange === true;
+  draft.deliveryCharge = text(source.deliveryCharge ?? previous?.deliveryCharge ?? '', 16, 'delivery charge');
+  if (previous?.creditEntries) draft.creditEntries = clone(previous.creditEntries);
+  if (previous?.returnCreditPence !== undefined) draft.returnCreditPence = previous.returnCreditPence;
   draft.preparation = source.preparation === true; draft.documents = source.documents === true;
   // Only the explicit handover command can complete a sale or change its completion evidence.
   draft.handover = previous?.handover ?? false;
@@ -434,6 +446,8 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     return { sale: current, ...(previousRequest.documentId ? { document: current.documents.find(document => document.id === previousRequest.documentId) } : {}), replayed: true };
   }
   if (!Number.isSafeInteger(input.expectedRevision) || input.expectedRevision !== current.revision) throw new SaleWorkspaceError('This sale changed on another device. Reload it before saving.', 409);
+  if (current.returnReplacement?.direction === 'returned' && command.action !== 'email-status' && command.action !== 'correction-note' && !(command.action === 'document' && command.type === 'statement')) throw new SaleWorkspaceError('This vehicle was returned and its credit transferred. Open the replacement deal for further financial actions.', 409);
+  if (context.requireFinalReview && (['issue-invoice','complete-sale','finish-invoice-sale','handover'].includes(command.action) || command.action === 'document' && command.type === 'invoice' || command.action === 'lifecycle' && command.status === 'sold') && !(current.finalReview?.status === 'passed' && current.finalReview.reviewedRevision === current.revision)) throw new SaleWorkspaceError('Run the final checks for this saved revision before issuing an invoice or confirming handover.',409);
   const record = clone(current);
   let document: SaleWorkspaceDocument | undefined;
   if (command.action === 'update') {
@@ -453,7 +467,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
         (nextFulfilment.method !== 'delivery' || nextFulfilment.address.trim())
         ? 'booked' : 'to_arrange';
     }
-    if (record.completedAt && ['customer','email','phone','address','vehicleId','vehicle','registration','vin','price','exchanges','adjustments'].some(key => JSON.stringify(updated[key as keyof SaleWorkspaceDraft] ?? (key === 'vin' ? '' : undefined)) !== JSON.stringify(record.draft[key as keyof SaleWorkspaceDraft] ?? (key === 'vin' ? '' : undefined)))) throw new SaleWorkspaceError('Completed sale details are locked. Use payment corrections and retain the issued invoice.', 409);
+    if (record.completedAt && ['customer','email','phone','address','vehicleId','vehicle','registration','vin','price','exchanges','adjustments','deliveryCharge'].some(key => JSON.stringify(updated[key as keyof SaleWorkspaceDraft] ?? (key === 'vin' ? '' : undefined)) !== JSON.stringify(record.draft[key as keyof SaleWorkspaceDraft] ?? (key === 'vin' ? '' : undefined)))) throw new SaleWorkspaceError('Completed sale details are locked. Use payment corrections and retain the issued invoice.', 409);
     if (record.lifecycle && ['reserved', 'sold'].includes(record.lifecycle.status) && updated.vehicleId !== record.draft.vehicleId) throw new SaleWorkspaceError('Release the sale reservation before changing its vehicle.', 409);
     if (record.customerAccess && (updated.customer !== record.draft.customer || updated.email !== record.draft.email || updated.vehicleId !== record.draft.vehicleId)) record.customerAccess.revokedAt = context.now;
     const previousDraft = record.draft;
@@ -654,6 +668,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
 export function publicSaleWorkspace(record: SaleWorkspaceRecord): SaleWorkspaceRecord {
   const { requests: _requests, documentArchives: _archives, providerPayments: _provider, customerAccess, ...publicRecord } = record;
   if (customerAccess) (publicRecord as SaleWorkspaceRecord).customerAccess = { tokenHash: "", expiresAt: customerAccess.expiresAt, ...(customerAccess.revokedAt ? { revokedAt: customerAccess.revokedAt } : {}) };
+  if (publicRecord.paymentRequests) publicRecord.paymentRequests = publicRecord.paymentRequests.map(({ tokenHash: _tokenHash, ...request }) => ({ ...request, tokenHash: '' }));
   return clone(publicRecord);
 }
 

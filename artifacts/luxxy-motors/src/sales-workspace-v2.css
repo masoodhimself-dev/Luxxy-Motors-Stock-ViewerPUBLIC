@@ -1,0 +1,181 @@
+/* Staff sale workspace. Document renderers retain their issued stationery. */
+.invoice-builder.sale-desk {
+  --invoice-ink: #192c38;
+  --invoice-muted: #62717d;
+  --invoice-line: #dce3e8;
+  --invoice-accent: #192c38;
+  --invoice-soft: #f0f7fa;
+  color: var(--invoice-ink);
+  background: #f6f8fa;
+  font-family: var(--app-font-sans);
+}
+.invoice-builder.sale-desk.is-editing { z-index: 70; }
+/* Portal sections stay mounted so a phone interruption does not discard a deal. */
+body:has(#portal-content-sales[hidden] .sale-desk.is-editing) { overflow: auto; }
+.sale-desk .sale-desk-header { min-height: 68px; gap: 16px; padding: 10px 24px; }
+.sale-desk-header-identity, .sale-desk-header-actions { min-width: 0; }
+.sale-desk-header-identity > div { min-width: 0; }
+.sale-desk-header-identity strong { display: block; font-size: 15px; }
+.sale-desk-header-identity small { margin: 2px 0 0; font-size: 11px; }
+.sale-desk-heading-divider { height: 28px; border-left: 1px solid var(--invoice-line); margin-inline: 2px 4px; }
+.sale-desk .sale-desk-save-status { display: inline-flex; align-items: center; color: var(--invoice-muted); font-size: 12px; padding-left: 18px; }
+.sale-desk .db-btn { min-height: 42px; height: auto; padding: 9px 14px; border-radius: 7px; font-size: 13px; line-height: 1.4; }
+.sale-desk .db-btn:focus-visible { outline: 2px solid #245ca5; outline-offset: 3px; }
+.sale-desk-tabs { display: flex; flex-shrink: 0; padding: 0 24px; gap: 26px; background: #fff; border-bottom: 1px solid var(--invoice-line); }
+.sale-desk-tabs > button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 53px; padding: 12px 0; border: 0; border-bottom: 3px solid transparent; color: #64727c; background: transparent; font-size: 14px; font-weight: 600; }
+.sale-desk-tabs > button[aria-selected=true] { color: #192c38; border-bottom-color: #192c38; }
+.sale-desk-tabs > button:hover:not(:disabled) { color: #192c38; }
+.sale-desk-tabs > button:focus-visible { outline: 2px solid #245ca5; outline-offset: -5px; border-radius: 3px; }
+.sale-desk-tabs > button:disabled { opacity: .55; }
+.sale-desk-body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; align-items: start; flex: 1; min-height: 0; gap: 24px; padding: 24px max(24px, calc((100vw - 1480px) / 2)); overflow: auto; overscroll-behavior: contain; }
+.sale-desk-content { min-width: 0; padding-bottom: 20px; }
+.sale-desk-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.sale-desk .sale-desk-section-heading h1 { font-size: 24px; letter-spacing: -.025em; }
+.sale-desk-state { display: inline-flex; flex-shrink: 0; align-items: center; min-height: 29px; padding: 5px 10px; border: 1px solid #c9d9ef; border-radius: 5px; color: #245ca5; background: #edf4ff; font-size: 12px; font-weight: 600; }
+.sale-desk-state[data-status=reserved] { color: #87510b; border-color: #ead2a5; background: #fff6e5; }
+.sale-desk-state[data-status=sold] { color: #14634a; border-color: #bfdfcf; background: #edf8f2; }
+.sale-desk-state[data-status=released] { color: #62717d; border-color: #dce3e8; background: #f3f5f7; }
+.sale-desk-subnav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.sale-desk-subnav .db-btn { min-height: 40px; padding: 8px 12px; }
+.sale-desk-sheet { min-width: 0; margin-bottom: 18px; padding: 24px; border: 1px solid var(--invoice-line); border-radius: 10px; background: #fff; }
+.sale-desk-sheet > fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.sale-desk .sale-desk-sheet h2:first-child, .sale-desk .sale-desk-sheet fieldset > h2:first-child { margin-top: 0; }
+.sale-desk .sale-desk-sheet h2 { font-size: 17px; margin-bottom: 12px; }
+.sale-desk .sale-desk-sheet p { color: var(--invoice-muted); font-size: 13px; }
+.sale-desk .sale-desk-sheet input:not([type=checkbox]):not([type=radio]):not(.uk-number-plate-input),
+.sale-desk .sale-desk-sheet :is(select, textarea) { min-height: 43px; font-size: 14px; background: #fff; }
+.sale-desk .invoice-field-grid { margin-top: 18px; gap: 16px; }
+.sale-desk .invoice-selected-car { margin: 18px 0 0; background: #f7f9fa; padding: 12px; }
+.sale-desk .invoice-selected-car img { width: 108px; height: 75px; }
+.sale-desk .invoice-selected-car strong { font-size: 15px; }
+.sale-desk-vin { margin-top: 18px; max-width: 480px; }
+.sale-desk .invoice-optional { border: 0; background: transparent; padding: 0; margin: 0 0 22px; }
+.sale-desk .invoice-optional > summary { display: none; }
+.sale-desk .invoice-optional > p:first-of-type { margin-top: 0; }
+.sale-desk .invoice-adjustment-row { grid-template-columns: minmax(90px, .8fr) minmax(0, 1.4fr) minmax(90px, .7fr) auto; gap: 10px; }
+.sale-desk-section-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
+.sale-desk-section-actions > .db-btn:disabled:first-child { border: 0; background: transparent; color: var(--invoice-muted); opacity: 1; padding-inline: 0; }
+.sale-desk-section-actions > .db-btn:disabled:first-child svg { display: none; }
+.sale-desk-inline-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.sale-desk .sale-desk-inline-heading h2 { margin: 0 0 4px; }
+.sale-desk-inline-heading > div { min-width: 0; }
+.sale-desk-inline-heading > .db-btn { flex-shrink: 0; }
+.sale-desk .invoice-payment-form { margin-top: 16px; padding: 20px; background: #f8fafb; }
+.sale-desk .invoice-payment-list { margin-top: 0; }
+.sale-desk .invoice-payment-list > div { padding: 12px 0; }
+.sale-desk-document-list > div { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-top: 1px solid var(--invoice-line); }
+.sale-desk-document-list > div > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.sale-desk-document-list strong { font-size: 14px; font-weight: 600; }
+.sale-desk .sale-desk-empty-inline { padding: 14px 0 0; border-top: 1px solid var(--invoice-line); }
+.sale-desk-invoice-kinds { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.sale-desk .invoice-review { margin: 0; }
+.sale-desk .invoice-review > div { grid-template-columns: 160px minmax(0, 1fr); padding: 12px 0; }
+.sale-desk .invoice-review > div:last-child { border-bottom: 0; }
+.sale-desk .invoice-review [data-kind=balance] { margin: 8px 0; padding: 12px; }
+.sale-desk-fold { min-width: 0; margin: 18px 0; padding: 0 20px; border: 1px solid var(--invoice-line); border-radius: 8px; background: #fff; }
+.sale-desk .sale-desk-fold > summary { min-height: 49px; color: #243745; font-size: 13px; }
+.sale-desk-fold[open] { padding-bottom: 18px; }
+.sale-desk-fold .invoice-draft-delete:first-of-type { margin-top: 0; }
+.sale-desk .invoice-note { color: var(--invoice-muted); }
+.sale-desk-summary { position: sticky; top: 0; min-width: 0; padding: 20px; border: 1px solid var(--invoice-line); border-radius: 10px; background: #fff; }
+.sale-desk-summary-car { display: flex; align-items: center; gap: 12px; min-width: 0; padding-bottom: 18px; }
+.sale-desk-summary-car > div { min-width: 0; }
+.sale-desk-summary-car strong { display: block; margin-bottom: 8px; font-size: 15px; line-height: 1.4; overflow-wrap: anywhere; }
+.sale-desk-summary-car .invoice-car-photo { flex-shrink: 0; width: 76px; height: 62px; }
+.sale-desk-summary-car .invoice-car-photo img { width: 76px; height: 62px; object-fit: cover; border-radius: 5px; }
+.sale-desk-summary-car .invoice-car-photo > span { display: none; }
+.sale-desk-summary-car .uk-number-plate { font-size: 18px; }
+.sale-desk-summary-customer { display: flex; align-items: start; gap: 8px; padding-block: 16px; border-top: 1px solid var(--invoice-line); }
+.sale-desk-summary-customer > svg { flex-shrink: 0; margin-top: 3px; }
+.sale-desk-summary-customer > div { flex: 1; min-width: 0; }
+.sale-desk-summary-customer strong { display: block; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.sale-desk-summary-customer :is(a, span) { display: block; margin-top: 4px; color: var(--invoice-muted); font-size: 11px; overflow-wrap: anywhere; }
+.sale-desk-summary-customer > .db-btn { min-height: 28px; padding: 4px 2px; font-size: 11px; }
+.sale-desk-totals { padding-top: 14px; border-top: 1px solid var(--invoice-line); }
+.sale-desk-totals > div { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 10px; font-size: 13px; }
+.sale-desk-totals dt { color: var(--invoice-muted); }
+.sale-desk-totals dd { font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.sale-desk-totals .sale-desk-total { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--invoice-line); }
+.sale-desk-totals .sale-desk-total dt { color: var(--invoice-ink); font-weight: 600; }
+.sale-desk-totals .sale-desk-balance { align-items: start; margin: 16px -8px 0; padding: 14px 8px; border-radius: 5px; background: #f0f7fa; }
+.sale-desk-balance dd { font-size: 22px; letter-spacing: -.02em; line-height: 1.3; }
+.sale-desk-balance dt { padding-top: 4px; }
+.sale-desk-totals [data-balance=settled] dd { color: #14634a; }
+.sale-desk-totals [data-balance=outstanding] dd { color: #87510b; }
+.sale-desk .sale-desk-unsaved-note { margin-top: 12px; font-size: 11px; color: #87510b; }
+.sale-desk-activity { margin-top: 16px; border-top: 1px solid var(--invoice-line); }
+.sale-desk .sale-desk-activity > summary { display: flex; align-items: center; gap: 8px; color: var(--invoice-muted); font-size: 12px; }
+.sale-desk-activity ol { display: grid; gap: 14px; max-height: 230px; padding-bottom: 8px; overflow: auto; }
+.sale-desk-activity li strong { display: block; font-size: 11px; font-weight: 500; line-height: 1.6; }
+.sale-desk-activity li span { display: block; margin-top: 3px; color: var(--invoice-muted); font-size: 10px; }
+.sale-desk .invoice-error, .sale-desk .invoice-message { margin-top: 0; }
+.sale-desk .sale-desk-list { width: 100%; max-width: 1240px; }
+.sale-desk-list .invoice-list-heading { margin-bottom: 20px; }
+.sale-desk-list .invoice-list-heading h1 { font-size: 26px; }
+.sale-desk .invoice-sale-list > button { margin-bottom: 8px; padding: 16px 18px; }
+.sale-desk .invoice-sale-list > button:hover { border-color: #192c38; }
+.sale-desk .invoice-sale-list .invoice-list-next { color: #526777; font-weight: 400; }
+@media (max-width: 1050px) {
+  .sale-desk-body { grid-template-columns: minmax(0, 1fr) 260px; gap: 16px; padding: 20px 16px; }
+  .sale-desk-summary { padding: 16px; }
+  .sale-desk-summary-car { display: block; }
+  .sale-desk-summary-car > .invoice-car-photo { float: left; margin-right: 10px; }
+  .sale-desk .invoice-adjustment-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .sale-desk .sale-desk-header { min-height: 64px; padding: 8px 12px; gap: 8px; }
+  .sale-desk .sale-desk-header-identity { gap: 6px; }
+  .sale-desk-header-identity > .db-btn { padding: 6px; min-width: 34px; }
+  .sale-desk-header-identity > .db-btn > span { display: none; }
+  .sale-desk-header-identity small { max-width: 120px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .sale-desk .sale-desk-save-status { display: none; }
+  .sale-desk-header-actions { gap: 6px !important; }
+  .sale-desk-header-actions > .db-btn { padding: 7px 10px; font-size: 12px; }
+  .sale-desk-tabs { gap: 0; padding: 0 8px; }
+  .sale-desk-tabs > button { flex: 1; min-width: 0; min-height: 62px; flex-direction: column; gap: 4px; padding: 8px 3px; font-size: 11px; line-height: 1.3; text-align: center; }
+  .sale-desk-tabs > button span { max-width: 104px; }
+  .sale-desk-body { display: flex; flex-direction: column; gap: 12px; padding: 12px; }
+  .sale-desk-content { order: 2; width: 100%; }
+  .sale-desk-summary { position: static; order: 1; width: 100%; padding: 12px 14px; border-radius: 8px; }
+  .sale-desk-summary-car, .sale-desk-summary-customer, .sale-desk-summary .sale-desk-activity { display: none; }
+  .sale-desk-totals { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; border: 0; padding: 0; }
+  .sale-desk-totals > div { margin-bottom: 0; font-size: 11px; }
+  .sale-desk-totals > div:not(.sale-desk-total):not(.sale-desk-balance) { display: none; }
+  .sale-desk-totals .sale-desk-total { display: block; margin: 0; padding: 0; border: 0; }
+  .sale-desk-totals .sale-desk-total dt { color: var(--invoice-muted); font-size: 10px; font-weight: 400; }
+  .sale-desk-totals .sale-desk-total dd { margin-top: 3px; font-size: 18px; }
+  .sale-desk-totals .sale-desk-balance { display: block; margin: 0; padding: 0; background: transparent; text-align: right; }
+  .sale-desk-totals .sale-desk-balance dt { padding: 0; font-size: 10px; }
+  .sale-desk-totals .sale-desk-balance dd { margin-top: 3px; font-size: 18px; }
+  .sale-desk .sale-desk-unsaved-note { margin-top: 5px; font-size: 10px; }
+  .sale-desk-section-heading { gap: 8px; margin: 8px 0 16px; }
+  .sale-desk .sale-desk-section-heading h1 { font-size: 21px; }
+  .sale-desk-sheet { padding: 18px 16px; margin-bottom: 14px; }
+  .sale-desk-subnav { gap: 6px; }
+  .sale-desk-subnav .db-btn { flex: 1; min-width: 0; padding: 8px; font-size: 11px; }
+  .sale-desk-subnav .db-btn svg { display: none; }
+  .sale-desk .sale-desk-sheet input:not([type=checkbox]):not([type=radio]):not(.uk-number-plate-input), .sale-desk .sale-desk-sheet :is(select, textarea) { font-size: 16px; min-height: 46px; }
+  .sale-desk .invoice-field-grid { grid-template-columns: minmax(0,1fr); gap: 16px; }
+  .sale-desk .invoice-adjustment-row { grid-template-columns: minmax(0,1fr); gap: 12px; }
+  .sale-desk .invoice-adjustment-row > .db-btn { justify-self: end; }
+  .sale-desk .invoice-selected-car { gap: 12px; }
+  .sale-desk .invoice-selected-car img { width: 82px; height: 64px; }
+  .sale-desk .invoice-selected-car strong { font-size: 13px; }
+  .sale-desk .invoice-selected-car :is(p,small) { font-size: 11px; }
+  .sale-desk .invoice-payment-form { padding: 14px 12px; margin-inline: -4px; }
+  .sale-desk-inline-heading { align-items: start; flex-wrap: wrap; gap: 12px; }
+  .sale-desk .sale-desk-inline-heading h2 { font-size: 16px; }
+  .sale-desk-document-list > div { flex-wrap: wrap; gap: 10px; }
+  .sale-desk-document-list > div > span { flex-basis: calc(100% - 38px); }
+  .sale-desk-document-list > div > .db-btn { margin-left: 30px; }
+  .sale-desk .invoice-review > div { grid-template-columns: minmax(0,1fr); gap: 5px; }
+  .sale-desk .invoice-review dd { text-align: left; }
+  .sale-desk-fold { padding-inline: 14px; }
+  .sale-desk .sale-desk-list { padding: 20px 14px; }
+  .sale-desk .invoice-sale-list > button { padding: 14px; gap: 12px; flex-wrap: wrap; }
+  .sale-desk .invoice-sale-list > button > span:first-child { flex-basis: 100%; }
+  .sale-desk .invoice-sale-list > button > span:nth-child(2) { text-align: left; flex: 1; }
+}
+@media print {
+  .sale-desk-tabs, .sale-desk-summary, .sale-desk-header { display: none; }
+}

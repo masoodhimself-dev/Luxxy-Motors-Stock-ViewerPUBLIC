@@ -614,6 +614,11 @@ function PortalDesk() {
               >
                 <SalesWorkspace
                   embedded
+                  quickActions={<PortalQuickActions canManage={canSell} bookingEnabled={bookingEnabled} vehicle={actionVehicle} triggerRef={quickActionsTrigger}
+                    onEnquiry={(vehicleId,bookTestDrive)=>{quickEnquiry(vehicleId,bookTestDrive);quickEnquiryTrigger.current=quickActionsTrigger.current;}}
+                    onSale={newSale} onMot={()=>setMotLookupOpen(true)}
+                    onCalendar={()=>go('/portal?section=notifications&workView=test-drives&deskView=calendar')}
+                    onDrafts={()=>go('/portal?section=notifications&workView=email&view=drafts')}/>}
                   newSaleRequest={newSaleRequest}
                   newSaleVehicleId={newSaleVehicleId}
                   onExit={() => {

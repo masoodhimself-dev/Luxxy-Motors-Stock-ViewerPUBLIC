@@ -47,7 +47,7 @@ export function compactInvoicePdf(document: SaleWorkspaceDocument, options: { fi
   const status = document.balanceAtIssue < 0 ? 'Customer credit' : paidInFull ? 'Paid in full' : document.invoiceKind === 'deposit' ? 'Deposit received' : 'Balance outstanding';
   const details: Array<[string, unknown]> = [
     ['Engine', vehicle?.engineSize], ['Previous keepers', vehicle?.owners], ['Service history', vehicle?.serviceHistory], ['Body type', vehicle?.bodyType],
-    ['Emissions standard', vehicle?.emissionClass], ['Doors / seats', [vehicle?.doors ? `${vehicle.doors} doors` : '', vehicle?.seats ? `${vehicle.seats} seats` : ''].filter(Boolean).join(' / ')], ['Write-off category', vehicle?.writeOffCategory], ['Collection date', supplied(draft.collection) ? date(draft.collection) : ''],
+    ['Emissions standard', vehicle?.emissionClass], ['Doors / seats', [vehicle?.doors ? `${vehicle.doors} doors` : '', vehicle?.seats ? `${vehicle.seats} seats` : ''].filter(Boolean).join(' / ')], ['Write-off category', vehicle?.writeOffCategory], [draft.fulfilment?.method==='delivery' ? 'Delivery date' : 'Collection date', supplied(draft.collection) ? date(draft.collection) : ''],
   ];
   const data: InvoiceData = {
     type: document.invoiceKind === 'deposit' ? 'Deposit Invoice' : 'Sales Invoice', number: clean(document.number), issueDate: date(document.issuedAt),
@@ -58,12 +58,16 @@ export function compactInvoicePdf(document: SaleWorkspaceDocument, options: { fi
       details: details.filter(([, value]) => Boolean(supplied(value))).map(([label, value]) => ({ label, value: supplied(value) })) },
     saleLines: [
       { id: 'vehicle-price', description: 'Vehicle price', amount: money(totals.price) },
+      ...(saleWorkspacePence(draft.deliveryCharge ?? '') > 0 ? [{id:'delivery-charge',description:'Delivery',amount:money(saleWorkspacePence(draft.deliveryCharge!))}] : []),
+      ...(draft.returnCreditPence ? [{id:'return-credit',description:'Agreed vehicle return credit',amount:money(-draft.returnCreditPence)}] : []),
       ...(draft.adjustments ?? []).map((adjustment, i) => ({ id: `adjustment-${i}`, description: clean(adjustment.description), amount: money(saleWorkspacePence(adjustment.amount) * (adjustment.kind === 'discount' ? -1 : 1)) })),
       ...(draft.exchanges ?? (draft.partExchange ? [{ registration: draft.pxRegistration, description: draft.pxDescription, value: draft.pxValue }] : [])).map((exchange, i) => ({ id: `exchange-${i}`, description: `Part exchange - ${clean(exchange.registration)}${exchange.description ? ` - ${clean(exchange.description)}` : ''}`, amount: money(-saleWorkspacePence(exchange.value)) })),
     ],
-    confirmedPayments: confirmed.map(payment => ({ id: payment.id, date: date(payment.date), description: (kindLabels[payment.kind] ?? clean(payment.kind)) + (payment.reference ? ` / ${clean(payment.reference)}` : ''), method: clean(payment.method), amount: money(payment.signedAmountPence) })),
+    confirmedPayments: [...confirmed.map(payment => ({ id: payment.id, date: date(payment.date), description: (kindLabels[payment.kind] ?? clean(payment.kind)) + (payment.reference ? ` / ${clean(payment.reference)}` : ''), method: clean(payment.method), amount: money(payment.signedAmountPence) })),
+      ...(draft.creditEntries ?? []).map(credit=>({id:`credit-${credit.id}`,date:date(credit.at),description:`Credit ${credit.signedAmountPence>0?'from':'to'} ${clean(credit.reference)}`,method:'Credit transfer',amount:money(credit.signedAmountPence)}))],
     totals: { saleTotal: money(totals.totalDue), paymentsReceived: money(totals.confirmedPaid), balanceRemaining: money(Math.abs(document.balanceAtIssue)) },
     balanceLabel: document.balanceAtIssue < 0 ? 'Customer credit' : 'Balance remaining', settlementStatus: status,
+    ...(draft.creditEntries?.length ? {receivedLabel:'Payments and credit'} : {}),
     ...(totals.pending > 0 ? { pendingNote: `Awaiting confirmation: ${money(totals.pending)}. Not deducted from the balance.` } : {}), draft: options.draft,
     paymentInstructions: lines(wording.paymentInstructions), terms: lines(wording.saleTerms), termsHeading: 'Terms',
     footerLines: [[supplied(branding.legal.companyName), branding.legal.companyNumber ? `Company ${clean(branding.legal.companyNumber)}` : '', branding.legal.vatNumber ? `VAT registration ${clean(branding.legal.vatNumber)}` : ''].filter(Boolean).join(' | '), wording.footer].filter(Boolean),

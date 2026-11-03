@@ -5,6 +5,7 @@ export const SEO_PRIVATE_PREFIXES = [
   '/portal', '/platform', '/join', '/sign-in', '/sign-up', '/staff-upload', '/my-purchase',
   '/phone-share', '/verify-invoice', '/viewing', '/test-drive-declaration', '/reserve', '/saved',
   '/watch', '/compare', '/enquire', '/sign', '/customer-details',
+  '/delivery-evidence', '/payment-request',
 ] as const;
 
 export function isPrivateSeoPath(pathname: string): boolean {

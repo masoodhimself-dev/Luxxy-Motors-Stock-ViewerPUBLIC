@@ -53,6 +53,7 @@ export interface InvoiceData {
   /** E.g. Paid in full / Balance outstanding / Deposit received; host decides. */
   settlementStatus?: string;
   balanceLabel?: string;
+  receivedLabel?: string;
   pendingNote?: string;
   draft?: boolean;
   paymentInstructions?: readonly string[];

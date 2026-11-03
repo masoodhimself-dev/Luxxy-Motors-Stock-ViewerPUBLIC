@@ -1,6 +1,6 @@
 import type { Express, RequestHandler } from 'express';
 
-const privateCapabilityPaths = ['/watch','/api/vehicle-watches','/join','/api/account-invitations','/enquiry-photo-upload','/api/enquiry-photo-upload','/phone-share', '/api/phone-shares','/staff-upload', '/my-purchase', '/verify-invoice', '/reserve/payment-return', '/viewing', '/api/viewings', '/test-drive-declaration', '/api/test-drive-declarations'];
+const privateCapabilityPaths = ['/watch','/api/vehicle-watches','/join','/api/account-invitations','/enquiry-photo-upload','/api/enquiry-photo-upload','/phone-share', '/api/phone-shares','/staff-upload', '/my-purchase', '/verify-invoice', '/reserve/payment-return', '/viewing', '/api/viewings', '/test-drive-declaration', '/api/test-drive-declarations','/delivery-evidence','/api/delivery-evidence','/payment-request','/api/payment-requests'];
 const privateCapabilityHeaders: RequestHandler = (_req, res, next) => {
   res.set({ 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex, nofollow', 'Cache-Control': 'no-store' });
   next();
@@ -15,6 +15,8 @@ export function protectPrivateCapabilityPages(app: Express) {
 export function isPrivateTestDriveDeclarationPath(path: string): boolean {
   const pathname = path.split('?')[0];
   return /^\/api\/test-drive-declarations(?:\/|$)/i.test(pathname)
+    || /^\/api\/(?:delivery-evidence|payment-requests)(?:\/|$)/i.test(pathname)
+    || /^\/api\/staff\/sales\/[^/]+\/delivery-evidence(?:\/|$)/i.test(pathname)
     || /^\/api\/staff\/enquiries\/[^/]+\/test-drive-declarations(?:\/|$)/i.test(pathname);
 }
 
@@ -25,5 +27,6 @@ export function privateRequestLogUrl(url: string | undefined) {
     .replace(/(\/api\/customer-sale\/|\/my-purchase\/)[^/]+/i, '$1[private]')
     .replace(/(\/api\/viewings\/|\/viewing\/)[^/]+/i, '$1[private]')
     .replace(/(\/api\/test-drive-declarations\/|\/test-drive-declaration\/)[^/]+/i, '$1[private]')
+    .replace(/(\/api\/delivery-evidence\/|\/delivery-evidence\/|\/api\/payment-requests\/|\/payment-request\/)[^/]+/i, '$1[private]')
     .replace(/(\/api\/(?:customer-intake-sessions|signing)\/|\/sign\/)[^/]+/i, '$1[private]');
 }

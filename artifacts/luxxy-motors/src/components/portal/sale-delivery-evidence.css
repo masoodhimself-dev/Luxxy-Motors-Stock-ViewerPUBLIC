@@ -1,0 +1,219 @@
+.sale-delivery-evidence {
+  padding: 20px;
+  border: 1px solid #e1e5e8;
+  border-radius: 12px;
+  background: #fff;
+  color: #192a36;
+}
+.sale-delivery-evidence > header {
+  display: flex;
+  gap: 15px;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.sale-delivery-evidence h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  margin: 0;
+}
+.sale-delivery-evidence svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+}
+.sale-delivery-evidence p {
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 8px 0;
+  color: #59656e;
+}
+.sale-evidence-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.sale-evidence-link {
+  padding: 12px;
+  background: #eef9fc;
+  border: 1px solid #dbe7ec;
+  border-radius: 8px;
+  margin: 12px 0;
+}
+.sale-evidence-link label {
+  font-size: 11px;
+  font-weight: 600;
+}
+.sale-evidence-link > div {
+  display: flex;
+  gap: 8px;
+  margin-top: 5px;
+}
+.sale-evidence-link input {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #b7c1c9;
+  border-radius: 5px;
+  font-size: 11px;
+}
+.sale-evidence-history {
+  margin-top: 16px;
+  border-top: 1px solid #e1e5e8;
+}
+.sale-evidence-history details {
+  border-bottom: 1px solid #e1e5e8;
+}
+.sale-evidence-history summary {
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 12px 0;
+  font-size: 11px;
+}
+.sale-evidence-state {
+  padding: 3px 7px;
+  border-radius: 5px;
+  background: #fff5dc;
+  color: #76551c;
+  font-weight: 650;
+}
+.sale-evidence-state.state-received {
+  background: #e8f4ed;
+  color: #28603e;
+}
+.sale-evidence-state:is(.state-revoked, .state-expired, .state-superseded) {
+  background: #f0f2f4;
+  color: #59656e;
+}
+.sale-evidence-details {
+  padding: 0 0 14px;
+}
+.sale-evidence-details dl {
+  font-size: 12px;
+  display: grid;
+  gap: 8px;
+}
+.sale-evidence-details dl > div {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 10px;
+}
+.sale-evidence-details dt {
+  color: #59656e;
+}
+.sale-evidence-details dd {
+  margin: 0;
+}
+.sale-evidence-photos {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.sale-evidence-error {
+  color: #9d3030 !important;
+  background: #fff0f0;
+  padding: 9px;
+  border-radius: 5px;
+}
+.sale-evidence-notice {
+  background: #eef9fc;
+  padding: 9px;
+  border-radius: 5px;
+}
+.sale-evidence-empty {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  background: #f8fafb;
+  padding: 12px;
+  border-radius: 6px;
+}
+.sale-delivery-evidence .sale-evidence-footnote {
+  font-size: 10px;
+  margin: 12px 0 0;
+}
+.sale-evidence-preview {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  background: #101b24ed;
+  padding: 50px 20px 20px;
+  display: grid;
+  place-items: center;
+}
+.sale-evidence-preview > button {
+  position: absolute;
+  top: 10px;
+  right: 20px;
+  background: white;
+  color: #192a36;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.sale-evidence-preview > img {
+  max-height: calc(100dvh - 90px);
+  max-width: 100%;
+  object-fit: contain;
+}
+@media (max-width: 540px) {
+  .sale-delivery-evidence {
+    padding: 15px;
+  }
+  .sale-evidence-details dl > div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .sale-evidence-link > div {
+    flex-wrap: wrap;
+  }
+}
+.sale-evidence-photo-dialog {
+  max-width: 900px !important;
+}
+.sale-evidence-photo-dialog > img {
+  max-height: 70dvh;
+  width: 100%;
+  object-fit: contain;
+}
+.sale-evidence-paper {
+  display: grid;
+  gap: 12px;
+}
+.sale-evidence-paper > div {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.sale-evidence-paper label {
+  font-size: 12px;
+}
+.sale-evidence-paper input:not([type="checkbox"]),
+.sale-evidence-paper select,
+.sale-evidence-paper textarea {
+  width: 100%;
+  display: block;
+  border: 1px solid #b7c1c9;
+  border-radius: 5px;
+  padding: 8px;
+  margin-top: 5px;
+  background: #fff;
+}
+.sale-evidence-paper textarea {
+  min-height: 70px;
+}
+.sale-evidence-paper label > span {
+  font-size: 11px;
+  color: #28603e;
+}
+@media (max-width: 420px) {
+  .sale-evidence-paper > div {
+    grid-template-columns: 1fr;
+  }
+}

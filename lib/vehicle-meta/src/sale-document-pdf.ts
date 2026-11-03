@@ -312,10 +312,12 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
     if (!plain) { fill(soft); pdf.rect(left, y - 5, width, 9, 'F'); }
     font(8, true, muted); pdf.text('DESCRIPTION', left + 4, y + 1); pdf.text('AMOUNT', right - 4, y + 1, { align: 'right' }); y += document.invoiceKind ? 9 : 12;
     amountRow('Vehicle price', totals.price, true);
+    if (saleWorkspacePence(draft.deliveryCharge ?? '')>0) amountRow('Delivery',saleWorkspacePence(draft.deliveryCharge!));
+    if (draft.returnCreditPence) amountRow('Agreed vehicle return credit',-draft.returnCreditPence);
     for (const adjustment of draft.adjustments ?? []) amountRow(adjustment.description, saleWorkspacePence(adjustment.amount) * (adjustment.kind === 'discount' ? -1 : 1));
     for (const exchange of exchangeRows) amountRow(`Part-exchange allowance - ${exchange.registration}${exchange.description ? ` - ${exchange.description}` : ''}`, -saleWorkspacePence(exchange.value));
     if (document.invoiceKind) {
-      section('Payments received');
+      section(draft.creditEntries?.length ? 'Payments and transferred credit' : 'Payments received');
       const payments = document.snapshot.payments.filter(payment => payment.status === 'confirmed');
       if (!payments.length) line('No payments received at the invoice date.', 9, false, muted);
       for (const payment of payments) {

@@ -1,0 +1,272 @@
+.delivery-page {
+  min-height: 100dvh;
+  background: #f6f8fa;
+  color: #192a36;
+  padding: 20px 16px 48px;
+  font-family: var(--app-font-sans, Arial, sans-serif);
+}
+.delivery-shell {
+  max-width: 760px;
+  margin: auto;
+}
+.delivery-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 20px;
+}
+.delivery-heading > svg {
+  width: 24px;
+}
+.delivery-heading > span {
+  margin-left: auto;
+  font-size: 11px;
+  color: #59656e;
+}
+.delivery-card {
+  background: #fff;
+  padding: 32px;
+  border: 1px solid #e1e5e8;
+  border-radius: 14px;
+}
+.delivery-card h1 {
+  font-size: 30px;
+  line-height: 1.2;
+  margin: 8px 0 24px;
+  letter-spacing: -0.04em;
+  font-weight: 700;
+}
+.delivery-card h2 {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 18px;
+  margin: 28px 0 8px;
+  font-weight: 600;
+}
+.delivery-card h2 svg {
+  width: 21px;
+  height: 21px;
+}
+.delivery-card p {
+  line-height: 1.6;
+}
+.delivery-kicker {
+  font-size: 12px;
+  color: #59656e;
+  font-weight: 600;
+}
+.delivery-job {
+  padding: 18px;
+  background: #eef9fc;
+  border: 1px solid #dce7eb;
+  border-radius: 10px;
+}
+.delivery-job strong {
+  display: block;
+  font-size: 18px;
+}
+.delivery-plate {
+  display: inline-block;
+  background: #ffdd30;
+  color: #162632;
+  padding: 2px 8px;
+  border: 1px solid #162632;
+  font-weight: 750;
+  font-size: 20px;
+  margin-top: 8px;
+  letter-spacing: 0.06em;
+}
+.delivery-job p {
+  margin: 10px 0;
+}
+.delivery-job a {
+  text-decoration: underline;
+  font-weight: 600;
+}
+.delivery-local {
+  background: #f6f8fa;
+  border-left: 3px solid #a47a2b;
+  padding: 10px 12px;
+  font-size: 12px;
+}
+.delivery-muted {
+  color: #59656e;
+  font-size: 13px;
+}
+.delivery-photos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0 18px;
+}
+.delivery-photo {
+  cursor: pointer;
+  position: relative;
+  display: grid;
+  min-width: 0;
+  text-align: center;
+  border: 1px solid #dce2e7;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+.delivery-photo > span {
+  aspect-ratio: 4/3;
+  display: grid;
+  place-items: center;
+  background: #f6f8fa;
+}
+.delivery-photo > span > svg {
+  width: 25px;
+  height: 25px;
+  color: #59656e;
+}
+.delivery-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  position: absolute;
+  inset: 0;
+}
+.delivery-photo > span {
+  position: relative;
+  overflow: hidden;
+}
+.delivery-photo strong {
+  font-size: 12px;
+  padding: 8px 3px 0;
+}
+.delivery-photo small {
+  font-size: 10px;
+  color: #59656e;
+  padding: 3px 3px 8px;
+}
+.delivery-photo > input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+}
+.delivery-photo:focus-within {
+  outline: 3px solid #a47a2b;
+  outline-offset: 2px;
+}
+.delivery-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.delivery-card > label:not(.delivery-check) {
+  display: block;
+  margin-top: 12px;
+}
+.delivery-page .delivery-fields select {
+  height: 44px;
+  min-height: 44px;
+  appearance: none;
+  padding-right: 28px;
+  background-image: url("../assets/dealership-icons/icons/chevron.svg");
+  background-size: 14px;
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+}
+.delivery-time-now {
+  display: block;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-size: 11px;
+  margin-top: 6px;
+  padding: 2px 0;
+}
+.delivery-card label {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.delivery-card input:not([type="checkbox"], [type="file"]),
+.delivery-card textarea,
+.delivery-card select {
+  display: block;
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #9ba9b3;
+  border-radius: 6px;
+  padding: 9px;
+  margin-top: 5px;
+  color: inherit;
+  font: inherit;
+  background: white;
+}
+.delivery-card textarea {
+  height: 95px;
+}
+.delivery-card input:focus-visible,
+.delivery-card textarea:focus-visible,
+.delivery-card select:focus-visible {
+  outline: 2px solid #a47a2b;
+  outline-offset: 2px;
+}
+.delivery-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 16px 0;
+}
+.delivery-check input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.delivery-card details {
+  border-block: 1px solid #e1e5e8;
+  padding: 14px 0;
+}
+.delivery-card summary {
+  font-size: 13px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.delivery-error {
+  color: #a12e2e;
+  background: #fff0f0;
+  padding: 12px;
+  border-radius: 7px;
+  font-size: 13px;
+}
+.delivery-submit {
+  width: 100%;
+  margin-top: 16px;
+}
+.delivery-success {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  background: #e5f5ec;
+  color: #226445;
+  border-radius: 50%;
+  margin-bottom: 20px;
+}
+@media (max-width: 520px) {
+  .delivery-card {
+    padding: 22px 16px;
+  }
+  .delivery-heading > span {
+    display: none;
+  }
+  .delivery-photos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .delivery-card h1 {
+    font-size: 27px;
+  }
+  .delivery-fields {
+    gap: 12px;
+  }
+  .delivery-card label {
+    font-size: 12px;
+  }
+}

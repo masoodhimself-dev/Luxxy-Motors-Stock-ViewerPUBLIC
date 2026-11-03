@@ -9,7 +9,7 @@ import { UKNumberPlate } from '@/components/uk-number-plate';
 import { useEnquirySummaries as useGetEnquiries } from "@/lib/enquiry-summary-query";
 import { SaleVehiclePhoto } from '@/components/sales-demo/vehicle-choice';
 import { VehicleChooser } from '@/components/vehicle-chooser';
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useSearch } from "wouter";
 import { customFetch, HttpApiError } from "@workspace/api-client-react";
@@ -31,6 +31,11 @@ import { useStock } from "@/lib/stock-context";
 import { useDealerSettings } from "@/lib/dealer-settings-context";
 import { useDealerFeatures } from "@/lib/dealer-features";
 import { saleInvoiceIsCurrent } from '@/lib/sale-invoice-current';
+import { SalePaymentRequests } from '@/components/sales-demo/sale-payment-requests';
+import { SaleFinalReview } from '@/components/sales-demo/sale-final-review';
+import { SaleDeliveryEvidence } from '@/components/portal/sale-delivery-evidence';
+import { SaleTermsDocuments } from '@/components/sale-terms-documents';
+import { SaleDeliveryCharge } from '@/components/sales-demo/sale-delivery-charge';
 import {
   vehicleDisplayTitle,
   vehicleRegistration,
@@ -65,15 +70,20 @@ import {
   Mail,
   Car,
   Trash2,
+  UserRound,
+  History,
 } from "@/components/icons";
 import "@/sales-workspace.css";
 import "./invoice-builder.css";
+import "@/sales-workspace-v2.css";
+import { SalesWorkspaceNavigation, type SalesWorkspaceTab } from "@/components/sales-demo/workspace-navigation";
 
 export interface SalesWorkspaceProps {
   embedded?: boolean;
   newSaleRequest?: number;
   newSaleVehicleId?: string | null;
   onExit?: () => void;
+  quickActions?: ReactNode;
 }
 type SaleListRow = SaleWorkspaceRecord & { listSummary?: boolean; listTotalDue?: number; listPaid?: number; listPending?: number; listLedgerKnown?: boolean; listBalance?: number; listHasCorrectionNotes?: boolean; listHasRefunds?: boolean; listHandover?: { method: 'collection' | 'delivery'; status: string } | null };
 
@@ -83,7 +93,7 @@ function saleListProgress(sale: SaleListRow) {
   const balance = sale.listBalance;
   const correctionReview = Boolean(sale.listHasCorrectionNotes || sale.corrections?.length || (sale.completedAt && (sale.listHasRefunds || sale.payments?.some(payment => payment.status === 'confirmed' && payment.signedAmountPence < 0))));
   const done = handover?.status === 'Collected' || handover?.status === 'Delivered';
-  const status = done ? handover!.status : sale.completedAt ? 'Sold' : sale.lifecycle?.status === 'reserved' ? 'Reserved' : sale.lifecycle?.status === 'released' ? 'Released' : 'In progress';
+  const status = sale.returnReplacement?.direction === 'returned' ? 'Returned' : done ? handover!.status : sale.completedAt ? 'Sold' : sale.lifecycle?.status === 'reserved' ? 'Reserved' : sale.lifecycle?.status === 'released' ? 'Released' : 'In progress';
   const action = sale.lifecycle?.status === 'released' ? sale.listLedgerKnown === false || (sale.listPending ?? 0) > 0 || (sale.listPaid ?? 0) !== 0 ? 'Review payment history' : correctionReview ? 'Review correction with accountant' : 'Sale not completed'
     : correctionReview ? 'Review correction with accountant' : !sale.draft.vehicleId ? 'Add the vehicle' : !sale.draft.customer?.trim() ? 'Add customer details' : sale.listLedgerKnown === false ? 'Review payment history'
     : typeof balance !== 'number' ? 'Open sale to review the balance'
@@ -120,6 +130,7 @@ export function SalesWorkspace({
   newSaleRequest = 0,
   newSaleVehicleId = null,
   onExit,
+  quickActions,
 }: SalesWorkspaceProps) {
   const [, navigate] = useLocation();
   const search = useSearch();
@@ -137,6 +148,7 @@ export function SalesWorkspace({
   const client = useQueryClient();
   const access = useStaffAccess();
   const canManageSales = access.data?.permissions.includes('sales.manage') === true;
+  const canRecordPayments = access.data?.permissions.includes('payments.record') === true || canManageSales;
   const [filter, setFilter] = useState(''), [listSearch, setListSearch] = useState('');
   const [openingId, setOpeningId] = useState<string | null>(null);
   const openRequest = useRef(0), openController = useRef<AbortController | null>(null);
@@ -167,6 +179,10 @@ export function SalesWorkspace({
   const [draft, setDraft] = useState<SaleDraft | null>(null);
   const [kind, setKind] = useState<"deposit" | "full">("full");
   const [step, setStep] = useState(0);
+  const [workspaceTab, setWorkspaceTab] = useState<SalesWorkspaceTab>("deal");
+  const [dealSection, setDealSection] = useState<"vehicle" | "customer" | "extras">("vehicle");
+  const [composeInvoice, setComposeInvoice] = useState(false);
+  const [paymentFormOpen, setPaymentFormOpen] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState("");
@@ -203,6 +219,12 @@ export function SalesWorkspace({
     ? saleWorkspaceTotals(draft as SaleWorkspaceDraft, rows)
     : null;
   const vehicle = stock?.cars.find((car) => car.id === draft?.vehicleId);
+  const accountingDraft = draft as SaleWorkspaceDraft | null;
+  const deliveryAmount = pence(accountingDraft?.deliveryCharge ?? '');
+  const returnedCredit = accountingDraft?.returnCreditPence ?? 0;
+  const transferredCredit = (accountingDraft?.creditEntries ?? []).reduce((sum, credit) => sum + credit.signedAmountPence, 0);
+  const actualPaymentsReceived = total ? total.confirmedPaid - transferredCredit : 0;
+  const otherAdjustments = total ? total.adjustments - deliveryAmount + returnedCredit : 0;
   const showVehicleContext = Boolean(draft && step === 1 && !showSummary && !issued);
   const vehicleChangeLocked = Boolean(record?.completedAt || record?.lifecycle?.status === "reserved");
   const [customerLookup, setCustomerLookup] = useState('');
@@ -269,8 +291,12 @@ export function SalesWorkspace({
     setDeleteDraftOpen(false);
     setRecord(saved ?? null);
     setDraft(initial ?? (saved ? structuredClone(saved.draft) : emptyDraft()));
-    setStep(0);
-    setShowSummary(Boolean(saved));
+    setStep(saved?.draft.vehicleId ? 1 : 0);
+    setShowSummary(false);
+    setWorkspaceTab("deal");
+    setDealSection(saved?.draft.vehicleId ? "customer" : "vehicle");
+    setComposeInvoice(false);
+    setPaymentFormOpen(false);
     setKind(saved?.documents.at(-1)?.invoiceKind ?? "full");
     setPayment({
       amount: "",
@@ -389,7 +415,7 @@ export function SalesWorkspace({
       if (scrollPane.current) scrollPane.current.scrollTop = 0;
       heading.current?.focus({ preventScroll: true });
     }
-  }, [step, Boolean(draft), Boolean(issued), showSummary]);
+  }, [step, workspaceTab, dealSection, Boolean(draft), Boolean(issued), showSummary]);
   function update<K extends keyof SaleDraft>(key: K, value: SaleDraft[K]) {
     setDraft((current) => (current ? { ...current, [key]: value } : current));
     setReviewed(false);
@@ -494,7 +520,7 @@ export function SalesWorkspace({
     checklists={record ? { completion: record.checklists?.completion ?? {}, partExchanges: saleWorkspaceRetainedIntakeChecks(record, draft as SaleWorkspaceDraft) } : undefined}
     busy={busy} readOnly={Boolean(record?.completedAt || record?.lifecycle?.status === 'sold')}
     intakeOnly={intakeOnly} onChange={saveChecks}
-    onReviewIntake={() => { setIssued(null); setShowSummary(false); setStep(2); setProblem(''); }} /> : null;
+    onReviewIntake={() => { setWorkspaceTab('deal'); setDealSection('extras'); setIssued(null); setShowSummary(false); setStep(0); setProblem(''); }} /> : null;
   function next() {
     if (step === 2 && payment.amount.trim()) {
       setProblem(
@@ -574,6 +600,7 @@ export function SalesWorkspace({
         kind,
         acknowledge: reviewed,
       });
+      setWorkspaceTab("invoices");
       setIssued(result.document ?? null);
       setSoldChoice(false);
       setOutstandingAccepted(false);
@@ -615,6 +642,7 @@ export function SalesWorkspace({
   }
   function prepareDocumentEmail(doc: SaleWorkspaceDocument) {
     setIssued(doc);
+    setWorkspaceTab("invoices");
     setShowSummary(false);
     setMessage(canEmailCustomer ? "Review this saved document, then choose Email customer to send it through the dealership email system." : `Review this saved document. ${emailUnavailableReason}`);
   }
@@ -635,8 +663,11 @@ export function SalesWorkspace({
   const needsCorrectionReview = Boolean(record?.corrections?.length || (record?.completedAt && rows.some(row => row.status === 'confirmed' && row.signedAmountPence < 0)));
   const invoiceIsCurrent = Boolean(latestInvoice && draft && saleInvoiceIsCurrent(latestInvoice, draft, rows));
   const latestPayment = rows.filter(row => row.status === "confirmed").at(-1);
-  const saleStatus = record?.completedAt ? "Sold" : record?.lifecycle?.status === "reserved" ? "Reserved" : record?.lifecycle?.status === "released" ? "Released" : "In progress";
+  const saleStatus = record?.returnReplacement?.direction === "returned" ? "Returned" : record?.completedAt ? "Sold" : record?.lifecycle?.status === "reserved" ? "Reserved" : record?.lifecycle?.status === "released" ? "Released" : "In progress";
   function resumeAt(nextStep: number) {
+    setWorkspaceTab(nextStep === 2 ? "payments" : nextStep >= 3 ? "invoices" : "deal");
+    setDealSection(nextStep === 1 ? "customer" : "vehicle");
+    if (nextStep >= 3) setComposeInvoice(true);
     if (busy || !draft) return;
     if (nextStep >= 3 && payment.amount.trim()) {
       setShowSummary(false);
@@ -706,45 +737,38 @@ export function SalesWorkspace({
     );
   }
 
-  return (
-    <div className={`invoice-builder${draft ? " is-editing" : ""}`}>
-      <header className="invoice-builder-header">
-        <div>
-          <span className="invoice-builder-brand">
-            {settings.identity.name}
-          </span>
-          <strong>Sales & invoices</strong>
-        </div>
-        <div>
-          {record && !showSummary && !issued && <Button variant="ghost" disabled={busy} onClick={() => { setShowSummary(true); setProblem(""); }}>Sale summary</Button>}
-          {canManageSales && draft && (!showSummary || detailsDirty) && (
-            <Button variant="outline" disabled={busy} onClick={save}>
-              Save details
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            disabled={busy}
-            onClick={
-              draft ? leave : () => (onExit ? onExit() : navigate("/portal"))
-            }
-          >
-            <ArrowLeft size={16} />{" "}
-            {draft ? "Back to sales" : "Back to workspace"}
-          </Button>
-        </div>
-      </header>
-      {!draft ? (
-        <main className="invoice-builder-list">
+
+  const sectionTitles = { deal: 'Deal details', payments: 'Payments', invoices: 'Invoices & documents', handover: 'Collection & delivery' };
+  function changeSection(tab: SalesWorkspaceTab) {
+    setWorkspaceTab(tab);
+    setStep(tab === 'payments' ? 2 : tab === 'invoices' ? 4 : dealSection === 'customer' ? 1 : 0);
+    setProblem('');
+  }
+  const released = record?.lifecycle?.status === 'released';
+  const frozen = Boolean(record?.completedAt || released || !canManageSales);
+  return <div className={`invoice-builder sale-desk${draft ? ' is-editing' : ''}`} data-sale-section={workspaceTab}>
+    <header className="invoice-builder-header sale-desk-header">
+      <div className="sale-desk-header-identity">
+        <Button type="button" variant="ghost" disabled={busy} onClick={draft ? leave : () => onExit ? onExit() : navigate('/portal')}><ArrowLeft size={17} /><span>{draft ? 'Sales' : 'Workspace'}</span></Button>
+        <span className="sale-desk-heading-divider" />
+        <div><strong>{draft ? record?.reference || 'New sale' : 'Sales'}</strong><small>{settings.identity.name}</small></div>
+        {draft && <span className="sale-desk-save-status" role="status">{busy ? 'Working…' : detailsDirty ? 'Unsaved changes' : record ? 'Saved' : 'Not saved yet'}</span>}
+      </div>
+      <div className="sale-desk-header-actions">
+        {draft && canManageSales && <Button variant={detailsDirty ? 'default' : 'outline'} disabled={busy || (!detailsDirty && Boolean(record))} onClick={save}>{busy ? 'Saving…' : 'Save details'}</Button>}
+        {quickActions}
+      </div>
+    </header>
+    {!draft ? <main className="invoice-builder-list sale-desk-list">
           <div className="invoice-list-heading">
             <div>
-              <h1>Sales & invoices</h1>
+              <h1>Sales</h1>
               <p>
-                {access.data?.permissions.includes('sales.manage') ? 'Create a deposit invoice or a full sales invoice in five short steps.' : 'View existing sales, invoices and payments.'}
+                {access.data?.permissions.includes('sales.manage') ? 'Manage each deal, from the first deposit to the handover.' : 'View existing sales, invoices and payments.'}
               </p>
             </div>
             {access.data?.permissions.includes('sales.manage') && <Button onClick={() => open()}>
-              <Plus size={17} /> New invoice
+              <Plus size={17} /> New sale
             </Button>}
           </div>
           <Input
@@ -804,287 +828,30 @@ export function SalesWorkspace({
           {!sales.isLoading && !sales.isError && !listSearch && !matchingSales.length && (
             <div className="invoice-empty">
               <Invoice size={32} />
-              <h2>Your invoices start here</h2>
+              <h2>Start your first sale</h2>
               <p>
                 Choose a customer and car, record the payments, then create the
                 paperwork.
               </p>
             </div>
-          )}
-        </main>
-      ) : (
-        <>
-          {!issued && !showSummary && (
-            <nav className="invoice-steps" aria-label="Invoice steps">
-              {[
-                "Car",
-                "Customer",
-                "Payments",
-                "Invoice type",
-                "Review & create",
-              ].map((label, index) => (
-                <span
-                  key={label}
-                  aria-current={index === step ? "step" : undefined}
-                  data-complete={index < step}
-                >
-                  <b>{index < step ? <Check size={14} /> : index + 1}</b>
-                  <span className="invoice-step-label">{label}</span>
-                </span>
-              ))}
-            </nav>
-          )}
-          <main ref={scrollPane} className="invoice-builder-scroll">
-            <div className={`invoice-step-layout${showVehicleContext ? " has-vehicle-context" : ""}`}>
-              {showVehicleContext && draft && (
-                <aside className="invoice-car-context" aria-label="Selected car">
-                  <div className="invoice-car-context-photo">
-                    <Car size={36} aria-hidden="true" />
-                    {vehicle && <SaleVehiclePhoto key={vehicle.id} car={vehicle} />}
-                  </div>
-                  <div className="invoice-car-context-details">
-                    <p className="invoice-builder-kicker">Selected car</p>
-                    <h2>{draft.vehicle || "Selected vehicle"}</h2>
-                    {vehicle?.variant && <p className="invoice-car-context-variant">{vehicle.variant}</p>}
-                    <UKNumberPlate value={draft.registration} size="sm" variant="front" />
-                  </div>
-                  {vehicle && (
-                    <div className="invoice-car-context-specs">
-                      <p>{[vehicle.year, vehicle.colour].filter(Boolean).join(" · ")}</p>
-                      <p>{[vehicle.fuel, vehicle.transmission].filter(Boolean).join(" · ")}</p>
-                      {typeof vehicle.mileage === "number" && <p>{vehicle.mileage.toLocaleString("en-GB")} miles</p>}
-                    </div>
-                  )}
-                  <div className="invoice-car-context-footer">
-                    <dl><dt>Agreed price</dt><dd>{saleMoney(pence(draft.price))}</dd></dl>
-                    <Button type="button" variant="outline" disabled={busy || vehicleChangeLocked} onClick={() => {
-                      setStep(0);
-                      setProblem("");
-                      setReviewed(false);
-                    }}>Change car</Button>
-                  </div>
-                  {vehicleChangeLocked && <p className="invoice-car-context-lock">{record?.completedAt ? "The car is fixed for this completed sale." : "The car is fixed while this sale is reserved."}</p>}
-                </aside>
-              )}
-            <div className={`invoice-question-sheet${showSummary ? " invoice-resume-sheet" : ""}`} data-view={showSummary ? "summary" : issued ? "issued" : `step-${step + 1}`}>
-              <div className="invoice-question-heading">
-              <p className="invoice-builder-kicker">
-                {showSummary && record ? "Saved sale" : issued ? "Invoice saved" : `Step ${step + 1} of 5`}
-              </p>
-              <h1 ref={heading} tabIndex={-1}>
-                {showSummary ? "Sale summary" : issued ? "Your invoice is ready." : questions[step]}
-              </h1>
-              </div>
-              {problem && (
-                <p role="alert" className="invoice-error">
-                  {problem}
-                  {/another device|reload/i.test(problem) && record && (
-                    <Button
-                      variant="outline"
-                      onClick={() =>
-                        run(async () => {
-                          const latest = await customFetch<{
-                            sale: SaleWorkspaceRecord;
-                          }>(`/api/sale-workspace/${record.id}`);
-                          accept({ sale: latest.sale });
-                          setMessage("Latest sale loaded.");
-                        })
-                      }
-                    >
-                      Reload latest sale
-                    </Button>
-                  )}
-                </p>
-              )}
-              {message && (
-                <p role="status" className="invoice-message">
-                  {message}
-                </p>
-              )}
-              {showSummary && record && total ? (
-                <section className="invoice-resume" aria-label="Saved sale summary">
-                  <div className="invoice-resume-identity">
-                    <div className="invoice-resume-car">{vehicle && <SaleVehiclePhoto car={vehicle} />}<div><strong>{draft.vehicle || "Vehicle to add"}</strong><p>{[draft.registration, draft.customer || "Customer to add"].filter(Boolean).join(" · ")}</p>{(draft.phone || draft.email) && <small>{[draft.phone, draft.email].filter(Boolean).join(" · ")}</small>}</div></div>
-                    <span className="invoice-resume-status" data-status={saleStatus.toLowerCase().replaceAll(" ", "-")}>{saleStatus}</span>
-                  </div>
-                  {dirty && <p className="invoice-resume-unsaved" role="status">Your unsaved entries are still here. Save details or return to the payment form to record them.</p>}
-                  <dl className="invoice-resume-totals" aria-label="Sale amounts"><div><dt>Agreed total</dt><dd>{saleMoney(total.totalDue)}</dd></div><div><dt>Paid</dt><dd>{saleMoney(total.confirmedPaid)}</dd></div>{record.lifecycle?.status !== 'released' && <div data-balance={total.balance === 0 ? "settled" : "due"}><dt>{needsCorrectionReview ? "Calculated balance (review)" : total.balance < 0 ? "Customer credit" : "Balance due"}</dt><dd>{saleMoney(needsCorrectionReview ? total.balance : Math.abs(total.balance))}</dd></div>}</dl>
-                  {needsCorrectionReview && <p role="alert" className="invoice-error">{record.lifecycle?.status === 'released' ? 'This released sale has a correction note. Check the external paperwork with your accountant.' : 'This sale has a recorded refund or correction note. The calculated balance uses the price recorded here and does not include external price corrections. Check with your accountant before treating it as money owed.'}</p>}
-                  {record.lifecycle?.status === 'released' && <p className="invoice-note">The reservation was released and the sale is not completed. The agreed price above is retained for the record. To sell this car, return to sales and start a new invoice.</p>}
-                  {record.lifecycle?.status === 'released' && (total.confirmedPaid !== 0 || total.pending > 0) && <p role="alert" className="invoice-error">Review the recorded payments and any provider refund status for this released reservation. {total.confirmedPaid !== 0 && `${total.confirmedPaid < 0 ? 'Net paid out' : 'Net received'}: ${saleMoney(Math.abs(total.confirmedPaid))}. `}{total.pending > 0 && `Pending: ${saleMoney(total.pending)}. `}These amounts do not mean the purchase price is due.</p>}
-                  {record.lifecycle?.status !== 'released' && <SaleHandover key={`handover:${record.id}`} sale={record} onSaved={sale => accept({sale})} />}
-                  {resumeAction && <div className="invoice-resume-next"><div><strong>Pick up where you left off</strong><p>{resumeAction.note}</p></div><Button disabled={busy} onClick={resumeAction.run}>{resumeAction.label}<ArrowRight size={16} aria-hidden="true" /></Button></div>}
-                  <div className="invoice-resume-records">
-                    <section aria-labelledby="resume-payments-heading"><h2 id="resume-payments-heading">Payment history</h2><p>{rows.length ? `${rows.length} ${rows.length === 1 ? "entry" : "entries"} recorded` : "No payments recorded yet."}</p>{latestPayment && <small>Latest: {saleMoney(latestPayment.signedAmountPence)} · {paymentDate(latestPayment.date)} · {latestPayment.method}</small>}{total.pending > 0 && <small>{saleMoney(total.pending)} pending — not yet received.</small>}{record.lifecycle?.status !== 'released' && <Button variant="outline" disabled={busy} onClick={() => resumeAt(2)}>Record payment</Button>}</section>
-                    <section aria-labelledby="resume-invoice-heading"><h2 id="resume-invoice-heading">Invoice</h2>{latestInvoice ? <><p>{latestInvoice.title} · {latestInvoice.number}</p><small>Issued {new Date(latestInvoice.issuedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}{!invoiceIsCurrent ? " · Changes since issue" : ""}</small><Button variant="outline" disabled={busy} onClick={() => documentAction(latestInvoice, "print")}>Open invoice</Button><Button variant="outline" disabled={busy} onClick={() => prepareDocumentEmail(latestInvoice)}>Invoice options</Button></> : <p>No invoice created yet.</p>}{record.completedAt && <small>A new sales invoice is not a credit note and does not correct the agreed sale price.</small>}{record.lifecycle?.status !== 'released' && <Button variant="ghost" disabled={busy} onClick={() => resumeAt(3)}>{latestInvoice ? record.completedAt ? "Create updated sales invoice" : "Create another invoice" : "Prepare invoice"}</Button>}</section>
-                  </div>
-                  {record.lifecycle?.status === 'reserved' && !record.completedAt && access.data?.permissions.includes('sales.manage') && <div className="invoice-draft-delete"><div><strong>Reservation</strong><p>{total.confirmedPaid !== 0 || total.pending !== 0 ? 'Review any received or pending payments before releasing this car.' : 'Payments are clear. You can release the car if this sale will not proceed.'}</p></div><Button variant="outline" disabled={busy || dirty || total.confirmedPaid !== 0 || total.pending !== 0} onClick={() => { setProblem(''); setReleaseReservationOpen(true); }}>Release reservation</Button></div>}
-                  {rows.length > 0 && <section className="invoice-summary-payments" aria-label="Recorded payments"><ul>{rows.map(row => <li key={row.id} data-status={row.status}><div><strong>{saleMoney(row.signedAmountPence)}</strong><span>{paymentDate(row.date)} · {row.method}</span></div><small>{row.status === "confirmed" ? row.signedAmountPence < 0 ? "Returned / reversed" : "Received" : row.status}{row.reference && ` · ${row.reference}`}</small></li>)}</ul></section>}
-                  {record.lifecycle?.status !== 'released' && <div className="invoice-resume-edit"><span>{record.completedAt ? "Completed details are locked. Issued invoices remain unchanged." : "Need to correct something?"}</span><Button variant="ghost" disabled={busy} onClick={() => resumeAt(0)}>{(record.completedAt || !canManageSales) ? "View vehicle details" : "Edit vehicle & price"}</Button><Button variant="ghost" disabled={busy} onClick={() => resumeAt(1)}>{(record.completedAt || !canManageSales) ? "View customer details" : "Edit customer details"}</Button></div>}
-                  {canDeleteDraft && <div className="invoice-draft-delete"><div><strong>{record.draft.customer ? 'Test sale draft' : 'Unused sale draft'}</strong><p>No invoice or payment has been recorded. {dirty ? 'Save or discard your unsaved changes before deleting.' : 'You can remove this draft if it is no longer needed.'}</p></div><Button variant="outline" disabled={busy || dirty} onClick={() => { setProblem(''); setDeleteDraftOpen(true); }}><Trash2 size={16} aria-hidden="true" />Delete draft</Button></div>}
-                  {(record.completedAt || record.lifecycle?.status === 'sold') && <><SoldVehicleCustomerReview saleId={record.id} /></>}
-                  {record.documents.length > 1 && <details className="invoice-resume-paperwork"><summary>All saved paperwork ({record.documents.length})</summary>{[...record.documents].reverse().map(document => <div key={document.id}><span>{document.title}<small>{document.number}</small></span><Button variant="outline" size="sm" disabled={busy} onClick={() => documentAction(document, "print")}>Open {document.number}</Button></div>)}</details>}
-                  {(record.completedAt || latestInvoice) && <CompletedSaleCorrectionHelp
-                    key={record.id}
-                    completed={Boolean(record.completedAt)}
-                    corrections={record.corrections}
-                    instructions={correctionPaperwork.data?.correctionSettings?.instructions}
-                    instructionsError={correctionPaperwork.isError}
-                    onRetryInstructions={() => void correctionPaperwork.refetch()}
-                    canRecord={Boolean(access.data?.permissions.includes('sales.manage'))}
-                    disabled={busy || dirty}
-                    onRecord={async input => {
-                      if (lock.current) throw new Error('Another sale action is in progress.');
-                      lock.current = true;
-                      setBusy(true);
-                      try {
-                        const result = await request(`/api/sale-workspace/${record.id}/corrections`, 'POST', { expectedRevision: record.revision, ...input });
-                        accept(result);
-                      } catch (error) {
-                        if (error instanceof HttpApiError && error.data && typeof error.data === 'object' && 'error' in error.data) throw new Error(String(error.data.error));
-                        throw error;
-                      } finally { lock.current = false; setBusy(false); }
-                    }}
-                  />}
-                </section>
-              ) : issued ? (
-                <>
-                  <div className="invoice-ready-card">
-                    <Invoice size={32} />
-                    <div>
-                      <h2>{issued.title}</h2>
-                      <p>
-                        {issued.number} · {draft.customer}
-                      </p>
-                      <small>
-                        {draft.vehicle} · {draft.registration}
-                      </small>
-                    </div>
-                  </div>
-
-                  <div className="invoice-document-actions">
-                    <Button
-                      disabled={busy}
-                      onClick={() => documentAction(issued, "print")}
-                    >
-                      <Printer size={17} /> Open & print invoice
-                    </Button>
-                    <Button
-                      variant="outline"
-                      disabled={busy}
-                      onClick={() => documentAction(issued, "download")}
-                    >
-                      <Download size={17} /> Download PDF
-                    </Button>
-                    <Button
-                      variant="outline"
-                      disabled={busy || !canEmailCustomer || !issued.snapshot.draft.email}
-                      aria-describedby={!canEmailCustomer ? emailAvailabilityId : undefined}
-                      onClick={() => email(issued)}
-                    >
-                      <Mail size={17} /> Email customer
-                    </Button>
-
-                  </div>
-                  {!canEmailCustomer && <div id={emailAvailabilityId} role="status" className="invoice-note"><p>{emailUnavailableReason}</p>{features.isError && <Button variant="outline" disabled={features.isFetching} onClick={() => void features.refetch()}>Retry email availability</Button>}</div>}
-                  {record && <SaleHandover key={`handover:${record.id}`} sale={record} onSaved={sale => accept({sale})} />}
-
-                  {issued.invoiceKind === 'full' && record && <SoldVehicleCustomerReview key={`sold-customers:${record.id}:${record.lifecycle?.status ?? 'draft'}`} saleId={record.id} />}
-                  {issued.invoiceKind === "full" &&
-                    !record?.completedAt &&
-                    !soldChoice && (
-                      <section className="invoice-sold-question">
-                        <h2>Should this car be marked sold?</h2>
-                        <p>
-                          Marking it sold removes it from the customer website.
-                          Your invoice and payments stay saved.
-                        </p>
-                        {checklistPanel()}
-                        {total!.balance > 0 && (
-                          <>
-                            <p className="invoice-message" data-tone="warning">
-                              {saleMoney(total!.balance)} is still due. Removing
-                              the car does not settle this balance.
-                            </p>
-                            <label className="invoice-check">
-                              <input
-                                type="checkbox"
-                                checked={outstandingAccepted}
-                                onChange={(event) =>
-                                  setOutstandingAccepted(event.target.checked)
-                                }
-                              />
-                              I confirm the sale can proceed with this
-                              outstanding balance. We will record the remaining
-                              payment later.
-                            </label>
-                          </>
-                        )}
-                        <div>
-                          <Button
-                            disabled={
-                              busy ||
-                              !checklistReady ||
-                              total!.balance < 0 ||
-                              (total!.balance > 0 && !outstandingAccepted) ||
-                              !draft.vehicleId
-                            }
-                            onClick={() =>
-                              run(async () => {
-                                await command("/finish-invoice-sale", {
-                                  acknowledge: true,
-                                  acknowledgeOutstanding: outstandingAccepted,
-                                });
-                                await client.invalidateQueries({
-                                  queryKey: getGetStockQueryKey(),
-                                });
-                                await client.invalidateQueries({ queryKey: soldVehicleFollowUpsQueryKey });
-                                setSoldChoice(true);
-                                setMessage(
-                                  "Car marked sold and removed from the website.",
-                                );
-                              })
-                            }
-                          >
-                            Yes, mark sold & remove
-                          </Button>
-                          <Button
-                            variant="outline"
-                            disabled={busy}
-                            onClick={() => {
-                              setSoldChoice(true);
-                              setMessage(
-                                "Invoice saved. The car’s availability has not changed.",
-                              );
-                            }}
-                          >
-                            No, keep its current status
-                          </Button>
-                        </div>
-                      </section>
-                    )}
-                  {issued.invoiceKind === "deposit" && (
-                    <p className="invoice-message">
-                      The deposit is recorded and the car remains reserved.
-                      Reopen this sale when the customer pays again.
-                    </p>
-                  )}
-                  <Button
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => {
-                      setIssued(null);
-                      setStep(2);
-                      setReviewed(false);
-                    }}
-                  >
-                    Return to this sale
-                  </Button>
-                </>
-              ) : (
-                <fieldset disabled={busy || (!canManageSales && step < 2)}>
-                  {step === 0 && (
-                    <>
+          )}</main> : <>
+      <SalesWorkspaceNavigation value={workspaceTab} onChange={changeSection} disabled={busy} />
+      <main className="sale-desk-body" ref={scrollPane}>
+        <div className="sale-desk-content" role="tabpanel" id={`sale-panel-${workspaceTab}`} aria-labelledby={`sale-tab-${workspaceTab}`}>
+          <div className="sale-desk-section-heading"><h1 ref={heading} tabIndex={-1}>{sectionTitles[workspaceTab]}</h1><span className="sale-desk-state" data-status={saleStatus.toLowerCase().replaceAll(' ', '-')}>{saleStatus}</span></div>
+          {problem && <div role="alert" className="invoice-error">{problem}{/another device|reload/i.test(problem) && record && <Button variant="outline" disabled={busy} onClick={() => run(async () => {const latest = await customFetch<{sale: SaleWorkspaceRecord}>(`/api/sale-workspace/${record.id}`);accept({sale: latest.sale});setMessage('Latest sale loaded.');})}>Reload latest sale</Button>}</div>}
+          {message && <p role="status" className="invoice-message">{message}</p>}
+          {released && <p className="invoice-message" data-tone="warning">This reservation was released. Its documents and payment history are kept. Start a new sale to sell this car.</p>}
+          {released && total && (total.confirmedPaid !== 0 || total.pending > 0) && <p role="alert" className="invoice-error">Review this released reservation’s payments. {total.confirmedPaid !== 0 && `Net received: ${saleMoney(total.confirmedPaid)}. `}{total.pending > 0 && `Pending: ${saleMoney(total.pending)}. `}These amounts do not mean the purchase price is due.</p>}
+          {needsCorrectionReview && <p role="alert" className="invoice-error">This sale has refunds or external corrections. Review the original paperwork before relying on the calculated balance.</p>}
+          {workspaceTab === 'deal' && <>
+            <div className="sale-desk-subnav" role="group" aria-label="Deal details">
+              <Button variant={dealSection === 'vehicle' ? 'default' : 'outline'} aria-pressed={dealSection === 'vehicle'} onClick={() => {setDealSection('vehicle');setStep(0);}} disabled={busy}><Car size={16} />Car & price</Button>
+              <Button variant={dealSection === 'customer' ? 'default' : 'outline'} aria-pressed={dealSection === 'customer'} onClick={() => {setDealSection('customer');setStep(1);}} disabled={busy}><UserRound size={16} />Customer</Button>
+              <Button variant={dealSection === 'extras' ? 'default' : 'outline'} aria-pressed={dealSection === 'extras'} onClick={() => {setDealSection('extras');setStep(0);}} disabled={busy}><Plus size={16} />Extras & part exchange</Button>
+            </div>
+            <section className="sale-desk-sheet"><fieldset disabled={busy || frozen}>
+              {dealSection === 'vehicle' && <>
                       <h2>Vehicle & agreed price</h2>
                       <VehicleChooser
                         cars={(stock?.cars ?? []).filter(car => car.id === draft.vehicleId || !["sold", "archived"].includes(String(car.inventoryStatus)))}
@@ -1126,10 +893,9 @@ export function SalesWorkspace({
                         {field("registration", "Registration / number plate")}
                         {field("price", "Agreed vehicle price (£)")}
                       </div>
-                    </>
-                  )}
-                  {step === 1 && (
-                    <>
+                <label className="sale-desk-vin">VIN / chassis number <Input value={draft.vin ?? ''} maxLength={17} spellCheck={false} autoComplete="off" placeholder="VIN from the vehicle or log book" onChange={event => update('vin',event.target.value.toUpperCase().replace(/\s/g,''))} /></label>
+              </>}
+              {dealSection === 'customer' && <>
                       <h2>Customer details</h2>
                       <RecentCustomerFields
                         value={{ customerName: draft.customer, phone: draft.phone, email: draft.email }}
@@ -1175,12 +941,8 @@ export function SalesWorkspace({
                         </label>
                         <div className="invoice-field-wide"><AddressPostcodeHelper address={draft.address} onChange={value => update('address',value)} disabled={!canManageSales || Boolean(record?.completedAt)} /></div>
                         {!record?.completedAt && !rows.length && <small className="invoice-field-wide">Choosing a recent customer clears this address. Confirm their current address for this sale.</small>}
-                      </div>
-                    </>
-                  )}
-                  {step === 2 && (
-                    <>
-                      <details className="invoice-optional">
+                      </div></>}
+              {dealSection === 'extras' && <><details className="invoice-optional" open>
                         <summary>Fees, discounts or part exchange</summary>
                         <p>
                           Only add items agreed with the customer. They appear
@@ -1394,27 +1156,26 @@ export function SalesWorkspace({
                           Add part exchange
                         </Button>
                       </details>
-                      {checklistPanel(true)}
-                      <p>
-                        Record money actually received, one payment at a time.
-                        This does not charge the customer.
-                      </p>
-                      <div className="invoice-money-summary">
-                        <div>
-                          <span>Agreed total</span>
-                          <strong>{saleMoney(total!.totalDue)}</strong>
-                        </div>
-                        <div data-kind="received">
-                          <span>Received</span>
-                          <strong>{saleMoney(total!.confirmedPaid)}</strong>
-                        </div>
-                        <div data-kind="balance" data-balance={total!.balance === 0 ? 'settled' : total!.balance < 0 ? 'credit' : 'outstanding'}>
-                          <span>{needsCorrectionReview ? 'Calculated balance (review)' : 'Balance due'}</span>
-                          <strong>{saleMoney(total!.balance)}</strong>
-                        </div>
-                      </div>
-                      {needsCorrectionReview && <p role="alert" className="invoice-error">This calculation uses the price recorded here and does not include external price corrections. Check with your accountant before treating it as money owed.</p>}
-                      {rows.length > 0 && (
+
+                <label>Notes agreed with the customer<Textarea rows={3} value={draft.notes} onChange={event => update('notes', event.target.value)} /></label>
+              </>}
+            </fieldset>
+            {dealSection === 'extras' && checklistPanel(true)}
+            </section>
+            <div className="sale-desk-section-actions"><Button variant="outline" onClick={() => changeSection(dealSection === 'vehicle' ? 'deal' : 'payments')} disabled={busy || dealSection === 'vehicle'}>{dealSection === 'vehicle' ? 'Select the car and agreed price' : 'Go to payments'}<ArrowRight size={16}/></Button>{dealSection === 'vehicle' && <Button onClick={() => {setDealSection('customer');setStep(1);}} disabled={busy}>Customer details<ArrowRight size={16}/></Button>}</div>
+            {/* SALES_EXTENSION_RETURN_REPLACE: for saved completed sales */}
+            {record && <details className="sale-desk-fold"><summary>Sale actions</summary>
+              {record.lifecycle?.status === 'reserved' && !record.completedAt && canManageSales && <div className="invoice-draft-delete"><p>Release this reservation when received and pending payments are clear.</p><Button variant="outline" disabled={busy || dirty || total?.confirmedPaid !== 0 || total?.pending !== 0} onClick={() => {setProblem('');setReleaseReservationOpen(true);}}>Release reservation</Button></div>}
+              {canDeleteDraft && <div className="invoice-draft-delete"><p>No issued invoice or payment is attached to this removable draft.</p><Button variant="outline" disabled={busy || dirty} onClick={() => {setProblem('');setDeleteDraftOpen(true);}}><Trash2 size={16}/>Delete draft</Button></div>}
+              {!canDeleteDraft && record.lifecycle?.status !== 'reserved' && <p>Issued documents and payment history are retained with this sale.</p>}
+            </details>}
+          </>}
+          {/* SALES_EXTENSION_PAYMENT_REQUESTS: mount for workspaceTab === 'payments', saved and clean record */}
+          {workspaceTab === 'payments' && record && !detailsDirty && !payment.amount.trim() && canRecordPayments && <SalePaymentRequests sale={record} onSaved={sale=>accept({sale})}/>}
+          {workspaceTab === 'payments' && <section className="sale-desk-sheet sale-desk-payments">
+            <div className="sale-desk-inline-heading"><div><h2>Money received</h2><p>Record each payment after you have checked it arrived.</p></div>{total!.balance > 0 && canRecordPayments && !released && <Button onClick={() => setPaymentFormOpen(!paymentFormOpen)} disabled={busy}><Plus size={16}/>{paymentFormOpen ? 'Close payment entry' : 'Add received payment'}</Button>}</div>{!rows.length && <p className="sale-desk-empty-inline">No payments recorded.</p>}
+            {payment.amount.trim() && <p className="invoice-message">An unsaved payment is kept here. Save it before issuing documents or leaving this sale.</p>}
+            <fieldset disabled={busy || !canRecordPayments || released}>{rows.length > 0 && (
                         <div className="invoice-payment-list">
                           {rows.map((row) => (
                             <div key={row.id} data-status={row.status}>
@@ -1442,7 +1203,7 @@ export function SalesWorkspace({
                           ))}
                         </div>
                       )}
-                      {total!.balance > 0 && (
+                      {total!.balance > 0 && paymentFormOpen && (
                         <form
                           className="invoice-payment-form"
                           onSubmit={addPayment}
@@ -1515,7 +1276,7 @@ export function SalesWorkspace({
                                   })
                                 }
                               >
-                                <option value="deposit">
+                                <option value="deposit" disabled={!canManageSales}>
                                   Deposit (reserves the car)
                                 </option>
                                 <option value="part-payment">
@@ -1575,49 +1336,151 @@ export function SalesWorkspace({
                         <p className="invoice-message" data-tone="success">
                           The agreed balance is settled.
                         </p>
-                      )}
-                    </>
-                  )}
-                  {step === 3 && (
-                    <div className="invoice-type-choices">
-                      {(["deposit", "full"] as const).map((type) => (
-                        <button
-                          key={type}
-                          type="button"
-                          disabled={
-                            type === "deposit" && Boolean(record?.completedAt)
-                          }
-                          aria-pressed={kind === type}
-                          onClick={() => {
-                            setKind(type);
-                            setReviewed(false);
-                          }}
-                        >
-                          <Invoice size={24} />
-                          <strong>
-                            {type === "deposit"
-                              ? "Deposit invoice"
-                              : "Full invoice"}
-                          </strong>
-                          <span>
-                            {type === "deposit"
-                              ? "Record the deposit, reserve the car and show the remaining balance."
-                              : "Show the agreed price and every payment received, with dates and methods."}
-                          </span>
-                          <small>
-                            {kind === type ? "Selected" : "Choose this invoice"}
-                          </small>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {step === 4 && (
-                    <>
+                      )}</fieldset>
+          </section>}
+          {workspaceTab === 'invoices' && <>
+            {record && <SaleFinalReview sale={record} onSaved={sale=>accept({sale})} disabled={busy || detailsDirty || !!payment.amount.trim()} onNavigate={field=>{setWorkspaceTab(field==='handover'?'handover':field==='payments'?'payments':field==='invoices'?'invoices':'deal');if(field==='customer')setDealSection('customer');if(field==='vehicle')setDealSection('vehicle');}}/>}
+            {record && !detailsDirty && <SaleTermsDocuments saleId={record.id} saleRevision={record.revision} canIssue={canManageSales && !busy && !payment.amount.trim()}/>}
+            {issued ? <section className="sale-desk-sheet">
+                  <div className="invoice-ready-card">
+                    <Invoice size={32} />
+                    <div>
+                      <h2>{issued.title}</h2>
                       <p>
-                        The PDF will be generated once you confirm these
-                        details.
+                        {issued.number} · {draft.customer}
                       </p>
-                      <dl className="invoice-review">
+                      <small>
+                        {draft.vehicle} · {draft.registration}
+                      </small>
+                    </div>
+                  </div>
+
+                  <div className="invoice-document-actions">
+                    <Button
+                      disabled={busy}
+                      onClick={() => documentAction(issued, "print")}
+                    >
+                      <Printer size={17} /> Open & print invoice
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => documentAction(issued, "download")}
+                    >
+                      <Download size={17} /> Download PDF
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={busy || !canEmailCustomer || !issued.snapshot.draft.email}
+                      aria-describedby={!canEmailCustomer ? emailAvailabilityId : undefined}
+                      onClick={() => email(issued)}
+                    >
+                      <Mail size={17} /> Email customer
+                    </Button>
+
+                  </div>
+                  {!canEmailCustomer && <div id={emailAvailabilityId} role="status" className="invoice-note"><p>{emailUnavailableReason}</p>{features.isError && <Button variant="outline" disabled={features.isFetching} onClick={() => void features.refetch()}>Retry email availability</Button>}</div>}
+
+
+                  {issued.invoiceKind === 'full' && record && <SoldVehicleCustomerReview key={`sold-customers:${record.id}:${record.lifecycle?.status ?? 'draft'}`} saleId={record.id} />}
+                  {issued.invoiceKind === "full" &&
+                    !record?.completedAt && canManageSales &&
+                    !soldChoice && (
+                      <section className="invoice-sold-question">
+                        <h2>Should this car be marked sold?</h2>
+                        <p>
+                          Marking it sold removes it from the customer website.
+                          Your invoice and payments stay saved.
+                        </p>
+                        {checklistPanel()}
+                        {total!.balance > 0 && (
+                          <>
+                            <p className="invoice-message" data-tone="warning">
+                              {saleMoney(total!.balance)} is still due. Removing
+                              the car does not settle this balance.
+                            </p>
+                            <label className="invoice-check">
+                              <input
+                                type="checkbox"
+                                checked={outstandingAccepted}
+                                onChange={(event) =>
+                                  setOutstandingAccepted(event.target.checked)
+                                }
+                              />
+                              I confirm the sale can proceed with this
+                              outstanding balance. We will record the remaining
+                              payment later.
+                            </label>
+                          </>
+                        )}
+                        <div>
+                          <Button
+                            disabled={
+                              busy || Boolean(payment.amount.trim()) || detailsDirty ||
+                              !checklistReady ||
+                              total!.balance < 0 ||
+                              (total!.balance > 0 && !outstandingAccepted) ||
+                              !draft.vehicleId
+                            }
+                            onClick={() =>
+                              run(async () => {
+                                await command("/finish-invoice-sale", {
+                                  acknowledge: true,
+                                  acknowledgeOutstanding: outstandingAccepted,
+                                });
+                                await client.invalidateQueries({
+                                  queryKey: getGetStockQueryKey(),
+                                });
+                                await client.invalidateQueries({ queryKey: soldVehicleFollowUpsQueryKey });
+                                setSoldChoice(true);
+                                setMessage(
+                                  "Car marked sold and removed from the website.",
+                                );
+                              })
+                            }
+                          >
+                            Yes, mark sold & remove
+                          </Button>
+                          <Button
+                            variant="outline"
+                            disabled={busy}
+                            onClick={() => {
+                              setSoldChoice(true);
+                              setMessage(
+                                "Invoice saved. The car’s availability has not changed.",
+                              );
+                            }}
+                          >
+                            No, keep its current status
+                          </Button>
+                        </div>
+                      </section>
+                    )}
+                  {issued.invoiceKind === "deposit" && (
+                    <p className="invoice-message">
+                      The deposit is recorded and the car remains reserved.
+                      Reopen this sale when the customer pays again.
+                    </p>
+                  )}
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => {
+                      setIssued(null);
+                      setWorkspaceTab("payments");
+                      setStep(2);
+                      setReviewed(false);
+                    }}
+                  >
+                    Return to this sale
+                  </Button></section> : <>
+              <section className="sale-desk-sheet"><div className="sale-desk-inline-heading"><div><h2>Saved documents</h2><p>Issued paperwork keeps its original details.</p></div>{canRecordPayments && !released && <Button onClick={() => {setComposeInvoice(!composeInvoice);setStep(4);setReviewed(false);}} disabled={busy}><Plus size={16}/>{composeInvoice ? 'Close new invoice' : 'Create invoice'}</Button>}</div>
+                {record?.documents.length ? <div className="sale-desk-document-list">{[...record.documents].reverse().map(doc => <div key={doc.id}><Invoice size={19} aria-hidden="true"/><span><strong>{doc.title}</strong><small>{doc.number} · {new Date(doc.issuedAt).toLocaleDateString('en-GB')}</small></span><Button variant="outline" disabled={busy} onClick={() => {setIssued(doc);setSoldChoice(false);setOutstandingAccepted(false);}}>View & share</Button></div>)}</div> : <p className="sale-desk-empty-inline">No documents issued yet. Create an invoice when the deal details are ready.</p>}
+              </section>
+              {(composeInvoice || !record?.documents.length) && canRecordPayments && !released && <section className="sale-desk-sheet sale-desk-invoice-compose"><h2>New invoice</h2>
+                <div className="sale-desk-invoice-kinds" role="group" aria-label="Invoice type">{(['full','deposit'] as const).map(type => <Button key={type} variant={kind === type ? 'default' : 'outline'} aria-pressed={kind === type} disabled={busy || (type === 'deposit' && Boolean(record?.completedAt))} onClick={() => {setKind(type);setReviewed(false);}}><Invoice size={16}/>{type === 'full' ? 'Sales invoice' : 'Received deposit invoice'}</Button>)}</div>
+                {kind === 'deposit' && <p className="invoice-note">Use this after receiving a deposit. To ask the customer for money, use a payment request in Payments.</p>}
+                <details className="sale-desk-fold"><summary>Review customer, vehicle and amounts</summary><dl className="invoice-review">
                         <div>
                           <dt>Invoice</dt>
                           <dd>
@@ -1663,102 +1526,57 @@ export function SalesWorkspace({
                           <dd>{saleMoney(total!.balance)}</dd>
                         </div>
                       </dl>
-                      {kind === 'full' && <section className="invoice-final-paperwork" aria-label="Vehicle paperwork">
-                        <h2>Vehicle paperwork</h2>
-                        <p className="invoice-note">Confirm the VIN from the vehicle or log book.</p>
-                        <label>VIN / chassis number
-                          <Input value={draft.vin ?? ""} maxLength={17} autoComplete="off" spellCheck={false}
-                            disabled={!canManageSales || Boolean(record?.completedAt)} placeholder="17-character VIN"
-                            onChange={event => update("vin", event.target.value.toUpperCase().replace(/\s/g, ""))} />
-                          <small>Copy from the vehicle or log book. Leave blank if not available yet.</small>
-                        </label>
-
-                      </section>}
-                      <SaleHandoverFields draft={draft} value={handoverDefaults(draft)} onChange={value => update('fulfilment',value)} disabled={!canManageSales || Boolean(record?.draft.fulfilment?.completedAt)} />
-                      {kind === 'full' && checklistPanel()}
-                      <label className="invoice-check">
-                        <input
-                          type="checkbox"
-                          checked={reviewed}
-                          onChange={(event) =>
-                            setReviewed(event.target.checked)
-                          }
-                        />
-                        I have checked the customer, car, agreed price and
-                        received payments.
-                      </label>
-                      <p className="invoice-note">
-                        Creating the full invoice does not mark the car sold.
-                        You’ll be asked afterwards. The PDF uses your
-                        dealership’s invoice branding and any approved terms
-                        supplied in settings.
-                      </p>
-                    </>
-                  )}
-                </fieldset>
-              )}
-              {!showSummary && record?.documents.length ? (
-                <details className="invoice-saved-documents">
-                  <summary>Saved paperwork ({record.documents.length})</summary>
-                  {[...record.documents].reverse().map((doc) => (
-                    <div key={doc.id}>
-                      <span>
-                        <strong>{doc.title}</strong>
-                        <small>{doc.number}</small>
-                      </span>
-
-                      <Button
-                        variant="outline"
-                        disabled={busy}
-                        onClick={() => documentAction(doc, "print")}
-                      >
-                        Open PDF
-                      </Button>
-                    </div>
-                  ))}
-                </details>
-              ) : null}
-            </div>
-            </div>
-          </main>
-          {!issued && !showSummary && (
-            <footer className="invoice-builder-footer">
-              <span>
-                {total && Number.isSafeInteger(total.totalDue)
-                  ? `Agreed total ${saleMoney(total.totalDue)}`
-                  : "Invoice details"}
-                {record?.completedAt && " · Sold"}
-              </span>
-              <div>
-                <Button
-                  variant="outline"
-                  disabled={busy || step === 0}
-                  onClick={() => {
-                    setStep(step - 1);
-                    setProblem("");
-                  }}
-                >
-                  Previous
-                </Button>
-                {step < 4 ? (
-                  <Button disabled={busy} onClick={next}>
-                    Continue <ArrowRight size={16} />
-                  </Button>
-                ) : (
-                  <Button disabled={busy || !reviewed} onClick={generate}>
-                    <Invoice size={16} />
-                    {busy
-                      ? "Creating…"
-                      : kind === "deposit"
-                        ? "Create deposit invoice"
-                        : "Create full invoice"}
-                  </Button>
-                )}
-              </div>
-            </footer>
-          )}
-        </>
-      )}
+</details>
+                {/* SALES_EXTENSION_FINAL_REVIEW: place saved-revision AI review here */}
+                <label className="invoice-check"><input type="checkbox" checked={reviewed} onChange={event => setReviewed(event.target.checked)} disabled={busy || Boolean(payment.amount.trim())}/>I have checked the customer, vehicle, agreed price and received payments.</label>
+                {payment.amount.trim() && <p className="invoice-error">Save or clear the payment entry in Payments before creating an invoice.</p>}
+                <p className="invoice-note">Creating an invoice keeps the car’s current availability. You can mark it sold after reviewing the saved invoice.</p>
+                <Button disabled={busy || !reviewed || Boolean(payment.amount.trim())} onClick={generate}><Invoice size={17}/>{busy ? 'Creating invoice…' : 'Create & save invoice'}</Button>
+              </section>}
+            </>}
+            {record && (record.completedAt || latestInvoice) && <details className="sale-desk-fold"><summary>Corrections & supporting paperwork</summary><CompletedSaleCorrectionHelp
+                    key={record.id}
+                    completed={Boolean(record.completedAt)}
+                    corrections={record.corrections}
+                    instructions={correctionPaperwork.data?.correctionSettings?.instructions}
+                    instructionsError={correctionPaperwork.isError}
+                    onRetryInstructions={() => void correctionPaperwork.refetch()}
+                    canRecord={Boolean(access.data?.permissions.includes('sales.manage'))}
+                    disabled={busy || dirty}
+                    onRecord={async input => {
+                      if (lock.current) throw new Error('Another sale action is in progress.');
+                      lock.current = true;
+                      setBusy(true);
+                      try {
+                        const result = await request(`/api/sale-workspace/${record.id}/corrections`, 'POST', { expectedRevision: record.revision, ...input });
+                        accept(result);
+                      } catch (error) {
+                        if (error instanceof HttpApiError && error.data && typeof error.data === 'object' && 'error' in error.data) throw new Error(String(error.data.error));
+                        throw error;
+                      } finally { lock.current = false; setBusy(false); }
+                    }}
+/></details>}
+          </>}
+          {workspaceTab === 'handover' && <>
+            {/* SALES_EXTENSION_DELIVERY_EVIDENCE: saved and clean record */}
+            {record && !detailsDirty && !payment.amount.trim() && <SaleFinalReview sale={record} onSaved={sale=>accept({sale})} disabled={busy}/>}
+            <section className="sale-desk-sheet">
+              {payment.amount.trim() ? <p className="invoice-error">Save or clear the payment entry in Payments before confirming the handover.</p> : record && !detailsDirty ? <SaleHandover key={`handover:${record.id}`} sale={record} onSaved={sale => accept({sale})} /> : <><SaleHandoverFields draft={draft} value={handoverDefaults(draft)} onChange={value => update('fulfilment', value)} disabled={busy || !canManageSales || Boolean(record?.draft.fulfilment?.completedAt)}/><p className="invoice-note">Save these details to continue with the handover.</p><Button onClick={save} disabled={busy || !canManageSales}>Save arrangements</Button></>}
+            </section>
+            {record && !detailsDirty && !payment.amount.trim() && record.draft.fulfilment?.method==='delivery' && canManageSales && <><SaleDeliveryCharge sale={record} onSaved={sale=>accept({sale})}/><SaleDeliveryEvidence saleId={record.id} revision={record.revision}/></>}
+            <details className="sale-desk-fold"><summary>Before handing over the car</summary>{checklistPanel()}</details>
+            {record && (record.completedAt || record.lifecycle?.status === 'sold') && <details className="sale-desk-fold"><summary>Customer follow-up</summary><SoldVehicleCustomerReview saleId={record.id} /></details>}
+          </>}
+        </div>
+        <aside className="sale-desk-summary" aria-label="Deal summary">
+          <div className="sale-desk-summary-car">{vehicle ? <SaleVehiclePhoto car={vehicle}/> : <Car size={28} aria-hidden="true"/>}<div><strong>{draft.vehicle || 'Choose a vehicle'}</strong>{draft.registration && <UKNumberPlate value={draft.registration} size="sm" variant="front"/>}</div></div>
+          <div className="sale-desk-summary-customer"><UserRound size={17}/><div><strong>{draft.customer || 'Add the customer'}</strong>{draft.phone && <a href={`tel:${draft.phone}`}>{draft.phone}</a>}{draft.email && <span>{draft.email}</span>}</div><Button variant="ghost" size="sm" disabled={busy} aria-label="Edit customer details" onClick={() => {changeSection('deal');setDealSection('customer');setStep(1);}}>Edit</Button></div>
+          {total && <dl className="sale-desk-totals"><div><dt>Vehicle</dt><dd>{saleMoney(total.price)}</dd></div>{deliveryAmount !== 0 && <div><dt>Delivery</dt><dd>{saleMoney(deliveryAmount)}</dd></div>}{otherAdjustments !== 0 && <div><dt>Extras & discounts</dt><dd>{saleMoney(otherAdjustments)}</dd></div>}{returnedCredit !== 0 && <div><dt>Return credit</dt><dd>−{saleMoney(returnedCredit)}</dd></div>}{total.allowance !== 0 && <div><dt>Part exchange</dt><dd>−{saleMoney(total.allowance)}</dd></div>}<div className="sale-desk-total"><dt>Agreed total</dt><dd>{saleMoney(total.totalDue)}</dd></div><div><dt>Received</dt><dd>{saleMoney(actualPaymentsReceived)}</dd></div>{transferredCredit !== 0 && <div><dt>{transferredCredit > 0 ? 'Credit transferred in' : 'Credit transferred out'}</dt><dd>{transferredCredit < 0 ? '−' : ''}{saleMoney(Math.abs(transferredCredit))}</dd></div>}{total.pending > 0 && <div><dt>Pending</dt><dd>{saleMoney(total.pending)}</dd></div>}{!released && <div className="sale-desk-balance" data-balance={total.balance === 0 ? 'settled' : total.balance < 0 ? 'credit' : 'outstanding'}><dt>{needsCorrectionReview ? 'Balance to review' : total.balance < 0 ? 'Customer credit' : 'Balance due'}</dt><dd>{saleMoney(Math.abs(total.balance))}</dd></div>}</dl>}
+          {detailsDirty && <p className="sale-desk-unsaved-note">Totals include your unsaved changes.</p>}
+          {record && <details className="sale-desk-activity"><summary><History size={16}/>Activity ({record.events.length})</summary><ol>{[...record.events].reverse().map(event => <li key={event.id}><strong>{event.description}</strong><span>{new Date(event.occurredAt).toLocaleString('en-GB', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})} · {event.actor}</span></li>)}</ol></details>}
+        </aside>
+      </main>
+    </>}
       {deleteDraftOpen && record && <Dialog open onOpenChange={open => { if (!busy && !open) { setDeleteDraftOpen(false); setProblem(''); } }}>
         <DialogContent className="portal-action-dialog sales-action-dialog z-[90]" closeDisabled={busy} aria-busy={busy} overlayClassName="z-[89]" onOpenAutoFocus={event => { event.preventDefault(); document.getElementById('keep-sale-draft')?.focus(); }}>
           <DialogHeader><DialogTitle>Delete this draft?</DialogTitle><DialogDescription>This permanently removes only this unused or clearly labelled test draft. Invoices, payments, stock and customer enquiry records are kept.</DialogDescription></DialogHeader>
@@ -1814,9 +1632,6 @@ export function SalesWorkspace({
           }
         />
       )}
-    </div>
-  );
+  </div>;
 }
-export default function SalesDemo() {
-  return <SalesWorkspace />;
-}
+export default function SalesDemo() { return <SalesWorkspace />; }

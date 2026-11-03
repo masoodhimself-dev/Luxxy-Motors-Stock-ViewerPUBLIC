@@ -26,6 +26,9 @@ export type Adjustment = {
   kind: "fee" | "discount";
 };
 export type SaleDraft = {
+  deliveryCharge?: string;
+  creditEntries?: SaleWorkspaceDraft['creditEntries'];
+  returnCreditPence?: number;
   exchanges?: Exchange[];
   payments?: Payment[];
   adjustments?: Adjustment[];

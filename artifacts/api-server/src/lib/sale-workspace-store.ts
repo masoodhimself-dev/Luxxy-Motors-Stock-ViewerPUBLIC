@@ -82,7 +82,9 @@ export class PostgresSaleWorkspaceStore {
       if (!canDeleteEmptySaleDraft(current.state, true)) throw new SaleWorkspaceError('Only unused empty drafts or clearly labelled test drafts can be deleted. Real customer details, invoices, payments and sale history are protected.', 409);
       // Check references that are outside the JSON ledger too. Never release stock or erase follow-ups.
       const linked = await client.query(`SELECT EXISTS(SELECT 1 FROM vehicles WHERE dealer_id=$1 AND audit_metadata->>'saleWorkspaceId'=$2)
-        OR EXISTS(SELECT 1 FROM sold_vehicle_follow_ups WHERE dealer_id=$1 AND sale_id=$2::uuid) AS protected`, [this.dealerId, id]);
+        OR EXISTS(SELECT 1 FROM sold_vehicle_follow_ups WHERE dealer_id=$1 AND sale_id=$2::uuid)
+        OR EXISTS(SELECT 1 FROM sale_terms_documents WHERE dealer_id=$1 AND sale_id=$2::uuid)
+        OR EXISTS(SELECT 1 FROM sale_delivery_evidence WHERE dealer_id=$1 AND sale_id=$2::uuid) AS protected`, [this.dealerId, id]);
       if (linked.rows[0]?.protected) throw new SaleWorkspaceError('This draft has linked stock or follow-up activity and must be kept.', 409);
       const deleted = await client.query('DELETE FROM sale_workspace WHERE dealer_id=$1 AND id=$2::uuid AND revision=$3 RETURNING id', [this.dealerId, id, expectedRevision]);
       if (!deleted.rows.length) throw new SaleWorkspaceError('This sale changed on another device. Reload it before deleting.', 409);
@@ -215,7 +217,7 @@ export class PostgresSaleWorkspaceStore {
         const photo = (await loadBrochurePhotos([{ url: assets.vehicle.imageUrl.replace(/w\d+-h\d+/, 'w480-h360'), caption: '' }], process.env.VEHICLE_PDF_IMAGE_HOSTS ?? '', 4000))[0];
         if (photo?.bytes && photo.format) assets.vehicle.photoDataUrl = `data:image/${photo.format === 'JPEG' ? 'jpeg' : 'png'};base64,${Buffer.from(photo.bytes).toString('base64')}`;
       }
-      const context: SaleWorkspaceContext = { now, actor: input.actor, nextId: randomUUID, nextNumber: type => saleWorkspaceNumber(numbers, type, now, assets.branding.invoiceSettings), ...assets };
+      const context: SaleWorkspaceContext = { now, actor: input.actor, nextId: randomUUID, nextNumber: type => saleWorkspaceNumber(numbers, type, now, assets.branding.invoiceSettings), ...assets, requireFinalReview: true };
       const mutation = current
         ? changeSaleWorkspace(current, input.command!, { expectedRevision: input.expectedRevision!, requestId: input.requestId }, context)
         : createSaleWorkspace({ draft: input.draft, requestId: input.requestId }, context, saleWorkspaceNumber(numbers, 'sale', now, assets.branding.invoiceSettings));

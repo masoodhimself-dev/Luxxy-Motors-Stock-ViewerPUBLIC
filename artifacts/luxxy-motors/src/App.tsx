@@ -33,6 +33,8 @@ const Warranty = lazy(() => import('@/pages/warranty'));
 const InvoiceVerification = lazy(() => import('@/pages/invoice-verification'));
 const Viewing = lazy(() => import("@/pages/viewing"));
 const TestDriveDeclaration = lazy(() => import('@/pages/test-drive-declaration'));
+const DeliveryEvidence = lazy(() => import('@/pages/delivery-evidence'));
+const PaymentRequest = lazy(() => import('@/pages/payment-request'));
 import NotFound from '@/pages/not-found';
 const StaffSignIn = lazy(() =>
   import('@/pages/staff-access').then((module) => ({
@@ -144,6 +146,8 @@ function ClerkProviderWithRoutes() {
 
 
   if (location.startsWith('/test-drive-declaration/')) return <RoutedErrorBoundary><Suspense fallback={<RouteLoading/>}><TestDriveDeclaration/></Suspense></RoutedErrorBoundary>;
+  if (location.startsWith('/delivery-evidence/')) return <RoutedErrorBoundary><Suspense fallback={<RouteLoading/>}><DeliveryEvidence/></Suspense></RoutedErrorBoundary>;
+  if (location.startsWith('/payment-request/')) return <RoutedErrorBoundary><Suspense fallback={<RouteLoading/>}><PaymentRequest/></Suspense></RoutedErrorBoundary>;
 
   return (
     <ClerkProvider

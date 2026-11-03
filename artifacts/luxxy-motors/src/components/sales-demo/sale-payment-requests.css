@@ -1,0 +1,24 @@
+.sale-payment-requests h2 { display: flex; align-items: center; gap: 8px; }
+.sale-payment-requests fieldset { min-width: 0; margin: 0; border: 0; padding: 0; }
+.sale-request-fields { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+.sale-payment-requests .sale-request-help { margin: 12px 0; color: #62717d; font-size: 12px; }
+.sale-request-list { display: grid; gap: 18px; margin-top: 18px; }
+.sale-request-row { border-top: 1px solid #dce3e8; padding-top: 18px; min-width: 0; }
+.sale-request-row-heading { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+.sale-request-row-heading > div { min-width: 0; }
+.sale-request-row-heading strong { font-size: 14px; overflow-wrap: anywhere; }
+.sale-request-row-heading > span { flex-shrink: 0; padding: 4px 8px; color: #62717d; border: 1px solid #dce3e8; border-radius: 4px; font-size: 11px; }
+.sale-request-row-heading > span[data-status="Awaiting payment"] { color: #87510b; background: #fff6e5; border-color: #ead2a5; }
+.sale-request-row-heading > span[data-status="Settled"] { color: #14634a; background: #edf8f2; border-color: #bfdfcf; }
+.sale-request-row p { margin: 12px 0; }
+.sale-request-row .sale-request-reported { padding: 10px 12px; background: #fff6e5; color: #87510b; border-radius: 5px; font-size: 12px; }
+.sale-request-private-link { margin-top: 16px; }
+.sale-request-private-link input { font-size: 12px !important; }
+.sale-request-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.sale-request-actions .db-btn { min-height: 38px; padding: 7px 11px; font-size: 12px; }
+.sale-request-actions > .sale-request-help { width: 100%; }
+@media (max-width: 760px) {
+  .sale-request-fields { grid-template-columns: minmax(0, 1fr); }
+  .sale-request-row-heading { flex-wrap: wrap; }
+  .sale-request-actions .db-btn { min-height: 44px; }
+}

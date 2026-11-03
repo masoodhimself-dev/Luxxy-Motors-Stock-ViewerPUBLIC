@@ -94,7 +94,7 @@ export function SaleHandoverFields({
           />
         </label>
         <label>
-          Arrival window (UK time)
+          Arrival window
           <Input
             value={value.timeWindow}
             maxLength={100}
@@ -354,7 +354,7 @@ export function SaleHandover({
                       dateStyle: "medium",
                     })
                   : "To arrange"}
-                {value.timeWindow && ` · ${value.timeWindow} (UK time)`}
+                {value.timeWindow && ` · ${value.timeWindow}`}
               </dd>
             </div>
             {value.method === "delivery" && (
@@ -396,7 +396,6 @@ export function SaleHandover({
                   {new Date(value.completedAt!).toLocaleString("en-GB", {
                     timeZone: "Europe/London",
                   })}{" "}
-                  (UK time)
                 </dd>
               </div>
             )}

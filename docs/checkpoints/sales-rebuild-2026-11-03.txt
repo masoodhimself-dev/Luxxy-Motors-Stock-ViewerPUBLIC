@@ -1,0 +1,70 @@
+SALES REBUILD - SAFE LOCAL CHECKPOINT
+3 November 2026, before the user's 3pm departure
+
+STATUS
+User approved implementation of the complete Sales redesign, then requested a pause near 3pm to resume later. This checkpoint is incomplete and MUST NOT be treated as deployment-ready. No push, Render deployment, live migration, live terms publication, actual email, customer payment/refund, stock change or handover was performed by the agents. Test mutations used fixtures/PGlite only. Preserve all work; do not restart the redesign.
+
+WORKTREE
+/private/tmp/luxxy-public-vehicle-sheet-release
+Branch codex/multi-choice-homepage-redesign
+Prior commit265d7be; checkpoint commit follows this note. Existing local unpublished recommendation/inline FAQ changes precede this rebuild. Last live Render commit remains704a6ef4c8542e94c6d1dfec8d7f6e7792152f15.
+
+WHAT IS IMPLEMENTED
+1. Full-screen Sales UI: Deal / Payments / Invoices / Collection & delivery, persistent totals, compact mobile view, folded history, genuine Quick actions slot wired through portal, original payment/doc/archive behavior retained. Cash received, transferred credit, delivery and return credits are displayed separately in the sidebar. Returned deal labels and unsaved-state protections retained.
+2. Payment requests: document rather than receipt; amount/kind/due/note, private hashed token, renewal/revocation, baseline received-funds tracking, explicit PDF email and WhatsApp/copy link preparation, private customer payment report/invoice request/viewer. A customer report does not confirm receipt. One outstanding request at a time. Customer identity/contract changes invalidate link. New public pages bypass Clerk and showroom navigation; request APIs have no-store/no-referrer/noindex, URL log redaction, body bounds/rate/origin controls.
+3. First-class draft.deliveryCharge: counted once, saved panel in Delivery, invoice line, and supplemental delivery invoice on an increase after a vehicle invoice already exists. Issued original invoices retain their frozen bytes. Price reduction of already-invoiced delivery is blocked until a real credit workflow is built.
+4. Return/replacement backend: same-tenant locked atomic linked credit, original credit note, replacement reservation, actual cash recorded once, higher/same/lower replacement price arithmetic, refund-credit recording with actual receipt linkage. Original settled sale required; unresolved provider funds and part-exchange property are deliberately blocked pending manager workflow. Returned original mutations blocked to prevent duplicate refunds. Returned stock hidden pending inspection; original lifecycle returned, old ownership moved to returnedFromSaleId so future resale is possible after explicit availability decision. Full return/refund UI NOT YET BUILT.
+5. Final review: deterministic pence/ledger checks then real structured AI review with current existing Luna model, no simulated progress; statuspassed/attention/unavailable, bound to exact saved revision. Server applies review gate inside the actual mutation lock for final invoice/completion/handover. Same-revision passed result reused; edits invalidate it. Existing AiAssistanceStore quota ledger reused conservatively at full reservation cost; 10/hour staff session,30/day identity allowance and existing global monthly allowance apply. Per-instance two-review concurrency and same-deal advisory lease; provider timeout20s. Freeform names/contact/private links/longtokens filtered. No live provider call was made in QA.
+6. Delivery evidence: migration81, expiring/revocable hashed driver links, tenant/vehicle/job binding, private photo streams, guided arrival photos, optional departure photos, explicit device location/accuracy/time, actual handover time, immutable report. Open page IndexedDB queue and safe retry; server acknowledgement required for success. Printable declaration and later signed-paper photograph upload. Browser reload while offline NOT guaranteed, and paper is independent backup. Evidence upload never confirms payment or final handover automatically.
+7. Full terms: migration82, per-dealer draft/published versions, short invoice summaries kept separate, immutable full terms snapshot/PDF archive, matching ledger font/A4 style, dealer only or both-copy print. Shore Drive original supplied text is reviewdraft for exact tenant shore-drive-limited only; others blank. CAT S clauses conditional on confirmed CAT S. Staff PDF print fetch uses bearer credentials. Issue requires current passed finalreview inside row lock. Original supplied terms have not been legally approved/published; known 70%/as-is/liability/agency/warranty issues remain flagged.
+8. Migrations81/82 registered in journal; API routes/production App and local preview routes mounted. Empty sale deletion guards external terms/evidence documents. SEO and private capability helpers extended. No migration applied to the live system.
+
+PRIMARY FILES
+Frontend pages/sales-demo.tsx and sales-workspace-v2.css.
+components/sales-demo/sale-payment-requests.tsx, sale-final-review.tsx, sale-delivery-charge.tsx.
+components/portal/sale-delivery-evidence.tsx.
+components/full-sales-terms-settings.tsx and sale-terms-documents.tsx.
+pages/payment-request.tsx and delivery-evidence.tsx.
+Shared lib/vehicle-meta/src/sale-operations.ts and sale-workspace.ts.
+API lib/sale-operations-store.ts and routes/sale-operations.ts.
+API lib/delivery-evidence.ts, delivery-declaration.ts and routes/delivery-evidence.ts.
+API lib/full-sales-terms-store.ts and routes/sales-terms.ts.
+Docs/features/full-dealership-terms.md and delivery-evidence.md.
+
+CHECKS AT CHECKPOINT
+Fresh project-reference build, API/frontend nonincremental typechecks passed.
+Frontend production Vite build and API production build passed. Existing nonfatal chunk/sourcemap warnings remain.
+Integrated frontend121/121 passed, including original51 Sales and29 list tests, navigation, real extension component fixtures, payment requests, review, driver and terms settings. Report copied to output/sales-workspace-v2-2026-11-03/integrated-frontend-tests.json in the shared workspace.
+Existing API sale workspace/connected46/46 passed, including in-transaction review guard.
+New operation10 tests passed: request baseline, credit conservation for12000/10000/8500 replacements, duplicate-refund/sign/credit checks, real locked PGlite persistence, tenant/revision boundaries, supplemental delivery invoice, unavailable/stale AI, allowance enforcement and provider input privacy.
+Delivery comprehensive PGlite integration passed;5 phone behavior tests passed.
+Full terms3 backend and3 frontend tests passed (included front total where applicable).
+Invoice PDF27/27 regression tests passed, including exact historical bytes.
+Browser fixtures: four Sales tabs at1440/820/390, staff/customer payment pages at1440/390, public driver/payment pages390/900; no overflow/pageerrors, no real writes. Parent has not rerun every route end-to-end after the final integration; see remaining work.
+Sample actual-renderer A4 invoice independently rendered/visually inspected and text/margins/figures checked:10000+200-500=9700. No official invoice issued.
+
+OUTPUT ARTIFACTS (OUTSIDE WORKTREE IN SHARED WORKSPACE)
+/Users/masoodhaqdad/Documents/ChatGPT/Offline POS KDS system/output/sales-workspace-v2-2026-11-03/
+  deal-1440.png, payments-1440.png, invoices-1440.png, handover-1440.png and phone variants
+  payment-request-staff-1440.png and payment-request-customer-390.png plus other variants
+  integrated-frontend-tests.json, verification.txt, browser-checks.json
+/Users/masoodhaqdad/Documents/ChatGPT/Offline POS KDS system/output/sales-rebuild-2026-11-03/
+  delivery-390.png, delivery-900.png, payment-390.png, payment-900.png, public-document-browser-checks.json
+/Users/masoodhaqdad/Documents/ChatGPT/Offline POS KDS system/output/pdf/sales-rebuild-2026-11-03/
+  sales-invoice-preview.pdf and sales-invoice-preview-1.png (sample customer, draft)
+  shore-drive-terms-both-review.pdf (review draft)
+User has already seen screenshots in commentary. Do not tell them this is live.
+
+REMAINING BEFORE COMPLETION/DEPLOYMENT
+1. Build usable Return & replace panel, proposed replacement/credit/difference preview, explicit confirmation and credit-refund recording UI. Review the PROPOSED exchange before transfer; current API reviews the original deal, then deterministic transfer, then replacement review before its final invoice. Include condition/mileage/finance evidence and preserve customer draft.
+2. Complete no-refund/more/less scenarios through actual combined UI and API, atomic retry/conflict/permission/network-loss tests. Verify stock hidden pending inspection, explicit later return-to-available clears pending flag/ownership appropriately, old sold-vehicle follow-ups canceled/updated, original buyer/seller history unchanged. Do not reactivate retired Stripe or invent settled external finance.
+3. Review final UI end-to-end after extension mounting: invoice create -> review again -> mark sold; handover review; termsissue; request resend/email PDF; public link after partial payment and changed contract; later delivery-only invoice. Ensure new fields reconcile in all invoice HTML, PDF and list projections, not just current classic renderer/sidebar. In particular existing generic/legacy invoice summary rows and HTML review labels may still call transferred credit 'Payments received'; improve before production. Ensure returned status is present in server list projection.
+4. Final AI review presently checks deal/ledger/document metadata, NOT full delivery evidence reports or frozen full-terms documents. Add bounded factual evidence/disclosure/warranty consistency inputs before claiming it checks those. Keep deterministic calculations authoritative and never imply legal/physical/bank certification. Check quota settings fit intended real volume; existing global allowance can block finalization when exhausted. Do not bypass fail-closed behavior silently.
+5. Driver job invalidation: current context hash rejects a changed job, but a change reverted exactly before any read can revalidate an unrevoked link. Permanently revoke pending jobs transactionally on relevant fulfilment changes. Photos/evidence also need a visible link from the vehicle file (currently deal panel/table only).
+6. Full terms workflow: legal wording still needs agreed revision, actual provider/15-month coverage confirmation, general/non-CAT-S final wording and seller identity before contract. Do not auto-publish Shore Drive original. New typed template exact-version acceptance/customer e-sign remains future work; printing is not acceptance.
+7. Driver offline support is an opened-form queue; no guaranteed offline reload. Paper photograph upload supports JPEG/PNG/WebP, not signed PDF. Decide whether full offline shell and PDF scan upload are required before release, document honestly.
+8. Complete additional customer document credit-note/return certificate and supplemental delivery invoice styling to match invoice stationery. Payment request/new generic documents still use generic existing renderer; a full invoice-document consistency pass is due.
+9. Run final relevant security/SEO/no-leak/regression tests and browser combined-flow QA. No live test payments/sends or cleanup. Keep Render unchanged until user requests deployment after completion.
+
+RESUME
+Read this note and gitstatus/log first. Reuse this worktree and existing agents' saved work; do not recreate. Agent work stopped for pause. Start with Return & replace UI and the final integration gaps. User explicitly requested pause near3pm; do not continue background work after final pause response.

@@ -236,3 +236,6 @@ export type {MotHistory,MotTest} from './mot-history';
 export * from "./staff-cars.ts";
 
 export * from "./uk-postcodes.ts";
+
+export * from './full-sales-terms.ts';
+export * from './sale-operations.ts';
