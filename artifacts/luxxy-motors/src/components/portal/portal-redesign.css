@@ -163,11 +163,11 @@
 @media(prefers-reduced-motion:reduce) { .portal-workspace.portal-redesign *, .portal-workspace.portal-redesign *::before, .portal-workspace.portal-redesign *::after { scroll-behavior:auto!important; transition:none!important; } }
 @media print { .portal-workspace.portal-redesign .portal-navigation-rail { display:none; } .portal-workspace.portal-redesign .portal-workspace-inner.portal-app-layout { display:block; } .portal-workspace.portal-redesign .portal-main-area { padding:0; } }
 
-/* Keep the invoice editor inside the desk, with navigation and actions reachable. */
-body:has(.portal-workspace.portal-redesign .invoice-builder.is-editing) { overflow:auto; }
-.portal-workspace.portal-redesign .invoice-builder.is-editing { position:relative; inset:auto; z-index:0; height:calc(100dvh - 128px); min-height:480px; border:1px solid var(--portal-border); border-radius:10px; overflow:hidden; }
+/* Legacy invoice editors remain inside the desk; the Sales workspace fills the screen. */
+body:has(.portal-workspace.portal-redesign .invoice-builder.is-editing:not(.sale-desk)) { overflow:auto; }
+.portal-workspace.portal-redesign .invoice-builder.is-editing:not(.sale-desk) { position:relative; inset:auto; z-index:0; height:calc(100dvh - 128px); min-height:480px; border:1px solid var(--portal-border); border-radius:10px; overflow:hidden; }
 @media(max-width:767px) {
-  .portal-workspace.portal-redesign .invoice-builder.is-editing { height:calc(100dvh - 166px); min-height:0; }
+  .portal-workspace.portal-redesign .invoice-builder.is-editing:not(.sale-desk) { height:calc(100dvh - 166px); min-height:0; }
   .portal-workspace.portal-redesign .invoice-builder-footer { bottom:auto; }
 }
 .portal-workspace.portal-redesign .portal-panel { border-radius:10px; background:#fff; }

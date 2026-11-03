@@ -9,7 +9,11 @@
   background: #f6f8fa;
   font-family: var(--app-font-sans);
 }
-.invoice-builder.sale-desk.is-editing { z-index: 70; }
+.invoice-builder.sale-desk.is-editing { z-index: 45; }
+/* The editor has its own Quick actions. Hide the outer chrome only while it is visible. */
+.portal-workspace.portal-redesign[data-section="sales"]:has(#portal-content-sales:not([hidden]) .sale-desk.is-editing) > .portal-toolbar,
+.portal-workspace.portal-redesign[data-section="sales"]:has(#portal-content-sales:not([hidden]) .sale-desk.is-editing) .portal-navigation-rail { display: none; }
+.sale-desk-header-actions .portal-quick-trigger { white-space: nowrap; flex-shrink: 0; }
 /* Portal sections stay mounted so a phone interruption does not discard a deal. */
 body:has(#portal-content-sales[hidden] .sale-desk.is-editing) { overflow: auto; }
 .sale-desk .sale-desk-header { min-height: 68px; gap: 16px; padding: 10px 24px; }
