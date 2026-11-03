@@ -78,6 +78,21 @@ test('archive preserves enquiries for 30 days and never bypasses protected delet
     const accounting = (await pool.query("SELECT result,context_audit,cost_micro_usd FROM ai_assistance_requests WHERE dealer_id=$1 AND request_hash='fixture'", [dealer])).rows[0];
     assert.equal(accounting.result, null); assert.equal(accounting.context_audit, null); assert.equal(accounting.cost_micro_usd, 125);
   });
+  await t.test('incoming replies needing review protect an archived enquiry from both retention and manual deletion', async () => {
+    const id = await create(), route = randomUUID(), provider = randomUUID();
+    await archive.change(dealer, id, 0, true);
+    await pool.query("INSERT INTO enquiry_email_reply_routes(id,dealer_id,enquiry_id,send_key,reply_address,recipient)VALUES($1,$2,$3,$4,$5,'buyer@example.test')", [route, dealer, id, randomUUID(), `${randomUUID()}@example.test`]);
+    await pool.query("INSERT INTO enquiry_email_replies(provider_id,route_id,dealer_id,enquiry_id,status,message,error_code)VALUES($1,$2,$3,$4,'review','Please call me','sender_mismatch')", [provider, route, dealer, id]);
+    const deletion = new EnquiryDeletionStore(pool, { clock: () => new Date('2026-12-04T12:00:00Z') });
+    const assessment = await deletion.inspect(dealer, id);
+    assert.equal(assessment.canDelete, false);
+    assert.match(assessment.reason!, /reply needs staff review/);
+    await assert.rejects(deletion.remove(dealer, id, 1, 'staff', true), /reply needs staff review/);
+    const result = await deletion.purgeArchived(dealer, id);
+    assert.equal(result.deleted, false); assert.equal(result.held, true);
+    assert.match((await read(id)).archive_hold_reason, /reply needs staff review/);
+    assert.equal((await pool.query('SELECT message,status FROM enquiry_email_replies WHERE provider_id=$1', [provider])).rows[0].message, 'Please call me');
+  });
   await t.test('financial history stays intact behind an archive retention hold', async () => {
     const id = await create(), vehicle = randomUUID(), customer = randomUUID(), sale = randomUUID();
     await pool.query("INSERT INTO vehicles(id,dealer_id,source,advert_id)VALUES($1,$2,'autotrader',$3)", [vehicle, dealer, randomUUID()]);

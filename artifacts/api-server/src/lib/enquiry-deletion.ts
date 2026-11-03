@@ -64,6 +64,7 @@ export async function assessEnquiryDeletion(client: EnquiryDeletionClient, deale
   if (outbox.some(item => ['queued', 'sending', 'unknown'].includes(item.status))) return result('An email is queued or awaiting a delivery result. Resolve it before deleting this enquiry.');
   const replies = (await client.query('SELECT status FROM enquiry_email_replies WHERE enquiry_id=$1::uuid FOR UPDATE', [id])).rows;
   if (replies.some(reply => ['pending', 'processing'].includes(reply.status))) return result('A customer reply is still processing. Try again once it appears in the conversation.');
+  if (replies.some(reply => reply.status === 'review')) return result('A customer reply needs staff review before this enquiry can be deleted.');
   // Share payloads have no FK. Revoke every selected-enquiry grant atomically to remove old QR access.
   const shares = (await client.query("SELECT id,dealer_id,payload FROM customer_phone_shares WHERE payload->>'enquiryId'=$2 OR (dealer_id=$1 AND payload::text LIKE '%'||$2||'%') ORDER BY id FOR UPDATE", [dealer, id])).rows;
   if (shares.some(share => share.dealer_id !== dealer || hasDocumentReference(share.payload))) return result('A financial document or inconsistent shared customer link is protected.');
