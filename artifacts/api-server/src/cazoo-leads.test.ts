@@ -180,28 +180,83 @@ test("spoofing and ambiguous templates are rejected", () => {
 test("missing leading zero is restored only for ten-digit UK mobile leads and owner forwards stay private", () => {
   const mobileLead = text().replace("07400000000", "7700900123");
   assert.equal(parseCazooLead(email(undefined, { text: mobileLead })).phone, "07700900123");
-  for (const invalid of ["1700900123", "770090012", "77009001234"])
-    assert.throws(() => parseCazooLead(email(undefined, { text: text().replace("07400000000", invalid) })), /invalid_customer_phone/);
+  for (const invalid of ["1700900123", "770090012", "77009001234"]) {
+    const parsed = parseCazooLead(email(undefined, { text: text().replace("07400000000", invalid) }));
+    assert.equal(parsed.phone, null);
+    assert.deepEqual(parsed.contactWarnings, ["phone_needs_checking"]);
+  }
   const previous = process.env.CAZOO_OWNER_TEST_SENDERS;
   const owner = "owner@example.test";
   process.env.CAZOO_OWNER_TEST_SENDERS = JSON.stringify({
     "cazoo-a": { email: owner, expiresAt: new Date(Date.now() + 86400000).toISOString() },
   });
   try {
-    const result = parseCazooDelivery("cazoo-a", email(undefined, {
-      from: `Owner <${owner}>`,
-      subject: "Fwd: Enquiry - Lexus RX AB15CDE - sam",
-      text: "---------- Forwarded message ---------\n" + mobileLead,
-    }));
-    assert.equal(result.testDelivery, true);
-    assert.equal(result.lead.phone, null);
-    assert.equal(result.lead.email, owner);
-    assert.equal(result.lead.customerName, "Owner test");
-    assert.equal(result.lead.message, "Do you accept px for a Lexus GS450h 2008?");
+    for (const forwarded of [mobileLead, text().replace("07400000000", "Tel: 07400")]) {
+      const result = parseCazooDelivery("cazoo-a", email(undefined, {
+        from: `Owner <${owner}>`,
+        subject: "Fwd: Enquiry - Lexus RX AB15CDE - sam",
+        text: "---------- Forwarded message ---------\n" + forwarded,
+      }));
+      assert.equal(result.testDelivery, true);
+      assert.equal(result.lead.phone, null);
+      assert.equal(result.lead.email, owner);
+      assert.equal(result.lead.customerName, "Owner test");
+      assert.equal(result.lead.message, "Do you accept px for a Lexus GS450h 2008?");
+      assert.ok(!(JSON.stringify(result.lead.contactWarnings) || "").includes("07400"));
+    }
   } finally {
     if (previous === undefined) delete process.env.CAZOO_OWNER_TEST_SENDERS;
     else process.env.CAZOO_OWNER_TEST_SENDERS = previous;
   }
+});
+test("common UK phone formatting is repaired without inventing digits", () => {
+  for (const phone of [
+    "07400 000000", "+44 7400 000000", "0044 7400 000000", "447400000000",
+    "+44 (0) 7400 000000", "0044 (0) 7400 000000", "7400000000",
+    "(07400) 000.000", "07400–000000", "Mobile: +44\u00a07400\u202f000000",
+    "07400000000\n+44 7400 000000",
+  ]) {
+    const parsed = parseCazooLead(email(undefined, {text: text().replace("07400000000", phone)}));
+    assert.equal(parsed.phone, "07400000000", phone);
+    assert.equal(parsed.customerName, "Sam Example");
+    assert.equal(parsed.contactWarnings, undefined);
+  }
+});
+test("optional bad, missing and conflicting phones do not hide an otherwise usable email lead", () => {
+  for (const phone of [
+    "07400", "00000000000", "+33 612345678", "Phone: N/A", "Tel: please email", "07400000000 ext. 123",
+    "07400000000\n07500000000", "07400000000\n123456",
+  ]) {
+    const parsed = parseCazooLead(email(undefined, {text: text().replace("07400000000", phone)}));
+    assert.equal(parsed.phone, null, phone);
+    assert.equal(parsed.email, "sam@example.test");
+    assert.equal(parsed.customerName, "Sam Example");
+    assert.deepEqual(parsed.contactWarnings, ["phone_needs_checking"]);
+  }
+  const missing = parseCazooLead(email(undefined, {text: text().replace("07400000000\n", "")}));
+  assert.equal(missing.phone, null);
+  assert.equal(missing.contactWarnings, undefined);
+});
+test("copying whitespace and an absent name are tolerated but unsafe or conflicting contacts remain held", () => {
+  const parsed = parseCazooLead(email(undefined, {
+    subject: "Enquiry - Lexus RX AB15  CDE - sam",
+    text: text().replace("Customer message", "Customer\u00a0message").replace("Customer details", "Customer\u202fdetails")
+      .replace("Sam Example\n", "").replace("sam@example.test", "Email: SAM@EXAMPLE.TEST\u200b"),
+  }));
+  assert.equal(parsed.registration, "AB15CDE");
+  assert.equal(parsed.customerName, "Customer");
+  assert.equal(parsed.email, "sam@example.test");
+  assert.deepEqual(parsed.contactWarnings, ["customer_name_missing"]);
+  for (const space of ["\u00a0", "\u202f", "\t"]) {
+    assert.equal(parseCazooLead(email(undefined, {subject: `Enquiry - Lexus RX AB15${space}CDE - sam`})).registration, "AB15CDE");
+  }
+  for (const body of [
+    text().replace("sam@example.test", "not-an-email"),
+    text().replace("sam@example.test", "sam@example.test\nother@example.test"),
+    text().replace("sam@example.test", "Email: sam@example.test\nEmail: other@example.test"),
+    text().replace("Sam Example", "Sam <script>"),
+    text().replace("Sam Example", "Sam\nother@bad"),
+  ]) assert.throws(() => parseCazooLead(email(undefined, {text: body})));
 });
 test("durable receiving imports once, scopes dealers and never sends", async (t) => {
   for (const file of (await readdir("../../lib/db/drizzle"))
@@ -293,6 +348,29 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
         ).rows[0].n,
         1,
       );
+    },
+  );
+  await t.test(
+    "unusable optional contact details still reach the Inbox with safe private notes and no send",
+    async () => {
+      const provider = await queue();
+      const invalidPhone = "07400";
+      await processCazooLeads(transportFor({
+        [provider]: email(provider, {text: text("e".repeat(32)).replace("07400000000", invalidPhone).replace("Sam Example\n", "")}),
+      }), draftSkip);
+      const r = await receipt(provider);
+      assert.equal(r.status, "imported");
+      assert.equal(r.review_text, null);
+      const entry = (await engine.query<any>("SELECT * FROM enquiries WHERE id=$1", [r.enquiry_id])).rows[0];
+      assert.equal(entry.email, "sam@example.test");
+      assert.equal(entry.phone, null);
+      assert.equal(entry.customer_name, "Customer");
+      assert.equal(entry.vehicle_id, carId);
+      assert.match(entry.staff_note, /phone number.*left blank/);
+      assert.match(entry.staff_note, /did not supply a customer name/);
+      assert.ok(!entry.staff_note.includes(invalidPhone));
+      assert.equal(entry.customer_notification_status, "not_sent");
+      assert.equal((await engine.query<any>("SELECT count(*)::int AS n FROM email_outbox")).rows[0].n, 0);
     },
   );
   await t.test(
