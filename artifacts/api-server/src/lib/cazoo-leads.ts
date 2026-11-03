@@ -147,7 +147,12 @@ export async function importCazooReceipt(
         vehiclePrice: car
           ? Number(car.website_price_override ?? car.source_price) || null
           : null,
-        staffNote: [testDelivery ? "Owner test email. The reply address is restricted to the approved owner test address; forwarded customer contact details were not imported." : null, !car ? "Cazoo car could not be matched uniquely. Check the registration before replying." : null].filter(Boolean).join(" ") || null,
+        staffNote: [
+          testDelivery ? "Owner test email. The reply address is restricted to the approved owner test address; forwarded customer contact details were not imported." : null,
+          !car ? "Cazoo car could not be matched uniquely. Check the registration before replying." : null,
+          !testDelivery && lead.contactWarnings?.includes("phone_needs_checking") ? "The phone number supplied by Cazoo could not be confirmed and was left blank. Reply by email and ask the customer to confirm it." : null,
+          !testDelivery && lead.contactWarnings?.includes("customer_name_missing") ? "Cazoo did not supply a customer name. Confirm it when replying." : null,
+        ].filter(Boolean).join(" ") || null,
       })
       .returning();
     await openLeadForEnquiry(tx, enquiry!);

@@ -14,6 +14,7 @@ export type CazooLead = {
   email: string;
   phone: string | null;
   message: string;
+  contactWarnings?: ("phone_needs_checking" | "customer_name_missing")[];
 };
 export function cazooEmailText(email: {
   text?: string | null;
@@ -31,9 +32,25 @@ export function cazooEmailText(email: {
     })
   )
     .replace(/\r\n?/g, "\n")
+    .replace(/[\u00a0\u202f]/g, " ")
+    .replace(/[\u200b\ufeff]/g, "")
     .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "")
     .trim()
     .slice(0, 48000);
+}
+
+/** Formatting repairs only; an uncertain optional phone must not block an email lead. */
+function cazooPhone(value: string): string | null {
+  let phone = value.normalize("NFKC").replace(/^(?:phone|telephone|tel|mobile)\s*:?\s*/i, "")
+    .replace(/[\s().\-‐‑‒–—]/g, "");
+  const international = /^(?:\+44|0044|44)0?([1-9]\d{9})$/.exec(phone);
+  if (international) phone = `0${international[1]}`;
+  if (/^7\d{9}$/.test(phone)) phone = `0${phone}`;
+  return /^0[1-9]\d{9}$/.test(phone) ? phone : null;
+}
+
+function cazooCustomerMailbox(value: string): string | null {
+  return mailbox(value.replace(/^e-?mail\s*:\s*/i, ""));
 }
 /** Parse the known direct-delivery Cazoo layout, never quoted forwards or arbitrary mail. */
 export function parseCazooLead(email: {
@@ -54,7 +71,7 @@ export function parseCazooLead(email: {
 /** Known-layout extraction; caller must separately authenticate the delivery. */
 export function parseCazooLeadBody(email: { subject: string; text?: string | null; html?: string | null }): CazooLead {
   const subject =
-    /^Enquiry\s*[-–—]\s*(.+?)\s+([A-Z0-9]{2,4}\s?[A-Z0-9]{2,4})\s*[-–—]\s*([^\r\n]+)$/i.exec(
+    /^Enquiry\s*[-–—]\s*(.+?)\s+([A-Z0-9]{2,4}[ \t\u00a0\u202f]*[A-Z0-9]{2,4})\s*[-–—]\s*([^\r\n]+)$/i.exec(
       email.subject.trim(),
     );
   if (!subject) throw new CazooLeadError("unrecognised_subject");
@@ -81,23 +98,21 @@ export function parseCazooLeadBody(email: { subject: string; text?: string | nul
     .map((s) => s.trim())
     .filter(Boolean);
   const emails = [
-    ...new Set(lines.map(mailbox).filter((s): s is string => Boolean(s))),
+    ...new Set(lines.map(cazooCustomerMailbox).filter((s): s is string => Boolean(s))),
   ];
   if (emails.length !== 1 || emails[0] === "dealerleads@info.cazoo.co.uk")
     throw new CazooLeadError("missing_or_ambiguous_customer_email");
-  const phoneLines = lines.filter((s) => /^[+\d][\d ()-]{8,20}$/.test(s));
-  if (phoneLines.length > 1)
-    throw new CazooLeadError("ambiguous_customer_phone");
-  let phone = phoneLines[0]?.replace(/[ ()-]/g, "") ?? null;
-  if (phone?.startsWith("+44")) phone = "0" + phone.slice(3);
-  // Some Cazoo leads omit the UK mobile's domestic trunk prefix.
-  if (phone && /^7\d{9}$/.test(phone)) phone = "0" + phone;
-  if (phone && !/^0\d{10}$/.test(phone))
-    throw new CazooLeadError("invalid_customer_phone");
-  const nameLines = lines.filter((s) => !mailbox(s) && !phoneLines.includes(s));
-  const customerName = nameLines.join(" ").replace(/\s+/g, " ").trim();
-  if (!customerName || customerName.length > 150 || /[<>@]/.test(customerName))
+  const phoneLines = lines.filter((s) => /^(?:phone|telephone|tel|mobile)\s*:/i.test(s) || /^[+\d(][\d\s().\-‐‑‒–—+]*(?:(?:ext(?:ension)?\.?|x|#)\s*\d+)?$/i.test(s));
+  const phones = [...new Set(phoneLines.map(cazooPhone))];
+  const phone = phones.length === 1 ? phones[0]! : null;
+  const contactWarnings: NonNullable<CazooLead["contactWarnings"]> = [];
+  if (phoneLines.length && !phone) contactWarnings.push("phone_needs_checking");
+  const nameLines = lines.filter((s) => !cazooCustomerMailbox(s) && !phoneLines.includes(s));
+  const suppliedName = nameLines.join(" ").replace(/\s+/g, " ").trim();
+  if (suppliedName.length > 150 || /[<>@]/.test(suppliedName))
     throw new CazooLeadError("invalid_customer_name");
+  const customerName = suppliedName || "Customer";
+  if (!suppliedName) contactWarnings.push("customer_name_missing");
   const message = messages[0]![1]!.trim();
   if (!message || message.length > 12000)
     throw new CazooLeadError("invalid_customer_message");
@@ -109,5 +124,6 @@ export function parseCazooLeadBody(email: { subject: string; text?: string | nul
     email: emails[0]!,
     phone,
     message,
+    ...(contactWarnings.length ? { contactWarnings } : {}),
   };
 }
