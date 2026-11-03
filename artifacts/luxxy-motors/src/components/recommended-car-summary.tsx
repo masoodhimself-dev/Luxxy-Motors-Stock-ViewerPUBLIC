@@ -20,6 +20,7 @@ export function RecommendedCarSummary({ car, onOpen, stretchedLink, includedItem
 }) {
   const title = vehicleDisplayTitle(car), href = `/vehicle/${car.id}`;
   const registration = vehicleRegistration(car), variant = stockVariant(car);
+  const engineCC = Number(car.engineCC);
   const highlights = [...new Set([...includedItems.slice(0, 1), ...stockCardSellingPoints(car).filter(point => !/\bwarranty\b/i.test(point))])].slice(0, 2);
   const disclosure = vehicleInsuranceDisclosure(car, vehicleContent(car).description);
   const vatLabel = car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) ? car.priceType : null;
@@ -28,7 +29,7 @@ export function RecommendedCarSummary({ car, onOpen, stretchedLink, includedItem
     { label: 'Mileage', value: car.mileage != null ? formatMileage(car.mileage) : car.mileageText },
     { label: 'Gearbox', value: car.transmission },
     { label: 'Fuel', value: car.fuel },
-    { label: 'Engine', value: car.engineSize },
+    { label: 'Engine', value: Number.isInteger(engineCC) && engineCC > 0 ? `${engineCC.toLocaleString('en-GB')}cc` : car.engineSize },
     { label: 'Body', value: car.bodyType },
   ].filter((fact): fact is { label: string; value: string } => Boolean(fact.value));
 
