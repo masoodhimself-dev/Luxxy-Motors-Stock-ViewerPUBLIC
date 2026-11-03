@@ -40,6 +40,7 @@ New operation10 tests passed: request baseline, credit conservation for12000/100
 Delivery comprehensive PGlite integration passed;5 phone behavior tests passed.
 Full terms3 backend and3 frontend tests passed (included front total where applicable).
 Invoice PDF27/27 regression tests passed, including exact historical bytes.
+Final crawl/IndexNow12 and public-page SEO11 regression tests passed with isolated localhost test servers. An initial generic test build was unsuitable, then the proper repository test builders were used. The sandbox localhost restriction was resolved through the normal tool approval mechanism; no live endpoint was tested. Direct new delivery/payment capability URL and private body-error redaction assertions passed too.
 Browser fixtures: four Sales tabs at1440/820/390, staff/customer payment pages at1440/390, public driver/payment pages390/900; no overflow/pageerrors, no real writes. Parent has not rerun every route end-to-end after the final integration; see remaining work.
 Sample actual-renderer A4 invoice independently rendered/visually inspected and text/margins/figures checked:10000+200-500=9700. No official invoice issued.
 
