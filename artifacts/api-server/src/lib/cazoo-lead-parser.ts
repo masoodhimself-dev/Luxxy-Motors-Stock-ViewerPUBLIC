@@ -90,6 +90,8 @@ export function parseCazooLeadBody(email: { subject: string; text?: string | nul
     throw new CazooLeadError("ambiguous_customer_phone");
   let phone = phoneLines[0]?.replace(/[ ()-]/g, "") ?? null;
   if (phone?.startsWith("+44")) phone = "0" + phone.slice(3);
+  // Some Cazoo leads omit the UK mobile's domestic trunk prefix.
+  if (phone && /^7\d{9}$/.test(phone)) phone = "0" + phone;
   if (phone && !/^0\d{10}$/.test(phone))
     throw new CazooLeadError("invalid_customer_phone");
   const nameLines = lines.filter((s) => !mailbox(s) && !phoneLines.includes(s));

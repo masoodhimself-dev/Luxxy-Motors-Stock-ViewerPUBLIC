@@ -177,6 +177,32 @@ test("spoofing and ambiguous templates are rejected", () => {
     "07400000000",
   );
 });
+test("missing leading zero is restored only for ten-digit UK mobile leads and owner forwards stay private", () => {
+  const mobileLead = text().replace("07400000000", "7700900123");
+  assert.equal(parseCazooLead(email(undefined, { text: mobileLead })).phone, "07700900123");
+  for (const invalid of ["1700900123", "770090012", "77009001234"])
+    assert.throws(() => parseCazooLead(email(undefined, { text: text().replace("07400000000", invalid) })), /invalid_customer_phone/);
+  const previous = process.env.CAZOO_OWNER_TEST_SENDERS;
+  const owner = "owner@example.test";
+  process.env.CAZOO_OWNER_TEST_SENDERS = JSON.stringify({
+    "cazoo-a": { email: owner, expiresAt: new Date(Date.now() + 86400000).toISOString() },
+  });
+  try {
+    const result = parseCazooDelivery("cazoo-a", email(undefined, {
+      from: `Owner <${owner}>`,
+      subject: "Fwd: Enquiry - Lexus RX AB15CDE - sam",
+      text: "---------- Forwarded message ---------\n" + mobileLead,
+    }));
+    assert.equal(result.testDelivery, true);
+    assert.equal(result.lead.phone, null);
+    assert.equal(result.lead.email, owner);
+    assert.equal(result.lead.customerName, "Owner test");
+    assert.equal(result.lead.message, "Do you accept px for a Lexus GS450h 2008?");
+  } finally {
+    if (previous === undefined) delete process.env.CAZOO_OWNER_TEST_SENDERS;
+    else process.env.CAZOO_OWNER_TEST_SENDERS = previous;
+  }
+});
 test("durable receiving imports once, scopes dealers and never sends", async (t) => {
   for (const file of (await readdir("../../lib/db/drizzle"))
     .filter((f) => /^\d+.*\.sql$/.test(f))
