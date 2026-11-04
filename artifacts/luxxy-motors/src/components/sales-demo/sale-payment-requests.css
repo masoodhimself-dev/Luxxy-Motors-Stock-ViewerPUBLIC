@@ -17,6 +17,8 @@
 .sale-request-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .sale-request-actions .db-btn { min-height: 38px; padding: 7px 11px; font-size: 12px; }
 .sale-request-actions > .sale-request-help { width: 100%; }
+.sale-request-preview { min-width: 0; }
+.sale-request-preview > summary { cursor: pointer; margin-bottom: 12px; font-weight: 600; }
 @media (max-width: 760px) {
   .sale-request-fields { grid-template-columns: minmax(0, 1fr); }
   .sale-request-row-heading { flex-wrap: wrap; }

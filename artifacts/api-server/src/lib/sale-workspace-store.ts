@@ -8,7 +8,9 @@ import { embedInvoiceLogoAsset } from './invoice-logo-assets';
 import { attachInvoiceVerification, invoiceVerificationView } from './invoice-verification';
 import { siteOrigin } from './enquiry-links';
 import { revokeChangedDeliveryEvidence } from './delivery-evidence';
-import { assertSaleReviewContext, readSaleReviewContext } from './sale-review-context';
+import { readSaleReviewContext } from './sale-review-context';
+import { assertSaleFinancialIntegrity } from './sale-financial-integrity';
+import { saleListStage } from './sale-list-stage';
 import { createSoldVehicleFollowUps } from './sold-vehicle-follow-ups';
 import { changeSaleWorkspace, createSaleWorkspace, saleWorkspaceTotals, publicSaleWorkspace, currentInvoiceBranding, saleWorkspaceBranding, saleWorkspaceFingerprint, saleWorkspaceNumber, SaleWorkspaceError, type SaleWorkspaceBranding, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceMutation, type SaleWorkspaceRecord, type SaleWorkspaceVehicleSnapshot, type SaleWorkspacePayment } from '@workspace/vehicle-meta';
 
@@ -48,11 +50,13 @@ export class PostgresSaleWorkspaceStore {
     const result=await this.database.query(`SELECT state - 'documentArchives' - 'requests' - 'providerPayments' - 'documents' - 'events' - 'emailDeliveries' - 'payments' - 'corrections' AS state,
       CASE WHEN jsonb_typeof(state->'corrections')='array' THEN jsonb_array_length(state->'corrections')>0 ELSE false END AS list_has_correction_notes,
       coalesce(jsonb_typeof(state->'payments')='array',false) AS list_ledger_known,
+      EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(state->'documents')='array' THEN state->'documents' ELSE '[]'::jsonb END) AS doc WHERE doc->>'type'='invoice') AS list_has_invoice,
       coalesce((SELECT jsonb_agg(jsonb_build_object('status',p->'status','signedAmountPence',p->'signedAmountPence','amountPence',p->'amountPence')) FROM jsonb_array_elements(CASE WHEN jsonb_typeof(state->'payments')='array' THEN state->'payments' ELSE '[]'::jsonb END) AS p),'[]'::jsonb) AS list_payment_entries,
       CASE WHEN jsonb_typeof(state->'payments')='array' AND (state->'documents' IS NULL OR jsonb_typeof(state->'documents')='array') THEN CASE WHEN jsonb_array_length(coalesce(state->'documents','[]'::jsonb))=0 AND jsonb_array_length(state->'payments')=0 THEN jsonb_build_object('requests',state->'requests','documentArchives',state->'documentArchives','providerPayments',state->'providerPayments','events',state->'events','documents',state->'documents','payments',state->'payments','emailDeliveries',state->'emailDeliveries') END END AS deletion_evidence
       FROM sale_workspace WHERE dealer_id=$1
       AND ($2='' OR id::text=$2 OR state#>>'{draft,sourceEnquiryId}'=$2 OR state#>>'{draft,sourceReservationId}'=$2
         OR strpos(lower(concat_ws(' ',reference,state#>>'{draft,customer}',state#>>'{draft,email}',state#>>'{draft,vehicle}',state#>>'{draft,registration}')),lower($2))>0
+        OR EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(state->'documents')='array' THEN state->'documents' ELSE '[]'::jsonb END) AS doc WHERE strpos(lower(coalesce(doc->>'number','')),lower($2))>0)
         OR ($3<>'' AND strpos(regexp_replace(coalesce(state#>>'{draft,phone}',''),'[^0-9]','','g'),$3)>0))
       AND ($4='' OR state#>>'{draft,sourceEnquiryId}'=$4) AND ($5='' OR state#>>'{draft,sourceReservationId}'=$5)
       ORDER BY updated_at DESC,id DESC LIMIT 51 OFFSET $6`,[this.dealerId,q,(/^[+0-9 ().-]+$/.test(q)?q.replace(/\D/g,''):''),options.enquiryId??'',options.reservationId??'',offset]);
@@ -62,7 +66,9 @@ export class PostgresSaleWorkspaceStore {
       const totals=saleWorkspaceTotals(draft,(row.list_payment_entries ?? []) as SaleWorkspacePayment[]);
       const handover=draft.fulfilment ? {method:draft.fulfilment.method,status:saleHandoverStatus({...draft.fulfilment,address:draft.fulfilment.address ?? ''})} : null;
       const listHasRefunds=(row.list_payment_entries ?? []).some((payment: SaleWorkspacePayment)=>payment.status==='confirmed' && payment.signedAmountPence<0);
-      return {listSummary:true as const,listTotalDue:totals.totalDue,listPaid:totals.confirmedPaid,listPending:totals.pending,listLedgerKnown:row.list_ledger_known === true,listBalance:totals.balance,listHandover:handover,listHasCorrectionNotes:row.list_has_correction_notes === true,listHasRefunds,id:record.id,reference:record.reference,revision:record.revision,createdAt:record.createdAt,updatedAt:record.updatedAt,...(record.completedAt?{completedAt:record.completedAt}:{}),...(record.lifecycle?{lifecycle:record.lifecycle}:{}),...(record.returnReplacement?{returnReplacement:{direction:record.returnReplacement.direction,otherSaleId:record.returnReplacement.otherSaleId,otherReference:record.returnReplacement.otherReference,creditPence:record.returnReplacement.creditPence,at:record.returnReplacement.at}}:{}),draft:identity,documents:[],payments:[],events:[],emptyDraftDeletable:canDeleteEmptySaleDraft({...record,...row.deletion_evidence},true)};
+      const listHasInvoice = row.list_has_invoice === true;
+      const listStage = saleListStage({...record,payments:row.list_payment_entries ?? []},listHasInvoice);
+      return {listSummary:true as const,listStage,listHasInvoice,listTotalDue:totals.totalDue,listPaid:totals.confirmedPaid,listPending:totals.pending,listLedgerKnown:row.list_ledger_known === true,listBalance:totals.balance,listHandover:handover,listHasCorrectionNotes:row.list_has_correction_notes === true,listHasRefunds,id:record.id,reference:record.reference,revision:record.revision,createdAt:record.createdAt,updatedAt:record.updatedAt,...(record.completedAt?{completedAt:record.completedAt}:{}),...(record.lifecycle?{lifecycle:record.lifecycle}:{}),...(record.standaloneReturn?{standaloneReturn:{id:record.standaloneReturn.id,creditPence:record.standaloneReturn.creditPence,refundDuePence:record.standaloneReturn.refundDuePence,at:record.standaloneReturn.at}}:{}),...(record.returnReplacement?{returnReplacement:{direction:record.returnReplacement.direction,otherSaleId:record.returnReplacement.otherSaleId,otherReference:record.returnReplacement.otherReference,creditPence:record.returnReplacement.creditPence,at:record.returnReplacement.at}}:{}),draft:identity,documents:[],payments:[],events:[],emptyDraftDeletable:canDeleteEmptySaleDraft({...record,...row.deletion_evidence},true)};
     });
     return {sales,hasMore:result.rows.length>50};
   }
@@ -218,19 +224,19 @@ export class PostgresSaleWorkspaceStore {
       const counter = await client.query('SELECT numbers FROM sale_workspace_counters WHERE dealer_id = $1 FOR UPDATE', [this.dealerId]);
       const numbers = counter.rows[0].numbers as Record<string, number>;
       const now = new Date().toISOString();
-      const finalAction = input.command && (['issue-invoice','complete-sale','finish-invoice-sale','handover'].includes(input.command.action) || input.command.action==='document' && input.command.type==='invoice' || input.command.action==='lifecycle' && input.command.status==='sold');
-      const reviewedContext = current && finalAction && !current.requests?.[input.requestId] ? await assertSaleReviewContext(client,this.dealerId,current) : undefined;
       const draft = input.command?.action === 'update' ? input.command.draft : current?.draft ?? input.draft as SaleWorkspaceDraft;
       const assets = await this.assets(draft, client);
       if (input.command?.action === 'issue-invoice' && assets.vehicle?.imageUrl) {
         const photo = (await loadBrochurePhotos([{ url: assets.vehicle.imageUrl.replace(/w\d+-h\d+/, 'w480-h360'), caption: '' }], process.env.VEHICLE_PDF_IMAGE_HOSTS ?? '', 4000))[0];
         if (photo?.bytes && photo.format) assets.vehicle.photoDataUrl = `data:image/${photo.format === 'JPEG' ? 'jpeg' : 'png'};base64,${Buffer.from(photo.bytes).toString('base64')}`;
       }
-      const context: SaleWorkspaceContext = { now, actor: input.actor, nextId: randomUUID, nextNumber: type => saleWorkspaceNumber(numbers, type, now, assets.branding.invoiceSettings), ...assets, requireFinalReview: true, reviewContextHash:reviewedContext?.hash };
+      const context: SaleWorkspaceContext = { now, actor: input.actor, nextId: randomUUID, nextNumber: type => saleWorkspaceNumber(numbers, type, now, assets.branding.invoiceSettings), ...assets };
       const mutation = current
         ? changeSaleWorkspace(current, input.command!, { expectedRevision: input.expectedRevision!, requestId: input.requestId }, context)
         : createSaleWorkspace({ draft: input.draft, requestId: input.requestId }, context, saleWorkspaceNumber(numbers, 'sale', now, assets.branding.invoiceSettings));
       if (!mutation.replayed) {
+        const command = input.command;
+        if (command && (['issue-invoice', 'finish-invoice-sale', 'complete-sale', 'handover'].includes(command.action) || command.action === 'document' && command.type === 'invoice' || command.action === 'lifecycle' && command.status === 'sold')) assertSaleFinancialIntegrity(mutation.sale);
         if (!current || input.command?.action === 'update') await this.source(mutation.sale.draft, client, current?.id);
 
         if (input.command?.action === 'invoice-payment' && input.command.payment.kind === 'deposit') await this.stock(mutation.sale, 'reserved', client, input.actor);

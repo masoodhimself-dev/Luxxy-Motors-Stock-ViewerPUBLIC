@@ -8,21 +8,34 @@ import { requestUuid } from "@/lib/request-uuid";
 export function SaleDeliveryCharge({
   sale,
   onSaved,
+  onBusyChange,
 }: {
   sale: SaleWorkspaceRecord;
   onSaved: (sale: SaleWorkspaceRecord) => void;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const [amount, setAmount] = useState(sale.draft.deliveryCharge || "0"),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const retry = useRef<{ key: string; id: string } | undefined>(undefined);
+  const lock = useRef(false), generation = useRef(0);
+  const latest = useRef({ sale, onSaved });
+  latest.current = { sale, onSaved };
+  useEffect(() => { onBusyChange?.(busy); return () => onBusyChange?.(false); }, [busy, onBusyChange]);
+  useEffect(() => {
+    lock.current = false;
+    setBusy(false);
+    return () => { generation.current++; };
+  }, [sale.id]);
   useEffect(() => {
     setAmount(sale.draft.deliveryCharge || "0");
     setError("");
     retry.current = undefined;
   }, [sale.id, sale.revision]);
   async function save() {
-    if (busy) return;
+    if (lock.current) return;
+    lock.current = true;
+    const token = generation.current, request = { id: sale.id, revision: sale.revision };
     setBusy(true);
     setError("");
     const key = JSON.stringify([sale.id, sale.revision, amount]);
@@ -39,8 +52,14 @@ export function SaleDeliveryCharge({
           }),
         },
       );
-      onSaved(result.sale);
+      if (token !== generation.current || latest.current.sale.id !== request.id) return;
+      if (latest.current.sale.revision !== request.revision) {
+        setError("The delivery charge was saved. Reload this sale before making another change; your newer details have been kept.");
+        return;
+      }
+      latest.current.onSaved(result.sale);
     } catch (e) {
+      if (token !== generation.current || latest.current.sale.id !== request.id) return;
       setError(
         e instanceof HttpApiError &&
           e.data &&
@@ -50,7 +69,10 @@ export function SaleDeliveryCharge({
           : "The delivery charge could not be saved. Try again.",
       );
     } finally {
-      setBusy(false);
+      if (token === generation.current && latest.current.sale.id === request.id) {
+        lock.current = false;
+        setBusy(false);
+      }
     }
   }
   return (

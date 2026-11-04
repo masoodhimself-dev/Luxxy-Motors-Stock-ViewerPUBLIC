@@ -1,20 +1,20 @@
 import { Blob as NodeBlob } from 'node:buffer';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { customFetch } from '@workspace/api-client-react';
-import { getDocument } from 'pdfjs-dist';
+import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { saleDocumentPdfBytes } from '@workspace/vehicle-meta/sale-document-pdf';
 import { saleWorkspaceBranding, saleWorkspaceTotals, type SaleWorkspaceDocument, type SaleWorkspaceDraft } from '@workspace/vehicle-meta';
 import { dealerConfig } from '@/config/dealer';
 import { emptyDraft } from './model';
-import { buildDraftSaleDocument, openSaleDocumentPdf, PdfSalesDocument } from './sales-document';
+import { buildDraftSaleDocument, LiveSalesDocument, markTestSaleDocument, openSaleDocumentPdf, PdfSalesDocument } from './sales-document';
 
 const { renderPage, pdfState } = vi.hoisted(() => ({ renderPage: vi.fn(), pdfState: { pages: 1 } }));
 
 vi.mock('@workspace/api-client-react', () => ({ customFetch: vi.fn() }));
-vi.mock('pdfjs-dist/build/pdf.worker.min.mjs?url', () => ({ default: '/assets/pdf.worker.mjs' }));
+vi.mock('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url', () => ({ default: '/assets/pdf.worker.mjs' }));
 vi.mock('@workspace/vehicle-meta/sale-document-pdf', () => ({ saleDocumentPdfBytes: vi.fn((document: SaleWorkspaceDocument) => new TextEncoder().encode(`%PDF-${document.snapshot.draft.customer}`)) }));
-vi.mock('pdfjs-dist', () => ({
+vi.mock('pdfjs-dist/legacy/build/pdf.mjs', () => ({
   GlobalWorkerOptions: {},
   getDocument: vi.fn(() => ({
     destroy: vi.fn(),
@@ -38,6 +38,7 @@ describe('authoritative sale PDF preview', () => {
     pdfState.pages = 1;
     renderPage.mockReset().mockImplementation(() => ({ promise: Promise.resolve(), cancel: vi.fn() }));
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({} as CanvasRenderingContext2D);
+    vi.spyOn(console, 'error').mockImplementation(() => {});
   });
   afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
@@ -72,6 +73,7 @@ describe('authoritative sale PDF preview', () => {
     renderPage.mockImplementationOnce(() => ({ promise: Promise.reject(new Error('PDFjs page rendering unavailable')), cancel: vi.fn() }));
     view.rerender(<PdfSalesDocument issuedDocument={{ ...first, id: 'second-document', number: 'INV-2026-00002', snapshot: { ...first.snapshot, draft: { ...first.snapshot.draft, customer: 'Jordan Blake' } } }} pdfUrl="/api/sale-workspace/sale-one/documents/second-document/pdf" />);
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Use Open PDF'));
+    expect(console.error).toHaveBeenCalledWith('[sales-pdf] Inline preview failed', JSON.stringify({ stage: 'paint-pages', name: 'Error', message: 'PDFjs page rendering unavailable' }));
     expect(screen.getByRole('link', { name: 'Open PDF' })).toHaveAttribute('href', 'blob:second');
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
     expect(screen.queryByText('Alex Buyer')).not.toBeInTheDocument();
@@ -218,5 +220,75 @@ describe('authoritative sale PDF preview', () => {
     expect(document.snapshot.vehicle).toEqual(savedVehicle);
     const other = buildDraftSaleDocument({ draft, dealer: dealerConfig, documentType: 'Sales invoice', savedVehicle: { ...savedVehicle, id: 'other-car' } });
     expect(other.snapshot.vehicle).toBeUndefined();
+  });
+
+  it('updates the live HTML immediately without generating PDF bytes or invoking PDF.js while typing', async () => {
+    const draft = { ...emptyDraft(), customer: 'Alex Buyer', vehicle: 'Ford Focus', price: '12000' };
+    const view = render(<LiveSalesDocument draft={draft} dealer={dealerConfig} documentType="Sales invoice"/>);
+    expect(screen.getByText('Alex Buyer')).toBeInTheDocument();
+    view.rerender(<LiveSalesDocument draft={{ ...draft, customer: 'Jordan Blake', price: '11000' }} dealer={dealerConfig} documentType="Sales invoice"/>);
+    expect(screen.getByText('Jordan Blake')).toBeInTheDocument();
+    expect(screen.queryByText('Alex Buyer')).not.toBeInTheDocument();
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 550)); });
+    expect(saleDocumentPdfBytes).not.toHaveBeenCalled();
+    expect(getDocument).not.toHaveBeenCalled();
+    expect(customFetch).not.toHaveBeenCalled();
+    expect(screen.queryByRole('link', { name: 'Open PDF' })).not.toBeInTheDocument();
+  });
+
+  it('generates only on Preview PDF, reuses unchanged bytes, and keeps edits out of the PDF until explicitly refreshed', async () => {
+    const draft = { ...emptyDraft(), customer: 'Alex Buyer', price: '12000' };
+    const check = vi.fn().mockResolvedValue(undefined);
+    const view = render(<LiveSalesDocument draft={draft} dealer={dealerConfig} documentType="Sales invoice" onPreview={check}/>);
+    fireEvent.click(screen.getByRole('button', { name: 'Preview PDF' }));
+    await screen.findByRole('link', { name: 'Open PDF' });
+    expect(check).toHaveBeenCalledTimes(1);
+    expect(saleDocumentPdfBytes).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Close PDF' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Preview PDF' }));
+    await screen.findByRole('link', { name: 'Open PDF' });
+    expect(saleDocumentPdfBytes).toHaveBeenCalledTimes(1);
+    expect(check).toHaveBeenCalledTimes(1);
+    const renderedPage = await screen.findByRole('img', { name: 'Sales invoice, page 1 of 1' });
+    const readerCalls = vi.mocked(getDocument).mock.calls.length;
+    view.rerender(<LiveSalesDocument draft={{ ...draft, customer: 'Jordan Blake' }} dealer={dealerConfig} documentType="Sales invoice" onPreview={check}/>);
+    expect(screen.getByText('Jordan Blake')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Details changed');
+    expect(saleDocumentPdfBytes).toHaveBeenCalledTimes(1);
+    // The preview's inline ready/failure callbacks change identity on this
+    // render; they must not tear down the existing PDF reader and canvas.
+    await act(async () => { await Promise.resolve(); });
+    expect(getDocument).toHaveBeenCalledTimes(readerCalls);
+    expect(screen.getByRole('img', { name: 'Sales invoice, page 1 of 1' })).toBe(renderedPage);
+    fireEvent.click(screen.getByRole('button', { name: 'Preview PDF' }));
+    await waitFor(() => expect(saleDocumentPdfBytes).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(saleDocumentPdfBytes).mock.calls[1][0].snapshot.draft.customer).toBe('Jordan Blake');
+  });
+
+  it('keeps issued archive preview authoritative and never regenerates it when the archive fails', async () => {
+    vi.mocked(customFetch).mockRejectedValue(new Error('Saved archive unavailable'));
+    render(<LiveSalesDocument issuedDocument={issued()} pdfUrl={archiveUrl}/>);
+    expect(customFetch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Preview PDF' }));
+    await screen.findByRole('alert');
+    expect(customFetch).toHaveBeenCalledWith(archiveUrl, expect.objectContaining({ responseType: 'blob' }));
+    expect(saleDocumentPdfBytes).not.toHaveBeenCalled();
+  });
+
+  it('marks a local practice document and PDF with TEST ONLY heading/footer without modifying the source', async () => {
+    const original = issued();
+    const marked = markTestSaleDocument(original);
+    expect(marked.title).toBe('Sales invoice');
+    expect(marked.snapshot.branding.identity.name).toBe(original.snapshot.branding.identity.name);
+    expect(marked.snapshot.branding.invoiceSettings?.footer).toContain('TEST ONLY');
+    expect(original.title).toBe('Sales invoice');
+    render(<LiveSalesDocument issuedDocument={original} testMode/>);
+    fireEvent.click(screen.getByRole('button', { name: 'Preview PDF' }));
+    await screen.findByRole('link', { name: 'Open PDF' });
+    expect(customFetch).not.toHaveBeenCalled();
+    const document = vi.mocked(saleDocumentPdfBytes).mock.calls[0][0];
+    expect(document.title).toBe('Sales invoice');
+    expect(document.number).toMatch(/^TEST ONLY/);
+    expect(document.snapshot.branding.invoiceSettings?.footer).toContain('no live transaction');
   });
 });

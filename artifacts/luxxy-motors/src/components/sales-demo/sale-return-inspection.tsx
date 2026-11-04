@@ -14,7 +14,7 @@ export function SaleReturnInspection({ sale, onChange, disabled = false, canInsp
   const inFlight = useRef(false), mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => { setNote(''); setConfirmed(false); setError(''); retry.current = undefined; }, [sale.id]);
-  if (sale.lifecycle?.status !== 'returned' || sale.returnReplacement?.direction !== 'returned') return null;
+  if (sale.lifecycle?.status !== 'returned' || (!sale.standaloneReturn && sale.returnReplacement?.direction !== 'returned')) return null;
   async function complete() {
     if (inFlight.current || disabled || !canInspect || !confirmed || !note.trim()) return;
     inFlight.current = true; setBusy(true); setError('');

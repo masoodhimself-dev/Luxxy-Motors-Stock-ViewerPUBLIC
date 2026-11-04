@@ -67,6 +67,15 @@ export function salesDocumentPresentation(document: SaleWorkspaceDocument): Invo
       saleLines: [{ id: 'additional-delivery', description: 'Additional delivery charge', amount: amount(transaction.amountPence) }],
       summaryRows: [{ label: 'Invoice total', amount: amount(transaction.amountPence), emphasis: true }], terms: [], verification: undefined, pendingNote: undefined });
   } else if (document.type === 'credit-note') {
+    if (transaction?.kind === 'return-only-credit') {
+      Object.assign(data, { type: 'Return Credit Note', customerLabel: 'Credit for', saleLinesHeading: 'Agreed return credit', hidePaymentHistory: true,
+        settlementStatus: transaction.refundDuePence > 0 ? 'Refund due - not yet recorded' : 'Return agreement credited', notice: 'This credits the returned vehicle agreement. It cancels the unpaid amount shown below and records any remaining customer credit. It does not send money or confirm a refund.',
+        facts: [{ label: 'Original sale', value: clean(transaction.originalSaleReference) }, ...(transaction.originalInvoiceReferences.length ? [{ label: 'Original invoice', value: transaction.originalInvoiceReferences.map(clean).join(', ') }] : []), { label: 'Actual return date', value: salesDocumentDate(transaction.returnedDate) }, { label: 'Returned mileage', value: `${transaction.mileage.toLocaleString('en-GB')} miles` }],
+        saleLines: [{ id: 'agreed-return-credit', description: 'Credit for returned vehicle', amount: amount(transaction.amountPence) }],
+        summaryRows: [{ label: 'Original agreed charges', amount: amount(transaction.originalTotalPence) }, { label: 'Agreed return credit', amount: amount(transaction.amountPence) }, { label: 'Unpaid balance cancelled', amount: amount(transaction.unpaidCancelledPence) }, { label: 'Refund due at return', amount: amount(transaction.refundDuePence), emphasis: true }, { label: 'Cash refund recorded by this document', amount: amount(0) }],
+        terms: [`Return reason: ${clean(transaction.reason)}`, `Recorded condition: ${clean(transaction.condition)}`], termsHeading: 'Return record', paymentInstructions: [], verification: undefined, pendingNote: undefined });
+      return data;
+    }
     if (transaction?.kind !== 'return-credit') throw new SaleWorkspaceError('The return credit note is missing its saved credit details.');
     Object.assign(data, { type: 'Return Credit Note', customerLabel: 'Credit for', saleLinesHeading: 'Agreed return credit', hidePaymentHistory: true, settlementStatus: 'Credit transferred - no cash refund', notice: 'This records the agreed vehicle return credit and its transfer to the replacement sale. It does not record a new payment or cash refund.',
       facts: [{ label: 'Original sale', value: clean(transaction.originalSaleReference) }, ...(transaction.originalInvoiceReferences.length ? [{ label: 'Original invoice', value: transaction.originalInvoiceReferences.map(clean).join(', ') }] : []), { label: 'Replacement sale', value: clean(transaction.replacementSaleReference) }, { label: 'Returned mileage', value: `${transaction.mileage.toLocaleString('en-GB')} miles` }],

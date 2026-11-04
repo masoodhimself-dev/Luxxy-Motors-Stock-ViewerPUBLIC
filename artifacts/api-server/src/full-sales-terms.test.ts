@@ -57,15 +57,8 @@ test('tenant draft, explicit publication, issue snapshots and retries preserve h
     await database.query('INSERT INTO sale_workspace VALUES($1,$2,$3)', [saleId, 'shore-drive-limited', sale]);
     await database.query('INSERT INTO vehicles VALUES($1,$2,$3)', [vehicleId, 'shore-drive-limited', 'S']);
     const input = { requestId, expectedSaleRevision: 3, termsVersionId: published.published!.id };
-    const { finalReview, ...unchecked } = sale;
-    await database.query('UPDATE sale_workspace SET state=$2 WHERE id=$1', [saleId, unchecked]);
-    await assert.rejects(shore.issue(saleId, input, 'Salesperson'), /Run the final checks/);
-    await database.query('UPDATE sale_workspace SET state=$2 WHERE id=$1', [saleId, { ...sale, finalReview: { ...finalReview, status: 'unavailable' } }]);
-    await assert.rejects(shore.issue(saleId, input, 'Salesperson'), /Run the final checks/);
-    await database.query('UPDATE sale_workspace SET state=$2 WHERE id=$1', [saleId, { ...sale, revision: 4 }]);
-    await assert.rejects(shore.issue(saleId, { ...input, expectedSaleRevision: 4 }, 'Salesperson'), /Run the final checks/);
-    assert.equal((await database.query('SELECT id FROM sale_terms_documents')).rows.length, 0, 'Missing, unavailable and older-review checks cannot create customer terms');
-    Object.assign(sale.finalReview, {contextHash: (await readSaleReviewContext(database, 'shore-drive-limited', sale as any)).hash});
+    // Historical unavailable/stale AI checks never prevent issuing current, valid terms.
+    Object.assign(sale.finalReview, { status: 'unavailable', reviewedRevision: 1 });
     await database.query('UPDATE sale_workspace SET state=$2 WHERE id=$1', [saleId, sale]);
     const issued = await shore.issue(saleId, input, 'Salesperson'); assert.equal(issued.snapshot.sections.length, 2);
     assert.equal((await shore.issue(saleId, input, 'Salesperson')).replayed, true);

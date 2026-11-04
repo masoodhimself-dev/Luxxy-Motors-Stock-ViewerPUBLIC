@@ -1,0 +1,5 @@
+.sale-calculation-check { display: flex; align-items: flex-start; gap: .45rem; margin: .65rem 0 0; font-size: .82rem; line-height: 1.5; color: #586873; }
+.sale-calculation-check > svg { width: 1rem; height: 1rem; flex: 0 0 auto; margin-top: .12rem; }
+.sale-calculation-check.is-checking > svg { animation: sale-calculation-spin 1s linear infinite; }
+@keyframes sale-calculation-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .sale-calculation-check.is-checking > svg { animation: none; } }

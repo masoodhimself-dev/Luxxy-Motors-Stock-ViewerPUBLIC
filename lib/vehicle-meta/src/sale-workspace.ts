@@ -90,7 +90,8 @@ export type SaleWorkspaceDocument = {
   transaction?:
     | { kind: 'payment-request'; requestKind: 'deposit' | 'balance' | 'other'; amountPence: number; dueDate: string; paymentReference: string; saleReference: string; note?: string }
     | { kind: 'delivery-invoice'; amountPence: number; saleReference: string; invoiceReferences: string[]; deliveryAddress: string; previousDeliveryPence: number; totalDeliveryPence: number }
-    | { kind: 'return-credit'; amountPence: number; originalSaleReference: string; replacementSaleReference: string; originalInvoiceReferences: string[]; reason: string; condition: string; mileage: number };
+    | { kind: 'return-credit'; amountPence: number; originalSaleReference: string; replacementSaleReference: string; originalInvoiceReferences: string[]; reason: string; condition: string; mileage: number }
+    | { kind: 'return-only-credit'; amountPence: number; originalSaleReference: string; originalInvoiceReferences: string[]; originalTotalPence: number; unpaidCancelledPence: number; refundDuePence: number; balanceDuePence: number; reason: string; condition: string; mileage: number; returnedDate: string };
   title: string; issuedAt: string; issuedBy: string; version: number; invoiceKind?: 'deposit' | 'full';
   paymentId?: string; paymentAmountPence?: number; balanceAtIssue: number;
   content?: string;
@@ -184,6 +185,8 @@ export type SaleWorkspaceRecord = {
   replacementReview?: import('./sale-operations.ts').SaleReplacementReview;
   returnReplacement?: { transferId: string; otherSaleId: string; otherReference: string; direction: 'returned' | 'replacement'; creditPence: number; reason: string; condition: string; mileage: number; at: string; actor: string };
   returnReplacementHistory?: NonNullable<SaleWorkspaceRecord['returnReplacement']>[];
+  /** A physical vehicle return and agreed price credit; actual refunds remain ledger entries. */
+  standaloneReturn?: { id: string; creditPence: number; originalTotalPence: number; unpaidCancelledPence: number; refundDuePence: number; balanceDuePence: number; reason: string; condition: string; mileage: number; returnedDate: string; at: string; actor: string };
   /** Staff inspection attestation on the original returned deal; never changes its ledger. */
   returnInspection?: { at: string; actor: string; note: string };
 };
@@ -213,6 +216,7 @@ export type SaleWorkspaceContext = {
   nextNumber: (type: SaleWorkspaceDocument['type']) => string;
   reviewUrl?: string; branding: SaleWorkspaceBranding; vehicle?: SaleWorkspaceVehicleSnapshot;
   paperwork?: { saleTerms: string; reservationTerms: string };
+  /** Deprecated: retained for callers during rollout; never gates financial actions. */
   requireFinalReview?: boolean;
   /** Current external evidence/terms/vehicle digest, read under the mutation lock. */
   reviewContextHash?: string;
@@ -465,7 +469,8 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
   }
   if (!Number.isSafeInteger(input.expectedRevision) || input.expectedRevision !== current.revision) throw new SaleWorkspaceError('This sale changed on another device. Reload it before saving.', 409);
   if (current.returnReplacement?.direction === 'returned' && command.action !== 'email-status' && command.action !== 'correction-note' && !(command.action === 'document' && command.type === 'statement')) throw new SaleWorkspaceError('This vehicle was returned and its credit transferred. Open the replacement deal for further financial actions.', 409);
-  if (context.requireFinalReview && (['issue-invoice','complete-sale','finish-invoice-sale','handover'].includes(command.action) || command.action === 'document' && command.type === 'invoice' || command.action === 'lifecycle' && command.status === 'sold') && !((current.finalReview?.status === 'passed' || current.finalReview?.status === 'overridden') && current.finalReview.reviewedRevision === current.revision && !!context.reviewContextHash && current.finalReview.contextHash === context.reviewContextHash)) throw new SaleWorkspaceError('Run the final checks for this saved revision and current delivery evidence before issuing an invoice or confirming handover.',409);
+  if (current.standaloneReturn && command.action !== 'email-status' && command.action !== 'correction-note' && !(command.action === 'document' && command.type === 'statement')) throw new SaleWorkspaceError('This vehicle was returned. Use its remaining customer credit to record a real refund; the original agreement stays unchanged.', 409);
+  // AI checks are optional advice. Deterministic ledger, stock and document rules below remain authoritative.
   const record = clone(current);
   let document: SaleWorkspaceDocument | undefined;
   if (command.action === 'update') {

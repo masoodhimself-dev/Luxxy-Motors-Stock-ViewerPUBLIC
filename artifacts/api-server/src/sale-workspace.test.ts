@@ -14,22 +14,33 @@ const reviewChecks = (sale: SaleWorkspaceRecord) => changeSaleWorkspace(sale, {
   partExchanges: saleWorkspaceExchanges(sale.draft).map(exchange => ({ registration: exchange.registration, items: Object.fromEntries(partExchangeChecklistItems.map(item => [item.id, 'checked' as const])) })),
 }, { expectedRevision: sale.revision, requestId: `review-checks-${++sequence}` }, context()).sale;
 
-test('final paperwork requires the reviewed external context while exact retries retain the original document', () => {
-  const original=create();
-  original.finalReview={id:'review-context',checkedAt:context().now,reviewedRevision:original.revision,status:'passed',contextHash:'a'.repeat(64),issues:[],summary:'Fixture contextual review'};
-  const command={action:'document',type:'invoice'} as const;
-  const input={expectedRevision:original.revision,requestId:'contextual-invoice'};
-  assert.throws(()=>changeSaleWorkspace(original,command,input,{...context(),requireFinalReview:true}),/Run the final checks/);
-  assert.throws(()=>changeSaleWorkspace(original,command,input,{...context(),requireFinalReview:true,reviewContextHash:'b'.repeat(64)}),/Run the final checks/);
-  const issued=changeSaleWorkspace(original,command,input,{...context(),requireFinalReview:true,reviewContextHash:'a'.repeat(64)});
-  assert.equal(issued.document?.templateVersion,'sales-workspace-v2');
-  const retry=changeSaleWorkspace(issued.sale,command,input,{...context(),requireFinalReview:true,reviewContextHash:'b'.repeat(64)});
-  assert.equal(retry.replayed,true);
-  assert.deepEqual(retry.document,issued.document);
-  const overridden={...original,finalReview:{...original.finalReview!,status:'overridden' as const,override:{actor:'Staff',reason:'Manual review completed',at:context().now}}};
-  assert.throws(()=>changeSaleWorkspace(overridden,command,{...input,requestId:'override-stale'},{...context(),requireFinalReview:true,reviewContextHash:'b'.repeat(64)}),/Run the final checks/);
-  assert.equal(changeSaleWorkspace(overridden,command,{...input,requestId:'override-current'},{...context(),requireFinalReview:true,reviewContextHash:'a'.repeat(64)}).document?.type,'invoice');
-  assert.throws(()=>changeSaleWorkspace({...overridden,draft:{...overridden.draft,price:'invalid'}},command,{...input,requestId:'override-invalid-figures'},{...context(),requireFinalReview:true,reviewContextHash:'a'.repeat(64)}),/valid|amount|agreed price/);
+test('financial actions do not require AI approval and exact retries retain the document', () => {
+  for (const status of [undefined, 'unavailable', 'attention', 'passed'] as const) {
+    const original=create();
+    if (status) original.finalReview={id:'old-review',checkedAt:context().now,reviewedRevision:0,status,contextHash:'a'.repeat(64),issues:[],summary:'Historical review'};
+    const history=structuredClone(original.finalReview);
+    const command={action:'document',type:'invoice'} as const;
+    const input={expectedRevision:original.revision,requestId:`no-ai-invoice-${status}`};
+    const issued=changeSaleWorkspace(original,command,input,{...context(),requireFinalReview:true,reviewContextHash:'b'.repeat(64)});
+    assert.equal(issued.document?.type,'invoice'); assert.deepEqual(issued.sale.finalReview,history);
+    const retry=changeSaleWorkspace(issued.sale,command,input,{...context(),requireFinalReview:true});
+    assert.equal(retry.replayed,true); assert.deepEqual(retry.document,issued.document);
+    assert.throws(()=>changeSaleWorkspace({...original,draft:{...original.draft,price:'invalid'}},command,{...input,requestId:`bad-figures-${status}`},context()),/valid|amount|agreed price/);
+  }
+});
+
+test('sold and handover actions keep exact balance checks without depending on AI', () => {
+  const initial=create(), noAi={...context(),requireFinalReview:true};
+  const paid=changeSaleWorkspace(initial,payment('12000','final-payment'),{expectedRevision:initial.revision,requestId:'no-ai-full-payment'},noAi).sale;
+  const invoiced=changeSaleWorkspace(paid,{action:'issue-invoice',kind:'full',acknowledge:true},{expectedRevision:paid.revision,requestId:'no-ai-full-invoice'},noAi).sale;
+  const sold=changeSaleWorkspace(invoiced,{action:'finish-invoice-sale',acknowledge:true},{expectedRevision:invoiced.revision,requestId:'no-ai-mark-sold'},noAi).sale;
+  assert.equal(sold.lifecycle?.status,'sold'); assert.equal(sold.finalReview,undefined);
+  const handedOver=changeSaleWorkspace(sold,{action:'handover',recipient:'Buyer'},{expectedRevision:sold.revision,requestId:'no-ai-handover'},noAi).sale;
+  assert.equal(handedOver.draft.fulfilment?.completedRecipient,'Buyer');
+  const incomplete=create();
+  assert.throws(()=>changeSaleWorkspace(incomplete,{action:'handover',recipient:'Buyer'},{expectedRevision:incomplete.revision,requestId:'unpaid-no-ai-handover'},noAi),/outstanding balance/);
+  const completed=changeSaleWorkspace(paid,{action:'complete-sale',acknowledge:true},{expectedRevision:paid.revision,requestId:'no-ai-complete'}, {...noAi,paperwork:{saleTerms:'Agreed sale terms',reservationTerms:''}}).sale;
+  assert.ok(completed.completedAt); assert.equal(completed.finalReview,undefined);
 });
 
 test('external correction notes require completed sale and never alter issued documents or payments', () => {

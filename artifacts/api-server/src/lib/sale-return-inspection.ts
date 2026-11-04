@@ -27,7 +27,7 @@ export async function completeSaleReturnInspection(database: SaleWorkspaceDataba
       return { sale: publicSaleWorkspace(sale), replayed: true };
     }
     if (sale.revision !== input.expectedRevision) throw new SaleWorkspaceError('This returned sale changed. Reload it before continuing.', 409);
-    if (sale.lifecycle?.status !== 'returned' || sale.returnReplacement?.direction !== 'returned' || sale.returnInspection) throw new SaleWorkspaceError('This sale has no returned vehicle awaiting inspection.', 409);
+    if (sale.lifecycle?.status !== 'returned' || (!sale.standaloneReturn && sale.returnReplacement?.direction !== 'returned') || sale.returnInspection) throw new SaleWorkspaceError('This sale has no returned vehicle awaiting inspection.', 409);
     const vehicleId = sale.draft.vehicleId;
     if (!uuid(vehicleId)) throw new SaleWorkspaceError('The returned vehicle could not be identified.', 409);
     await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`sale-vehicle:${vehicleId}`]);
@@ -54,10 +54,11 @@ export async function completeSaleReturnInspection(database: SaleWorkspaceDataba
     // Only the original deal's exact linked lead is released. Buyer history and
     // unrelated enquiries, contacts and cancelled appointments remain intact.
     if (sale.draft.sourceReservationId || sale.draft.sourceEnquiryId) {
-      const closed = (await client.query("UPDATE leads SET stage='lost',outcome='lost',outcome_reason='Vehicle returned and replaced under the linked sale.',closed_at=$5,next_action=NULL,next_action_due_at=NULL,updated_at=$5 WHERE dealer_id=$1 AND vehicle_id=$2::uuid AND stage IN ('reserved','sale_agreed','collected') AND (($3::uuid IS NOT NULL AND id=$3::uuid) OR ($4::uuid IS NOT NULL AND enquiry_id=$4::uuid)) RETURNING id", [dealerId, vehicleId, sale.draft.sourceReservationId || null, sale.draft.sourceEnquiryId || null, now])).rows;
-      for (const lead of closed) await client.query("INSERT INTO lead_events(id,lead_id,type,actor_type,actor,body,payload,occurred_at) VALUES($1::uuid,$2::uuid,'outcome_recorded','staff',$3,'Original vehicle returned and replaced; original lead closed.',$4::jsonb,$5)", [randomUUID(), lead.id, actor, JSON.stringify({ kind: 'return_inspection', saleId, outcome: 'lost' }), now]);
+      const returnReason = sale.standaloneReturn ? 'Vehicle returned without replacement under the linked sale.' : 'Vehicle returned and replaced under the linked sale.';
+      const closed = (await client.query("UPDATE leads SET stage='lost',outcome='lost',outcome_reason=$6,closed_at=$5,next_action=NULL,next_action_due_at=NULL,updated_at=$5 WHERE dealer_id=$1 AND vehicle_id=$2::uuid AND stage IN ('reserved','sale_agreed','collected') AND (($3::uuid IS NOT NULL AND id=$3::uuid) OR ($4::uuid IS NOT NULL AND enquiry_id=$4::uuid)) RETURNING id", [dealerId, vehicleId, sale.draft.sourceReservationId || null, sale.draft.sourceEnquiryId || null, now, returnReason])).rows;
+      for (const lead of closed) await client.query("INSERT INTO lead_events(id,lead_id,type,actor_type,actor,body,payload,occurred_at) VALUES($1::uuid,$2::uuid,'outcome_recorded','staff',$3,$6,$4::jsonb,$5)", [randomUUID(), lead.id, actor, JSON.stringify({ kind: 'return_inspection', saleId, outcome: 'lost' }), now, sale.standaloneReturn ? 'Original vehicle returned without replacement; original lead closed.' : 'Original vehicle returned and replaced; original lead closed.']);
     }
-    await client.query("UPDATE sold_vehicle_follow_ups SET status='not_needed',outcome='not_needed',note=concat_ws(E'\\n',nullif(note,''),'Vehicle returned and replaced; original sold follow-up no longer applies.'),revision=revision+1,updated_by=$4,updated_at=$5 WHERE dealer_id=$1 AND sale_id=$2::uuid AND vehicle_id=$3::uuid AND status='pending'", [dealerId, saleId, vehicleId, actor, now]);
+    await client.query("UPDATE sold_vehicle_follow_ups SET status='not_needed',outcome='not_needed',note=concat_ws(E'\\n',nullif(note,''),'Vehicle returned; original sold follow-up no longer applies.'),revision=revision+1,updated_by=$4,updated_at=$5 WHERE dealer_id=$1 AND sale_id=$2::uuid AND vehicle_id=$3::uuid AND status='pending'", [dealerId, saleId, vehicleId, actor, now]);
     await client.query('UPDATE sale_workspace SET revision=$3,state=$4::jsonb,updated_at=$5 WHERE dealer_id=$1 AND id=$2::uuid', [dealerId, saleId, sale.revision, JSON.stringify(sale), now]);
     await client.query('COMMIT');
     return { sale: publicSaleWorkspace(sale), replayed: false };

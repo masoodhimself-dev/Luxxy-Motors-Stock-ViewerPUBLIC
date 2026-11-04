@@ -5,6 +5,7 @@ import type { Enquiry, StaffOnlineReservation } from "@workspace/api-client-reac
 import {
   changeSaleWorkspace,
   createSaleWorkspace,
+  requestSalePayment,
   saleCompletionChecklistItems,
   partExchangeChecklistItems,
   type SaleWorkspaceRecord,
@@ -81,12 +82,14 @@ vi.mock("@workspace/api-client-react", () => ({
   useGetEnquiries: () => ({ data: state.enquiries, isError: state.enquiriesError }),
   useListReservations: () => ({ data: { reservations: state.reservations } }),
 }));
-vi.mock("@/components/sales-demo/sales-document", () => ({
+vi.mock("@/components/sales-demo/sales-document", async () => ({
+  ...await vi.importActual<typeof import('@/components/sales-demo/sales-document')>('@/components/sales-demo/sales-document'),
+  LiveSalesDocument: () => <div aria-label="Live document preview"/>,
   openSaleDocumentPdf: (...args: unknown[]) => state.pdf(...args),
 }));
 vi.mock('@/components/portal/sale-review-reminder', () => ({ SaleReviewReminder: () => null }));
 vi.mock('@/components/portal/sold-vehicle-customer-review', () => ({ SoldVehicleCustomerReview: () => null }));
-vi.mock('@/components/portal/dealer-administration', () => ({useStaffAccess: () => ({data:{permissions:['sales.manage','sales.handover']}})}));
+vi.mock('@/components/portal/dealer-administration', () => ({useStaffAccess: () => ({data:{permissions:['sales.manage','sales.handover','payments.record','payments.refund']}})}));
 vi.mock('@/components/share-qr',()=>({ShareQr:({source,documentType,onEmailFallback,disabled,label}:{source?:{documentId?:string};documentType?:string;onEmailFallback?:()=>void;disabled?:boolean;label?:string})=>documentType==='invoice'&&!state.invoiceQrEnabled?null:<button disabled={disabled} data-document-id={source?.documentId} onClick={onEmailFallback}>{label === 'WhatsApp confirmation' ? label : 'Use email instead'}</button>}));
 import { SalesWorkspace } from "./sales-demo";
 import { emptyDraft } from "@/components/sales-demo/model";
@@ -149,6 +152,10 @@ beforeEach(() => {
           return result;
         }
         const current = state.sales[0];
+        if(url.endsWith('/request-payment')){
+          const result=requestSalePayment(current,{...payload,tokenHash:'test-token-hash',expiresAt:new Date(Date.now()+30*86400000).toISOString()},context());
+          state.sales[0]=result.sale;return {...result,requestId:result.request.id,url:`https://example.test/payment-request/${'a'.repeat(64)}`};
+        }
         if (url.endsWith('/email')) {
           const documentId = url.split('/documents/')[1].split('/')[0];
           const result = changeSaleWorkspace(current, {action:'email-status',delivery:{id:payload.requestId,documentId,to:current.draft.email,status:'sent',attemptedAt:context().now}}, payload,context());
@@ -200,7 +207,7 @@ it('deletes an eligible saved draft only after explicit confirmation and keeps o
   const real = createSaleWorkspace({draft:{...emptyDraft(),customer:'Protected buyer',vehicle:'Ford Focus'},requestId:'real-draft-create'},context(),'REAL-DRAFT').sale;
   real.emptyDraftDeletable=false;state.sales=[testSale,real];mount();
   fireEvent.click(await screen.findByRole('button',{name:/\[TEST\] Unissued sale/}));
-  await screen.findByRole('heading',{name:'Deal details'});
+  await openCarScreen();
   fireEvent.click(screen.getByText('Sale actions'));fireEvent.click(screen.getByRole('button',{name:'Delete draft'}));
   const dialog=screen.getByRole('dialog',{name:'Delete this draft?'});
   expect(state.fetch.mock.calls.some(([,options])=>options?.method==='DELETE')).toBe(false);
@@ -215,7 +222,7 @@ it('deletes an eligible saved draft only after explicit confirmation and keeps o
   expect(JSON.parse(deletion?.[1].body)).toEqual({confirm:true,expectedRevision:1});
   expect(screen.getByRole('status')).toHaveTextContent('Draft deleted.');
   fireEvent.click(screen.getByRole('button',{name:/Protected buyer/}));
-  await screen.findByRole('heading',{name:'Deal details'});
+  await openCarScreen();
   expect(screen.queryByRole('button',{name:'Delete draft'})).not.toBeInTheDocument();
 });
 
@@ -225,7 +232,7 @@ it('keeps the draft when deletion fails and reloads protected changes before ano
   const original=state.fetch.getMockImplementation()!;
   state.fetch.mockImplementation(async(url,options)=>{if(options?.method==='DELETE')throw new Error('This sale changed on another device. Reload it before deleting.');return original(url,options);});
   mount();fireEvent.click(await screen.findByRole('button',{name:/\[TEST\] Stale draft/}));
-  await screen.findByRole('heading',{name:'Deal details'});
+  await openCarScreen();
   fireEvent.click(screen.getByText('Sale actions'));fireEvent.click(screen.getByRole('button',{name:'Delete draft'}));fireEvent.click(within(screen.getByRole('dialog')).getByRole('button',{name:'Delete draft permanently'}));
   await waitFor(()=>expect(within(screen.getByRole('dialog')).getByRole('alert')).toHaveTextContent('another device'));
   expect(state.sales).toHaveLength(1);
@@ -240,15 +247,16 @@ it("returns an embedded invoice to the sales list and keeps the unsaved-change g
   try {
     mount({ embedded: true, onExit });
     await details("full");
-    fireEvent.click(screen.getByRole("button", { name: "Sales" }));
+    fireEvent.change(screen.getByLabelText('Payment amount (£)'),{target:{value:'100'}});
+    fireEvent.click(screen.getByRole("button", { name: "Back to sales" }));
     expect(confirm).toHaveBeenCalledWith("Leave your unsaved invoice details?");
-    expect(screen.getByRole("heading", { name: "Payments" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Take a payment" })).toBeInTheDocument();
     expect(onExit).not.toHaveBeenCalled();
     confirm.mockReturnValue(true);
-    fireEvent.click(screen.getByRole("button", { name: "Sales" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back to sales" }));
     expect(screen.getByRole("heading", { name: "Sales" })).toBeInTheDocument();
     expect(onExit).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Workspace" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back to workspace" }));
     expect(onExit).toHaveBeenCalledOnce();
   } finally {
     confirm.mockRestore();
@@ -263,41 +271,56 @@ function chooseStockVehicle(id: string) {
   expect(option).toBeDefined();
   fireEvent.click(option!);
 }
-function advance() {
- const customer = screen.queryByRole('button',{name:'Customer details'});
- if (customer) {fireEvent.click(customer); return;}
- const payments = screen.queryByRole('button',{name:'Go to payments'});
- if (payments) {fireEvent.click(payments); const add=screen.queryByRole('button',{name:'Add received payment'});if(add)fireEvent.click(add);return;}
- if(screen.getByRole('tab',{name:'Payments'}).getAttribute('aria-selected')==='true')fireEvent.click(screen.getByRole('tab',{name:'Invoices'}));
+function navigateSection(section: string) {
+ if (section === 'Deal') { fireEvent.click(screen.getByRole('button', { name: 'Car' })); return; }
+ const heading = section === 'Deposit' ? 'Take a deposit' : section === 'Payments' ? 'Take a payment' : section === 'Invoices' ? 'Create an invoice' : 'Arrange collection or delivery';
+ const menu = screen.queryByRole('button', {name: new RegExp(`^${heading}`)});
+ if (!menu) openActions();
+ fireEvent.click(screen.getByRole('button', {name: new RegExp(`^${heading}`)}));
 }
-function openPayments() {
- fireEvent.click(screen.getByRole('tab',{name:'Payments'}));
- const add=screen.queryByRole('button',{name:'Add received payment'});if(add)fireEvent.click(add);
+function openActions(){
+ if(screen.queryByRole('button',{name:/^Request a deposit/}))return;
+ let back=screen.queryAllByRole('button',{name:'All actions'});
+ if(!back.length && screen.queryByRole('button',{name:'Choose customer'})){fireEvent.click(screen.getByRole('button',{name:'Choose customer'}));back=screen.queryAllByRole('button',{name:'All actions'});}
+ if(back.length)fireEvent.click(back[0]);else fireEvent.click(screen.getByRole('button',{name:'Choose what to do'}));
 }
+function openCustomerFields(){const next=screen.queryByRole('button',{name:'Choose customer'});fireEvent.click(next || screen.getByRole('button',{name:'Customer'}));}
+function saleSummary(){return document.querySelector('.sale-desk') as HTMLElement;}
+async function openCarScreen() {
+ await screen.findByRole('heading', {name:/Choose a car|Choose the customer|What would you like to do\?/});
+ fireEvent.click(screen.getByRole('button',{name:'Car'}));
+ return screen.getByRole('heading',{name:'Choose a car'});
+}
+async function advance() {
+ const customer = screen.queryByRole('button',{name:'Choose customer'});
+ if (customer) { fireEvent.click(customer); await screen.findByLabelText('Customer’s full name'); return; }
+ const next = screen.getAllByRole('button',{name:'Choose what to do'}).find(button => !button.closest('nav'));
+ if(next){fireEvent.click(next);await screen.findByRole('heading',{name:'What would you like to do?'});}
+}
+function openPayments() { navigateSection('Payments'); }
 function openInvoice() {
- fireEvent.click(screen.getByRole('tab',{name:'Invoices'}));
+ navigateSection('Invoices');
  const options=screen.queryAllByRole('button',{name:'View & share'});const invoice=options.find(button=>/invoice/i.test(button.parentElement?.textContent??''));if(invoice)fireEvent.click(invoice);else if(options.length)fireEvent.click(options[0]);
 }
 async function details(_type:'deposit'|'full') {
  fireEvent.click(await screen.findByRole('button',{name:/New sale/}));
- expect(screen.getByRole('heading',{name:'Deal details'})).toBeVisible();
- chooseStockVehicle('car-test');advance();
+ expect(screen.getByRole('heading',{name:'Choose a car'})).toBeVisible();
+ chooseStockVehicle('car-test');await advance();
  fireEvent.change(screen.getByLabelText('Customer’s full name'),{target:{value:'Jamie Taylor'}});
- advance();
+ await advance(); openPayments();
 }
 async function pay(amount:string,kind:'deposit'|'part-payment'|'final-payment',method:string) {
- if(screen.getByRole('tab',{name:'Payments'}).getAttribute('aria-selected')!=='true')openPayments();
- else {const add=screen.queryByRole('button',{name:'Add received payment'});if(add)fireEvent.click(add);}
- fireEvent.change(screen.getByLabelText('Payment type'),{target:{value:kind}});
+ if(kind === 'deposit') navigateSection('Deposit'); else if(!screen.queryByLabelText('Payment type'))openPayments();
+ if(kind !== 'deposit') fireEvent.change(screen.getByLabelText('Payment type'),{target:{value:kind}});
  fireEvent.change(screen.getByLabelText('Payment amount (£)'),{target:{value:amount}});
  fireEvent.change(screen.getByLabelText('Payment method'),{target:{value:method}});
  fireEvent.click(screen.getByRole('checkbox',{name:/I have checked that this money/}));
- const beforeCount=state.sales[0]?.payments.length??0;fireEvent.click(screen.getByRole('button',{name:'Save payment'}));
+ const beforeCount=state.sales[0]?.payments.length??0;fireEvent.click(screen.getByRole('button',{name:/^Save (?:£[\d,.]+ )?(?:deposit|payment)$/}));
  await waitFor(()=>expect(state.sales[0].payments).toHaveLength(beforeCount+1));
- await waitFor(()=>expect(screen.getByRole('tab',{name:'Payments'})).toBeEnabled());
+ await waitFor(()=>expect(screen.getAllByRole('button',{name:'All actions'}).every(button => !button.hasAttribute('disabled'))).toBe(true));
 }
 async function issue(type:'deposit'|'full') {
- fireEvent.click(screen.getByRole('tab',{name:'Invoices'}));
+ navigateSection('Invoices');
  const create=screen.queryByRole('button',{name:'Create invoice'});if(create)fireEvent.click(create);
  fireEvent.click(screen.getByRole('button',{name:type==='deposit'?'Received deposit invoice':'Sales invoice'}));
  fireEvent.click(screen.getByRole('checkbox',{name:/I have checked the customer/}));
@@ -344,17 +367,28 @@ it("allows an unpaid full invoice but requires acknowledgement before marking th
 });
 it('blocks overpayments and prevents creating an invoice for an unreceived deposit', async () => {
  mount();await details('deposit');fireEvent.change(screen.getByLabelText('Payment amount (£)'),{target:{value:'10001'}});
- fireEvent.click(screen.getByRole('checkbox',{name:/I have checked that this money/}));expect(screen.getByRole('button',{name:'Save payment'})).toBeDisabled();
- fireEvent.change(screen.getByLabelText('Payment amount (£)'),{target:{value:''}});fireEvent.click(screen.getByRole('tab',{name:'Invoices'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I have checked that this money/}));expect(screen.getByRole('button',{name:/^Save (?:£[\d,.]+ )?(?:deposit|payment)$/})).toBeDisabled();
+ fireEvent.change(screen.getByLabelText('Payment amount (£)'),{target:{value:''}});navigateSection('Invoices');
  fireEvent.click(screen.getByRole('button',{name:'Received deposit invoice'}));fireEvent.click(screen.getByRole('checkbox',{name:/I have checked the customer/}));fireEvent.click(screen.getByRole('button',{name:'Create & save invoice'}));
  await waitFor(()=>expect(document.body).toHaveTextContent(/received deposit|confirmed deposit/i));expect(state.sales.flatMap(sale=>sale.documents)).toHaveLength(0);
 });
 
 it('does not silently drop a typed but unrecorded payment when staff switch sections', async () => {
  mount();await details('full');fireEvent.change(screen.getByLabelText('Payment amount (£)'),{target:{value:'500'}});
- fireEvent.click(screen.getByRole('tab',{name:'Invoices'}));expect(screen.getByRole('button',{name:'Create & save invoice'})).toBeDisabled();
+ navigateSection('Invoices');expect(screen.getByRole('button',{name:'Create & save invoice'})).toBeDisabled();
  expect(screen.getByText('Save or clear the payment entry in Payments before creating an invoice.')).toBeVisible();
- fireEvent.click(screen.getByRole('tab',{name:'Payments'}));expect(screen.getByLabelText('Payment amount (£)')).toHaveValue('500');expect(state.sales).toHaveLength(0);
+ navigateSection('Payments');expect(screen.getByLabelText('Payment amount (£)')).toHaveValue('500');expect(state.sales[0].payments).toHaveLength(0);
+});
+
+it('takes an unfinished payment back to its entry instead of looping on save when requesting a deposit', async () => {
+ mount(); await details('full');
+ fireEvent.change(screen.getByLabelText('Payment amount (£)'), { target: { value: '500' } });
+ fireEvent.click(screen.getAllByRole('button', { name: 'All actions' })[0]);
+ fireEvent.click(screen.getByRole('button', { name: /^Request a deposit/ }));
+ expect(screen.queryByRole('button', { name: 'Save and continue' })).not.toBeInTheDocument();
+ fireEvent.click(screen.getByRole('button', { name: 'Return to unfinished payment' }));
+ expect(screen.getByLabelText('Payment amount (£)')).toHaveValue('500');
+ expect(state.sales[0].payments).toHaveLength(0);
 });
 
 it("supports an explicitly agreed sale with a balance due and records the later final payment", async () => {
@@ -378,17 +412,19 @@ it("supports an explicitly agreed sale with a balance due and records the later 
 });
 
 it('requires the car and customer before issuing an invoice', async () => {
- mount();fireEvent.click(await screen.findByRole('button',{name:/New sale/}));fireEvent.click(screen.getByRole('tab',{name:'Invoices'}));
- fireEvent.click(screen.getByRole('checkbox',{name:/I have checked the customer/}));fireEvent.click(screen.getByRole('button',{name:'Create & save invoice'}));
- await waitFor(()=>expect(screen.getByRole('alert')).toHaveTextContent('Select a vehicle'));
- fireEvent.click(screen.getByRole('tab',{name:'Deal'}));chooseStockVehicle('car-test');fireEvent.click(screen.getByRole('tab',{name:'Invoices'}));
- fireEvent.click(screen.getByRole('button',{name:'Create & save invoice'}));await waitFor(()=>expect(screen.getByRole('alert')).toHaveTextContent('Enter the customer name'));expect(state.sales).toHaveLength(0);
+ mount();fireEvent.click(await screen.findByRole('button',{name:/New sale/}));
+ expect(screen.queryByRole('button',{name:/^Create an invoice/})).not.toBeInTheDocument();
+ fireEvent.click(screen.getByRole('button',{name:'Choose customer'}));
+ expect(screen.getByRole('alert')).toHaveTextContent('Select a vehicle');
+ chooseStockVehicle('car-test');fireEvent.click(screen.getByRole('button',{name:'Choose customer'}));
+ fireEvent.click(screen.getAllByRole('button',{name:'Choose what to do'}).find(button=>!button.closest('nav'))!);
+ expect(screen.getByRole('alert')).toHaveTextContent('Enter the customer name');expect(state.sales).toHaveLength(0);
 });
 
 it("calculates a fee, discount and part exchange exactly before issuing the full invoice", async () => {
   mount();
   await details("full");
-  fireEvent.click(screen.getByRole("tab", { name: "Deal" }));fireEvent.click(screen.getByRole("button", { name: "Extras & part exchange" }));
+  openActions();fireEvent.click(screen.getByRole("button", { name: "Extras or part exchange" }));
   fireEvent.click(screen.getByRole("button", { name: /Add fee or discount/ }));
   fireEvent.change(screen.getByLabelText("Description"), {
     target: { value: "Admin fee" },
@@ -440,7 +476,7 @@ function recentEnquiry(overrides: Partial<Enquiry> = {}): Enquiry {
 async function openCustomerStep() {
   fireEvent.click(await screen.findByRole("button", { name: /New sale/ }));
   chooseStockVehicle("car-test");
-  advance();
+  await advance();
 }
 
 it("shows the selected car and agreed price beside the customer details", async () => {
@@ -451,15 +487,15 @@ it("shows the selected car and agreed price beside the customer details", async 
   fireEvent.change(screen.getByLabelText("Agreed vehicle price (£)"), {
     target: { value: "9750" },
   });
-  advance();
+  await advance();
 
-  const car = screen.getByRole("complementary", { name: "Deal summary" });
+  const car = saleSummary();
   expect(car).toHaveTextContent("Ford Focus");
   expect(car).toHaveTextContent(/AB20\s*XYZ/);
   expect(car).toHaveTextContent("£9,750.00");
   expect(car).not.toHaveTextContent("£10,000.00");
   expect(within(car).getByRole("button", { name: "Enlarge photo of Ford Focus" })).toBeEnabled();
-  expect(screen.getByRole("button", { name: "Car & price" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Car" })).toBeEnabled();
   expect(screen.getByLabelText("Customer’s full name")).toBeEnabled();
   expect(mutations()).toHaveLength(0);
 });
@@ -472,11 +508,11 @@ it("returns to the vehicle step without losing entered customer details", async 
   fireEvent.change(screen.getByLabelText("Email for the invoice"), { target: { value: "jamie@example.com" } });
   fireEvent.change(screen.getByLabelText("Customer address"), { target: { value: "10 Test Road" } });
 
-  fireEvent.click(screen.getByRole("button", { name: "Car & price" }));
-  expect(screen.getByRole("heading", { name: "Deal details" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Car" }));
+  expect(screen.getByRole("heading", { name: "Choose a car" })).toBeInTheDocument();
   expect(screen.getByRole("region", { name: "Vehicle selection" })).toHaveTextContent("Ford Focus selected");
   expect(screen.queryByRole("complementary", { name: "Selected car" })).not.toBeInTheDocument();
-  advance();
+  await advance();
 
   expect(screen.getByLabelText("Customer’s full name")).toHaveValue("Jamie Taylor");
   expect(screen.getByLabelText("Telephone")).toHaveValue("07700900123");
@@ -493,12 +529,12 @@ it("updates the customer-step car summary and saved draft after changing vehicle
   mount();
   await openCustomerStep();
   fireEvent.change(screen.getByLabelText("Customer’s full name"), { target: { value: "Jamie Taylor" } });
-  fireEvent.click(screen.getByRole("button", { name: "Car & price" }));
+  fireEvent.click(screen.getByRole("button", { name: "Car" }));
   chooseStockVehicle("car-second");
   expect(screen.getByLabelText("Agreed vehicle price (£)")).toHaveValue("7500");
-  advance();
+  await advance();
 
-  const car = screen.getByRole("complementary", { name: "Deal summary" });
+  const car = saleSummary();
   expect(car).toHaveTextContent("Toyota Yaris");
   expect(car).toHaveTextContent(/CD19\s*EFG/);
   expect(car).toHaveTextContent("£7,500.00");
@@ -576,9 +612,10 @@ it("keeps explicitly linked enquiry prefilling from its URL", async () => {
   state.enquiries = [recentEnquiry()];
   state.search = "?enquiryId=enquiry-recent";
   mount();
-  await screen.findByRole("heading", { name: "Deal details" });
+  await screen.findByRole('heading',{name:/What would you like to do\?|Choose the customer/});
+  fireEvent.click(screen.getByRole('button',{name:'Car'}));
   expect(screen.getByRole("region", { name: "Vehicle selection" })).toHaveTextContent("Ford Focus selected");
-  advance();
+  await advance();
   expect(screen.getByLabelText("Customer’s full name")).toHaveValue("Jamie Taylor");
   fireEvent.click(screen.getByRole("button", { name: "Save details" }));
   await waitFor(() => expect(state.sales).toHaveLength(1));
@@ -590,7 +627,7 @@ it("keeps paid-sale contact corrections editable while preventing another recent
   mount();
   await details("deposit");
   await pay("500", "deposit", "Cash");
-  fireEvent.click(screen.getByRole("tab", { name: "Deal" }));fireEvent.click(screen.getByRole("button", { name: "Customer" }));
+  navigateSection('Deal');openCustomerFields();
   const name = screen.getByLabelText("Customer’s full name");
   expect(name).toBeEnabled();
   fireEvent.change(name, { target: { value: "Jamie" } });
@@ -605,8 +642,8 @@ it("keeps manual customer entry available when recent enquiries cannot load", as
   await openCustomerStep();
   expect(screen.getByText(/Some recent customer details could not be loaded/)).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText("Customer’s full name"), { target: { value: "New Customer" } });
-  advance();
-  expect(screen.getByRole("heading", { name: "Payments" })).toBeInTheDocument();
+  await advance();
+  expect(screen.getByRole("heading", { name: "What would you like to do?" })).toBeInTheDocument();
 });
 
 
@@ -636,9 +673,49 @@ async function mountSaved(sale: SaleWorkspaceRecord) {
   // This fixture intentionally exercises query loading followed by the URL's
   // saved-sale effect. Give both React commits time under the parallel suite;
   // still require the actual summary before any workflow assertions begin.
-  await screen.findByRole("heading", { name: "Deal details" }, { timeout: 3000 });
+  await screen.findByRole('heading',{name:/What would you like to do\?|Choose the customer/});
 }
 function mutations() { return state.fetch.mock.calls.filter(([, options]) => options?.method); }
+
+it('keeps requested deposit separate from receipt, then issues the deposit invoice without manual AI approval',async()=>{
+ await mountSaved(savedSale());
+ fireEvent.click(screen.getByRole('button',{name:/^Request a deposit/}));
+ fireEvent.change(screen.getByLabelText('Amount (£)'),{target:{value:'200'}});
+ fireEvent.click(screen.getByRole('button',{name:'Request £200.00'}));
+ await waitFor(()=>expect(state.sales[0].paymentRequests).toHaveLength(1));
+ expect(state.sales[0].payments).toEqual([]);expect(state.sales[0].lifecycle).toBeUndefined();
+ expect(state.stock.cars[0].inventoryStatus).toBe('available');
+ await pay('200','deposit','Bank transfer');
+ expect(state.sales[0].lifecycle?.status).toBe('reserved');
+ await issue('deposit');
+ expect(state.sales[0].documents.at(-1)?.invoiceKind).toBe('deposit');
+ expect(state.sales[0].documents.at(-1)?.snapshot.totals.balance).toBe(980000);
+ expect(screen.queryByRole('button',{name:'Run final checks'})).not.toBeInTheDocument();
+ expect(screen.queryByRole('button',{name:/Override AI/})).not.toBeInTheDocument();
+ expect(mutations().some(([url])=>/final-review|override-final-review/.test(String(url)))).toBe(false);
+});
+
+it('takes a return from the original saved sale and keeps its customer and payment history',async()=>{
+ let original=fixturePayment(savedSale({customer:'Original Buyer'}),'10000','final-payment');
+ original=fixtureCommand(original,{action:'issue-invoice',kind:'full',acknowledge:true});
+ original=fixtureCommand(original,{action:'finish-invoice-sale',acknowledge:true});
+ const before=structuredClone(original);
+ await mountSaved(original);
+ fireEvent.click(screen.getByRole('button',{name:/^Return or change a car/}));
+ fireEvent.click(screen.getByRole('button',{name:/^Return car/}));
+ expect(screen.getByRole('region',{name:'Return car'})).toHaveTextContent('£10,000.00');
+ expect(document.querySelector('.sales-flow-context')).toHaveTextContent('Original Buyer');
+ expect(state.sales[0]).toEqual(before);expect(mutations()).toHaveLength(0);
+});
+
+it('enters a separate copied-stock practice workspace without creating a live draft or sending a message',async()=>{
+ mount();fireEvent.click(await screen.findByRole('button',{name:'Try with a real car'}));
+ expect(screen.getAllByText('TEST ONLY').length).toBeGreaterThanOrEqual(2);
+ chooseStockVehicle('car-test');fireEvent.click(screen.getByRole('button',{name:'Customer details'}));
+ expect(screen.getByLabelText('Full name')).toHaveValue('Alex Example');
+ expect(mutations()).toHaveLength(0);expect(state.sales).toEqual([]);
+ expect(state.stock.cars[0].inventoryStatus).toBe('available');
+});
 
 it("opens a saved sale at its useful summary and resumes payments without repeating vehicle and customer questions", async () => {
   const sale = fixturePayment(savedSale(), "500");
@@ -655,48 +732,49 @@ it("opens a saved sale at its useful summary and resumes payments without repeat
   expect(screen.queryByRole("searchbox", { name: "Search stock vehicles" })).not.toBeInTheDocument();
   expect(mutations()).toHaveLength(0);
   openPayments();
-  expect(screen.getByRole("heading", { name: "Payments" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Take a payment" })).toBeInTheDocument();
   expect(mutations()).toHaveLength(0);
   fireEvent.change(screen.getByLabelText("Payment amount (£)"), { target: { value: "9500.01" } });
   fireEvent.click(screen.getByRole("checkbox", { name: /I have checked that this money/ }));
-  expect(screen.getByRole("button", { name: "Save payment" })).toBeDisabled();
+  expect(screen.getByRole("button", { name:/^Save (?:£[\d,.]+ )?(?:deposit|payment)$/ })).toBeDisabled();
 });
 
 it('opens an incomplete saved customer directly and prevents issuing incomplete paperwork', async()=>{
  await mountSaved(savedSale({customer:''}));expect(screen.getByLabelText('Customer’s full name')).toHaveValue('');
- fireEvent.click(screen.getByRole('tab',{name:'Invoices'}));fireEvent.click(screen.getByRole('checkbox',{name:/I have checked the customer/}));fireEvent.click(screen.getByRole('button',{name:'Create & save invoice'}));
- await waitFor(()=>expect(screen.getByRole('alert')).toHaveTextContent('Enter the customer name'));expect(mutations()).toHaveLength(0);
+ fireEvent.click(screen.getAllByRole('button',{name:'Choose what to do'}).find(button=>!button.closest('nav'))!);
+ expect(screen.getByRole('alert')).toHaveTextContent('Enter the customer name');
+ expect(screen.queryByRole('button',{name:/^Create an invoice/})).not.toBeInTheDocument();expect(mutations()).toHaveLength(0);
 });
 
 it("keeps the saved car details visible when that car is no longer in the current stock feed", async () => {
   state.stock.cars = [];
   await mountSaved(savedSale({ price: "9750" }));
-  fireEvent.click(screen.getByRole("tab", { name: "Deal" }));fireEvent.click(screen.getByRole("button", { name: "Customer" }));
-  const car = screen.getByRole("complementary", { name: "Deal summary" });
+  navigateSection('Deal');openCustomerFields();
+  const car = saleSummary();
   expect(car).toHaveTextContent("Ford Focus");
   expect(car).toHaveTextContent(/AB20\s*XYZ/);
   expect(car).toHaveTextContent("£9,750.00");
   expect(within(car).queryByRole("img")).not.toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Car & price" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Car" })).toBeEnabled();
   expect(screen.getByLabelText("Customer’s full name")).toHaveValue("Jamie Taylor");
   expect(mutations()).toHaveLength(0);
 });
 
 it('does not let the vehicle tab bypass a paid reservation’s vehicle lock', async()=>{
- await mountSaved(fixturePayment(savedSale(),'500'));fireEvent.click(screen.getByRole('button',{name:'Car & price'}));
+ await mountSaved(fixturePayment(savedSale(),'500'));fireEvent.click(screen.getByRole('button',{name:'Car'}));
  expect(screen.getByRole('button',{name:'Change vehicle'})).toBeDisabled();expect(screen.getByRole('region',{name:'Vehicle selection'})).toHaveTextContent('locked');expect(mutations()).toHaveLength(0);
 });
 
 it('resumes invoice creation for a fully paid saved sale without issuing anything automatically', async()=>{
- const sale=fixturePayment(savedSale(),'10000','final-payment');await mountSaved(sale);expect(screen.getByRole('complementary',{name:'Deal summary'})).toHaveTextContent('Balance due£0.00');
- fireEvent.click(screen.getByRole('tab',{name:'Invoices'}));expect(screen.getByRole('button',{name:'Create & save invoice'})).toBeDisabled();expect(mutations()).toHaveLength(0);expect(sale.documents).toHaveLength(0);
+ const sale=fixturePayment(savedSale(),'10000','final-payment');await mountSaved(sale);expect(screen.getByLabelText('Sale amounts')).toHaveTextContent('Left to pay £0.00');
+ navigateSection('Invoices');expect(screen.getByRole('button',{name:'Create & save invoice'})).toBeDisabled();expect(mutations()).toHaveLength(0);expect(sale.documents).toHaveLength(0);
 });
 
 it("offers the existing completion review for a current full invoice and still requires outstanding-balance acknowledgement", async () => {
   const sale = fixtureCommand(savedSale(), { action: "issue-invoice", kind: "full", acknowledge: true });
   await mountSaved(sale);
   openInvoice();
-  expect(screen.getByRole("heading", { name: "Invoices & documents" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Create an invoice" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Yes, mark sold & remove" })).toBeDisabled();
   expect(screen.getByRole("checkbox", { name: /I confirm the sale can proceed/ })).not.toBeChecked();
   expect(state.sales[0].completedAt).toBeUndefined();
@@ -737,9 +815,9 @@ it.each(['paused', 'loading', 'error'] as const)('does not offer or submit invoi
 it.each(['full','deposit'] as const)('keeps handover arrangements in their own section when opening and emailing a %s invoice', async kind=>{
  let sale=fixturePayment(savedSale({fulfilment:{method:'delivery',viewed:'viewed',address:'25 Test Road',recipient:'Jamie Taylor',phone:'07700900123',scheduledDate:'2026-10-27',timeWindow:'Afternoon',instructions:'',driver:'',stage:'booked'}}),kind==='full'?'10000':'500',kind==='full'?'final-payment':'deposit');
  sale=fixtureCommand(sale,{action:'issue-invoice',kind,acknowledge:true});const docs=structuredClone(sale.documents),payments=structuredClone(sale.payments);await mountSaved(sale);
- fireEvent.click(screen.getByRole('tab',{name:'Collection & delivery'}));expect(screen.getAllByRole('region',{name:'Collection and delivery'})).toHaveLength(1);
+ navigateSection('Collection & delivery');expect(screen.getAllByRole('region',{name:'Collection and delivery'})).toHaveLength(1);
  openInvoice();expect(screen.queryByRole('region',{name:'Collection and delivery'})).not.toBeInTheDocument();fireEvent.click(screen.getByRole('button',{name:'Email customer'}));await screen.findByText('Invoice emailed to the customer.');
- fireEvent.click(screen.getByRole('tab',{name:'Collection & delivery'}));expect(screen.getAllByRole('region',{name:'Collection and delivery'})).toHaveLength(1);expect(state.sales[0].documents).toEqual(docs);expect(state.sales[0].payments).toEqual(payments);expect(state.pdf).not.toHaveBeenCalled();
+ navigateSection('Collection & delivery');expect(screen.getAllByRole('region',{name:'Collection and delivery'})).toHaveLength(1);expect(state.sales[0].documents).toEqual(docs);expect(state.sales[0].payments).toEqual(payments);expect(state.pdf).not.toHaveBeenCalled();
 });
 
 it('shows reminders and marks a paid car sold without final checklist writes', async () => {
@@ -780,20 +858,20 @@ it('takes unfinished intake checks back to Payments rather than duplicating them
   expect(screen.getByRole('button', { name: 'Yes, mark sold & remove' })).toBeDisabled();
   expect(screen.queryByRole('checkbox', { name: /^Check:/ })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Review part-exchange checks' }));
-  expect(screen.getByRole('heading', { name: 'Deal details' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Extras and part exchange' })).toBeInTheDocument();
   expect(screen.getAllByRole('checkbox', { name: /^Check:/ })).toHaveLength(5);
 });
 
 it('retains an earlier frozen invoice after later payments and offers another document deliberately',async()=>{
  let sale=fixtureCommand(savedSale(),{action:'issue-invoice',kind:'full',acknowledge:true});const issued=structuredClone(sale.documents.at(-1));sale=fixturePayment(sale,'10000','final-payment');await mountSaved(sale);
- fireEvent.click(screen.getByRole('tab',{name:'Invoices'}));expect(screen.getByRole('button',{name:'Create invoice'})).toBeEnabled();expect(sale.documents.find(doc=>doc.id===issued!.id)).toEqual(issued);expect(state.sales[0].completedAt).toBeUndefined();expect(mutations()).toHaveLength(0);
+ navigateSection('Invoices');expect(screen.getByRole('button',{name:'Create & save invoice'})).toBeDisabled();expect(sale.documents.find(doc=>doc.id===issued!.id)).toEqual(issued);expect(state.sales[0].completedAt).toBeUndefined();expect(mutations()).toHaveLength(0);
 });
 
 it('opens a completed sale’s frozen invoice and keeps completed customer and vehicle details locked',async()=>{
  let sale=fixturePayment(savedSale(),'10000','final-payment');sale=fixtureCommand(sale,{action:'issue-invoice',kind:'full',acknowledge:true});sale=fixtureCommand(sale,{action:'finish-invoice-sale',acknowledge:true});
  const snapshot=structuredClone(sale);await mountSaved(sale);openInvoice();fireEvent.click(screen.getByRole('button',{name:'Open & print invoice'}));await waitFor(()=>expect(state.pdf).toHaveBeenCalledOnce());expect(state.pdf.mock.calls[0][0].issuedDocument).toEqual(sale.documents.at(-1));expect(state.sales[0]).toEqual(snapshot);expect(mutations()).toHaveLength(0);
- fireEvent.click(screen.getByRole('tab',{name:'Deal'}));fireEvent.click(screen.getByRole('button',{name:'Car & price'}));expect(screen.getByLabelText('Agreed vehicle price (£)')).toBeDisabled();expect(screen.getByRole('button',{name:'Change vehicle'})).toBeDisabled();
- fireEvent.click(screen.getByRole('button',{name:'Customer'}));expect(screen.getByLabelText('Customer’s full name')).toBeDisabled();expect(screen.getByLabelText('Customer address')).toBeDisabled();
+ navigateSection('Deal');fireEvent.click(screen.getByRole('button',{name:'Car'}));expect(screen.getByLabelText('Agreed vehicle price (£)')).toBeDisabled();expect(screen.getByRole('button',{name:'Change vehicle'})).toBeDisabled();
+ openCustomerFields();expect(screen.getByLabelText('Customer’s full name')).toBeDisabled();expect(screen.getByLabelText('Customer address')).toBeDisabled();
 });
 
 it.each(['collection','delivery'] as const)('retains the saved full invoice after %s without rewriting documents or payments',async method=>{
@@ -803,29 +881,30 @@ it.each(['collection','delivery'] as const)('retains the saved full invoice afte
 });
 
 it('preserves an unrecorded payment while switching sections',async()=>{
- await mountSaved(fixturePayment(savedSale(),'500'));openPayments();fireEvent.change(screen.getByLabelText('Payment amount (£)'),{target:{value:'250'}});fireEvent.click(screen.getByRole('tab',{name:'Deal'}));
+ await mountSaved(fixturePayment(savedSale(),'500'));openPayments();fireEvent.change(screen.getByLabelText('Payment amount (£)'),{target:{value:'250'}});navigateSection('Deal');
+ await advance();await advance();
  openPayments();expect(screen.getByLabelText('Payment amount (£)')).toHaveValue('250');expect(mutations()).toHaveLength(0);
 });
 
 it('does not let saved invoice shortcuts bypass an unrecorded payment',async()=>{
  const sale=fixtureCommand(savedSale(),{action:'issue-invoice',kind:'full',acknowledge:true});await mountSaved(sale);openPayments();fireEvent.change(screen.getByLabelText('Payment amount (£)'),{target:{value:'250'}});openInvoice();
  expect(screen.getByRole('button',{name:'Yes, mark sold & remove'})).toBeDisabled();expect(mutations()).toHaveLength(0);expect(state.sales[0].completedAt).toBeUndefined();
- fireEvent.click(screen.getByRole('tab',{name:'Payments'}));expect(screen.getByLabelText('Payment amount (£)')).toHaveValue('250');
+ navigateSection('Payments');expect(screen.getByLabelText('Payment amount (£)')).toHaveValue('250');
 });
 
 it('shows every interim payment with its amount and status in Payments',async()=>{
- let sale=fixturePayment(savedSale(),'500','deposit');sale=fixturePayment(sale,'250','part-payment');await mountSaved(sale);fireEvent.click(screen.getByRole('tab',{name:'Payments'}));
- const history=document.querySelector('.invoice-payment-list') as HTMLElement;expect(history.children).toHaveLength(2);expect(history).toHaveTextContent('£500.00');expect(history).toHaveTextContent('£250.00');expect(history).toHaveTextContent('confirmed');expect(screen.getByRole('complementary',{name:'Deal summary'})).toHaveTextContent('£9,250.00');expect(mutations()).toHaveLength(0);
+ let sale=fixturePayment(savedSale(),'500','deposit');sale=fixturePayment(sale,'250','part-payment');await mountSaved(sale);openActions();fireEvent.click(screen.getByRole('button',{name:'Payments and documents'}));
+ const history=document.querySelector('.invoice-payment-list') as HTMLElement;expect(history.children).toHaveLength(2);expect(history).toHaveTextContent('£500.00');expect(history).toHaveTextContent('£250.00');expect(history).toHaveTextContent('confirmed');expect(saleSummary()).toHaveTextContent('£9,250.00');expect(mutations()).toHaveLength(0);
 });
 
 it("starts a new unsaved sale from Cars using the selected available vehicle and no prior customer", async () => {
   state.sales = [savedSale({ customer: "Existing buyer", email: "existing@example.com" })];
   mount({ embedded: true, newSaleRequest: 1, newSaleVehicleId: "car-test" });
-  await screen.findByRole("heading", { name: "Deal details" });
+  await openCarScreen();
   expect(screen.getByRole("region", { name: "Vehicle selection" })).toHaveTextContent("Ford Focus selected");
   expect(screen.getByLabelText("Registration / number plate")).toHaveValue("AB20 XYZ");
   expect(screen.getByLabelText("Agreed vehicle price (£)")).toHaveValue("10000");
-  advance();
+  await advance();
   expect(screen.getByLabelText("Customer’s full name")).toHaveValue("");
   expect(screen.getByLabelText("Telephone")).toHaveValue("");
   expect(mutations()).toHaveLength(0);
@@ -836,7 +915,7 @@ it.each(["reserved", "sold", "archived", "missing"])("refuses a stale Cars start
   state.stock.cars[0].inventoryStatus = inventoryStatus;
   mount({ embedded: true, newSaleRequest: 1, newSaleVehicleId: "car-test" });
   expect(await screen.findByRole("alert")).toHaveTextContent("no longer available");
-  expect(screen.queryByRole("heading", { name: "Deal details" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Choose a car" })).not.toBeInTheDocument();
   expect(mutations()).toHaveLength(0);
 });
 
@@ -844,14 +923,14 @@ it("keeps the stock failure visible rather than creating a sale for an unverifie
   state.stockError = "Stock unavailable";
   mount({ embedded: true, newSaleRequest: 1, newSaleVehicleId: "car-test" });
   expect(await screen.findByRole("alert")).toHaveTextContent("Refresh Cars before starting this sale");
-  expect(screen.queryByRole("heading", { name: "Deal details" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Choose a car" })).not.toBeInTheDocument();
   expect(mutations()).toHaveLength(0);
 });
 
 it("retains the selected car and agreed price protection after a deposit reserves the sale", async () => {
   const sale = fixturePayment(savedSale(), "500");
   await mountSaved(sale);
-  fireEvent.click(screen.getByRole("tab", { name: "Deal" }));fireEvent.click(screen.getByRole("button", { name: "Car & price" }));
+  navigateSection('Deal');fireEvent.click(screen.getByRole("button", { name: "Car" }));
   expect(screen.getByRole("searchbox", { name: "Search stock vehicles" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Change vehicle" })).toBeDisabled();
   expect(screen.getByRole("region", { name: "Vehicle selection" })).toHaveTextContent("locked to this reserved or completed sale");
@@ -871,7 +950,7 @@ it("keeps unsaved customer details when a Cars start-sale request is cancelled",
     view.rerender(ui(1));
     expect(confirm).toHaveBeenCalledWith("Leave your unsaved invoice details?");
     expect(screen.getByLabelText("Customer’s full name")).toHaveValue("Unsaved buyer");
-    expect(screen.getByRole("complementary", { name: "Deal summary" })).toHaveTextContent("Ford Focus");
+    expect(saleSummary()).toHaveTextContent("Ford Focus");
     expect(mutations()).toHaveLength(0);
   } finally { confirm.mockRestore(); }
 });
@@ -881,25 +960,29 @@ it("waits for stock before prefilling a Cars start-sale request", async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const ui = () => <QueryClientProvider client={client}><SalesWorkspace embedded newSaleRequest={1} newSaleVehicleId="car-test" /></QueryClientProvider>;
   const view = render(ui());
-  expect(screen.queryByRole("heading", { name: "Deal details" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Choose a car" })).not.toBeInTheDocument();
   state.stockLoading = false;
   view.rerender(ui());
-  await screen.findByRole("heading", { name: "Deal details" });
+  await openCarScreen();
   expect(screen.getByLabelText("Agreed vehicle price (£)")).toHaveValue("10000");
   expect(mutations()).toHaveLength(0);
 });
 
-it("keeps the original sale chooser's reserved option while excluding sold and archived alternatives", async () => {
-  for (const [id, inventoryStatus] of [["car-reserved", "reserved"], ["car-sold", "sold"], ["car-archived", "archived"]]) {
+it("offers available stock for a new sale while excluding reserved and unavailable alternatives", async () => {
+  for (const [id, inventoryStatus] of [["car-reserved", "reserved"], ["car-sold", "sold"], ["car-archived", "archived"], ["car-hidden", "hidden"], ["car-unavailable", "unavailable"], ["car-withdrawn", "withdrawn"]]) {
     state.stock.cars.push({ ...state.stock.cars[0], id, title: `Ford ${id}`, model: id, inventoryStatus });
   }
   mount();
   fireEvent.click(await screen.findByRole("button", { name: /New sale/ }));
   const options = screen.getByLabelText("Matching stock vehicles");
-  expect(within(options).getAllByRole("button")).toHaveLength(2);
-  expect(options).toHaveTextContent("Reserved");
+  expect(within(options).getAllByRole("button")).toHaveLength(1);
+  expect(options).toHaveTextContent("Ford Focus");
+  expect(options).not.toHaveTextContent("Ford car-reserved");
   expect(options).not.toHaveTextContent("Ford car-sold");
   expect(options).not.toHaveTextContent("Ford car-archived");
+  expect(options).not.toHaveTextContent("Ford car-hidden");
+  expect(options).not.toHaveTextContent("Ford car-unavailable");
+  expect(options).not.toHaveTextContent("Ford car-withdrawn");
   fireEvent.change(screen.getByRole("searchbox", { name: "Search stock vehicles" }), { target: { value: "Blue Manual" } });
   expect(screen.getByLabelText("Agreed vehicle price (£)")).toHaveValue("");
   expect(mutations()).toHaveLength(0);

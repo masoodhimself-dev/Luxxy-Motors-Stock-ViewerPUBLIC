@@ -19,11 +19,9 @@ import {
 import { currentDealerId } from "../lib/tenant-context";
 import {
   saleOperation,
-  runSaleFinalReview,
-  runSaleReplacementReview,
-  overrideSaleReview,
   saleTokenHash,
 } from "../lib/sale-operations-store";
+import { runSaleCalculationCheck } from "../lib/sale-calculation-check";
 import { archiveSaleDocument } from "../lib/sale-document-pdf";
 import { siteOrigin } from "../lib/enquiry-links";
 const router = Router(),
@@ -51,12 +49,13 @@ for (const [action, permission] of [
   ["cancel-request", "payments.record"],
   ["delivery-charge", "sales.manage"],
   ["return-replace", "sales.manage"],
+  ["return-car", "sales.manage"],
   ["refund-credit", "payments.refund"],
 ] as const) {
   router.post(
     `/sale-operations/:id/${action}`,
     requirePermission(permission),
-    ...(action === "return-replace"
+    ...(['return-replace', 'return-car'].includes(action)
       ? [requirePermission("payments.refund")]
       : []),
     async (req, res) => {
@@ -78,35 +77,20 @@ for (const [action, permission] of [
     },
   );
 }
-for (const proposed of [false, true]) router.post(`/sale-operations/:id/${proposed ? 'override-replacement-review' : 'override-final-review'}`, requirePermission(proposed ? 'sales.manage' : 'payments.record'), ...(proposed ? [requirePermission('payments.refund')] : []), async (req, res) => {
-  try { if (!uuid(req.params.id)) throw new SaleWorkspaceError('Deal not found.', 404); if (Buffer.byteLength(JSON.stringify(req.body ?? {})) > 24000) throw new SaleWorkspaceError('The action is too large.', 413); res.json(await overrideSaleReview(req.params.id, req.body ?? {}, staffLabel(req), proposed)); } catch (error) { failure(req, res, error); }
-});
-router.post('/sale-operations/:id/replacement-review', requirePermission('sales.manage'), requirePermission('payments.refund'), async (req, res) => {
+router.post('/sale-operations/:id/calculation-check', requirePermission('payments.record'), async (req, res) => {
   try {
-    if (!uuid(req.params.id)) throw new SaleWorkspaceError('Deal not found.', 404);
-    if (Buffer.byteLength(JSON.stringify(req.body ?? {})) > 24000) throw new SaleWorkspaceError('The action is too large.', 413);
-    res.json(await runSaleReplacementReview(req.params.id, req.body ?? {}, staffLabel(req)));
+    if (!uuid(req.params.id)) throw new SaleWorkspaceError('Sale not found.', 404);
+    if (Buffer.byteLength(JSON.stringify(req.body ?? {})) > 12000) throw new SaleWorkspaceError('The amounts are too large.', 413);
+    res.json(await runSaleCalculationCheck(req.params.id, req.body ?? {}, staffLabel(req)));
   } catch (error) { failure(req, res, error); }
 });
-router.post(
-  "/sale-operations/:id/final-review",
-  requirePermission("payments.record"),
-  async (req, res) => {
-    try {
-      if (!uuid(req.params.id))
-        throw new SaleWorkspaceError("Deal not found.", 404);
-      res.json(
-        await runSaleFinalReview(
-          req.params.id,
-          req.body?.expectedRevision,
-          staffLabel(req),
-        ),
-      );
-    } catch (error) {
-      failure(req, res, error);
-    }
-  },
-);
+// Old browser sessions must not start broad AI reviews or write new staff overrides.
+// Their historical saved records stay available on the sale.
+for (const action of ['final-review', 'replacement-review', 'override-final-review', 'override-replacement-review']) {
+  router.post(`/sale-operations/:id/${action}`, requirePermission(action.includes('replacement') ? 'sales.manage' : 'payments.record'), (_req, res) => {
+    res.status(410).json({ error: 'The old sale check has been removed. Reload to use the simpler sale page.' });
+  });
+}
 
 router.use("/payment-requests", (_req, res, next) => {
   res.set({

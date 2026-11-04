@@ -1,12 +1,17 @@
 import path from 'path';
+import { createRequire } from 'node:module';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import { defineConfig } from 'vite';
+import { defineConfig, searchForWorkspaceRoot } from 'vite';
 
 
 const port = Number(process.env.PORT ?? 4175);
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid PORT');
 const basePath = process.env.BASE_PATH ?? '/';
+// In managed worktrees node_modules may point outside the checkout. This
+// shipped dependency supplies the PDF worker asset; keep filesystem serving
+// strict while allowing only its resolved package directory and the workspace.
+const pdfjsAssets = path.dirname(createRequire(import.meta.url).resolve('pdfjs-dist/package.json'));
 
 export default defineConfig({
   base: basePath,
@@ -46,6 +51,7 @@ export default defineConfig({
     allowedHosts: true,
     fs: {
       strict: true,
+      allow: [searchForWorkspaceRoot(import.meta.dirname), pdfjsAssets],
     },
   },
   preview: {

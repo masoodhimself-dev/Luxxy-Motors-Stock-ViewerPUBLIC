@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { invoicePalette, customerSaleDocument, saleWorkspaceBranding, saleWorkspaceTotals, compactInvoiceStyle, salesDocumentPresentation } from "@workspace/vehicle-meta";
+import { defaultInvoiceSettings, invoiceTextLimits, invoicePalette, customerSaleDocument, saleWorkspaceBranding, saleWorkspaceTotals, compactInvoiceStyle, salesDocumentPresentation } from "@workspace/vehicle-meta";
 import { customFetch } from "@workspace/api-client-react";
+import pdfWorkerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 import type {
   SaleWorkspaceDocument,
   SaleWorkspaceBranding,
@@ -86,6 +87,80 @@ export const salesDocumentTitle = (document: SaleWorkspaceDocument) =>
 
 export type PdfSalesDocumentProps = SalesDocumentProps & { pdfUrl?: string; savedVehicle?: SaleWorkspaceVehicleSnapshot; fitPage?: boolean; invoiceTerms?: string };
 type DraftDocumentProps = Extract<SalesDocumentProps, { issuedDocument?: undefined }> & { savedVehicle?: SaleWorkspaceVehicleSnapshot; preparedAt?: string; invoiceTerms?: string };
+
+/** A practice document is recognisable in its normal heading/footer, without obscuring its figures. */
+export function markTestSaleDocument(input: SaleWorkspaceDocument): SaleWorkspaceDocument {
+  const document = structuredClone(input);
+  if (!document.number.startsWith('TEST ONLY')) document.number = `TEST ONLY / ${document.number.replace(/^TEST-/, '')}`;
+  const settings = { ...defaultInvoiceSettings, ...document.snapshot.branding.invoiceSettings };
+  const footer = settings.footer ?? '';
+  document.snapshot.branding.invoiceSettings = {
+    ...settings,
+    footer: (footer.startsWith('TEST ONLY') ? footer : `TEST ONLY — no live transaction.\n${footer}`.trim()).slice(0, invoiceTextLimits.footer),
+  };
+  return document;
+}
+
+export type LiveSalesDocumentProps = PdfSalesDocumentProps & {
+  /** A locally prepared request/receipt can use the same renderer without masquerading as an archive. */
+  previewDocument?: SaleWorkspaceDocument;
+  testMode?: boolean;
+  onPreview?: () => void | Promise<void>;
+};
+
+/** Typing updates HTML only. PDF generation and PDF.js are reached solely through Preview PDF. */
+export function LiveSalesDocument(props: LiveSalesDocumentProps) {
+  const preparedAt = useRef(new Date().toISOString());
+  const current = props.previewDocument ?? props.issuedDocument ?? buildDraftSaleDocument({ ...props as DraftDocumentProps, preparedAt: preparedAt.current });
+  const document = props.testMode ? markTestSaleDocument(current) : current;
+  const identity = `${props.testMode ? 'test' : 'live'}:${current.id}`;
+  const identityRef = useRef(identity); identityRef.current = identity;
+  const archived = Boolean(props.issuedDocument && !props.previewDocument && !props.testMode);
+  const contentKey = JSON.stringify({ document, pdfUrl: archived ? props.pdfUrl ?? '' : '', archived });
+  const cache = useRef(new Map<string, Promise<Blob>>());
+  const inFlight = useRef(false);
+  const [busy, setBusy] = useState(false), [error, setError] = useState('');
+  const [preview, setPreview] = useState<{ identity: string; key: string; blob: Blob; url: string; title: string }>();
+  const visible = preview?.identity === identity ? preview : undefined;
+  useEffect(() => {
+    cache.current.clear(); setError(''); setPreview(undefined);
+  }, [identity]);
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview.url); }, [preview?.url]);
+  async function openPreview() {
+    if (inFlight.current) return;
+    inFlight.current = true; setBusy(true); setError('');
+    const selectedIdentity = identity;
+    try {
+      if (visible?.key === contentKey) return;
+      let pending = cache.current.get(contentKey);
+      if (!pending) {
+        await props.onPreview?.();
+        if (identityRef.current !== selectedIdentity) return;
+        pending = archived
+          ? documentBlob(props)
+          : documentBlob({ ...props, issuedDocument: undefined, pdfUrl: undefined } as PdfSalesDocumentProps, document);
+        cache.current.set(contentKey, pending);
+        // Keep this sale's recent previews only; never retain customer documents in a global cache.
+        if (cache.current.size > 3) cache.current.delete(cache.current.keys().next().value!);
+      }
+      const blob = await pending;
+      if (identityRef.current !== selectedIdentity) return;
+      setPreview({ identity: selectedIdentity, key: contentKey, blob, url: URL.createObjectURL(blob), title: document.title });
+    } catch (cause) {
+      cache.current.delete(contentKey);
+      if (identityRef.current === selectedIdentity) setError(cause instanceof Error ? cause.message : 'The PDF could not be prepared. Try again.');
+    } finally { inFlight.current = false; setBusy(false); }
+  }
+  return <section className="sale-live-document" aria-label="Live document preview">
+    <div className="sale-live-document-toolbar"><span>{props.issuedDocument ? 'Saved document' : 'Live preview'}</span><button type="button" disabled={busy} onClick={() => void openPreview()}>{busy ? 'Preparing PDF…' : 'Preview PDF'}</button></div>
+    {error && <p className="sales-pdf-document-error" role="alert">{error}</p>}
+    <div className="sale-live-document-paper"><CurrentSalesDocument document={document} draft={!archived}/></div>
+    {visible && <div className="sale-live-document-pdf" aria-label="PDF preview">
+      <div className="sale-live-document-toolbar"><p role="status">{visible.key === contentKey ? 'PDF is up to date.' : 'Details changed. Choose Preview PDF to update this PDF.'}</p><a href={visible.url} target="_blank" rel="noopener noreferrer">Open PDF</a><button type="button" onClick={() => setPreview(undefined)}>Close PDF</button></div>
+      <PdfCanvasPages blob={visible.blob} title={visible.title} fitPage onRendered={() => {}} onRenderFailed={() => {}}/>
+    </div>}
+  </section>;
+}
 
 /** The draft uses the same snapshot shape and renderer as the eventual issued archive. */
 export function buildDraftSaleDocument({ draft, dealer, vehicle, documentType, savedVehicle, preparedAt, invoiceTerms }: DraftDocumentProps): SaleWorkspaceDocument {
@@ -195,8 +270,18 @@ function PdfCanvasPages({
       renderFailed = false;
     setLoading(true);
     setError("");
-    const showNativeFallback = () => {
+    const showNativeFallback = (failure: unknown, stage: string) => {
       if (cancelled) return;
+      // Log the reader's technical failure only, never PDF bytes, document
+      // references, or snapshots. Resource URLs are unnecessary for diagnosis.
+      const technicalFailure = failure instanceof Error ? failure : undefined;
+      console.error("[sales-pdf] Inline preview failed", JSON.stringify({
+        stage,
+        name: technicalFailure?.name ?? "UnknownError",
+        message: (technicalFailure?.message ?? "The PDF reader could not complete.")
+          .replace(/(?:https?:\/\/|blob:)[^\s"'<>]+/g, "[resource URL]")
+          .slice(0, 400),
+      }));
       renderFailed = true;
       // A good PDF archive can still fail in PDFjs. Remove any older draft's
       // canvases before exposing this candidate's native PDF and text equivalent.
@@ -286,7 +371,7 @@ function PdfCanvasPages({
             failure.name === "RenderingCancelledException"
           )
         )
-          showNativeFallback();
+          showNativeFallback(failure, "paint-pages");
       } finally {
         rendering = false;
         if (redraw && !cancelled) {
@@ -296,19 +381,27 @@ function PdfCanvasPages({
       }
     };
     void (async () => {
+      let stage = "load-reader";
       try {
-        const [library, worker, data] = await Promise.all([
-          import("pdfjs-dist"),
-          import("pdfjs-dist/build/pdf.worker.min.mjs?url"),
+        const [library, data] = await Promise.all([
+          // PDF.js' standard v6 build assumes very recent JavaScript APIs
+          // (including Uint8Array.toHex). Use its supported compatibility build
+          // in both realms so embedded browsers can render the same saved PDF.
+          import("pdfjs-dist/legacy/build/pdf.mjs"),
           blob.arrayBuffer(),
         ]);
         if (cancelled) return;
-        library.GlobalWorkerOptions.workerSrc = worker.default;
+        stage = "start-worker";
+        // Vite resolves this static ?url import directly to a URL string in
+        // development and production; dynamically importing it can expose a
+        // module namespace instead of that string during development interop.
+        library.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
         task = library.getDocument({
           data: new Uint8Array(data),
           useSystemFonts: true,
           useWorkerFetch: false,
         });
+        stage = "parse-document";
         pdf = await task.promise;
         if (cancelled) return;
         await render();
@@ -336,8 +429,8 @@ function PdfCanvasPages({
           if (fitPage && container.current.parentElement)
             observer.observe(container.current.parentElement);
         }
-      } catch {
-        showNativeFallback();
+      } catch (failure) {
+        showNativeFallback(failure, stage);
       }
     })();
     return () => {
@@ -1227,15 +1320,15 @@ function IssuedDocumentFooter({
 }
 
 /** Accessible text review of the exact frozen fields used by the v2 PDF. */
-function CurrentSalesDocument({ document, textOnly = false }: { document: SaleWorkspaceDocument; textOnly?: boolean }) {
+export function CurrentSalesDocument({ document, textOnly = false, draft = false }: { document: SaleWorkspaceDocument; textOnly?: boolean; draft?: boolean }) {
   const data = salesDocumentPresentation(document);
   const { branding } = document.snapshot;
   return <article className="sales-document invoice-sheet invoice-issued" aria-label={document.title} {...documentAttributes(branding)} style={documentColours(branding.presentation?.linkColour)}>
     <header className="invoice-header">
       {textOnly ? <p>{data.dealer.name}</p> : <DocumentDealer branding={branding} />}
-      <div className="invoice-heading"><h2>{data.type}</h2><dl className="invoice-reference"><div><dt>Document no.</dt><dd>{data.number}</dd></div><div><dt>Issued</dt><dd>{data.issueDate}</dd></div></dl></div>
+      <div className="invoice-heading"><h2>{data.type}</h2><dl className="invoice-reference"><div><dt>Document no.</dt><dd>{data.number}</dd></div><div><dt>{draft ? 'Prepared' : 'Issued'}</dt><dd>{data.issueDate}</dd></div></dl></div>
     </header>
-    <aside className="invoice-issued-note"><strong>{data.settlementStatus}</strong><span>{data.notice}</span></aside>
+    <aside className="invoice-issued-note"><strong>{data.settlementStatus}</strong><span>{draft ? 'Draft preview — not issued.' : data.notice}</span></aside>
     <IssuedDocumentParties document={document} />
     {data.facts && <dl className="invoice-receipt-facts">{data.facts.map((row, index) => <div key={index}><dt>{row.label}</dt><dd className="invoice-multiline">{row.value}</dd></div>)}</dl>}
     {data.saleLines.length > 0 && <section className="invoice-section"><div className="invoice-section-heading"><h3>{data.saleLinesHeading ?? 'Sale breakdown'}</h3><span>All amounts in GBP</span></div><table className="invoice-items" aria-label={data.saleLinesHeading ?? 'Sale breakdown'}><thead><tr><th scope="col">Description</th><th scope="col">Amount</th></tr></thead><tbody>{data.saleLines.map(row => <tr key={row.id}><td>{row.description}</td><td>{row.amount}</td></tr>)}</tbody></table></section>}

@@ -166,11 +166,13 @@ export function requestSalePayment(
   context: SaleWorkspaceContext,
 ) {
   if (
+    current.standaloneReturn ||
+    current.lifecycle?.status === "returned" ||
     current.returnReplacement?.direction === "returned" ||
     current.lifecycle?.status === "released"
   )
     throw new SaleWorkspaceError(
-      "This deal is closed. Open the current replacement deal.",
+      "This deal is closed. Open the current purchase before requesting payment.",
       409,
     );
   if (!current.draft.customer || !current.draft.vehicleId)
@@ -295,6 +297,8 @@ export function salePaymentRequestAvailable(
     Date.parse(request.expiresAt) > Date.parse(now) &&
     request.agreement === salePaymentAgreement(record) &&
     record.lifecycle?.status !== "released" &&
+    record.lifecycle?.status !== "returned" &&
+    !record.standaloneReturn &&
     record.returnReplacement?.direction !== "returned"
   );
 }
@@ -433,6 +437,62 @@ export function finalReviewCurrent(sale: SaleWorkspaceRecord) {
   );
 }
 
+/** Record an actual refund against held return credit. Never initiates a transfer. */
+export function refundSaleCredit(
+  current: SaleWorkspaceRecord,
+  input: { amount: unknown; method: unknown; date: unknown; confirmReceived: unknown },
+  context: SaleWorkspaceContext,
+) {
+  if (!current.standaloneReturn && current.returnReplacement?.direction !== 'replacement') throw new SaleWorkspaceError('Use this action only for remaining return or replacement credit.', 409);
+  const amount = operationMoney(input.amount), totals = saleWorkspaceTotals(current.draft, current.payments);
+  if (!Number.isSafeInteger(totals.balance) || totals.balance >= 0 || amount > -totals.balance) throw new SaleWorkspaceError('The refund exceeds the customer credit still held.');
+  if (input.confirmReceived !== true) throw new SaleWorkspaceError('Confirm this refund has actually been paid to the customer.');
+  const method = operationText(input.method, 100, 'refund method'), date = operationDate(input.date, 'refund date');
+  const earliestDate = current.standaloneReturn?.returnedDate ?? current.returnReplacement!.at.slice(0, 10);
+  if (!method || date > context.now.slice(0, 10) || date < earliestDate) throw new SaleWorkspaceError('Check the actual refund method and date.');
+  const sale = clone(current), paymentId = context.nextId();
+  sale.payments.push({ id: paymentId, amount: (amount / 100).toFixed(2), amountPence: amount, signedAmountPence: -amount, kind: 'refund', status: 'confirmed', method, date, reference: sale.standaloneReturn ? sale.reference : sale.returnReplacement!.otherReference, reason: sale.standaloneReturn ? 'Refund of returned vehicle credit' : 'Refund of replacement credit', recordedAt: context.now, recordedBy: context.actor });
+  const document = operationDocument(sale, context, 'receipt', 'Credit refund receipt', `${sale.standaloneReturn ? 'Vehicle return' : 'Replacement'} credit refund recorded: ${(amount / 100).toFixed(2)} GBP\nMethod: ${method}\nDate: ${date}\nThis records a refund reported by staff; no bank transfer has been initiated by this portal.`);
+  document.paymentId = paymentId; document.paymentAmountPence = -amount;
+  finishSaleOperation(sale, context, `${sale.standaloneReturn ? 'Vehicle return' : 'Replacement'} credit refund recorded`);
+  return { sale, document };
+}
+
+/** Physical return only. Credits charges, including unpaid debt, without inventing a cash movement. */
+export function returnSaleCar(
+  current: SaleWorkspaceRecord,
+  input: { agreedCredit: unknown; reason: unknown; condition: unknown; mileage: unknown; returnedDate: unknown; financeConfirmed: unknown; received: unknown; acknowledge: unknown },
+  context: SaleWorkspaceContext,
+) {
+  if (current.lifecycle?.status === 'returned' || current.standaloneReturn || current.returnReplacement?.direction === 'returned') throw new SaleWorkspaceError('This vehicle has already been returned.', 409);
+  if (!current.completedAt || current.lifecycle?.status !== 'sold') throw new SaleWorkspaceError('Open the completed sale for the vehicle being returned.', 409);
+  if (current.draft.partExchange || current.draft.exchanges?.length) throw new SaleWorkspaceError('This sale includes part-exchange property. Resolve its return and finance settlement with a manager first.', 409);
+  if (Object.keys(current.providerPayments ?? {}).length) throw new SaleWorkspaceError('Resolve provider-managed funds with the provider before recording this return.', 409);
+  if (input.received !== true || input.acknowledge !== true || input.financeConfirmed !== true) throw new SaleWorkspaceError('Confirm the vehicle is back, the return credit is agreed and third-party settlement is resolved.');
+  const before = saleWorkspaceTotals(current.draft, current.payments);
+  if (![before.totalDue, before.confirmedPaid, before.pending, before.balance].every(Number.isSafeInteger) || before.totalDue <= 0 || before.confirmedPaid < 0) throw new SaleWorkspaceError('Check the original agreement and recorded funds before returning the vehicle.', 409);
+  if (before.pending !== 0) throw new SaleWorkspaceError('Resolve pending payments before returning the vehicle.', 409);
+  const amount = operationMoney(input.agreedCredit, 'agreed return credit');
+  if (amount > before.totalDue) throw new SaleWorkspaceError('The return credit cannot exceed the original agreed charges.');
+  if (amount < Math.max(0, before.balance)) throw new SaleWorkspaceError('The agreed return credit must settle the original unpaid balance. Resolve the remaining agreement with a manager first.');
+  const reason = operationText(input.reason, 2000, 'the return reason'), condition = operationText(input.condition, 4000, 'the returned vehicle condition');
+  if (!reason || !condition) throw new SaleWorkspaceError('Record the return reason and returned vehicle condition.');
+  if (!Number.isSafeInteger(input.mileage) || Number(input.mileage) < 0 || Number(input.mileage) > 2_000_000) throw new SaleWorkspaceError('Enter the returned vehicle mileage.');
+  const returnedDate = operationDate(input.returnedDate, 'actual return date');
+  if (returnedDate > context.now.slice(0, 10) || returnedDate < current.completedAt.slice(0, 10)) throw new SaleWorkspaceError('The actual return date must be between the completed sale and today.');
+  const sale = clone(current);
+  sale.draft.returnCreditPence = amount;
+  const after = saleWorkspaceTotals(sale.draft, sale.payments), unpaidCancelledPence = Math.min(amount, Math.max(0, before.balance)), refundDuePence = Math.max(0, -after.balance);
+  if (![after.totalDue, after.confirmedPaid, after.balance, unpaidCancelledPence, refundDuePence].every(Number.isSafeInteger)) throw new SaleWorkspaceError('Check the return amounts.');
+  sale.standaloneReturn = { id: context.nextId(), creditPence: amount, originalTotalPence: before.totalDue, unpaidCancelledPence, refundDuePence, balanceDuePence: Math.max(0, after.balance), reason, condition, mileage: Number(input.mileage), returnedDate, at: context.now, actor: context.actor };
+  sale.lifecycle = { status: 'returned', vehicleId: sale.draft.vehicleId, changedAt: context.now };
+  for (const request of sale.paymentRequests ?? []) request.status = 'cancelled';
+  const document = operationDocument(sale, context, 'credit-note', 'Vehicle return credit note', `Vehicle returned: ${sale.draft.vehicle} (${sale.draft.registration})\nAgreed return credit: ${saleMoney(amount)}\nUnpaid balance cancelled: ${saleMoney(unpaidCancelledPence)}\nRefund due at return: ${saleMoney(refundDuePence)}\nNo refund has been sent by this action.\nReason: ${reason}`);
+  document.transaction = { kind: 'return-only-credit', amountPence: amount, originalSaleReference: sale.reference, originalInvoiceReferences: current.documents.filter(d => d.type === 'invoice').map(d => d.number), originalTotalPence: before.totalDue, unpaidCancelledPence, refundDuePence, balanceDuePence: Math.max(0, after.balance), reason, condition, mileage: Number(input.mileage), returnedDate };
+  finishSaleOperation(sale, context, `Vehicle returned; ${saleMoney(amount)} agreed credit, ${saleMoney(unpaidCancelledPence)} unpaid balance cancelled; ${saleMoney(refundDuePence)} refund due. No money sent.`);
+  return { sale, document };
+}
+
 /** A linked return/credit, never a deletion or invented cash receipt. Caller locks both cars and persists atomically. */
 export function returnAndReplaceSale(
   current: SaleWorkspaceRecord,
@@ -448,7 +508,7 @@ export function returnAndReplaceSale(
   context: SaleWorkspaceContext,
   replacementReference: string,
 ) {
-  if (current.returnReplacement?.direction === "returned")
+  if (current.standaloneReturn || current.lifecycle?.status === 'returned' || current.returnReplacement?.direction === "returned")
     throw new SaleWorkspaceError("This vehicle has already been returned.", 409);
   if (!current.completedAt || current.lifecycle?.status !== "sold")
     throw new SaleWorkspaceError(

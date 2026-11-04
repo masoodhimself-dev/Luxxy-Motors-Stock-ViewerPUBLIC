@@ -22,7 +22,7 @@ function fixture(reservationTerms = 'TEST APPROVED RESERVATION') {
     if (q.startsWith('SELECT stage FROM leads')) return { rows: [{ stage: 'reserved' }] };
     if (q.startsWith('SELECT l.vehicle_id FROM leads')) return { rows: [{ vehicle_id: vehicleId }] };
     if (q.startsWith('SELECT id FROM leads')) return { rows: [] };
-    if (q.startsWith('SELECT state -')) return {rows:[...records.values()].map(state=>({state:clone(state),list_ledger_known:true,list_payment_entries:state.payments,list_has_correction_notes:!!state.corrections?.length}))};
+    if (q.startsWith('SELECT state -')) return {rows:[...records.values()].map(state=>({state:clone(state),list_ledger_known:true,list_payment_entries:state.payments,list_has_correction_notes:!!state.corrections?.length,list_has_invoice:state.documents.some(document=>document.type==='invoice')}))};
     if (q.startsWith('SELECT state') && q.includes('FROM sale_workspace')) {
       let list = [...records.values()];
       if (q.includes("state->'requests'")) list = list.filter(s => s.requests?.[p[1]]);
@@ -200,12 +200,22 @@ test('deposit and completion atomically update stock and archives; stock conflic
   assert.equal(retry.replayed, true); assert.equal(retry.sale.documents.length, finished.sale.documents.length);
 });
 
-test('the production store requires a passed review of the exact revision before issuing an invoice',async()=>{
- const f=fixture();const sale=(await f.store.mutate({draft:draft(),requestId:randomUUID(),actor:'Staff'})).sale;
- const invoice=(record:SaleWorkspaceRecord)=>f.store.mutate({id:record.id,expectedRevision:record.revision,requestId:randomUUID(),actor:'Staff',command:{action:'document',type:'invoice'}});
- await assert.rejects(invoice(sale),/Run the final checks/);await f.reviewed(sale);
- const changed=(await f.store.mutate({id:sale.id,expectedRevision:sale.revision,requestId:randomUUID(),actor:'Staff',command:{action:'update',draft:{...sale.draft,notes:'Saved after the review'}}})).sale;
- await assert.rejects(invoice(changed),/Run the final checks/);await f.reviewed(changed);assert.equal((await invoice(changed)).document?.type,'invoice');
+test('the production store issues invoices without AI approval and still checks exact ledger integrity', async () => {
+  const f = fixture(); const sale = (await f.store.mutate({ draft: draft(), requestId: randomUUID(), actor: 'Staff' })).sale;
+  const invoice = (record: SaleWorkspaceRecord) => f.store.mutate({ id: record.id, expectedRevision: record.revision, requestId: randomUUID(), actor: 'Staff', command: { action: 'document', type: 'invoice' } });
+  const issued = await invoice(sale); assert.equal(issued.document?.type, 'invoice');
+  const stale = structuredClone(issued.sale); stale.finalReview = { id:randomUUID(),checkedAt:new Date().toISOString(),reviewedRevision:0,status:'unavailable',issues:[],summary:'Historical outage' }; f.seed(stale);
+  const changed = (await f.store.mutate({ id: stale.id, expectedRevision: stale.revision, requestId: randomUUID(), actor:'Staff', command:{action:'update',draft:{...stale.draft,notes:'Edited without another AI check'}} })).sale;
+  assert.equal((await invoice(changed)).document?.type,'invoice');
+  const corrupted = structuredClone(changed); corrupted.documents[0].snapshot.totals.balance++; f.seed(corrupted);
+  await assert.rejects(invoice(corrupted), /saved amounts/);
+  assert.equal((await f.store.get(corrupted.id)).revision, corrupted.revision);
+  const duplicate = structuredClone(sale);
+  const payment = { id: randomUUID(),amount:'100',amountPence:10000,signedAmountPence:10000,method:'Cash',date:'2026-11-04',reference:'',kind:'deposit' as const,status:'confirmed' as const,recordedBy:'Staff',recordedAt:new Date().toISOString() };
+  duplicate.payments = [payment,{...payment}]; f.seed(duplicate);
+  await assert.rejects(invoice(duplicate), /Duplicate payment/);
+  const signed = structuredClone(sale); signed.payments = [{...payment,signedAmountPence:-10000}]; f.seed(signed);
+  await assert.rejects(invoice(signed), /incorrect sign/);
 });
 
 test('the store exposes external review staleness and returned list labels without returning private return notes',async()=>{
@@ -215,7 +225,7 @@ test('the store exposes external review staleness and returned list labels witho
  assert.equal(reviewed.finalReviewContextStale,false);
  reviewed.finalReview!.contextHash='b'.repeat(64);f.seed(reviewed);
  assert.equal((await f.store.get(sale.id)).finalReviewContextStale,true);
- await assert.rejects(f.store.mutate({id:sale.id,expectedRevision:sale.revision,requestId:randomUUID(),actor:'Staff',command:{action:'document',type:'invoice'}}),/final checks|review/i);
+ assert.equal((await f.store.mutate({id:sale.id,expectedRevision:sale.revision,requestId:randomUUID(),actor:'Staff',command:{action:'document',type:'invoice'}})).document?.type,'invoice');
  const returned={...reviewed,returnReplacement:{transferId:randomUUID(),otherSaleId:randomUUID(),otherReference:'SALE-REPLACEMENT',direction:'returned' as const,creditPence:1200000,reason:'Private reason',condition:'Private condition',mileage:42000,at:new Date().toISOString(),actor:'Private staff'}};
  f.seed(returned);
  const listed=(await f.store.list()).sales.find(row=>row.id===sale.id)!;

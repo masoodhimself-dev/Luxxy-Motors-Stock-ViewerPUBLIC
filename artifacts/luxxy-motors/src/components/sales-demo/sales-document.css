@@ -1,4 +1,18 @@
 /* Shared by the editable preview and its standalone print clone. */
+.sale-live-document { min-width: 0; }
+.sale-live-document-toolbar { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; color: var(--invoice-muted, #586976); font-size: 13px; }
+.sale-live-document-toolbar > span, .sale-live-document-toolbar > p { flex: 1; margin: 0; }
+.sale-live-document-toolbar button, .sale-live-document-toolbar a { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 7px 12px; border: 1px solid #ccd6dd; border-radius: 6px; background: white; color: #192c38; font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
+.sale-live-document-toolbar button:hover, .sale-live-document-toolbar a:hover { background: #f1f6f8; }
+.sale-live-document-toolbar button:focus-visible, .sale-live-document-toolbar a:focus-visible { outline: 2px solid #245e7c; outline-offset: 3px; }
+.sale-live-document-toolbar button:disabled { opacity: .6; cursor: wait; }
+.sale-live-document-paper { border: 1px solid #dce3e8; background: white; padding: clamp(14px, 2.4vw, 32px); border-radius: 4px; }
+.sale-live-document-paper .sales-document.invoice-sheet { width: 100%; min-width: 0; padding: 0; margin: 0; border: 0; box-shadow: none; }
+.sale-live-document-paper .invoice-heading h2 { font-size: clamp(19px, 2vw, 29px); }
+.sale-live-document-paper .invoice-header { gap: 18px; }
+.sale-live-document-pdf { margin-top: 20px; padding-top: 16px; border-top: 1px solid #dce3e8; }
+@media (max-width: 480px) { .sale-live-document-paper .invoice-header { grid-template-columns: 1fr; gap: 12px; } .sale-live-document-paper .invoice-heading { text-align: left; } }
+
 .sales-document.invoice-sheet {
   --invoice-ink: #192a36;
   --invoice-muted: #586976;
