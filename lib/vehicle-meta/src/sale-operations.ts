@@ -20,7 +20,15 @@ export type SalePaymentRequest = {
   createdAt: string;
   expiresAt: string;
   tokenHash: string;
-  status: "active" | "cancelled";
+  status: "active" | "cancelled" | "accepted";
+  /** New requests are shared as documents; historical token links remain readable. */
+  deliveryMode?: "document";
+  sharedAt?: string;
+  sharedBy?: string;
+  acceptedAt?: string;
+  acceptedBy?: string;
+  acceptedAmountPence?: number;
+  acceptedPaymentId?: string;
   agreement: string;
   baselinePaidPence: number;
   paymentReportedAt?: string;
@@ -160,8 +168,8 @@ export function requestSalePayment(
     amount: unknown;
     dueDate: unknown;
     note: unknown;
-    tokenHash: string;
-    expiresAt: string;
+    tokenHash?: string;
+    expiresAt?: string;
   },
   context: SaleWorkspaceContext,
 ) {
@@ -221,10 +229,10 @@ export function requestSalePayment(
     record,
     context,
     "payment-request",
-    "Payment request",
+    kind === "deposit" ? "Deposit request" : "Payment request",
     `${label} requested: ${saleMoney(amountPence)}\nPayment reference: ${record.reference}\nDue date: ${dueDate}\n${note ? note + "\n" : ""}\nThis is a request for payment. It is not an invoice or confirmation that money has been received.\n${context.branding.invoiceSettings?.paymentInstructions || "Contact the dealership for payment instructions."}`,
   );
-  document.transaction = { kind: 'payment-request', requestKind: kind, amountPence, dueDate, paymentReference: record.reference, saleReference: record.reference, ...(note ? { note } : {}) };
+  document.transaction = { kind: 'payment-request', requestKind: kind, showSaleBreakdown: true, amountPence, dueDate, paymentReference: record.reference, saleReference: record.reference, ...(note ? { note } : {}) };
   const request: SalePaymentRequest = {
     id: context.nextId(),
     documentId: document.id,
@@ -234,8 +242,9 @@ export function requestSalePayment(
     dueDate,
     note,
     createdAt: context.now,
-    expiresAt: input.expiresAt,
-    tokenHash: input.tokenHash,
+    expiresAt: input.expiresAt ?? "",
+    tokenHash: input.tokenHash ?? "",
+    ...(!input.tokenHash ? { deliveryMode: "document" as const } : {}),
     status: "active",
     agreement: salePaymentAgreement(record),
     baselinePaidPence: totals.confirmedPaid,
@@ -273,17 +282,17 @@ export function salePaymentRequestRemaining(
   record: SaleWorkspaceRecord,
   request: SalePaymentRequest,
 ) {
+  if (request.status === 'accepted' || request.status === 'cancelled') return 0;
   const totals = saleWorkspaceTotals(record.draft, record.payments);
+  const received = request.deliveryMode === 'document'
+    ? record.payments.filter(payment => payment.paymentRequestId === request.id && payment.status === 'confirmed').reduce((sum, payment) => sum + payment.signedAmountPence, 0)
+    : totals.confirmedPaid - (request.baselinePaidPence ?? totals.confirmedPaid);
   return Math.max(
     0,
     Math.min(
       totals.balance,
       request.amountPence -
-        Math.max(
-          0,
-          totals.confirmedPaid -
-            (request.baselinePaidPence ?? totals.confirmedPaid),
-        ),
+        Math.max(0, received),
     ),
   );
 }
@@ -294,7 +303,7 @@ export function salePaymentRequestAvailable(
 ) {
   return (
     request.status === "active" &&
-    Date.parse(request.expiresAt) > Date.parse(now) &&
+    (request.deliveryMode === "document" || Date.parse(request.expiresAt) > Date.parse(now)) &&
     request.agreement === salePaymentAgreement(record) &&
     record.lifecycle?.status !== "released" &&
     record.lifecycle?.status !== "returned" &&

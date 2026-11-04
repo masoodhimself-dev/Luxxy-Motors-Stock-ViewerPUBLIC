@@ -18,6 +18,9 @@ import {
 } from "@workspace/api-client-react";
 import {
   saleWorkspaceTotals,
+  salePaymentRequestAvailable,
+  salePaymentRequestRemaining,
+  type SalePaymentRequest,
   saleCalculationFigures,
   saleWorkspaceChecklistProgress,
   saleWorkspaceRetainedIntakeChecks,
@@ -32,6 +35,7 @@ import { useStock } from "@/lib/stock-context";
 import { useDealerSettings } from "@/lib/dealer-settings-context";
 import { useDealerFeatures } from "@/lib/dealer-features";
 import { saleInvoiceIsCurrent } from '@/lib/sale-invoice-current';
+import { ConfirmSavedPayment } from '@/components/sales-demo/confirm-saved-payment';
 import { SalePaymentRequests } from '@/components/sales-demo/sale-payment-requests';
 import { SaleDeliveryEvidence } from '@/components/portal/sale-delivery-evidence';
 import { SaleTermsDocuments } from '@/components/sale-terms-documents';
@@ -39,6 +43,8 @@ import { SaleDeliveryCharge } from '@/components/sales-demo/sale-delivery-charge
 import { SaleReturnReplace, SaleReplacementRefund } from '@/components/sales-demo/sale-return-replace';
 import { SaleReturnCar } from '@/components/sales-demo/sale-return-car';
 import { SalesActionMenu, SalesFlowSteps, saleActions, type SaleAction } from '@/components/sales-demo/sales-action-menu';
+import { saleNextStep } from '@/components/sales-demo/sale-next-step';
+import { isMultiChoiceWebsite } from '@/lib/multi-home-scope';
 import { SaleProgress, SaleTimeline } from '@/components/sales-demo/sale-progress';
 import { SalesPracticeWorkspace } from '@/components/sales-demo/sales-practice-workspace';
 import { CalculationCheck, useSaleCalculationCheck } from '@/components/sales-demo/calculation-check';
@@ -58,7 +64,7 @@ import {
   todayLondon,
   ReversePaymentDialog,
 } from "@/components/sales-demo/sales-controls";
-import { LiveSalesDocument, openSaleDocumentPdf } from "@/components/sales-demo/sales-document";
+import { openSaleDocumentPdf } from "@/components/sales-demo/sales-document";
 import { RecentCustomerFields, type RecentCustomer } from "@/components/portal/recent-customer-fields";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -210,6 +216,12 @@ export function SalesWorkspace({
   const [issued, setIssued] = useState<SaleWorkspaceDocument | null>(null);
   const [soldChoice, setSoldChoice] = useState(false);
   const [outstandingAccepted, setOutstandingAccepted] = useState(false);
+  const [pendingConfirmation, setPendingConfirmation] = useState<SaleWorkspacePayment | null>(null);
+  const [duplicateConfirmOpen, setDuplicateConfirmOpen] = useState(false);
+  const [duplicateAccepted, setDuplicateAccepted] = useState(false);
+  const [depositConfirmOpen, setDepositConfirmOpen] = useState(false);
+  const [depositRequestId, setDepositRequestId] = useState<string>();
+  const [confirmationDocument, setConfirmationDocument] = useState<SaleWorkspaceDocument | null>(null);
   const [reverse, setReverse] = useState<SaleWorkspacePayment | null>(null);
   const [payment, setPayment] = useState({
     amount: "",
@@ -309,6 +321,8 @@ export function SalesWorkspace({
   }
   function displaySale(saved?: SaleWorkspaceRecord, initial?: SaleDraft) {
     setDeleteDraftOpen(false);
+    setPendingConfirmation(null); setDuplicateConfirmOpen(false); setDuplicateAccepted(false);
+    setDepositConfirmOpen(false); setDepositRequestId(undefined); setConfirmationDocument(null);
     setRecord(saved ?? null);
     setDraft(initial ?? (saved ? structuredClone(saved.draft) : emptyDraft()));
     setStep(saved?.draft.vehicleId ? 1 : 0);
@@ -585,45 +599,51 @@ export function SalesWorkspace({
     setProblem("");
     setReviewed(false);
   }
-  function addPayment(event: React.FormEvent) {
-    event.preventDefault();
-    if (
-      !payment.received ||
-      !total ||
-      !(pence(payment.amount) > 0) ||
-      pence(payment.amount) > total.balance
-    )
-      return;
+  const similarPayment = rows.find(row => row.status === 'confirmed' && row.signedAmountPence === pence(payment.amount) && row.method === payment.method && row.date === payment.date && row.reference.trim() === payment.reference.trim());
+  useEffect(() => { setDuplicateAccepted(false); }, [payment.amount, payment.method, payment.date, payment.reference]);
+  const selectedDepositRequest = record?.paymentRequests?.find(request => request.id === depositRequestId);
+  const depositShortfall = record && selectedDepositRequest ? Math.max(0, salePaymentRequestRemaining(record, selectedDepositRequest) - pence(payment.amount)) : 0;
+  function recordPayment() {
+    if (!canRecordPayments || (payment.kind === 'deposit' && !canManageSales) || !payment.received || !total || !(pence(payment.amount) > 0) || pence(payment.amount) > total.balance || !payment.date || (similarPayment && !duplicateAccepted)) return;
     run(async () => {
-      await command("/invoice-payments", {
-        payment: {
-          amount: payment.amount,
-          method: payment.method,
-          date: payment.date,
-          reference: payment.reference,
-          kind: payment.kind,
-          status: "confirmed",
+      const result = await command("/invoice-payments", {
+        payment: { amount: payment.amount, method: payment.method, date: payment.date, reference: payment.reference,
+          kind: payment.kind, status: "confirmed",
+          ...(depositRequestId ? { paymentRequestId: depositRequestId } : {}),
+          ...(payment.kind === 'deposit' ? { reserveConfirmed: true, acceptShortfall: depositShortfall > 0 } : {}),
         },
       });
-      await client.invalidateQueries({ queryKey: getGetStockQueryKey() });
+      const received = pence(payment.amount);
+      const updated = saleWorkspaceTotals(result.sale.draft, result.sale.payments);
       setPayment({ ...payment, amount: "", reference: "", received: false });
+      setDepositConfirmOpen(false); setDuplicateConfirmOpen(false); setDuplicateAccepted(false); setDepositRequestId(undefined); setPaymentFormOpen(false);
       setReviewed(false);
-      setMessage(
-        payment.kind === "deposit"
-          ? "Deposit recorded. The car is reserved for this customer."
-          : "Payment recorded. The invoice will include its date, method and amount.",
-      );
+      if (payment.kind === 'deposit') {
+        setConfirmationDocument(result.document?.type === 'receipt' ? result.document : null);
+        setMessage(`${saleMoney(received)} deposit recorded. Car reserved. ${saleMoney(updated.balance)} left to pay.`);
+      } else setMessage(`${saleMoney(received)} payment recorded. ${saleMoney(updated.balance)} left to pay.`);
+      // Refreshing stock must not turn a successfully recorded payment into a failed save.
+      void client.invalidateQueries({ queryKey: getGetStockQueryKey() }).catch(() => {});
     });
+  }
+  function addPayment(event: React.FormEvent) {
+    event.preventDefault();
+    if (!payment.received || !total || !(pence(payment.amount) > 0) || pence(payment.amount) > total.balance || !payment.date) return;
+    if (payment.kind === 'deposit') { setDepositConfirmOpen(true); return; }
+    if (similarPayment) { setDuplicateConfirmOpen(true); return; }
+    recordPayment();
   }
   function generate() {
     run(async () => {
       if (!draft) return;
       const issues = errors({ ...draft, payments: rows }, record?.draft);
       if (issues.length) throw new Error(issues.join(" "));
-      const result = await command("/issue-invoice", {
-        kind,
-        acknowledge: reviewed,
+      const saved = await saveInternal();
+      await calculation.check(saved, draft as SaleWorkspaceDraft);
+      const result = await request(`/api/sale-workspace/${saved.id}/issue-invoice`, 'POST', {
+        expectedRevision: saved.revision, kind, acknowledge: reviewed,
       });
+      accept(result);
       setWorkspaceTab("invoices");
       setIssued(result.document ?? null);
       setSoldChoice(false);
@@ -657,7 +677,7 @@ export function SalesWorkspace({
         .at(-1);
       setMessage(
         delivery?.status === "sent"
-          ? "Invoice emailed to the customer."
+          ? doc.type === "receipt" ? "Deposit confirmation emailed to the customer." : "Document emailed to the customer."
           : delivery?.status === "prepared"
             ? "Email prepared. Enable Resend in settings to send it."
             : delivery?.error || "Email status updated.",
@@ -684,6 +704,7 @@ export function SalesWorkspace({
     setProblem("");
     if (!embedded) navigate("/portal?section=sales");
   }
+  const nextStep = record ? saleNextStep(record) : null;
   const latestInvoice = record?.documents.filter(document => document.type === "invoice").at(-1) ?? null;
   const needsCorrectionReview = !record?.standaloneReturn && Boolean(record?.corrections?.length || (record?.completedAt && rows.some(row => row.status === 'confirmed' && row.signedAmountPence < 0)));
   const invoiceIsCurrent = Boolean(latestInvoice && draft && saleInvoiceIsCurrent(latestInvoice, draft, rows));
@@ -775,19 +796,45 @@ export function SalesWorkspace({
   const frozen = Boolean(record?.completedAt || released || !canManageSales);
   const returned = record?.lifecycle?.status === 'returned' || record?.returnReplacement?.direction === 'returned';
   const canChangeAction = () => !busy && (!(returnDraftDirty || refundDraftDirty || requestDraftDirty) || window.confirm('Leave this unfinished action? Its unsaved details will be lost.'));
-  const showMenu = () => { setFlowScreen('menu'); setWorkspaceTab('deal'); setIssued(null); setProblem(''); };
+  const showMenu = () => { setConfirmationDocument(null); setFlowScreen('menu'); setWorkspaceTab('deal'); setIssued(null); setProblem(''); };
   const goToMenu = () => { if (canChangeAction()) showMenu(); };
   function chooseAction(action: SaleAction) {
     if (!draft || !canChangeAction()) return;
-    setFlowScreen(action); setProblem(''); setIssued(null); setReviewed(false);
+    if ((action === 'deposit' || action === 'payment') && payment.amount.trim()) {
+      setFlowScreen(payment.kind === 'deposit' ? 'deposit' : 'payment'); setWorkspaceTab('payments'); setPaymentFormOpen(true); setIssued(null); setConfirmationDocument(null);
+      setProblem((action === 'deposit') !== (payment.kind === 'deposit') ? 'Finish or clear this payment before starting a different one.' : '');
+      return;
+    }
+    setFlowScreen(action); setProblem(''); setIssued(null); setReviewed(false); setConfirmationDocument(null);
     if (action === 'request') { setWorkspaceTab('payments'); setPaymentFormOpen(false); }
     if (action === 'deposit' || action === 'payment') {
       setWorkspaceTab('payments'); setPaymentFormOpen(true);
-      setPayment(current => ({ ...current, kind: action === 'deposit' ? 'deposit' : 'part-payment', received: false }));
+      const openRequest = action === 'deposit' ? [...(record?.paymentRequests ?? [])].reverse().find(request => request.kind === 'deposit' && salePaymentRequestAvailable(record!, request, new Date().toISOString()) && salePaymentRequestRemaining(record!, request) > 0) : undefined;
+      setDepositRequestId(openRequest?.id);
+      setPayment(current => ({ ...current, kind: action === 'deposit' ? 'deposit' : 'part-payment', amount: current.amount || (openRequest ? (Math.min(salePaymentRequestRemaining(record!, openRequest), total!.balance) / 100).toFixed(2) : ''), received: false }));
     }
     if (action === 'invoice') { setWorkspaceTab('invoices'); setComposeInvoice(true); setKind('full'); }
     if (action === 'handover') setWorkspaceTab('handover');
     if (action === 'return') { setWorkspaceTab('deal'); setReturnChoice(record?.standaloneReturn ? 'return' : record?.returnReplacement?.direction === 'returned' ? 'replace' : null); }
+  }
+  function recordRequestedDeposit(request: SalePaymentRequest) {
+    if (!record || !canRecordPayments || (request.kind === 'deposit' && !canManageSales) || !canChangeAction()) return;
+    if (payment.amount.trim()) { chooseAction(payment.kind === 'deposit' ? 'deposit' : 'payment'); setProblem('Finish or clear this payment before starting another.'); return; }
+    chooseAction(request.kind === 'deposit' ? 'deposit' : 'payment'); setDepositRequestId(request.id);
+    setPayment(current => ({ ...current, kind: request.kind === 'deposit' ? 'deposit' : 'part-payment', amount: (Math.min(salePaymentRequestRemaining(record, request), total!.balance) / 100).toFixed(2), reference: request.reference, received: false }));
+  }
+  function followNextStep() {
+    if (!nextStep || !record) return;
+    if (nextStep.action === 'confirmation') {
+      setConfirmationDocument(record.documents.find(doc => doc.id === nextStep.documentId) ?? null);
+      setFlowScreen('deposit'); setPaymentFormOpen(false); return;
+    }
+    if ((nextStep.action === 'deposit' || nextStep.action === 'payment') && nextStep.requestId) {
+      const request = record.paymentRequests?.find(row => row.id === nextStep.requestId);
+      if (request) recordRequestedDeposit(request); return;
+    }
+    if (nextStep.action === 'history') { setFlowScreen('history'); setWorkspaceTab('payments'); setPaymentFormOpen(false); return; }
+    chooseAction(nextStep.action);
   }
   const editSetup = (selected: 'car' | 'customer' | 'extras') => { if (!canChangeAction()) return; setFlowScreen(selected); setWorkspaceTab('deal'); setDealSection(selected === 'car' ? 'vehicle' : selected); setStep(selected === 'customer' ? 1 : 0); };
   const continueSetup = () => {
@@ -802,7 +849,7 @@ export function SalesWorkspace({
     <header className="invoice-builder-header sale-desk-header">
       <div className="sale-desk-header-identity">
         <Button type="button" variant="ghost" aria-label={draft ? 'Back to sales' : 'Back to workspace'} disabled={busy} onClick={draft ? leave : () => onExit ? onExit() : navigate('/portal')}><ArrowLeft size={17} /><span>{draft ? 'Sales' : 'Workspace'}</span></Button>
-        {settings.identity.logoAsset ? <img className="sales-flow-logo" src={settings.identity.logoAsset} alt={settings.identity.name} /> : <strong>{settings.identity.name}</strong>}
+        {(isMultiChoiceWebsite() || settings.identity.logoAsset) ? <img className="sales-flow-logo" src={isMultiChoiceWebsite() ? '/brand/multi-choice-motors/multi-choice-wordmark.svg' : settings.identity.logoAsset} alt={settings.identity.name} /> : <strong>{settings.identity.name}</strong>}
         {draft && <span className="sale-desk-save-status" role="status">{busy ? 'Working…' : detailsDirty ? 'Unsaved changes' : returnDraftDirty ? 'Return not confirmed' : refundDraftDirty ? 'Refund not recorded' : record ? 'Saved' : 'Not saved yet'}</span>}
       </div>
       <div className="sale-desk-header-actions">
@@ -895,15 +942,18 @@ export function SalesWorkspace({
           <SaleProgress sale={record} />
         </div>}
         <div className="sale-desk-content" id="sale-flow-content">
-          <div className="sale-desk-section-heading"><div><h1 ref={heading} tabIndex={-1}>{flowScreen === 'car' ? 'Choose a car' : flowScreen === 'customer' ? 'Choose the customer' : flowScreen === 'menu' ? 'What would you like to do?' : flowScreen === 'extras' ? 'Extras and part exchange' : flowScreen === 'history' ? 'Payments and documents' : saleActions.find(action => action.id === flowScreen)?.title}</h1>{flowScreen === 'menu' && <p>Choose one to get started.</p>}</div>{!['car','customer','menu'].includes(flowScreen) && <Button variant="ghost" disabled={busy} onClick={goToMenu}><ArrowLeft size={16}/>All actions</Button>}</div>
+          <div className="sale-desk-section-heading"><div><h1 ref={heading} tabIndex={-1}>{flowScreen === 'car' ? 'Choose a car' : flowScreen === 'customer' ? 'Choose the customer' : flowScreen === 'menu' ? 'What would you like to do?' : flowScreen === 'extras' ? 'Extras and part exchange' : flowScreen === 'history' ? 'Payments and documents' : saleActions.find(action => action.id === flowScreen)?.title}</h1>{flowScreen === 'menu' && <p>Start with the next step, or choose another action.</p>}</div>{!['car','customer','menu'].includes(flowScreen) && <Button variant="ghost" disabled={busy} onClick={goToMenu}><ArrowLeft size={16}/>All actions</Button>}</div>
           {problem && <div role="alert" className="invoice-error">{problem}{/another device|reload/i.test(problem) && record && <Button variant="outline" disabled={busy} onClick={() => run(async () => {const latest = await customFetch<{sale: SaleWorkspaceRecord}>(`/api/sale-workspace/${record.id}`);accept({sale: latest.sale});setMessage('Latest sale loaded.');})}>Reload latest sale</Button>}</div>}
           {message && <p role="status" className="invoice-message">{message}</p>}
           {released && <p className="invoice-message" data-tone="warning">This reservation was released. Its documents and payment history are kept. Start a new sale to sell this car.</p>}
           {released && total && (total.confirmedPaid !== 0 || total.pending > 0) && <p role="alert" className="invoice-error">Review this released reservation’s payments. {total.confirmedPaid !== 0 && `Net received: ${saleMoney(total.confirmedPaid)}. `}{total.pending > 0 && `Pending: ${saleMoney(total.pending)}. `}These amounts do not mean the purchase price is due.</p>}
           {needsCorrectionReview && <p role="alert" className="invoice-error">This sale has refunds or external corrections. Review the original paperwork before relying on the calculated balance.</p>}
+          {nextStep && (flowScreen === 'menu' || (['deposit','payment'].includes(flowScreen) && !paymentFormOpen && !confirmationDocument)) && <section className="sales-flow-next" aria-label="Next step"><div><strong>Next step</strong><p>{nextStep.note}</p></div><Button disabled={busy || (['deposit','payment','request','invoice','confirmation'].includes(nextStep.action) && !canRecordPayments) || (nextStep.action === 'handover' && !canHandover) || (nextStep.action === 'deposit' && !canManageSales)} onClick={followNextStep}>{nextStep.label}<ArrowRight size={20}/></Button></section>}
+          {confirmationDocument && ['deposit','payment','menu'].includes(flowScreen) && <section className="sales-flow-confirmation" aria-label="Deposit confirmation"><h2><Check size={22}/>Let the customer know</h2><p>{saleMoney(confirmationDocument.paymentAmountPence ?? 0)} received for {draft.vehicle}. {record?.lifecycle?.status === 'reserved' ? 'The car is reserved.' : 'The payment has been recorded.'}</p><p>{confirmationDocument.snapshot.draft.email ? `Send the saved receipt to ${confirmationDocument.snapshot.draft.email}.` : 'Add an email address to send confirmation, or download the receipt.'}</p><div className="sales-flow-secondary"><Button disabled={busy || !canEmailCustomer || !confirmationDocument.snapshot.draft.email || record?.emailDeliveries?.some(row => row.documentId === confirmationDocument.id && row.status === 'sent')} onClick={() => email(confirmationDocument)}><Mail size={18}/>{record?.emailDeliveries?.some(row => row.documentId === confirmationDocument.id && row.status === 'sent') ? 'Confirmation sent' : 'Send deposit confirmation'}</Button><Button variant="outline" disabled={busy} onClick={() => documentAction(confirmationDocument,'download')}><Download size={18}/>Download receipt</Button><Button variant="ghost" disabled={busy} onClick={goToMenu}>Back to sale</Button></div>{!canEmailCustomer && <p>{emailUnavailableReason}</p>}</section>}
           {flowScreen === 'menu' && <><SalesActionMenu onChoose={chooseAction} disabled={busy} unavailable={{
             ...(!canRecordPayments ? { request: 'You can view this sale. Ask a manager to record payments.', deposit: 'Ask a manager to record a deposit.', payment: 'Ask a manager to record a payment.', invoice: 'Ask a manager to create an invoice.' } : {}),
             ...(returned || released ? { request: 'This sale is closed.', deposit: 'This sale is closed.', payment: 'This sale is closed.', invoice: 'Use the saved documents below.' } : {}),
+            ...(!canManageSales ? { deposit: 'Ask a manager to reserve the car.' } : {}),
             ...(record?.completedAt ? { deposit: 'This car is already sold.' } : {}),
             ...(!canHandover ? { handover: 'Ask a manager to arrange the handover.' } : {}),
             ...(!(canManageSales && canRefundPayments) ? { return: 'Ask a manager to record a return.' } : {}),
@@ -1237,7 +1287,7 @@ export function SalesWorkspace({
             {returnChoice === 'replace' && <SaleReturnReplace key={`return:${record.id}`} initialExpanded sale={record} cars={stock?.cars ?? []} onSaved={sale => accept({sale})} onOpenSale={id => void open({id})} disabled={operationBusy || detailsDirty || Boolean(payment.amount.trim())} canReturn={canManageSales && canRefundPayments} canInspect={canManageSales} onDirtyChange={setReturnDraftDirty} onBusyChange={setChildBusy}/>}
             </>}
           </>}
-          {flowScreen === 'request' && canRecordPayments && (payment.amount.trim() ? <section className="sale-desk-sheet"><p>You have an unfinished payment. Save it if the money was received, or clear its amount before requesting a deposit.</p><Button disabled={busy} onClick={() => chooseAction(payment.kind === 'deposit' ? 'deposit' : 'payment')}>Return to unfinished payment</Button></section> : record && !detailsDirty ? <SalePaymentRequests sale={record} onSaved={sale=>accept({sale})} onDirtyChange={setRequestDraftDirty} onBusyChange={setChildBusy} actionOnly /> : <section className="sale-desk-sheet"><p>Save the car and customer details to prepare the request.</p><Button disabled={busy} onClick={save}>Save and continue</Button></section>)}
+          {flowScreen === 'request' && canRecordPayments && (payment.amount.trim() ? <section className="sale-desk-sheet"><p>You have an unfinished payment. Save it if the money was received, or clear its amount before requesting a deposit.</p><Button disabled={busy} onClick={() => chooseAction(payment.kind === 'deposit' ? 'deposit' : 'payment')}>Return to unfinished payment</Button></section> : record && !detailsDirty ? <SalePaymentRequests sale={record} onSaved={sale=>accept({sale})} onDirtyChange={setRequestDraftDirty} onBusyChange={setChildBusy} onRecordDeposit={recordRequestedDeposit} showMoneySummary={false} canReserve={canManageSales} actionOnly /> : <section className="sale-desk-sheet"><p>Save the car and customer details to prepare the request.</p><Button disabled={busy} onClick={save}>Save and continue</Button></section>)}
           {record && canRefundPayments && flowScreen === 'history' && <SaleReplacementRefund key={`refund-credit:${record.id}`} sale={record} onSaved={sale => accept({sale})} disabled={operationBusy || detailsDirty || Boolean(payment.amount.trim())} onDirtyChange={setRefundDraftDirty} onBusyChange={setChildBusy}/>}
           {['payment', 'deposit', 'history'].includes(flowScreen) && <section className="sale-desk-sheet sale-desk-payments">
             {flowScreen === 'history' && <div className="sale-desk-inline-heading"><div><h2>Money received</h2></div>{total!.balance > 0 && canRecordPayments && !released && !returned && <Button onClick={() => chooseAction('payment')} disabled={busy}><Plus size={16}/>Take a payment</Button>}</div>}
@@ -1258,13 +1308,14 @@ export function SalesWorkspace({
                                   {row.reason && ` · ${row.reason}`}
                                 </small>
                               </span>
+                              {row.status === 'pending' && <Button variant="outline" disabled={busy || detailsDirty || Boolean(payment.amount.trim()) || (row.kind === 'deposit' && !canManageSales)} onClick={() => {setPendingConfirmation(row);setProblem('');}}>Confirm received</Button>}
                               {access.data?.permissions.includes('payments.refund') && row.status !== "cancelled" &&
                                 row.signedAmountPence > 0 && (
                                   <Button
                                     variant="ghost"
                                     onClick={() => setReverse(row)}
                                   >
-                                    Correct / refund
+                                    {row.status === 'pending' ? 'Cancel pending payment' : 'Correct a payment'}
                                   </Button>
                                 )}
                             </div>
@@ -1277,6 +1328,8 @@ export function SalesWorkspace({
                           onSubmit={addPayment}
                         >
                           <p>Check the money has arrived before saving.</p>
+                          {selectedDepositRequest && <p className="sales-flow-requested">{selectedDepositRequest.kind === 'deposit' ? 'Deposit requested:' : 'Payment requested:'} <strong>{saleMoney(selectedDepositRequest.amountPence)}</strong> · {selectedDepositRequest.reference}</p>}
+                          {selectedDepositRequest?.kind === 'deposit' && payment.kind === 'deposit' && pence(payment.amount) > 0 && depositShortfall > 0 && <p className="invoice-message" data-tone="warning">This is {saleMoney(depositShortfall)} less than requested. You can accept it as the deposit. The unpaid amount stays in the balance.</p>}
                           <div className="invoice-field-grid">
                             <label>
                               Payment amount (£)
@@ -1628,20 +1681,28 @@ export function SalesWorkspace({
 /></details>}
           </>}
           {workspaceTab === 'handover' && <>
-            {/* SALES_EXTENSION_DELIVERY_EVIDENCE: saved and clean record */}
+            <div className="sales-flow-handover-status" aria-label="Handover status"><span><Check size={17}/>{total!.balance === 0 ? 'Paid in full' : `${saleMoney(Math.abs(total!.balance))} ${total!.balance < 0 ? 'to return' : 'still to pay'}`}</span><span><Invoice size={17}/>{latestInvoice?.invoiceKind === 'full' && invoiceIsCurrent ? 'Invoice ready' : 'Sales invoice needed'}</span></div>
             <section className="sale-desk-sheet">
               {payment.amount.trim() ? <p className="invoice-error">Save or clear the payment entry in Payments before confirming the handover.</p> : record && !detailsDirty ? <SaleHandover key={`handover:${record.id}`} sale={record} onSaved={sale => accept({sale})} /> : <><SaleHandoverFields draft={draft} value={handoverDefaults(draft)} onChange={value => update('fulfilment', value)} disabled={busy || !canManageSales || Boolean(record?.draft.fulfilment?.completedAt)}/><p className="invoice-note">Save these details to continue with the handover.</p><Button onClick={save} disabled={busy || !canManageSales}>Save arrangements</Button></>}
             </section>
-            {record && !detailsDirty && !payment.amount.trim() && record.draft.fulfilment?.method==='delivery' && canManageSales && <><SaleDeliveryCharge sale={record} onSaved={sale=>accept({sale})} onBusyChange={setChildBusy}/><SaleDeliveryEvidence saleId={record.id} revision={record.revision}/></>}
+            {record && !detailsDirty && !payment.amount.trim() && record.draft.fulfilment?.method==='delivery' && canManageSales && <><SaleDeliveryCharge sale={record} onSaved={sale=>accept({sale})} onBusyChange={setChildBusy}/><details className="sale-desk-fold"><summary>Delivery evidence and signed paperwork</summary><SaleDeliveryEvidence saleId={record.id} revision={record.revision}/></details></>}
             <details className="sale-desk-fold"><summary>Before handing over the car</summary>{checklistPanel()}</details>
             {record && (record.completedAt || record.lifecycle?.status === 'sold') && <details className="sale-desk-fold"><summary>Customer follow-up</summary><SoldVehicleCustomerReview saleId={record.id} /></details>}
           </>}
         </div>
-        {!['menu', 'car', 'request', 'history', 'return'].includes(flowScreen) && <aside className="sales-flow-preview" aria-label="Document preview">
-          <details className="sales-flow-mobile-preview" open={typeof window !== 'undefined' && window.innerWidth > 760}><summary>View document</summary>
-          <LiveSalesDocument key={record?.id ?? draft.id} draft={{...draft,payments:rows}} dealer={settings} vehicle={vehicle} documentType={kind === 'deposit' ? 'Deposit receipt' : 'Sales invoice'}
-            {...(issued && record ? {issuedDocument:issued,pdfUrl:`/api/sale-workspace/${record.id}/documents/${issued.id}/pdf`} : {})}
-            onPreview={async () => {if(record) await calculation.check(record,draft as SaleWorkspaceDraft);}} />
+        {total && !['car','customer'].includes(flowScreen) && <aside className="sales-flow-breakdown" aria-label="Payment breakdown">
+          <details className="sales-flow-money-details" open={typeof window === 'undefined' || window.innerWidth > 760}><summary>Payment breakdown</summary><dl>
+            <div><dt>Car price</dt><dd>{saleMoney(total.price)}</dd></div>
+            {deliveryAmount !== 0 && <div><dt>Delivery</dt><dd>{saleMoney(deliveryAmount)}</dd></div>}
+            {otherAdjustments !== 0 && <div><dt>Extras and discounts</dt><dd>{saleMoney(otherAdjustments)}</dd></div>}
+            {total.allowance !== 0 && <div><dt>Part exchange</dt><dd>−{saleMoney(total.allowance)}</dd></div>}
+            {returnedCredit !== 0 && <div><dt>Return credit</dt><dd>−{saleMoney(returnedCredit)}</dd></div>}
+            <div className="sales-flow-breakdown-total"><dt>Agreed total</dt><dd>{saleMoney(total.totalDue)}</dd></div>
+            <div data-tone="paid"><dt>Payments received</dt><dd>{saleMoney(actualPaymentsReceived)}</dd></div>
+            {transferredCredit !== 0 && <div><dt>Transferred credit</dt><dd>{saleMoney(transferredCredit)}</dd></div>}
+            {total.pending > 0 && <div><dt>Still to confirm</dt><dd>{saleMoney(total.pending)}</dd></div>}
+            <div className="sales-flow-breakdown-balance" data-tone={total.balance === 0 ? 'paid' : 'due'}><dt>{needsCorrectionReview ? 'Balance to review' : released ? 'Closed sale balance' : total.balance < 0 ? 'To return' : 'Left to pay'}</dt><dd>{saleMoney(Math.abs(total.balance))}</dd></div>
+          </dl>{total.pending > 0 && <p>Unconfirmed payments are not included in money received.</p>}
           <CalculationCheck result={calculation.result} busy={calculation.busy} error={calculation.error}/>
           </details>
         </aside>}
@@ -1654,6 +1715,24 @@ export function SalesWorkspace({
         <small role="status">{busy ? 'Saving…' : detailsDirty ? 'Unsaved details' : record ? 'Saved' : 'Not saved yet'}</small>
       </footer>
     </>}
+      {pendingConfirmation && record && <ConfirmSavedPayment key={pendingConfirmation.id} sale={record} payment={pendingConfirmation} busy={busy} problem={problem} onClose={() => {if (!busy) setPendingConfirmation(null);}} onConfirm={input => run(async () => {
+        const confirmed = pendingConfirmation;
+        const result = await command(`/payments/${confirmed.id}/confirm`, input);
+        setPendingConfirmation(null);
+        if (confirmed.kind === 'deposit' && result.document) {setConfirmationDocument(result.document);setFlowScreen('deposit');setPaymentFormOpen(false);}
+        setMessage(`${saleMoney(confirmed.amountPence)} received${confirmed.kind === 'deposit' ? '. Car reserved' : ''}.`);
+        void client.invalidateQueries({queryKey:getGetStockQueryKey()}).catch(() => {});
+      })}/>}
+      {duplicateConfirmOpen && <Dialog open onOpenChange={open => { if (!busy) setDuplicateConfirmOpen(open); }}><DialogContent className="portal-action-dialog sales-action-dialog z-[90]" overlayClassName="z-[89]" closeDisabled={busy}><DialogHeader><DialogTitle>Is this a separate payment?</DialogTitle><DialogDescription>A payment for {saleMoney(pence(payment.amount))} with the same date, method and reference is already recorded.</DialogDescription></DialogHeader><label className="invoice-check"><input type="checkbox" checked={duplicateAccepted} onChange={event => setDuplicateAccepted(event.target.checked)}/>This is a separate payment. Record it as well.</label><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setDuplicateConfirmOpen(false)}>Go back</Button><Button disabled={busy || !duplicateAccepted} onClick={recordPayment}>Record separate payment</Button></DialogFooter>{problem && <p role="alert">{problem}</p>}</DialogContent></Dialog>}
+      {depositConfirmOpen && draft && <Dialog open onOpenChange={open => { if (!busy) setDepositConfirmOpen(open); }}><DialogContent className="portal-action-dialog sales-action-dialog z-[90]" overlayClassName="z-[89]" closeDisabled={busy}>
+        <DialogHeader><DialogTitle>Reserve this car for {draft.customer}?</DialogTitle><DialogDescription>You're recording a {saleMoney(pence(payment.amount))} deposit. Confirm that the money has arrived. This will reserve the vehicle and remove it from available stock.</DialogDescription></DialogHeader>
+        <p><strong>{draft.vehicle}</strong> · {draft.registration}</p>
+        {depositShortfall > 0 && <p className="invoice-message" data-tone="warning">Accept {saleMoney(pence(payment.amount))} instead of the {saleMoney(selectedDepositRequest!.amountPence)} requested. The remaining {saleMoney(depositShortfall)} stays in the balance; it is not a discount.</p>}
+        <p>Connected sales channels update through their normal stock feed.</p>
+        {similarPayment && <div className="invoice-message" data-tone="warning"><p>A payment with this amount, date, method and reference is already recorded.</p><label className="invoice-check"><input type="checkbox" checked={duplicateAccepted} onChange={event => setDuplicateAccepted(event.target.checked)}/>This is a separate payment. Record it as well.</label></div>}
+        {problem && <p role="alert" className="invoice-error">{problem}</p>}
+        <DialogFooter><Button variant="outline" disabled={busy} onClick={() => setDepositConfirmOpen(false)}>Go back</Button><Button disabled={busy || !canRecordPayments || !canManageSales || Boolean(similarPayment && !duplicateAccepted)} onClick={recordPayment}>{busy ? 'Recording deposit…' : `Confirm ${saleMoney(pence(payment.amount))} & reserve car`}</Button></DialogFooter>
+      </DialogContent></Dialog>}
       {deleteDraftOpen && record && <Dialog open onOpenChange={open => { if (!busy && !open) { setDeleteDraftOpen(false); setProblem(''); } }}>
         <DialogContent className="portal-action-dialog sales-action-dialog z-[90]" closeDisabled={busy} aria-busy={busy} overlayClassName="z-[89]" onOpenAutoFocus={event => { event.preventDefault(); document.getElementById('keep-sale-draft')?.focus(); }}>
           <DialogHeader><DialogTitle>Delete this draft?</DialogTitle><DialogDescription>This permanently removes only this unused or clearly labelled test draft. Invoices, payments, stock and customer enquiry records are kept.</DialogDescription></DialogHeader>

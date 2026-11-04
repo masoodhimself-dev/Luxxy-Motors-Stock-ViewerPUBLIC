@@ -7,6 +7,7 @@ import { runWithTenant } from "./lib/tenant-context";
 import {
   approveSaleDocumentEmail,
   saleEmailIdentity,
+  saleDocumentEmailTemplate,
 } from "./lib/sale-document-email";
 import { deliverEmailOutbox } from "./lib/email-outbox";
 import {
@@ -20,6 +21,7 @@ import {
   changeSaleWorkspace,
   saleWorkspaceTotals,
   defaultEmailAppearance,
+  requestSalePayment,
   type SaleWorkspaceRecord,
   type SaleWorkspaceDraft,
   type SaleWorkspaceContext,
@@ -207,6 +209,28 @@ test("manual invoice emails use exact customer cases, durable reply routes and f
       "INSERT INTO enquiries(id,dealer_id,type,status,customer_name,email,phone,vehicle_id,message) VALUES($1::uuid,$2,'general','contacted','Fictional Buyer','buyer@example.test','07700900123',$3::uuid,'Fictional request')",
       [id, dealer, vehicle],
     );
+  await t.test('deposit copy follows actual recorded payments and current reservation state', async () => {
+    const sale = await record();
+    const document = structuredClone(sale.documents[0]!);
+    document.type = 'payment-request';
+    document.transaction = { kind: 'payment-request', requestKind: 'deposit', amountPence: 50000, dueDate: '2026-11-10', paymentReference: sale.reference, saleReference: sale.reference };
+    assert.equal(saleDocumentEmailTemplate(sale, document), 'deposit_request');
+    document.type = 'receipt'; document.transaction = undefined;
+    document.paymentId = randomUUID();
+    sale.payments = [{ id: document.paymentId, amount: '400', amountPence: 40000, signedAmountPence: 40000, kind: 'deposit', status: 'confirmed', method: 'Bank transfer', date: '2026-11-04', reference: '', recordedAt: document.issuedAt, recordedBy: 'Staff' }];
+    assert.equal(saleDocumentEmailTemplate(sale, document), 'payment_receipt');
+    sale.lifecycle = { status: 'reserved', vehicleId: sale.draft.vehicleId, changedAt: document.issuedAt };
+    assert.equal(saleDocumentEmailTemplate(sale, document), 'deposit_confirmation');
+    sale.draft.email = 'updated-buyer@example.test';
+    assert.equal(saleDocumentEmailTemplate(sale, document), 'payment_receipt', 'An older receipt must not tell its original recipient that a changed buyer reservation is theirs');
+    sale.draft.email = document.snapshot.draft.email;
+    sale.draft.customer = 'Another Buyer';
+    assert.equal(saleDocumentEmailTemplate(sale, document), 'payment_receipt');
+    sale.draft.customer = document.snapshot.draft.customer;
+    assert.equal(saleDocumentEmailTemplate(sale, document), 'deposit_confirmation');
+    sale.payments.push({ ...sale.payments[0]!, id: randomUUID(), amount: '50', amountPence: 5000, signedAmountPence: -5000, kind: 'refund', reversesPaymentId: document.paymentId });
+    assert.equal(saleDocumentEmailTemplate(sale, document), 'payment_receipt');
+  });
   await t.test(
     "new invoice correspondence uses the live dealer identity while its old issued PDF and snapshot stay identical",
     async () => {
@@ -234,6 +258,26 @@ test("manual invoice emails use exact customer cases, durable reply routes and f
       assert.deepEqual(after.payments, payments);
     },
   );
+  await t.test('deposit request emails use requested money and full vehicle price and reject closed requests', async () => {
+    const sale = await record();
+    const ctx: SaleWorkspaceContext = { now: new Date().toISOString(), actor: 'Staff', nextId: randomUUID, nextNumber: type => `${type.toUpperCase()}-REQUEST`, branding: sale.documents[0]!.snapshot.branding };
+    const created = requestSalePayment(sale, { kind: 'deposit', amount: '500', dueDate: '2026-12-01', note: '' }, ctx);
+    (created.sale.documentArchives ??= {})[created.document.id] = archiveSaleDocument(created.document);
+    await pool.query('UPDATE sale_workspace SET state=$2::jsonb, revision=$3 WHERE id=$1::uuid', [sale.id, JSON.stringify(created.sale), created.sale.revision]);
+    await onTenant(() => approveSaleDocumentEmail({ ...request(created.sale), documentId: created.document.id }, { config, attempt: async () => undefined }));
+    const queued = await outboxFor(sale), envelope = JSON.parse(queued.payload);
+    assert.match(envelope.text, /£500.00 deposit request/);
+    assert.match(envelope.text, /vehicle price is £10,000.00/);
+    assert.match(envelope.text, /Once we confirm your deposit has arrived/);
+    assert.doesNotMatch(envelope.text, /payment-request\//);
+    assert.equal(envelope.attachments[0].content, created.sale.documentArchives![created.document.id]!.content);
+    const current = await rawSale(sale.id);
+    current.paymentRequests![0].status = 'cancelled';
+    current.emailDeliveries = [];
+    current.revision++;
+    await pool.query('UPDATE sale_workspace SET state=$2::jsonb, revision=$3 WHERE id=$1::uuid', [sale.id, JSON.stringify(current), current.revision]);
+    await assert.rejects(onTenant(() => approveSaleDocumentEmail({ ...request(current), documentId: created.document.id }, { config, attempt: async () => undefined })), /request has changed/);
+  });
   await t.test(
     "manual send records outgoing invoice under its exact enquiry and a customer reply returns there, even with same-contact cases",
     async () => {

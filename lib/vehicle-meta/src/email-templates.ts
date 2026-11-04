@@ -21,6 +21,7 @@ export const emailTemplateVariables = [
   "document_number",
   "document_type",
   "amount",
+  "vehicle_price",
   "amount_received",
   "balance",
   "payment_status",
@@ -197,6 +198,20 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
       greeting +
       "Your invoice is attached. Reply if you have any questions." +
       signoff,
+  },
+  {
+    id: "deposit_request",
+    label: "Deposit request",
+    category: "Sales",
+    subject: "Your deposit request — {{vehicle_title}}",
+    body: "Dear {{customer_name}},\n\nThank you for choosing {{dealer_name}} for your next car.\n\nAttached are your {{amount}} deposit request, payment reference and payment instructions. The agreed vehicle price is {{vehicle_price}}.\n\nOnce we confirm your deposit has arrived, we’ll reserve the car and send you confirmation. Reply if you need any help." + signoff,
+  },
+  {
+    id: "deposit_confirmation",
+    label: "Deposit confirmation",
+    category: "Sales",
+    subject: "Your deposit is confirmed — {{vehicle_title}}",
+    body: "Dear {{customer_name}},\n\nThank you. We’ve received your deposit of {{amount}} for the {{vehicle_title}} and reserved the car for you.\n\nYour receipt is attached. It shows the remaining balance of {{balance}} when the deposit was recorded. Reply if you have any questions." + signoff,
   },
   {
     id: "payment_receipt",
@@ -422,6 +437,8 @@ const emailPresentation: Record<string, { title: string; kicker: string }> = {
     kicker: "Your visit reminder",
   },
   invoice: { title: "Your invoice", kicker: "Your documents" },
+  deposit_request: { title: "Your deposit request", kicker: "Your next car" },
+  deposit_confirmation: { title: "Your car is reserved", kicker: "Deposit received" },
   payment_receipt: { title: "Your payment receipt", kicker: "Your documents" },
   balance_statement: {
     title: "Your balance statement",
@@ -625,6 +642,8 @@ export function renderEmailTemplate(
             "invoice",
             "invoice_copy",
             "payment_receipt",
+            "deposit_request",
+            "deposit_confirmation",
             "balance_statement",
             "document_email",
           ].includes(options.templateId ?? "")

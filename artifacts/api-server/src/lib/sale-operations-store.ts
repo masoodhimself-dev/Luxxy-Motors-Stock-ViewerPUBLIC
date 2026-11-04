@@ -229,8 +229,6 @@ export async function saleOperation(
     let sale = structuredClone(current),
       result: Record<string, unknown> = {};
     if (input.action === "request-payment") {
-      const token = randomBytes(32).toString("hex"),
-        expiresAt = new Date(Date.parse(ctx.now) + 30 * 86400000).toISOString();
       const mutation = requestSalePayment(
         current,
         {
@@ -238,8 +236,6 @@ export async function saleOperation(
           amount: input.amount,
           dueDate: input.dueDate,
           note: input.note,
-          tokenHash: saleTokenHash(token),
-          expiresAt,
         },
         ctx,
       );
@@ -247,21 +243,28 @@ export async function saleOperation(
       result = {
         document: mutation.document,
         requestId: mutation.request.id,
-        url: `${siteOrigin()}/payment-request/${token}`,
       };
+    } else if (input.action === "mark-request-shared") {
+      const request = sale.paymentRequests?.find(r => r.id === input.paymentRequestId);
+      if (!request || !salePaymentRequestAvailable(sale, request, ctx.now)) throw new SaleWorkspaceError("This payment request is no longer current.", 409);
+      if (input.channel !== 'whatsapp' || input.acknowledge !== true) throw new SaleWorkspaceError("Confirm that you shared the document on WhatsApp.");
+      request.sharedAt = ctx.now;
+      request.sharedBy = actor;
+      finishSaleOperation(sale, ctx, "Payment request marked as shared on WhatsApp");
     } else if (input.action === "cancel-request") {
       const request = sale.paymentRequests?.find(
         (r) => r.id === input.paymentRequestId,
       );
       if (!request)
         throw new SaleWorkspaceError("Payment request not found.", 404);
+      if (request.status !== "active") throw new SaleWorkspaceError("This payment request is already closed.", 409);
       request.status = "cancelled";
       finishSaleOperation(sale, ctx, "Payment request cancelled");
     } else if (input.action === "renew-request-link") {
       const request = sale.paymentRequests?.find(
         (r) => r.id === input.paymentRequestId,
       );
-      if (!request || !salePaymentRequestAvailable(sale, request, ctx.now))
+      if (!request || request.deliveryMode === 'document' || !salePaymentRequestAvailable(sale, request, ctx.now))
         throw new SaleWorkspaceError(
           "This payment request is no longer current. Create a new request.",
           409,

@@ -4,6 +4,7 @@ import {
   type EmailAppearance,
 } from "@workspace/vehicle-meta";
 import { demoProvisioning } from "./demo-policy";
+import { usesShippedMultiChoiceLogo } from "./published-dealer-logo";
 
 export type EmailWebsiteBranding = { logoUrl: string; brandColour: string };
 export type EmailWebsiteSettings = {
@@ -35,6 +36,7 @@ function publishedLogoUrl(asset: string, origin: string): URL {
 export function emailWebsiteBranding(
   settings: EmailWebsiteSettings,
   origin: string,
+  dealerId?: string,
 ): EmailWebsiteBranding {
   const hsl =
     settings.identity?.brandColors?.primaryHsl ??
@@ -70,7 +72,11 @@ export function emailWebsiteBranding(
   }
   let logoUrl = "";
   try {
-    const asset = settings.identity?.logoAsset?.trim();
+    // The public header already uses this approved wordmark. Match it for new
+    // emails despite superseded saved settings, using PNG for email clients.
+    const asset = usesShippedMultiChoiceLogo(dealerId, origin)
+      ? "/brand/multi-choice-motors/multi-choice-wordmark.png"
+      : settings.identity?.logoAsset?.trim();
     if (asset) {
       const url = publishedLogoUrl(asset, origin);
       if (!url.username && !url.password)

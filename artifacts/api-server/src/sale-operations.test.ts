@@ -145,7 +145,7 @@ test("payment requests are documents, never receipts, payments or reservations",
   assert.deepEqual(original, before);
   assert.equal(mutation.document.type, "payment-request");
   assert.equal(mutation.document.templateVersion, 'sales-workspace-v2');
-  assert.deepEqual(mutation.document.transaction, { kind: 'payment-request', requestKind: 'deposit', amountPence: 50000, dueDate: '2026-11-10', paymentReference: original.reference, saleReference: original.reference, note: 'Agreed reservation deposit' });
+  assert.deepEqual(mutation.document.transaction, { kind: 'payment-request', requestKind: 'deposit', showSaleBreakdown: true, amountPence: 50000, dueDate: '2026-11-10', paymentReference: original.reference, saleReference: original.reference, note: 'Agreed reservation deposit' });
   assert.equal(mutation.sale.payments.length, 0);
   assert.equal(mutation.sale.lifecycle, undefined);
   assert.equal(
@@ -650,15 +650,9 @@ test("stored operations enforce tenant/revision boundaries and exact return bala
     );
     assert.equal(result.sale.payments.length, 0);
     assert.equal(result.sale.paymentRequests?.length, 1);
-    assert.match(
-      String(result.url),
-      /^https:\/\/sale-ops-a.example.test\/payment-request\/[a-f0-9]{64}$/,
-    );
-    const token = String(result.url).split("/").pop()!;
-    assert.equal(
-      (await read()).paymentRequests![0].tokenHash,
-      saleTokenHash(token),
-    );
+    assert.equal(result.url, undefined);
+    assert.equal((await read()).paymentRequests![0].tokenHash, '');
+    assert.equal(result.sale.paymentRequests![0].deliveryMode, 'document');
     assert.equal(result.sale.paymentRequests![0].tokenHash, "");
     assert.equal(
       (await within(() => saleOperation(sale.id, request, "Staff A"))).replayed,
@@ -670,6 +664,15 @@ test("stored operations enforce tenant/revision boundaries and exact return bala
       ),
       /different details/,
     );
+
+    const shareInput = { action: 'mark-request-shared', requestId: randomUUID(), expectedRevision: result.sale.revision, paymentRequestId: result.sale.paymentRequests![0].id, channel: 'whatsapp', acknowledge: true };
+    const shared = await within(() => saleOperation(sale.id, shareInput, 'Staff A'));
+    assert.equal(shared.sale.paymentRequests![0].sharedBy, 'Staff A');
+    assert.ok(shared.sale.paymentRequests![0].sharedAt);
+    assert.equal(shared.sale.payments.length, 0);
+    assert.equal(shared.sale.lifecycle, undefined);
+    assert.equal((await within(() => saleOperation(sale.id, shareInput, 'Staff A'))).replayed, true);
+    await assert.rejects(within(() => saleOperation(sale.id, { ...shareInput, requestId: randomUUID() }, 'Staff A')), /changed/);
     let current = await read();
     const delivery = await within(() =>
       saleOperation(
@@ -925,4 +928,81 @@ test("stored operations enforce tenant/revision boundaries and exact return bala
   } finally {
     await engine.close();
   }
+});
+
+
+test('confirmed request deposits can accept less without discount and cannot be recorded twice', () => {
+  const initial = create('7990');
+  const requested = requestSalePayment(initial, { kind: 'deposit', amount: '500', dueDate: '2026-11-10', note: '' }, context());
+  const frozen = JSON.stringify(requested.document);
+  const payment = { amount: '400', method: 'Bank transfer', date: '2026-11-03', reference: 'BANK-400', kind: 'deposit', status: 'confirmed', paymentRequestId: requested.request.id, reserveConfirmed: true } as const;
+  const input = { expectedRevision: requested.sale.revision, requestId: randomUUID() };
+  assert.throws(() => changeSaleWorkspace(requested.sale, { action: 'invoice-payment', payment }, input, context()), /less than.*requested deposit/);
+  assert.throws(() => changeSaleWorkspace(requested.sale, { action: 'invoice-payment', payment: { ...payment, acceptShortfall: true, reserveConfirmed: false } }, input, context()), /reserve the car/);
+  const command = { action: 'invoice-payment', payment: { ...payment, acceptShortfall: true } } as const;
+  const accepted = changeSaleWorkspace(requested.sale, command, input, context());
+  assert.equal(accepted.sale.paymentRequests![0].status, 'accepted');
+  assert.equal(accepted.sale.paymentRequests![0].acceptedAmountPence, 40000);
+  assert.equal(accepted.sale.lifecycle?.status, 'reserved');
+  assert.equal(accepted.document?.title, 'Deposit receipt');
+  assert.equal(saleWorkspaceTotals(accepted.sale.draft, accepted.sale.payments).balance, 759000);
+  assert.equal(accepted.sale.draft.price, initial.draft.price);
+  assert.deepEqual(accepted.sale.draft.adjustments, []);
+  assert.equal(JSON.stringify(accepted.sale.documents[0]), frozen);
+  assert.equal(salePaymentRequestRemaining(accepted.sale, accepted.sale.paymentRequests![0]), 0);
+  assert.equal(salePaymentRequestAvailable(accepted.sale, accepted.sale.paymentRequests![0], context().now), false);
+  assert.equal(changeSaleWorkspace(accepted.sale, command, input, context()).replayed, true);
+  assert.throws(() => changeSaleWorkspace(accepted.sale, command, { expectedRevision: accepted.sale.revision, requestId: randomUUID() }, context()), /already closed/);
+});
+
+test('a pending deposit remains a payment to check and needs acceptance when confirmed', () => {
+  const requested = requestSalePayment(create(), { kind: 'deposit', amount: '500', dueDate: '2026-11-10', note: '' }, context());
+  const pending = changeSaleWorkspace(requested.sale, { action: 'payment', payment: { amount: '400', method: 'Bank transfer', date: '2026-11-03', reference: '', kind: 'deposit', status: 'pending', paymentRequestId: requested.request.id } }, { expectedRevision: requested.sale.revision, requestId: randomUUID() }, context()).sale;
+  assert.equal(pending.lifecycle, undefined);
+  assert.equal(pending.paymentRequests![0].status, 'active');
+  assert.equal(saleWorkspaceTotals(pending.draft, pending.payments).confirmedPaid, 0);
+  assert.equal(salePaymentRequestRemaining(pending, pending.paymentRequests![0]), 50000);
+  const confirm = { action: 'confirm', paymentId: pending.payments[0].id, reserveVehicle: true, reserveConfirmed: true } as const;
+  assert.throws(() => changeSaleWorkspace(pending, confirm, { expectedRevision: pending.revision, requestId: randomUUID() }, context()), /less than/);
+  const result = changeSaleWorkspace(pending, { ...confirm, acceptShortfall: true }, { expectedRevision: pending.revision, requestId: randomUUID() }, context());
+  assert.equal(result.sale.paymentRequests![0].status, 'accepted');
+  assert.equal(result.sale.paymentRequests![0].acceptedAmountPence, 40000);
+  assert.equal(result.sale.lifecycle?.status, 'reserved');
+  assert.equal(result.document?.type, 'receipt');
+});
+
+test('new document requests do not infer settlement from unrelated payments', () => {
+  const requested = requestSalePayment(create(), { kind: 'deposit', amount: '500', dueDate: '2026-11-10', note: '' }, context());
+  const paid = changeSaleWorkspace(requested.sale, { action: 'payment', payment: { amount: '500', method: 'Bank transfer', date: '2026-11-03', reference: '', kind: 'part-payment', status: 'confirmed' } }, { expectedRevision: requested.sale.revision, requestId: randomUUID() }, context()).sale;
+  assert.equal(salePaymentRequestRemaining(paid, paid.paymentRequests![0]), 50000);
+  assert.equal(salePaymentRequestAvailable(paid, paid.paymentRequests![0], '2030-01-01T12:00:00Z'), true);
+  assert.equal(paid.lifecycle, undefined);
+});
+
+
+test('linked part payments settle an ordinary request only when its amount is met', () => {
+  const requested = requestSalePayment(create(), { kind: 'other', amount: '1000', dueDate: '2026-11-10', note: '' }, context());
+  const pay = (sale: SaleWorkspaceRecord, amount: string) => changeSaleWorkspace(sale, { action: 'invoice-payment', payment: { amount, method: 'Bank transfer', date: '2026-11-03', reference: '', kind: 'part-payment', status: 'confirmed', paymentRequestId: requested.request.id } }, { expectedRevision: sale.revision, requestId: randomUUID() }, context()).sale;
+  const first = pay(requested.sale, '400');
+  assert.equal(first.paymentRequests![0].status, 'active');
+  assert.equal(salePaymentRequestRemaining(first, first.paymentRequests![0]), 60000);
+  const final = pay(first, '600');
+  assert.equal(final.paymentRequests![0].status, 'accepted');
+  assert.equal(final.paymentRequests![0].acceptedAmountPence, 100000);
+  assert.equal(salePaymentRequestRemaining(final, final.paymentRequests![0]), 0);
+  assert.equal(final.lifecycle, undefined);
+});
+
+
+test('legacy requests preserve earlier baseline payments when the last deposit is explicitly linked', () => {
+  const requested = requestSalePayment(create('7990'), { kind: 'deposit', amount: '500', dueDate: '2026-11-10', note: '', tokenHash: 'a'.repeat(64), expiresAt: '2026-12-03T12:00:00Z' }, context());
+  const earlier = changeSaleWorkspace(requested.sale, { action: 'payment', payment: { amount: '200', method: 'Bank transfer', date: '2026-11-03', reference: 'OLD-PAYMENT', kind: 'part-payment', status: 'confirmed' } }, { expectedRevision: requested.sale.revision, requestId: randomUUID() }, context()).sale;
+  assert.equal(salePaymentRequestRemaining(earlier, earlier.paymentRequests![0]), 30000);
+  const final = changeSaleWorkspace(earlier, { action: 'invoice-payment', payment: { amount: '300', method: 'Bank transfer', date: '2026-11-03', reference: 'LAST-PAYMENT', kind: 'deposit', status: 'confirmed', paymentRequestId: requested.request.id, reserveConfirmed: true } }, { expectedRevision: earlier.revision, requestId: randomUUID() }, context());
+  assert.equal(final.sale.paymentRequests![0].acceptedAmountPence, 50000);
+  assert.equal(final.sale.paymentRequests![0].status, 'accepted');
+  assert.equal(final.document?.paymentAmountPence, 30000, 'The receipt still records only this actual payment');
+  assert.equal(saleWorkspaceTotals(final.sale.draft, final.sale.payments).balance, 749000);
+  assert.match(final.sale.events.find(row => row.type === 'payment-request-accepted')!.description, /accepted at £500.00/);
+  assert.doesNotMatch(final.sale.events.find(row => row.type === 'payment-request-accepted')!.description, /less than requested/);
 });

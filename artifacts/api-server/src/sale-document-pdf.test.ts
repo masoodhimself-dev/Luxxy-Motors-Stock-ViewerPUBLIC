@@ -817,3 +817,15 @@ test('marked handover and reservation documents retain their own wording and sig
     assert.throws(() => salesDocumentPresentation(document), /dedicated renderer/);
   }
 });
+
+
+test('new deposit request includes agreed car price, delivery and conditional balance', () => {
+  const document = workspaceV2Document();
+  document.type = 'payment-request'; document.title = 'Deposit request'; document.number = 'REQ-2026-0043';
+  document.transaction = { kind: 'payment-request', requestKind: 'deposit', showSaleBreakdown: true, amountPence: 50000, dueDate: '2026-11-10', paymentReference: 'SALE-2026-0043', saleReference: 'SALE-2026-0043' };
+  const text = renderSaleDocumentPdf(document).toString('latin1');
+  const readable = readablePdfText(text);
+  for (const expected of ['Deposit Request', 'Vehicle price', 'Delivery', 'Already paid / credit', 'Outstanding before this request', 'Deposit requested', 'Balance if this payment is received', '£500.00', 'not a tax invoice or confirmation']) assert.ok(readable.includes(expected), expected);
+  assertTextOnA4(text); assertRowsDoNotCollide(text); assert.equal(pageCount(text), 1);
+  saveV2Sample('v2-deposit-request-breakdown', document);
+});

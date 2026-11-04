@@ -40,7 +40,7 @@ export interface ConfirmedPayment {
   amount: string;
 }
 export interface InvoiceData {
-  type: 'Deposit Invoice' | 'Sales Invoice' | 'Payment Request' | 'Delivery Invoice' | 'Return Credit Note' | 'Payment Receipt' | 'Refund Receipt' | 'Payment Adjustment' | 'Balance Statement';
+  type: 'Deposit Invoice' | 'Sales Invoice' | 'Deposit Request' | 'Payment Request' | 'Delivery Invoice' | 'Return Credit Note' | 'Payment Receipt' | 'Refund Receipt' | 'Payment Adjustment' | 'Balance Statement';
   number: string;
   issueDate: string;
   dealer: Party;

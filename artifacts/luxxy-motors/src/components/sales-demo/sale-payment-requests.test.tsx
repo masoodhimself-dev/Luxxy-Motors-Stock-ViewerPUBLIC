@@ -44,18 +44,27 @@ it('shows the remaining request amount after staff record a partial payment', ()
   expect(screen.queryByRole('button', { name: 'New request' })).not.toBeInTheDocument(); expect(state.api).not.toHaveBeenCalled();
 });
 
-it('requires confirmation before invalidating an existing private link', async () => {
-  const mutation = withRequest(), onSaved = vi.fn();
-  state.api.mockResolvedValue({ sale: mutation.sale, requestId: mutation.request.id, url: `https://dealer.example/payment-request/${'b'.repeat(64)}` });
-  render(<SalePaymentRequests sale={mutation.sale} onSaved={onSaved}/>);
-  fireEvent.click(screen.getByRole('button', { name: 'Create new link' }));
-  const dialog = screen.getByRole('dialog', { name: 'Create a new private link?' });
-  expect(dialog).toHaveTextContent('previously shared link'); expect(state.api).not.toHaveBeenCalled();
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Create new link' }));
-  await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
-  expect(JSON.parse(state.api.mock.calls[0][1].body)).toMatchObject({ paymentRequestId: mutation.request.id, expectedRevision: mutation.sale.revision });
-  expect(screen.getByLabelText('Private customer link')).toHaveValue(`https://dealer.example/payment-request/${'b'.repeat(64)}`);
-  expect(screen.getByRole('link', { name: 'Open WhatsApp' })).toHaveAttribute('href', expect.stringContaining('wa.me/447700900123'));
+it('opens WhatsApp without a payment link, and marks sharing only after staff confirmation', async () => {
+  const mutation=withRequest(), saved=structuredClone(mutation.sale), onSaved=vi.fn(), onRecordDeposit=vi.fn();
+  saved.revision++; saved.paymentRequests![0].sharedAt=new Date().toISOString(); saved.paymentRequests![0].sharedBy='Staff';
+  state.api.mockResolvedValue({sale:saved});
+  const view=render(<SalePaymentRequests sale={mutation.sale} onSaved={onSaved} onRecordDeposit={onRecordDeposit}/>);
+  const whatsapp=screen.getByRole('link',{name:'Open WhatsApp'});
+  expect(whatsapp).toHaveAttribute('href',expect.stringContaining('wa.me/447700900123'));
+  const message=new URL(whatsapp.getAttribute('href')!).searchParams.get('text');
+  expect(message).toContain('vehicle price is £10,000.00');expect(message).toContain('request is £500.00');expect(message).not.toContain('payment-request/');
+  fireEvent.click(whatsapp);expect(state.api).not.toHaveBeenCalled();
+  expect(screen.getByText('Attach the downloaded PDF in WhatsApp.')).toBeInTheDocument();
+  expect(screen.queryByRole('button',{name:'Record deposit'})).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{name:'Mark WhatsApp as sent'}));
+  const dialog=screen.getByRole('dialog',{name:'Have you sent the request?'});expect(state.api).not.toHaveBeenCalled();
+  fireEvent.click(within(dialog).getByRole('button',{name:'Yes, mark as sent'}));
+  await waitFor(()=>expect(onSaved).toHaveBeenCalledWith(saved));
+  expect(state.api.mock.calls[0][0]).toMatch(/\/mark-request-shared$/);
+  expect(JSON.parse(state.api.mock.calls[0][1].body)).toMatchObject({paymentRequestId:mutation.request.id,channel:'whatsapp',acknowledge:true});
+  view.rerender(<SalePaymentRequests sale={saved} onSaved={onSaved} onRecordDeposit={onRecordDeposit}/>);
+  expect(screen.getByText('Has the deposit arrived?')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{name:'Record deposit'}));expect(onRecordDeposit).toHaveBeenCalledWith(saved.paymentRequests![0]);expect(state.api).toHaveBeenCalledOnce();
 });
 
 it('cancels a request only after confirmation without deleting its record', async () => {
@@ -126,7 +135,7 @@ it.each(['create','email'] as const)('discards a late %s response after switchin
 it('aborts a saved PDF download on unmount without opening a late document',async()=>{
   const mutation=withRequest();let resolve!:(value:unknown)=>void;state.api.mockImplementation(()=>new Promise(done=>{resolve=done;}));
   const busy=vi.fn(),view=render(<SalePaymentRequests sale={mutation.sale} onSaved={vi.fn()} onBusyChange={busy}/>);
-  fireEvent.click(screen.getByRole('button',{name:'PDF'}));const signal=state.api.mock.calls[0][1].signal as AbortSignal;view.unmount();
+  fireEvent.click(screen.getByRole('button',{name:'Download PDF'}));const signal=state.api.mock.calls[0][1].signal as AbortSignal;view.unmount();
   expect(signal.aborted).toBe(true);expect(busy).toHaveBeenLastCalledWith(false);
   await act(async()=>{resolve(new NodeBlob(['%PDF-test'],{type:'application/pdf'}));});
   expect(URL.createObjectURL).not.toHaveBeenCalled();
@@ -141,31 +150,70 @@ it('returns to the new-request form after cancelling an action-only request',asy
   expect(screen.getByLabelText('Amount (£)')).toHaveValue('');expect(screen.getByRole('button',{name:'Request payment'})).toBeDisabled();expect(screen.getByText('Cancelled')).toBeInTheDocument();
 });
 
-it('requires valid penny amounts and starts with the phone preview folded',()=>{
-  const original=window.innerWidth;Object.defineProperty(window,'innerWidth',{configurable:true,value:390});
-  const view=render(<SalePaymentRequests sale={fixture()} actionOnly onSaved={vi.fn()}/>);
-  expect(screen.getByText('View document').closest('details')).not.toHaveAttribute('open');
+it('requires valid penny amounts and has no document preview or background calls',()=>{
+  render(<SalePaymentRequests sale={fixture()} actionOnly onSaved={vi.fn()}/>);
+  expect(screen.queryByText('View document')).not.toBeInTheDocument();expect(screen.queryByRole('button',{name:'Preview PDF'})).not.toBeInTheDocument();
   for(const value of ['0.001','1e3','90071992547409.92']) {fireEvent.change(screen.getByLabelText('Amount (£)'),{target:{value}});expect(screen.getByRole('button',{name:'Request payment'})).toBeDisabled();}
   fireEvent.change(screen.getByLabelText('Amount (£)'),{target:{value:'250.01'}});expect(screen.getByRole('button',{name:'Request £250.01'})).toBeEnabled();
-  expect(state.api).not.toHaveBeenCalled();expect(state.pdf).not.toHaveBeenCalled();view.unmount();Object.defineProperty(window,'innerWidth',{configurable:true,value:original});
+  expect(state.api).not.toHaveBeenCalled();expect(state.pdf).not.toHaveBeenCalled();
 });
 
-it('creates PDF and optional calculation checks only on Preview, clearing old advice when amounts change',async()=>{
-  const sale=fixture();let current=sale;
-  state.api.mockImplementation(async(url:string)=>{if(!url.endsWith('/calculation-check'))throw new Error('Unexpected request');return {status:'checked',message:'The total and balance add up.',financialKey:String(current.revision),totals:saleWorkspaceTotals(current.draft,current.payments),checkedAt:new Date().toISOString(),cached:false};});
-  const view=render(<SalePaymentRequests sale={sale} actionOnly onSaved={vi.fn()}/>);
-  fireEvent.change(screen.getByLabelText('Amount (£)'),{target:{value:'500'}});
-  expect(state.api).not.toHaveBeenCalled();expect(state.pdf).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button',{name:'Preview PDF'}));
-  await waitFor(()=>expect(state.pdf).toHaveBeenCalledOnce());await screen.findByText('The total and balance add up.');expect(state.api).toHaveBeenCalledOnce();
-  await waitFor(()=>expect(screen.getByRole('button',{name:'Preview PDF'})).toBeEnabled());
-  fireEvent.change(screen.getByLabelText('Amount (£)'),{target:{value:'250'}});
-  expect(screen.queryByText('The total and balance add up.')).not.toBeInTheDocument();expect(state.pdf).toHaveBeenCalledOnce();expect(state.api).toHaveBeenCalledOnce();
-  fireEvent.click(screen.getByRole('button',{name:'Preview PDF'}));await waitFor(()=>expect(state.pdf).toHaveBeenCalledTimes(2));expect(state.api).toHaveBeenCalledOnce();
-  current=structuredClone(sale);current.revision++;current.payments=[{id:'new-payment',amount:'100',amountPence:10000,signedAmountPence:10000,kind:'part-payment',status:'confirmed',method:'Cash',date:'2026-11-04',reference:'',recordedBy:'Staff',recordedAt:new Date().toISOString()}];
-  view.rerender(<SalePaymentRequests sale={current} actionOnly onSaved={vi.fn()}/>);
-  expect(screen.queryByText('The total and balance add up.')).not.toBeInTheDocument();expect(state.api).toHaveBeenCalledOnce();expect(state.pdf).toHaveBeenCalledTimes(2);
-  await waitFor(()=>expect(screen.getByRole('button',{name:'Preview PDF'})).toBeEnabled());fireEvent.click(screen.getByRole('button',{name:'Preview PDF'}));
-  await waitFor(()=>expect(state.pdf).toHaveBeenCalledTimes(3));expect(state.api).toHaveBeenCalledTimes(2);
-  expect(state.pdf.mock.calls.at(-1)?.[0].snapshot.totals.balance).toBe(990000);
+it('only offers the deposit next step once email is confirmed sent',async()=>{
+  const mutation=withRequest(),saved=structuredClone(mutation.sale),onSaved=vi.fn(),onRecordDeposit=vi.fn();saved.revision++;
+  saved.emailDeliveries=[{id:'mail-1',documentId:mutation.request.documentId,to:saved.draft.email,status:'sent',attemptedAt:new Date().toISOString()}];
+  state.api.mockResolvedValue({sale:saved});const view=render(<SalePaymentRequests sale={mutation.sale} onSaved={onSaved} onRecordDeposit={onRecordDeposit}/>);
+  fireEvent.click(screen.getByRole('button',{name:'Email PDF'}));fireEvent.click(within(screen.getByRole('dialog')).getByRole('button',{name:'Send payment request email'}));
+  await waitFor(()=>expect(onSaved).toHaveBeenCalledWith(saved));view.rerender(<SalePaymentRequests sale={saved} onSaved={onSaved} onRecordDeposit={onRecordDeposit}/>);
+  expect(screen.getByText('Has the deposit arrived?')).toBeInTheDocument();expect(saved.payments).toHaveLength(0);
+  fireEvent.click(screen.getByRole('button',{name:'Record deposit'}));expect(onRecordDeposit).toHaveBeenCalledWith(saved.paymentRequests![0]);
+});
+
+it.each(['prepared','failed'] as const)('does not advance after an email is %s and retries the same saved request',async(status)=>{
+  const mutation=withRequest(),saved=structuredClone(mutation.sale),onSaved=vi.fn();saved.revision++;
+  saved.emailDeliveries=[{id:'mail-1',documentId:mutation.request.documentId,to:saved.draft.email,status,attemptedAt:new Date().toISOString(),...(status==='failed'?{error:'Sending failed'}:{})}];
+  state.api.mockResolvedValue({sale:saved});const view=render(<SalePaymentRequests sale={mutation.sale} onSaved={onSaved} onRecordDeposit={vi.fn()}/>);
+  fireEvent.click(screen.getByRole('button',{name:'Email PDF'}));fireEvent.click(within(screen.getByRole('dialog')).getByRole('button',{name:'Send payment request email'}));
+  await waitFor(()=>expect(onSaved).toHaveBeenCalledWith(saved));view.rerender(<SalePaymentRequests sale={saved} onSaved={onSaved} onRecordDeposit={vi.fn()}/>);
+  expect(screen.queryByRole('button',{name:'Record deposit'})).not.toBeInTheDocument();
+  if(status==='failed')fireEvent.click(within(screen.getByRole('dialog')).getByRole('button',{name:'Go back'}));
+  fireEvent.click(screen.getByRole('button',{name:status==='failed'?'Retry email':'Email PDF'}));fireEvent.click(within(screen.getByRole('dialog')).getByRole('button',{name:'Send payment request email'}));
+  await waitFor(()=>expect(state.api).toHaveBeenCalledTimes(2));expect(state.api.mock.calls[1][0]).toBe(state.api.mock.calls[0][0]);expect(saved.paymentRequests).toHaveLength(1);
+});
+
+it.each(['sending','unknown'] as const)('blocks another email when its delivery is %s',status=>{
+  const mutation=withRequest(),saved=structuredClone(mutation.sale);
+  saved.emailDeliveries=[{id:'mail-1',documentId:mutation.request.documentId,to:saved.draft.email,status,attemptedAt:new Date().toISOString()}];
+  render(<SalePaymentRequests sale={saved} onSaved={vi.fn()}/>);expect(screen.getByRole('button',{name:'Email PDF'})).toBeDisabled();expect(state.api).not.toHaveBeenCalled();
+});
+
+it('shows an accepted short deposit and keeps the shortfall in the balance',()=>{
+  const mutation=withRequest(),sale=structuredClone(mutation.sale);
+  Object.assign(sale.paymentRequests![0],{status:'accepted',acceptedAmountPence:40000,acceptedAt:new Date().toISOString(),acceptedBy:'Staff',acceptedPaymentId:'p1'});
+  sale.payments.push({id:'p1',amount:'400',amountPence:40000,signedAmountPence:40000,kind:'deposit',status:'confirmed',method:'Bank transfer',date:'2026-11-04',reference:'',recordedAt:new Date().toISOString(),recordedBy:'Staff'});
+  render(<SalePaymentRequests sale={sale} onSaved={vi.fn()} onRecordDeposit={vi.fn()}/>);
+  expect(screen.getByText('£400.00 accepted as the deposit.')).toBeInTheDocument();expect(screen.getByText(/£100.00 less than requested/)).toHaveTextContent('still included in the balance');
+  expect(screen.getByText('Left to pay').parentElement).toHaveTextContent('£9,600.00');expect(screen.queryByRole('button',{name:'Record deposit'})).not.toBeInTheDocument();
+});
+
+it('keeps an overdue request open and only offers reminder or cancel, never automatic release',()=>{
+  const mutation=withRequest(),sale=structuredClone(mutation.sale);sale.paymentRequests![0].dueDate='2020-01-01';sale.paymentRequests![0].deliveryMode='document';
+  render(<SalePaymentRequests sale={sale} onSaved={vi.fn()} onRecordDeposit={vi.fn()}/>);
+  expect(screen.getByText(/will not be released automatically/)).toBeInTheDocument();
+  expect(screen.getByRole('button',{name:'Email reminder'})).toBeEnabled();
+  expect(screen.queryByRole('button',{name:'New request'})).not.toBeInTheDocument();expect(state.api).not.toHaveBeenCalled();
+});
+
+it('does not repeat the money summary when the sale workspace already shows it',()=>{
+  render(<SalePaymentRequests sale={fixture()} onSaved={vi.fn()} actionOnly showMoneySummary={false}/>);
+  expect(screen.queryByText('Vehicle price')).not.toBeInTheDocument();expect(screen.queryByText('Left to pay')).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Amount (£)')).toBeInTheDocument();
+});
+
+it('keeps an accepted older deposit in history while a new balance request is active',()=>{
+  const mutation=withRequest(),sale=structuredClone(mutation.sale);Object.assign(sale.paymentRequests![0],{status:'accepted',acceptedAmountPence:50000});
+  const newer={...mutation.request,id:'next-request',reference:'PAY-next',kind:'balance' as const,amountPence:950000};sale.paymentRequests!.push(newer);
+  render(<SalePaymentRequests sale={sale} onSaved={vi.fn()}/>);
+  expect(screen.getByText('Previous requests (1)').closest('details')).not.toHaveAttribute('open');
+  expect(screen.getByRole('article',{name:'Remaining balance request PAY-next'})).toBeInTheDocument();
+  expect(screen.getByRole('article',{name:`Deposit request ${mutation.request.reference}`})).toHaveClass('sale-request-row-history');
 });

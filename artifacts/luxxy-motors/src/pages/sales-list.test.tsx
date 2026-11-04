@@ -208,7 +208,7 @@ it.each(['refund','note'])('does not claim the calculated balance is owed after 
  state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:[row],hasMore:false}:p==='/api/sale-workspace/paperwork'?{correctionSettings:{handling:'accountant',instructions:''}}:{sale:saved});mount();
  const listRow=await screen.findByRole('button',{name:/Corrected Buyer/});expect(listRow).toHaveTextContent('Review correction with accountant');expect(listRow).toHaveTextContent('Calculated balance (review)');expect(listRow).not.toHaveTextContent('Balance due');
  fireEvent.click(listRow);const detail=(await openCarScreen()).closest('.sale-desk') as HTMLElement;expect(detail).toHaveTextContent('Balance to review');expect(detail).not.toHaveTextContent('Balance due');expect(detail).toHaveTextContent('refunds or external corrections');expect(detail).toHaveTextContent('before relying on the calculated balance');
- navigateSection('Payments');expect(screen.getByText('Balance to review')).toBeVisible();expect(screen.queryByText('Balance due')).not.toBeInTheDocument();expect(screen.getByRole('alert')).toHaveTextContent('before relying on the calculated balance');expect(writes()).toHaveLength(0);
+ navigateSection('Payments');expect(screen.getAllByText('Balance to review').some(element=>element.closest('.sale-desk'))).toBe(true);expect(screen.queryByText('Balance due')).not.toBeInTheDocument();expect(screen.getByRole('alert')).toHaveTextContent('before relying on the calculated balance');expect(writes()).toHaveLength(0);
 });
 
 it('flags an externally corrected deposit invoice even before a sale is completed',async()=>{

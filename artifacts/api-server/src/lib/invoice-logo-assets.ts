@@ -2,22 +2,12 @@ import { createCanvas, loadImage } from '@napi-rs/canvas';
 import type { SaleWorkspaceBranding } from '@workspace/vehicle-meta';
 import { websiteAssetLimits, websiteImageHeader, type WebsiteAssetMime } from './website-asset-image';
 import { builtInMultiChoiceLogoPath, builtInMultiChoiceLogoPngDataUrl } from './built-in-invoice-logo';
-import { currentTenant } from './tenant-context';
+import { usesShippedMultiChoiceLogo } from './published-dealer-logo';
 
 type LogoReadClient = { query: (text: string, parameters?: any[]) => Promise<{ rows: Record<string, any>[] }> };
 const assetPath = /^\/api\/website-assets\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 // Both invoice renderers accept embedded raster data below 1.5 million characters.
 const pdfDataUrlLimit = 1_500_000;
-
-function usesShippedMultiChoiceLogo(dealerId: string, canonicalOrigin: string) {
-  const tenant = currentTenant();
-  if (!tenant || tenant.dealerId !== dealerId) return false;
-  try {
-    const url = new URL(canonicalOrigin), tenantUrl = new URL(tenant.canonicalOrigin);
-    return url.protocol === 'https:' && !url.username && !url.password && !url.port && url.pathname === '/' && !url.search && !url.hash &&
-      ['multichoicemotors.co.uk', 'www.multichoicemotors.co.uk'].includes(url.hostname) && tenantUrl.origin === url.origin && tenantUrl.pathname === '/' && !tenantUrl.search && !tenantUrl.hash && !tenantUrl.username && !tenantUrl.password;
-  } catch { return false; }
-}
 
 function ownedAssetId(value: string, canonicalOrigin: string): string | undefined {
   const relative = assetPath.exec(value);

@@ -14,6 +14,7 @@ import {
 } from "./lib/email-website-branding";
 import { DealerIntegrationsStore } from "./lib/dealer-integrations-store";
 import { previewEmailTemplate } from "./lib/email-template-preview";
+import { runWithTenant } from "./lib/tenant-context";
 
 const custom = {
   ...defaultEmailAppearance,
@@ -125,6 +126,32 @@ test("unsafe logos never become email markup and absent website branding uses fi
     ...website,
   });
   assert.deepEqual(publishedEmailAppearance(), defaultEmailAppearance);
+});
+test("new Multi-Choice emails use the approved published wordmark without changing saved settings", () => {
+  const dealerId = 'multi-choice-fixture';
+  for (const origin of ['https://multichoicemotors.co.uk', 'https://www.multichoicemotors.co.uk']) {
+    for (const logoAsset of ['', '/old-gold-logo.png', '/api/website-assets/12345678-abcd-abcd-abcd-123456789012']) {
+      const settings = { identity: { logoAsset } };
+      const before = JSON.stringify(settings);
+      const branding = runWithTenant({ dealerId, canonicalOrigin: origin, platform: 'cazoo', retailerId: '', sourceUrl: '' }, () => emailWebsiteBranding(settings, origin, dealerId));
+      assert.equal(branding.logoUrl, `${origin}/brand/multi-choice-motors/multi-choice-wordmark.png`);
+      assert.equal(JSON.stringify(settings), before);
+    }
+  }
+});
+test("a fallback origin, dealer name or different tenant never selects Multi-Choice email artwork", () => {
+  const dealerId = 'multi-choice-fixture';
+  const settings = { identity: { logoAsset: 'https://another-dealer.example/logo.png' } };
+  assert.equal(emailWebsiteBranding(settings, 'https://multichoicemotors.co.uk', dealerId).logoUrl, settings.identity.logoAsset);
+  for (const [currentDealer, currentOrigin, suppliedOrigin] of [
+    ['other-dealer', 'https://multichoicemotors.co.uk', 'https://multichoicemotors.co.uk'],
+    [dealerId, 'https://another-dealer.example', 'https://multichoicemotors.co.uk'],
+    [dealerId, 'http://multichoicemotors.co.uk', 'http://multichoicemotors.co.uk'],
+    [dealerId, 'https://multichoicemotors.co.uk.evil.example', 'https://multichoicemotors.co.uk.evil.example'],
+  ]) {
+    const branding = runWithTenant({ dealerId: currentDealer, canonicalOrigin: currentOrigin, platform: 'cazoo', retailerId: '', sourceUrl: '' }, () => emailWebsiteBranding(settings, suppliedOrigin, dealerId));
+    assert.equal(branding.logoUrl, settings.identity.logoAsset);
+  }
 });
 test("new emails use the live origin for retained demo artwork without rewriting external logos or saved settings", () => {
   const previous = process.env.DEMO_BASE_DOMAIN;

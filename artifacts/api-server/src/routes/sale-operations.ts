@@ -45,6 +45,7 @@ router.use("/sale-operations", requireStaff, (_req, res, next) => {
 });
 for (const [action, permission] of [
   ["request-payment", "payments.record"],
+  ["mark-request-shared", "payments.record"],
   ["renew-request-link", "payments.record"],
   ["cancel-request", "payments.record"],
   ["delivery-charge", "sales.manage"],

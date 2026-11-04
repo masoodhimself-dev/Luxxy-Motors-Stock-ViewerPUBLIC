@@ -734,6 +734,7 @@ function scopedStore(): DealerIntegrationsStore {
         return emailWebsiteBranding(
           (row?.config ?? {}) as EmailWebsiteSettings,
           currentTenant()?.canonicalOrigin ?? process.env.PUBLIC_SITE_URL ?? "",
+          id,
         );
       },
     });

@@ -30,6 +30,7 @@ import { executorQuery } from "./query-executor";
 import { archiveSaleDocument } from "./sale-document-pdf";
 import { invoiceEmailAttachments } from "./invoice-email-attachments";
 import { dealerProfile } from "./enquiry-notifications";
+import { salePaymentRequestAvailable, salePaymentRequestRemaining } from "../../../../lib/vehicle-meta/src/sale-operations";
 
 type Executor = Pick<typeof db, "execute">;
 const hash = (value: string) =>
@@ -52,6 +53,7 @@ export type SaleDocumentEmailContext = {
   actorId: string;
   actorName: string;
   attemptedAt: string;
+  templateId?: string;
 };
 function context(row: EmailOutbox): SaleDocumentEmailContext {
   const c = row.validation.saleDocument as SaleDocumentEmailContext | undefined;
@@ -91,6 +93,16 @@ function issued(record: SaleWorkspaceRecord, documentId: string) {
     );
   return { document, archive };
 }
+export function saleDocumentEmailTemplate(record: SaleWorkspaceRecord, document: SaleWorkspaceDocument) {
+  if (document.type === 'payment-request' && document.transaction?.kind === 'payment-request' && document.transaction.requestKind === 'deposit') return 'deposit_request';
+  if (document.type === 'receipt' && record.lifecycle?.status === 'reserved' && record.draft.vehicleId === document.snapshot.draft.vehicleId && record.draft.customer.trim() === document.snapshot.draft.customer.trim() && record.draft.email.trim().toLowerCase() === document.snapshot.draft.email.trim().toLowerCase() && record.payments.some(payment => payment.id === document.paymentId && payment.kind === 'deposit' && payment.status === 'confirmed' && !record.payments.some(row => row.reversesPaymentId === payment.id))) return 'deposit_confirmation';
+  return document.type === 'invoice' ? 'invoice' : document.type === 'statement' ? 'balance_statement' : document.type === 'receipt' ? 'payment_receipt' : 'document_email';
+}
+function assertCurrentPaymentRequest(record: SaleWorkspaceRecord, document: SaleWorkspaceDocument) {
+  if (document.type !== 'payment-request') return;
+  const request = record.paymentRequests?.find(row => row.documentId === document.id);
+  if (!request || !salePaymentRequestAvailable(record, request, new Date().toISOString()) || salePaymentRequestRemaining(record, request) !== request.amountPence) throw new SaleWorkspaceError('This request has changed or money has already been received. Open the current payment details before sending.', 409);
+}
 async function renderInvoice(
   record: SaleWorkspaceRecord,
   document: SaleWorkspaceDocument,
@@ -113,14 +125,7 @@ async function renderInvoice(
       }).format(pence / 100),
     attachments = invoiceEmailAttachments(document, content);
   const rendered = await renderDealerEmail({
-    templateId:
-      document.type === "invoice"
-        ? "invoice"
-        : document.type === "statement"
-          ? "balance_statement"
-          : document.type === "receipt"
-            ? "payment_receipt"
-            : "document_email",
+    templateId: saleDocumentEmailTemplate(record, document),
     variables: {
       customer_name: buyer.customer,
       customer_email: to,
@@ -135,9 +140,8 @@ async function renderInvoice(
       document_type: document.title,
       document_number: document.number,
       issued_at: document.issuedAt,
-      amount: money(
-        document.paymentAmountPence ?? document.snapshot.totals.totalDue,
-      ),
+      amount: money(document.transaction?.kind === 'payment-request' ? document.transaction.amountPence : document.paymentAmountPence ?? document.snapshot.totals.totalDue),
+      vehicle_price: money(document.snapshot.totals.price),
       amount_received: money(document.snapshot.totals.confirmedPaid),
       balance: money(document.balanceAtIssue),
     },
@@ -158,6 +162,7 @@ async function renderInvoice(
         value: money(document.snapshot.totals.confirmedPaid),
       },
       { label: "Balance at issue", value: money(document.balanceAtIssue) },
+      ...(document.transaction?.kind === 'payment-request' ? [{ label: 'Requested now', value: money(document.transaction.amountPence) }, { label: 'Vehicle price', value: money(document.snapshot.totals.price) }] : []),
     ],
     attachments,
   });
@@ -265,6 +270,7 @@ export async function approveSaleDocumentEmail(
         409,
       );
     const frozen = issued(current, input.documentId);
+    assertCurrentPaymentRequest(current, frozen.document);
     if (
       hash(JSON.stringify(frozen.document)) !==
         hash(JSON.stringify(document)) ||
@@ -290,6 +296,7 @@ export async function approveSaleDocumentEmail(
       actorId: input.actorId,
       actorName: input.actorName,
       attemptedAt,
+      templateId: saleDocumentEmailTemplate(current, document),
     };
     const approvedRequest = {
       to: ctx.recipient,
@@ -401,6 +408,8 @@ export async function rebuildSaleDocumentOutbox(
   ).rows[0]?.state as SaleWorkspaceRecord | undefined;
   if (!record) throw new Error("The invoice sale is unavailable.");
   const { document, archive } = issued(record, c.documentId);
+  assertCurrentPaymentRequest(record, document);
+  if (c.templateId === 'deposit_confirmation' && saleDocumentEmailTemplate(record, document) !== 'deposit_confirmation') throw new Error('The deposit or reservation changed. Review the receipt before sending a new confirmation.');
   if (
     hash(JSON.stringify(document)) !== c.documentHash ||
     archive.sha256 !== c.archiveHash ||

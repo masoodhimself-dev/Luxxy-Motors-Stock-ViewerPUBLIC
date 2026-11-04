@@ -10,6 +10,8 @@ const image = await loadImage(svg);
 const canvas = createCanvas(image.width * 2, image.height * 2);
 canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
 const png = (await canvas.encode('png')).toString('base64');
+// Email clients receive the same approved artwork as a static PNG.
+await writeFile(new URL('../../luxxy-motors/public/brand/multi-choice-motors/multi-choice-wordmark.png', import.meta.url), Buffer.from(png, 'base64'));
 const chunks = png.match(/.{1,120}/g).map(chunk => `  '${chunk}',`).join('\n');
 await writeFile(target, `/** Generated from the shipped SVG. Do not hand-edit or load a runtime path/URL.
  * Regenerate: node artifacts/api-server/scripts/generate-built-in-invoice-logo.mjs

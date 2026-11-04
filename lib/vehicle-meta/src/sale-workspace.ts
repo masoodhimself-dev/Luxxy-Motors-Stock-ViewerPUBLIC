@@ -1,4 +1,5 @@
 import { hslColourToHex } from './brand-colour.ts';
+import { salePaymentRequestAvailable, salePaymentRequestRemaining } from './sale-operations.ts';
 /** Shared sale ledger contract and deterministic business rules. No payment processor is called here. */
 export type SaleWorkspaceExchange = { registration: string; description: string; value: string };
 export type SaleWorkspaceAdjustment = { description: string; amount: string; kind: 'fee' | 'discount' };
@@ -8,6 +9,7 @@ export type SaleWorkspacePayment = {
   method: string; date: string; expectedDate?: string; reference: string; kind: SaleWorkspacePaymentKind;
   status: 'pending' | 'confirmed' | 'cancelled'; recordedBy: string; recordedAt: string;
   receiptId?: string; reversesPaymentId?: string; reason?: string;
+  paymentRequestId?: string;
 };
 export type SaleWorkspaceFulfilment = {
   method: 'collection' | 'delivery'; viewed: 'not-yet-viewed' | 'viewed';
@@ -88,7 +90,7 @@ export type SaleWorkspaceDocument = {
   templateVersion?: 'sales-workspace-v2';
   /** Frozen transaction fields; customer documents never parse amounts from prose. */
   transaction?:
-    | { kind: 'payment-request'; requestKind: 'deposit' | 'balance' | 'other'; amountPence: number; dueDate: string; paymentReference: string; saleReference: string; note?: string }
+    | { kind: 'payment-request'; requestKind: 'deposit' | 'balance' | 'other'; showSaleBreakdown?: true; amountPence: number; dueDate: string; paymentReference: string; saleReference: string; note?: string }
     | { kind: 'delivery-invoice'; amountPence: number; saleReference: string; invoiceReferences: string[]; deliveryAddress: string; previousDeliveryPence: number; totalDeliveryPence: number }
     | { kind: 'return-credit'; amountPence: number; originalSaleReference: string; replacementSaleReference: string; originalInvoiceReferences: string[]; reason: string; condition: string; mileage: number }
     | { kind: 'return-only-credit'; amountPence: number; originalSaleReference: string; originalInvoiceReferences: string[]; originalTotalPence: number; unpaidCancelledPence: number; refundDuePence: number; balanceDuePence: number; reason: string; condition: string; mileage: number; returnedDate: string };
@@ -191,7 +193,7 @@ export type SaleWorkspaceRecord = {
   returnInspection?: { at: string; actor: string; note: string };
 };
 export type SaleWorkspaceMutation = { sale: SaleWorkspaceRecord; document?: SaleWorkspaceDocument; replayed?: boolean; preview?: boolean };
-export type SaleWorkspacePaymentInput = { amount: string; method: string; date: string; reference: string; kind: 'deposit' | 'part-payment' | 'final-payment'; status: 'pending' | 'confirmed' };
+export type SaleWorkspacePaymentInput = { amount: string; method: string; date: string; reference: string; kind: 'deposit' | 'part-payment' | 'final-payment'; status: 'pending' | 'confirmed'; paymentRequestId?: string; acceptShortfall?: boolean; reserveConfirmed?: boolean };
 export type SaleWorkspaceCommand =
   | { action: 'update'; draft: SaleWorkspaceDraft }
   | ({ action: 'checklists' } & SaleWorkspaceChecklistInput)
@@ -201,7 +203,7 @@ export type SaleWorkspaceCommand =
   | { action: 'issue-invoice'; kind: 'deposit' | 'full'; acknowledge: boolean }
   | { action: 'finish-invoice-sale'; acknowledge: boolean; acknowledgeOutstanding?: boolean }
   | { action: 'complete-sale'; acknowledge: boolean }
-  | { action: 'confirm'; paymentId: string; date?: string; reserveVehicle?: boolean }
+  | { action: 'confirm'; paymentId: string; date?: string; reserveVehicle?: boolean; acceptShortfall?: boolean; reserveConfirmed?: boolean }
   | { action: 'reverse'; paymentId: string; amount?: string; kind?: 'refund' | 'reversal'; reason: string; date: string; method?: string; invoiceOnly?: boolean }
   /** Internal provider reconciliation; there is no staff API for this command. */
   | { action: 'provider-refund-correction'; paymentId: string; amount: string; reason: string; date: string }
@@ -445,6 +447,30 @@ function reserveReceivedDeposit(record: SaleWorkspaceRecord, context: SaleWorksp
   record.packDocumentIds = [...documentIds, statement.id];
   event(record, context, 'deposit-reserved', 'Deposit received; vehicle reserved for this customer');
 }
+function validatePaymentRequest(record: SaleWorkspaceRecord, payment: SaleWorkspacePayment, input: { paymentRequestId?: string; acceptShortfall?: boolean; reserveConfirmed?: boolean }, context: SaleWorkspaceContext) {
+  if (!input.paymentRequestId) return undefined;
+  const request = record.paymentRequests?.find(row => row.id === input.paymentRequestId);
+  if (!request || !salePaymentRequestAvailable(record, request, context.now)) throw new SaleWorkspaceError('This payment request changed or is already closed. Reload the sale.', 409);
+  if (record.payments.some(row => row.id !== payment.id && row.paymentRequestId === request.id && row.status === 'pending')) throw new SaleWorkspaceError('A payment is already waiting to be checked for this request. Open that payment first.', 409);
+  if (request.kind === 'deposit' && payment.kind !== 'deposit') throw new SaleWorkspaceError('Record this as a deposit for the selected request.');
+  if (payment.status === 'confirmed') {
+    if (request.kind === 'deposit' && input.reserveConfirmed !== true) throw new SaleWorkspaceError('Confirm that the deposit has arrived and this will reserve the car.');
+    if (request.kind === 'deposit' && payment.amountPence < salePaymentRequestRemaining(record, request) && input.acceptShortfall !== true) throw new SaleWorkspaceError('This is less than the requested deposit. Confirm that you accept this amount as the deposit.');
+  }
+  payment.paymentRequestId = request.id;
+  return request;
+}
+function acceptPaymentRequest(record: SaleWorkspaceRecord, request: NonNullable<SaleWorkspaceRecord['paymentRequests']>[number], payment: SaleWorkspacePayment, context: SaleWorkspaceContext) {
+  // Legacy requests already count confirmed funds since their saved baseline.
+  // Keep that settlement basis when the next payment gains an explicit association.
+  const confirmedPaid = saleWorkspaceTotals(record.draft, record.payments).confirmedPaid;
+  const received = request.deliveryMode === 'document'
+    ? record.payments.filter(row => row.paymentRequestId === request.id && row.status === 'confirmed').reduce((sum, row) => sum + row.signedAmountPence, 0)
+    : Math.max(0, confirmedPaid - (request.baselinePaidPence ?? confirmedPaid - payment.amountPence));
+  if (request.kind !== 'deposit' && received < request.amountPence) return;
+  request.status = 'accepted'; request.acceptedAmountPence = received; request.acceptedPaymentId = payment.id; request.acceptedAt = context.now; request.acceptedBy = context.actor;
+  event(record, context, 'payment-request-accepted', `${request.kind === 'deposit' ? 'Deposit' : 'Payment'} request accepted at £${(received / 100).toFixed(2)}${received < request.amountPence ? ` (£${((request.amountPence - received) / 100).toFixed(2)} less than requested; the difference remains to pay)` : ''}`);
+}
 function confirmable(record: SaleWorkspaceRecord, payment: SaleWorkspacePayment) {
   const balance = saleWorkspaceTotals(record.draft, record.payments).balance;
   if (!Number.isSafeInteger(balance)) throw new SaleWorkspaceError('Check the sale amounts before recording this payment.');
@@ -551,10 +577,13 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     if (!method) throw new SaleWorkspaceError('Choose the payment method.');
     const payment: SaleWorkspacePayment = { id: context.nextId(), amount, amountPence, signedAmountPence: amountPence, method, date: command.payment.status === 'confirmed' ? receivedDate(command.payment.date, context.now) : validDate(command.payment.date), reference: text(command.payment.reference ?? '', 200, 'the payment reference'), kind: command.payment.kind, status: command.payment.status, recordedAt: context.now, recordedBy: context.actor };
     if (payment.status === 'pending') payment.expectedDate = payment.date;
+    const linkedRequest = validatePaymentRequest(record, payment, command.payment, context);
+    if (linkedRequest?.kind === 'deposit' && payment.status === 'confirmed' && command.action === 'payment') throw new SaleWorkspaceError('Use Take deposit to confirm and reserve this car.');
     confirmable(record, payment);
     record.payments.push(payment);
+    if (linkedRequest && payment.status === 'confirmed') acceptPaymentRequest(record, linkedRequest, payment, context);
     event(record, context, 'payment-recorded', `${payment.status === 'pending' ? 'Pending' : 'Confirmed'} ${payment.kind.replaceAll('-', ' ')}: £${amount} (${payment.date})`);
-    if (payment.status === 'confirmed' && command.action !== 'invoice-payment') document = receipt(record, context, payment);
+    if (payment.status === 'confirmed' && (command.action !== 'invoice-payment' || Boolean(linkedRequest) || (payment.kind === 'deposit' && command.payment.reserveConfirmed === true))) document = receipt(record, context, payment);
     if (command.action === 'invoice-payment' && payment.kind === 'deposit') {
       record.lifecycle = { status: 'reserved', vehicleId: record.draft.vehicleId, changedAt: context.now };
       event(record, context, 'deposit-reserved', 'Deposit received; vehicle reserved for this customer');
@@ -570,7 +599,10 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     if (command.reserveVehicle) {
       if (payment.kind !== 'deposit' || record.completedAt || record.lifecycle?.status === 'sold') throw new SaleWorkspaceError('Only an active sale deposit can reserve this car.', 409);
     }
+    const linkedRequest = validatePaymentRequest(record, { ...payment, status: 'confirmed' }, { ...command, paymentRequestId: payment.paymentRequestId }, context);
+    if (linkedRequest?.kind === 'deposit' && command.reserveVehicle !== true) throw new SaleWorkspaceError('Confirm that accepting this deposit will reserve the car.');
     confirmable(record, payment); payment.status = 'confirmed'; payment.date = receivedDate(command.date ?? payment.date, context.now); payment.recordedBy = context.actor; payment.recordedAt = context.now;
+    if (linkedRequest) acceptPaymentRequest(record, linkedRequest, payment, context);
     event(record, context, 'payment-confirmed', `Payment confirmed: £${payment.amount}`);
     document = receipt(record, context, payment);
     if (command.reserveVehicle) {
@@ -593,7 +625,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
       if (command.kind && !['refund', 'reversal'].includes(command.kind)) throw new SaleWorkspaceError('Choose refund or reversal.');
       const method = command.method === undefined ? original.method : text(command.method, 100, 'the refund method');
       if (!method) throw new SaleWorkspaceError('Choose the refund or correction method.');
-      const payment: SaleWorkspacePayment = { id: context.nextId(), amount, amountPence, signedAmountPence: -amountPence, method, date, reference: original.reference, kind: command.kind ?? 'refund', status: 'confirmed', recordedAt: context.now, recordedBy: context.actor, reversesPaymentId: original.id, reason };
+      const payment: SaleWorkspacePayment = { id: context.nextId(), amount, amountPence, signedAmountPence: -amountPence, method, date, reference: original.reference, kind: command.kind ?? 'refund', status: 'confirmed', recordedAt: context.now, recordedBy: context.actor, reversesPaymentId: original.id, reason, ...(original.paymentRequestId ? { paymentRequestId: original.paymentRequestId } : {}) };
       record.payments.push(payment); event(record, context, 'payment-corrected', `${payment.kind}: £${amount}. ${reason}`); if (!command.invoiceOnly) document = receipt(record, context, payment);
     }
   } else if (command.action === 'provider-refund-correction') {
@@ -604,7 +636,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     const { amount, amountPence } = positiveMoney(command.amount);
     const refunded = -record.payments.filter(row => row.reversesPaymentId === original.id && row.status === 'confirmed').reduce((sum, row) => sum + row.signedAmountPence, 0);
     if (amountPence > refunded) throw new SaleWorkspaceError('The refund correction cannot exceed the recorded net refund.');
-    const payment: SaleWorkspacePayment = { id: context.nextId(), amount, amountPence, signedAmountPence: amountPence, method: original.method, date: receivedDate(command.date, context.now), reference: original.reference, kind: 'refund-correction', status: 'confirmed', recordedAt: context.now, recordedBy: context.actor, reversesPaymentId: original.id, reason };
+    const payment: SaleWorkspacePayment = { id: context.nextId(), amount, amountPence, signedAmountPence: amountPence, method: original.method, date: receivedDate(command.date, context.now), reference: original.reference, kind: 'refund-correction', status: 'confirmed', recordedAt: context.now, recordedBy: context.actor, reversesPaymentId: original.id, reason, ...(original.paymentRequestId ? { paymentRequestId: original.paymentRequestId } : {}) };
     // Restore confirmed funds even if later payments create a customer credit. This is a correction
     // of an external fact, never a new charge, and every prior receipt remains immutable.
     record.payments.push(payment); event(record, context, 'refund-status-corrected', `Refund correction: £${amount}. ${reason}`); document = receipt(record, context, payment);

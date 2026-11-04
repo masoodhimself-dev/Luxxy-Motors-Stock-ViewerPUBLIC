@@ -14,7 +14,7 @@ const present = (s: string | null | undefined): s is string => typeof s === 'str
  */
 export function renderInvoice(data: InvoiceData, options: RenderOptions) {
   if (!present(data.number) || !present(data.issueDate)) throw new Error('Invoice number and issue date are required.');
-  if (!['Deposit Invoice', 'Sales Invoice', 'Payment Request', 'Delivery Invoice', 'Return Credit Note', 'Payment Receipt', 'Refund Receipt', 'Payment Adjustment', 'Balance Statement'].includes(data.type)) throw new Error('Unsupported invoice type.');
+  if (!['Deposit Invoice', 'Sales Invoice', 'Deposit Request', 'Payment Request', 'Delivery Invoice', 'Return Credit Note', 'Payment Receipt', 'Refund Receipt', 'Payment Adjustment', 'Balance Statement'].includes(data.type)) throw new Error('Unsupported invoice type.');
   for (const [name, amount] of Object.entries(data.totals)) if (!present(amount)) throw new Error(`Missing supplied total: ${name}`);
   for (const group of [data.saleLines, data.confirmedPayments]) {
     const seen = new Set<string>();

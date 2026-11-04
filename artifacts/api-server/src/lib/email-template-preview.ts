@@ -28,6 +28,7 @@ export const sampleEmailVariables: Record<string, string> = {
   document_number: "INV-SAMPLE",
   document_type: "Invoice",
   amount: "£100.00",
+  vehicle_price: "£12,500.00",
   amount_received: "£100.00",
   balance: "£12,400.00",
   payment_status: "confirmed",

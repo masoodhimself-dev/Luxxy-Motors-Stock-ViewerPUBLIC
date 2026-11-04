@@ -66,6 +66,8 @@ export type TemplateId =
   | "reservation_refund"
   | "invoice"
   | "payment_receipt"
+  | "deposit_request"
+  | "deposit_confirmation"
   | "balance_statement"
   | "document_email"
   | "customer_access_link";

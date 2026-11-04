@@ -54,6 +54,8 @@ const documentIds = new Set([
   "invoice",
   "invoice_copy",
   "payment_receipt",
+  "deposit_request",
+  "deposit_confirmation",
   "balance_statement",
   "document_email",
 ]);

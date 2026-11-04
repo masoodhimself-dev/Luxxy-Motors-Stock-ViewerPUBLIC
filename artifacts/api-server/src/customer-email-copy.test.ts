@@ -55,3 +55,17 @@ test('general enquiries do not invent a selected vehicle or repeat dealership br
   assert.ok(!rendered.html.includes('Your vehicle'));
   assert.match(rendered.bodyText, /during opening hours/);
 });
+
+
+test('deposit emails use simple request and received copy without generating a payment link', () => {
+  const request = previewEmailTemplate('deposit_request', template('deposit_request'));
+  assert.match(request.bodyText, /Thank you for choosing Example Motors/);
+  assert.match(request.bodyText, /£100.00 deposit request/);
+  assert.match(request.bodyText, /vehicle price is £12,500.00/);
+  assert.match(request.bodyText, /Once we confirm your deposit has arrived/);
+  assert.doesNotMatch(request.bodyText, /500 people|pay now|https?:|already reserved/);
+  const confirmation = previewEmailTemplate('deposit_confirmation', template('deposit_confirmation'));
+  assert.match(confirmation.bodyText, /received your deposit of £100.00/);
+  assert.match(confirmation.bodyText, /reserved the car for you/);
+  assert.match(confirmation.bodyText, /when the deposit was recorded/);
+});

@@ -60,6 +60,17 @@ export function salesDocumentPresentation(document: SaleWorkspaceDocument): Invo
       facts: [{ label: 'Sale reference', value: clean(transaction.saleReference) }, { label: 'Payment reference', value: clean(transaction.paymentReference) }, { label: 'Due date', value: salesDocumentDate(transaction.dueDate) }],
       saleLines: [{ id: 'request-amount', description: label, amount: amount(transaction.amountPence) }],
       summaryRows: [{ label: 'Amount requested', amount: amount(transaction.amountPence), emphasis: true }], terms: transaction.note ? lines(transaction.note) : [], termsHeading: 'Payment note', verification: undefined, pendingNote: undefined });
+    if (transaction.showSaleBreakdown) Object.assign(data, {
+      type: transaction.requestKind === 'deposit' ? 'Deposit Request' : 'Payment Request',
+      saleLinesHeading: 'Agreed sale', saleLines,
+      summaryRows: [
+        { label: 'Sale total', amount: amount(totals.totalDue) },
+        { label: 'Already paid / credit', amount: amount(totals.confirmedPaid) },
+        { label: 'Outstanding before this request', amount: amount(document.balanceAtIssue) },
+        { label, amount: amount(transaction.amountPence), emphasis: true },
+        { label: 'Balance if this payment is received', amount: amount(Math.max(0, document.balanceAtIssue - transaction.amountPence)) },
+      ],
+    });
   } else if (document.type === 'delivery-invoice') {
     if (transaction?.kind !== 'delivery-invoice') throw new SaleWorkspaceError('The delivery invoice is missing its saved charge details.');
     Object.assign(data, { type: 'Delivery Invoice', saleLinesHeading: 'Additional delivery charge', hidePaymentHistory: true, settlementStatus: 'Additional charge at issue', notice: 'This invoice charges the additional delivery amount only. The vehicle price remains on the original sales invoice.',
