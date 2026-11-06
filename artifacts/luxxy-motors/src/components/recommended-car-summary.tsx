@@ -1,3 +1,4 @@
+import { vehicleDetailPath } from '@workspace/vehicle-meta';
 import { Link } from 'wouter';
 import type { Car } from '@/lib/stock-context';
 import { formatMileage, formatPrice, vehicleDisplayTitle, vehicleRegistration } from '@/lib/utils';
@@ -18,7 +19,7 @@ export function RecommendedCarSummary({ car, onOpen, stretchedLink, includedItem
   stretchedLink: boolean;
   includedItems?: string[];
 }) {
-  const title = vehicleDisplayTitle(car), href = `/vehicle/${car.id}`;
+  const title = vehicleDisplayTitle(car), href = vehicleDetailPath(car);
   const registration = vehicleRegistration(car), variant = stockVariant(car);
   const engineCC = Number(car.engineCC);
   const highlights = [...new Set([...includedItems.slice(0, 1), ...stockCardSellingPoints(car).filter(point => !/\bwarranty\b/i.test(point))])].slice(0, 2);

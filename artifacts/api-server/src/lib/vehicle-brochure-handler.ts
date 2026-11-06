@@ -1,3 +1,4 @@
+import { vehicleDetailPath } from '@workspace/vehicle-meta';
 import { createHash } from 'node:crypto';
 import { selectBrochurePhotos, brochureOptions, brochureFilename, brochurePhotos, renderVehicleBrochure, type BrochureDealer, type BrochureVehicle, type LoadedPhoto, type BrochurePhoto } from './vehicle-brochure';
 import { loadBrochurePhotos } from './vehicle-brochure-images';
@@ -21,7 +22,7 @@ export function createBrochureHandler(dependencies: {
       const vehicle = await dependencies.findVehicle(id);
       if (!vehicle) return error(404, 'This vehicle is no longer available. Return to the showroom for current stock.');
       const dealer = await dependencies.readDealer();
-      const vehicleUrl = origin ? `${origin}/vehicle/${encodeURIComponent(id)}` : '';
+      const vehicleUrl = origin ? `${origin}${vehicleDetailPath(vehicle)}` : '';
       const key = createHash('sha256').update(JSON.stringify({ vehicle, dealer, vehicleUrl, preview: dependencies.preview })).digest('hex');
       const cached = cache.get(key);
       let bytes = cached && cached.expires > Date.now() ? cached.bytes : undefined;

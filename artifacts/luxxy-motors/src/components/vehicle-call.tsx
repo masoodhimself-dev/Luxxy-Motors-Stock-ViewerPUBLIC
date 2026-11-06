@@ -14,6 +14,7 @@ import {
 import { dealershipLocation } from '@/lib/dealership-location';
 import { VehicleDialogVehicle, useVehicleDialogTheme } from '@/components/vehicle-dialog-vehicle';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
+import { isMultiChoiceWebsite } from '@/lib/multi-home-scope';
 import { getPhoneHref, recordContactIntent } from '@/lib/cta-helpers';
 import { formatPhoneDisplay, vehicleDisplayTitle, vehicleRegistration } from '@/lib/utils';
 import type { Car } from '@/lib/stock-context';
@@ -68,6 +69,10 @@ export function VehicleCall({
   const label = vehicleDisplayTitle(car);
   const showCallback = callbackForm && (features.enabled('publicEnquiries') || callback.isSuccess);
   const receivedCallbackTime = callback.data?.followUpAt ? showroomOpeningLabel(callback.data.followUpAt) : null;
+  const configuredVisitInstructions = detailsReady ? settings.presentation?.visitInstructions?.trim() ?? '' : '';
+  const visitInstructions = isMultiChoiceWebsite()
+    ? 'Visits are by appointment only. Please contact us to arrange a time before travelling.'
+    : /^(sample|example|placeholder)\b|replace this|tell customers/i.test(configuredVisitInstructions) ? '' : configuredVisitInstructions;
 
   const showroomInformation = (
     <section className="vehicle-call-showroom" aria-label="Showroom information">
@@ -168,7 +173,8 @@ export function VehicleCall({
           </div>
 
           <div className="vehicle-call-content">
-          <VehicleDialogVehicle car={car} />
+          <VehicleDialogVehicle car={car} showRegistrationPlate />
+          {visitInstructions && <p className="vehicle-call-visit-note">{visitInstructions}</p>}
 
           {!showCallback && <div className="vehicle-call-contact" data-closed={detailsReady && hours.state === 'closed'}>
             <div className="vehicle-call-contact-actions">

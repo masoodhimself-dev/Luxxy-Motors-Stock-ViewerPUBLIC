@@ -272,7 +272,7 @@ describe('Shared dealership style migration on real customer workflows', () => {
     expect(state.mutate).not.toHaveBeenCalled();
   });
 
-  it('themes the actual MOT history dialog and retains advisory/pass distinctions without making outbound writes', async () => {
+  it('themes the actual MOT history dialog and shows the public summary without advisory details or outbound writes', async () => {
     state.fetch.mockImplementation((url: string) => Promise.resolve(url.includes('cacheOnly') ? { status: 'uncached' } : {
       status: 'available', history: {
         registration: 'AB12CDE', make: 'FORD', model: 'FIESTA', checkedAt: '2026-11-02T08:00:00Z', recall: 'Unknown',
@@ -284,11 +284,11 @@ describe('Shared dealership style migration on real customer workflows', () => {
     const pass = await screen.findByText('Latest test: Passed');
     const dialog = screen.getByRole('dialog');
     expect(view.container).not.toContainElement(dialog);
-    expect(property(dialog, 'border-radius')).toBe('8px');
+    expect(property(dialog, 'border-radius')).toBe('16px');
     expect(property(within(dialog).getByRole('heading', { name: 'MOT history' }), 'font-weight')).toBe('700');
-    expect(pass.className).toContain('emerald');
-    const advisory = within(dialog).getByText(/Tyre worn close/);
-    expect(advisory.closest('details')).not.toHaveAttribute('open');
+    expect(pass).toHaveAttribute('data-result', 'PASSED');
+    expect(within(dialog).queryByText(/Tyre worn close/)).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('link', { name: 'View full MOT history on GOV.UK' })).toBeVisible();
     await waitFor(() => expect(state.fetch).toHaveBeenCalledTimes(2));
     expect(state.fetch.mock.calls.every(([, options]) => !options?.method || options.method === 'GET')).toBe(true);
     expect(state.mutate).not.toHaveBeenCalled();

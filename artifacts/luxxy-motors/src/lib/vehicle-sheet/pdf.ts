@@ -85,7 +85,8 @@ async function imageSnapshot(image: HTMLImageElement, doc: Document, signal: Abo
     const source = image.currentSrc || image.src;
     if (!/^https?:\/\//i.test(source)) throw new Error(EXPORT_ERROR);
     const vehicleUrl = new URL(doc.querySelector<HTMLAnchorElement>('.lvs-url[href]')?.href || '');
-    const vehicleId = /^\/vehicle\/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\/?$/i.exec(vehicleUrl.pathname)?.[1];
+    const suppliedVehicleId = doc.querySelector<HTMLElement>('.lvs-page[data-vehicle-id]')?.dataset.vehicleId;
+    const vehicleId = suppliedVehicleId && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(suppliedVehicleId) ? suppliedVehicleId : /^\/vehicle\/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\/?$/i.exec(vehicleUrl.pathname)?.[1];
     if (vehicleUrl.protocol !== 'https:' || vehicleUrl.username || vehicleUrl.password || !vehicleId) throw new Error(EXPORT_ERROR);
     const endpoint = new URL(`/api/vehicles/${vehicleId}/sheet-image`, doc.defaultView!.parent.location.origin);
     endpoint.searchParams.set('source', source);

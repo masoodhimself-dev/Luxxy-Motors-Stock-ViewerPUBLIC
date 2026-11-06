@@ -1,5 +1,5 @@
 import type { Car } from './stock-context';
-import type { MotHistory } from '@workspace/vehicle-meta';
+import { vehicleDetailPath, type PublicVehicleLink, type MotHistory } from '@workspace/vehicle-meta';
 import type { DealerConfig } from '@/config/dealer';
 import { vehicleDisplayTitle, formatPhoneDisplay } from './utils';
 import { prioritiseVehicleFeatures } from './vehicle-content';
@@ -58,9 +58,9 @@ function confirmedInclusions(car: Car, description: string | null) {
 }
 
 /** Public QR destinations follow the dealership domain, including on old aliases. */
-export function vehicleSheetLocation(id: string, doc = document) {
+export function vehicleSheetLocation(vehicle: string | PublicVehicleLink, doc = document) {
   const origin = publicDealershipOrigin(doc);
-  return { origin, url: `${origin}/vehicle/${encodeURIComponent(id)}` };
+  return { origin, url: `${origin}${vehicleDetailPath(typeof vehicle === 'string' ? { id: vehicle } : vehicle)}` };
 }
 
 /** This tenant-bound asset endpoint can safely use the current dealership alias.
@@ -124,6 +124,6 @@ export function buildVehicleSheetData(car: Car, dealer: DealerConfig, features: 
       disclosures,
       photos: data.photos.map(photo => ({ src: new URL(photo.src, window.location.origin).href, alt: photo.caption || vehicleDisplayTitle(car) })),
     },
-    document: { vehiclePageUrl: url, printedDate: new Date().toLocaleDateString('en-GB') },
+    document: { vehicleId: car.id, vehiclePageUrl: url, printedDate: new Date().toLocaleDateString('en-GB') },
   };
 }

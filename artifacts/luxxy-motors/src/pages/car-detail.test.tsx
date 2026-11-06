@@ -152,8 +152,11 @@ it('shares the server-rendered vehicle preview link', async () => {
   vi.stubGlobal('navigator', Object.create(window.navigator, { share: { value: share } }));
   renderVehicle('with-plate');
   fireEvent.click(screen.getByRole('button', { name: 'Share this vehicle' }));
+  expect(screen.getByRole('dialog', { name: 'Share this car' })).toBeInTheDocument();
+  expect(share).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'More apps' }));
   await waitFor(() => expect(share).toHaveBeenCalledWith({
-    title: 'BMW 3 Series', url: `${window.location.origin}/share/vehicle/with-plate`,
+    title: 'BMW 3 Series', text: 'BMW 3 Series · £4,995', url: `${window.location.origin}/share/vehicle/with-plate`,
   }));
 });
 
@@ -222,12 +225,13 @@ describe('vehicle detail link preview', () => {
   });
 });
 
-it('offers printing through More vehicle tools', () => {
+it('offers printing inside the share menu', () => {
   renderVehicle('with-plate');
-  fireEvent.click(screen.getByRole('button', { name: 'More vehicle tools' }));
-  const link = screen.getByRole('button', { name: 'Print vehicle details for BMW 3 Series' });
+  fireEvent.click(screen.getByRole('button', { name: 'Share this vehicle' }));
+  fireEvent.click(screen.getByText('More ways to share'));
+  const link = screen.getByRole('button', { name: 'Print or download details for BMW 3 Series' });
   expect(link).toHaveAttribute('type', 'button');
-  expect(link.closest('[data-popup-surface="popover"]')).not.toBeNull();
+  expect(link.closest('[role="dialog"]')).not.toBeNull();
 });
 
 it.each([false, true])('places one decorative make mark beside the Multi-Choice vehicle title (phone: %s)', isPhone => {
@@ -312,7 +316,7 @@ it('shows vehicle context only with the expanded message form and retains the un
   renderVehicle('with-plate', { ...dealerConfig, identity: { ...dealerConfig.identity, name: 'This Dealer' }, presentation: { includedItems: ['6 months warranty'] } });
   const disclosure = document.getElementById('vehicle-enquiry') as HTMLDetailsElement;
   expect(screen.queryByTestId('vehicle-enquiry-information')).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('link', { name: 'Message the showroom' }));
+  fireEvent.click(within(document.querySelector('.vehicle-summary-main-actions') as HTMLElement).getByRole('link', { name: 'Message' }));
   const sidebar = await screen.findByTestId('vehicle-enquiry-information');
   expect(within(sidebar).getByRole('heading', { name: 'BMW 3 Series' })).toBeInTheDocument();
   expect(sidebar).toHaveTextContent('6 months warranty');
@@ -321,7 +325,7 @@ it('shows vehicle context only with the expanded message form and retains the un
   fireEvent.change(message, { target: { value: 'Can I see this car on Saturday?' } });
   await act(async () => { disclosure.open = false; fireEvent(disclosure, new Event('toggle')); });
   await waitFor(() => expect(screen.queryByTestId('vehicle-enquiry-information')).not.toBeInTheDocument());
-  fireEvent.click(screen.getByRole('link', { name: 'Message the showroom' }));
+  fireEvent.click(within(document.querySelector('.vehicle-summary-main-actions') as HTMLElement).getByRole('link', { name: 'Message' }));
   await screen.findByTestId('vehicle-enquiry-information');
   expect(screen.getByTestId('textarea-enquiry-message')).toBe(message);
   expect(message).toHaveValue('Can I see this car on Saturday?');
@@ -339,15 +343,16 @@ it('keeps service and part-exchange contact routes usable when online enquiries 
   expect(screen.queryByTestId('form-enquiry')).not.toBeInTheDocument();
 });
 
-it('omits empty extra options while keeping sharing visible and printing in More', () => {
+it('keeps sharing visible and groups printing inside it', () => {
   window.history.pushState({}, '', '/vehicle/with-plate');
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(getGetDealerSettingsQueryKey(), { ...dealerConfig, partExchange: { ...dealerConfig.partExchange, enabled: false }, onlineReservation: { enabled: false, depositPence: 10000, terms: '' }, presentation: { ...dealerConfig.presentation, comparisonEnabled: false } });
   render(<QueryClientProvider client={client}><SavedCarsProvider><CarDetail /></SavedCarsProvider></QueryClientProvider>);
   expect(screen.queryByTestId('vehicle-secondary-actions')).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Share this vehicle' })).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'More vehicle tools' }));
-  expect(screen.getByRole('button', { name: 'Print vehicle details for BMW 3 Series' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Share this vehicle' }));
+  fireEvent.click(screen.getByText('More ways to share'));
+  expect(screen.getByRole('button', { name: 'Print or download details for BMW 3 Series' })).toBeInTheDocument();
 });
 
 it('discloses a supplied insurance category alongside the price without inferring it from prose', () => {
@@ -364,23 +369,19 @@ it('discloses a supplied insurance category alongside the price without inferrin
   expect(screen.queryByRole('link', { name: /recorded insurance history/ })).not.toBeInTheDocument();
 });
 
-it('hands a typed quick-answer question to the manual message form without losing an existing draft', async () => {
+it('adds a service-record request to the message form without losing an existing draft', async () => {
   featureState.data.features.publicEnquiries = true;
   const scrollIntoView = vi.fn();
   Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: scrollIntoView });
   renderVehicle('with-plate');
   const disclosure = document.getElementById('vehicle-enquiry') as HTMLDetailsElement;
   expect(disclosure.open).toBe(false);
-  fireEvent.click(screen.getByRole('link', { name: 'Message the showroom' }));
+  fireEvent.click(within(document.querySelector('.vehicle-summary-main-actions') as HTMLElement).getByRole('link', { name: 'Message' }));
   const message = screen.getByTestId('textarea-enquiry-message');
   await waitFor(() => expect(disclosure.open).toBe(true));
   fireEvent.change(message, { target: { value: 'I would like to visit on Saturday.' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Quick answers' }));
-  const dialog = await screen.findByRole('dialog', { name: 'Quick answers' });
-  fireEvent.change(within(dialog).getByRole('textbox', { name: /^Search (?:these|all) answers$/ }), { target: { value: 'Can you measure the boot opening for me?' } });
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Ask our team' }));
-  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Quick answers' })).not.toBeInTheDocument());
-  await waitFor(() => expect(message).toHaveValue('I would like to visit on Saturday.\n\nCan you measure the boot opening for me?'));
+  fireEvent.click(screen.getByRole('button', { name: /Request service records/ }));
+  await waitFor(() => expect(message).toHaveValue('I would like to visit on Saturday.\n\nPlease send the available service-book photos and service records for this car.'));
   // The destination page also schedules a focus/scroll frame. Check the final
   // destination after that frame, rather than the form's earlier draft effect.
   await act(async () => { await new Promise<void>(resolve => requestAnimationFrame(() => resolve())); });
@@ -448,11 +449,11 @@ describe('vehicle gallery contact policy', () => {
     featureState.data.features.publicEnquiries = true;
     renderVehicle('with-plate', settings());
     expect(primaryActions().querySelector('[data-vehicle-contact="booking"]')).toHaveAttribute('href', '/enquire?type=viewing&vehicleId=with-plate');
-    expect(within(primaryActions()).getByRole('link', { name: 'Message the showroom' })).toHaveAttribute('href', '#vehicle-enquiry');
+    expect(within(primaryActions()).getByRole('link', { name: 'Message' })).toHaveAttribute('href', '#vehicle-enquiry');
     selectTenthPhoto();
     expectUninterruptedGallery();
     expect((document.getElementById('vehicle-enquiry') as HTMLDetailsElement).open).toBe(false);
-    fireEvent.click(within(primaryActions()).getByRole('link', { name: 'Message the showroom' }));
+    fireEvent.click(within(primaryActions()).getByRole('link', { name: 'Message' }));
     await waitFor(() => expect((document.getElementById('vehicle-enquiry') as HTMLDetailsElement).open).toBe(true));
     expect(screen.getByTestId('form-enquiry')).toBeVisible();
     expect(screen.queryByTestId('status-enquiry-success')).not.toBeInTheDocument();
@@ -485,7 +486,7 @@ describe('vehicle gallery contact policy', () => {
     expect(primaryActions().querySelector('[data-vehicle-contact="booking"]')).toBeNull();
     selectTenthPhoto();
     expectUninterruptedGallery();
-    fireEvent.click(within(primaryActions()).getByRole('link', { name: 'Message the showroom' }));
+    fireEvent.click(within(primaryActions()).getByRole('link', { name: 'Message' }));
     await waitFor(() => expect(screen.getByTestId('form-enquiry')).toBeVisible());
   });
 
@@ -497,7 +498,7 @@ describe('vehicle gallery contact policy', () => {
     expect(screen.queryByTestId('form-enquiry')).not.toBeInTheDocument();
     expect(document.querySelector('.vehicle-photo-request')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Quick answers' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Message the showroom' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Message' })).not.toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Contact about this vehicle' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'View gallery fullscreen' }));
     const dialog = await screen.findByRole('dialog');
@@ -510,9 +511,9 @@ describe('vehicle gallery contact policy', () => {
     renderVehicle('with-plate', settings());
     selectTenthPhoto();
     expectUninterruptedGallery();
-    expect(document.querySelector('.vehicle-direct-contact a')).toHaveAttribute('href', 'tel:07388831790');
+    expect(document.querySelector('.vehicle-action-tools a')).toHaveAttribute('href', 'tel:07388831790');
     expect(primaryActions().querySelector('[data-vehicle-contact="booking"]')).toBeNull();
-    expect(screen.queryByRole('link', { name: 'Message the showroom' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Message' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Quick answers' })).not.toBeInTheDocument();
     const sticky = screen.getByRole('navigation', { name: 'Contact about this vehicle' });
     expect(within(sticky).getByRole('link', { name: /Call/ })).toBeInTheDocument();
@@ -526,8 +527,8 @@ describe('vehicle gallery contact policy', () => {
     selectTenthPhoto();
     expectUninterruptedGallery();
     expect(primaryActions().querySelector('[data-vehicle-contact="booking"]')).toBeNull();
-    expect(within(primaryActions()).getByRole('link', { name: 'Message the showroom' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Quick answers' })).toBeInTheDocument();
+    expect(within(primaryActions()).getByRole('link', { name: 'Message' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Questions about this car' })).toBeInTheDocument();
   });
 });
 
@@ -644,7 +645,8 @@ it('keeps MOT in History and makes both delivery entries open the same estimate 
   expect(within(header).queryByRole('button', { name: 'MOT history' })).toBeNull();
   expect(within(header).queryByRole('button', { name: 'Delivery estimate' })).toBeNull();
   expect(screen.getByRole('button', { name: 'MOT history' }).closest('section')).toHaveAttribute('aria-labelledby', 'vehicle-records-heading');
-  const early = within(document.querySelector('.vehicle-help-links') as HTMLElement).getByRole('button', { name: 'Delivery estimate' });
+  fireEvent.click(document.querySelector('.vehicle-buying-options summary') as HTMLElement);
+  const early = within(document.querySelector('.vehicle-buying-options') as HTMLElement).getByRole('button', { name: 'Delivery estimate' });
   const later = within(screen.getByRole('region', { name: 'Delivery to your door' })).getByRole('button', { name: 'Delivery estimate' });
   expect(screen.getAllByRole('button', { name: 'Delivery estimate' })).toHaveLength(2);
   for (const action of [early, later]) {

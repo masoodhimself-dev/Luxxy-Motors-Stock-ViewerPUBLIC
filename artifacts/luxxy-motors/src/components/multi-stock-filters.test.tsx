@@ -722,6 +722,10 @@ describe("mobile stock drawer", () => {
     );
     render(<Harness initial={{ make: "Ford" }} showResults={showResults} />);
     const { dialog } = await openDrawer();
+    expect(within(dialog).getAllByRole('heading')).toHaveLength(1);
+    expect(within(dialog).getByRole('heading', { name: 'Filter cars' })).toBeVisible();
+    expect(within(dialog).getAllByRole('button', { name: /Clear filters|Clear All|Clear all|Reset/ })).toHaveLength(1);
+    expect(within(dialog).getByRole('region', { name: 'Your selected filters' })).toHaveTextContent('Ford');
     expect(
       within(dialog).getByRole("button", { name: "Show 2 cars" }),
     ).toBeEnabled();
@@ -741,6 +745,17 @@ describe("mobile stock drawer", () => {
     await waitFor(() => expect(showResults).toHaveBeenCalledTimes(1));
     expect(screen.getByTestId("results-focus")).toHaveFocus();
     expect(state().make).toBe("");
+  });
+
+  it('removes selected filters from inside the drawer without closing it or losing focus to the page', async () => {
+    render(<Harness initial={{ make: 'Ford', maxPrice: '9000', search: 'Ford' }} />);
+    const { dialog } = await openDrawer();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove maximum price filter' }));
+    expect(state()).toMatchObject({ make: 'Ford', maxPrice: '', search: 'Ford' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove keyword filter' }));
+    expect(state()).toMatchObject({ make: 'Ford', search: '' });
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Show 2 cars' })).toBeEnabled();
   });
 
   it("defaults to trigger focus when Show results has no focus/scroll callback", async () => {

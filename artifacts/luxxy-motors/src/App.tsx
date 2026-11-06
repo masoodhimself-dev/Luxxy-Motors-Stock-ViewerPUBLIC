@@ -83,6 +83,8 @@ function Router() {
           <Route path="/"><Home key="home" /></Route>
           <Route path="/stock"><Home key="stock" browseStock /></Route>
           <Route path="/vehicle/:id" component={CarDetail} />
+          <Route path="/cars/:slug" component={CarDetail} />
+          <Route path="/s/:code" component={CarDetail} />
           <Route path="/saved" component={Saved} />
           <Route path="/platform" component={Platform} />
           <Route path="/portal" component={Portal} />

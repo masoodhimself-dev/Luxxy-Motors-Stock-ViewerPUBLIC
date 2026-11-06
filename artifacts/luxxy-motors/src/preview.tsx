@@ -27,6 +27,7 @@ const InvoiceVerification = lazy(() => import('@/pages/invoice-verification'));
 const Viewing = lazy(() => import("@/pages/viewing"));
 const TestDriveDeclaration = lazy(() => import('@/pages/test-drive-declaration'));
 const DeliveryEvidence = lazy(() => import('@/pages/delivery-evidence'));
+const CustomerChecksPage = lazy(() => import('../preview/customer-checks-page'));
 const PaymentRequest = lazy(() => import('@/pages/payment-request'));
 import './index.css';
 
@@ -51,6 +52,7 @@ createRoot(document.getElementById('root')!).render(
               <PreviewLayout>
                 <Suspense fallback={<RouteLoading />}>
                   <Switch>
+                  <Route path="/__preview/vehicle-checks" component={CustomerChecksPage} />
                   <Route path="/portal/sales-demo" component={SalesDemo} />
                   <Route path="/platform"><div role="note" className="mx-6 mt-5 rounded-lg bg-secondary p-4 text-sm">Example dealerships · Domain activation and import credentials require the real backend.</div><Platform /></Route>
                   <Route path="/join" component={JoinDealership} />
@@ -59,6 +61,8 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="/"><Home key="home" /></Route>
                   <Route path="/stock"><Home key="stock" browseStock /></Route>
                   <Route path="/vehicle/:id" component={CarDetail} />
+                  <Route path="/cars/:slug" component={CarDetail} />
+                  <Route path="/s/:code" component={CarDetail} />
                   <Route path="/saved" component={Saved} />
                   <Route path="/enquire" component={Enquire} />
                   <Route path="/contact" component={Contact} />

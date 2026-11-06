@@ -1,3 +1,4 @@
+import { vehicleSharePath } from '@workspace/vehicle-meta';
 import { getRecordContactIntentUrl } from '@workspace/api-client-react';
 import { dealerConfig } from '@/config/dealer';
 import type { Car } from '@/lib/stock-context';
@@ -47,17 +48,9 @@ function getVehicleLabel(car: Car) {
   return car.title || [car.make, car.model].filter(Boolean).join(' ') || 'this vehicle';
 }
 
-/**
- * The link to hand to someone outside the app.
- *
- * It points at the API server's `/share/vehicle/:id` page rather than the SPA
- * route, because WhatsApp and the other messaging previewers do not run
- * JavaScript and would otherwise show the generic site card. That page carries
- * the vehicle's own Open Graph tags and forwards real visitors to
- * `/vehicle/:id`, which stays the canonical URL.
- */
+/** A stable short link; the destination serves the car's own social preview metadata. */
 export function getVehicleShareUrl(car: Car) {
-  const path = `/share/vehicle/${encodeURIComponent(car.id)}`;
+  const path = vehicleSharePath(car);
   return typeof window !== 'undefined' ? `${publicDealershipOrigin()}${path}` : path;
 }
 

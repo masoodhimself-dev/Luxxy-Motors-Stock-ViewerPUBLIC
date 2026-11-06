@@ -18,6 +18,7 @@ import { previewResponse } from './preview/portal';
 import baseConfig from './vite.config';
 import { previewSettings } from './preview/settings';
 import { previewStock } from './preview/stock';
+import { customerChecksPreview } from './preview/customer-checks';
 import { salesPreview } from './preview/sales';
 import { brochureOrigin, createBrochureHandler } from '../api-server/src/lib/vehicle-brochure-handler';
 import { createVehicleSheetImageHandler } from '../api-server/src/lib/vehicle-sheet-image';
@@ -57,6 +58,7 @@ export default mergeConfig(
             if (!url.pathname.startsWith('/api/')) return next();
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Cache-Control', 'no-store');
+            if (customerChecksPreview(req,res,url)) return;
             if (url.pathname === '/api/staff/cazoo-leads' && req.method === 'GET') {
               // Honest local setup state; never retrieve real marketplace leads in the preview.
               res.end(JSON.stringify({ enabled: false, mailbox: null, receipts: [] }));
@@ -112,6 +114,13 @@ export default mergeConfig(
               res.statusCode = result.status;
               for (const [name, value] of Object.entries(result.headers)) res.setHeader(name, value);
               res.end(result.body);
+              return;
+            }
+            const vehicleDetails = /^\/api\/vehicles\/([^/]+)$/.exec(url.pathname);
+            if (vehicleDetails) {
+              const car = previewStock.cars.find(item => item.id === vehicleDetails[1] && !['sold', 'hidden', 'archived'].includes(String(item.inventoryStatus)));
+              res.statusCode = car ? 200 : 404;
+              res.end(JSON.stringify(car ?? { error: 'Vehicle not found' }));
               return;
             }
             const responses: Record<string, unknown> = {

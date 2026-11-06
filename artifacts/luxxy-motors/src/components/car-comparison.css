@@ -1,0 +1,59 @@
+.saved-comparison-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-top: 24px;
+  padding: 18px 0;
+  border-block: 1px solid hsl(var(--border));
+}
+.saved-comparison-tools h2 { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 600; }
+.saved-comparison-tools h2 svg { width: 23px; height: 23px; }
+.saved-comparison-tools p { margin: 5px 0 0; font-size: 14px; color: hsl(var(--muted-foreground)); }
+.saved-comparison-actions { display: flex; align-items: center; gap: 12px; }
+.saved-comparison-select { display: flex; align-items: center; justify-content: flex-end; padding: 8px 16px; border-bottom: 1px solid hsl(var(--border)); }
+.saved-comparison-select label { display: inline-flex; align-items: center; gap: 9px; min-height: 36px; cursor: pointer; font-size: 14px; font-weight: 500; }
+.saved-comparison-select input, .car-comparison-controls input { accent-color: #202020; width: 19px; height: 19px; flex-shrink: 0; cursor: pointer; }
+.saved-comparison-select input:disabled + span { opacity: .5; }
+.saved-comparison-select:has(input:checked) { background: #f3f4f4; }
+.saved-comparison-limit { font-size: 13px; color: hsl(var(--muted-foreground)); margin: 8px 0 0; }
+.saved-comparison-tray { position: sticky; bottom: 12px; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 24px; padding: 12px 16px; background: #fff; border: 1px solid hsl(var(--border)); border-radius: 12px; box-shadow: 0 3px 18px #00000014; }
+.saved-comparison-tray > div { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; font-size: 14px; }
+.saved-comparison-tray > div button { font-size: 12px; text-decoration: underline; text-underline-offset: 3px; min-height: 36px; }
+.car-comparison-dialog[data-popup-surface] { width: calc(100vw - 40px); max-width: 1100px; padding: 24px; gap: 16px; border-radius: 16px; color: hsl(var(--foreground)); }
+.car-comparison-controls { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; }
+.car-comparison-controls label { display: flex; gap: 9px; align-items: center; min-height: 44px; font-size: 14px; cursor: pointer; }
+.car-comparison-controls button { min-height: 44px; }
+.car-comparison-scroll { overflow-x: auto; max-width: 100%; overscroll-behavior-x: contain; border: 1px solid hsl(var(--border)); border-radius: 10px; scrollbar-width: thin; }
+.car-comparison-scroll:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; }
+.car-comparison-table { table-layout: fixed; border-collapse: separate; border-spacing: 0; width: 100%; font-size: 14px; line-height: 1.5; }
+.car-comparison-table th, .car-comparison-table td { width: 210px; padding: 13px 18px; text-align: left; vertical-align: top; border-bottom: 1px solid hsl(var(--border)); overflow-wrap: anywhere; }
+.car-comparison-table tr > :first-child { width: 170px; position: sticky; left: 0; z-index: 1; background: #f7f8f8; border-right: 1px solid hsl(var(--border)); font-weight: 500; }
+.car-comparison-table thead th { padding-top: 18px; background: #fff; font-weight: 600; }
+.car-comparison-photo { aspect-ratio: 4 / 3; width: 100%; overflow: hidden; border-radius: 7px; margin-bottom: 12px; }
+.car-comparison-table thead a { display: inline-block; font-size: 16px; line-height: 1.35; text-decoration: underline; text-underline-offset: 3px; }
+.car-comparison-variant { display: block; margin-top: 5px; color: hsl(var(--muted-foreground)); font-size: 12px; font-weight: 400; }
+.car-comparison-table tbody tr:last-child > * { border-bottom: 0; }
+.car-comparison-table .car-comparison-section th { position: static; padding-block: 9px; font-weight: 600; border-right: 0; background: #f7f8f8; }
+.car-comparison-listed { display: inline-flex; align-items: center; gap: 6px; }
+.car-comparison-listed svg { width: 16px; height: 16px; }
+.car-comparison-missing { color: hsl(var(--muted-foreground)); }
+.car-comparison-table .car-comparison-no-differences { position: static; padding: 24px 18px; background: #fff; font-weight: 400; }
+.car-comparison-note { margin: 0; font-size: 12px; line-height: 1.6; color: hsl(var(--muted-foreground)); }
+.car-comparison-copy { display: grid; gap: 5px; font-size: 13px; }
+.car-comparison-copy input { border: 1px solid hsl(var(--border)); border-radius: 6px; min-height: 44px; padding: 8px 12px; width: 100%; }
+.car-comparison-more { text-decoration: underline; text-underline-offset: 3px; font-size: 14px; min-height: 44px; justify-self: start; text-align: left; }
+.car-comparison-back { justify-self: end; min-height: 44px; }
+.car-comparison-swipe { display: none; }
+@media (max-width: 760px) {
+  .car-comparison-dialog[data-popup-surface] { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); padding: 18px 14px; gap: 12px; }
+  .car-comparison-table th, .car-comparison-table td { width: 175px; padding: 11px 12px; }
+  .car-comparison-table tr > :first-child { width: 104px; font-size: 12px; }
+  .car-comparison-table { width: max-content; min-width: 100%; }
+  .car-comparison-table thead a { font-size: 14px; }
+  .car-comparison-swipe { display: block; margin: 0; font-size: 12px; color: hsl(var(--muted-foreground)); }
+  .saved-comparison-actions { width: 100%; justify-content: space-between; }
+  .saved-comparison-select { justify-content: flex-start; }
+  .car-comparison-back { width: 100%; }
+}

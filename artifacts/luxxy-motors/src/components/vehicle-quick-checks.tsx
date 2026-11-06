@@ -182,7 +182,8 @@ export function VehicleQuickChecks({
         }}
       >
         <DialogContent
-          className="vehicle-check-dialog max-w-xl"
+          className="vehicle-check-dialog"
+          data-check={shownPanel}
           style={dialogTheme}
           onOpenAutoFocus={event => { event.preventDefault(); heading.current?.focus({ preventScroll: true }); }}
           onCloseAutoFocus={(event) => {
@@ -199,14 +200,14 @@ export function VehicleQuickChecks({
               lastTrigger.current.focus({ preventScroll: true });
           }}
         >
-          <DialogHeader className="vehicle-check-header text-left">
-            <DialogTitle ref={heading} tabIndex={-1} className="pr-12 text-xl">
+          <DialogHeader className="vehicle-check-header">
+            <DialogTitle ref={heading} tabIndex={-1}>
               {shownPanel === "delivery" ? "Delivery estimate" : "MOT history"}
             </DialogTitle>
             <DialogDescription>
               {shownPanel === "delivery"
-                ? "Enter a postcode for a road-mile delivery estimate."
-                : "Recorded test results, mileage and advisory notices."}
+                ? "Enter your postcode to see the estimated delivery cost."
+                : "Recorded mileage and MOT test results."}
             </DialogDescription>
           </DialogHeader>
           <div className="vehicle-check-body">

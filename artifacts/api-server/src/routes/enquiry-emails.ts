@@ -1,3 +1,4 @@
+import { publicVehicleDetailPath } from '../lib/public-vehicle-links';
 import { reviewReminderEmail } from '@workspace/vehicle-meta';
 import { readEmailDraft } from "../lib/email-drafts";
 import { archiveSaleDocument } from "../lib/sale-document-pdf";
@@ -301,7 +302,7 @@ async function preview(
         )
           facts.push({
             label: "Vehicle page",
-            value: `${siteOrigin()}/vehicle/${car.id}`,
+            value: `${siteOrigin()}${await publicVehicleDetailPath(car, executor)}`,
           });
       } else
         facts.push({
@@ -734,7 +735,7 @@ export function createEnquiryEmailRouter(
         }),
       );
       const activeStock=(await dealerIntegrationsStore.readStockConnection()).connection.platform;
-      const linkedVehicle=enquiry.vehicleId ? (await db.execute(sql`SELECT id FROM vehicles WHERE id=${enquiry.vehicleId}::uuid AND dealer_id=${enquiry.dealerId} AND source=${activeStock} AND source_status='live' AND inventory_status IN ('available','reserved') AND archived_at IS NULL`)).rows[0] : undefined;
+      const linkedVehicle=enquiry.vehicleId ? (await db.execute(sql`SELECT id,make,model,COALESCE(website_title_override,title) AS title FROM vehicles WHERE id=${enquiry.vehicleId}::uuid AND dealer_id=${enquiry.dealerId} AND source=${activeStock} AND source_status='live' AND inventory_status IN ('available','reserved') AND archived_at IS NULL`)).rows[0] : undefined;
       res.json({
         ...(await readEmailDraft(enquiry.dealerId, enquiry.id)),
         templates,
@@ -743,6 +744,7 @@ export function createEnquiryEmailRouter(
         customerName: enquiry.customerName,
         vehicleId: enquiry.vehicleId,
         vehicleTitle: enquiry.vehicleTitle,
+        vehicleUrl: linkedVehicle ? `${siteOrigin()}${await publicVehicleDetailPath({ id: String(linkedVehicle.id), make: typeof linkedVehicle.make === 'string' ? linkedVehicle.make : null, model: typeof linkedVehicle.model === 'string' ? linkedVehicle.model : null, title: typeof linkedVehicle.title === 'string' ? linkedVehicle.title : null })}` : null,
         reference: enquiry.reference,
         revision: enquiry.workspaceRevision,
         vehicleAvailable: Boolean(linkedVehicle),

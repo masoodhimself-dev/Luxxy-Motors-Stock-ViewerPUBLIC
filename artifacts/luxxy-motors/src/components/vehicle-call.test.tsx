@@ -2,7 +2,8 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { dealerConfig } from '@/config/dealer';
 import type { Car } from '@/lib/stock-context';
-const state = vi.hoisted(() => ({ hours: [] as {days:string;times:string}[], enabled:true, loading:false, error:false, pending:false, mutate:vi.fn(), intent:vi.fn() }));
+const state = vi.hoisted(() => ({ hours: [] as {days:string;times:string}[], enabled:true, loading:false, error:false, pending:false, multiChoice:false, mutate:vi.fn(), intent:vi.fn() }));
+vi.mock('@/lib/multi-home-scope', () => ({ isMultiChoiceWebsite: () => state.multiChoice }));
 vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({settings:{...dealerConfig,identity:{...dealerConfig.identity,name:'Example Motors'},contact:{phone:'07388831790'},address:{street:'Rear of 176 Rayners Lane',city:'London',postcode:'HA2 8LY'},hours:state.hours},isLoading:state.loading,isError:state.error}) }));
 vi.mock('@/lib/dealer-features', () => ({useDealerFeatures:()=>({enabled:()=>state.enabled})}));
 vi.mock('@workspace/api-client-react',()=>({useCreateEnquiry:()=>({mutate:state.mutate,isPending:state.pending,isSuccess:false,isError:false})}));
@@ -15,7 +16,7 @@ beforeEach(()=>{
  vi.useFakeTimers({toFake:['Date','setInterval','clearInterval']});
  vi.setSystemTime(new Date('2026-10-19T09:00:00Z'));
  state.hours=[{days:'Monday – Saturday',times:'08:00 – 18:00'},{days:'Sunday',times:'Closed'}];
- state.enabled=true;state.loading=false;state.error=false;state.pending=false;state.mutate.mockReset();state.intent.mockClear();
+ state.enabled=true;state.loading=false;state.error=false;state.pending=false;state.multiChoice=false;state.mutate.mockReset();state.intent.mockClear();
 });
 afterEach(()=>{vi.useRealTimers();vi.unstubAllGlobals();});
 it('shows the car, full showroom location, closing time and direct call action together',()=>{
@@ -90,4 +91,18 @@ it('keeps the callback form in place while its request is sending', () => {
  expect(screen.getByRole('button',{name:'Close'})).toBeDisabled();
  fireEvent.keyDown(document,{key:'Escape'});
  expect(screen.getByRole('form',{name:'Request a callback'})).toBeVisible();
+});
+
+it('keeps the appointment-only notice visible for Multi-Choice before and during a callback request', () => {
+ state.multiChoice=true;show();const dialog=open();
+ const notice='Visits are by appointment only. Please contact us to arrange a time before travelling.';
+ expect(within(dialog).getByText(notice)).toBeVisible();
+ fireEvent.click(within(dialog).getByRole('button',{name:'Request a callback'}));
+ expect(within(dialog).getByText(notice)).toBeVisible();
+ expect(state.mutate).not.toHaveBeenCalled();
+});
+
+it('does not apply Multi-Choice appointment rules to other dealerships', () => {
+ show();const dialog=open();
+ expect(dialog).not.toHaveTextContent('Visits are by appointment only.');
 });

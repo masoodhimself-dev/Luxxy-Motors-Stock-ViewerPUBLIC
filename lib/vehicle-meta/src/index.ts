@@ -242,3 +242,5 @@ export * from './sale-operations.ts';
 export * from './sales-document-presentation.ts';
 
 export * from "./sale-calculation-check.ts";
+
+export * from './vehicle-links.ts';

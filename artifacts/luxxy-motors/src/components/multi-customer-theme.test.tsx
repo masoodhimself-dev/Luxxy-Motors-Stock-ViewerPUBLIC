@@ -1,3 +1,4 @@
+vi.mock('@/lib/stock-context', () => ({ useStock: () => ({ stock: null, isLoading: false, error: null }) }));
 import { readFileSync } from 'node:fs';
 import { createPortal } from 'react-dom';
 import { cleanup, render, screen } from '@testing-library/react';

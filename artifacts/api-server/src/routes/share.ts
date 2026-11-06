@@ -1,8 +1,8 @@
+import { vehicleDetailPath } from '@workspace/vehicle-meta';
 import { Router, type IRouter } from "express";
 import { shareRequestOrigin } from '../lib/share-origin';
 import {
   buildMissingVehicleSharePreview,
-  buildVehicleSharePreview,
   renderSharePreviewHtml,
 } from "../lib/share-preview";
 import { getDealerIdentity } from "./dealer-settings";
@@ -10,15 +10,7 @@ import { findPublicVehicle } from "./stock";
 
 const router: IRouter = Router();
 
-/**
- * Crawler-facing preview for a shared vehicle link. The showroom itself is a
- * static SPA bundle, so this is the only place a per-vehicle Open Graph tag can
- * be rendered before JavaScript runs. Browsers are redirected to the vehicle
- * page, which is also the canonical URL.
- *
- * Mounted at `/share`, so the public URL is `/share/vehicle/:id`. The redirect
- * target assumes the web artifact is served from the domain root.
- */
+/** Old shared links remain valid. The canonical page now renders its own crawler metadata. */
 router.get("/vehicle/:id", async (req, res): Promise<void> => {
   const vehicleId = req.params.id;
   let origin: string;
@@ -31,9 +23,11 @@ router.get("/vehicle/:id", async (req, res): Promise<void> => {
       getDealerIdentity(),
     ]);
 
-    const preview = vehicle
-      ? buildVehicleSharePreview({ vehicle, vehicleId, dealer, origin })
-      : buildMissingVehicleSharePreview({ vehicleId, dealer, origin });
+    if (vehicle) {
+      res.set('Cache-Control', 'no-store').redirect(301, `${origin}${vehicleDetailPath(vehicle)}`);
+      return;
+    }
+    const preview = buildMissingVehicleSharePreview({ vehicleId, dealer, origin });
 
     res
       .status(preview.status)

@@ -48,6 +48,7 @@ type EmailContext = {
   customerName: string;
   vehicleId: string | null;
   vehicleTitle: string | null;
+  vehicleUrl?: string | null;
   reference: string;
   revision: number;
   vehicleAvailable: boolean;
@@ -597,9 +598,9 @@ function EnquiryEmailEditor({
     draft.documentIds.length ||
     draft.vehiclePhotoIndices?.length,
   );
-  const vehicleLink = data?.vehicleId
+  const vehicleLink = data?.vehicleUrl || (data?.vehicleId
     ? `${window.location.origin}/vehicle/${encodeURIComponent(data.vehicleId)}`
-    : "";
+    : "");
   const whatsappText = [
     draft.message.trim(),
     draft.includeVehicle && vehicleLink && !draft.message.includes(vehicleLink)
@@ -1282,7 +1283,7 @@ function EnquiryEmailEditor({
                               <p>
                                 No private vehicle photos uploaded yet.{" "}
                                 <a
-                                  href={`/vehicle/${data.vehicleId}`}
+                                  href={data.vehicleUrl || `/vehicle/${data.vehicleId}`}
                                   target="_blank"
                                   rel="noreferrer"
                                 >

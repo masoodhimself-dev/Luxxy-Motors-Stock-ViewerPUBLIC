@@ -1,5 +1,7 @@
 import {
   buildShowroomMeta,
+  isVehiclePagePath,
+  vehicleDetailPath,
   buildVehicleMeta,
   toAbsoluteUrl,
   type DealerIdentity,
@@ -24,6 +26,8 @@ export interface PageMeta extends PageMetaCopy {
   type?: 'website' | 'article';
   /** False for unavailable/error pages, including when reached through SPA navigation. */
   indexable?: boolean;
+  /** Preferred public path of the same vehicle, including legacy URL navigation. */
+  canonicalPath?: string;
 }
 
 /** Mirrors the fallbacks hardcoded in index.html so both tell the same story. */
@@ -85,8 +89,8 @@ export function applyPageMeta(meta: PageMeta) {
   // The server's canonical dealership wins over a verified alias or client URL.
   // Search/filter queries and capability tokens never become preferred public URLs.
   const pathname = window.location.pathname === '/index.html' ? '/' : window.location.pathname.replace(/\/$/, '') || '/';
-  const publicPage = ['/', '/stock', '/contact', '/warranty'].includes(pathname) || /^\/vehicle\/[^/]+$/.test(pathname);
-  let url = publicPage && meta.indexable !== false ? `${origin}${pathname}` : null;
+  const publicPage = ['/', '/stock', '/contact', '/warranty'].includes(pathname) || isVehiclePagePath(pathname);
+  let url = publicPage && meta.indexable !== false ? `${origin}${isVehiclePagePath(pathname) && meta.canonicalPath && isVehiclePagePath(meta.canonicalPath) ? meta.canonicalPath : pathname}` : null;
   // Existing private booking pages explicitly use the homepage for safe share
   // previews. Preserve that behaviour without ever putting their token in tags.
   if (!publicPage && meta.url) {
@@ -150,7 +154,7 @@ export function vehiclePageMeta(
     location: identity.location || car.dealerLocation,
   });
 
-  return { title: meta.title, description: meta.description, image: meta.image, type: 'article' };
+  return { title: meta.title, description: meta.description, image: meta.image, type: 'article', canonicalPath: vehicleDetailPath(car) };
 }
 
 export function showroomPageMeta(

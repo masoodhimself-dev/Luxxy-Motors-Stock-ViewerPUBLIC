@@ -1,3 +1,4 @@
+import { vehicleDetailPath } from '@workspace/vehicle-meta';
 import { createHash } from "node:crypto";
 import {
   brochureFilename, brochureOptions, brochurePhotos,
@@ -31,7 +32,7 @@ export function createEnquiryVehiclePdf(dependencies: {
     let bytes: Buffer;
     try {
       const loaded = await (dependencies.loadPhotos ?? (items => loadBrochurePhotos(items, process.env.VEHICLE_PDF_IMAGE_HOSTS, 8_000)))(selectBrochurePhotos(photos, options.includeGallery ? dealer.brochure.photoLimit : 1));
-      const input = { vehicle, dealer, vehicleUrl: `${origin}/vehicle/${encodeURIComponent(vehicleId)}`, photos: loaded, totalPhotos: photos.length, preview: dependencies.preview };
+      const input = { vehicle, dealer, vehicleUrl: `${origin}${vehicleDetailPath(vehicle)}`, photos: loaded, totalPhotos: photos.length, preview: dependencies.preview };
       const identity = createHash("sha256").update(JSON.stringify(input)).digest("hex").slice(0, 32);
       bytes = (dependencies.render ?? renderVehicleBrochure)({ ...input, reproducibleIdentity: identity });
     } catch {

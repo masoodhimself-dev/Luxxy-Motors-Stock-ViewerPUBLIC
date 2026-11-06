@@ -1,42 +1,81 @@
-.delivery-estimator .delivery-estimate-total {
+.delivery-estimator.delivery-estimator-redesigned {
+  --delivery-ink: #242424;
+  --delivery-muted: #646464;
+  --delivery-line: #dedede;
+  min-width: 0;
+  color: var(--delivery-ink);
+  font-family: inherit;
+  background: #fff;
+  border: 1px solid var(--delivery-line);
+  border-radius: 12px;
+  padding: 0 20px;
   margin-top: 16px;
-  padding: 14px 0 0;
-  border-top: 1px solid hsl(var(--border));
-  font-size: 14px;
-  line-height: 1.5;
 }
-.delivery-estimate-total > div {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 6px;
-}
-.delivery-estimate-total dt {
-  min-width: 0;
-}
-.delivery-estimate-total dd {
-  min-width: 0;
-  max-width: 100%;
-  margin-left: auto;
-  overflow-wrap: anywhere;
-  font-variant-numeric: tabular-nums;
-}
-.delivery-estimate-total .delivery-estimate-total-sum {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid hsl(var(--border));
-  font-weight: 600;
-}
-.delivery-estimate-total-sum dd {
-  font-size: 22px;
-  letter-spacing: -0.025em;
-}
-.delivery-estimator .delivery-estimate-enquiry {
-  min-height: 44px;
-  height: auto;
-  padding: 12px;
-  white-space: normal;
-  line-height: 1.4;
+.delivery-estimator.delivery-estimator-redesigned.is-expanded { margin: 0; padding: 0; border: 0; border-radius: 0; }
+.delivery-estimator-redesigned .delivery-estimator-toggle { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 56px; cursor: pointer; list-style: none; font-size: 15px; font-weight: 600; }
+.delivery-estimator-redesigned .delivery-estimator-toggle[hidden] { display: none; }
+.delivery-estimator-toggle > span { display: flex; align-items: center; gap: 10px; }
+.delivery-estimator-toggle svg { width: 19px; height: 19px; flex-shrink: 0; }
+.delivery-estimator-redesigned summary::-webkit-details-marker { display: none; }
+.delivery-estimator-redesigned[open] > .delivery-estimator-toggle > svg { transform: rotate(180deg); }
+.delivery-estimator-redesigned .delivery-estimator-content { padding: 4px 0 18px; }
+.delivery-estimator-redesigned.is-expanded .delivery-estimator-content { padding: 0; }
+.delivery-estimator-entry { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 10px; }
+.delivery-estimator-field { min-width: 0; }
+.delivery-estimator-field label { display: block; margin-bottom: 7px; font-size: 14px; line-height: 1.4; font-weight: 600; }
+.delivery-estimator-redesigned .delivery-estimator-field input { width: 100%; min-width: 0; min-height: 48px; height: 48px; border: 1px solid #aaa; border-radius: 7px; background: #fff; color: var(--delivery-ink); font-size: 16px; padding: 10px 12px; box-shadow: none; }
+.delivery-estimator-field input::placeholder { color: #787878; opacity: 1; }
+.delivery-estimator-redesigned .delivery-estimator-calculate { display: inline-flex; align-items: center; gap: 9px; min-height: 48px; height: auto; padding: 12px 16px; border: 1px solid var(--delivery-ink); border-radius: 7px; background: var(--delivery-ink); color: #fff; font-size: 14px; font-weight: 600; line-height: 1.4; white-space: normal; }
+.delivery-estimator-calculate svg { width: 17px; height: 17px; flex-shrink: 0; }
+.delivery-estimator-redesigned .delivery-estimator-calculate:disabled { opacity: .45; }
+.delivery-estimator-help { margin: 8px 0 0; color: var(--delivery-muted); font-size: 12px; line-height: 1.5; }
+.delivery-estimator-error { margin: 14px 0 0; padding-left: 12px; border-left: 3px solid #a9382e; color: #8b2d25; font-size: 14px; line-height: 1.55; }
+.delivery-estimator-result { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--delivery-line); }
+.delivery-estimator-price { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.delivery-estimator-price span { display: block; font-size: 13px; color: var(--delivery-muted); }
+.delivery-estimator-price strong { display: block; margin-top: 4px; font-size: 34px; line-height: 1.15; font-weight: 700; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
+.delivery-estimator-price > svg { width: 33px; height: 33px; color: var(--delivery-ink); }
+.delivery-estimator-journey { display: grid; grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr); align-items: center; gap: 12px 10px; padding-block: 19px 15px; }
+.delivery-estimator-journey > div { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.delivery-estimator-journey svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--delivery-muted); }
+.delivery-estimator-journey > div span { min-width: 0; }
+.delivery-estimator-journey small { display: block; color: var(--delivery-muted); font-size: 11px; line-height: 1.4; }
+.delivery-estimator-journey strong { display: block; margin-top: 3px; font-size: 15px; line-height: 1.4; font-weight: 600; overflow-wrap: anywhere; }
+.delivery-estimator-journey > p { grid-column: 1 / -1; margin: 0; font-size: 13px; }
+.delivery-estimator-journey > p span { margin-left: 5px; color: var(--delivery-muted); font-size: 12px; }
+.delivery-estimator-redesigned .delivery-estimate-total { margin: 0; padding: 15px 0; border-top: 1px solid var(--delivery-line); font-size: 14px; line-height: 1.5; }
+.delivery-estimate-total > div { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px 16px; margin-top: 7px; }
+.delivery-estimate-total > div:first-child { margin-top: 0; }
+.delivery-estimate-total dt { min-width: 0; color: var(--delivery-muted); }
+.delivery-estimate-total dd { min-width: 0; max-width: 100%; margin-left: auto; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; font-weight: 500; }
+.delivery-estimate-total .delivery-estimate-total-sum { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--delivery-line); font-weight: 600; }
+.delivery-estimate-total-sum dt { color: var(--delivery-ink); }
+.delivery-estimate-total-sum dd { font-size: 24px; line-height: 1.3; letter-spacing: -.025em; font-weight: 700; }
+.delivery-estimator-breakdown { border-block: 1px solid var(--delivery-line); }
+.delivery-estimator.delivery-estimator-redesigned .delivery-estimator-content .delivery-estimator-breakdown > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding-block: 10px; cursor: pointer; list-style: none; font-size: 12px; line-height: 1.5; font-weight: 500; }
+.delivery-estimator-breakdown summary svg { width: 16px; height: 16px; flex-shrink: 0; }
+.delivery-estimator-breakdown[open] summary svg { transform: rotate(180deg); }
+.delivery-estimator-breakdown dl { margin: 0 0 10px; font-size: 12px; line-height: 1.5; }
+.delivery-estimator-breakdown dl > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-block: 4px; }
+.delivery-estimator-breakdown dd { flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.delivery-estimator-breakdown > p { margin: 0 0 14px; font-size: 11px; line-height: 1.5; color: var(--delivery-muted); }
+.delivery-estimator-qualification { margin: 14px 0 0; color: var(--delivery-muted); font-size: 12px; line-height: 1.6; }
+.delivery-estimator-next { padding-top: 18px; }
+.delivery-estimator-next > strong { display: block; font-size: 14px; font-weight: 600; }
+.delivery-estimator-next > p { margin: 6px 0 0; font-size: 12px; line-height: 1.6; color: var(--delivery-muted); }
+.delivery-estimator-redesigned .delivery-estimate-enquiry { display: flex; justify-content: space-between; gap: 16px; width: 100%; min-height: 48px; height: auto; margin-top: 14px; padding: 12px 16px; border: 1px solid var(--delivery-ink); border-radius: 7px; background: var(--delivery-ink); color: #fff; font-size: 14px; white-space: normal; line-height: 1.4; }
+.delivery-estimate-enquiry svg { width: 17px; height: 17px; flex-shrink: 0; }
+.delivery-estimator-attribution { margin: 18px 0 0; font-size: 10px; line-height: 1.5; color: #737373; }
+.delivery-estimator-redesigned :is(button, input, a, summary):focus-visible { outline: 2px solid #555; outline-offset: 3px; }
+@media (max-width: 479px) {
+  .delivery-estimator.delivery-estimator-redesigned:not(.is-expanded) { padding-inline: 14px; }
+  .delivery-estimator-entry { gap: 8px; }
+  .delivery-estimator-redesigned .delivery-estimator-calculate { max-width: 135px; padding-inline: 12px; font-size: 13px; }
+  .delivery-estimator-calculate svg { display: none; }
+  .delivery-estimator-price strong { font-size: 32px; }
+  .delivery-estimator-result { margin-top: 20px; padding-top: 18px; }
+  .delivery-estimator-journey { column-gap: 8px; }
+  .delivery-estimator-journey > div { gap: 6px; }
+  .delivery-estimator-journey > div > svg { display: none; }
+  .delivery-estimator-journey strong { font-size: 14px; }
 }

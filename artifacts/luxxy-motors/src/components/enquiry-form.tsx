@@ -68,6 +68,8 @@ export function EnquiryForm({
   messageRequest,
   onTypeChange,
   onChangeCar,
+  carryDraftToVehicleId,
+  onBusyChange,
 }: {
   initialType?: EnquiryType;
   embedded?: boolean;
@@ -77,10 +79,14 @@ export function EnquiryForm({
   stockCars?: Car[];
   onTypeChange?: (type: EnquiryType) => void;
   onChangeCar?: () => void;
+  /** Only explicit switches in the same enquiry may carry fields to a new car. */
+  carryDraftToVehicleId?: string;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const { settings: dealerConfig } = useDealerSettings();
   const features = useDealerFeatures();
   const mutation = useCreateEnquiry();
+  useEffect(() => { onBusyChange?.(mutation.isPending || mutation.isSuccess); }, [mutation.isPending, mutation.isSuccess, onBusyChange]);
   const sending = useRef(mutation.isPending);
   sending.current = mutation.isPending;
   const [, navigate] = useLocation();
@@ -135,8 +141,10 @@ export function EnquiryForm({
   const [pendingRequests, setPendingRequests] = useState<EnquiryMessageRequest[]>([]);
   const messageTouched = useRef(false);
   const generatedExchangeQuestion = useRef<string | null>(null);
+  const generatedExchangeMakeModel = useRef('');
   const questionRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
+    if (restoredDraftKey && restoredDraftKey !== draftKey && carryDraftToVehicleId === vehicle?.id) return;
     if (!mutation.isPending && !messageTouched.current && initialMessage) writeMessage(initialMessage);
   }, [initialMessage, mutation.isPending]);
   useEffect(() => {
@@ -144,11 +152,28 @@ export function EnquiryForm({
     mutation.reset();
   }, [initialType, draftKey, mutation.reset]);
   useEffect(() => {
+    if (restoredDraftKey && restoredDraftKey !== draftKey && carryDraftToVehicleId === vehicle?.id && vehicle) {
+      // Keep the customer's question untouched. Only replace wording we generated
+      // ourselves, and only while it still exactly matches that generated text.
+      if (generatedExchangeMakeModel.current && generatedExchangeQuestion.current && messageRef.current === generatedExchangeQuestion.current) {
+        const question = partExchangeValuationQuestion({ registration: exchangePlate, makeModel: generatedExchangeMakeModel.current }, vehicle, dealerConfig.identity.name);
+        generatedExchangeQuestion.current = question;
+        writeMessage(question);
+      }
+      setDraftRestored(false);setSubmittedContact(null);
+      setPhoneError('');setNameError('');setEmailError('');setMessageError('');
+      setRestoredDraftKey(draftKey);
+      return;
+    }
     const draft=readEnquiryDraft(draftKey);
     setExchangeGate(null);setExchangeError('');setEstimatedExchangeMileage(undefined);generatedExchangeQuestion.current=null;
     if (draft) {
       setCustomerName(draft.customerName);setEmail(draft.email);setPhone(draft.phone);
       writeMessage(draft.message); messageTouched.current=Boolean(draft.message);
+      if (draft.generatedExchangeQuestion?.text === draft.message) {
+        generatedExchangeQuestion.current = draft.generatedExchangeQuestion.text;
+        generatedExchangeMakeModel.current = draft.generatedExchangeQuestion.makeModel;
+      }
       setPreferredContact(draft.preferredContact);setHasPartExchange(draft.hasPartExchange);setExchange(draft.exchange);
       exchangeMileageEdited.current=Boolean(draft.exchange.mileage);
       setDraftSaved(true);
@@ -180,7 +205,9 @@ export function EnquiryForm({
     if(restoredDraftKey !== draftKey) return;
     if(mutation.data) return;
     if(customerName || email || phone || message || exchange.registration) {
-      setDraftSaved(saveEnquiryDraft(draftKey,{customerName,email,phone,message,preferredContact,hasPartExchange,exchange}));
+      setDraftSaved(saveEnquiryDraft(draftKey,{customerName,email,phone,message,preferredContact,hasPartExchange,exchange,
+        ...(generatedExchangeQuestion.current === message && generatedExchangeMakeModel.current ? { generatedExchangeQuestion: { text: message, makeModel: generatedExchangeMakeModel.current } } : {}),
+      }));
     } else {discardEnquiryDraft(draftKey);setDraftSaved(false);}
   }, [draftKey,restoredDraftKey,customerName,email,phone,message,preferredContact,hasPartExchange,exchange,mutation.data]);
   useEffect(() => {
@@ -229,6 +256,7 @@ export function EnquiryForm({
     }
     if (vehicle && !messageRef.current.trim()) {
       const question = partExchangeValuationQuestion({ registration: result.registration, makeModel: dvsaVehicleName(result.vehicle) }, vehicle, dealerConfig.identity.name);
+      generatedExchangeMakeModel.current = dvsaVehicleName(result.vehicle);
       generatedExchangeQuestion.current = question;
       writeMessage(question);
     }
@@ -418,13 +446,14 @@ export function EnquiryForm({
             {(customerRegistrationDetails(vehicle) || vehicle.transmission) && <p className="customer-enquiry-vehicle-meta mt-1 text-sm text-muted-foreground">{[customerRegistrationDetails(vehicle), vehicle.transmission].filter(Boolean).join(' · ')}</p>}
             <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3">
             {vehicle.price != null && <p className="customer-enquiry-vehicle-price luxxy-price-inline text-base font-semibold text-primary">{formatPrice(vehicle.price, vehicle.currency)}</p>}
-            <Link href="/stock" aria-disabled={mutation.isPending || undefined} onClick={(event) => { if (mutation.isPending) { event.preventDefault(); return; } if (onChangeCar) { event.preventDefault(); onChangeCar(); } }} className="customer-enquiry-vehicle-change inline-flex min-h-11 items-center text-sm text-accent underline underline-offset-4 transition-colors hover:text-primary">
+            {onChangeCar && <button type="button" disabled={mutation.isPending} onClick={onChangeCar} className="customer-enquiry-vehicle-change inline-flex min-h-11 items-center text-sm text-accent underline underline-offset-4 transition-colors hover:text-primary">
               Change car
-            </Link>
+            </button>}
             </div>
           </div>
         </div>
       )}
+      {!vehicle && !isPartExchange && !embedded && onChangeCar && <button type="button" onClick={onChangeCar} className="min-h-11 text-sm underline underline-offset-4 lg:hidden">Choose a car (optional)</button>}
 
       {vehicle && type === 'general' && <div className="enquiry-question-shortcuts" role="group" aria-label="Quick questions">
         {[

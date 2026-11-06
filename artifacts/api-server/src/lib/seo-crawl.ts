@@ -1,3 +1,4 @@
+import { vehicleDetailPath, type PublicVehicleLink } from '@workspace/vehicle-meta';
 import type { RequestHandler } from 'express';
 
 /** These routes never belong in a public dealer search result. Not an auth boundary. */
@@ -44,7 +45,7 @@ export function dealerRobotsText(origin: string): string {
   ].join('\n');
 }
 
-export type SeoSitemapVehicle = { id: string; lastmod?: string | Date | null };
+export type SeoSitemapVehicle = PublicVehicleLink & { lastmod?: string | Date | null };
 export type DealerSitemapData = {
   vehicles: SeoSitemapVehicle[];
   warrantyEnabled?: boolean;
@@ -76,10 +77,10 @@ function sitemapEntries(data: DealerSitemapData, now: Date): { path: string; cha
   ];
   const seen = new Set<string>();
   for (const vehicle of data.vehicles) {
-    // Existing vehicle routes use UUID IDs. Ignore accidental paths/query strings.
+    // Only real inventory UUIDs may produce public paths.
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(vehicle.id) || seen.has(vehicle.id)) continue;
     seen.add(vehicle.id);
-    entries.push({ path: `/vehicle/${encodeURIComponent(vehicle.id)}`, changed: lastmod(vehicle.lastmod, now) });
+    entries.push({ path: vehicleDetailPath(vehicle), changed: lastmod(vehicle.lastmod, now) });
   }
   return entries;
 }

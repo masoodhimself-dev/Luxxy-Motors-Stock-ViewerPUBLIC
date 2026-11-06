@@ -3,7 +3,11 @@ import { customFetch } from "@workspace/api-client-react";
 import { firstMotDue } from "@/lib/long-mot";
 import type { MotHistory } from "@workspace/vehicle-meta";
 import { Button } from "./ui/button";
+import { AlertTriangle, ArrowUpRight, Check, ChevronDown, CircleAlert } from "./icons";
+import { MotMileageChart } from "./mot-mileage-chart";
+import { motDateLabel, motMileageLabel, motTestTime, newestMotTests } from "@/lib/mot-mileage-history";
 import "./staff-mot-popup.css";
+import "./mot-history.css";
 import {
   Dialog,
   DialogContent,
@@ -14,13 +18,7 @@ import {
 type Reply =
   | { status: "available"; history: MotHistory }
   | { status: "registration_missing"; message: string };
-const date = (value: string) =>
-  new Date(value.slice(0, 10) + "T12:00:00Z").toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "Europe/London",
-  });
+const date = motDateLabel;
 function errorText(cause: unknown) {
   const code = (cause as { data?: { code?: string } })?.data?.code;
   return code === "invalid_registration"
@@ -33,120 +31,88 @@ function errorText(cause: unknown) {
 }
 export function MotHistoryResults({ history, staff = false }: { history: MotHistory; staff?: boolean }) {
   const firstDue = firstMotDue(history);
-  const ordered = [...history.tests].sort((a, b) => Date.parse(b.completedDate) - Date.parse(a.completedDate));
-  const latest = ordered[0];
-  const visibleTests = staff ? ordered : ordered.filter(test => test.result === "PASSED");
-  // An older pass must never imply a current pass after a more recent failure.
-  const pass = staff ? ordered.find(test => test.result === "PASSED") : latest?.result === "PASSED" ? latest : undefined;
+  const ordered = newestMotTests(history.tests);
+  const latest = ordered.find(test => motTestTime(test.completedDate) !== null);
+  // A previous pass is part of the history, never the current headline after a failure.
+  const expiry = latest?.result === "PASSED" && latest.expiryDate && motTestTime(latest.expiryDate) !== null ? latest.expiryDate : null;
   return (
-    <div className="min-w-0 space-y-4" aria-live="polite">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="mot-history-results" data-staff={staff}>
+      <header className="mot-record-header">
         <div>
-          <p className="font-semibold">
-            {history.registration} ·{" "}
-            {[history.make, history.model].filter(Boolean).join(" ")}
-          </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="mot-record-car">{[history.make, history.model].filter(Boolean).join(" ") || history.registration}</p>
+          <p className="mot-record-source">{[history.make, history.model].some(Boolean) && <strong>{history.registration}</strong>}
             DVSA MOT history · Checked {date(history.checkedAt)}
           </p>
         </div>
-        {latest && (staff || latest.result === "PASSED") && (
-          <span
-            className={`rounded-md border px-3 py-2 text-sm font-semibold ${latest.result === "FAILED" ? "border-red-300 bg-red-50 text-red-900" : "border-emerald-300 bg-emerald-50 text-emerald-900"}`}
-          >
-            Latest test: {latest.result === "PASSED" ? "Passed" : "Failed"}
-          </span>
-        )}
-      </div>
-      {pass?.expiryDate && (
-        <p className="text-sm">
-          Last passed MOT expiry: {date(pass.expiryDate)}
-        </p>
-      )}
-      {history.recall === "Yes" && (
-        <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
-          An outstanding safety recall is recorded. Ask the dealership for
-          details.
-        </p>
+        {latest && <span className="mot-latest-result" data-result={latest.result}>
+          {latest.result === 'PASSED' ? <Check size={16} /> : <CircleAlert size={16} />}
+          Latest test: {latest.result === "PASSED" ? "Passed" : "Failed"}
+        </span>}
+      </header>
+      {expiry && <p className="mot-record-expiry"><span>MOT expiry</span><strong>{date(expiry)}</strong></p>}
+      {staff && history.recall === "Yes" && (
+        <p className="mot-record-warning"><AlertTriangle size={18} /><span>An outstanding safety recall is recorded. Ask the dealership for details.</span></p>
       )}
       {firstDue && (
-        <p className="rounded-md border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900">
-          First MOT due: {date(firstDue)}. No MOT required before this date,
-          according to the recorded first-MOT due date.
-        </p>
+        <p className="mot-record-expiry"><span>First MOT due</span><strong>{date(firstDue)}</strong></p>
       )}
       {!latest && !firstDue && (
-        <p className="text-sm text-muted-foreground">
-          No MOT tests were returned. This does not confirm exemption or that an
+        <p className="mot-record-note">
+          {ordered.length ? 'No dated MOT tests were returned.' : 'No MOT tests were returned.'} This does not confirm exemption or that an
           MOT is not due.
         </p>
       )}
-      {!staff && latest?.result === "FAILED" && <p className="text-sm text-muted-foreground">Please ask the dealership to confirm the current MOT details.</p>}
-      {!staff && visibleTests.length > 0 && <h3 className="text-sm font-semibold">Passed MOT tests</h3>}
-      {visibleTests.map((test, index) => (
+      {latest?.result === "FAILED" && <p className="mot-record-warning"><CircleAlert size={18} /><span>The latest recorded test failed. Please ask the dealership to confirm the current MOT details.</span></p>}
+      <MotMileageChart tests={history.tests} />
+      {ordered.length > 0 && <section className="mot-test-history" aria-label="MOT tests">
+      <div className="mot-test-history-heading"><h3>MOT tests</h3><span>Newest first</span></div>
+      {ordered.map((test, index) => staff ? (
         <details
           key={`${test.completedDate}-${index}`}
           open={index === 0}
-          className="rounded-md border border-border p-3"
+          className="mot-test-row"
+          data-result={test.result}
         >
-          <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold">
-            {date(test.completedDate)} ·{" "}
-            {test.result === "PASSED" ? "Passed" : "Failed"}
-            {test.mileage && test.mileageUnit
-              ? ` · ${Number(test.mileage).toLocaleString("en-GB")} ${test.mileageUnit === "MI" ? "miles" : "km"}`
-              : ""}
+          <summary className="mot-test-summary">
+            <span className="mot-test-date">{date(test.completedDate)}<small>{test.defects.length ? `${test.defects.length} ${test.defects.length === 1 ? 'note' : 'notes'}` : 'No defects listed'}</small></span>
+            <span className="mot-test-result">{test.result === 'PASSED' ? <Check size={15} /> : <CircleAlert size={15} />}{test.result === "PASSED" ? "Passed" : "Failed"}</span>
+            <span className="mot-test-mileage">{motMileageLabel(test)}</span>
+            <ChevronDown className="mot-test-chevron" size={17} />
           </summary>
-          {test.expiryDate && (
-            <p className="mb-2 text-xs text-muted-foreground">
-              Recorded expiry: {date(test.expiryDate)}
-            </p>
-          )}
-          {(!test.mileage || !test.mileageUnit) && (
-            <p className="mb-2 text-xs text-muted-foreground">
-              Mileage reading not available for this test.
-            </p>
-          )}
+          <div className="mot-test-details">
+          {test.expiryDate && motTestTime(test.expiryDate) !== null && <p className="mot-test-expiry">Recorded expiry: {date(test.expiryDate)}</p>}
           {test.defects.length ? (
-            <details open={staff || undefined} className="mt-2 border-t border-border">
-              <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">{staff ? "Defect details" : "Advisories & notes"} ({test.defects.length})</summary>
-            <ul className="space-y-2 pb-3 text-sm">
+            <ul className="mot-defect-list" aria-label="Defects and advisories">
               {test.defects.map((defect, i) => (
-                <li key={i} className="break-words">
-                  <span
-                    className={`mr-2 inline-block rounded px-2 py-1 text-xs font-semibold ${defect.dangerous || ["DANGEROUS", "MAJOR", "FAIL"].includes(defect.type.toUpperCase()) ? "bg-red-50 text-red-900" : "bg-amber-50 text-amber-950"}`}
-                  >
-                    {defect.dangerous
-                      ? "Dangerous"
-                      : defect.type
-                          .toLowerCase()
-                          .replace(/^./, (s) => s.toUpperCase())}
-                  </span>
-                  {defect.text}
+                <li key={i} data-severe={defect.dangerous || ["DANGEROUS", "MAJOR", "FAIL"].includes(defect.type.toUpperCase())}>
+                  <span className="mot-defect-type">{defect.dangerous ? "Dangerous" : defect.type.toLowerCase().replace(/^./, (s) => s.toUpperCase()) || 'Note'}</span>
+                  <span>{defect.text}</span>
                 </li>
               ))}
             </ul>
-            </details>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              No defect details were supplied for this test.
-            </p>
+            <p className="mot-record-note">No defect details were supplied for this test.</p>
           )}
+          </div>
         </details>
-      ))}
-      <p className="text-xs leading-5 text-muted-foreground">
-        MOT records describe the vehicle at the time of each test. Older
-        advisories may have been repaired. This is not a service, finance or
-        insurance-history check. Recorded test mileage does not replace the
-        advertised mileage.
-      </p>
+      ) : <div key={`${test.completedDate}-${index}`} className="mot-test-row mot-test-row-public" data-result={test.result}>
+        <div className="mot-test-summary">
+          <span className="mot-test-date">{date(test.completedDate)}</span>
+          <span className="mot-test-result">{test.result === 'PASSED' ? <Check size={15} /> : <CircleAlert size={15} />}{test.result === 'PASSED' ? 'Passed' : 'Failed'}</span>
+          <span className="mot-test-mileage">{motMileageLabel(test)}</span>
+        </div>
+      </div>)}
+      </section>}
+      <footer className="mot-record-footer">
+      <p>MOT records show the car at each test.{staff && ' Earlier issues may have been repaired.'} These are recorded test mileages, not the car’s current mileage. This is not a service, finance or insurance-history check.</p>
       <a
         href="https://www.gov.uk/check-mot-history"
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex min-h-11 items-center text-sm underline"
       >
-        View full MOT history on GOV.UK
+        View full MOT history on GOV.UK<ArrowUpRight size={16} />
       </a>
+      </footer>
     </div>
   );
 }
@@ -211,7 +177,7 @@ export function MotHistoryPanel({
       {!autoLoad && <h2 className="section-heading mb-3">MOT history</h2>}
       {!autoLoad && (
         <p className="mb-3 text-sm text-muted-foreground">
-          See recorded MOT results, mileage and advisory notices.
+          {staff ? 'See recorded MOT results, mileage and advisory notices.' : 'Recorded mileage and MOT test results.'}
         </p>
       )}
       {!reply && (

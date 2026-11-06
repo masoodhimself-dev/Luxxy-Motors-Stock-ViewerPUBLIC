@@ -1,3 +1,4 @@
+import { vehicleMatchesPath } from '@workspace/vehicle-meta';
 import './viewing.css';
 import { useStock } from '@/lib/stock-context';
 import { ShowroomPhoto } from '@/components/showroom-photo';
@@ -66,7 +67,7 @@ export default function Viewing() {
   const cancel = useCancelViewing();
   const booking = query.data;
   const { stock } = useStock();
-  const bookedCar = stock?.cars.find(car => booking?.vehicleUrl === `/vehicle/${car.id}`);
+  const bookedCar = stock?.cars.find(car => booking?.vehicleUrl && vehicleMatchesPath(car, booking.vehicleUrl));
   const location = dealershipLocation(dealerConfig.address);
   const availabilityQuery = useGetEnquiryAvailability({ date: selectedDate }, {
     query: {

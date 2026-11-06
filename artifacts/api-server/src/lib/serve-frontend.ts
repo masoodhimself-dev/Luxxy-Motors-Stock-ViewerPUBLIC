@@ -1,3 +1,4 @@
+import { isVehiclePagePath, vehicleDetailPath } from '@workspace/vehicle-meta';
 import express, { type Express } from 'express';
 import path from 'node:path';
 import { existsSync,readFileSync } from 'node:fs';
@@ -13,10 +14,9 @@ async function loadPublicPageData(pathname: string, tenant: TenantContext | unde
   if (!tenant && !publicSeoOrigin(process.env.PUBLIC_SITE_URL)) return {};
   const { pool } = await import('@workspace/db');
   const settings = (await pool.query('SELECT config FROM dealer_settings WHERE dealer_id=$1', [tenant?.dealerId ?? currentDealerId()])).rows[0]?.config;
-  const match = /^\/vehicle\/([^/]+)\/?$/.exec(pathname);
-  if (!match) return { settings };
-  const { findPublicVehicle } = await import('../routes/stock');
-  return { settings, vehicle: await findPublicVehicle(match[1]) };
+  if (!isVehiclePagePath(pathname)) return { settings };
+  const { findPublicVehicleByPath } = await import('../routes/stock');
+  return { settings, vehicle: await findPublicVehicleByPath(pathname) };
 }
 
 export function serveFrontend(app: Express, directory: string, options: FrontendOptions = {}) {
@@ -28,8 +28,17 @@ export function serveFrontend(app: Express, directory: string, options: Frontend
     try{
       const tenant = currentTenant();
       // Privileged/capability routes never need vehicle data or discoverable metadata.
-      const publicRoute = ['/', '/index.html', '/stock', '/contact', '/warranty'].includes(req.path.replace(/\/$/, '') || '/') || /^\/vehicle\/[^/]+\/?$/.test(req.path);
+      const publicRoute = ['/', '/index.html', '/stock', '/contact', '/warranty'].includes(req.path.replace(/\/$/, '') || '/') || isVehiclePagePath(req.path);
       const data = publicRoute ? await (options.loadPageData ?? loadPublicPageData)(req.path, tenant) : {};
+      if (data.vehicle && isVehiclePagePath(req.path) && ['available', 'reserved'].includes(data.vehicle.inventoryStatus ?? '')) {
+        const canonicalPath = vehicleDetailPath(data.vehicle);
+        if (req.path !== canonicalPath) {
+          // Relative redirect stays on this verified dealer host; query attribution survives.
+          const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+          res.set('Cache-Control', 'no-store').redirect(301, canonicalPath + query);
+          return;
+        }
+      }
       const seo = buildPublicPageSeo({ pathname: req.path, canonicalOrigin: tenant?.canonicalOrigin ?? process.env.PUBLIC_SITE_URL, settings: data.settings, vehicle: data.vehicle, demo: tenant?.demo });
       // No shared HTML cache: price, availability and disclosures come from the current dealer snapshot.
       res.set('Cache-Control','no-store');

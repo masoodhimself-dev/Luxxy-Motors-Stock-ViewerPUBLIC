@@ -13,6 +13,9 @@
 .vehicle-call-dialog .vehicle-dialog-vehicle-title { font-size:15px; }
 .vehicle-call-dialog .vehicle-dialog-muted { font-size:13px; line-height:1.5; }
 .vehicle-call-dialog .vehicle-dialog-vehicle-price { font-size:17px; margin-top:2px; }
+.vehicle-call-dialog .vehicle-dialog-vehicle-bottomline { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; margin-top:5px; }
+.vehicle-call-dialog .vehicle-dialog-vehicle-bottomline .vehicle-dialog-vehicle-price { margin-top:0; }
+.vehicle-call-dialog .vehicle-call-visit-note { color:var(--dialog-ink); font-size:13px; line-height:1.55; }
 .vehicle-call-showroom { display:grid; grid-template-columns:1fr 1.15fr; gap:16px; padding:2px 0 16px; border-bottom:1px solid var(--dialog-border); }
 .vehicle-call-hours,.vehicle-call-location { min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:7px; font-size:13px; line-height:1.5; }
 .vehicle-call-hours strong { font-size:13px; font-weight:var(--mh-weight-label,600); }

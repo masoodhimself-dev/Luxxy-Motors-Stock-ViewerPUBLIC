@@ -1,3 +1,4 @@
+vi.mock('@/lib/stock-context', () => ({ useStock: () => ({ stock: null, isLoading: false, error: null }) }));
 import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { dealerConfig } from "@/config/dealer";
@@ -106,7 +107,7 @@ it("uses the verified dealership homepage chrome and preserves skip/main landmar
     "#main-content",
   );
 });
-it.each(["/stock", "/vehicle/car", "/contact", "/saved", "/enquire"])(
+it.each(["/stock", "/vehicle/car", "/cars/ford-focus-a1b2c3d4", "/s/a1b2c3d4", "/contact", "/saved", "/enquire"])(
   "shares the approved chrome on the customer %s page while retaining the homepage-only layout boundary",
   (path) => {
     state.path = path;
@@ -142,7 +143,7 @@ it("applies the shared homepage design to another dealer while preserving its ed
   expect(screen.queryByTestId("existing-footer")).not.toBeInTheDocument();
   expect(JSON.stringify(state.settings)).toBe(before);
 });
-it.each(["/stock", "/vehicle/car", "/contact", "/saved", "/enquire"])(
+it.each(["/stock", "/vehicle/car", "/cars/ford-focus-a1b2c3d4", "/s/a1b2c3d4", "/contact", "/saved", "/enquire"])(
   "uses the shared public %s chrome without changing saved header or footer artwork",
   (path) => {
     state.path = path;

@@ -736,39 +736,30 @@ export function MultiStockFilters({
                 <FilterIcon name="close" />
               </span>
               <SheetHeader className="multi-stock-drawer-heading space-y-0">
-                <SheetTitle className="sr-only">Filter cars</SheetTitle>
-                <p className="multi-stock-drawer-caption" aria-hidden="true">
-                  Filters
-                </p>
+                <SheetTitle className="multi-stock-drawer-title">Filter cars</SheetTitle>
                 <SheetDescription className="sr-only">
                   Results update as you choose.
                 </SheetDescription>
+                <button type="button" onClick={clear} disabled={!activeCount && !query} aria-label="Clear filters" className="multi-stock-drawer-reset">Reset</button>
               </SheetHeader>
               <div className="multi-stock-drawer-scroll">
-                <div className="multi-stock-sidebar-heading">
-                  <h2>Search Filters</h2>
-                  {(activeCount > 0 || query) && (
-                    <button type="button" onClick={clear}>
-                      <FilterIcon name="clear" />
-                      Clear All
-                    </button>
-                  )}
-                </div>
+                {chips.length > 0 && <section className="multi-stock-drawer-selected" aria-label="Your selected filters">
+                  <p>{activeCount} {activeCount === 1 ? 'filter' : 'filters'} selected</p>
+                  <div className="multi-stock-applied">
+                    {chips.map(chip => <button key={chip.id} type="button" aria-label={chip.removeLabel} onClick={() => {
+                      if (chip.id === 'search') { setQuery(''); }
+                      apply(chip.patch);
+                    }}><span>{chip.label}</span><FilterIcon name="close" /></button>)}
+                  </div>
+                </section>}
                 {panel}
               </div>
               <div className="multi-stock-drawer-footer">
                 <button
                   type="button"
-                  onClick={clear}
-                  disabled={!activeCount && !query}
-                  aria-label="Clear filters"
-                >
-                  <FilterIcon name="clear" />
-                  Clear
-                </button>
-                <button
-                  type="button"
                   onClick={() => {
+                    if (timer.current) clearTimeout(timer.current);
+                    if (query !== filters.search) onChange({ search: query });
                     afterShow.current = true;
                     setOpen(false);
                   }}

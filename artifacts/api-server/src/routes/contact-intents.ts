@@ -1,3 +1,4 @@
+import { publicVehicleDetailPath } from '../lib/public-vehicle-links';
 import { currentDealerId } from "../lib/tenant-context";
 import { Router, type IRouter } from "express";
 import { requireStaff } from "../middlewares/staff-auth";
@@ -136,7 +137,7 @@ router.post("/contact-intents", async (req, res): Promise<void> => {
         enquiryId: enquiry?.id ?? null,
         vehicleId: vehicle?.id ?? null,
         vehicleTitle,
-        vehicleUrl: vehicle ? `/vehicle/${vehicle.id}` : null,
+        vehicleUrl: vehicle ? await publicVehicleDetailPath(vehicle) : null,
         kind: input.channel === "whatsapp" ? "whatsapp_intent" : "call_intent",
         actor: "customer",
         summary: vehicleTitle

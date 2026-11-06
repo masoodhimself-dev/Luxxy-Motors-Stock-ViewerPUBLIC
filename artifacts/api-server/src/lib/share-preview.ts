@@ -1,5 +1,6 @@
 import {
   buildShowroomMeta,
+  vehicleDetailPath,
   buildVehicleMeta,
   toAbsoluteUrl,
   type DealerIdentity,
@@ -49,7 +50,7 @@ export function buildVehicleSharePreview(options: {
     title: meta.title,
     description: meta.description,
     imageUrl: toAbsoluteUrl(meta.image, origin),
-    targetUrl: `${origin}/vehicle/${encodeURIComponent(vehicleId)}`,
+    targetUrl: `${origin}${vehicleDetailPath({ ...vehicle, id: vehicleId })}`,
     siteName: dealer.name?.trim() || "Used car showroom",
     status: 200,
   };

@@ -134,7 +134,11 @@ describe('vehicle sheet direct PDF export', () => {
     expect(image.src).toBe('https://images.example.test/car.jpg'); expect(image.srcset).toContain('car-large.jpg');
   });
 
-  it('requests only the bounded same-origin car photo route and blocks unreadable photographs', async () => {
+  it.each(['legacy', 'short'])('requests the bounded same-origin car photo route with a %s URL and blocks unreadable photographs', async (route) => {
+    if (route === 'short') {
+      page.dataset.vehicleId = '00000000-0000-4000-8000-000000000123';
+      page.querySelector('a')!.href = 'https://dealer.example.test/cars/ford-fiesta-a1b2c3d4';
+    }
     const image = document.createElement('img'); image.src = 'https://images.example.test/private-origin-policy.jpg'; page.appendChild(image);
     Object.defineProperties(image, { complete: { value: true }, naturalWidth: { value: 1200 }, naturalHeight: { value: 800 }, decode: { value: vi.fn().mockResolvedValue(undefined) } });
     vi.spyOn(image, 'getBoundingClientRect').mockReturnValue({ ...bounds, width: 400, height: 266 });

@@ -1,20 +1,21 @@
 import { websiteText } from "@/lib/website-content";
+import { vehicleDetailPath } from '@workspace/vehicle-meta';
 import './customer-workflows.css';
 import { questionMessage } from "@/lib/vehicle-questions";
-import { useEffect, useMemo, useState, type MouseEvent } from 'react';
-import { ArrowLeft, ArrowRight, Camera, CircleAlert } from '@/components/icons';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, Camera, CircleAlert } from '@/components/icons';
 import { Link, useLocation, useSearch } from 'wouter';
 import { EnquiryForm } from '@/components/enquiry-form';
+import { EnquiryCarPicker } from '@/components/enquiry-car-picker';
 import { VehicleCall } from '@/components/vehicle-call';
 import { TestDriveBooking } from '@/components/test-drive-booking';
-import { useStock } from '@/lib/stock-context';
+import { useStock, type Car } from '@/lib/stock-context';
 import type { EnquiryType } from '@/lib/cta-helpers';
 import { formatMileage, formatPrice, getThumbnailUrl, vehicleRegistration } from '@/lib/utils';
 import { customerRegistrationDetails } from '@/lib/customer-vehicle-meta';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { enquiryPageMeta } from '@/lib/page-meta';
-import { navigateToHomeTarget } from '@/lib/home-navigation';
 
 const enquiryTypes: EnquiryType[] = ['viewing', 'general', 'part_exchange'];
 const headings: Record<EnquiryType, { eyebrow: string; title: string; description: string }> = {
@@ -34,7 +35,7 @@ function vehicleName(vehicle: { title: string | null; make: string | null; model
 }
 
 export default function Enquire() {
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
   const { stock, isLoading, error } = useStock();
   const { settings: dealerConfig } = useDealerSettings();
   const search = useSearch();
@@ -43,6 +44,9 @@ export default function Enquire() {
   const [type, setType] = useState<EnquiryType>(requestedType && enquiryTypes.includes(requestedType) ? requestedType : 'general');
   useEffect(() => { setType(requestedType && enquiryTypes.includes(requestedType) ? requestedType : 'general'); }, [requestedType]);
   const vehicleId = params.get('vehicleId');
+  const [carPickerOpen, setCarPickerOpen] = useState(false);
+  const [carryDraftToVehicleId, setCarryDraftToVehicleId] = useState<string>();
+  const [formBusy, setFormBusy] = useState(false);
   const vehicle = stock?.cars.find((car) => car.id === vehicleId);
   const waitingForStock = isLoading && !stock;
   const isCarMessage = type === 'general' && Boolean(vehicle);
@@ -73,7 +77,18 @@ export default function Enquire() {
         { label: 'Gearbox', value: vehicle.transmission },
       ].filter((highlight): highlight is { label: string; value: string } => Boolean(highlight.value))
     : [];
-  const changeCar = () => navigateToHomeTarget('stock', location, setLocation);
+  const changeCar = () => { if (!formBusy) setCarPickerOpen(true); };
+  const selectCar = (car: Car, carryCurrent: boolean) => {
+    if (formBusy) return;
+    setCarryDraftToVehicleId(carryCurrent ? car.id : undefined);
+    setCarPickerOpen(false);
+    const next = new URLSearchParams(params);
+    next.set('vehicleId', car.id);
+    // Old advert prompts must not be re-applied to a different vehicle.
+    next.delete('question');
+    next.delete('searchRequest');
+    setLocation(`/enquire?${next.toString()}`, { replace: true });
+  };
 
   if (type === 'viewing') return <TestDriveBooking vehicle={vehicle} stockCars={stock?.cars ?? []} isLoading={isLoading} error={error} missingVehicle={Boolean(vehicleId && !vehicle)} />;
 
@@ -81,7 +96,7 @@ export default function Enquire() {
     <div className={`friendly-page friendly-enquire luxxy-shell min-h-screen bg-background pb-20 pt-4 sm:pt-8 md:pt-12${type === 'general' ? ' friendly-message' : ''}`}>
       <div className="container enquiry-page-container mx-auto px-4 sm:px-6 lg:px-8">
         <Link
-          href={isCarMessage ? `/vehicle/${encodeURIComponent(vehicle!.id)}` : '/'}
+          href={isCarMessage ? vehicleDetailPath(vehicle!) : '/'}
           className="enquiry-back-link inline-flex min-h-11 items-center gap-3 font-display text-[12px] font-normal text-primary transition-colors hover:text-accent group"
         >
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
@@ -113,9 +128,9 @@ export default function Enquire() {
               <div className="mt-5 hidden flex-col gap-4 lg:flex" data-testid="enquiry-vehicle-summary">
                 <div className="flex items-center justify-between gap-3 border-b border-border pb-2">
                   <p className="font-display text-[13px] font-semibold text-primary">Your selected car</p>
-                  <Link href="/stock" onClick={(event) => { event.preventDefault(); changeCar(); }} className="inline-flex min-h-11 shrink-0 items-center font-display text-xs text-accent underline underline-offset-4 transition-colors hover:text-primary">
+                  <button type="button" disabled={formBusy} onClick={changeCar} className="inline-flex min-h-11 shrink-0 items-center font-display text-xs text-accent underline underline-offset-4 transition-colors hover:text-primary disabled:opacity-50">
                     Change car
-                  </Link>
+                  </button>
                 </div>
                 <div className="relative hidden aspect-[4/3] w-full overflow-hidden rounded-md bg-muted lg:block">
                   {vehicleImage ? (
@@ -150,19 +165,10 @@ export default function Enquire() {
               <div className="mt-5 hidden flex-col gap-3 border-t border-border pt-5 lg:flex" data-testid="enquiry-no-vehicle-summary">
                 <div>
                   <p className="mt-2 text-[12px] font-normal leading-relaxed text-primary/70">
-                    If you have a specific car in mind, choose it from our stock and we’ll include it with your enquiry.
+                    Choose a car and we’ll include it with your enquiry.
                   </p>
                 </div>
-                <Link
-                  href="/stock"
-                  onClick={(event: MouseEvent<HTMLAnchorElement>) => {
-                    event.preventDefault();
-                    navigateToHomeTarget('stock', location, setLocation);
-                  }}
-                  className="font-display text-[12px] font-semibold tracking-normal text-accent transition-colors hover:text-primary mt-2 flex items-center gap-2"
-                >
-                  Browse our cars <ArrowRight className="h-3 w-3" />
-                </Link>
+                <button type="button" disabled={formBusy} onClick={changeCar} className="min-h-11 text-left text-sm text-primary underline underline-offset-4 disabled:opacity-50">Choose a car</button>
               </div>
             )}
           </section>
@@ -197,7 +203,7 @@ export default function Enquire() {
                 </div>
               ) : null}
 
-              {!((waitingForStock && (type === 'part_exchange' || Boolean(vehicleId))) || (type === 'part_exchange' && !stock && error)) && <EnquiryForm key={`${type}:${vehicle?.id ?? 'general'}`} initialMessage={type === "general" && params.get("searchRequest") ? params.get("searchRequest")!.slice(0, 500) : vehicle && type === "general" ? questionMessage(params.get("question")) : ""} onTypeChange={setType} onChangeCar={changeCar} initialType={type} vehicle={vehicle} stockCars={stock?.cars ?? []} />}
+              {!((waitingForStock && (type === 'part_exchange' || Boolean(vehicleId))) || (type === 'part_exchange' && !stock && error)) && <EnquiryForm key={type === "general" ? type : `${type}:${vehicle?.id ?? "general"}`} initialMessage={type === "general" && params.get("searchRequest") ? params.get("searchRequest")!.slice(0, 500) : vehicle && type === "general" ? questionMessage(params.get("question")) : ""} onTypeChange={setType} onChangeCar={changeCar} onBusyChange={setFormBusy} carryDraftToVehicleId={carryDraftToVehicleId} initialType={type} vehicle={vehicle} stockCars={stock?.cars ?? []} />}
             </div>
 
             {dealerConfig.contact.phone && <p className="mt-5 text-sm text-muted-foreground">
@@ -208,6 +214,7 @@ export default function Enquire() {
           </section>
         </div>
       </div>
+      <EnquiryCarPicker open={carPickerOpen} onOpenChange={setCarPickerOpen} cars={stock?.cars ?? []} currentId={vehicle?.id} onSelect={selectCar} />
     </div>
   );
 }

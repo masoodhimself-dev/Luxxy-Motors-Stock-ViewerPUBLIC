@@ -1,3 +1,4 @@
+import { vehicleDetailPath } from '@workspace/vehicle-meta';
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import { HoverHelp, TermHelp, VehicleTerm } from './customer-help';
 import { VehicleSellingPoints } from './vehicle-selling-points';
@@ -106,7 +107,7 @@ export function CarCard({
   const showMakeLogo = Boolean(getMakeLogoSrc(car.make));
   const registration = vehicleRegistration(car);
   const registrationYear = stockRegistrationYear(car);
-  const detailHref = `/vehicle/${car.id}`;
+  const detailHref = vehicleDetailPath(car);
   const recordVehicleOpen = () => {
     rememberStockPosition(car.id);
     trackEvent('vehicle_opened', {

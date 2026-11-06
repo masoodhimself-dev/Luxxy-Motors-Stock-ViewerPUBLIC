@@ -194,3 +194,9 @@ it('prints supplied dealer viewing details and the exact vehicle QR in colour or
     expect(output.includes('lvs-mono')).toBe(monochrome);
   }
 });
+
+it('uses the published short canonical path for the printed QR', () => {
+  const car = { id: 'real-id', make: 'Ford', model: 'Focus', sourceExtras: { publicVehicleCode: 'a1b2c3d4' } };
+  const { url } = vehicleSheetLocation(car);
+  expect(new URL(url).pathname).toBe('/cars/ford-focus-a1b2c3d4');
+});

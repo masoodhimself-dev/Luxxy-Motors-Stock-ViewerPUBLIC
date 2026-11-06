@@ -14,7 +14,7 @@ vi.mock('@/components/enquiry-form', () => ({ EnquiryForm: (props: { vehicle?: {
   return <div data-testid="enquiry-form-under-test" data-vehicle={props.vehicle?.id ?? ''} data-type={props.initialType}><input aria-label="Example registration" /></div>;
 } }));
 const car = { id: 'requested-car', title: 'Ford Focus', make: 'Ford', model: 'Focus', images: [] as [] };
-beforeEach(() => { state.stock = null; state.isLoading = true; state.error = null; state.form.mockClear(); });
+beforeEach(() => { window.sessionStorage.clear(); state.stock = null; state.isLoading = true; state.error = null; state.form.mockClear(); });
 
 it('waits for initial stock before mounting part exchange with the requested vehicle, preserving later input on stock refresh', () => {
   window.history.pushState({}, '', '/enquire?type=part_exchange&vehicleId=requested-car');
@@ -63,4 +63,30 @@ it('lets customers send a general message when a requested car is no longer in s
   expect(screen.getByTestId('status-vehicle-unavailable')).toBeInTheDocument();
   expect(screen.getByTestId('enquiry-form-under-test')).toHaveAttribute('data-vehicle', '');
   expect(screen.getByRole('link', { name: 'Back to showroom' })).toHaveAttribute('href', '/');
+});
+
+it('changes car in a picker without remounting the enquiry or navigating through stock', () => {
+  const toyota = { ...car, id: 'second-car', title: 'Toyota Yaris', make: 'Toyota', model: 'Yaris' };
+  window.history.pushState({}, '', '/enquire?type=general&vehicleId=requested-car&question=mot');
+  state.stock = { cars: [car, toyota] };state.isLoading = false;
+  render(<Enquire />);
+  fireEvent.change(screen.getByRole('textbox', { name: 'Example registration' }), { target: { value: 'My unfinished details' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Change car' }));
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search available cars' }), { target: { value: 'Toyota' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Choose Toyota Yaris' }));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(screen.getByTestId('enquiry-form-under-test')).toHaveAttribute('data-vehicle', toyota.id);
+  expect(screen.getByRole('textbox', { name: 'Example registration' })).toHaveValue('My unfinished details');
+  expect(window.location.pathname).toBe('/enquire');
+  expect(new URLSearchParams(window.location.search).get('vehicleId')).toBe(toyota.id);
+  expect(new URLSearchParams(window.location.search).has('question')).toBe(false);
+  expect(state.form.mock.calls.at(-1)?.[0]).toMatchObject({ carryDraftToVehicleId: toyota.id });
+});
+
+it('returns to the selected car’s canonical short path when its public code is available', () => {
+  const published = { ...car, sourceExtras: { publicVehicleCode: 'a1b2c3d4' } };
+  window.history.pushState({}, '', '/enquire?type=general&vehicleId=requested-car');
+  state.stock = { cars: [published] };state.isLoading = false;
+  render(<Enquire />);
+  expect(screen.getByRole('link', { name: 'Back to car' })).toHaveAttribute('href', '/cars/ford-focus-a1b2c3d4');
 });

@@ -50,10 +50,12 @@
 .vehicle-page-streamlined .vehicle-message-body { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 28px; padding: 4px 20px 24px; }
 .vehicle-page-streamlined .vehicle-message-body > form { min-width: 0; }
 .vehicle-page-streamlined .vehicle-photo-request { margin-top: 8px; }
+.vehicle-page-streamlined .vehicle-photo-gallery.is-customer-gallery .vehicle-thumbnail-grid > button { flex: 0 0 96px; width: 96px; }
 @media (min-width: 1000px) {
   .vehicle-page-streamlined .vehicle-message-body { grid-template-columns: minmax(0, 1fr) minmax(300px, .64fr); gap: 36px; }
 }
 @media (min-width: 1100px) {
+  .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-detail-grid { grid-template-columns: minmax(0, 1.85fr) minmax(360px, 1fr); gap: 28px; }
   .vehicle-page-streamlined .vehicle-overview-chapter { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); column-gap: 48px; align-items: start; }
   .vehicle-page-streamlined .vehicle-overview-chapter .vehicle-description-section { grid-column: 1; }
   .vehicle-page-streamlined .vehicle-overview-chapter .vehicle-included { grid-column: 2; }
@@ -70,6 +72,7 @@
   .vehicle-page-streamlined .vehicle-compact-detail .vehicle-registration { margin-top: 4px; }
 }
 @media (max-width: 639px) {
+  .vehicle-page-streamlined .vehicle-photo-gallery.is-customer-gallery .vehicle-thumbnail-grid > button { flex-basis: 76px; width: 76px; }
   /* The open form already handles contact; keep its fields unobstructed. */
   .vehicle-page-streamlined:has(#vehicle-enquiry[open]) .vehicle-mobile-actions { display: none; }
   .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-section-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; }

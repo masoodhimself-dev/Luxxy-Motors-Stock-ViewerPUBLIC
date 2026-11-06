@@ -53,7 +53,7 @@
     "test:email-website-branding": "node test-build.mjs src/email-website-branding.test.ts && node --test dist-test/email-website-branding.test.mjs",
     "test:platform-stock-source": "node test-platform-stock-source-build.mjs && node --test .cache/platform-stock-source-tests/platform-stock-connection.test.mjs",
     "test:website-assets": "node test-website-assets-build.mjs && node --test .cache/website-assets-tests/dealer-website-assets.test.mjs",
-    "test:seo": "node test-seo-crawl-build.mjs && node --test .cache/seo-crawl-tests/seo-crawl.test.mjs .cache/seo-crawl-tests/indexnow.test.mjs && node test-public-page-seo-build.mjs && node --test .cache/public-page-seo-tests/public-page-seo.test.mjs",
+    "test:seo": "node test-seo-crawl-build.mjs && node --test .cache/seo-crawl-tests/seo-crawl.test.mjs .cache/seo-crawl-tests/indexnow.test.mjs .cache/seo-crawl-tests/vehicle-public-links.test.mjs && node test-public-page-seo-build.mjs && node --test .cache/public-page-seo-tests/public-page-seo.test.mjs",
     "test:search-visibility": "node test-search-visibility-build.mjs && node --test .cache/search-visibility-tests/search-visibility.test.mjs",
     "test:invitations": "node test-invitations-build.mjs && node --test .cache/invitation-tests/account-invitations.test.mjs",
     "test:customer-replies": "node test-customer-replies-build.mjs && node --test .cache/reply-tests/customer-email-replies.test.mjs",

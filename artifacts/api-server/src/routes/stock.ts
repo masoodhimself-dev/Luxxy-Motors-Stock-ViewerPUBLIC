@@ -6,7 +6,7 @@ import { matchesImportSecret } from "../middlewares/tenant";
 import { currentDealerId, currentTenant, multiTenantEnabled } from "../lib/tenant-context";
 import { stockPlatformIssues } from "../lib/stock-platform";
 import { importAdmission } from '../lib/stock-import-admission';
-import { stockDescriptionExtras } from "@workspace/vehicle-meta";
+import { stockDescriptionExtras, vehicleCodeFromPath } from "@workspace/vehicle-meta";
 import { dealerIntegrationsStore } from "../lib/dealer-integrations-store";
 import { stockSourceData, projectedStockSourceData } from "../lib/stock-source-data";
 import { timingSafeEqual } from "node:crypto";
@@ -30,6 +30,7 @@ import {
   vehicleChangesTable,
   vehicleImagesTable,
   vehiclesTable,
+  vehiclePublicLinksTable,
   type Vehicle,
   type VehicleImage,
 } from "@workspace/db";
@@ -356,6 +357,8 @@ router.post("/stock/imports/grok", async (req, res): Promise<void> => {
 export async function projectVehicles(vehicles: Vehicle[], executor: typeof db = db) {
   const reductions = await publicPriceReductions(vehicles, new Date(), undefined, executor);
   const ids = vehicles.map((vehicle) => vehicle.id);
+  const publicLinks = ids.length ? await executor.select().from(vehiclePublicLinksTable).where(inArray(vehiclePublicLinksTable.vehicleId, ids)) : [];
+  const publicCodes = new Map(publicLinks.map(link => [link.vehicleId, link.code]));
   const images = ids.length ? await executor.select().from(vehicleImagesTable).where(and(inArray(vehicleImagesTable.vehicleId, ids), eq(vehicleImagesTable.isActive, true))).orderBy(vehicleImagesTable.sortOrder) : [];
   const byVehicle = new Map<string, VehicleImage[]>();
   for (const image of images) {
@@ -370,6 +373,9 @@ export async function projectVehicles(vehicles: Vehicle[], executor: typeof db =
     const imported = raw !== null && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : null;
     const specifications = vehicle.websiteDescription ? { ...(imported?.specifications as Record<string, unknown> ?? {}), description: publishedDescription(vehicle.websiteDescription, vehicle) } : imported?.specifications;
     const sourceExtras = stockDescriptionExtras({ ...vehicle, title: vehicle.websiteTitleOverride ?? vehicle.title, price: vehicle.websitePriceOverride ?? vehicle.sourcePrice, specifications: imported?.specifications as Record<string, unknown> | null, sourceExtras: imported?.sourceExtras as Record<string, unknown> | null });
+    delete sourceExtras.publicVehicleCode;
+    const publicCode = publicCodes.get(vehicle.id);
+    if (publicCode) sourceExtras.publicVehicleCode = publicCode;
     delete sourceExtras.websitePriceReduction;
     const reduction = reductions.get(vehicle.id);
     if (reduction) sourceExtras.websitePriceReduction = reduction;
@@ -404,10 +410,10 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 export type PublicVehicle = Awaited<ReturnType<typeof projectVehicles>>[number];
 
 /** Read-only crawl inventory. Shares the website visibility rules, without photo/raw-data projection. */
-export async function listPublicStockSitemapEntries(): Promise<{ id: string }[]> {
+export async function listPublicStockSitemapEntries(): Promise<{ id: string; make: string | null; model: string | null; title: string | null; sourceExtras: { publicVehicleCode: string | undefined } }[]> {
   const settings = await config();
   const vehicles = await db.select({
-    id: vehiclesTable.id, sourceStatus:vehiclesTable.sourceStatus, archivedAt: vehiclesTable.archivedAt, inventoryStatus: vehiclesTable.inventoryStatus,
+    id: vehiclesTable.id, make: vehiclesTable.make, model: vehiclesTable.model, title: vehiclesTable.title, websiteTitleOverride: vehiclesTable.websiteTitleOverride, sourceStatus:vehiclesTable.sourceStatus, archivedAt: vehiclesTable.archivedAt, inventoryStatus: vehiclesTable.inventoryStatus,
     missingCount: vehiclesTable.missingCount, priceReviewRequired: vehiclesTable.priceReviewRequired,
     sourcePrice: vehiclesTable.sourcePrice, websitePriceOverride: vehiclesTable.websitePriceOverride,
   }).from(vehiclesTable).where(and(
@@ -418,7 +424,9 @@ export async function listPublicStockSitemapEntries(): Promise<{ id: string }[]>
   )).orderBy(vehiclesTable.advertId);
   // updatedAt can change on an unchanged stock check; it is not a public content
   // publication timestamp, so sitemap entries intentionally omit vehicle lastmod.
-  return vehicles.filter(vehicle => visible(vehicle, settings)).map(vehicle => ({ id: vehicle.id }));
+  const links = await db.select().from(vehiclePublicLinksTable).where(eq(vehiclePublicLinksTable.dealerId, settings.dealerId));
+  const codes = new Map(links.map(link => [link.vehicleId, link.code]));
+  return vehicles.filter(vehicle => visible(vehicle, settings)).map(vehicle => ({ id: vehicle.id, make: vehicle.make, model: vehicle.model, title: vehicle.websiteTitleOverride ?? vehicle.title, sourceExtras: { publicVehicleCode: codes.get(vehicle.id) } }));
 }
 
 /** Read-only brochure lookup: match /stock across every import source. */
@@ -443,6 +451,18 @@ export async function findPublicVehicle(id: string): Promise<PublicVehicle | nul
   if (!vehicle || vehicle.source !== settings.platform || !visible(vehicle, settings)) return null;
   const [projected] = await projectVehicles([vehicle]);
   return projected ?? null;
+}
+
+/** Resolve only the active dealer's link before applying the normal public-stock rules. */
+export async function findPublicVehicleByPath(pathname: string): Promise<PublicVehicle | null> {
+  const code = vehicleCodeFromPath(pathname);
+  if (!code) {
+    const id = /^\/vehicle\/([^/]+)\/?$/.exec(pathname)?.[1];
+    return id ? findPublicVehicle(id) : null;
+  }
+  const [link] = await db.select({ vehicleId: vehiclePublicLinksTable.vehicleId }).from(vehiclePublicLinksTable)
+    .where(and(eq(vehiclePublicLinksTable.code, code), eq(vehiclePublicLinksTable.dealerId, currentDealerId()))).limit(1);
+  return link?.vehicleId ? findPublicVehicle(link.vehicleId) : null;
 }
 
 router.get("/vehicles/:id", async (req, res): Promise<void> => {

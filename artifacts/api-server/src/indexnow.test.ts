@@ -5,7 +5,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import express from 'express';
-import { db, engine, dealershipsTable, dealerDomainsTable, dealerDemosTable, dealerSettingsTable, portalUsersTable, vehiclesTable } from './test/tenant-test-db';
+import { db, engine, dealershipsTable, dealerDomainsTable, dealerDemosTable, dealerSettingsTable, portalUsersTable, vehiclesTable, vehiclePublicLinksTable } from './test/tenant-test-db';
 import { indexNowConfiguration, indexNowReadiness, submitIndexNow, IndexNowError } from './lib/indexnow';
 import { createIndexNowRouter } from './routes/indexnow';
 import { loadDealerSitemap, verifiedSeoScope } from './routes/seo';
@@ -121,7 +121,9 @@ test('IndexNow HTTP actions enforce actual tenant membership, same-origin writes
     await t.test('submits canonical current public pages only and limits repeated requests independently per dealer', async () => {
       const result = await post(); assert.equal(result.status, 200); assert.equal(JSON.parse(result.text).indexed, 'unconfirmed');
       assert.equal(calls, 1); const urls = body!.urlList as string[];
-      assert.ok(urls.includes(`${a.origin}/vehicle/${carA}`)); assert.ok(!urls.some(url => url.includes(carB)));
+      const links = await db.select().from(vehiclePublicLinksTable);
+      const codeA = links.find(link => link.vehicleId === carA)!.code, codeB = links.find(link => link.vehicleId === carB)!.code;
+      assert.ok(urls.some(url => url.startsWith(`${a.origin}/cars/`) && url.endsWith(codeA))); assert.ok(!urls.some(url => url.includes(codeB)));
       assert.ok(urls.every(url => new URL(url).origin === a.origin));
       assert.ok(!result.text.includes(enabled.INDEXNOW_SECRET));
       assert.equal((await post()).status, 429); assert.equal(calls, 1);

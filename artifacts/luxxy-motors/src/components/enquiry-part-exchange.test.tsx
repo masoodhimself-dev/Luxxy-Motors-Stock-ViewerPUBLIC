@@ -119,6 +119,36 @@ it.each([false, true])('reveals the looked-up car and editable mileage without s
   expect(state.mutate).not.toHaveBeenCalled();
 });
 
+it('updates only untouched generated part-exchange wording when the customer changes the stock car', async () => {
+  const secondCar = { ...selectedCar, id: 'fictional-yaris', title: 'Toyota Yaris', make: 'Toyota', model: 'Yaris' };
+  const view = render(<EnquiryForm vehicle={selectedCar} />);
+  addExchange();await findCar();fillContact();
+  expect((question() as HTMLTextAreaElement).value).toContain('Ford Fiesta');
+  view.rerender(<EnquiryForm vehicle={secondCar} carryDraftToVehicleId={secondCar.id} />);
+  expect((question() as HTMLTextAreaElement).value).toContain('Toyota Yaris');
+  expect((question() as HTMLTextAreaElement).value).not.toContain('Ford Fiesta');
+  expect(screen.getByText('Honda Civic')).toBeVisible();
+  expect(mileage()).toHaveValue(88000);
+  expect(state.lookup).toHaveBeenCalledOnce();
+  change(question(), 'Can I part exchange my Honda? I have a question about the Toyota.');
+  view.rerender(<EnquiryForm vehicle={selectedCar} carryDraftToVehicleId={selectedCar.id} />);
+  expect(question()).toHaveValue('Can I part exchange my Honda? I have a question about the Toyota.');
+  expect(state.mutate).not.toHaveBeenCalled();
+});
+
+it('remembers which part-exchange wording was generated when restoring a draft before changing cars', async () => {
+  const first = render(<EnquiryForm vehicle={selectedCar} />);
+  addExchange();await findCar();
+  expect(readEnquiryDraft(enquiryDraftKey(selectedCar.id, 'general'))?.generatedExchangeQuestion?.makeModel).toBe('Honda Civic');
+  first.unmount();
+  const secondCar = { ...selectedCar, id: 'fictional-yaris', title: 'Toyota Yaris', make: 'Toyota', model: 'Yaris' };
+  const restored = render(<EnquiryForm vehicle={selectedCar} />);
+  restored.rerender(<EnquiryForm vehicle={secondCar} carryDraftToVehicleId={secondCar.id} />);
+  expect((question() as HTMLTextAreaElement).value).toContain('Toyota Yaris');
+  expect((question() as HTMLTextAreaElement).value).not.toContain('Ford Fiesta');
+  expect(state.lookup).toHaveBeenCalledOnce();
+});
+
 it('uses Enter on the registration to find the car without requiring contact details or sending an enquiry', async () => {
   render(<EnquiryForm embedded vehicle={selectedCar} />);
   addExchange();

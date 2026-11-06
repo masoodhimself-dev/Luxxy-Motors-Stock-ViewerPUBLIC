@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { customFetch } from '@workspace/api-client-react';
 import type { MotHistory } from '@workspace/vehicle-meta';
 import { Button } from '@/components/ui/button';
@@ -28,7 +28,7 @@ export function checkedVehicleSheetCar(value: unknown, id: string): Car {
 }
 
 /** An isolated A4 document: its fonts and PDF export cannot reach invoices. */
-export function VehiclePrint({ car, dealer, features: _features, description: _description }: { car: Car; dealer: DealerConfig; features: string[]; description?: string }) {
+export function VehiclePrint({ car, dealer, features: _features, description: _description, triggerContent, triggerClassName }: { car: Car; dealer: DealerConfig; features: string[]; description?: string; triggerContent?: ReactNode; triggerClassName?: string }) {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<'checking' | 'preparing' | 'ready' | 'error'>('checking');
   const [error, setError] = useState('');
@@ -102,14 +102,14 @@ export function VehiclePrint({ car, dealer, features: _features, description: _d
         doc.addEventListener('keydown', event => {
           if (event.key === 'Escape') { event.preventDefault(); setOpen(false); }
         }, { signal: controller.signal });
-        const { origin, url } = vehicleSheetLocation(fresh.car.id);
+        const { origin, url } = vehicleSheetLocation(fresh.car);
         const content = vehicleContent(fresh.car);
         const data = buildVehicleSheetData(fresh.car, dealer, content.features, content.description, url, fresh.history ?? undefined);
         if (isMultiChoiceWebsite() && data.dealer) data.dealer.logoUrl = '/brand/multi-choice-motors/multi-choice-wordmark.svg';
         if (data.dealer?.logoUrl) data.dealer.logoUrl = new URL(data.dealer.logoUrl, window.location.origin).href;
         const { prepareVehicleSheet } = await import('@/lib/vehicle-sheet/controller');
         if (controller.signal.aborted) return;
-        const result = await prepareVehicleSheet(doc.querySelector('main')!, data, { dealerWebsiteOrigin: origin, vehiclePathPrefix: '/vehicle/', monochrome }, controller.signal);
+        const result = await prepareVehicleSheet(doc.querySelector('main')!, data, { dealerWebsiteOrigin: origin, vehiclePathPrefix: new URL(url).pathname.startsWith('/cars/') ? '/cars/' : '/vehicle/', monochrome }, controller.signal);
         if (controller.signal.aborted) return;
         setStatus(result.status === 'ready' ? 'ready' : 'error');
         if (result.status !== 'ready') setError('The vehicle sheet could not fit safely on one A4 page. Please try again or contact the dealership for details.');
@@ -138,7 +138,7 @@ export function VehiclePrint({ car, dealer, features: _features, description: _d
     } finally { if (downloadController.current === controller) { downloadController.current = null; setDownloading(false); } }
   }
   return <>
-    <button id="print-vehicle-details" type="button" className="text-link min-h-11 text-sm" onClick={() => { setStatus('checking'); setError(''); setOpen(true); }} data-testid="button-print-vehicle" aria-label={`Print vehicle details for ${vehicleDisplayTitle(car)}`}><Printer aria-hidden="true" className="h-4 w-4" />Print vehicle details</button>
+    <button id="print-vehicle-details" type="button" className={triggerClassName ?? 'text-link min-h-11 text-sm'} onClick={() => { setStatus('checking'); setError(''); setOpen(true); }} data-testid="button-print-vehicle" aria-label={`Print or download details for ${vehicleDisplayTitle(car)}`}>{triggerContent ?? <><Printer aria-hidden="true" className="h-4 w-4" />Print vehicle details</>}</button>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="vehicle-print-dialog max-w-4xl p-4 sm:p-6">
         <DialogHeader><DialogTitle>Vehicle details</DialogTitle><DialogDescription>One A4 page. Scan the QR code for the full description, equipment and photos.</DialogDescription></DialogHeader>

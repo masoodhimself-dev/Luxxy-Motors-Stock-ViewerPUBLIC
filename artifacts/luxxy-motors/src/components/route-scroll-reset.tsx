@@ -1,3 +1,4 @@
+import { isVehiclePagePath } from '@workspace/vehicle-meta';
 import { requestBrowseRestore } from "@/lib/browse-session";
 import { useLayoutEffect, useRef } from "react";
 import { useLocation } from 'wouter';
@@ -7,7 +8,7 @@ export function RouteScrollReset() {
 
   const previous = useRef(location);
   useLayoutEffect(() => {
-    if (location === "/stock" && previous.current.startsWith("/vehicle/")) requestBrowseRestore();
+    if (location === "/stock" && isVehiclePagePath(previous.current)) requestBrowseRestore();
     previous.current = location;
     window.history.scrollRestoration = 'manual';
     // `auto` inherits html's smooth anchor scrolling and would sweep through

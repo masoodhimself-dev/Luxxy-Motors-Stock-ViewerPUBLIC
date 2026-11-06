@@ -1,0 +1,78 @@
+/* MOT records: compact rows and a factual chart, shared by the website and portal. */
+.mot-history-results {
+  --mot-ink: #243139;
+  --mot-muted: #646e74;
+  --mot-rule: #e1e4e6;
+  --mot-danger: #9c3434;
+  min-width: 0; color: var(--mot-ink); font-size: 14px; line-height: 1.55;
+}
+.mot-history-results .mot-record-header { display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 10px 20px; margin-bottom: 14px; }
+.mot-history-results .mot-record-car { font-size: 17px; font-weight: 600; line-height: 1.4; margin: 0 0 4px; }
+.mot-history-results .mot-record-source { display: flex; flex-wrap: wrap; gap: 3px 10px; color: var(--mot-muted); font-size: 12px; margin: 0; }
+.mot-history-results .mot-record-source strong { color: var(--mot-ink); font-weight: 600; }
+.mot-history-results .mot-latest-result { display: inline-flex; align-items: center; gap: 6px; padding: 6px 0; font-weight: 600; font-size: 13px; white-space: nowrap; }
+.mot-history-results .mot-latest-result[data-result=FAILED] { color: var(--mot-danger); }
+.mot-history-results .mot-record-expiry { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 20px; padding: 12px 0; margin: 0; border-block: 1px solid var(--mot-rule); }
+.mot-history-results .mot-record-expiry strong { font-weight: 600; }
+.mot-history-results .mot-record-note { color: var(--mot-muted); font-size: 13px; margin: 0; }
+.mot-history-results .mot-record-warning, .mot-history-results .mot-mileage-warning { display: flex; align-items: start; gap: 9px; color: var(--mot-danger); font-size: 13px; margin: 12px 0; }
+.mot-history-results :is(.mot-record-warning, .mot-mileage-warning) > svg { flex-shrink: 0; margin-top: 2px; }
+.mot-history-results .mot-mileage { margin: 20px 0 22px; padding: 0 0 18px; border-bottom: 1px solid var(--mot-rule); }
+.mot-history-results :is(.mot-mileage-heading, .mot-test-history-heading) { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+.mot-history-results :is(.mot-mileage-heading, .mot-test-history-heading) > span { color: var(--mot-muted); font-size: 12px; white-space: nowrap; }
+.mot-history-results :is(.mot-mileage h3, .mot-test-history-heading h3) { font-size: 15px; font-weight: 600; line-height: 1.4; margin: 0; }
+.mot-history-results .mot-mileage-selection { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 10px; min-height: 28px; margin-bottom: 10px; }
+.mot-history-results .mot-mileage-selection strong { font-size: 19px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.mot-history-results .mot-mileage-selection span { color: var(--mot-muted); font-size: 12px; }
+.mot-history-results .mot-mileage-plot { display: flex; gap: 10px; align-items: stretch; min-width: 0; }
+.mot-history-results .mot-mileage-axis { width: 51px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: space-between; text-align: right; padding-block: 3px; color: var(--mot-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.mot-history-results .mot-mileage-plot > svg { display: block; width: calc(100% - 61px); height: auto; overflow: visible; }
+.mot-history-results .mot-mileage-grid { stroke: var(--mot-rule); stroke-width: 1; }
+.mot-history-results .mot-mileage-line { stroke: var(--mot-ink); stroke-width: 1.8; stroke-linejoin: round; }
+.mot-history-results .mot-mileage-dot { fill: white; stroke: var(--mot-ink); stroke-width: 1.6; }
+.mot-history-results .mot-mileage-dot[data-decreased=true] { fill: var(--mot-danger); stroke: var(--mot-danger); }
+.mot-history-results .mot-mileage-target { fill: transparent; stroke: transparent; cursor: pointer; outline: none; }
+.mot-history-results .mot-mileage-target:focus-visible { stroke: var(--mot-ink); stroke-width: 1.5; stroke-dasharray: 3 2; }
+.mot-history-results .mot-mileage-dates { display: flex; justify-content: space-between; gap: 8px; margin: 5px 0 0 61px; color: var(--mot-muted); font-size: 11px; }
+.mot-history-results .mot-mileage-dates > span:only-child { margin-inline: auto; }
+.mot-history-results .mot-mileage figcaption { font-size: 12px; color: var(--mot-muted); line-height: 1.5; margin-top: 10px; }
+.mot-history-results .mot-mileage-empty p { color: var(--mot-muted); font-size: 13px; margin: 6px 0 0; }
+.mot-history-results .mot-mileage-warning { margin-bottom: 0; }
+.mot-history-results .mot-test-history-heading { margin-bottom: 10px; }
+.mot-history-results .mot-test-row { border-top: 1px solid var(--mot-rule); margin: 0; padding: 0; border-radius: 0; background: transparent; }
+.mot-history-results .mot-test-summary { display: grid; grid-template-columns: minmax(130px,1.25fr) 90px minmax(110px,1fr) 18px; align-items: center; gap: 12px; min-height: 68px; padding: 12px 0; cursor: pointer; list-style: none; }
+.mot-history-results .mot-test-summary::-webkit-details-marker { display: none; }
+.mot-history-results .mot-test-row-public .mot-test-summary { grid-template-columns: minmax(130px,1.25fr) 90px minmax(110px,1fr); min-height: 54px; cursor: default; }
+.mot-history-results .mot-test-summary:focus-visible { outline: 2px solid var(--mot-ink); outline-offset: 3px; border-radius: 3px; }
+.mot-history-results .mot-test-date { font-size: 14px; font-weight: 600; }
+.mot-history-results .mot-test-date small { display: block; color: var(--mot-muted); font-size: 12px; font-weight: 400; margin-top: 2px; }
+.mot-history-results .mot-test-result { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; }
+.mot-history-results .mot-test-row[data-result=FAILED] .mot-test-result { color: var(--mot-danger); }
+.mot-history-results .mot-test-mileage { font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+.mot-history-results .mot-test-chevron { color: var(--mot-muted); justify-self: end; }
+.mot-history-results .mot-test-row[open] > .mot-test-summary .mot-test-chevron { transform: rotate(180deg); }
+.mot-history-results .mot-test-details { padding: 0 0 16px; }
+.mot-history-results .mot-test-expiry { color: var(--mot-muted); font-size: 12px; margin: 0 0 10px; }
+.mot-history-results .mot-defect-list { margin: 0; padding: 0; list-style: none; }
+.mot-history-results .mot-defect-list li { display: grid; grid-template-columns: 90px minmax(0,1fr); align-items: baseline; gap: 12px; padding: 7px 0; overflow-wrap: anywhere; font-size: 13px; }
+.mot-history-results .mot-defect-type { color: var(--mot-muted); font-weight: 600; font-size: 12px; }
+.mot-history-results .mot-defect-list li[data-severe=true] .mot-defect-type { color: var(--mot-danger); }
+.mot-history-results .mot-record-footer { margin-top: 6px; padding-top: 15px; border-top: 1px solid var(--mot-rule); }
+.mot-history-results .mot-record-footer p { color: var(--mot-muted); font-size: 12px; line-height: 1.6; margin: 0; }
+.mot-history-results .mot-record-footer a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--mot-ink); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
+@media(max-width: 520px) {
+  .mot-history-results .mot-record-header { gap: 4px; }
+  .mot-history-results .mot-record-car { font-size: 16px; }
+  .mot-history-results .mot-test-summary { grid-template-columns: minmax(0,1fr) auto 18px; gap: 3px 10px; padding: 12px 0; }
+  .mot-history-results .mot-test-row-public .mot-test-summary { grid-template-columns: minmax(0,1fr) auto; }
+  .mot-history-results .mot-test-date { grid-column: 1; grid-row: 1 / 3; }
+  .mot-history-results .mot-test-result { grid-column: 2; grid-row: 1; justify-self: end; }
+  .mot-history-results .mot-test-mileage { grid-column: 2; grid-row: 2; font-size: 12px; }
+  .mot-history-results .mot-test-chevron { grid-column: 3; grid-row: 1 / 3; }
+  .mot-history-results .mot-mileage { margin-block: 18px; }
+  .mot-history-results .mot-mileage-axis { width: 43px; font-size: 10px; padding-block: 0; }
+  .mot-history-results .mot-mileage-plot { gap: 7px; }
+  .mot-history-results .mot-mileage-plot > svg { width: calc(100% - 50px); }
+  .mot-history-results .mot-mileage-dates { margin-left: 50px; }
+  .mot-history-results .mot-defect-list li { grid-template-columns: 76px minmax(0,1fr); gap: 8px; }
+}

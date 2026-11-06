@@ -1,0 +1,21 @@
+.vehicle-page.vehicle-redesigned .vehicle-action-area { margin-top:18px; }
+.vehicle-page.vehicle-redesigned .vehicle-action-area .vehicle-mot-fact { display:flex;align-items:center;gap:8px;min-height:44px;padding:6px 0;font-size:13px;color:var(--vehicle-ink);text-align:left; }
+.vehicle-page.vehicle-redesigned .vehicle-action-area .vehicle-mot-fact strong { font-weight:600; }
+.vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-action-area .vehicle-summary-main-actions { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin:8px 0 10px;padding:0;gap:10px; }
+.vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-action-area .vehicle-summary-main-actions>a { display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:12px 8px;font-size:14px;line-height:1.4;border-radius:8px; }
+.vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-action-area .vehicle-summary-main-actions>a:only-child { grid-column:1/-1; }
+.vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-action-area .vehicle-enquiry-action { background:var(--vehicle-ink);border:1px solid var(--vehicle-ink);color:white; }
+.vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-action-area .vehicle-booking-action { background:white;border:1px solid #b9bdc0;color:var(--vehicle-ink); }
+.vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-action-tools { display:flex;flex-wrap:wrap;align-items:center;gap:0 20px;padding:0 0 8px;border-bottom:1px solid hsl(var(--border)); }
+.vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-action-tools :is(button,a) { display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;height:auto;width:auto;padding:8px 0;background:transparent;border:0;box-shadow:none;border-radius:0;font-size:13px;font-weight:500;color:var(--vehicle-ink);white-space:nowrap; }
+.vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-action-tools :is(button,a):hover { text-decoration:underline;text-underline-offset:4px; }
+.vehicle-action-tools svg { width:17px;height:17px; }
+.vehicle-buying-options>summary { display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:48px;list-style:none;font-size:13px;font-weight:500;cursor:pointer; }
+.vehicle-buying-options>summary::-webkit-details-marker { display:none; }
+.vehicle-buying-options[open]>summary>svg { transform:rotate(180deg); }
+.vehicle-buying-options>div { display:flex;flex-wrap:wrap;gap:0 24px; }
+.vehicle-buying-options>div :is(a,button) { font-size:13px;min-height:44px; }
+@media(max-width:639px) {
+ .vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-action-tools { justify-content:space-between;gap:0 10px; }
+ .vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-action-area .vehicle-summary-main-actions>a { font-size:13px; }
+}

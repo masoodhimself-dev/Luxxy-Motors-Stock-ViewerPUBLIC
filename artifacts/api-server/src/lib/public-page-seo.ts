@@ -1,4 +1,4 @@
-import { buildVehicleMeta, formatVehicleName, type VehicleMetaSource } from '@workspace/vehicle-meta';
+import { buildVehicleMeta, formatVehicleName, isVehiclePagePath, vehicleDetailPath, type VehicleMetaSource } from '@workspace/vehicle-meta';
 
 type ObjectValue = Record<string, unknown>;
 export type PublicSeoVehicle = VehicleMetaSource & {
@@ -150,8 +150,8 @@ export function buildPublicPageSeo(input: { pathname: string; canonicalOrigin?: 
   const settings = object(input.settings), identity = object(settings.identity), address = object(settings.address);
   const name = text(identity.name) || 'Our dealership', city = text(address.city) || text(address.region);
   const origin = publicSeoOrigin(input.canonicalOrigin), pathname = input.pathname === '/index.html' ? '/' : input.pathname;
-  const isVehicle = /^\/vehicle\/[^/]+\/?$/.test(pathname);
-  const normalisedPath = pathname === '/' ? '/' : pathname.replace(/\/$/, '');
+  const isVehicle = isVehiclePagePath(pathname);
+  const normalisedPath = isVehicle && input.vehicle ? vehicleDetailPath(input.vehicle) : pathname === '/' ? '/' : pathname.replace(/\/$/, '');
   const isPublic = stablePublicPagePaths.includes(normalisedPath as typeof stablePublicPagePaths[number]) || isVehicle;
   const result: PublicPageSeo = { pathname: normalisedPath, siteName: name, siteIndexable: Boolean(origin && !input.demo), title: name, description: '', canonical: null, origin, image: null, type: 'website', robots: noindex, status: 200, structuredData: [] };
   if (!isPublic) {

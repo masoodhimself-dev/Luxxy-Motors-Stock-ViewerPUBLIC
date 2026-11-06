@@ -3,8 +3,10 @@ import type { Car } from '@/lib/stock-context';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { invoicePalette } from '@workspace/vehicle-meta';
 import { hslToHex, isValidHsl } from '@/components/brand/colour-field';
-import { formatPrice, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
+import { formatPrice, getThumbnailUrl, vehicleDisplayTitle, vehicleRegistration } from '@/lib/utils';
 import { customerRegistrationDetails } from '@/lib/customer-vehicle-meta';
+import { stockRegistrationYear } from '@/lib/stock-presentation';
+import { UKNumberPlate } from './uk-number-plate';
 import { responsiveVehicleImage, retryOriginalImage } from '@/lib/responsive-vehicle-image';
 import { isCustomerWebsiteRoute, multiCustomerThemeVariables } from '@/lib/multi-customer-theme';
 import { useLocation } from 'wouter';
@@ -48,17 +50,21 @@ export function useVehicleDialogTheme(): CSSProperties {
 }
 
 /** Only supplied vehicle facts are shown; missing or failed photography disappears. */
-export function VehicleDialogVehicle({ car }: { car: Car }) {
+export function VehicleDialogVehicle({ car, showRegistrationPlate = false }: { car: Car; showRegistrationPlate?: boolean }) {
   const photo = getThumbnailUrl(car);
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [photo]);
-  const facts = [customerRegistrationDetails(car), car.fuel, car.transmission].filter(Boolean);
+  const registration = showRegistrationPlate ? vehicleRegistration(car) : null;
+  const facts = [registration ? stockRegistrationYear(car) : customerRegistrationDetails(car), car.fuel, car.transmission].filter(Boolean);
   return <div className="vehicle-dialog-vehicle" data-testid="dialog-vehicle-card">
     {photo && !failed && <img src={photo} {...responsiveVehicleImage(photo, '112px')} alt={vehicleDisplayTitle(car)} width={112} height={84} decoding="async" referrerPolicy="no-referrer" onError={event => { if (!retryOriginalImage(event.currentTarget)) setFailed(true); }} />}
     <div className="vehicle-dialog-vehicle-info">
       <p className="vehicle-dialog-vehicle-title">{vehicleDisplayTitle(car)}</p>
       {facts.length > 0 && <p className="vehicle-dialog-muted">{facts.join(' · ')}</p>}
-      {car.price != null && <p className="vehicle-dialog-vehicle-price">{formatPrice(car.price, car.currency)}</p>}
+      {registration ? <div className="vehicle-dialog-vehicle-bottomline">
+        <UKNumberPlate value={registration} size="sm" variant="front" testId="call-vehicle-registration" />
+        {car.price != null && <p className="vehicle-dialog-vehicle-price">{formatPrice(car.price, car.currency)}</p>}
+      </div> : car.price != null && <p className="vehicle-dialog-vehicle-price">{formatPrice(car.price, car.currency)}</p>}
     </div>
   </div>;
 }

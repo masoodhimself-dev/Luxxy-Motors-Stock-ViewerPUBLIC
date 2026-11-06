@@ -6,6 +6,8 @@ export type EnquiryDraft = {
   preferredContact: "email" | "phone" | "whatsapp";
   hasPartExchange: boolean;
   exchange: { registration: string; mileage: string; notes: string };
+  /** Helps safely retarget our own untouched wording after a car change. */
+  generatedExchangeQuestion?: { text: string; makeModel: string };
 };
 const prefix = "luxxy.enquiry-draft.";
 export const enquiryDraftKey = (vehicleId: string | undefined, type: string) =>
@@ -37,6 +39,10 @@ export function readEnquiryDraft(key: string): EnquiryDraft | null {
       )
     )
       return null;
+    if (d.generatedExchangeQuestion && (
+      typeof d.generatedExchangeQuestion.text !== 'string' || d.generatedExchangeQuestion.text.length > 2000 ||
+      typeof d.generatedExchangeQuestion.makeModel !== 'string' || d.generatedExchangeQuestion.makeModel.length > 300
+    )) delete d.generatedExchangeQuestion;
     return d;
   } catch {
     return null;

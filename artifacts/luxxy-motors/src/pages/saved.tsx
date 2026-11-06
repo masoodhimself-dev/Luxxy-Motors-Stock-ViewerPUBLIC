@@ -4,16 +4,19 @@ import { ShowroomPhoto } from '@/components/showroom-photo';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { useDealerSettings } from "@/lib/dealer-settings-context";
 import { websiteText } from "@/lib/website-content";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearch } from "wouter";
 import { parseShortlist, shortlistUrl } from "@/lib/customer-convenience";
 import { PageHeading, PageEmptyState } from "@/components/page-ui";
 import { Link } from "wouter";
-import { ArrowLeft, ArrowRight } from "@/components/icons";
+import { ArrowLeft, ArrowRight, Scale } from "@/components/icons";
 import { useStock, type Car } from "@/lib/stock-context";
 import { useSavedCars } from "@/lib/saved-cars-context";
 import { CarCard } from "@/components/car-card";
 import { Button } from "@/components/ui/button";
+import { CarComparison } from '@/components/car-comparison';
+import { currentComparisonIds, MAX_COMPARISON_CARS } from '@/lib/car-comparison';
+import { vehicleDisplayTitle } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import './customer-workflows.css';
 
@@ -31,8 +34,12 @@ export default function Saved() {
   const snapshots = readSavedSnapshots();
   const [shareStatus, setShareStatus] = useState("");
   const [copyLink, setCopyLink] = useState("");
-  const share = async () => {
-    const url = shortlistUrl(shownIds);
+  const [comparisonIds, setComparisonIds] = useState<string[]>([]);
+  const [comparisonOpen, setComparisonOpen] = useState(false);
+  const share = async (ids = shownIds) => {
+    const url = shortlistUrl(ids);
+    setCopyLink('');
+    setShareStatus('');
     try {
       if (navigator.share)
         await navigator.share({ title: "Cars to take a look at", url });
@@ -49,6 +56,16 @@ export default function Saved() {
   const cars = shownIds
     .map((id) => stock?.cars.find((car) => car.id === id))
     .filter((car): car is Car => Boolean(car) && !['sold', 'archived', 'hidden'].includes(String(car?.inventoryStatus)));
+  const selectedIds = currentComparisonIds(comparisonIds, cars);
+  const comparedCars = selectedIds.map(id => cars.find(car => car.id === id)!);
+  useEffect(() => {
+    if (selectedIds.length < 2) setComparisonOpen(false);
+  }, [selectedIds.length]);
+  const toggleComparison = (id: string) => setComparisonIds(current => {
+    const available = currentComparisonIds(current, cars);
+    if (available.includes(id)) return available.filter(item => item !== id);
+    return available.length < MAX_COMPARISON_CARS ? [...available, id] : available;
+  });
 
   const unavailableIds =
     !isLoading && stock
@@ -102,7 +119,7 @@ export default function Saved() {
                     {cars.length} {cars.length === 1 ? "car" : "cars"}{" "}
                     {sharedIds ? "in this shortlist" : "saved"}
                   </p>
-                  <Button variant="outline" onClick={share}>
+                  <Button variant="outline" onClick={() => void share()}>
                     {shownIds.length > 12
                       ? "Share first 12 cars"
                       : "Share shortlist"}
@@ -165,6 +182,13 @@ export default function Saved() {
         )}
 
         {!error && !sharedIds && unavailableIds.length > 0 && <div className="mt-4 grid gap-4 sm:grid-cols-2">{unavailableIds.map(id => <article key={id} className="flex items-start gap-4 rounded-md border border-border bg-card p-4">{snapshots[id]?.photo && <ShowroomPhoto src={snapshots[id].photo} alt="" className="aspect-[4/3] w-24 shrink-0" fit="contain" />}<div className="min-w-0"><h2 className="font-semibold">{snapshots[id]?.title || 'Previously saved car'}</h2>{snapshots[id]?.registration && <p className="mt-1 text-xs text-muted-foreground">{snapshots[id].registration}</p>}<p className="mt-1 text-sm text-muted-foreground">No longer available in current stock.</p><Link href="/stock" className="text-link min-h-11 text-sm">Browse alternatives</Link><button onClick={() => clearSaved([id])} className="ml-4 min-h-11 text-sm underline">Remove</button></div></article>)}</div>}
+        {!error && cars.length >= 2 && <>
+          <section className="saved-comparison-tools" aria-labelledby="saved-comparison-heading">
+            <div><h2 id="saved-comparison-heading"><Scale aria-hidden="true" />Compare your favourites</h2><p>Choose 2 or 3 cars to see their details side by side.</p></div>
+            <div className="saved-comparison-actions"><span role="status">{selectedIds.length} of 3 selected</span><Button disabled={selectedIds.length < 2} onClick={() => { setShareStatus(''); setCopyLink(''); setComparisonOpen(true); }}>Compare cars</Button></div>
+          </section>
+          {selectedIds.length === MAX_COMPARISON_CARS && <p className="saved-comparison-limit">To choose another car, untick one of these three.</p>}
+        </>}
         {error ? (
           <div role="alert">
             <PageEmptyState
@@ -185,6 +209,10 @@ export default function Saved() {
               const reduction = savedPriceReduction(snapshots[car.id], car);
               const reserved = car.inventoryStatus === 'reserved';
               return <div key={car.id} className="overflow-hidden rounded-md border border-border bg-card">
+                {cars.length >= 2 && <div className="saved-comparison-select"><label>
+                  <input type="checkbox" checked={selectedIds.includes(car.id)} disabled={!selectedIds.includes(car.id) && selectedIds.length === MAX_COMPARISON_CARS} onChange={() => toggleComparison(car.id)} aria-label={`Compare ${vehicleDisplayTitle(car)}`} />
+                  <span>{selectedIds.includes(car.id) ? 'Selected for comparison' : 'Compare this car'}</span>
+                </label></div>}
                 {!sharedIds && (reduction != null || reserved) && <div className="flex flex-wrap gap-2 px-4 pt-4 text-sm" aria-label="Saved car updates">
                   {reduction != null && <p className="rounded bg-secondary px-3 py-2 font-medium">Price reduced by {formatPrice(reduction, car.currency)} since you saved it</p>}
                   {reserved && <p className="rounded bg-secondary px-3 py-2">{snapshots[car.id]?.status === 'available' ? 'Reserved since you saved it' : 'Currently reserved'}</p>}
@@ -217,6 +245,11 @@ export default function Saved() {
                 : "Tap the heart on any car to save it here."}
           </PageEmptyState>
         )}
+        {!error && selectedIds.length > 0 && <div className="saved-comparison-tray">
+          <div><strong>{selectedIds.length} {selectedIds.length === 1 ? 'car' : 'cars'} selected</strong><button type="button" onClick={() => setComparisonIds([])}>Clear selection</button></div>
+          <Button disabled={selectedIds.length < 2} onClick={() => { setShareStatus(''); setCopyLink(''); setComparisonOpen(true); }}>{selectedIds.length < 2 ? 'Choose one more car' : `Compare ${selectedIds.length} cars`}</Button>
+        </div>}
+        <CarComparison cars={comparedCars} open={comparisonOpen && comparedCars.length >= 2 && !error} onOpenChange={setComparisonOpen} onShare={ids => void share(ids)} shareStatus={shareStatus} copyLink={copyLink} />
       </div>
     </div>
   );

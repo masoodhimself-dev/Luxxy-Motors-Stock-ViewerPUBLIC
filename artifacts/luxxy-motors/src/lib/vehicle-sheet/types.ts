@@ -32,7 +32,7 @@ export interface Vehicle {
 }
 export interface VehicleSheetData {
   dealer?: Dealer; vehicle: Vehicle;
-  document: { vehiclePageUrl: string; printedDate?: string };
+  document: { vehicleId?: string; vehiclePageUrl: string; printedDate?: string };
 }
 export interface UrlPolicy {
   /** Trusted origin from the active dealership's settings, NOT an arbitrary origin taken from an untrusted advert. */

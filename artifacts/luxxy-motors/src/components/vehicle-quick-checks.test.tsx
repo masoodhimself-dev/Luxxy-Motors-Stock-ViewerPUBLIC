@@ -95,7 +95,7 @@ it("retains the delivery quote when closed and reopened and never books or charg
   fireEvent.change(screen.getByLabelText("Delivery postcode"), {
     target: { value: "SW1A1AA" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Calculate delivery" }));
+  fireEvent.click(screen.getByRole("button", { name: "Get estimate" }));
   await screen.findByText("£85.10");
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
   await waitFor(() =>
@@ -130,7 +130,8 @@ it("shows the first due date for a new car using the recorded DVSA date", async 
   render(<Checks vehicleId="new-car" />);
   await screen.findByRole("button", { name: "MOT not required until 05/2028" });
   fireEvent.click(screen.getByRole("button", { name: "MOT history" }));
-  await screen.findByText(/No MOT required before this date/);
+  await screen.findByText('First MOT due');
+  expect(screen.getByText('20 May 2028')).toBeVisible();
   expect(screen.queryByText(/No MOT tests were returned/)).toBeNull();
 });
 
@@ -187,7 +188,7 @@ it("includes the current vehicle delivery breakdown only on request and closes t
   fireEvent.change(screen.getByLabelText("Delivery postcode"), {
     target: { value: "SW1A1AA" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Calculate delivery" }));
+  fireEvent.click(screen.getByRole("button", { name: "Get estimate" }));
   await screen.findByText("£2,875.10");
   expect(onEnquire).not.toHaveBeenCalled();
   fireEvent.click(
@@ -215,7 +216,7 @@ it("updates vehicle price without another route lookup, including after reopenin
   fireEvent.change(screen.getByLabelText("Delivery postcode"), {
     target: { value: "SW1A1AA" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Calculate delivery" }));
+  fireEvent.click(screen.getByRole("button", { name: "Get estimate" }));
   await screen.findByText("£2,875.10");
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
   await waitFor(() =>
@@ -256,7 +257,7 @@ it("never reuses a quote on another vehicle or when the showroom changes", async
   fireEvent.change(screen.getByLabelText("Delivery postcode"), {
     target: { value: "SW1A1AA" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Calculate delivery" }));
+  fireEvent.click(screen.getByRole("button", { name: "Get estimate" }));
   await screen.findByText("£2,875.10");
   rerender(
     <Checks
@@ -274,7 +275,7 @@ it("never reuses a quote on another vehicle or when the showroom changes", async
   fireEvent.change(screen.getByLabelText("Delivery postcode"), {
     target: { value: "SW1A1AA" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Calculate delivery" }));
+  fireEvent.click(screen.getByRole("button", { name: "Get estimate" }));
   await screen.findByText("£9,085.10");
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
   await waitFor(() =>
@@ -299,7 +300,7 @@ it("never reuses a quote on another vehicle or when the showroom changes", async
 
 it("passes an exclusive vehicle price basis through without presenting a combined price", async () => {
   const onEnquire=vi.fn();render(<Checks vehicleId="car-a" vehiclePrice={2790} currency="GBP" priceType="+ VAT" onEnquire={onEnquire}/>);
-  fireEvent.click(screen.getByRole("button",{name:"Delivery estimate"}));fireEvent.change(screen.getByLabelText("Delivery postcode"),{target:{value:"SW1A1AA"}});fireEvent.click(screen.getByRole("button",{name:"Calculate delivery"}));
+  fireEvent.click(screen.getByRole("button",{name:"Delivery estimate"}));fireEvent.change(screen.getByLabelText("Delivery postcode"),{target:{value:"SW1A1AA"}});fireEvent.click(screen.getByRole("button",{name:"Get estimate"}));
   await screen.findByText("£85.10");expect(screen.queryByText("Estimated total")).not.toBeInTheDocument();expect(screen.getByText(/The advertised car price excludes VAT/)).toBeVisible();
   fireEvent.click(screen.getByRole("button",{name:"Include estimate in my enquiry"}));await waitFor(()=>expect(onEnquire).toHaveBeenCalledOnce());
   expect(onEnquire.mock.calls[0][0]).toContain("excludes VAT");expect(onEnquire.mock.calls[0][0]).not.toContain("Car price:");

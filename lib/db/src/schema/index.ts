@@ -75,3 +75,5 @@ export * from "./ai-assistance";
 export * from "./mot-stock-checks";
 
 export * from './sales-terms';
+
+export * from './vehicle-public-links';

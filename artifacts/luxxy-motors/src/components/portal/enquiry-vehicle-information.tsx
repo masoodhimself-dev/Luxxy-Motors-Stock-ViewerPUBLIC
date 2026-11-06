@@ -1,3 +1,4 @@
+import { vehicleDetailPath } from '@workspace/vehicle-meta';
 import type { MotHistory } from "@workspace/vehicle-meta";
 import { MotHistoryPanel } from "../mot-history";
 import { useRef, useState, type ReactNode, type RefObject } from "react";
@@ -386,7 +387,7 @@ export function VehicleInformationBody({
         ))}
       {published && (
         <a
-          href={`/vehicle/${encodeURIComponent(car.id)}`}
+          href={vehicleDetailPath(car)}
           target="_blank"
           rel="noreferrer"
           className="w-fit py-3 text-sm font-medium underline underline-offset-4"

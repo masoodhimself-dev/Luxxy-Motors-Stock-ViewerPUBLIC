@@ -134,6 +134,39 @@ it('removes delivery and part-exchange prompts when the dealership disables them
 
 const savedQuestion = (message: string, name = 'Earlier Buyer') => ({ customerName: name, email: 'earlier@example.test', phone: '07700900123', preferredContact: 'email' as const, message, hasPartExchange: false, exchange: { registration: '', mileage: '', notes: '' } });
 
+it('carries the full current enquiry and manual part exchange only after an explicit car switch', () => {
+  const second = { ...car, id: 'other-fictional-car', title: 'Toyota Yaris', make: 'Toyota', model: 'Yaris' };
+  const view = render(<EnquiryForm vehicle={car} />);
+  fireEvent.change(screen.getByTestId('textarea-enquiry-message'), { target: { value: 'Can I visit on Saturday?' } });
+  fireEvent.change(screen.getByTestId('input-customer-name'), { target: { value: 'Fictional Buyer' } });
+  fireEvent.change(screen.getByRole('combobox', { name: 'How should we reply?' }), { target: { value: 'whatsapp' } });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Mobile number' }), { target: { value: '07700900123' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Add a part exchange (optional)' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Your car’s UK registration number' }), { target: { value: 'AB12 CDE' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Enter details manually' }));
+  fireEvent.change(screen.getByRole('spinbutton', { name: 'Current mileage (miles)' }), { target: { value: '20000' } });
+  view.rerender(<EnquiryForm vehicle={second} carryDraftToVehicleId={second.id} />);
+  expect(screen.getByTestId('textarea-enquiry-message')).toHaveValue('Can I visit on Saturday?');
+  expect(screen.getByTestId('input-customer-name')).toHaveValue('Fictional Buyer');
+  expect(screen.getByRole('textbox', { name: 'Mobile number' })).toHaveValue('07700900123');
+  expect(screen.getByRole('spinbutton', { name: 'Current mileage (miles)' })).toHaveValue(20000);
+  expect(readEnquiryDraft(enquiryDraftKey(car.id, 'general'))?.message).toBe('Can I visit on Saturday?');
+  expect(readEnquiryDraft(enquiryDraftKey(second.id, 'general'))?.message).toBe('Can I visit on Saturday?');
+  fireEvent.submit(screen.getByTestId('form-enquiry'));
+  expect(state.mutate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ vehicleId: second.id, customerName: 'Fictional Buyer', preferredContact: 'whatsapp', partExchange: { registration: 'AB12 CDE', mileage: 20000, condition: null } }) }), expect.anything());
+});
+
+it('opens an existing car draft when a switch deliberately restores it instead of carrying current fields', () => {
+  const second = { ...car, id: 'other-fictional-car', title: 'Toyota Yaris' };
+  saveEnquiryDraft(enquiryDraftKey(second.id, 'general'), savedQuestion('My earlier Toyota question.'));
+  const view = render(<EnquiryForm vehicle={car} />);
+  fireEvent.change(screen.getByTestId('textarea-enquiry-message'), { target: { value: 'My Ford question.' } });
+  view.rerender(<EnquiryForm vehicle={second} />);
+  expect(screen.getByTestId('textarea-enquiry-message')).toHaveValue('My earlier Toyota question.');
+  expect(readEnquiryDraft(enquiryDraftKey(car.id, 'general'))?.message).toBe('My Ford question.');
+  expect(state.mutate).not.toHaveBeenCalled();
+});
+
 it('appends a first-render handoff after restoring the draft and preserves its contact details', () => {
   saveEnquiryDraft(enquiryDraftKey(car.id, 'general'), savedQuestion('I can visit on Saturday.'));
   render(<EnquiryForm vehicle={car} embedded messageRequest={{ id: 1, text: '  Can I see the boot?  ' }} />);
@@ -345,7 +378,8 @@ it('freezes editable fields, navigation and message handoffs while a request is 
   expect(screen.getByTestId('form-enquiry')).toHaveAttribute('aria-busy', 'true');
   for (const testId of ['textarea-enquiry-message', 'input-customer-name', 'input-customer-email', 'select-preferred-contact']) expect(screen.getByTestId(testId)).toBeDisabled();
   expect(screen.getByRole('textbox', { name: 'Your car’s UK registration number' })).toBeDisabled();
-  fireEvent.click(screen.getByRole('link', { name: 'Change car' }));
+  expect(screen.getByRole('button', { name: 'Change car' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Change car' }));
   fireEvent.click(screen.getByRole('link', { name: 'Part exchange valuation' }));
   fireEvent.submit(screen.getByTestId('form-enquiry'));
   expect(changeCar).not.toHaveBeenCalled();

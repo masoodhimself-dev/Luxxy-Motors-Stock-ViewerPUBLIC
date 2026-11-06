@@ -39,7 +39,7 @@ it("does not poll or request MOT data until asked and displays the actual result
   fireEvent.click(screen.getByRole("button", { name: "View MOT history" }));
   await screen.findByText("Latest test: Failed");
   expect(state.fetch.mock.calls[0][0]).toBe("/api/staff/vehicles/car-a/mot-history");
-  expect(screen.getByText(/12,345 km/)).toBeVisible();
+  expect(screen.getByText("12,345 km")).toBeVisible();
   expect(screen.getByText("Brake pipe leaking")).toBeVisible();
   expect(screen.getByText(/outstanding safety recall/)).toBeVisible();
 });
@@ -133,27 +133,76 @@ it("displays retryable provider failures rather than fabricated history", async 
   expect(screen.queryByText("Latest test: Passed")).toBeNull();
 });
 
-it("shows passed tests publicly and keeps advisories collapsed while preserving full staff history", () => {
+it("keeps public results compact without recalls or advisory details, while staff retain the full record", () => {
   const pass = { ...history.tests[0], result: 'PASSED' as const, completedDate: '2026-10-02T10:00:00Z', expiryDate: '2027-10-01', defects: [{text: 'Tyre worn close to limit', type: 'ADVISORY', dangerous: false}] };
-  const combined = { ...history, recall: 'Unknown' as const, tests: [history.tests[0], pass] };
+  const combined = { ...history, tests: [history.tests[0], pass] };
   const view = render(<MotHistoryResults history={combined} />);
   expect(screen.getByText('Latest test: Passed')).toBeVisible();
   expect(screen.queryByText('Latest test: Failed')).toBeNull();
+  expect(screen.getByText('Failed')).toBeVisible();
   expect(screen.queryByText('Brake pipe leaking')).toBeNull();
-  const advisory = screen.getByText('Tyre worn close to limit');
-  expect(advisory.closest('details')).not.toHaveAttribute('open');
-  expect(screen.getByText('Advisories & notes (1)')).toBeVisible();
+  expect(screen.queryByText('Tyre worn close to limit')).toBeNull();
+  expect(screen.queryByText('Advisory')).toBeNull();
+  expect(screen.queryByText(/outstanding safety recall/)).toBeNull();
+  expect(screen.queryByText(/Recorded expiry:/)).toBeNull();
+  expect(screen.queryByText('1 note')).toBeNull();
+  expect(document.querySelector('.mot-test-history details')).toBeNull();
+  expect(document.querySelectorAll('.mot-test-row-public')).toHaveLength(2);
+  expect(screen.getByText('MOT expiry')).toBeVisible();
   expect(screen.getByRole('link', { name: 'View full MOT history on GOV.UK' })).toHaveAttribute('href', 'https://www.gov.uk/check-mot-history');
   view.unmount();
   render(<MotHistoryResults history={combined} staff />);
+  expect(screen.getByText(/outstanding safety recall/)).toBeVisible();
+  expect(screen.getByText('Tyre worn close to limit')).toBeVisible();
+  expect(screen.getByText('Advisory')).toBeVisible();
   expect(screen.getByText('Brake pipe leaking')).toBeInTheDocument();
+  expect(document.querySelectorAll('.mot-test-history details')).toHaveLength(2);
 });
 it("does not present an old pass as current after a newer failure", () => {
   const pass = { ...history.tests[0], completedDate: '2026-09-01', result: 'PASSED' as const, expiryDate: '2027-09-01', defects: [] };
   render(<MotHistoryResults history={{ ...history, recall: 'Unknown', tests: [pass, history.tests[0]] }} />);
-  expect(screen.queryByText(/Latest test:/)).toBeNull();
-  expect(screen.queryByText(/Last passed MOT expiry:/)).toBeNull();
+  expect(screen.getByText('Latest test: Failed')).toBeVisible();
+  expect(screen.queryByText('MOT expiry')).toBeNull();
   expect(screen.getByText(/confirm the current MOT details/)).toBeVisible();
-  expect(screen.getByRole('heading', { name: 'Passed MOT tests' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'MOT tests' })).toBeVisible();
   expect(screen.queryByText('Brake pipe leaking')).toBeNull();
+  expect(screen.getByText('Failed')).toBeVisible();
+});
+
+it('plots real chronological readings, shows decreases and lets a customer inspect a point', () => {
+  const test = { ...history.tests[0], result: 'PASSED' as const, mileageUnit: 'MI' as const, defects: [] };
+  const records = [
+    { ...test, completedDate: '2026-01-01', mileage: '41000' },
+    { ...test, completedDate: '2024-01-01', mileage: '30000' },
+    { ...test, completedDate: '2025-01-01', mileage: '45000' },
+  ];
+  render(<MotHistoryResults history={{ ...history, recall: 'Unknown', tests: records }} />);
+  expect(screen.getByRole('group', { name: 'Recorded MOT mileage by date' })).toBeVisible();
+  expect(screen.getByText(/A later test records lower mileage/)).toBeVisible();
+  const earlier = screen.getByRole('button', { name: '1 Jan 2024: 30,000 miles' });
+  fireEvent.focus(earlier);
+  expect(earlier).toHaveAttribute('aria-pressed', 'true');
+  expect(document.querySelector('.mot-mileage-selection')).toHaveTextContent('30,000 miles');
+  expect(document.querySelector('.mot-mileage-selection')).toHaveTextContent('1 Jan 2024');
+  expect(Array.from(document.querySelectorAll('.mot-test-date')).map(element => element.firstChild?.textContent)).toEqual(['1 Jan 2026', '1 Jan 2025', '1 Jan 2024']);
+});
+
+it('shows a single mileage point without inventing a trend or extrapolating to today', () => {
+  render(<MotHistoryResults history={{ ...history, recall: 'Unknown' }} />);
+  expect(document.querySelectorAll('.mot-mileage-dot')).toHaveLength(1);
+  expect(document.querySelectorAll('.mot-mileage-line')).toHaveLength(0);
+  expect(screen.getByText(/One recorded reading; a trend cannot be shown yet/)).toBeVisible();
+  expect(screen.getByText(/Kilometre readings are converted to miles/)).toBeVisible();
+});
+
+it('shows an honest mileage empty state rather than an empty graph or zero mileage', () => {
+  render(<MotHistoryResults history={{ ...history, recall: 'Unknown', tests: [{ ...history.tests[0], mileage: null, mileageUnit: null }] }} />);
+  expect(screen.getByText('No dated mileage readings are available to plot.')).toBeVisible();
+  expect(screen.queryByRole('group', { name: 'Recorded MOT mileage by date' })).toBeNull();
+  expect(screen.getByText('Mileage not recorded')).toBeVisible();
+});
+
+it('uses a readable chart scale close to the highest mileage reading', () => {
+  render(<MotHistoryResults history={{ ...history, recall: 'Unknown', tests: [{ ...history.tests[0], mileage: '134000', mileageUnit: 'MI' }] }} />);
+  expect(Array.from(document.querySelectorAll('.mot-mileage-axis span')).map(element => element.textContent)).toEqual(['150,000', '75,000', '0']);
 });

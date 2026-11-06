@@ -5,7 +5,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import express from 'express';
 import { randomUUID } from 'node:crypto';
-import { db, engine, dealershipsTable, dealerDomainsTable, dealerDemosTable, dealerSettingsTable, vehiclesTable } from './test/tenant-test-db';
+import { db, engine, dealershipsTable, dealerDomainsTable, dealerDemosTable, dealerSettingsTable, vehiclesTable, vehiclePublicLinksTable } from './test/tenant-test-db';
 import { canonicalSeoOrigin, dealerRobotsText, dealerSitemapXml, escapeSitemapXml, isPrivateSeoPath, seoPrivatePageHeaders } from './lib/seo-crawl';
 import { createSeoRouter } from './routes/seo';
 import { resolveTenant } from './middlewares/tenant';
@@ -68,6 +68,8 @@ test('sitemap HTTP routes reuse real tenant/public stock boundaries without priv
     row('wrong-source', { source: 'cazoo' }), row('review', { sourcePrice: null, priceReviewRequired: true }),
   ];
   await db.insert(vehiclesTable).values([available, reserved, override, otherCar, ...excluded]);
+  const publicLinks = await db.select().from(vehiclePublicLinksTable);
+  const codeFor = (id: string) => publicLinks.find(link => link.vehicleId === id)!.code;
   const before = (await db.select().from(vehiclesTable)).map(vehicle => ({ id: vehicle.id, updatedAt: vehicle.updatedAt, sourcePrice: vehicle.sourcePrice }));
   const app = express();
   app.use(seoPrivatePageHeaders); app.use(resolveTenant); app.use(createSeoRouter());
@@ -83,13 +85,13 @@ test('sitemap HTTP routes reuse real tenant/public stock boundaries without priv
     await t.test('lists exactly the selected dealer current public stock, independent of spoofed query/headers', async () => {
       const result = await request('/sitemap.xml?dealerId=crawl-b'); assert.equal(result.status, 200);
       assert.match(result.headers['content-type'] ?? '', /application\/xml/); assert.equal(result.headers['cache-control'], 'no-store');
-      for (const vehicle of [available, reserved, override]) assert.ok(result.text.includes(vehicle.id));
-      for (const vehicle of [otherCar, ...excluded]) assert.ok(!result.text.includes(vehicle.id));
+      for (const vehicle of [available, reserved, override]) assert.ok(result.text.includes(codeFor(vehicle.id)));
+      for (const vehicle of [otherCar, ...excluded]) assert.ok(!result.text.includes(codeFor(vehicle.id)));
       assert.ok(result.text.includes('/warranty')); assert.ok(!result.text.includes('never-return'));
       assert.ok(!result.text.includes('b.example.test')); assert.ok(!result.text.includes('dealerId'));
       assert.equal((await request('/sitemap.xml', 'alias.example.test')).text, result.text);
-      const b = await request('/sitemap.xml', 'b.example.test'); assert.ok(b.text.includes(otherCar.id));
-      assert.ok(!b.text.includes(available.id)); assert.ok(!b.text.includes('/warranty'));
+      const b = await request('/sitemap.xml', 'b.example.test'); assert.ok(b.text.includes(codeFor(otherCar.id)));
+      assert.ok(!b.text.includes(codeFor(available.id))); assert.ok(!b.text.includes('/warranty'));
     });
     await t.test('demos and unknown hosts cannot publish a sitemap', async () => {
       const demoRobots = await request('/robots.txt', 'demo.example.test'); assert.equal(demoRobots.text, 'User-agent: *\nDisallow: /\n');

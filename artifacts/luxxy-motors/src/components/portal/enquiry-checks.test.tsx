@@ -298,7 +298,7 @@ it("calculates a road quote only on request, and places a clearly estimated pric
   fireEvent.change(screen.getByLabelText("Delivery postcode"), {
     target: { value: "SW1A1AA" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Calculate delivery" }));
+  fireEvent.click(screen.getByRole("button", { name: "Get estimate" }));
   await screen.findByRole("button", { name: "Add delivery estimate to reply" });
   expect(state.fetch.mock.calls[0][0]).toBe(
     "/api/postcodes/delivery-estimate?postcode=SW1A1AA",
@@ -338,7 +338,7 @@ it("respects disabled delivery estimates and gives an honest route failure inste
   fireEvent.change(screen.getByLabelText("Delivery postcode"), {
     target: { value: "SW1A1AA" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Calculate delivery" }));
+  fireEvent.click(screen.getByRole("button", { name: "Get estimate" }));
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "couldn’t calculate a road delivery estimate",
   );

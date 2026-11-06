@@ -2,7 +2,7 @@ import { build } from 'esbuild';
 import path from 'node:path';
 
 await build({
-  entryPoints: ['src/seo-crawl.test.ts', 'src/indexnow.test.ts'], bundle: true, platform: 'node', format: 'esm',
+  entryPoints: ['src/seo-crawl.test.ts', 'src/indexnow.test.ts', 'src/vehicle-public-links.test.ts'], bundle: true, platform: 'node', format: 'esm',
   outdir: '.cache/seo-crawl-tests', outExtension: { '.js': '.mjs' },
   external: ['@electric-sql/pglite', 'pino', 'pino-http'],
   plugins: [{ name: 'isolated-seo-crawl-adapters', setup(builder) {

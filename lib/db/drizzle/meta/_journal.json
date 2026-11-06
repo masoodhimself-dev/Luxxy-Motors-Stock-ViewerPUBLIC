@@ -582,6 +582,13 @@
       "when": 1793700001000,
       "tag": "0082_sales_terms",
       "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1793970000000,
+      "tag": "0083_vehicle_public_links",
+      "breakpoints": true
     }
   ]
 }

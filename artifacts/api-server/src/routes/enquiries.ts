@@ -1,3 +1,4 @@
+import { publicVehicleDetailPath } from '../lib/public-vehicle-links';
 import { dealerFeatureEnabled } from '../lib/dealer-features';
 import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
 import { currentDealerId } from "../lib/tenant-context";
@@ -520,7 +521,7 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
     const vehicleTitle = vehicle
       ? vehicle.websiteTitleOverride ?? vehicle.title
       : adHoc?.title.trim() ?? null;
-    const vehicleUrl = vehicle ? `/vehicle/${vehicle.id}` : null;
+    const vehicleUrl = vehicle ? await publicVehicleDetailPath(vehicle) : null;
     const isViewing = input.type === "viewing";
     const owner = staff ? await assignedStaff("assignedToId" in input ? input.assignedToId : null, req) : requestCallback ? { assignedToId: null, assignedToName: null } : {};
     const callOutcome = capture.quick ? null : staff ? ("callOutcome" in input ? input.callOutcome : undefined) ?? (isViewing ? "test_drive_booked" : "information_given") : requestCallback ? "callback_requested" : null;

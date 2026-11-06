@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { customFetch } from "@workspace/api-client-react";
+import { normalisePostcode, validPostcodeSyntax } from '@workspace/vehicle-meta';
 import { useDealerSettings } from "@/lib/dealer-settings-context";
-import { PostcodeField } from "./postcode-field";
+import { Input } from './ui/input';
 import { Button } from "./ui/button";
+import { ArrowRight, ChevronDown, MapPin, Truck } from './icons';
 import {
   deliveryQuoteContext,
   usableDeliveryEstimate,
@@ -35,6 +37,8 @@ export function DeliveryEstimator({
     pricing = settings.deliveryPricing;
   const context = deliveryQuoteContext(settings);
   const enabled = Boolean(settings.delivery?.enabled && pricing?.enabled);
+  const postcodeId = useId();
+  const postcodeInput = useRef<HTMLInputElement>(null);
   const [postcode, setPostcode] = useState(initialEstimate?.postcode ?? ""),
     [busy, setBusy] = useState(false),
     [savedQuote, setSavedQuote] = useState<{
@@ -82,6 +86,13 @@ export function DeliveryEstimator({
   }
   async function calculate() {
     request.current?.abort();
+    if (!validPostcodeSyntax(postcode)) {
+      setSavedQuote(null);
+      setBusy(false);
+      setError('Enter a full UK postcode, for example SW1A 1AA.');
+      postcodeInput.current?.focus();
+      return;
+    }
     const controller = new AbortController();
     const requestedContext = context;
     const requestedPostcode = postcode;
@@ -121,39 +132,46 @@ export function DeliveryEstimator({
     <details
       open={expanded || undefined}
       aria-label="Delivery cost estimate"
-      className={
-        expanded
-          ? "delivery-estimator min-w-0 text-card-foreground"
-          : "delivery-estimator mt-4 rounded-md border border-border bg-card p-4 text-card-foreground"
-      }
+      className={`delivery-estimator delivery-estimator-redesigned${expanded ? ' is-expanded' : ''}`}
     >
       <summary
         hidden={expanded}
-        className="min-h-11 cursor-pointer py-2 font-semibold"
+        className="delivery-estimator-toggle"
       >
-        Estimate your delivery cost
+        <span><Truck aria-hidden="true" />Estimate your delivery cost</span><ChevronDown aria-hidden="true" />
       </summary>
-      <div>
-        <p className="mb-3 mt-1 text-xs leading-5 text-muted-foreground">
-          Base charge plus the one-way driving distance to your postcode.
-        </p>
-        <PostcodeField
-          label="Delivery postcode"
-          value={postcode}
-          onChange={change}
-          helpText="Enter the postcode where you would like the car delivered."
-        />
-        <Button
-          type="button"
-          variant="outline"
-          className="mt-3 w-full"
-          disabled={busy || !postcode.trim()}
-          onClick={() => void calculate()}
-        >
-          {busy ? "Calculating road miles…" : "Calculate delivery"}
-        </Button>
+      <div className="delivery-estimator-content">
+        <div className="delivery-estimator-entry">
+          <div className="delivery-estimator-field">
+            <label htmlFor={postcodeId}>Delivery postcode</label>
+            <Input
+              ref={postcodeInput}
+              id={postcodeId}
+              value={postcode}
+              onChange={event => change(event.target.value)}
+              onKeyDown={event => {
+                if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                  event.preventDefault();
+                  if (!busy && postcode.trim()) void calculate();
+                }
+              }}
+              maxLength={20}
+              autoComplete="postal-code"
+              autoCapitalize="characters"
+              spellCheck={false}
+              enterKeyHint="go"
+              placeholder="e.g. SW1A 1AA"
+              aria-invalid={error.startsWith('Enter ') || error.startsWith('Please check') || undefined}
+              aria-describedby={`${postcodeId}-help${error ? ` ${postcodeId}-error` : ''}`}
+            />
+          </div>
+          <Button type="button" className="delivery-estimator-calculate" disabled={busy || !postcode.trim()} onClick={() => void calculate()}>
+            {busy ? 'Getting estimate…' : 'Get estimate'}<ArrowRight aria-hidden="true" />
+          </Button>
+        </div>
+        <p id={`${postcodeId}-help`} className="delivery-estimator-help">Where would you like the car delivered?</p>
         {error && (
-          <p role="alert" className="mt-3 text-sm text-destructive">
+          <p id={`${postcodeId}-error`} role="alert" className="delivery-estimator-error">
             {error}
           </p>
         )}
@@ -161,24 +179,18 @@ export function DeliveryEstimator({
           <div
             role="status"
             aria-live="polite"
-            className="mt-4 border-t border-border pt-3"
+            className="delivery-estimator-result"
           >
-            <p className="text-xs text-muted-foreground">
-              Delivery to {estimate.postcode} ·{" "}
-              {estimate.roadMiles.toLocaleString("en-GB", {
-                minimumFractionDigits: 1,
-                maximumFractionDigits: 1,
-              })}{" "}
-              road miles
-            </p>
-            {!total && (
-              <strong className="mt-1 block font-display text-2xl font-semibold">
-                {pounds(estimate.totalPence)}{" "}
-                <span className="font-sans text-xs font-normal text-muted-foreground">
-                  estimated delivery
-                </span>
-              </strong>
-            )}
+            <div className="delivery-estimator-price">
+              <div><span>Estimated delivery</span><strong>{pounds(estimate.totalPence)}</strong></div>
+              <Truck aria-hidden="true" />
+            </div>
+            <div className="delivery-estimator-journey" aria-label="Delivery journey">
+              <div><MapPin aria-hidden="true" /><span><small>From our showroom</small><strong>{validPostcodeSyntax(settings.address?.postcode ?? '') ? normalisePostcode(settings.address.postcode) : 'Showroom'}</strong></span></div>
+              <ArrowRight className="delivery-estimator-journey-arrow" aria-hidden="true" />
+              <div><MapPin aria-hidden="true" /><span><small>To your postcode</small><strong>{estimate.postcode}</strong></span></div>
+              <p>{estimate.roadMiles.toLocaleString('en-GB', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} road miles <span>one way</span></p>
+            </div>
             {total && (
               <dl className="delivery-estimate-total">
                 <div>
@@ -186,7 +198,7 @@ export function DeliveryEstimator({
                   <dd>{pounds(total.vehiclePence)}</dd>
                 </div>
                 <div>
-                  <dt>Estimated delivery</dt>
+                  <dt>Delivery</dt>
                   <dd>{pounds(estimate.totalPence)}</dd>
                 </div>
                 <div className="delivery-estimate-total-sum">
@@ -195,29 +207,31 @@ export function DeliveryEstimator({
                 </div>
               </dl>
             )}
-            <dl className="mt-3 space-y-1 text-xs">
-              <div className="flex justify-between gap-3">
+            <details className="delivery-estimator-breakdown">
+              <summary>How the delivery price is worked out<ChevronDown aria-hidden="true" /></summary>
+              <dl>
+              <div>
                 <dt>Base charge</dt>
                 <dd>{pounds(estimate.basePricePence)}</dd>
               </div>
-              <div className="flex justify-between gap-3">
+              <div>
                 <dt>
                   {estimate.roadMiles.toLocaleString("en-GB")} miles ×{" "}
                   {pounds(estimate.pricePerMilePence)}
                 </dt>
                 <dd>{pounds(estimate.mileageChargePence)}</dd>
               </div>
-            </dl>
-            {!total && priceQualification && <p className="mt-3 text-sm leading-5 text-muted-foreground">{priceQualification}</p>}
-            <p className="mt-3 text-xs leading-5 text-muted-foreground">
-              Estimated from postcode locations using a driving route. The
-              dealership will confirm the final price and delivery availability.
-              Nothing is booked or charged.
-            </p>
+              </dl>
+              <p>Calculated using the driving route between the two postcode locations.</p>
+            </details>
+            {!total && priceQualification && <p className="delivery-estimator-qualification">{priceQualification}</p>}
+            <div className="delivery-estimator-next">
+              <strong>Confirm delivery with our showroom</strong>
+              <p>We’ll confirm the final price and a suitable day. Nothing is booked or charged.</p>
             {onEnquire && (
               <Button
                 type="button"
-                className="delivery-estimate-enquiry mt-3 w-full"
+                className="delivery-estimate-enquiry"
                 onClick={() => {
                   if (
                     savedQuote?.context !== current.current.context ||
@@ -242,12 +256,13 @@ export function DeliveryEstimator({
                   );
                 }}
               >
-                Include estimate in my enquiry
+                Include estimate in my enquiry<ArrowRight aria-hidden="true" />
               </Button>
             )}
+            </div>
           </div>
         )}
-        <p className="mt-3 text-[11px] leading-4 text-muted-foreground">
+        <p className="delivery-estimator-attribution">
           Road routing by{" "}
           <a
             href="https://openrouteservice.org/"

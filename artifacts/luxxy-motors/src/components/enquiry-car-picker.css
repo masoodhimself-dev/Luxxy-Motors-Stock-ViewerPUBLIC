@@ -1,0 +1,39 @@
+body [data-popup-surface].enquiry-car-picker {
+  display: flex;
+  flex-direction: column;
+  width: min(680px, calc(100% - 24px));
+  max-width: 680px;
+  max-height: min(760px, calc(100dvh - 32px));
+  gap: 16px;
+  padding: 24px;
+  border-radius: 16px;
+  overflow: hidden;
+  font-family: var(--app-font-sans);
+}
+.enquiry-car-picker [data-popup-header] { flex: none; }
+.enquiry-car-picker__search { display: flex; align-items: center; flex: none; gap: 10px; min-height: 48px; padding: 0 12px; border: 1px solid hsl(var(--border)); border-radius: 8px; }
+.enquiry-car-picker__search input { width: 100%; min-width: 0; border: 0; padding: 12px 0; background: transparent; font: inherit; font-size: 16px; }
+.enquiry-car-picker__count { margin: -6px 0 0; font-size: 13px; color: hsl(var(--muted-foreground)); }
+.enquiry-car-picker__results { overflow-y: auto; min-height: 0; overscroll-behavior: contain; }
+.enquiry-car-picker__car { display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 3px; text-align: left; border-top: 1px solid hsl(var(--border)); border-radius: 0; background: transparent; }
+.enquiry-car-picker__car:hover { background: hsl(var(--muted) / .55); }
+.enquiry-car-picker__car:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: -2px; }
+.enquiry-car-picker__photo { display: grid; place-items: center; width: 104px; flex: 0 0 104px; aspect-ratio: 4 / 3; border-radius: 6px; overflow: hidden; background: hsl(var(--muted)); }
+.enquiry-car-picker__photo img { width: 100%; height: 100%; object-fit: cover; }
+.enquiry-car-picker__details { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
+.enquiry-car-picker__name { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; line-height: 1.4; }
+.enquiry-car-picker__name img { flex: none; }
+.enquiry-car-picker__meta { font-size: 12px; line-height: 1.6; color: hsl(var(--muted-foreground)); }
+.enquiry-car-picker__price { display: flex; flex-wrap: wrap; gap: 10px; font-size: 14px; font-weight: 600; }
+.enquiry-car-picker__price > span { font-weight: 400; color: hsl(var(--muted-foreground)); }
+.enquiry-car-picker__selected { flex: none; }
+.enquiry-car-picker__saved { display: grid; gap: 16px; overflow-y: auto; }
+.enquiry-car-picker__saved > p { overflow-wrap: anywhere; white-space: pre-wrap; }
+.enquiry-car-picker__empty { padding: 24px 4px; font-size: 14px; }
+@media (max-width: 639px) {
+  body [data-popup-surface].enquiry-car-picker { padding: 20px 16px; }
+  .enquiry-car-picker__car { gap: 10px; }
+  .enquiry-car-picker__photo { width: 80px; flex-basis: 80px; }
+  .enquiry-car-picker__name { font-size: 14px; gap: 5px; }
+  .enquiry-car-picker__name img { display: none; }
+}

@@ -23,7 +23,9 @@ import { VehicleWhatsApp } from '@/components/vehicle-whatsapp';
 import { VehicleCall } from '@/components/vehicle-call';
 import { EnquiryForm } from '@/components/enquiry-form';
 import { VehicleEnquiryInformation } from '@/components/vehicle-enquiry-information';
-import { VehiclePrint } from '@/components/vehicle-print';
+import { VehicleShare } from '@/components/vehicle-share';
+import { vehicleDetailPath, vehicleMatchesPath } from '@workspace/vehicle-meta';
+import './vehicle-actions.css';
 import { vehicleAvailability } from '@/lib/customer-convenience';
 import { VehicleVisit } from '@/components/vehicle-buying-guide';
 import { VehicleHistorySummary, VehicleRunningCosts, VehicleSpecificationDetails } from '@/components/vehicle-running-costs';
@@ -31,13 +33,13 @@ import { vehicleSpecificationGroups, vehicleRunningCosts as getVehicleRunningCos
 import { getSimilarCars } from "@/lib/similar-cars";
 import { buyerInformation } from "@/lib/buyer-information";
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
-import { Link, useLocation, useRoute } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import {
   ArrowLeft,
   ArrowRight,
   Calendar,
   CustomerEnquiry,
-  Share2,
+  ChevronDown,
 } from '@/components/icons';
 import { CarCard } from '@/components/car-card';
 import { useStock, type Car } from '@/lib/stock-context';
@@ -51,7 +53,6 @@ import {
   vehicleRegistration,
 } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PageHeading } from '@/components/page-ui';
 import NotFound from '@/pages/not-found';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
@@ -62,7 +63,6 @@ import { vehiclePageMeta } from '@/lib/page-meta';
 import {
   getVehicleBookingHref,
   getPhoneHref,
-  getVehicleShareUrl,
   recordBookingIntent,
 } from '@/lib/cta-helpers';
 import { navigateToHomeTarget } from '@/lib/home-navigation';
@@ -86,7 +86,6 @@ function LedgerRow({ label, value, testId }: { label: string; value: string; tes
 }
 
 export default function CarDetail() {
-  const [shareMessage, setShareMessage] = useState('');
   const [enquiryExpanded, setEnquiryExpanded] = useState(false);
   const [messageRequest, setMessageRequest] = useState<{id: number; text: string; vehicleId: string}>();
   const messageSequence = useRef(0);
@@ -94,15 +93,20 @@ export default function CarDetail() {
   // Keep identity above the gallery until the two-column layout starts.
   const isCompactLayout = useIsMobile(1100);
   const isPhoneLayout = useIsMobile(640);
-  const [, params] = useRoute('/vehicle/:id');
   const [location, setLocation] = useLocation();
   const { stock, isLoading, error } = useStock();
   const { settings: dealerConfig, isLoading: settingsLoading, isError: settingsError } = useDealerSettings();
   const customerFeatures = useDealerFeatures();
-  const car = stock?.cars?.find((candidate) => candidate.id === params?.id);
+  const car = stock?.cars?.find((candidate) => vehicleMatchesPath(candidate, location));
 
   useEffect(() => {
-    setShareMessage(''); setEnquiryExpanded(false); setMessageRequest(undefined);
+    if (!car) return;
+    const canonical = vehicleDetailPath(car);
+    if (location !== canonical) setLocation(`${canonical}${window.location.search}${window.location.hash}`, { replace: true });
+  }, [car, location, setLocation]);
+
+  useEffect(() => {
+    setEnquiryExpanded(false); setMessageRequest(undefined);
     return () => { cancelAnimationFrame(enquiryFocusFrame.current ?? 0); };
   }, [car?.id]);
 
@@ -220,20 +224,6 @@ export default function CarDetail() {
   const includedItems = vehiclePageInclusions(car, settingsLoading || settingsError ? undefined : dealerConfig.presentation);
   const hasOverview = Boolean(description?.trim()) || includedItems.length > 0 || hasSpecifications || vehicleRunningCostFacts.length > 0;
   const repeatedBadgeLabels = summaryFacts.flatMap(fact => fact.id === 'owners' ? ['Owners', 'Previous keepers'] : fact.id === 'service' ? ['Service history'] : []);
-  const share = async () => {
-    try {
-      const url = getVehicleShareUrl(car);
-      if (navigator.share) await navigator.share({ title: vehicleLabel, url });
-      else {
-        await navigator.clipboard.writeText(url);
-        setShareMessage('Link copied');
-      }
-    } catch (error) {
-      if (!(error instanceof DOMException && error.name === 'AbortError'))
-        setShareMessage('Copy this page’s address to share the vehicle.');
-    }
-  };
-
   const openVehicleEnquiry = (message?: string) => {
     const requestedMessage = message?.trim();
     if (requestedMessage) setMessageRequest({id: ++messageSequence.current, text: requestedMessage, vehicleId: car.id});
@@ -268,7 +258,7 @@ export default function CarDetail() {
     <a key="enquiry" className="vehicle-enquiry-action" href="#vehicle-enquiry" onClick={event => {
       if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       event.preventDefault(); openVehicleEnquiry();
-    }}><CustomerEnquiry className="h-4 w-4" aria-hidden="true" />Message the showroom</a>
+    }}><CustomerEnquiry className="h-4 w-4" aria-hidden="true" />Message</a>
   );
 
   const registrationDetails = registration && (
@@ -349,30 +339,25 @@ export default function CarDetail() {
             </dl>}
           {summaryFacts.length > 0 && <ul className="vehicle-specific-facts" aria-label="About this car">{summaryFacts.map(fact => <li key={fact.id}>{fact.text}</li>)}</ul>}
           <VehicleSellingPoints car={car} omitMileage omitLabels={repeatedBadgeLabels} />
-          <div className="vehicle-primary-actions vehicle-summary-main-actions">{bookingAction}{enquiryAction}</div>
-          <div className="vehicle-help-links">
-            {motSummary && <button type="button" className="vehicle-mot-expiry" onClick={event => openMotHistory(event.currentTarget)} aria-label={`${motSummary.label} ${motSummary.value}. View MOT history`}>
+          <div className="vehicle-action-area" data-testid="desktop-purchase-panel">
+            {motSummary && <button type="button" className="vehicle-mot-expiry vehicle-mot-fact" onClick={event => openMotHistory(event.currentTarget)} aria-label={`${motSummary.label} ${motSummary.value}. View MOT history`}>
               <VehicleFactIcon label="MOT" /><span>{motSummary.label} <strong>{motSummary.value}</strong></span>
             </button>}
-            {deliveryAction}
-          </div>
-          <div className="vehicle-direct-contact" aria-label="Talk to us about this car">
-            <VehicleCall car={car} />
-            <VehicleWhatsApp car={car} />
-          </div>
-          <aside className="min-w-0 pt-5">
-            <div className="vehicle-detail-actions" data-testid="desktop-purchase-panel">
-
-
-            {dealerConfig.partExchange?.enabled && <a href={customerFeatures.enabled('publicEnquiries') ? `/enquire?type=part_exchange&vehicleId=${encodeURIComponent(car.id)}` : '/contact'} className="vehicle-part-exchange-link">Part exchange your car <ArrowRight className="h-4 w-4" aria-hidden="true" /></a>}
-              <div className="vehicle-utility-actions" role="group" aria-label="Vehicle tools">
-                <Button variant="ghost" onClick={share} aria-label="Share this vehicle"><Share2 className="h-4 w-4" /> Share</Button>
-                <SaveCarButton car={car} variant="inline" className="vehicle-save-control border-transparent bg-transparent" />
-                <Popover><PopoverTrigger asChild><Button variant="ghost" aria-label="More vehicle tools">More <span aria-hidden="true">···</span></Button></PopoverTrigger><PopoverContent align="end" className="w-auto p-3"><VehiclePrint car={car} dealer={dealerConfig} features={features} description={description} /></PopoverContent></Popover>
-                {shareMessage && <span className="text-xs text-muted-foreground" role="status">{shareMessage}</span>}
-              </div>
+            <div className="vehicle-primary-actions vehicle-summary-main-actions">{enquiryAction}{bookingAction}</div>
+            <div className="vehicle-action-tools" aria-label="Contact and share">
+              <VehicleCall car={car} buttonLabel="Call" />
+              <VehicleWhatsApp car={car} />
+              <VehicleShare key={car.id} car={car} />
+              <SaveCarButton car={car} variant="inline" className="vehicle-save-control border-transparent bg-transparent" />
             </div>
-          </aside>
+            {(dealerConfig.partExchange?.enabled || deliveryAction) && <details className="vehicle-buying-options">
+              <summary>{dealerConfig.partExchange?.enabled ? deliveryAction ? 'Part exchange & delivery' : 'Part exchange' : 'Delivery'}<ChevronDown size={17} /></summary>
+              <div>
+                {dealerConfig.partExchange?.enabled && <a href={customerFeatures.enabled('publicEnquiries') ? `/enquire?type=part_exchange&vehicleId=${encodeURIComponent(car.id)}` : '/contact'} className="vehicle-part-exchange-link">Part exchange your car <ArrowRight className="h-4 w-4" aria-hidden="true" /></a>}
+                {deliveryAction}
+              </div>
+            </details>}
+          </div>
           </div>
           </div>
         </div>

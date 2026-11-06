@@ -99,6 +99,16 @@ describe('applyPageMeta', () => {
     expect(content('link[rel="canonical"]')).toBe(`${window.location.origin}${window.location.pathname}`);
   });
 
+  it('uses the same clean canonical URL for short and older labelled vehicle paths', () => {
+    const linked = { ...car, sourceExtras: { publicVehicleCode: 'a1b2c3d4' } };
+    for (const path of ['/s/a1b2c3d4', '/cars/old-name-a1b2c3d4', '/vehicle/fiesta-1']) {
+      window.history.replaceState({}, '', path + '?utm_source=whatsapp');
+      applyPageMeta(vehiclePageMeta(linked, dealer));
+      expect(content('link[rel="canonical"]')).toBe(`${window.location.origin}/cars/ford-fiesta-a1b2c3d4`);
+      expect(content('meta[property="og:url"]')).toBe(`${window.location.origin}/cars/ford-fiesta-a1b2c3d4`);
+    }
+  });
+
   it('resolves a relative preview image against the current origin', () => {
     applyPageMeta({ ...vehiclePageMeta(car, dealer), image: '/uploads/hero.jpg' });
 
