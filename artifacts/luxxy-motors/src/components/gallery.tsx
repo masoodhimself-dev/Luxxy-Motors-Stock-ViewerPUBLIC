@@ -1,7 +1,7 @@
 import { VehicleCall } from '@/components/vehicle-call';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { responsiveVehicleImage, retryOriginalImage } from "@/lib/responsive-vehicle-image";
-import { orderVehiclePhotos, photoGroup, type PhotoGroup } from "@/lib/vehicle-photography";
+import { orderVehiclePhotos, photoGroup, getPhotoShortcuts, type PhotoGroup } from "@/lib/vehicle-photography";
 import { useState, useMemo, useRef, useEffect, useId, type MouseEvent } from 'react';
 import { Camera, ChevronLeft, ChevronRight, Maximize2, Mail, LayoutGrid, RotateCw, ZoomIn, ZoomOut } from '@/components/icons';
 import { getSafeImageUrl, cn } from '@/lib/utils';
@@ -26,7 +26,10 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
   const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
   const [overview, setOverview] = useState(false);
-  const [zoomed, setZoomed] = useState(false);
+  const [zoomScale, setZoomScale] = useState(1);
+  const zoomed = zoomScale > 1;
+  const setZoomed = (value: boolean) => setZoomScale(value ? 2 : 1);
+  const pinch = useRef<{ distance: number; scale: number } | null>(null);
   const pan = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
   const fullscreenPhoto = useRef<HTMLDivElement>(null);
   const counterId = useId();
@@ -52,6 +55,8 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
   const activeUrl = getSafeImageUrl(allImages[index]);
   const selectPhoto = (target: number) => {
     setZoomed(false);
+    pinch.current = null;
+    pan.current = null;
     setActiveIndex(target);
   };
   const closeForContact = () => {
@@ -79,7 +84,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
     if (zoomed) frame.focus({ preventScroll: true });
   }, [zoomed, activeUrl, open]);
   const toggleZoom = () => {
-    setZoomed(value => !value);
+    setZoomed(!zoomed);
     touchStart.current = null;
     swiped.current = false;
   };
@@ -137,15 +142,42 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
   const next = () => selectPhoto((index + 1) % allImages.length);
   const touchHandlers = {
     onTouchStart: (event: React.TouchEvent) => {
-      if (open && zoomed) { touchStart.current = null; return; }
-      if (event.target instanceof Element && event.target.closest('a,button')) { touchStart.current = null; return; }
+      if (open && event.touches.length === 2) {
+        pinch.current = { distance: Math.hypot(event.touches[0].clientX - event.touches[1].clientX, event.touches[0].clientY - event.touches[1].clientY), scale: zoomScale };
+        touchStart.current = null;
+        pan.current = null;
+        swiped.current = true;
+        return;
+      }
+      if (open && zoomed && event.touches.length === 1) {
+        const frame = fullscreenPhoto.current;
+        if (frame) pan.current = { x: event.touches[0].clientX, y: event.touches[0].clientY, left: frame.scrollLeft, top: frame.scrollTop };
+        touchStart.current = null;
+        return;
+      }
+      if (event.target instanceof Element && event.target.closest('a,button') && !event.target.closest('[data-gallery-open]')) { touchStart.current = null; return; }
       if (event.touches.length !== 1) { touchStart.current = null; return; }
       touchStart.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
       swiped.current = false;
     },
+    onTouchMove: (event: React.TouchEvent) => {
+      if (!open) return;
+      if (pinch.current && event.touches.length === 2) {
+        const distance = Math.hypot(event.touches[0].clientX - event.touches[1].clientX, event.touches[0].clientY - event.touches[1].clientY);
+        setZoomScale(Math.min(3, Math.max(1, pinch.current.scale * distance / Math.max(1, pinch.current.distance))));
+      } else if (!pinch.current && pan.current && event.touches.length === 1 && fullscreenPhoto.current) {
+        fullscreenPhoto.current.scrollLeft = pan.current.left - (event.touches[0].clientX - pan.current.x);
+        fullscreenPhoto.current.scrollTop = pan.current.top - (event.touches[0].clientY - pan.current.y);
+      }
+    },
     onTouchEnd: (event: React.TouchEvent) => {
+      if (pinch.current || (open && pan.current)) {
+        if (!event.touches?.length) { pinch.current = null; pan.current = null; }
+        touchStart.current = null;
+        return;
+      }
       const start = touchStart.current;
-      if (start) {
+      if (start && event.changedTouches.length) {
         const dx = event.changedTouches[0].clientX - start.x;
         const dy = event.changedTouches[0].clientY - start.y;
         if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.2 && allImages.length > 1) {
@@ -155,13 +187,15 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
       }
       touchStart.current = null;
     },
-    onTouchCancel: () => { touchStart.current = null; swiped.current = false; },
+    onTouchCancel: () => { touchStart.current = null; pinch.current = null; pan.current = null; swiped.current = false; },
   };
-  const groups = (["Exterior", "Interior", "Details", "Other"] as const)
+  const groups = (["Exterior", "Interior", "Details", "Condition"] as const)
     .filter(group => availableImages.some(image => photoGroup(image) === group));
-  const groupNavigation = () => groups.some(group => group !== 'Other') && groups.length > 1 && (
-    <div className="vehicle-photo-sections mt-3 flex gap-1 overflow-x-auto overscroll-x-contain border-b border-border" aria-label="Photograph sections">
-      {(['All', ...groups] as const).map(group => <button type="button" key={group} aria-label={group === 'All' ? 'All photographs' : group === "Other" ? "More photos" : group} aria-pressed={selectedGroup === group}
+  const groupNames = { All: 'All', Exterior: 'Outside', Interior: 'Inside', Details: 'Features', Condition: 'Condition', Other: 'More photos' };
+  const shortcuts = getPhotoShortcuts(availableImages);
+  const groupNavigation = () => groups.length > 0 && (
+    <div className="vehicle-photo-sections" aria-label="Photograph sections">
+      {(['All', ...groups] as const).map(group => <button type="button" key={group} aria-label={group === 'All' ? 'All photographs' : groupNames[group]} aria-pressed={selectedGroup === group}
         onClick={() => {
           setZoomed(false);
           setSelectedGroup(group);
@@ -169,7 +203,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
           setOverviewFocusIndex(0);
         }}
         className={cn('min-h-11 shrink-0 whitespace-nowrap border-b-2 px-3 text-xs', selectedGroup === group ? 'border-primary text-primary' : 'border-transparent text-muted-foreground')}>
-        {group === "Other" ? "More photos" : group} ({group === 'All' ? availableImages.length : availableImages.filter(image => photoGroup(image) === group).length})
+        {groupNames[group]} <span>{group === 'All' ? availableImages.length : availableImages.filter(image => photoGroup(image) === group).length}</span>
       </button>)}
     </div>
   );
@@ -183,7 +217,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
     const ImageElement = eager ? motion.img : 'img';
     const content = (
       <ImageElement
-        {...(eager ? { initial: { opacity: reduceMotion ? 1 : 0, scale: reduceMotion ? 1 : 1.025 }, animate: { opacity: 1, scale: 1 }, exit: { opacity: 0, scale: 1 }, transition: { duration: reduceMotion ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] } } : {})}
+        {...(eager ? { initial: { opacity: reduceMotion ? 1 : 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: reduceMotion ? 0 : 0.16, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] } } : {})}
         key={url}
         src={url}
         {...responsiveVehicleImage(url, sizes)}
@@ -221,9 +255,9 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
   return (
     <Dialog open={open} onOpenChange={value => {
       setOpen(value);
-      if (!value) { setZoomed(false); setOverview(false); swiped.current = false; touchStart.current = null; }
+      if (!value) { setZoomed(false); setOverview(false); swiped.current = false; touchStart.current = null; pinch.current = null; pan.current = null; }
     }}>
-      <div className="min-w-0">
+      <div className={cn("vehicle-photo-gallery min-w-0", customerView && "is-customer-gallery")}>
         <div className="vehicle-gallery-frame">
         <div
           className="relative aspect-[4/3] overflow-hidden rounded-sm bg-muted touch-pan-y touch-pinch-zoom"
@@ -239,51 +273,31 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
           {allImages.length > 0 && <DialogTrigger asChild>
             <button
               type="button"
+              data-gallery-open
               aria-label="View gallery fullscreen"
               aria-describedby={customerView && !open ? counterId : undefined}
               onClick={(event) => { if (swiped.current) { event.preventDefault(); swiped.current = false; } }}
               className="absolute inset-0 cursor-zoom-in focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
             >
-              {(!customerView || !open) && <span id={customerView ? counterId : undefined} className="gallery-photo-counter absolute bottom-3 right-3 flex items-center gap-2 rounded-sm bg-black/70 px-3 py-2 text-xs text-white" aria-live={customerView ? 'polite' : undefined} aria-atomic={customerView ? 'true' : undefined}>
-                <Maximize2 aria-hidden="true" className="h-4 w-4" />
-                <span>{index + 1} / {allImages.length}</span><span className="sr-only"> View all {allImages.length} photos</span>
-              </span>}
+              <span className="gallery-enlarge-icon" aria-hidden="true"><Maximize2 className="h-5 w-5" /></span>
             </button>
           </DialogTrigger>}
-          {allImages.length > 1 && (
-            <>
-              <button
-                type="button"
-                onClick={previous}
-                aria-label="Previous photograph"
-                className={cn(arrowClass, 'gallery-browse-arrow absolute left-3 top-1/2 -translate-y-1/2')}
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </button>
-              <button
-                type="button"
-                onClick={next}
-                aria-label="Next photograph"
-                className={cn(arrowClass, 'gallery-browse-arrow absolute right-3 top-1/2 -translate-y-1/2')}
-              >
-                <ChevronRight className="h-5 w-5" />
-              </button>
-            </>
-          )}
         </div>
         </div>
-        {(!customerView || imageCaption(allImages[index])) && <div
-          className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground"
-          aria-live={customerView ? undefined : 'polite'}
-          aria-atomic={customerView ? undefined : 'true'}
-        >
-          <span>{imageCaption(allImages[index]) || 'Vehicle gallery'}</span>
-          {!customerView && <span>
-            {allImages.length ? `${index + 1} / ${allImages.length} photographs` : 'No photographs yet'}
-          </span>}
-        </div>}
+        <div className="vehicle-gallery-controls">
+          <div className="vehicle-gallery-caption">
+            {(!open || !customerView) && <span id={counterId} className="vehicle-gallery-position" aria-live="polite" aria-atomic="true">{index + 1} / {allImages.length}</span>}
+            {imageCaption(allImages[index]) && <span className="vehicle-photo-caption">{imageCaption(allImages[index])}</span>}
+          </div>
+          <button type="button" className="vehicle-gallery-view-all" onClick={() => { setOpen(true); if (customerView) showOverview(); }}>
+            <LayoutGrid className="h-4 w-4" aria-hidden="true" />{allImages.length === 1 ? 'View photo' : `View all ${allImages.length} photos`}
+          </button>
+          {allImages.length > 1 && <div className="vehicle-gallery-inline-arrows">
+            <button type="button" onClick={previous} aria-label="Previous photograph"><ChevronLeft className="h-5 w-5" aria-hidden="true" /></button>
+            <button type="button" onClick={next} aria-label="Next photograph"><ChevronRight className="h-5 w-5" aria-hidden="true" /></button>
+          </div>}
+        </div>
         {failedImages.size > 0 && <p className="mt-2 text-xs text-muted-foreground">{failedImages.size} {failedImages.size === 1 ? 'photo couldn’t' : 'photos couldn’t'} be loaded. <button type="button" onClick={retryPhotos} className="min-h-11 px-2 font-medium underline underline-offset-4">Retry photos</button></p>}
-        {groupNavigation()}
         {allImages.length > 1 && (
           <div
             className="vehicle-thumbnail-grid mt-3 flex gap-2"
@@ -321,6 +335,16 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
             ); })}
           </div>
         )}
+        {groupNavigation()}
+        {shortcuts.length > 0 && <div className="vehicle-photo-shortcuts" aria-label="Photo shortcuts">
+          <span>Show me</span>
+          {shortcuts.map(shortcut => <button key={shortcut.label} type="button" onClick={() => {
+            setSelectedGroup('All');
+            selectPhoto(shortcut.index);
+            setOverview(false);
+            setOpen(true);
+          }}>{shortcut.label}</button>)}
+        </div>}
       </div>
       <DialogContent
         className={cn('vehicle-lightbox', customerView && 'customer-vehicle-lightbox', overview && 'is-gallery-overview', zoomed && 'is-gallery-zoomed')}
@@ -363,7 +387,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
       >
         <DialogTitle className="sr-only">Vehicle image gallery</DialogTitle>
         {customerView && <div className="vehicle-gallery-toolbar">
-          <span>{overview ? 'All photos' : 'Vehicle photos'}</span>
+          <div className="vehicle-gallery-toolbar-title"><span>{vehicleLabel === 'Vehicle' ? 'Vehicle photos' : vehicleLabel}</span><span className="vehicle-gallery-toolbar-count" aria-live="polite" aria-atomic="true">{overview ? `${allImages.length} ${allImages.length === 1 ? 'photo' : 'photos'}` : `${index + 1} / ${allImages.length}`}</span></div>
           <div className="vehicle-gallery-toolbar-actions">
           {!overview && <button type="button" className="vehicle-gallery-overview-toggle" onClick={toggleZoom} aria-pressed={zoomed} aria-label={zoomed ? 'Zoom out' : 'Zoom in'}>
             {zoomed ? <ZoomOut aria-hidden="true" className="h-4 w-4" /> : <ZoomIn aria-hidden="true" className="h-4 w-4" />}<span>{zoomed ? 'Zoom out' : 'Zoom in'}</span>
@@ -376,7 +400,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
           </div>
         </div>}
         {groupNavigation()}
-        {customerView && overview ? <div className="vehicle-gallery-overview" role="region" aria-label={`All ${allImages.length} photographs`}>
+        {overview ? <div className="vehicle-gallery-overview" role="region" aria-label={`All ${allImages.length} photographs`}>
           <div className="vehicle-gallery-overview-grid" aria-label="Choose a photo to view fullscreen">
             {allImages.map((image, i) => <button key={getSafeImageUrl(image)} type="button"
               className="vehicle-gallery-overview-photo" aria-label={`View photograph ${i + 1} of ${allImages.length}${imageCaption(image) ? `: ${imageCaption(image)}` : ''}`}
@@ -398,8 +422,6 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
                 });
               }}>
               {renderImage(i, 'h-full w-full object-contain', false, '(min-width: 1100px) 230px, (min-width: 640px) 220px, 50vw')}
-              <span className="vehicle-gallery-overview-number" aria-hidden="true">{i + 1}</span>
-              {i === index && <span className="vehicle-gallery-overview-selected" aria-hidden="true">Selected</span>}
             </button>)}
           </div>
         </div> : <>
@@ -421,7 +443,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
             if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
           }}
           onPointerCancel={() => { pan.current = null; }}>
-          <div className="vehicle-photo-zoom-stage">{renderImage(index, 'h-full max-h-full w-full object-contain', true, zoomed ? '200vw' : '100vw')}</div>
+          <div className="vehicle-photo-zoom-stage" style={{ width: `${zoomScale * 100}%`, height: `${zoomScale * 100}%` }}>{renderImage(index, 'h-full max-h-full w-full object-contain', true, zoomed ? '200vw' : '100vw')}</div>
         </div>
         <div className="vehicle-lightbox-navigation flex items-center justify-between gap-3">
           <button
@@ -429,16 +451,17 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
             onClick={previous}
             aria-label="Previous photograph"
             className={arrowClass}
+            disabled={allImages.length < 2}
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
           <p className="text-center text-sm" aria-live="polite">
-            {index + 1} / {allImages.length}
-            <span className="ml-3 text-muted-foreground">
+            {!customerView && <span>{index + 1} / {allImages.length}</span>}
+            <span className="vehicle-lightbox-caption">
               {imageCaption(allImages[index])}
             </span>
           </p>
-          <button type="button" onClick={next} aria-label="Next photograph" className={arrowClass}>
+          <button type="button" onClick={next} aria-label="Next photograph" className={arrowClass} disabled={allImages.length < 2}>
             <ChevronRight className="h-5 w-5" />
           </button>
         </div>

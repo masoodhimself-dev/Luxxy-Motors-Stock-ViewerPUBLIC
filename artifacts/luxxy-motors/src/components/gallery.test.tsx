@@ -56,8 +56,8 @@ it('filters customer photographs by supplied captions and retains all photograph
   render(<Gallery customerView images={labelledPhotos} />);
   expect(screen.getByLabelText('Photograph sections')).toBeInTheDocument();
   expect(screen.getAllByRole('button', { name: /Show photograph/ })).toHaveLength(4);
-  fireEvent.click(screen.getByRole('button', { name: 'Interior' }));
-  expect(screen.getByRole('button', { name: 'Interior' })).toHaveAttribute('aria-pressed', 'true');
+  fireEvent.click(screen.getByRole('button', { name: 'Inside' }));
+  expect(screen.getByRole('button', { name: 'Inside' })).toHaveAttribute('aria-pressed', 'true');
   await waitFor(() => expect(document.querySelector(`.gallery-photo[src="${labelledPhotos[1].url}"]`)).not.toBeNull());
   expect(screen.getByText('1 / 1')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'All photographs' }));
@@ -74,13 +74,67 @@ it('retains photograph sections for the staff gallery', () => {
   render(<Gallery images={labelledPhotos} />);
   expect(screen.getByLabelText('Photograph sections')).toBeInTheDocument();
   screen.getByRole('button', { name: 'Show photograph 2 of 4' }).scrollIntoView = vi.fn();
-  fireEvent.click(screen.getByRole('button', { name: 'Interior' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Inside' }));
   expect(screen.getByText('1 / 1')).toBeInTheDocument();
 });
 
 it('does not invent photograph groups for uncaptioned photos', () => {
   render(<Gallery customerView images={['https://example.com/one.jpg', 'https://example.com/two.jpg']} />);
   expect(screen.queryByLabelText('Photograph sections')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Boot space|Rear seats|Parking camera/ })).not.toBeInTheDocument();
+});
+
+it('opens the complete overview directly from the visible view-all button', async () => {
+  render(<Gallery customerView images={labelledPhotos} />);
+  const viewAll = screen.getByRole('button', { name: 'View all 4 photos' });
+  expect(viewAll).toBeVisible();
+  viewAll.focus();
+  fireEvent.click(viewAll);
+  const dialog = await screen.findByRole('dialog');
+  const overview = within(dialog).getByRole('region', { name: 'All 4 photographs' });
+  expect(within(overview).getAllByRole('button', { name: /View photograph/ })).toHaveLength(4);
+  expect(dialog.querySelector('.vehicle-lightbox-photo')).not.toBeInTheDocument();
+  fireEvent.click(within(overview).getByRole('button', { name: 'View photograph 2 of 4: Interior seats' }));
+  expect(dialog.querySelector('.vehicle-lightbox-photo img')).toHaveAttribute('src', labelledPhotos[1].url);
+  fireEvent.keyDown(dialog, { key: 'Escape' });
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  await waitFor(() => expect(viewAll).toHaveFocus());
+});
+
+it('offers only supplied photo shortcuts and opens the matching photo across a selected category', async () => {
+  const photos = [
+    { url: 'https://example.com/shortcut-front.jpg', caption: 'Front three-quarter view' },
+    { url: 'https://example.com/shortcut-rear-seats.jpg', caption: 'Rear seats' },
+    { url: 'https://example.com/shortcut-boot.jpg', caption: 'Boot space' },
+    { url: 'https://example.com/shortcut-camera.jpg', caption: 'Reversing camera display' },
+  ];
+  render(<Gallery customerView images={photos} heroImage={photos[0].url} />);
+  expect(screen.getByRole('button', { name: 'Rear seats' })).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Boot space' })).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Parking camera' })).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Service history' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Outside' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Rear seats' }));
+  const dialog = await screen.findByRole('dialog');
+  expect(dialog.querySelector('.vehicle-lightbox-photo img')).toHaveAttribute('src', photos[1].url);
+  expect(within(dialog).getByRole('button', { name: 'All photographs' })).toHaveAttribute('aria-pressed', 'true');
+});
+
+it('keeps condition photos available in their own category without inventing missing sections', async () => {
+  const photos = [
+    { url: 'https://example.com/condition-front.jpg', caption: 'Front view' },
+    { url: 'https://example.com/condition-scratch.jpg', caption: 'Scratch on rear bumper' },
+  ];
+  render(<Gallery customerView images={photos} heroImage={photos[0].url} />);
+  expect(screen.getByRole('button', { name: 'Outside' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Condition' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Inside' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Features' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Condition' }));
+  await waitFor(() => expect(document.querySelector('.gallery-photo')).toHaveAttribute('src', photos[1].url));
+  expect(screen.getByText('1 / 1')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'All photographs' }));
+  expect(screen.getAllByRole('button', { name: /Show photograph/ })).toHaveLength(2);
 });
 
 it('mounts a compact lazy overview only when requested and opens the chosen photo', async () => {
@@ -212,13 +266,16 @@ it('keeps all photos uninterrupted, including the tenth photo and repeated brows
   await waitFor(() => expect(document.querySelector('.gallery-photo')).toHaveAttribute('src', browsingPhotos[11]));
 });
 
-it('uses one customer counter while retaining supplied captions and accessible fullscreen access', () => {
+it('keeps one accessible customer counter below the photo with a visible view-all action', () => {
   const { container } = render(<Gallery customerView images={labelledPhotos} />);
-  expect(container.querySelectorAll('.gallery-photo-counter')).toHaveLength(1);
+  expect(container.querySelector('.gallery-photo-counter')).not.toBeInTheDocument();
+  const position = container.querySelector('.vehicle-gallery-position');
+  expect(position).toHaveTextContent('1 / 4');
+  expect(position?.closest('.vehicle-gallery-frame')).toBeNull();
   expect(screen.getAllByText('1 / 4')).toHaveLength(1);
   expect(screen.queryByText('1 / 4 photographs')).not.toBeInTheDocument();
   expect(screen.getByText('Front right')).toBeInTheDocument();
-  expect(screen.getByText('View all 4 photos')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'View all 4 photos' })).toBeVisible();
   const trigger = screen.getByRole('button', { name: 'View gallery fullscreen' });
   expect(document.getElementById(trigger.getAttribute('aria-describedby')!)).toHaveTextContent('1 / 4');
   fireEvent.click(screen.getByRole('button', { name: 'Show photograph 2 of 4' }));
@@ -262,7 +319,8 @@ it('keeps fullscreen keyboard browsing uninterrupted with one counter and closes
     expect(within(dialog).getByRole('button', { name: 'Call us' })).toBeInTheDocument();
   }
   expect(screen.getAllByText('11 / 12')).toHaveLength(1);
-  expect(dialog.querySelector('.vehicle-gallery-toolbar-count')).toBeNull();
+  expect(dialog.querySelector('.vehicle-gallery-toolbar-count')).toHaveTextContent('11 / 12');
+  expect(dialog.querySelector('.vehicle-lightbox-photo')).not.toHaveTextContent('11 / 12');
   expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
   fireEvent.keyDown(dialog, { key: 'Escape' });
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -286,7 +344,7 @@ it('selects photo ten from the overview and returns focus to the photo controls'
 it('recovers failed photos and changes groups without interrupting customer browsing', async () => {
   const photos = [{ url: 'https://example.com/front-group-photo.jpg', caption: 'Front view' }, ...browsingPhotos.map((url, i) => ({ url, caption: `Interior seats ${i + 1}` }))];
   render(<Gallery car={browsingCar} customerView customerActions={browsingActions} images={photos} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Interior' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Inside' }));
   fireEvent.click(screen.getByRole('button', { name: 'Show photograph 10 of 12' }));
   fireEvent.error(document.querySelector(`.vehicle-thumbnail-grid img[src="${browsingPhotos[9]}"]`)!);
   expect(screen.getByText('10 / 11')).toBeInTheDocument();
@@ -372,4 +430,67 @@ it('supports double-click zoom and resets zoom for another photo or an overview'
   fireEvent.click(within(dialog).getByRole('button', { name: 'All photos' }));
   expect(dialog).not.toHaveClass('is-gallery-zoomed');
   expect(within(dialog).queryByRole('button', { name: 'Zoom out' })).not.toBeInTheDocument();
+});
+
+it('pinches the photo within bounded zoom without switching photographs and pinches back to fit', async () => {
+  render(<Gallery customerView images={browsingPhotos} />);
+  fireEvent.click(screen.getByRole('button', { name: 'View gallery fullscreen' }));
+  const dialog = await screen.findByRole('dialog');
+  const frame = dialog.querySelector('.vehicle-lightbox-photo') as HTMLElement;
+  const stage = frame.querySelector('.vehicle-photo-zoom-stage') as HTMLElement;
+  const points = (distance: number) => [
+    { identifier: 0, clientX: 200 - distance / 2, clientY: 150 },
+    { identifier: 1, clientX: 200 + distance / 2, clientY: 150 },
+  ];
+  fireEvent.touchStart(frame, { touches: points(100), changedTouches: points(100) });
+  fireEvent.touchMove(frame, { touches: points(200), changedTouches: points(200) });
+  expect(frame).toHaveClass('vehicle-photo-zoomed');
+  expect(parseFloat(stage.style.width)).toBeGreaterThan(100);
+  expect(parseFloat(stage.style.width)).toBeLessThanOrEqual(300);
+  expect(frame.querySelector('img')).toHaveAttribute('src', browsingPhotos[0]);
+  expect(within(dialog).getByText('1 / 12')).toBeInTheDocument();
+  fireEvent.touchMove(frame, { touches: points(900), changedTouches: points(900) });
+  expect(parseFloat(stage.style.width)).toBeLessThanOrEqual(300);
+  fireEvent.touchMove(frame, { touches: points(70), changedTouches: points(70) });
+  expect(frame).not.toHaveClass('vehicle-photo-zoomed');
+  expect(parseFloat(stage.style.width)).toBe(100);
+  fireEvent.touchEnd(frame, { touches: [], changedTouches: points(70) });
+  expect(within(dialog).getByText('1 / 12')).toBeInTheDocument();
+  expect(frame.querySelector('img')).toHaveAttribute('src', browsingPhotos[0]);
+});
+
+it('does not turn a pinch-ending finger movement into a photo swipe', async () => {
+  render(<Gallery customerView images={browsingPhotos} />);
+  fireEvent.click(screen.getByRole('button', { name: 'View gallery fullscreen' }));
+  const dialog = await screen.findByRole('dialog');
+  const frame = dialog.querySelector('.vehicle-lightbox-photo')!;
+  const first = { identifier: 0, clientX: 140, clientY: 150 };
+  const second = { identifier: 1, clientX: 240, clientY: 150 };
+  fireEvent.touchStart(frame, { touches: [first], changedTouches: [first] });
+  fireEvent.touchStart(frame, { touches: [first, second], changedTouches: [second] });
+  const moved = [{ ...first, clientX: 90 }, { ...second, clientX: 290 }];
+  fireEvent.touchMove(frame, { touches: moved, changedTouches: moved });
+  fireEvent.touchEnd(frame, { touches: [{ ...first, clientX: 90 }], changedTouches: [{ ...second, clientX: 290 }] });
+  fireEvent.touchEnd(frame, { touches: [], changedTouches: [{ ...first, clientX: 20 }] });
+  expect(within(dialog).getByText('1 / 12')).toBeInTheDocument();
+  expect(frame.querySelector('img')).toHaveAttribute('src', browsingPhotos[0]);
+});
+
+it('resets zoom when changing a category or closing and reopening the gallery', async () => {
+  render(<Gallery customerView images={labelledPhotos} />);
+  fireEvent.click(screen.getByRole('button', { name: 'View gallery fullscreen' }));
+  let dialog = await screen.findByRole('dialog');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Zoom in' }));
+  expect(dialog.querySelector('.vehicle-lightbox-photo')).toHaveClass('vehicle-photo-zoomed');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Inside' }));
+  expect(dialog.querySelector('.vehicle-lightbox-photo')).not.toHaveClass('vehicle-photo-zoomed');
+  await waitFor(() => expect(dialog.querySelector('.vehicle-lightbox-photo img')).toHaveAttribute('src', labelledPhotos[1].url));
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Zoom in' }));
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  fireEvent.click(screen.getByRole('button', { name: 'View gallery fullscreen' }));
+  dialog = await screen.findByRole('dialog');
+  expect(dialog.querySelector('.vehicle-lightbox-photo')).not.toHaveClass('vehicle-photo-zoomed');
+  expect(within(dialog).getByRole('button', { name: 'Zoom in' })).toHaveAttribute('aria-pressed', 'false');
+  expect(dialog.querySelector('.vehicle-lightbox-photo img')).toHaveAttribute('src', labelledPhotos[1].url);
 });

@@ -83,7 +83,7 @@ body [data-popup-surface].multi-stock-drawer[role="dialog"] {
   .stock-filter-sidebar.multi-stock-filters {
   padding: 0 16px 0 0;
   border: 0;
-  border-radius: 0;
+  border-radius: 16px;
   box-shadow: none;
   background: var(--ms-surface);
   color: var(--ms-navy);

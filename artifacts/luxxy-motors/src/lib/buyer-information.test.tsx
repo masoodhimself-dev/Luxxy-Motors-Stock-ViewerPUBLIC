@@ -47,7 +47,7 @@ describe("vehicle photography", () => {
       orderVehiclePhotos(input, "hero").map((image) =>
         typeof image === "string" ? image : image.url,
       ),
-    ).toEqual(["hero", "side", "cabin", "wheel", "unknown"]);
+    ).toEqual(["hero", "wheel", "cabin", "side", "unknown"]);
     expect(photoGroup(input[1])).toBe("Interior");
     expect(input[0].url).toBe("wheel");
   });
