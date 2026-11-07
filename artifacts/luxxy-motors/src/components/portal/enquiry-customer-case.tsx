@@ -10,6 +10,7 @@ import {
   Phone,
   CarFront,
   CalendarDays,
+  FilePenLine,
   Mail,
   UserRound,
   MoreHorizontal,
@@ -48,6 +49,7 @@ import { DeleteEnquiry } from "./delete-enquiry";
 import { EnquiryArchiveDialog, RestoreEnquiryAction } from "./enquiry-archive";
 import { EnquiryAiChecks } from "./enquiry-ai-checks";
 import { HistoryLinks } from "./history-links";
+import { LetterComposer } from "./letter-composer";
 import type { EnquiryRecordActions } from "./enquiry-record-browser";
 import type { ReplyInsertion } from "./enquiry-email-composer";
 import "./enquiry-customer-case.css";
@@ -132,6 +134,7 @@ export function EnquiryCustomerCase({
   const [context, setContext] = useState<"vehicle" | "customer" | "activity" | null>(null);
   const [activityOpen, setActivityOpen] = useState(false);
   const [archiveOpen,setArchiveOpen]=useState(false);
+  const [letterOpen, setLetterOpen] = useState(false);
   const workspace=useRef<HTMLElement>(null);
   const contextId = useId();
   const insertionId = useRef(0);
@@ -356,6 +359,9 @@ export function EnquiryCustomerCase({
                       : "Book test drive"}
                   </DropdownMenuItem>
                 )}
+                <DropdownMenuItem onSelect={() => requestAnimationFrame(() => setLetterOpen(true))}>
+                  <FilePenLine size={16} aria-hidden /> Write a letter
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link
@@ -708,6 +714,7 @@ export function EnquiryCustomerCase({
         </div>
       </div>
       {canManage&&<EnquiryArchiveDialog entry={entry} open={archiveOpen} onOpenChange={setArchiveOpen} onSaved={saveCase} hasUnsavedDraft={()=>Boolean(workspace.current?.querySelector('[data-message-dirty="true"]'))}/>}
+      {letterOpen && <LetterComposer canEmail={canManage} recipient={{ name: entry.customerName, email: entry.email }} onClose={() => setLetterOpen(false)} />}
     </article>
   );
 }

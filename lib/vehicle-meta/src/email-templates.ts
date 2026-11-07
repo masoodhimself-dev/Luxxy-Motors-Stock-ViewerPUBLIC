@@ -707,3 +707,39 @@ export function renderEmailTemplate(
   protectedTextByRenderedEmail.set(rendered, protectedParts.join("\n\n"));
   return rendered;
 }
+
+/** Standalone correspondence uses the published layout with literal staff copy. */
+export function renderDirectEmail(
+  draft: { subject: string; body: string },
+  dealer: { name: string; email: string; phone: string; address: string },
+  appearance: EmailAppearance,
+) {
+  const branding = validateEmailAppearance(appearance);
+  const contactEmail = /^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(dealer.email) ? dealer.email : "";
+  const html = renderCompatibleEmailLayout({
+    templateId: "enquiry_message",
+    subject: draft.subject,
+    title: draft.subject,
+    prose: draft.body,
+    heading: dealer.name,
+    footer: branding.footer,
+    dealer: dealer.name,
+    logoUrl: branding.logoUrl,
+    brandColour: branding.brandColour,
+    details: [],
+    attachments: [],
+    actionLabel: "",
+    contactEmail,
+    phone: dealer.phone,
+    address: dealer.address,
+    formatProse: value => linkedEmailText(value).replaceAll("\n", "<br>"),
+  });
+  const text = [
+    dealer.name,
+    draft.body,
+    [contactEmail, dealer.phone].filter(Boolean).join(" · "),
+    dealer.address,
+    branding.footer,
+  ].filter(Boolean).join("\n\n");
+  return { subject: draft.subject, html, text };
+}

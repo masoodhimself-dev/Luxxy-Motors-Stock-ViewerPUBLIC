@@ -15,6 +15,7 @@ import {
   Settings2,
   ExternalLink,
   CalendarDays,
+  FilePenLine,
   Mail,
   CustomerEnquiry,
   CheckCircle2,
@@ -30,6 +31,8 @@ import {
   useStaffAccess,
 } from "@/components/portal/dealer-administration";
 import { PortalQuickActions } from "@/components/portal/portal-quick-actions";
+import { LetterComposer } from "@/components/portal/letter-composer";
+import { DirectEmailComposer } from "@/components/portal/direct-email-composer";
 import { useStaffCars } from "@/components/portal/staff-cars-query";
 import { workspaceStatus } from "@/components/portal/cars-workspace-model";
 import { vehicleDisplayTitle, vehicleRegistration } from "@/lib/utils";
@@ -57,6 +60,7 @@ import {
 import "@/components/portal/portal-redesign.css";
 
 type TabKey = "notifications" | "cars" | "sales" | "settings";
+type Correspondence = "letter" | "email";
 
 const tabs: Array<{ key: TabKey; label: string; icon: typeof Settings2 }> = [
   { key: "notifications", label: "Inbox", icon: CustomerEnquiry },
@@ -248,8 +252,11 @@ function PortalDesk() {
   const [quickEnquiryOpen, setQuickEnquiryOpen] = useState(false);
   const [quickBookTestDrive, setQuickBookTestDrive] = useState(false);
   const [motLookupOpen, setMotLookupOpen] = useState(false);
+  const [correspondence, setCorrespondence] = useState<Correspondence | null>(null);
   const quickActionsTrigger = useRef<HTMLButtonElement>(null);
+  const salesQuickActionsTrigger = useRef<HTMLButtonElement>(null);
   const quickEnquiryTrigger = useRef<HTMLElement | null>(null);
+  const correspondenceTrigger = useRef<HTMLElement | null>(null);
   const [quickEnquiryVehicleId, setQuickEnquiryVehicleId] = useState<
     string | null
   >(null);
@@ -286,6 +293,7 @@ function PortalDesk() {
     indexable: false,
   });
   const canSell = access.data?.permissions.includes("sales.manage") ?? false;
+  const canWriteEmail = canSell && features.enabled("customerEmails");
   const bookingEnabled =
     !settingsLoading &&
     !settingsError &&
@@ -421,6 +429,10 @@ function PortalDesk() {
     setQuickBookTestDrive(bookTestDrive);
     setQuickEnquiryOpen(true);
   }
+  function openCorrespondence(kind: Correspondence, trigger: HTMLElement | null) {
+    correspondenceTrigger.current = trigger;
+    setCorrespondence(kind);
+  }
 
   return (
     <div
@@ -430,7 +442,7 @@ function PortalDesk() {
       <PortalInstallMetadata />
       {motLookupOpen && canSell && (
         <StaffMotLookupDialog
-          returnFocusRef={quickActionsTrigger}
+          returnFocusRef={tab === "sales" ? salesQuickActionsTrigger : quickActionsTrigger}
           initialRegistration={actionVehicle?.registration}
           onClose={() => setMotLookupOpen(false)}
         />
@@ -446,6 +458,12 @@ function PortalDesk() {
             quickEnquiryTrigger.current = quickActionsTrigger.current;
           }}
           onSale={newSale}
+          onWriteLetter={() =>
+            openCorrespondence("letter", quickActionsTrigger.current)
+          }
+          onWriteEmail={canWriteEmail
+            ? () => openCorrespondence("email", quickActionsTrigger.current)
+            : undefined}
           onMot={() => setMotLookupOpen(true)}
           onCalendar={() =>
             go("/portal?section=notifications&workView=test-drives&deskView=calendar")
@@ -513,15 +531,30 @@ function PortalDesk() {
               Calendar
             </button>
             {canSell && (
-              <button
-                type="button"
-                onClick={() =>
-                  go("/portal?section=notifications&workView=email&view=drafts")
-                }
-              >
-                <Mail size={17} aria-hidden="true" />
-                Email drafts
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() =>
+                    go("/portal?section=notifications&workView=email&view=drafts")
+                  }
+                >
+                  <Mail size={17} aria-hidden="true" />
+                  Email drafts
+                </button>
+                <button type="button" onClick={(event) => openCorrespondence("letter", event.currentTarget)}>
+                  <FilePenLine size={17} aria-hidden="true" />
+                  Write a letter
+                </button>
+                {canWriteEmail && (
+                  <button
+                    type="button"
+                    onClick={(event) => openCorrespondence("email", event.currentTarget)}
+                  >
+                    <Mail size={17} aria-hidden="true" />
+                    Write an email
+                  </button>
+                )}
+              </>
             )}
           </div>
           <div className="portal-rail-footer">
@@ -614,9 +647,13 @@ function PortalDesk() {
               >
                 <SalesWorkspace
                   embedded
-                  quickActions={<PortalQuickActions canManage={canSell} bookingEnabled={bookingEnabled} vehicle={actionVehicle} triggerRef={quickActionsTrigger}
-                    onEnquiry={(vehicleId,bookTestDrive)=>{quickEnquiry(vehicleId,bookTestDrive);quickEnquiryTrigger.current=quickActionsTrigger.current;}}
+                  quickActions={<PortalQuickActions canManage={canSell} bookingEnabled={bookingEnabled} vehicle={actionVehicle} triggerRef={salesQuickActionsTrigger}
+                    onEnquiry={(vehicleId,bookTestDrive)=>{quickEnquiry(vehicleId,bookTestDrive);quickEnquiryTrigger.current=salesQuickActionsTrigger.current;}}
                     onSale={newSale} onMot={()=>setMotLookupOpen(true)}
+                    onWriteLetter={()=>openCorrespondence("letter", salesQuickActionsTrigger.current)}
+                    onWriteEmail={canWriteEmail
+                      ? () => openCorrespondence("email", salesQuickActionsTrigger.current)
+                      : undefined}
                     onCalendar={()=>go('/portal?section=notifications&workView=test-drives&deskView=calendar')}
                     onDrafts={()=>go('/portal?section=notifications&workView=email&view=drafts')}/>}
                   newSaleRequest={newSaleRequest}
@@ -632,6 +669,15 @@ function PortalDesk() {
         </div>
       </div>
       <ContextHistoryDialog />
+      {correspondence === "letter" && canSell && (
+        <LetterComposer canEmail={canSell} returnFocusRef={correspondenceTrigger} onClose={() => setCorrespondence(null)} />
+      )}
+      {correspondence === "email" && canSell && (
+        <DirectEmailComposer
+          returnFocusRef={correspondenceTrigger}
+          onClose={() => setCorrespondence(null)}
+        />
+      )}
       {canSell && (
         <QuickEnquiryDialog
           open={quickEnquiryOpen}

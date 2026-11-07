@@ -102,7 +102,11 @@ describe("portal quick actions", () => {
   });
 
   it("limits restricted staff to Calendar without requesting or exposing drafts", async () => {
-    const { client, onCalendar } = mount({ canManage: false, vehicle: car });
+    const { client, onCalendar } = mount({
+      canManage: false,
+      vehicle: car,
+      onWriteEmail: vi.fn(),
+    });
     client.setQueryData(["staff-email-drafts", "all"], summary(8));
     const menu = await openMenu();
     expect(within(menu).getAllByRole("menuitem").map(item => item.textContent)).toEqual(["Calendar"]);

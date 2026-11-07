@@ -36,6 +36,8 @@ import { requireStaffOperationAccess } from '../middlewares/staff-auth';
 
 import staffInventoryRouter from "./staff-inventory";
 import staffEmailRouter from "./staff-email";
+import staffDirectEmailRouter from "./staff-direct-email";
+import staffLettersRouter from "./staff-letters";
 import enquiryEmailsRouter from "./enquiry-emails";
 import staffNotificationsRouter from "./staff-notifications";
 import staffPushRouter from './staff-push';
@@ -63,7 +65,9 @@ router.use(soldVehicleFollowUpsRouter);
 router.use(enquiryEmailsRouter);
 router.use(staffNotificationsRouter);
 router.use(staffPushRouter);
+router.use(staffDirectEmailRouter);
 router.use(staffEmailRouter);
+router.use(staffLettersRouter);
 router.use(cazooLeadsRouter);
 router.use(dealerIntegrationsRouter);
 router.use(dealerOperationsRouter);

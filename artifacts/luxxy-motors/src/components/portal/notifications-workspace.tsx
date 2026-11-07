@@ -1,22 +1,31 @@
+import { useState } from 'react';
 import { useLocation, useSearch } from 'wouter';
-import { ArrowLeft, CalendarDays, Mail } from '@/components/icons';
+import { ArrowLeft, CalendarDays, FilePenLine, Mail } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { notificationHref, notificationView, type NotificationView } from '@/lib/notifications-navigation';
 import { EnquiriesPanel } from './enquiries-panel';
 import { TestDriveBookingsPanel } from './test-drive-bookings-panel';
 import { EmailWorkspace } from './email-workspace';
 import { DeviceNotifications } from './device-notifications';
+import { LetterComposer } from './letter-composer';
 import './notifications-workspace.css';
 
 export function NotificationsWorkspace({canEmail,onQuickEnquiry,onNewSale}: {
   canEmail:boolean;onQuickEnquiry?:()=>void;onNewSale?:()=>void;
 }) {
+  const [letterOpen, setLetterOpen] = useState(false);
   const search=useSearch(),[,navigate]=useLocation(),params=new URLSearchParams(search);
   const view=notificationView(search),calendar=view==='test-drives'&&params.get('deskView')==='calendar';
   function choose(next:NotificationView) { navigate(notificationHref(next,search)); }
   function openCustomer(id:string) { navigate(`/portal?section=notifications&workView=customers&enquiryId=${encodeURIComponent(id)}`); }
   const tools=<>
     <button type="button" onClick={()=>navigate('/portal?section=notifications&workView=test-drives&deskView=calendar')}><CalendarDays size={16} aria-hidden/>Calendar</button>
+    {canEmail&&<button type="button" onClick={event=>{
+      const menu = event.currentTarget.closest('details');
+      menu?.removeAttribute('open');
+      menu?.querySelector('summary')?.focus();
+      setLetterOpen(true);
+    }}><FilePenLine size={16} aria-hidden/>Write a letter</button>}
     {canEmail&&<button type="button" onClick={()=>choose('email')}><Mail size={16} aria-hidden/>Email records</button>}
     <DeviceNotifications canEmail={canEmail}/>
   </>;
@@ -36,5 +45,6 @@ export function NotificationsWorkspace({canEmail,onQuickEnquiry,onNewSale}: {
         {view==='email'&&(canEmail?<EmailWorkspace embedded/>:<div role="status"><p>Email access isn’t included in your staff role.</p><Button variant="outline" onClick={()=>choose('customers')}>Back to Inbox</Button></div>)}
       </div>
     </>}
+    {letterOpen && <LetterComposer canEmail={canEmail} onClose={()=>setLetterOpen(false)}/>}
   </section>;
 }

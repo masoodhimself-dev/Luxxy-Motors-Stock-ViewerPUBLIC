@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ChevronDown,
   CustomerEnquiry,
+  FilePenLine,
   LayoutGrid,
   Mail,
   Sale,
@@ -38,6 +39,8 @@ export function PortalQuickActions({
   triggerRef,
   onEnquiry,
   onSale,
+  onWriteLetter,
+  onWriteEmail,
   onMot,
   onCalendar,
   onDrafts,
@@ -48,6 +51,8 @@ export function PortalQuickActions({
   triggerRef: RefObject<HTMLButtonElement | null>;
   onEnquiry: (vehicleId?: string, bookTestDrive?: boolean) => void;
   onSale: (vehicleId?: string) => void;
+  onWriteLetter?: () => void;
+  onWriteEmail?: () => void;
   onMot: () => void;
   onCalendar: () => void;
   onDrafts: () => void;
@@ -120,6 +125,21 @@ export function PortalQuickActions({
                 >
                   <Sale size={18} />
                   <span>Start sale</span>
+                </DropdownMenuItem>
+              )}
+              {onWriteLetter && (
+                <DropdownMenuItem data-action="letter" onSelect={() => requestAnimationFrame(onWriteLetter)}>
+                  <FilePenLine size={18} aria-hidden />
+                  <span>Write a letter</span>
+                </DropdownMenuItem>
+              )}
+              {onWriteEmail && (
+                <DropdownMenuItem
+                  data-action="email"
+                  onSelect={() => requestAnimationFrame(onWriteEmail)}
+                >
+                  <Mail size={18} aria-hidden />
+                  <span>Write an email</span>
                 </DropdownMenuItem>
               )}
             </DropdownMenuGroup>

@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./sale-document-pdf": "./src/sale-document-pdf.ts",
-    "./full-sales-terms-pdf": "./src/full-sales-terms-pdf.ts"
+    "./full-sales-terms-pdf": "./src/full-sales-terms-pdf.ts",
+    "./staff-letter-pdf": "./src/staff-letter-pdf.ts"
   },
   "dependencies": {
     "jspdf": "4.2.1",
