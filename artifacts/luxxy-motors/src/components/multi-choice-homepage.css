@@ -209,3 +209,51 @@
  .multi-home textarea { font-size: 16px; }
 }
 @media (min-width: 768px) and (max-width: 1279px) { .multi-home .mh-hours-grid { grid-template-columns: repeat(4,minmax(0,1fr)); } }
+
+/* The Multi-Choice homepage uses the public Racing Green theme. */
+.racing-green-site .multi-home .mh-hero:not(.mh-hero--video) {
+  background: var(--mh-hero-bg);
+  box-shadow: inset 0 -1px var(--mh-border);
+}
+.racing-green-site .multi-home .mh-search-card {
+  background: var(--mh-surface);
+  border-color: var(--mh-border);
+  box-shadow: none;
+}
+.racing-green-site .multi-home .mh-search-card select {
+  border-color: var(--mh-border-strong);
+}
+.racing-green-site .multi-home .mh-search-card select:disabled {
+  background: var(--mh-tint);
+  border-color: var(--mh-border);
+  color: var(--mh-muted);
+  opacity: 1;
+}
+.racing-green-site .multi-home .mh-search-tabs button[aria-selected='true'] {
+  color: var(--mh-accent);
+  border-bottom-color: var(--mh-accent);
+}
+.racing-green-site .multi-home .mh-search-card .mh-button {
+  color: var(--mh-surface);
+  background: var(--mh-accent);
+  border-color: var(--mh-accent);
+}
+.racing-green-site .multi-home .mh-search-card .mh-button:enabled:hover {
+  background: var(--mh-accent-dark);
+  border-color: var(--mh-accent-dark);
+}
+.racing-green-site .multi-home .mh-search-card .mh-hero-badge {
+  color: var(--mh-accent);
+  background: var(--mh-surface);
+  box-shadow: inset 0 0 0 1px var(--mh-border-strong);
+}
+.racing-green-site .multi-home .mh-search-card .mh-hero-badge:hover {
+  background: var(--mh-tint);
+}
+.racing-green-site .multi-home .mh-reasons-grid article > svg {
+  color: var(--mh-accent);
+}
+.racing-green-site .multi-home .mh-px-strip {
+  background: var(--mh-tint);
+  box-shadow: inset 0 1px var(--mh-border), inset 0 -1px var(--mh-border);
+}

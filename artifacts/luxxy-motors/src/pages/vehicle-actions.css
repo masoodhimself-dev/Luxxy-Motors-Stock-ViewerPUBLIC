@@ -19,3 +19,59 @@
  .vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-action-tools { justify-content:space-between;gap:0 10px; }
  .vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-action-area .vehicle-summary-main-actions>a { font-size:13px; }
 }
+
+/* Clear link hierarchy, with the car providing the visual interest. */
+.customer-site.dealer-site-theme .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary .vehicle-action-area .vehicle-summary-main-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  margin-block: 12px 8px;
+}
+.customer-site.dealer-site-theme .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary .vehicle-action-area .vehicle-summary-main-actions > a {
+  flex: 0 1 auto;
+  width: auto;
+  min-height: 48px;
+  height: auto;
+  border-radius: 3px;
+  box-shadow: none;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.customer-site.dealer-site-theme .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary .vehicle-action-area .vehicle-summary-main-actions > .vehicle-enquiry-action {
+  min-width: 160px;
+  padding: 11px 24px;
+  border: 1px solid var(--vehicle-ink);
+  background: var(--vehicle-ink);
+  color: #fff;
+  text-decoration: none;
+}
+.customer-site.dealer-site-theme .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary .vehicle-action-area .vehicle-summary-main-actions > .vehicle-enquiry-action:hover { background: #3d464d; border-color: #3d464d; }
+.customer-site.dealer-site-theme .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary .vehicle-action-area .vehicle-summary-main-actions > .vehicle-booking-action {
+  padding: 10px 0;
+  border: 0;
+  background: transparent;
+  color: var(--vehicle-ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
+}
+.customer-site.dealer-site-theme .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary .vehicle-action-area .vehicle-summary-main-actions > .vehicle-booking-action:hover { text-decoration-thickness: 2px; }
+.customer-site.dealer-site-theme .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary .vehicle-action-area .vehicle-summary-main-actions > .vehicle-booking-action:only-child { min-width: 160px; padding: 11px 24px; border: 1px solid var(--vehicle-ink); background: var(--vehicle-ink); color: #fff; text-decoration: none; }
+@media (max-width: 1099px) {
+  .customer-site.dealer-site-theme .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary .vehicle-action-area .vehicle-summary-main-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .customer-site.dealer-site-theme .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary .vehicle-action-area .vehicle-summary-main-actions > :is(.vehicle-enquiry-action, .vehicle-booking-action) {
+    min-width: 0;
+    padding-inline: 6px;
+    font-size: 14px;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+  .vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-action-tools { gap: 0 6px; }
+  .vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-action-tools :is(a, button) { gap: 5px; }
+}

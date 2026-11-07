@@ -97,16 +97,18 @@ describe('Shared dealership customer theme scope', () => {
   });
 
   it.each(['/', '/stock', '/vehicle/current-car', '/saved', '/enquire', '/contact', '/warranty', '/viewing/booking-token'])(
-    'applies the same theme to the public %s shell and its body-rendered pop-ups', path => {
+    'applies Racing Green to the Multi-Choice %s shell and its body-rendered pop-ups', path => {
       state.path = path;
       const { container } = render(page());
       const shell = container.querySelector<HTMLElement>('.customer-site.dealer-site-theme');
       expect(shell).not.toBeNull();
-      expect(shell?.style.getPropertyValue('--dealer-page')).toBe('#f9fafb');
-      expect(shell?.style.getPropertyValue('--mh-accent')).toBe('#a47a2b');
+      expect(shell).toHaveClass('racing-green-site');
+      expect(shell?.style.getPropertyValue('--dealer-page')).toBe('#f4f6f2');
+      expect(shell?.style.getPropertyValue('--mh-accent')).toBe('#12473e');
       expect(shell?.style.getPropertyValue('--app-font-sans')).toContain('Multi Montserrat');
       expect(document.body).toHaveAttribute('data-dealer-customer', 'true');
-      expect(document.body.style.getPropertyValue('--mh-primary')).toBe('#192a36');
+      expect(document.body.style.getPropertyValue('--mh-primary')).toBe('#1a2a25');
+      expect(document.body.style.getPropertyValue('--dialog-accent')).toBe('#12473e');
       expect(document.body.style.getPropertyValue('--app-font-sans')).toContain('Multi Montserrat');
       const popup = screen.getByRole('dialog', { name: 'Customer pop-up' });
       expect(document.body).toContainElement(popup);
@@ -133,6 +135,7 @@ describe('Shared dealership customer theme scope', () => {
     const { container } = render(page());
     const shell = container.querySelector<HTMLElement>('.customer-site')!;
     expect(shell).toHaveClass('dealer-site-theme');
+    expect(shell).not.toHaveClass('racing-green-site');
     expect(shell.style.getPropertyValue('--dealer-page')).toBe('#f9fafb');
     expect(shell.style.getPropertyValue('--dealer-panel')).toBe('#ffffff');
     expect(shell.style.getPropertyValue('--app-font-sans')).toContain('Multi Montserrat');
@@ -142,14 +145,15 @@ describe('Shared dealership customer theme scope', () => {
     expect(JSON.stringify(state.settings)).toBe(before);
   });
 
-  it('keeps shared presentation on approved and lookalike domains while passing each dealership’s own identity to its chrome', () => {
+  it('keeps Racing Green on the verified www domain and the shared theme on lookalike domains', () => {
     canonical('https://www.multichoicemotors.co.uk');
     const view = render(page());
-    expect(view.container.querySelector('.dealer-site-theme')).not.toBeNull();
+    expect(view.container.querySelector('.dealer-site-theme')).toHaveClass('racing-green-site');
     canonical('https://multichoicemotors.co.uk.other.example');
     const before = JSON.stringify(state.settings);
     view.rerender(page());
-    expect(view.container.querySelector('.dealer-site-theme')).not.toBeNull();
+    expect(view.container.querySelector('.dealer-site-theme')).not.toHaveClass('racing-green-site');
+    expect(document.body.style.getPropertyValue('--dealer-page')).toBe('#f9fafb');
     expect(document.body).toHaveAttribute('data-dealer-customer', 'true');
     expect(screen.getByTestId('multi-theme-header')).toHaveAttribute('data-logo', '/configured-dealer.svg');
     expect(screen.getByTestId('multi-theme-footer')).toHaveAttribute('data-logo', '/configured-footer.svg');
@@ -164,7 +168,7 @@ describe('Shared dealership customer theme scope', () => {
     document.body.style.setProperty('--unrelated-token', 'keep-me');
     const { unmount } = render(page());
     expect(document.body).toHaveAttribute('data-dealer-customer', 'true');
-    expect(document.body.style.getPropertyValue('--mh-primary')).toBe('#192a36');
+    expect(document.body.style.getPropertyValue('--mh-primary')).toBe('#1a2a25');
     unmount();
     expect(document.body).toHaveAttribute('data-dealer-customer', 'previous-owner');
     expect(document.body.style.getPropertyValue('--app-font-sans')).toBe('Existing interface font');
@@ -209,6 +213,7 @@ describe('Shared dealership customer theme scope', () => {
     const { container } = render(page());
     const shell = container.querySelector<HTMLElement>('.premium-portal.dealer-portal-theme');
     expect(shell).not.toBeNull();
+    expect(shell).not.toHaveClass('racing-green-site');
     expect(shell?.style.getPropertyValue('--portal-ink')).toBe('#192a36');
     expect(shell?.style.getPropertyValue('--portal-canvas')).toBe('#f9fafb');
     expect(document.body).toHaveAttribute('data-dealer-portal', 'true');

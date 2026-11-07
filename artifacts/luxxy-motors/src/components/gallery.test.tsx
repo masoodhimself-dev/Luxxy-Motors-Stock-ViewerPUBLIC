@@ -17,7 +17,9 @@ it('keeps inline photographs in sync after browsing the enlarged gallery and clo
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   await waitFor(() => expect(document.querySelector('.gallery-photo')).toHaveAttribute('src', images[1]));
   expect(screen.getByText('2 / 3')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Next photograph' }));
+  const next = screen.getByRole('button', { name: 'Next photograph' });
+  expect(next.closest('.vehicle-gallery-image-stage')).not.toBeNull();
+  fireEvent.click(next);
   await waitFor(() => expect(document.querySelector('.gallery-photo')).toHaveAttribute('src', images[2]));
   expect(screen.getByText('3 / 3')).toBeInTheDocument();
 });
@@ -84,8 +86,9 @@ it('does not invent photograph groups for uncaptioned photos', () => {
   expect(screen.queryByRole('button', { name: /Boot space|Rear seats|Parking camera/ })).not.toBeInTheDocument();
 });
 
-it('opens the complete overview directly from the visible view-all button', async () => {
-  render(<Gallery customerView images={labelledPhotos} />);
+it('opens the complete overview directly when inline thumbnails are hidden', async () => {
+  render(<Gallery customerView hideInlineThumbnails images={labelledPhotos} />);
+  expect(screen.queryByRole('button', { name: /Show photograph/ })).not.toBeInTheDocument();
   const viewAll = screen.getByRole('button', { name: 'View all 4 photos' });
   expect(viewAll).toBeVisible();
   viewAll.focus();

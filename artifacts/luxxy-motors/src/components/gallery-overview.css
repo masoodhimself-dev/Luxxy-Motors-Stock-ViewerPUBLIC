@@ -11,8 +11,43 @@
 .vehicle-photo-gallery .vehicle-photo-caption { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--gallery-muted); }
 .vehicle-photo-gallery .vehicle-gallery-view-all { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 8px 10px; color: var(--gallery-ink); font-size: 13px; font-weight: 600; border-radius: 8px; }
 .vehicle-photo-gallery .vehicle-gallery-view-all:hover { background: hsl(var(--muted)); }
-.vehicle-photo-gallery .vehicle-gallery-inline-arrows { display: flex; gap: 6px; }
-.vehicle-photo-gallery .vehicle-gallery-inline-arrows button { display: grid; place-items: center; width: 40px; min-height: 44px; border: 1px solid var(--gallery-border); border-radius: 10px; background: #fff; color: var(--gallery-ink); }
+/* The visible circle stays small inside a 44px tap target. */
+.vehicle-photo-gallery .vehicle-gallery-inline-arrows {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: 8px;
+  pointer-events: none;
+}
+.vehicle-photo-gallery .vehicle-gallery-inline-arrows button {
+  display: grid;
+  flex: 0 0 44px;
+  place-items: center;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--gallery-ink);
+  pointer-events: auto;
+  cursor: pointer;
+}
+.vehicle-photo-gallery .vehicle-gallery-arrow-face {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgb(255 255 255 / .55);
+  border-radius: 50%;
+  background: rgb(255 255 255 / .65);
+  transition: background-color 120ms ease;
+}
+.vehicle-photo-gallery .vehicle-gallery-inline-arrows button:hover .vehicle-gallery-arrow-face,
+.vehicle-photo-gallery .vehicle-gallery-inline-arrows button:focus-visible .vehicle-gallery-arrow-face { background: rgb(255 255 255 / .96); }
 .vehicle-photo-gallery button:focus-visible { outline: 2px solid var(--gallery-ink); outline-offset: 3px; }
 .vehicle-photo-gallery .gallery-enlarge-icon { position: absolute; right: 12px; bottom: 12px; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; color: var(--gallery-ink); background: rgb(255 255 255 / .94); opacity: 0; transition: opacity 120ms ease; }
 .vehicle-photo-gallery [data-gallery-open]:hover .gallery-enlarge-icon,
@@ -79,8 +114,6 @@
   .vehicle-photo-gallery .vehicle-gallery-caption { flex: 0 1 auto; }
   .vehicle-photo-gallery .vehicle-photo-caption { display: none; }
   .vehicle-photo-gallery .vehicle-gallery-view-all { margin-left: auto; padding-inline: 6px; font-size: 12px; }
-  .vehicle-photo-gallery .vehicle-gallery-inline-arrows { gap: 4px; }
-  .vehicle-photo-gallery .vehicle-gallery-inline-arrows button { width: 36px; }
   .vehicle-photo-gallery.is-customer-gallery .vehicle-thumbnail-grid > button { flex-basis: calc((100% - 24px) / 4); width: calc((100% - 24px) / 4); }
   .vehicle-photo-sections > button { padding-inline: 10px; }
   .customer-vehicle-lightbox.vehicle-lightbox { padding-inline: max(12px, env(safe-area-inset-right)); }
@@ -103,4 +136,4 @@
   .customer-vehicle-lightbox .vehicle-lightbox-contact-button { width: auto; flex: 1; font-size: 12px; }
   .customer-vehicle-lightbox.is-gallery-overview .vehicle-gallery-overview { margin-bottom: 50px; }
 }
-@media (prefers-reduced-motion: reduce) { .vehicle-photo-gallery .gallery-enlarge-icon { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .vehicle-photo-gallery :is(.gallery-enlarge-icon, .vehicle-gallery-arrow-face) { transition: none; } }

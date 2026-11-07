@@ -11,20 +11,39 @@ export const multiCustomerPalette = {
   surface: '#ffffff',
   border: '#e1e5e8',
   muted: '#59656e',
+  controlBorder: '#cdd3d8',
+  photoBackground: '#f0f2f3',
+  chip: '#eaf4f7',
+} as const;
+
+const racingGreenPalette = {
+  primary: '#1a2a25',
+  accent: '#12473e',
+  accentDark: '#1c5a4e',
+  tint: '#ebefe9',
+  background: '#f4f6f2',
+  surface: '#ffffff',
+  border: '#ccd6cc',
+  muted: '#4d5d54',
+  controlBorder: '#727f75',
+  photoBackground: '#eff1ef',
+  chip: '#ebefe9',
+  hero: '#e0e8de',
 } as const;
 
 /** Presentation only: no saved brand, permissions, invoice or tenant changes. */
-export function multiCustomerThemeVariables(): Record<string, string> {
-  const p = multiCustomerPalette;
+export function multiCustomerThemeVariables(theme?: 'racing-green'): Record<string, string> {
+  const racingGreen = theme === 'racing-green';
+  const p = racingGreen ? racingGreenPalette : multiCustomerPalette;
+  const action = racingGreen ? p.accent : p.primary;
+  const accent = racingGreen ? p.accent : p.accentDark;
   const variables = customerThemeVariables({
-    primaryHsl: hexColourToHsl(p.primary),
-    // The darker gold is readable for small text. The homepage gold remains a
-    // decorative detail and focus ring; primary actions use the dark brand ink.
-    accentHsl: hexColourToHsl(p.accentDark),
+    primaryHsl: hexColourToHsl(action),
+    accentHsl: hexColourToHsl(accent),
     pageColour: p.background,
     panelColour: p.surface,
     headingColour: p.primary,
-    linkColour: p.primary,
+    linkColour: action,
   });
   for (const name of ['page', 'panel']) {
     variables[`--dealer-${name}-muted`] = p.muted;
@@ -34,14 +53,21 @@ export function multiCustomerThemeVariables(): Record<string, string> {
     variables[`--dealer-${name}-subtle`] = p.tint;
     variables[`--dealer-${name}-subtle-hsl`] = hexColourToHsl(p.tint);
   }
+  if (racingGreen) {
+    const input = hexColourToHsl(p.controlBorder);
+    variables['--dealer-page-input-hsl'] = input;
+    variables['--dealer-panel-input-hsl'] = input;
+    variables['--input'] = input;
+    variables['--mh-hero-bg'] = racingGreenPalette.hero;
+  }
   return {
     ...variables,
     '--app-font-sans': "'Multi Montserrat', Arial, sans-serif",
     '--font-display': "'Multi Montserrat', Arial, sans-serif",
     '--font-body': "'Multi Montserrat', Arial, sans-serif",
-    '--dealer-primary': hexColourToHsl(p.primary),
+    '--dealer-primary': hexColourToHsl(action),
     '--dealer-primary-foreground': '0 0% 100%',
-    '--dealer-accent': hexColourToHsl(p.accentDark),
+    '--dealer-accent': hexColourToHsl(accent),
     '--dealer-accent-foreground': '0 0% 100%',
     '--dealer-muted': p.muted,
     '--premium-muted': p.muted,
@@ -57,12 +83,12 @@ export function multiCustomerThemeVariables(): Record<string, string> {
     '--mh-bg': p.background,
     '--mh-surface': p.surface,
     '--mh-border': p.border,
-    '--mh-border-strong': '#cdd3d8',
-    '--mh-photo-bg': '#f0f2f3',
+    '--mh-border-strong': p.controlBorder,
+    '--mh-photo-bg': p.photoBackground,
     '--mh-dot': '#c8cfd4',
     '--mh-text': p.primary,
     '--mh-muted': p.muted,
-    '--mh-chip': '#eaf4f7',
+    '--mh-chip': p.chip,
     '--mh-radius': '8px',
     '--mh-radius-panel': '8px',
     '--mh-radius-control': '4px',
@@ -74,7 +100,7 @@ export function multiCustomerThemeVariables(): Record<string, string> {
     '--mh-shadow-md': '0 4px 6px -1px rgb(0 0 0 / 10%), 0 2px 4px -2px rgb(0 0 0 / 10%)',
     '--mh-shadow-lg': '0 10px 15px -3px rgb(0 0 0 / 10%), 0 4px 6px -4px rgb(0 0 0 / 10%)',
     '--dialog-ink': p.primary,
-    '--dialog-accent': p.primary,
+    '--dialog-accent': action,
     '--dialog-accent-foreground': p.surface,
     '--dialog-muted': p.muted,
     '--dialog-border': p.border,

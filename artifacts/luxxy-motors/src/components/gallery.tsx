@@ -16,13 +16,17 @@ export interface GalleryProps {
   heroImage?: string | null;
   vehicleLabel?: string;
   customerView?: boolean;
+  hideInlineThumbnails?: boolean;
   customerActions?: { enquiryHref?: string; onEnquiry?: () => void };
 }
 function imageCaption(image: CarImage | string | undefined) {
   return image && typeof image === 'object' ? image.caption || '' : '';
 }
 
-export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', customerView = false, customerActions }: GalleryProps) {
+export function Gallery({
+  car, images, heroImage, vehicleLabel = 'Vehicle', customerView = false,
+  hideInlineThumbnails = false, customerActions,
+}: GalleryProps) {
   const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
   const [overview, setOverview] = useState(false);
@@ -137,7 +141,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
     const left = button.offsetLeft - row.offsetLeft;
     if (left < row.scrollLeft) row.scrollLeft = left;
     else if (left + button.offsetWidth > row.scrollLeft + row.clientWidth) row.scrollLeft = left + button.offsetWidth - row.clientWidth;
-  }, [index]);
+  }, [index, hideInlineThumbnails]);
   const previous = () => selectPhoto((index + allImages.length - 1) % allImages.length);
   const next = () => selectPhoto((index + 1) % allImages.length);
   const touchHandlers = {
@@ -260,7 +264,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
       <div className={cn("vehicle-photo-gallery min-w-0", customerView && "is-customer-gallery")}>
         <div className="vehicle-gallery-frame">
         <div
-          className="relative aspect-[4/3] overflow-hidden rounded-sm bg-muted touch-pan-y touch-pinch-zoom"
+          className="vehicle-gallery-image-stage relative aspect-[4/3] overflow-hidden rounded-sm bg-muted touch-pan-y touch-pinch-zoom"
           {...touchHandlers}
         >
           {!allImages.length && <p className="flex h-full items-center justify-center text-sm text-muted-foreground">Photographs to follow</p>}
@@ -282,6 +286,14 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
               <span className="gallery-enlarge-icon" aria-hidden="true"><Maximize2 className="h-5 w-5" /></span>
             </button>
           </DialogTrigger>}
+          {allImages.length > 1 && <div className="vehicle-gallery-inline-arrows">
+            <button type="button" onClick={previous} aria-label="Previous photograph">
+              <span className="vehicle-gallery-arrow-face" aria-hidden="true"><ChevronLeft className="h-5 w-5" /></span>
+            </button>
+            <button type="button" onClick={next} aria-label="Next photograph">
+              <span className="vehicle-gallery-arrow-face" aria-hidden="true"><ChevronRight className="h-5 w-5" /></span>
+            </button>
+          </div>}
         </div>
         </div>
         <div className="vehicle-gallery-controls">
@@ -292,13 +304,9 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
           <button type="button" className="vehicle-gallery-view-all" onClick={() => { setOpen(true); if (customerView) showOverview(); }}>
             <LayoutGrid className="h-4 w-4" aria-hidden="true" />{allImages.length === 1 ? 'View photo' : `View all ${allImages.length} photos`}
           </button>
-          {allImages.length > 1 && <div className="vehicle-gallery-inline-arrows">
-            <button type="button" onClick={previous} aria-label="Previous photograph"><ChevronLeft className="h-5 w-5" aria-hidden="true" /></button>
-            <button type="button" onClick={next} aria-label="Next photograph"><ChevronRight className="h-5 w-5" aria-hidden="true" /></button>
-          </div>}
         </div>
         {failedImages.size > 0 && <p className="mt-2 text-xs text-muted-foreground">{failedImages.size} {failedImages.size === 1 ? 'photo couldn’t' : 'photos couldn’t'} be loaded. <button type="button" onClick={retryPhotos} className="min-h-11 px-2 font-medium underline underline-offset-4">Retry photos</button></p>}
-        {allImages.length > 1 && (
+        {!hideInlineThumbnails && allImages.length > 1 && (
           <div
             className="vehicle-thumbnail-grid mt-3 flex gap-2"
             aria-label="Choose photograph"

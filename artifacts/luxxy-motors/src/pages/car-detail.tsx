@@ -37,7 +37,6 @@ import { Link, useLocation } from 'wouter';
 import {
   ArrowLeft,
   ArrowRight,
-  Calendar,
   CustomerEnquiry,
   ChevronDown,
 } from '@/components/icons';
@@ -58,7 +57,6 @@ import NotFound from '@/pages/not-found';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { useDealerFeatures } from '@/lib/dealer-features';
 import { usePageMeta } from '@/hooks/use-page-meta';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { vehiclePageMeta } from '@/lib/page-meta';
 import {
   getVehicleBookingHref,
@@ -90,9 +88,6 @@ export default function CarDetail() {
   const [messageRequest, setMessageRequest] = useState<{id: number; text: string; vehicleId: string}>();
   const messageSequence = useRef(0);
   const enquiryFocusFrame = useRef<number | null>(null);
-  // Keep identity above the gallery until the two-column layout starts.
-  const isCompactLayout = useIsMobile(1100);
-  const isPhoneLayout = useIsMobile(640);
   const [location, setLocation] = useLocation();
   const { stock, isLoading, error } = useStock();
   const { settings: dealerConfig, isLoading: settingsLoading, isError: settingsError } = useDealerSettings();
@@ -178,6 +173,8 @@ export default function CarDetail() {
   const registrationYear = stockRegistrationYear({ ...car, registrationBand: registrationBand ?? null }) || registrationBand || 'Unknown';
   const bookingHref = getVehicleBookingHref(car);
   const vehicleLabel = vehicleDisplayTitle(car);
+  const vehicleTrim = car.variant?.trim() || car.trim?.trim();
+  const stockStatus = vehicleAvailability(car.inventoryStatus);
   const showMakeLogo = Boolean(getMakeLogoSrc(car.make));
   const vehicleRunningCostFacts = getVehicleRunningCosts(car);
   const sourceReport = readVehicleSourceReport(car);
@@ -196,7 +193,7 @@ export default function CarDetail() {
   const handoverFacts = buyerInformation(car).filter(item => item.value && !['Service history', 'Keys', 'Owners', 'Previous keepers'].includes(item.label));
 
   const keyFacts: { label: string; value: string; testId?: string }[] = [
-    { label: 'Year / plate', value: registrationYear, testId: 'text-registration-year' },
+    { label: 'Year', value: registrationYear, testId: 'text-registration-year' },
     {
       label: "Mileage",
       value:
@@ -242,23 +239,22 @@ export default function CarDetail() {
     });
   };
   const bookingAction = !settingsLoading && !settingsError && customerFeatures.enabled('testDriveBookings') && dealerConfig.testDriveBooking?.enabled !== false && (!car.inventoryStatus || car.inventoryStatus === 'available') ? (
-    <Button asChild size="lg" key="booking" className="vehicle-booking-action">
       <a
+        key="booking"
+        className="vehicle-booking-action"
         href={bookingHref}
         onClick={() => recordBookingIntent({ source: 'car_detail', vehicleContext: true })}
         data-vehicle-contact="booking"
       >
-        <Calendar className="h-4 w-4" />
         {dealerConfig.bookViewing.ctaLabel}
       </a>
-    </Button>
   ) : null;
   const enquiriesEnabled = customerFeatures.enabled('publicEnquiries');
   const enquiryAction = enquiriesEnabled && (
     <a key="enquiry" className="vehicle-enquiry-action" href="#vehicle-enquiry" onClick={event => {
       if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       event.preventDefault(); openVehicleEnquiry();
-    }}><CustomerEnquiry className="h-4 w-4" aria-hidden="true" />Message</a>
+    }}>Message</a>
   );
 
   const registrationDetails = registration && (
@@ -270,33 +266,6 @@ export default function CarDetail() {
   return <VehicleQuickChecks key={car.id} vehicleId={car.id} vehiclePrice={car.price} currency={car.currency} priceType={car.priceType} onEnquire={enquiriesEnabled ? openVehicleEnquiry : undefined}>
     {({ motAction, deliveryAction, motHistory, requestMotHistory, openMotHistory }) => {
   const motSummary = vehicleEnquiryMot(car, motHistory);
-  const vehicleIdentity = (
-    <header className={`min-w-0${isCompactLayout ? ' vehicle-compact-identity' : ''}`} data-testid="vehicle-identity">
-      <p className="vehicle-availability luxxy-kicker mb-3">
-        {vehicleAvailability(car.inventoryStatus)} · {dealerConfig.address?.city || dealerConfig.identity.name}
-      </p>
-      <h1 className={`font-display text-[2rem] font-semibold leading-tight tracking-tight text-primary${showMakeLogo ? ' make-logo-vehicle-heading' : ''}`}>
-        {showMakeLogo ? <><MakeLogo make={car.make} size={28} /><span>{vehicleLabel}</span></> : vehicleLabel}
-      </h1>
-      {isCompactLayout ? (
-        <ul className="vehicle-compact-facts" aria-label="Vehicle details">{[
-          registrationYear !== 'Unknown' ? registrationYear : null,
-          car.mileage != null ? formatMileage(car.mileage) : car.mileageText,
-          car.transmission,
-          car.fuel,
-        ].filter(Boolean).map((fact, index) => <li key={`${index}-${fact}`}>{fact}</li>)}</ul>
-      ) : <>
-        {(car.variant || car.trim) && <p className="vehicle-variant mt-3 text-sm leading-relaxed text-muted-foreground">{car.variant || car.trim}</p>}
-        {registrationDetails}
-      </>}
-      <div className="vehicle-price-block mt-3 border-b border-border pb-3 lg:mt-5 lg:pb-5">
-        <p className="luxxy-price text-[2rem]">{car.price ? formatPrice(car.price, car.currency) : 'Price on application'}</p>
-        <PriceReduction car={car} showRecordedDate />
-        {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <p className="text-sm text-muted-foreground">{car.priceType}</p>}
-        {damageDisclosure && <a href="#vehicle-history" className="vehicle-insurance-disclosure"><VehicleFactIcon label="Insurance history" /><span>{damageDisclosure.summary}</span><ArrowRight className="h-4 w-4" /></a>}
-      </div>
-    </header>
-  );
 
   return (
     <div className="vehicle-page vehicle-redesigned vehicle-page-streamlined vehicle-page-enter luxxy-shell min-h-screen">
@@ -306,26 +275,34 @@ export default function CarDetail() {
             <ArrowLeft className="h-4 w-4" />
             Back to your results
           </Link>
-
         </div>
         <div className="vehicle-detail-grid min-w-0">
-          {isCompactLayout && vehicleIdentity}
+          <header className="vehicle-detail-heading" data-testid="vehicle-identity">
+            <h1 className={showMakeLogo ? 'make-logo-vehicle-heading' : undefined}>
+              {showMakeLogo ? <><MakeLogo make={car.make} size={28} /><span>{vehicleLabel}</span></> : vehicleLabel}
+            </h1>
+            {vehicleTrim && <p>{vehicleTrim}</p>}
+          </header>
           <div className="vehicle-detail-gallery min-w-0">
-            <span className="vehicle-mobile-availability">{vehicleAvailability(car.inventoryStatus)}</span>
-            <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} customerView customerActions={{
+            <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} customerView hideInlineThumbnails customerActions={{
               enquiryHref: customerFeatures.enabled('publicEnquiries') ? '#vehicle-enquiry' : undefined,
               onEnquiry: customerFeatures.enabled('publicEnquiries') ? () => openVehicleEnquiry() : undefined,
             }} />
-            {enquiriesEnabled && <VehiclePhotoRequest key={`photos-${car.id}`} onRequest={openVehicleEnquiry} />}
           </div>
           <div className="vehicle-summary-column min-w-0">
           <div className="vehicle-summary min-w-0">
-          {!isCompactLayout && vehicleIdentity}
-          {isCompactLayout && <div className="vehicle-compact-detail">
-            {(car.variant || car.trim) && <p className="vehicle-variant text-sm leading-relaxed text-muted-foreground">{car.variant || car.trim}</p>}
+            <div className="vehicle-price-block">
+              {stockStatus !== 'Available' && (
+                <p className="vehicle-stock-status">{stockStatus}</p>
+              )}
+              <p className="vehicle-price-caption">Vehicle price</p>
+              <p className={`luxxy-price${car.price ? '' : ' is-price-on-application'}`}>{car.price ? formatPrice(car.price, car.currency) : 'Price on application'}</p>
+              {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <p className="text-sm text-muted-foreground">{car.priceType}</p>}
+              <PriceReduction car={car} showRecordedDate />
+              {damageDisclosure && <a href="#vehicle-history" className="vehicle-insurance-disclosure"><VehicleFactIcon label="Insurance history" /><span>{damageDisclosure.summary}</span><ArrowRight className="h-4 w-4" /></a>}
+            </div>
             {registrationDetails}
-          </div>}
-            {!isCompactLayout && <dl className="vehicle-key-facts grid grid-cols-2 gap-x-4 gap-y-4">
+            {keyFacts.length > 0 && <dl className="vehicle-key-facts grid grid-cols-2 gap-x-4 gap-y-4" aria-label="Vehicle details">
               {keyFacts.map((fact) => (
                 <div key={fact.label}>
                   <dt className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -360,6 +337,7 @@ export default function CarDetail() {
           </div>
           </div>
           </div>
+          {enquiriesEnabled && <VehiclePhotoRequest key={`photos-${car.id}`} onRequest={openVehicleEnquiry} />}
         </div>
         <div className="vehicle-details-content min-w-0">
           <nav aria-label="Vehicle information sections" className="vehicle-section-nav">

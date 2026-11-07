@@ -43,6 +43,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isStaff = /^\/portal(?:\/|$)/.test(location);
   const isSharedPortal = isStaff;
   const isCustomerWebsite = isCustomerWebsiteRoute(location);
+  const racingGreenTheme = isCustomerWebsite && isMultiChoiceBrand;
   const isCustomerTask = /^\/(sign|customer-details|viewing)\//.test(location);
   const isPremiumShowroom = location === '/' || location === '/stock' || isVehiclePagePath(location);
   const isVehiclePage = isVehiclePagePath(location);
@@ -100,9 +101,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         }
       : {}),
     ...(!isStaff ? customerThemeVariables({ ...dealerConfig.presentation, primaryHsl: brandPrimary, accentHsl: customerAccent }) : {}),
-    ...(isCustomerWebsite ? multiCustomerThemeVariables() : {}),
+    ...(isCustomerWebsite ? multiCustomerThemeVariables(racingGreenTheme ? 'racing-green' : undefined) : {}),
     ...(isSharedPortal ? multiPortalThemeVariables() : {}),
-  }) as CSSProperties, [brandPrimary, accent, customerAccent, dealerConfig.presentation, isStaff, isCustomerWebsite, isSharedPortal]);
+  }) as CSSProperties, [brandPrimary, accent, customerAccent, dealerConfig.presentation, isStaff, isCustomerWebsite, isSharedPortal, racingGreenTheme]);
 
   useCustomerBodyTheme(brandStyle, isCustomerWebsite);
   usePortalBodyTheme(brandStyle, isSharedPortal);
@@ -205,7 +206,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   // Never show another dealer's build-time defaults while this tenant loads.
-  if (isHomePage && (settingsLoading || settingsError)) return <div style={brandStyle} className="luxxy-shell customer-site dealer-site-theme multi-home-shell min-h-[100dvh]">
+  if (isHomePage && (settingsLoading || settingsError)) return <div style={brandStyle} className={`luxxy-shell customer-site dealer-site-theme multi-home-shell min-h-[100dvh]${racingGreenTheme ? ' racing-green-site' : ''}`}>
     <header ref={headerRef} data-site-header className="multi-home-header"><div className="multi-home-header__inner"><a href="#main-content" className="multi-home-header__brand" aria-label="Skip to website content">{isMultiChoiceBrand ? <img src="/brand/multi-choice-motors/multi-choice-wordmark.svg" alt="Multi-Choice Motors" width="205" height="43" /> : <span>Car showroom</span>}</a></div></header>
     <main id="main-content" className="multi-home-loading" aria-busy={settingsLoading || undefined}>
       <h1>{settingsError ? 'Website details are temporarily unavailable' : 'Loading the dealership…'}</h1>
@@ -214,7 +215,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   </div>;
 
   return (
-    <div id={isHomePage ? 'top' : undefined} style={brandStyle} data-dealer-brand={isMultiChoiceBrand ? "multi-choice" : undefined} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}${isCustomerWebsite ? ' dealer-site-theme' : ''}${isSharedPortal ? ' dealer-portal-theme' : ''}${isHomePage ? ' multi-home-shell' : ''}`}>
+    <div id={isHomePage ? 'top' : undefined} style={brandStyle} data-dealer-brand={isMultiChoiceBrand ? "multi-choice" : undefined} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}${isCustomerWebsite ? ' dealer-site-theme' : ''}${isSharedPortal ? ' dealer-portal-theme' : ''}${isHomePage ? ' multi-home-shell' : ''}${racingGreenTheme ? ' racing-green-site' : ''}`}>
       <a href="#main-content" className="fixed left-4 top-3 z-[100] -translate-y-24 rounded-md bg-primary px-5 py-3 text-primary-foreground focus:translate-y-0">Skip to content</a>
       {isCustomerWebsite && <MultiHomeHeader ref={headerRef} settings={dealerConfig} savedCount={savedCount} testDriveHref={testDriveHref} isHomepage={isHomePage} enquiriesEnabled={publicEnquiriesEnabled} onLogoClick={isHomePage ? undefined : handleLogoClick} />}
       {!isStaff && !isCustomerWebsite && <header

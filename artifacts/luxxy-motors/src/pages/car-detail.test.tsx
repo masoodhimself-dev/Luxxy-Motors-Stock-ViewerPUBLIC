@@ -67,7 +67,7 @@ const { stockFixture, stockStatus } = vi.hoisted(() => {
   const car = (overrides: Record<string, unknown>) => ({ ...baseCar, ...overrides });
 
   return {
-    stockStatus: { error: null as string | null, isPhone: false },
+    stockStatus: { error: null as string | null },
     stockFixture: {
       schemaVersion: 1,
       dealerName: 'Test Motors',
@@ -109,7 +109,6 @@ vi.mock('@/lib/stock-context', () => ({
 vi.mock('@/components/car-card', () => ({
   CarCard: () => null,
 }));
-vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => stockStatus.isPhone }));
 
 function renderVehicle(id: string, settings?: typeof dealerConfig & { testDriveBooking?: typeof defaultBookingSettings }) {
   window.history.pushState({}, '', `/vehicle/${id}`);
@@ -123,7 +122,7 @@ function renderVehicle(id: string, settings?: typeof dealerConfig & { testDriveB
 }
 
 beforeEach(() => {
-  stockStatus.error = null; stockStatus.isPhone = false;
+  stockStatus.error = null;
   window.sessionStorage.clear();
   for (const key of Object.keys(featureState.data.features)) featureState.data.features[key] = false;
 });
@@ -169,39 +168,29 @@ describe('vehicle detail registration', () => {
     expect(screen.queryByLabelText(/^UK registration/)).not.toBeInTheDocument();
   });
 
-  it('shows the supplied registration alongside the vehicle identity', () => {
+  it('shows the supplied registration in the vehicle summary', () => {
     renderVehicle('with-plate');
 
     const plate = screen.getByTestId('plate-vehicle-with-plate');
     expect(plate).toHaveTextContent('NV24 LNZ');
-    expect(plate.closest('.vehicle-summary header')).not.toBeNull();
+    expect(plate.closest('.vehicle-summary')).not.toBeNull();
     expect(screen.getByTestId('text-registration-year')).toHaveTextContent('2024 (24 reg)');
   });
 });
 
-it('puts one concise identity and price above the gallery on phones', () => {
-  stockStatus.isPhone = true;
+it('puts one identity above the gallery and groups the price and key facts in the summary', () => {
   renderVehicle('with-plate');
   const identity = screen.getByTestId('vehicle-identity');
   const gallery = document.querySelector('.vehicle-detail-gallery')!;
+  const summary = document.querySelector<HTMLElement>('.vehicle-summary')!;
   expect(identity.compareDocumentPosition(gallery) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(document.querySelectorAll('.vehicle-detail-grid h1')).toHaveLength(1);
   expect(identity).toHaveTextContent('BMW 3 Series');
-  expect(within(identity).getByRole('list', { name: 'Vehicle details' })).toHaveTextContent('2024 (24 reg)');
-  expect(within(identity).getByRole('list', { name: 'Vehicle details' })).toHaveTextContent('90,000 miles');
-  expect(within(identity).getByRole('list', { name: 'Vehicle details' })).toHaveTextContent('Manual');
-  expect(identity).toHaveTextContent('£4,995');
-  expect(identity.closest('.vehicle-summary')).toBeNull();
-  expect(document.querySelector('.vehicle-detail-grid .vehicle-key-facts')).toBeNull();
-  expect(within(document.querySelector('.vehicle-detail-grid') as HTMLElement).getAllByText('90,000 miles', { exact: true })).toHaveLength(1);
-  expect(screen.getByTestId('plate-vehicle-with-plate').closest('.vehicle-summary')).not.toBeNull();
-});
-
-it('keeps the single identity and price in the normal summary on larger screens', () => {
-  renderVehicle('with-plate');
-  expect(screen.getByTestId('vehicle-identity').closest('.vehicle-summary')).not.toBeNull();
-  expect(document.querySelectorAll('.vehicle-detail-grid h1')).toHaveLength(1);
-  expect(document.querySelector('.vehicle-compact-identity')).toBeNull();
+  expect(summary.querySelector('.vehicle-price-block')).toHaveTextContent('£4,995');
+  const facts = within(summary).getByText('Year', { exact: true }).closest('dl');
+  expect(facts).toHaveTextContent('2024 (24 reg)');
+  expect(facts).toHaveTextContent('90,000 miles');
+  expect(facts).toHaveTextContent('Manual');
 });
 
 describe('vehicle detail link preview', () => {
@@ -234,13 +223,12 @@ it('offers printing inside the share menu', () => {
   expect(link.closest('[role="dialog"]')).not.toBeNull();
 });
 
-it.each([false, true])('places one decorative make mark beside the Multi-Choice vehicle title (phone: %s)', isPhone => {
+it('places one decorative make mark beside the Multi-Choice vehicle title', () => {
   const meta = document.createElement('meta');
   meta.name = 'luxxy-canonical-origin';
   meta.content = 'https://multichoicemotors.co.uk';
   meta.setAttribute('data-page-meta', '');
   document.head.append(meta);
-  stockStatus.isPhone = isPhone;
   try {
     const view = renderVehicle('with-plate');
     const title = screen.getByRole('heading', { level: 1, name: 'BMW 3 Series' });
@@ -427,7 +415,10 @@ describe('vehicle gallery contact policy', () => {
     contact: { ...dealerConfig.contact, phone, whatsapp: '' },
     testDriveBooking: { ...defaultBookingSettings, enabled: bookingEnabled },
   });
-  const selectTenthPhoto = () => fireEvent.click(screen.getByRole('button', { name: 'Show photograph 10 of 12' }));
+  const selectTenthPhoto = () => {
+    const next = screen.getByRole('button', { name: 'Next photograph' });
+    for (let photo = 1; photo < 10; photo++) fireEvent.click(next);
+  };
   const primaryActions = () => document.querySelector('.vehicle-primary-actions') as HTMLElement;
   const expectUninterruptedGallery = () => {
     expect(screen.getByText('10 / 12', { exact: true })).toBeInTheDocument();

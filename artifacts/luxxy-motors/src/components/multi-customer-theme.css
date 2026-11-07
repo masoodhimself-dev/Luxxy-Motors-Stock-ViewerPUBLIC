@@ -1,4 +1,5 @@
 @import './multi-home-brand.css';
+@import './racing-green-vehicle-facts.css';
 
 /* The same homepage typography and materials on every public customer route.
    Route-specific grids, photography and stock-card geometry remain authoritative. */
@@ -159,4 +160,58 @@ body[data-dealer-customer='true'] .customer-term-help { text-decoration-color: v
 @media print {
   .dealer-document-theme .declaration-page { background: white; padding: 0; }
   .dealer-document-theme .declaration-card { border: 0; border-radius: 0; padding: 0; box-shadow: none; }
+}
+
+/* Multi-Choice's public Racing Green palette. Other dealers keep the shared theme. */
+.racing-green-site.dealer-site-theme :is(.multi-home-header, .multi-home-footer) {
+  border-color: var(--mh-border);
+}
+.racing-green-site.dealer-site-theme .multi-home-footer {
+  background: var(--mh-tint);
+}
+.racing-green-site .multi-home-footer .multi-home-footer__legal {
+  color: var(--mh-muted);
+}
+.racing-green-site .multi-home-footer__social a:hover {
+  background: var(--mh-surface);
+}
+body[data-dealer-customer='true']:has(.racing-green-site) :is(.multi-home-drawer, .multi-home-popover) {
+  --mh-primary: inherit;
+  --mh-muted: inherit;
+  --mh-tint: inherit;
+  --mh-accent: inherit;
+}
+body[data-dealer-customer='true']:has(.racing-green-site) :is(.multi-home-popover, .multi-home-drawer nav a) {
+  border-color: var(--mh-border);
+}
+.racing-green-site.dealer-site-theme .stock-redesign.stock-refined :is(.stock-filter-sidebar, .stock-details-card) {
+  background: var(--mh-surface);
+  border-color: var(--mh-border);
+}
+.racing-green-site.dealer-site-theme .stock-redesign.stock-refined .stock-details-card .vehicle-card-view {
+  color: var(--mh-accent);
+  border-color: var(--mh-border-strong);
+}
+.racing-green-site.dealer-site-theme .stock-redesign.stock-refined .stock-details-card .vehicle-card-view:hover {
+  color: var(--mh-surface);
+  background: var(--mh-accent);
+  border-color: var(--mh-accent);
+}
+.racing-green-site.dealer-site-theme :is(.vehicle-page, .vehicle-summary) {
+  --vehicle-link: var(--mh-accent);
+  --vehicle-accent: var(--mh-accent);
+}
+.racing-green-site.dealer-site-theme .vehicle-photo-gallery.is-customer-gallery :is(.vehicle-gallery-frame, .vehicle-gallery-frame > div, .gallery-photo-loading) {
+  background-color: var(--mh-photo-bg);
+}
+.racing-green-site.customer-site.dealer-site-theme .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary .vehicle-action-area .vehicle-summary-main-actions > .vehicle-enquiry-action,
+.racing-green-site.customer-site.dealer-site-theme .vehicle-page .vehicle-mobile-actions > a[href="#vehicle-enquiry"] {
+  color: var(--mh-surface);
+  background: var(--mh-accent);
+  border-color: var(--mh-accent);
+}
+.racing-green-site.customer-site.dealer-site-theme .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary .vehicle-action-area .vehicle-summary-main-actions > .vehicle-enquiry-action:hover,
+.racing-green-site.customer-site.dealer-site-theme .vehicle-page .vehicle-mobile-actions > a[href="#vehicle-enquiry"]:hover {
+  background: var(--mh-accent-dark);
+  border-color: var(--mh-accent-dark);
 }
