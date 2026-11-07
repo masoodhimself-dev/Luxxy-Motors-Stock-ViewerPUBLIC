@@ -1,7 +1,9 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { Link } from 'wouter';
 import { customFetch } from "@workspace/api-client-react";
 import { normalisePostcode, validPostcodeSyntax } from '@workspace/vehicle-meta';
 import { useDealerSettings } from "@/lib/dealer-settings-context";
+import { getEnquiryHref, getPhoneHref } from "@/lib/cta-helpers";
 import { Input } from './ui/input';
 import { Button } from "./ui/button";
 import { ArrowRight, ChevronDown, MapPin, Truck } from './icons';
@@ -24,6 +26,7 @@ export function DeliveryEstimator({
   currency,
   priceType,
   onEnquire,
+  customerEnquiries,
 }: {
   expanded?: boolean;
   onEstimate?: (estimate: DeliveryEstimate | null) => void;
@@ -32,6 +35,8 @@ export function DeliveryEstimator({
   currency?: string | null;
   priceType?: string | null;
   onEnquire?: (message: string) => void;
+  /** Leave undefined for staff. On public pages this controls the standalone enquiry link. */
+  customerEnquiries?: boolean;
 } = {}) {
   const { settings } = useDealerSettings(),
     pricing = settings.deliveryPricing;
@@ -66,6 +71,11 @@ export function DeliveryEstimator({
     ? deliveryVehicleTotal(vehiclePrice, currency, estimate.totalPence, priceType)
     : null;
   const priceQualification = deliveryPriceQualification(priceType);
+  const customerFallback = onEnquire || customerEnquiries !== undefined;
+  const quoteRequest = error && validPostcodeSyntax(postcode)
+    ? `Could you confirm whether you can deliver to ${normalisePostcode(postcode)} and how much it would cost?`
+    : null;
+  const phoneHref = customerFallback && quoteRequest && settings.contact ? getPhoneHref(settings) : undefined;
   useEffect(() => {
     onEstimate?.(estimate);
   }, [estimate, onEstimate]);
@@ -162,18 +172,25 @@ export function DeliveryEstimator({
               enterKeyHint="go"
               placeholder="e.g. SW1A 1AA"
               aria-invalid={error.startsWith('Enter ') || error.startsWith('Please check') || undefined}
-              aria-describedby={`${postcodeId}-help${error ? ` ${postcodeId}-error` : ''}`}
+              aria-describedby={error ? `${postcodeId}-error` : undefined}
             />
           </div>
           <Button type="button" className="delivery-estimator-calculate" disabled={busy || !postcode.trim()} onClick={() => void calculate()}>
             {busy ? 'Getting estimate…' : 'Get estimate'}<ArrowRight aria-hidden="true" />
           </Button>
         </div>
-        <p id={`${postcodeId}-help`} className="delivery-estimator-help">Where would you like the car delivered?</p>
         {error && (
           <p id={`${postcodeId}-error`} role="alert" className="delivery-estimator-error">
             {error}
           </p>
+        )}
+        {quoteRequest && customerFallback && (
+          <div className="delivery-estimator-fallback">
+            {onEnquire ? <button type="button" className="text-link min-h-11" onClick={() => onEnquire(quoteRequest)}>Ask for a delivery quote</button>
+              : customerEnquiries ? <Link href={getEnquiryHref('general', undefined, quoteRequest)} className="text-link min-h-11">Ask for a delivery quote</Link>
+                : null}
+            {phoneHref && <a href={phoneHref} className="text-link min-h-11">Call the showroom</a>}
+          </div>
         )}
         {estimate && (
           <div
@@ -257,6 +274,13 @@ export function DeliveryEstimator({
                 }}
               >
                 Include estimate in my enquiry<ArrowRight aria-hidden="true" />
+              </Button>
+            )}
+            {!onEnquire && customerEnquiries && (
+              <Button asChild className="delivery-estimate-enquiry">
+                <Link href={getEnquiryHref('general', undefined, deliveryEnquiryMessage(estimate, total, priceType))}>
+                  Include estimate in my enquiry<ArrowRight aria-hidden="true" />
+                </Link>
               </Button>
             )}
             </div>

@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useCreateEnquiry, type EnquiryInput } from '@workspace/api-client-react';
 import { PartExchangeMotDetails, type PartExchangeMotDetailsResult } from './part-exchange-mot-details';
+import { EnquiryCarPicker } from './enquiry-car-picker';
 import { FeatureUnavailable } from './feature-unavailable';
 import { useDealerFeatures } from '@/lib/dealer-features';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { getVisitorId } from '@/lib/visitor';
 import { enquiryDraftKey, readEnquiryDraft } from '@/lib/enquiry-draft';
-import { ArrowLeft, ArrowRight, MessageSquare } from '@/components/icons';
+import { ArrowLeft, ArrowRight, Check, MessageSquare, Search } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Textarea } from '@/components/ui/textarea';
 import { UKNumberPlate } from '@/components/uk-number-plate';
+import { PrivacyNoticeLink } from '@/components/privacy-notice-link';
 import { getPhoneHref, getWhatsAppHref } from '@/lib/cta-helpers';
 import { formatPrice, getThumbnailUrl, vehicleDisplayTitle, isUKNumberPlate } from '@/lib/utils';
 import { customerRegistrationDetails } from '@/lib/customer-vehicle-meta';
@@ -40,7 +42,10 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
   const [lookupNotice, setLookupNotice] = useState('');
   const [delivery, setDelivery] = useState<'website' | 'whatsapp'>('website');
   const [step, setStep] = useState(0), [furthestStep, setFurthestStep] = useState(0);
-  const [vehicleId, setVehicleId] = useState(vehicle?.id ?? '');
+  // A null ID is an explicit choice to enquire without a stock car.
+  const [vehicleId, setVehicleId] = useState<string | null>(vehicle?.id ?? '');
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerTrigger = useRef<HTMLButtonElement>(null);
   const [messageDraft, setMessageDraft] = useState<MessageDraft>(emptyMessage);
   const [reviewed, setReviewed] = useState(false), [opened, setOpened] = useState(false);
   const [launchError, setLaunchError] = useState(''), [draftRestored, setDraftRestored] = useState(false);
@@ -53,15 +58,17 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
   const hasCurrentCar = Boolean(gate && gate.registration === registration && isUKNumberPlate(registration));
   const currentCars = stockCars.filter(car => !['sold', 'archived', 'hidden'].includes(String(car.inventoryStatus)));
   const selectedVehicle = currentCars.find(car => car.id === vehicleId);
+  const noCarChosen = vehicleId === null;
+  const targetReady = Boolean(selectedVehicle) || noCarChosen;
   const mileageValid = details.mileage !== '' && Number.isInteger(Number(details.mileage)) && Number(details.mileage) >= 0 && Number(details.mileage) <= 1000000;
   const carDetailsReady = hasCurrentCar && Boolean(details.makeModel.trim()) && mileageValid;
   const lookupMot = hasCurrentCar && gate?.mode === 'lookup' ? gate.result.mot : null;
-  const generatedMessage = selectedVehicle ? buildPartExchangeMessage(details, selectedVehicle, settings.identity.name, { mileageEstimated: exchangeMileageIsEstimated(answers), mot: lookupMot }) : '';
+  const generatedMessage = targetReady ? buildPartExchangeMessage(details, selectedVehicle, settings.identity.name, { mileageEstimated: exchangeMileageIsEstimated(answers), mot: lookupMot }) : '';
   const message = messageDraft.edited ? messageDraft.text : generatedMessage;
   const messageNeedsRefresh = messageDraft.edited && messageDraft.source !== generatedMessage;
   const whatsAppHref = getWhatsAppHref(partExchangeWhatsAppMessage(message, details), settings);
   const phoneHref = getPhoneHref(settings);
-  const ready = carDetailsReady && Boolean(selectedVehicle) && Boolean(message.trim()) && message.length <= 2000 && !messageNeedsRefresh;
+  const ready = carDetailsReady && targetReady && Boolean(message.trim()) && message.length <= 2000 && !messageNeedsRefresh;
 
   useEffect(() => {
     skipDraftSave.current = true; submitting.current = false; mutation.reset();
@@ -84,7 +91,7 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
     const restoredPlate = normaliseExchangeRegistration(restored.details.registration);
     const manual = new URLSearchParams(window.location.search).get('manual') === 'true' && isUKNumberPlate(restoredPlate);
     setGate(seed?.result ? { registration: restoredPlate, mode: 'lookup', result: seed.result } : manual ? { registration: restoredPlate, mode: 'manual' } : null);
-    setVehicleId(draft?.vehicleId ?? vehicle?.id ?? ''); setDelivery(draft?.delivery ?? 'website');
+    setVehicleId(draft ? draft.vehicleId : vehicle?.id ?? ''); setDelivery(draft?.delivery ?? 'website');
     setMessageDraft(draft?.message ?? emptyMessage); setLookupNotice('');
     vehicleTouched.current = Boolean(draft); setDraftRestored(Boolean(draft) && !seed);
     setReviewed(false); setStep(0); setFurthestStep(0); setOpened(false); setLaunchError('');
@@ -120,21 +127,30 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
     if (!isUKNumberPlate(registration)) { setLookupNotice('Enter your complete UK registration before continuing manually.'); return; }
     setGate({ registration, mode: 'manual' }); setLookupNotice(''); setReviewed(false);
   };
-  const canVisitStep = (index: number) => index === 0 || (index <= furthestStep && carDetailsReady && (index === 1 || Boolean(selectedVehicle)));
+  const canVisitStep = (index: number) => index === 0 || (index <= furthestStep && carDetailsReady && (index === 1 || targetReady));
+
+  function chooseTarget(nextVehicleId: string | null) {
+    vehicleTouched.current = true;
+    setVehicleId(nextVehicleId);
+    setPickerOpen(false);
+    setReviewed(false);
+    setOpened(false);
+    setLaunchError('');
+  }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!settings.partExchange?.enabled || !features.enabled('partExchange') || mutation.isPending || submitting.current) return;
     if (!hasCurrentCar) { if (!isUKNumberPlate(registration)) setLookupNotice('Enter your complete UK registration to find your car.'); else lookupButton.current?.click(); return; }
     if (!carDetailsReady) return;
-    if (step < 2) { if (step === 1 && !selectedVehicle) return; setStep(step + 1); setFurthestStep(value => Math.max(value, step + 1)); return; }
+    if (step < 2) { if (step === 1 && !targetReady) return; setStep(step + 1); setFurthestStep(value => Math.max(value, step + 1)); return; }
     const phoneInput = event.currentTarget.elements.namedItem('partExchangePhone') as HTMLInputElement;
     if (!phoneValid(details.phone)) { phoneInput.setCustomValidity('Enter a valid phone number with 7–15 digits.'); phoneInput.reportValidity(); return; }
     if (!ready || !reviewed || details.name.trim().length < 2) return;
     if (delivery === 'website') {
       const condition = details.condition ? details.condition.split(' — ')[0].toLowerCase() as NonNullable<EnquiryInput['partExchange']>['condition'] : null;
       submitting.current = true; setLaunchError('');
-      mutation.mutate({ data: { type: 'part_exchange', vehicleId: selectedVehicle!.id, customerName: details.name.trim(), email: details.email.trim() || null, phone: details.phone.replace(/[\s().\-/]/g, ''), preferredContact: whatsAppHref ? 'whatsapp' : 'phone', message: message.trim(), appointmentAt: null, visitorId: getVisitorId(), partExchange: { registration: details.registration.trim().toUpperCase(), mileage: Number(details.mileage), condition } } }, { onSettled: () => { submitting.current = false; } });
+      mutation.mutate({ data: { type: 'part_exchange', vehicleId: selectedVehicle?.id ?? null, customerName: details.name.trim(), email: details.email.trim() || null, phone: details.phone.replace(/[\s().\-/]/g, ''), preferredContact: whatsAppHref ? 'whatsapp' : 'phone', message: message.trim(), appointmentAt: null, visitorId: getVisitorId(), partExchange: { registration: details.registration.trim().toUpperCase(), mileage: Number(details.mileage), condition } } }, { onSettled: () => { submitting.current = false; } });
       return;
     }
     if (!whatsAppHref) return;
@@ -152,9 +168,9 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
     {draftRestored && <div className="part-exchange-draft-notice" role="status"><p>{hasCurrentCar ? 'Your unfinished part-exchange answers were restored.' : 'Your unfinished part-exchange enquiry was restored. Find your car again to check its details, or choose manual entry.'}</p><button type="button" className="text-link min-h-11" onClick={discardDraft}>Discard draft</button></div>}
     <fieldset disabled={mutation.isPending} className="min-w-0 space-y-6"><legend className="sr-only">Part-exchange enquiry</legend>
       {hasCurrentCar && <nav className="part-exchange-steps" aria-label="Part-exchange steps">{steps.map((label, index) => <button key={label} type="button" disabled={!canVisitStep(index)} aria-current={step === index ? 'step' : undefined} onClick={event => { if (index <= step || event.currentTarget.form?.reportValidity()) setStep(index); }}><span>{index + 1}</span>{label}</button>)}</nav>}
-      <div><h2 ref={heading} tabIndex={-1} id="enquiry-form-heading" className="font-display text-2xl font-semibold outline-none">{!hasCurrentCar ? 'Start with your registration' : steps[step]}</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">{!hasCurrentCar ? 'Find your car, then check the details before asking for a valuation.' : ['Check your car and confirm its current mileage.', 'Choose the car you’re interested in.', 'Check your message and choose how to send it.'][step]}</p></div>
+      <div><h2 ref={heading} tabIndex={-1} id="enquiry-form-heading" className="font-display text-2xl font-semibold outline-none">{!hasCurrentCar ? 'Enter your registration' : steps[step]}</h2>{hasCurrentCar && <p className="mt-2 text-sm leading-6 text-muted-foreground">{['Confirm your car’s mileage.', 'Add a car from our stock, if you have one in mind.', 'Check your message and choose how to send it.'][step]}</p>}</div>
       {step === 0 && <div className="part-exchange-current-car space-y-5">
-        <div className="part-exchange-registration"><label className="block"><span className="field-label">Your registration</span><UKNumberPlate value={details.registration} editable onChange={value => update('registration', value)} testId="visual-uk-number-plate" inputTestId="input-part-exchange-registration" /></label></div>
+        <div className="part-exchange-registration"><label className="block"><span className={hasCurrentCar ? 'field-label' : 'sr-only'}>Your registration</span><UKNumberPlate value={details.registration} editable onChange={value => update('registration', value)} testId="visual-uk-number-plate" inputTestId="input-part-exchange-registration" /></label></div>
         <PartExchangeMotDetails registration={details.registration} mileage={details.mileage} mileageEstimated={exchangeMileageIsEstimated(answers)} lookupButtonRef={lookupButton} initialResult={hasCurrentCar && gate?.mode === 'lookup' ? gate.result : undefined} onDetails={foundCar} onManualEntry={manualEntry} />
         {lookupNotice && <p role="alert" className="text-sm">{lookupNotice}</p>}
         {hasCurrentCar && <div className="part-exchange-car-answers space-y-5">
@@ -171,29 +187,45 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
         </div>}
       </div>}
       {hasCurrentCar && step === 1 && <div className="space-y-5">
-        <label className="block"><span className="field-label">Vehicle you are interested in</span><NativeSelect required value={selectedVehicle ? vehicleId : ''} disabled={!currentCars.length} onChange={event => { vehicleTouched.current = true; setVehicleId(event.target.value); setReviewed(false); }} data-testid="select-part-exchange-target-vehicle"><option value="">Choose from our current stock</option>{currentCars.map(car => <option key={car.id} value={car.id}>{[vehicleDisplayTitle(car), customerRegistrationDetails(car), car.price != null ? formatPrice(car.price, car.currency) : null].filter(Boolean).join(' · ')}</option>)}</NativeSelect></label>
-        {selectedVehicle ? <div className="part-exchange-selected-car" data-testid="card-part-exchange-target-vehicle">{getThumbnailUrl(selectedVehicle) && <img src={getThumbnailUrl(selectedVehicle)} alt="" referrerPolicy="no-referrer" />}<div><h3 className="font-display text-xl font-semibold">{vehicleDisplayTitle(selectedVehicle)}</h3>{selectedVehicle.price != null && <p className="mt-1 font-semibold">{formatPrice(selectedVehicle.price, selectedVehicle.currency)}</p>}</div></div> : <p role="status" className="text-sm">{currentCars.length ? 'Choose a car to continue.' : 'There are no cars to choose from right now. Please contact the showroom.'}</p>}
+        {selectedVehicle && <div className="part-exchange-selected-car" data-testid="card-part-exchange-target-vehicle">
+          {getThumbnailUrl(selectedVehicle) && <img src={getThumbnailUrl(selectedVehicle)} alt="" referrerPolicy="no-referrer" />}
+          <div><h3 className="font-display text-xl font-semibold">{vehicleDisplayTitle(selectedVehicle)}</h3>
+            {customerRegistrationDetails(selectedVehicle) && <p className="mt-1 text-sm text-muted-foreground">{customerRegistrationDetails(selectedVehicle)}</p>}
+            {selectedVehicle.price != null && <p className="mt-1 font-semibold">{formatPrice(selectedVehicle.price, selectedVehicle.currency)}</p>}
+          </div>
+        </div>}
+        {!currentCars.length && <p className="text-sm text-muted-foreground">There are no cars to choose from right now. You can still ask about part exchange.</p>}
+        <div className="part-exchange-target-options">
+          {currentCars.length > 0 && <Button ref={pickerTrigger} type="button" variant="outline" aria-haspopup="dialog" onClick={() => setPickerOpen(true)}>
+            <Search aria-hidden="true" />{selectedVehicle ? 'Change car' : 'Search our cars'}
+          </Button>}
+          <Button type="button" variant="outline" aria-pressed={noCarChosen} onClick={() => chooseTarget(null)}>
+            {noCarChosen && <Check aria-hidden="true" />}I haven’t chosen a car yet
+          </Button>
+        </div>
+        <EnquiryCarPicker open={pickerOpen} onOpenChange={setPickerOpen} cars={currentCars} currentId={selectedVehicle?.id} onSelect={car => chooseTarget(car.id)} purpose="part-exchange" returnFocus={pickerTrigger} />
       </div>}
       {hasCurrentCar && step === 2 && <div className="space-y-5">
-        <div className="part-exchange-review-car"><strong>{details.makeModel} ({details.registration.toUpperCase()})</strong><p>{exchangeMileageIsEstimated(answers) ? 'Estimated mileage' : 'Current mileage'}: {Number(details.mileage).toLocaleString('en-GB')} miles</p>{partExchangeMotSummary(lookupMot) && <p>{partExchangeMotSummary(lookupMot)}</p>}<p>Interested in: {selectedVehicle ? vehicleDisplayTitle(selectedVehicle) : 'Choose a car'}</p></div>
-        {!selectedVehicle && <p role="alert">Your selected car is no longer available. Go back to choose another car.</p>}
+        <div className="part-exchange-review-car"><strong>{details.makeModel} ({details.registration.toUpperCase()})</strong><p>{exchangeMileageIsEstimated(answers) ? 'Estimated mileage' : 'Current mileage'}: {Number(details.mileage).toLocaleString('en-GB')} miles</p>{partExchangeMotSummary(lookupMot) && <p>{partExchangeMotSummary(lookupMot)}</p>}{selectedVehicle && <p>Interested in: {vehicleDisplayTitle(selectedVehicle)}</p>}{noCarChosen && <p>You haven’t chosen your next car yet.</p>}</div>
+        {!targetReady && <p role="alert">Your selected car is no longer available. Go back to choose another car or continue without one.</p>}
         <fieldset className="part-exchange-contact"><legend className="sr-only">Your contact details</legend>
           <label className="block"><span className="field-label">Your name</span><Input required minLength={2} maxLength={120} value={details.name} autoComplete="name" onChange={event => update('name', event.target.value)} data-testid="input-customer-name" /></label>
           <label className="block"><span className="field-label">Contact number</span><Input name="partExchangePhone" required type="tel" inputMode="tel" maxLength={25} value={details.phone} autoComplete="tel" onChange={event => { event.target.setCustomValidity(''); update('phone', event.target.value); }} data-testid="input-customer-phone" /></label>
           <label className="block"><span className="field-label">Email address (optional)</span><Input type="email" maxLength={254} value={details.email} autoComplete="email" onChange={event => update('email', event.target.value)} data-testid="input-customer-email" /></label>
         </fieldset>
+        <PrivacyNoticeLink url={settings.legal?.privacyUrl} />
         <label className="block"><span className="field-label">Your message</span><Textarea required rows={7} maxLength={2000} value={message} onChange={event => { setMessageDraft({ text: event.target.value, source: generatedMessage, edited: true }); setReviewed(false); }} data-testid="part-exchange-message-preview" /></label>
         {messageNeedsRefresh && <div className="part-exchange-message-update" role="status"><p>Your car details or selected vehicle changed. Your edited message has been kept. Update it with the latest details, or confirm you want to keep your wording before sending.</p><button type="button" onClick={() => { setMessageDraft(emptyMessage); setReviewed(false); }}>Update message with latest details</button><button type="button" onClick={() => { setMessageDraft(current => ({ ...current, source: generatedMessage })); setReviewed(false); }}>Keep my wording</button></div>}
         {message.length > 2000 && <p role="alert">Shorten your message by {message.length - 2000} characters before sending.</p>}
-        {whatsAppHref ? <fieldset className="part-exchange-send-method"><legend>How would you like to send it?</legend><label><input type="radio" name="partExchangeDelivery" checked={delivery === 'website'} onChange={() => { setDelivery('website'); setReviewed(false); setOpened(false); }} />Send details here, photos on WhatsApp</label><label><input type="radio" name="partExchangeDelivery" checked={delivery === 'whatsapp'} onChange={() => { setDelivery('whatsapp'); setReviewed(false); setOpened(false); }} />Send everything on WhatsApp</label></fieldset> : <p className="text-sm text-muted-foreground">Send your details here. We’ll contact you about your part exchange and arrange how to share photos.</p>}
+        {whatsAppHref ? <fieldset className="part-exchange-send-method"><legend>How would you like to send it?</legend><label><input type="radio" name="partExchangeDelivery" checked={delivery === 'website'} onChange={() => { setDelivery('website'); setReviewed(false); setOpened(false); }} />Send details here. You can add photos on WhatsApp later.</label><label><input type="radio" name="partExchangeDelivery" checked={delivery === 'whatsapp'} onChange={() => { setDelivery('whatsapp'); setReviewed(false); setOpened(false); }} />Send everything on WhatsApp</label></fieldset> : <p className="text-sm text-muted-foreground">Send your details here. We’ll contact you about your part exchange and arrange how to share photos.</p>}
         {delivery === 'whatsapp' && <div className="text-sm"><p>Your contact details will also be included in WhatsApp:</p><p>Name: {details.name || 'Not entered'}</p><p>Phone: {details.phone || 'Not entered'}</p>{details.email && <p>Email: {details.email}</p>}</div>}
         <label className="part-exchange-review-confirm"><input type="checkbox" required checked={reviewed} onChange={event => setReviewed(event.target.checked)} />I’ve checked the details and message and want to share them with {settings.identity.name}.</label>
-        <p className="text-xs text-muted-foreground">We’ll confirm your valuation after inspecting your car. Nothing is sent until you choose.</p>
-        {opened && <p role="status">WhatsApp was requested. Tap Send in the chat to send the message, then attach your photos. No enquiry was saved on this website.</p>}
+        <p className="text-xs text-muted-foreground">We’ll talk you through your options. Any part-exchange offer depends on inspecting your car.</p>
+        {opened && <p role="status">Tap Send in WhatsApp, then attach any photos. No enquiry was saved on this website.</p>}
         {mutation.isError && <p role="alert">We couldn’t confirm receipt. Your answers are still here. Please contact the showroom before sending again so we can check whether your enquiry arrived.</p>}
         {launchError && <p role="alert">{launchError}</p>}
       </div>}
-      {hasCurrentCar && <div className="part-exchange-actions">{step > 0 && <Button type="button" variant="ghost" onClick={() => setStep(step - 1)}><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back</Button>}<Button type="submit" disabled={mutation.isPending || !carDetailsReady || (step === 1 && !selectedVehicle) || (step === 2 && !ready)} data-testid="button-part-exchange-continue">{step === 2 ? <><MessageSquare className="h-4 w-4" aria-hidden="true" />{mutation.isPending ? 'Sending details…' : delivery === 'website' ? 'Send my details' : 'Open WhatsApp'}</> : <>Continue<ArrowRight className="h-4 w-4" aria-hidden="true" /></>}</Button></div>}
+      {hasCurrentCar && <div className="part-exchange-actions">{step > 0 && <Button type="button" variant="ghost" onClick={() => setStep(step - 1)}><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back</Button>}<Button type="submit" disabled={mutation.isPending || !carDetailsReady || (step === 1 && !targetReady) || (step === 2 && !ready)} data-testid="button-part-exchange-continue">{step === 2 ? <><MessageSquare className="h-4 w-4" aria-hidden="true" />{mutation.isPending ? 'Sending details…' : delivery === 'website' ? 'Send my details' : 'Open WhatsApp'}</> : <>Continue<ArrowRight className="h-4 w-4" aria-hidden="true" /></>}</Button></div>}
     </fieldset>
     {hasCurrentCar && <p className="part-exchange-draft-help">Unsent answers are kept in this browser tab for 30 minutes.</p>}
   </form>;

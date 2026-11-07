@@ -28,7 +28,8 @@
 .delivery-estimator-redesigned .delivery-estimator-calculate { display: inline-flex; align-items: center; gap: 9px; min-height: 48px; height: auto; padding: 12px 16px; border: 1px solid var(--delivery-ink); border-radius: 7px; background: var(--delivery-ink); color: #fff; font-size: 14px; font-weight: 600; line-height: 1.4; white-space: normal; }
 .delivery-estimator-calculate svg { width: 17px; height: 17px; flex-shrink: 0; }
 .delivery-estimator-redesigned .delivery-estimator-calculate:disabled { opacity: .45; }
-.delivery-estimator-help { margin: 8px 0 0; color: var(--delivery-muted); font-size: 12px; line-height: 1.5; }
+.delivery-estimator-fallback { display: flex; flex-wrap: wrap; align-items: center; column-gap: 18px; margin-top: 6px; font-size: 14px; }
+.delivery-estimator-fallback > :is(a, button) { display: inline-flex; align-items: center; }
 .delivery-estimator-error { margin: 14px 0 0; padding-left: 12px; border-left: 3px solid #a9382e; color: #8b2d25; font-size: 14px; line-height: 1.55; }
 .delivery-estimator-result { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--delivery-line); }
 .delivery-estimator-price { display: flex; align-items: center; justify-content: space-between; gap: 20px; }

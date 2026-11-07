@@ -1,6 +1,7 @@
 import { AiCarFinder } from '@/components/ai-car-finder';
 import { DealershipHomepage } from '@/components/multi-choice-homepage';
 import { MultiStockFilters } from '@/components/multi-stock-filters';
+import { StockAlertOffer } from '@/components/stock-alert-signup';
 import { useStockSearch } from '@/features/stock-search/use-stock-search';
 import { applyStockFilters } from '@/features/stock-search/apply-filters';
 import { createStockFilters } from '@/features/stock-search/url';
@@ -33,6 +34,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useStock } from '@/lib/stock-context';
 import { CarCard } from '@/components/car-card';
+import { CarComparison } from '@/components/car-comparison';
+import { CarComparisonTray, useComparisonSelection, useShortlistShare } from '@/components/car-comparison-tray';
+import { MAX_COMPARISON_CARS } from '@/lib/car-comparison';
 import { stockPhotoControlsEnabled } from '@/lib/stock-photo-controls';
 import { Filters, type FilterState } from '@/components/filters';
 import { cn, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
@@ -102,9 +106,11 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   // own view choice while the dealership configuration is still loading.
   const stockView = selectedStockView ?? 'cards';
 
-  usePageMeta({ ...showroomPageMeta(dealerConfig, { count: stock ? publicCars.length : null }), ...(browseStock ? { title: 'Browse Stock | ' + dealerConfig.identity.name, url: window.location.origin + '/stock' } : {}) });
+  usePageMeta(showroomPageMeta(dealerConfig, { page: browseStock ? 'stock' : 'home' }));
 
   const { savedCount } = useSavedCars();
+  const comparison = useComparisonSelection(publicCars, browseStock);
+  const comparisonShare = useShortlistShare();
   const [copyNotice, setCopyNotice] = useState('');
   const [stockOptionsOpen, setStockOptionsOpen] = useState(false);
   const [legacyVisibleCount, setVisibleCount] = useState(() => readBrowseSession().visibleCount || 12);
@@ -280,7 +286,6 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   }, [isLoading, browseStock]);
 
   const displayedCars = filteredCars.slice(0, visibleCount);
-  const hasFilters = Object.entries(filters).some(([key,value])=>key !== "sort" && key !== "page" && Boolean(value));
   const stockCount = publicCars.length;
 
   useEffect(() => {
@@ -455,21 +460,18 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
           <div className="stock-heading-row">
             <div className="stock-title-group">
               <h1 id="vehicle-results-heading" tabIndex={-1}>{websiteText(dealerConfig, "stockTitle")}</h1>
-              {!error && stock && <p className="stock-result-count" data-testid="text-filtered-stock-count" role="status" aria-live="polite" aria-atomic="true">
-                {!hasFilters
-                  ? `${filteredCars.length} ${filteredCars.length === 1 ? 'car' : 'cars'} in stock`
-                  : `${filteredCars.length} ${filteredCars.length === 1 ? 'car matches' : 'cars match'} your search`}
-              </p>}
             </div>
+            <div className="stock-heading-actions">
+            <Link className="stock-saved-link" href="/saved"><Heart size={17} aria-hidden="true" />Saved <span>({savedCount})</span></Link>
             <Collapsible open={stockOptionsOpen} onOpenChange={setStockOptionsOpen} className="stock-options" data-testid="stock-secondary-actions">
               <CollapsibleTrigger className="stock-options-trigger"><SlidersHorizontal size={16} aria-hidden="true" />View options<ChevronDown size={15} aria-hidden="true" /></CollapsibleTrigger>
               <CollapsibleContent className="stock-options-panel">
                 <div className="flex items-center justify-between gap-4"><span className="text-sm text-muted-foreground">Vehicle display</span>{stockViewControls}</div>
-                <Link className="stock-option-action" href="/saved"><Heart size={17} aria-hidden="true" />Saved cars ({savedCount})<ArrowRight size={16} aria-hidden="true" /></Link>
                 <button type="button" className="stock-option-action" onClick={async () => {try {await navigator.clipboard.writeText(window.location.href); setCopyNotice('Search link copied');} catch {setCopyNotice('Copy the address from your browser to share this search.');}}}><Link2 size={17} aria-hidden="true" />Copy search link</button>
                 {copyNotice && <p className="text-sm leading-5 text-muted-foreground" role="status">{copyNotice}</p>}
               </CollapsibleContent>
             </Collapsible>
+            </div>
           </div>
 
         </div>
@@ -539,8 +541,6 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
           />}
 
           <div id="vehicle-results" tabIndex={-1} aria-label="Vehicle results" data-home-section className="mt-2 md:mt-4">
-            {!error && <div className="stock-results-bar">
-            </div>}
             {error ? (
               <div className="stock-error surface p-8" role="alert">
                 <h3 className="section-heading">Stock is temporarily unavailable</h3>
@@ -567,6 +567,11 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                       priority={index < 2}
                       layout={stockView === 'compact' ? 'compact' : 'card'}
                       stretchedLink
+                      compareAction={publicCars.length >= 2 ? {
+                        selected: comparison.selectedIds.includes(car.id),
+                        disabled: comparison.selectedIds.length === MAX_COMPARISON_CARS && !comparison.selectedIds.includes(car.id),
+                        onToggle: () => comparison.toggle(car.id),
+                      } : undefined}
                     />
                   ))}
                 </div>
@@ -576,6 +581,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
               <div className="stock-empty surface px-6 py-8 text-left" data-testid="empty-stock">
                 <h3 className="section-heading">No cars to show right now</h3>
                 <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">Tell us what you’re looking for, or ask us about our stock.</p>
+                {stock && <StockAlertOffer filters={stockSearch.filters} privacyUrl={dealerConfig.legal?.privacyUrl} />}
                 <Button asChild className="mt-6"><Link href={publicEnquiriesEnabled ? "/enquire?type=general" : "/contact"}>Ask about upcoming stock <ArrowRight className="h-4 w-4" /></Link></Button>
               </div>
             ) : (
@@ -583,6 +589,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
 
                 <h3 className="section-heading mt-4">No matches</h3>
                 <p className="mt-3 max-w-lg text-sm leading-6 text-muted-foreground">We couldn’t find a car with these filters. Remove a filter above or widen your search below.</p>
+                {stock && <StockAlertOffer filters={stockSearch.filters} privacyUrl={dealerConfig.legal?.privacyUrl} />}
                 <div className="mt-4 flex flex-wrap gap-3">
                   {(filters.minPrice || filters.maxPrice) && <Button variant="outline" onClick={()=>setFilters(current=>({...current,minPrice:'',maxPrice:''}))}>Remove price limits</Button>}
                   {filters.transmission && <Button variant="outline" onClick={() => setFilters(current => ({...current, transmission: ''}))}>Search all transmissions</Button>}
@@ -603,6 +610,12 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
               </div>
             )}
             {customerDefaultCopy(websiteText(dealerConfig, "stockIntroduction"), '', ['Find your next used car.']) && <p className="stock-introduction stock-end-information">{websiteText(dealerConfig, "stockIntroduction")}</p>}
+            {!error && <CarComparisonTray cars={comparison.comparedCars}
+              onRemove={comparison.toggle} onClear={comparison.clear}
+              onCompare={() => { comparisonShare.reset(); comparison.setOpen(true); }} />}
+            <CarComparison cars={comparison.comparedCars} open={comparison.open && comparison.comparedCars.length >= 2 && !error}
+              onOpenChange={comparison.setOpen} onShare={ids => void comparisonShare.share(ids)}
+              shareStatus={comparisonShare.shareStatus} copyLink={comparisonShare.copyLink} returnSource="stock" />
           </div>
         </div>
       </section>}

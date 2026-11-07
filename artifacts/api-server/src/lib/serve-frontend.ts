@@ -50,8 +50,13 @@ export function serveFrontend(app: Express, directory: string, options: Frontend
   app.use(express.static(root, {
     index: false,
     setHeaders(res, file) {
+      const name = path.basename(file);
+      // Vite's content hash changes when these build assets change.
+      if (path.dirname(file) === path.join(root, 'assets') && /-[\w-]{8}\.[a-z0-9]+$/i.test(name)) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      }
       // Installed portals must pick up notification fixes without a stale worker.
-      if (['portal-push-worker.js', 'portal.webmanifest'].includes(path.basename(file))) {
+      if (['portal-push-worker.js', 'portal.webmanifest'].includes(name)) {
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('X-Content-Type-Options', 'nosniff');
       }

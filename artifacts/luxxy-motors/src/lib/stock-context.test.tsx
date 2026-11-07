@@ -106,3 +106,30 @@ it('reuses fresh customer stock after a short connection interruption', async ()
   online = true; act(() => window.dispatchEvent(new Event('online'))); await settle();
   expect(request).toHaveBeenCalledTimes(1);
 });
+
+function VehicleState() {
+  const { vehicle, isVehicleLoading, error } = useStock();
+  return <output>{isVehicleLoading ? 'Loading vehicle' : vehicle?.title}{error ? ' (stock unavailable)' : ''}</output>;
+}
+
+it('loads a short-code vehicle before requesting the supplementary stock list', async () => {
+  window.history.replaceState(null, '', '/cars/bmw-x6-73c03ae2');
+  let finishVehicle!: (response: Response) => void;
+  const vehicleResponse = new Promise<Response>(resolve => { finishVehicle = resolve; });
+  const request = vi.fn((url: string) => url === '/api/vehicles/short/73c03ae2'
+    ? vehicleResponse
+    : Promise.resolve(new Response(null, { status: 503 })));
+  vi.stubGlobal('fetch', request);
+  render(<QueryClientProvider client={client}><Router><StockProvider><VehicleState /></StockProvider></Router></QueryClientProvider>);
+
+  await settle();
+  expect(request.mock.calls.map(([url]) => url)).toEqual(['/api/vehicles/short/73c03ae2']);
+  expect(screen.getByRole('status')).toHaveTextContent('Loading vehicle');
+
+  await act(async () => {
+    finishVehicle(Response.json({ id: 'test-bmw', title: 'BMW X6', make: 'BMW', model: 'X6', sourceExtras: { publicVehicleCode: '73c03ae2' } }));
+  });
+  await settle();
+  expect(request.mock.calls.map(([url]) => url)).toEqual(['/api/vehicles/short/73c03ae2', '/api/stock']);
+  expect(screen.getByRole('status')).toHaveTextContent('BMW X6 (stock unavailable)');
+});

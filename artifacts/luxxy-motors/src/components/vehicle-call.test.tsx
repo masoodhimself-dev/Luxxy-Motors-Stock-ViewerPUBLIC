@@ -70,7 +70,7 @@ it('makes callback the first contact action when closed, with calling still avai
  const request=within(dialog).getByRole('button',{name:'Request a callback'});
  const dial=within(dialog).getByRole('link',{name:/Call the showroom/});
  expect(request.compareDocumentPosition(dial)&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
- expect(dialog).toHaveTextContent('Ask us to call you back when we reopen.');
+ expect(dialog).toHaveTextContent('Opens tomorrow at 08:00');
  expect(state.mutate).not.toHaveBeenCalled();
 });
 
@@ -95,7 +95,7 @@ it('keeps the callback form in place while its request is sending', () => {
 
 it('keeps the appointment-only notice visible for Multi-Choice before and during a callback request', () => {
  state.multiChoice=true;show();const dialog=open();
- const notice='Visits are by appointment only. Please contact us to arrange a time before travelling.';
+ const notice='Visits are by appointment only. Please arrange a time before travelling.';
  expect(within(dialog).getByText(notice)).toBeVisible();
  fireEvent.click(within(dialog).getByRole('button',{name:'Request a callback'}));
  expect(within(dialog).getByText(notice)).toBeVisible();

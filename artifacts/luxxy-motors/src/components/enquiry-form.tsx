@@ -4,7 +4,6 @@ import { dvsaVehicleName } from '@/lib/dvsa-vehicle-name';
 import { partExchangeMotSummary, partExchangeValuationQuestion } from '@/lib/part-exchange';
 import { FeatureUnavailable } from './feature-unavailable';
 import { useDealerFeatures } from '@/lib/dealer-features';
-import { showroomHours } from '@/lib/showroom-hours';
 import './enquiry-form.css';
 import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
 import { enquiryDraftKey, readEnquiryDraft, saveEnquiryDraft, discardEnquiryDraft } from '@/lib/enquiry-draft';
@@ -13,10 +12,11 @@ import { readVehicleExchange } from '@/lib/vehicle-exchange-draft';
 import { responsiveVehicleImage, retryOriginalImage } from '@/lib/responsive-vehicle-image';
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import { PartExchangeForm } from '@/components/part-exchange-form';
+import { PrivacyNoticeLink } from '@/components/privacy-notice-link';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, Redirect, useLocation } from 'wouter';
 import { useCreateEnquiry, type EnquiryInput } from '@workspace/api-client-react';
-import { ArrowRight, CheckCircle2, CircleAlert, Mail, MessageSquare, Phone, ShieldCheck } from '@/components/icons';
+import { ArrowRight, CheckCircle2, CircleAlert, MessageSquare } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
@@ -137,7 +137,7 @@ export function EnquiryForm({
   const messageRef = useRef(initialMessage);
   messageRef.current = message;
   const writeMessage = (value: string) => { messageRef.current = value; setMessage(value); setMessageError(''); };
-  const handledRequests = useRef(new Set<number>());
+  const handledRequests = useRef(new Set<EnquiryMessageRequest['id']>());
   const [pendingRequests, setPendingRequests] = useState<EnquiryMessageRequest[]>([]);
   const messageTouched = useRef(false);
   const generatedExchangeQuestion = useRef<string | null>(null);
@@ -355,45 +355,30 @@ export function EnquiryForm({
   if (mutation.isSuccess) {
     const confirmation = submittedContact ?? { customerName: customerName.trim(), email: email.trim(), preferredContact, vehicleLabel, hasVehicle: Boolean(vehicle) };
     const replyMethod = confirmation.preferredContact === 'whatsapp' ? 'on WhatsApp' : confirmation.preferredContact === 'phone' ? 'by phone' : 'by email';
-    const ReplyIcon = confirmation.preferredContact === 'email' ? Mail : confirmation.preferredContact === 'phone' ? Phone : MessageSquare;
+    const receiptSent = mutation.data.customerNotificationStatus === 'sent';
     return (
       <div className="luxxy-reveal py-4 text-center" data-testid="status-enquiry-success">
         <span className="mx-auto grid h-14 w-14 place-items-center border border-border bg-secondary/50 text-accent">
           <CheckCircle2 className="h-6 w-6" />
         </span>
-        <p className="luxxy-label mt-7 text-accent">We’ve received your enquiry</p>
         <h2 ref={successHeadingRef} tabIndex={-1} className="mt-4 font-display text-[2.1rem] font-semibold leading-[1.04] tracking-[-.035em] text-primary outline-none sm:text-[2.5rem]">
-          We’ll be in touch.
+          Enquiry sent
         </h2>
         <p className="mx-auto mt-5 max-w-md text-sm leading-7 text-primary/70">
-          {`Thank you, ${confirmation.customerName}. Your enquiry has reached ${dealerConfig.identity.name}. The team will reply ${replyMethod} during opening hours.`}
+          {`Thank you, ${confirmation.customerName}. We’ll reply ${replyMethod} during opening hours.`}
         </p>
         {confirmation.hasVehicle && (
           <p className="mx-auto mt-5 inline-block border border-border bg-secondary/40 px-4 py-2.5 text-sm font-bold text-primary" data-testid="text-confirmed-vehicle">
             {confirmation.vehicleLabel}
           </p>
         )}
-        <div className="mx-auto mt-7 max-w-sm border border-border/70 bg-background px-4 py-3.5 text-left">
-          <div className="flex items-start gap-2.5">
-            <ReplyIcon className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
-            <div>
-              <p className="luxxy-label text-primary/70">
-                {`We’ll reply ${replyMethod}`}
-              </p>
-              <p className="mt-1 text-xs leading-5 text-primary/70">
-                {mutation.data.customerNotificationStatus === 'sent'
-                  ? `We sent your enquiry details to ${confirmation.email}.`
-                  : `Your enquiry is saved. We’ll reply using your chosen contact details. You do not need to send it again.`}
-              </p>
-              {confirmation.email && mutation.data.customerNotificationStatus !== 'sent' && (phoneHref || whatsAppHref) && (
-                <div className="mt-3 flex flex-wrap gap-3 text-xs font-bold text-accent">
-                  {phoneHref && <a href={phoneHref} className="underline underline-offset-4" data-testid="link-fallback-call">Call {dealerConfig.contact.phone}</a>}
-                  {whatsAppHref && <a href={whatsAppHref} className="underline underline-offset-4" data-testid="link-fallback-whatsapp">WhatsApp Us</a>}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        {confirmation.email && receiptSent && <p className="mt-4 text-sm text-muted-foreground">We sent your enquiry details to {confirmation.email}.</p>}
+        {confirmation.email && !receiptSent && (phoneHref || whatsAppHref) && (
+          <p className="mt-4 flex flex-wrap justify-center gap-3 text-sm text-muted-foreground">
+            {phoneHref && <a href={phoneHref} className="inline-flex min-h-11 items-center underline underline-offset-4" data-testid="link-fallback-call">Call {dealerConfig.contact.phone}</a>}
+            {whatsAppHref && <a href={whatsAppHref} className="inline-flex min-h-11 items-center underline underline-offset-4" data-testid="link-fallback-whatsapp">WhatsApp us</a>}
+          </p>
+        )}
         <Button
           type="button"
           variant="outline"
@@ -528,16 +513,21 @@ export function EnquiryForm({
               />
               {phoneError && <span id="customer-phone-help" className="mt-2 block text-[13px] leading-5 text-[#8d3e34]" role="alert">{phoneError}</span>}
             </label>}
-            {!additionalContact && !(preferredContact === 'email' ? phone : email) && <button type="button" className="customer-enquiry-add-contact text-link" onClick={() => setAdditionalContact(true)}>{preferredContact === 'email' ? 'Add a phone number (optional)' : 'Add an email address (optional)'}</button>}
-            {(additionalContact || Boolean(preferredContact === 'email' ? phone : email)) && <button type="button" className="customer-enquiry-remove-contact text-link" onClick={() => {
+          </fieldset>
+          <PrivacyNoticeLink url={dealerConfig.legal?.privacyUrl} />
+
+          <div className="customer-enquiry-extras" role="group" aria-label="Optional details">
+            {!additionalContact && !(preferredContact === 'email' ? phone : email) && <button type="button" className="text-link" aria-label={preferredContact === 'email' ? 'Add a phone number (optional)' : 'Add an email address (optional)'} onClick={() => setAdditionalContact(true)}>{preferredContact === 'email' ? 'Add a phone number' : 'Add an email address'}</button>}
+            {(additionalContact || Boolean(preferredContact === 'email' ? phone : email)) && <button type="button" className="text-link" onClick={() => {
               if (preferredContact === 'email') { setPhone('');setPhoneError(''); }
               else { setEmail('');setEmailError(''); }
               setAdditionalContact(false);
             }}>{preferredContact === 'email' ? 'Remove optional phone number' : 'Remove optional email address'}</button>}
-          </fieldset>
+            {selectedVehicle && features.enabled('partExchange') && dealerConfig.partExchange?.enabled && !hasPartExchange && <button type="button" className="text-link" aria-label="Add a part exchange (optional)" onClick={() => setHasPartExchange(true)}>Add a part exchange</button>}
+          </div>
 
-        {selectedVehicle && features.enabled('partExchange') && dealerConfig.partExchange?.enabled && <div className="customer-enquiry-exchange">
-          {!hasPartExchange ? <button type="button" className="customer-enquiry-exchange-add" onClick={() => setHasPartExchange(true)}>Add a part exchange (optional)</button> : <fieldset className="space-y-4 border-t border-border pt-4">
+        {selectedVehicle && features.enabled('partExchange') && dealerConfig.partExchange?.enabled && hasPartExchange && <div className="customer-enquiry-exchange">
+          <fieldset className="space-y-4 border-t border-border pt-4">
           <legend className="sr-only">Part-exchange details</legend>
           <div className="space-y-4" data-testid="enquiry-part-exchange-details">
             <p className="text-sm text-muted-foreground">Find your car using its registration.</p>
@@ -567,7 +557,7 @@ export function EnquiryForm({
             </label></details></div>}
             <button type="button" className="text-link min-h-11 text-sm" onClick={removeExchange}>Remove part exchange</button>
           </div>
-        </fieldset>}</div>}
+        </fieldset></div>}
         {message.length > messageLimit && !messageError && <p role="alert" className="text-sm text-destructive">Please shorten your message by {message.length - messageLimit} characters to include your part-exchange details.</p>}
 
       {mutation.isError && (
@@ -581,23 +571,15 @@ export function EnquiryForm({
           {mutation.isPending ? 'Sending enquiry…' : 'Send enquiry'}
           {!mutation.isPending && <ArrowRight className="ml-3 h-4 w-4 transition-transform group-hover:translate-x-1" />}
         </Button>
-        <div className="flex items-start gap-3 border-t border-border px-0 py-3 font-medium text-[13px] tracking-normal leading-relaxed text-primary/70">
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-           <span>
-             We’ll use your details to answer your enquiry. {showroomHours(dealerConfig.hours ?? []).state === 'closed' ? 'We’re currently closed and will reply during opening hours.' : 'We’ll reply during opening hours.'}
-           </span>
-        </div>
+        <p className="text-sm leading-6 text-muted-foreground">We’ll reply during opening hours.</p>
       </div>
-      {!embedded && <details key={type} className="customer-enquiry-topic">
-        <summary>Need something else?</summary>
-        <div className="flex flex-wrap gap-x-5 gap-y-1 pb-3" aria-label="Other enquiries">
+      {!embedded && <nav className="customer-enquiry-topic flex flex-wrap gap-x-5 gap-y-1" aria-label="Other enquiries">
           {(Object.entries(typeLabels) as Array<[EnquiryType, string]>).filter(([value]) => value !== type
             && (value !== 'part_exchange' || (dealerConfig.partExchange?.enabled && features.enabled('partExchange')))
             && (value !== 'viewing' || (dealerConfig.testDriveBooking?.enabled && features.enabled('testDriveBookings')))).map(([value, label]) =>
             <Link key={value} href={`/enquire?type=${value}${vehicle ? `&vehicleId=${encodeURIComponent(vehicle.id)}` : ''}`} aria-disabled={mutation.isPending || undefined} onClick={event => { event.preventDefault(); changeType(value); }} className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">{label}</Link>
           )}
-        </div>
-      </details>}
+      </nav>}
       </fieldset>
     </form>
   );

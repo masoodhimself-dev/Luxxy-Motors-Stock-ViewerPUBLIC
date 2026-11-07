@@ -188,9 +188,7 @@ export const MultiHomeHeader = forwardRef<
             <SheetContent side="right" className="multi-home-drawer">
               <SheetHeader>
                 <SheetTitle>{settings.identity.name}</SheetTitle>
-                <SheetDescription>
-                  Cars, services and your next visit.
-                </SheetDescription>
+                <SheetDescription className="sr-only">Website navigation</SheetDescription>
               </SheetHeader>
               <nav aria-label="Mobile navigation">
                 <Link href="/stock" onClick={close}>

@@ -1,9 +1,10 @@
 import { MotMileageEstimate } from './mot-mileage-estimate';
 import { OptionalJourneyPostcode } from '@/components/postcode-field';
+import { PrivacyNoticeLink } from '@/components/privacy-notice-link';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import '../pages/customer-workflows.css';
 import './test-drive-booking.css';
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import {
   useCreateEnquiry,
   useGetEnquiryAvailability,
@@ -51,9 +52,14 @@ import {
   defaultBookingSettings,
   londonDate,
 } from "@/lib/test-drive-dates";
-import { showroomHours } from '@/lib/showroom-hours';
 import { websiteText } from "@/lib/website-content";
 import { getPhoneHref, getVehicleWhatsAppHref } from "@/lib/cta-helpers";
+
+const bookingTimeFormat = new Intl.DateTimeFormat("en-GB", {
+  timeZone: bookingTimezone,
+  hour: "2-digit",
+  minute: "2-digit",
+});
 
 function initialDetails(vehicle?: Car): EnquiryDraft {
   const draft = readEnquiryDraft(enquiryDraftKey(vehicle?.id, "viewing"));
@@ -123,11 +129,7 @@ export function TestDriveBooking({
   } = useDealerSettings();
   const [bookingNow, setBookingNow] = useState(() => new Date());
   useEffect(() => { const timer = window.setInterval(() => setBookingNow(new Date()), 60000); return () => window.clearInterval(timer); }, []);
-  const bookingHour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', hour: '2-digit', hourCycle: 'h23' }).format(bookingNow));
-  const nightTime = bookingHour >= 20 || bookingHour < 7;
-  const showroomState = showroomHours(settings.hours ?? [], bookingNow).state;
   const config = settings.testDriveBooking ?? defaultBookingSettings;
-  const [, setLocation] = useLocation();
   const cars = stockCars.filter(
     (car) =>
       (!car.inventoryStatus || car.inventoryStatus === "available"),
@@ -137,14 +139,13 @@ export function TestDriveBooking({
   const [choosingCar, setChoosingCar] = useState(false);
   const [choiceId, setChoiceId] = useState(vehicle?.id ?? "");
   const [carSearch, setCarSearch] = useState("");
-  const searchTerm = carSearch.toLowerCase().replace(/\s+/g, "");
-  const matchingCars = cars.filter((car) =>
-    `${vehicleDisplayTitle(car)} ${car.year ?? ""} ${vehicleRegistrationLabel(car)}`
-      .toLowerCase()
-      .replace(/\s+/g, "")
-      .includes(searchTerm),
-  );
-  const choice = cars.find((car) => car.id === choiceId);
+  const [resultLimit, setResultLimit] = useState(4);
+  const searchWords = carSearch.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  const matchingCars = cars.filter((car) => {
+    const searchable = [vehicleDisplayTitle(car), car.make, car.model, car.year, vehicleRegistrationLabel(car)].filter(Boolean).join(" ").toLowerCase();
+    const compact = searchable.replace(/\s/g, "");
+    return searchWords.every(word => searchable.includes(word) || compact.includes(word));
+  });
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [details, setDetails] = useState(() => initialDetails(vehicle));
   const [draftSaved, setDraftSaved] = useState(false);
@@ -154,10 +155,10 @@ export function TestDriveBooking({
   const [selectedDate, setSelectedDate] = useState(
     () => dates[0] ?? londonDate(),
   );
-  // Keep date buttons in a stable group while choosing between neighbouring days.
-  // The full selector retains every date allowed by the booking policy.
+  // Keep nearby dates in a stable group and offer the other dates separately.
   const dateWindowStart = Math.floor(Math.max(dates.indexOf(selectedDate), 0) / 5) * 5;
   const quickDates = dates.slice(dateWindowStart, dateWindowStart + 5);
+  const otherDates = dates.filter(date => !quickDates.includes(date));
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const nameInput = useRef<HTMLInputElement>(null);
@@ -388,6 +389,8 @@ export function TestDriveBooking({
               className="min-h-11 text-sm underline underline-offset-4"
               onClick={() => {
                 setChoiceId(currentCar.id);
+                setCarSearch("");
+                setResultLimit(4);
                 setChoosingCar(true);
               }}
             >
@@ -582,11 +585,8 @@ export function TestDriveBooking({
                 tabIndex={-1}
                 className="booking-step-heading text-2xl font-semibold outline-none"
               >
-                Which car would you like to try?
+                Choose a car
               </h2>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Choose a car so we can prepare it for your visit.
-              </p>
               {missingVehicle && (
                 <p
                   className="mt-4 border-l-2 border-primary pl-3 text-sm"
@@ -596,23 +596,26 @@ export function TestDriveBooking({
                   one.
                 </p>
               )}
-              {cars.length > 6 && (
+              {cars.length > 4 && (
                 <label className="mt-5 block">
                   <span className="field-label">Find a car</span>
                   <Input
                     type="search"
                     placeholder="Search make, model or registration"
                     value={carSearch}
-                    onChange={(event) => setCarSearch(event.target.value)}
+                    onChange={(event) => {
+                      setCarSearch(event.target.value);
+                      setResultLimit(4);
+                    }}
                   />
                 </label>
               )}
               <fieldset className="mt-5">
                 <legend className="sr-only">Choose your car</legend>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {matchingCars.map((car) => (
+                  {matchingCars.slice(0, resultLimit).map((car) => (
+                    <div key={car.id} className="booking-car-option">
                       <label
-                        key={car.id}
                         className={`flex cursor-pointer items-center gap-3 rounded-sm border p-3 focus-within:ring-2 focus-within:ring-ring ${choiceId === car.id ? "border-primary bg-secondary/60" : "border-border hover:border-primary/50"}`}
                       >
                         <input
@@ -641,9 +644,30 @@ export function TestDriveBooking({
                           </p>
                         </div>
                       </label>
+                      {choiceId === car.id && (
+                        <Button asChild className="mt-2 min-h-12 w-full">
+                          <Link
+                            href={`/enquire?type=viewing&vehicleId=${encodeURIComponent(car.id)}`}
+                            onClick={() => {
+                              setChoosingCar(false);
+                              setStep(1);
+                              setSelectedSlot(null);
+                              mutation.reset();
+                            }}
+                          >
+                            Choose date and time <ArrowRight size={17} aria-hidden="true" />
+                          </Link>
+                        </Button>
+                      )}
+                    </div>
                     ))}
                 </div>
               </fieldset>
+              {matchingCars.length > resultLimit && (
+                <Button type="button" variant="outline" className="mt-4 min-h-11" onClick={() => setResultLimit(limit => limit + 4)}>
+                  Show more cars
+                </Button>
+              )}
               {cars.length > 0 && matchingCars.length === 0 && (
                   <p className="my-5 text-sm text-muted-foreground">
                     No cars match that search. Try a different make, model or registration.
@@ -654,30 +678,6 @@ export function TestDriveBooking({
                   We don’t have any cars available right now. Ask us about
                   upcoming stock.
                 </p>
-              )}
-              {choice ? (
-                <Button asChild className="mt-6 min-h-12 w-full">
-                  <Link
-                    href={`/enquire?type=viewing&vehicleId=${encodeURIComponent(choice.id)}`}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      setLocation(
-                        `/enquire?type=viewing&vehicleId=${encodeURIComponent(choice.id)}`,
-                      );
-                      setChoosingCar(false);
-                      setStep(1);
-                      setSelectedSlot(null);
-                      mutation.reset();
-                    }}
-                  >
-                    Choose date and time
-                    <ArrowRight size={17} />
-                  </Link>
-                </Button>
-              ) : (
-                <Button disabled className="mt-6 min-h-12 w-full">
-                  Select a car to continue
-                </Button>
               )}
               {choosingCar && currentCar && (
                 <button
@@ -693,9 +693,10 @@ export function TestDriveBooking({
             <>
               <ol
                 aria-label="Booking progress"
+                data-step={step}
                 className="booking-progress grid grid-cols-3 gap-3 border-b border-border text-xs sm:text-sm"
               >
-                {["Choose a time", "Your details", "Review and submit"].map(
+                {["Choose a time", "Your details", "Review"].map(
                   (label, index) => (
                     <li
                       key={label}
@@ -759,7 +760,16 @@ export function TestDriveBooking({
                   </p>
                   <div className="booking-availability-grid">
                   <div className="booking-date-column">
-                  <div className="booking-date-heading"><h3 className="font-semibold">Choose a date</h3><label><span className="sr-only">Choose a test-drive date</span><NativeSelect data-testid="select-viewing-date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)}>{dates.map(date => <option key={date} value={date}>{new Intl.DateTimeFormat("en-GB", { timeZone: bookingTimezone, weekday: "short", day: "numeric", month: "short" }).format(new Date(`${date}T12:00:00Z`))}</option>)}</NativeSelect></label></div>
+                  <div className="booking-date-heading">
+                    <h3 className="font-semibold">Choose a date</h3>
+                    {otherDates.length > 0 && <label>
+                      <span className="sr-only">More test-drive dates</span>
+                      <NativeSelect data-testid="select-viewing-date" value="" onChange={event => setSelectedDate(event.target.value)}>
+                        <option value="" disabled>More dates</option>
+                        {otherDates.map(date => <option key={date} value={date}>{new Intl.DateTimeFormat("en-GB", { timeZone: bookingTimezone, weekday: "short", day: "numeric", month: "short" }).format(new Date(`${date}T12:00:00Z`))}</option>)}
+                      </NativeSelect>
+                    </label>}
+                  </div>
                   <div
                     role="group"
                     aria-label="Choose a test-drive date"
@@ -829,18 +839,12 @@ export function TestDriveBooking({
                           data-testid={`button-viewing-slot-${slot.startAt}`}
                           className={`min-h-12 rounded-sm border text-base font-medium tabular-nums ${selectedSlot === slot.startAt ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}
                         >
-                          {slot.label}
+                          {bookingTimeFormat.format(new Date(slot.startAt))}
                         </button>
                       ))}
                     </div>
                   ) : (
-                    nightTime && selectedDate === londonDate(bookingNow) && showroomState !== 'open' ? (
-                      <aside className="booking-night-note" aria-label="Booking at night" data-testid="status-availability-empty">
-                        <Clock3 size={20} aria-hidden="true" />
-                        <div><strong>Even car people need sleep — we’re human too!</strong>
-                        <p>No test drives left for today. Pick another date and we’ll look forward to meeting you.</p></div>
-                      </aside>
-                    ) : <p
+                    <p
                       data-testid="status-availability-empty"
                       className="rounded-sm bg-secondary p-4 text-sm leading-6"
                     >
@@ -860,7 +864,7 @@ export function TestDriveBooking({
                   </div>
                   <div className="booking-selection-footer">
                     <div className="booking-selection-summary" data-selected={Boolean(selectedTime)} role="status" aria-live="polite" data-testid="selected-viewing-time">
-                      {selectedTime ? <><CheckCircle2 aria-hidden="true" /><p><strong>{new Intl.DateTimeFormat("en-GB", { timeZone: bookingTimezone, weekday: "short", day: "numeric", month: "short" }).format(new Date(`${selectedDate}T12:00:00Z`))} at {selectedTime.label}</strong><span>{config.durationMinutes} minutes</span></p></> : <><Clock3 aria-hidden="true" /><p>Choose a time to continue</p></>}
+                      {selectedTime ? <><CheckCircle2 aria-hidden="true" /><p><strong>{new Intl.DateTimeFormat("en-GB", { timeZone: bookingTimezone, weekday: "short", day: "numeric", month: "short" }).format(new Date(`${selectedDate}T12:00:00Z`))} at {bookingTimeFormat.format(new Date(selectedTime.startAt))}</strong><span>{config.durationMinutes} minutes</span></p></> : <><Clock3 aria-hidden="true" /><p>Choose a time to continue</p></>}
                     </div>
                   <Button
                     type="button"
@@ -946,6 +950,7 @@ export function TestDriveBooking({
                       </span>
                     </label>
                   </div>
+                  {settings.legal?.privacyUrl && <p className="text-xs text-muted-foreground"><PrivacyNoticeLink url={settings.legal.privacyUrl} /></p>}
                   <OptionalJourneyPostcode />
                   {settings.partExchange?.enabled && <div className="border-t border-border pt-3">
                     {!details.hasPartExchange ? <button type="button" className="min-h-12 text-sm font-medium underline underline-offset-4" onClick={() => setDetails(old => ({ ...old, hasPartExchange: true }))}>Add a part exchange (optional)</button> : <div>

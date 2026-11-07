@@ -140,7 +140,7 @@ it('keeps condition photos available in their own category without inventing mis
   expect(screen.getAllByRole('button', { name: /Show photograph/ })).toHaveLength(2);
 });
 
-it('mounts a compact lazy overview only when requested and opens the chosen photo', async () => {
+it('loads the first six overview thumbnails when opened and opens the chosen photo', async () => {
   const photos = Array.from({ length: 60 }, (_, i) => ({ url: `https://m.atcdn.co.uk/a/media/w960/photo-${i}.jpg`, caption: `Photo ${i + 1}` }));
   render(<Gallery customerView images={[...photos, photos[1]]} heroImage={photos[0].url} />);
   expect(screen.getByText('View all 60 photos')).toBeInTheDocument();
@@ -150,12 +150,15 @@ it('mounts a compact lazy overview only when requested and opens the chosen phot
   expect(dialog.querySelectorAll('img')).toHaveLength(1);
   fireEvent.click(within(dialog).getByRole('button', { name: 'All photos' }));
   const overview = within(dialog).getByRole('region', { name: 'All 60 photographs' });
-  expect(overview.querySelectorAll('img')).toHaveLength(60);
-  for (const image of overview.querySelectorAll('img')) {
-    expect(image).toHaveAttribute('loading', 'lazy');
-    expect(image).toHaveAttribute('fetchpriority', 'low');
+  const thumbnails = overview.querySelectorAll('img');
+  expect(thumbnails).toHaveLength(60);
+  thumbnails.forEach((image, index) => {
+    expect(image).toHaveAttribute('loading', index < 6 ? 'eager' : 'lazy');
+    expect(image).toHaveAttribute('fetchpriority', index < 6 ? 'auto' : 'low');
     expect(image).toHaveAttribute('sizes', '(min-width: 1100px) 230px, (min-width: 640px) 220px, 50vw');
-  }
+  });
+  fireEvent.load(thumbnails[0]);
+  expect(thumbnails[0]).toHaveAttribute('data-photo-ready');
   fireEvent.click(within(overview).getByRole('button', { name: 'View photograph 48 of 60: Photo 48' }));
   expect(within(dialog).queryByRole('region')).not.toBeInTheDocument();
   expect(within(dialog).getByText('48 / 60')).toBeInTheDocument();

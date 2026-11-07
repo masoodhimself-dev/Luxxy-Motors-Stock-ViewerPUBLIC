@@ -6,15 +6,16 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { CarCard } from "./car-card";
 import "./ai-assistance.css";
-export function AiCarFinder({ cars }: { cars: Car[] }) {
+export function AiCarFinder({ cars, collapsible = false }: { cars: Car[]; collapsible?: boolean }) {
   const ai = useAiAssistance();
   const [text, setText] = useState(""),
     [answer, setAnswer] = useState(""),
     [ids, setIds] = useState<string[]>([]);
-  return (
+  if (!ai.enabled) return null;
+
+  const finder = (
     <section className="ai-car-finder" aria-labelledby="ai-car-finder-heading">
       <div>
-        <p className="luxxy-kicker">Find your next car</p>
         <h2 id="ai-car-finder-heading" className="section-heading">
           Tell us what you’re looking for
         </h2>
@@ -28,12 +29,6 @@ export function AiCarFinder({ cars }: { cars: Car[] }) {
           event.preventDefault();
           setIds([]);
           setAnswer("");
-          if (!ai.enabled) {
-            setAnswer(
-              "Smart search is unavailable at the moment. You can use our stock filters to find your next car.",
-            );
-            return;
-          }
           const reply = await ai.run("finder", { text });
           if (reply) {
             setAnswer(reply.answer);
@@ -54,19 +49,13 @@ export function AiCarFinder({ cars }: { cars: Car[] }) {
         />
         <Button
           type="submit"
-          disabled={
-            !text.trim() || ai.busy || (ai.enabled && ai.remaining === 0)
-          }
+          disabled={!text.trim() || ai.busy || ai.remaining === 0}
         >
           {ai.busy ? "Finding cars…" : "Find me a car"}
         </Button>
       </form>
       <div className="ai-allowance">
-        <span>
-          {ai.enabled
-            ? `${ai.remaining} of 10 AI requests left for this browser session.`
-            : "You can always browse with our usual filters."}
-        </span>
+        {ai.remaining === 0 && <span>Car finder is unavailable for now.</span>}
         <Link href="/stock" className="text-link min-h-11">
           Browse all cars
         </Link>
@@ -91,4 +80,7 @@ export function AiCarFinder({ cars }: { cars: Car[] }) {
       )}
     </section>
   );
+  return collapsible
+    ? <details className="mh-ai-search"><summary>Search by describing a car</summary>{finder}</details>
+    : finder;
 }

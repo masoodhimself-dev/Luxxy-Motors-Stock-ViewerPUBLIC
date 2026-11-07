@@ -336,12 +336,6 @@ body [data-popup-surface].multi-stock-drawer[role="dialog"] {
 .multi-stock-option[data-disabled] .multi-stock-option__make-logo {
   opacity: 0.45;
 }
-.multi-stock-option__count {
-  flex: none;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  color: var(--ms-muted);
-}
 .multi-stock-colour {
   flex: 0 0 16px;
   width: 16px;

@@ -12,6 +12,7 @@ import { getEnquiryHref, getPhoneHref, getVehicleWhatsAppHref, getWhatsAppHref }
 import { formatPhoneDisplay, formatPrice, vehicleDisplayTitle } from '@/lib/utils';
 import { customerRegistrationDetails } from '@/lib/customer-vehicle-meta';
 import { usePageMeta } from '@/hooks/use-page-meta';
+import { warrantySummary } from '@/lib/dealership-customer-copy';
 
 const policyQuestions = [
   ['The cover', 'Which parts and faults are covered, and which exclusions apply?'],
@@ -39,6 +40,9 @@ export default function Warranty() {
   // The old template action describes entering this page from the homepage.
   // Here the action opens an enquiry, so retain that intent unless customized.
   const enquiryActionLabel = customerDefaultCopy(settings.warranty?.ctaLabel, 'Send a warranty enquiry', ['Learn About Warranty']);
+  const warrantyEnquiry = getEnquiryHref('general', vehicle, 'Could you tell me what warranty is included and what it covers?');
+  const warrantyHelp = getEnquiryHref('general', undefined, 'I’d like help with an existing warranty.');
+  const eyebrow = customerDefaultCopy(websiteText(settings, "warrantyEyebrow"), '', ['Owning your next car']);
   usePageMeta({
     title: `Warranty information | ${settings.identity.name}`,
     description: `Ask ${settings.identity.name} about warranty options for your chosen vehicle, policy terms and how to get help.`,
@@ -67,21 +71,28 @@ export default function Warranty() {
         ) : <>
           <header className="warranty-introduction friendly-banner grid items-start gap-7 py-7 sm:py-10 lg:grid-cols-2 lg:gap-14">
             <div className="min-w-0">
-              <p className="luxxy-kicker">{websiteText(settings, "warrantyEyebrow")}</p>
-              <h1 className="mt-3 max-w-lg font-display text-3xl font-semibold leading-tight tracking-tight sm:text-4xl lg:text-[2.75rem]">{title}</h1>
-              {settings.warranty.description?.trim() && <p className="mt-5 max-w-lg whitespace-pre-line text-base leading-7 text-muted-foreground">{settings.warranty.description.trim()}</p>}
+              {eyebrow && <p className="luxxy-kicker mb-3">{eyebrow}</p>}
+              <h1 className="max-w-lg font-display text-3xl font-semibold leading-tight tracking-tight sm:text-4xl lg:text-[2.75rem]">{title}</h1>
+              <p className="mt-5 max-w-lg whitespace-pre-line text-base leading-7 text-muted-foreground">{warrantySummary(settings)}</p>
+              <section className="mt-6 border-t border-border pt-4 text-sm leading-6 text-muted-foreground" aria-labelledby="warranty-help-heading">
+                <h2 id="warranty-help-heading" className="font-semibold text-foreground">Help with an existing warranty</h2>
+                <p className="mt-1">Have your registration and warranty documents ready.</p>
+                <Button asChild variant="outline" className="mt-3">
+                  <Link href={publicEnquiriesEnabled ? warrantyHelp : '/contact'}>Contact us about a claim</Link>
+                </Button>
+              </section>
             </div>
             <section className="warranty-enquiry-panel min-w-0 rounded-xl border border-border bg-card p-5 sm:p-7" aria-labelledby="warranty-enquiry-heading">
               <h2 id="warranty-enquiry-heading" className="mb-5 font-display text-xl font-semibold tracking-tight">{websiteText(settings, "warrantyEnquiryHeading")}</h2>
               <label htmlFor="warranty-vehicle" className="field-label">Which car are you asking about? <span className="font-normal text-muted-foreground">(optional)</span></label>
               <NativeSelect id="warranty-vehicle" className="mt-2" value={vehicle ? vehicleId : ''} onChange={event => setVehicleId(event.target.value)} disabled={stockLoading || Boolean(stockError)} aria-describedby="warranty-vehicle-help">
-                <option value="">A general question / another vehicle</option>
+                <option value="">No particular car</option>
                 {(stock?.cars || []).map(car => <option key={car.id} value={car.id}>{[customerRegistrationDetails(car), vehicleDisplayTitle(car), car.price != null ? formatPrice(car.price, car.currency) : null].filter(Boolean).join(' · ')}</option>)}
               </NativeSelect>
               <p id="warranty-vehicle-help" className="mt-3 text-xs leading-6 text-muted-foreground" role={stockLoading ? 'status' : stockError || unavailableVehicle ? 'alert' : undefined}>
-                {stockLoading ? 'Loading current stock. You can still send a general enquiry.' : stockError ? 'We couldn’t load the vehicle list. You can still ask a general warranty question.' : unavailableVehicle ? 'That car is no longer listed. Tell us which vehicle you mean in your enquiry.' : 'We’ll confirm the cover, cost and terms for your car.'}
+                {stockLoading ? 'Loading current stock. You can still send a warranty enquiry.' : stockError ? 'We couldn’t load the vehicle list. You can still ask a warranty question.' : unavailableVehicle ? 'That car is no longer listed. Tell us which vehicle you mean in your enquiry.' : 'We’ll explain what’s covered, any exclusions and the options for extending cover.'}
               </p>
-              <Button asChild className="mt-5 w-full"><Link href={publicEnquiriesEnabled ? getEnquiryHref('general', vehicle) : '/contact'} data-testid="warranty-enquiry-link">{vehicle ? 'Enquire About This Car' : enquiryActionLabel}<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>
+              <Button asChild className="mt-5 w-full"><Link href={publicEnquiriesEnabled ? warrantyEnquiry : '/contact'} data-testid="warranty-enquiry-link">{vehicle ? 'Ask about this car’s warranty' : enquiryActionLabel}<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>
               <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
                 {phoneHref && <a href={phoneHref} className="text-link inline-flex min-h-11 items-center gap-2"><Phone className="h-4 w-4" aria-hidden="true" />{formatPhoneDisplay(settings.contact.phone!)}</a>}
                 {whatsappHref && <a href={whatsappHref} target="_blank" rel="noopener noreferrer" data-testid="warranty-whatsapp" className="text-link inline-flex min-h-11 items-center gap-2"><MessageCircle className="h-4 w-4" aria-hidden="true" />WhatsApp</a>}
@@ -94,7 +105,6 @@ export default function Warranty() {
             <p className="pb-4 text-sm leading-6 text-muted-foreground">{websiteText(settings, 'warrantyDetailsIntroduction')}</p>
             <dl className="grid min-w-0 gap-x-10 sm:grid-cols-2">{policyQuestions.map(([label, question]) => <div key={label} className="border-t border-border py-4"><dt className="text-sm font-semibold">{label}</dt><dd className="mt-1 text-sm leading-6 text-muted-foreground">{question}</dd></div>)}</dl>
           </details>
-          <p className="mt-6 text-sm leading-6 text-muted-foreground">Already bought a car? <Link href={publicEnquiriesEnabled ? "/enquire?type=general" : "/contact"} className="inline-flex min-h-11 items-center text-primary underline underline-offset-4">Ask us for help</Link> with your registration and warranty documents to hand.</p>
         </>}
       </div>
     </div>

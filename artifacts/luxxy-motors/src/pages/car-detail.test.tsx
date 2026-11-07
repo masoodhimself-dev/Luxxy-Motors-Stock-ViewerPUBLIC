@@ -8,6 +8,8 @@ import { DEFAULT_PAGE_META } from '@/lib/page-meta';
 import { dealerConfig } from '@/config/dealer';
 import { getGetDealerSettingsQueryKey } from '@workspace/api-client-react';
 import { defaultBookingSettings } from '@/lib/test-drive-dates';
+import { saveBrowseSession } from '@/lib/browse-session';
+import { vehicleMatchesPath } from '@workspace/vehicle-meta';
 
 
 
@@ -67,7 +69,7 @@ const { stockFixture, stockStatus } = vi.hoisted(() => {
   const car = (overrides: Record<string, unknown>) => ({ ...baseCar, ...overrides });
 
   return {
-    stockStatus: { error: null as string | null },
+    stockStatus: { error: null as string | null, vehicleError: null as string | null },
     stockFixture: {
       schemaVersion: 1,
       dealerName: 'Test Motors',
@@ -103,7 +105,13 @@ const { stockFixture, stockStatus } = vi.hoisted(() => {
 });
 
 vi.mock('@/lib/stock-context', () => ({
-  useStock: () => ({ stock: stockFixture, isLoading: false, error: stockStatus.error }),
+  useStock: () => ({
+    stock: stockStatus.error ? null : stockFixture,
+    vehicle: stockFixture.cars.find(car => vehicleMatchesPath(car, window.location.pathname)) ?? null,
+    isVehicleLoading: false,
+    vehicleError: stockStatus.vehicleError,
+    retryVehicle: vi.fn(),
+  }),
 }));
 
 vi.mock('@/components/car-card', () => ({
@@ -123,13 +131,14 @@ function renderVehicle(id: string, settings?: typeof dealerConfig & { testDriveB
 
 beforeEach(() => {
   stockStatus.error = null;
+  stockStatus.vehicleError = null;
   window.sessionStorage.clear();
   for (const key of Object.keys(featureState.data.features)) featureState.data.features[key] = false;
 });
 afterEach(() => vi.unstubAllGlobals());
 
-it('reports a temporary stock error instead of calling the vehicle missing', () => {
-  stockStatus.error = 'Network unavailable';
+it('reports a temporary vehicle error instead of calling the car missing', () => {
+  stockStatus.vehicleError = 'Network unavailable';
   renderVehicle('with-plate');
   expect(screen.getByRole('heading', { name: 'Vehicle details could not be loaded' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
@@ -144,6 +153,24 @@ it('keeps an unavailable vehicle out of search metadata when reached without a n
   expect(document.querySelector('meta[name="robots"]')?.getAttribute('content')).toMatch(/^noindex/);
   expect(document.querySelector('link[rel="canonical"]')).toBeNull();
   expect(document.querySelector('meta[property="og:url"]')).toBeNull();
+});
+
+it('shows the individual vehicle even if the full stock request failed', () => {
+  stockStatus.error = 'Network unavailable';
+  renderVehicle('with-plate');
+  expect(screen.getByRole('heading', { level: 1, name: 'BMW 3 Series' })).toBeInTheDocument();
+  expect(document.querySelector('.vehicle-price-block')).toHaveTextContent('£4,995');
+});
+
+it.each([
+  ['', 'Back to stock', '/stock'],
+  ['?from=stock', 'Back to your results', '/stock?make=BMW'],
+  ['?from=saved', 'Back to saved cars', '/saved'],
+  ['?from=https%3A%2F%2Fother.example', 'Back to stock', '/stock'],
+])('offers the correct return link for a vehicle entry %s', (query, label, href) => {
+  saveBrowseSession({ stockHref: '/stock?make=BMW' });
+  renderVehicle(`with-plate${query}`);
+  expect(screen.getByRole('link', { name: label })).toHaveAttribute('href', href);
 });
 
 it('shares the server-rendered vehicle preview link', async () => {
@@ -439,7 +466,7 @@ describe('vehicle gallery contact policy', () => {
     featureState.data.features.testDriveBookings = true;
     featureState.data.features.publicEnquiries = true;
     renderVehicle('with-plate', settings());
-    expect(primaryActions().querySelector('[data-vehicle-contact="booking"]')).toHaveAttribute('href', '/enquire?type=viewing&vehicleId=with-plate');
+    expect(document.querySelector('.vehicle-price-block [data-vehicle-contact="booking"]')).toHaveAttribute('href', '/enquire?type=viewing&vehicleId=with-plate');
     expect(within(primaryActions()).getByRole('link', { name: 'Message' })).toHaveAttribute('href', '#vehicle-enquiry');
     selectTenthPhoto();
     expectUninterruptedGallery();
@@ -474,7 +501,7 @@ describe('vehicle gallery contact policy', () => {
     featureState.data.features.publicEnquiries = true;
     Object.assign(stockFixture.cars[1], { inventoryStatus: 'reserved' });
     renderVehicle('with-plate', settings());
-    expect(primaryActions().querySelector('[data-vehicle-contact="booking"]')).toBeNull();
+    expect(document.querySelector('.vehicle-price-block [data-vehicle-contact="booking"]')).toBeNull();
     selectTenthPhoto();
     expectUninterruptedGallery();
     fireEvent.click(within(primaryActions()).getByRole('link', { name: 'Message' }));
@@ -485,7 +512,7 @@ describe('vehicle gallery contact policy', () => {
     renderVehicle('with-plate', settings(''));
     selectTenthPhoto();
     expectUninterruptedGallery();
-    expect(primaryActions().querySelector('[data-vehicle-contact="booking"]')).toBeNull();
+    expect(document.querySelector('.vehicle-price-block [data-vehicle-contact="booking"]')).toBeNull();
     expect(screen.queryByTestId('form-enquiry')).not.toBeInTheDocument();
     expect(document.querySelector('.vehicle-photo-request')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Quick answers' })).not.toBeInTheDocument();
@@ -503,7 +530,7 @@ describe('vehicle gallery contact policy', () => {
     selectTenthPhoto();
     expectUninterruptedGallery();
     expect(document.querySelector('.vehicle-action-tools a')).toHaveAttribute('href', 'tel:07388831790');
-    expect(primaryActions().querySelector('[data-vehicle-contact="booking"]')).toBeNull();
+    expect(document.querySelector('.vehicle-price-block [data-vehicle-contact="booking"]')).toBeNull();
     expect(screen.queryByRole('link', { name: 'Message' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Quick answers' })).not.toBeInTheDocument();
     const sticky = screen.getByRole('navigation', { name: 'Contact about this vehicle' });
@@ -517,7 +544,7 @@ describe('vehicle gallery contact policy', () => {
     renderVehicle('with-plate', settings('07388831790', false));
     selectTenthPhoto();
     expectUninterruptedGallery();
-    expect(primaryActions().querySelector('[data-vehicle-contact="booking"]')).toBeNull();
+    expect(document.querySelector('.vehicle-price-block [data-vehicle-contact="booking"]')).toBeNull();
     expect(within(primaryActions()).getByRole('link', { name: 'Message' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Questions about this car' })).toBeInTheDocument();
   });

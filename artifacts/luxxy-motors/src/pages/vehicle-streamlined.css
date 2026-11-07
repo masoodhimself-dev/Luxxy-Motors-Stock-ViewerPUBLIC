@@ -152,10 +152,64 @@
     grid-template-columns: minmax(0, 1.53fr) minmax(330px, 1fr);
     gap: 16px clamp(16px, 1.7vw, 24px);
   }
+  /* The photo request follows the gallery even when the price panel is taller. */
+  .vehicle-detail-grid:has(> .vehicle-photo-request) {
+    grid-template-rows: auto max-content 1fr;
+  }
+  .vehicle-detail-grid:has(> .vehicle-photo-request) > .vehicle-summary-column {
+    grid-column: 2;
+    grid-row: 2 / 4;
+  }
+  .vehicle-detail-grid > .vehicle-photo-request {
+    grid-row: 3;
+  }
 }
 @media (min-width: 820px) and (max-width: 1099px) {
-  .vehicle-page-streamlined .vehicle-summary .vehicle-key-facts {
+  .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary .vehicle-key-facts {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 12px;
+    padding-block: 6px 4px;
+  }
+  .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-key-facts dd {
+    margin-top: 2px;
+    line-height: 1.35;
+  }
+  .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary .vehicle-action-area { margin-top: 8px; }
+  .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary .vehicle-action-tools {
+    justify-content: space-between;
+    padding-bottom: 4px;
+  }
+  .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary .vehicle-action-tools > :is(button, a) {
+    min-width: 44px;
+    padding-inline: 0;
+  }
+}
+@media (min-width: 820px) and (max-width: 1023px) {
+  .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary:has(> .vehicle-registration) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 8px;
+  }
+  .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary:has(> .vehicle-registration) > * {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+  .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary:has(> .vehicle-registration) > .vehicle-price-block {
+    grid-column: 1;
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+  .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary > .vehicle-registration {
+    grid-column: 2;
+    display: grid;
+    justify-items: end;
+    align-self: start;
+    gap: 6px;
+    margin: 0;
+  }
+  .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary > .vehicle-registration + .vehicle-key-facts {
+    margin-top: 6px;
+    border-top: 1px solid hsl(var(--border));
   }
 }
 @media (min-width: 1000px) {
@@ -195,18 +249,4 @@
   .vehicle-page-streamlined .vehicle-message-disclosure > summary { padding-inline: 16px; }
   .vehicle-page-streamlined .vehicle-message-body { padding-inline: 16px; }
   .vehicle-page-streamlined .vehicle-message-disclosure > summary h2 { font-size: 19px; }
-}
-
-@media (min-width: 820px) and (max-width: 1023px) {
-  .vehicle-detail-grid:has(.vehicle-reserve-button) {
-    grid-template-rows: auto max-content 1fr;
-  }
-  .vehicle-detail-grid:has(.vehicle-reserve-button) > .vehicle-summary-column {
-    grid-column: 2;
-    grid-row: 2 / 4;
-  }
-  .vehicle-detail-grid:has(.vehicle-reserve-button) > .vehicle-photo-request {
-    grid-row: 3;
-    align-self: start;
-  }
 }

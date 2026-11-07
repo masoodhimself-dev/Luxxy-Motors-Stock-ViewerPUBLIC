@@ -26,6 +26,7 @@ const JoinDealership = lazy(() => import('@/pages/join'));
 const Platform = lazy(() => import('@/pages/platform'));
 const CarDetail = lazy(() => import("@/pages/car-detail"));
 const Saved = lazy(() => import("@/pages/saved"));
+const StockAlertAction = lazy(() => import('@/pages/stock-alert-action'));
 const Portal = lazy(() => import("@/pages/portal"));
 const Enquire = lazy(() => import("@/pages/enquire"));
 const Contact = lazy(() => import('@/pages/contact'));
@@ -87,6 +88,7 @@ function Router() {
           <Route path="/cars/:slug" component={CarDetail} />
           <Route path="/s/:code" component={CarDetail} />
           <Route path="/saved" component={Saved} />
+          <Route path="/stock-alerts/:action" component={StockAlertAction} />
           <Route path="/platform" component={Platform} />
           <Route path="/portal" component={Portal} />
           <Route path="/portal/leads/:id" component={Portal} />

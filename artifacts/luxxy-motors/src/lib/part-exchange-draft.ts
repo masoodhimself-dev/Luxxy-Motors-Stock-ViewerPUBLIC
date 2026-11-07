@@ -3,7 +3,7 @@ import { normaliseExchangeRegistration, type PartExchangeAutofill } from './part
 
 export type PartExchangeDraft = {
   details: PartExchangeDetails;
-  vehicleId: string;
+  vehicleId: string | null;
   delivery: 'website' | 'whatsapp';
   autofill?: PartExchangeAutofill;
   message?: { text: string; source: string; edited: boolean };
@@ -19,7 +19,8 @@ export function readPartExchangeDraft(key: string): PartExchangeDraft | null {
     const draft = saved?.data;
     if (!Number.isFinite(saved?.savedAt) || saved.savedAt > Date.now() || Date.now() - saved.savedAt > lifetime ||
       !draft || !draft.details || !fields.every(field => typeof draft.details[field] === 'string' && draft.details[field].length <= 2000) ||
-      typeof draft.vehicleId !== 'string' || draft.vehicleId.length > 100 || !['website', 'whatsapp'].includes(draft.delivery)) {
+      (draft.vehicleId !== null && (typeof draft.vehicleId !== 'string' || draft.vehicleId.length > 100)) ||
+      !['website', 'whatsapp'].includes(draft.delivery)) {
       discardPartExchangeDraft(key);
       return null;
     }

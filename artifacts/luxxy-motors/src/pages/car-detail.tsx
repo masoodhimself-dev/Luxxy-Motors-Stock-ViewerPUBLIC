@@ -25,7 +25,7 @@ import { EnquiryForm } from '@/components/enquiry-form';
 import { VehicleEnquiryInformation } from '@/components/vehicle-enquiry-information';
 import { VehicleShare } from '@/components/vehicle-share';
 import { ReserveCar } from '@/components/reserve-car';
-import { vehicleDetailPath, vehicleMatchesPath } from '@workspace/vehicle-meta';
+import { vehicleDetailPath } from '@workspace/vehicle-meta';
 import './vehicle-actions.css';
 import { vehicleAvailability } from '@/lib/customer-convenience';
 import { VehicleVisit } from '@/components/vehicle-buying-guide';
@@ -38,6 +38,7 @@ import { Link, useLocation } from 'wouter';
 import {
   ArrowLeft,
   ArrowRight,
+  CalendarDays,
   CustomerEnquiry,
   ChevronDown,
 } from '@/components/icons';
@@ -54,7 +55,6 @@ import {
 } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { PageHeading } from '@/components/page-ui';
-import NotFound from '@/pages/not-found';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { useDealerFeatures } from '@/lib/dealer-features';
 import { usePageMeta } from '@/hooks/use-page-meta';
@@ -90,10 +90,12 @@ export default function CarDetail() {
   const messageSequence = useRef(0);
   const enquiryFocusFrame = useRef<number | null>(null);
   const [location, setLocation] = useLocation();
-  const { stock, isLoading, error } = useStock();
+  const { stock, vehicle: car, isVehicleLoading: isLoading, vehicleError: error, retryVehicle } = useStock();
   const { settings: dealerConfig, isLoading: settingsLoading, isError: settingsError } = useDealerSettings();
   const customerFeatures = useDealerFeatures();
-  const car = stock?.cars?.find((candidate) => vehicleMatchesPath(candidate, location));
+  const browseSource = new URLSearchParams(window.location.search).get('from');
+  const fromStock = browseSource === 'stock';
+  const fromSaved = browseSource === 'saved';
 
   useEffect(() => {
     if (!car) return;
@@ -159,14 +161,14 @@ export default function CarDetail() {
   if (error) {
     return <div className="vehicle-page vehicle-redesigned luxxy-shell min-h-[70vh] px-5 py-16"><div className="mx-auto max-w-xl" role="alert">
       <PageHeading eyebrow="Vehicle details" title="Vehicle details could not be loaded" description="We couldn’t load this car’s details. Please try again, or browse our current cars." />
-      <div className="flex flex-wrap gap-3"><Button onClick={() => window.location.reload()}>Try again</Button><Button asChild variant="outline"><Link href="/stock">Browse stock</Link></Button></div>
+      <div className="flex flex-wrap gap-3"><Button onClick={retryVehicle}>Try again</Button><Button asChild variant="outline"><Link href="/stock">Browse stock</Link></Button></div>
     </div></div>;
   }
 
-  if (!stock || !stock.cars) return <NotFound />;
-  if (!car || ['sold', 'archived', 'hidden'].includes(String(car.inventoryStatus))) return <div className="container mx-auto px-4 py-10 sm:px-6 lg:px-8"><PageHeading eyebrow="Vehicle details" title={car ? `${vehicleDisplayTitle(car)} is no longer available` : "This car isn’t in our current stock"} description="This car is no longer in our online stock. Browse our current cars, or ask us about this one." /><div className="flex flex-wrap gap-3"><Button asChild><Link href="/stock">Browse current stock</Link></Button><Button asChild variant="outline"><Link href="/contact">Contact us</Link></Button></div>{stock.cars.some(item => item.id !== car?.id && (!item.inventoryStatus || item.inventoryStatus === 'available')) && <section className="mt-10" aria-label="Other cars to consider"><h2 className="section-heading">Other cars to consider</h2><div className="mt-5 grid gap-5 sm:grid-cols-2">{stock.cars.filter(item => item.id !== car?.id && (!item.inventoryStatus || item.inventoryStatus === 'available')).slice(0,3).map(item=><CarCard key={item.id} car={item} />)}</div></section>}</div>;
+  const stockCars = stock?.cars ?? [];
+  if (!car || ['sold', 'archived', 'hidden'].includes(String(car.inventoryStatus))) return <div className="container mx-auto px-4 py-10 sm:px-6 lg:px-8"><PageHeading eyebrow="Vehicle details" title={car ? `${vehicleDisplayTitle(car)} is no longer available` : "This car isn’t in our current stock"} description="This car is no longer in our online stock. Browse our current cars, or ask us about this one." /><div className="flex flex-wrap gap-3"><Button asChild><Link href="/stock">Browse current stock</Link></Button><Button asChild variant="outline"><Link href="/contact">Contact us</Link></Button></div>{stockCars.some(item => item.id !== car?.id && (!item.inventoryStatus || item.inventoryStatus === 'available')) && <section className="mt-10" aria-label="Other cars to consider"><h2 className="section-heading">Other cars to consider</h2><div className="mt-5 grid gap-5 sm:grid-cols-2">{stockCars.filter(item => item.id !== car?.id && (!item.inventoryStatus || item.inventoryStatus === 'available')).slice(0,3).map(item=><CarCard key={item.id} car={item} />)}</div></section>}</div>;
 
-  const similarCars = getSimilarCars(car, stock.cars);
+  const similarCars = getSimilarCars(car, stockCars);
   const registration = vehicleRegistration(car);
   const registrationBand = [car.registrationBand, car.registration]
     .map((value) => value?.trim() || '')
@@ -247,6 +249,7 @@ export default function CarDetail() {
         onClick={() => recordBookingIntent({ source: 'car_detail', vehicleContext: true })}
         data-vehicle-contact="booking"
       >
+        <CalendarDays size={18} aria-hidden="true" />
         {dealerConfig.bookViewing.ctaLabel}
       </a>
   ) : null;
@@ -272,9 +275,11 @@ export default function CarDetail() {
     <div className="vehicle-page vehicle-redesigned vehicle-page-streamlined vehicle-page-enter luxxy-shell min-h-screen">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="vehicle-browse-tools flex items-center">
-          <Link href={browseReturnHref()} onClick={() => requestBrowseRestore()} className="vehicle-return-link text-link min-h-11 text-muted-foreground">
-            <ArrowLeft className="h-4 w-4" />
-            Back to your results
+          <Link href={fromStock ? browseReturnHref() : fromSaved ? '/saved' : '/stock'} onClick={event => {
+            if (fromStock && event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) requestBrowseRestore();
+          }} className="vehicle-return-link text-link min-h-11 text-muted-foreground">
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            {fromStock ? 'Back to your results' : fromSaved ? 'Back to saved cars' : 'Back to stock'}
           </Link>
         </div>
         <div className="vehicle-detail-grid min-w-0">
@@ -301,6 +306,7 @@ export default function CarDetail() {
               {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <p className="text-sm text-muted-foreground">{car.priceType}</p>}
               <PriceReduction car={car} showRecordedDate />
               {damageDisclosure && <a href="#vehicle-history" className="vehicle-insurance-disclosure"><VehicleFactIcon label="Insurance history" /><span>{damageDisclosure.summary}</span><ArrowRight className="h-4 w-4" /></a>}
+              {bookingAction}
             </div>
             {registrationDetails}
             {keyFacts.length > 0 && <dl className="vehicle-key-facts grid grid-cols-2 gap-x-4 gap-y-4" aria-label="Vehicle details">
@@ -321,7 +327,7 @@ export default function CarDetail() {
             {motSummary && <button type="button" className="vehicle-mot-expiry vehicle-mot-fact" onClick={event => openMotHistory(event.currentTarget)} aria-label={`${motSummary.label} ${motSummary.value}. View MOT history`}>
               <VehicleFactIcon label="MOT" /><span>{motSummary.label} <strong>{motSummary.value}</strong></span>
             </button>}
-            <div className="vehicle-primary-actions vehicle-summary-main-actions">{enquiryAction}{bookingAction}</div>
+            {enquiryAction && <div className="vehicle-primary-actions vehicle-summary-main-actions">{enquiryAction}</div>}
             <div className="vehicle-action-tools" aria-label="Contact and share">
               <VehicleCall car={car} buttonLabel="Call" />
               <VehicleWhatsApp car={car} />

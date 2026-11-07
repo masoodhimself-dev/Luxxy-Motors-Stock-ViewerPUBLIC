@@ -3,22 +3,22 @@ import { formatPrice } from '@/lib/utils';
 import { ShowroomPhoto } from '@/components/showroom-photo';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { useDealerSettings } from "@/lib/dealer-settings-context";
-import { websiteText } from "@/lib/website-content";
-import { useEffect, useState } from "react";
+import { customerDefaultCopy, websiteText } from "@/lib/website-content";
 import { useSearch } from "wouter";
-import { parseShortlist, shortlistUrl } from "@/lib/customer-convenience";
+import { parseShortlist } from "@/lib/customer-convenience";
 import { PageHeading, PageEmptyState } from "@/components/page-ui";
 import { Link } from "wouter";
-import { ArrowLeft, ArrowRight, Scale } from "@/components/icons";
+import { ArrowLeft, ArrowRight } from "@/components/icons";
 import { useStock, type Car } from "@/lib/stock-context";
 import { useSavedCars } from "@/lib/saved-cars-context";
 import { CarCard } from "@/components/car-card";
 import { Button } from "@/components/ui/button";
 import { CarComparison } from '@/components/car-comparison';
-import { currentComparisonIds, MAX_COMPARISON_CARS } from '@/lib/car-comparison';
-import { vehicleDisplayTitle } from '@/lib/utils';
+import { CarComparisonTray, useComparisonSelection, useShortlistShare } from '@/components/car-comparison-tray';
+import { MAX_COMPARISON_CARS } from '@/lib/car-comparison';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import './customer-workflows.css';
+import './saved-car-layout.css';
 
 export default function Saved() {
   const { settings } = useDealerSettings();
@@ -32,40 +32,16 @@ export default function Saved() {
   });
   const shownIds = sharedIds ?? savedIds;
   const snapshots = readSavedSnapshots();
-  const [shareStatus, setShareStatus] = useState("");
-  const [copyLink, setCopyLink] = useState("");
-  const [comparisonIds, setComparisonIds] = useState<string[]>([]);
-  const [comparisonOpen, setComparisonOpen] = useState(false);
-  const share = async (ids = shownIds) => {
-    const url = shortlistUrl(ids);
-    setCopyLink('');
-    setShareStatus('');
-    try {
-      if (navigator.share)
-        await navigator.share({ title: "Cars to take a look at", url });
-      else {
-        await navigator.clipboard.writeText(url);
-        setShareStatus("Shortlist link copied");
-      }
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-      setCopyLink(url);
-      setShareStatus("Copy the link below to share these cars.");
-    }
-  };
+  const { share, shareStatus, copyLink, reset: resetShare } = useShortlistShare();
   const cars = shownIds
     .map((id) => stock?.cars.find((car) => car.id === id))
     .filter((car): car is Car => Boolean(car) && !['sold', 'archived', 'hidden'].includes(String(car?.inventoryStatus)));
-  const selectedIds = currentComparisonIds(comparisonIds, cars);
-  const comparedCars = selectedIds.map(id => cars.find(car => car.id === id)!);
-  useEffect(() => {
-    if (selectedIds.length < 2) setComparisonOpen(false);
-  }, [selectedIds.length]);
-  const toggleComparison = (id: string) => setComparisonIds(current => {
-    const available = currentComparisonIds(current, cars);
-    if (available.includes(id)) return available.filter(item => item !== id);
-    return available.length < MAX_COMPARISON_CARS ? [...available, id] : available;
-  });
+  const comparison = useComparisonSelection(cars);
+  const { selectedIds, comparedCars } = comparison;
+  function openComparison() {
+    resetShare();
+    comparison.setOpen(true);
+  }
 
   const unavailableIds =
     !isLoading && stock
@@ -90,55 +66,111 @@ export default function Saved() {
   }
 
   return (
-    <div className="friendly-page friendly-saved luxxy-shell min-h-screen bg-background pb-24 pt-8 md:pt-12">
+    <div className="friendly-page friendly-saved luxxy-shell min-h-screen bg-background pb-24 pt-5 md:pt-8">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <Link
           href="/stock"
           className="inline-flex items-center gap-3 font-display text-[12px] font-normal text-primary transition-colors hover:text-accent group"
         >
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-          Back to showroom
+          Back to stock
         </Link>
 
-        <div className="friendly-shortlist-intro mt-6">
+        <div className="friendly-shortlist-intro">
           <PageHeading
-            eyebrow={websiteText(settings, "savedEyebrow")}
+            eyebrow={sharedIds ? undefined : customerDefaultCopy(websiteText(settings, "savedEyebrow"), "", ["Your shortlist"])}
             title={sharedIds ? "Shared shortlist" : websiteText(settings, "savedTitle")}
             description={
               sharedIds
-                ? "Someone shared these cars with you. Prices and availability reflect the latest stock. Your own saved cars are unchanged."
-                : websiteText(settings, "savedDescription")
-            }
-            action={
-              shownIds.length > 0 && (
-                <div className="flex flex-wrap items-center gap-4">
-                  <p
-                    className="text-sm text-muted-foreground"
-                    data-testid="text-saved-count"
-                  >
-                    {cars.length} {cars.length === 1 ? "car" : "cars"}{" "}
-                    {sharedIds ? "in this shortlist" : "saved"}
-                  </p>
-                  <Button variant="outline" onClick={() => void share()}>
-                    {shownIds.length > 12
-                      ? "Share first 12 cars"
-                      : "Share shortlist"}
-                  </Button>
-                  {!sharedIds && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild><Button variant="ghost" data-testid="button-clear-saved" className="text-muted-foreground">Clear all</Button></AlertDialogTrigger>
-                      <AlertDialogContent className="max-w-[calc(100vw-32px)] rounded-xl sm:max-w-md">
-                        <AlertDialogHeader><AlertDialogTitle>Clear your saved cars?</AlertDialogTitle><AlertDialogDescription>This removes your shortlist from this device. You can save cars again whenever you like.</AlertDialogDescription></AlertDialogHeader>
-                        <AlertDialogFooter><AlertDialogCancel>Keep my cars</AlertDialogCancel><AlertDialogAction onClick={() => clearSaved()}>Clear saved cars</AlertDialogAction></AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
-                </div>
-              )
+                ? "Cars shared with you."
+                : customerDefaultCopy(websiteText(settings, "savedDescription"), "Saved on this device.", ["Kept on this device. Pick up where you left off with your favourites."])
             }
           />
         </div>
 
+        {error ? (
+          <div role="alert">
+            <PageEmptyState
+              title="Stock could not be loaded"
+              action={
+                <Button onClick={() => window.location.reload()}>
+                  Try again
+                </Button>
+              }
+            >
+              Your selections are still saved on this device. Try again to check
+              current availability.
+            </PageEmptyState>
+          </div>
+        ) : cars.length > 0 ? (
+          <div className="saved-car-list flex flex-col gap-6">
+            {cars.map((car) => {
+              const reduction = savedPriceReduction(snapshots[car.id], car);
+              const reserved = car.inventoryStatus === 'reserved';
+              return <div key={car.id} className="overflow-hidden rounded-md border border-border bg-card">
+                {!sharedIds && (reduction != null || reserved) && <div className="flex flex-wrap gap-2 px-4 pt-4 text-sm" aria-label="Saved car updates">
+                  {reduction != null && <p className="rounded bg-secondary px-3 py-2 font-medium">Price reduced by {formatPrice(reduction, car.currency)} since you saved it</p>}
+                  {reserved && <p className="rounded bg-secondary px-3 py-2">{snapshots[car.id]?.status === 'available' ? 'Reserved since you saved it' : 'Currently reserved'}</p>}
+                </div>}
+                <CarCard car={car} layout="compact" catalogue savedDetails analyticsSource="saved_cars"
+                  compareAction={cars.length >= 2 ? {
+                    selected: selectedIds.includes(car.id),
+                    disabled: !selectedIds.includes(car.id) && selectedIds.length === MAX_COMPARISON_CARS,
+                    onToggle: () => comparison.toggle(car.id),
+                  } : undefined}
+                />
+              </div>;
+            })}
+          </div>
+        ) : (
+          <PageEmptyState
+            title={
+              sharedIds
+                ? "No cars available in this shortlist"
+                : unavailableIds.length
+                  ? "No saved cars available"
+                  : "No saved cars yet"
+            }
+            action={
+              <Button asChild>
+                <Link href="/stock">
+                  Browse stock <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            }
+          >
+            {sharedIds
+              ? "These cars are no longer in our current stock. Browse our available cars to start a new shortlist."
+              : unavailableIds.length
+                ? "Your saved cars are no longer in our current stock. Browse our available cars to start a new shortlist."
+                : "Choose Save on a car to add it here."}
+          </PageEmptyState>
+        )}
+        {shownIds.length > 0 && (
+          <div className="saved-car-tools">
+            <p
+              className="text-sm text-muted-foreground"
+              data-testid="text-saved-count"
+            >
+              {cars.length} {cars.length === 1 ? "car" : "cars"}{" "}
+              {sharedIds ? "in this shortlist" : "saved"}
+            </p>
+            <Button variant="outline" onClick={() => void share(shownIds)}>
+              {shownIds.length > 12
+                ? "Share first 12 cars"
+                : "Share shortlist"}
+            </Button>
+            {!sharedIds && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild><Button variant="ghost" data-testid="button-clear-saved" className="text-muted-foreground">Clear all</Button></AlertDialogTrigger>
+                <AlertDialogContent className="max-w-[calc(100vw-32px)] rounded-xl sm:max-w-md">
+                  <AlertDialogHeader><AlertDialogTitle>Clear your saved cars?</AlertDialogTitle><AlertDialogDescription>This removes your shortlist from this device. You can save cars again whenever you like.</AlertDialogDescription></AlertDialogHeader>
+                  <AlertDialogFooter><AlertDialogCancel>Keep my cars</AlertDialogCancel><AlertDialogAction onClick={() => clearSaved()}>Clear saved cars</AlertDialogAction></AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
+        )}
         {shareStatus && (
           <p role="status" className="mt-3 text-sm">
             {shareStatus}
@@ -156,7 +188,7 @@ export default function Saved() {
           </label>
         )}
         {sharedIds && (
-          <Link href="/saved" className="text-link mt-3 min-h-11">
+          <Link href="/saved" className="text-link min-h-11">
             View my saved cars
           </Link>
         )}
@@ -182,74 +214,9 @@ export default function Saved() {
         )}
 
         {!error && !sharedIds && unavailableIds.length > 0 && <div className="mt-4 grid gap-4 sm:grid-cols-2">{unavailableIds.map(id => <article key={id} className="flex items-start gap-4 rounded-md border border-border bg-card p-4">{snapshots[id]?.photo && <ShowroomPhoto src={snapshots[id].photo} alt="" className="aspect-[4/3] w-24 shrink-0" fit="contain" />}<div className="min-w-0"><h2 className="font-semibold">{snapshots[id]?.title || 'Previously saved car'}</h2>{snapshots[id]?.registration && <p className="mt-1 text-xs text-muted-foreground">{snapshots[id].registration}</p>}<p className="mt-1 text-sm text-muted-foreground">No longer available in current stock.</p><Link href="/stock" className="text-link min-h-11 text-sm">Browse alternatives</Link><button onClick={() => clearSaved([id])} className="ml-4 min-h-11 text-sm underline">Remove</button></div></article>)}</div>}
-        {!error && cars.length >= 2 && <>
-          <section className="saved-comparison-tools" aria-labelledby="saved-comparison-heading">
-            <div><h2 id="saved-comparison-heading"><Scale aria-hidden="true" />Compare your favourites</h2><p>Choose 2 or 3 cars to see their details side by side.</p></div>
-            <div className="saved-comparison-actions"><span role="status">{selectedIds.length} of 3 selected</span><Button disabled={selectedIds.length < 2} onClick={() => { setShareStatus(''); setCopyLink(''); setComparisonOpen(true); }}>Compare cars</Button></div>
-          </section>
-          {selectedIds.length === MAX_COMPARISON_CARS && <p className="saved-comparison-limit">To choose another car, untick one of these three.</p>}
-        </>}
-        {error ? (
-          <div role="alert">
-            <PageEmptyState
-              title="Stock could not be loaded"
-              action={
-                <Button onClick={() => window.location.reload()}>
-                  Try again
-                </Button>
-              }
-            >
-              Your selections are still saved on this device. Try again to check
-              current availability.
-            </PageEmptyState>
-          </div>
-        ) : cars.length > 0 ? (
-          <div className="saved-car-list mt-6 flex flex-col gap-6">
-            {cars.map((car) => {
-              const reduction = savedPriceReduction(snapshots[car.id], car);
-              const reserved = car.inventoryStatus === 'reserved';
-              return <div key={car.id} className="overflow-hidden rounded-md border border-border bg-card">
-                {cars.length >= 2 && <div className="saved-comparison-select"><label>
-                  <input type="checkbox" checked={selectedIds.includes(car.id)} disabled={!selectedIds.includes(car.id) && selectedIds.length === MAX_COMPARISON_CARS} onChange={() => toggleComparison(car.id)} aria-label={`Compare ${vehicleDisplayTitle(car)}`} />
-                  <span>{selectedIds.includes(car.id) ? 'Selected for comparison' : 'Compare this car'}</span>
-                </label></div>}
-                {!sharedIds && (reduction != null || reserved) && <div className="flex flex-wrap gap-2 px-4 pt-4 text-sm" aria-label="Saved car updates">
-                  {reduction != null && <p className="rounded bg-secondary px-3 py-2 font-medium">Price reduced by {formatPrice(reduction, car.currency)} since you saved it</p>}
-                  {reserved && <p className="rounded bg-secondary px-3 py-2">{snapshots[car.id]?.status === 'available' ? 'Reserved since you saved it' : 'Currently reserved'}</p>}
-                </div>}
-                <CarCard car={car} layout="compact" catalogue savedDetails analyticsSource="saved_cars" />
-              </div>;
-            })}
-          </div>
-        ) : (
-          <PageEmptyState
-            title={
-              sharedIds
-                ? "No cars available in this shortlist"
-                : unavailableIds.length
-                  ? "No saved cars available"
-                  : "No saved cars yet"
-            }
-            action={
-              <Button asChild>
-                <Link href="/stock">
-                  Browse stock <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
-            }
-          >
-            {sharedIds
-              ? "These cars are no longer in our current stock. Browse our available cars to start a new shortlist."
-              : unavailableIds.length
-                ? "Your saved cars are no longer in our current stock. Browse our available cars to start a new shortlist."
-                : "Tap the heart on any car to save it here."}
-          </PageEmptyState>
-        )}
-        {!error && selectedIds.length > 0 && <div className="saved-comparison-tray">
-          <div><strong>{selectedIds.length} {selectedIds.length === 1 ? 'car' : 'cars'} selected</strong><button type="button" onClick={() => setComparisonIds([])}>Clear selection</button></div>
-          <Button disabled={selectedIds.length < 2} onClick={() => { setShareStatus(''); setCopyLink(''); setComparisonOpen(true); }}>{selectedIds.length < 2 ? 'Choose one more car' : `Compare ${selectedIds.length} cars`}</Button>
-        </div>}
-        <CarComparison cars={comparedCars} open={comparisonOpen && comparedCars.length >= 2 && !error} onOpenChange={setComparisonOpen} onShare={ids => void share(ids)} shareStatus={shareStatus} copyLink={copyLink} />
+        {!error && <CarComparisonTray cars={comparedCars} onRemove={comparison.toggle}
+          onClear={comparison.clear} onCompare={openComparison} />}
+        <CarComparison cars={comparedCars} open={comparison.open && comparedCars.length >= 2 && !error} onOpenChange={comparison.setOpen} onShare={ids => void share(ids)} shareStatus={shareStatus} copyLink={copyLink} returnSource="saved" />
       </div>
     </div>
   );

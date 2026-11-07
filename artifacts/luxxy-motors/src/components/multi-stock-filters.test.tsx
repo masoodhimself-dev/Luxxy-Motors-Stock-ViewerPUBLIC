@@ -196,21 +196,21 @@ afterEach(() => {
 });
 
 describe("Multi-Choice stock controls", () => {
-  it("keeps the supplied SVGs, typography and flat reference row order with every section initially collapsed", () => {
+  it("puts common filters first with the supplied SVGs and every section initially collapsed", () => {
     const { container } = render(<Harness />);
     expect(within(sidebar()).getByRole("heading", { name: "Search Filters" })).toBeVisible();
     const rows = [...sidebar().querySelectorAll<HTMLButtonElement>(".multi-stock-section__toggle")];
     const expected = [
+      ["Price", "11-filter-max-price-badge-pound-sterling.svg"],
       ["Make", "02-filter-make-car.svg"],
       ["Model", "05-filter-model-layout-list.svg"],
-      ["Colour", "06-filter-colour-palette.svg"],
-      ["Body Type", "07-filter-body-type-and-vehicle-type-truck.svg"],
-      ["Engine Size", "08-filter-engine-size-and-gearbox-settings.svg"],
-      ["Seats", "09-filter-seats-users.svg"],
-      ["Mileage", "10-filter-mileage-gauge.svg"],
-      ["Max Price", "11-filter-max-price-badge-pound-sterling.svg"],
-      ["Fuel Type", "12-filter-fuel-type-fuel.svg"],
       ["Gearbox", "08-filter-engine-size-and-gearbox-settings.svg"],
+      ["Fuel Type", "12-filter-fuel-type-fuel.svg"],
+      ["Body Type", "07-filter-body-type-and-vehicle-type-truck.svg"],
+      ["Colour", "06-filter-colour-palette.svg"],
+      ["Seats", "09-filter-seats-users.svg"],
+      ["Engine Size", "08-filter-engine-size-and-gearbox-settings.svg"],
+      ["Mileage", "10-filter-mileage-gauge.svg"],
       ["Vehicle Type", "07-filter-body-type-and-vehicle-type-truck.svg"],
       ["ULEZ", "13-filter-ulez-leaf.svg"],
     ];
@@ -222,7 +222,7 @@ describe("Multi-Choice stock controls", () => {
       expect(icon).toHaveAttribute("src", `/brand/multi-choice-motors/filters/${expected[index][1]}`);
       expect(icon).toHaveAttribute("alt", "");
       expect(icon).toHaveAttribute("aria-hidden", "true");
-      expect(icon).toHaveAttribute("width", index === 0 ? "20" : "16");
+      expect(icon).toHaveAttribute("width", expected[index][0] === "Make" ? "20" : "16");
       expect(readFileSync(`public/brand/multi-choice-motors/filters/${expected[index][1]}`, "utf8")).toContain("<svg");
       expect(row.querySelector('img[data-filter-icon="chevron"]')).toHaveAttribute("src", "/brand/multi-choice-motors/filters/03-chevron-down.svg");
     });
@@ -360,7 +360,7 @@ describe("Multi-Choice stock controls", () => {
 
   it("uses genuine finite budget caps and preserves custom linked budgets with valid counterpart changes", () => {
     render(<Harness initial={{ minPrice: "7600", maxPrice: "9000" }} />);
-    expand("Max Price, 2 selected");
+    expand("Price, 2 selected");
     const min = within(sidebar()).getByRole("combobox", { name: "Min price" });
     const max = within(sidebar()).getByRole("combobox", { name: "Max price" });
     expect(min).toHaveValue("7600");

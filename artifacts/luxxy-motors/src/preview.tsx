@@ -1,4 +1,5 @@
 import { captureInvitationToken } from '@/lib/account-invitation-token';
+import { captureStockAlertToken } from '@/lib/stock-alert-token';
 import RetiredSalesPage from '@/pages/retired-sales';
 import { lazy, Suspense } from "react";
 import { RouteLoading } from "@/components/route-loading";
@@ -20,6 +21,7 @@ import NotFound from '@/pages/not-found';
 import Home from '@/pages/home';
 const CarDetail = lazy(() => import("@/pages/car-detail"));
 const Saved = lazy(() => import("@/pages/saved"));
+const StockAlertAction = lazy(() => import('@/pages/stock-alert-action'));
 const Enquire = lazy(() => import("@/pages/enquire"));
 const Contact = lazy(() => import('@/pages/contact'));
 const Warranty = lazy(() => import('@/pages/warranty'));
@@ -41,6 +43,7 @@ function PreviewLayout({ children }: { children: React.ReactNode }) {
 }
 
 captureInvitationToken();
+captureStockAlertToken();
 
 createRoot(document.getElementById('root')!).render(
   <ErrorBoundary>
@@ -65,6 +68,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="/cars/:slug" component={CarDetail} />
                   <Route path="/s/:code" component={CarDetail} />
                   <Route path="/saved" component={Saved} />
+                  <Route path="/stock-alerts/:action" component={StockAlertAction} />
                   <Route path="/enquire" component={Enquire} />
                   <Route path="/contact" component={Contact} />
                   <Route path="/warranty" component={Warranty} />

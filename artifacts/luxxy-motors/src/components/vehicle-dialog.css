@@ -81,7 +81,7 @@
 .vehicle-action-dialog :is(.vehicle-dialog-back, .vehicle-action-secondary) { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; height: auto; padding: 10px 12px; border: 1px solid var(--dialog-border); border-radius: var(--mh-radius-control, 4px); background: transparent; color: var(--dialog-accent); font-size: 13px; font-weight: 500; line-height: 1.5; text-align: center; text-decoration: none; white-space: normal; }
 .vehicle-action-dialog .vehicle-dialog-back { border-color: transparent; }
 .vehicle-action-dialog :is(.vehicle-dialog-back, .vehicle-action-secondary):hover { background: var(--dialog-subtle); }
-.vehicle-dialog-confirmation { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid #c8dbd2; border-radius: var(--mh-radius-control, 4px); background: #f1f7f4; color: #296047; }
+.vehicle-dialog-confirmation { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid var(--customer-positive-border, #c8dbd2); border-radius: var(--mh-radius-control, 4px); background: var(--customer-positive-soft, #f1f7f4); color: var(--customer-positive, #296047); }
 .vehicle-dialog-result[data-status="cancelled"] .vehicle-dialog-confirmation { background: var(--dialog-subtle); border-color: var(--dialog-border); color: var(--dialog-muted); }
 .vehicle-dialog-confirmation .vehicle-dialog-eyebrow { color: inherit; padding: 0; font-size: 11px; }
 .vehicle-dialog-reference { font-size: 18px; font-weight: var(--mh-weight-label, 600); overflow-wrap: anywhere; }
@@ -102,7 +102,7 @@
 .vehicle-action-field-full { grid-column: 1 / -1; }
 .vehicle-action-feedback { display: flex; align-items: flex-start; gap: 10px; }
 .vehicle-action-feedback > svg { flex-shrink: 0; margin-top: 2px; }
-.vehicle-action-feedback-success { padding: 16px; border: 1px solid #c8dbd2; border-radius: var(--mh-radius-control, 4px); background: #f1f7f4; color: #296047; font-size: 13px; line-height: 1.65; }
+.vehicle-action-feedback-success { padding: 16px; border: 1px solid var(--customer-positive-border, #c8dbd2); border-radius: var(--mh-radius-control, 4px); background: var(--customer-positive-soft, #f1f7f4); color: var(--customer-positive, #296047); font-size: 13px; line-height: 1.65; }
 .vehicle-action-feedback-title { font-weight: var(--mh-weight-label, 600); }
 .vehicle-action-privacy a { color: var(--dialog-accent); }
 .vehicle-action-alternative { display: grid; gap: 10px; padding-top: 18px; border-top: 1px solid var(--dialog-border); }

@@ -299,7 +299,7 @@
 .vehicle-context-action { min-height: 44px; height: auto; max-width: 100%; padding: .5rem 0; gap: .5rem; justify-content: flex-start; text-align: left; white-space: normal; text-decoration: underline; text-underline-offset: 4px; }
 .vehicle-context-action svg { width: 1rem; height: 1rem; flex-shrink: 0; }
 .vehicle-history-mot { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .25rem 1rem; margin-top: .75rem; }
-.vehicle-long-mot { display: inline-flex; align-items: center; min-height: 44px; border: 1px solid #a7d8bd; border-radius: .5rem; padding: .4rem .75rem; background: #edf8f1; color: #18633e; font-size: .8125rem; font-weight: 600; }
+.vehicle-long-mot { display: inline-flex; align-items: center; min-height: 44px; border: 1px solid var(--customer-positive-border, #a7d8bd); border-radius: .5rem; padding: .4rem .75rem; background: var(--customer-positive-soft, #edf8f1); color: var(--customer-positive, #18633e); font-size: .8125rem; font-weight: 600; }
 .vehicle-long-mot:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 
 .vehicle-mobile-availability, .vehicle-mobile-actions { display: none; }

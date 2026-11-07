@@ -180,6 +180,7 @@ vi.mock('@/lib/home-navigation', () => ({
 }));
 
 vi.mock('@workspace/api-client-react', () => ({
+  customFetch: async () => ({ status: 'unavailable' }),
   useGetRecentHandovers: () => ({ data: recentHandoversState.value, isLoading: recentHandoversState.value.isLoading, isError: recentHandoversState.value.isError }),
   getGetRecentHandoversQueryKey: () => ['/api/recent-handovers'],
 }));
@@ -256,7 +257,7 @@ describe('shared showroom data and controls', () => {
     window.history.replaceState({}, '', '/stock?transmission=Automatic');
     renderHome();
     expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series']);
-    expect(screen.getByTestId('text-filtered-stock-count')).toHaveTextContent('2 cars match your search');
+    expect(screen.getByTestId('text-filtered-stock-count')).toHaveTextContent('2 cars');
   });
 
   it('keeps browsing and view controls usable when browser storage is blocked', () => {
@@ -336,9 +337,10 @@ describe('shared showroom data and controls', () => {
     expect(resultTitles()).toEqual(['BMW 1 Series', 'Ford Fiesta', 'BMW 3 Series']);
   });
 
-  it('keeps the result count by the title and preserves a bespoke stock introduction', () => {
+  it('shows one result count and preserves a bespoke stock introduction', () => {
     overrideSettings = { ...dealerConfigFixture, presentation: { websiteCopy: { stockIntroduction: 'Browse our hand-picked stock.' } } };
-    renderHome(); expect(document.querySelector('.stock-title-group')).toContainElement(screen.getByTestId('text-filtered-stock-count'));
+    renderHome(); expect(screen.getByTestId('multi-stock-toolbar')).toContainElement(screen.getByTestId('text-filtered-stock-count'));
+    expect(screen.getAllByRole('status')).toHaveLength(1);
     expect(screen.getByText('Browse our hand-picked stock.')).toBeInTheDocument();
   });
 });
@@ -398,11 +400,11 @@ describe('shared homepage and dealer content', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Loading featured cars…');
   });
 
-  it('counts only public body types and links each to the shared stock filters', () => {
+  it('shows public body types and links each to shared stock filters', () => {
     stockFixture.cars = [{...originalCars[0],bodyType:'SUV'}, {...originalCars[1],bodyType:' suv '}, {...originalCars[2],bodyType:'Hatchback'}, {...originalCars[3],bodyType:'Estate',inventoryStatus:'hidden'}];
     renderHome(false); const section = within(screen.getByRole('region', { name: 'Browse by body type' }));
-    expect(section.getByRole('link',{name:'SUV 2 cars'})).toHaveAttribute('href','/stock?bodyType=SUV');
-    expect(section.getByRole('link',{name:'Hatchback 1 car'})).toHaveAttribute('href','/stock?bodyType=Hatchback');
+    expect(section.getByRole('link',{name:'SUV'})).toHaveAttribute('href','/stock?bodyType=SUV');
+    expect(section.getByRole('link',{name:'Hatchback'})).toHaveAttribute('href','/stock?bodyType=Hatchback');
     expect(section.queryByRole('link',{name:/Estate/})).not.toBeInTheDocument();
   });
 
@@ -427,7 +429,7 @@ describe('shared stock cards', () => {
     renderHome(); const card = screen.getByTestId('card-vehicle-bmw-1-series');
     expect(card).toHaveTextContent('12,885 miles'); expect(card).toHaveTextContent('Heated seats');
     expect(card).toHaveTextContent('Advert states Category S'); expect(card).not.toHaveTextContent('low mileage');
-    expect(within(card).getByRole('link', { name: 'View car' })).toHaveAttribute('href', '/vehicle/bmw-1-series');
+    expect(within(card).getByRole('link', { name: 'View car' })).toHaveAttribute('href', '/vehicle/bmw-1-series?from=stock');
   });
 
   it('shows only a supplied structured insurance category', () => {
@@ -442,12 +444,13 @@ describe('shared stock cards', () => {
     stockFixture.cars = [car]; renderHome(); const card = screen.getByTestId(`card-vehicle-${car.id}`);
     expect(within(card).queryByRole('button', { name: `Previous photo of ${car.title}` })).not.toBeInTheDocument();
     expect(within(card).queryByRole('button', { name: `Next photo of ${car.title}` })).not.toBeInTheDocument();
-    expect(within(card).queryByTestId(`button-save-${car.id}`)).not.toBeInTheDocument(); expect(card.querySelector('.stock-photo-count')).toBeNull();
+    expect(card.querySelector('.vehicle-card-photo button')).toBeNull(); expect(card.querySelector('.stock-photo-count')).toBeNull();
+    expect(within(card).getByTestId(`button-save-${car.id}`)).toBeInTheDocument();
     const logo = within(card).getByRole('heading', { name: 'BMW 1 Series' }).querySelector('img');
     expect(logo).toHaveAttribute('src', '/brand/car-makes/bmw.svg'); expect(logo).toHaveAttribute('alt', ''); expect(logo).toHaveAttribute('aria-hidden', 'true');
     expect(card.querySelector('.vehicle-card-photo img[src*="car-makes"]')).toBeNull();
     const photograph = within(card).getByRole('link', { name: `View full details for ${car.title}` });
-    expect(photograph).toHaveAttribute('href', `/vehicle/${car.id}`);
+    expect(photograph).toHaveAttribute('href', `/vehicle/${car.id}?from=stock`);
     fireEvent.click(photograph); expect(window.location.pathname).toBe(`/vehicle/${car.id}`);
   });
 
@@ -455,6 +458,29 @@ describe('shared stock cards', () => {
     stockFixture.cars = [{ ...originalCars[0], make: 'Unknown make' }]; renderHome();
     const title = within(screen.getByTestId('card-vehicle-bmw-1-series')).getByRole('heading');
     expect(title.querySelector('img')).toBeNull(); expect(title).not.toHaveClass('make-logo-card-heading');
+  });
+
+  it('saves and compares directly in stock and keeps the comparison on return', async () => {
+    window.history.replaceState({}, '', '/stock');
+    const view = renderHome();
+    const first = within(screen.getByTestId('card-vehicle-bmw-1-series'));
+    fireEvent.click(first.getByRole('button', { name: 'Save BMW 1 Series to your saved cars' }));
+    expect(screen.getByRole('link', { name: 'Saved (1)' })).toHaveAttribute('href', '/saved');
+    expect(window.location.pathname).toBe('/stock');
+    fireEvent.click(first.getByRole('button', { name: 'Compare BMW 1 Series' }));
+    const selection = screen.getByRole('region', { name: 'Car comparison selection' });
+    expect(within(selection).getByRole('button', { name: 'Choose one more car' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Compare BMW 3 Series' }));
+    fireEvent.click(within(selection).getByRole('button', { name: 'Compare 2 cars' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Compare your cars' });
+    expect(within(dialog).getByRole('link', { name: 'BMW 1 Series' })).toHaveAttribute('href', '/vehicle/bmw-1-series?from=stock');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Back to stock' }));
+    view.unmount();
+    renderHome();
+    expect(screen.getByRole('button', { name: 'Compare BMW 1 Series' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: '2 cars selected' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove BMW 1 Series from comparison' }));
+    expect(screen.getByRole('button', { name: 'Compare BMW 1 Series' })).toHaveAttribute('aria-pressed', 'false');
   });
 });
 
@@ -513,7 +539,7 @@ describe('shared stock filter integration', () => {
     fireEvent.click(within(sidebar).getByRole('button', { name: /^Colour(?:\s|$)/ }));
     fireEvent.click(within(sidebar).getByRole('checkbox', { name: 'Blue' }));
     expect(resultTitles()).toEqual(['BMW 1 Series', 'VW Golf']);
-    expect(screen.getByTestId('text-filtered-stock-count')).toHaveTextContent('2 cars match your search');
+    expect(within(screen.getByTestId('multi-stock-toolbar')).getByRole('status')).toHaveTextContent('2 cars');
     expect(new URLSearchParams(location.search).get('make')).toBe('BMW,Volkswagen');
     expect(new URLSearchParams(location.search).get('colour')).toBe('Blue');
     expect(screen.getByRole('button', { name: 'Remove colour Blue filter' })).toBeInTheDocument();
@@ -565,7 +591,7 @@ describe('shared stock filter integration', () => {
     expect(window.location.search).toBe('');
     expect(screen.queryByLabelText('Applied stock filters')).not.toBeInTheDocument();
     expect(screen.getByRole('searchbox', { name: 'Search cars' })).toHaveValue('');
-    expect(screen.getByTestId('text-filtered-stock-count')).toHaveTextContent('5 cars in stock');
+    expect(within(screen.getByTestId('multi-stock-toolbar')).getByRole('status')).toHaveTextContent('5 cars');
   });
 
   it('uses the new URL state for empty-result alternatives and clears every advanced filter', async () => {
@@ -685,6 +711,6 @@ describe('shared stock filter integration', () => {
     expect(screen.getByTestId('multi-stock-toolbar')).toBeInTheDocument();
     expect(signature()).toEqual(sharedDisplay);
     // Every dealer retains the approved stock image and card geometry.
-    expect(screen.queryByTestId('button-save-bmw-1-series')).not.toBeInTheDocument();
+    expect(document.querySelector('.vehicle-card-photo [data-testid="button-save-bmw-1-series"]')).toBeNull();
   });
 });

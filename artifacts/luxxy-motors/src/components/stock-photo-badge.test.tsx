@@ -1,6 +1,7 @@
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { Car } from '@/lib/stock-context';
+import { SavedCarsProvider } from '@/lib/saved-cars-context';
 import { StockPhotoBadge, stockPhotoBadge } from './stock-photo-badge';
 import { CarCard } from './car-card';
 
@@ -78,10 +79,10 @@ it.each(['reserved', 'sold', 'hidden', 'archived'])('does not promote %s cars as
 });
 
 it.each(['card', 'compact', 'row'] as const)('places the badge on the stock photograph in %s view without duplicate reduction copy', layout => {
-  render(<CarCard car={reduced()} stockDetails catalogue layout={layout} photoControls={false} />);
+  render(<CarCard car={reduced()} stockDetails catalogue layout={layout} photoControls={false} />, { wrapper: SavedCarsProvider });
   expect(screen.getByTestId('stock-photo-badge').closest('.vehicle-card-photo')).not.toBeNull();
   expect(screen.queryByTestId('price-reduction')).not.toBeInTheDocument();
-  expect(screen.getByRole('link', {name: 'View full details for Ford Focus'})).toHaveAttribute('href', '/vehicle/badge-car');
+  expect(screen.getByRole('link', {name: 'View full details for Ford Focus'})).toHaveAttribute('href', '/vehicle/badge-car?from=stock');
 });
 
 it('leaves vehicle-page recommendations, featured and saved cards without photo badges', () => {

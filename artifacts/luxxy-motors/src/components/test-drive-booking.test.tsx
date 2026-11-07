@@ -43,6 +43,20 @@ beforeEach(() => {
 });
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
+it('searches beyond the first booking results and puts the next step beside the chosen car', () => {
+  const cars = Array.from({ length: 6 }, (_, index) => ({ ...car, id: `car-${index}`, title: `Ford Fiesta ${index}` }));
+  render(<TestDriveBooking stockCars={cars} />);
+  const chooser = screen.getByTestId('viewing-vehicle-required');
+  expect(within(chooser).getAllByRole('radio')).toHaveLength(4);
+  expect(within(chooser).queryByRole('link', { name: 'Choose date and time' })).not.toBeInTheDocument();
+  fireEvent.change(within(chooser).getByRole('searchbox', { name: 'Find a car' }), { target: { value: 'fiesta 5 ford' } });
+  const choice = within(chooser).getByRole('radio', { name: 'Select Ford Fiesta 5' });
+  expect(within(chooser).getAllByRole('radio')).toHaveLength(1);
+  fireEvent.click(choice);
+  expect(within(choice.closest('.booking-car-option') as HTMLElement).getByRole('link', { name: 'Choose date and time' }))
+    .toHaveAttribute('href', '/enquire?type=viewing&vehicleId=car-5');
+});
+
 it('sends the reviewed booking once, waits for the response and shows the saved appointment without claiming an unsent email', () => {
   const view = render(booking());
   fireEvent.click(screen.getByTestId('button-viewing-date-2026-10-17'));
@@ -238,7 +252,7 @@ it('summarises the chosen time before continuing and clears it when the date cha
   expect(screen.getByTestId('button-continue-to-details')).toBeDisabled();
 });
 
-it('keeps neighbouring date buttons in place and retains every permitted date in the selector', () => {
+it('keeps neighbouring date buttons in place and offers the other permitted dates in the selector', () => {
   state.daysAhead = 12;
   render(booking());
   const dates = screen.getByTestId('group-viewing-dates');
@@ -246,7 +260,8 @@ it('keeps neighbouring date buttons in place and retains every permitted date in
   fireEvent.click(screen.getByTestId('button-viewing-date-2026-10-20'));
   expect(within(dates).getAllByRole('button').map(button => button.getAttribute('data-testid'))).toEqual(original);
   const selector = screen.getByTestId('select-viewing-date');
-  expect(within(selector).getAllByRole('option')).toHaveLength(13);
+  expect(within(selector).getAllByRole('option')).toHaveLength(9);
+  expect(within(selector).getByRole('option', { name: 'More dates' })).toBeDisabled();
   fireEvent.change(selector, { target: { value: '2026-10-26' } });
   expect(screen.getByTestId('button-viewing-date-2026-10-26')).toHaveAttribute('aria-pressed', 'true');
   expect(screen.getByTestId('button-continue-to-details')).toBeDisabled();
@@ -264,13 +279,12 @@ it('offers the next permitted date and direct contact when a day has no slots', 
   expect(state.mutate).not.toHaveBeenCalled();
 });
 
-it('keeps the night-time message specific to an empty today, not future dates', () => {
+it('uses the same plain availability guidance after closing', () => {
   state.empty = true;
   vi.setSystemTime(new Date('2026-10-16T21:00:00Z'));
   render(booking());
-  expect(screen.getByLabelText('Booking at night')).toHaveTextContent('Even car people need sleep');
+  expect(screen.getByTestId('status-availability-empty')).toHaveTextContent('No appointments are available on this date');
   fireEvent.click(screen.getByTestId('button-viewing-date-2026-10-17'));
-  expect(screen.queryByLabelText('Booking at night')).not.toBeInTheDocument();
   expect(screen.getByTestId('status-availability-empty')).toHaveTextContent('No appointments are available on this date');
 });
 
@@ -303,8 +317,9 @@ it('uses readable compact date options and keeps later choices in one consecutiv
   state.daysAhead = 30;
   render(booking());
   const select = screen.getByTestId('select-viewing-date');
-  expect(within(select).getByRole('option', { name: 'Fri 16 Oct' })).toBeInTheDocument();
-  expect(within(select).getAllByRole('option')).toHaveLength(31);
+  expect(within(select).queryByRole('option', { name: 'Fri 16 Oct' })).not.toBeInTheDocument();
+  expect(within(select).getByRole('option', { name: 'Wed 21 Oct' })).toBeInTheDocument();
+  expect(within(select).getAllByRole('option')).toHaveLength(27);
   fireEvent.change(select, { target: { value: '2026-11-12' } });
   const dateButtons = within(screen.getByTestId('group-viewing-dates')).getAllByRole('button');
   expect(dateButtons.map(button => button.getAttribute('data-testid'))).toEqual([

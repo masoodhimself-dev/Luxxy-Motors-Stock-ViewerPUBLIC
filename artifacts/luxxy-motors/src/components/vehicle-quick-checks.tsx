@@ -224,6 +224,7 @@ export function VehicleQuickChecks({
               <DeliveryEstimator
                 key={vehicleId}
                 expanded
+                customerEnquiries={false}
                 initialEstimate={estimate}
                 onEstimate={acceptEstimate}
                 vehiclePrice={vehiclePrice}

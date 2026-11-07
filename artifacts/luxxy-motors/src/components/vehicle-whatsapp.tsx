@@ -63,7 +63,7 @@ function VehicleWhatsAppSheet({
         className={`vehicle-contact-action vehicle-contact-action-whatsapp ${compact ? 'h-12 w-12 shrink-0 p-0' : ''}`}
       >
         <SiWhatsapp aria-hidden="true" className="h-4 w-4" />
-        {!compact && 'WhatsApp Us'}
+        {!compact && 'WhatsApp'}
       </button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent

@@ -1,0 +1,49 @@
+.customer-site.dealer-site-theme .friendly-saved .friendly-shortlist-intro .page-heading {
+  margin-bottom: 0;
+  padding-bottom: 12px;
+}
+.friendly-saved .friendly-shortlist-intro { margin-top: 12px; }
+.friendly-saved .friendly-shortlist-intro .page-heading p { margin-top: 6px; }
+.friendly-saved .saved-car-list { margin-top: 16px; }
+.friendly-saved .saved-car-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin-top: 16px;
+  padding-block: 8px;
+  border-top: 1px solid hsl(var(--border));
+}
+.friendly-saved .saved-car-tools button { min-height: 44px; }
+.friendly-saved .vehicle-card-compare {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding-inline: 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: hsl(var(--primary));
+  font-size: 13px;
+  font-weight: 600;
+}
+.friendly-saved .vehicle-card-compare:is(:hover:not(:disabled), [aria-pressed="true"]) {
+  background: hsl(var(--secondary));
+  border-color: hsl(var(--border));
+}
+.friendly-saved .vehicle-card-compare:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+.friendly-saved .vehicle-card-compare:disabled { opacity: .5; cursor: not-allowed; }
+@media (min-width: 768px) {
+  .friendly-saved .saved-car-list .vehicle-card-saved-details .vehicle-card-photo {
+    align-self: flex-start;
+    align-items: flex-start;
+  }
+}
+@media (min-width: 768px) and (max-width: 1099px) {
+  .friendly-saved .vehicle-card-saved-details .saved-car-specs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

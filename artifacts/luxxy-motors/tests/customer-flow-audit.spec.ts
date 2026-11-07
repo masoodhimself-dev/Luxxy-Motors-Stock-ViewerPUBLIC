@@ -40,7 +40,7 @@ for (const width of [390, 820, 1440]) {
       await capture(page, `${name}-${width}`);
     }
     await page.goto('/enquire?type=viewing');
-    await expect(page.getByRole('button', { name: 'Select a car to continue' })).toBeDisabled();
+    await expect(page.getByRole('link', { name: 'Choose date and time' })).toHaveCount(0);
     await page.locator('input[name="viewing-vehicle"]').first().check();
     await page.getByRole('link', { name: 'Choose date and time' }).click();
     await expect(page).toHaveURL(/type=viewing&vehicleId=/);
@@ -113,18 +113,17 @@ for (const width of [390, 820, 1440]) {
     await page.addInitScript(() => { window.open = (url) => { (window as any).auditWhatsApp = String(url); return null; }; });
     await page.goto(`/enquire?type=part_exchange&vehicleId=${vehicle.id}`);
     const next = page.getByTestId('button-part-exchange-continue');
-    await next.click();
-    await expect(page.getByTestId('input-part-exchange-registration')).toBeFocused();
     await page.getByTestId('input-part-exchange-registration').fill('AB12 CDE');
+    await page.getByRole('button', { name: 'Enter details manually' }).click();
     await page.getByTestId('input-part-exchange-model').fill('Volkswagen Golf');
     await page.getByTestId('input-part-exchange-mileage').fill('42000');
+    await page.getByText('Condition and paperwork (optional)').click();
+    await page.getByLabel('Overall condition').selectOption({ label: 'Good — normal wear for its age' });
+    await page.getByLabel('How many keys do you have?').selectOption('2 keys');
+    await page.getByLabel('Do you have the V5C logbook?').selectOption('Yes');
+    await page.getByLabel('Service history').selectOption('Full history');
     await next.click();
-    await page.getByTestId('select-part-exchange-condition').selectOption({ label: 'Good — normal wear for its age' });
-    await page.getByTestId('select-part-exchange-keys').selectOption('2 keys');
-    await page.getByTestId('select-part-exchange-v5').selectOption('Yes');
-    await page.getByTestId('select-part-exchange-history').selectOption('Full history');
-    await next.click();
-    await expect(page.getByTestId('select-part-exchange-target-vehicle')).toHaveValue(vehicle.id);
+    await expect(page.getByRole('button', { name: 'Change car' })).toBeVisible();
     await expect(page.getByTestId('card-part-exchange-target-vehicle')).toBeVisible();
     await next.click();
     await page.getByRole('radio', { name: /Send everything on WhatsApp/ }).check();
@@ -137,8 +136,9 @@ for (const width of [390, 820, 1440]) {
     const handoff = new URL(await page.evaluate(() => (window as any).auditWhatsApp));
     expect(handoff.hostname).toBe('wa.me');
     const message = handoff.searchParams.get('text');
-    for (const value of ['AB12 CDE', 'Volkswagen Golf', '42,000', vehicle.id, 'Audit Buyer', '07700 900123']) expect(message).toContain(value);
-    await expect(page.getByRole('status').filter({ hasText: 'WhatsApp was requested' })).toBeVisible();
+    for (const value of ['AB12 CDE', 'Volkswagen Golf', '42,000', 'Audit Buyer', '07700 900123']) expect(message).toContain(value);
+    expect(message).toContain('I’m interested in your');
+    await expect(page.getByRole('status').filter({ hasText: 'Tap Send in WhatsApp' })).toBeVisible();
     await fits(page);
     await capture(page, `part-exchange-review-${width}`);
   });

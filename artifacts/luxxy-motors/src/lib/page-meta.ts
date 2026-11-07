@@ -159,7 +159,7 @@ export function vehiclePageMeta(
 
 export function showroomPageMeta(
   dealer: Parameters<typeof dealerIdentity>[0],
-  options: { count?: number | null } = {},
+  options: Parameters<typeof buildShowroomMeta>[1] = {},
 ): PageMeta {
   const meta = buildShowroomMeta(dealerIdentity(dealer), options);
   return { title: meta.title, description: meta.description, type: 'website' };

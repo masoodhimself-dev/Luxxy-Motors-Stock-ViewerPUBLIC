@@ -18,6 +18,7 @@ import { pool } from '@workspace/db';
 import { serviceLifecycle } from './lib/service-lifecycle';
 import { createShutdown, installShutdownSignals } from './lib/shutdown';
 import { startEmailOutboxWorker } from './lib/email-outbox';
+import { startStockAlertWorker } from './lib/stock-alert-worker';
 import { createPostgresCazooFeedRepository, startCazooFeedCollector } from './lib/cazoo-feed-collector';
 
 // Validate public links before listening or starting background database work.
@@ -52,6 +53,7 @@ const server = app.listen(port, (err) => {
     startDomainSetupWorker(logger),
     startReminderWorker(logger),
     startEmailOutboxWorker(logger),
+    startStockAlertWorker(logger),
     startCustomerReplyWorker(logger),
     startCazooLeadWorker(logger),
     startStaffPushWorker(logger),

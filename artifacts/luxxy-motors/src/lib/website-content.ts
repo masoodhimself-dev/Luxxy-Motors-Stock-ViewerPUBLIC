@@ -65,13 +65,13 @@ export const websiteFields = [
     "key": "contactTitle",
     "label": "Contact title",
     "group": "Contact",
-    "defaultValue": "Contact us."
+    "defaultValue": "Contact us"
   },
   {
     "key": "contactIntroduction",
     "label": "Contact introduction",
     "group": "Contact",
-    "defaultValue": "Ask us about a car, a part exchange or a visit. Send a message or book a time to come in."
+    "defaultValue": "Call, email or message us about a car."
   },
   {
     "key": "contactTalkHeading",
@@ -137,7 +137,7 @@ export const websiteFields = [
     "key": "warrantyDetailsHeading",
     "label": "Warranty details heading",
     "group": "Warranty",
-    "defaultValue": "The details worth checking."
+    "defaultValue": "Warranty questions"
   },
   {
     "key": "warrantyDetailsIntroduction",
@@ -149,7 +149,7 @@ export const websiteFields = [
     "key": "warrantyEnquiryHeading",
     "label": "Warranty enquiry heading",
     "group": "Warranty",
-    "defaultValue": "Ask about your chosen vehicle."
+    "defaultValue": "Ask about warranty"
   },
   {
     "key": "savedEyebrow",
@@ -203,7 +203,7 @@ export const websiteFields = [
     "key": "part_exchangeDescription",
     "label": "Part-exchange description",
     "group": "Enquiry pages",
-    "defaultValue": "Tell us about your car and which of ours you\u2019re interested in. We\u2019ll discuss the next steps with you."
+    "defaultValue": "Tell us about your car and ask about your part-exchange options."
   },
   {"key": "vehicleSpecificationHeading", "label": "Specification heading", "group": "Vehicle page", "defaultValue": "Vehicle specification"},
   {"key": "vehicleDescriptionHeading", "label": "Description heading", "group": "Vehicle page", "defaultValue": "About this vehicle"},
@@ -259,13 +259,19 @@ const previousWebsiteDefaults: Partial<Record<WebsiteTextKey, readonly string[]>
   featuredHeading: ['Featured cars'],
   servicesHeading: ['The details, taken care of.'],
   teamHeading: ['Meet the team'],
-  contactIntroduction: ['A question about a car, a part exchange or a visit? Speak to the team, send a message or arrange a time to see us.'],
+  contactTitle: ['Contact us.'],
+  contactIntroduction: ['A question about a car, a part exchange or a visit? Speak to the team, send a message or arrange a time to see us.', 'Ask us about a car, a part exchange or a visit. Send a message or book a time to come in.'],
+  warrantyDetailsHeading: ['The details worth checking.'],
+  warrantyEnquiryHeading: ['Ask about your chosen vehicle.'],
   contactTalkHeading: ['Talk to the showroom'],
   contactMessageDescription: ['Tell us which car you’re considering, ask about a part exchange, or leave a question for the team.'],
   warrantyDetailsIntroduction: ['A useful warranty conversation starts with the policy wording. These are the points to confirm for the car and cover you are considering.'],
   viewingDescription: ['Choose a date and time to see the car and ask the team any questions.'],
   generalDescription: ['A direct line to the team behind the showroom. We will come back to you with a useful answer.'],
-  part_exchangeDescription: ['Tell us about your car. Choose your next one. Choose how to send your details.'],
+  part_exchangeDescription: [
+    'Tell us about your car. Choose your next one. Choose how to send your details.',
+    'Tell us about your car and which of ours you’re interested in. We’ll discuss the next steps with you.',
+  ],
 };
 
 /** Refresh a known template phrase without rewriting dealer-supplied content. */

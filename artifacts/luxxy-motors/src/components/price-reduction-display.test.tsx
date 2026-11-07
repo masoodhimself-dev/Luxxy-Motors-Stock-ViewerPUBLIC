@@ -14,15 +14,15 @@ afterEach(() => vi.useRealTimers());
 it('keeps the previous price and saving readable without adding a date to stock cards', () => {
   vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-02T12:00:00Z'));
   render(<PriceReduction car={car} />);
-  expect(screen.getByLabelText('Recorded price reduction')).toHaveTextContent('Price reducedWas £4,175Save £200');
+  expect(screen.getByLabelText('Recorded price reduction')).toHaveTextContent('Was £4,175Save £200');
   expect(screen.getByText('£4,175').tagName).toBe('S');
-  expect(screen.queryByText(/Price change recorded/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Reduced 2 Oct/)).not.toBeInTheDocument();
 });
 
 it('shows the recorded date in UK time on the vehicle detail without inventing a reason for the reduction', () => {
   vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-02T12:00:00Z'));
   render(<PriceReduction car={car} showRecordedDate />);
-  expect(screen.getByText(/Price change recorded/)).toHaveTextContent('Price change recorded 2 Oct 2026');
+  expect(screen.getByText(/^Reduced/)).toHaveTextContent('Reduced 2 Oct 2026');
   expect(screen.getByText('2 Oct 2026')).toHaveAttribute('dateTime', detectedAt);
 });
 

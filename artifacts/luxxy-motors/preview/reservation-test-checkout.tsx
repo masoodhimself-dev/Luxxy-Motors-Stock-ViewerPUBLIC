@@ -15,7 +15,7 @@ type Checkout = {
   state: 'pending' | 'paid' | 'cancelled' | 'refunded';
 };
 type Action = 'read' | 'pay' | 'cancel' | 'refund';
-const palette = multiCustomerThemeVariables('racing-green') as CSSProperties;
+const palette = multiCustomerThemeVariables('showroom-navy') as CSSProperties;
 const money = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 2, minimumFractionDigits: 0 });
 const copy = {
   pending: ['Pay your reservation deposit', 'Try the £99 deposit using the test payment button below.'],

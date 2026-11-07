@@ -86,12 +86,12 @@ const facetNames: Record<StockFacetKey, string> = {
 const facetOrder: StockFacetKey[] = [
   "make",
   "model",
-  "colour",
-  "bodyType",
-  "engine",
-  "seats",
-  "fuel",
   "transmission",
+  "fuel",
+  "bodyType",
+  "colour",
+  "seats",
+  "engine",
 ];
 const selectedValues = (filters: StockFilters, key: StockFacetKey) =>
   splitStockFacetValues(filters[key]);
@@ -223,9 +223,6 @@ function FacetOption({
       )}
       {colour && <ColourSwatch value={option.label} />}
       <span className="multi-stock-option__label">{option.label}</span>
-      <span className="multi-stock-option__count" aria-hidden="true">
-        {option.count}
-      </span>
       <span
         id={countId}
         className="sr-only"
@@ -395,9 +392,16 @@ function FilterPanel({
   );
   return (
     <>
-      {(
-        ["make", "model", "colour", "bodyType", "engine", "seats"] as const
-      ).map(facet)}
+      <FilterSection
+        title="Price"
+        icon="price"
+        count={
+          Number(Boolean(filters.minPrice)) + Number(Boolean(filters.maxPrice))
+        }
+      >
+        <Budget cars={cars} filters={filters} onChange={onChange} />
+      </FilterSection>
+      {facetOrder.map(facet)}
       <FilterSection
         title="Mileage"
         icon="mileage"
@@ -427,17 +431,6 @@ function FilterPanel({
           </p>
         )}
       </FilterSection>
-      <FilterSection
-        title="Max Price"
-        icon="price"
-        count={
-          Number(Boolean(filters.minPrice)) + Number(Boolean(filters.maxPrice))
-        }
-      >
-        <Budget cars={cars} filters={filters} onChange={onChange} />
-      </FilterSection>
-      {facet("fuel")}
-      {facet("transmission")}
       <FilterSection title="Vehicle Type" icon="vehicleType">
         <p className="multi-stock-empty-options">
           Vehicle type details are not supplied for this stock.
@@ -457,9 +450,6 @@ function FilterPanel({
               <FilterIcon name="check" />
             </span>
             <span className="multi-stock-option__label">ULEZ compliant</span>
-            <span className="multi-stock-option__count" aria-hidden="true">
-              {ulezCount}
-            </span>
             <span
               id={ulezCountId}
               className="sr-only"
@@ -650,7 +640,7 @@ export function MultiStockFilters({
               type="search"
               value={query}
               maxLength={200}
-              placeholder="Make, model or registration"
+              placeholder="Make, model, reg or gearbox"
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
@@ -696,6 +686,7 @@ export function MultiStockFilters({
           </label>
           <p
             className="multi-stock-count"
+            data-testid="text-filtered-stock-count"
             role="status"
             aria-live="polite"
             aria-atomic="true"

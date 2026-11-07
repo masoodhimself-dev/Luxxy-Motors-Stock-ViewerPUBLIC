@@ -1,4 +1,4 @@
-import { isVehiclePagePath, vehicleMatchesPath } from '@workspace/vehicle-meta';
+import { isVehiclePagePath } from '@workspace/vehicle-meta';
 import { useStock } from '@/lib/stock-context';
 import { websiteText } from "@/lib/website-content";
 import { DealerWordmark } from "@/components/brand/wordmark";
@@ -14,6 +14,7 @@ import { useSavedCars } from '@/lib/saved-cars-context';
 import { isWritableFormControl } from '@/lib/form-draft';
 import { formatPhoneDisplay } from '@/lib/utils';
 import { CustomerFooter } from '@/components/customer-footer';
+import { PrivacyNoticeLink } from '@/components/privacy-notice-link';
 import { MultiHomeHeader } from '@/components/multi-home-header';
 import { MultiHomeFooter } from '@/components/multi-home-footer';
 import { isMultiChoiceWebsite } from '@/lib/multi-home-scope';
@@ -37,13 +38,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const isHomePage = location === '/';
   const isMultiChoiceBrand = isMultiChoiceWebsite();
-  const { stock } = useStock();
-  const currentCar = stock?.cars.find(car => vehicleMatchesPath(car, location));
-  const testDriveHref = getEnquiryHref('viewing', currentCar);
+  const { vehicle } = useStock();
+  const testDriveHref = getEnquiryHref('viewing', vehicle ?? undefined);
   const isStaff = /^\/portal(?:\/|$)/.test(location);
   const isSharedPortal = isStaff;
   const isCustomerWebsite = isCustomerWebsiteRoute(location);
-  const racingGreenTheme = isCustomerWebsite && isMultiChoiceBrand;
+  const showroomNavyTheme = isCustomerWebsite && isMultiChoiceBrand;
   const isCustomerTask = /^\/(sign|customer-details|viewing)\//.test(location);
   const isPremiumShowroom = location === '/' || location === '/stock' || isVehiclePagePath(location);
   const isVehiclePage = isVehiclePagePath(location);
@@ -101,9 +101,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         }
       : {}),
     ...(!isStaff ? customerThemeVariables({ ...dealerConfig.presentation, primaryHsl: brandPrimary, accentHsl: customerAccent }) : {}),
-    ...(isCustomerWebsite ? multiCustomerThemeVariables(racingGreenTheme ? 'racing-green' : undefined) : {}),
+    ...(isCustomerWebsite ? multiCustomerThemeVariables(showroomNavyTheme ? 'showroom-navy' : undefined) : {}),
     ...(isSharedPortal ? multiPortalThemeVariables() : {}),
-  }) as CSSProperties, [brandPrimary, accent, customerAccent, dealerConfig.presentation, isStaff, isCustomerWebsite, isSharedPortal, racingGreenTheme]);
+  }) as CSSProperties, [brandPrimary, accent, customerAccent, dealerConfig.presentation, isStaff, isCustomerWebsite, isSharedPortal, showroomNavyTheme]);
 
   useCustomerBodyTheme(brandStyle, isCustomerWebsite);
   usePortalBodyTheme(brandStyle, isSharedPortal);
@@ -206,7 +206,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   // Never show another dealer's build-time defaults while this tenant loads.
-  if (isHomePage && (settingsLoading || settingsError)) return <div style={brandStyle} className={`luxxy-shell customer-site dealer-site-theme multi-home-shell min-h-[100dvh]${racingGreenTheme ? ' racing-green-site' : ''}`}>
+  if (isHomePage && (settingsLoading || settingsError)) return <div style={brandStyle} className={`luxxy-shell customer-site dealer-site-theme multi-home-shell min-h-[100dvh]${showroomNavyTheme ? ' showroom-navy-site' : ''}`}>
     <header ref={headerRef} data-site-header className="multi-home-header"><div className="multi-home-header__inner"><a href="#main-content" className="multi-home-header__brand" aria-label="Skip to website content">{isMultiChoiceBrand ? <img src="/brand/multi-choice-motors/multi-choice-wordmark.svg" alt="Multi-Choice Motors" width="205" height="43" /> : <span>Car showroom</span>}</a></div></header>
     <main id="main-content" className="multi-home-loading" aria-busy={settingsLoading || undefined}>
       <h1>{settingsError ? 'Website details are temporarily unavailable' : 'Loading the dealership…'}</h1>
@@ -215,7 +215,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   </div>;
 
   return (
-    <div id={isHomePage ? 'top' : undefined} style={brandStyle} data-dealer-brand={isMultiChoiceBrand ? "multi-choice" : undefined} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}${isCustomerWebsite ? ' dealer-site-theme' : ''}${isSharedPortal ? ' dealer-portal-theme' : ''}${isHomePage ? ' multi-home-shell' : ''}${racingGreenTheme ? ' racing-green-site' : ''}`}>
+    <div id={isHomePage ? 'top' : undefined} style={brandStyle} data-dealer-brand={isMultiChoiceBrand ? "multi-choice" : undefined} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}${isCustomerWebsite ? ' dealer-site-theme' : ''}${isSharedPortal ? ' dealer-portal-theme' : ''}${isHomePage ? ' multi-home-shell' : ''}${showroomNavyTheme ? ' showroom-navy-site' : ''}`}>
       <a href="#main-content" className="fixed left-4 top-3 z-[100] -translate-y-24 rounded-md bg-primary px-5 py-3 text-primary-foreground focus:translate-y-0">Skip to content</a>
       {isCustomerWebsite && <MultiHomeHeader ref={headerRef} settings={dealerConfig} savedCount={savedCount} testDriveHref={testDriveHref} isHomepage={isHomePage} enquiriesEnabled={publicEnquiriesEnabled} onLogoClick={isHomePage ? undefined : handleLogoClick} />}
       {!isStaff && !isCustomerWebsite && <header
@@ -390,7 +390,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <div className="flex flex-wrap items-center gap-x-5">
               {dealerConfig.contact.phone && <a className="text-link min-h-11" href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}>{formatPhoneDisplay(dealerConfig.contact.phone)}</a>}
               {dealerConfig.contact.email && <a className="text-link min-h-11 break-all" href={`mailto:${dealerConfig.contact.email}`}>Email us</a>}
-              {dealerConfig.legal.privacyUrl && <a className="text-link min-h-11" href={dealerConfig.legal.privacyUrl}>Privacy</a>}
+              <PrivacyNoticeLink url={dealerConfig.legal.privacyUrl} className="text-link min-h-11" />
             </div>
           </div>
         </footer>

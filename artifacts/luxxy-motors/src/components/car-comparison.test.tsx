@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { Car } from '@/lib/stock-context';
 import { CarComparison } from './car-comparison';
 
@@ -10,6 +10,7 @@ const cars = [
   { id: 'ford', title: 'Ford Focus', price: 6500, fuel: 'Petrol', transmission: 'Manual', mileage: 60000, features: ['Bluetooth'], images: [] },
 ] as unknown as Car[];
 beforeEach(() => { fetch.mockReset(); fetch.mockResolvedValue({ status: 'unavailable' }); });
+afterEach(() => vi.unstubAllGlobals());
 
 it('reads only cached MOTs for cars explicitly being compared and offers normal details links', async () => {
   const share = vi.fn();
@@ -37,4 +38,19 @@ it('shows differences without presenting unlisted equipment as absent, and retur
   expect(within(feature).getByText('Not listed')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Back to shortlist' }));
   expect(change).toHaveBeenCalledWith(false);
+});
+
+it('fits a selected pair at narrow widths and can switch to the other two cars', async () => {
+  vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({
+    matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn(),
+  }));
+  const third = { ...cars[0], id: 'bmw', title: 'BMW X6' };
+  render(<CarComparison cars={[...cars, third]} open onOpenChange={vi.fn()} onShare={vi.fn()} />);
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3));
+  expect(screen.getByRole('link', { name: 'Lexus RX' })).toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'BMW X6' })).not.toBeInTheDocument();
+  fireEvent.change(screen.getByRole('combobox', { name: 'Cars to compare' }), { target: { value: '2' } });
+  expect(screen.getByRole('link', { name: 'Ford Focus' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'BMW X6' })).toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Lexus RX' })).not.toBeInTheDocument();
 });

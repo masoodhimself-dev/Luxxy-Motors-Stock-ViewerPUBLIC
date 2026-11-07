@@ -20,7 +20,7 @@
 .showroom-visit-panel-hours { min-width: 0; margin: 0; padding: 20px 0 0; border-top: 1px solid hsl(var(--border)); }
 .showroom-visit-panel-today { padding-bottom: 17px; }
 .showroom-visit-panel-status { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 8px; font-size: .8125rem; font-weight: 650; }
-.showroom-visit-panel-hours[data-status="open"] .showroom-visit-panel-status { color: #216544; }
+.showroom-visit-panel-hours[data-status="open"] .showroom-visit-panel-status { color: var(--customer-positive, #216544); }
 .showroom-visit-panel-hours[data-status="closed"] .showroom-visit-panel-status { color: #805a21; }
 .showroom-visit-panel-today strong { display: block; font-size: 1rem; font-weight: 650; line-height: 1.45; }
 .showroom-visit-panel-today p { margin: 0; font-size: .875rem; line-height: 1.65; }

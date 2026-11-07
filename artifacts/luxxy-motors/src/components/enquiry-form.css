@@ -4,18 +4,14 @@
 .customer-enquiry-form .customer-enquiry-contact { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr); gap: 20px; }
 .customer-enquiry-contact > label { min-width: 0; }
 .customer-enquiry-contact .customer-enquiry-reply { grid-column: 1 / -1; max-width: 320px; }
-.customer-enquiry-contact .customer-enquiry-add-contact { grid-column: 1 / -1; justify-self: start; min-height: 44px; font-size: 14px; font-weight: 500; }
+.customer-enquiry-extras { display: flex; flex-wrap: wrap; gap: 0 20px; }
+.customer-enquiry-extras > button { min-height: 44px; font-size: 14px; text-align: left; }
 .customer-enquiry-form :is(input:not(.uk-number-plate-input), select, textarea) { min-width: 0; width: 100%; border-radius: var(--mh-radius-control, 8px); font-size: 16px; line-height: 1.5; }
 .customer-enquiry-form :is(input:not([type="radio"]):not(.uk-number-plate-input), select) { min-height: 48px; height: auto; }
 .customer-enquiry-form input[type="radio"] { width: auto; min-width: 16px; }
 .customer-enquiry-form .field-label { margin-bottom: 8px; font-size: 14px; font-weight: 500; letter-spacing: normal; line-height: 1.5; }
 .customer-enquiry-form :is(details, fieldset) { min-width: 0; }
-.customer-enquiry-exchange,
-.customer-enquiry-topic { border-top: 1px solid var(--mh-border, hsl(var(--border))); }
-.customer-enquiry-exchange-add,
-.customer-enquiry-topic > summary { display: block; min-height: 48px; padding-block: 14px; color: hsl(var(--foreground)); font-size: 14px; font-weight: 500; cursor: pointer; }
-.customer-enquiry-topic > label { padding-bottom: 16px; }
-.customer-enquiry-exchange[open] > summary { color: hsl(var(--accent)); }
+.customer-enquiry-topic:not(:empty) { border-top: 1px solid var(--mh-border, hsl(var(--border))); }
 .customer-enquiry-exchange fieldset { padding: 16px; border: 1px solid var(--mh-border, hsl(var(--border))); border-radius: 8px; background: var(--mh-tint, hsl(var(--secondary) / .35)); }
 .customer-enquiry-exchange fieldset legend { padding-inline: 6px; font-size: 13px; line-height: 1.5; }
 .customer-enquiry-form details > summary:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; border-radius: var(--mh-radius-control, 4px); }
@@ -30,8 +26,6 @@
 
 .customer-enquiry-form-embedded .customer-enquiry-contact { grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .customer-enquiry-form-embedded .customer-enquiry-reply { max-width: none; }
-.customer-enquiry-exchange-add { width: 100%; text-align: left; text-decoration: underline; text-underline-offset: 4px; }
-.customer-enquiry-exchange:has(fieldset) { padding-top: 16px; }
 
 .enquiry-question-shortcuts { display: flex; flex-wrap: wrap; gap: 6px; }
 .enquiry-question-shortcuts button { min-height: 44px; padding: 7px 12px; border: 1px solid var(--mh-border, hsl(var(--border))); border-radius: var(--mh-radius-control, 3px); color: hsl(var(--foreground)); font-size: 13px; background: transparent; }
@@ -77,7 +71,6 @@
 .customer-enquiry-fields { margin: 0; padding: 0; border: 0; }
 .customer-enquiry-fields:disabled { opacity: .72; }
 .customer-enquiry-fields:disabled :is(input, textarea, select, button) { cursor: wait; }
-.customer-enquiry-form .customer-enquiry-contact .customer-enquiry-remove-contact { min-height: 44px; justify-self: start; grid-column: 1 / -1; font-size: 14px; }
 .enquiry-question-shortcuts button[data-selected="true"] { border-color: var(--mh-primary, currentColor); background: var(--mh-tint, hsl(var(--secondary))); }
 .dealer-site-theme .enquiry-question-shortcuts button[data-selected="true"] { border-color: var(--mh-primary); background: var(--mh-tint); }
 .customer-enquiry-vehicle { border: 0; border-bottom: 1px solid var(--mh-border, hsl(var(--border))); border-radius: 0; padding: 0 0 16px; background: transparent; }

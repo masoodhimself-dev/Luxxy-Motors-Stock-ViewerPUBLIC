@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { dealerConfig } from '@/config/dealer';
+import { getEnquiryHref } from '@/lib/cta-helpers';
 import Enquire from './enquire';
 
 const state = vi.hoisted(() => ({ stock: null as null | { cars: Array<{ id: string; title: string; make: string; model: string; images: [] }> }, isLoading: true, error: null as string | null, form: vi.fn() }));
@@ -30,13 +31,25 @@ it('waits for initial stock before mounting part exchange with the requested veh
   expect(screen.getByRole('textbox', { name: 'Example registration' })).toHaveValue('AB12 CDE');
 });
 
-it('keeps a failed initial part-exchange stock load out of the form while retaining general-enquiry access', () => {
+it('keeps part exchange available without a selected car when the stock load fails', () => {
   window.history.pushState({}, '', '/enquire?type=part_exchange&vehicleId=requested-car');
   state.isLoading = false; state.error = 'Stock unavailable';
   const view = render(<Enquire />);
-  expect(screen.getByTestId('status-stock-error')).toBeInTheDocument(); expect(screen.queryByTestId('enquiry-form-under-test')).not.toBeInTheDocument();
+  expect(screen.getByTestId('status-stock-error')).toBeInTheDocument();
+  expect(screen.getByTestId('enquiry-form-under-test')).toHaveAttribute('data-type', 'part_exchange');
+  expect(screen.getByTestId('enquiry-form-under-test')).toHaveAttribute('data-vehicle', '');
   view.unmount(); window.history.pushState({}, '', '/enquire?type=general'); render(<Enquire />);
   expect(screen.getByTestId('enquiry-form-under-test')).toHaveAttribute('data-type', 'general');
+});
+
+it('hands service questions to the form as editable requests without depending on stock', () => {
+  const message = 'Could you tell me what warranty is included?';
+  window.history.pushState({}, '', getEnquiryHref('general', undefined, message));
+  render(<Enquire />);
+  expect(screen.queryByTestId('loading-enquiry-vehicle')).not.toBeInTheDocument();
+  expect(state.form.mock.calls.at(-1)?.[0]).toMatchObject({
+    initialType: 'general', initialMessage: '', messageRequest: { text: message },
+  });
 });
 
 it('waits for a requested message vehicle before mounting the form and keeps input on stock refresh', () => {

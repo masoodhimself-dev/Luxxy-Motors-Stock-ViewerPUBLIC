@@ -22,7 +22,7 @@
 .vehicle-call-hours p,.vehicle-call-location p { color:var(--dialog-muted); }
 .vehicle-call-hours small { color:var(--dialog-muted); font-size:10px; }
 .vehicle-call-status { display:inline-flex; align-items:center; gap:6px; padding:5px 8px; background:var(--mh-tint,#eff3f6); border-radius:6px; color:var(--mh-muted,#526575); font-weight:var(--mh-weight-label,650); font-size:12px; }
-.vehicle-call-hours[data-status=open] .vehicle-call-status { color:#215e44; background:#e9f5ee; }
+.vehicle-call-hours[data-status=open] .vehicle-call-status { color:var(--customer-positive, #215e44); background:var(--customer-positive-soft, #e9f5ee); }
 .vehicle-call-hours[data-status=closed] .vehicle-call-status { color:#815b25; background:#fff3df; }
 .vehicle-call-location h3 { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:var(--mh-weight-heading,650); min-height:28px; }
 .vehicle-call-location address { font-style:normal; color:var(--dialog-muted); overflow-wrap:anywhere; }
@@ -40,7 +40,7 @@
 .vehicle-call-contact-actions:has(> a:only-child) { grid-template-columns:1fr; }
 .vehicle-call-dialog .vehicle-call-copy { display:flex; flex-wrap:wrap; align-items:center; gap:3px 10px; }
 .vehicle-call-dialog .vehicle-call-copy button { display:inline-flex; align-items:center; gap:6px; min-height:40px; padding:6px 0; color:var(--dialog-muted); font-size:12px; }
-.vehicle-call-copy p,.vehicle-call-closed-note { color:var(--dialog-muted); font-size:11px; line-height:1.5; }
+.vehicle-call-copy p { color:var(--dialog-muted); font-size:11px; line-height:1.5; }
 .vehicle-call-dialog .vehicle-callback-form { gap:12px; }
 .vehicle-call-dialog .vehicle-action-form-grid { gap:12px; }
 .vehicle-call-dialog .vehicle-action-field { font-size:13px; gap:5px; }

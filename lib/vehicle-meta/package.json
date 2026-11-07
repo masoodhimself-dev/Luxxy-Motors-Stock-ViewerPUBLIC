@@ -7,7 +7,11 @@
     ".": "./src/index.ts",
     "./sale-document-pdf": "./src/sale-document-pdf.ts",
     "./full-sales-terms-pdf": "./src/full-sales-terms-pdf.ts",
-    "./staff-letter-pdf": "./src/staff-letter-pdf.ts"
+    "./staff-letter-pdf": "./src/staff-letter-pdf.ts",
+    "./stock-filter-types": "./src/stock-filter-types.ts",
+    "./stock-filter-url": "./src/stock-filter-url.ts",
+    "./stock-filters": "./src/stock-filters.ts",
+    "./stock-source-ulez": "./src/stock-source-ulez.ts"
   },
   "dependencies": {
     "jspdf": "4.2.1",

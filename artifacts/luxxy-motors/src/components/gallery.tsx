@@ -216,6 +216,7 @@ export function Gallery({
     className: string,
     eager = false,
     sizes = eager ? "(max-width: 1023px) 100vw, 900px" : "120px",
+    initialThumbnail = false,
   ) => {
     const url = getSafeImageUrl(allImages[imageIndex]);
     const ImageElement = eager ? motion.img : 'img';
@@ -227,12 +228,15 @@ export function Gallery({
         {...responsiveVehicleImage(url, sizes)}
         decoding="async"
         draggable={false}
-        fetchPriority={eager ? "high" : "low"}
+        fetchPriority={eager ? "high" : initialThumbnail ? "auto" : "low"}
         alt={imageCaption(allImages[imageIndex]) || `${vehicleLabel} — photograph ${imageIndex + 1}`}
         className={className}
-        loading={eager ? 'eager' : 'lazy'}
+        loading={eager || initialThumbnail ? 'eager' : 'lazy'}
         referrerPolicy="no-referrer"
-        onLoad={eager ? () => setLoadedUrl(url) : undefined}
+        onLoad={event => {
+          event.currentTarget.dataset.photoReady = '';
+          if (eager) setLoadedUrl(url);
+        }}
         onError={(event) => {if (!retryOriginalImage(event.currentTarget)) {
           // The same photo may fail in the strip and overview. Remove it once,
           // preserving the selected photo even when several failures arrive together.
@@ -429,7 +433,8 @@ export function Gallery({
                   overviewRefs.current[target]?.scrollIntoView({ block: 'nearest' });
                 });
               }}>
-              {renderImage(i, 'h-full w-full object-contain', false, '(min-width: 1100px) 230px, (min-width: 640px) 220px, 50vw')}
+              {renderImage(i, 'h-full w-full object-contain', false, '(min-width: 1100px) 230px, (min-width: 640px) 220px, 50vw', i < 6)}
+              <span className="vehicle-gallery-thumbnail-status" aria-hidden="true">Loading photo…</span>
             </button>)}
           </div>
         </div> : <>

@@ -28,6 +28,11 @@ const next = () => fireEvent.click(screen.getByTestId('button-part-exchange-cont
 const find = () => { input('input-part-exchange-registration', 'AB12 CDE'); fireEvent.click(screen.getByRole('button', { name: 'Find my car' })); };
 const manual = () => { input('input-part-exchange-registration', 'AB12 CDE'); fireEvent.click(screen.getByRole('button', { name: 'Enter details manually' })); input('input-part-exchange-model', 'My Honda Civic'); input('input-part-exchange-mileage', '45000'); };
 const review = () => { next(); next(); };
+const chooseCar = (name: string) => {
+  fireEvent.click(screen.getByRole('button', { name: /Search our cars|Change car/ }));
+  fireEvent.click(screen.getByRole('button', { name: new RegExp(`^Choose ${name}`) }));
+};
+const skipCar = () => fireEvent.click(screen.getByRole('button', { name: 'I haven’t chosen a car yet' }));
 const contacts = () => { input('input-customer-name', 'Alex Buyer'); input('input-customer-phone', '07700 900123'); };
 const confirm = () => fireEvent.click(screen.getByRole('checkbox', { name: /I’ve checked/ }));
 beforeEach(() => { sessionStorage.clear(); clearHomepagePartExchangeLookup(); window.history.replaceState({}, '', '/'); vi.clearAllMocks(); state.allowed = true; state.whatsapp = '447700900123'; state.result = result(); state.latest = null; mutation.isPending = false; mutation.isSuccess = false; mutation.isError = false; });
@@ -41,7 +46,7 @@ it('opens a fresh homepage lookup with vehicle, mileage and MOT already filled w
   expect(screen.getByText('Next MOT due: 2027-10-20')).toBeInTheDocument();
   expect(screen.getByTestId('button-part-exchange-continue')).not.toBeDisabled();
   expect(readHomepagePartExchangeRegistration()).toBeNull();
-  next(); fireEvent.change(screen.getByTestId('select-part-exchange-target-vehicle'), { target: { value: car.id } }); next();
+  next(); chooseCar('Ford Focus'); next();
   expect(messageValue()).toContain('I have a Honda Civic (AB12CDE)');
   expect(messageValue()).toContain('interested in your Ford Focus');
   expect(state.lookup).not.toHaveBeenCalled(); expect(mutation.mutate).not.toHaveBeenCalled();
@@ -164,7 +169,7 @@ it('uses Enter on initial registration for lookup, then Enter on mileage for Con
   expect(state.lookup).toHaveBeenCalledTimes(1);
   expect(screen.getByTestId('input-part-exchange-mileage')).toBeInTheDocument();
   fireEvent.submit(screen.getByTestId('form-part-exchange'));
-  expect(screen.getByTestId('select-part-exchange-target-vehicle')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Change car' })).toBeInTheDocument();
   expect(state.lookup).toHaveBeenCalledTimes(1); expect(mutation.mutate).not.toHaveBeenCalled();
 });
 
@@ -213,18 +218,53 @@ it('preserves manually edited model and mileage on repeat checks and removes the
 it('preserves reserved-car enquiries, excludes sold stock and requires a choice on a general enquiry', () => {
   const stock = [car, toyota, { ...car, id: 'reserved', title: 'Reserved car', inventoryStatus: 'reserved' }, { ...car, id: 'sold', title: 'Sold car', inventoryStatus: 'sold' }];
   render(<PartExchangeForm stockCars={stock} />); find(); next();
-  const select = screen.getByTestId('select-part-exchange-target-vehicle');
-  expect(select).toHaveValue(''); expect(select).toHaveTextContent('Reserved car'); expect(select).not.toHaveTextContent('Sold car');
   expect(screen.getByTestId('button-part-exchange-continue')).toBeDisabled();
-  fireEvent.change(select, { target: { value: 'reserved' } }); next();
+  fireEvent.click(screen.getByRole('button', { name: 'Search our cars' }));
+  expect(screen.getByRole('button', { name: 'Choose Reserved car' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Choose Sold car' })).not.toBeInTheDocument();
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'reserved' } });
+  expect(screen.queryByRole('button', { name: 'Choose Ford Focus' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Choose Reserved car' })); next();
   expect(messageValue()).toContain('interested in your Reserved car');
+});
+
+it('sends a reviewed website enquiry without a replacement car when there is no stock', () => {
+  render(<PartExchangeForm stockCars={[]} />);
+  find(); next(); skipCar(); next(); contacts();
+  expect(messageValue()).toContain('I haven’t chosen my next car yet');
+  expect(messageValue()).not.toContain('Ford Focus');
+  fireEvent.submit(screen.getByTestId('form-part-exchange'));
+  expect(mutation.mutate).not.toHaveBeenCalled();
+  confirm(); next();
+  expect(mutation.mutate).toHaveBeenCalledExactlyOnceWith({ data: expect.objectContaining({
+    type: 'part_exchange', vehicleId: null, partExchange: expect.objectContaining({ registration: 'AB12 CDE', mileage: 65000 }),
+  }) }, expect.anything());
+});
+
+it('remembers a deliberate skip when a previously selected car is available and carries the choice into WhatsApp', () => {
+  const open = vi.spyOn(window, 'open').mockReturnValue(null);
+  try {
+    const view = render(<PartExchangeForm vehicle={car} stockCars={[car]} />);
+    find(); next(); skipCar(); next(); view.unmount();
+    render(<PartExchangeForm vehicle={car} stockCars={[car]} />);
+    find(); next();
+    expect(screen.getByRole('button', { name: 'I haven’t chosen a car yet' })).toHaveAttribute('aria-pressed', 'true');
+    next(); contacts();
+    fireEvent.click(screen.getByRole('radio', { name: 'Send everything on WhatsApp' }));
+    confirm(); next();
+    const message = new URL(String(open.mock.calls[0][0])).searchParams.get('text');
+    expect(message).toContain('I haven’t chosen my next car yet');
+    expect(message).toContain('Name: Alex Buyer');
+    expect(message).not.toContain('Ford Focus');
+    expect(mutation.mutate).not.toHaveBeenCalled();
+  } finally { open.mockRestore(); }
 });
 
 it('keeps customer-edited wording when the target changes and offers an explicit refresh before sending', () => {
   render(<PartExchangeForm vehicle={car} stockCars={[car, toyota]} />); find(); review();
   input('part-exchange-message-preview', 'My own wording. Can I visit on Friday?');
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-  fireEvent.change(screen.getByTestId('select-part-exchange-target-vehicle'), { target: { value: toyota.id } }); next();
+  chooseCar('Toyota Yaris'); next();
   expect(screen.getByTestId('part-exchange-message-preview')).toHaveValue('My own wording. Can I visit on Friday?');
   expect(screen.getByRole('button', { name: 'Update message with latest details' })).toBeInTheDocument();
   expect(screen.getByTestId('button-part-exchange-continue')).toBeDisabled();
@@ -237,7 +277,7 @@ it('lets customers explicitly retain custom wording and sends exactly their revi
   render(<PartExchangeForm vehicle={car} stockCars={[car, toyota]} />); find(); review();
   input('part-exchange-message-preview', 'My custom question.');
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-  fireEvent.change(screen.getByTestId('select-part-exchange-target-vehicle'), { target: { value: toyota.id } }); next();
+  chooseCar('Toyota Yaris'); next();
   fireEvent.click(screen.getByRole('button', { name: 'Keep my wording' })); contacts(); confirm(); next();
   expect(mutation.mutate.mock.calls[0][0].data).toMatchObject({ vehicleId: toyota.id, message: 'My custom question.' });
 });

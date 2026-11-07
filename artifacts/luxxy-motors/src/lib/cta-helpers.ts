@@ -139,8 +139,9 @@ export function recordBookingIntent({
 }
 export type EnquiryType = 'viewing' | 'general' | 'part_exchange';
 
-export function getEnquiryHref(type: EnquiryType, car?: Car) {
+export function getEnquiryHref(type: EnquiryType, car?: Car, message?: string) {
   const params = new URLSearchParams({ type });
   if (car?.id) params.set('vehicleId', car.id);
+  if (type === 'general' && message?.trim()) params.set('searchRequest', message.trim().slice(0, 500));
   return `/enquire?${params.toString()}`;
 }

@@ -695,7 +695,7 @@ body:has(.stock-refined) header { background: #fff; color: #202428; }
 .friendly-contact .friendly-banner { border-bottom: 0; padding-bottom: 0; }
 .friendly-contact [aria-labelledby="talk-heading"] > div:first-of-type { background: var(--dealer-panel, #fff); border: 1px solid hsl(var(--border)); border-radius: 4px; padding-inline: 20px; }
 .friendly-contact [data-testid^="contact-"] > svg:first-child { box-sizing: content-box; padding: 10px; background: var(--mh-tint, #f1f2f2); border-radius: 50%; color: var(--mh-primary, #434b52); }
-.friendly-contact [data-testid="contact-whatsapp"] > svg:first-child { background: #edf4ef; color: #236243; }
+.friendly-contact [data-testid="contact-whatsapp"] > svg:first-child { background: var(--customer-positive-soft, #edf4ef); color: var(--customer-positive, #236243); }
 .friendly-contact [aria-label="Before your visit"] { background: var(--dealer-panel, #eeefef); border: 1px solid hsl(var(--border)); border-radius: 4px; padding: 28px; }
 .friendly-contact [data-testid="contact-location"] > .bg-primary { --primary-foreground: var(--customer-footer-foreground-hsl, 0 0% 100%); background: var(--customer-footer-background, #22272b); color: var(--customer-footer-foreground, #fff); }
 .friendly-warranty #warranty-enquiry { background: var(--dealer-panel, #eef0f1); border: 1px solid hsl(var(--border)); border-radius: 4px; }

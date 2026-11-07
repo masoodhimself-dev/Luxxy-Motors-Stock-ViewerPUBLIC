@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type RefObject } from 'react';
 import type { Car } from '@/lib/stock-context';
 import { formatMileage, formatPrice, getThumbnailUrl, vehicleDisplayTitle, vehicleRegistration } from '@/lib/utils';
 import { enquiryDraftKey, readEnquiryDraft } from '@/lib/enquiry-draft';
@@ -14,12 +14,14 @@ function CarPhoto({ car }: { car: Car }) {
   return <span className="enquiry-car-picker__photo">{src && failed !== src ? <img src={src} loading="lazy" alt="" onError={() => setFailed(src)} /> : <Camera aria-hidden="true" />}</span>;
 }
 
-export function EnquiryCarPicker({ open, onOpenChange, cars, currentId, onSelect }: {
+export function EnquiryCarPicker({ open, onOpenChange, cars, currentId, onSelect, purpose = 'enquiry', returnFocus }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   cars: Car[];
   currentId?: string;
   onSelect: (car: Car, carryCurrent: boolean) => void;
+  purpose?: 'enquiry' | 'part-exchange';
+  returnFocus?: RefObject<HTMLButtonElement | null>;
 }) {
   const [query, setQuery] = useState('');
   const [savedCar, setSavedCar] = useState<Car | null>(null);
@@ -34,14 +36,19 @@ export function EnquiryCarPicker({ open, onOpenChange, cars, currentId, onSelect
   }, [cars, query]);
   const choose = (car: Car) => {
     if (car.id === currentId) { onOpenChange(false); return; }
-    if (readEnquiryDraft(enquiryDraftKey(car.id, 'general'))) { setSavedCar(car); return; }
+    if (purpose === 'enquiry' && readEnquiryDraft(enquiryDraftKey(car.id, 'general'))) { setSavedCar(car); return; }
     onSelect(car, true);
   };
   return <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className="enquiry-car-picker">
+    <DialogContent className="enquiry-car-picker" onCloseAutoFocus={event => {
+      if (returnFocus?.current?.isConnected) {
+        event.preventDefault();
+        returnFocus.current.focus({ preventScroll: true });
+      }
+    }}>
       <DialogHeader>
         <DialogTitle>{savedCar ? 'You have an enquiry for this car' : 'Choose a car'}</DialogTitle>
-        <DialogDescription>{savedCar ? 'Open your saved enquiry for this car. The enquiry you are working on now will also be kept.' : 'Your message and contact details will stay with you.'}</DialogDescription>
+        <DialogDescription>{savedCar ? 'Open your saved enquiry for this car. The enquiry you are working on now will also be kept.' : purpose === 'part-exchange' ? 'Choose the car you’d like to part exchange yours for.' : 'Your message and contact details will stay with you.'}</DialogDescription>
       </DialogHeader>
       {savedCar ? <div className="enquiry-car-picker__saved">
         <p className="font-semibold">{vehicleDisplayTitle(savedCar)}</p>

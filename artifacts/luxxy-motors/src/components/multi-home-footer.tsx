@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { PrivacyNoticeLink } from '@/components/privacy-notice-link';
 import type { MultiHomeSettings } from "./multi-home-header";
 import { multiChoiceHomeSections } from "@/lib/multi-choice-home-sections";
 import { getEnquiryHref } from "@/lib/cta-helpers";
@@ -123,7 +124,7 @@ export function MultiHomeFooter({
         )}
         {(legal.privacyUrl || legal.termsUrl || legal.cookieUrl) && (
           <nav aria-label="Legal information">
-            {legal.privacyUrl && <a href={legal.privacyUrl}>Privacy policy</a>}
+            <PrivacyNoticeLink url={legal.privacyUrl} className="" />
             {legal.termsUrl && (
               <a href={legal.termsUrl}>Terms &amp; conditions</a>
             )}

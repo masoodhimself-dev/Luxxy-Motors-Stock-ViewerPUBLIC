@@ -19,11 +19,18 @@ beforeEach(() => {
   window.history.replaceState({}, '', '/warranty');
 });
 
+function warrantyEnquiryParams() {
+  const href = screen.getByTestId('warranty-enquiry-link').getAttribute('href')!;
+  return new URL(href, 'https://dealer.example.test').searchParams;
+}
+
 it('opens a warranty enquiry directly and retains the selected vehicle context', () => {
   render(<Warranty />);
-  expect(screen.getByTestId('warranty-enquiry-link')).toHaveAttribute('href', '/enquire?type=general');
+  expect(warrantyEnquiryParams().get('type')).toBe('general');
+  expect(warrantyEnquiryParams().get('searchRequest')).toMatch(/what warranty is included/i);
   fireEvent.change(screen.getByLabelText(/Which car are you asking about/), { target: { value: 'car-a' } });
-  expect(screen.getByTestId('warranty-enquiry-link')).toHaveAttribute('href', '/enquire?type=general&vehicleId=car-a');
+  expect(warrantyEnquiryParams().get('vehicleId')).toBe('car-a');
+  expect(warrantyEnquiryParams().get('searchRequest')).toMatch(/what warranty is included/i);
   expect(screen.getByTestId('warranty-whatsapp')).toHaveAttribute('href', expect.stringContaining('Ford%20Fiesta'));
   expect(document.querySelector('a[href="#warranty-enquiry"]')).toBeNull();
 });
@@ -33,7 +40,7 @@ it('shows configured warranty copy without expanding a second generic FAQ', () =
   expect(screen.getByRole('heading', { name: 'Our warranty options' })).toBeInTheDocument();
   expect(screen.getByText('Ask for the policy terms for this vehicle.')).toBeInTheDocument();
   expect(screen.queryByText('Your warranty questions.')).not.toBeInTheDocument();
-  expect(screen.getByText('The details worth checking.').closest('details')).not.toHaveAttribute('open');
+  expect(screen.getByText('Warranty questions').closest('details')).not.toHaveAttribute('open');
 });
 
 it('uses the saved warranty action and policy wording while keeping the selected-car action contextual', () => {
@@ -47,15 +54,15 @@ it('uses the saved warranty action and policy wording while keeping the selected
   fireEvent.click(screen.getByText('Check your cover'));
   expect(policy).toHaveTextContent('Ask us to confirm the claim limit and servicing conditions.');
   fireEvent.change(screen.getByLabelText(/Which car are you asking about/), { target: { value: 'car-a' } });
-  expect(screen.getByTestId('warranty-enquiry-link')).toHaveTextContent('Enquire About This Car');
-  expect(screen.getByTestId('warranty-enquiry-link')).toHaveAttribute('href', '/enquire?type=general&vehicleId=car-a');
+  expect(screen.getByTestId('warranty-enquiry-link')).toHaveTextContent('Ask about this car’s warranty');
+  expect(warrantyEnquiryParams().get('vehicleId')).toBe('car-a');
 });
 
 it.each(['Learn About Warranty', '  Learn About Warranty  ', ''])('keeps the enquiry action clear for an unchanged template CTA (%s)', ctaLabel => {
   state.settings.warranty!.ctaLabel = ctaLabel;
   render(<Warranty />);
   expect(screen.getByTestId('warranty-enquiry-link')).toHaveTextContent('Send a warranty enquiry');
-  expect(screen.getByTestId('warranty-enquiry-link')).toHaveAttribute('href', '/enquire?type=general');
+  expect(warrantyEnquiryParams().get('type')).toBe('general');
 });
 
 it('keeps a general warranty enquiry available when the stock request fails', () => {
@@ -64,12 +71,12 @@ it('keeps a general warranty enquiry available when the stock request fails', ()
   render(<Warranty />);
   expect(screen.getByLabelText(/Which car are you asking about/)).toBeDisabled();
   expect(screen.getByRole('alert')).toHaveTextContent('We couldn’t load the vehicle list');
-  expect(screen.getByTestId('warranty-enquiry-link')).toHaveAttribute('href', '/enquire?type=general');
+  expect(warrantyEnquiryParams().get('type')).toBe('general');
 });
 
 it('routes both warranty enquiry entrypoints to contact when website enquiries are off', () => {
   state.enquiriesEnabled = false;
   render(<Warranty />);
   expect(screen.getByTestId('warranty-enquiry-link')).toHaveAttribute('href', '/contact');
-  expect(screen.getByRole('link', { name: 'Ask us for help' })).toHaveAttribute('href', '/contact');
+  expect(screen.getByRole('link', { name: 'Contact us about a claim' })).toHaveAttribute('href', '/contact');
 });

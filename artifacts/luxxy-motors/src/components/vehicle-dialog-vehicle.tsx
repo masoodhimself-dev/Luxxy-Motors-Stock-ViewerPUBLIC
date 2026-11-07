@@ -24,9 +24,9 @@ export function useVehicleDialogTheme(): CSSProperties {
   const [location] = useLocation();
   const isCustomerWebsite = isCustomerWebsiteRoute(location);
   const sharedDesign = isCustomerWebsite || /^\/portal(?:\/|$)/.test(location);
-  const racingGreenTheme = isCustomerWebsite && isMultiChoiceWebsite();
+  const showroomNavyTheme = isCustomerWebsite && isMultiChoiceWebsite();
   return useMemo(() => {
-    if (sharedDesign) return multiCustomerThemeVariables(racingGreenTheme ? 'racing-green' : undefined) as CSSProperties;
+    if (sharedDesign) return multiCustomerThemeVariables(showroomNavyTheme ? 'showroom-navy' : undefined) as CSSProperties;
     const configuredAccent = settings.identity.brandColors?.accentHsl;
     const defaultAccent = !configuredAccent || ['30.000 40.659% 35.686%', '190 86% 44%', '42 82% 49%'].includes(configuredAccent);
     const accent = !defaultAccent && isValidHsl(configuredAccent!) ? hslToHex(configuredAccent!) : '#215a7e';
@@ -49,7 +49,7 @@ export function useVehicleDialogTheme(): CSSProperties {
       '--dialog-panel': panel,
       '--dialog-subtle': subtle,
     } as CSSProperties;
-  }, [settings.identity.brandColors?.accentHsl, settings.presentation?.headingColour, settings.presentation?.panelColour, settings.presentation?.pageColour, sharedDesign, racingGreenTheme]);
+  }, [settings.identity.brandColors?.accentHsl, settings.presentation?.headingColour, settings.presentation?.panelColour, settings.presentation?.pageColour, sharedDesign, showroomNavyTheme]);
 }
 
 /** Only supplied vehicle facts are shown; missing or failed photography disappears. */

@@ -5,7 +5,7 @@ import type { RequestHandler } from 'express';
 export const SEO_PRIVATE_PREFIXES = [
   '/portal', '/platform', '/join', '/sign-in', '/sign-up', '/staff-upload', '/my-purchase',
   '/phone-share', '/verify-invoice', '/viewing', '/test-drive-declaration', '/reserve', '/saved',
-  '/watch', '/compare', '/enquire', '/sign', '/customer-details',
+  '/watch', '/stock-alerts', '/compare', '/enquire', '/sign', '/customer-details',
   '/delivery-evidence', '/payment-request', '/reservation-payment',
 ] as const;
 

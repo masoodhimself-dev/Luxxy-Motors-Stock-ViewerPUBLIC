@@ -2,6 +2,7 @@ import { Link } from 'wouter';
 import { ArrowUpRight, Facebook, Instagram, Mail, MapPin, Phone, Twitter } from '@/components/icons';
 import type { DealerConfig } from '@/config/dealer';
 import { DealerWordmark } from '@/components/brand/wordmark';
+import { PrivacyNoticeLink } from '@/components/privacy-notice-link';
 import { formatPhoneDisplay } from '@/lib/utils';
 import { dealershipLocation } from '@/lib/dealership-location';
 import { getUpcomingVisitDates } from '@/lib/upcoming-visit-dates';
@@ -54,7 +55,7 @@ export function CustomerFooter({ settings, testDriveHref, enquiriesEnabled = fal
 
       <div className="footer-bottom">
         <div><p>© {new Date().getFullYear()} {settings.legal.companyName?.trim() || settings.identity.name?.trim() || 'Our dealership'}. All rights reserved.</p>{(settings.legal.companyNumber || settings.legal.vatNumber) && <p className="footer-company-details">{settings.legal.companyNumber && <span>Company no. {settings.legal.companyNumber}</span>}{settings.legal.vatNumber && <span>VAT no. {settings.legal.vatNumber}</span>}</p>}</div>
-        {(settings.legal.privacyUrl || settings.legal.termsUrl || settings.legal.cookieUrl) && <nav aria-label="Legal information">{settings.legal.privacyUrl && <a href={settings.legal.privacyUrl}>Privacy policy</a>}{settings.legal.termsUrl && <a href={settings.legal.termsUrl}>Terms & conditions</a>}{settings.legal.cookieUrl && <a href={settings.legal.cookieUrl}>Cookies</a>}</nav>}
+        {(settings.legal.privacyUrl || settings.legal.termsUrl || settings.legal.cookieUrl) && <nav aria-label="Legal information"><PrivacyNoticeLink url={settings.legal.privacyUrl} className="" />{settings.legal.termsUrl && <a href={settings.legal.termsUrl}>Terms & conditions</a>}{settings.legal.cookieUrl && <a href={settings.legal.cookieUrl}>Cookies</a>}</nav>}
       </div>
     </div>
   </footer>;

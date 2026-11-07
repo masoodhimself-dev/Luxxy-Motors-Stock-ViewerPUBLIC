@@ -4,15 +4,18 @@ import { RouteScrollReset } from './route-scroll-reset';
 import { requestBrowseRestore } from '@/lib/browse-session';
 
 let currentLocation = '/';
+let currentSearch = '';
 
 vi.mock('wouter', () => ({
   useLocation: () => [currentLocation, vi.fn()],
+  useSearch: () => currentSearch,
 }));
 vi.mock('@/lib/browse-session', () => ({ requestBrowseRestore: vi.fn() }));
 
 describe('RouteScrollReset', () => {
   beforeEach(() => {
     currentLocation = '/';
+    currentSearch = '';
     window.scrollTo = vi.fn();
     Object.defineProperty(window, 'scrollY', { configurable: true, value: 0 });
     vi.mocked(requestBrowseRestore).mockClear();
@@ -53,10 +56,12 @@ describe('RouteScrollReset', () => {
 
   it('requests the saved stock position on returning from a vehicle and never starts a smooth reset', () => {
     currentLocation = '/vehicle/selected-car';
+    currentSearch = 'from=stock';
     const view = render(<RouteScrollReset />);
     vi.mocked(window.scrollTo).mockClear();
     Object.defineProperty(window, 'scrollY', { configurable: true, value: 920 });
     currentLocation = '/stock';
+    currentSearch = '';
     view.rerender(<RouteScrollReset />);
 
     expect(requestBrowseRestore).toHaveBeenCalledOnce();
@@ -66,5 +71,17 @@ describe('RouteScrollReset', () => {
     view.rerender(<RouteScrollReset />);
     expect(requestBrowseRestore).toHaveBeenCalledOnce();
     expect(window.scrollTo).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['', 'from=saved'])('leaves an unrelated stock visit at the top after a vehicle entry %s', (search) => {
+    currentLocation = '/cars/bmw-x6-73c03ae2';
+    currentSearch = search;
+    const view = render(<RouteScrollReset />);
+    vi.mocked(window.scrollTo).mockClear();
+    currentLocation = '/stock';
+    currentSearch = '';
+    view.rerender(<RouteScrollReset />);
+    expect(requestBrowseRestore).not.toHaveBeenCalled();
+    expect(window.scrollTo).toHaveBeenCalledExactlyOnceWith({ top: 0, left: 0, behavior: 'instant' });
   });
 });

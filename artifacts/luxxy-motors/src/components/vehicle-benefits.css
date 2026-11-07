@@ -86,5 +86,5 @@
 
 .vehicle-benefit-summary .vehicle-selling-points li[data-benefit="mot"] .vehicle-highlight-icon,
 .vehicle-benefit-summary .vehicle-selling-points li[data-benefit="ulez"] .vehicle-highlight-icon {
-  color: #38734e;
+  color: var(--customer-positive, #38734e);
 }

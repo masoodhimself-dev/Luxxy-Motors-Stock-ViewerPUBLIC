@@ -187,21 +187,29 @@ export function buildVehicleMeta(
 
 export function buildShowroomMeta(
   dealer: DealerIdentity = {},
-  options: { count?: number | null } = {},
+  options: { count?: number | null; page?: 'home' | 'stock' } = {},
 ): PageMetaCopy {
   const dealerName = clean(dealer.name) || 'Our showroom';
   const location = clean(dealer.location);
   const count = typeof options.count === 'number' && options.count > 0 ? options.count : null;
+  const showroom = location ? `${dealerName} in ${location}` : dealerName;
+
+  if (options.page === 'home') {
+    return {
+      title: `${location ? `Used cars for sale in ${location}` : 'Used cars for sale'} | ${dealerName}`,
+      description: `Find your next used car at ${showroom}. Explore the showroom and find opening hours, directions and ways to get in touch.`,
+    };
+  }
 
   const title = [
-    location ? `Used cars for sale in ${location}` : 'Used cars for sale',
+    options.page === 'stock' ? 'Browse Stock' : location ? `Used cars for sale in ${location}` : 'Used cars for sale',
     dealerName,
   ].join(' | ');
 
   const description = joinSentences([
     count
-      ? `Browse ${count} used ${count === 1 ? 'car' : 'cars'} in stock at ${dealerName}${location ? ` in ${location}` : ''}.`
-      : `Browse the current used car stock at ${dealerName}${location ? ` in ${location}` : ''}.`,
+      ? `Browse ${count} used ${count === 1 ? 'car' : 'cars'} in stock at ${showroom}.`
+      : `Browse the current used car stock at ${showroom}.`,
     'Full photos, specifications and prices on every vehicle.',
   ]);
 

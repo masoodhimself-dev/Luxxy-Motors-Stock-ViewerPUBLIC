@@ -8,8 +8,17 @@
 .friendly-enquire [data-testid="status-stock-error"] { margin-bottom: 20px; }
 .friendly-enquire .enquiry-introduction > [data-testid="enquiry-vehicle-summary"] { padding: 20px; border: 1px solid var(--mh-border, hsl(var(--border))); border-radius: var(--mh-radius, 12px); background: var(--mh-surface, hsl(var(--card))); }
 .friendly-contact .contact-talk-panel > .divide-y { margin-top: 24px; border: 1px solid var(--mh-border, hsl(var(--border))); border-radius: var(--mh-radius, 12px); overflow: hidden; background: var(--mh-surface, hsl(var(--card))); }
-.friendly-contact .contact-talk-panel [data-testid^="contact-"] { min-height: 88px; padding: 20px; }
-.friendly-contact [data-testid="contact-location"] > .bg-primary { border-radius: var(--mh-radius, 12px); }
+.friendly-contact .contact-talk-panel [data-testid^="contact-"] { min-height: 64px; padding: 14px 16px; }
+@media (min-width: 768px) {
+  .friendly-contact .contact-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "location talk" "hours talk";
+  }
+  .friendly-contact [data-testid="contact-location"] { grid-area: location; }
+  .friendly-contact .contact-talk-panel { grid-area: talk; }
+  .friendly-contact .contact-hours { grid-area: hours; }
+}
 .friendly-contact #contact-message > div:last-child { padding: clamp(20px, 3vw, 32px); border: 1px solid var(--mh-border, hsl(var(--border))); border-radius: var(--mh-radius, 12px); background: var(--mh-surface, hsl(var(--card))); }
 .friendly-saved .saved-car-list > div { border-radius: var(--mh-radius, 12px); }
 .friendly-saved .saved-car-list .vehicle-card { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
@@ -71,10 +80,6 @@
 .dealer-site-theme .friendly-enquire :is([data-testid="status-stock-error"], [data-testid="status-vehicle-unavailable"]) > svg,
 .dealer-site-theme .friendly-enquire :is([data-testid="status-stock-error"], [data-testid="status-vehicle-unavailable"]) > div > p:first-child {
   color: var(--mh-primary);
-}
-.dealer-site-theme .friendly-contact [data-testid="contact-location"] > .bg-primary {
-  background: var(--mh-primary);
-  color: var(--mh-surface);
 }
 
 /* Car messages keep the question close to its vehicle and avoid a second hero. */

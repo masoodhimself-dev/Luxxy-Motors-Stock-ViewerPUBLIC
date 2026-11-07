@@ -70,7 +70,7 @@ for (const width of [390, 820, 1440]) {
         appointmentAt: payload!.appointmentAt, managePath: '/viewing/booking-test', calendarIcs: 'BEGIN:VCALENDAR\r\nEND:VCALENDAR' } });
     });
     await page.goto('/enquire?type=viewing');
-    await expect(page.getByRole('button', { name: 'Select a car to continue' })).toBeDisabled();
+    await expect(page.getByRole('link', { name: 'Choose date and time' })).toHaveCount(0);
     await page.locator('input[name="viewing-vehicle"][value="preview-2"]').check();
     await page.getByRole('link', { name: 'Choose date and time' }).click();
     await expect(page).toHaveURL(/vehicleId=preview-2/);
@@ -230,7 +230,7 @@ test('a time taken during review keeps details and requires another time', async
   await expect(page.getByTestId('status-enquiry-error')).toBeFocused();
   await expect(page.getByTestId('button-submit-enquiry')).toBeDisabled();
   await page.getByRole('button', { name: 'Change time', exact: true }).click();
-  await expect(page.getByTestId('group-viewing-slots').getByRole('button', { name: '10:00 am', exact: true })).toHaveCount(0);
+  await expect(page.getByTestId('group-viewing-slots').getByRole('button', { name: '10:00', exact: true })).toHaveCount(0);
   await chooseTime(page);
   await expect(page.getByTestId('input-customer-name')).toHaveValue('Booking Customer');
   await page.getByTestId('button-review-booking').click();
@@ -277,7 +277,6 @@ test('general enquiry booking link uses the new journey and Back restores the or
   await page.getByTestId('input-customer-name').fill('Contact Customer');
   await page.getByTestId('input-customer-email').fill('contact@example.test');
   await page.getByTestId('textarea-enquiry-message').fill('Please tell me about your warranty.');
-  await page.getByText('Need something else?', { exact: true }).click();
   await page.getByTestId('form-enquiry').locator('[aria-label="Other enquiries"]').getByRole('link', { name: 'Book a Test Drive', exact: true }).click();
   await expect(page).toHaveURL(/\/enquire\?type=viewing$/);
   await expect(page.getByTestId('viewing-vehicle-required')).toBeVisible();
@@ -285,7 +284,6 @@ test('general enquiry booking link uses the new journey and Back restores the or
   await expect(page).toHaveURL(/\/enquire\?type=general$/);
   await expect(page.getByTestId('input-customer-name')).toHaveValue('Contact Customer');
   await expect(page.getByTestId('textarea-enquiry-message')).toHaveValue('Please tell me about your warranty.');
-  await page.getByText('Need something else?', { exact: true }).click();
   await page.getByTestId('form-enquiry').locator('[aria-label="Other enquiries"]').getByRole('link', { name: 'Book a Test Drive', exact: true }).click();
   await page.locator('input[name="viewing-vehicle"][value="preview-2"]').check();
   await page.getByRole('link', { name: 'Choose date and time' }).click();

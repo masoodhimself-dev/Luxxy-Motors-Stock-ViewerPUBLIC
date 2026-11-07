@@ -12,7 +12,7 @@ import { clearHomepagePartExchangeLookup, readHomepagePartExchangeLookup } from 
 const events = vi.hoisted(() => ({ search: vi.fn(), analytics: vi.fn(), contact: vi.fn(), lookup: vi.fn() }));
 vi.mock('@workspace/api-client-react', () => ({ customFetch: (...args: unknown[]) => events.lookup(...args) }));
 vi.mock('@/lib/analytics', () => ({ trackEvent: (...args: unknown[]) => events.analytics(...args) }));
-vi.mock('@/components/ai-car-finder', () => ({ AiCarFinder: () => <div data-testid="ai-finder">Existing AI finder</div> }));
+vi.mock('@/components/ai-car-finder', () => ({ AiCarFinder: ({ collapsible }: { collapsible?: boolean }) => collapsible ? <details data-testid="ai-finder"><summary>Search by describing a car</summary></details> : null }));
 vi.mock('@/components/delivery-estimator', () => ({ DeliveryEstimator: () => <button type="button">Estimate delivery</button> }));
 const defaultFilters: FilterState = { make: '', model: '', minPrice: '', maxPrice: '', fuel: '', transmission: '', bodyType: '', search: '', ulez: false, sort: '' };
 const car = (id: string, extra: Record<string, unknown>) => ({ id, advertId: id, make: 'Ford', model: 'Focus', title: 'Ford Focus', price: 5000, year: 2020, mileage: 20000, fuel: 'Petrol', transmission: 'Manual', images: [], heroImage: `https://photos.example.test/${id}.jpg`, inventoryStatus: 'available', sourceExtras: null, ...extra } as unknown as Car);
@@ -207,7 +207,7 @@ it('shows only enabled services and keeps AI available without an automatic acti
   expect(screen.queryByRole('tab', { name: 'Part exchange' })).not.toBeInTheDocument();
   expect(document.getElementById('part-exchange')).toBeNull(); expect(document.getElementById('delivery')).toBeNull(); expect(document.getElementById('warranty')).toBeNull();
   expect(screen.queryByText('Can I arrange a test drive?')).not.toBeInTheDocument();
-  expect(screen.getByTestId('ai-finder').closest('details')).not.toHaveAttribute('open');
+  expect(screen.getByTestId('ai-finder')).not.toHaveAttribute('open');
   expect(events.search).not.toHaveBeenCalled();
 });
 
@@ -224,7 +224,7 @@ it('preserves staff featured choices, omits sold/hidden/withdrawn cars and keeps
 it('uses supplied body types and make links, and only the dealership’s configured hero photo', () => {
   render(<Harness />);
   expect(screen.getByAltText('Our Range Rover and Ford Mondeo')).toHaveAttribute('src', 'https://multichoicemotors.co.uk/our-photo.jpg');
-  expect(screen.getByRole('link', { name: 'Hatchback 2 cars' })).toHaveAttribute('href', '/stock?bodyType=Hatchback');
+  expect(screen.getByRole('link', { name: 'Hatchback' })).toHaveAttribute('href', '/stock?bodyType=Hatchback');
   expect(screen.getByRole('link', { name: 'Used Toyota' })).toHaveAttribute('href', '/stock?make=Toyota');
   expect(screen.queryByText(/SUV/)).not.toBeInTheDocument();
 });
@@ -246,15 +246,13 @@ it('renders only real configured reviews, respects the review switch and rejects
   expect(document.getElementById('reviews')).toBeNull(); expect(multiChoiceHomeSections({ ...config, presentation: { reviews: [], reviewsUrl: '' } }).reviews).toBe(false);
 });
 
-it('expands published grouped hours into seven days and highlights the current London day with real directions', () => {
-  vi.useFakeTimers(); vi.setSystemTime(new Date('2026-07-05T23:30:00Z'));
-  try { render(<Harness />);
-    const hours = screen.getByRole('heading', { name: 'Opening times' }).closest('section')!;
-    const today = within(hours).getByText('Monday', { exact: true }); expect(today.closest('div')).toHaveAttribute('data-today', 'true');
-    expect(within(hours).getByText('Sunday').nextElementSibling).toHaveTextContent('Closed');
-    expect(within(hours).getAllByText('10:00 – 18:00')).toHaveLength(6);
-    expect(screen.getByRole('link', { name: /Open map and directions/ }).getAttribute('href')).toContain('UB3%203EP');
-  } finally { vi.useRealTimers(); }
+it('shows identical opening hours together and keeps directions alongside', () => {
+  render(<Harness />);
+  const hours = screen.getByRole('region', { name: 'Opening hours' });
+  expect(within(hours).getByText('Monday to Saturday').nextElementSibling).toHaveTextContent('10:00 – 18:00');
+  expect(within(hours).getByText('Sunday').nextElementSibling).toHaveTextContent('Closed');
+  expect(within(hours).getAllByText('10:00 – 18:00')).toHaveLength(1);
+  expect(screen.getByRole('link', { name: 'Get directions' }).getAttribute('href')).toContain('UB3%203EP');
 });
 
 it('does not open a car after swiping the featured rail, while retaining immediate keyboard and fresh-tap activation', () => {
@@ -310,41 +308,26 @@ it('keeps all six published dealership reasons and updates their content without
   const config = settings();
   config.whyBuy = Array.from({ length: 6 }, (_, index) => ({ title: `Published reason ${index + 1}`, description: `The dealership’s supplied explanation ${index + 1}.` }));
   const view = render(<Harness config={config} />);
-  let rail = screen.getByRole('group', { name: 'Reasons to choose us; scroll for more' });
-  expect(within(rail).getAllByRole('article')).toHaveLength(6);
+  let rail = screen.getByRole('list', { name: 'Reasons to choose us' });
+  expect(within(rail).getAllByRole('listitem')).toHaveLength(6);
   for (const reason of config.whyBuy) {
     expect(within(rail).getByRole('heading', { name: reason.title })).toBeInTheDocument();
     expect(within(rail).getByText(reason.description)).toBeInTheDocument();
   }
   const replacement = { ...config, whyBuy: config.whyBuy.map((reason, index) => index === 5 ? { title: 'Updated final reason', description: 'The latest published explanation.' } : reason) };
   view.rerender(<Harness config={replacement} />);
-  rail = screen.getByRole('group', { name: 'Reasons to choose us; scroll for more' });
-  expect(within(rail).getAllByRole('article')).toHaveLength(6);
+  rail = screen.getByRole('list', { name: 'Reasons to choose us' });
+  expect(within(rail).getAllByRole('listitem')).toHaveLength(6);
   expect(within(rail).getByRole('heading', { name: 'Updated final reason' })).toBeInTheDocument();
   expect(within(rail).queryByText('Published reason 6')).not.toBeInTheDocument();
 });
 
-it('lets a keyboard user choose a mobile reason and reports the selected slide, respecting reduced motion', () => {
-  vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })));
-  try {
-    render(<Harness />);
-    const rail = screen.getByRole('group', { name: 'Reasons to choose us; scroll for more' });
-    Object.defineProperty(rail, 'getBoundingClientRect', { value: () => ({ left: 20, width: 350 }) });
-    within(rail).getAllByRole('article').forEach((card, index) => {
-      Object.defineProperty(card, 'getBoundingClientRect', { value: () => ({ left: 20 + index * 314 - rail.scrollLeft, width: 300 }) });
-    });
-    const scroll = vi.fn((options: { left: number }) => { rail.scrollLeft = options.left; fireEvent.scroll(rail); });
-    Object.defineProperty(rail, 'scrollTo', { configurable: true, value: scroll });
-    const controls = within(screen.getByRole('group', { name: 'Choose a reason' })).getAllByRole('button');
-    controls[2].focus(); fireEvent.click(controls[2], { detail: 0 });
-    expect(scroll).toHaveBeenLastCalledWith({ left: 628, behavior: 'auto' });
-    expect(controls[2]).toHaveAttribute('aria-pressed', 'true'); expect(controls[0]).toHaveAttribute('aria-pressed', 'false');
-    expect(controls[2]).toHaveFocus();
-    controls[0].focus(); fireEvent.click(controls[0], { detail: 0 });
-    expect(scroll).toHaveBeenLastCalledWith({ left: 0, behavior: 'auto' });
-    expect(controls[0]).toHaveAttribute('aria-pressed', 'true');
-    expect(events.search).not.toHaveBeenCalled(); expect(events.analytics).not.toHaveBeenCalled();
-  } finally { vi.unstubAllGlobals(); }
+it('keeps the buying facts readable together without slide controls', () => {
+  render(<Harness />);
+  const facts = screen.getByRole('list', { name: 'Reasons to choose us' });
+  expect(within(facts).getByRole('heading', { name: 'Multipoint inspection' })).toBeInTheDocument();
+  expect(within(facts).getByRole('heading', { name: 'Visits by appointment' })).toBeInTheDocument();
+  expect(screen.queryByRole('group', { name: 'Choose a reason' })).not.toBeInTheDocument();
 });
 
 it('keeps featured carousel controls keyboard-operable without opening a car and honours motion preferences', () => {
@@ -403,7 +386,9 @@ it('keeps delivery on demand inside the FAQ and warranty on its dedicated page w
   window.history.replaceState({}, '', '/#delivery');
   fireEvent(window, new HashChangeEvent('hashchange'));
   await waitFor(() => expect(delivery.open).toBe(true));
-  expect(within(delivery).getByRole('link', { name: 'Ask about delivery' })).toHaveAttribute('href', '/enquire?type=general');
+  const deliveryLink = within(delivery).getByRole('link', { name: 'Ask about delivery' });
+  const question = new URL(deliveryLink.getAttribute('href')!, window.location.origin).searchParams.get('searchRequest');
+  expect(question).toContain('my postcode');
   view.rerender(<Harness config={{ ...config, warranty: { ...config.warranty, enabled: false }, delivery: { ...config.delivery, enabled: false } }} />);
   expect(document.getElementById('delivery')).toBeNull();
   expect(screen.queryByRole('link', { name: 'Warranty information' })).not.toBeInTheDocument();
@@ -427,7 +412,7 @@ it('retains published team and arrival details in the visit section and respects
 it('loads the real showroom map only on request, retains directions and withholds maps for sample addresses', () => {
   const config = settings(), view = render(<Harness config={config} />);
   expect(screen.queryByTitle('Dealership location')).not.toBeInTheDocument();
-  const directions = screen.getByRole('link', { name: /Open map and directions/ });
+  const directions = screen.getByRole('link', { name: 'Get directions' });
   expect(directions).toHaveAttribute('target', '_blank');
   fireEvent.click(screen.getByRole('button', { name: 'Show map' }));
   const frame = screen.getByTitle('Dealership location');
@@ -460,7 +445,7 @@ it('retains published trust points only as the fallback when no detailed reasons
   const config = settings(); config.whyBuy = []; config.trustItems = ['Independent dealership', 'Visit us in Hayes', 'Ask us about your next car', ' '];
   const view = render(<Harness config={config} />);
   let about = document.getElementById('about')!;
-  const trustList = within(about).getByRole('list');
+  const trustList = within(about).getByRole('list', { name: 'Dealership details' });
   for (const item of config.trustItems.filter(item => item.trim())) expect(within(trustList).getByText(item)).toBeInTheDocument();
   expect(trustList.querySelectorAll('li')).toHaveLength(3);
   view.rerender(<Harness config={{ ...config, whyBuy: [{ title: 'Our published approach', description: 'Speak with our team before choosing your next car.' }] }} />);
@@ -474,7 +459,7 @@ it('preserves the published hero announcement as escaped text', () => {
   render(<Harness config={config} />);
   expect(screen.getByText(config.hero.announcement!)).toBeInTheDocument();
   expect(document.querySelector('.mh-announcement img')).toBeNull();
-  expect(screen.getByRole('heading', { level: 1, name: 'Find your next car' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { level: 1, name: 'Used cars in Hayes' })).toBeInTheDocument();
 });
 
 it('updates only the known original forecourt artwork and keeps a later staff-selected hero photograph exactly', () => {

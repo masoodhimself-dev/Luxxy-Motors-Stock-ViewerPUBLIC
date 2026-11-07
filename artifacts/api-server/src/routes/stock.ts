@@ -6,7 +6,7 @@ import { matchesImportSecret } from "../middlewares/tenant";
 import { currentDealerId, currentTenant, multiTenantEnabled } from "../lib/tenant-context";
 import { stockPlatformIssues } from "../lib/stock-platform";
 import { importAdmission } from '../lib/stock-import-admission';
-import { stockDescriptionExtras, vehicleCodeFromPath } from "@workspace/vehicle-meta";
+import { PUBLIC_VEHICLE_CODE_PATTERN, stockDescriptionExtras, vehicleCodeFromPath } from "@workspace/vehicle-meta";
 import { dealerIntegrationsStore } from "../lib/dealer-integrations-store";
 import { stockSourceData, projectedStockSourceData } from "../lib/stock-source-data";
 import { timingSafeEqual } from "node:crypto";
@@ -464,6 +464,14 @@ export async function findPublicVehicleByPath(pathname: string): Promise<PublicV
     .where(and(eq(vehiclePublicLinksTable.code, code), eq(vehiclePublicLinksTable.dealerId, currentDealerId()))).limit(1);
   return link?.vehicleId ? findPublicVehicle(link.vehicleId) : null;
 }
+
+router.get("/vehicles/short/:code", async (req, res): Promise<void> => {
+  res.setHeader("Cache-Control", "no-store");
+  const code = String(req.params.code);
+  const vehicle = PUBLIC_VEHICLE_CODE_PATTERN.test(code) ? await findPublicVehicleByPath(`/s/${code}`) : null;
+  if (!vehicle) { res.status(404).json({ error: "Vehicle not found" }); return; }
+  res.json(GetVehicleResponse.parse(vehicle));
+});
 
 router.get("/vehicles/:id", async (req, res): Promise<void> => {
   const parsed = GetVehicleParams.safeParse(req.params);

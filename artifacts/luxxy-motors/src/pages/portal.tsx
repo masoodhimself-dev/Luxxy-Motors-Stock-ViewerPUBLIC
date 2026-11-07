@@ -46,6 +46,7 @@ import {
 } from "@/lib/test-drive-dates";
 import { useDealerFeatures } from "@/lib/dealer-features";
 import { CarsWorkspace } from "@/components/portal/cars-workspace";
+import { BuyerDemandWorkspace } from "@/components/portal/stock-alerts";
 import { SalesWorkspace } from "@/pages/sales-demo";
 
 import { NotificationsWorkspace } from "@/components/portal/notifications-workspace";
@@ -301,8 +302,9 @@ function PortalDesk() {
     !features.isError &&
     features.enabled("testDriveBookings") &&
     (settings.testDriveBooking ?? defaultBookingSettings).enabled;
-  const selectedCarId =
-    tab === "cars" ? new URLSearchParams(search).get("carId") : null;
+  const params = new URLSearchParams(search);
+  const showBuyerDemand = tab === "cars" && params.get("carsView") === "buyer-demand";
+  const selectedCarId = tab === "cars" && !showBuyerDemand ? params.get("carId") : null;
   const selectedCar = !staffCars.isError
     ? staffCars.data?.cars.find((car) => car.id === selectedCarId)
     : undefined;
@@ -623,7 +625,9 @@ function PortalDesk() {
                     onNewSale={() => newSale()}
                   />
                 )}
-                {tab === "cars" && (
+                {tab === "cars" && (showBuyerDemand ? (
+                  <BuyerDemandWorkspace canChangeSettings={access.data?.permissions.includes("settings.publish") ?? false} />
+                ) : (
                   <PortalCars
                     canManage={canSell}
                     onEnquiry={quickEnquiry}
@@ -634,7 +638,7 @@ function PortalDesk() {
                       )
                     }
                   />
-                )}
+                ))}
                 {tab === "settings" && <DealerSettingsHub />}
               </div>
             )}

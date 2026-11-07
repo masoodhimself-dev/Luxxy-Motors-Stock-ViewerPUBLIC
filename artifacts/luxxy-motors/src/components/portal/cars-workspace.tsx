@@ -70,6 +70,7 @@ import {
 } from "./cars-workspace-model";
 import { useStaffCars, staffCarsKey, type StaffCar } from "./staff-cars-query";
 import { formatDateTime } from "./portal-ui";
+import { buyerDemandHref } from "./stock-alerts";
 import "./cars-workspace.css";
 type CarsWorkspaceProps = {
   canManage: boolean;
@@ -631,6 +632,9 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
           </p>
         </div>
         <div className="cars-heading-actions">
+        <Button size="sm" variant="outline" className="min-h-11" asChild>
+          <Link href={buyerDemandHref}>Buyer demand</Link>
+        </Button>
         {canManage && <Button
           size="sm"
           variant="outline"

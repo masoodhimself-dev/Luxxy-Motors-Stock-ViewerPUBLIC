@@ -15,13 +15,13 @@ import { ArrowRight, ArrowUpRight, Calendar, Car, ChevronDown, ChevronLeft, Chev
 import { SiWhatsapp } from './icons';
 import { MultiHomeReviews } from './multi-home-reviews';
 import { MultiHomeVisit } from './multi-home-visit';
-import { getPhoneHref, getWhatsAppHref, recordContactIntent } from '@/lib/cta-helpers';
+import { getEnquiryHref, getPhoneHref, getWhatsAppHref, recordContactIntent } from '@/lib/cta-helpers';
 import { dealershipLocation } from '@/lib/dealership-location';
+import { warrantySummary } from '@/lib/dealership-customer-copy';
 import { stockBodyTypes } from '@/lib/body-types';
 import { stockBudgetOptions } from '@/lib/stock-budget-options';
 import { homepageFeaturedCars } from '@/lib/homepage-featured-cars';
 import { formatMileage, formatPhoneDisplay, formatPrice, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
-import { editableShowroomWeek, settingsWeekdays } from '@/lib/settings-simplification';
 import { responsiveVehicleImage, retryOriginalImage } from '@/lib/responsive-vehicle-image';
 import { trackEvent } from '@/lib/analytics';
 import { deliveryPriceQualification } from '@/lib/delivery-estimate';
@@ -147,17 +147,9 @@ function FeaturedStock({ cars, isLoading, error, enabled, heading }: { cars: Sto
     const element = rail.current;
     if (element) element.scrollBy({ left: direction * (element.querySelector('article')?.getBoundingClientRect().width || element.clientWidth), behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   };
-  return <section className="mh-section mh-featured" aria-labelledby="mh-featured-heading"><div className="mh-section-title"><div><h2 id="mh-featured-heading">{heading}</h2><p>A closer look at our current stock.</p></div><Link href="/stock" className="mh-text-link">View all cars<ArrowRight size={18} /></Link></div>
+  return <section className="mh-section mh-featured" aria-labelledby="mh-featured-heading"><div className="mh-section-title"><div><h2 id="mh-featured-heading">{heading}</h2></div><Link href="/stock" className="mh-text-link">View all cars<ArrowRight size={18} /></Link></div>
     {isLoading ? <p role="status" className="mh-empty">Loading featured cars…</p> : error ? <div role="status" className="mh-empty"><h3>Stock is temporarily unavailable</h3><p>Please try the stock page again, or contact us about a car.</p><Link href="/stock" className="mh-text-link">Browse stock</Link></div> : cars.length ? <><div className="mh-stock-rail" role="group" ref={rail} {...gesture} tabIndex={0} aria-label="Featured cars; scroll for more">{cars.map(car => <FeaturedCard key={car.id} car={car} />)}</div>{cars.length > 1 && <div className="mh-carousel-controls"><button type="button" onClick={() => scroll(-1)} aria-label="Previous featured cars"><ChevronLeft size={20} /></button><span>Scroll to see more cars</span><button type="button" onClick={() => scroll(1)} aria-label="Next featured cars"><ChevronRight size={20} /></button></div>}</> : <div className="mh-empty"><h3>No featured cars to show right now</h3><p>Ask us what’s coming into stock.</p><Link href="/contact" className="mh-text-link">Contact the showroom</Link></div>}
   </section>;
-}
-
-function OpeningTimes({ settings }: { settings: HomeSettings }) {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => { const update = () => setNow(new Date()); const timer = window.setInterval(update, 60_000); window.addEventListener('focus', update); return () => { window.clearInterval(timer); window.removeEventListener('focus', update); }; }, []);
-  const week = editableShowroomWeek(settings.hours ?? []);
-  const today = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', weekday: 'long' }).format(now);
-  return <section className="mh-section mh-hours" aria-labelledby="mh-hours-heading"><h2 id="mh-hours-heading">Opening times</h2><p>Please confirm your visit before travelling on bank holidays.</p>{week ? <dl className="mh-hours-grid">{[1, 2, 3, 4, 5, 6, 0].map(day => { const entry = week[day], name = settingsWeekdays[day]; return <div key={day} data-today={today === name || undefined}><dt>{name}{today === name && <span className="sr-only"> (today)</span>}</dt><dd>{entry.state === 'closed' ? 'Closed' : entry.state === 'open' ? `${entry.open} – ${entry.close}` : 'Please confirm'}</dd></div>; })}</dl> : settings.hours?.length ? <dl className="mh-hours-grid">{settings.hours.map(row => <div key={row.days}><dt>{row.days}</dt><dd>{row.times}</dd></div>)}</dl> : <p>Please contact us to confirm our opening hours.</p>}</section>;
 }
 
 /** Shared public homepage; every dealership supplies its own published content. */
@@ -166,7 +158,6 @@ export function DealershipHomepage({ settings, cars: suppliedCars, isLoading, er
   const cars = suppliedCars.filter(car => !['sold', 'archived', 'hidden', 'withdrawn'].includes(String(car.inventoryStatus).toLowerCase()));
   const sections = multiChoiceHomeSections(settings);
   const [tab, setTab] = useState<'buy' | 'px'>('buy');
-  const reasonRail = useRef<HTMLDivElement>(null), [reasonIndex, setReasonIndex] = useState(0);
   const tabId = useId(), tabs = useRef<Array<HTMLButtonElement | null>>([]);
   const deliveryFaq = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
@@ -181,22 +172,27 @@ export function DealershipHomepage({ settings, cars: suppliedCars, isLoading, er
   // Replace only the existing Multi-Choice forecourt artwork; later staff-selected photos stay authoritative.
   const cutout = multiChoice && Boolean(configuredPhoto?.includes('/api/website-assets/12f86896-51f9-4e38-be24-b8ab5d243c9c'));
   const photo = cutout ? '/brand/multi-choice-motors/hero-cars-1200.webp' : configuredPhoto || getThumbnailUrl(featured.find(car => getThumbnailUrl(car)) || cars.find(car => getThumbnailUrl(car)));
-  const headline = customerDefaultCopy(settings.hero.copy, 'Find your next car.', ['Find Your Next Car']);
-  const lastWord = headline.lastIndexOf(' ');
   const types = stockBodyTypes(cars), makes = [...new Set(cars.map(car => car.make).filter((make): make is string => Boolean(make)))].sort((a, b) => a.localeCompare(b));
   const reviews = multiChoiceReviews(settings), reviewsUrl = multiChoiceReviewsUrl(settings);
   const phone = getPhoneHref(settings), whatsapp = getWhatsAppHref(undefined, settings);
   const location = dealershipLocation(settings.address);
+  const city = location.isSample ? '' : settings.address?.city?.trim();
+  const locationHeadline = city && `Used cars in ${city}`;
+  const headline = customerDefaultCopy(settings.hero.copy, multiChoice && locationHeadline ? locationHeadline : 'Find your next car.', [
+    'Find Your Next Car',
+    ...(multiChoice ? ['Find your next car.', 'Find your next car'] : []),
+  ]);
+  const heroLocation = [headline !== locationHeadline && locationHeadline, multiChoice && 'Visits by appointment'].filter(Boolean).join(' · ');
   const canBook = settings.testDriveBooking?.enabled === true;
-  const enquiry = publicEnquiriesEnabled ? '/enquire?type=general' : '/contact';
+  const deliveryEnquiry = publicEnquiriesEnabled
+    ? getEnquiryHref('general', undefined, 'Could you confirm delivery availability and cost for my postcode?')
+    : '/contact';
+  const warranty = warrantySummary(settings, multiChoice);
   // Dealer-approved homepage wording; published Settings content still takes precedence.
   const defaultReasons = multiChoice ? [
-    { title: 'Service You Can Trust', text: 'Experience a seamless car-buying journey backed by our expert customer care team.', Icon: Smile },
-    { title: '6 month warranty', text: 'Our cars come with a 6-month warranty as standard, with options to extend up to 36 months for added peace of mind.', Icon: ShieldCheck },
-    { title: 'Same day drive away', text: 'Complete your purchase on the same day, no need for multiple visits.', Icon: Truck },
-    { title: 'Competitive prices', text: 'Our cars are price-checked daily to ensure great value.', Icon: Tag },
-    { title: 'Multipoint inspection', text: 'Quality matters. That’s why we triple-check everything.', Icon: CircleCheck },
-    { title: 'Hassle & haggle-free', text: 'No awkward haggling, no high mark-ups, and no pressure to buy.', Icon: Handshake },
+    ...(sections.warranty ? [{ title: 'Warranty', text: warranty, Icon: ShieldCheck }] : []),
+    { title: 'Multipoint inspection', text: 'We inspect each car before it goes on sale.', Icon: CircleCheck },
+    { title: 'Visits by appointment', text: 'Arrange a viewing or test drive at our showroom.', Icon: Calendar },
   ] : [
     { title: 'Browse our current stock', text: 'Explore the cars available and compare the ones that interest you.', Icon: Car },
     { title: 'The details in one place', text: 'Check each car’s price, mileage and specification before you decide.', Icon: CircleCheck },
@@ -206,43 +202,47 @@ export function DealershipHomepage({ settings, cars: suppliedCars, isLoading, er
     { title: 'Keep your favourites', text: 'Save cars while you browse so you can find them again.', Icon: Tag },
   ];
   const reasonIcon = (text: string) => /warrant|cover|protect/i.test(text) ? ShieldCheck : /deliver|transport/i.test(text) ? Truck : /price|value|budget/i.test(text) ? Tag : /inspect|check|prepar/i.test(text) ? CircleCheck : /exchange|trade|hagg/i.test(text) ? Handshake : /visit|location|hayes/i.test(text) ? MapPin : /test drive|appointment/i.test(text) ? Calendar : Smile;
-  const providedReasons = (settings.whyBuy ?? []).filter(reason => reason.title.trim() && reason.description.trim()).slice(0, 6).map(reason => ({ title: reason.title, text: reason.description, Icon: reasonIcon(`${reason.title} ${reason.description}`), href: '/contact' }));
+  const providedReasons = (settings.whyBuy ?? []).filter(reason => reason.title.trim() && reason.description.trim()).slice(0, 6).map(reason => (
+    sections.warranty && /warranty/i.test(reason.title)
+      ? { title: 'Warranty', text: warranty, Icon: ShieldCheck }
+      : { title: reason.title, text: reason.description, Icon: reasonIcon(`${reason.title} ${reason.description}`) }
+  ));
   const trustItems = !providedReasons.length ? (settings.trustItems ?? []).filter(item => item.trim()) : [];
   const reasons = [...providedReasons, ...defaultReasons.filter(reason => !providedReasons.some(provided => provided.title.toLowerCase() === reason.title.toLowerCase()))].slice(0, 6);
-  const selectReason = (index: number) => {
-    const rail = reasonRail.current, target = rail?.children[index] as HTMLElement | undefined;
-    if (rail && target) rail.scrollTo({ left: target.getBoundingClientRect().left - rail.getBoundingClientRect().left + rail.scrollLeft, behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-  };
-  // TODO(copy): Dealer review of fallback answers; no unconfirmed warranty or inspection promises.
   const faqs: Array<{ question: string; answer: string; href: string; label: string; id?: 'delivery' }> = [
     { question: 'How do I find the right car?', answer: 'Choose a make and budget above, or browse all our cars to filter by gearbox, fuel and body type.', href: '/stock', label: 'Browse our cars' },
-    ...(sections.partExchange ? [{ question: 'Can I part-exchange my current car?', answer: 'Start with your registration, check your car’s details and tell us which of our cars interests you. Our team will confirm the valuation and whether we can accept your car.', href: '/enquire?type=part_exchange', label: 'Start a part-exchange enquiry' }] : []),
+    ...(sections.partExchange ? [{ question: 'Can I part-exchange my current car?', answer: 'Start with your registration and check your car’s details. You can tell us which car interests you or ask about a valuation first.', href: '/enquire?type=part_exchange', label: 'Start a part-exchange enquiry' }] : []),
     ...(canBook ? [{ question: 'Can I arrange a test drive?', answer: 'Choose an available date and time, then enter your contact details. Follow the booking confirmation instructions before travelling.', href: '/enquire?type=viewing', label: 'Choose a test-drive time' }] : []),
-    ...(sections.warranty ? [{ question: 'What warranty is available?', answer: 'Please confirm the cover, duration, cost and exclusions for your chosen car with our team.', href: '/warranty', label: 'Warranty information' }] : []),
-    ...(sections.delivery ? [{ id: 'delivery' as const, question: 'Can you deliver my car?', answer: settings.delivery?.description?.trim() || 'Ask our team to confirm delivery availability, cost and arrangements for your postcode.', href: enquiry, label: 'Ask about delivery' }] : []),
+    ...(sections.warranty ? [{ question: 'What warranty is available?', answer: warranty, href: '/warranty', label: 'Warranty information' }] : []),
+    ...(sections.delivery ? [{ id: 'delivery' as const, question: 'Can you deliver my car?', answer: customerDefaultCopy(settings.delivery?.description, settings.deliveryPricing?.enabled ? 'Enter your postcode for a delivery estimate.' : 'Ask us for a delivery quote for your postcode.', ['Customers may be able to have their vehicle delivered.']), href: deliveryEnquiry, label: 'Ask about delivery' }] : []),
     { question: 'Where can I see the car?', answer: location.isSample || !location.lines.length ? 'Contact us to confirm the showroom address and arrange your visit.' : `${settings.identity.name} is at ${location.lines.join(', ')}. Check our opening times and confirm your visit before travelling.`, href: sections.visit ? '#find-us' : '/contact', label: 'Plan your visit' },
   ];
   return <div className="multi-home" data-testid="multi-choice-homepage" data-dealership-homepage>
-    <section className="mh-hero" aria-labelledby="home-heading"><div className="mh-container mh-hero-grid"><div className="mh-hero-introduction">{settings.hero.announcement?.trim() && <p className="mh-announcement">{settings.hero.announcement}</p>}<h1 id="home-heading" tabIndex={-1}>{lastWord > 0 ? <>{headline.slice(0, lastWord)} <em>{headline.slice(lastWord + 1)}</em></> : headline}</h1>{settings.presentation?.showHeroDescription && settings.hero.subcopy && <p>{settings.hero.subcopy}</p>}{photo && <ShowroomPhoto src={photo} alt={settings.presentation?.heroImageAlt || `${settings.identity.name} cars`} priority fit={cutout ? 'contain' : 'cover'} position={settings.presentation?.heroImagePosition} className={`mh-hero-photo${cutout ? ' mh-hero-photo--cutout' : ''}`} />}</div>
-      <div className="mh-search-card"><a className="mh-hero-badge" href="/stock">Explore<br />our cars</a><div role="tablist" aria-label="Find your next car" className="mh-search-tabs" onKeyDown={event => { if (!sections.partExchange || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return; event.preventDefault(); const index = event.key === 'Home' ? 0 : event.key === 'End' ? 1 : tab === 'buy' ? 1 : 0; setTab(index ? 'px' : 'buy'); tabs.current[index]?.focus(); }}>
+    <section className="mh-hero" aria-labelledby="home-heading"><div className="mh-container mh-hero-grid"><div className="mh-hero-introduction">{settings.hero.announcement?.trim() && <p className="mh-announcement">{settings.hero.announcement}</p>}<h1 id="home-heading" tabIndex={-1}>{headline}</h1>{heroLocation && <p className="mh-hero-location">{heroLocation}</p>}{settings.presentation?.showHeroDescription && settings.hero.subcopy && <p>{settings.hero.subcopy}</p>}{photo && <ShowroomPhoto src={photo} alt={settings.presentation?.heroImageAlt || `${settings.identity.name} cars`} priority fit={cutout ? 'contain' : 'cover'} position={settings.presentation?.heroImagePosition} className={`mh-hero-photo${cutout ? ' mh-hero-photo--cutout' : ''}`} />}</div>
+      <div className="mh-search-card"><div role="tablist" aria-label="Find your next car" className="mh-search-tabs" onKeyDown={event => { if (!sections.partExchange || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return; event.preventDefault(); const index = event.key === 'Home' ? 0 : event.key === 'End' ? 1 : tab === 'buy' ? 1 : 0; setTab(index ? 'px' : 'buy'); tabs.current[index]?.focus(); }}>
         <button type="button" ref={element => { tabs.current[0] = element; }} id={`${tabId}-buy-tab`} role="tab" aria-selected={tab === 'buy'} aria-controls={`${tabId}-buy`} tabIndex={tab === 'buy' ? 0 : -1} onClick={() => setTab('buy')}>Buy a car</button>
         {sections.partExchange && <button type="button" ref={element => { tabs.current[1] = element; }} id={`${tabId}-px-tab`} role="tab" aria-selected={tab === 'px'} aria-controls={`${tabId}-px`} tabIndex={tab === 'px' ? 0 : -1} onClick={() => setTab('px')}>Part exchange</button>}
       </div><div role="tabpanel" id={`${tabId}-buy`} aria-labelledby={`${tabId}-buy-tab`} hidden={tab !== 'buy'}><StockSearch cars={cars} isLoading={isLoading} error={error} filters={filters} setFilters={setFilters} onSearch={onSearch} /></div>{sections.partExchange && <div role="tabpanel" id={`${tabId}-px`} aria-labelledby={`${tabId}-px-tab`} hidden={tab !== 'px'}><PartExchangeStart id="hero" /></div>}</div>
     </div></section>
     <div className="mh-container">
       {!error && makes.length > 0 && <section className="mh-section mh-makes" aria-labelledby="mh-makes-heading"><h2 id="mh-makes-heading">Find by Make</h2><div>{makes.map(make => <Link key={make} href={`/stock?make=${encodeURIComponent(make)}`} aria-label={`Used ${make}`}><MakeLogo make={make} size={24} className="mh-make-logo" /><span>{make}</span></Link>)}</div></section>}
-      <section id="about" className="mh-section mh-reasons" aria-labelledby="home-reassurance-heading"><h2 id="home-reassurance-heading" tabIndex={-1}>Just a few reasons why to buy your next car from us</h2><div className="mh-reasons-grid" role="group" ref={reasonRail} tabIndex={0} aria-label="Reasons to choose us; scroll for more" onScroll={event => { const rail = event.currentTarget, first = rail.firstElementChild; if (first) setReasonIndex(Math.min(reasons.length - 1, Math.round(rail.scrollLeft / (first.getBoundingClientRect().width + 14)))); }}>{reasons.map(({ title, text, Icon }) => <article key={title}><Icon size={60} strokeWidth={2} aria-hidden="true" /><h3>{title}</h3><p>{text}</p></article>)}</div><div className="mh-reason-dots" role="group" aria-label="Choose a reason">{reasons.map((reason, index) => <button key={reason.title} type="button" aria-label={`Show reason ${index + 1}: ${reason.title}`} aria-pressed={reasonIndex === index} onClick={() => selectReason(index)}><span /></button>)}</div><Link className="mh-button mh-pill" href="/stock">Explore our cars</Link>{trustItems.length > 0 && <ul className="mh-trust-items">{trustItems.map(item => <li key={item}><CircleCheck size={18} aria-hidden="true" />{item}</li>)}</ul>}</section>
+      <section id="about" className="mh-section mh-reasons" aria-labelledby="home-reassurance-heading">
+        <h2 id="home-reassurance-heading" tabIndex={-1}>Buying from {settings.identity.name}</h2>
+        <ul className="mh-reasons-grid" aria-label="Reasons to choose us">{reasons.map(({ title, text, Icon }) => <li key={title}>
+          <Icon size={22} aria-hidden="true" /><div><h3>{title}</h3><p>{text}</p></div>
+        </li>)}</ul>
+        {trustItems.length > 0 && <ul className="mh-trust-items" aria-label="Dealership details">{trustItems.map(item => <li key={item}><CircleCheck size={18} aria-hidden="true" />{item}</li>)}</ul>}
+      </section>
       {sections.reviews && <MultiHomeReviews reviews={reviews} reviewsUrl={reviewsUrl} heading={settings.presentation?.websiteCopy?.reviewsHeading?.trim() || 'What our customers say'} />}
     </div>
-    {sections.partExchange && <section id="part-exchange" className="mh-px-strip"><div className="mh-container"><h2 id="part-exchange-heading" tabIndex={-1}>Ready for your next car?</h2><p>Put your current car towards it. Start with your registration.</p><PartExchangeStart id="strip" /></div></section>}
+    {sections.partExchange && <section id="part-exchange" className="mh-px-strip"><div className="mh-container"><h2 id="part-exchange-heading" tabIndex={-1}>Part exchange</h2><p>Enter your registration to get started.</p><PartExchangeStart id="strip" /></div></section>}
     <div className="mh-container">
-      {!error && types.length > 0 && <section className="mh-section mh-body-types" aria-labelledby="mh-body-heading"><h2 id="mh-body-heading">Browse by body type</h2><div className="mh-body-grid">{types.map(type => <Link key={type.label} href={`/stock?bodyType=${encodeURIComponent(type.label)}`} aria-label={`${type.label} ${type.count} ${type.count === 1 ? 'car' : 'cars'}`}><MultiBodyShape type={type.label} /><span>{type.label}</span><small>{type.count} {type.count === 1 ? 'car' : 'cars'}</small></Link>)}</div></section>}
+      {!error && types.length > 0 && <section className="mh-section mh-body-types" aria-labelledby="mh-body-heading"><h2 id="mh-body-heading">Browse by body type</h2><div className="mh-body-grid">{types.map(type => <Link key={type.label} href={`/stock?bodyType=${encodeURIComponent(type.label)}`} aria-label={type.label}><MultiBodyShape type={type.label} /><span>{type.label}</span></Link>)}</div></section>}
       <FeaturedStock cars={featured} isLoading={isLoading} error={error} enabled={settings.presentation?.featuredEnabled !== false} heading={websiteText(settings, 'featuredHeading')} />
-      <details className="mh-ai-search"><summary>Want a hand finding a car? Describe what you need<Search size={18} /></summary><AiCarFinder cars={cars} /></details>
-      <section className="mh-section mh-faqs" aria-labelledby="mh-faq-heading"><h2 id="mh-faq-heading">A few things you might want to know</h2>{faqs.map(faq => <details key={faq.question} id={faq.id} ref={faq.id === 'delivery' ? deliveryFaq : undefined}><summary>{faq.question}<ChevronDown size={20} aria-hidden="true" /></summary><div><p>{faq.answer}</p>{faq.id === 'delivery' && settings.deliveryPricing?.enabled && <DeliveryEstimator expanded />}<a href={faq.href} className="mh-text-link">{faq.label}<ArrowRight size={16} /></a></div></details>)}</section>
+      <AiCarFinder cars={cars} collapsible />
+      <section className="mh-section mh-faqs" aria-labelledby="mh-faq-heading"><h2 id="mh-faq-heading">Buying and visiting</h2>{faqs.map(faq => <details key={faq.question} id={faq.id} ref={faq.id === 'delivery' ? deliveryFaq : undefined}><summary>{faq.question}<ChevronDown size={20} aria-hidden="true" /></summary><div><p>{faq.answer}</p>{faq.id === 'delivery' && settings.deliveryPricing?.enabled && <DeliveryEstimator expanded customerEnquiries={publicEnquiriesEnabled} />}<a href={faq.href} className="mh-text-link">{faq.label}<ArrowRight size={16} /></a></div></details>)}</section>
       {sections.visit && <MultiHomeVisit settings={settings} />}
-      <section id="contact" className="mh-section mh-contact" aria-labelledby="mh-contact-heading"><h2 id="mh-contact-heading">Let’s talk about your next car</h2><div className="mh-contact-grid">{phone && <a href={phone} onClick={() => recordContactIntent({ channel: 'call', source: 'homepage' })}><Phone size={32} /><span>Call the showroom</span><strong>{formatPhoneDisplay(settings.contact.phone!)}</strong></a>}{settings.contact.email && <a href={`mailto:${settings.contact.email}`}><Mail size={32} /><span>Email us</span><strong>{settings.contact.email}</strong></a>}{whatsapp && <a href={whatsapp} target="_blank" rel="noopener noreferrer" onClick={() => recordContactIntent({ channel: 'whatsapp', source: 'homepage' })}><SiWhatsapp size={32} /><span>Message us on WhatsApp</span><strong>Start a chat</strong></a>}{!phone && !settings.contact.email && !whatsapp && <Link className="mh-button" href="/contact">Contact the dealership</Link>}</div></section>
-      {sections.visit && <OpeningTimes settings={settings} />}
+      <section id="contact" className="mh-section mh-contact" aria-labelledby="mh-contact-heading"><h2 id="mh-contact-heading">Contact us</h2><div className="mh-contact-grid">{phone && <a href={phone} onClick={() => recordContactIntent({ channel: 'call', source: 'homepage' })}><Phone size={32} /><span>Call the showroom</span><strong>{formatPhoneDisplay(settings.contact.phone!)}</strong></a>}{settings.contact.email && <a href={`mailto:${settings.contact.email}`}><Mail size={32} /><span>Email us</span><strong>{settings.contact.email}</strong></a>}{whatsapp && <a href={whatsapp} target="_blank" rel="noopener noreferrer" onClick={() => recordContactIntent({ channel: 'whatsapp', source: 'homepage' })}><SiWhatsapp size={32} /><span>Message us on WhatsApp</span><strong>Start a chat</strong></a>}{!phone && !settings.contact.email && !whatsapp && <Link className="mh-button" href="/contact">Contact the dealership</Link>}</div></section>
     </div>
     {whatsapp && <a className="mh-whatsapp-float" href={whatsapp} target="_blank" rel="noopener noreferrer" aria-label="Chat with us on WhatsApp" onClick={() => recordContactIntent({ channel: 'whatsapp', source: 'homepage' })}><SiWhatsapp size={27} /></a>}
   </div>;

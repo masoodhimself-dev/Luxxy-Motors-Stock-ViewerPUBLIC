@@ -1,4 +1,4 @@
-export type EnquiryMessageRequest = { id: number; text: string };
+export type EnquiryMessageRequest = { id: number | string; text: string };
 export type EnquiryMessageAppend = { status: 'added' | 'unchanged'; message: string } | { status: 'too_long'; message: string; request: string };
 
 /** Preparing a question must never erase a draft or shorten the customer's words. */

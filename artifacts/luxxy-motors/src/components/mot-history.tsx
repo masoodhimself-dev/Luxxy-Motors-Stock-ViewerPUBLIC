@@ -104,7 +104,9 @@ export function MotHistoryResults({ history, staff = false }: { history: MotHist
       </div>)}
       </section>}
       <footer className="mot-record-footer">
-      <p>MOT records show the car at each test.{staff && ' Earlier issues may have been repaired.'} These are recorded test mileages, not the car’s current mileage. This is not a service, finance or insurance-history check.</p>
+      <p>{staff
+        ? 'MOT records show the car at each test. Earlier issues may have been repaired. These are recorded test mileages, not the car’s current mileage. This is not a service, finance or insurance-history check.'
+        : 'Mileage shown is from each MOT test. For advisories and the full record, visit GOV.UK.'}</p>
       <a
         href="https://www.gov.uk/check-mot-history"
         target="_blank"
@@ -190,7 +192,7 @@ export function MotHistoryPanel({
             )
           }
         >
-          {busy ? "Checking MOT history…" : "View MOT history"}
+          {busy ? "Checking MOT history…" : error && !staff ? "Try again" : "View MOT history"}
         </Button>
       )}
       {error && (
@@ -200,6 +202,11 @@ export function MotHistoryPanel({
       )}
       {reply?.status === "registration_missing" && (
         <p className="text-sm text-muted-foreground">{reply.message}</p>
+      )}
+      {!staff && (error || reply?.status === "registration_missing") && (
+        <a href="https://www.gov.uk/check-mot-history" target="_blank" rel="noopener noreferrer" className="text-link mt-2 inline-flex min-h-11 items-center gap-2">
+          View full MOT history on GOV.UK<ArrowUpRight size={16} aria-hidden="true" />
+        </a>
       )}
       {reply?.status === "available" && (
         <MotHistoryResults history={reply.history} staff={staff} />

@@ -211,6 +211,23 @@ it("requires every search token, searches derivative/colour/year, and keeps comp
   expect(ids(cars, { search: "MA06 LDW" })).toEqual(["yaris"]);
 });
 
+it("finds gearboxes by full names and common abbreviations in a keyword search", () => {
+  const inventory = [
+    ...cars,
+    car("golf", { make: "Volkswagen", model: "Golf", transmission: "DSG" }),
+    car("a4", { make: "Audi", model: "A4", transmission: "Auto" }),
+    car("range", { make: "Land Rover", variant: "Autobiography", transmission: "Manual" }),
+  ];
+  for (const search of ["BMW automatic", "auto BMW", "BMW AUTOMATIC diesel"]) {
+    expect(ids(inventory, { search })).toEqual(["bmw"]);
+  }
+  expect(ids(inventory, { search: "Corolla DCT" })).toEqual(["corolla"]);
+  expect(ids(inventory, { search: "automatic Golf" })).toEqual(["golf"]);
+  expect(ids(inventory, { search: "Audi A4 automatic" })).toEqual(["a4"]);
+  expect(ids(inventory, { search: "Toyota manual" })).toEqual(["yaris"]);
+  expect(ids(inventory, { search: "Land Rover auto" })).toEqual([]);
+});
+
 it("uses numeric price/mileage/seat/engine comparisons and does not fabricate missing values", () => {
   expect(
     ids(cars, { maxPrice: "10000", engine: "2L,1.3", seats: "5" }),

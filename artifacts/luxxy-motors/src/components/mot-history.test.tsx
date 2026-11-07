@@ -128,8 +128,9 @@ it("displays retryable provider failures rather than fabricated history", async 
   fireEvent.click(screen.getByRole("button"));
   await screen.findByRole("alert");
   expect(
-    screen.getByRole("button", { name: "View MOT history" }),
+    screen.getByRole("button", { name: "Try again" }),
   ).toBeEnabled();
+  expect(screen.getByRole("link", { name: "View full MOT history on GOV.UK" })).toHaveAttribute("href", "https://www.gov.uk/check-mot-history");
   expect(screen.queryByText("Latest test: Passed")).toBeNull();
 });
 

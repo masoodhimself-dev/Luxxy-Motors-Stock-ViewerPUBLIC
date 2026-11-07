@@ -27,7 +27,7 @@ import {
   vehicleRegistration,
 } from '@/lib/utils';
 import { SaveCarButton } from '@/components/saved-car-controls';
-import { ArrowRight, Camera, ChevronLeft, ChevronRight } from '@/components/icons';
+import { ArrowRight, Camera, Check, ChevronLeft, ChevronRight, Scale } from '@/components/icons';
 import { trackEvent } from '@/lib/analytics';
 import { MakeLogo } from '@/components/make-logo';
 import { getMakeLogoSrc } from '@/lib/make-logo';
@@ -50,6 +50,7 @@ export function CarCard({
   stockDetails = false,
   recommendationDetails = false,
   recommendationInclusions,
+  compareAction,
   analyticsSource = 'showroom',
 }: {
   car: Car;
@@ -64,6 +65,7 @@ export function CarCard({
   stockDetails?: boolean;
   recommendationDetails?: boolean;
   recommendationInclusions?: string[];
+  compareAction?: { selected: boolean; disabled: boolean; onToggle: () => void };
   analyticsSource?: 'showroom' | 'similar_cars' | 'saved_cars';
 }) {
   const displayBadges = [...new Set([vehicleAvailability(car.inventoryStatus), ...badges])];
@@ -107,7 +109,8 @@ export function CarCard({
   const showMakeLogo = Boolean(getMakeLogoSrc(car.make));
   const registration = vehicleRegistration(car);
   const registrationYear = stockRegistrationYear(car);
-  const detailHref = vehicleDetailPath(car);
+  const detailSource = stockDetails ? 'stock' : savedDetails ? 'saved' : null;
+  const detailHref = vehicleDetailPath(car) + (detailSource ? `?from=${detailSource}` : '');
   const recordVehicleOpen = () => {
     rememberStockPosition(car.id);
     trackEvent('vehicle_opened', {
@@ -327,6 +330,15 @@ export function CarCard({
                 {stockDetails ? 'View car' : 'View vehicle'}
                 <ArrowRight className="h-4 w-4" />
               </Link>
+              {(stockDetails || compareAction) && <div className="vehicle-card-shortlist">
+                {stockDetails && !photoControls && <SaveCarButton car={car} variant="inline" />}
+                {compareAction && <button type="button" className="vehicle-card-compare"
+                  aria-label={`Compare ${vehicleLabel}`} aria-pressed={compareAction.selected}
+                  disabled={compareAction.disabled} onClick={compareAction.onToggle}>
+                  {compareAction.selected ? <Check size={16} aria-hidden /> : <Scale size={16} aria-hidden />}
+                  Compare
+                </button>}
+              </div>}
             </div>}
           </>
         )}

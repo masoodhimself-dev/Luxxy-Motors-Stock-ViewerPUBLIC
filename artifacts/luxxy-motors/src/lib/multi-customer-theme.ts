@@ -16,27 +16,27 @@ export const multiCustomerPalette = {
   chip: '#eaf4f7',
 } as const;
 
-const racingGreenPalette = {
-  primary: '#1a2a25',
-  accent: '#12473e',
-  accentDark: '#1c5a4e',
-  tint: '#ebefe9',
-  background: '#f4f6f2',
+const showroomNavyPalette = {
+  primary: '#182235',
+  accent: '#182957',
+  accentDark: '#263b70',
+  tint: '#edf0f5',
+  background: '#f6f7f9',
   surface: '#ffffff',
-  border: '#ccd6cc',
-  muted: '#4d5d54',
-  controlBorder: '#727f75',
-  photoBackground: '#eff1ef',
-  chip: '#ebefe9',
-  hero: '#e0e8de',
+  border: '#d9dee6',
+  muted: '#525d70',
+  controlBorder: '#7a8597',
+  photoBackground: '#edf0f3',
+  chip: '#edf0f5',
+  hero: '#e9edf4',
 } as const;
 
 /** Presentation only: no saved brand, permissions, invoice or tenant changes. */
-export function multiCustomerThemeVariables(theme?: 'racing-green'): Record<string, string> {
-  const racingGreen = theme === 'racing-green';
-  const p = racingGreen ? racingGreenPalette : multiCustomerPalette;
-  const action = racingGreen ? p.accent : p.primary;
-  const accent = racingGreen ? p.accent : p.accentDark;
+export function multiCustomerThemeVariables(theme?: 'showroom-navy'): Record<string, string> {
+  const showroomNavy = theme === 'showroom-navy';
+  const p = showroomNavy ? showroomNavyPalette : multiCustomerPalette;
+  const action = showroomNavy ? p.accent : p.primary;
+  const accent = showroomNavy ? p.accent : p.accentDark;
   const variables = customerThemeVariables({
     primaryHsl: hexColourToHsl(action),
     accentHsl: hexColourToHsl(accent),
@@ -53,12 +53,17 @@ export function multiCustomerThemeVariables(theme?: 'racing-green'): Record<stri
     variables[`--dealer-${name}-subtle`] = p.tint;
     variables[`--dealer-${name}-subtle-hsl`] = hexColourToHsl(p.tint);
   }
-  if (racingGreen) {
+  if (showroomNavy) {
     const input = hexColourToHsl(p.controlBorder);
     variables['--dealer-page-input-hsl'] = input;
     variables['--dealer-panel-input-hsl'] = input;
     variables['--input'] = input;
-    variables['--mh-hero-bg'] = racingGreenPalette.hero;
+    variables['--mh-hero-bg'] = showroomNavyPalette.hero;
+    variables['--dealer-whatsapp-icon'] = '#111b21';
+    variables['--contact'] = hexColourToHsl(action);
+    variables['--customer-positive'] = showroomNavyPalette.accent;
+    variables['--customer-positive-soft'] = showroomNavyPalette.tint;
+    variables['--customer-positive-border'] = showroomNavyPalette.border;
   }
   return {
     ...variables,

@@ -23,9 +23,8 @@ export function PriceReduction({ car, showRecordedDate = false }: { car: Pick<Ca
   if (!reduction) return null;
   const detectedAt = (car.sourceExtras!.websitePriceReduction as Record<string, unknown>).detectedAt as string;
   return <div className="price-reduction" data-testid="price-reduction" aria-label="Recorded price reduction">
-    <strong className="price-reduction-label">Price reduced</strong>
     <span>Was <s>{formatPrice(reduction.previousPrice, car.currency)}</s></span>
     <span className="price-reduction-saving">Save {formatPrice(reduction.saving, car.currency)}</span>
-    {showRecordedDate && <span className="price-reduction-date">Price change recorded <time dateTime={detectedAt}>{new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/London' }).format(new Date(detectedAt))}</time></span>}
+    {showRecordedDate && <span className="price-reduction-date">Reduced <time dateTime={detectedAt}>{new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/London' }).format(new Date(detectedAt))}</time></span>}
   </div>;
 }

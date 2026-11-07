@@ -1,4 +1,5 @@
 import { useDealerFeatures } from '@/lib/dealer-features';
+import { PrivacyNoticeLink } from '@/components/privacy-notice-link';
 import { showroomHours, showroomOpeningLabel } from '@/lib/showroom-hours';
 import { useCreateEnquiry } from '@workspace/api-client-react';
 import { Input } from '@/components/ui/input';
@@ -15,6 +16,7 @@ import { dealershipLocation } from '@/lib/dealership-location';
 import { VehicleDialogVehicle, useVehicleDialogTheme } from '@/components/vehicle-dialog-vehicle';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { isMultiChoiceWebsite } from '@/lib/multi-home-scope';
+import { appointmentVisitNote } from '@/lib/dealership-customer-copy';
 import { getPhoneHref, recordContactIntent } from '@/lib/cta-helpers';
 import { formatPhoneDisplay, vehicleDisplayTitle, vehicleRegistration } from '@/lib/utils';
 import type { Car } from '@/lib/stock-context';
@@ -71,7 +73,7 @@ export function VehicleCall({
   const receivedCallbackTime = callback.data?.followUpAt ? showroomOpeningLabel(callback.data.followUpAt) : null;
   const configuredVisitInstructions = detailsReady ? settings.presentation?.visitInstructions?.trim() ?? '' : '';
   const visitInstructions = isMultiChoiceWebsite()
-    ? 'Visits are by appointment only. Please contact us to arrange a time before travelling.'
+    ? appointmentVisitNote
     : /^(sample|example|placeholder)\b|replace this|tell customers/i.test(configuredVisitInstructions) ? '' : configuredVisitInstructions;
 
   const showroomInformation = (
@@ -163,12 +165,11 @@ export function VehicleCall({
           }}
         >
           <div className="vehicle-action-heading">
-            <p className="vehicle-action-eyebrow"><Phone size={15} aria-hidden="true" />Speak to us</p>
             <DialogTitle ref={dialogTitle} tabIndex={-1}>
               {showCallback ? 'Request a callback' : 'Let’s talk about this car'}
             </DialogTitle>
             <DialogDescription>
-              {showCallback ? 'Just your name and number. We’ll get back to you during opening hours.' : features.enabled('publicEnquiries') ? detailsReady && hours.state === 'closed' ? 'We’re currently closed. Ask us to call you back when we reopen.' : 'Call the showroom, or ask us to call you back.' : 'Call us to ask about this car or arrange a visit.'}
+              {showCallback ? 'Leave your name and number. We’ll call during opening hours.' : 'Contact the showroom about this car.'}
             </DialogDescription>
           </div>
 
@@ -183,7 +184,6 @@ export function VehicleCall({
               {!(detailsReady && hours.state === 'closed') && (features.enabled('publicEnquiries') || callback.isSuccess) && <button type="button" className="vehicle-call-request" onClick={() => setCallbackForm(true)}>{callback.isSuccess ? 'View callback request' : 'Request a callback'}</button>}
             </div>
             <div className="vehicle-call-copy"><button type="button" onClick={() => void copyNumber()}><Copy size={14} aria-hidden="true" />Copy number</button>{copyStatus && <p role="status">{copyStatus}</p>}</div>
-            {detailsReady && hours.state === 'closed' && <p className="vehicle-call-closed-note">{features.enabled('publicEnquiries') ? 'We’re away from the showroom. Request a callback for when we’re back.' : 'Please call during our opening hours.'}</p>}
           </div>}
 
           {!showCallback && showroomInformation}
@@ -226,7 +226,7 @@ export function VehicleCall({
               <details className="vehicle-call-optional-email"><summary>Add an email for confirmation (optional)</summary><label className="vehicle-action-field">Email<Input disabled={callback.isPending} type="email" autoComplete="email" value={customer.email} onChange={event => setCustomer({ ...customer, email: event.target.value })} /></label></details>
               {phoneError && <p id={phoneErrorId} role="alert" className="vehicle-action-feedback vehicle-action-feedback-error">{phoneError}</p>}
               {callback.isError && <p role="alert" className="vehicle-action-feedback vehicle-action-feedback-error"><CircleAlert size={18} aria-hidden="true" /><span>We couldn’t send your request. Please try again.</span></p>}
-              <p className="vehicle-action-privacy">We’ll use these details to respond to your request.{privacyUrl && <> <a className="underline underline-offset-4" href={privacyUrl}>Privacy policy</a></>}</p>
+              <p className="vehicle-action-privacy">We’ll use these details to respond to your request. <PrivacyNoticeLink url={privacyUrl} /></p>
               <Button type="submit" className="vehicle-action-primary" disabled={callback.isPending}>{callback.isPending ? 'Sending…' : 'Request a callback'}</Button>
             </form>
           ))}

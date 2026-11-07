@@ -24,7 +24,7 @@ for (const width of [390, 1440]) {
     await expect(photo).toHaveAttribute('src', first!);
     await page.goto('/enquire?type=viewing');
     await expect(page.getByTestId('viewing-vehicle-required')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Select a car to continue' })).toBeDisabled();
+    await expect(page.getByRole('link', { name: 'Choose date and time' })).toHaveCount(0);
     await expect(page.getByTestId('button-submit-enquiry')).toHaveCount(0);
     await page.getByTestId('viewing-vehicle-required').screenshot({ path: resolve(screenshots, `vehicle-required-${width}.png`) });
     await page.locator('input[name="viewing-vehicle"][value="preview-1"]').check();

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 import { once } from 'node:events';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildPublicPageSeo, publicSeoOrigin, renderPublicPageSeo, type PublicSeoVehicle } from './lib/public-page-seo';
@@ -18,6 +18,7 @@ const seo = (pathname: string, extra: object = {}) => buildPublicPageSeo({ pathn
 test('stable public routes have route-specific, canonical, query-free metadata', () => {
   assert.match(seo('/').title, /Used cars for sale in Wembley/);
   assert.equal(seo('/stock').title, 'Browse Stock | Example Motors');
+  assert.notEqual(seo('/').description, seo('/stock').description);
   assert.match(seo('/contact').description, /opening hours/);
   assert.match(seo('/warranty').title, /^Warranty information/);
   assert.equal(seo('/index.html').canonical, `${origin}/`);
@@ -115,6 +116,9 @@ test('head rendering preserves body SVG titles, metadata and scripts for the ind
 test('HTTP metadata reads tenant data for each request, fresh prices, correct 404s, and no private lookup', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'luxxy-seo-'));
   await writeFile(join(directory, 'index.html'), shell);
+  await mkdir(join(directory, 'assets'));
+  await writeFile(join(directory, 'assets', 'index-aBcd_12-.js'), 'export {};');
+  await writeFile(join(directory, 'assets', 'main.js'), 'export {};');
   let price = 4750; const lookups: string[] = [];
   const app = express();
   app.use((req, _res, next) => {
@@ -159,6 +163,12 @@ test('HTTP metadata reads tenant data for each request, fresh prices, correct 40
       assert.equal(lookups.length, before);
     }
     response = await fetch(`${base}/stock`, { headers: { 'x-test-dealer': 'demo' } }); html = await response.text(); assert.match(response.headers.get('x-robots-tag')!, /noindex/); assert.doesNotMatch(html, /application\/ld\+json/);
-    response = await fetch(`${base}/assets/missing.js`); assert.equal(response.status, 404); assert.doesNotMatch(await response.text(), /<html/);
+    response = await fetch(`${base}/assets/index-aBcd_12-.js`);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('cache-control'), 'public, max-age=31536000, immutable');
+    response = await fetch(`${base}/assets/main.js`);
+    assert.equal(response.status, 200);
+    assert.doesNotMatch(response.headers.get('cache-control') ?? '', /immutable/);
+    response = await fetch(`${base}/assets/missing.js`); assert.equal(response.status, 404); assert.equal(response.headers.get('cache-control'), 'no-store'); assert.doesNotMatch(await response.text(), /<html/);
   } finally { await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); await rm(directory, { recursive: true, force: true }); }
 });

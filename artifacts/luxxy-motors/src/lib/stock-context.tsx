@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { useGetStock, getGetStockQueryKey } from '@workspace/api-client-react';
+import { isVehiclePagePath, vehicleCodeFromPath, vehicleDetailPath } from '@workspace/vehicle-meta';
 import { createStockLoader } from './stock-refresh';
 import { canRefreshNow, useRefreshActive } from './refresh-policy';
 
@@ -64,6 +65,10 @@ interface StockContextType {
   stock: StockData | null;
   isLoading: boolean;
   error: string | null;
+  vehicle: Car | null;
+  isVehicleLoading: boolean;
+  vehicleError: string | null;
+  retryVehicle: () => void;
 }
 
 const StockContext = createContext<StockContextType | undefined>(undefined);
@@ -90,20 +95,58 @@ function normalizeStock(data: unknown): StockData | null {
   } as StockData;
 }
 
+function vehicleEndpoint(location: string) {
+  const code = vehicleCodeFromPath(location);
+  if (code) return `/api/vehicles/short/${code}`;
+  const id = /^\/vehicle\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\/?$/i.exec(location)?.[1];
+  return id ? `/api/vehicles/${id.toLowerCase()}` : null;
+}
+
+async function loadPublicVehicle(endpoint: string, signal: AbortSignal): Promise<Car | null> {
+  const response = await fetch(endpoint, {
+    credentials: 'same-origin', cache: 'no-store', signal,
+    headers: { Accept: 'application/json' },
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error('Unable to load this vehicle.');
+  const car = await response.json() as Car;
+  if (!car || typeof car.id !== 'string' || !car.id) throw new Error('Unable to load this vehicle.');
+  return car;
+}
+
 export function StockProvider({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const portal = /^\/portal(?:\/|$)/.test(location);
   const cache = useQueryClient();
   const active = useRefreshActive();
+  const endpoint = vehicleEndpoint(location);
+  const vehicleQuery = useQuery({
+    queryKey: ['public-vehicle', endpoint],
+    enabled: endpoint !== null,
+    staleTime: 30_000,
+    retry: false,
+    queryFn: async ({ signal }) => {
+      const car = await loadPublicVehicle(endpoint!, signal);
+      if (car) {
+        // The legacy UUID can redirect to a published slug without a second fetch.
+        const canonicalEndpoint = vehicleEndpoint(vehicleDetailPath(car));
+        if (canonicalEndpoint && canonicalEndpoint !== endpoint) cache.setQueryData(['public-vehicle', canonicalEndpoint], car);
+      }
+      return car;
+    },
+  });
+  // The full list is supplementary on vehicle pages. Start it after the
+  // individual lookup so it cannot hold up the photo, price, or test drive.
+  const loadStockForRoute = !isVehiclePagePath(location) || endpoint === null || vehicleQuery.data !== undefined;
   const [loadStock] = useState(() => createStockLoader());
   const { data: apiStock, isLoading, error } = useGetStock({ query: {
     queryKey: getGetStockQueryKey(), queryFn: ({ signal }) => loadStock(signal),
-    enabled: active, staleTime: portal ? 30_000 : 5 * 60_000,
+    enabled: active && loadStockForRoute, staleTime: portal ? 30_000 : 5 * 60_000,
     refetchInterval: portal ? 5 * 60_000 : false,
     refetchIntervalInBackground: false, refetchOnWindowFocus: true, refetchOnReconnect: true,
   } });
   useEffect(() => {
-    if (portal) return;
+    if (portal || !loadStockForRoute) return;
     // A desktop app switch may focus the window without a visibility change.
     // Reuse fresh data, and let the query deduplicate any check already underway.
     const onFocus = () => {
@@ -114,12 +157,18 @@ export function StockProvider({ children }: { children: ReactNode }) {
     };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
-  }, [cache, portal]);
+  }, [cache, loadStockForRoute, portal]);
   const stock = useMemo(() => normalizeStock(apiStock), [apiStock]);
   const errorMessage = error instanceof Error ? error.message : error ? 'Unable to load current stock.' : null;
 
   return (
-    <StockContext.Provider value={{ stock, isLoading, error: errorMessage }}>
+    <StockContext.Provider value={{
+      stock, isLoading, error: errorMessage,
+      vehicle: vehicleQuery.data ?? null,
+      isVehicleLoading: vehicleQuery.isPending && endpoint !== null,
+      vehicleError: vehicleQuery.error?.message ?? null,
+      retryVehicle: () => { void vehicleQuery.refetch(); },
+    }}>
       {children}
     </StockContext.Provider>
   );

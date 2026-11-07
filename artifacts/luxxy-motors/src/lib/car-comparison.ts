@@ -26,7 +26,7 @@ export function comparisonRows(cars: Car[], histories: Record<string, MotHistory
       const mot = vehicleEnquiryMot(car, histories[car.id], now);
       return mot ? `${mot.label === 'First MOT due' ? 'First due ' : ''}${mot.value}` : null;
     }) },
-    { key: 'availability', label: 'Availability', values: cars.map(car => vehicleAvailability(car.inventoryStatus)) },
+    { key: 'availability', label: 'Status', values: cars.map(car => vehicleAvailability(car.inventoryStatus)) },
   ];
   const features = cars.map(car => vehicleContent(car).features);
   const labels = new Map<string, string>();

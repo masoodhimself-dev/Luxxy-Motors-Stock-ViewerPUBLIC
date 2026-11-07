@@ -20,4 +20,6 @@
 .stock-photo-badge-price-drop { background: #008000; }
 .stock-photo-badge-price-drop strong { font-size: 1.125rem; font-weight: 700; }
 .stock-photo-badge-new-arrival { background: #084d9b; border-radius: 999px; }
+.showroom-navy-site .stock-photo-badge-price-drop { background: var(--mh-accent, #192851); }
+.showroom-navy-site .stock-photo-badge-new-arrival { background: #424b5a; }
 .stock-details-card .stock-photo-count { left: auto; right: 12px; }

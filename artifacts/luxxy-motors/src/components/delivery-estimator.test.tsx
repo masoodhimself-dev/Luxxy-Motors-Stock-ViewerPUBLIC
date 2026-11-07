@@ -1,6 +1,6 @@
 import {render,screen,fireEvent,waitFor,act,within} from '@testing-library/react';
 import {beforeEach,it,expect,vi} from 'vitest';
-const state=vi.hoisted(()=>({settings:{delivery:{enabled:true},deliveryPricing:{enabled:true,basePrice:'50.00',pricePerMile:'1.50'},address:{postcode:'HA2 7LU'}},fetch:vi.fn()}));
+const state=vi.hoisted(()=>({settings:{delivery:{enabled:true},deliveryPricing:{enabled:true,basePrice:'50.00',pricePerMile:'1.50'},address:{postcode:'HA2 7LU'},contact:{phone:'020 4628 6488'}},fetch:vi.fn()}));
 vi.mock('@/lib/dealer-settings-context',()=>({useDealerSettings:()=>({settings:state.settings})}));
 vi.mock('@workspace/api-client-react',()=>({customFetch:(...args:unknown[])=>state.fetch(...args)}));
 import {DeliveryEstimator} from './delivery-estimator';
@@ -13,6 +13,30 @@ it('requests the road estimate only when asked and displays a matching price bre
 });
 it('does not substitute straight-line distance or a zero price when road routing fails',async()=>{
  state.fetch.mockRejectedValue({data:{code:'routing_not_configured'}});render(<DeliveryEstimator/>);open();fireEvent.change(screen.getByLabelText('Delivery postcode'),{target:{value:'SW1A1AA'}});fireEvent.click(screen.getByRole('button',{name:'Get estimate'}));await screen.findByRole('alert');expect(screen.queryByText('£0.00')).not.toBeInTheDocument();expect(screen.getByRole('button',{name:'Get estimate'})).toBeEnabled();
+});
+it('carries the postcode into an editable public enquiry after a failed estimate', async () => {
+  state.fetch.mockRejectedValue(new Error('Routing unavailable'));
+  render(<DeliveryEstimator expanded customerEnquiries />);
+  fireEvent.change(screen.getByLabelText('Delivery postcode'), { target: { value: 'sw1a1aa' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Get estimate' }));
+  await screen.findByRole('alert');
+  const href = screen.getByRole('link', { name: 'Ask for a delivery quote' }).getAttribute('href')!;
+  const destination = new URL(href, 'https://example.test');
+  expect(destination.pathname).toBe('/enquire');
+  expect(destination.searchParams.get('searchRequest')).toContain('deliver to SW1A 1AA');
+  expect(screen.getByRole('link', { name: 'Call the showroom' })).toHaveAttribute('href', 'tel:02046286488');
+});
+
+it('hands a failed vehicle estimate to the existing enquiry callback only on request', async () => {
+  const onEnquire = vi.fn();
+  state.fetch.mockRejectedValue(new Error('Routing unavailable'));
+  render(<DeliveryEstimator expanded onEnquire={onEnquire} />);
+  fireEvent.change(screen.getByLabelText('Delivery postcode'), { target: { value: 'SW1A 1AA' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Get estimate' }));
+  await screen.findByRole('alert');
+  expect(onEnquire).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Ask for a delivery quote' }));
+  expect(onEnquire).toHaveBeenCalledExactlyOnceWith('Could you confirm whether you can deliver to SW1A 1AA and how much it would cost?');
 });
 it('ignores a stale quote after the customer changes their postcode',async()=>{
  let resolve:(value:unknown)=>void=()=>{};state.fetch.mockImplementation(()=>new Promise(r=>resolve=r));render(<DeliveryEstimator/>);open();const field=screen.getByLabelText('Delivery postcode');fireEvent.change(field,{target:{value:'SW1A1AA'}});fireEvent.click(screen.getByRole('button',{name:'Get estimate'}));fireEvent.change(field,{target:{value:'N1 1AA'}});resolve(quote);await waitFor(()=>expect(screen.queryByText('£85.10')).not.toBeInTheDocument());

@@ -1,4 +1,4 @@
-import { buildVehicleMeta, formatVehicleName, isVehiclePagePath, vehicleDetailPath, type VehicleMetaSource } from '@workspace/vehicle-meta';
+import { buildShowroomMeta, buildVehicleMeta, formatVehicleName, isVehiclePagePath, vehicleDetailPath, type VehicleMetaSource } from '@workspace/vehicle-meta';
 
 type ObjectValue = Record<string, unknown>;
 export type PublicSeoVehicle = VehicleMetaSource & {
@@ -34,6 +34,7 @@ const nonIndexablePagePaths = new Set([
 ]);
 function isNonIndexablePage(pathname: string): boolean {
   return nonIndexablePagePaths.has(pathname)
+    || /^\/stock-alerts\/(?:confirm|stop|renew)$/.test(pathname)
     || /^\/portal\/leads\/[^/]+$/.test(pathname)
     || /^\/(?:my-purchase|viewing|sign|customer-details)\/[^/]+$/.test(pathname)
     // Clerk owns its OAuth subroutes. These capability screens also validate
@@ -174,14 +175,14 @@ export function buildPublicPageSeo(input: { pathname: string; canonicalOrigin?: 
     const meta = buildVehicleMeta({ ...input.vehicle, currency: /^[A-Z]{3}$/.test(input.vehicle.currency || 'GBP') ? input.vehicle.currency : 'GBP' }, { name, location: city || undefined });
     result.title = meta.title; result.description = meta.description; result.image = imageUrl(meta.image, origin); result.type = 'article'; label = meta.name;
   } else if (normalisedPath === '/stock') {
-    result.title = `Browse Stock | ${name}`; result.description = `Browse the current used car stock at ${name}${city ? ` in ${city}` : ''}. View photos, specifications and prices.`; label = 'Browse Stock';
+    Object.assign(result, buildShowroomMeta({ name, location: city }, { page: 'stock' }));
+    label = 'Browse Stock';
   } else if (normalisedPath === '/contact') {
     result.title = `Contact us & directions | ${name}`; result.description = `Contact ${name}${city ? ` in ${city}` : ''}. Find our contact details, opening hours and information for your visit.`; label = 'Contact us';
   } else if (normalisedPath === '/warranty') {
     result.title = `Warranty information | ${name}`; result.description = `Ask ${name} about warranty options for your chosen vehicle, policy terms and how to get help.`; label = 'Warranty information';
   } else {
-    result.title = `${city ? `Used cars for sale in ${city}` : 'Used cars for sale'} | ${name}`;
-    result.description = `Browse the current used car stock at ${name}${city ? ` in ${city}` : ''}. View photos, specifications and prices.`;
+    Object.assign(result, buildShowroomMeta({ name, location: city }, { page: 'home' }));
   }
   if (!isVehicle) result.image = imageUrl(object(settings.presentation).heroImageUrl, origin) || imageUrl(identity.logoAsset, origin);
   if (!input.demo && origin) {

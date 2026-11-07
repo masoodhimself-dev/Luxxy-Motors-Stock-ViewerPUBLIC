@@ -10,7 +10,7 @@ import { eq } from 'drizzle-orm';
 import { vehicleDetailPath, vehicleSharePath, vehicleMatchesPath, vehicleCodeFromPath } from '@workspace/vehicle-meta';
 import { engine, db, dealershipsTable, vehiclesTable, vehiclePublicLinksTable } from './test/tenant-test-db';
 import { runWithTenant, type TenantContext } from './lib/tenant-context';
-import { findPublicVehicleByPath, listPublicStockSitemapEntries } from './routes/stock';
+import stockRouter, { findPublicVehicleByPath, listPublicStockSitemapEntries } from './routes/stock';
 import { publicVehicleDetailPath } from './lib/public-vehicle-links';
 import { serveFrontend } from './lib/serve-frontend';
 import { dealerSitemapXml } from './lib/seo-crawl';
@@ -72,10 +72,19 @@ test('persistent links backfill once, allocate automatically, stay tenant-bound 
   await writeFile(join(dir, 'index.html'), '<html><head><title>Shell</title></head><body><div id="root"></div></body></html>');
   const app = express();
   app.use((req, _res, next) => runWithTenant(req.get('x-test-tenant') === 'b' ? b : a, next));
+  app.use('/api', stockRouter);
   serveFrontend(app, dir, { loadPageData: async (path) => ({ settings: { identity: { name: 'Test Motors' } }, vehicle: await findPublicVehicleByPath(path) }) });
   const server = app.listen(0, '127.0.0.1'); await once(server, 'listening');
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
   try {
+    const single = await fetch(`${base}/api/vehicles/short/${oldLink.code}`);
+    assert.equal(single.status, 200);
+    assert.equal(single.headers.get('cache-control'), 'no-store');
+    assert.equal((await single.json() as { id: string }).id, oldId);
+    assert.equal((await fetch(`${base}/api/vehicles/${oldId}`)).status, 200);
+    assert.equal((await fetch(`${base}/api/vehicles/short/${oldLink.code}`, { headers: { 'x-test-tenant': 'b' } })).status, 404);
+    assert.equal((await fetch(`${base}/api/vehicles/short/${codeFor(hiddenId)}`)).status, 404);
+    assert.equal((await fetch(`${base}/api/vehicles/short/malformed`)).status, 404);
     for (const path of [`/vehicle/${oldId}`, `/s/${oldLink.code}`, `/cars/older-label-${oldLink.code}`]) {
       const response = await fetch(`${base}${path}?source=whatsapp`, { redirect: 'manual' });
       assert.equal(response.status, 301); assert.equal(response.headers.get('location'), canonical + '?source=whatsapp');
@@ -94,6 +103,7 @@ test('persistent links backfill once, allocate automatically, stay tenant-bound 
     assert.ok(changedMap.includes(`/cars/lexus-rx-special-edition-${oldLink.code}`));
     await db.update(vehiclesTable).set({ inventoryStatus: 'sold' }).where(eq(vehiclesTable.id, oldId));
     assert.equal((await fetch(`${base}/s/${oldLink.code}`, { redirect: 'manual' })).status, 404);
+    assert.equal((await fetch(`${base}/api/vehicles/short/${oldLink.code}`)).status, 404);
   } finally {
     await new Promise<void>(resolve => server.close(() => resolve())); await rm(dir, { recursive: true, force: true }); await engine.close();
   }

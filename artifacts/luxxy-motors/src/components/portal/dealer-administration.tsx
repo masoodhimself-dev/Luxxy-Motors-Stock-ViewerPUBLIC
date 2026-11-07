@@ -1,5 +1,6 @@
 import { CazooLeadsSettings } from "./cazoo-leads-settings";
 import { StockFeedSettings } from "./stock-feed-settings";
+import { StockAlertSettings } from "./stock-alerts";
 import { AccountInvitations } from "@/components/account-invitations";
 import {
   Store,
@@ -246,11 +247,12 @@ export function DealerSettingsHub() {
     { id: "emails", label: "Messages", icon: Mail },
     ...(canTeam ? [{ id: "team", label: "Team", icon: Users }] : []),
   ];
-  const requested =
-      new URLSearchParams(search).get("settingsTab") ?? "dealership",
+  const params = new URLSearchParams(search);
+  const requested = params.get("settingsTab") ?? "dealership",
     selected = tabs.some((tab) => tab.id === requested)
       ? requested
       : "dealership";
+  const openStockAlerts = params.get("settingsPanel") === "stock-alerts";
   if (access.isLoading) return <p role="status">Loading settings access…</p>;
   if (access.isError) return <Feedback error={access.error} />;
   if (!access.data?.permissions.includes("settings.publish"))
@@ -287,6 +289,7 @@ export function DealerSettingsHub() {
         id={`dealer-settings-panel-${selected}`}
         aria-labelledby={`dealer-settings-tab-${selected}`}
       >
+        {selected === "website" && <StockAlertSettings key={String(openStockAlerts)} initiallyOpen={openStockAlerts} />}
         {["dealership", "website", "bookings"].includes(selected) && (
           <DealerSettingsPanel
             key={selected}

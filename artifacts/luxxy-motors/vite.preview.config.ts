@@ -19,6 +19,7 @@ import baseConfig from './vite.config';
 import { previewSettings } from './preview/settings';
 import { previewStock } from './preview/stock';
 import { customerChecksPreview } from './preview/customer-checks';
+import { stockAlertsPreview } from './preview/stock-alerts';
 import { salesPreview } from './preview/sales';
 import { brochureOrigin, createBrochureHandler } from '../api-server/src/lib/vehicle-brochure-handler';
 import { createVehicleSheetImageHandler } from '../api-server/src/lib/vehicle-sheet-image';
@@ -54,10 +55,11 @@ export default mergeConfig(
         configureServer(server) {
           server.middlewares.use(async (req, res, next) => {
             const url = new URL(req.url ?? '/', 'http://localhost');
-            if ((url.pathname === '/join' || url.pathname.startsWith('/verify-invoice/'))) { res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('X-Robots-Tag', 'noindex, nofollow'); res.setHeader('Cache-Control', 'no-store'); }
+            if (url.pathname === '/join' || url.pathname.startsWith('/verify-invoice/') || url.pathname.startsWith('/stock-alerts/')) { res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('X-Robots-Tag', 'noindex, nofollow'); res.setHeader('Cache-Control', 'no-store'); }
             if (!url.pathname.startsWith('/api/')) return next();
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Cache-Control', 'no-store');
+            if (await stockAlertsPreview(req, res, url)) return;
             if (customerChecksPreview(req,res,url)) return;
             if (url.pathname === '/api/staff/cazoo-leads' && req.method === 'GET') {
               // Honest local setup state; never retrieve real marketplace leads in the preview.
