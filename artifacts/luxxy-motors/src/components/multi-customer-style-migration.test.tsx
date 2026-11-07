@@ -49,11 +49,11 @@ const car = {
   images: [], inventoryStatus: 'available',
 } as unknown as Car;
 const otherCar = { ...car, id: 'style-second-car', title: 'Honda Jazz', make: 'Honda', model: 'Jazz' };
-const theme = multiCustomerThemeVariables() as CSSProperties;
+const theme = multiCustomerThemeVariables('showroom-navy') as CSSProperties;
 
 function Fixture({ children }: { children: ReactNode }) {
   useCustomerBodyTheme(theme);
-  return <div className="customer-site dealer-site-theme" style={theme}><main>{children}</main></div>;
+  return <div className="customer-site dealer-site-theme showroom-navy-site" style={theme}><main>{children}</main></div>;
 }
 
 function setCanonical(multi: boolean) {
@@ -183,7 +183,7 @@ describe('Shared dealership style migration on real customer workflows', () => {
     const view = render(<Fixture><TestDriveBooking stockCars={[car, otherCar]} /></Fixture>);
     const picker = screen.getByRole('group', { name: 'Choose your car' });
     expect(within(picker).getByRole('radio', { name: 'Select Ford Fiesta' })).toBeVisible();
-    const heading = screen.getByRole('heading', { name: 'Which car would you like to try?' });
+    const heading = screen.getByRole('heading', { name: 'Choose a car' });
     expect(property(heading, 'font-weight')).toBe('700');
     expect(property(heading, 'font-family')).toContain('Multi Montserrat');
     view.rerender(<Fixture><TestDriveBooking vehicle={car} stockCars={[car, otherCar]} /></Fixture>);
@@ -192,7 +192,7 @@ describe('Shared dealership style migration on real customer workflows', () => {
     expect(property(input, 'border-radius')).toBe('4px');
     expect(property(input, 'font-family')).toContain('Multi Montserrat');
     expect(colour(input, 'background-color')).toBe('rgb(255, 255, 255)');
-    expect(colour(input, 'color')).toBe('rgb(25, 42, 54)');
+    expect(colour(input, 'color')).toBe('rgb(24, 34, 53)');
     expect(state.mutate).not.toHaveBeenCalled();
   });
 
@@ -230,7 +230,7 @@ describe('Shared dealership style migration on real customer workflows', () => {
     expect(view.container).not.toContainElement(dialog);
     expect(property(dialog, 'border-radius')).toBe('8px');
     expect(colour(dialog, 'background-color')).toBe('rgb(255, 255, 255)');
-    expect(colour(dialog, 'color')).toBe('rgb(25, 42, 54)');
+    expect(colour(dialog, 'color')).toBe('rgb(24, 34, 53)');
     expect(property(within(dialog).getByRole('heading', { level: 2 }), 'font-weight')).toBe('700');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Request a callback' }));
     const name = within(dialog).getByRole('textbox', { name: 'Your name' });
@@ -248,18 +248,18 @@ describe('Shared dealership style migration on real customer workflows', () => {
     view.rerender(<Fixture><VehicleCall car={car} /></Fixture>);
     const success = within(dialog).getByText('We’ve received your callback request').closest('[role="status"]')!;
     expect(success).toHaveTextContent('We’ve received your callback request');
-    expect(colour(success, 'color')).toBe('rgb(41, 96, 71)');
-    expect(colour(success, 'background-color')).toBe('rgb(241, 247, 244)');
+    expect(colour(success, 'color')).toBe('rgb(24, 41, 87)');
+    expect(colour(success, 'background-color')).toBe('rgb(237, 240, 245)');
     expect(state.mutate).not.toHaveBeenCalled();
   });
 
-  it('preserves factual open/closed colours, while an unknown opening status uses the neutral customer palette', () => {
+  it('distinguishes open, closed and unknown showroom hours', () => {
     state.loadingSettings = true;
     const view = render(<Fixture><VehicleCall car={car} /></Fixture>);
     const dialog = openCall();
     const status = () => screen.getByRole('dialog').querySelector('.vehicle-call-status')!;
-    expect(colour(status(), 'background-color')).toBe('rgb(238, 249, 252)');
-    expect(colour(status(), 'color')).toBe('rgb(89, 101, 110)');
+    expect(colour(status(), 'background-color')).toBe('rgb(237, 240, 245)');
+    expect(colour(status(), 'color')).toBe('rgb(82, 93, 112)');
     state.loadingSettings = false;
     view.rerender(<Fixture><VehicleCall car={car} /></Fixture>);
     expect(status()).toHaveTextContent('Closed now');
@@ -268,7 +268,7 @@ describe('Shared dealership style migration on real customer workflows', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
     openCall();
     expect(status()).toHaveTextContent('Open now');
-    expect(colour(status(), 'background-color')).toBe('rgb(233, 245, 238)');
+    expect(colour(status(), 'background-color')).toBe('rgb(237, 240, 245)');
     expect(state.mutate).not.toHaveBeenCalled();
   });
 
@@ -302,7 +302,7 @@ describe('Shared dealership style migration on real customer workflows', () => {
     expect(property(dialog, 'border-radius')).toBe('8px');
     expect(property(dialog, 'font-family')).toContain('Multi Montserrat');
     expect(property(within(dialog).getByRole('heading', { level: 2 }), 'font-weight')).toBe('700');
-    expect(dialog.style.getPropertyValue('--dialog-accent')).toBe('#192a36');
+    expect(dialog.style.getPropertyValue('--dialog-accent')).toBe('#182957');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Request a callback' }));
     expect(property(within(dialog).getByRole('textbox', { name: 'Your name' }), 'border-radius')).toBe('4px');
     view.unmount();

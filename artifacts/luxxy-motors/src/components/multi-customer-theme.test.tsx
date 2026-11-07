@@ -129,14 +129,14 @@ describe('Shared dealership customer theme scope', () => {
     },
   );
 
-  it('uses the same presentation for another dealership without changing its editable identity or saved settings', () => {
-    canonical('https://shoredrive.uk');
+  it.each(['https://shoredrive.uk', 'https://another-dealer.co.uk'])('uses the same presentation on %s without changing its identity or settings', origin => {
+    canonical(origin);
     const before = JSON.stringify(state.settings);
     const { container } = render(page());
     const shell = container.querySelector<HTMLElement>('.customer-site')!;
     expect(shell).toHaveClass('dealer-site-theme');
-    expect(shell).not.toHaveClass('showroom-navy-site');
-    expect(shell.style.getPropertyValue('--dealer-page')).toBe('#f9fafb');
+    expect(shell).toHaveClass('showroom-navy-site');
+    expect(shell.style.getPropertyValue('--dealer-page')).toBe('#f6f7f9');
     expect(shell.style.getPropertyValue('--dealer-panel')).toBe('#ffffff');
     expect(shell.style.getPropertyValue('--app-font-sans')).toContain('Multi Montserrat');
     expect(document.body).toHaveAttribute('data-dealer-customer', 'true');
@@ -145,15 +145,16 @@ describe('Shared dealership customer theme scope', () => {
     expect(JSON.stringify(state.settings)).toBe(before);
   });
 
-  it('keeps navy on the verified www domain and the shared theme on lookalike domains', () => {
+  it('shares the navy style while keeping the Multi-Choice identity scoped to its verified website', () => {
     canonical('https://www.multichoicemotors.co.uk');
     const view = render(page());
-    expect(view.container.querySelector('.dealer-site-theme')).toHaveClass('showroom-navy-site');
+    expect(view.container.querySelector('.dealer-site-theme')).toHaveAttribute('data-dealer-brand', 'multi-choice');
     canonical('https://multichoicemotors.co.uk.other.example');
     const before = JSON.stringify(state.settings);
     view.rerender(page());
-    expect(view.container.querySelector('.dealer-site-theme')).not.toHaveClass('showroom-navy-site');
-    expect(document.body.style.getPropertyValue('--dealer-page')).toBe('#f9fafb');
+    expect(view.container.querySelector('.dealer-site-theme')).toHaveClass('showroom-navy-site');
+    expect(view.container.querySelector('.dealer-site-theme')).not.toHaveAttribute('data-dealer-brand');
+    expect(document.body.style.getPropertyValue('--dealer-page')).toBe('#f6f7f9');
     expect(document.body).toHaveAttribute('data-dealer-customer', 'true');
     expect(screen.getByTestId('multi-theme-header')).toHaveAttribute('data-logo', '/configured-dealer.svg');
     expect(screen.getByTestId('multi-theme-footer')).toHaveAttribute('data-logo', '/configured-footer.svg');
@@ -199,7 +200,7 @@ describe('Shared dealership customer theme scope', () => {
     expect(view.container.querySelector('.dealer-site-theme')).not.toBeNull();
     expect(document.body).toHaveAttribute('data-dealer-customer', 'true');
     expect(document.body.style.getPropertyValue('--app-font-sans')).toContain('Multi Montserrat');
-    expect(document.body.style.getPropertyValue('--dealer-page')).toBe('#f9fafb');
+    expect(document.body.style.getPropertyValue('--dealer-page')).toBe('#f6f7f9');
     state.path = '/platform';
     view.rerender(page());
     expect(document.body).not.toHaveAttribute('data-dealer-customer');
@@ -281,7 +282,7 @@ describe('Shared dealership customer theme scope', () => {
     state.path = '/';
     state[status] = true;
     const { container } = render(page());
-    expect(container.querySelector('.customer-site.dealer-site-theme')).not.toBeNull();
+    expect(container.querySelector('.customer-site.dealer-site-theme')).toHaveClass('showroom-navy-site');
     expect(document.body).toHaveAttribute('data-dealer-customer', 'true');
     expect(document.body.style.getPropertyValue('--app-font-sans')).toContain('Multi Montserrat');
   });

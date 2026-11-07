@@ -57,6 +57,23 @@ it('does not substitute Multi-Choice artwork based on another dealer’s matchin
   expect(screen.getByRole('img', { name: 'Our own uploaded photo' })).toHaveAttribute('src', ownPhoto);
 });
 
+it('frames only Shore Drive’s published forecourt photo and respects a new photo', () => {
+  const origin = document.querySelector<HTMLMetaElement>('[data-homepage-test]')!;
+  origin.content = 'https://www.shoredrive.uk';
+  const knownPhoto = '/api/website-assets/7934f681-e43a-4e8b-a812-2feb02de64e9';
+  const config = { ...settings(), presentation: { heroImageUrl: knownPhoto, heroImageAlt: 'Our forecourt' } };
+  const view = render(<Harness config={config} />);
+  const hero = screen.getByRole('img', { name: /Audi SUV and silver Ford/ });
+  expect(hero.querySelector('image')).toHaveAttribute('href', knownPhoto);
+
+  view.rerender(<Harness config={{ ...config, presentation: { ...config.presentation, heroImageUrl: '/new-forecourt.jpg' } }} />);
+  expect(screen.getByRole('img', { name: 'Our forecourt' })).toHaveAttribute('src', '/new-forecourt.jpg');
+
+  origin.content = 'https://new-dealer.example';
+  view.rerender(<Harness config={config} />);
+  expect(screen.getByRole('img', { name: 'Our forecourt' })).toHaveAttribute('src', knownPhoto);
+});
+
 it('keeps exclusive and unknown price qualifications visible without inventing a VAT-inclusive price', () => {
   render(<Harness stock={[car('exclusive', { title: 'VAT-exclusive car', priceType: 'VAT exclusive' }), car('unknown', { title: 'Unconfirmed price car', priceType: 'supplier-special' }), car('poa', { title: 'POA car', price: 0, priceType: 'retail' })]} />);
   expect(within(screen.getByRole('article', { name: 'VAT-exclusive car' })).getByText('Excludes VAT')).toBeInTheDocument();

@@ -5,6 +5,7 @@ import { getPhoneHref } from "@/lib/cta-helpers";
 import { formatPhoneDisplay } from "@/lib/utils";
 import { multiChoiceHomeSections } from "@/lib/multi-choice-home-sections";
 import { isMultiChoiceWebsite } from "@/lib/multi-home-scope";
+import { getFittedShoreDriveLogo } from "@/lib/shore-drive-wordmark";
 import { DealerWordmark } from "./brand/wordmark";
 import { Menu, Phone, ChevronDown, Heart } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
@@ -56,6 +57,9 @@ export const MultiHomeHeader = forwardRef<
   const PartExchangeLink = !isHomepage && enquiriesEnabled ? Link : "a";
   const ContactLink = isHomepage ? "a" : Link;
   const LogoLink = isHomepage ? "a" : Link;
+  const fittedLogo = isMultiChoiceWebsite()
+    ? "/brand/multi-choice-motors/multi-choice-wordmark.svg"
+    : getFittedShoreDriveLogo(settings.identity.logoAsset, "header");
   const savedLabel =
     savedCount > 0 ? `Saved cars (${savedCount})` : "Saved cars";
   useEffect(() => {
@@ -93,8 +97,8 @@ export const MultiHomeHeader = forwardRef<
             }
           }}
         >
-          {isMultiChoiceWebsite() ? <img
-            src="/brand/multi-choice-motors/multi-choice-wordmark.svg"
+          {fittedLogo ? <img
+            src={fittedLogo}
             alt={settings.identity.name}
             width="205"
             height="43"

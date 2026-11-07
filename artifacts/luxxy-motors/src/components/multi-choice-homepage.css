@@ -23,7 +23,7 @@
 .multi-home .mh-announcement { margin-bottom: 12px; font-size: 13px; }
 .multi-home .mh-hero-photo { margin-top: 28px; margin-inline: auto; width: 100%; max-width: 576px; aspect-ratio: 16/9; border-radius: 8px; background: transparent; }
 .multi-home .mh-search-card { container: homepage-search / inline-size; min-width: 0; background: var(--mh-surface, #fff); border: 1px solid var(--mh-border); border-radius: 12px; padding: 22px; }
-.multi-home .mh-hero-photo--cutout { aspect-ratio: 1200/529; border-radius: 0; }
+.multi-home .mh-hero-photo--cutout { display: block; height: auto; aspect-ratio: 1200/529; border-radius: 0; }
 .multi-home .mh-search-tabs { display: flex; gap: 4px; margin-bottom: 18px; padding: 4px; border-radius: 8px; background: var(--mh-tint); }
 .multi-home .mh-search-tabs button {
   display: flex;

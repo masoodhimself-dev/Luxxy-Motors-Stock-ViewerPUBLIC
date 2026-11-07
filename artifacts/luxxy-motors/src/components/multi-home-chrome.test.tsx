@@ -76,6 +76,21 @@ it('uses another dealership’s own logos, contact details and name in the share
   expect(JSON.stringify(settings)).toBe(before);
 });
 
+it.each([
+  ['https://shoredrive.uk', true],
+  ['https://www.shoredrive.uk', true],
+  ['https://new-dealer.co.uk', false],
+])('scopes the fitted Shore Drive wordmarks to the original assets on %s', (origin, fitted) => {
+  document.querySelector<HTMLMetaElement>('[data-public-chrome-test]')!.content = origin;
+  const headerLogo = '/api/website-assets/d01af3ae-0a7c-4711-83ab-0dec2e0e7a84';
+  const footerLogo = 'https://www.shoredrive.uk/api/website-assets/f0c45054-168c-452c-a572-83327ac212a6';
+  const settings = { ...config(), identity: { name: 'Shore Drive', logoAsset: headerLogo }, presentation: { footerLogoUrl: footerLogo } };
+  const view = render(<><MultiHomeHeader settings={settings} savedCount={0} testDriveHref="/enquire?type=viewing" /><MultiHomeFooter settings={settings} /></>);
+
+  expect(view.container.querySelector('header img')).toHaveAttribute('src', fitted ? '/brand/shore-drive/shore-drive-wordmark.svg' : headerLogo);
+  expect(view.container.querySelector('footer img')).toHaveAttribute('src', fitted ? '/brand/shore-drive/shore-drive-wordmark-white.svg' : footerLogo);
+});
+
 it('keeps a dealership name visible when no uploaded logo is configured', () => {
   document.querySelector<HTMLMetaElement>('[data-public-chrome-test]')!.content = 'https://new-dealer.example';
   const settings = { ...config(), identity: { name: 'New Dealership' } };

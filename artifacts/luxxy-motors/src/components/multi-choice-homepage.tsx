@@ -9,6 +9,7 @@ import { MakeLogo } from './make-logo';
 import { AiCarFinder } from './ai-car-finder';
 import { DeliveryEstimator } from './delivery-estimator';
 import { ShowroomPhoto } from './showroom-photo';
+import { ShoreDriveHeroPhoto, shoreDriveForecourtPhoto } from './shore-drive-hero-photo';
 import { UKNumberPlate } from './uk-number-plate';
 import { VehicleSellingPoints } from './vehicle-selling-points';
 import { ArrowLeftRight, ArrowRight, ArrowUpRight, Calendar, Car, ChevronDown, ChevronLeft, ChevronRight, Handshake, MapPin, Mail, Phone, Search, ShieldCheck, Smile, Tag, CircleCheck, Truck } from 'lucide-react';
@@ -31,6 +32,7 @@ import { normaliseExchangeRegistration } from '@/lib/part-exchange-autofill';
 import { multiChoiceHomeSections, multiChoiceReviews, multiChoiceReviewsUrl } from '@/lib/multi-choice-home-sections';
 import { customerDefaultCopy, websiteText } from '@/lib/website-content';
 import { isMultiChoiceWebsite } from '@/lib/multi-home-scope';
+import { isShoreDriveWebsite } from '@/lib/shore-drive-wordmark';
 import './multi-choice-homepage.css';
 
 type HomeSettings = DealerConfig & Partial<Pick<DealerSettings, 'testDriveBooking'>>;
@@ -202,6 +204,7 @@ export function DealershipHomepage({ settings, cars: suppliedCars, isLoading, er
   const configuredPhoto = settings.presentation?.heroImageUrl;
   // Replace only the existing Multi-Choice forecourt artwork; later staff-selected photos stay authoritative.
   const cutout = multiChoice && Boolean(configuredPhoto?.includes('/api/website-assets/12f86896-51f9-4e38-be24-b8ab5d243c9c'));
+  const shoreDrivePhoto = isShoreDriveWebsite() && [shoreDriveForecourtPhoto, `https://shoredrive.uk${shoreDriveForecourtPhoto}`, `https://www.shoredrive.uk${shoreDriveForecourtPhoto}`].includes(configuredPhoto ?? '');
   const photo = cutout ? '/brand/multi-choice-motors/hero-cars-1200.webp' : configuredPhoto || getThumbnailUrl(featured.find(car => getThumbnailUrl(car)) || cars.find(car => getThumbnailUrl(car)));
   const types = stockBodyTypes(cars), makes = [...new Set(cars.map(car => car.make).filter((make): make is string => Boolean(make)))].sort((a, b) => a.localeCompare(b));
   const reviews = multiChoiceReviews(settings), reviewsUrl = multiChoiceReviewsUrl(settings);
@@ -249,7 +252,7 @@ export function DealershipHomepage({ settings, cars: suppliedCars, isLoading, er
     { question: 'Where can I see the car?', answer: location.isSample || !location.lines.length ? 'Contact us to confirm the showroom address and arrange your visit.' : `${settings.identity.name} is at ${location.lines.join(', ')}. Check our opening times and confirm your visit before travelling.`, href: sections.visit ? '#find-us' : '/contact', label: 'Plan your visit' },
   ];
   return <div className="multi-home" data-testid="multi-choice-homepage" data-dealership-homepage>
-    <section className="mh-hero" aria-labelledby="home-heading"><div className="mh-container mh-hero-grid"><div className="mh-hero-introduction">{settings.hero.announcement?.trim() && <p className="mh-announcement">{settings.hero.announcement}</p>}<h1 id="home-heading" tabIndex={-1}>{headline}</h1>{heroLocation && <p className="mh-hero-location">{heroLocation}</p>}{settings.presentation?.showHeroDescription && settings.hero.subcopy && <p>{settings.hero.subcopy}</p>}{photo && <ShowroomPhoto src={photo} alt={settings.presentation?.heroImageAlt || `${settings.identity.name} cars`} priority fit={cutout ? 'contain' : 'cover'} position={settings.presentation?.heroImagePosition} className={`mh-hero-photo${cutout ? ' mh-hero-photo--cutout' : ''}`} />}</div>
+    <section className="mh-hero" aria-labelledby="home-heading"><div className="mh-container mh-hero-grid"><div className="mh-hero-introduction">{settings.hero.announcement?.trim() && <p className="mh-announcement">{settings.hero.announcement}</p>}<h1 id="home-heading" tabIndex={-1}>{headline}</h1>{heroLocation && <p className="mh-hero-location">{heroLocation}</p>}{settings.presentation?.showHeroDescription && settings.hero.subcopy && <p>{settings.hero.subcopy}</p>}{photo && (shoreDrivePhoto ? <ShoreDriveHeroPhoto src={photo} /> : <ShowroomPhoto src={photo} alt={settings.presentation?.heroImageAlt || `${settings.identity.name} cars`} priority fit={cutout ? 'contain' : 'cover'} position={settings.presentation?.heroImagePosition} className={`mh-hero-photo${cutout ? ' mh-hero-photo--cutout' : ''}`} />)}</div>
       <div className="mh-search-card"><div role="tablist" aria-label="Find your next car" className="mh-search-tabs" onKeyDown={event => { if (!sections.partExchange || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return; event.preventDefault(); const index = event.key === 'Home' ? 0 : event.key === 'End' ? 1 : tab === 'buy' ? 1 : 0; setTab(index ? 'px' : 'buy'); tabs.current[index]?.focus(); }}>
         <button type="button" ref={element => { tabs.current[0] = element; }} id={`${tabId}-buy-tab`} role="tab" aria-selected={tab === 'buy'} aria-controls={`${tabId}-buy`} tabIndex={tab === 'buy' ? 0 : -1} onClick={() => setTab('buy')}><Car size={17} aria-hidden="true" />Buy a car</button>
         {sections.partExchange && <button type="button" ref={element => { tabs.current[1] = element; }} id={`${tabId}-px-tab`} role="tab" aria-selected={tab === 'px'} aria-controls={`${tabId}-px`} tabIndex={tab === 'px' ? 0 : -1} onClick={() => setTab('px')}><ArrowLeftRight size={16} aria-hidden="true" />Part exchange</button>}

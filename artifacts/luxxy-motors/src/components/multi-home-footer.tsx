@@ -4,6 +4,7 @@ import type { MultiHomeSettings } from "./multi-home-header";
 import { multiChoiceHomeSections } from "@/lib/multi-choice-home-sections";
 import { getEnquiryHref } from "@/lib/cta-helpers";
 import { isMultiChoiceWebsite } from "@/lib/multi-home-scope";
+import { getFittedShoreDriveLogo } from "@/lib/shore-drive-wordmark";
 import { hexColourToHsl, hslColourToHex, readableForegroundForHsl } from "@/lib/brand-colour";
 import { DealerWordmark } from "./brand/wordmark";
 import { Facebook, Instagram, Twitter } from "./icons";
@@ -22,6 +23,9 @@ export function MultiHomeFooter({
     legal = settings.legal;
   const multiChoice = isMultiChoiceWebsite();
   const footerLogo = settings.presentation?.footerLogoUrl?.trim();
+  const fittedLogo = multiChoice
+    ? "/brand/multi-choice-motors/multi-choice-wordmark.svg"
+    : getFittedShoreDriveLogo(footerLogo || settings.identity.logoAsset, footerLogo ? "footer" : "header");
   // A custom footer mark was selected for the dealer's original footer colour.
   // Keep that contrast in a small logo panel within the shared light footer.
   const customFooterLogo = !multiChoice && Boolean(footerLogo);
@@ -98,8 +102,8 @@ export function MultiHomeFooter({
         style={customFooterLogo ? { backgroundColor: logoPanelBackground, color: `hsl(${readableForegroundForHsl(hexColourToHsl(logoPanelBackground))})` } : undefined}
         aria-label={`${settings.identity.name} home`}
       >
-        {multiChoice ? <img
-          src="/brand/multi-choice-motors/multi-choice-wordmark.svg"
+        {fittedLogo ? <img
+          src={fittedLogo}
           alt={settings.identity.name}
           width="190"
           height="40"
