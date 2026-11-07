@@ -139,7 +139,7 @@ body [data-popup-surface].multi-stock-drawer[role="dialog"] {
   scrollbar-width: thin;
   padding: 0 0 4px;
 }
-.multi-stock-section {
+.multi-stock-section:not(:last-child) {
   border-bottom: 1px solid var(--ms-line);
   border-radius: 0;
 }

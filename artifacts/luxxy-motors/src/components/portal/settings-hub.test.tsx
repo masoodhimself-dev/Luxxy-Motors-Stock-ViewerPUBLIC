@@ -25,17 +25,20 @@ vi.mock("@/components/email-templates-settings", () => ({
 }));
 import { DealerSettingsHub } from "./dealer-administration";
 const clients: QueryClient[] = [];
-function show(search = "") {
+function show(search = "", reservations?: typeof fetch) {
   window.history.replaceState({}, "", `/portal?section=settings${search}`);
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () =>
-      Response.json({
+    vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      if (reservations && String(url) === "/api/staff/reservations/settings") {
+        return reservations(url, init);
+      }
+      return Response.json({
         permissions: ["settings.publish", "team.manage"],
         user: {},
         role: "owner",
-      }),
-    ),
+      });
+    }),
   );
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -74,6 +77,29 @@ it("opens a direct booking link and its correctly labelled panel", async () => {
   show("&settingsTab=bookings");
   await screen.findByText("Details editor bookings");
   expect(screen.getByRole("tabpanel", { name: "Bookings" })).toBeVisible();
+});
+it("saves the online reservation switch in Brand settings", async () => {
+  let enabled = true;
+  const reservations = vi.fn<typeof fetch>(async (_url, init) => {
+    if (init?.method === "PUT") enabled = JSON.parse(String(init.body)).enabled;
+    return Response.json({ enabled, paymentReady: true, supported: true });
+  });
+  show("&settingsTab=website", reservations);
+  const setting = within(await screen.findByRole("region", { name: "Online reservations" }));
+  const toggle = await setting.findByRole("switch", { name: "Allow £99 reservations on the website" });
+  const save = setting.getByRole("button", { name: "Save reservation setting" });
+  expect(toggle).toBeChecked();
+  expect(save).toBeDisabled();
+  fireEvent.click(toggle);
+  expect(reservations).toHaveBeenCalledTimes(1);
+  fireEvent.click(save);
+  expect(await setting.findByRole("status")).toHaveTextContent("Online reservations turned off.");
+  expect(toggle).not.toBeChecked();
+  expect(save).toBeDisabled();
+  expect(reservations).toHaveBeenLastCalledWith("/api/staff/reservations/settings", expect.objectContaining({
+    method: "PUT",
+    body: JSON.stringify({ enabled: false }),
+  }));
 });
 it("protects unsaved wording when switching owner settings areas", async () => {
   show("&settingsTab=emails");

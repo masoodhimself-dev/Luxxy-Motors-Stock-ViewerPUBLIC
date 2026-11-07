@@ -308,6 +308,30 @@ it("uses the existing conservative ULEZ decision, with explicit negative source 
   ).toEqual([]);
 });
 
+it("filters on an explicit official feed advert claim when emissions data is absent", () => {
+  const advert = (id: string, advertDescription: string) => car(id, {
+    advertId: id,
+    fuel: "Petrol",
+    sourceExtras: {
+      sourcePlatform: "cazoo",
+      officialFeed: true,
+      descriptionOrigin: "cazoo-official-csv",
+      officialCazooVehicleId: id,
+      advertDescription,
+    },
+  });
+  const matches = ids([
+    advert("listed", "Full service history. HPI clear ULEZ compliant and MOT until August."),
+    advert("question", "Is it ULEZ compliant?"),
+    advert("qualified", "Please check if this car is ULEZ compliant."),
+    advert("negative", "This car is not ULEZ compliant."),
+    advert("conflict", "ULEZ compliant. Previous report says not ULEZ compliant."),
+    { ...advert("lower-standard", "ULEZ compliant."), fuel: "Diesel", emissionClass: "Euro 5" },
+    { ...advert("different-advert", "ULEZ compliant."), advertId: "other" },
+  ], { ulez: true });
+  expect(matches).toEqual(["listed"]);
+});
+
 it.each([
   "price-asc",
   "price-desc",

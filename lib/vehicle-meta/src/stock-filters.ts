@@ -1,6 +1,6 @@
 import { normaliseStockFilters, serializeStockFilters } from './stock-filter-url.ts';
 import { splitStockFacetValues, stockEngineGroup, stockFacetKeys, stockValueKey, type StockFacetKey, type StockFilters } from './stock-filter-types.ts';
-import { ulezReport, validatedCazooSourceReport } from './stock-source-ulez.ts';
+import { cazooAdvertListsUlezCompliance, ulezReport, validatedCazooSourceReport } from './stock-source-ulez.ts';
 export type { StockFilters } from './stock-filter-types.ts';
 
 export interface StockFilterCar {
@@ -114,15 +114,19 @@ function matchesSearch(car: StockFilterCar, search: string): boolean {
   );
 }
 
-export function stockVehicleIsUlez(car: StockFilterCar): boolean {
+export function stockVehicleUlezEvidence(car: StockFilterCar): 'report' | 'emissions' | 'advert' | null {
   const report = ulezReport(validatedCazooSourceReport(car)?.ulez);
+  if (report) return report.status === 'compliant' ? 'report' : null;
   const emission = car.emissionClass?.trim().match(/^euro\s*([1-7])(?:\s*[a-e](?:-temp)?(?:-evap)?(?:\s+isc(?:-fcm)?)?)?$/i);
   const fuel = car.fuel?.trim().toLowerCase().replace(/\s+/g, ' ') ?? '';
   const petrol = /^(?:petrol|petrol (?:plug-in )?hybrid|petrol[\s/]electric|hybrid - petrol\/electric)$/.test(fuel);
   const diesel = /^(?:diesel|diesel (?:plug-in )?hybrid|diesel[\s/]electric|hybrid - diesel\/electric)$/.test(fuel);
-  const meetsStandard = Boolean(emission && ((petrol && +emission[1] >= 4) || (diesel && +emission[1] >= 6)));
-  // An explicit negative result takes priority over a generic emissions comparison.
-  return report ? report.status === 'compliant' : meetsStandard;
+  if (emission && (petrol || diesel)) return Number(emission[1]) >= (petrol ? 4 : 6) ? 'emissions' : null;
+  return cazooAdvertListsUlezCompliance(car) ? 'advert' : null;
+}
+
+export function stockVehicleIsUlez(car: StockFilterCar): boolean {
+  return stockVehicleUlezEvidence(car) !== null;
 }
 
 export function createStockMatcher(input: Partial<StockFilters>) {

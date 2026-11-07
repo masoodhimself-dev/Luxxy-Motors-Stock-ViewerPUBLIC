@@ -50,7 +50,7 @@
   background: var(--mh-accent-dark);
   border-color: var(--mh-accent-dark);
 }
-.customer-site.dealer-site-theme main :is(input:not([type='checkbox']):not([type='radio']):not(.uk-number-plate-input):not(.ukrp-text), select, textarea) {
+.customer-site.dealer-site-theme main :is(input:not([type='checkbox']):not([type='radio']):not(.uk-number-plate-input):not(.ukrp-text), select:not(.mh-search-select select), textarea) {
   border-radius: 4px;
   background-color: var(--mh-surface);
   color: var(--mh-primary);

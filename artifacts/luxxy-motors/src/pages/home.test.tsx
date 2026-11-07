@@ -502,6 +502,26 @@ describe('shared stock filter integration', () => {
     return renderHome(true);
   }
 
+  it('inserts the stock promise in slot eight without replacing or counting a car', () => {
+    stockFixture.cars = Array.from({ length: 9 }, (_, index) => ({
+      ...originalCars[0],
+      id: `promise-car-${index}`,
+      advertId: `promise-car-${index}`,
+      title: `Promise fixture ${index + 1}`,
+      make: index === 0 ? 'Ford' : originalCars[0].make,
+    }));
+    multiStock();
+    const adName = 'What comes with every car from Multi Choice Motors';
+    const items = resultsRegion().getAllByRole('article');
+    expect(items[7]).toBe(resultsRegion().getByRole('article', { name: adName }));
+    expect(items[8]).toHaveAttribute('data-testid', 'card-vehicle-promise-car-7');
+    expect(screen.getByText('Showing 9 of 9 cars')).toBeInTheDocument();
+
+    searchStock('Ford');
+    expect(resultTitles()).toEqual(['Promise fixture 1']);
+    expect(resultsRegion().queryByRole('article', { name: adName })).not.toBeInTheDocument();
+  });
+
   it('keeps the existing homepage search usable after a multi-make stock search', () => {
     multiStock('/stock?make=BMW,Volkswagen&model=1%20Series,Golf&maxPrice=10000&colour=Blue');
     expect(resultTitles()).toEqual(['BMW 1 Series', 'VW Golf']);

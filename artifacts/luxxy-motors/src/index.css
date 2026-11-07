@@ -472,7 +472,7 @@
  .rolling-stock .vehicle-card { border-right-width: 4px; }
  .rolling-stock .vehicle-card-details { min-height: 0; padding: 14px 14px 16px; }
 }
-.browse-stock .vehicle-card img { object-fit: contain; background: #eeefed; }
+.browse-stock .vehicle-card .vehicle-card-photo img { object-fit: contain; background: #eeefed; }
 .browse-stock .vehicle-specs { grid-template-columns: auto auto; justify-content: start; column-gap: 1.25rem; }
 .rolling-stock .stock-card-highlights { display: none; }
 

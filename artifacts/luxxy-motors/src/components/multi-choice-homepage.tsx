@@ -11,7 +11,7 @@ import { DeliveryEstimator } from './delivery-estimator';
 import { ShowroomPhoto } from './showroom-photo';
 import { UKNumberPlate } from './uk-number-plate';
 import { VehicleSellingPoints } from './vehicle-selling-points';
-import { ArrowRight, ArrowUpRight, Calendar, Car, ChevronDown, ChevronLeft, ChevronRight, Handshake, MapPin, Mail, Phone, Search, ShieldCheck, Smile, Tag, CircleCheck, Truck } from 'lucide-react';
+import { ArrowLeftRight, ArrowRight, ArrowUpRight, Calendar, Car, ChevronDown, ChevronLeft, ChevronRight, Handshake, MapPin, Mail, Phone, Search, ShieldCheck, Smile, Tag, CircleCheck, Truck } from 'lucide-react';
 import { SiWhatsapp } from './icons';
 import { MultiHomeReviews } from './multi-home-reviews';
 import { MultiHomeVisit } from './multi-home-visit';
@@ -84,14 +84,45 @@ function StockSearch({ cars, isLoading, error, filters, setFilters, onSearch }: 
   const matches = cars.filter(car => (!filters.make || car.make === filters.make) && (!filters.model || car.model === filters.model) && (!filters.maxPrice || (car.price != null && car.price > 0 && car.price <= Number(filters.maxPrice)))).length;
   const update = (field: 'make' | 'model' | 'maxPrice', value: string) => setFilters(current => ({ ...current, [field]: value, ...(field === 'make' ? { model: '' } : {}) }));
   return <form className="mh-buy-form" aria-label="Search used cars" onSubmit={event => { event.preventDefault(); if (orphanModel) return; onSearch({ ...filters, make: filters.make, model: filters.model, maxPrice: filters.maxPrice, minPrice: '', fuel: '', transmission: '', bodyType: '', search: '', ulez: false, sort: '' }); }}>
-    <div className="mh-search-fields"><label><span className="sr-only">Make</span><select value={filters.make} onChange={event => update('make', event.target.value)} disabled={isLoading}><option value="">Any make</option>{filters.make && !makes.includes(filters.make) && <option value={filters.make}>{filters.make} ({savedLabel})</option>}{makes.map(value => <option key={value}>{value}</option>)}</select></label>
-    <label><span className="sr-only">Model</span><select value={filters.model} onChange={event => update('model', event.target.value)} disabled={isLoading || (!filters.make && !filters.model)} aria-describedby={orphanModel || !filters.make ? modelHelpId : undefined}><option value="">Any model</option>{filters.model && !models.includes(filters.model) && <option value={filters.model}>{filters.model} ({orphanModel ? 'choose a make' : savedLabel})</option>}{models.map(value => <option key={value}>{value}</option>)}</select></label>
-    <label className="mh-search-budget"><span className="sr-only">Maximum price</span><select value={filters.maxPrice} onChange={event => update('maxPrice', event.target.value)} disabled={isLoading}><option value="">Any price</option>{stockBudgetOptions(cars, filters.maxPrice).map(price => <option key={price} value={price}>{formatPrice(price)}</option>)}</select></label></div>
-    <button className="mh-button" type="submit" disabled={isLoading || orphanModel}><Search size={18} />{isLoading ? 'Loading cars…' : error ? 'Browse stock' : `Search ${matches} ${matches === 1 ? 'car' : 'cars'}`}</button>
+    <div className="mh-search-fields">
+      <label>
+        <span>Make</span>
+        <span className="mh-search-select">
+          <select value={filters.make} onChange={event => update('make', event.target.value)} disabled={isLoading}>
+            <option value="">Any make</option>
+            {filters.make && !makes.includes(filters.make) && <option value={filters.make}>{filters.make} ({savedLabel})</option>}
+            {makes.map(value => <option key={value}>{value}</option>)}
+          </select>
+          <ChevronDown size={16} aria-hidden="true" />
+        </span>
+      </label>
+      <label>
+        <span>Model</span>
+        <span className="mh-search-select">
+          <select value={filters.model} onChange={event => update('model', event.target.value)} disabled={isLoading || (!filters.make && !filters.model)} aria-describedby={orphanModel || !filters.make ? modelHelpId : undefined}>
+            <option value="">{!isLoading && !filters.make && !orphanModel ? 'Pick a make' : 'Any model'}</option>
+            {filters.model && !models.includes(filters.model) && <option value={filters.model}>{filters.model} ({orphanModel ? 'choose a make' : savedLabel})</option>}
+            {models.map(value => <option key={value}>{value}</option>)}
+          </select>
+          <ChevronDown size={16} aria-hidden="true" />
+        </span>
+      </label>
+      <label className="mh-search-budget">
+        <span>Maximum price</span>
+        <span className="mh-search-select">
+          <select value={filters.maxPrice} onChange={event => update('maxPrice', event.target.value)} disabled={isLoading}>
+            <option value="">Any price</option>
+            {stockBudgetOptions(cars, filters.maxPrice).map(price => <option key={price} value={price}>{formatPrice(price)}</option>)}
+          </select>
+          <ChevronDown size={16} aria-hidden="true" />
+        </span>
+      </label>
+      <button className="mh-button" type="submit" disabled={isLoading || orphanModel}><Search size={18} aria-hidden="true" />{isLoading ? 'Loading cars…' : error ? 'Browse stock' : `Search ${matches} ${matches === 1 ? 'car' : 'cars'}`}</button>
+    </div>
     {!filters.make && !orphanModel && <span id={modelHelpId} className="sr-only">Choose a make to select a model.</span>}
     {orphanModel && <p className="mh-small" id={modelHelpId} role="status">Choose a make or clear the saved model before searching.</p>}
     {error && <p className="mh-small" role="status">Stock couldn’t load. Open our stock page to try again.</p>}
-    <Link href="/stock" className="mh-search-more">More search options</Link>
+    <Link href="/stock" className="mh-search-more">More search options<ArrowRight size={15} aria-hidden="true" /></Link>
   </form>;
 }
 
@@ -220,8 +251,8 @@ export function DealershipHomepage({ settings, cars: suppliedCars, isLoading, er
   return <div className="multi-home" data-testid="multi-choice-homepage" data-dealership-homepage>
     <section className="mh-hero" aria-labelledby="home-heading"><div className="mh-container mh-hero-grid"><div className="mh-hero-introduction">{settings.hero.announcement?.trim() && <p className="mh-announcement">{settings.hero.announcement}</p>}<h1 id="home-heading" tabIndex={-1}>{headline}</h1>{heroLocation && <p className="mh-hero-location">{heroLocation}</p>}{settings.presentation?.showHeroDescription && settings.hero.subcopy && <p>{settings.hero.subcopy}</p>}{photo && <ShowroomPhoto src={photo} alt={settings.presentation?.heroImageAlt || `${settings.identity.name} cars`} priority fit={cutout ? 'contain' : 'cover'} position={settings.presentation?.heroImagePosition} className={`mh-hero-photo${cutout ? ' mh-hero-photo--cutout' : ''}`} />}</div>
       <div className="mh-search-card"><div role="tablist" aria-label="Find your next car" className="mh-search-tabs" onKeyDown={event => { if (!sections.partExchange || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return; event.preventDefault(); const index = event.key === 'Home' ? 0 : event.key === 'End' ? 1 : tab === 'buy' ? 1 : 0; setTab(index ? 'px' : 'buy'); tabs.current[index]?.focus(); }}>
-        <button type="button" ref={element => { tabs.current[0] = element; }} id={`${tabId}-buy-tab`} role="tab" aria-selected={tab === 'buy'} aria-controls={`${tabId}-buy`} tabIndex={tab === 'buy' ? 0 : -1} onClick={() => setTab('buy')}>Buy a car</button>
-        {sections.partExchange && <button type="button" ref={element => { tabs.current[1] = element; }} id={`${tabId}-px-tab`} role="tab" aria-selected={tab === 'px'} aria-controls={`${tabId}-px`} tabIndex={tab === 'px' ? 0 : -1} onClick={() => setTab('px')}>Part exchange</button>}
+        <button type="button" ref={element => { tabs.current[0] = element; }} id={`${tabId}-buy-tab`} role="tab" aria-selected={tab === 'buy'} aria-controls={`${tabId}-buy`} tabIndex={tab === 'buy' ? 0 : -1} onClick={() => setTab('buy')}><Car size={17} aria-hidden="true" />Buy a car</button>
+        {sections.partExchange && <button type="button" ref={element => { tabs.current[1] = element; }} id={`${tabId}-px-tab`} role="tab" aria-selected={tab === 'px'} aria-controls={`${tabId}-px`} tabIndex={tab === 'px' ? 0 : -1} onClick={() => setTab('px')}><ArrowLeftRight size={16} aria-hidden="true" />Part exchange</button>}
       </div><div role="tabpanel" id={`${tabId}-buy`} aria-labelledby={`${tabId}-buy-tab`} hidden={tab !== 'buy'}><StockSearch cars={cars} isLoading={isLoading} error={error} filters={filters} setFilters={setFilters} onSearch={onSearch} /></div>{sections.partExchange && <div role="tabpanel" id={`${tabId}-px`} aria-labelledby={`${tabId}-px-tab`} hidden={tab !== 'px'}><PartExchangeStart id="hero" /></div>}</div>
     </div></section>
     <div className="mh-container">

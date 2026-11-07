@@ -10,6 +10,7 @@ import {
   publicReservationTerms,
 } from '../lib/public-reservation-config';
 import { verifyStripeWebhook } from '../lib/stripe-payments';
+import { readOnlineReservationPreference } from './dealer-settings';
 import {
   createStripeReservation,
   processStripeReservationEvent,
@@ -52,10 +53,14 @@ function limitRequests(max: number, windowMs: number) {
 const checkoutLimited = limitRequests(5, 60_000);
 const statusLimited = limitRequests(120, 60_000);
 
-router.get('/reservations/payment-readiness', (_req, res) => {
-  res.set('Cache-Control', 'no-store').json(publicReservationCheckoutSettings()
-    ? { enabled: true, depositPence: publicReservationDepositPence, terms: publicReservationTerms }
-    : { enabled: false });
+router.get('/reservations/payment-readiness', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const enabled = Boolean(publicReservationCheckoutSettings()) && (await readOnlineReservationPreference()).enabled;
+    res.json(enabled
+      ? { enabled: true, depositPence: publicReservationDepositPence, terms: publicReservationTerms }
+      : { enabled: false });
+  } catch (error) { failure(error, req, res); }
 });
 
 router.post('/reservations/checkout', async (req, res) => {
@@ -67,6 +72,7 @@ router.post('/reservations/checkout', async (req, res) => {
       throw new ReservationError('Start your reservation from the dealership website.', 403);
     }
     if (checkoutLimited(req, res)) return;
+    if (!(await readOnlineReservationPreference()).enabled) throw new ReservationError('Online reservations are currently unavailable.', 503);
     const result = await createStripeReservation(req.body, currentDealerId(), settings, { terms: publicReservationTerms });
     res.status(result.replayed ? 200 : 201).json(result);
   } catch (error) { failure(error, req, res); }

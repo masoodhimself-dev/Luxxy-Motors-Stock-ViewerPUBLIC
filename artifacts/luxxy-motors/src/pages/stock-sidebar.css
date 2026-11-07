@@ -558,13 +558,16 @@
 
 .stock-sidebar-layout .stock-end-information { margin-top: 28px; color: var(--dealer-page-muted); line-height: 1.7; }
 
-/* Keep refinement at hand while the customer scrolls the phone/tablet results. */
+/* Let the full-width controls scroll away above the listings. */
 @media (max-width: 1023px) {
   .stock-redesign.stock-refined.stock-sidebar-layout #stock > .stock-catalogue-layout { display: block; }
-  .stock-redesign.stock-refined.stock-sidebar-layout .stock-catalogue-controls { position: sticky; top: var(--site-header-height, 80px); z-index: 30; padding-block: 8px; margin-bottom: 12px; background: var(--dealer-page, #f5f6f7); border-bottom: 1px solid var(--dealer-page-border, #dce2e6); }
+  .stock-redesign.stock-refined.stock-sidebar-layout .stock-catalogue-controls {
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--dealer-page-border, #dce2e6);
+  }
   .stock-redesign.stock-refined.stock-sidebar-layout .stock-search-hint { display: none; }
   .stock-redesign.stock-refined.stock-sidebar-layout .stock-applied-filters { max-height: 52px; overflow-y: auto; }
-  .customer-site:has(.stock-browsing-header[data-scroll-hidden="true"]) .stock-catalogue-controls { top: 0; }
 }
 
 .stock-redesign.stock-refined.stock-sidebar-layout .stock-sort { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }

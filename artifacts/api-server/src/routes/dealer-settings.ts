@@ -6,10 +6,11 @@ import { isPlatformAdmin } from '../lib/platform-admin';
 import { normaliseIncludedItems, websiteColourPolicy } from '../lib/website-colour-policy';
 import { currentDealerId, multiTenantEnabled } from "../lib/tenant-context";
 import { bookingPolicyError, defaultBookingPolicy } from "../lib/booking-slots";
+import { publicReservationCheckoutSettings, supportsPublicReservations } from "../lib/public-reservation-config";
 import { preserveGoogleReviewUrl, preserveTestDriveBooking, preserveBrochure, preservePresentation, publicSettingsLinkError } from "../lib/settings-content";
 import { Router, type IRouter } from "express";
 import { requirePermission, requireStaff, staffLabel } from "../middlewares/staff-auth";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db, pool, dealerSettingsTable, vehiclesTable } from "@workspace/db";
 import { expectedSettingsRevision, PostgresSettingsVersionStore, SettingsVersionError, type SettingsQueryClient } from '../lib/settings-versions';
 import {
@@ -17,10 +18,20 @@ import {
   UpdateDealerSettingsBody,
   UpdateDealerSettingsResponse,
 } from "@workspace/api-zod";
+import { z } from "zod/v4";
 
 const router: IRouter = Router();
-router.use(['/dealer-settings', '/staff/settings-history'], (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
+router.use(['/dealer-settings', '/staff/settings-history', '/staff/reservations/settings'], (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
 const dealerId = () => currentDealerId();
+const onlineReservationSettings = z.object({ enabled: z.boolean() }).strict();
+
+export async function readOnlineReservationPreference() {
+  const [setting] = await db.select({
+    enabled: sql<unknown>`${dealerSettingsTable.config}->'publicOnlineReservations'`,
+    revision: dealerSettingsTable.revision,
+  }).from(dealerSettingsTable).where(eq(dealerSettingsTable.dealerId, dealerId()));
+  return { enabled: setting?.enabled === true, revision: setting?.revision };
+}
 
 export const defaultSettings = {
   testDriveBooking: defaultBookingPolicy,
@@ -157,8 +168,8 @@ async function validatePublication(input: Record<string, unknown>, previous: Rec
   const reservationError = bookingPolicyError(compatible.testDriveBooking);
   if (reservationError) throw new SettingsVersionError(reservationError, 400);
   const published=await cleanFeaturedVehicles(compatible, client) as Record<string,unknown>;
-  // Preserve old private/historical config opaquely; no request can rewrite it.
-  for(const key of ['onlineReservation','recentHandovers']){delete published[key];if(Object.prototype.hasOwnProperty.call(previous,key))published[key]=previous[key];}
+  // Preserve private settings managed separately, including when restoring older website settings.
+  for(const key of ['onlineReservation','recentHandovers','publicOnlineReservations']){delete published[key];if(Object.prototype.hasOwnProperty.call(previous,key))published[key]=previous[key];}
   return published;
 }
 function settingsFailure(req: import('express').Request, res: import('express').Response, error: unknown) {
@@ -185,6 +196,29 @@ router.patch('/dealer-settings/bookings', requireStaff, requirePermission('setti
     res.setHeader('x-settings-revision',String(result.revision));res.setHeader('ETag',`"${result.revision}"`);
     res.json({testDriveBooking:result.config.testDriveBooking,revision:result.revision});
   } catch(error) {settingsFailure(req,res,error);}
+});
+router.get('/staff/reservations/settings', requireStaff, requirePermission('settings.publish'), async (req, res) => {
+  try {
+    const supported = supportsPublicReservations();
+    const enabled = supported && (await readOnlineReservationPreference()).enabled;
+    res.json({ enabled, supported, paymentReady: Boolean(publicReservationCheckoutSettings()) });
+  } catch (error) { settingsFailure(req, res, error); }
+});
+router.put('/staff/reservations/settings', requireStaff, requirePermission('settings.publish'), async (req, res) => {
+  try {
+    if (!supportsPublicReservations()) throw new SettingsVersionError('Online reservations are unavailable for this dealership.', 403);
+    const parsed = onlineReservationSettings.safeParse(req.body);
+    if (!parsed.success) throw new SettingsVersionError('Choose whether to enable online reservations.', 400);
+    const { enabled } = parsed.data;
+    const { revision } = await readOnlineReservationPreference();
+    if (revision === undefined) throw new SettingsVersionError('Open website settings before changing online reservations.', 428);
+    const result = await new PostgresSettingsVersionStore(dealerId(), pool).publish({
+      config: parsed.data, expectedRevision: revision, actor: staffLabel(req),
+      validate: async (_input, previous) => ({ ...previous, publicOnlineReservations: enabled }),
+    });
+    res.setHeader('x-settings-revision', String(result.revision));
+    res.json({ enabled, supported: true, paymentReady: Boolean(publicReservationCheckoutSettings()) });
+  } catch (error) { settingsFailure(req, res, error); }
 });
 router.patch("/dealer-settings", requireStaff, requirePermission('settings.publish'), async (req, res): Promise<void> => {
   try {

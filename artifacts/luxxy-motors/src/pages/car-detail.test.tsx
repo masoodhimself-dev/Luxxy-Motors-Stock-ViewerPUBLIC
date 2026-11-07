@@ -761,9 +761,10 @@ describe('dealership-wide What’s included', () => {
 
 it('puts the live £99 action below the price box and requires acceptance before opening secure checkout', async () => {
   const terms = 'The £99 deposit is fully refundable. Contact us to cancel.';
+  let enabled = true;
   const checkoutCalls: Array<Record<string, unknown>> = [];
   vi.stubGlobal('fetch', vi.fn(async (url: string, options?: RequestInit) => {
-    if (url === '/api/reservations/payment-readiness') return Response.json({ enabled: true, depositPence: 9900, terms });
+    if (url === '/api/reservations/payment-readiness') return Response.json(enabled ? { enabled, depositPence: 9900, terms } : { enabled });
     if (url === '/api/reservations/checkout') {
       checkoutCalls.push(JSON.parse(String(options?.body)));
       return Response.json({ error: 'Secure payment is temporarily unavailable.' }, { status: 503 });
@@ -793,6 +794,10 @@ it('puts the live £99 action below the price box and requires acceptance before
   fireEvent.click(submit);
   await waitFor(() => expect(checkoutCalls).toHaveLength(2));
   expect(checkoutCalls[1]).toEqual(checkoutCalls[0]);
+  enabled = false;
+  fireEvent.click(submit);
+  expect(await screen.findByRole('dialog', { name: 'Online reservations unavailable' })).toBeVisible();
+  expect(document.querySelector('.vehicle-reserve')).toBeNull();
 });
 
 it('hides the reserve action when the live payment service is unavailable', async () => {

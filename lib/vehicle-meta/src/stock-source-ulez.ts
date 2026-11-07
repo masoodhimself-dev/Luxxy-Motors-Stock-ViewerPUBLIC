@@ -60,3 +60,19 @@ export function validatedCazooSourceReport(car: UlezSourceCar, now = Date.now())
     !captureTime(source.capturedAt, now)) return null;
   return { ...source, capturedAt: source.capturedAt };
 }
+
+/** Some official feeds supply the dealer's ULEZ statement only in the advert. */
+export function cazooAdvertListsUlezCompliance(car: UlezSourceCar): boolean {
+  const extras = record(car.sourceExtras);
+  if (extras?.sourcePlatform !== 'cazoo' || extras.officialFeed !== true || extras.descriptionOrigin !== 'cazoo-official-csv' ||
+    !car.advertId || extras.officialCazooVehicleId !== car.advertId ||
+    !suppliedText(extras.advertDescription, 20_000)) return false;
+
+  const sentences = extras.advertDescription.match(/[^.!?;\r\n]+[.!?;]?/g) ?? [];
+  const mentions = sentences.filter(sentence => /\bULEZ\b/i.test(sentence));
+  if (mentions.length !== 1) return false;
+
+  const statement = mentions[0]!;
+  return /\bULEZ\s+compliant\b/i.test(statement) &&
+    !/\?|\b(?:no|not|non|never|without|may|might|could|should|would|if|whether|unless|but|however|previously|assumed|unconfirmed|subject to|ask|check|confirm|verify)\b|n['’]t\b/i.test(statement);
+}

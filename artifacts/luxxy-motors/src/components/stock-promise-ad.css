@@ -1,0 +1,104 @@
+.stock-promise-ad {
+  --stock-promise-accent: var(--mh-accent, #182957);
+  --stock-promise-surface: var(--mh-surface, #fff);
+  --stock-promise-divider: var(--mh-border, #d9dee6);
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  min-inline-size: 0;
+  overflow: hidden;
+  border: 1px solid var(--stock-promise-divider);
+  border-radius: 12px;
+  background: var(--stock-promise-surface);
+  color: var(--stock-promise-accent);
+  container-type: inline-size;
+}
+
+.stock-promise-ad__heading {
+  flex: none;
+  padding: 24px 22px 26px;
+  background: var(--stock-promise-accent);
+  color: var(--stock-promise-surface);
+}
+
+.stock-promise-ad__brand {
+  margin: 0 0 22px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+
+.stock-promise-ad__car {
+  display: block;
+  inline-size: 118px;
+  block-size: auto;
+  margin-block-end: 18px;
+}
+
+.stock-promise-ad__heading h2 {
+  margin: 0;
+  font-size: 31px;
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -.025em;
+  text-wrap: balance;
+}
+
+.stock-promise-ad__benefits {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  margin: 0;
+  padding-inline: 20px;
+  list-style: none;
+}
+
+.stock-promise-ad__benefits li {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  flex: 1;
+  align-items: center;
+  gap: 16px;
+  padding-block: 24px;
+}
+
+.stock-promise-ad__benefits li + li {
+  border-block-start: 1px solid var(--stock-promise-divider);
+}
+
+.stock-promise-ad__benefits svg {
+  inline-size: 100%;
+  block-size: auto;
+}
+
+.stock-promise-ad__benefits p {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.stock-promise-ad__benefits span {
+  display: block;
+}
+
+@container (max-width: 310px) {
+  .stock-promise-ad__heading { padding: 20px 18px 22px; }
+  .stock-promise-ad__brand { margin-block-end: 16px; font-size: 12px; }
+  .stock-promise-ad__car { inline-size: 103px; margin-block-end: 15px; }
+  .stock-promise-ad__heading h2 { font-size: 28px; }
+  .stock-promise-ad__benefits { padding-inline: 17px; }
+  .stock-promise-ad__benefits li { grid-template-columns: 34px minmax(0, 1fr); gap: 12px; padding-block: 19px; }
+  .stock-promise-ad__benefits p { font-size: 16px; line-height: 1.35; }
+}
+
+@container (min-width: 400px) {
+  .stock-promise-ad__heading { padding: 28px; }
+  .stock-promise-ad__brand { font-size: 16px; }
+  .stock-promise-ad__car { inline-size: 145px; }
+  .stock-promise-ad__heading h2 { font-size: 38px; }
+  .stock-promise-ad__benefits { padding-inline: 26px; }
+  .stock-promise-ad__benefits li { grid-template-columns: 46px minmax(0, 1fr); }
+  .stock-promise-ad__benefits p { font-size: 20px; }
+}

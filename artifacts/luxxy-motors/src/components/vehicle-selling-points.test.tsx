@@ -43,6 +43,24 @@ it("keeps compact cards to three benefits and avoids repeating the mileage fact"
   expect(list).not.toHaveTextContent("below average");
 });
 
+it("attributes advert-derived ULEZ information in the badge and explanation", async () => {
+  render(<VehicleSellingPoints car={car({
+    advertId: "80238245",
+    emissionClass: null,
+    sourceExtras: {
+      sourcePlatform: "cazoo",
+      officialFeed: true,
+      officialCazooVehicleId: "80238245",
+      descriptionOrigin: "cazoo-official-csv",
+      advertDescription: "ULEZ compliant.",
+    },
+  })} />);
+  const badge = screen.getByRole("button", { name: "Listed as ULEZ compliant" });
+  expect(badge).toHaveTextContent("Listed as ULEZ compliant");
+  fireEvent.click(badge);
+  expect(await screen.findByRole("tooltip")).toHaveTextContent("This status comes from the dealer’s advert.");
+});
+
 it("shows an honest ownership explanation without deriving previous keeper counts", async () => {
   render(<VehicleSellingPoints car={car()} />);
   fireEvent.click(

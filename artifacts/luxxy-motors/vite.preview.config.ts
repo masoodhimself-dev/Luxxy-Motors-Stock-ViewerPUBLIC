@@ -130,6 +130,8 @@ export default mergeConfig(
               '/api/staff/cars': {feed:{source:'Local stock preview',receivedAt:previewStock.scrapedAt,appliedAt:previewStock.scrapedAt,state:'current',scheduled:false},cars:previewStock.cars.map(car=>({...car,inventoryStatus:car.inventoryStatus??'available',staff:{source:'autotrader',sourceStatus:'live',inventoryStatus:car.inventoryStatus??'available',published:true,firstSeenAt:previewStock.scrapedAt,lastSeenAt:previewStock.scrapedAt,archivedAt:null,mot:staffMotSummary(previewMotChecks.history(car.id)),changes:[],sale:null}}))},
               '/api/features': { features: Object.fromEntries(resolveDealerFeatures({}, {}).map(feature => [feature.key, feature.enabled])), evaluatedAt: new Date().toISOString() },
               '/api/dealer-settings': previewSettings,
+              '/api/staff/reservations/settings': { enabled: false, paymentReady: false, supported: false },
+              '/api/reservations/payment-readiness': { enabled: false },
             };
             const response =
               responses[url.pathname] ?? previewResponse(url.pathname, url.searchParams);

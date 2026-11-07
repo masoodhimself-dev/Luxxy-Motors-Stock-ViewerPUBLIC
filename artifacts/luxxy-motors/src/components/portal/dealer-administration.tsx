@@ -1,6 +1,7 @@
 import { CazooLeadsSettings } from "./cazoo-leads-settings";
 import { StockFeedSettings } from "./stock-feed-settings";
 import { StockAlertSettings } from "./stock-alerts";
+import { OnlineReservationSettings } from "./online-reservation-settings";
 import { AccountInvitations } from "@/components/account-invitations";
 import {
   Store,
@@ -289,7 +290,10 @@ export function DealerSettingsHub() {
         id={`dealer-settings-panel-${selected}`}
         aria-labelledby={`dealer-settings-tab-${selected}`}
       >
-        {selected === "website" && <StockAlertSettings key={String(openStockAlerts)} initiallyOpen={openStockAlerts} />}
+        {selected === "website" && <>
+          <OnlineReservationSettings />
+          <StockAlertSettings key={String(openStockAlerts)} initiallyOpen={openStockAlerts} />
+        </>}
         {["dealership", "website", "bookings"].includes(selected) && (
           <DealerSettingsPanel
             key={selected}

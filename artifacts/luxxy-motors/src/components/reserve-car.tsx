@@ -25,6 +25,8 @@ export function ReserveCar({ car }: { car: Car }) {
     },
     enabled: eligible,
     staleTime: 30_000,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
     retry: false,
   });
   const dialogTheme = useVehicleDialogTheme();
@@ -88,6 +90,8 @@ export function ReserveCar({ car }: { car: Car }) {
       if (!response.ok) {
         if (response.status === 409 || response.status === 403) {
           setAcceptedQuote('');
+        }
+        if ([403, 409, 503].includes(response.status)) {
           void readiness.refetch();
         }
         setError(typeof result?.error === 'string' ? result.error : paymentError);
@@ -113,44 +117,44 @@ export function ReserveCar({ car }: { car: Car }) {
   }
 
   return (
-    <div className="vehicle-reserve">
-      <Dialog open={open} onOpenChange={next => {
-        if (inFlight.current) return;
-        setOpen(next);
-        if (next) {
-          setAcceptedQuote('');
-          setError('');
-        }
-      }}>
-        {available && <DialogTrigger asChild>
+    <Dialog open={open} onOpenChange={next => {
+      if (inFlight.current) return;
+      setOpen(next);
+      if (next) {
+        setAcceptedQuote('');
+        setError('');
+      }
+    }}>
+      {available && <div className="vehicle-reserve">
+        <DialogTrigger asChild>
           <Button type="button" className="vehicle-reserve-button" aria-describedby={refundNoteId}>Reserve this car for £99</Button>
-        </DialogTrigger>}
-        <DialogContent className="vehicle-action-dialog vehicle-reservation-dialog" style={dialogTheme} closeDisabled={pending}>
-          <div className="vehicle-dialog-header">
-            <DialogTitle>Reserve this car for £99</DialogTitle>
-            <DialogDescription>{testMode
-              ? 'Test payment. Use the sample details below to try the fully refundable £99 reservation.'
-              : 'The £99 deposit is fully refundable. You’ll pay securely by card on Stripe.'}</DialogDescription>
-          </div>
-          <VehicleDialogVehicle car={car} showRegistrationPlate />
-          {available ? <form className="vehicle-dialog-form" onSubmit={checkout} aria-busy={pending}>
-            <label className="block"><span className="field-label">Your name</span><Input required name="customerName" minLength={2} maxLength={120} autoComplete={testMode ? "off" : "name"} disabled={pending} readOnly={testMode} defaultValue={testMode ? "Jamie Patel" : undefined} /></label>
-            <label className="block"><span className="field-label">Email address</span><Input required name="email" type="email" maxLength={254} autoComplete={testMode ? "off" : "email"} disabled={pending} readOnly={testMode} defaultValue={testMode ? "jamie@example.test" : undefined} /></label>
-            <label className="block"><span className="field-label">Phone number</span><Input required name="phone" type="tel" maxLength={30} autoComplete={testMode ? "off" : "tel"} disabled={pending} readOnly={testMode} defaultValue={testMode ? "07700 900123" : undefined} /></label>
-            <section className="vehicle-dialog-terms">
-              <h3>Reservation terms</h3>
-              <p className="whitespace-pre-wrap break-words">{terms}</p>
-            </section>
-            <label className="vehicle-dialog-consent min-h-11">
-              <input type="checkbox" checked={acceptedQuote === quote} required disabled={pending} onChange={event => setAcceptedQuote(event.target.checked ? quote : '')} />
-              <span>I accept the reservation terms.</span>
-            </label>
-            {error && <p role="alert" className="vehicle-dialog-error">{error}</p>}
-            <Button type="submit" className="vehicle-dialog-primary" disabled={pending || acceptedQuote !== quote}>{pending ? 'Opening payment…' : testMode ? 'Continue to test payment' : 'Continue to £99 payment'}</Button>
-          </form> : <p role="alert" className="vehicle-dialog-error">Online reservation is currently unavailable. Contact the dealership for help.</p>}
-        </DialogContent>
-      </Dialog>
-      {available && <p id={refundNoteId}>£99 deposit · Fully refundable</p>}
-    </div>
+        </DialogTrigger>
+        <p id={refundNoteId}>£99 deposit · Fully refundable</p>
+      </div>}
+      <DialogContent className="vehicle-action-dialog vehicle-reservation-dialog" style={dialogTheme} closeDisabled={pending}>
+        <div className="vehicle-dialog-header">
+          <DialogTitle>{available ? 'Reserve this car for £99' : 'Online reservations unavailable'}</DialogTitle>
+          <DialogDescription>{!available ? 'Contact the dealership for help with this car.' : testMode
+            ? 'Test payment. Use the sample details below to try the fully refundable £99 reservation.'
+            : 'The £99 deposit is fully refundable. You’ll pay securely by card on Stripe.'}</DialogDescription>
+        </div>
+        <VehicleDialogVehicle car={car} showRegistrationPlate />
+        {available ? <form className="vehicle-dialog-form" onSubmit={checkout} aria-busy={pending}>
+          <label className="block"><span className="field-label">Your name</span><Input required name="customerName" minLength={2} maxLength={120} autoComplete={testMode ? "off" : "name"} disabled={pending} readOnly={testMode} defaultValue={testMode ? "Jamie Patel" : undefined} /></label>
+          <label className="block"><span className="field-label">Email address</span><Input required name="email" type="email" maxLength={254} autoComplete={testMode ? "off" : "email"} disabled={pending} readOnly={testMode} defaultValue={testMode ? "jamie@example.test" : undefined} /></label>
+          <label className="block"><span className="field-label">Phone number</span><Input required name="phone" type="tel" maxLength={30} autoComplete={testMode ? "off" : "tel"} disabled={pending} readOnly={testMode} defaultValue={testMode ? "07700 900123" : undefined} /></label>
+          <section className="vehicle-dialog-terms">
+            <h3>Reservation terms</h3>
+            <p className="whitespace-pre-wrap break-words">{terms}</p>
+          </section>
+          <label className="vehicle-dialog-consent min-h-11">
+            <input type="checkbox" checked={acceptedQuote === quote} required disabled={pending} onChange={event => setAcceptedQuote(event.target.checked ? quote : '')} />
+            <span>I accept the reservation terms.</span>
+          </label>
+          {error && <p role="alert" className="vehicle-dialog-error">{error}</p>}
+          <Button type="submit" className="vehicle-dialog-primary" disabled={pending || acceptedQuote !== quote}>{pending ? 'Opening payment…' : testMode ? 'Continue to test payment' : 'Continue to £99 payment'}</Button>
+        </form> : null}
+      </DialogContent>
+    </Dialog>
   );
 }

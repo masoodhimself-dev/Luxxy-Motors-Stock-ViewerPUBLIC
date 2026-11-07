@@ -2,6 +2,7 @@ import { AiCarFinder } from '@/components/ai-car-finder';
 import { DealershipHomepage } from '@/components/multi-choice-homepage';
 import { MultiStockFilters } from '@/components/multi-stock-filters';
 import { StockAlertOffer } from '@/components/stock-alert-signup';
+import { StockPromiseAd } from '@/components/stock-promise-ad';
 import { useStockSearch } from '@/features/stock-search/use-stock-search';
 import { applyStockFilters } from '@/features/stock-search/apply-filters';
 import { createStockFilters } from '@/features/stock-search/url';
@@ -30,7 +31,7 @@ import {
   saveBrowseSession,
   restoreBrowsePosition,
 } from "@/lib/browse-session";
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useStock } from '@/lib/stock-context';
 import { CarCard } from '@/components/car-card';
@@ -38,6 +39,7 @@ import { CarComparison } from '@/components/car-comparison';
 import { CarComparisonTray, useComparisonSelection, useShortlistShare } from '@/components/car-comparison-tray';
 import { MAX_COMPARISON_CARS } from '@/lib/car-comparison';
 import { stockPhotoControlsEnabled } from '@/lib/stock-photo-controls';
+import { isMultiChoiceWebsite } from '@/lib/multi-home-scope';
 import { Filters, type FilterState } from '@/components/filters';
 import { cn, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
 import { getContactHref } from '@/lib/cta-helpers';
@@ -69,6 +71,7 @@ const defaultFilters: FilterState = {
 };
 const benefitChoices = [{ key: 'ulez', label: 'ULEZ compliant', note: 'Check the supplied emissions information and confirm the vehicle before travelling.' }] as const;
 const STOCK_VIEW_KEY = 'luxxy.stock-view.v1';
+const STOCK_PROMISE_AFTER_CARS = 7;
 
 export default function Home({ browseStock = false }: { browseStock?: boolean }) {
   const demoSite = useDemoStatus();
@@ -286,6 +289,8 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   }, [isLoading, browseStock]);
 
   const displayedCars = filteredCars.slice(0, visibleCount);
+  const showStockPromise = browseStock && stockView === 'cards'
+    && isMultiChoiceWebsite() && dealerConfig.warranty?.enabled === true;
   const stockCount = publicCars.length;
 
   useEffect(() => {
@@ -489,8 +494,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
               trackEvent('stock_results_opened', { source: 'filter_panel', result_count: filteredCars.length });
               setShowAll(true);
               requestAnimationFrame(() => {
-                // Start with the controls in view, so the sticky toolbar does
-                // not cover the first vehicle photograph after drawer close.
+                // Keep the selected filters and result count in view after applying.
                 scrollToHomeTarget('stock');
                 focusHomeTarget('vehicle-results');
               });
@@ -558,21 +562,23 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                   )}
                 >
                   {displayedCars.map((car, index) => (
-                    <CarCard
-                      key={car.id}
-                      car={car}
-                      catalogue
-                      stockDetails
-                      photoControls={stockPhotoControlsEnabled()}
-                      priority={index < 2}
-                      layout={stockView === 'compact' ? 'compact' : 'card'}
-                      stretchedLink
-                      compareAction={publicCars.length >= 2 ? {
-                        selected: comparison.selectedIds.includes(car.id),
-                        disabled: comparison.selectedIds.length === MAX_COMPARISON_CARS && !comparison.selectedIds.includes(car.id),
-                        onToggle: () => comparison.toggle(car.id),
-                      } : undefined}
-                    />
+                    <Fragment key={car.id}>
+                      {showStockPromise && index === STOCK_PROMISE_AFTER_CARS && <StockPromiseAd />}
+                      <CarCard
+                        car={car}
+                        catalogue
+                        stockDetails
+                        photoControls={stockPhotoControlsEnabled()}
+                        priority={index < 2}
+                        layout={stockView === 'compact' ? 'compact' : 'card'}
+                        stretchedLink
+                        compareAction={publicCars.length >= 2 ? {
+                          selected: comparison.selectedIds.includes(car.id),
+                          disabled: comparison.selectedIds.length === MAX_COMPARISON_CARS && !comparison.selectedIds.includes(car.id),
+                          onToggle: () => comparison.toggle(car.id),
+                        } : undefined}
+                      />
+                    </Fragment>
                   ))}
                 </div>
                 <div className="stock-results-end mt-6 flex flex-col items-center justify-center gap-3"><p className="text-sm text-muted-foreground">Showing {displayedCars.length} of {filteredCars.length} {filteredCars.length === 1 ? 'car' : 'cars'}</p>{visibleCount < filteredCars.length && <Button variant="outline" onClick={()=>multiStock ? stockSearch.showMore() : setVisibleCount(count=>count+12)}>Show more cars</Button>}</div>
