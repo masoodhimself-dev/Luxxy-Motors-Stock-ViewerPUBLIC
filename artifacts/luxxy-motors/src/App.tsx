@@ -35,6 +35,7 @@ const Viewing = lazy(() => import("@/pages/viewing"));
 const TestDriveDeclaration = lazy(() => import('@/pages/test-drive-declaration'));
 const DeliveryEvidence = lazy(() => import('@/pages/delivery-evidence'));
 const PaymentRequest = lazy(() => import('@/pages/payment-request'));
+const ReservationPaymentReturn = lazy(() => import('@/pages/reservation-payment-return'));
 import NotFound from '@/pages/not-found';
 const StaffSignIn = lazy(() =>
   import('@/pages/staff-access').then((module) => ({
@@ -149,6 +150,7 @@ function ClerkProviderWithRoutes() {
 
   if (location.startsWith('/test-drive-declaration/')) return <RoutedErrorBoundary><Suspense fallback={<RouteLoading/>}><TestDriveDeclaration/></Suspense></RoutedErrorBoundary>;
   if (location.startsWith('/delivery-evidence/')) return <RoutedErrorBoundary><Suspense fallback={<RouteLoading/>}><DeliveryEvidence/></Suspense></RoutedErrorBoundary>;
+  if (location === '/reservation-payment' || location === '/reserve/payment-return') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading/>}><ReservationPaymentReturn/></Suspense></RoutedErrorBoundary>;
   if (location.startsWith('/payment-request/')) return <RoutedErrorBoundary><Suspense fallback={<RouteLoading/>}><PaymentRequest/></Suspense></RoutedErrorBoundary>;
 
   return (

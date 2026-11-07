@@ -66,9 +66,14 @@ app.use(cors({ credentials: true, origin: true }));
 app.use(importAdmission.middleware);
 app.use("/api/demo-onboarding", express.json({ limit: "450kb" }));
 app.use('/api/staff/website-assets', express.json({ limit: '3mb' }));
-app.use(express.json({ limit: "25mb", verify: (req, _res, buffer) => {
-  if (req.url?.split('?')[0] === '/api/reservations/stripe/webhook') (req as typeof req & { rawBody?: Buffer }).rawBody = Buffer.from(buffer);
-} }));
+app.use(['/api/reservations/stripe/webhook', '/api/reservations/stripe/live-webhook'], express.json({
+  limit: '1mb',
+  verify: (req, _res, buffer) => {
+    (req as typeof req & { rawBody?: Buffer }).rawBody = Buffer.from(buffer);
+  },
+}));
+app.use(['/api/reservations/checkout', '/api/reservations/payment-status'], express.json({ limit: '16kb' }));
+app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use(clerkMiddleware({ publishableKey: process.env.CLERK_PUBLISHABLE_KEY }));
@@ -88,6 +93,7 @@ if (process.env.FRONTEND_DIST_DIR) serveFrontend(app, process.env.FRONTEND_DIST_
 
 app.use((error: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if(isPrivateTestDriveDeclarationPath(req.path)) req.log.warn('Private test-drive declaration request failed');
+  else if(/^\/api\/reservations\/(?:checkout|payment-status|stripe)(?:\/|$)/i.test(req.path)) req.log.warn('Reservation payment request failed');
   else if(req.path.startsWith('/api/demo-onboarding')) req.log.warn('Demo onboarding request failed');
   else req.log.error({ err: error }, "Unhandled API error");
   if (res.headersSent) return;
@@ -97,6 +103,10 @@ app.use((error: unknown, req: express.Request, res: express.Response, _next: exp
     retailerId: typeof req.body?.retailerId === "string" ? req.body.retailerId : null,
   } : {};
   if (typeof error === "object" && error !== null && "type" in error && error.type === "entity.too.large") {
+    if (/^\/api\/reservations\/(?:checkout|payment-status|stripe)(?:\/|$)/i.test(req.path)) {
+      res.status(413).json({ error: 'Reservation request is too large.' });
+      return;
+    }
     if(req.path.startsWith('/api/demo-onboarding')){res.status(413).json({error:'Onboarding request exceeds the 450 KB limit.'});return;}
     if(req.path === '/api/staff/website-assets'){res.status(413).json({error:'Image upload exceeds the 3 MB request limit. Choose a smaller image.'});return;}
     res.status(413).json({ ...identity, status: "rejected", errors: [{ code: "payload_too_large", message: "Request exceeds the 25 MB limit", path: null, advertId: null }] });

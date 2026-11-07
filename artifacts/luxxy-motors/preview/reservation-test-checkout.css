@@ -1,0 +1,67 @@
+.reservation-test {
+  min-height: 100dvh;
+  background: var(--mh-bg);
+  color: var(--mh-text);
+  font-family: var(--app-font-sans);
+}
+.reservation-test-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 74px;
+  padding: 12px clamp(16px, 5vw, 56px);
+  border-bottom: 1px solid var(--mh-border);
+  background: var(--mh-surface);
+}
+.reservation-test-header img { width: min(48vw, 192px); height: auto; }
+.reservation-test-header span { color: var(--mh-accent); font-size: 13px; font-weight: 700; }
+.reservation-test-card {
+  display: grid;
+  gap: 20px;
+  width: min(100% - 32px, 620px);
+  margin: clamp(20px, 5vw, 64px) auto 32px;
+  padding: clamp(18px, 4vw, 36px);
+  border: 1px solid var(--mh-border);
+  border-radius: var(--mh-radius-panel);
+  background: var(--mh-surface);
+}
+.reservation-test-heading h1 {
+  margin: 0 0 8px;
+  color: var(--mh-text);
+  font-size: clamp(25px, 4vw, 36px);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -.03em;
+}
+.reservation-test-heading p, .reservation-test-note, .reservation-test-car p {
+  margin: 0;
+  color: var(--mh-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.reservation-test-car {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid var(--mh-border);
+  border-radius: var(--mh-radius-control);
+  background: var(--mh-tint);
+}
+.reservation-test-car > img {
+  width: clamp(96px, 22vw, 144px);
+  height: auto;
+  aspect-ratio: 4/3;
+  border-radius: var(--mh-radius-control);
+  object-fit: cover;
+}
+.reservation-test-car > div { display: grid; justify-items: start; gap: 5px; overflow-wrap: anywhere; }
+.reservation-test-deposit { margin: 0; padding-block: 14px; border-block: 1px solid var(--mh-border); }
+.reservation-test-deposit > div { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.reservation-test-deposit dt { font-size: 14px; }
+.reservation-test-deposit dd { margin: 0; color: var(--mh-accent); font-size: 26px; font-weight: 700; }
+.reservation-test-actions { display: grid; gap: 8px; }
+.reservation-test-error { margin: 0; color: #8b3932; font-size: 14px; }
+.reservation-test-note { font-size: 13px; }

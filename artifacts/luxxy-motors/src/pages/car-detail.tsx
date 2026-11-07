@@ -24,6 +24,7 @@ import { VehicleCall } from '@/components/vehicle-call';
 import { EnquiryForm } from '@/components/enquiry-form';
 import { VehicleEnquiryInformation } from '@/components/vehicle-enquiry-information';
 import { VehicleShare } from '@/components/vehicle-share';
+import { ReserveCar } from '@/components/reserve-car';
 import { vehicleDetailPath, vehicleMatchesPath } from '@workspace/vehicle-meta';
 import './vehicle-actions.css';
 import { vehicleAvailability } from '@/lib/customer-convenience';
@@ -336,6 +337,7 @@ export default function CarDetail() {
             </details>}
           </div>
           </div>
+          <ReserveCar key={car.id} car={car} />
           </div>
           {enquiriesEnabled && <VehiclePhotoRequest key={`photos-${car.id}`} onRequest={openVehicleEnquiry} />}
         </div>

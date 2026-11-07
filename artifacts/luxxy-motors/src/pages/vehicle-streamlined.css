@@ -196,3 +196,17 @@
   .vehicle-page-streamlined .vehicle-message-body { padding-inline: 16px; }
   .vehicle-page-streamlined .vehicle-message-disclosure > summary h2 { font-size: 19px; }
 }
+
+@media (min-width: 820px) and (max-width: 1023px) {
+  .vehicle-detail-grid:has(.vehicle-reserve-button) {
+    grid-template-rows: auto max-content 1fr;
+  }
+  .vehicle-detail-grid:has(.vehicle-reserve-button) > .vehicle-summary-column {
+    grid-column: 2;
+    grid-row: 2 / 4;
+  }
+  .vehicle-detail-grid:has(.vehicle-reserve-button) > .vehicle-photo-request {
+    grid-row: 3;
+    align-self: start;
+  }
+}

@@ -731,3 +731,49 @@ describe('dealership-wide What’s included', () => {
     expect(JSON.stringify({ first, second })).toBe(before);
   });
 });
+
+it('puts the live £99 action below the price box and requires acceptance before opening secure checkout', async () => {
+  const terms = 'The £99 deposit is fully refundable. Contact us to cancel.';
+  const checkoutCalls: Array<Record<string, unknown>> = [];
+  vi.stubGlobal('fetch', vi.fn(async (url: string, options?: RequestInit) => {
+    if (url === '/api/reservations/payment-readiness') return Response.json({ enabled: true, depositPence: 9900, terms });
+    if (url === '/api/reservations/checkout') {
+      checkoutCalls.push(JSON.parse(String(options?.body)));
+      return Response.json({ error: 'Secure payment is temporarily unavailable.' }, { status: 503 });
+    }
+    return Response.json({ error: 'Unavailable' }, { status: 503 });
+  }));
+  renderVehicle('with-plate');
+  const opener = await screen.findByRole('button', { name: 'Reserve this car for £99' });
+  expect(opener.closest('.vehicle-reserve')?.previousElementSibling).toHaveClass('vehicle-summary');
+  expect(opener).toHaveAccessibleDescription('£99 deposit · Fully refundable');
+  fireEvent.click(opener);
+  const dialog = within(screen.getByRole('dialog'));
+  const submit = dialog.getByRole('button', { name: 'Continue to £99 payment' });
+  expect(submit).toBeDisabled();
+  expect(dialog.getByText(terms)).toBeVisible();
+  fireEvent.change(dialog.getByLabelText('Your name'), { target: { value: 'Jamie Patel' } });
+  fireEvent.change(dialog.getByLabelText('Email address'), { target: { value: 'jamie@example.test' } });
+  fireEvent.change(dialog.getByLabelText('Phone number'), { target: { value: '07700 900123' } });
+  fireEvent.click(dialog.getByRole('checkbox', { name: 'I accept the reservation terms.' }));
+  fireEvent.click(submit);
+  expect(await dialog.findByRole('alert')).toHaveTextContent('Secure payment is temporarily unavailable.');
+  expect(checkoutCalls).toEqual([{
+    vehicleId: 'with-plate', customerName: 'Jamie Patel', email: 'jamie@example.test', phone: '07700900123',
+    expectedPricePence: 499500, expectedDepositPence: 9900, termsAccepted: true, terms,
+    idempotencyKey: expect.stringMatching(/^[a-f0-9-]{36}$/),
+  }]);
+  fireEvent.click(submit);
+  await waitFor(() => expect(checkoutCalls).toHaveLength(2));
+  expect(checkoutCalls[1]).toEqual(checkoutCalls[0]);
+});
+
+it('hides the reserve action when the live payment service is unavailable', async () => {
+  const fetchMock = vi.fn(async (url: string) => url === '/api/reservations/payment-readiness'
+    ? Response.json({ enabled: false })
+    : Response.json({ error: 'Unavailable' }, { status: 503 }));
+  vi.stubGlobal('fetch', fetchMock);
+  renderVehicle('with-plate');
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/reservations/payment-readiness', expect.anything()));
+  expect(screen.queryByRole('button', { name: /Reserve this car/ })).not.toBeInTheDocument();
+});

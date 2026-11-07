@@ -243,6 +243,11 @@ export async function applyOfficialCazooFeed(
           "inventory_changed",
           "The catalogue changed after the replacement preview.",
         );
+      if (existing.some((vehicle) => vehicle.audit_metadata?.onlineStripeReservationId))
+        fail(
+          "business_records_changed",
+          "A vehicle is held for an online payment. Wait for it to finish before replacing the catalogue.",
+        );
       const financial = (
         await client.query(
           "SELECT (SELECT count(*) FROM sale_workspace WHERE dealer_id=$1)+(SELECT count(*) FROM sales WHERE dealer_id=$1) AS count",

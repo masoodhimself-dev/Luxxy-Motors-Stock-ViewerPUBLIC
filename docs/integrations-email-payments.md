@@ -20,7 +20,19 @@ Content is plain text with preserved line breaks. Values are escaped, including 
 
 Actual delivery uses the configured Resend sender/reply-to and provider idempotency keys. Issued sales receipts/invoices use their immutable PDF archive as attachments. Failed or disabled delivery does not fabricate a sent email or change a payment. Document email/resend actions keep their delivery ledger; reservation emails retain provider status and cumulative refund markers so a full refund can send after an earlier partial refund. A provider acceptance identifier indicates submission to Resend, not proof that the recipient has read the message.
 
-## Stripe checkout and confirmation
+## Multi Choice Motors £99 reservation rollout
+
+The new checkout is limited to Multi Choice Motors’ verified customer site. It is off until Stripe is configured and the operator sets `MULTICHOICE_RESERVATIONS_ENABLED=true` on Render. The localhost preview uses test payment controls with no Stripe calls and no live stock changes.
+
+- Add `MULTICHOICE_RESERVATION_STRIPE_KEY` and `MULTICHOICE_RESERVATION_STRIPE_WEBHOOK_SECRET` as private Render environment variables. Use the dealership’s own live Stripe account. A restricted key needs Checkout Sessions read/write and PaymentIntents read access.
+- In that same Stripe account, add a snapshot webhook endpoint at `https://multichoicemotors.co.uk/api/reservations/stripe/live-webhook`. Subscribe to `checkout.session.completed`, `checkout.session.expired`, `refund.created`, `refund.updated` and `refund.failed`. Confirm the endpoint and signing secret before opening checkout. The original webhook remains separate for historical payments.
+- The server charges £99 and applies it towards the sale price after the signed Stripe confirmation. An incomplete checkout holds the car for about 31 minutes. The hold releases once Stripe confirms expiry. A confirmed reservation stays held until staff finishes or releases it.
+- If the buyer cancels before completing the purchase, staff refunds the full £99 to the original card in Stripe. Once the refund is confirmed and visible in the sale file, staff can release the car. The hold protects DealerOS stock. Staff manages the marketplace advert separately.
+- To pause new checkouts, unset `MULTICHOICE_RESERVATIONS_ENABLED`. Keep both keys and the webhook active for existing payments and refunds. Before changing accounts or keys, reconcile any open checkouts.
+
+See [Stripe webhook setup](https://docs.stripe.com/webhooks) and [issuing refunds in Stripe](https://docs.stripe.com/refunds#issue-refunds).
+
+## Historical Stripe checkout and confirmation
 
 The server checks the selected stock vehicle, current advertised price, deposit and accepted reservation terms before creating a temporary hold. Checkout amounts come from this server snapshot. The customer receives a Stripe-hosted URL; no card data passes through the application. Stripe Checkout Sessions use a 31-minute expiry and stable idempotency parameters.
 

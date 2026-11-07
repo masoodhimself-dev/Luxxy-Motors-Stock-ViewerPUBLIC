@@ -10,7 +10,7 @@ const draft = (): SaleWorkspaceDraft => ({ id: '', customer: 'Test buyer', email
 function fixture(reservationTerms = 'TEST APPROVED RESERVATION') {
   const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
   let records = new Map<string, SaleWorkspaceRecord>(), numbers: Record<string, number> = {};
-  let vehicle = { inventory_status: 'available', source_status: 'live', source_price: 12345, audit_metadata: { sourceFact: 'keep-me' } };
+  let vehicle = { inventory_status: 'available', source_status: 'live', source_price: 12345, audit_metadata: { sourceFact: 'keep-me', onlineStripeReservationId: undefined as string | undefined } };
   const statements: string[] = [];
   const query = async (q: string, p: any[] = []) => {
     statements.push(q);
@@ -18,9 +18,10 @@ function fixture(reservationTerms = 'TEST APPROVED RESERVATION') {
     if (q.startsWith('SELECT id, coalesce')) return { rows: [{ id: vehicleId, title: 'A real stock car', year: 2020, fuel: 'Petrol', transmission: 'Manual', mileage: 12000 }] };
     if (q.startsWith('SELECT numbers')) return { rows: [{ numbers: clone(numbers) }] };
     if (q.startsWith('SELECT inventory_status')) return { rows: [clone(vehicle)] };
+    if (q.startsWith('SELECT id FROM vehicles') && q.includes('onlineStripeReservationId')) return { rows: vehicle.audit_metadata.onlineStripeReservationId ? [{ id: vehicleId }] : [] };
     if (q.startsWith('SELECT vehicle_id, appointment_at')) return { rows: [{ vehicle_id: vehicleId, appointment_at: null }] };
     if (q.startsWith('SELECT stage FROM leads')) return { rows: [{ stage: 'reserved' }] };
-    if (q.startsWith('SELECT l.vehicle_id FROM leads')) return { rows: [{ vehicle_id: vehicleId }] };
+    if (q.startsWith('SELECT l.vehicle_id,')) return { rows: [{ vehicle_id: vehicleId, kind: 'online_stripe_reservation', reservation_status: vehicle.audit_metadata.onlineStripeReservationId ? 'awaiting_payment' : 'reserved' }] };
     if (q.startsWith('SELECT id FROM leads')) return { rows: [] };
     if (q.startsWith('SELECT state -')) return {rows:[...records.values()].map(state=>({state:clone(state),list_ledger_known:true,list_payment_entries:state.payments,list_has_correction_notes:!!state.corrections?.length,list_has_invoice:state.documents.some(document=>document.type==='invoice')}))};
     if (q.startsWith('SELECT state') && q.includes('FROM sale_workspace')) {
@@ -45,7 +46,11 @@ function fixture(reservationTerms = 'TEST APPROVED RESERVATION') {
     return { query: async (q, p) => { if (q === 'ROLLBACK') { records = new Map(before.records); numbers = before.numbers; vehicle = before.vehicle; } return query(q, p); }, release: () => {} };
   } };
   const store = new PostgresSaleWorkspaceStore('fixture-dealer', async (d, client) => ({ ...await readSaleWorkspaceAssets(d, 'fixture-dealer', client), paperwork: { saleTerms: 'TEST APPROVED TERMS', reservationTerms } }), database);
-  return { database, store, vehicle: () => clone(vehicle), statements, seed: (sale: SaleWorkspaceRecord) => records.set(sale.id, clone(sale)), reviewed:async(sale:SaleWorkspaceRecord)=>{const saved=records.get(sale.id)!;assert.equal(saved.revision,sale.revision,'Fixture reviews must match the persisted revision');const context=await readSaleReviewContext(database,'fixture-dealer',saved);saved.finalReview={id:randomUUID(),checkedAt:new Date().toISOString(),reviewedRevision:saved.revision,contextHash:context.hash,status:'passed',issues:[],summary:'Fixture AI review passed for this exact saved revision'};records.set(saved.id,clone(saved));} };
+  const setCheckoutHold = (active: boolean) => {
+    vehicle.inventory_status = active ? 'reserved' : 'available';
+    vehicle.audit_metadata.onlineStripeReservationId = active ? reservationId : undefined;
+  };
+  return { database, store, vehicle: () => clone(vehicle), setCheckoutHold, statements, seed: (sale: SaleWorkspaceRecord) => records.set(sale.id, clone(sale)), reviewed:async(sale:SaleWorkspaceRecord)=>{const saved=records.get(sale.id)!;assert.equal(saved.revision,sale.revision,'Fixture reviews must match the persisted revision');const context=await readSaleReviewContext(database,'fixture-dealer',saved);saved.finalReview={id:randomUUID(),checkedAt:new Date().toISOString(),reviewedRevision:saved.revision,contextHash:context.hash,status:'passed',issues:[],summary:'Fixture AI review passed for this exact saved revision'};records.set(saved.id,clone(saved));} };
 }
 
 test('a cleared released enquiry can start one new sale without changing its original history', async () => {
@@ -98,6 +103,22 @@ test('production availability mutations reject a competing buyer and preserve Gr
   assert.equal(f.vehicle().inventory_status, 'sold'); assert.equal(f.vehicle().source_status, 'live'); assert.equal(f.vehicle().source_price, 12345);
   assert.equal((await f.store.get(a.id)).lifecycle?.status, 'sold');
   assert.ok(f.statements.some(q => q.includes('pg_advisory_xact_lock'))); assert.ok(f.statements.some(q => q.includes('FROM vehicles') && q.includes('FOR UPDATE')));
+});
+
+test('a pending checkout protects its vehicle and prevents manual payment or linked sale writes', async () => {
+  const f = fixture();
+  const sale = (await f.store.mutate({ draft: draft(), requestId: randomUUID(), actor: 'Staff' })).sale;
+  f.setCheckoutHold(true);
+  await assert.rejects(f.store.mutate({ draft: { ...draft(), sourceReservationId: reservationId }, requestId: randomUUID(), actor: 'Staff' }), /held while a customer completes online payment/);
+  const mutation = { id: sale.id, expectedRevision: sale.revision, actor: 'Staff' };
+  const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  await assert.rejects(f.store.mutate({ ...mutation, requestId: randomUUID(), command: { action: 'payment', payment: { amount: '99', method: 'Cash', date, reference: '', kind: 'deposit', status: 'confirmed' } } }), /held while a customer completes online payment/);
+  await assert.rejects(f.store.mutate({ ...mutation, requestId: randomUUID(), command: { action: 'lifecycle', status: 'reserved' } }), /held while a customer completes online payment/);
+  assert.equal(f.vehicle().audit_metadata.onlineStripeReservationId, reservationId);
+  assert.deepEqual((await f.store.get(sale.id)).payments, []);
+  f.setCheckoutHold(false);
+  const reserved = await f.store.mutate({ ...mutation, requestId: randomUUID(), command: { action: 'lifecycle', status: 'reserved' } });
+  assert.equal(reserved.sale.lifecycle?.status, 'reserved');
 });
 
 test('verified Stripe deposits and cumulative refunds issue one receipt per effective change', async () => {

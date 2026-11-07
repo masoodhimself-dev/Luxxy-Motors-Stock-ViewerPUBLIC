@@ -118,6 +118,9 @@ router.post("/reservations/:id/cancel", requireStaff, requirePermission("sales.m
       if (lead.vehicleId !== found.record.vehicleId) {
         throw new ReservationError("The vehicle linked to this lead has changed. Review the lead before releasing the car.", 409);
       }
+      if (vehicle?.auditMetadata?.onlineStripeReservationId) {
+        throw new ReservationError("The car is held for an online payment and cannot be released here.", 409);
+      }
       const connected = await tx.select().from(saleWorkspaceTable).where(and(eq(saleWorkspaceTable.dealerId, id), sql`${saleWorkspaceTable.state}#>>'{draft,sourceReservationId}' = ${lead.id}`)).for('update');
       if (connected.some(row => (row.state as unknown as SaleWorkspaceRecord).lifecycle?.status === 'sold')) throw new ReservationError('This reservation belongs to a sold vehicle. Review its sale file.', 409);
       assertReservationCanBeCancelled({

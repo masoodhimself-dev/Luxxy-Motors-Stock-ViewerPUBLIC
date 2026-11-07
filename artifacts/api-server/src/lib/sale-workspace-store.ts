@@ -19,6 +19,7 @@ export type SaleWorkspaceReadClient = { query: (text: string, parameters?: any[]
 export type SaleWorkspaceTransactionClient = SaleWorkspaceReadClient & { release: () => void };
 export type SaleWorkspaceDatabase = SaleWorkspaceReadClient & { connect: () => Promise<SaleWorkspaceTransactionClient> };
 const staffSaleWorkspace = (record: SaleWorkspaceRecord): SaleWorkspaceRecord => ({ ...publicSaleWorkspace(record), emptyDraftDeletable: canDeleteEmptySaleDraft(record, true) });
+const checkoutInProgress = 'This car is held while a customer completes online payment. Wait for the payment to be confirmed or the hold to expire.';
 
 /** Use the already-held transaction client; never acquire another pool connection while holding the dealer lock. */
 export async function readSaleWorkspaceAssets(draft: SaleWorkspaceDraft, dealerId: string, client: SaleWorkspaceReadClient): Promise<SaleWorkspaceAssets> {
@@ -164,8 +165,10 @@ export class PostgresSaleWorkspaceStore {
     }
     if (draft.sourceReservationId) {
       if (!valid(draft.sourceReservationId)) throw new SaleWorkspaceError('Source reservation not found.', 404);
-      const result = await client.query("SELECT l.vehicle_id FROM leads l JOIN lead_events e ON e.lead_id = l.id WHERE l.dealer_id = $1 AND l.id = $2::uuid AND e.payload->>'kind' IN ('online_reservation','online_stripe_reservation')", [this.dealerId, draft.sourceReservationId]);
-      if (!result.rows[0] || result.rows[0].vehicle_id !== draft.vehicleId) throw new SaleWorkspaceError('The reservation belongs to another vehicle or could not be found.', 409);
+      const result = await client.query("SELECT l.vehicle_id, e.payload->>'kind' AS kind, e.payload#>>'{reservation,status}' AS reservation_status FROM leads l JOIN lead_events e ON e.lead_id = l.id WHERE l.dealer_id = $1 AND l.id = $2::uuid AND e.payload->>'kind' IN ('online_reservation','online_stripe_reservation')", [this.dealerId, draft.sourceReservationId]);
+      const reservation = result.rows[0];
+      if (!reservation || reservation.vehicle_id !== draft.vehicleId) throw new SaleWorkspaceError('The reservation belongs to another vehicle or could not be found.', 409);
+      if (reservation.kind === 'online_stripe_reservation' && reservation.reservation_status === 'awaiting_payment') throw new SaleWorkspaceError(checkoutInProgress, 409);
       const duplicate = await client.query("SELECT state FROM sale_workspace WHERE dealer_id = $1 AND state#>>'{draft,sourceReservationId}' = $2", [this.dealerId, draft.sourceReservationId]);
       if (duplicate.rows.some(row => row.state.id !== currentId)) throw new SaleWorkspaceError('A sale already exists for this reservation. Open its saved sale file.', 409);
     }
@@ -176,6 +179,7 @@ export class PostgresSaleWorkspaceStore {
     await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`sale-vehicle:${vehicleId}`]);
     const vehicle = (await client.query('SELECT inventory_status, source_status, audit_metadata FROM vehicles WHERE dealer_id = $1 AND id = $2::uuid FOR UPDATE', [this.dealerId, vehicleId])).rows[0];
     if (!vehicle) throw new SaleWorkspaceError('Vehicle not found.', 404);
+    if (vehicle.audit_metadata?.onlineStripeReservationId) throw new SaleWorkspaceError(checkoutInProgress, 409);
     const owner = vehicle.audit_metadata?.saleWorkspaceId;
     if (status === 'released') {
       if (record.draft.sourceReservationId) {
@@ -238,6 +242,19 @@ export class PostgresSaleWorkspaceStore {
         const command = input.command;
         if (command && (['issue-invoice', 'finish-invoice-sale', 'complete-sale', 'handover'].includes(command.action) || command.action === 'document' && command.type === 'invoice' || command.action === 'lifecycle' && command.status === 'sold')) assertSaleFinancialIntegrity(mutation.sale);
         if (!current || input.command?.action === 'update') await this.source(mutation.sale.draft, client, current?.id);
+
+        // These financial actions can write a receipt or invoice without changing
+        // stock. The dealer lock also covers the online hold and its settlement.
+        const vehicleId = mutation.sale.draft.vehicleId;
+        if (/^[0-9a-f-]{36}$/i.test(vehicleId) && command && (
+          command.action === 'payment' || command.action === 'issue-invoice' ||
+          command.action === 'document' && command.type === 'invoice' ||
+          command.action === 'invoice-payment' && command.payment.kind !== 'deposit' ||
+          command.action === 'confirm' && !command.reserveVehicle
+        )) {
+          const held = await client.query("SELECT id FROM vehicles WHERE dealer_id = $1 AND id = $2::uuid AND audit_metadata->>'onlineStripeReservationId' IS NOT NULL", [this.dealerId, vehicleId]);
+          if (held.rows.length) throw new SaleWorkspaceError(checkoutInProgress, 409);
+        }
 
         if (input.command?.action === 'invoice-payment' && input.command.payment.kind === 'deposit') await this.stock(mutation.sale, 'reserved', client, input.actor);
         if (input.command?.action === 'finish-invoice-sale') await this.stock(mutation.sale, 'sold', client, input.actor);

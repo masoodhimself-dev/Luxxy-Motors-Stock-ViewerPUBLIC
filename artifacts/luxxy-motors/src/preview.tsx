@@ -29,6 +29,7 @@ const TestDriveDeclaration = lazy(() => import('@/pages/test-drive-declaration')
 const DeliveryEvidence = lazy(() => import('@/pages/delivery-evidence'));
 const CustomerChecksPage = lazy(() => import('../preview/customer-checks-page'));
 const PaymentRequest = lazy(() => import('@/pages/payment-request'));
+const ReservationTestCheckout = lazy(() => import('../preview/reservation-test-checkout'));
 import './index.css';
 
 // This entry point is selected only by vite.preview.config.ts during development.
@@ -36,7 +37,7 @@ const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false 
 
 function PreviewLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  return location === '/join' || location === '/platform' || location === '/verify-invoice' || location.startsWith('/verify-invoice/') || location.startsWith('/test-drive-declaration/') || location.startsWith('/delivery-evidence/') || location.startsWith('/payment-request/') ? <>{children}</> : <Layout>{children}</Layout>;
+  return location === '/join' || location === '/platform' || location === '/verify-invoice' || location.startsWith('/verify-invoice/') || location.startsWith('/test-drive-declaration/') || location.startsWith('/delivery-evidence/') || location.startsWith('/payment-request/') || location === '/reservation-test-checkout' ? <>{children}</> : <Layout>{children}</Layout>;
 }
 
 captureInvitationToken();
@@ -72,6 +73,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="/test-drive-declaration/:token" component={TestDriveDeclaration}/>
                   <Route path="/delivery-evidence/:token" component={DeliveryEvidence}/>
                   <Route path="/payment-request/:token" component={PaymentRequest}/>
+                  <Route path="/reservation-test-checkout" component={ReservationTestCheckout} />
                   <Route path="/sign/:token" component={RetiredSalesPage} />
                   <Route path="/customer-details/:token" component={RetiredSalesPage} />
                   <Route component={NotFound} />

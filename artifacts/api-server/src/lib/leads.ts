@@ -18,6 +18,7 @@ import {
   type LeadStage,
 } from "@workspace/db";
 import { bookingTimezone } from "./enquiry-notifications";
+import type { StripeReservationRecord } from "./stripe-reservation-store";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type QueryDb = Tx | typeof db;
@@ -397,6 +398,30 @@ export function leadPayload(lead: Lead) {
 }
 
 export function leadEventPayload(event: LeadEvent) {
+  let payload = event.payload;
+  if (payload.kind === "online_stripe_reservation") {
+    // The persisted record also contains private return links and provider IDs.
+    const reservation = payload.reservation as Partial<StripeReservationRecord> | undefined;
+    payload = { kind: payload.kind, reservation: reservation && {
+      id: reservation.id,
+      reference: reservation.reference,
+      vehicleId: reservation.vehicleId,
+      vehicleTitle: reservation.vehicleTitle,
+      vehicleRegistration: reservation.vehicleRegistration,
+      depositPence: reservation.depositPence,
+      expectedPricePence: reservation.expectedPricePence,
+      amountReceivedPence: reservation.amountReceivedPence,
+      amountRefundedPence: reservation.amountRefundedPence,
+      status: reservation.status,
+      paymentStatus: reservation.paymentStatus,
+      expiresAt: reservation.expiresAt,
+      needsReview: reservation.needsReview,
+      saleId: reservation.saleId,
+    } };
+  } else if (payload.kind === "stripe_reservation_activity") {
+    const { kind, reservationId, saleId, amountPence, amountRefundedPence } = payload;
+    payload = { kind, reservationId, saleId, amountPence, amountRefundedPence };
+  }
   return {
     id: event.id,
     leadId: event.leadId,
@@ -404,7 +429,7 @@ export function leadEventPayload(event: LeadEvent) {
     actorType: event.actorType,
     actor: event.actor,
     body: event.body,
-    payload: event.payload,
+    payload,
     occurredAt: event.occurredAt,
     createdAt: event.createdAt,
   };

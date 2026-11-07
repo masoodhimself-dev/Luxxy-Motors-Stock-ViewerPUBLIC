@@ -228,6 +228,30 @@ test("new sales block a stale zero-sales replacement preview", async () => {
     await db.close();
   }
 });
+test("a pending online checkout blocks catalogue replacement before a sale exists", async () => {
+  const { db, pool, candidate } = await setup();
+  try {
+    const vehicleId = randomUUID(), reservationId = randomUUID();
+    await db.query(
+      "INSERT INTO vehicles(id,dealer_id,source,advert_id,inventory_status,audit_metadata) VALUES($1,'multi','cazoo','old','reserved',jsonb_build_object('onlineStripeReservationId',$2::text))",
+      [vehicleId, reservationId],
+    );
+    await assert.rejects(applyOfficialCazooFeed(pool, {
+      dealerId: "multi",
+      candidate,
+      now,
+      replace: {
+        expectedFingerprint: catalogueFingerprint([{ id: vehicleId, inventory_status: "reserved" }]),
+        expectedFileHash: candidate.metadata.sha256,
+      },
+    }), { code: "business_records_changed" });
+    const rows = (await db.query("SELECT id, audit_metadata FROM vehicles")).rows;
+    assert.deepEqual(rows, [{ id: vehicleId, audit_metadata: { onlineStripeReservationId: reservationId } }]);
+  } finally {
+    await db.close();
+  }
+});
+
 test("subsequent feeds preserve vehicle IDs and reserved/sold statuses, record price changes and mark missing without deleting", async () => {
   const { db, pool, candidate } = await setup();
   try {

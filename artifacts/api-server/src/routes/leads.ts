@@ -45,6 +45,7 @@ import {
   LEAD_TOUCH_KINDS,
   LeadError,
   leadDealerId,
+  leadEventPayload,
   loadLead as loadCoreLead,
   type QueryDb,
 } from "../lib/leads";
@@ -375,7 +376,7 @@ async function leadDetail(row: LeadView, query: QueryDb = db) {
     activities: events.map(serialiseEvent),
     deal,
     enquiryMessage,
-    events: [...events].reverse(),
+    events: [...events].reverse().map(leadEventPayload),
     sales: deal ? [deal] : [],
   };
 }

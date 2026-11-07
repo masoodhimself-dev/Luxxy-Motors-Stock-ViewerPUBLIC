@@ -30,7 +30,7 @@ export const stablePublicPagePaths = ['/', '/stock', '/contact', '/warranty'] as
 // still receives its NotFound UI, but must not look like a valid page to crawlers.
 const nonIndexablePagePaths = new Set([
   '/enquire', '/saved', '/compare', '/portal', '/platform', '/join',
-  '/watch', '/phone-share', '/staff-upload', '/enquiry-photo-upload', '/reserve/payment-return',
+  '/watch', '/phone-share', '/staff-upload', '/enquiry-photo-upload', '/reserve/payment-return', '/reservation-payment',
 ]);
 function isNonIndexablePage(pathname: string): boolean {
   return nonIndexablePagePaths.has(pathname)

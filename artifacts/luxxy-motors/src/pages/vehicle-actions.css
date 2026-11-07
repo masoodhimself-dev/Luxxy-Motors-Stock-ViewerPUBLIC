@@ -75,3 +75,44 @@
   .vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-action-tools { gap: 0 6px; }
   .vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-action-tools :is(a, button) { gap: 5px; }
 }
+
+.vehicle-page-streamlined .vehicle-reserve {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  color: var(--mh-muted, hsl(var(--muted-foreground)));
+  font-size: 13px;
+  text-align: center;
+}
+.vehicle-page-streamlined .vehicle-reserve-button {
+  width: 100%;
+  min-height: 48px;
+  height: auto;
+  padding: 12px 16px;
+  border-radius: var(--mh-radius-control, 4px);
+  background: var(--mh-accent, hsl(var(--primary)));
+  color: var(--mh-surface, hsl(var(--primary-foreground)));
+  font-size: 14px;
+  font-weight: 600;
+  white-space: normal;
+}
+.vehicle-page-streamlined .vehicle-reserve-button:hover {
+  background: var(--mh-accent-dark, hsl(var(--primary)));
+}
+
+@media (max-width: 639px) {
+  .vehicle-action-dialog.vehicle-reservation-dialog {
+    gap: 14px;
+    padding: 18px 16px;
+  }
+  .vehicle-reservation-dialog .vehicle-dialog-header { gap: 6px; }
+  .vehicle-reservation-dialog .vehicle-dialog-form { gap: 12px; }
+  .vehicle-reservation-dialog .vehicle-dialog-form .field-label { margin-bottom: 4px; }
+  .vehicle-action-dialog.vehicle-reservation-dialog input:not([type='checkbox']) {
+    min-height: 44px;
+    padding-block: 9px;
+  }
+  .vehicle-reservation-dialog .vehicle-dialog-terms { gap: 4px; padding-top: 12px; }
+  .vehicle-reservation-dialog .vehicle-dialog-consent { align-items: center; }
+  .vehicle-reservation-dialog .vehicle-dialog-consent input { margin-top: 0; }
+}
