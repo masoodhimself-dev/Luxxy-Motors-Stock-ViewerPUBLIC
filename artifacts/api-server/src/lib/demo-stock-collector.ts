@@ -19,10 +19,9 @@ export function autoTraderDealerLink(value: string) {
 type DemoStockCollector = { url: URL; token: string };
 type GrokWebhook = DemoStockCollector & {
   mode: 'grok-webhook';
-  callbackSigningKey: string;
   callbackHost: string;
   retailerId: string;
-};
+} & ({ callbackAuth: 'proof'; callbackSigningKey: string } | { callbackAuth: 'demo-onboarding' });
 type CallbackJob = { id: string; retailer_id: string; expires_at: Date };
 
 export function demoStockCollectorConfig(): (DemoStockCollector & { mode: 'sync' }) | GrokWebhook | null {
@@ -33,20 +32,23 @@ export function demoStockCollectorConfig(): (DemoStockCollector & { mode: 'sync'
     const mode = process.env.DEMO_STOCK_COLLECTOR_MODE?.trim() || 'sync';
     if (mode === 'sync') return { url, token, mode };
     if (mode !== 'grok-webhook') return null;
-    const callbackSigningKey = (process.env.DEMO_STOCK_CALLBACK_SIGNING_KEY?.trim() ||
-      process.env.SESSION_SECRET?.trim() || '');
+    const callbackAuth = process.env.DEMO_STOCK_CALLBACK_AUTH?.trim() || 'proof';
     const callbackHost = normaliseTenantHost(process.env.STOCK_IMPORT_API_HOST || process.env.PLATFORM_ADMIN_HOST || '');
     const retailerId = process.env.DEMO_STOCK_COLLECTOR_RETAILER_ID?.trim() ?? '';
+    if (!callbackHost || !/^\d{1,24}$/.test(retailerId)) return null;
+    if (callbackAuth === 'demo-onboarding') return { url, token, mode, callbackAuth, callbackHost, retailerId };
+    if (callbackAuth !== 'proof') return null;
+    const callbackSigningKey = (process.env.DEMO_STOCK_CALLBACK_SIGNING_KEY?.trim() ||
+      process.env.SESSION_SECRET?.trim() || '');
     if (callbackSigningKey.length < 32 || callbackSigningKey === token ||
-        callbackSigningKey === 'replace-with-a-long-random-secret' ||
-        !callbackHost || !/^\d{1,24}$/.test(retailerId)) return null;
-    return { url, token, mode, callbackSigningKey, callbackHost, retailerId };
+        callbackSigningKey === 'replace-with-a-long-random-secret') return null;
+    return { url, token, mode, callbackAuth, callbackSigningKey, callbackHost, retailerId };
   } catch {
     return null;
   }
 }
 
-export function demoStockCallbackProof(collector: GrokWebhook, job: CallbackJob) {
+export function demoStockCallbackProof(collector: Extract<GrokWebhook, { callbackAuth: 'proof' }>, job: CallbackJob) {
   const message = JSON.stringify([
     'dealeros/grok-demo-stock-callback/v1', collector.callbackHost, job.id, job.retailer_id, job.expires_at.toISOString(),
   ]);
@@ -126,7 +128,7 @@ export async function requestGrokDemoStock(
         jobId: job.id,
         sourceUrl: job.source_url,
         retailerId: job.retailer_id,
-        callbackProof: demoStockCallbackProof(collector, job),
+        ...(collector.callbackAuth === 'proof' ? { callbackProof: demoStockCallbackProof(collector, job) } : {}),
       }),
     });
     await response.body?.cancel();

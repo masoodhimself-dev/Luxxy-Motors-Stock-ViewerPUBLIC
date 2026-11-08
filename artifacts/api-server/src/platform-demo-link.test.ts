@@ -4,7 +4,7 @@ import { request as httpRequest } from 'node:http';
 import test from 'node:test';
 import express from 'express';
 import pino from 'pino';
-import { resolveTenant } from './middlewares/tenant';
+import { importSecretDigest, resolveTenant } from './middlewares/tenant';
 import platformRouter from './routes/platform-dealers';
 import previewRouter from './routes/platform-website-preview';
 import collectorCallback, { demoStockCollectorCallbackPath } from './routes/demo-stock-collector-callback';
@@ -26,6 +26,7 @@ test('an authorised Auto Trader link creates one private demo in either collecto
   delete process.env.DEMO_STOCK_COLLECTOR_MODE;
   delete process.env.DEMO_STOCK_COLLECTOR_URL;
   delete process.env.DEMO_STOCK_COLLECTOR_TOKEN;
+  delete process.env.DEMO_STOCK_CALLBACK_AUTH;
   delete process.env.DEMO_STOCK_CALLBACK_SIGNING_KEY;
   for (const migration of (await readdir('../../lib/db/drizzle')).filter(name => /^\d+.*\.sql$/.test(name)).sort()) {
     await engine.exec(await readFile(`../../lib/db/drizzle/${migration}`, 'utf8'));
@@ -58,10 +59,16 @@ test('an authorised Auto Trader link creates one private demo in either collecto
     const body = JSON.parse(String(options?.body));
     if (process.env.DEMO_STOCK_COLLECTOR_MODE === 'grok-webhook') {
       assert.match(body.jobId, /^[a-f0-9-]{36}$/);
-      assert.match(body.callbackProof, /^[A-Za-z0-9_-]{43}$/);
-      assert.deepEqual(body, { jobId: body.jobId, sourceUrl: canonicalSource.replace(retailerId, '123457'), retailerId: '123457', callbackProof: body.callbackProof });
+      const expected = { jobId: body.jobId, sourceUrl: canonicalSource.replace(retailerId, '123457'), retailerId: '123457' };
+      const proof = body.callbackProof;
+      if (process.env.DEMO_STOCK_CALLBACK_AUTH === 'demo-onboarding') {
+        assert.deepEqual(body, expected);
+      } else {
+        assert.match(proof, /^[A-Za-z0-9_-]{43}$/);
+        assert.deepEqual(body, { ...expected, callbackProof: proof });
+      }
       webhookJobId = body.jobId;
-      webhookCallbackProof = body.callbackProof;
+      webhookCallbackProof = proof;
     } else assert.deepEqual(body, { sourceUrl: canonicalSource, retailerId });
     return providerReply();
   });
@@ -80,7 +87,7 @@ test('an authorised Auto Trader link creates one private demo in either collecto
   if (!address || typeof address === 'string') throw new Error('No test address');
   const { port } = address;
 
-  function call(path: string, options: { sourceUrl?: string; snapshot?: unknown; rawBody?: string; token?: string; user?: string; host?: string; origin?: string } = {}) {
+  function call(path: string, options: { sourceUrl?: string; snapshot?: unknown; rawBody?: string; token?: string; onboardingSecret?: string; stockSecret?: string; user?: string; host?: string; origin?: string } = {}) {
     const body = options.rawBody ?? (options.sourceUrl === undefined
       ? options.snapshot === undefined ? undefined : JSON.stringify(options.snapshot)
       : JSON.stringify({ sourceUrl: options.sourceUrl }));
@@ -95,6 +102,8 @@ test('an authorised Auto Trader link creates one private demo in either collecto
           'x-test-user': options.user ?? 'user_admin',
           ...(options.origin ? { origin: options.origin } : {}),
           ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
+          ...(options.onboardingSecret ? { 'x-demo-onboarding-secret': options.onboardingSecret } : {}),
+          ...(options.stockSecret ? { 'x-stock-import-secret': options.stockSecret } : {}),
           ...(body ? { 'Content-Type': 'application/json' } : {}),
         },
       }, response => {
@@ -232,6 +241,8 @@ test('an authorised Auto Trader link creates one private demo in either collecto
     const token = webhookCallbackProof!;
     const authorised = { host: 'imports.example.test', token };
     const asyncSnapshot = { ...snapshot, retailerId: '123457', runId: '0a0bd802-0d36-42f3-803d-1b0ec7205e54' };
+    assert.equal((await call(callbackPath, { host: authorised.host, onboardingSecret: 'a'.repeat(43), rawBody: '{' })).status, 401);
+    assert.equal((await call(callbackPath, { ...authorised, onboardingSecret: 'a'.repeat(43), rawBody: '{' })).status, 401);
     assert.equal((await call(callbackPath, { ...authorised, token: 'a'.repeat(43), snapshot: asyncSnapshot })).status, 401);
     assert.equal((await call(callbackPath.toUpperCase(), { ...authorised, token: 'a'.repeat(43), rawBody: '{' })).status, 401);
     assert.equal((await call(callbackPath, { token, snapshot: asyncSnapshot })).status, 404);
@@ -275,6 +286,53 @@ test('an authorised Auto Trader link creates one private demo in either collecto
     } finally {
       clock.mock.restore();
     }
+
+    await engine.query("UPDATE demo_stock_collection_jobs SET expires_at = now() - interval '1 second' WHERE id = $1", [expiredJob.jobId]);
+    process.env.DEMO_STOCK_CALLBACK_AUTH = 'demo-onboarding';
+    process.env.PLATFORM_ADMIN_USER_IDS = 'user_admin,user_other_admin';
+    delete process.env.SESSION_SECRET;
+    const onboardingKey = 'k'.repeat(43);
+    const wrongOwnerKey = 'w'.repeat(43);
+    const revokedKey = 'r'.repeat(43);
+    const expiredKey = 'e'.repeat(43);
+    for (const [secret, owner, expired, revoked] of [
+      [onboardingKey, 'user_admin', false, false],
+      [wrongOwnerKey, 'user_other_admin', false, false],
+      [revokedKey, 'user_admin', false, true],
+      [expiredKey, 'user_admin', true, false],
+    ] as const) {
+      await engine.query(
+        `INSERT INTO demo_onboarding_keys (secret_hash, label, owner_auth_user_id, max_demos, max_per_day, expires_at, revoked_at)
+         VALUES ($1, 'test', $2, 1, 1, CASE WHEN $3 THEN now() - interval '1 day' ELSE now() + interval '1 day' END,
+         CASE WHEN $4 THEN now() ELSE NULL END)`,
+        [importSecretDigest(secret), owner, expired, revoked],
+      );
+    }
+    const onboardingQueued = await call(createPath, { sourceUrl: asyncSource });
+    assert.equal(onboardingQueued.status, 202, await onboardingQueued.clone().text());
+    const onboardingJob = await onboardingQueued.json() as typeof job;
+    assert.equal(onboardingJob.jobId, webhookJobId);
+    assert.equal(webhookCallbackProof, undefined);
+    const onboardingPath = `${demoStockCollectorCallbackPath}/${onboardingJob.jobId}`;
+    const onboardingHost = { host: authorised.host };
+    const onboardingRequest = { ...onboardingHost, onboardingSecret: onboardingKey };
+    for (const headers of [
+      {},
+      { onboardingSecret: 'm'.repeat(43) },
+      { onboardingSecret: wrongOwnerKey },
+      { onboardingSecret: revokedKey },
+      { onboardingSecret: expiredKey },
+      { token },
+      { stockSecret: onboardingKey },
+      { token, onboardingSecret: onboardingKey },
+    ]) {
+      assert.equal((await call(onboardingPath, { ...onboardingHost, ...headers, rawBody: '{' })).status, 401);
+    }
+    assert.equal((await call(onboardingPath, { ...onboardingRequest, host: adminHost, snapshot: asyncSnapshot })).status, 404);
+    assert.equal((await call(onboardingPath, { ...onboardingRequest, origin: 'https://other.example.test', snapshot: asyncSnapshot })).status, 403);
+    const onboardingImport = await call(onboardingPath, { ...onboardingRequest, snapshot: asyncSnapshot });
+    assert.equal(onboardingImport.status, 200, await onboardingImport.clone().text());
+    assert.deepEqual(await onboardingImport.json(), ready);
   } finally {
     server.closeAllConnections();
     await new Promise<void>(resolve => server.close(() => resolve()));

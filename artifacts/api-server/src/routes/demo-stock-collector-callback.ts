@@ -1,4 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
+import { db, demoOnboardingKeysTable } from '@workspace/db';
+import { eq } from 'drizzle-orm';
 import express, { type RequestHandler } from 'express';
 import { z } from 'zod/v4';
 import { DemoSetupError } from '../lib/demo-creation';
@@ -11,12 +13,26 @@ import { serviceLifecycle } from '../lib/service-lifecycle';
 import { createStockImportAdmission } from '../lib/stock-import-admission';
 import { stockPayloadHash } from '../lib/stock-payload-hash';
 import { multiTenantEnabled, normaliseTenantHost } from '../lib/tenant-context';
+import { importSecretDigest, matchesImportSecret } from '../middlewares/tenant';
 import { checkAutoTraderDemoSnapshot } from './stock';
 
 export const demoStockCollectorCallbackPath = '/api/stock/demo-collector-callback';
 const callback = express.Router();
 const admission = createStockImportAdmission(1, Date.now, serviceLifecycle, () => true);
 const failed = z.object({ status: z.literal('failed') }).strict();
+const callbackCredentialPattern = /^[A-Za-z0-9_-]{43}$/;
+const invalidCredential = { error: 'Invalid stock callback credential.' };
+
+async function matchesOnboardingOwner(secret: string, ownerAuthUserId: string) {
+  const [key] = await db.select({
+    secretHash: demoOnboardingKeysTable.secretHash,
+    ownerAuthUserId: demoOnboardingKeysTable.ownerAuthUserId,
+    revokedAt: demoOnboardingKeysTable.revokedAt,
+    expiresAt: demoOnboardingKeysTable.expiresAt,
+  }).from(demoOnboardingKeysTable).where(eq(demoOnboardingKeysTable.secretHash, importSecretDigest(secret)));
+  return Boolean(key && key.ownerAuthUserId === ownerAuthUserId &&
+    !key.revokedAt && key.expiresAt.getTime() > Date.now() && matchesImportSecret(secret, key.secretHash));
+}
 
 const authenticate: RequestHandler = async (req, res, next) => {
   res.set('Cache-Control', 'no-store');
@@ -26,9 +42,17 @@ const authenticate: RequestHandler = async (req, res, next) => {
     res.status(404).json({ error: 'Stock callback unavailable.' });
     return;
   }
-  const supplied = /^Bearer ([a-z0-9_-]{43})$/i.exec(req.get('authorization') ?? '')?.[1];
-  if (!supplied) {
-    res.status(401).json({ error: 'Invalid stock callback credential.' });
+  const authorization = req.get('authorization');
+  const onboardingSecret = req.get('x-demo-onboarding-secret');
+  const supplied = config.callbackAuth === 'demo-onboarding'
+    ? authorization === undefined ? onboardingSecret : undefined
+    : onboardingSecret === undefined ? /^Bearer ([a-z0-9_-]{43})$/i.exec(authorization ?? '')?.[1] : undefined;
+  if (!supplied || !callbackCredentialPattern.test(supplied) || req.get('x-stock-import-secret') !== undefined) {
+    res.status(401).json(invalidCredential);
+    return;
+  }
+  if (config.callbackAuth === 'demo-onboarding' && req.get('origin')) {
+    res.status(403).json({ error: 'This callback is for the server-side onboarding worker.' });
     return;
   }
   const id = z.uuid().safeParse(req.params.jobId);
@@ -37,8 +61,11 @@ const authenticate: RequestHandler = async (req, res, next) => {
     res.status(404).json({ error: 'Stock collection not found.' });
     return;
   }
-  if (!timingSafeEqual(Buffer.from(supplied), Buffer.from(demoStockCallbackProof(config, job)))) {
-    res.status(401).json({ error: 'Invalid stock callback credential.' });
+  const valid = config.callbackAuth === 'demo-onboarding'
+    ? await matchesOnboardingOwner(supplied, job.requested_by)
+    : timingSafeEqual(Buffer.from(supplied), Buffer.from(demoStockCallbackProof(config, job)));
+  if (!valid) {
+    res.status(401).json(invalidCredential);
     return;
   }
   if (job.expires_at.getTime() <= Date.now()) {
