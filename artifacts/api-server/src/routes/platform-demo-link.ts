@@ -33,7 +33,7 @@ router.post('/demos/from-autotrader', demoLinkAdmission.middleware, async (req, 
     res.status(503).json({ error: 'Auto Trader collection is not connected. Use the stock JSON upload to create this demo.' });
     return;
   }
-  if (collector.mode === 'grok-webhook' && dealer.retailerId !== collector.retailerId) {
+  if (collector.mode === 'grok-webhook' && !collector.retailerIds.has(dealer.retailerId)) {
     res.status(422).json({ error: 'The Grok connection is not authorised for this retailer. Upload a complete JSON export instead.' });
     return;
   }

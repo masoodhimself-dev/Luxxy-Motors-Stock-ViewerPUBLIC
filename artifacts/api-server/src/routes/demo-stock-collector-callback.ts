@@ -23,15 +23,18 @@ const failed = z.object({ status: z.literal('failed') }).strict();
 const callbackCredentialPattern = /^[A-Za-z0-9_-]{43}$/;
 const invalidCredential = { error: 'Invalid stock callback credential.' };
 
-async function matchesOnboardingOwner(secret: string, ownerAuthUserId: string) {
+async function matchesOnboardingOwner(secret: string, ownerAuthUserId: string, callbackKey?: { id: string; validUntil: number }) {
   const [key] = await db.select({
+    id: demoOnboardingKeysTable.id,
     secretHash: demoOnboardingKeysTable.secretHash,
     ownerAuthUserId: demoOnboardingKeysTable.ownerAuthUserId,
     revokedAt: demoOnboardingKeysTable.revokedAt,
     expiresAt: demoOnboardingKeysTable.expiresAt,
   }).from(demoOnboardingKeysTable).where(eq(demoOnboardingKeysTable.secretHash, importSecretDigest(secret)));
-  return Boolean(key && key.ownerAuthUserId === ownerAuthUserId &&
-    !key.revokedAt && key.expiresAt.getTime() > Date.now() && matchesImportSecret(secret, key.secretHash));
+  if (!key || key.ownerAuthUserId !== ownerAuthUserId || key.revokedAt || !matchesImportSecret(secret, key.secretHash)) return false;
+  return callbackKey
+    ? key.id === callbackKey.id && callbackKey.validUntil > Date.now()
+    : key.expiresAt.getTime() > Date.now();
 }
 
 const authenticate: RequestHandler = async (req, res, next) => {
@@ -57,12 +60,12 @@ const authenticate: RequestHandler = async (req, res, next) => {
   }
   const id = z.uuid().safeParse(req.params.jobId);
   const job = id.success ? await readDemoStockCollection(id.data) : null;
-  if (!job || job.retailer_id !== config.retailerId || !isPlatformAdmin(job.requested_by)) {
+  if (!job || !config.retailerIds.has(job.retailer_id) || !isPlatformAdmin(job.requested_by)) {
     res.status(404).json({ error: 'Stock collection not found.' });
     return;
   }
   const valid = config.callbackAuth === 'demo-onboarding'
-    ? await matchesOnboardingOwner(supplied, job.requested_by)
+    ? await matchesOnboardingOwner(supplied, job.requested_by, config.callbackKey)
     : timingSafeEqual(Buffer.from(supplied), Buffer.from(demoStockCallbackProof(config, job)));
   if (!valid) {
     res.status(401).json(invalidCredential);

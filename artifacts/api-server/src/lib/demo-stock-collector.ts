@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto';
+import { z } from 'zod/v4';
 import { platformStockUploadLimit } from './platform-stock-upload';
 import { normaliseTenantHost } from './tenant-context';
 
@@ -17,11 +18,12 @@ export function autoTraderDealerLink(value: string) {
 }
 
 type DemoStockCollector = { url: URL; token: string };
+type CallbackKey = { id: string; validUntil: number };
 type GrokWebhook = DemoStockCollector & {
   mode: 'grok-webhook';
   callbackHost: string;
-  retailerId: string;
-} & ({ callbackAuth: 'proof'; callbackSigningKey: string } | { callbackAuth: 'demo-onboarding' });
+  retailerIds: ReadonlySet<string>;
+} & ({ callbackAuth: 'proof'; callbackSigningKey: string } | { callbackAuth: 'demo-onboarding'; callbackKey?: CallbackKey });
 type CallbackJob = { id: string; retailer_id: string; expires_at: Date };
 
 export function demoStockCollectorConfig(): (DemoStockCollector & { mode: 'sync' }) | GrokWebhook | null {
@@ -34,15 +36,27 @@ export function demoStockCollectorConfig(): (DemoStockCollector & { mode: 'sync'
     if (mode !== 'grok-webhook') return null;
     const callbackAuth = process.env.DEMO_STOCK_CALLBACK_AUTH?.trim() || 'proof';
     const callbackHost = normaliseTenantHost(process.env.STOCK_IMPORT_API_HOST || process.env.PLATFORM_ADMIN_HOST || '');
-    const retailerId = process.env.DEMO_STOCK_COLLECTOR_RETAILER_ID?.trim() ?? '';
-    if (!callbackHost || !/^\d{1,24}$/.test(retailerId)) return null;
-    if (callbackAuth === 'demo-onboarding') return { url, token, mode, callbackAuth, callbackHost, retailerId };
+    const configuredRetailers = process.env.DEMO_STOCK_COLLECTOR_RETAILER_IDS;
+    const retailers = configuredRetailers === undefined
+      ? [process.env.DEMO_STOCK_COLLECTOR_RETAILER_ID?.trim() ?? '']
+      : configuredRetailers.split(',').map(id => id.trim());
+    if (!callbackHost || retailers.some(id => !/^\d{1,24}$/.test(id))) return null;
+    const retailerIds = new Set(retailers);
+    if (callbackAuth === 'demo-onboarding') {
+      const id = process.env.DEMO_STOCK_CALLBACK_KEY_ID?.trim() ?? '';
+      const expiry = process.env.DEMO_STOCK_CALLBACK_KEY_VALID_UNTIL?.trim() ?? '';
+      if (!id && !expiry) return { url, token, mode, callbackAuth, callbackHost, retailerIds };
+      const validUntil = Date.parse(expiry);
+      if (!z.uuid().safeParse(id).success || !z.iso.datetime({ offset: true }).safeParse(expiry).success ||
+          !Number.isFinite(validUntil) || validUntil <= Date.now()) return null;
+      return { url, token, mode, callbackAuth, callbackHost, retailerIds, callbackKey: { id: id.toLowerCase(), validUntil } };
+    }
     if (callbackAuth !== 'proof') return null;
     const callbackSigningKey = (process.env.DEMO_STOCK_CALLBACK_SIGNING_KEY?.trim() ||
       process.env.SESSION_SECRET?.trim() || '');
     if (callbackSigningKey.length < 32 || callbackSigningKey === token ||
         callbackSigningKey === 'replace-with-a-long-random-secret') return null;
-    return { url, token, mode, callbackAuth, callbackSigningKey, callbackHost, retailerId };
+    return { url, token, mode, callbackAuth, callbackSigningKey, callbackHost, retailerIds };
   } catch {
     return null;
   }
