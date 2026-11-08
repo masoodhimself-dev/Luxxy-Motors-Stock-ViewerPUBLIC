@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { customFetch } from '@workspace/api-client-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { NativeSelect } from './ui/native-select';
-import { ArrowRight, CheckCircle2, Circle, Demo as DemoIcon, RefreshCw } from '@/components/icons';
+import { ArrowRight, CheckCircle2, Circle, Demo as DemoIcon, ExternalLink, RefreshCw, StockImport } from '@/components/icons';
 import './platform-demo-conversion.css';
 const api=<T,>(path:string,body?:unknown)=>customFetch<T>('/api/platform'+path,{method:body?'POST':'GET',...(body?{headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{})});
 type Provision={domain:string;emailDomain:string;recipients:string[];configured:boolean;emailReady:boolean;note:string};
-type Demo={demo:boolean;converted?:boolean;recipient?:string;expiresAt?:string;revision?:number;sender?:string;emailReady?:boolean};
+type Demo={demo:boolean;privatePreview?:boolean;converted?:boolean;recipient?:string;expiresAt?:string;revision?:number;sender?:string;emailReady?:boolean};
 type ConversionReadiness = {
  demo: boolean;
  converted: boolean;
@@ -77,39 +77,99 @@ function DemoConversion({dealerId,busy,onBusyChange,onConverted}:{
   </div>}
  </section>;
 }
-export function PlatformDemos({dealerId,onCreated}:{dealerId?:string;onCreated:(id:string)=>void}) {
+export function PlatformDemos({ dealerId, onCreated, onOpenStock }: { dealerId?: string; onCreated: (id: string) => void; onOpenStock?: () => void }) {
+ const fieldId = useId();
  const [provision,setProvision]=useState<Provision|null>(null),[demo,setDemo]=useState<Demo|null>(null);
  const [recipient,setRecipient]=useState('');
+ const [privatePreview, setPrivatePreview] = useState(true);
+ const [provisionFailed, setProvisionFailed] = useState(false);
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[confirmation,setConfirmation]=useState('');
  const [form,setForm]=useState({name:'',slug:'',platform:'autotrader',retailerId:'',sourceUrl:'',recipient:'',days:14,logoData:''});
- async function load(){try{if(dealerId){const d=await api<Demo>(`/dealers/${encodeURIComponent(dealerId)}/demo`);setDemo(d);setRecipient(d.recipient??'');setProvision(await api<Provision>('/demo-config'));}else {const p=await api<Provision>('/demo-config');setProvision(p);setForm(f=>({...f,recipient:p.recipients?.[0]??''}));}}catch{setError('Could not load demo setup. Refresh to retry.');}}
+ async function load() {
+  setProvisionFailed(false);
+  if (dealerId) {
+   try {
+    const record = await api<Demo>(`/dealers/${encodeURIComponent(dealerId)}/demo`);
+    setDemo(record); setRecipient(record.recipient ?? '');
+    if (record.privatePreview || !record.demo) return;
+   } catch { setError('Could not load demo setup. Refresh to retry.'); return; }
+  }
+  try {
+   const configuration = await api<Provision>('/demo-config');
+   setProvision(configuration);
+   if (!dealerId) setForm(current => ({ ...current, recipient: current.recipient || configuration.recipients?.[0] || '' }));
+  } catch { setProvisionFailed(true); }
+ }
  useEffect(()=>{setDemo(null);setError('');setNotice('');setConfirmation('');void load();},[dealerId]);
  async function logo(file?:File){if(!file)return;setError('');setBusy(true);try{if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>5_000_000)throw Error('Choose a PNG, JPEG or WebP smaller than 5 MB.');const bitmap=await createImageBitmap(file);try{const canvas=document.createElement('canvas'),scale=Math.min(1,600/Math.max(bitmap.width,bitmap.height));canvas.width=Math.round(bitmap.width*scale);canvas.height=Math.round(bitmap.height*scale);canvas.getContext('2d')!.drawImage(bitmap,0,0,canvas.width,canvas.height);const data=canvas.toDataURL('image/png');if(data.length>330000)throw Error('Logo is too detailed. Choose a simpler image smaller than 250 KB.');setForm(f=>({...f,logoData:data}));}finally{bitmap.close();}}catch(e){setError(e instanceof Error?e.message:'Could not prepare logo.');}finally{setBusy(false);}}
- async function create(){setBusy(true);setError('');try{const result=await api<{dealerId:string}>('/demos',form);onCreated(result.dealerId);}catch(e){setError(e instanceof Error?e.message:'Could not create demo.');}finally{setBusy(false);}}
+ async function create() {
+  setBusy(true); setError('');
+  const { recipient, logoData, ...fields } = form;
+  try {
+   const result = await api<{ dealerId: string }>('/demos', {
+    ...fields,
+    ...(logoData ? { logoData } : {}),
+    ...(privatePreview ? { privatePreview: true } : { recipient }),
+   });
+   onCreated(result.dealerId);
+  } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not create demo.'); }
+  finally { setBusy(false); }
+ }
  async function action(value:string){if(!dealerId||!demo)return;setBusy(true);setError('');setNotice('');try{await api(`/dealers/${encodeURIComponent(dealerId)}/demo`,{action:value,expectedRevision:demo.revision,confirm:confirmation,...(value==='extend'?{days:14}:value==='recipient'?{recipient}:{})});await load();setConfirmation('');setNotice(value==='recipient'?'Demo email recipient updated.':'Demo extended for 14 days.');}catch(e){setError(e instanceof Error?e.message:'Could not change demo.');}finally{setBusy(false);}}
- return <section className="platform-demo" aria-label={dealerId?'Demo controls':'Create demo dealership'}>
-  <header><span className="platform-eyebrow">Demonstrations</span><h2>{dealerId?(demo?.converted?'Live dealership':demo?.demo===false?'Dealership status':'Demo controls'):'Their name. Their stock. A ready-to-show demo.'}</h2><p>{dealerId&&demo?.demo===false?'Website and integration settings are managed in the dealer portal.':'Show their branding and authorised stock with empty enquiries and sales. Demo email goes only to your approved address; real payments stay off.'}</p></header>
-  {error&&<p role="alert" className="platform-alert">{error}</p>}{notice&&<p role="status" className="platform-notice">{notice}</p>}
-  {dealerId ? !demo?<p>Loading demo controls…</p>:!demo.demo?<p>{demo.converted?'This demonstration is now a live dealership. Demo expiry no longer applies.':'This is a regular dealership.'}</p>:<>
-   <dl className="platform-facts"><div><dt>Demo email sender</dt><dd>{demo.sender??'Demo email domain not configured'}</dd></div><div><dt>Only recipient</dt><dd>{demo.recipient}</dd></div><div><dt>Email delivery</dt><dd>{demo.emailReady?'Verified platform sender configured':'Disabled — platform email configuration needed'}</dd></div><div><dt>Expires</dt><dd>{new Date(demo.expiresAt!).toLocaleString('en-GB')}</dd></div></dl>
-   <DemoConversion key={`${dealerId}:${demo.revision}`} dealerId={dealerId} busy={busy} onBusyChange={setBusy} onConverted={result=>{setDemo({demo:false,converted:true});setNotice(result.notice||'Dealership converted to live. Fictional activity has been removed.');onCreated(result.dealerId);}}/>
-   <p className="platform-help">Demos start with empty enquiries and sales. Import authorised stock to show the vehicles. These controls do not change stock, customer activity or a Grok schedule.</p>
-   <label className="platform-field"><span>Type {dealerId} to confirm changes</span><Input autoComplete="off" value={confirmation} onChange={e=>setConfirmation(e.target.value)}/></label>
-   <label className="platform-field"><span>Approved demo email inbox</span><NativeSelect aria-label="Approved demo email inbox" value={recipient} onChange={e=>setRecipient(e.target.value)}><option value="">Choose an approved recipient</option>{provision?.recipients?.map(r=><option key={r}>{r}</option>)}</NativeSelect><small>All demo email is redirected here. Existing stock and activity are preserved.</small></label><Button variant="outline" disabled={busy||confirmation!==dealerId||!recipient||recipient===demo.recipient} onClick={()=>void action('recipient')}>Update demo inbox</Button>
-   <div className="platform-demo-actions"><article><h3>Extend demo</h3><p>Give the dealership another 14 days to view its demonstration.</p><Button variant="outline" disabled={busy||confirmation!==dealerId} onClick={()=>void action('extend')}>Extend for 14 days</Button></article></div>
-  </> : !provision?<p>Loading demo configuration…</p>:<>
-   {!provision.configured&&<div className="platform-notice"><strong>One-time platform setup required</strong><p>Configure DEMO_BASE_DOMAIN, wildcard DNS/TLS and Clerk domain access, then enable DEMO_DOMAINS_READY. No demo domain has been invented or connected.</p></div>}
-   {!provision.emailReady&&<p className="platform-help">Demo email sends remain disabled until DEMO_EMAIL_DOMAIN, a verified Resend sender and DEMO_RESEND_API_KEY are configured.</p>}
-   <div className="platform-demo-fields">
-   <label className="platform-field"><span>Demo dealership name</span><Input maxLength={100} value={form.name} onChange={e=>setForm({...form,name:e.target.value,slug:e.target.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,41)})}/></label>
-   <label className="platform-field"><span>Demo subdomain</span><Input maxLength={41} value={form.slug} onChange={e=>setForm({...form,slug:e.target.value})}/><small>{form.slug||'dealer'}.{provision.domain||'your configured demo domain'}</small></label>
-   <label className="platform-field"><span>Dealership logo</span><Input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>void logo(e.target.files?.[0])}/><small>Resized to 600 pixels; stored under 250 KB.</small>{form.logoData&&<img src={form.logoData} alt="Demo logo preview" style={{maxHeight:64,maxWidth:180,objectFit:'contain'}}/>}</label>
-   <label className="platform-field"><span>Demo marketplace</span><NativeSelect value={form.platform} onChange={e=>setForm({...form,platform:e.target.value})}><option value="autotrader">Auto Trader</option><option value="cazoo">Cazoo</option></NativeSelect></label>
-   <label className="platform-field"><span>Demo retailer reference</span><Input maxLength={128} value={form.retailerId} onChange={e=>setForm({...form,retailerId:e.target.value})}/></label>
-   <label className="platform-field"><span>Authorised demo stock source URL</span><Input type="url" value={form.sourceUrl} onChange={e=>setForm({...form,sourceUrl:e.target.value})}/></label>
-   <label className="platform-field"><span>Approved test email recipient</span><NativeSelect value={form.recipient} onChange={e=>setForm({...form,recipient:e.target.value})}><option value="">Choose an approved recipient</option>{provision.recipients?.map(r=><option key={r}>{r}</option>)}</NativeSelect><small>Set the operator allowlist with DEMO_EMAIL_RECIPIENTS. Customer addresses are never used for delivery.</small></label>
-   <label className="platform-field"><span>Expires after</span><NativeSelect value={form.days} onChange={e=>setForm({...form,days:Number(e.target.value)})}>{[7,14,30,60,90].map(days=><option key={days} value={days}>{days} days</option>)}</NativeSelect></label>
-   </div><p className="platform-help">Your account owns this demo. Stock import uses a new dedicated credential. Grok collection and scheduling remain separate; nothing is started automatically.</p><Button disabled={busy||!provision.configured||!form.name||!form.slug||!form.sourceUrl||!form.retailerId||!form.recipient} onClick={()=>void create()}><DemoIcon size={16} aria-hidden="true"/>{busy?'Preparing demo…':'Create demo dealership'}</Button>
-  </>}
+ const canCreate = form.name.trim() && /^[a-z0-9][a-z0-9-]{1,40}$/.test(form.slug) && form.retailerId.trim() && form.sourceUrl.trim() && (privatePreview || (provision?.configured && form.recipient));
+ return <section className="platform-demo" aria-label={dealerId ? 'Demo controls' : 'Create demo dealership'}>
+  <header>
+   <h2>{dealerId ? (demo?.converted ? 'Live dealership' : demo?.demo === false ? 'Dealership status' : 'Demo controls') : 'Create a dealer demo'}</h2>
+   <p>{dealerId && demo?.demo === false ? 'Website and integration settings are managed in the dealer portal.' : dealerId ? 'Manage access and expiry for this dealership’s demonstration.' : 'Set up the dealership’s branding, then import its stock and open the website preview.'}</p>
+  </header>
+  {error && <p role="alert" className="platform-alert">{error}</p>}
+  {notice && <p role="status" className="platform-notice">{notice}</p>}
+  {dealerId ? !demo ? <p>Loading demo controls…</p> : !demo.demo ? <p>{demo.converted ? 'This demonstration is now a live dealership. Demo expiry no longer applies.' : 'This is a regular dealership.'}</p> : <>
+   <dl className="platform-facts">
+    <div><dt>Access</dt><dd>{demo.privatePreview ? 'Private preview' : 'Shareable demo'}</dd></div>
+    {!demo.privatePreview && <>
+     <div><dt>Demo email sender</dt><dd>{demo.sender ?? 'Demo email domain not configured'}</dd></div>
+     <div><dt>Only recipient</dt><dd>{demo.recipient}</dd></div>
+     <div><dt>Email delivery</dt><dd>{demo.emailReady ? 'Verified platform sender configured' : 'Disabled. Platform email setup needed.'}</dd></div>
+    </>}
+    <div><dt>Expires</dt><dd>{new Date(demo.expiresAt!).toLocaleString('en-GB')}</dd></div>
+   </dl>
+   <div className="platform-controls platform-demo-stock-actions">
+    {onOpenStock && <Button variant="outline" disabled={busy} onClick={onOpenStock}><StockImport size={16} aria-hidden="true"/>Upload stock JSON</Button>}
+    {demo.expiresAt && Date.parse(demo.expiresAt) > Date.now() && <Button asChild variant="outline"><a href={`/platform/preview/${encodeURIComponent(dealerId)}`} target="_blank" rel="noopener noreferrer">Open private preview <ExternalLink size={15} aria-hidden="true"/></a></Button>}
+   </div>
+   <DemoConversion key={`${dealerId}:${demo.revision}`} dealerId={dealerId} busy={busy} onBusyChange={setBusy} onConverted={result => { setDemo({ demo: false, converted: true }); setNotice(result.notice || 'Dealership converted to live. Fictional activity has been removed.'); onCreated(result.dealerId); }}/>
+   <label className="platform-field"><span>Type {dealerId} to confirm changes</span><Input autoComplete="off" value={confirmation} onChange={e => setConfirmation(e.target.value)}/></label>
+   {!demo.privatePreview && <>
+    <label className="platform-field"><span>Approved demo email inbox</span><NativeSelect aria-label="Approved demo email inbox" value={recipient} onChange={e => setRecipient(e.target.value)}><option value="">Choose an approved recipient</option>{provision?.recipients?.map(r => <option key={r}>{r}</option>)}</NativeSelect><small>All demo email is redirected here.</small></label>
+    {provisionFailed && <p className="platform-help">The approved inboxes could not be loaded. Refresh to try again.</p>}
+    <Button variant="outline" disabled={busy || confirmation !== dealerId || !recipient || recipient === demo.recipient} onClick={() => void action('recipient')}>Update demo inbox</Button>
+   </>}
+   <div className="platform-demo-actions"><article><h3>Extend demo</h3><p>Keep this demonstration available for another 14 days.</p><Button variant="outline" disabled={busy || confirmation !== dealerId} onClick={() => void action('extend')}>Extend for 14 days</Button></article></div>
+  </> : <form onSubmit={event => { event.preventDefault(); if (canCreate && !busy) void create(); }}>
+   <fieldset className="platform-demo-access" disabled={busy}>
+    <legend>Demo access</legend>
+    <div className="platform-demo-access-options">
+     <label><input type="radio" name="platform-demo-access" checked={privatePreview} onChange={() => setPrivatePreview(true)}/><span><strong>Private preview</strong><small>Only signed-in platform admins.</small></span></label>
+     <label><input type="radio" name="platform-demo-access" checked={!privatePreview} onChange={() => setPrivatePreview(false)}/><span><strong>Shareable demo</strong><small>Uses the configured demo domain.</small></span></label>
+    </div>
+   </fieldset>
+   {!privatePreview && <>
+    {provisionFailed ? <p className="platform-help">Shareable demo setup could not be loaded. Refresh to try again.</p> : !provision ? <p role="status">Loading shareable demo setup…</p> : !provision.configured && <div className="platform-notice"><strong>One-time platform setup required</strong><p>Connect the demo domain, HTTPS and staff sign-in before creating a shareable demo.</p></div>}
+    {provision && !provision.emailReady && <p className="platform-help">Demo email sends remain disabled until the platform demo email sender is configured.</p>}
+   </>}
+   <fieldset className="platform-demo-fields" disabled={busy}>
+    <label className="platform-field"><span>Demo dealership name</span><Input required maxLength={100} value={form.name} onChange={e => setForm({ ...form, name: e.target.value, slug: e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 41) })}/></label>
+    <label className="platform-field"><span id={`${fieldId}-reference`}>{privatePreview ? 'Demo reference' : 'Demo subdomain'}</span><Input aria-labelledby={`${fieldId}-reference`} aria-describedby={`${fieldId}-reference-help`} required maxLength={41} value={form.slug} onChange={e => setForm({ ...form, slug: e.target.value })}/><small id={`${fieldId}-reference-help`}>{privatePreview ? 'Use at least two letters, numbers or hyphens.' : `${form.slug || 'dealer'}.${provision?.domain || 'your configured demo domain'}`}</small></label>
+    <label className="platform-field"><span id={`${fieldId}-logo`}>Dealership logo (optional)</span><Input aria-labelledby={`${fieldId}-logo`} aria-describedby={`${fieldId}-logo-help`} type="file" accept="image/png,image/jpeg,image/webp" onChange={e => void logo(e.target.files?.[0])}/><small id={`${fieldId}-logo-help`}>PNG, JPEG or WebP.</small>{form.logoData && <img src={form.logoData} alt="Demo logo preview" style={{ maxHeight: 64, maxWidth: 180, objectFit: 'contain' }}/>}</label>
+    <label className="platform-field"><span>Demo marketplace</span><NativeSelect value={form.platform} onChange={e => setForm({ ...form, platform: e.target.value })}><option value="autotrader">Auto Trader</option><option value="cazoo">Cazoo</option></NativeSelect></label>
+    <label className="platform-field"><span id={`${fieldId}-retailer`}>Demo retailer reference</span><Input aria-labelledby={`${fieldId}-retailer`} aria-describedby={`${fieldId}-retailer-help`} required maxLength={128} value={form.retailerId} onChange={e => setForm({ ...form, retailerId: e.target.value })}/><small id={`${fieldId}-retailer-help`}>Use the retailer ID from the stock export.</small></label>
+    <label className="platform-field"><span>Authorised demo stock source URL</span><Input required type="url" value={form.sourceUrl} onChange={e => setForm({ ...form, sourceUrl: e.target.value })}/></label>
+    {!privatePreview && <label className="platform-field"><span>Approved test email recipient</span><NativeSelect required value={form.recipient} onChange={e => setForm({ ...form, recipient: e.target.value })}><option value="">Choose an approved recipient</option>{provision?.recipients?.map(r => <option key={r}>{r}</option>)}</NativeSelect></label>}
+    <label className="platform-field"><span>Expires after</span><NativeSelect value={form.days} onChange={e => setForm({ ...form, days: Number(e.target.value) })}>{[7, 14, 30, 60, 90].map(days => <option key={days} value={days}>{days} days</option>)}</NativeSelect></label>
+   </fieldset>
+   <p className="platform-help">Import an existing stock JSON file after creating the demo. Grok collection and scheduling remain separate.</p>
+   <Button type="submit" disabled={busy || !canCreate}><DemoIcon size={16} aria-hidden="true"/>{busy ? 'Preparing demo…' : 'Create demo dealership'}</Button>
+  </form>}
  </section>;
 }

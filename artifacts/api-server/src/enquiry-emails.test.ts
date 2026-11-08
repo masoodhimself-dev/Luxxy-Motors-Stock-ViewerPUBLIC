@@ -591,6 +591,7 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
     assert.equal(withInvoice.data.invoices[0].id, `${saleId}:${invoiceId}`);
     const invoicePreview = await call(base + "/email-preview", {
       ...noPhotos,
+      to: "A@EXAMPLE.TEST",
       documentIds: [`${saleId}:${invoiceId}`],
     });
     assert.equal(invoicePreview.status, 200);
@@ -610,6 +611,27 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
       Buffer.from(sends.at(-1).attachments[0].content, "base64").toString(),
       "EXACT-ORIGINAL-PDF",
     );
+    const sendCount = sends.length;
+    const differentRecipient = { ...noPhotos, to: "other@example.test", documentIds: [`${saleId}:${invoiceId}`] };
+    const recipientPreview = await call(base + "/email-preview", differentRecipient);
+    assert.equal(recipientPreview.status, 409);
+    assert.match(recipientPreview.data.error, /saved invoice has a different recipient/);
+    const recipientSend = await call(base + "/email", {
+      ...differentRecipient, requestId: randomUUID(), previewHash: invoicePreview.data.previewHash,
+    });
+    assert.equal(recipientSend.status, 409);
+    assert.equal(sends.length, sendCount);
+    assert.equal((await call(base + "/email-preview", { ...noPhotos, to: "other@example.test" })).status, 200);
+
+    const correctedSale = { ...saleState, draft: { ...saleState.draft, email: "corrected@example.test" } };
+    await engine.query("UPDATE sale_workspace SET state=$2::jsonb WHERE id=$1::uuid", [saleId, JSON.stringify(correctedSale)]);
+    assert.equal((await call(base + "/email-context")).data.invoices.length, 0);
+    const staleInvoiceSend = await call(base + "/email", {
+      ...noPhotos, documentIds: [`${saleId}:${invoiceId}`], requestId: randomUUID(), previewHash: invoicePreview.data.previewHash,
+    });
+    assert.equal(staleInvoiceSend.status, 409);
+    assert.equal(sends.length, sendCount);
+    await engine.query("UPDATE sale_workspace SET state=$2::jsonb WHERE id=$1::uuid", [saleId, JSON.stringify(saleState)]);
     assert.equal(
       (
         await call(base + "/email-preview", {

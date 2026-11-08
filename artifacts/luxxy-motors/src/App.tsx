@@ -4,7 +4,7 @@ import { lazy, Suspense } from "react";
 import { RouteLoading } from "@/components/route-loading";
 import { useEffect, useRef, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
-import { ClerkProvider, useClerk } from '@clerk/react';
+import { ClerkProvider, useAuth, useClerk } from '@clerk/react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -24,6 +24,7 @@ import { clearPortalPushSubscription } from '@/lib/portal-push';
 import Home from '@/pages/home';
 const JoinDealership = lazy(() => import('@/pages/join'));
 const Platform = lazy(() => import('@/pages/platform'));
+const PlatformWebsitePreview = lazy(() => import('@/pages/platform-website-preview'));
 const CarDetail = lazy(() => import("@/pages/car-detail"));
 const Saved = lazy(() => import("@/pages/saved"));
 const StockAlertAction = lazy(() => import('@/pages/stock-alert-action'));
@@ -144,7 +145,17 @@ function DealerProviders({ children }: { children: ReactNode }) {
   return standalone ? <>{children}</> : <StockProvider><SavedCarsProvider>{children}</SavedCarsProvider></StockProvider>;
 }
 
-function ClerkProviderWithRoutes() {
+function SignedInWebsitePreview({ base }: { base: string }) {
+  const { isLoaded, userId } = useAuth();
+  if (!isLoaded) return <RouteLoading />;
+  if (!userId) return <div className="mx-auto max-w-xl px-6 py-16">
+    <h1 className="text-2xl font-bold">Sign in to continue</h1>
+    <a className="mt-4 inline-block underline" href="/platform">Open Platform Admin</a>
+  </div>;
+  return <Suspense fallback={<RouteLoading />}><PlatformWebsitePreview key={userId} base={base} /></Suspense>;
+}
+
+function ClerkProviderWithRoutes({ previewBase }: { previewBase?: string }) {
   const [, setLocation] = useLocation();
   const [location] = useLocation();
 
@@ -179,22 +190,22 @@ function ClerkProviderWithRoutes() {
       routerPush={(to) => setLocation(stripBase(to))}
       routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
     >
-      <QueryClientProvider client={queryClient}>
+      {previewBase ? <SignedInWebsitePreview base={previewBase} /> : <QueryClientProvider client={queryClient}>
         <ClerkQueryClientCacheInvalidator />
         <TooltipProvider>
           <DealerProviders><Router /></DealerProviders>
           <Toaster />
         </TooltipProvider>
-      </QueryClientProvider>
+      </QueryClientProvider>}
     </ClerkProvider>
   );
 }
 
-function App() {
+function App({ previewBase }: { previewBase?: string }) {
   return (
     <WouterRouter base={basePath}>
       <RouteScrollReset />
-      <ClerkProviderWithRoutes />
+      <ClerkProviderWithRoutes previewBase={previewBase} />
     </WouterRouter>
   );
 }

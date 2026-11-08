@@ -3,11 +3,22 @@ import {
   saleWorkspaceTotals,
   saleWorkspacePence,
   SaleWorkspaceError,
+  defaultInvoiceSettings,
+  invoiceTextLimits,
   type SaleWorkspaceRecord,
   type SaleWorkspaceDocument,
   type SaleWorkspaceContext,
   type SaleWorkspaceDraft,
+  type SaleWorkspaceEvent,
 } from "./sale-workspace.ts";
+
+export const salePaymentShareMethods = ['email', 'whatsapp', 'manual'] as const;
+export type SalePaymentDefaults = {
+  suggestedDepositPence: number | null;
+  preferredShare: typeof salePaymentShareMethods[number];
+};
+export const defaultSalePaymentDefaults: SalePaymentDefaults = { suggestedDepositPence: null, preferredShare: 'email' };
+export type SalePaymentDefaultsView = { paymentDefaults: SalePaymentDefaults; paymentInstructions: string };
 
 export type SalePaymentRequest = {
   id: string;
@@ -25,6 +36,7 @@ export type SalePaymentRequest = {
   deliveryMode?: "document";
   sharedAt?: string;
   sharedBy?: string;
+  sharedChannel?: 'whatsapp' | 'manual';
   acceptedAt?: string;
   acceptedBy?: string;
   acceptedAmountPence?: number;
@@ -117,6 +129,7 @@ export function finishSaleOperation(
   record: SaleWorkspaceRecord,
   context: SaleWorkspaceContext,
   description: string,
+  details?: Pick<SaleWorkspaceEvent, 'type' | 'documentId'>,
 ) {
   record.revision++;
   record.updatedAt = context.now;
@@ -127,8 +140,39 @@ export function finishSaleOperation(
     description,
     actor: context.actor,
     occurredAt: context.now,
+    ...details,
   });
   return record;
+}
+
+export function saleDepositConfirmationShared(sale: SaleWorkspaceRecord, documentId: string) {
+  return Boolean(sale.emailDeliveries?.some(row => row.documentId === documentId && row.status === 'sent') ||
+    sale.events.some(event => event.type === 'deposit-confirmation-shared' && event.documentId === documentId));
+}
+
+/** This records an action staff took outside the portal. It never sends a message. */
+export function markDepositConfirmationShared(
+  record: SaleWorkspaceRecord,
+  input: { documentId: unknown; acknowledge: unknown },
+  context: SaleWorkspaceContext,
+) {
+  if (input.acknowledge !== true) throw new SaleWorkspaceError('Confirm that you already shared the receipt with the customer.');
+  const document = record.documents.find(row => row.id === input.documentId && row.type === 'receipt');
+  const deposit = document && record.payments.find(payment =>
+    payment.receiptId === document.id && payment.id === document.paymentId && payment.kind === 'deposit' &&
+    payment.status === 'confirmed' && payment.signedAmountPence > 0);
+  if (!document || !deposit) throw new SaleWorkspaceError('This deposit receipt could not be found.', 404);
+  if (record.lifecycle?.status === 'released' || record.lifecycle?.status === 'returned' ||
+    record.standaloneReturn || record.returnReplacement?.direction === 'returned' ||
+    record.payments.some(payment => payment.reversesPaymentId === deposit.id && payment.status === 'confirmed')) {
+    throw new SaleWorkspaceError('This deposit confirmation is no longer current.', 409);
+  }
+  if (!saleDepositConfirmationShared(record, document.id)) {
+    finishSaleOperation(record, context, `Deposit receipt ${document.number} marked as shared by staff`, {
+      type: 'deposit-confirmation-shared',
+      documentId: document.id,
+    });
+  }
 }
 export function operationDocument(
   record: SaleWorkspaceRecord,
@@ -160,6 +204,10 @@ export function operationDocument(
   return document;
 }
 
+export function saleCanRequestDeposit(record: SaleWorkspaceRecord) {
+  return !record.completedAt && record.lifecycle?.status !== 'sold';
+}
+
 /** Requests never add a payment, reserve stock or imply a receipt. */
 export function requestSalePayment(
   current: SaleWorkspaceRecord,
@@ -168,6 +216,7 @@ export function requestSalePayment(
     amount: unknown;
     dueDate: unknown;
     note: unknown;
+    paymentInstructions?: unknown;
     tokenHash?: string;
     expiresAt?: string;
   },
@@ -189,6 +238,8 @@ export function requestSalePayment(
     throw new SaleWorkspaceError(
       "Choose deposit, balance or another agreed amount.",
     );
+  if (input.kind === 'deposit' && !saleCanRequestDeposit(current))
+    throw new SaleWorkspaceError('This car is already sold. Request the balance or another agreed payment.', 409);
   const record = clone(current),
     totals = saleWorkspaceTotals(record.draft, record.payments);
   const amountPence = operationMoney(input.amount),
@@ -219,6 +270,16 @@ export function requestSalePayment(
     );
   const kind = input.kind as SalePaymentRequest["kind"],
     note = operationText(input.note ?? "", 1200, "the payment note");
+  const paymentInstructions = input.paymentInstructions === undefined
+    ? context.branding.invoiceSettings?.paymentInstructions ?? ''
+    : operationText(input.paymentInstructions, invoiceTextLimits.paymentInstructions, 'the payment instructions');
+  const paperworkContext = input.paymentInstructions === undefined ? context : {
+    ...context,
+    branding: {
+      ...context.branding,
+      invoiceSettings: { ...defaultInvoiceSettings, ...context.branding.invoiceSettings, paymentInstructions },
+    },
+  };
   const label =
     kind === "deposit"
       ? "Deposit"
@@ -227,10 +288,10 @@ export function requestSalePayment(
         : "Agreed payment";
   const document = operationDocument(
     record,
-    context,
+    paperworkContext,
     "payment-request",
     kind === "deposit" ? "Deposit request" : "Payment request",
-    `${label} requested: ${saleMoney(amountPence)}\nPayment reference: ${record.reference}\nDue date: ${dueDate}\n${note ? note + "\n" : ""}\nThis is a request for payment. It is not an invoice or confirmation that money has been received.\n${context.branding.invoiceSettings?.paymentInstructions || "Contact the dealership for payment instructions."}`,
+    `${label} requested: ${saleMoney(amountPence)}\nPayment reference: ${record.reference}\nDue date: ${dueDate}\n${note ? note + "\n" : ""}\nThis is a request for payment. It is not an invoice or confirmation that money has been received.\n${paymentInstructions || "Contact the dealership for payment instructions."}`,
   );
   document.transaction = { kind: 'payment-request', requestKind: kind, showSaleBreakdown: true, amountPence, dueDate, paymentReference: record.reference, saleReference: record.reference, ...(note ? { note } : {}) };
   const request: SalePaymentRequest = {
@@ -303,6 +364,7 @@ export function salePaymentRequestAvailable(
 ) {
   return (
     request.status === "active" &&
+    (request.kind !== 'deposit' || saleCanRequestDeposit(record)) &&
     (request.deliveryMode === "document" || Date.parse(request.expiresAt) > Date.parse(now)) &&
     request.agreement === salePaymentAgreement(record) &&
     record.lifecycle?.status !== "released" &&

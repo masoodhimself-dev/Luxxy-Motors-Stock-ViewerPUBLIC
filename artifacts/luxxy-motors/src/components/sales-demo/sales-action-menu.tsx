@@ -10,14 +10,14 @@ export const saleActions = [
   { id: 'return', title: 'Return or change a car', description: 'Find the original sale to get started.', icon: RotateCcw },
 ] as const;
 
-export function SalesActionMenu({ onChoose, disabled = false, unavailable = {} }: {
-  onChoose: (action: SaleAction) => void; disabled?: boolean; unavailable?: Partial<Record<SaleAction, string>>;
+export function SalesActionMenu({ onChoose, disabled = false, unavailable = {}, requestTitle }: {
+  onChoose: (action: SaleAction) => void; disabled?: boolean; unavailable?: Partial<Record<SaleAction, string>>; requestTitle?: string;
 }) {
   return <div className="sales-flow-menu" aria-label="Choose what to do">
     {saleActions.map(({ id, title, description, icon: Icon }) => <button key={id} type="button"
       disabled={disabled || Boolean(unavailable[id])} onClick={() => onChoose(id)} aria-describedby={`sale-action-help-${id}`}>
       <Icon className="sales-flow-menu-icon" size={30} aria-hidden="true" />
-      <span><strong>{title}</strong><small id={`sale-action-help-${id}`}>{unavailable[id] || description}</small></span>
+      <span><strong>{id === 'request' && requestTitle ? requestTitle : title}</strong><small id={`sale-action-help-${id}`}>{unavailable[id] || description}</small></span>
       <ChevronRight size={22} aria-hidden="true" />
     </button>)}
   </div>;

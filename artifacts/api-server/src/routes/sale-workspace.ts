@@ -3,9 +3,10 @@ import { currentDealerId } from "../lib/tenant-context";
 import { dealerIntegrationsStore } from '../lib/dealer-integrations-store';
 import { Router, type Request, type Response } from 'express';
 import { pool } from '@workspace/db';
-import { SaleWorkspaceError, type SaleWorkspaceCommand } from '@workspace/vehicle-meta';
+import { dailySalePaymentsOptions, SaleWorkspaceError, type SaleWorkspaceCommand } from '@workspace/vehicle-meta';
 import { requireStaff, requirePermission, staffLabel } from '../middlewares/staff-auth';
 import { PostgresSaleWorkspaceStore, readSaleWorkspaceAssets } from '../lib/sale-workspace-store';
+import { readDailySalePayments } from '../lib/sale-daily-payments';
 
 const router = Router();
 const dealerId = () => currentDealerId();
@@ -26,15 +27,28 @@ router.use('/sale-workspace', requireStaff, (req, res, next) => {
   next();
 });
 router.get('/sale-workspace', async (req, res) => {
-  try { for(const key of ['q','offset','enquiryId','reservationId'])if(req.query[key]!==undefined&&typeof req.query[key]!=='string')throw new SaleWorkspaceError('Check the sales search.',400); const offset=req.query.offset===undefined?0:Number(req.query.offset);if(typeof req.query.q!=='string'&&req.query.q!==undefined)throw new SaleWorkspaceError('Check the sales search.',400);res.json({...(await store().list({q:req.query.q as string|undefined,offset,enquiryId:typeof req.query.enquiryId==='string'?req.query.enquiryId:undefined,reservationId:typeof req.query.reservationId==='string'?req.query.reservationId:undefined})),preview:false}); } catch (error) { failure(req, res, error); }
+  try {
+    for (const key of ['q', 'offset', 'enquiryId', 'reservationId', 'queue', 'owner']) {
+      if (req.query[key] !== undefined && typeof req.query[key] !== 'string') throw new SaleWorkspaceError('Check the sales search.', 400);
+    }
+    const query = req.query as Partial<Record<string, string>>;
+    res.json({ ...(await store().list({ q: query.q, offset: Number(query.offset ?? 0), enquiryId: query.enquiryId,
+      reservationId: query.reservationId, queue: query.queue, owner: query.owner, actorId: req.staff?.authUserId })), preview: false });
+  } catch (error) { failure(req, res, error); }
 });
-router.get('/sale-workspace/paperwork', async (req, res) => { try { const p = await dealerIntegrationsStore.readSalesPaperwork(); res.json({ saleTerms: p.saleTerms, reservationTerms: p.reservationTerms, invoiceSettings: p.invoiceSettings, correctionSettings: p.correctionSettings }); } catch (error) { failure(req, res, error); } });
+router.get('/sale-workspace/paperwork', async (req, res) => { try { const p = await dealerIntegrationsStore.readSalesPaperwork(); res.json({ saleTerms: p.saleTerms, reservationTerms: p.reservationTerms, invoiceSettings: p.invoiceSettings, correctionSettings: p.correctionSettings, paymentDefaults: p.paymentDefaults }); } catch (error) { failure(req, res, error); } });
+router.get('/sale-workspace/daily-payments', requirePermission('payments.record'), async (req, res) => {
+  try {
+    const options = dailySalePaymentsOptions(req.query.date, req.query.confirmedOffset, req.query.pendingOffset);
+    res.json(await readDailySalePayments(pool, dealerId(), options));
+  } catch (error) { failure(req, res, error); }
+});
 router.get('/sale-workspace/:id', async (req, res) => {
   try { if (!uuid(req.params.id)) throw new SaleWorkspaceError('Sale not found.', 404); res.json({ sale: await store().get(req.params.id), preview: false }); } catch (error) { failure(req, res, error); }
 });
 router.post('/sale-workspace', requirePermission('sales.manage'), async (req, res) => {
   try {
-    const mutation = await store().mutate({ requestId: req.body?.requestId, draft: req.body?.draft, actor: staffLabel(req) });
+    const mutation = await store().mutate({ requestId: req.body?.requestId, draft: req.body?.draft, actor: staffLabel(req), actorId: req.staff?.authUserId });
     res.status(mutation.replayed ? 200 : 201).json({ ...mutation, preview: false });
   } catch (error) { failure(req, res, error); }
 });
@@ -42,7 +56,7 @@ async function mutate(req: Request, res: Response, command: SaleWorkspaceCommand
   try {
     const id = String(req.params.id);
     if (!uuid(id)) throw new SaleWorkspaceError('Sale not found.', 404);
-    const mutation = await store().mutate({ id, command, requestId: req.body?.requestId, expectedRevision: req.body?.expectedRevision, actor: staffLabel(req) });
+    const mutation = await store().mutate({ id, command, requestId: req.body?.requestId, expectedRevision: req.body?.expectedRevision, actor: staffLabel(req), actorId: req.staff?.authUserId });
     res.json({ ...mutation, preview: false });
   } catch (error) { failure(req, res, error); }
 }
@@ -55,6 +69,7 @@ router.delete('/sale-workspace/:id', requirePermission('sales.manage'), async (r
   } catch (error) { failure(req, res, error); }
 });
 router.post('/sale-workspace/:id/checklists', requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'checklists', completion: req.body?.completion, partExchanges: req.body?.partExchanges }); });
+router.post('/sale-workspace/:id/team', requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'team', ownerId: req.body?.ownerId, note: req.body?.note }); });
 router.post('/sale-workspace/:id/corrections', requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'correction-note', description: req.body?.description, reference: req.body?.reference }); });
 router.post('/sale-workspace/:id/payments', requirePermission('payments.record'), async (req, res) => { await mutate(req, res, { action: 'payment', payment: req.body?.payment }); });
 router.post('/sale-workspace/:id/payments/:paymentId/confirm', requirePermission('payments.record'), (req, res, next) => req.body?.reserveVehicle === true ? requirePermission('sales.manage')(req, res, next) : next(), async (req, res) => { await mutate(req, res, { action: 'confirm', paymentId: String(req.params.paymentId), date: req.body?.date, reserveVehicle: req.body?.reserveVehicle === true, reserveConfirmed: req.body?.reserveConfirmed === true, acceptShortfall: req.body?.acceptShortfall === true }); });

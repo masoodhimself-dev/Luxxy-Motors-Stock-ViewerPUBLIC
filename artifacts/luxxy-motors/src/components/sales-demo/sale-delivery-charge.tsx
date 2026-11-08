@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { customFetch, HttpApiError } from "@workspace/api-client-react";
-import type { SaleWorkspaceRecord } from "@workspace/vehicle-meta";
+import { latestFullSaleInvoice, type SaleWorkspaceRecord } from "@workspace/vehicle-meta";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Truck } from "@/components/icons";
@@ -84,7 +84,7 @@ export function SaleDeliveryCharge({
         Included in the deal total and customer invoice. Enter 0 for free
         delivery.
       </p>
-      {sale.documents.some((d) => d.type === "invoice") && (
+      {latestFullSaleInvoice(sale.documents) && (
         <p>
           Any increase will create a separate delivery invoice. The issued
           vehicle invoice keeps its original figures.

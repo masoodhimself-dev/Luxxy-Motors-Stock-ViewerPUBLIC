@@ -3,6 +3,22 @@ import { expect, it, vi, afterEach } from "vitest";
 import { defaultInvoiceSettings } from "@workspace/vehicle-meta";
 import { SalesPaperworkSettings } from "./sales-paperwork-settings";
 afterEach(() => vi.unstubAllGlobals());
+it('saves the suggested deposit in pence and preferred share alongside verified instructions', async () => {
+  const data = { revision: 7, saleTerms: '', reservationTerms: '', invoiceSettings: { ...defaultInvoiceSettings, paymentInstructions: 'Quote your reference.' }, paymentDefaults: { suggestedDepositPence: null, preferredShare: 'email' } };
+  const writes: unknown[] = [];
+  vi.stubGlobal('fetch', vi.fn(async (_input, init) => {
+    if (init?.method !== 'PUT') return Response.json(data);
+    const body = JSON.parse(init.body);
+    writes.push(body);
+    return Response.json({ ...body, revision: 8 });
+  }));
+  render(<SalesPaperworkSettings />);
+  fireEvent.change(await screen.findByLabelText('Suggested deposit (£)'), { target: { value: '350.50' } });
+  fireEvent.change(screen.getByLabelText('Preferred sharing method'), { target: { value: 'whatsapp' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save document settings' }));
+  await screen.findByRole('status');
+  expect(writes).toEqual([expect.objectContaining({ expectedRevision: 7, paymentDefaults: { suggestedDepositPence: 35050, preferredShare: 'whatsapp' }, invoiceSettings: data.invoiceSettings })]);
+});
 it("saves wording with version checks and preserves existing numbering/design values", async () => {
   const options = {
     ...defaultInvoiceSettings,

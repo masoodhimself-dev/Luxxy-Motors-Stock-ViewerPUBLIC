@@ -14,6 +14,8 @@ import {
 } from "@workspace/vehicle-meta";
 import {
   requestSalePayment,
+  markDepositConfirmationShared,
+  saleDepositConfirmationShared,
   returnAndReplaceSale,
   salePaymentAgreement,
   salePaymentRequestAvailable,
@@ -125,6 +127,42 @@ const returnInput = (price = "12000") => ({
   mileage: 45000,
   financeConfirmed: true,
   acknowledge: true,
+});
+
+test('a sold sale can request outstanding money but cannot request another deposit', () => {
+  const original = create(), input = { kind: 'deposit', amount: '500', dueDate: '2026-11-10', note: '' };
+  const existing = requestSalePayment(original, input, context());
+  existing.sale.lifecycle = { status: 'sold', vehicleId: original.draft.vehicleId, changedAt: context().now };
+  assert.equal(salePaymentRequestAvailable(existing.sale, existing.request, context().now), false);
+  assert.throws(() => requestSalePayment(existing.sale, input, context()), /already sold/);
+  const balance = requestSalePayment(existing.sale, { ...input, kind: 'balance', amount: '10000' }, context());
+  assert.equal(balance.request.kind, 'balance');
+  assert.equal(balance.sale.lifecycle?.status, 'sold');
+  assert.deepEqual(balance.sale.payments, []);
+});
+
+test('staff can record sharing a specific valid deposit receipt with no email, payment, or document change', () => {
+  const original = create();
+  const received = changeSaleWorkspace(original, {
+    action: 'take-deposit',
+    payment: { kind: 'deposit', status: 'confirmed', method: 'Bank transfer', amount: '500', date: '2026-11-03', reference: '' },
+  }, { requestId: randomUUID(), expectedRevision: original.revision }, context());
+  const documentId = received.document!.id;
+  const before = structuredClone(received.sale);
+  assert.throws(() => markDepositConfirmationShared(received.sale, { documentId, acknowledge: false }, context()), /already shared/);
+  assert.throws(() => markDepositConfirmationShared(received.sale, { documentId: randomUUID(), acknowledge: true }, context()), /could not be found/);
+  assert.deepEqual(received.sale, before);
+  markDepositConfirmationShared(received.sale, { documentId, acknowledge: true }, context());
+  markDepositConfirmationShared(received.sale, { documentId, acknowledge: true }, context());
+  assert.equal(received.sale.revision, before.revision + 1);
+  assert.equal(saleDepositConfirmationShared(received.sale, documentId), true);
+  assert.equal(received.sale.events.filter(event => event.type === 'deposit-confirmation-shared').length, 1);
+  assert.equal(received.sale.events.at(-1)?.documentId, documentId);
+  assert.equal(received.sale.events.at(-1)?.actor, context().actor);
+  assert.deepEqual(received.sale.payments, before.payments);
+  assert.deepEqual(received.sale.documents, before.documents);
+  assert.deepEqual(received.sale.lifecycle, before.lifecycle);
+  assert.deepEqual(received.sale.emailDeliveries, before.emailDeliveries);
 });
 
 test("payment requests are documents, never receipts, payments or reservations", () => {
@@ -746,6 +784,31 @@ test("stored operations enforce tenant/revision boundaries and exact return bala
       ),
       /credit correction/,
     );
+    const depositSale = create();
+    depositSale.reference += "-DEPOSIT";
+    depositSale.draft.id = depositSale.reference;
+    depositSale.draft.fulfilment!.method = "delivery";
+    depositSale.draft.fulfilment!.address = "1 Example Street";
+    const receivedDeposit = changeSaleWorkspace(depositSale, {
+      action: "payment",
+      payment: { amount: "500", method: "Cash", date: "2026-11-03", reference: "", kind: "deposit", status: "confirmed" },
+    }, { expectedRevision: depositSale.revision, requestId: randomUUID() }, context()).sale;
+    const depositInvoice = changeSaleWorkspace(receivedDeposit, { action: "issue-invoice", kind: "deposit", acknowledge: true },
+      { expectedRevision: receivedDeposit.revision, requestId: randomUUID() }, context()).sale;
+    await engine.query(
+      "INSERT INTO sale_workspace(id,dealer_id,reference,revision,state,created_at,updated_at) VALUES($1,$2,$3,$4,$5::jsonb,$6,$6)",
+      [depositInvoice.id, a.dealerId, depositInvoice.reference, depositInvoice.revision, JSON.stringify(depositInvoice), context().now],
+    );
+    const depositDelivery = await within(() => saleOperation(depositInvoice.id, {
+      action: "delivery-charge", requestId: randomUUID(), expectedRevision: depositInvoice.revision, amount: "200",
+    }, "Staff A"));
+    assert.equal(depositDelivery.document, undefined);
+    assert.equal(depositDelivery.sale.documents.filter(document => document.type === "delivery-invoice").length, 0);
+    const firstFullInvoice = changeSaleWorkspace(depositDelivery.sale, { action: "issue-invoice", kind: "full", acknowledge: true },
+      { expectedRevision: depositDelivery.sale.revision, requestId: randomUUID() }, context()).document!;
+    assert.equal(firstFullInvoice.snapshot.totals.totalDue, 1020000);
+    assert.equal(firstFullInvoice.balanceAtIssue, 970000);
+
     // A return and its reservation/credit must persist as one real transaction.
     const original = paid();
     original.reference = "SALE-2001";

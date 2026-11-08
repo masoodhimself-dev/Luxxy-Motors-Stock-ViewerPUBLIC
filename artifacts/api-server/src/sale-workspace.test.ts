@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { changeSaleWorkspace, createSaleWorkspace, saleWorkspacePence, saleWorkspaceTotals, saleCompletionChecklistItems, partExchangeChecklistItems, saleWorkspaceExchanges, saleWorkspaceChecklistProgress, SaleWorkspaceError, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
+import { changeSaleWorkspace, createSaleWorkspace, saleWorkspacePence, saleWorkspaceTotals, saleInvoiceMatchesSale, saleCompletionChecklistItems, partExchangeChecklistItems, saleWorkspaceExchanges, saleWorkspaceChecklistProgress, SaleWorkspaceError, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
+import { operationDocument } from '../../../lib/vehicle-meta/src/sale-operations';
 import { PostgresSaleWorkspaceStore, readSaleWorkspaceAssets, type SaleWorkspaceDatabase } from './lib/sale-workspace-store';
 
 let sequence = 0;
@@ -465,7 +466,6 @@ test('final reminders do not block sale completion, handover or sold transitions
   const invoice = changeSaleWorkspace(sale, { action: 'issue-invoice', kind: 'full', acknowledge: true }, { expectedRevision: sale.revision, requestId: 'reminder-invoice' }, context()).sale;
   for (const command of [
     { action: 'finish-invoice-sale', acknowledge: true, acknowledgeOutstanding: true },
-    { action: 'lifecycle', status: 'sold' },
     { action: 'handover', recipient: 'Buyer', acknowledgeOutstanding: true },
   ] as SaleWorkspaceCommand[]) {
     const result = changeSaleWorkspace(invoice, command, { expectedRevision: invoice.revision, requestId: 'reminder-' + command.action }, context()).sale;
@@ -502,7 +502,8 @@ test('checklist evidence is attributed by the server, revision guarded and safel
 test('every part exchange needs its own intake checks and irrelevant registrations are refused', () => {
   const sale = createSaleWorkspace({ draft: { ...draft(), partExchange: true, exchanges: [{ registration: 'AB12 CDE', description: 'First fictional intake', value: '100' }, { registration: 'CD34 EFG', description: 'Second fictional intake', value: '200' }] }, requestId: 'checklist-px-create' }, context(), 'PX-CHECKS').sale;
   const finalOnly = changeSaleWorkspace(sale, { action: 'checklists', completion: Object.fromEntries(saleCompletionChecklistItems.map(item => [item.id, 'not_needed'])) }, { expectedRevision: sale.revision, requestId: 'checklist-px-final' }, context()).sale;
-  assert.throws(() => changeSaleWorkspace(finalOnly, { action: 'lifecycle', status: 'sold' }, { expectedRevision: finalOnly.revision, requestId: 'checklist-px-blocked' }, context()), /intake checklist/);
+  const fullInvoice = changeSaleWorkspace(finalOnly, { action: 'issue-invoice', kind: 'full', acknowledge: true }, { expectedRevision: finalOnly.revision, requestId: 'checklist-px-invoice' }, context()).sale;
+  assert.throws(() => changeSaleWorkspace(fullInvoice, { action: 'finish-invoice-sale', acknowledge: true, acknowledgeOutstanding: true }, { expectedRevision: fullInvoice.revision, requestId: 'checklist-px-blocked' }, context()), /intake checklist/);
   assert.throws(() => changeSaleWorkspace(finalOnly, { action: 'checklists', partExchanges: [{ registration: 'NO00 CAR', items: { identity: 'checked' } }] }, { expectedRevision: finalOnly.revision, requestId: 'checklist-px-other' }, context()), /vehicle on this sale/);
   const first = changeSaleWorkspace(finalOnly, { action: 'checklists', partExchanges: [{ registration: 'ab12cde', items: Object.fromEntries(partExchangeChecklistItems.map(item => [item.id, 'checked'])) }] }, { expectedRevision: finalOnly.revision, requestId: 'checklist-px-first' }, context()).sale;
   assert.equal(saleWorkspaceChecklistProgress(first).partExchanges[0].pending.length, 0);
@@ -510,7 +511,8 @@ test('every part exchange needs its own intake checks and irrelevant registratio
   assert.equal(saleWorkspaceChecklistProgress(first).ready, false);
   const checked = reviewChecks(first);
   assert.equal(saleWorkspaceChecklistProgress(checked).ready, true);
-  const sold = changeSaleWorkspace(checked, { action: 'lifecycle', status: 'sold' }, { expectedRevision: checked.revision, requestId: 'checklist-px-sold' }, context()).sale;
+  const invoiced = changeSaleWorkspace(checked, { action: 'issue-invoice', kind: 'full', acknowledge: true }, { expectedRevision: checked.revision, requestId: 'checklist-px-reviewed-invoice' }, context()).sale;
+  const sold = changeSaleWorkspace(invoiced, { action: 'finish-invoice-sale', acknowledge: true, acknowledgeOutstanding: true }, { expectedRevision: invoiced.revision, requestId: 'checklist-px-sold' }, context()).sale;
   assert.equal(sold.lifecycle?.status, 'sold'); assert.deepEqual(sold.checklists, checked.checklists);
 });
 
@@ -581,7 +583,8 @@ test('two part-exchange rows cannot share one attestation under equivalent regis
   assert.deepEqual(saleWorkspaceChecklistProgress(checked).invalidPartExchanges, ['AB12CDE']);
   assert.equal(saleWorkspaceChecklistProgress(checked).ready, false);
   assert.throws(() => changeSaleWorkspace(checked, { action: 'checklists', partExchanges: [{ registration: 'AB12 CDE', items: { identity: 'checked' } }] }, { expectedRevision: checked.revision, requestId: 'duplicate-px-attest' }, context()), /different registration/);
-  assert.throws(() => changeSaleWorkspace(checked, { action: 'lifecycle', status: 'sold' }, { expectedRevision: checked.revision, requestId: 'duplicate-px-sold' }, context()), /different registration/);
+  const invoiced = changeSaleWorkspace(checked, { action: 'issue-invoice', kind: 'full', acknowledge: true }, { expectedRevision: checked.revision, requestId: 'duplicate-px-invoice' }, context()).sale;
+  assert.throws(() => changeSaleWorkspace(invoiced, { action: 'finish-invoice-sale', acknowledge: true, acknowledgeOutstanding: true }, { expectedRevision: invoiced.revision, requestId: 'duplicate-px-sold' }, context()), /different registration/);
   assert.equal(saleWorkspaceTotals(checked.draft, checked.payments).allowance, 30000);
 });
 
@@ -601,4 +604,48 @@ test('a reserved deposit sale may arrange delivery without changing the balance 
   const plan={...sale.draft.fulfilment!,method:'delivery' as const,address:'Confirmed address',stage:'to_arrange' as const,completedAt:'2026-10-04T12:00:00Z'};
   const planned=changeSaleWorkspace(sale,{action:'fulfilment',fulfilment:plan},{expectedRevision:sale.revision,requestId:'deposit-arrange'},context()).sale;
   assert.equal(planned.lifecycle?.status,'reserved');assert.equal(planned.completedAt,undefined);assert.equal(planned.draft.fulfilment?.completedAt,undefined);assert.equal(planned.draft.handover,false);assert.equal(JSON.stringify(planned.payments),before);assert.equal(saleWorkspaceTotals(planned.draft,planned.payments).balance,balance);
+});
+
+
+test('draft edits and legacy stock status cannot bypass invoice and delivery safeguards', () => {
+  const apply = (sale: SaleWorkspaceRecord, command: SaleWorkspaceCommand) =>
+    changeSaleWorkspace(sale, command, { expectedRevision: sale.revision, requestId: `bypass-test-${++sequence}` }, context());
+  const sale = create();
+  assert.throws(() => apply(sale, { action: 'lifecycle', status: 'sold' }), /use the full invoice/i);
+  const invoiced = apply(sale, { action: 'issue-invoice', kind: 'full', acknowledge: true }).sale;
+  assert.throws(() => apply(invoiced, { action: 'update', draft: { ...invoiced.draft, deliveryCharge: '200' } }), /use delivery charge/i);
+  assert.throws(() => apply(invoiced, { action: 'lifecycle', status: 'sold' }), /use the full invoice/i);
+  const undocumented = structuredClone(invoiced);
+  undocumented.draft.deliveryCharge = '200';
+  assert.throws(() => apply(undocumented, { action: 'finish-invoice-sale', acknowledge: true, acknowledgeOutstanding: true }), /updated full invoice/i);
+});
+
+test('linked delivery supplements settle the full invoice without another bill', () => {
+  const ctx = context();
+  const apply = (sale: SaleWorkspaceRecord, command: SaleWorkspaceCommand) =>
+    changeSaleWorkspace(sale, command, { expectedRevision: sale.revision, requestId: `delivery-test-${++sequence}` }, ctx);
+  const { sale, document: invoice } = apply(create(), { action: 'issue-invoice', kind: 'full', acknowledge: true });
+  const frozen = structuredClone(invoice!);
+  for (const [previous, total] of [[0, 20000], [20000, 25000]] as const) {
+    sale.draft.deliveryCharge = (total / 100).toFixed(2);
+    const supplement = operationDocument(sale, ctx, 'delivery-invoice', 'Delivery invoice', '');
+    supplement.transaction = { kind: 'delivery-invoice', amountPence: total - previous, saleReference: sale.reference, invoiceReferences: [invoice!.number], deliveryAddress: '1 Test Street', previousDeliveryPence: previous, totalDeliveryPence: total };
+  }
+  assert.equal(saleInvoiceMatchesSale(invoice!, sale.draft, sale.payments, sale.documents), true);
+  const badLink = structuredClone(sale);
+  const badSupplement = badLink.documents.at(-1)!;
+  if (badSupplement.transaction?.kind === 'delivery-invoice') badSupplement.transaction.invoiceReferences = ['wrong-invoice'];
+  assert.equal(saleInvoiceMatchesSale(invoice!, badLink.draft, badLink.payments, badLink.documents), false);
+  assert.throws(() => apply(sale, { action: 'issue-invoice', kind: 'full', acknowledge: true }), /delivery has its own invoice/i);
+  assert.throws(() => apply(sale, { action: 'document', type: 'invoice' }), /delivery has its own invoice/i);
+  assert.throws(() => apply(sale, { action: 'update', draft: { ...sale.draft, price: '11900' } }), /record a correction/i);
+
+  const paid = apply(sale, { action: 'invoice-payment', payment: { amount: '12250', method: 'Cash', date: '2026-10-04', reference: '', kind: 'final-payment', status: 'confirmed' } });
+  assert.equal(paid.document?.type, 'receipt');
+  assert.equal(saleWorkspaceTotals(paid.sale.draft, paid.sale.payments).balance, 0);
+  assert.equal(saleInvoiceMatchesSale(invoice!, paid.sale.draft, paid.sale.payments, paid.sale.documents), true);
+  const sold = apply(paid.sale, { action: 'finish-invoice-sale', acknowledge: true }).sale;
+  assert.equal(sold.lifecycle?.status, 'sold');
+  assert.equal(JSON.stringify(sold.documents[0]), JSON.stringify(frozen));
+  assert.deepEqual(sold.documents.map(document => document.type), ['invoice', 'delivery-invoice', 'delivery-invoice', 'receipt']);
 });

@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
 import {
+  latestFullSaleInvoice,
+  saleInvoiceMatchesSale,
   saleHandoverMessage,
   saleHandoverStatus,
   saleWorkspaceTotals,
@@ -17,7 +19,7 @@ import { DirectWhatsApp } from "@/components/direct-whatsapp";
 import { InternalShareEmail } from "@/components/internal-share-email";
 import { useDealerSettings } from "@/lib/dealer-settings-context";
 import { useStaffAccess } from "./dealer-administration";
-import { HandoverDialog } from "@/components/sales-demo/sales-controls";
+import { saleMoney, HandoverDialog } from "@/components/sales-demo/sales-controls";
 import "./sale-handover.css";
 
 type HandoverDraft = Pick<
@@ -151,7 +153,7 @@ export function SaleHandoverFields({
       <p>
         Leave the date blank if it is still to be arranged. Saving arrangements
         does not record payment or mark the car handed over. Add any delivery
-        fee through the existing fees section before issuing the invoice.
+        fee under Delivery charge before issuing the invoice.
       </p>
     </fieldset>
   );
@@ -159,9 +161,13 @@ export function SaleHandoverFields({
 export function SaleHandover({
   sale,
   onSaved,
+  onReviewPayments,
+  onReviewInvoice,
 }: {
   sale: SaleWorkspaceRecord;
   onSaved: (sale: SaleWorkspaceRecord) => void;
+  onReviewPayments?: () => void;
+  onReviewInvoice?: () => void;
 }) {
   const cache = useQueryClient(),
     access = useStaffAccess(),
@@ -190,6 +196,40 @@ export function SaleHandover({
   const completed = Boolean(value.completedAt),
     sold = Boolean(sale.completedAt || sale.lifecycle?.status === "sold");
   const message = saleHandoverMessage(sale, settings.identity.name);
+  const totals = saleWorkspaceTotals(sale.draft, sale.payments);
+  const invoice = latestFullSaleInvoice(sale.documents);
+  const invoiceReady = Boolean(invoice && saleInvoiceMatchesSale(invoice, sale.draft, sale.payments, sale.documents));
+  const balanceNeedsReview = Boolean(sale.corrections?.length || (sold && sale.payments.some(
+    payment => payment.status === "confirmed" && payment.signedAmountPence < 0)));
+  const addressMissing = value.method === "delivery" && !value.address.trim();
+  const recipientMissing = !(value.recipient || sale.draft.customer).trim();
+
+  function editArrangements() {
+    setForm({
+      ...value,
+      recipient: value.recipient || sale.draft.customer,
+      phone: value.phone || sale.draft.phone,
+      address: value.address || sale.draft.address,
+    });
+    setEditing(!editing);
+  }
+
+  const readiness = [
+    !sold && {
+      label: invoiceReady ? "Invoice ready to review and mark sold" : "Sale needs to be marked sold",
+      action: invoiceReady ? "Review invoice" : "Open invoice",
+      run: onReviewInvoice,
+    },
+    (totals.balance !== 0 || totals.pending > 0 || balanceNeedsReview) && {
+      label: balanceNeedsReview ? "Balance needs review" : totals.pending > 0
+        ? `${saleMoney(totals.pending)} awaiting payment confirmation`
+        : totals.balance > 0 ? `${saleMoney(totals.balance)} still due` : `${saleMoney(-totals.balance)} customer credit`,
+      action: "Review payments",
+      run: onReviewPayments,
+    },
+    addressMissing && { label: "Delivery address missing", action: "Add address", run: canManage ? editArrangements : undefined },
+    recipientMissing && { label: "Recipient missing", action: "Add recipient", run: canManage ? editArrangements : undefined },
+  ];
 
   async function verify() {
     if (!active.current)
@@ -294,15 +334,7 @@ export function SaleHandover({
           <Button
             variant="outline"
             disabled={busy || conflict}
-            onClick={() => {
-              setForm({
-                ...value,
-                recipient: value.recipient || sale.draft.customer,
-                phone: value.phone || sale.draft.phone,
-                address: value.address || sale.draft.address,
-              });
-              setEditing(!editing);
-            }}
+            onClick={editArrangements}
           >
             {" "}
             {editing ? "Cancel changes" : "Edit arrangements"}
@@ -400,6 +432,19 @@ export function SaleHandover({
               </div>
             )}
           </dl>
+          {!completed && readiness.some(Boolean) && (
+            <div className="sale-handover-readiness" aria-label="Before handover">
+              <h4>Before handover</h4>
+              <ul>
+                {readiness.map(item => item && (
+                  <li key={item.label}>
+                    <span>{item.label}</span>
+                    {item.run && <Button variant="outline" disabled={busy || conflict} onClick={item.run}>{item.action}</Button>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className="handover-actions">
             {canManage && (
               <>
@@ -456,7 +501,7 @@ export function SaleHandover({
       {confirm && (
         <HandoverDialog
           draft={sale.draft}
-          balance={saleWorkspaceTotals(sale.draft, sale.payments).balance}
+          balance={totals.balance}
           busy={busy}
           problem={error}
           onClose={() => setConfirm(false)}

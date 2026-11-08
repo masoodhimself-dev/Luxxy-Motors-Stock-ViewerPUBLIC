@@ -1,11 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { customFetch } from "@workspace/api-client-react";
 import {
   defaultInvoiceSettings,
+  defaultSalePaymentDefaults,
   invoiceTextLimits,
+  saleWorkspacePence,
   type InvoiceSettings,
+  type SalePaymentDefaults,
 } from "@workspace/vehicle-meta";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import "./integration-settings.css";
 import { FullSalesTermsSettings } from './full-sales-terms-settings';
@@ -14,18 +18,26 @@ type Paperwork = {
   saleTerms: string;
   reservationTerms: string;
   invoiceSettings?: InvoiceSettings;
+  paymentDefaults?: SalePaymentDefaults;
   correctionSettings?: { handling: "accountant"; instructions: string };
 };
 export function SalesPaperworkSettings() {
+  const depositHint = useId();
   const [value, setValue] = useState<Paperwork | null>(null),
     [saved, setSaved] = useState<Paperwork | null>(null),
     [busy, setBusy] = useState(false),
+    [suggestedDeposit, setSuggestedDeposit] = useState(""),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
   const options = { ...defaultInvoiceSettings, ...value?.invoiceSettings };
+  const savedDeposit = saved?.paymentDefaults?.suggestedDepositPence;
+  const savedDepositText = savedDeposit == null ? "" : (savedDeposit / 100).toFixed(2);
+  const paymentDefaults = value?.paymentDefaults ?? defaultSalePaymentDefaults;
+  const depositPence = suggestedDeposit.trim() ? saleWorkspacePence(suggestedDeposit) : null;
+  const invalidDeposit = depositPence !== null && (!Number.isSafeInteger(depositPence) || depositPence <= 0);
   const correctionSettings = value?.correctionSettings ?? { handling: "accountant" as const, instructions: "" };
   const changed = Boolean(
-    value && saved && JSON.stringify(value) !== JSON.stringify(saved),
+    value && saved && (JSON.stringify(value) !== JSON.stringify(saved) || suggestedDeposit !== savedDepositText),
   );
   const tooLong = Boolean(
     value &&
@@ -43,6 +55,8 @@ export function SalesPaperworkSettings() {
       );
       setValue(data);
       setSaved(data);
+      const deposit = data.paymentDefaults?.suggestedDepositPence;
+      setSuggestedDeposit(deposit == null ? "" : (deposit / 100).toFixed(2));
     } catch {
       setError("Sales paperwork could not be loaded. Try again.");
     } finally {
@@ -62,7 +76,7 @@ export function SalesPaperworkSettings() {
     return () => window.removeEventListener("beforeunload", warn);
   }, [changed]);
   async function save() {
-    if (!value || busy || tooLong) return;
+    if (!value || busy || tooLong || invalidDeposit) return;
     setBusy(true);
     setError("");
     setNotice("");
@@ -77,12 +91,15 @@ export function SalesPaperworkSettings() {
             saleTerms: value.saleTerms,
             reservationTerms: value.reservationTerms,
             invoiceSettings: options,
+            ...(value.paymentDefaults || depositPence !== null ? { paymentDefaults: { ...paymentDefaults, suggestedDepositPence: depositPence } } : {}),
             correctionSettings,
           }),
         },
       );
       setValue(result);
       setSaved(result);
+      const deposit = result.paymentDefaults?.suggestedDepositPence;
+      setSuggestedDeposit(deposit == null ? "" : (deposit / 100).toFixed(2));
       setNotice(
         "Document settings saved. Existing invoices, payment records and numbering stay unchanged.",
       );
@@ -158,6 +175,31 @@ export function SalesPaperworkSettings() {
             Explain the agreed deposit and refund policy. Only promise what the
             dealership has approved.
           </p>
+          <div className="border-t pt-5">
+            <h4 className="font-semibold">Payment defaults</h4>
+            <p className="text-sm text-muted-foreground">These are starting choices for new payment requests. Staff can change the amount and how they share each request.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label className="integration-field">
+                Suggested deposit (£)
+                <Input inputMode="decimal" value={suggestedDeposit} aria-describedby={depositHint} aria-invalid={invalidDeposit || undefined} onChange={event => setSuggestedDeposit(event.target.value)} />
+              </label>
+              <p id={depositHint} className="text-sm text-muted-foreground">Leave blank to enter an amount each time.</p>
+            </div>
+            <label className="integration-field">
+              Preferred sharing method
+              <select value={paymentDefaults.preferredShare} onChange={event => setValue({
+                ...value,
+                paymentDefaults: { ...paymentDefaults, preferredShare: event.target.value as SalePaymentDefaults['preferredShare'] },
+              })}>
+                <option value="email">Email</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="manual">Download and share manually</option>
+              </select>
+            </label>
+          </div>
+          {invalidDeposit && <p role="alert" className="integration-error">Enter a deposit greater than zero, with up to two decimal places.</p>}
           <label className="integration-field">
             Payment instructions
             <Textarea
@@ -208,7 +250,7 @@ export function SalesPaperworkSettings() {
             </p>
           )}
           <div className="flex flex-wrap gap-3">
-            <Button disabled={!changed || tooLong} onClick={() => void save()}>
+            <Button disabled={!changed || tooLong || invalidDeposit} onClick={() => void save()}>
               Save document settings
             </Button>
             <Button

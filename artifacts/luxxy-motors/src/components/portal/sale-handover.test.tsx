@@ -90,14 +90,14 @@ function sale() {
     completedAt: "2026-10-23T11:00:00Z",
   } as SaleWorkspaceRecord;
 }
-function show(record = sale()) {
+function show(record = sale(), links?: { onReviewPayments?: () => void; onReviewInvoice?: () => void }) {
   return render(
     <QueryClientProvider
       client={
         new QueryClient({ defaultOptions: { queries: { retry: false } } })
       }
     >
-      <SaleHandover sale={record} onSaved={state.saved} />
+      <SaleHandover sale={record} onSaved={state.saved} {...links} />
     </QueryClientProvider>,
   );
 }
@@ -199,12 +199,12 @@ it("keeps editable arrangements after validation errors so staff can correct the
   });
   show();
   fireEvent.click(screen.getByRole("button", { name: "Edit arrangements" }));
-  fireEvent.change(screen.getByLabelText("Arrival window (UK time)"), {
+  fireEvent.change(screen.getByLabelText("Arrival window"), {
     target: { value: "Alex updated" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Save arrangements" }));
   await screen.findByRole("alert");
-  expect(screen.getByLabelText("Arrival window (UK time)")).toHaveValue(
+  expect(screen.getByLabelText("Arrival window")).toHaveValue(
     "Alex updated",
   );
   expect(
@@ -296,4 +296,21 @@ it("does not allow a sharing preflight to finish after staff leave the sale", as
   expect(state.fetch.mock.calls.every(([, options]) => !options?.method)).toBe(
     true,
   );
+});
+
+it("takes staff from handover blockers to the relevant sale action", () => {
+  const record = sale();
+  record.completedAt = undefined;
+  record.draft.fulfilment!.address = "";
+  const onReviewPayments = vi.fn();
+  const onReviewInvoice = vi.fn();
+  show(record, { onReviewPayments, onReviewInvoice });
+  expect(screen.getByText("£10,000.00 still due")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Review payments" }));
+  fireEvent.click(screen.getByRole("button", { name: "Open invoice" }));
+  expect(onReviewPayments).toHaveBeenCalledOnce();
+  expect(onReviewInvoice).toHaveBeenCalledOnce();
+  fireEvent.click(screen.getByRole("button", { name: "Add address" }));
+  expect(screen.getByRole("textbox", { name: "Delivery address" })).toBeVisible();
+  expect(state.fetch).not.toHaveBeenCalled();
 });

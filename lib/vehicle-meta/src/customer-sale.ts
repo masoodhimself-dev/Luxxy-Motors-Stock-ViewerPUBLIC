@@ -2,6 +2,19 @@ import { saleWorkspaceBranding, type SaleWorkspaceDocument, type SaleWorkspaceDr
 
 const copy = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
+type SaleEmailContact = Pick<SaleWorkspaceDraft, 'customer' | 'email'>;
+
+export function saleDocumentEmailRecipientProblem(saved: SaleEmailContact, issued: SaleEmailContact): string | undefined {
+  const email = issued.email?.trim() ?? '';
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return 'This document has no valid email address. Check the customer details and create an updated document before emailing.';
+  }
+  if (email.toLowerCase() !== saved.email?.trim().toLowerCase() || issued.customer?.trim().toLowerCase() !== saved.customer?.trim().toLowerCase()) {
+    return 'The customer details have changed since this document was issued. Create an updated document before emailing.';
+  }
+  return undefined;
+}
+
 /** Keep issued customer/vehicle/money values exactly as issued; redact staff-only fields. */
 export function customerSaleDocument(document: SaleWorkspaceDocument): SaleWorkspaceDocument {
   const original = document.snapshot.draft;

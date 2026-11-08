@@ -1,0 +1,222 @@
+.daily-payments {
+  --daily-ink: #192c38;
+  --daily-slate: #536370;
+  --daily-paper: #f7f9fb;
+  --daily-line: #dce3e8;
+  --daily-amber: #88570c;
+  min-width: 0;
+  max-width: 70rem;
+  margin-inline: auto;
+  color: var(--daily-ink);
+}
+
+.daily-payments-header,
+.daily-payment-date,
+.daily-payment-pagination,
+.daily-payment-error {
+  display: flex;
+  align-items: end;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+
+.daily-payments-header {
+  justify-content: space-between;
+  margin-block-end: 1.125rem;
+}
+
+.daily-payments-header h1 {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  margin-block: .5rem .3rem;
+  font-size: clamp(1.45rem, 3vw, 1.9rem);
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.daily-payments-header p,
+.daily-payment-section > p {
+  color: var(--daily-slate);
+  margin: 0;
+  font-size: .9rem;
+  line-height: 1.45;
+}
+
+.daily-payments-back {
+  margin-inline-start: -.75rem;
+}
+
+.daily-payment-date label {
+  display: grid;
+  gap: .25rem;
+  font-size: .85rem;
+  font-weight: 600;
+}
+
+.daily-payment-date input {
+  font-variant-numeric: tabular-nums;
+}
+
+.daily-payment-content {
+  background: hsl(var(--card));
+  border: 1px solid var(--daily-line);
+  border-radius: 8px;
+  padding: clamp(.7rem, 2vw, 1.125rem);
+}
+
+.daily-payment-totals {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  background: var(--daily-paper);
+  border: 1px solid var(--daily-line);
+  border-radius: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.daily-payment-totals div {
+  min-width: 0;
+  padding: .7rem .85rem;
+}
+
+.daily-payment-totals div + div {
+  border-inline-start: 1px solid var(--daily-line);
+}
+
+.daily-payment-totals dt {
+  color: var(--daily-slate);
+  font-size: .78rem;
+  font-weight: 550;
+}
+
+.daily-payment-totals dd {
+  margin: .15rem 0 0;
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.daily-payment-totals [data-tone='net'] dd { font-weight: 750; }
+
+.daily-payment-totals [data-tone='pending'] :is(dt, dd),
+.daily-payment-section[data-tone='pending'] :is(h2, .daily-payment-amount) {
+  color: var(--daily-amber);
+}
+
+.daily-payment-section {
+  margin-block-start: 1.15rem;
+}
+
+.daily-payment-method-detail {
+  margin-block-start: .8rem;
+  border-bottom: 1px solid var(--daily-line);
+}
+
+.daily-payment-method-detail summary {
+  cursor: pointer;
+  padding-block: .625rem;
+  font-size: .9rem;
+  font-weight: 650;
+}
+
+.daily-payment-section h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 .3rem;
+}
+
+.daily-payment-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  margin-block-start: .55rem;
+  font-size: .86rem;
+}
+
+.daily-payment-table th,
+.daily-payment-table td {
+  padding: .5rem .35rem;
+  border-bottom: 1px solid var(--daily-line);
+  text-align: start;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.daily-payment-table thead th {
+  color: var(--daily-slate);
+  font-size: .76rem;
+  font-weight: 600;
+}
+
+.daily-payment-table th:nth-child(1) { width: 29%; }
+.daily-payment-table th:nth-child(2) { width: 43%; }
+.daily-payment-table th:nth-child(3) { width: 28%; }
+
+.daily-payment-table td:last-child,
+.daily-payment-table th:last-child,
+.daily-payment-methods td,
+.daily-payment-methods th:not(:first-child) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.daily-payment-amount {
+  font-weight: 650;
+}
+
+.daily-payment-table small {
+  display: block;
+  color: var(--daily-slate);
+  font-size: .76rem;
+  line-height: 1.4;
+  margin-block-start: .12rem;
+}
+
+.daily-payment-sale-link {
+  display: inline-flex;
+  min-height: 1.5rem;
+  align-items: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--daily-ink);
+  cursor: pointer;
+  white-space: normal;
+  text-align: start;
+  font-weight: 650;
+  font-size: inherit;
+  overflow-wrap: anywhere;
+}
+
+.daily-payment-sale-link:hover {
+  text-decoration: underline;
+}
+
+.daily-payment-sale-link:focus-visible,
+.daily-payment-method-detail summary:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.daily-payment-pagination {
+  justify-content: flex-end;
+  align-items: center;
+  margin-block-start: .65rem;
+  font-size: .78rem;
+}
+
+.daily-payment-empty {
+  padding-block: .55rem;
+  border-block-end: 1px solid var(--daily-line);
+}
+
+@media (max-width: 37rem) {
+  .daily-payment-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .daily-payment-totals div { padding: .575rem .6rem; }
+  .daily-payment-totals div:nth-child(odd) { border-inline-start: 0; }
+  .daily-payment-totals div:nth-child(n+3) { border-block-start: 1px solid var(--daily-line); }
+  .daily-payment-table th:nth-child(1) { width: 27%; }
+  .daily-payment-table th:nth-child(2) { width: 43%; }
+  .daily-payment-table th:nth-child(3) { width: 30%; }
+}

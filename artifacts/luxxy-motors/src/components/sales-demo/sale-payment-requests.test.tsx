@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { Blob as NodeBlob } from 'node:buffer';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { createSaleWorkspace, requestSalePayment, saleWorkspaceTotals, type SaleWorkspaceRecord, type SalePaymentRequest } from '@workspace/vehicle-meta';
+import { changeSaleWorkspace, createSaleWorkspace, requestSalePayment, saleWorkspaceTotals, type SaleWorkspaceRecord, type SalePaymentRequest } from '@workspace/vehicle-meta';
 import { SalePaymentRequests } from './sale-payment-requests';
 import { dealerConfig } from '@/config/dealer';
 const state = vi.hoisted(() => ({ api: vi.fn(), pdf: vi.fn(), emailEnabled: true }));
@@ -216,4 +216,64 @@ it('keeps an accepted older deposit in history while a new balance request is ac
   expect(screen.getByText('Previous requests (1)').closest('details')).not.toHaveAttribute('open');
   expect(screen.getByRole('article',{name:'Remaining balance request PAY-next'})).toBeInTheDocument();
   expect(screen.getByRole('article',{name:`Deposit request ${mutation.request.reference}`})).toHaveClass('sale-request-row-history');
+});
+
+it('defaults to requesting a balance on sold cars and does not offer a deposit', async () => {
+  const sale = fixture();
+  sale.lifecycle = { status: 'sold', vehicleId: sale.draft.vehicleId, changedAt: context().now };
+  state.api.mockResolvedValue({ sale });
+  render(<SalePaymentRequests sale={sale} actionOnly onSaved={vi.fn()}/>);
+  expect(screen.getByLabelText('Request type')).toHaveValue('balance');
+  expect(screen.queryByRole('option', { name: 'Deposit' })).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Amount (£)'), { target: { value: '500' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Request £500.00' }));
+  await waitFor(() => expect(state.api).toHaveBeenCalledOnce());
+  expect(JSON.parse(state.api.mock.calls[0][1].body)).toMatchObject({ kind: 'balance', amount: '500' });
+});
+
+it('retains the original document and record or cancel actions on a part-paid request', () => {
+  const made = requestSalePayment(fixture(), { kind: 'other', amount: '500', dueDate: '2026-12-01', note: '' }, context());
+  const paid = changeSaleWorkspace(made.sale, {
+    action: 'invoice-payment',
+    payment: { kind: 'part-payment', status: 'confirmed', method: 'Bank transfer', amount: '100', date: '2026-11-03', reference: '', paymentRequestId: made.request.id },
+  }, { requestId: 'test-part-payment', expectedRevision: made.sale.revision }, context()).sale;
+  const record = vi.fn();
+  render(<SalePaymentRequests sale={paid} onSaved={vi.fn()} onRecordDeposit={record}/>);
+  expect(screen.getByText('Still to pay:')).toHaveTextContent('£400.00');
+  expect(screen.getByRole('button', { name: 'Download original PDF' })).toBeEnabled();
+  expect(screen.queryByRole('button', { name: /email pdf|email reminder/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Open WhatsApp' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Record payment' }));
+  expect(record).toHaveBeenCalledWith(paid.paymentRequests![0]);
+  fireEvent.click(screen.getByText('More options'));
+  expect(screen.getByRole('button', { name: 'Cancel request' })).toBeEnabled();
+  expect(state.api).not.toHaveBeenCalled();
+});
+
+it('suggests a dealership deposit and lets an authorised owner override amount and instructions', async () => {
+  const sale = fixture(), mutation = withRequest(sale);
+  state.api.mockResolvedValue({ sale: mutation.sale });
+  render(<SalePaymentRequests sale={sale} actionOnly onSaved={vi.fn()} canEditPaymentInstructions defaults={{ paymentDefaults: { suggestedDepositPence: 35050, preferredShare: 'manual' }, paymentInstructions: 'Use your sale reference.' }}/>);
+  expect(screen.getByLabelText('Amount (£)')).toHaveValue('350.50');
+  fireEvent.change(screen.getByLabelText('Amount (£)'), { target: { value: '300' } });
+  fireEvent.click(screen.getByText('Payment instructions'));
+  expect(screen.getByLabelText('Instructions for this request')).toHaveValue('Use your sale reference.');
+  fireEvent.change(screen.getByLabelText('Instructions for this request'), { target: { value: 'Use the agreed payment reference.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Request £300.00' }));
+  await waitFor(() => expect(state.api).toHaveBeenCalledOnce());
+  expect(JSON.parse(state.api.mock.calls[0][1].body)).toMatchObject({ kind: 'deposit', amount: '300', paymentInstructions: 'Use the agreed payment reference.' });
+});
+
+it('puts the preferred share first and only records a manual share after staff confirm', async () => {
+  const mutation = withRequest(), saved = structuredClone(mutation.sale), onSaved = vi.fn();
+  Object.assign(saved.paymentRequests![0], { sharedChannel: 'manual', sharedAt: context().now });
+  state.api.mockResolvedValue({ sale: saved });
+  const view = render(<SalePaymentRequests sale={mutation.sale} onSaved={onSaved} defaults={{ paymentDefaults: { suggestedDepositPence: null, preferredShare: 'manual' }, paymentInstructions: '' }}/>);
+  expect(within(view.container.querySelector('.sale-request-actions') as HTMLElement).getAllByRole('button')[0]).toHaveTextContent('Download PDF');
+  fireEvent.click(screen.getByText('More options'));
+  fireEvent.click(screen.getByRole('button', { name: 'Mark as shared manually' }));
+  expect(state.api).not.toHaveBeenCalled();
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Yes, mark as shared' }));
+  await waitFor(() => expect(onSaved).toHaveBeenCalledWith(saved));
+  expect(JSON.parse(state.api.mock.calls[0][1].body)).toMatchObject({ channel: 'manual', acknowledge: true });
 });

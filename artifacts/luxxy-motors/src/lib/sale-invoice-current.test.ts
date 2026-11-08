@@ -18,12 +18,31 @@ it.each([
   ['customer contact', (draft: SaleWorkspaceDraft) => { draft.email = 'corrected@example.test'; }],
   ['agreed price', (draft: SaleWorkspaceDraft) => { draft.price = '1001'; }],
   ['agreed disclosures', (draft: SaleWorkspaceDraft) => { draft.notes = 'Agreed bodywork disclosure'; }],
-  ['collection date', (draft: SaleWorkspaceDraft) => { draft.fulfilment!.scheduledDate = '2026-10-28'; }],
-  ['delivery arrangements', (draft: SaleWorkspaceDraft) => { draft.fulfilment!.method = 'delivery'; draft.fulfilment!.address = 'A newly agreed delivery address'; }],
 ] as const)('still detects a genuine change to %s', (_label, change) => {
   const sale = issuedSale(), invoice = sale.documents[0], original = structuredClone(invoice);
   expect(saleInvoiceIsCurrent(invoice, sale.draft, sale.payments)).toBe(true);
   change(sale.draft);
   expect(saleInvoiceIsCurrent(invoice, sale.draft, sale.payments)).toBe(false);
   expect(invoice).toEqual(original);
+});
+
+
+it('keeps the saved invoice current when a collection arrangement changes', () => {
+  const sale = issuedSale(), invoice = sale.documents[0];
+  sale.draft.fulfilment!.scheduledDate = '2026-10-28';
+  sale.draft.fulfilment!.method = 'delivery';
+  sale.draft.fulfilment!.address = 'A newly agreed delivery address';
+  expect(saleInvoiceIsCurrent(invoice, sale.draft, sale.payments)).toBe(true);
+});
+
+it('recognises documented delivery separately from the original invoice', () => {
+  const sale = issuedSale(), invoice = sale.documents[0];
+  sale.draft.deliveryCharge = '200';
+  expect(saleInvoiceIsCurrent(invoice, sale.draft, sale.payments, sale.documents)).toBe(false);
+  sale.documents.push({ ...structuredClone(invoice), id: 'delivery-supplement', type: 'delivery-invoice',
+    transaction: { kind: 'delivery-invoice', amountPence: 20000, saleReference: sale.reference, invoiceReferences: [invoice.number], deliveryAddress: '1 Example Road', previousDeliveryPence: 0, totalDeliveryPence: 20000 },
+  });
+  expect(saleInvoiceIsCurrent(invoice, sale.draft, sale.payments, sale.documents)).toBe(true);
+  sale.draft.deliveryCharge = '300';
+  expect(saleInvoiceIsCurrent(invoice, sale.draft, sale.payments, sale.documents)).toBe(false);
 });

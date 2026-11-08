@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
+import { PGlite } from '@electric-sql/pglite';
 import { readFile } from 'node:fs/promises';
 import { createSaleWorkspace, changeSaleWorkspace, saleCalculationFigures, saleCalculationSnapshot, saleWorkspaceTotals, type SaleWorkspaceDraft, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 import { saleCalculationPrompt, runSaleCalculationCheck } from './lib/sale-calculation-check';
@@ -118,4 +119,65 @@ test('calculation service is tenant scoped, caches changed revisions by money, a
   assert.equal((await listStore.list({q:'INV-DOES-NOT-EXIST'})).sales.length,0);
   assert.doesNotMatch(JSON.stringify(list.sales),/Private reference|Secret address|documentArchives|INV-TEST-ONE/);
   assert.deepEqual(list.sales[0].documents,[]); assert.deepEqual(list.sales[0].payments,[]);
+});
+
+test('sales queue filters the whole dealer before pagination and keeps handover notes off list responses', async t => {
+  const db = new PGlite();
+  t.after(() => db.close());
+  await db.exec(await readFile('../../lib/db/drizzle/0016_sale_workspace.sql', 'utf8'));
+  await db.exec(`CREATE TABLE portal_users(dealer_id text NOT NULL, auth_user_id text NOT NULL, name text, email text, disabled_at timestamptz)`);
+  await db.exec(`INSERT INTO portal_users VALUES ('queue-a', 'alice', 'Alice', NULL, NULL),
+    ('queue-a', 'disabled', 'Disabled', NULL, now()), ('queue-b', 'cross-tenant', 'Other dealer', NULL, NULL)`);
+  const database = { query: db.query.bind(db), connect: async () => ({ query: db.query.bind(db), release() {} }) };
+  const store = new PostgresSaleWorkspaceStore('queue-a', async () => context(), database);
+  const pending = fixture();
+  pending.payments[0].status = 'pending';
+  const old = '2024-01-01T00:00:00Z';
+  const insert = (sale: SaleWorkspaceRecord, tenant = 'queue-a', updated = old) => db.query(
+    'INSERT INTO sale_workspace(id,dealer_id,reference,revision,state,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$6)',
+    [sale.id, tenant, sale.reference, sale.revision, sale, updated],
+  );
+  await insert(pending);
+  const closed = { ...fixture(), reference: 'CLOSED-RETURNED', lifecycle: { status: 'returned' as const, vehicleId: '', changedAt: old } };
+  await insert(closed);
+  await insert({ ...pending, id: randomUUID(), reference: 'FOREIGN' }, 'queue-b');
+  await db.query(`INSERT INTO sale_workspace(id,dealer_id,reference,revision,state,created_at,updated_at)
+    SELECT gen_random_uuid(),'queue-a','NEW-' || i,1,$1::jsonb,now(),now() FROM generate_series(1,55) AS i`,
+    [{ ...fixture(), payments: [] }],
+  );
+  const firstPage = await store.list();
+  assert.equal(firstPage.hasMore, true);
+  assert.equal(firstPage.sales.some(sale => sale.id === pending.id), false);
+  assert.deepEqual((await store.list({ queue: 'attention' })).sales.map(sale => [sale.id, sale.listAttention]), [[pending.id, 'Payment to confirm']]);
+  assert.deepEqual((await store.list({ queue: 'closed' })).sales.map(sale => sale.id), [closed.id]);
+  assert.equal((await store.list({ queue: 'attention', offset: 1 })).sales.length, 0);
+  assert.equal((await store.list({ owner: 'mine', actorId: 'alice' })).sales.length, 0);
+  await assert.rejects(store.list({ queue: 'unrecognised' }), /valid sales view/);
+  await assert.rejects(store.list({ owner: 'cross-tenant' }), /valid sale owner filter/);
+  const requestId = randomUUID();
+  const assign = (ownerId: string | null, key = randomUUID(), revision = pending.revision, note = 'Private handover note') =>
+    store.mutate({ id: pending.id, expectedRevision: revision, requestId: key, actor: 'Authenticated staff', actorId: 'authenticated',
+      command: { action: 'team', ownerId, note, ownerName: 'Untrusted supplied name' } });
+  await assert.rejects(assign('cross-tenant'), /from this dealership/);
+  await assert.rejects(assign('disabled'), /from this dealership/);
+  const saved = await assign('alice', requestId);
+  assert.equal(saved.sale.team?.ownerName, 'Alice');
+  assert.equal(saved.sale.team?.note, 'Private handover note');
+  assert.deepEqual(saved.sale.events.slice(-2).map(event => event.type), ['sale-owner-changed', 'sale-handover-note-updated']);
+  assert.doesNotMatch(JSON.stringify(saved.sale.events), /Private handover note/);
+  assert.deepEqual(saved.sale.documents, pending.documents);
+  assert.deepEqual(saved.sale.draft, pending.draft);
+  const mine = await store.list({ queue: 'attention', owner: 'mine', actorId: 'alice' });
+  assert.deepEqual(mine.sales.map(sale => [sale.id, sale.listOwnerName, sale.listHasTeamNote]), [[pending.id, 'Alice', true]]);
+  assert.doesNotMatch(JSON.stringify(mine), /Private handover note|Untrusted supplied name/);
+  assert.equal((await store.list({ queue: 'attention', owner: 'unassigned' })).sales.length, 0);
+  await db.exec("UPDATE portal_users SET disabled_at=now() WHERE auth_user_id='alice'");
+  assert.equal((await assign('alice', requestId)).replayed, true);
+  await assert.rejects(assign('alice', requestId, pending.revision, 'Different intent'), /different details/);
+  await assert.rejects(assign(null), /changed on another device/);
+  const edited = await assign('alice', randomUUID(), saved.sale.revision, 'Follow-up note');
+  assert.equal(edited.sale.team?.ownerName, 'Alice');
+  const cleared = await assign(null, randomUUID(), edited.sale.revision, '');
+  assert.equal(cleared.sale.team?.ownerId, null);
+  assert.equal((await store.list({ queue: 'attention', owner: 'unassigned' })).sales[0].listHasTeamNote, false);
 });

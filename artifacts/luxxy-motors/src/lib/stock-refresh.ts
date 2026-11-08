@@ -1,11 +1,12 @@
 import type { Stock } from '@workspace/api-client-react';
+import { previewPublicRequestPath } from './private-website-preview';
 
 /** Each mounted stock provider owns its validator; no persistent or shared dealer cache. */
 export function createStockLoader(request: typeof fetch = (...args) => fetch(...args)) {
   let saved: { etag: string; stock: Stock } | undefined;
 
   return async function loadStock(signal?: AbortSignal): Promise<Stock> {
-    const read = (etag?: string) => request('/api/stock', {
+    const read = (etag?: string) => request(previewPublicRequestPath('/api/stock'), {
       method: 'GET', credentials: 'same-origin', cache: 'no-store', signal,
       headers: { Accept: 'application/json', ...(etag ? { 'If-None-Match': etag } : {}) },
     });

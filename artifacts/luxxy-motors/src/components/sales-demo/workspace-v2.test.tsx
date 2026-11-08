@@ -36,6 +36,8 @@ function mount(existing = true, quickActions?: React.ReactNode) {
   if (existing) { state.sale ??= savedSale(); state.search = `?section=sales&saleId=${state.sale.id}`; }
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><SalesWorkspace embedded quickActions={quickActions} /></QueryClientProvider>);
 }
+const choose = (name: RegExp) => fireEvent.click(within(document.querySelector<HTMLElement>('.sales-flow-menu')!).getByRole('button', { name }));
+const back = () => fireEvent.click(within(document.querySelector<HTMLElement>('.sale-desk-section-heading')!).getByRole('button', { name: 'All actions' }));
 const writes = () => state.api.mock.calls.filter(([, options]) => options?.method);
 beforeEach(() => {
   serial = 0; state.sale = null; state.search = ''; state.permissions = ['sales.manage', 'payments.record']; state.pdf.mockReset();
@@ -58,43 +60,42 @@ beforeEach(() => {
   });
 });
 
-it('opens the four-section desk and keeps unsaved contact edits across sections', async () => {
-  mount(); await screen.findByRole('heading', { name: 'Deal details' });
-  expect(screen.getAllByRole('tab')).toHaveLength(4);
-  expect(screen.queryByRole('navigation', { name: 'Invoice steps' })).not.toBeInTheDocument();
+it('opens the guided sale and keeps unsaved contact edits across actions', async () => {
+  mount(); await screen.findByRole('heading', { name: 'What would you like to do?' });
+  const changeCustomer = () => fireEvent.click(screen.getByRole('button', { name: 'Back to customer' }));
+  changeCustomer();
   fireEvent.change(screen.getByLabelText('Telephone'), { target: { value: '07700900456' } });
-  fireEvent.click(screen.getByRole('tab', { name: 'Collection & delivery' }));
-  expect(screen.getByRole('heading', { name: 'Collection & delivery' })).toBeVisible();
-  fireEvent.click(screen.getByRole('tab', { name: 'Deal' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Car' }));
+  expect(screen.getByRole('heading', { name: 'Choose a car' })).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Choose customer' }));
   expect(screen.getByLabelText('Telephone')).toHaveValue('07700900456');
-  expect(screen.getByRole('status')).toHaveTextContent('Unsaved changes');
+  expect(screen.getByText('Unsaved changes')).toBeVisible();
   expect(writes()).toHaveLength(0);
 });
 
 it('preserves an unsaved payment and blocks invoice creation until it is recorded or cleared', async () => {
-  mount(); await screen.findByRole('heading', { name: 'Deal details' });
-  fireEvent.click(screen.getByRole('tab', { name: 'Payments' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Add received payment' }));
+  mount(); await screen.findByRole('heading', { name: 'What would you like to do?' });
+  choose(/Take a payment/);
   fireEvent.change(screen.getByLabelText('Payment amount (£)'), { target: { value: '500' } });
-  fireEvent.click(screen.getByRole('tab', { name: 'Invoices' }));
+  back();
+  choose(/Create an invoice/);
   expect(screen.getByRole('button', { name: 'Create & save invoice' })).toBeDisabled();
-  expect(screen.getByText('Save or clear the payment entry in Payments before creating an invoice.')).toBeVisible();
-  fireEvent.click(screen.getByRole('tab', { name: 'Payments' }));
+  back();
+  choose(/Take a payment/);
   expect(screen.getByLabelText('Payment amount (£)')).toHaveValue('500');
   expect(writes()).toHaveLength(0);
 });
 
 it('requires received-money confirmation and updates the shared balance using exact pence', async () => {
-  mount(); await screen.findByRole('heading', { name: 'Deal details' });
-  fireEvent.click(screen.getByRole('tab', { name: 'Payments' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Add received payment' }));
+  mount(); await screen.findByRole('heading', { name: 'What would you like to do?' });
+  choose(/Take a payment/);
   fireEvent.change(screen.getByLabelText('Payment amount (£)'), { target: { value: '500.25' } });
-  expect(screen.getByRole('button', { name: 'Save payment' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Save £500.25 payment' })).toBeDisabled();
   fireEvent.click(screen.getByRole('checkbox', { name: /I have checked that this money/ }));
-  fireEvent.click(screen.getByRole('button', { name: 'Save payment' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Save £500.25 payment' }));
   await waitFor(() => expect(state.sale!.payments).toHaveLength(1));
-  const summary = screen.getByRole('complementary', { name: 'Deal summary' });
-  await waitFor(() => expect(summary).toHaveTextContent('£9,499.75'));
+  const footer = document.querySelector<HTMLElement>('[aria-label="Sale amounts"]')!;
+  await waitFor(() => expect(footer).toHaveTextContent('Left to pay £9,499.75'));
   expect(state.sale!.payments[0].amountPence).toBe(50025);
   expect(writes()).toHaveLength(1);
 });
@@ -103,8 +104,8 @@ it('opens saved paperwork without issuing a duplicate or rewriting the original 
   state.sale = savedSale();
   state.sale = changeSaleWorkspace(state.sale, { action: 'issue-invoice', kind: 'full', acknowledge: true }, { expectedRevision: state.sale.revision, requestId: 'issue-fixture' }, context()).sale;
   const frozen = structuredClone(state.sale.documents);
-  mount(); await screen.findByRole('heading', { name: 'Deal details' });
-  fireEvent.click(screen.getByRole('tab', { name: 'Invoices' }));
+  mount(); await screen.findByRole('heading', { name: 'What would you like to do?' });
+  fireEvent.click(screen.getByRole('button', { name: 'Payments and documents' }));
   fireEvent.click(screen.getByRole('button', { name: 'View & share' }));
   fireEvent.click(screen.getByRole('button', { name: 'Open & print invoice' }));
   await waitFor(() => expect(state.pdf).toHaveBeenCalledOnce());
@@ -114,19 +115,21 @@ it('opens saved paperwork without issuing a duplicate or rewriting the original 
 
 it('keeps Accounts payment access while protecting customer and vehicle edits', async () => {
   state.permissions = ['payments.record', 'payments.refund'];
-  mount(); await screen.findByRole('heading', { name: 'Deal details' });
+  mount(); await screen.findByRole('heading', { name: 'What would you like to do?' });
+  expect(screen.getByRole('button', { name: /Create an invoice/ })).toBeEnabled();
+  choose(/Take a payment/);
+  expect(screen.getByRole('textbox', { name: /Payment amount/ })).toBeEnabled();
+  back();
+  fireEvent.click(screen.getByRole('button', { name: 'Back to customer' }));
   expect(screen.getByLabelText('Customer’s full name')).toBeDisabled();
   expect(screen.queryByRole('button', { name: 'Save details' })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('tab', { name: 'Payments' }));
-  expect(screen.getByRole('button', { name: 'Add received payment' })).toBeEnabled();
-  fireEvent.click(screen.getByRole('tab', { name: 'Invoices' }));
-  expect(screen.getByRole('button', { name: 'Create invoice' })).toBeEnabled();
   expect(writes()).toHaveLength(0);
 });
 
 it('keeps quick actions available inside the full-screen sale without clearing the deal', async () => {
   const quick = vi.fn(); mount(true, <button onClick={quick}>Quick actions</button>);
-  await screen.findByRole('heading', { name: 'Deal details' });
+  await screen.findByRole('heading', { name: 'What would you like to do?' });
+  fireEvent.click(screen.getAllByRole('button', { name: 'Change' })[1]);
   fireEvent.change(screen.getByLabelText('Telephone'), { target: { value: '07700900789' } });
   fireEvent.click(screen.getByRole('button', { name: 'Quick actions' }));
   expect(quick).toHaveBeenCalledOnce();
@@ -139,12 +142,12 @@ it('shows transferred credit separately from cash received and the delivery char
   state.sale.draft.deliveryCharge = '200';
   state.sale.draft.adjustments = [{ kind: 'fee', description: 'Agreed extra', amount: '50' }];
   state.sale.draft.creditEntries = [{ id: 'transfer-1', sourceSaleId: 'previous-sale', reference: 'SALE-OLD', signedAmountPence: 100000, at: '2026-11-03T10:00:00Z' }];
-  mount(); await screen.findByRole('heading', { name: 'Deal details' });
-  const summary = screen.getByRole('complementary', { name: 'Deal summary' });
-  expect(within(summary).getByText('Received').parentElement).toHaveTextContent('£0.00');
-  expect(within(summary).getByText('Credit transferred in').parentElement).toHaveTextContent('£1,000.00');
+  mount(); await screen.findByRole('heading', { name: 'What would you like to do?' });
+  const summary = screen.getByRole('complementary', { name: 'Payment breakdown' });
+  expect(within(summary).getByText('Payments received').parentElement).toHaveTextContent('£0.00');
+  expect(within(summary).getByText('Transferred credit').parentElement).toHaveTextContent('£1,000.00');
   expect(within(summary).getByText('Delivery').parentElement).toHaveTextContent('£200.00');
-  expect(within(summary).getByText('Extras & discounts').parentElement).toHaveTextContent('£50.00');
-  expect(within(summary).getByText('Balance due').parentElement).toHaveTextContent('£9,250.00');
+  expect(within(summary).getByText('Extras and discounts').parentElement).toHaveTextContent('£50.00');
+  expect(within(summary).getByText('Left to pay').parentElement).toHaveTextContent('£9,250.00');
   expect(writes()).toHaveLength(0);
 });

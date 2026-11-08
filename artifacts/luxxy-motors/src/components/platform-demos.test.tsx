@@ -2,8 +2,53 @@ import { render,screen,fireEvent,waitFor } from '@testing-library/react';
 import { afterEach,it,expect,vi } from 'vitest';
 import { PlatformDemos } from './platform-demos';
 afterEach(()=>vi.unstubAllGlobals());
-it('shows missing infrastructure and keeps creation disabled',async()=>{vi.stubGlobal('fetch',vi.fn().mockResolvedValue(Response.json({domain:'',emailDomain:'',recipients:[],configured:false,emailReady:false})));render(<PlatformDemos onCreated={()=>{}}/>);await screen.findByText('One-time platform setup required');expect(screen.getByRole('button',{name:'Create demo dealership'})).toBeDisabled();});
-it('creates a demo using only operator-approved destinations and does not invent a worker connection',async()=>{const created=vi.fn(),requests:any[]=[];vi.stubGlobal('fetch',vi.fn(async(_path,init)=>{if(init?.method==='POST'){requests.push(JSON.parse(String(init.body)));return Response.json({dealerId:'demo-example'});}return Response.json({domain:'demo.example.test',emailDomain:'mail.example.test',recipients:['operator@example.test'],configured:true,emailReady:false});}));render(<PlatformDemos onCreated={created}/>);await screen.findByLabelText('Demo dealership name');fireEvent.change(screen.getByLabelText('Demo dealership name'),{target:{value:'Example Motors'}});fireEvent.change(screen.getByLabelText('Demo retailer reference'),{target:{value:'fictional'}});fireEvent.change(screen.getByLabelText('Authorised demo stock source URL'),{target:{value:'https://www.autotrader.co.uk/fictional'}});fireEvent.click(screen.getByRole('button',{name:'Create demo dealership'}));await waitFor(()=>expect(created).toHaveBeenCalledWith('demo-example'));expect(requests[0]).toMatchObject({slug:'example-motors',recipient:'operator@example.test',days:14});expect(screen.getByText(/Grok collection and scheduling remain separate/)).toBeInTheDocument();});
+function fillDemoBasics() {
+ fireEvent.change(screen.getByLabelText('Demo dealership name'), { target: { value: 'Example Motors' } });
+ fireEvent.change(screen.getByLabelText('Demo retailer reference'), { target: { value: 'fictional' } });
+ fireEvent.change(screen.getByLabelText('Authorised demo stock source URL'), { target: { value: 'https://www.autotrader.co.uk/fictional' } });
+}
+
+it('shows missing infrastructure and keeps shareable demo creation disabled', async () => {
+ vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ domain: '', emailDomain: '', recipients: [], configured: false, emailReady: false })));
+ render(<PlatformDemos onCreated={() => {}}/>);
+ fillDemoBasics();
+ fireEvent.click(screen.getByRole('radio', { name: /Shareable demo/ }));
+ await screen.findByText('One-time platform setup required');
+ expect(screen.getByRole('button', { name: 'Create demo dealership' })).toBeDisabled();
+});
+
+it('defaults to a private demo and creates it without public domain or email setup', async () => {
+ const created = vi.fn();
+ const fetcher = vi.fn(async (_path, init) => init?.method === 'POST' ? Response.json({ dealerId: 'demo-example', privatePreview: true }) : Response.json({ error: 'No shareable setup' }, { status: 503 }));
+ vi.stubGlobal('fetch', fetcher);
+ render(<PlatformDemos onCreated={created}/>);
+ expect(screen.getByRole('radio', { name: /Private preview/ })).toBeChecked();
+ expect(screen.queryByLabelText('Approved test email recipient')).not.toBeInTheDocument();
+ fillDemoBasics();
+ fireEvent.click(screen.getByRole('button', { name: 'Create demo dealership' }));
+ await waitFor(() => expect(created).toHaveBeenCalledWith('demo-example'));
+ const create = fetcher.mock.calls.find(([, init]) => init?.method === 'POST');
+ expect(JSON.parse(String(create?.[1]?.body))).toEqual({
+  name: 'Example Motors', slug: 'example-motors', platform: 'autotrader', retailerId: 'fictional',
+  sourceUrl: 'https://www.autotrader.co.uk/fictional', days: 14, privatePreview: true,
+ });
+});
+
+it('creates a shareable demo using only operator-approved destinations and does not invent a worker connection', async () => {
+ const created = vi.fn(), requests: unknown[] = [];
+ vi.stubGlobal('fetch', vi.fn(async (_path, init) => {
+  if (init?.method === 'POST') { requests.push(JSON.parse(String(init.body))); return Response.json({ dealerId: 'demo-example' }); }
+  return Response.json({ domain: 'demo.example.test', emailDomain: 'mail.example.test', recipients: ['operator@example.test'], configured: true, emailReady: false });
+ }));
+ render(<PlatformDemos onCreated={created}/>);
+ fireEvent.click(screen.getByRole('radio', { name: /Shareable demo/ }));
+ await screen.findByRole('option', { name: 'operator@example.test' });
+ fillDemoBasics();
+ fireEvent.click(screen.getByRole('button', { name: 'Create demo dealership' }));
+ await waitFor(() => expect(created).toHaveBeenCalledWith('demo-example'));
+ expect(requests[0]).toMatchObject({ slug: 'example-motors', recipient: 'operator@example.test', days: 14 });
+ expect(screen.getByText(/Grok collection and scheduling remain separate/)).toBeInTheDocument();
+});
 it('has no fictional activity or reset controls and confirms a demo extension',async()=>{const writes:any[]=[];vi.stubGlobal('fetch',vi.fn(async(_path,init)=>{if(init?.method==='POST'){writes.push(JSON.parse(String(init.body)));return Response.json({status:'ready'});}return Response.json({demo:true,revision:4,recipient:'operator@example.test',expiresAt:'2026-11-01'});}));render(<PlatformDemos dealerId="demo-example" onCreated={()=>{}}/>);const extend=await screen.findByRole('button',{name:'Extend for 14 days'});expect(extend).toBeDisabled();for(const name of ['Restore original demo','Reset demo activity','Save starting point','Replace starting point'])expect(screen.queryByRole('button',{name})).not.toBeInTheDocument();fireEvent.change(screen.getByLabelText('Type demo-example to confirm changes'),{target:{value:'demo-example'}});fireEvent.click(extend);await screen.findByText('Demo extended for 14 days.');expect(writes).toEqual([{action:'extend',expectedRevision:4,confirm:'demo-example',days:14}]);});
 it('does not offer destructive actions for a live dealership',async()=>{vi.stubGlobal('fetch',vi.fn().mockResolvedValue(Response.json({demo:false})));render(<PlatformDemos dealerId="live-dealer" onCreated={()=>{}}/>);await screen.findByText('This is a regular dealership.');expect(screen.queryByRole('button',{name:'Restore original demo'})).not.toBeInTheDocument();});
 it('updates a demo inbox only after confirmation using an approved destination',async()=>{const writes:any[]=[];vi.stubGlobal('fetch',vi.fn(async(path,init)=>{if(init?.method==='POST'){writes.push(JSON.parse(String(init.body)));return Response.json({status:'ready'});}return Response.json(String(path).endsWith('/demo-config')?{recipients:['new@example.test']}:{demo:true,revision:5,recipient:'old@example.test',expiresAt:'2026-11-01',baselineSaved:true});}));render(<PlatformDemos dealerId="demo-example" onCreated={()=>{}}/>);await screen.findByRole('option',{name:'new@example.test'});const update=screen.getByRole('button',{name:'Update demo inbox'});fireEvent.change(screen.getByLabelText('Approved demo email inbox'),{target:{value:'new@example.test'}});expect(update).toBeDisabled();fireEvent.change(screen.getByLabelText('Type demo-example to confirm changes'),{target:{value:'demo-example'}});fireEvent.click(update);await screen.findByText('Demo email recipient updated.');expect(writes).toEqual([{action:'recipient',expectedRevision:5,confirm:'demo-example',recipient:'new@example.test'}]);});

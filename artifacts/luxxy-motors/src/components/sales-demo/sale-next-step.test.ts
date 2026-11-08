@@ -1,5 +1,5 @@
 import { beforeEach, expect, it } from 'vitest';
-import { changeSaleWorkspace, createSaleWorkspace, requestSalePayment, saleWorkspaceTotals, type SaleWorkspaceContext, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
+import { changeSaleWorkspace, createSaleWorkspace, markDepositConfirmationShared, requestSalePayment, saleWorkspaceTotals, type SaleWorkspaceContext, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 import { saleInvoiceIsCurrent } from '@/lib/sale-invoice-current';
 import { saleNextStep } from './sale-next-step';
 
@@ -82,6 +82,16 @@ it('offers further payment after the actual deposit confirmation is sent', () =>
   expect(saleNextStep(sale, now)).toMatchObject({ action: 'payment', label: 'Take the next payment' });
 });
 
+it('offers further payment only after staff explicitly confirm sharing this receipt', () => {
+  const sale = pay(), documentId = sale.payments[0].receiptId!;
+  expect(saleNextStep(sale, now)).toMatchObject({ action: 'confirmation', documentId });
+  expect(() => markDepositConfirmationShared(sale, { documentId, acknowledge: false }, context())).toThrow(/already shared/);
+  expect(saleNextStep(sale, now)?.action).toBe('confirmation');
+  markDepositConfirmationShared(sale, { documentId, acknowledge: true }, context());
+  expect(saleNextStep(sale, now)).toMatchObject({ action: 'payment', label: 'Take the next payment' });
+  expect(sale.emailDeliveries).toBeUndefined();
+});
+
 it('does not send an old deposit receipt after that deposit has been reversed', () => {
   const sale = pay(), original = sale.payments[0];
   sale.payments.push({ ...original, id: 'reversal', kind: 'reversal', signedAmountPence: -original.amountPence, reversesPaymentId: original.id, receiptId: undefined });
@@ -97,7 +107,7 @@ it('settled money leads to the invoice and does not itself mark the car handed o
 it('uses the real invoice-current comparison after contact details change', () => {
   const sale = issued(), document = sale.documents.find(row => row.invoiceKind === 'full')!;
   expect(saleInvoiceIsCurrent(document, sale.draft, sale.payments)).toBe(true);
-  expect(saleNextStep(sale, now)?.action).toBe('handover');
+  expect(saleNextStep(sale, now)).toMatchObject({ action: 'mark-sold', documentId: document.id });
   sale.draft.email = 'corrected@example.test';
   expect(saleInvoiceIsCurrent(document, sale.draft, sale.payments)).toBe(false);
   expect(saleNextStep(sale, now)?.action).toBe('invoice');
@@ -112,6 +122,8 @@ it.each(['collection', 'delivery'] as const)('distinguishes arranged %s from the
   const sale = issued(); sale.draft.fulfilment = { ...sale.draft.fulfilment!, method, stage: 'booked', scheduledDate: '2026-11-05' };
   // Arrangements are reflected in the newly issued document, as the real flow requires.
   const current = changeSaleWorkspace(sale, { action: 'issue-invoice', kind: 'full', acknowledge: true }, { requestId: 'invoice-after-booking', expectedRevision: sale.revision }, context()).sale;
+  expect(saleNextStep(current, now)).toMatchObject({ action: 'mark-sold', documentId: current.documents.at(-1)!.id });
+  current.completedAt = now;
   expect(saleNextStep(current, now)).toMatchObject({ action: 'handover', label: 'Record the handover' });
   current.draft.fulfilment!.completedAt = now;
   expect(saleNextStep(current, now)).toMatchObject({ action: 'history', label: 'View sale documents' });
@@ -120,12 +132,14 @@ it.each(['collection', 'delivery'] as const)('distinguishes arranged %s from the
 it('keeps an unconfirmed date at the arrange step', () => {
   const sale = issued(); sale.draft.fulfilment!.stage = 'to_arrange'; sale.draft.fulfilment!.scheduledDate = '2026-11-05';
   const current = changeSaleWorkspace(sale, { action: 'issue-invoice', kind: 'full', acknowledge: true }, { requestId: 'invoice-after-date', expectedRevision: sale.revision }, context()).sale;
+  current.completedAt = now;
   expect(saleNextStep(current, now)).toMatchObject({ action: 'handover', label: 'Arrange collection or delivery' });
 });
 
 it('rearranges an unsuccessful delivery instead of treating the old date as booked', () => {
   const sale = issued(); sale.draft.fulfilment = { ...sale.draft.fulfilment!, method: 'delivery', stage: 'unsuccessful', scheduledDate: '2026-11-01', failureReason: 'Recipient not available' };
   const current = changeSaleWorkspace(sale, { action: 'issue-invoice', kind: 'full', acknowledge: true }, { requestId: 'invoice-after-failure', expectedRevision: sale.revision }, context()).sale;
+  current.completedAt = now;
   expect(saleNextStep(current, now)).toMatchObject({ action: 'handover' });
   expect(saleNextStep(current, now)?.label).toMatch(/arrange/i); expect(saleNextStep(current, now)?.label).not.toBe('Record the handover');
 });
@@ -135,6 +149,17 @@ it.each(['balance', 'other'] as const)('uses the existing %s request instead of 
   expect(saleNextStep(sale, now)).toMatchObject({ action: 'request', requestId: savedRequest.id });
   savedRequest.sharedAt = now;
   expect(saleNextStep(sale, now)).toMatchObject({ action: 'payment', requestId: savedRequest.id });
+});
+
+it('suggests recording the remaining funds on a part-paid request instead of sending the original PDF', () => {
+  const sale = pay(request('balance'), '250', 'part-payment'), savedRequest = sale.paymentRequests![0];
+  expect(saleNextStep(sale, now)).toMatchObject({ action: 'payment', requestId: savedRequest.id });
+});
+
+it('asks for the next payment on a sold car with an outstanding balance even if it had an old deposit request', () => {
+  const sale = request();
+  sale.lifecycle = { status: 'sold', vehicleId: sale.draft.vehicleId, changedAt: now };
+  expect(saleNextStep(sale, now)).toMatchObject({ action: 'payment', label: 'Take the next payment' });
 });
 
 it('reviews a refund on a completed sale instead of asking the customer to pay it back', () => {

@@ -1,6 +1,8 @@
 import type { NextFunction, Request, Response } from 'express';
 import { serviceLifecycle } from './service-lifecycle';
 
+export const platformStockUploadPath = /^\/api\/platform\/dealers\/[^/]+\/stock-upload\/?$/i;
+
 type Lease = { startedAt: number; processing: boolean; released: boolean; release: () => void };
 
 /** Reject excess uploads before buffering JSON. This bounds one API process,
@@ -11,7 +13,7 @@ export function createStockImportAdmission(maximum = 2, now: () => number = Date
   const requests = new WeakMap<Request, Lease>();
   let accepted = 0, rejected = 0, completed = 0, peakActive = 0;
   function middleware(req: Request, res: Response, next: NextFunction) {
-    if (req.method !== 'POST' || !/^\/api\/stock\/imports(?:\/|$)/i.test(req.path)) { next(); return; }
+    if (req.method !== 'POST' || !(/^\/api\/stock\/imports(?:\/|$)/i.test(req.path) || platformStockUploadPath.test(req.path))) { next(); return; }
     const restarting = lifecycle.isDraining();
     if (restarting || leases.size >= maximum) {
       rejected++;

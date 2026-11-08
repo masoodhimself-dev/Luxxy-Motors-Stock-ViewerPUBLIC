@@ -24,7 +24,7 @@ import { HistoryCursorError, historyCursor, parseHistoryCursor } from '../../api
 import { quickEnquiryCapture } from '../../api-server/src/lib/quick-enquiry-capture';
 
 let previewStaff = [{ id: 'preview-alex', name: 'Alex' }, { id: 'preview-jamie', name: 'Jamie' }];
-function previewAssignment(id?: string | null) {
+export function previewAssignment(id?: string | null) {
   if (!id) return { assignedToId: null, assignedToName: null };
   const member = previewStaff.find(member => member.id === id);
   if (!member) throw new ReservationError('Choose a staff member from this dealership.', 400);

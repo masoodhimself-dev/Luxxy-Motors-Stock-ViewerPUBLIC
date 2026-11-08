@@ -1,5 +1,6 @@
 import { captureInvitationToken } from '@/lib/account-invitation-token';
 import { captureStockAlertToken } from '@/lib/stock-alert-token';
+import { setBaseUrl } from '@workspace/api-client-react';
 import RetiredSalesPage from '@/pages/retired-sales';
 import { lazy, Suspense } from "react";
 import { RouteLoading } from "@/components/route-loading";
@@ -13,9 +14,11 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toaster';
 import { StockProvider } from '@/lib/stock-context';
 import { SavedCarsProvider } from '@/lib/saved-cars-context';
+import { privateWebsitePreviewBase } from '@/lib/private-website-preview';
 const SalesDemo = lazy(() => import("@/pages/sales-demo"));
 const JoinDealership = lazy(() => import('@/pages/join'));
 const Platform = lazy(() => import("@/pages/platform"));
+const PlatformWebsitePreview = lazy(() => import('@/pages/platform-website-preview'));
 const Portal = lazy(() => import("@/pages/portal"));
 import NotFound from '@/pages/not-found';
 import Home from '@/pages/home';
@@ -42,12 +45,16 @@ function PreviewLayout({ children }: { children: React.ReactNode }) {
   return location === '/join' || location === '/platform' || location === '/verify-invoice' || location.startsWith('/verify-invoice/') || location.startsWith('/test-drive-declaration/') || location.startsWith('/delivery-evidence/') || location.startsWith('/payment-request/') || location === '/reservation-test-checkout' ? <>{children}</> : <Layout>{children}</Layout>;
 }
 
-captureInvitationToken();
-captureStockAlertToken();
+const previewBase = privateWebsitePreviewBase();
+if (previewBase) setBaseUrl(previewBase);
+else {
+  captureInvitationToken();
+  captureStockAlertToken();
+}
 
 createRoot(document.getElementById('root')!).render(
   <ErrorBoundary>
-    <Router>
+    {previewBase ? <Suspense fallback={<RouteLoading />}><PlatformWebsitePreview base={previewBase} /></Suspense> : <Router>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <StockProvider>
@@ -89,6 +96,6 @@ createRoot(document.getElementById('root')!).render(
           <Toaster />
         </TooltipProvider>
       </QueryClientProvider>
-    </Router>
+    </Router>}
   </ErrorBoundary>,
 );

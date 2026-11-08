@@ -27,6 +27,11 @@ export function serveFrontend(app: Express, directory: string, options: Frontend
   const sendPage:express.RequestHandler=async(req,res,next)=>{
     try{
       const tenant = currentTenant();
+      if (res.locals.privateWebsitePreview === true) {
+        const seo = buildPublicPageSeo({ pathname: '/platform', canonicalOrigin: tenant?.canonicalOrigin, demo: true });
+        res.type('html').send(renderPublicPageSeo(html, seo));
+        return;
+      }
       // Privileged/capability routes never need vehicle data or discoverable metadata.
       const publicRoute = ['/', '/index.html', '/stock', '/contact', '/warranty'].includes(req.path.replace(/\/$/, '') || '/') || isVehiclePagePath(req.path);
       const data = publicRoute ? await (options.loadPageData ?? loadPublicPageData)(req.path, tenant) : {};

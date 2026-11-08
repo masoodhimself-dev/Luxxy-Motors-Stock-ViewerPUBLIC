@@ -15,6 +15,7 @@ import {
   requireStaff,
   requirePermission,
   staffLabel,
+  staffHasPermission,
 } from "../middlewares/staff-auth";
 import { currentDealerId } from "../lib/tenant-context";
 import {
@@ -46,6 +47,7 @@ router.use("/sale-operations", requireStaff, (_req, res, next) => {
 for (const [action, permission] of [
   ["request-payment", "payments.record"],
   ["mark-request-shared", "payments.record"],
+  ["mark-deposit-confirmation-shared", "payments.record"],
   ["renew-request-link", "payments.record"],
   ["cancel-request", "payments.record"],
   ["delivery-charge", "sales.manage"],
@@ -63,6 +65,8 @@ for (const [action, permission] of [
       try {
         if (!uuid(req.params.id))
           throw new SaleWorkspaceError("Deal not found.", 404);
+        if (action === 'request-payment' && req.body?.paymentInstructions !== undefined && !staffHasPermission(req, 'integrations.manage'))
+          throw new SaleWorkspaceError('Ask a dealership owner to change payment instructions.', 403);
         if (Buffer.byteLength(JSON.stringify(req.body ?? {})) > 24000)
           throw new SaleWorkspaceError("The action is too large.", 413);
         res.json(

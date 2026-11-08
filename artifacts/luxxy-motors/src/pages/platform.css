@@ -103,3 +103,61 @@
 @media (max-width: 359px) {
   .platform-step-footer > button:last-child { flex: 1 0 100%; }
 }
+
+.platform-stock-upload, .platform-demo-access, .platform-stock-worker-setup {
+  --platform-ink: #192c38;
+  --platform-slate: #536370;
+  --platform-paper: #f7f9fb;
+  --platform-line: #dce3e8;
+  --platform-amber: #88570c;
+}
+.platform-stock-upload {
+  display: grid;
+  gap: 12px;
+  max-width: 720px;
+  margin-block: 12px 22px;
+  padding: 14px;
+  border: 1px solid var(--platform-line);
+  border-radius: 7px;
+  background: var(--platform-paper);
+}
+.platform-stock-upload-heading { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 10px; }
+.platform-stock-upload-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 5px; background: #e8eff4; color: #38576a; }
+.platform-stock-upload h3 { font-size: 15px; font-weight: 650; }
+.platform-stock-upload p { font-size: 13px; overflow-wrap: anywhere; }
+.platform-stock-upload-form { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+.platform-stock-upload-form > label { flex: 1 1 230px; min-width: 0; margin: 0; }
+.platform-stock-upload-form input[type="file"] { min-height: 44px; max-width: 100%; padding: 6px 9px; }
+.platform-stock-upload-form input[type="file"]::file-selector-button { margin-inline-end: 8px; padding: 4px 8px; border-radius: 4px; background: #e8eff4; color: var(--platform-ink); }
+.platform-stock-upload button, .platform-stock-upload a { min-height: 44px; }
+.platform-stock-upload-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.platform-stock-upload-result, .platform-stock-upload-error { padding: 9px 11px; border: 1px solid var(--platform-line); border-radius: 5px; background: #fff; }
+.platform-stock-upload-result strong { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.platform-stock-upload-result dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px 10px; margin-top: 6px; }
+.platform-stock-upload-result dt { color: var(--platform-slate); font-size: 12px; }
+.platform-stock-upload-result dd { font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.platform-stock-upload-error { border-color: #dbc8ad; background: #fff9f0; }
+.platform-stock-upload-error p, .platform-stock-upload-error li { color: var(--platform-amber); }
+.platform-stock-upload-error ul { padding-inline-start: 18px; list-style: disc; font-size: 13px; }
+
+.platform-demo-access { margin-block: 10px 15px; }
+.platform-demo-access legend { margin-bottom: 6px; font-size: 13px; font-weight: 650; }
+.platform-demo-access-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.platform-demo-access label { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--platform-line); border-radius: 6px; cursor: pointer; }
+.platform-demo-access label:has(:checked) { border-color: #90a8b8; background: #eff4f7; }
+.platform-demo-access input { width: 16px; height: 16px; flex: 0 0 16px; accent-color: var(--platform-ink); }
+.platform-demo-access input:focus-visible { outline: 2px solid #42657c; outline-offset: 3px; }
+.platform-demo-access strong, .platform-demo-access small { display: block; }
+.platform-demo-access strong { font-size: 13px; }
+.platform-demo-access small { color: var(--platform-slate); font-size: 12px; }
+.platform-private-demo-setup { display: grid; justify-items: start; gap: 8px; margin-bottom: 18px; }
+
+@media (max-width: 540px) {
+  .platform-demo-access-options { grid-template-columns: minmax(0, 1fr); }
+  .platform-stock-upload-result dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.platform-demo-stock-actions { margin-block: 13px; }
+.platform-demo-stock-actions :is(button, a), .platform-private-demo-setup :is(button, a) { min-height: 44px; }
+.platform-stock-worker-setup { margin-top: 12px; border-block-start: 1px solid var(--platform-line); }
+.platform-stock-worker-setup > summary { cursor: pointer; min-height: 44px; padding-block: 10px; font-size: 14px; font-weight: 650; }
+.platform-stock-worker-setup > summary:focus-visible { outline: 2px solid #42657c; outline-offset: 2px; }

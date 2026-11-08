@@ -366,3 +366,51 @@ it('creates a draft with an invitation for an owner who has not registered yet',
  expect(writes).toHaveLength(0);fireEvent.click(screen.getByRole('button',{name:'Create & invite owner'}));await screen.findByText(/owner invitation sent/);
  expect(writes).toHaveLength(1);expect(writes[0]).toMatchObject({inviteOwnerEmail:'new-owner@example.test'});expect(writes[0].ownerAuthUserId).toBeUndefined();expect(writes[0].useMyAccount).toBeUndefined();
 });
+
+it('opens Stock connection for a new private demo and uploads the selected JSON unchanged', async () => {
+  const entry = { ...dealer, id: 'demo-example-dealer', canonicalOrigin: 'https://example-dealer.demo.invalid', isDemo: true };
+  const endpoint = `/api/platform/dealers/${entry.id}`;
+  const file = new File(['{"schemaVersion":1}'], 'complete-stock.json', { type: 'application/json' });
+  let imported = false;
+  const fetcher = vi.fn(async (path: RequestInfo | URL, init?: RequestInit) => {
+    if (path === '/api/platform/demos') {
+      expect(init?.method).toBe('POST');
+      expect(JSON.parse(String(init?.body))).toMatchObject({ privatePreview: true });
+      return Response.json({ dealerId: entry.id, privatePreview: true });
+    }
+    if (path === `${endpoint}/stock-upload`) {
+      expect(init?.method).toBe('POST');
+      expect(new Headers(init?.headers).get('content-type')).toBe('application/json');
+      expect(init?.body).toBe(file);
+      imported = true;
+      return Response.json({ status: 'imported', received: 4, created: 3, updated: 1, unchanged: 0, runId: 'demo-import-1' }, { status: 201 });
+    }
+    if (path === `${endpoint}/workspace`) return Response.json({ ...workspace, dealer: entry, stockUploadAllowed: true, imports: imported ? [
+      { runId: 'demo-import-1', status: 'completed', receivedAt: '2026-11-01T12:00:00Z', scrapedAt: '2026-11-01T12:00:00Z', receivedCount: 4 },
+    ] : [] });
+    if (path === '/api/platform/demo-config') return Response.json({ configured: false, emailReady: false, recipients: [] });
+    return Response.json({ dealers: [], activity: [] });
+  });
+  vi.stubGlobal('fetch', fetcher);
+  render(<Platform/>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Demo dealerships' }));
+  fireEvent.change(screen.getByLabelText('Demo dealership name'), { target: { value: entry.name } });
+  fireEvent.change(screen.getByLabelText('Demo retailer reference'), { target: { value: entry.retailerId } });
+  fireEvent.change(screen.getByLabelText('Authorised demo stock source URL'), { target: { value: entry.sourceUrl } });
+  fireEvent.click(screen.getByRole('button', { name: 'Create demo dealership' }));
+  const connection = await screen.findByRole('tabpanel', { name: 'Stock connection' });
+  expect(within(connection).getByRole('link', { name: /Open private stock preview/ })).toHaveAttribute('href', `/platform/preview/${entry.id}/stock`);
+  expect(within(connection).getByText('Connect a stock worker').closest('details')).not.toHaveAttribute('open');
+  const importButton = within(connection).getByRole('button', { name: 'Import stock' });
+  expect(importButton).toBeDisabled();
+  const picker = within(connection).getByLabelText('Stock JSON file');
+  fireEvent.change(picker, { target: { files: [new File(['stock'], 'stock.csv')] } });
+  expect(within(connection).getByRole('alert')).toHaveTextContent('Choose a non-empty JSON file');
+  expect(importButton).toBeDisabled();
+  fireEvent.change(picker, { target: { files: [file] } });
+  fireEvent.click(importButton);
+  const importedMessage = await within(connection).findByText('Stock imported');
+  expect(importedMessage.parentElement).toHaveTextContent('Received4Added3Updated1Unchanged0');
+  fireEvent.click(within(connection).getByRole('button', { name: 'View imports' }));
+  expect(await within(screen.getByRole('tabpanel', { name: 'Imports' })).findByText('completed')).toBeInTheDocument();
+});

@@ -11,13 +11,18 @@ import {
   operationDate,
   operationDocument,
   finishSaleOperation,
+  markDepositConfirmationShared,
   salePaymentRequestAvailable,
+  salePaymentRequestRemaining,
   type SaleReplacementProposal,
 } from "../../../../lib/vehicle-meta/src/sale-operations";
 import {
   saleWorkspaceTotals,
   publicSaleWorkspace,
   saleWorkspaceNumber,
+  latestFullSaleInvoice,
+  saleInvoiceDeliveryCoverage,
+  saleInvoiceTermsMatch,
   SaleWorkspaceError,
   type SaleWorkspaceRecord,
   type SaleWorkspaceContext,
@@ -236,6 +241,7 @@ export async function saleOperation(
           amount: input.amount,
           dueDate: input.dueDate,
           note: input.note,
+          paymentInstructions: input.paymentInstructions,
         },
         ctx,
       );
@@ -247,10 +253,14 @@ export async function saleOperation(
     } else if (input.action === "mark-request-shared") {
       const request = sale.paymentRequests?.find(r => r.id === input.paymentRequestId);
       if (!request || !salePaymentRequestAvailable(sale, request, ctx.now)) throw new SaleWorkspaceError("This payment request is no longer current.", 409);
-      if (input.channel !== 'whatsapp' || input.acknowledge !== true) throw new SaleWorkspaceError("Confirm that you shared the document on WhatsApp.");
+      if (salePaymentRequestRemaining(sale, request) !== request.amountPence) throw new SaleWorkspaceError("This request has changed since it was issued. Record the remaining payment or create a new request.", 409);
+      if ((input.channel !== 'whatsapp' && input.channel !== 'manual') || input.acknowledge !== true) throw new SaleWorkspaceError("Confirm that you already shared the document with the customer.");
       request.sharedAt = ctx.now;
       request.sharedBy = actor;
-      finishSaleOperation(sale, ctx, "Payment request marked as shared on WhatsApp");
+      request.sharedChannel = input.channel;
+      finishSaleOperation(sale, ctx, input.channel === 'whatsapp' ? 'Payment request marked as shared on WhatsApp' : 'Payment request marked as shared by staff');
+    } else if (input.action === "mark-deposit-confirmation-shared") {
+      markDepositConfirmationShared(sale, { documentId: input.documentId, acknowledge: input.acknowledge }, ctx);
     } else if (input.action === "cancel-request") {
       const request = sale.paymentRequests?.find(
         (r) => r.id === input.paymentRequestId,
@@ -312,12 +322,20 @@ export async function saleOperation(
           "A delivery charge on an issued invoice needs a credit correction; it cannot be silently reduced.",
           409,
         );
+      const fullInvoice = latestFullSaleInvoice(current.documents);
+      if (fullInvoice && !saleInvoiceTermsMatch(fullInvoice.snapshot.draft, sale.draft)) {
+        throw new SaleWorkspaceError("The saved sales invoice has different sale details. Review the invoice before charging for delivery separately.", 409);
+      }
+      if (!fullInvoice && current.documents.some(document => document.type === 'delivery-invoice')) {
+        throw new SaleWorkspaceError("This sale already has separate delivery paperwork. Review it before changing the charge.", 409);
+      }
+      const billed = fullInvoice ? saleInvoiceDeliveryCoverage(fullInvoice, current.documents) : null;
+      if (fullInvoice && (!billed || billed.amount > amount)) {
+        throw new SaleWorkspaceError("Check the saved delivery invoices before changing this charge.", 409);
+      }
       sale.draft.deliveryCharge = (amount / 100).toFixed(2);
-      if (
-        current.documents.some((d) => d.type === "invoice") &&
-        amount > previous
-      ) {
-        const delta = amount - previous;
+      if (billed && amount > billed.amount) {
+        const delta = amount - billed.amount;
         result.document = operationDocument(
           sale,
           ctx,
@@ -325,7 +343,7 @@ export async function saleOperation(
           "Delivery invoice",
           `Additional delivery charge: ${(delta / 100).toFixed(2)} GBP\nLinked vehicle sale: ${sale.reference}\nThis invoice charges only the additional delivery amount. It does not charge for the vehicle again.\nDelivery address: ${sale.draft.fulfilment?.address || ""}\n${ctx.branding.invoiceSettings?.paymentInstructions || ""}`,
         );
-        (result.document as SaleWorkspaceDocument).transaction = { kind: 'delivery-invoice', amountPence: delta, saleReference: sale.reference, invoiceReferences: current.documents.filter(document => document.type === 'invoice').map(document => document.number), deliveryAddress: sale.draft.fulfilment?.address || '', previousDeliveryPence: previous, totalDeliveryPence: amount };
+        (result.document as SaleWorkspaceDocument).transaction = { kind: 'delivery-invoice', amountPence: delta, saleReference: sale.reference, invoiceReferences: current.documents.filter(document => document.type === 'invoice').map(document => document.number), deliveryAddress: sale.draft.fulfilment?.address || '', previousDeliveryPence: billed.amount, totalDeliveryPence: amount };
       }
       finishSaleOperation(sale, ctx, "Delivery charge saved");
     } else if (input.action === 'return-car') {

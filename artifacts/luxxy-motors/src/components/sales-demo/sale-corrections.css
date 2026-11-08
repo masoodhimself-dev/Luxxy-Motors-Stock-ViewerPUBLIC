@@ -1,0 +1,155 @@
+.portal-action-dialog.sale-correction-dialog {
+  --correction-ink: #192c38;
+  --correction-slate: #536370;
+  --correction-paper: #f7f9fb;
+  --correction-line: #dce3e8;
+  --correction-amber: #88570c;
+  gap: 14px;
+  color: var(--correction-ink);
+}
+
+.sale-correction-dialog > [data-popup-header]:first-child {
+  padding-block-end: 12px;
+  border-color: var(--correction-line);
+}
+
+.sale-correction-dialog h2 + p {
+  line-height: 1.48;
+  color: var(--correction-slate);
+}
+
+.sale-correction-dialog > .sale-correction-choices {
+  display: grid;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--correction-line);
+  border-radius: 6px;
+}
+
+.sale-correction-dialog button.sale-correction-choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 9px 12px;
+  border-radius: 0;
+  color: var(--correction-ink);
+  text-align: start;
+  cursor: pointer;
+}
+
+.sale-correction-choice + .sale-correction-choice {
+  border-block-start: 1px solid var(--correction-line);
+}
+
+.sale-correction-dialog button.sale-correction-choice:is(:hover, :focus-visible) {
+  background: var(--correction-paper);
+}
+
+.sale-correction-dialog button.sale-correction-choice:focus-visible {
+  outline: 2px solid var(--correction-ink);
+  outline-offset: -2px;
+}
+
+.sale-correction-choice :is(strong, small) { display: block; }
+.sale-correction-choice strong { font-size: 14px; font-weight: 700; }
+.sale-correction-choice small { font-size: 12px; color: var(--correction-slate); line-height: 1.4; }
+.sale-correction-choice > svg:last-child { color: var(--correction-slate); }
+
+.sale-correction-form {
+  display: grid;
+  gap: 12px;
+}
+
+.sale-correction-form label:not(.sale-correction-confirm) {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.portal-action-dialog.sale-correction-dialog textarea {
+  min-height: 68px;
+}
+
+.sale-correction-note,
+.sale-correction-guidance,
+.sale-correction-paperwork {
+  color: var(--correction-slate);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.sale-correction-guidance {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-inline-start: 3px solid var(--correction-amber);
+  border-radius: 3px;
+  background: #fff9ee;
+  color: #654209;
+}
+
+.sale-correction-balances {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  border: 1px solid var(--correction-line);
+  border-radius: 6px;
+  background: var(--correction-paper);
+}
+
+.sale-correction-balances > div {
+  padding: 10px 12px;
+  min-width: 0;
+}
+
+.sale-correction-balances > div + div {
+  border-inline-start: 1px solid var(--correction-line);
+}
+
+.sale-correction-balances dt {
+  color: var(--correction-slate);
+  font-size: 12px;
+  font-weight: 550;
+}
+
+.sale-correction-balances dd {
+  margin: 2px 0 0;
+  color: var(--correction-ink);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.sale-correction-balances > div:last-child dd {
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.sale-correction-balances [data-tone='due'] dd { color: var(--correction-amber); }
+
+.sale-correction-paperwork {
+  display: grid;
+  gap: 2px;
+  padding-block-end: 8px;
+  border-block-end: 1px solid var(--correction-line);
+}
+
+.sale-correction-paperwork h3 {
+  color: var(--correction-ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.sale-correction-confirm { color: var(--correction-ink); }
+
+@media (max-width: 34rem) {
+  .portal-action-dialog.sale-correction-dialog { gap: 12px; }
+  .sale-correction-dialog button.sale-correction-choice { gap: 10px; }
+  .sale-correction-balances > div { padding-inline: 9px; }
+}

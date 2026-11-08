@@ -5,6 +5,7 @@ import { useGetStock, getGetStockQueryKey } from '@workspace/api-client-react';
 import { isVehiclePagePath, vehicleCodeFromPath, vehicleDetailPath } from '@workspace/vehicle-meta';
 import { createStockLoader } from './stock-refresh';
 import { canRefreshNow, useRefreshActive } from './refresh-policy';
+import { previewPublicRequestPath } from './private-website-preview';
 
 export type CarImage = { url: string; caption: string | null } | string;
 
@@ -103,7 +104,7 @@ function vehicleEndpoint(location: string) {
 }
 
 async function loadPublicVehicle(endpoint: string, signal: AbortSignal): Promise<Car | null> {
-  const response = await fetch(endpoint, {
+  const response = await fetch(previewPublicRequestPath(endpoint), {
     credentials: 'same-origin', cache: 'no-store', signal,
     headers: { Accept: 'application/json' },
   });

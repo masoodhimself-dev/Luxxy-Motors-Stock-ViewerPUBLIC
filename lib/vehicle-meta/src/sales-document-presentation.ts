@@ -47,7 +47,8 @@ export function salesDocumentPresentation(document: SaleWorkspaceDocument): Invo
     settlementStatus: status,
     notice: 'Figures and payment status are recorded at the issue date. Later changes appear on separate receipts or statements.',
     ...(totals.pending > 0 ? { pendingNote: `Awaiting confirmation: ${amount(totals.pending)}. Not deducted from the balance.` } : {}),
-    paymentInstructions: lines(branding.invoiceSettings?.paymentInstructions),
+    paymentInstructions: document.balanceAtIssue > 0 || document.type === 'delivery-invoice' || document.type === 'payment-request'
+      ? lines(branding.invoiceSettings?.paymentInstructions) : [],
     terms: lines(document.content), termsHeading: 'Agreed terms',
     footerLines: [[supplied(branding.legal.companyName), branding.legal.companyNumber ? `Company ${clean(branding.legal.companyNumber)}` : '', branding.legal.vatNumber ? `VAT registration ${clean(branding.legal.vatNumber)}` : ''].filter(Boolean).join(' | '), clean(branding.invoiceSettings?.footer)].filter(Boolean),
     ...(document.verification?.url ? { verification: { url: document.verification.url, explanation: 'Scan to check the invoice details on our website.' } } : {}),

@@ -247,8 +247,10 @@ export * from "./uk-postcodes.ts";
 
 export * from './full-sales-terms.ts';
 export * from './sale-operations.ts';
+export * from './sale-daily-payments.ts';
 export * from './sales-document-presentation.ts';
 
 export * from "./sale-calculation-check.ts";
 
 export * from './vehicle-links.ts';
+export * from "./sale-work-queue.ts";

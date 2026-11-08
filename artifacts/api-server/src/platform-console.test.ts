@@ -351,7 +351,9 @@ test('platform onboarding and operational views preserve access checks and omit 
   assert.equal((await engine.query('SELECT id FROM dealer_import_keys WHERE dealer_id=$1 AND disabled_at IS NULL',[conversionId])).rows.length,1);
   const afterConfig=(await engine.query<any>('SELECT config FROM dealer_settings WHERE dealer_id=$1',[conversionId])).rows[0].config;assert.match(afterConfig.presentation.footerLogoUrl,/^https:\/\/conversion.example.test/);assert.equal(afterConfig.contact.email,'sales@conversion.example.test');assert.match(afterConfig.presentation.heroImageUrl,/showroom-car.jpg$/);
   const livePage=await request('/','GET',undefined,'','conversion.example.test');assert.equal(livePage.status,200);assert.equal(livePage.headers.get('Cache-Control'),'');
-  assert.equal((await request('/','GET',undefined,'','conversion-demo.demo.example.test')).status,421);
+  const formerDemo = await request('/','GET',undefined,'','conversion-demo.demo.example.test');
+  assert.equal(formerDemo.status,308);
+  assert.equal(formerDemo.headers.get('location'),'https://conversion.example.test/');
   assert.equal(((await (await request(conversionPath,'POST',{...attempt,expectedRevision:1})).json()) as any).status,'replayed');
   assert.equal((await request(conversionPath,'POST',{...attempt,expectedRevision:1,domainOrigin:'https://different.example.test'})).status,409);
   assert.equal((await request(`/api/platform/dealers/${conversionId}/demo`,'POST',{action:'original',expectedRevision:2,confirm:conversionId})).status,410);

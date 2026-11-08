@@ -13,6 +13,7 @@ test.skip(
   process.env.LUXXY_LOCAL_PREVIEW !== "1",
   "Fictional intercepted sales only. No real messages or records.",
 );
+test.use({ reducedMotion: "reduce" });
 for (const width of [390, 834, 1440])
   for (const kind of ["full", "deposit"] as const)
     test(`${kind} invoice ready, PDF and manual sharing at ${width}`, async ({
@@ -84,8 +85,8 @@ for (const width of [390, 834, 1440])
         },
       });
       change({ action: "issue-invoice", kind, acknowledge: true });
-      const document = sale.documents.at(-1)!,
-        pdf = saleDocumentPdf(document);
+      const invoice = sale.documents.at(-1)!,
+        pdf = saleDocumentPdf(invoice);
       const originalPayments = JSON.stringify(sale.payments),
         originalDocuments = JSON.stringify(sale.documents);
       const buyer = {
@@ -112,7 +113,7 @@ for (const width of [390, 834, 1440])
           return route.fulfill({
             json: {
               role: "owner",
-              permissions: ["sales.manage", "sales.handover"],
+              permissions: ["sales.manage", "sales.handover", "payments.record"],
               user: { authUserId: "fictional-owner", name: "Fictional owner" },
             },
           });
@@ -131,14 +132,14 @@ for (const width of [390, 834, 1440])
             },
           });
         if (
-          path === `/api/sale-workspace/${sale.id}/documents/${document.id}/pdf`
+          path === `/api/sale-workspace/${sale.id}/documents/${invoice.id}/pdf`
         ) {
           pdfRequests++;
           return route.fulfill({ contentType: "application/pdf", body: pdf });
         }
         if (
           path ===
-          `/api/sale-workspace/${sale.id}/documents/${document.id}/email`
+          `/api/sale-workspace/${sale.id}/documents/${invoice.id}/email`
         ) {
           const body = req.postDataJSON();
           emails++;
@@ -148,7 +149,7 @@ for (const width of [390, 834, 1440])
               action: "email-status",
               delivery: {
                 id: body.requestId,
-                documentId: document.id,
+                documentId: invoice.id,
                 to: buyer.email,
                 status: "sent",
                 attemptedAt: context.now,
@@ -179,52 +180,37 @@ for (const width of [390, 834, 1440])
         return route.abort();
       });
       await page.goto(`/portal?section=sales&saleId=${sale.id}`);
-      await expect(
-        page.getByRole("heading", { name: "Sale summary", exact: true }),
-      ).toBeVisible();
-      const panel = page.getByRole("region", {
-        name: "Collection and delivery",
-        exact: true,
-      });
-      await expect(panel).toHaveCount(1);
-      expect(emails).toBe(0);
-      await page
-        .getByRole("region", { name: "Saved sale summary" })
-        .getByRole("button", { name: "Invoice options", exact: true })
-        .click();
-      await expect(
-        page.getByRole("heading", {
-          name: "Your invoice is ready.",
-          exact: true,
-        }),
-      ).toBeVisible();
-      for (let pass = 0; pass < 2; pass++) {
-        await page
-          .getByRole("button", { name: "Email customer", exact: true })
-          .click();
-        await expect(
-          page
-            .getByRole("status")
-            .filter({ hasText: "Invoice emailed to the customer." }),
-        ).toBeVisible();
-        await expect(panel).toHaveCount(1);
+      await expect(page.getByRole("heading", { name: "What would you like to do?" })).toBeVisible();
+      const saved = page.locator(".sale-desk-document-list > div").filter({ hasText: invoice.number });
+      async function openSavedDocument() {
+        await page.getByRole("button", { name: "Payments and documents", exact: true }).click();
+        await saved.getByRole("button", { name: "View & share" }).click();
+        await expect(page.getByRole("heading", { name: invoice.title, exact: true })).toBeVisible();
       }
-      expect(emails).toBe(2);
-      const downloaded = page.waitForEvent("download");
-      await page
-        .getByRole("button", { name: "Download PDF", exact: true })
-        .click();
-      const download = await downloaded;
-      expect(download.suggestedFilename()).toBe(`${document.number}.pdf`);
+      await openSavedDocument();
+      const emailButton = page.getByRole("button", { name: "Email customer", exact: true });
+      await emailButton.click();
+      const review = page.getByRole("dialog", { name: "Email this document?" });
+      await expect(review).toContainText(buyer.email);
+      expect(emails).toBe(0);
+      await review.getByRole("button", { name: "Go back", exact: true }).click();
+      await expect(review).toBeHidden();
+      await expect(emailButton).toBeFocused();
+      expect(emails).toBe(0);
+      await emailButton.click();
+      await review.getByRole("button", { name: "Send email", exact: true }).click();
+      await expect(review).toBeHidden();
+      expect(emails).toBe(1);
+      const [download] = await Promise.all([
+        page.waitForEvent("download"),
+        page.getByRole("button", { name: "Download PDF", exact: true }).click(),
+      ]);
+      expect(download.suggestedFilename()).toBe(`${invoice.number}.pdf`);
       expect(await readFile((await download.path())!)).toEqual(pdf);
-      const opened = page.waitForEvent("popup");
-      await page
-        .getByRole("button", { name: "Open & print invoice", exact: true })
-        .click();
-      const popup = await opened;
-      await popup.waitForURL(/^blob:/);
-      await popup.close();
-      expect(pdfRequests).toBe(2);
+      await page.getByRole("button", { name: "All actions", exact: true }).first().click();
+      await page.locator(".sales-flow-menu").getByRole("button", { name: /Arrange collection or delivery/ }).click();
+      const panel = page.getByRole("region", { name: "Collection and delivery", exact: true });
+      await expect(panel).toHaveCount(1);
       await panel
         .getByRole("button", { name: "Email confirmation", exact: true })
         .click();
@@ -235,11 +221,8 @@ for (const width of [390, 834, 1440])
         prepare.getByLabel("Customer email", { exact: true }),
       ).toHaveValue(buyer.email);
       await page.keyboard.press("Escape");
-      await expect(
-        page
-          .locator(".invoice-document-actions")
-          .getByRole("button", { name: /WhatsApp|QR/ }),
-      ).toHaveCount(0);
+      await expect(prepare).toBeHidden();
+
       await panel
         .getByRole("button", { name: "WhatsApp confirmation", exact: true })
         .click();
@@ -281,23 +264,27 @@ for (const width of [390, 834, 1440])
         confirmed: true,
       });
       expect(history[0].enquiryId).toBeUndefined();
-      await page.keyboard.press("Escape");
+      await deliveryShare.getByRole("button", { name: "Close", exact: true }).click();
+      await expect(deliveryShare).toBeHidden();
       await expect(panel).toHaveCount(1);
       expect(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth,
         ),
       ).toBe(true);
+      await page.getByRole("button", { name: "All actions", exact: true }).first().click();
+      await openSavedDocument();
+      // Chrome's native PDF viewer may move focus to its print window. Verify it last.
+      const [popup] = await Promise.all([
+        page.waitForEvent("popup"),
+        page.getByRole("button", { name: "Open & print invoice", exact: true }).click(),
+      ]);
+      await popup.waitForURL(/^blob:/);
+      await popup.close();
+      expect(pdfRequests).toBe(2);
       expect(JSON.stringify(sale.payments)).toBe(originalPayments);
       expect(JSON.stringify(sale.documents)).toBe(originalDocuments);
       expect(sale.completedAt).toBeUndefined();
       expect(unexpected).toEqual([]);
       expect(errors).toEqual([]);
-      await page.locator(".invoice-builder-scroll").evaluate((element) => {
-        element.scrollTop = 0;
-      });
-      await page.screenshot({
-        path: `/tmp/luxxy-invoice-ready-${kind}-${width}.png`,
-        fullPage: true,
-      });
     });

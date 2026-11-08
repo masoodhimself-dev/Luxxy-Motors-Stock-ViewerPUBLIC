@@ -309,6 +309,11 @@ function openInvoice() {
  navigateSection('Invoices');
  const options=screen.queryAllByRole('button',{name:'View & share'});const invoice=options.find(button=>/invoice/i.test(button.parentElement?.textContent??''));if(invoice)fireEvent.click(invoice);else if(options.length)fireEvent.click(options[0]);
 }
+function confirmDocumentEmail(email = 'jamie@example.com') {
+ const review = screen.getByRole('dialog', { name: 'Email this document?' });
+ expect(review).toHaveTextContent(`Send the saved PDF to ${email}.`);
+ fireEvent.click(within(review).getByRole('button', { name: /^Send email$/ }));
+}
 async function details(_type:'deposit'|'full') {
  fireEvent.click(await screen.findByRole('button',{name:/New sale/}));
  expect(screen.getByRole('heading',{name:'Choose a car'})).toBeVisible();
@@ -620,14 +625,14 @@ it("keeps explicitly linked enquiry prefilling from its URL", async () => {
   state.enquiries = [recentEnquiry()];
   state.search = "?enquiryId=enquiry-recent";
   mount();
-  await screen.findByRole('heading',{name:/What would you like to do\?|Choose the customer/});
-  fireEvent.click(screen.getByRole('button',{name:'Car'}));
-  expect(screen.getByRole("region", { name: "Vehicle selection" })).toHaveTextContent("Ford Focus selected");
-  await advance();
+  await screen.findByRole('heading',{name:'Review sale details'});
+  expect(screen.getByText('Ford Focus')).toBeVisible();
   expect(screen.getByLabelText("Customer’s full name")).toHaveValue("Jamie Taylor");
-  fireEvent.click(screen.getByRole("button", { name: "Save details" }));
+  fireEvent.change(screen.getByLabelText("Agreed vehicle price (£)"), { target: { value: '10500' } });
+  fireEvent.click(screen.getByRole("button", { name: "Confirm details and open sale" }));
   await waitFor(() => expect(state.sales).toHaveLength(1));
   expect(state.sales[0].draft.sourceEnquiryId).toBe("enquiry-recent");
+  expect(state.sales[0].draft.price).toBe("10500");
 });
 
 it("keeps paid-sale contact corrections editable while preventing another recent customer being substituted", async () => {
@@ -717,7 +722,9 @@ it('takes a return from the original saved sale and keeps its customer and payme
 });
 
 it('enters a separate copied-stock practice workspace without creating a live draft or sending a message',async()=>{
- mount();fireEvent.click(await screen.findByRole('button',{name:'Try with a real car'}));
+ mount();
+ fireEvent.keyDown(await screen.findByRole('button',{name:'Quick actions'}), {key:'Enter'});
+ fireEvent.click(await screen.findByRole('menuitem',{name:'Try with a real car'}));
  expect(screen.getAllByText('TEST ONLY').length).toBeGreaterThanOrEqual(2);
  chooseStockVehicle('car-test');fireEvent.click(screen.getByRole('button',{name:'Customer details'}));
  expect(screen.getByLabelText('Full name')).toHaveValue('Alex Example');
@@ -795,8 +802,30 @@ it('keeps invoice QR hidden while print, download and manual email remain usable
  expect(screen.queryByRole('button',{name:'Use email instead'})).not.toBeInTheDocument();fireEvent.click(screen.getByRole('button',{name:'Open & print invoice'}));await waitFor(()=>expect(state.pdf).toHaveBeenCalledTimes(1));
  expect(state.pdf.mock.calls[0][0].issuedDocument.id).toBe(sale.documents.at(-1)!.id);expect(state.pdf.mock.calls[0][1]).toBe('print');expect(mutations()).toHaveLength(0);
  await waitFor(()=>expect(screen.getByRole('button',{name:'Download PDF'})).toBeEnabled());fireEvent.click(screen.getByRole('button',{name:'Download PDF'}));await waitFor(()=>expect(state.pdf).toHaveBeenCalledTimes(2));expect(state.pdf.mock.calls[1][1]).toBe('download');
- await waitFor(()=>expect(screen.getByRole('button',{name:'Email customer'})).toBeEnabled());fireEvent.click(screen.getByRole('button',{name:'Email customer'}));await screen.findByText('Document emailed to the customer.');
+ await waitFor(()=>expect(screen.getByRole('button',{name:'Email customer'})).toBeEnabled());
+ fireEvent.click(screen.getByRole('button',{name:'Email customer'}));
+ expect(mutations()).toHaveLength(0);
+ confirmDocumentEmail();
+ await screen.findByText('Document emailed to the customer.');
  expect(state.fetch.mock.calls.filter(([url,options])=>options?.method==='POST'&&String(url).endsWith('/email'))).toHaveLength(1);expect(state.fetch.mock.calls.some(([url])=>String(url).includes('/phone-shares'))).toBe(false);expect(state.sales[0].documents).toEqual(frozenDocuments);expect(state.sales[0].payments).toEqual(frozenPayments);
+});
+
+it('shows the issued customer and car on an old invoice and blocks email after the sale address is corrected', async () => {
+  const issued = fixtureCommand(savedSale({ email: 'old@example.com' }), { action: 'issue-invoice', kind: 'full', acknowledge: true });
+  const sale = fixtureCommand(issued, { action: 'update', draft: { ...issued.draft, customer: 'Corrected Buyer', email: 'corrected@example.com', vehicle: 'Updated car details', registration: 'CD22XYZ' } });
+  await mountSaved(sale);
+  openInvoice();
+  const email = screen.getByRole('button', { name: 'Email customer' });
+  expect(email).toBeDisabled();
+  expect(email).toHaveAccessibleDescription(/customer details have changed.*Create an updated document/i);
+  const card = screen.getByText('Email on this copy: old@example.com').closest('.invoice-ready-card');
+  expect(card).toHaveTextContent('Jamie Taylor');
+  expect(card).toHaveTextContent('Ford Focus · AB20XYZ');
+  expect(card).not.toHaveTextContent('Corrected Buyer');
+  fireEvent.click(email);
+  expect(screen.queryByRole('dialog', { name: 'Email this document?' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Download PDF' })).toBeEnabled();
+  expect(mutations()).toHaveLength(0);
 });
 
 it.each(['paused', 'loading', 'error'] as const)('does not offer or submit invoice email while effective availability is %s', async status => {
@@ -824,7 +853,7 @@ it.each(['full','deposit'] as const)('keeps handover arrangements in their own s
  let sale=fixturePayment(savedSale({fulfilment:{method:'delivery',viewed:'viewed',address:'25 Test Road',recipient:'Jamie Taylor',phone:'07700900123',scheduledDate:'2026-10-27',timeWindow:'Afternoon',instructions:'',driver:'',stage:'booked'}}),kind==='full'?'10000':'500',kind==='full'?'final-payment':'deposit');
  sale=fixtureCommand(sale,{action:'issue-invoice',kind,acknowledge:true});const docs=structuredClone(sale.documents),payments=structuredClone(sale.payments);await mountSaved(sale);
  navigateSection('Collection & delivery');expect(screen.getAllByRole('region',{name:'Collection and delivery'})).toHaveLength(1);
- openInvoice();expect(screen.queryByRole('region',{name:'Collection and delivery'})).not.toBeInTheDocument();fireEvent.click(screen.getByRole('button',{name:'Email customer'}));await screen.findByText('Document emailed to the customer.');
+ openInvoice();expect(screen.queryByRole('region',{name:'Collection and delivery'})).not.toBeInTheDocument();fireEvent.click(screen.getByRole('button',{name:'Email customer'}));confirmDocumentEmail();await screen.findByText('Document emailed to the customer.');
  navigateSection('Collection & delivery');expect(screen.getAllByRole('region',{name:'Collection and delivery'})).toHaveLength(1);expect(state.sales[0].documents).toEqual(docs);expect(state.sales[0].payments).toEqual(payments);expect(state.pdf).not.toHaveBeenCalled();
 });
 
@@ -1055,9 +1084,57 @@ it('confirms a short deposit explicitly, reserves only after confirmation and of
  expect(screen.getByRole('button',{name:'Send deposit confirmation'})).toBeVisible();
  expect(mutations().filter(([url])=>String(url).endsWith('/email'))).toHaveLength(0);
  fireEvent.click(screen.getByRole('button',{name:'Send deposit confirmation'}));
+ confirmDocumentEmail('buyer@example.invalid');
  await screen.findByText('Deposit confirmation emailed to the customer.');
  fireEvent.click(screen.getByRole('button',{name:'Back to sale'}));
  expect(screen.getByRole('button',{name:'Take the next payment'})).toBeVisible();
+});
+
+it('keeps the balance and the native deposit action in one phone footer', async () => {
+ vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
+   matches: query === '(max-width: 760px)', addEventListener: vi.fn(), removeEventListener: vi.fn(),
+ })));
+ try {
+   let sale = savedSale();
+   sale = requestSalePayment(sale, {kind:'deposit', amount:'500', dueDate: new Date().toLocaleDateString('en-CA', {timeZone:'Europe/London'}), note:''}, context()).sale;
+   sale.paymentRequests![0].sharedAt = context().now;
+   await mountSaved(sale);
+   const footer = screen.getByRole('contentinfo', {name:'Sale summary and actions'});
+   const balance = within(footer).getByRole('button', {name:/Left to pay.*£10,000.00/});
+   expect(balance).toHaveAttribute('aria-expanded', 'false');
+   expect(screen.queryByRole('region', {name:'Payment breakdown'})).not.toBeInTheDocument();
+   fireEvent.click(balance);
+   const breakdown = within(footer).getByRole('region', {name:'Payment breakdown'});
+   expect(breakdown).toHaveTextContent('Agreed total');
+   expect(breakdown).toHaveTextContent('Payments received');
+   fireEvent.keyDown(breakdown, {key:'Escape'});
+   expect(balance).toHaveFocus();
+   expect(balance).toHaveAttribute('aria-expanded', 'false');
+
+   const recordDeposit = screen.getByRole('button', {name:'Record the deposit'});
+   expect(footer).toContainElement(recordDeposit);
+   fireEvent.click(recordDeposit);
+   expect(screen.getByRole('heading', {name:'Take a deposit'})).toHaveFocus();
+   const saveDeposit = screen.getByRole('button', {name:'Save £500.00 deposit'}) as HTMLButtonElement;
+   expect(footer).toContainElement(saveDeposit);
+   expect(saveDeposit.form).toContainElement(screen.getByLabelText('Payment amount (£)'));
+   expect(saveDeposit).toBeDisabled();
+   fireEvent.click(screen.getByRole('checkbox', {name:/I have checked that this money/}));
+   fireEvent.click(saveDeposit);
+   const reserve = screen.getByRole('dialog');
+   expect(state.sales[0].payments).toHaveLength(0);
+   fireEvent.click(within(reserve).getByRole('button', {name:'Go back'}));
+   await waitFor(() => expect(saveDeposit).toHaveFocus());
+   fireEvent.click(saveDeposit);
+   fireEvent.click(screen.getByRole('button', {name:'Confirm £500.00 & reserve car'}));
+   await within(footer).findByRole('button', {name:'Send deposit confirmation'});
+   expect(within(footer).getByRole('button', {name:/Left to pay.*£9,500.00/})).toBeVisible();
+   expect(state.sales[0].lifecycle?.status).toBe('reserved');
+   await pay('9500', 'final-payment', 'Bank transfer');
+   expect(within(footer).getByRole('button', {name:/Balance settled.*£0.00/})).toBeVisible();
+ } finally {
+   vi.unstubAllGlobals();
+ }
 });
 
 it('warns before recording a second payment with the same amount date method and reference', async () => {

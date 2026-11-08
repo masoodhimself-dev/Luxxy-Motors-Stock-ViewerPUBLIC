@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { db, pool } from "@workspace/db";
 import {
   SaleWorkspaceError,
+  saleDocumentEmailRecipientProblem,
   type SaleWorkspaceRecord,
   type SaleWorkspaceDocument,
 } from "@workspace/vehicle-meta";
@@ -103,6 +104,10 @@ function assertCurrentPaymentRequest(record: SaleWorkspaceRecord, document: Sale
   const request = record.paymentRequests?.find(row => row.documentId === document.id);
   if (!request || !salePaymentRequestAvailable(record, request, new Date().toISOString()) || salePaymentRequestRemaining(record, request) !== request.amountPence) throw new SaleWorkspaceError('This request has changed or money has already been received. Open the current payment details before sending.', 409);
 }
+function assertCurrentRecipient(record: SaleWorkspaceRecord, document: SaleWorkspaceDocument) {
+  const problem = saleDocumentEmailRecipientProblem(record.draft, document.snapshot.draft);
+  if (problem) throw new SaleWorkspaceError(problem, 409);
+}
 async function renderInvoice(
   record: SaleWorkspaceRecord,
   document: SaleWorkspaceDocument,
@@ -110,10 +115,6 @@ async function renderInvoice(
 ): Promise<EmailRequest & { bodyText?: string }> {
   const buyer = document.snapshot.draft,
     to = buyer.email.trim();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to))
-    throw new SaleWorkspaceError(
-      "The issued document needs a valid customer email. Issue an updated document after correcting the email.",
-    );
   // The attachment remains the exact issued document. Its accompanying new
   // correspondence uses today's published contact identity, so a converted
   // dealership does not reintroduce its old demo name or reply details.
@@ -217,8 +218,9 @@ export async function approveSaleDocumentEmail(
       409,
     );
   if (known) return { sale: await store.get(initial.id), replayed: true };
-  const { document, archive } = issued(initial, input.documentId),
-    config = options.config ?? (await dealerIntegrationsStore.readPrivate());
+  const { document, archive } = issued(initial, input.documentId);
+  assertCurrentRecipient(initial, document);
+  const config = options.config ?? (await dealerIntegrationsStore.readPrivate());
   const rendered = await (options.render ?? renderInvoice)(
     initial,
     document,
@@ -271,6 +273,7 @@ export async function approveSaleDocumentEmail(
       );
     const frozen = issued(current, input.documentId);
     assertCurrentPaymentRequest(current, frozen.document);
+    assertCurrentRecipient(current, frozen.document);
     if (
       hash(JSON.stringify(frozen.document)) !==
         hash(JSON.stringify(document)) ||
@@ -409,6 +412,7 @@ export async function rebuildSaleDocumentOutbox(
   if (!record) throw new Error("The invoice sale is unavailable.");
   const { document, archive } = issued(record, c.documentId);
   assertCurrentPaymentRequest(record, document);
+  assertCurrentRecipient(record, document);
   if (c.templateId === 'deposit_confirmation' && saleDocumentEmailTemplate(record, document) !== 'deposit_confirmation') throw new Error('The deposit or reservation changed. Review the receipt before sending a new confirmation.');
   if (
     hash(JSON.stringify(document)) !== c.documentHash ||

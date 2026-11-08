@@ -249,6 +249,7 @@ function PortalDesk() {
   const { user } = useUser();
   const [salesOpened, setSalesOpened] = useState(tab === "sales");
   const [newSaleRequest, setNewSaleRequest] = useState(0);
+  const [practiceSaleRequest, setPracticeSaleRequest] = useState(0);
   const [newSaleVehicleId, setNewSaleVehicleId] = useState<string | null>(null);
   const [quickEnquiryOpen, setQuickEnquiryOpen] = useState(false);
   const [quickBookTestDrive, setQuickBookTestDrive] = useState(false);
@@ -421,6 +422,15 @@ function PortalDesk() {
     navigate("/portal?section=sales");
     setNewSaleRequest((request) => request + 1);
   }
+  function practiceSale() {
+    if (!canSell || !confirmSettingsNavigation()) return;
+    if (tab !== "sales") {
+      setSalesOpened(true);
+      setTab("sales");
+      navigate("/portal?section=sales");
+    }
+    setPracticeSaleRequest(request => request + 1);
+  }
   function quickEnquiry(vehicleId?: string, bookTestDrive = false) {
     if (!canSell) return;
     quickEnquiryTrigger.current =
@@ -460,6 +470,7 @@ function PortalDesk() {
             quickEnquiryTrigger.current = quickActionsTrigger.current;
           }}
           onSale={newSale}
+          onPracticeSale={practiceSale}
           onWriteLetter={() =>
             openCorrespondence("letter", quickActionsTrigger.current)
           }
@@ -653,7 +664,7 @@ function PortalDesk() {
                   embedded
                   quickActions={<PortalQuickActions canManage={canSell} bookingEnabled={bookingEnabled} vehicle={actionVehicle} triggerRef={salesQuickActionsTrigger}
                     onEnquiry={(vehicleId,bookTestDrive)=>{quickEnquiry(vehicleId,bookTestDrive);quickEnquiryTrigger.current=salesQuickActionsTrigger.current;}}
-                    onSale={newSale} onMot={()=>setMotLookupOpen(true)}
+                    onSale={newSale} onPracticeSale={practiceSale} onMot={()=>setMotLookupOpen(true)}
                     onWriteLetter={()=>openCorrespondence("letter", salesQuickActionsTrigger.current)}
                     onWriteEmail={canWriteEmail
                       ? () => openCorrespondence("email", salesQuickActionsTrigger.current)
@@ -661,6 +672,7 @@ function PortalDesk() {
                     onCalendar={()=>go('/portal?section=notifications&workView=test-drives&deskView=calendar')}
                     onDrafts={()=>go('/portal?section=notifications&workView=email&view=drafts')}/>}
                   newSaleRequest={newSaleRequest}
+                  practiceSaleRequest={practiceSaleRequest}
                   newSaleVehicleId={newSaleVehicleId}
                   onExit={() => {
                     setTab("notifications");

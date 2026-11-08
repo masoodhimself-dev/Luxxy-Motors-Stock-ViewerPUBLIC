@@ -174,7 +174,7 @@
 .sales-flow-breakdown .sales-flow-breakdown-total { margin-top:8px; padding-top:16px; border-top:1px solid #dce3e8; }
 .sales-flow-breakdown .sales-flow-breakdown-balance { margin-top:12px; padding-top:18px; border-top:1px solid #dce3e8; display:block; }
 .sales-flow-breakdown .sales-flow-breakdown-balance dd { font-size:32px; line-height:1.5; }
-.sales-flow-breakdown [data-tone='paid'] :is(dt,dd) { color:#176347; }
+.sales-flow-breakdown [data-tone='paid'] :is(dt,dd) { color:var(--invoice-ink); }
 .sales-flow-breakdown [data-tone='due'] dd { color:#88570c; }
 .sales-flow-breakdown > p { font-size:13px; line-height:1.6; color:#5d6b76; }
 .sales-flow-requested { padding:12px 14px; background:#edf5fb; border-left:3px solid #245ca5; }
@@ -193,28 +193,12 @@
 }
 @media(max-width:760px) {
   .invoice-builder.sales-flow .sale-desk-body { display:flex; flex-direction:column; }
-  .sales-flow-breakdown { order:-1; position:static; width:100%; padding:16px; }
   .sales-flow-context { order:-2; }
-  .sales-flow-breakdown dl { display:flex; flex-wrap:wrap; gap:8px 20px; }
-  .sales-flow-breakdown dl > div { flex:1 1 40%; padding:3px 0; display:block; }
-  .sales-flow-breakdown .sales-flow-breakdown-total { margin:0; padding:3px 0; border:0; }
-  .sales-flow-breakdown .sales-flow-breakdown-balance { padding:8px 0 0; margin:0; flex-basis:100%; display:flex; }
-  .sales-flow-breakdown .sales-flow-breakdown-balance dd { font-size:25px; }
-  .sales-flow-breakdown h2 { font-size:16px; margin-bottom:10px; }
-  .sales-flow-next > .db-btn { white-space:normal; }
 }
 
 .invoice-builder.sales-flow .sales-flow-timeline { display:block; }
 .invoice-builder.sales-flow .sales-flow-timeline ol { margin-top:12px; }
 .invoice-builder.sales-flow .invoice-payment-form :is(input:not([type='checkbox']), select) { font-size:16px; min-height:46px; }
-.sales-flow-money-details > summary { list-style:none; font-size:18px; font-weight:700; margin-bottom:16px; }
-.sales-flow-money-details > summary::-webkit-details-marker { display:none; }
-@media(max-width:760px) {
-  .sales-flow-money-details > summary { font-size:16px; cursor:pointer; margin:0; display:flex; justify-content:space-between; }
-  .sales-flow-money-details > summary::after { content:'+'; }
-  .sales-flow-money-details[open] > summary { margin-bottom:12px; }
-  .sales-flow-money-details[open] > summary::after { content:'−'; }
-}
 @media(min-width:1100px) {
   .invoice-builder.sales-flow .sale-desk-section-heading { margin-bottom:8px; }
   .invoice-builder.sales-flow .sales-flow-next { padding:12px 0; }
@@ -224,4 +208,97 @@
   .invoice-builder.sales-flow .sales-flow-menu-icon { width:24px; height:24px; }
   .invoice-builder.sales-flow .sales-flow-menu strong { font-size:16px; }
   .invoice-builder.sales-flow .sales-flow-menu small { font-size:13px; }
+}
+
+/* Keep the same money figures within reach on every sale screen. */
+.sales-flow .sales-flow-money {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px 16px;
+  max-width: 820px;
+  margin-inline: auto;
+}
+.sales-flow .sales-flow-money > span { min-width: 0; overflow-wrap: anywhere; }
+.sales-flow .sales-flow-money strong { display: block; margin: 2px 0 0; font-size: 14px; }
+.sales-flow .sales-flow-money-balance[data-due='true'] strong { color: #88570c; }
+.sales-enquiry-review { margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid #dce3e8; }
+.sales-enquiry-review p { margin: 0 0 12px; color: #536370; }
+.sales-receipt-reference { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: #536370; overflow-wrap: anywhere; }
+.sale-invoice-group { border: 1px solid #dce3e8; background: #f7f9fb; border-radius: 8px; padding: 12px 16px 0; margin-block: 12px; }
+.sale-invoice-group h3 { margin: 0 0 8px; font-size: 15px; }
+.sale-invoice-group .sale-saved-document { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding-block: 10px; border-top: 1px solid #dce3e8; }
+.sale-invoice-group .sale-saved-document > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.sales-flow-mobile-footer {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 8px;
+  padding: 8px max(12px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  border-top: 1px solid var(--invoice-line);
+  background: #fff;
+}
+.sales-flow-mobile-footer[data-has-balance='true'] {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+}
+.sales-flow-mobile-balance {
+  display: flex;
+  grid-column: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 48px;
+  padding: 4px 8px;
+  border: 1px solid var(--invoice-line);
+  border-radius: 7px;
+  background: #f7f9fb;
+  color: #50616e;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+.sales-flow-mobile-balance strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--invoice-ink);
+  font-size: clamp(15px, 4.8vw, 21px);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.sales-flow-mobile-balance[data-due='true'] strong { color: #88570c; }
+.sales-flow-mobile-balance svg { flex: none; transform: rotate(180deg); }
+.sales-flow-mobile-balance[aria-expanded='true'] svg { transform: none; }
+.sales-flow-mobile-balance:focus-visible, .sales-flow-mobile-breakdown:focus-visible {
+  outline: 2px solid #245ca5;
+  outline-offset: 2px;
+}
+.sales-flow-mobile-breakdown {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  position: static;
+  max-height: min(42dvh, 390px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 12px 14px;
+}
+.sales-flow-mobile-breakdown h2 { margin-bottom: 8px; font-size: 16px; }
+.sales-flow-mobile-breakdown dl > div { padding-block: 5px; }
+.sales-flow-mobile-breakdown .sales-flow-breakdown-total,
+.sales-flow-mobile-breakdown .sales-flow-breakdown-balance { display: flex; margin-top: 5px; padding-top: 9px; }
+.sales-flow-mobile-breakdown .sales-flow-breakdown-balance dd { font-size: 19px; }
+.sales-flow .sales-flow-mobile-action > .db-btn {
+  width: 100%;
+  height: 100%;
+  min-height: 48px;
+  padding: 7px 10px;
+  text-align: center;
+  white-space: normal;
+}
+.sales-flow-mobile-action > .db-btn > svg { flex: none; }
+
+@media (max-width: 570px) {
+  .sales-flow .sale-queue-filters { gap: 4px; }
+  .sales-flow .sale-queue-filters button { padding-inline: 8px; font-size: 12px; }
+  .sales-flow .sale-queue-owner-filter { align-items: flex-start; gap: 4px; }
 }

@@ -36,7 +36,7 @@ router.get('/website-assets/:id', async (req, res) => {
     const image = await readDealerWebsiteAsset(req.params.id);
     if (!image) { res.set('Cache-Control', 'no-store').status(404).end(); return; }
     const extension = image.mimeType === 'image/jpeg' ? 'jpg' : image.mimeType.slice('image/'.length);
-    res.set({ 'Cache-Control': currentTenant()?.demo ? 'no-store' : 'public, max-age=31536000, immutable', 'Content-Type': image.mimeType, 'Content-Length': String(image.byteSize), 'Content-Disposition': `inline; filename="website-image.${extension}"`, ETag: `"${image.digest}"` });
+    res.set({ 'Cache-Control': currentTenant()?.demo || currentTenant()?.kind === 'preview' ? 'no-store' : 'public, max-age=31536000, immutable', 'Content-Type': image.mimeType, 'Content-Length': String(image.byteSize), 'Content-Disposition': `inline; filename="website-image.${extension}"`, ETag: `"${image.digest}"` });
     if (req.fresh) { res.status(304).end(); return; }
     res.send(image.bytes);
   } catch {

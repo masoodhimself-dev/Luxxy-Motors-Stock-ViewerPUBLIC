@@ -39,6 +39,7 @@ export function PortalQuickActions({
   triggerRef,
   onEnquiry,
   onSale,
+  onPracticeSale,
   onWriteLetter,
   onWriteEmail,
   onMot,
@@ -51,6 +52,7 @@ export function PortalQuickActions({
   triggerRef: RefObject<HTMLButtonElement | null>;
   onEnquiry: (vehicleId?: string, bookTestDrive?: boolean) => void;
   onSale: (vehicleId?: string) => void;
+  onPracticeSale?: () => void;
   onWriteLetter?: () => void;
   onWriteEmail?: () => void;
   onMot: () => void;
@@ -154,6 +156,12 @@ export function PortalQuickActions({
             <DropdownMenuItem data-action="mot" onSelect={onMot}>
               <CheckCircle2 size={18} />
               <span>Check MOT</span>
+            </DropdownMenuItem>
+          )}
+          {canManage && onPracticeSale && (
+            <DropdownMenuItem data-action="practice-sale" onSelect={onPracticeSale}>
+              <Sale size={18} aria-hidden="true" />
+              <span>Try with a real car</span>
             </DropdownMenuItem>
           )}
           <DropdownMenuItem data-action="calendar" onSelect={onCalendar}>

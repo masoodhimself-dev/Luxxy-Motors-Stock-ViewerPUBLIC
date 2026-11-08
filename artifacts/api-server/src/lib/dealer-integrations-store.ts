@@ -26,6 +26,9 @@ import {
   currentInvoiceSettings,
   invoiceTextLimits,
   compactInvoiceStyle,
+  defaultSalePaymentDefaults,
+  salePaymentShareMethods,
+  type SalePaymentDefaults,
   type StockConnection,
   defaultEmailAppearance,
   defaultEmailTemplates,
@@ -74,6 +77,7 @@ export type PrivateDealerSettings = {
     saleTerms: string;
     reservationTerms: string;
     invoiceSettings?: InvoiceSettings;
+    paymentDefaults?: SalePaymentDefaults;
     correctionSettings?: { handling: "accountant"; instructions: string };
   };
   stockConnection?: StockConnection;
@@ -546,6 +550,7 @@ export class DealerIntegrationsStore {
       invoiceSettings: currentInvoiceSettings(
         state.salesPaperwork?.invoiceSettings,
       ),
+      paymentDefaults: state.salesPaperwork?.paymentDefaults ?? defaultSalePaymentDefaults,
       correctionSettings: {
         handling: "accountant" as const,
         instructions: state.salesPaperwork?.correctionSettings?.instructions ?? "",
@@ -558,6 +563,10 @@ export class DealerIntegrationsStore {
         expectedRevision: z.number().int().nonnegative(),
         saleTerms: z.string().trim().max(20000),
         reservationTerms: z.string().trim().max(20000),
+        paymentDefaults: z.object({
+          suggestedDepositPence: z.number().int().positive().nullable(),
+          preferredShare: z.enum(salePaymentShareMethods),
+        }).strict().optional(),
         correctionSettings: z.object({
           handling: z.literal("accountant"),
           instructions: z.string().trim().max(500),
@@ -621,6 +630,7 @@ export class DealerIntegrationsStore {
         saleTerms: parsed.data.saleTerms,
         reservationTerms: parsed.data.reservationTerms,
         invoiceSettings: options,
+        paymentDefaults: parsed.data.paymentDefaults ?? state.salesPaperwork?.paymentDefaults ?? defaultSalePaymentDefaults,
         correctionSettings: parsed.data.correctionSettings ?? state.salesPaperwork?.correctionSettings ?? { handling: "accountant", instructions: "" },
       };
       state.revision++;

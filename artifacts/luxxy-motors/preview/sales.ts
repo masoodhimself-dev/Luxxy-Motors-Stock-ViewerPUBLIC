@@ -15,8 +15,14 @@ import {
   saleWorkspaceBranding,
   saleWorkspaceFingerprint,
   saleWorkspaceTotals,
+  saleHandoverStatus,
+  saleQueueFilters,
+  saleQueueStatus,
+  saleQueueToday,
   saleWorkspaceNumber,
   SaleWorkspaceError,
+  dailySalePaymentsOptions,
+  previewDailySalePayments,
   type SaleWorkspaceBranding,
   type SaleWorkspaceVehicleSnapshot,
   type SaleWorkspaceCommand,
@@ -30,8 +36,11 @@ import {
   attachInvoiceVerification,
   invoiceVerificationView,
 } from "../../api-server/src/lib/invoice-verification";
-import { readPreviewSettings, readPreviewBookingState } from "./reservations";
+import { previewAssignment, readPreviewSettings, readPreviewBookingState } from "./reservations";
 import { previewStock } from "./stock";
+import { saleListStage } from "../../api-server/src/lib/sale-list-stage";
+
+const previewSalesActorId = "preview-alex";
 
 export type PreviewSalesState = {
   schemaVersion: 1;
@@ -273,7 +282,8 @@ export class PreviewSaleWorkspaceStore {
       }
       const context: SaleWorkspaceContext = {
         now,
-        actor: input.actor ?? "Showroom staff",
+        actor: input.actor ?? previewAssignment(previewSalesActorId).assignedToName ?? "Showroom staff",
+        actorId: previewSalesActorId,
         nextId: randomUUID,
         nextNumber: (type) =>
           saleWorkspaceNumber(
@@ -598,11 +608,21 @@ export async function salesPreview(
         saleTerms: p.saleTerms,
         reservationTerms: p.reservationTerms,
         invoiceSettings: p.invoiceSettings,
+        paymentDefaults: p.paymentDefaults,
       });
       return true;
     }
+    if (req.method === "GET" && url.pathname === "/api/sale-workspace/daily-payments") {
+      const options = dailySalePaymentsOptions(
+        url.searchParams.get('date') ?? undefined,
+        url.searchParams.get('confirmedOffset') ?? undefined,
+        url.searchParams.get('pendingOffset') ?? undefined,
+      );
+      send(res, 200, previewDailySalePayments(await store.list(), options));
+      return true;
+    }
     const route =
-      /^\/api\/sale-workspace(?:\/([^/]+))?(?:\/(payments|documents|handover|fulfilment|take-deposit|complete-sale|invoice-payments|issue-invoice|finish-invoice-sale|checklists))?(?:\/([^/]+)\/(confirm|reverse))?$/.exec(
+      /^\/api\/sale-workspace(?:\/([^/]+))?(?:\/(payments|documents|handover|fulfilment|take-deposit|complete-sale|invoice-payments|issue-invoice|finish-invoice-sale|checklists|team))?(?:\/([^/]+)\/(confirm|reverse))?$/.exec(
         url.pathname,
       );
     if (!route) throw new SaleWorkspaceError("Sale action not found.", 404);
@@ -612,8 +632,34 @@ export async function salesPreview(
       const q=(url.searchParams.get('q')??'').trim(),offset=Number(url.searchParams.get('offset')??0),enquiryId=url.searchParams.get('enquiryId'),reservationId=url.searchParams.get('reservationId');
       if(q.length>120||!Number.isSafeInteger(offset)||offset<0||offset>10000)throw new SaleWorkspaceError('Check the sales search or page.',400);
       const digits=/^[+0-9 ().-]+$/.test(q)?q.replace(/\D/g,''):'';
-      const rows=(await store.list()).filter(sale=>(!enquiryId||sale.draft.sourceEnquiryId===enquiryId)&&(!reservationId||sale.draft.sourceReservationId===reservationId)&&(!q||sale.id===q||sale.draft.sourceEnquiryId===q||sale.draft.sourceReservationId===q||`${sale.reference} ${sale.draft.customer} ${sale.draft.email} ${sale.draft.vehicle} ${sale.draft.registration}`.toLowerCase().includes(q.toLowerCase())||(digits&&sale.draft.phone.replace(/\D/g,'').includes(digits)))).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)||b.id.localeCompare(a.id));
-      const sales=rows.slice(offset,offset+50).map(sale=>({listSummary:true,listTotalDue:saleWorkspaceTotals(sale.draft,[]).totalDue,id:sale.id,reference:sale.reference,revision:sale.revision,createdAt:sale.createdAt,updatedAt:sale.updatedAt,completedAt:sale.completedAt,lifecycle:sale.lifecycle,emptyDraftDeletable:sale.emptyDraftDeletable,draft:{id:sale.draft.id,customer:sale.draft.customer,email:sale.draft.email,phone:sale.draft.phone,vehicleId:sale.draft.vehicleId,vehicle:sale.draft.vehicle,registration:sale.draft.registration,sourceEnquiryId:sale.draft.sourceEnquiryId,sourceReservationId:sale.draft.sourceReservationId},documents:[],payments:[],events:[]}));
+      const { queue, owner } = saleQueueFilters(url.searchParams.get('queue') ?? 'all', url.searchParams.get('owner') ?? 'all');
+      const today = saleQueueToday(new Date());
+      const rows = (await store.list()).map(sale => ({ sale, status: saleQueueStatus(sale, today) })).filter(({ sale, status }) =>
+        (queue === 'all' || (queue === 'attention' && status.attention) || (queue === 'open' && !status.closed) || (queue === 'closed' && status.closed)) &&
+        (owner === 'all' || (owner === 'mine' && sale.team?.ownerId === previewSalesActorId) || (owner === 'unassigned' && !sale.team?.ownerId)) &&
+        (!enquiryId || sale.draft.sourceEnquiryId === enquiryId) && (!reservationId || sale.draft.sourceReservationId === reservationId) &&
+        (!q || sale.id === q || sale.draft.sourceEnquiryId === q || sale.draft.sourceReservationId === q ||
+          `${sale.reference} ${sale.draft.customer} ${sale.draft.email} ${sale.draft.vehicle} ${sale.draft.registration}`.toLowerCase().includes(q.toLowerCase()) ||
+          sale.documents.some(document => document.number.toLowerCase().includes(q.toLowerCase())) ||
+          (digits && sale.draft.phone.replace(/\D/g, '').includes(digits))))
+        .sort((a, b) => b.sale.updatedAt.localeCompare(a.sale.updatedAt) || b.sale.id.localeCompare(a.sale.id));
+      const sales = rows.slice(offset, offset + 50).map(({ sale, status }) => {
+        const { draft } = sale, totals = saleWorkspaceTotals(draft, sale.payments);
+        const hasInvoice = sale.documents.some(document => document.type === 'invoice');
+        return {
+          listSummary: true, listTotalDue: totals.totalDue, listPaid: totals.confirmedPaid, listPending: totals.pending,
+          listBalance: totals.balance, listLedgerKnown: true, listStage: saleListStage(sale, hasInvoice),
+          listHasInvoice: hasInvoice, listHasCorrectionNotes: Boolean(sale.corrections?.length),
+          listHasRefunds: sale.payments.some(payment => payment.status === 'confirmed' && payment.signedAmountPence < 0),
+          listHandover: draft.fulfilment ? { method: draft.fulfilment.method, status: saleHandoverStatus(draft.fulfilment) } : null,
+          listOwnerId: sale.team?.ownerId ?? null, listOwnerName: sale.team?.ownerName ?? '', listHasTeamNote: Boolean(sale.team?.note), listAttention: status.attention,
+          id: sale.id, reference: sale.reference, revision: sale.revision, createdAt: sale.createdAt, updatedAt: sale.updatedAt,
+          completedAt: sale.completedAt, lifecycle: sale.lifecycle, emptyDraftDeletable: sale.emptyDraftDeletable,
+          draft: { id: draft.id, customer: draft.customer, email: draft.email, phone: draft.phone, vehicleId: draft.vehicleId, vehicle: draft.vehicle,
+            registration: draft.registration, sourceEnquiryId: draft.sourceEnquiryId, sourceReservationId: draft.sourceReservationId },
+          documents: [], payments: [], events: [],
+        };
+      });
       send(res,200,{sales,hasMore:offset+50<rows.length,preview:true});
       return true;
     }
@@ -630,6 +676,11 @@ export async function salesPreview(
     if (req.method === "PUT" && id && !section)
       command = { action: "update", draft: input.draft };
     if (req.method === "POST" && id) {
+      if (section === "team") {
+        const sale = await store.get(id);
+        const ownerName = input.ownerId === sale.team?.ownerId ? sale.team?.ownerName : previewAssignment(input.ownerId).assignedToName ?? '';
+        command = { action: "team", ownerId: input.ownerId, note: input.note, ownerName };
+      }
       if (section === "fulfilment")
         command = { action: "fulfilment", fulfilment: input.fulfilment };
       if (section === "checklists")

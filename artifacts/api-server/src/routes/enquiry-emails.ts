@@ -20,8 +20,10 @@ import {
   approvedEmailLayoutVersion,
   type EmailLayoutVersion,
   vehicleRegistrationLabel,
+  saleDocumentEmailRecipientProblem,
   type EmailFacts,
   type SaleWorkspaceDocument,
+  type SaleWorkspaceDraft,
 } from "@workspace/vehicle-meta";
 import {
   requireStaff,
@@ -184,7 +186,7 @@ async function invoiceAttachments(
   if (!enquiry.vehicleId) return [];
   const rows = (
     await executor.execute(
-      sql`SELECT id,state->'documents' AS documents,CASE WHEN ${content} THEN state->'documentArchives' ELSE NULL END AS archives FROM sale_workspace WHERE dealer_id=${enquiry.dealerId} AND state#>>'{draft,vehicleId}'=${enquiry.vehicleId} AND (state#>>'{draft,sourceEnquiryId}'=${enquiry.id} OR (${enquiry.email ?? ""}<>'' AND lower(state#>>'{draft,email}')=lower(${enquiry.email ?? ""}))) ORDER BY updated_at DESC LIMIT 20`,
+      sql`SELECT id,state->'draft' AS current_buyer,state->'documents' AS documents,CASE WHEN ${content} THEN state->'documentArchives' ELSE NULL END AS archives FROM sale_workspace WHERE dealer_id=${enquiry.dealerId} AND state#>>'{draft,vehicleId}'=${enquiry.vehicleId} AND (state#>>'{draft,sourceEnquiryId}'=${enquiry.id} OR (${enquiry.email ?? ""}<>'' AND lower(state#>>'{draft,email}')=lower(${enquiry.email ?? ""}))) ORDER BY updated_at DESC LIMIT 20`,
     )
   ).rows;
   return rows
@@ -193,6 +195,8 @@ async function invoiceAttachments(
         .filter(
           (doc) =>
             doc.type === "invoice" &&
+            Boolean(row.current_buyer) &&
+            !saleDocumentEmailRecipientProblem(row.current_buyer as Pick<SaleWorkspaceDraft, 'customer' | 'email'>, doc.snapshot.draft) &&
             doc.snapshot.draft.customer.trim().toLowerCase() ===
               enquiry.customerName.trim().toLowerCase() &&
             (!enquiry.email ||
@@ -403,6 +407,9 @@ async function preview(
             "An invoice is not available for this customer and car. Review its sale record.",
             409,
           );
+        if (item.document.snapshot.draft.email.trim().toLowerCase() !== input.to.trim().toLowerCase()) {
+          throw new EmailError("The saved invoice has a different recipient. Check the email address or remove the invoice attachment.", 409);
+        }
         const archive = item.archive ?? archiveSaleDocument(item.document);
         attachments.push({
           id,

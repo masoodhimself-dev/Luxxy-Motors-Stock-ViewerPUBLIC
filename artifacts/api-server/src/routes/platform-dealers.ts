@@ -25,6 +25,8 @@ import { importSecretDigest } from '../middlewares/tenant';
 import { importActivityDetails } from '../lib/platform-import-activity';
 import { newDealerSettings } from './dealer-settings';
 import { platformStockConnection } from '../lib/platform-stock-connection';
+import platformStockUploadRouter from './platform-stock-upload';
+import { platformStockUploadBlock, readPlatformStockUploadTarget } from '../lib/platform-stock-upload';
 const router = Router();
 router.use((req, res, next) => {
   res.set('Cache-Control', 'no-store');
@@ -33,6 +35,7 @@ router.use((req, res, next) => {
 });
 router.use('/dealers/:id/invitations', accountInvitationManagementRouter('platform'));
 router.use(platformFeaturesRouter);
+router.use(platformStockUploadRouter);
 router.use(platformOnboardingKeysRouter);
 router.use(platformDemosRouter);
 router.use(platformConversionRouter);
@@ -90,14 +93,17 @@ router.get('/overview', async (_req, res) => {
 router.get('/dealers/:id/workspace', async (req, res) => {
   const [dealer] = await db.select().from(dealershipsTable).where(eq(dealershipsTable.id, req.params.id));
   if (!dealer) { res.status(404).json({ error: 'Dealer not found.' }); return; }
-  const [domains, members, imports, keys, effectiveStockConnection] = await Promise.all([
+  const [domains, members, imports, keys, effectiveStockConnection, uploadTarget] = await Promise.all([
     db.select().from(dealerDomainsTable).where(eq(dealerDomainsTable.dealerId, dealer.id)),
     db.select({ id: portalUsersTable.id, name: portalUsersTable.name, email: portalUsersTable.email, role: portalUsersTable.role, disabledAt: portalUsersTable.disabledAt }).from(portalUsersTable).where(eq(portalUsersTable.dealerId, dealer.id)),
     db.select({ runId: stockImportRunsTable.runId, status: stockImportRunsTable.status, receivedAt: stockImportRunsTable.receivedAt, scrapedAt: stockImportRunsTable.scrapedAt, receivedCount: stockImportRunsTable.receivedCount, updatedAt: stockImportRunsTable.updatedAt, expectedCount: stockImportRunsTable.expectedCount, addedCount: stockImportRunsTable.addedCount, changedCount: stockImportRunsTable.changedCount, missingCount: stockImportRunsTable.missingCount, errors: stockImportRunsTable.errors, source: stockImportRunsTable.source, retailerId: stockImportRunsTable.retailerId }).from(stockImportRunsTable).where(eq(stockImportRunsTable.dealerId, dealer.id)).orderBy(desc(stockImportRunsTable.receivedAt)).limit(30),
     db.select({ id: dealerImportKeysTable.id, createdAt: dealerImportKeysTable.createdAt, disabledAt: dealerImportKeysTable.disabledAt }).from(dealerImportKeysTable).where(eq(dealerImportKeysTable.dealerId, dealer.id)),
     platformStockConnection(dealer),
+    readPlatformStockUploadTarget(dealer.id),
   ]);
-  res.json({ dealer, domains, members, imports, keys, effectiveStockConnection });
+  const isDemo = Boolean(uploadTarget?.demoExpiresAt && !uploadTarget.demoConvertedAt);
+  res.json({ dealer: { ...dealer, isDemo, demoExpiresAt: isDemo ? uploadTarget?.demoExpiresAt : null }, domains, members, imports, keys,
+    effectiveStockConnection, stockUploadAllowed: Boolean(uploadTarget && !platformStockUploadBlock(uploadTarget)) });
 });
 const origin = z.string().url().refine(v => { const u = new URL(v); return u.protocol === 'https:' && (!u.port || u.port === '443') && !u.username && !u.password && u.pathname === '/' && !u.search && !u.hash && Boolean(normaliseTenantHost(u.host)); });
 const creation = z.object({ id: z.string().regex(/^[a-z0-9][a-z0-9-]{1,62}$/), name: z.string().trim().min(1).max(120), canonicalOrigin: origin, platform: z.enum(['autotrader','cazoo']), retailerId: z.string().trim().min(1).max(128), sourceUrl: z.string().url(), ownerAuthUserId: z.string().regex(/^user_[A-Za-z0-9]+$/).optional(), ownerEmail: z.string().email().optional(), useMyAccount: z.boolean().optional(), inviteOwnerEmail: z.string().trim().toLowerCase().email().max(254).optional() }).strict().refine(v => Number(Boolean(v.ownerAuthUserId)) + Number(Boolean(v.ownerEmail)) + Number(v.useMyAccount === true) + Number(Boolean(v.inviteOwnerEmail)) === 1);

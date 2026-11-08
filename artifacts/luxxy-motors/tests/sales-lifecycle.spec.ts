@@ -5,8 +5,8 @@ import {
   type Page,
   type Route,
 } from "@playwright/test";
-import { mkdir } from "node:fs/promises";
-import { archivedPdf, editView, optionalPanel, previewPdf, previewView, saleStep } from "./sales-pdf-fixture";
+import { readFile } from "node:fs/promises";
+import { archivedPdf } from "./sales-pdf-fixture";
 import {
   changeSaleWorkspace,
   createSaleWorkspace,
@@ -26,7 +26,6 @@ test.skip(
 );
 
 const vehicleId = "11111111-1111-4111-8111-111111111111";
-const output = "output/ui-premium/sales-lifecycle";
 const branding: SaleWorkspaceBranding = {
   identity: {
     name: "Fixture Motors",
@@ -98,7 +97,6 @@ class FixtureSalesApi {
     path: string;
     body: Record<string, unknown>;
   }> = [];
-  reservations: unknown[] = [];
   loseNextPaymentResponse = false;
   archives = new Map<string, Buffer>();
   now = new Date().toISOString();
@@ -165,6 +163,8 @@ class FixtureSalesApi {
       const path = new URL(request.url()).pathname;
       const method = request.method();
       if (path.startsWith("/api/sale-workspace")) return this.handle(route);
+      if (/^\/api\/sale-operations\/[^/]+\/calculation-check$/.test(path))
+        return route.fulfill({ json: { status: "unavailable", message: "AI check unavailable in this fixture." } });
       if (path === "/api/portal/session")
         return route.fulfill({
           json: {
@@ -174,8 +174,6 @@ class FixtureSalesApi {
           },
         });
       if (path === "/api/enquiries") return route.fulfill({ json: [] });
-      if (path === "/api/reservations")
-        return route.fulfill({ json: { reservations: this.reservations } });
       if (path === "/api/stock")
         return route.fulfill({
           json: {
@@ -270,7 +268,7 @@ class FixtureSalesApi {
       else if (section === "payments" && !target)
         command = { action: "payment", payment: body.payment };
       else if (section === "payments" && action === "confirm")
-        command = { action: "confirm", paymentId: target, date: body.date, reserveVehicle: body.reserveVehicle === true };
+        command = { action: "confirm", paymentId: target, date: body.date, reserveVehicle: body.reserveVehicle === true, reserveConfirmed: body.reserveConfirmed === true, acceptShortfall: body.acceptShortfall === true };
       else if (section === "payments" && action === "reverse")
         command = {
           action: "reverse",
@@ -279,8 +277,14 @@ class FixtureSalesApi {
           date: body.date,
           ...(body.amount !== undefined ? { amount: body.amount } : {}),
           ...(body.kind ? { kind: body.kind } : {}),
+          ...(body.method ? { method: body.method } : {}),
+          invoiceOnly: body.invoiceOnly === true,
         };
       else if (section === "take-deposit") command = { action: "take-deposit", payment: body.payment };
+      else if (section === "invoice-payments") command = { action: "invoice-payment", payment: body.payment };
+      else if (section === "issue-invoice") command = { action: "issue-invoice", kind: body.kind, acknowledge: body.acknowledge };
+      else if (section === "finish-invoice-sale") command = { action: "finish-invoice-sale", acknowledge: body.acknowledge, acknowledgeOutstanding: body.acknowledgeOutstanding };
+      else if (section === "fulfilment") command = { action: "fulfilment", fulfilment: body.fulfilment };
       else if (section === "complete-sale") command = { action: "complete-sale", acknowledge: body.acknowledge };
       else if (section === "documents")
         command = { action: "document", type: body.type };
@@ -305,7 +309,7 @@ class FixtureSalesApi {
       );
       this.sales.set(id, result.sale);
       this.archive(result.sale);
-      if ((section === "payments" || section === "take-deposit") && !target && this.loseNextPaymentResponse) {
+      if ((section === "payments" || section === "take-deposit" || section === "invoice-payments") && !target && this.loseNextPaymentResponse) {
         this.loseNextPaymentResponse = false;
         return route.fulfill({
           status: 503,
@@ -331,561 +335,287 @@ class FixtureSalesApi {
   }
 }
 
+const customerName = "Customer’s full name";
+
 async function openSale(page: Page, customer = "Alex Lifecycle") {
   await page.goto("/portal?section=sales");
   await page.getByRole("button", { name: new RegExp(customer) }).click();
-  await expect(page.getByLabel("Customer name", { exact: true })).toHaveValue(
-    customer,
-  );
+  await expect(page.getByRole("heading", { name: "What would you like to do?" })).toBeVisible();
+  await expect(page.locator(".sales-flow-context")).toContainText(customer);
 }
 
-async function resetCapturePosition(page: Page) {
-  await page.evaluate(async () => {
-    // Let the workspace's focus/scroll callback finish before capturing the whole document.
-    await new Promise<void>((resolve) =>
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-    );
-    if (document.activeElement instanceof HTMLElement)
-      document.activeElement.blur();
-    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-  });
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+async function menu(page: Page) {
+  if (await page.getByRole("heading", { name: "What would you like to do?" }).isVisible()) return;
+  await page.getByRole("navigation", { name: "Sale steps" }).getByRole("button", { name: "Choose what to do" }).click();
 }
 
-async function payment(
-  page: Page,
-  amount: string,
-  kind: string,
-  method = "Bank transfer",
-  received = true,
-) {
-  await editView(page);
-  await saleStep(page, "Payments");
-  await page.getByRole("button", { name: "Record payment", exact: true }).click();
-  const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Payment amount (£)", { exact: true }).fill(amount);
-  await dialog
-    .getByRole("combobox", { name: "Payment method", exact: true })
-    .selectOption(method);
-  await dialog.getByLabel("Payment date", { exact: true }).fill("2026-10-04");
-  await dialog.locator(".sales-payment-options > summary").click();
-  await dialog
-    .getByLabel("Payment reference", { exact: true })
-    .fill(`FIXTURE-${kind}`);
-  await dialog
-    .getByRole("combobox", { name: "Payment type", exact: true })
-    .selectOption(kind);
-  await dialog
-    .getByRole("checkbox", { name: /^Money received/ })
-    .setChecked(received);
-  await dialog
-    .getByRole("button", {
-      name: received ? "Save & view receipt" : "Save pending payment",
-      exact: true,
-    })
-    .click();
-  await expect(dialog).toBeHidden();
+async function action(page: Page, label: string) {
+  await menu(page);
+  await page.getByLabel("Choose what to do").getByRole("button", { name: new RegExp(`^${label}`) }).click();
 }
 
-async function completeSale(page: Page) {
-  await editView(page); await saleStep(page, "Completion");
-  await page.getByRole("button", { name: "Complete sale & issue documents", exact: true }).click();
-  const dialog = page.getByRole("dialog");
-  await dialog.getByRole("checkbox").check();
-  await dialog.getByRole("button", { name: "Complete sale & issue pack", exact: true }).click();
-  await expect(dialog).toBeHidden();
+async function history(page: Page) {
+  await menu(page);
+  await page.getByRole("button", { name: "Payments and documents", exact: true }).click();
 }
 
-test("deposit, part payment and final payment each retain their own printable receipt", async ({
-  page,
-  context,
-}) => {
-  await page.setViewportSize({ width: 1440, height: 1000 });
-  const api = new FixtureSalesApi();
-  const sale = api.seed();
-  await api.attach(context);
-  await openSale(page);
-  await payment(page, "500", "deposit", "Card");
-  const original = structuredClone(api.current().documents[0]);
-  const document = page.locator(".sales-document");
-  await expect(document).toContainText("Deposit receipt");
-  await expect(document).toContainText(original.number);
-  await expect(document).toContainText("£500.00");
-  await expect(document).toContainText("£11,500.00");
-  await mkdir(output, { recursive: true });
-  await previewView(page);
-  const originalBytes = await previewPdf(page);
-  expect(originalBytes).toEqual(api.archives.get(original.id));
-  await document.screenshot({ path: `${output}/deposit-receipt-1440.png` });
-  await payment(page, "2000", "part-payment", "Cash");
-  await payment(page, "9500", "final-payment", "Bank transfer");
-  expect(
-    saleWorkspaceTotals(api.current().draft, api.current().payments).balance,
-  ).toBe(0);
-  expect(api.current().payments.map((row) => row.method)).toEqual([
-    "Card",
-    "Cash",
-    "Bank transfer",
-  ]);
-  expect(api.current().documents.filter(document => document.type === "receipt")).toHaveLength(3);
-  expect(api.current().documents[0]).toEqual(original);
-  await editView(page);
-  await saleStep(page, "Payments");
-  await resetCapturePosition(page);
-  await page.screenshot({
-    path: `${output}/payments-1440.png`,
-    fullPage: true,
-  });
-  await editView(page);
-  await saleStep(page, "Completion");
-  await page.getByLabel("Document", { exact: true }).selectOption(original.id);
-  await previewView(page);
-  await expect(document).toContainText("£11,500.00");
-  await expect(document).not.toContainText("FIXTURE-final-payment");
-  expect(await previewPdf(page)).toEqual(api.archives.get(original.id));
-  expect(await previewPdf(page)).toEqual(originalBytes);
-  await expect(page.locator(".sales-pdf-document input, .sales-pdf-document textarea, .sales-pdf-document select, .sales-pdf-document button")).toHaveCount(0);
-  expect(api.sales.get(sale.id)?.documents[0]).toEqual(original);
-  expect(api.blockedWrites).toEqual([]);
-});
-
-test("pending payment leaves the balance unchanged until staff confirm receipt of money", async ({
-  page,
-  context,
-}) => {
-  const api = new FixtureSalesApi();
-  api.seed();
-  await api.attach(context);
-  await openSale(page);
-  await payment(page, "500", "deposit", "Bank transfer", false);
-  expect(api.current().documents).toHaveLength(0);
-  expect(
-    saleWorkspaceTotals(api.current().draft, api.current().payments).balance,
-  ).toBe(1_200_000);
-  await editView(page);
-  await saleStep(page, "Payments");
-  await expect(page.getByText("Pending", { exact: true })).toBeVisible();
-  await page
-    .getByRole("button", { name: "Confirm received", exact: true })
-    .click();
-  const confirm = page.getByRole("dialog");
-  await confirm.getByRole("checkbox", { name: /^Money received/ }).check();
-  await confirm
-    .getByRole("button", { name: "Confirm & view receipt", exact: true })
-    .click();
-  await expect(confirm).toBeHidden();
-  expect(api.current().payments[0].status).toBe("confirmed");
-  expect(api.current().documents.filter(document => document.type === "receipt")).toHaveLength(1);
-  await expect(page.locator(".sales-document")).toContainText("£11,500.00");
-  expect(api.blockedWrites).toEqual([]);
-});
-
-test("sale created by staff reopens on a second device and a stale edit cannot overwrite its payment", async ({
-  page,
-  context,
-  browser,
-}) => {
-  const api = new FixtureSalesApi();
-  await api.attach(context);
-  // Plain HTTP on an iPad's LAN IP may expose getRandomValues but no randomUUID.
-  await context.addInitScript(() =>
-    Object.defineProperty(crypto, "randomUUID", {
-      configurable: true,
-      value: undefined,
-    }),
-  );
+async function startSale(page: Page) {
   await page.goto("/portal?section=sales");
   await page.getByRole("button", { name: "New sale", exact: true }).click();
-  await page.getByLabel("Customer name", { exact: true }).fill("Shared Buyer");
+  const search = page.getByRole("searchbox", { name: "Search stock vehicles" });
+  await search.fill("AB18 XYZ");
+  await expect(page.getByLabel("Vehicle selection")).toContainText("Touring");
+  await search.press("Enter");
+  await page.getByRole("button", { name: "Choose customer", exact: true }).click();
+}
+
+async function preparePayment(page: Page, amount: string, kind: "deposit" | "part-payment" | "final-payment", method: string) {
+  await action(page, kind === "deposit" ? "Take a deposit" : "Take a payment");
+  const form = page.locator(".invoice-payment-form");
+  await form.getByRole("textbox", { name: /^Payment amount/ }).fill(amount);
+  await form.getByRole("combobox", { name: "Payment method", exact: true }).selectOption(method);
+  await form.getByLabel("Date received", { exact: true }).fill("2026-10-04");
+  const type = form.getByRole("combobox", { name: "Payment type", exact: true });
+  if (kind !== "deposit" && await type.isVisible()) await type.selectOption(kind);
+  await form.getByLabel("Payment reference (optional)", { exact: true }).fill(`FIXTURE-${kind}`);
+  await form.getByRole("checkbox", { name: /checked that this money has been received/ }).check();
+  await form.getByRole("button", { name: /^Save £/ }).click();
+}
+
+async function recordPayment(page: Page, api: FixtureSalesApi, amount: string, kind: "deposit" | "part-payment" | "final-payment", method = "Bank transfer") {
+  const count = api.current().payments.length;
+  await preparePayment(page, amount, kind, method);
+  if (kind === "deposit") await page.getByRole("dialog").getByRole("button", { name: /Record deposit.*reserve|Confirm.*reserve/i }).click();
+  await expect.poll(() => api.current().payments.length).toBe(count + 1);
+  await expect(page.getByRole("button", { name: /^Save £/ })).toHaveCount(0);
+}
+
+async function issueInvoice(page: Page) {
+  await action(page, "Create an invoice");
+  await page.getByRole("checkbox", { name: /checked the customer, vehicle/ }).check();
+  await page.getByRole("button", { name: "Create & save invoice" }).click();
+  await expect(page.getByRole("heading", { name: "Sales invoice", exact: true })).toBeVisible();
+}
+
+async function documentBytes(page: Page, documentNumber: string) {
+  await history(page);
+  await page.locator(".sale-desk-document-list > div").filter({ hasText: documentNumber })
+    .getByRole("button", { name: "View & share" }).click();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download PDF", exact: true }).click();
+  return readFile((await (await download).path())!);
+}
+
+async function deliveryForm(page: Page) {
+  await action(page, "Arrange collection or delivery");
+  await page.getByRole("button", { name: "Edit arrangements", exact: true }).click();
+  await page.getByRole("button", { name: "Deliver to customer", exact: true }).click();
+}
+
+const seededPayment = (kind: "deposit" | "part-payment", status: "confirmed" | "pending") => ({
+  action: "payment" as const,
+  payment: { amount: "500", method: "Cash", date: "2026-10-04", reference: "FIXTURE-PAYMENT", kind, status },
+});
+
+test("deposit receipt stays printable while all later payments appear in the full invoice", async ({ page, context }) => {
+  const api = new FixtureSalesApi(); api.seed(); await api.attach(context); await openSale(page);
+  await recordPayment(page, api, "500", "deposit", "Debit card");
+  const original = structuredClone(api.current().documents.find(doc => doc.type === "receipt")!);
+  expect(original.balanceAtIssue).toBe(1_150_000);
+  expect(await documentBytes(page, original.number)).toEqual(api.archives.get(original.id));
+  await recordPayment(page, api, "2000", "part-payment", "Cash");
+  await recordPayment(page, api, "9500", "final-payment");
+  expect(api.current().payments.map(row => row.method)).toEqual(["Debit card", "Cash", "Bank transfer"]);
+  expect(saleWorkspaceTotals(api.current().draft, api.current().payments).balance).toBe(0);
+  await issueInvoice(page);
+  expect(api.current().documents.at(-1)?.snapshot.payments).toHaveLength(3);
+  expect(api.current().documents[0]).toEqual(original);
+  expect(await documentBytes(page, original.number)).toEqual(api.archives.get(original.id));
+  expect(api.blockedWrites).toEqual([]);
+});
+
+test("a saved pending payment leaves the balance unchanged until confirmed", async ({ page, context }) => {
+  const api = new FixtureSalesApi(); const sale = api.seed();
+  api.change(sale.id, seededPayment("deposit", "pending"));
+  await api.attach(context); await openSale(page); await history(page);
+  expect(api.current().documents).toHaveLength(0);
+  expect(saleWorkspaceTotals(api.current().draft, api.current().payments).balance).toBe(1_200_000);
+  await page.getByRole("button", { name: "Confirm received", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("checkbox", { name: /has arrived/ }).check();
+  await dialog.getByRole("button", { name: "Confirm deposit & reserve car" }).click();
+  await expect(dialog).toBeHidden();
+  expect(api.current().payments[0].status).toBe("confirmed");
+  expect(api.current().documents.find(doc => doc.type === "receipt")?.balanceAtIssue).toBe(1_150_000);
+  expect(api.blockedWrites).toEqual([]);
+});
+
+test("a new sale reopens on a second device and rejects a stale edit", async ({ page, context, browser, baseURL }) => {
+  const api = new FixtureSalesApi(); await api.attach(context);
+  const disableUuid = () => Object.defineProperty(crypto, "randomUUID", { configurable: true, value: undefined });
+  await context.addInitScript(disableUuid);
+  await startSale(page);
+  await page.getByLabel(customerName, { exact: true }).fill("Shared Buyer");
   await page.getByLabel("Telephone", { exact: true }).fill("07000 000999");
-  await saleStep(page, "Deal details");
-  await page.getByLabel("Vehicle", { exact: true }).selectOption(vehicleId);
-  await page
-    .getByLabel("Agreed vehicle price (£)", { exact: true })
-    .fill("12000");
-  await page
-    .locator(".sales-titlebar-actions")
-    .getByRole("button", { name: "Save draft", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Choose what to do", exact: true }).last().click();
   await expect.poll(() => api.sales.size).toBe(1);
-  const secondContext = await browser.newContext({
-    baseURL: "http://127.0.0.1:4175",
-  });
+  const secondContext = await browser.newContext({ baseURL });
   try {
     await api.attach(secondContext);
-    await secondContext.addInitScript(() =>
-      Object.defineProperty(crypto, "randomUUID", {
-        configurable: true,
-        value: undefined,
-      }),
-    );
+    await secondContext.addInitScript(disableUuid);
     const secondPage = await secondContext.newPage();
     await openSale(secondPage, "Shared Buyer");
-    await payment(secondPage, "500", "deposit", "Cash");
-    await saleStep(page, "Deal details");
-    await page.getByLabel("Customer name", { exact: true }).fill("Stale edit");
-    await page
-      .locator(".sales-titlebar-actions")
-      .getByRole("button", { name: "Save draft", exact: true })
-      .click();
-    await expect(page.locator(".sales-conflict-banner")).toContainText(
-      /newer version|reload/i,
-    );
+    await recordPayment(secondPage, api, "500", "deposit", "Cash");
+    await page.getByRole("navigation", { name: "Sale steps" }).getByRole("button", { name: "Customer", exact: true }).click();
+    await page.getByLabel(customerName, { exact: true }).fill("Stale edit");
+    await page.getByRole("button", { name: "Save details", exact: true }).click();
+    await expect(page.getByRole("alert").filter({ hasText: /another device|reload/i })).toBeVisible();
     expect(api.current().draft.customer).toBe("Shared Buyer");
     expect(api.current().payments).toHaveLength(1);
-    expect(
-      api.calls
-        .filter((call) => call.method !== "GET")
-        .every(
-          (call) =>
-            typeof call.body.requestId === "string" &&
-            call.body.requestId.length >= 8,
-        ),
-    ).toBe(true);
-    await expect(page.getByLabel("Customer name", { exact: true })).toHaveValue(
-      "Stale edit",
-    );
+    expect(api.calls.filter(call => call.method !== "GET").every(call => typeof call.body.requestId === "string" && call.body.requestId.length >= 8)).toBe(true);
+    await expect(page.getByLabel(customerName, { exact: true })).toHaveValue("Stale edit");
     expect(api.blockedWrites).toEqual([]);
-  } finally {
-    await secondContext.close();
-  }
+  } finally { await secondContext.close(); }
 });
 
-test("simulated reservation imports customer details without crediting a deposit", async ({
-  page,
-  context,
-}) => {
+test("a saved simulated reservation keeps the contact details without crediting its deposit", async ({ page, context }) => {
   const api = new FixtureSalesApi();
-  api.reservations = [
-    {
-      id: "reservation-fixture",
-      reference: "RES-FIXTURE",
-      customerName: "Reservation Buyer",
-      email: "reservation@example.test",
-      phone: "07000 000456",
-      createdAt: "2026-10-04T09:00:00.000Z",
-      depositPence: 50000,
-      amountReceivedPence: 0,
-      paymentStatus: "simulated",
-      vehicleId,
-    },
-  ];
-  await api.attach(context);
-  await page.goto("/portal?section=sales");
-  await page.getByRole("button", { name: "New sale", exact: true }).click();
-  await page
-    .getByText("Use a recent enquiry or reservation", { exact: true })
-    .click();
-  await page.getByRole("button", { name: /Reservation Buyer/ }).click();
-  await expect(page.getByLabel("Customer name", { exact: true })).toHaveValue(
-    "Reservation Buyer",
-  );
-  await saleStep(page, "Deal details");
-  await page.getByLabel("Vehicle", { exact: true }).selectOption(vehicleId);
-  await page
-    .locator(".sales-titlebar-actions")
-    .getByRole("button", { name: "Save draft", exact: true })
-    .click();
-  await expect.poll(() => api.sales.size).toBe(1);
+  api.seed(draft({
+    customer: "Reservation Buyer", email: "reservation@example.test", phone: "07000 000456",
+    sourceReservationId: "reservation-fixture", customerSource: "Simulated reservation", deposit: "500",
+  }));
+  await api.attach(context); await openSale(page, "Reservation Buyer");
+  await expect(page.getByLabel("Payment breakdown")).toContainText("£12,000.00");
+  expect(api.current().draft.sourceReservationId).toBe("reservation-fixture");
   expect(api.current().payments).toEqual([]);
   expect(api.current().documents).toEqual([]);
-  expect(
-    saleWorkspaceTotals(api.current().draft, api.current().payments)
-      .confirmedPaid,
-  ).toBe(0);
+  expect(saleWorkspaceTotals(api.current().draft, api.current().payments).confirmedPaid).toBe(0);
   expect(api.blockedWrites).toEqual([]);
 });
 
 for (const viewed of [false, true]) {
-  test(`delivery remains available for a customer who ${viewed ? "has" : "has not"} viewed the car`, async ({
-    page,
-    context,
-  }) => {
+  test(`delivery can be arranged and recorded when the customer ${viewed ? "has" : "has not"} viewed the car`, async ({ page, context }) => {
     const api = new FixtureSalesApi();
-    api.seed();
-    await api.attach(context);
-    await openSale(page);
-    await editView(page);
-  await saleStep(page, "Completion");
-  await optionalPanel(page, "Collection & delivery");
-    await page.getByRole("button", { name: "Delivery", exact: true }).click();
-    await page
-      .getByRole("checkbox", { name: /^Customer has viewed the car/ })
-      .setChecked(viewed);
-    await page
-      .getByLabel("Delivery address", { exact: true })
-      .fill("17 Delivery Road\nHarrow\nHA3 3CC");
+    const initial = draft();
+    initial.fulfilment!.viewed = viewed ? "viewed" : "not-yet-viewed";
+    api.seed(initial); await api.attach(context); await openSale(page);
+    await deliveryForm(page);
+    await page.getByRole("textbox", { name: "Delivery address", exact: true }).fill("17 Delivery Road\nHarrow\nHA3 3CC");
     await page.getByLabel("Planned date", { exact: true }).fill("2026-10-12");
-    await page.getByLabel("Time window", { exact: true }).fill("10:00–12:00");
-    await page.getByLabel("Recipient", { exact: true }).fill("Alex Lifecycle");
-    await page
-      .getByLabel("Handover contact", { exact: true })
-      .fill("07000 000123");
-    await page
-      .getByLabel("Delivery instructions", { exact: true })
-      .fill("Call on arrival.");
-    await page
-      .locator(".sales-titlebar-actions")
-      .getByRole("button", { name: "Save draft", exact: true })
-      .click();
-    await expect
-      .poll(() => api.current().draft.fulfilment?.method)
-      .toBe("delivery");
-    expect(api.current().draft.fulfilment?.viewed).toBe(
-      viewed ? "viewed" : "not-yet-viewed",
-    );
+    await page.getByLabel("Arrival window", { exact: true }).fill("10:00–12:00");
+    await page.getByRole("textbox", { name: "Staff delivery notes", exact: true }).fill("Call on arrival.");
+    await page.getByRole("button", { name: "Save arrangements", exact: true }).click();
+    await expect.poll(() => api.current().draft.fulfilment?.method).toBe("delivery");
+    expect(api.current().draft.fulfilment?.viewed).toBe(initial.fulfilment!.viewed);
     expect(api.current().draft.handover).toBe(false);
-    expect(
-      saleWorkspaceTotals(api.current().draft, api.current().payments).balance,
-    ).toBe(1_200_000);
-    await payment(page, "12000", "final-payment", "Bank transfer");
-    await completeSale(page);
-    await editView(page);
-  await saleStep(page, "Completion");
-  await optionalPanel(page, "Collection & delivery");
-    await page
-      .getByRole("button", { name: "Mark delivered", exact: true })
-      .click();
-    await page
-      .getByRole("dialog")
-      .getByRole("button", { name: "Confirm handover", exact: true })
-      .click();
+    expect(saleWorkspaceTotals(api.current().draft, api.current().payments).balance).toBe(1_200_000);
+    await recordPayment(page, api, "12000", "final-payment");
+    await issueInvoice(page);
+    await page.getByRole("button", { name: /mark sold & remove/i }).click();
+    await expect.poll(() => api.current().completedAt).toBeTruthy();
+    await action(page, "Arrange collection or delivery");
+    await page.getByRole("button", { name: "Mark delivered", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Confirm handover", exact: true }).click();
     await expect.poll(() => api.current().draft.handover).toBe(true);
-    expect(api.current().draft.fulfilment?.completedRecipient).toBe(
-      "Alex Lifecycle",
-    );
+    expect(api.current().draft.fulfilment?.completedRecipient).toBe("Alex Lifecycle");
     expect(api.current().documents.at(-1)?.title).toBe("Delivery confirmation");
     expect(api.blockedWrites).toEqual([]);
   });
 }
 
-test("partial refund and correction retain original receipt and explain the balance change", async ({
-  page,
-  context,
-}) => {
-  const api = new FixtureSalesApi();
-  const sale = api.seed();
-  const original = api.change(sale.id, {
-    action: "payment",
-    payment: {
-      amount: "500",
-      method: "Cash",
-      date: "2026-10-04",
-      reference: "CASH-FIXTURE",
-      kind: "deposit",
-      status: "confirmed",
-    },
-  });
+test("a partial refund and correction preserve the original receipt and adjust only the ledger", async ({ page, context }) => {
+  const api = new FixtureSalesApi(); const sale = api.seed();
+  const original = api.change(sale.id, seededPayment("deposit", "confirmed"));
   const originalReceipt = structuredClone(original.document!);
-  await api.attach(context);
-  await openSale(page);
-  await editView(page);
-  await saleStep(page, "Payments");
-  const originalRow = page.getByTestId(
-    `payment-${original.sale.payments[0].id}`,
-  );
-  await originalRow
-    .getByRole("button", { name: "Refund / correct", exact: true })
-    .click();
-  let dialog = page.getByRole("dialog");
-  await dialog
-    .getByLabel("Refund / correction amount (£)", { exact: true })
-    .fill("100");
-  await dialog
-    .getByLabel("Reason", { exact: true })
-    .fill("Agreed partial refund recorded by staff.");
-  await dialog
-    .getByRole("button", { name: "Save adjustment", exact: true })
-    .click();
+  await api.attach(context); await openSale(page); await history(page);
+  const originalRow = page.locator(".invoice-payment-list > div").filter({ hasText: "FIXTURE-PAYMENT" }).first();
+  await originalRow.getByRole("button", { name: "Correct a payment", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Refund / correction amount (£)").fill("100");
+  await dialog.getByLabel("Reason", { exact: true }).fill("Agreed partial refund recorded by staff.");
+  await dialog.getByRole("checkbox", { name: /money has already been refunded/ }).check();
+  await dialog.getByRole("button", { name: "Save adjustment" }).click();
   await expect(dialog).toBeHidden();
-  expect(api.current().payments).toHaveLength(2);
   expect(api.current().payments[1].signedAmountPence).toBe(-10000);
-  expect(api.current().payments[1].reversesPaymentId).toBe(
-    original.sale.payments[0].id,
-  );
+  expect(api.current().payments[1].reversesPaymentId).toBe(original.sale.payments[0].id);
   expect(api.current().documents[0]).toEqual(originalReceipt);
-  await expect(page.locator(".sales-document")).toContainText("Refund receipt");
-  await expect(page.locator(".sales-document")).toContainText("£11,600.00");
-  await editView(page);
-  await saleStep(page, "Payments");
-  await originalRow
-    .getByRole("button", { name: "Refund / correct", exact: true })
-    .click();
-  dialog = page.getByRole("dialog");
-  await dialog
-    .getByRole("combobox", { name: "Action", exact: true })
-    .selectOption("reversal");
-  await dialog
-    .getByLabel("Reason", { exact: true })
-    .fill("Original cash entry was incorrect; remaining amount reversed.");
-  await dialog
-    .getByRole("button", { name: "Save adjustment", exact: true })
-    .click();
+  expect(saleWorkspaceTotals(api.current().draft, api.current().payments).balance).toBe(1_160_000);
+  await originalRow.getByRole("button", { name: "Correct a payment", exact: true }).click();
+  await dialog.getByRole("combobox", { name: "Action", exact: true }).selectOption("reversal");
+  await dialog.getByLabel("Reason", { exact: true }).fill("Original cash entry was incorrect; remaining amount reversed.");
+  await dialog.getByRole("button", { name: "Save adjustment" }).click();
   await expect(dialog).toBeHidden();
   expect(api.current().payments[2].signedAmountPence).toBe(-40000);
-  expect(
-    saleWorkspaceTotals(api.current().draft, api.current().payments)
-      .confirmedPaid,
-  ).toBe(0);
-  expect(api.current().documents[0]).toEqual(originalReceipt);
-  expect(
-    api.current().events.some((event) => event.type === "payment-corrected"),
-  ).toBe(true);
-  await editView(page);
-  await saleStep(page, "Payments");
-  await expect(
-    originalRow.getByRole("button", { name: "Refund / correct", exact: true }),
-  ).toHaveCount(0);
-  await originalRow
-    .getByRole("button", { name: "View receipt", exact: true })
-    .click();
-  await expect(page.locator(".sales-document")).toContainText(
-    originalReceipt.number,
-  );
-  await expect(page.locator(".sales-document")).toContainText("£11,500.00");
+  expect(saleWorkspaceTotals(api.current().draft, api.current().payments).confirmedPaid).toBe(0);
+  expect(api.current().documents).toEqual([originalReceipt]);
+  expect(api.current().events.some(event => event.type === "payment-corrected")).toBe(true);
+  expect(await documentBytes(page, originalReceipt.number)).toEqual(api.archives.get(originalReceipt.id));
   expect(api.blockedWrites).toEqual([]);
 });
 
-test("a safely retried payment with a lost response creates one payment and one receipt", async ({
-  page,
-  context,
-}) => {
-  const api = new FixtureSalesApi();
-  api.seed();
-  await api.attach(context);
-  await openSale(page);
-  api.loseNextPaymentResponse = true;
-  await editView(page);
-  await saleStep(page, "Payments");
-  await page.getByRole("button", { name: "Record payment", exact: true }).click();
+test("retrying a deposit after a lost response creates one payment and one receipt", async ({ page, context }) => {
+  const api = new FixtureSalesApi(); api.seed(); api.loseNextPaymentResponse = true;
+  await api.attach(context); await openSale(page);
+  await preparePayment(page, "500", "deposit", "Bank transfer");
   const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Payment amount (£)", { exact: true }).fill("500");
-  await dialog.getByRole("checkbox", { name: /^Money received/ }).check();
-  await dialog
-    .getByRole("button", { name: "Save & view receipt", exact: true })
-    .click();
-  await expect(dialog.getByRole("alert")).toContainText(
-    /lost its response|retry/i,
-  );
+  const confirm = dialog.getByRole("button", { name: /Record deposit.*reserve|Confirm.*reserve/i });
+  await confirm.click();
+  await expect(page.getByRole("alert").filter({ hasText: /lost its response|retry/i }).first()).toBeVisible();
   expect(api.current().payments).toHaveLength(1);
-  const original = structuredClone(api.current().documents[0]);
-  await dialog
-    .getByRole("button", { name: "Save & view receipt", exact: true })
-    .click();
+  await confirm.click();
   await expect(dialog).toBeHidden();
   expect(api.current().payments).toHaveLength(1);
   expect(api.current().documents.filter(document => document.type === "receipt")).toHaveLength(1);
-  expect(api.current().documents[0]).toEqual(original);
-  const calls = api.calls.filter((call) => call.path.endsWith("/take-deposit"));
+  const calls = api.calls.filter(call => call.path.endsWith("/invoice-payments"));
   expect(calls).toHaveLength(2);
   expect(calls[0].body.requestId).toBe(calls[1].body.requestId);
   expect(api.blockedWrites).toEqual([]);
 });
 
-test("an amended invoice and current balance statement preserve the original issued invoice", async ({
-  page,
-  context,
-}) => {
-  const api = new FixtureSalesApi();
-  const sale = api.seed();
-  const issued = api.change(sale.id, {
-    action: "document",
-    type: "invoice",
-  }).document!;
-  const original = structuredClone(issued);
-  await api.attach(context);
+test("an amended invoice and balance statement preserve the original issued copy", async ({ page, context }) => {
+  const api = new FixtureSalesApi(); const sale = api.seed();
+  const original = api.change(sale.id, { action: "issue-invoice", kind: "full", acknowledge: true }).document!;
+  await api.attach(context); await openSale(page);
+  await page.getByRole("navigation", { name: "Sale steps" }).getByRole("button", { name: "Car", exact: true }).click();
+  await page.getByLabel("Agreed vehicle price (£)", { exact: true }).fill("12100");
+  await page.getByRole("button", { name: "Save details", exact: true }).click();
+  await expect.poll(() => api.current().draft.price).toBe("12100");
   await openSale(page);
-  await saleStep(page, "Deal details");
-  await page
-    .getByLabel("Agreed vehicle price (£)", { exact: true })
-    .fill("12100");
-  await editView(page);
-  await saleStep(page, "Completion");
-  await optionalPanel(page, "Other documents & receipt styles");
-  await page.getByRole("button", { name: "Issue another invoice copy", exact: true }).click();
-  await expect.poll(() => api.current().documents.length).toBe(2);
+  await issueInvoice(page);
   expect(api.current().documents[1].version).toBe(2);
   expect(api.current().documents[1].snapshot.totals.totalDue).toBe(1_210_000);
-  expect(api.current().documents[0]).toEqual(original);
-  await expect(page.locator(".sales-document")).toContainText("£12,100.00");
-  await payment(page, "500", "deposit", "Cash");
-  await editView(page);
-  await saleStep(page, "Completion");
-  await optionalPanel(page, "Other documents & receipt styles");
-  await page.getByRole("button", { name: "Create balance statement", exact: true }).click();
-  await expect(page.locator(".sales-document")).toContainText(
-    "Balance statement",
-  );
-  await expect(page.locator(".sales-document")).toContainText("£11,600.00");
-  await page.getByLabel("Document", { exact: true }).selectOption(original.id);
-  await previewView(page);
-  await expect(page.locator(".sales-document")).toContainText("£12,000.00");
-  await expect(page.locator(".sales-document")).not.toContainText(
-    "FIXTURE-deposit",
-  );
-  expect(api.current().documents[0]).toEqual(original);
+  await recordPayment(page, api, "500", "deposit", "Cash");
+  const statement = api.change(sale.id, { action: "document", type: "statement" }).document!;
+  expect(statement.balanceAtIssue).toBe(1_160_000);
+  await openSale(page);
+  expect(await documentBytes(page, statement.number)).toEqual(api.archives.get(statement.id));
+  expect(await documentBytes(page, original.number)).toEqual(api.archives.get(original.id));
+  expect(api.current().documents[0].snapshot.totals.totalDue).toBe(1_200_000);
   expect(api.blockedWrites).toEqual([]);
 });
 
-test("cancelling a pending payment keeps its history without a receipt or balance credit", async ({
-  page,
-  context,
-}) => {
-  const api = new FixtureSalesApi();
-  const sale = api.seed();
-  api.change(sale.id, {
-    action: "payment",
-    payment: {
-      amount: "500",
-      method: "Bank transfer",
-      date: "2026-10-04",
-      reference: "PENDING-CANCEL",
-      kind: "deposit",
-      status: "pending",
-    },
-  });
-  await api.attach(context);
-  await openSale(page);
-  await editView(page);
-  await saleStep(page, "Payments");
-  await page
-    .getByRole("button", { name: "Cancel pending", exact: true })
-    .click();
+test("cancelling a saved pending payment keeps its history without a receipt or balance credit", async ({ page, context }) => {
+  const api = new FixtureSalesApi(); const sale = api.seed();
+  api.change(sale.id, seededPayment("deposit", "pending"));
+  await api.attach(context); await openSale(page); await history(page);
+  await page.getByRole("button", { name: "Cancel pending payment", exact: true }).click();
   const dialog = page.getByRole("dialog");
-  await dialog
-    .getByLabel("Reason", { exact: true })
-    .fill("Customer will pay by card instead.");
-  await dialog
-    .getByRole("button", { name: "Cancel payment entry", exact: true })
-    .click();
+  await dialog.getByLabel("Reason", { exact: true }).fill("Customer will pay by card instead.");
+  await dialog.getByRole("button", { name: "Cancel payment entry", exact: true }).click();
   await expect(dialog).toBeHidden();
+  await expect(page.locator(".invoice-payment-list [data-status=cancelled]")).toBeVisible();
   expect(api.current().payments).toHaveLength(1);
   expect(api.current().payments[0].status).toBe("cancelled");
   expect(api.current().documents).toEqual([]);
-  expect(
-    saleWorkspaceTotals(api.current().draft, api.current().payments).balance,
-  ).toBe(1_200_000);
-  await editView(page);
-  await saleStep(page, "Payments");
-  await expect(page.getByText("Cancelled", { exact: true })).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "View receipt", exact: true }),
-  ).toHaveCount(0);
-  await expect(
-    page.getByRole("button", { name: "Confirm received", exact: true }),
-  ).toHaveCount(0);
+  expect(saleWorkspaceTotals(api.current().draft, api.current().payments).balance).toBe(1_200_000);
   expect(api.blockedWrites).toEqual([]);
 });
 
-test("collection with an outstanding balance cannot bypass sale completion or credit unpaid funds", async ({ page, context }) => {
+test("collection arrangements cannot bypass sale completion or credit unpaid funds", async ({ page, context }) => {
   const api = new FixtureSalesApi(); api.seed(); await api.attach(context); await openSale(page);
-  await editView(page);
-  await saleStep(page, "Completion"); await optionalPanel(page, "Collection & delivery");
-  await page.getByRole("button", { name: "Collection", exact: true }).click();
-  await page.getByLabel("Recipient", { exact: true }).fill("Alex Lifecycle");
+  await action(page, "Arrange collection or delivery");
+  await expect(page.getByText(/Record handover after the sale is completed/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Mark collected", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Complete the sale before recording handover", exact: true })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Record balance payment", exact: true })).toBeEnabled();
   expect(api.current().draft.handover).toBe(false);
   expect(api.current().completedAt).toBeUndefined();
   expect(api.current().documents).toEqual([]);
@@ -894,69 +624,16 @@ test("collection with an outstanding balance cannot bypass sale completion or cr
 });
 
 for (const width of [390, 820]) {
-  test(`payment and delivery controls remain readable without horizontal overflow at ${width}px`, async ({
-    page,
-    context,
-  }) => {
+  test(`payment and delivery controls fit at ${width}px`, async ({ page, context }) => {
     await page.setViewportSize({ width, height: 1000 });
-    const api = new FixtureSalesApi();
-    const sale = api.seed();
-    api.change(sale.id, {
-      action: "payment",
-      payment: {
-        amount: "500",
-        method: "Cash",
-        date: "2026-10-04",
-        reference: "MOBILE-DEPOSIT",
-        kind: "deposit",
-        status: "confirmed",
-      },
-    });
-    await api.attach(context);
-    await openSale(page);
-    await editView(page);
-    await editView(page);
-  await saleStep(page, "Payments");
-    await page.getByRole("button", { name: "Record payment", exact: true }).click();
-    await expect(
-      page
-        .getByRole("dialog")
-        .getByLabel("Payment amount (£)", { exact: true }),
-    ).toBeVisible();
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= innerWidth,
-      ),
-    ).toBe(true);
-    await page
-      .getByRole("dialog")
-      .getByRole("button", { name: "Cancel", exact: true })
-      .click();
-    await editView(page);
-  await saleStep(page, "Payments");
-    await mkdir(output, { recursive: true });
-    await resetCapturePosition(page);
-    await page.screenshot({
-      path: `${output}/payments-${width}.png`,
-      fullPage: true,
-    });
-    await editView(page);
-  await saleStep(page, "Completion");
-  await optionalPanel(page, "Collection & delivery");
-    await page.getByRole("button", { name: "Delivery", exact: true }).click();
-    await expect(
-      page.getByLabel("Delivery address", { exact: true }),
-    ).toBeVisible();
-    await resetCapturePosition(page);
-    await page.screenshot({
-      path: `${output}/delivery-${width}.png`,
-      fullPage: true,
-    });
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= innerWidth,
-      ),
-    ).toBe(true);
+    const api = new FixtureSalesApi(); api.seed(); await api.attach(context); await openSale(page);
+    const fits = () => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
+    await action(page, "Take a payment");
+    await expect(page.getByRole("textbox", { name: /^Payment amount/ })).toBeVisible();
+    expect(await fits()).toBe(true);
+    await deliveryForm(page);
+    await expect(page.getByRole("textbox", { name: "Delivery address", exact: true })).toBeVisible();
+    expect(await fits()).toBe(true);
     expect(api.blockedWrites).toEqual([]);
   });
 }

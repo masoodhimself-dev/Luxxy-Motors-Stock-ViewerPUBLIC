@@ -278,6 +278,37 @@ test("manual invoice emails use exact customer cases, durable reply routes and f
     await pool.query('UPDATE sale_workspace SET state=$2::jsonb, revision=$3 WHERE id=$1::uuid', [sale.id, JSON.stringify(current), current.revision]);
     await assert.rejects(onTenant(() => approveSaleDocumentEmail({ ...request(current), documentId: created.document.id }, { config, attempt: async () => undefined })), /request has changed/);
   });
+  await t.test('a corrected email blocks new and queued copies to the old address while the archive and approval stay frozen', async () => {
+    const sale = await record();
+    const approval = request(sale);
+    await onTenant(() => approveSaleDocumentEmail(approval, { config, attempt: async () => undefined }));
+    const queued = await outboxFor(sale);
+    assert.deepEqual(JSON.parse(queued.payload).to, ['buyer@example.test']);
+
+    const current = await rawSale(sale.id);
+    const updated = changeSaleWorkspace(current, { action: 'update', draft: { ...current.draft, email: 'corrected@example.test' } },
+      { requestId: randomUUID(), expectedRevision: current.revision },
+      { now: new Date().toISOString(), actor: 'Fictional Staff', nextId: randomUUID, nextNumber: () => 'UNUSED', branding: current.documents[0]!.snapshot.branding }).sale;
+    await pool.query('UPDATE sale_workspace SET state=$2::jsonb,revision=$3 WHERE id=$1::uuid', [sale.id, JSON.stringify(updated), updated.revision]);
+
+    await assert.rejects(onTenant(() => approveSaleDocumentEmail(request(updated), { config })), /customer details have changed/);
+    const replayed = await onTenant(() => approveSaleDocumentEmail(approval, { config }));
+    assert.equal(replayed.replayed, true);
+
+    await resetThrottle();
+    let providerCalls = 0;
+    const result = await onTenant(() => deliverEmailOutbox(queued.id, {
+      settings: async () => config.resend,
+      send: async () => { providerCalls++; return randomUUID(); },
+    }));
+    assert.equal(providerCalls, 0);
+    assert.notEqual(result?.status, 'sent');
+    const after = await rawSale(sale.id);
+    assert.equal(after.draft.email, 'corrected@example.test');
+    assert.equal(after.emailDeliveries?.length, 1);
+    assert.deepEqual(after.documents, current.documents);
+    assert.deepEqual(after.documentArchives, current.documentArchives);
+  });
   await t.test(
     "manual send records outgoing invoice under its exact enquiry and a customer reply returns there, even with same-contact cases",
     async () => {

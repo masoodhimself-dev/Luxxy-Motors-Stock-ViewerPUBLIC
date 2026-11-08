@@ -1,8 +1,8 @@
 import {act,fireEvent,render,screen,within} from '@testing-library/react';
 import {beforeEach,expect,it,vi} from 'vitest';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
-import {createSaleWorkspace,type SaleWorkspaceRecord} from '@workspace/vehicle-meta';
-const state=vi.hoisted(()=>({permissions:['sales.manage','sales.handover','payments.record'],api:vi.fn(),search:'',enquiries:[] as any[],stock:{cars:[]} as any,stockLoading:false,stockError:null as string|null}));
+import {changeSaleWorkspace,createSaleWorkspace,type SaleWorkspaceRecord} from '@workspace/vehicle-meta';
+const state=vi.hoisted(()=>({permissions:['sales.manage','sales.handover','payments.record'],api:vi.fn(),navigate:vi.fn(),search:'',enquiries:[] as any[],stock:{cars:[]} as any,stockLoading:false,stockError:null as string|null}));
 vi.mock('@workspace/api-client-react',()=>({customFetch: (...args: unknown[]) => {
     const url = String(args[0]);
     if (url === '/api/sales-terms') return Promise.resolve({ published: null });
@@ -17,13 +17,13 @@ vi.mock('@/lib/dealer-features',()=>({useDealerFeatures:()=>({enabled:()=>true,i
 vi.mock('@/components/portal/dealer-administration',()=>({useStaffAccess:()=>({data:{permissions:state.permissions}})}));
 vi.mock('@/components/portal/sale-handover',()=>({SaleHandover:()=>null,SaleHandoverFields:()=>null,handoverDefaults:()=>({})}));
 vi.mock('@/components/portal/sold-vehicle-customer-review',()=>({SoldVehicleCustomerReview:()=>null}));
-vi.mock('wouter',()=>({useLocation:()=>['/portal',vi.fn()],useSearch:()=>state.search}));
+vi.mock('wouter',()=>({useLocation:()=>['/portal',state.navigate],useSearch:()=>state.search}));
 import {SalesWorkspace} from './sales-demo';
 const branding={identity:{name:'Fictional Motors',logoText:'TEST',logoAsset:''},contact:{phone:'',email:''},address:{street:'',city:'',region:'',postcode:''},legal:{companyName:'',companyNumber:'',vatNumber:''}};
 function full(id:string,name=id){return createSaleWorkspace({requestId:`create-${id}`,draft:{customer:name,email:'buyer@example.test',phone:'07700900123',address:'Private invoice address',vehicleId:'car-one',vehicle:'Ford Focus',registration:'AB12CDE',price:'6000'}},{now:'2026-10-20T10:00:00Z',actor:'Test',nextId:()=>id,nextNumber:()=>id,branding},`SALE-${id}`).sale;}
 function summary(id:string,name=id){const v=full(id,name);return {id,reference:v.reference,revision:v.revision,createdAt:v.createdAt,updatedAt:v.updatedAt,draft:{customer:name,email:'buyer@example.test',phone:'07700900123',vehicleId:'car-one',vehicle:'Ford Focus',registration:'AB12CDE',sourceEnquiryId:'',sourceReservationId:''},listSummary:true,listTotalDue:600000} as unknown as SaleWorkspaceRecord;}
 function mount(){const client=new QueryClient({defaultOptions:{queries:{retry:false}}});const view=render(<QueryClientProvider client={client}><SalesWorkspace embedded/></QueryClientProvider>);return {...view,refresh:()=>view.rerender(<QueryClientProvider client={client}><SalesWorkspace embedded/></QueryClientProvider>)};}
-beforeEach(()=>{state.permissions=['sales.manage','sales.handover','payments.record'];state.search='';state.enquiries=[];state.stock={cars:[]};state.stockLoading=false;state.stockError=null;state.api.mockReset();});
+beforeEach(()=>{state.permissions=['sales.manage','sales.handover','payments.record'];state.search='';state.enquiries=[];state.stock={cars:[]};state.stockLoading=false;state.stockError=null;state.api.mockReset();state.navigate.mockReset();});
 
 function navigateSection(section:string){
  if(section==='Deal'){fireEvent.click(screen.getByRole('button',{name:'Car'}));return;}
@@ -32,7 +32,7 @@ function navigateSection(section:string){
  const target=screen.getByRole('button',{name:new RegExp(`^${title}`)});
  fireEvent.click(section==='Payments'&&target.hasAttribute('disabled')?screen.getByRole('button',{name:'Payments and documents'}):target);
 }
-async function openCarScreen(){return await screen.findByRole('heading',{name:/Choose a car|Choose the customer|What would you like to do\?/});}
+async function openCarScreen(){return await screen.findByRole('heading',{name:/Choose a car|Choose the customer|Review sale details|What would you like to do\?/});}
 function vehicleSelection(){fireEvent.click(screen.getByRole('button',{name:'Car'}));return screen.getByRole('region',{name:'Vehicle selection'});}
 
 const reads=()=>state.api.mock.calls.filter(([,o])=>!o?.method).map(([p])=>p as string);
@@ -41,7 +41,7 @@ it('loads fifty compact summaries at a time without fetching financial files',as
  const first=Array.from({length:50},(_,i)=>summary(`sale-${i}`,`Customer ${i}`));
  state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:first,hasMore:true}:{sales:[summary('sale-50','Older Customer')],hasMore:false});
  mount();await screen.findByRole('button',{name:/Customer 49/});
- expect(screen.getAllByText('£6,000.00')).toHaveLength(50);expect(reads()).toEqual(['/api/sale-workspace']);
+ expect(screen.getAllByText('Sale total £6,000.00')).toHaveLength(50);expect(reads()).toEqual(['/api/sale-workspace']);
  fireEvent.click(screen.getByRole('button',{name:'Load more sales'}));await screen.findByRole('button',{name:/Older Customer/});
  expect(reads()).toEqual(['/api/sale-workspace','/api/sale-workspace?offset=50']);expect(screen.queryByRole('button',{name:'Load more sales'})).not.toBeInTheDocument();expect(writes()).toHaveLength(0);
 });
@@ -50,9 +50,9 @@ it('shows the balance, handover and next action without exposing the payment led
  const delivered={...summary('done','Completed Buyer'),completedAt:'2026-10-27T12:00:00Z',listTotalDue:600000,listPaid:600000,listPending:0,listBalance:0,listHandover:{method:'delivery',status:'Delivered'}};
  const credit={...summary('credit','Credit Buyer'),listTotalDue:600000,listPaid:650000,listPending:0,listBalance:-50000};
  state.api.mockResolvedValue({sales:[reserved,delivered,credit],hasMore:false});mount();
- const deposit=await screen.findByRole('button',{name:/Deposit Buyer/});expect(deposit).toHaveTextContent('Reserved');expect(deposit).toHaveTextContent('Balance due: £5,500.00');expect(deposit).toHaveTextContent('Collection: Booked');expect(deposit).toHaveTextContent('Next: Review the balance due');
- const complete=screen.getByRole('button',{name:/Completed Buyer/});expect(complete).toHaveTextContent('Delivery: Delivered');expect(complete).toHaveTextContent('Next: Sale completed');
- const overpaid=screen.getByRole('button',{name:/Credit Buyer/});expect(overpaid).toHaveTextContent('Customer credit: £500.00');expect(overpaid).toHaveTextContent('Next: Review customer credit');
+ const deposit=await screen.findByRole('button',{name:/Deposit Buyer/});expect(deposit).toHaveTextContent('Reserved');expect(deposit).toHaveTextContent('Balance due: £5,500.00');expect(deposit).toHaveTextContent('Collection: Booked');expect(within(deposit.closest('article')!).getByRole('button',{name:'Review balance'})).toBeVisible();
+ const complete=screen.getByRole('button',{name:/Completed Buyer/});expect(complete).toHaveTextContent('Delivered');expect(complete).toHaveTextContent('Paid in full');expect(within(complete.closest('article')!).getByRole('button',{name:'View sale documents'})).toBeVisible();
+ const overpaid=screen.getByRole('button',{name:/Credit Buyer/});expect(overpaid).toHaveTextContent('Customer credit: £500.00');expect(within(overpaid.closest('article')!).getByRole('button',{name:'Review customer credit'})).toBeVisible();
  expect(reads()).toEqual(['/api/sale-workspace']);expect(writes()).toHaveLength(0);
 });
 it('does not invent a zero balance for older list responses',async()=>{
@@ -170,12 +170,13 @@ it('waits for slow stock before prefilling a new enquiry-linked sale and keeps t
  expect(screen.queryByRole('heading',{name:'Choose a car'})).not.toBeInTheDocument();
  expect(reads()).not.toContain('/api/sale-workspace?enquiryId=new-enquiry');
  state.stock={cars:[{id:'car-one',make:'Ford',model:'Focus',title:'Ford Focus',price:6789,registration:'AB12CDE',inventoryStatus:'available'}]};state.stockLoading=false;view.refresh();
- expect(await openCarScreen()).toBeVisible();
- expect(within(vehicleSelection()).getByRole('status')).toHaveTextContent('Ford Focus selected');
+ expect(await screen.findByRole('heading',{name:'Review sale details'})).toBeVisible();
+ expect(screen.getByText('Ford Focus')).toBeVisible();
  expect(screen.getByLabelText('Agreed vehicle price (£)')).toHaveValue('6789');
- expect(within(vehicleSelection()).getByText('Ford Focus')).toBeVisible();
- fireEvent.click(screen.getByRole('button',{name:'Choose customer'}));
- expect(await screen.findByLabelText('Customer’s full name')).toHaveValue('Linked Buyer');expect(writes()).toHaveLength(0);
+ expect(screen.getByLabelText('Customer’s full name')).toHaveValue('Linked Buyer');
+ expect(screen.getByLabelText('Email for the invoice')).toHaveValue('linked@example.test');
+ expect(screen.getByRole('button',{name:'Confirm details and open sale'})).toBeEnabled();
+ expect(writes()).toHaveLength(0);
 });
 it('keeps a manual invoice started while linked stock is loading',async()=>{
  state.search='?section=sales&enquiryId=new-enquiry';state.stock=null;state.stockLoading=true;
@@ -242,4 +243,128 @@ it('keeps Accounts payment and invoice access on existing sales without offering
  navigateSection('Payments');expect(screen.getByLabelText('Payment amount (£)')).toBeEnabled();
  navigateSection('Invoices');expect(screen.getByRole('button',{name:'Sales invoice'})).toBeEnabled();
  expect(writes()).toHaveLength(0);
+});
+
+it('uses the server queue and owner filter together before opening the matching next action', async () => {
+ const saved=full('pending-queue','Pending buyer');
+ saved.payments=[{id:'pending',amount:'100.00',amountPence:10000,signedAmountPence:10000,method:'Bank transfer',date:'2026-10-27',reference:'',kind:'deposit',status:'pending',recordedBy:'Staff',recordedAt:'2026-10-27T10:00:00Z'}];
+ const row={...summary(saved.id,'Pending buyer'),listOwnerName:'Alex',listHasTeamNote:true,listAttention:'Payment to confirm'};
+ state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:[summary('other','Other buyer')]}:p.includes('queue=attention')?{sales:[row]}:{sale:saved});
+ mount();await screen.findByRole('button',{name:/Other buyer/});
+ const filters=screen.getByRole('button',{name:'Filters'});
+ expect(filters).toHaveAttribute('aria-expanded','false');
+ fireEvent.click(filters);
+ expect(filters).toHaveAttribute('aria-expanded','true');
+ fireEvent.click(screen.getByRole('button',{name:'Needs attention'}));
+ const pending=await screen.findByRole('button',{name:/Pending buyer/});
+ expect(pending).toHaveTextContent('Alex · Staff note');
+ expect(pending).toHaveTextContent('Payment to confirm');
+ fireEvent.change(screen.getByRole('combobox',{name:'Sale owner'}),{target:{value:'mine'}});
+ await screen.findByRole('button',{name:/Pending buyer/});
+ expect(reads()).toContain('/api/sale-workspace?queue=attention&owner=mine');
+ expect(filters).toHaveAccessibleName('Filters (2)');
+ fireEvent.click(filters);
+ expect(filters).toHaveAttribute('aria-expanded','false');
+ fireEvent.click(screen.getByRole('button',{name:'Review pending payment'}));
+ await screen.findByRole('heading',{name:'Payments and documents'});
+ expect(reads()).toContain('/api/sale-workspace/pending-queue');
+ expect(writes()).toHaveLength(0);
+});
+
+it('opens an exact next-action URL without changing sale or stock', async () => {
+ const saved=full('linked-queue','Linked buyer');
+ state.search='?section=sales&saleId=linked-queue&saleAction=next';
+ state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:[],hasMore:false}:{sale:saved});
+ mount();
+ await screen.findByRole('heading',{name:'Request a deposit'});
+ expect(reads()).toContain('/api/sale-workspace/linked-queue');
+ expect(writes()).toHaveLength(0);
+});
+
+it('loads the staff directory on demand and saves the handover note as staff details', async () => {
+ const saved=full('owner-test','Buyer with owner');
+ const team={ownerId:'alice',ownerName:'Alice',note:'Call before collection.',updatedAt:saved.updatedAt,updatedBy:'Staff'};
+ state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:[summary(saved.id,'Buyer with owner')]}:
+   p==='/api/staff/directory'?{currentUserId:'alice',members:[{id:'alice',name:'Alice'}]}:
+   p.endsWith('/team')?{sale:{...saved,revision:saved.revision+1,team}}:{sale:saved});
+ mount();fireEvent.click(await screen.findByRole('button',{name:/Buyer with owner/}));
+ await screen.findByRole('heading',{name:'What would you like to do?'});
+ expect(reads()).not.toContain('/api/staff/directory');
+ fireEvent.click(screen.getByText('Sale owner'));
+ await screen.findByRole('option',{name:'Alice (you)'});
+ fireEvent.change(screen.getByRole('combobox',{name:'Assigned to'}),{target:{value:'alice'}});
+ fireEvent.change(screen.getByRole('textbox',{name:'Staff handover note'}),{target:{value:'Call before collection.'}});
+ expect(screen.getByText('Unsaved staff details')).toBeVisible();
+ fireEvent.click(screen.getByRole('button',{name:'Save staff details'}));
+ expect(await screen.findByText('Staff details saved.')).toBeVisible();
+ expect(screen.getByText('Alice · Staff note')).toBeVisible();
+ expect(writes()).toHaveLength(1);
+ expect(writes()[0][0]).toBe('/api/sale-workspace/owner-test/team');
+ expect(JSON.parse(writes()[0][1].body)).toMatchObject({ ownerId:'alice',note:'Call before collection.',expectedRevision:saved.revision });
+});
+
+
+it('opens the balance shortcut in payment history without pre-opening a payment form', async () => {
+ const saved=full('balance-test','Balance buyer');
+ state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:[{...summary(saved.id,'Balance buyer'),listBalance:500000,listLedgerKnown:true}]}:{sale:saved});
+ mount();
+ fireEvent.click(await screen.findByRole('button',{name:'Review balance'}));
+ await screen.findByRole('heading',{name:'Payments and documents'});
+ expect(screen.queryByLabelText('Payment amount (£)')).not.toBeInTheDocument();
+ expect(writes()).toHaveLength(0);
+});
+
+it('opens an already issued invoice without starting a new invoice or changing stock', async () => {
+ const original=full('invoice-queue','Invoice buyer');
+ const sale=changeSaleWorkspace(original,{action:'document',type:'invoice'},{expectedRevision:original.revision,requestId:'issue-queue-test'},{now:original.updatedAt,actor:'Test',nextId:()=> 'invoice-queue-document',nextNumber:()=> 'INV-QUEUE',branding}).sale;
+ state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:[{...summary(sale.id,'Invoice buyer'),listStage:'Invoice ready',listHasInvoice:true,listAttention:'Invoice to review'}]}:{sale});
+ mount();
+ fireEvent.click(await screen.findByRole('button',{name:'View invoice'}));
+ await screen.findByText('INV-QUEUE',{exact:false});
+ expect(writes()).toHaveLength(0);
+});
+
+
+it('can reopen an exact sale attention link after returning to the queue', async () => {
+ const linked='?section=sales&saleId=attention-link&saleAction=payments';
+ const saved=full('attention-link','Attention buyer');
+ state.search=linked;
+ state.navigate.mockImplementation((path:string)=>{state.search=path.slice(path.indexOf('?'));});
+ state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:[summary(saved.id,'Attention buyer')]}:{sale:saved});
+ const view=mount();
+ await screen.findByRole('heading',{name:'Payments and documents'});
+ fireEvent.click(screen.getByRole('button',{name:'Back to sales'}));
+ expect(state.navigate).toHaveBeenCalledWith('/portal?section=sales',{replace:true});
+ await screen.findByRole('heading',{name:'Sales'});
+ state.search=linked;view.refresh();
+ await screen.findByRole('heading',{name:'Payments and documents'});
+ expect(reads().filter(url=>url==='/api/sale-workspace/attention-link')).toHaveLength(2);
+ expect(writes()).toHaveLength(0);
+});
+
+it('keeps an unsaved customer edit when staff decline opening a sale attention link', async () => {
+ const saved=full('current-dirty','Current buyer'), linked=full('linked-action','Linked buyer');
+ state.navigate.mockImplementation((path:string)=>{state.search=path.slice(path.indexOf('?'));});
+ state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:[summary(saved.id,'Current buyer')]}:{sale:p.endsWith(linked.id)?linked:saved});
+ const view=mount();
+ fireEvent.click(await screen.findByRole('button',{name:/Current buyer/}));
+ await openCarScreen();
+ fireEvent.click(screen.getByRole('button',{name:'Customer'}));
+ const input=screen.getByRole('combobox',{name:'Customer’s full name'});
+ fireEvent.change(input,{target:{value:'Unsaved edited buyer'}});
+ const confirm=vi.spyOn(window,'confirm').mockReturnValue(false);
+ try {
+  const link='?section=sales&saleId=linked-action&saleAction=payments';
+  state.search=link;view.refresh();
+  expect(confirm).toHaveBeenCalledOnce();
+  expect(state.navigate).toHaveBeenCalledWith('/portal?section=sales',{replace:true});
+  expect(input).toHaveValue('Unsaved edited buyer');
+  expect(reads()).not.toContain('/api/sale-workspace/linked-action');
+  view.refresh();
+  confirm.mockReturnValue(true);
+  state.search=link;view.refresh();
+  await screen.findByRole('heading',{name:'Payments and documents'});
+  expect(reads()).toContain('/api/sale-workspace/linked-action');
+  expect(writes()).toHaveLength(0);
+ } finally { confirm.mockRestore(); }
 });

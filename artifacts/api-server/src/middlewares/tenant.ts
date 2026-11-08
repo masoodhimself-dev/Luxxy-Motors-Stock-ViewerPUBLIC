@@ -21,7 +21,9 @@ export const resolveTenant: RequestHandler = (req, res, next) => {
     if (!hostname) { res.status(421).json({ error: 'Unrecognised dealership domain.' }); return; }
     const administratorHost = normaliseTenantHost(process.env.PLATFORM_ADMIN_HOST ?? '');
     if (hostname === administratorHost && req.path === '/') { res.redirect(302, '/platform'); return; }
-    if (hostname === administratorHost && (req.path === '/platform' || req.path === '/join' || /^\/(assets|sign-in|sign-up)(?:\/|$)/.test(req.path))) { next(); return; }
+    if (hostname === administratorHost && (req.path === '/platform' || req.path === '/join' ||
+      /^\/(assets|brand|sign-in|sign-up)(?:\/|$)/.test(req.path) ||
+      ['/favicon.svg', '/showroom-car.jpg'].includes(req.path))) { next(); return; }
     const importRoute = /^\/api\/stock\/imports\/([a-z0-9-]+)\/grok\/?$/.exec(req.path);
     let tenant: TenantContext;
     if (importRoute) {

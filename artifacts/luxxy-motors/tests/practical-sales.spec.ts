@@ -1,5 +1,5 @@
 import { expect, test, type BrowserContext, type Page, type Route } from "@playwright/test";
-import { mkdir, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import {
   changeSaleWorkspace,
   createSaleWorkspace,
@@ -50,6 +50,9 @@ class PracticalSalesApi {
       const request = route.request();
       const path = new URL(request.url()).pathname;
       if (path.startsWith("/api/sale-workspace")) return this.handle(route);
+      if (/^\/api\/sale-operations\/[^/]+\/calculation-check$/.test(path) && request.method() === "POST") {
+        return route.fulfill({ json: { status: "unavailable", message: "Optional calculation check disabled in the fixture." } });
+      }
       if (path === "/api/dealer-settings" && request.method() === "GET") {
         const response = await route.fetch();
         const settings = await response.json();
@@ -103,6 +106,8 @@ class PracticalSalesApi {
       if (!saved) return route.fulfill({ status: 404, json: { error: "Fictional sale not found." } });
       let command: SaleWorkspaceCommand;
       if (method === "PUT") command = { action: "update", draft: body.draft };
+      else if (section === "invoice-payments") command = { action: "invoice-payment", payment: body.payment };
+      else if (section === "issue-invoice") command = { action: "issue-invoice", kind: body.kind, acknowledge: body.acknowledge };
       else if (section === "payments" && !target) command = { action: "payment", payment: body.payment };
       else if (section === "payments" && action === "confirm") command = { action: "confirm", paymentId: target, date: body.date, reserveVehicle: body.reserveVehicle === true };
       else if (section === "take-deposit") command = { action: "take-deposit", payment: body.payment };
@@ -121,241 +126,156 @@ class PracticalSalesApi {
   }
 }
 
-async function editor(page: Page) {
-  const edit = page.getByRole("button", { name: "Edit sale", exact: true });
-  if (await edit.isVisible()) await edit.click();
-}
-
-async function screenshot(page: Page, name: string, width: number) {
-  await page.evaluate(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-    for (const element of document.querySelectorAll<HTMLElement>(".sales-premium-content, .sales-active-sheet, .sales-deal-overview")) element.scrollTo({ top: 0, left: 0, behavior: "instant" });
-  });
-  await page.waitForFunction(() => window.scrollY === 0);
-  await page.screenshot({ path: `output/ui-premium/practical-sales/${name}-${width}.png`, fullPage: true });
-}
+const actions = (page: Page) => page.locator(".sales-flow-menu");
+const menu = (page: Page) => page.getByRole("button", { name: "All actions", exact: true }).first().click();
+const choice = (page: Page, name: RegExp) => actions(page).getByRole("button", { name }).click();
 
 async function startDeal(page: Page) {
-  await page.goto("/portal?section=sales");
+  await page.goto("/portal?section=sales", { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "New sale", exact: true }).first().click();
-  await page.getByLabel("Customer name", { exact: true }).fill("Alex Practical");
+  await page.getByRole("button", { name: /Choose Fixture Touring/ }).click();
+  await expect(page.getByLabel("Agreed vehicle price (£)", { exact: true })).toHaveValue("12000");
+  await page.getByRole("button", { name: "Choose customer", exact: true }).click();
+  await page.getByLabel("Customer’s full name", { exact: true }).fill("Alex Practical");
   await page.getByLabel("Telephone", { exact: true }).fill("07000 000123");
-  await page.getByLabel("Email", { exact: true }).fill("alex@example.test");
-  await page.getByLabel("Address", { exact: true }).fill("10 Fictional Customer Road\nHarrow\nHA1 1AA");
-  await page.getByLabel("Vehicle", { exact: true }).selectOption(vehicleId);
-  await page.getByLabel("Agreed vehicle price (£)").fill("12000");
+  await page.getByLabel("Email for the invoice", { exact: true }).fill("alex@example.test");
+  await page.getByLabel("Customer address", { exact: true }).fill("10 Fictional Road, Harrow, HA1 1AA");
+  await saveAndOpenActions(page);
 }
 
-async function receivedPayment(page: Page, amount: string, method: string) {
-  await editor(page);
-  await page.getByRole("button", { name: "Record payment", exact: true }).click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog.getByLabel("Money received", { exact: false })).not.toBeChecked();
-  await dialog.getByLabel("Payment amount (£)").fill(amount);
-  await dialog.getByRole("combobox", { name: /^Payment method/ }).selectOption(method);
-  await dialog.getByLabel("Money received", { exact: false }).check();
-  await dialog.getByRole("button", { name: "Save & view receipt", exact: true }).click();
-  await expect(dialog).toBeHidden();
+async function saveAndOpenActions(page: Page) {
+  await page.locator(".sale-desk-section-actions, .sales-flow-mobile-action").getByRole("button", { name: "Choose what to do", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "What would you like to do?" })).toBeVisible();
 }
 
-test("three steps preserve pending funds, reserve on confirmed deposit, issue every receipt and complete before handover", async ({ page, context }) => {
+async function receivedPayment(page: Page, amount: string, method: string, deposit = false) {
+  await choice(page, deposit ? /Take a deposit/ : /Take a payment/);
+  await page.getByRole("textbox", { name: /Payment amount/ }).fill(amount);
+  await page.getByRole("combobox", { name: /^Payment method/ }).selectOption(method);
+  const confirm = page.getByRole("checkbox", { name: /checked that this money has been received/ });
+  const save = page.getByRole("button", { name: new RegExp(`^Save £.+ ${deposit ? "deposit" : "payment"}$`) });
+  await expect(save).toBeDisabled();
+  await confirm.check();
+  await save.click();
+  if (deposit) {
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toContainText(/remove.+available stock/i);
+    await dialog.getByRole("button", { name: /Confirm £.+ & reserve car/ }).click();
+    await expect(page.getByRole("heading", { name: "Let the customer know" })).toBeVisible();
+  } else {
+    await expect(page.getByText(/payment recorded\./).first()).toBeVisible();
+  }
+}
+
+async function issueFullInvoice(page: Page) {
+  await choice(page, /Create an invoice/);
+  await page.getByRole("checkbox", { name: /checked the customer, vehicle, agreed price/ }).check();
+  await page.getByRole("button", { name: "Create & save invoice", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Download PDF", exact: true })).toBeVisible();
+}
+
+test("guided sale records a deposit and later payments and preserves the original receipt", async ({ page, context }) => {
   const api = new PracticalSalesApi(); await api.attach(context);
-  await page.setViewportSize({ width: 1440, height: 1000 });
   await startDeal(page);
-  const steps = page.getByRole("navigation", { name: "Sale sections" });
-  await expect(steps.getByRole("button")).toHaveCount(3);
-  for (const name of ["Deal details", "Payments", "Completion"]) await expect(steps.getByRole("button", { name: new RegExp(`^${name}`) })).toBeVisible();
-  await expect(page.locator(".sales-decision-bar")).toHaveCount(0);
-
-  await page.getByText("Part exchange (optional)", { exact: true }).click();
-  await page.getByRole("button", { name: "Add part-exchange car" }).click();
-  await page.getByLabel("Registration 1", { exact: true }).fill("CD16 EFG");
-  await page.getByLabel("Make and model 1", { exact: true }).fill("2016 Fictional Hatchback");
-  await page.getByLabel("Allowance (£) 1", { exact: true }).fill("3000");
-  const fees = page.locator("details").filter({ has: page.locator("summary", { hasText: /Fees (?:and|&) discounts/i }) });
-  await fees.locator("summary").click();
-  await page.getByRole("button", { name: "Add fee or discount" }).click();
-  await page.getByLabel("Description adjustment 1").fill("Delivery");
-  await page.getByLabel("Amount (£) adjustment 1").fill("100");
-  await page.getByRole("button", { name: "Add fee or discount" }).click();
-  await page.locator(".sales-entry-group").filter({ has: page.getByLabel("Description adjustment 2") }).getByRole("combobox").selectOption("discount");
-  await page.getByLabel("Description adjustment 2").fill("Agreed discount");
-  await page.getByLabel("Amount (£) adjustment 2").fill("250");
-  await expect(page.locator(".sales-live-paper")).toContainText("£8,850.00");
-  await page.getByRole("button", { name: "Continue to payments", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Payments", exact: true, level: 1 })).toBeVisible();
-
-  await page.getByRole("button", { name: "Record payment", exact: true }).click();
-  let dialog = page.getByRole("dialog");
-  await expect(dialog.getByLabel("Money received", { exact: false })).not.toBeChecked();
-  await dialog.getByLabel("Payment amount (£)").fill("1000");
-  await dialog.getByRole("button", { name: "Save pending payment", exact: true }).click();
-  await expect.poll(() => api.current()?.payments[0]?.status).toBe("pending");
-  expect(saleWorkspaceTotals(api.current().draft, api.current().payments).balance).toBe(885000);
-  expect(api.current().documents).toHaveLength(0);
-  expect(api.current().lifecycle?.status).not.toBe("reserved");
-
-  await page.getByRole("button", { name: "Confirm received", exact: true }).click();
-  dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Money received", { exact: false }).check();
-  await dialog.getByRole("button", { name: "Confirm & view receipt", exact: true }).click();
-  await expect.poll(() => api.current()?.lifecycle?.status).toBe("reserved");
-  expect(api.current().documents.filter(d => d.type === "receipt")).toHaveLength(1);
-  expect(api.current().documents.some(d => d.type === "reservation")).toBe(true);
-  const firstReceipt = structuredClone(api.current().documents.find(d => d.type === "receipt")!);
+  const steps = page.getByRole("navigation", { name: "Sale steps" });
+  for (const name of ["Car", "Customer", "Choose what to do"]) await expect(steps.getByRole("button", { name, exact: true })).toBeVisible();
+  await receivedPayment(page, "1000", "Bank transfer", true);
+  const firstReceipt = structuredClone(api.current().documents.find(doc => doc.type === "receipt")!);
   const firstReceiptBytes = Buffer.from(api.archives.get(firstReceipt.id)!);
-  await expect(page.getByRole("heading", { name: "Payments", exact: true, level: 1 })).toBeVisible();
-  await expect(page.getByLabel("Document", { exact: true })).toHaveCount(1);
+  await page.getByRole("button", { name: "Back to sale", exact: true }).click();
   await receivedPayment(page, "3000", "Cash");
-  expect(api.current().documents.filter(d => d.type === "receipt")).toHaveLength(2);
-  expect(saleWorkspaceTotals(api.current().draft, api.current().payments).balance).toBe(485000);
-  await receivedPayment(page, "4850", "Bank transfer");
-  expect(api.current().documents.filter(d => d.type === "receipt")).toHaveLength(3);
-  expect(api.current().documents.find(d => d.id === firstReceipt.id)).toEqual(firstReceipt);
+  await menu(page);
+  await receivedPayment(page, "8000", "Bank transfer");
   expect(saleWorkspaceTotals(api.current().draft, api.current().payments).balance).toBe(0);
-  await expect(page.getByRole("dialog")).toBeHidden();
-  await page.getByRole("button", { name: "Review & complete", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Completion", exact: true, level: 1 })).toBeVisible();
-  await page.getByRole("button", { name: "Complete sale & issue documents", exact: true }).click();
-  dialog = page.getByRole("dialog");
-  await dialog.getByRole("checkbox").check();
-  await dialog.getByRole("button", { name: "Complete sale & issue pack", exact: true }).click();
-  await expect.poll(() => api.current()?.lifecycle?.status).toBe("sold");
-  expect(api.current().completedAt).toBeTruthy();
-  expect(api.current().draft.fulfilment?.completedAt).toBeUndefined();
-  expect(api.current().documents.filter(d => d.type === "invoice")).toHaveLength(1);
-  expect(api.current().documents.find(d => d.type === "terms")?.content).toBe(api.context().paperwork!.saleTerms);
-  expect(api.current().documents.some(d => d.type === "vehicle-details")).toBe(true);
-  await page.getByRole("button", { name: "Mark collected", exact: true }).click();
-  dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Received by", { exact: true }).fill("Alex Practical");
-  await dialog.getByRole("button", { name: "Confirm handover", exact: true }).click();
-  await expect.poll(() => api.current()?.draft.fulfilment?.completedRecipient).toBe("Alex Practical");
-  expect(api.current().documents.find(d => d.id === firstReceipt.id)).toEqual(firstReceipt);
-  await page.getByLabel("Document", { exact: true }).selectOption(firstReceipt.id);
-  await expect(page.locator(".sales-live-paper")).toContainText("£7,850.00");
+  await menu(page);
+  await issueFullInvoice(page);
+  const invoice = api.current().documents.find(doc => doc.type === "invoice")!;
+  expect(invoice.snapshot.totals.confirmedPaid).toBe(1200000);
+  expect(api.current().documents.find(doc => doc.id === firstReceipt.id)).toEqual(firstReceipt);
+  expect(api.current().lifecycle?.status).toBe("reserved");
+  await menu(page);
+  await page.getByRole("button", { name: "Payments and documents", exact: true }).click();
+  const receiptRow = page.locator(".sale-desk-document-list > div").filter({ hasText: firstReceipt.number });
+  await receiptRow.getByRole("button", { name: "View & share" }).click();
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Download saved PDF", exact: true }).click();
+  await page.getByRole("button", { name: "Download PDF", exact: true }).click();
   const file = await download;
   expect(file.suggestedFilename()).toBe(`${firstReceipt.number}.pdf`);
   expect(await readFile((await file.path())!)).toEqual(firstReceiptBytes);
-  await steps.getByRole("button", { name: /^Deal details/ }).click();
-  await expect(page.getByLabel("Customer name", { exact: true })).toBeDisabled();
-  await expect(page.getByLabel("Vehicle", { exact: true })).toBeDisabled();
-  await expect(page.getByLabel("Agreed vehicle price (£)")).toBeDisabled();
   expect(api.blockedWrites).toEqual([]);
 });
 
-test("a newly received deposit uses the reserving action and creates its own receipt immediately", async ({ page, context }) => {
+for (const terms of ["configured", "absent"] as const) {
+  test(`recording a deposit reserves stock and saves a receipt with reservation terms ${terms}`, async ({ page, context }) => {
+    const api = new PracticalSalesApi();
+    if (terms === "absent") api.reservationTerms = "";
+    await api.attach(context); await startDeal(page);
+    await receivedPayment(page, "500", "Cash", true);
+    expect(api.commands.at(-1)?.action).toBe("invoice-payment");
+    expect(api.current().lifecycle?.status).toBe("reserved");
+    const receipts = api.current().documents.filter(document => document.type === "receipt");
+    expect(receipts).toHaveLength(1);
+    expect(receipts[0].paymentAmountPence).toBe(50000);
+    expect(saleWorkspaceTotals(api.current().draft, api.current().payments).balance).toBe(1150000);
+    const download = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Download receipt", exact: true }).click();
+    expect(await readFile((await (await download).path())!)).toEqual(Buffer.from(api.archives.get(receipts[0].id)!));
+    expect(api.blockedWrites).toEqual([]);
+  });
+}
+
+test("editing the customer never generates a PDF until staff ask for the saved copy", async ({ page, context }) => {
   const api = new PracticalSalesApi(); await api.attach(context); await startDeal(page);
-  await page.getByRole("button", { name: "Continue to payments", exact: true }).click();
-  await receivedPayment(page, "500", "Cash");
-  expect(api.commands.at(-1)?.action).toBe("take-deposit");
-  expect(api.current().lifecycle?.status).toBe("reserved");
-  expect(api.current().documents.filter(document => document.type === "receipt")).toHaveLength(1);
-  expect(api.current().documents.find(document => document.type === "receipt")?.paymentAmountPence).toBe(50000);
-  expect(saleWorkspaceTotals(api.current().draft, api.current().payments).balance).toBe(1150000);
-  await expect(page.getByRole("heading", { name: "Payments", exact: true, level: 1 })).toBeVisible();
-  await expect(page.locator(".sales-live-paper")).toContainText("£500.00");
-  expect(api.blockedWrites).toEqual([]);
-});
-
-test("a dealer without reservation terms can receive a deposit, reserve the car and print its receipt", async ({ page, context }) => {
-  const api = new PracticalSalesApi(); api.reservationTerms = "";
-  await api.attach(context); await startDeal(page);
-  await page.getByRole("button", { name: "Continue to payments", exact: true }).click();
-  await receivedPayment(page, "500", "Bank transfer");
-  expect(api.current().lifecycle?.status).toBe("reserved");
-  expect(api.current().documents.filter(document => document.type === "receipt")).toHaveLength(1);
-  expect(api.current().documents.filter(document => document.type === "statement")).toHaveLength(1);
-  expect(api.current().documents.filter(document => document.type === "reservation")).toHaveLength(0);
-  expect(api.current().packDocumentIds).toHaveLength(2);
-  expect(saleWorkspaceTotals(api.current().draft, api.current().payments).balance).toBe(1150000);
-  await expect(page.getByText("Deposit received. Car reserved; receipt and balance statement are ready.", { exact: true })).toBeVisible();
-  await expect(page.locator('.sales-pdf-page[data-rendered="true"]').first()).toBeVisible();
-  const receipt = api.current().documents.find(document => document.type === "receipt")!;
+  let pdfRequests = 0;
+  page.on("request", request => { if (/\/documents\/[^/]+\/pdf$/.test(request.url())) pdfRequests++; });
+  await page.getByRole("button", { name: "Back to customer", exact: true }).click();
+  const customer = page.getByLabel("Customer’s full name", { exact: true });
+  await customer.fill(""); await customer.pressSequentially("Jordan Blake", { delay: 25 });
+  await saveAndOpenActions(page);
+  expect(api.current().documents).toHaveLength(0);
+  expect(pdfRequests).toBe(0);
+  await issueFullInvoice(page);
+  expect(api.current().documents.at(-1)?.snapshot.draft.customer).toBe("Jordan Blake");
+  expect(pdfRequests).toBe(0);
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Download saved PDF", exact: true }).click();
-  expect(await readFile((await (await download).path())!)).toEqual(Buffer.from(api.archives.get(receipt.id)!));
-  expect(api.blockedWrites).toEqual([]);
-});
-
-test("typing keeps the displayed invoice stable and replaces it only after a pause", async ({ page, context }) => {
-  const api = new PracticalSalesApi(); await api.attach(context);
-  await page.setViewportSize({ width: 1440, height: 1000 }); await startDeal(page);
-  const canvas = page.locator('.sales-pdf-page[data-rendered="true"]').first();
-  await expect(canvas).toBeVisible();
-  const originalCanvas = await canvas.elementHandle();
-  const pdfLink = page.locator(".sales-pdf-document-meta").getByRole("link", { name: "Open PDF", exact: true });
-  const originalHref = await pdfLink.getAttribute("href");
-  const customer = page.getByLabel("Customer name", { exact: true });
-  await customer.fill(""); await customer.pressSequentially("Jordan Blake", { delay: 60 });
-  expect(await originalCanvas!.evaluate(element => element.isConnected)).toBe(true);
-  expect(await pdfLink.getAttribute("href")).toBe(originalHref);
-  await expect(page.getByText("Preparing document…", { exact: true })).toHaveCount(0);
-  await expect.poll(() => pdfLink.getAttribute("href")).not.toBe(originalHref);
-  const bytes = await pdfLink.evaluate(async link => [...new Uint8Array(await (await fetch((link as HTMLAnchorElement).href)).arrayBuffer())]);
-  expect(Buffer.from(bytes).toString("latin1")).toContain("Jordan Blake");
+  await page.getByRole("button", { name: "Download PDF", exact: true }).click();
+  expect((await download).suggestedFilename()).toBe(`${api.current().documents.at(-1)!.number}.pdf`);
+  expect(pdfRequests).toBe(1);
   expect(api.blockedWrites).toEqual([]);
 });
 
 for (const width of [390, 820, 1440]) {
-  test(`practical sales and invoice remain readable without horizontal overflow at ${width}px`, async ({ page, context }) => {
+  test(`the guided breakdown and issued invoice fit at ${width}px`, async ({ page, context }) => {
     const api = new PracticalSalesApi(); await api.attach(context);
     const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
     await page.setViewportSize({ width, height: 1000 }); await startDeal(page);
-    await page.getByText("Part exchange (optional)", { exact: true }).click();
-    await page.getByRole("button", { name: "Add part-exchange car" }).click();
-    await page.getByLabel("Registration 1", { exact: true }).fill("CD16 EFG");
-    await page.getByLabel("Make and model 1", { exact: true }).fill("Fictional customer part-exchange vehicle with a longer model name");
-    await page.getByLabel("Allowance (£) 1", { exact: true }).fill("1000.10");
-    await page.getByText("Fees & discounts (optional)", { exact: true }).click();
-    await page.getByRole("button", { name: "Add fee or discount" }).click();
-    await page.getByLabel("Description adjustment 1").fill("Agreed delivery to the customer’s supplied home address");
-    await page.getByLabel("Amount (£) adjustment 1").fill("100.20");
-    await page.getByRole("button", { name: "Add fee or discount" }).click();
-    await page.locator(".sales-entry-group").filter({ has: page.getByLabel("Description adjustment 2") }).getByRole("combobox").selectOption("discount");
-    await page.getByLabel("Description adjustment 2").fill("Agreed discount");
-    await page.getByLabel("Amount (£) adjustment 2").fill("0.10");
-    await page.locator(".sales-total-breakdown > summary").click();
-    await expect(page.locator(".sales-total-breakdown")).toContainText("£11,100.00");
-    const overlapping = await page.locator(".sales-active-sheet").evaluate(sheet => {
-      const boxes = [...sheet.querySelectorAll<HTMLElement>('input:not([type="checkbox"]), textarea, select')]
-        .map(element => ({ name: element.closest("label")?.textContent?.trim(), box: element.getBoundingClientRect() }))
-        .filter(({ box }) => box.width > 0 && box.height > 0);
-      return boxes.flatMap((a, i) => boxes.slice(i + 1).filter(b =>
-        Math.min(a.box.right, b.box.right) - Math.max(a.box.left, b.box.left) > 1 &&
-        Math.min(a.box.bottom, b.box.bottom) - Math.max(a.box.top, b.box.top) > 1,
-      ).map(b => [a.name, b.name]));
-    });
-    expect(overlapping).toEqual([]);
-    await mkdir("output/ui-premium/practical-sales", { recursive: true });
-    if (width > 1100) await expect(page.locator('.sales-pdf-page[data-rendered="true"]').first()).toBeVisible();
-    await screenshot(page, "deal-edit-expanded", width);
-    const preview = page.getByRole("button", { name: "Invoice preview", exact: true });
-    if (await preview.isVisible()) await preview.click();
-    await expect(page.locator(".sales-live-paper")).toContainText("Alex Practical");
-    await expect(page.locator(".sales-live-paper")).toContainText("£11,100.00");
-    await expect(page.locator('.sales-pdf-page[data-rendered="true"]').first()).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
-    await mkdir("output/ui-premium/practical-sales", { recursive: true });
-    await screenshot(page, "deal", width);
-    await editor(page);
-    await page.getByRole("button", { name: "Continue to payments", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Payments", exact: true, level: 1 })).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await page.getByRole("button", { name: "Extras or part exchange", exact: true }).click();
+    await page.getByRole("button", { name: "Add part exchange", exact: true }).click();
+    await page.getByLabel("Part-exchange registration", { exact: true }).fill("CD16 EFG");
+    await page.getByLabel("Vehicle description", { exact: true }).fill("Fictional part-exchange vehicle");
+    await page.getByLabel("Allowance (£)", { exact: true }).fill("1000.10");
+    await page.getByRole("button", { name: "Add fee or discount", exact: true }).click();
+    await page.getByLabel("Description", { exact: true }).fill("Agreed extra");
+    await page.getByLabel("Amount (£)", { exact: true }).fill("100.10");
+    await page.getByRole("button", { name: "Save details", exact: true }).click();
+    await expect.poll(() => saleWorkspaceTotals(api.current().draft, api.current().payments).balance).toBe(1110000);
     if (width === 390) {
-      const amounts = await page.locator(".sales-payment-totals dd").evaluateAll(elements =>
-        elements.map(element => ({ whiteSpace: getComputedStyle(element).whiteSpace, fits: element.scrollWidth <= element.clientWidth + 1 })),
-      );
-      expect(amounts).toHaveLength(3);
-      for (const amount of amounts) expect(amount).toEqual({ whiteSpace: "nowrap", fits: true });
+      const balance = page.getByRole("button", { name: /Left to pay.*£11,100.00/ });
+      await expect(balance).toBeInViewport();
+      await balance.click();
+      await expect(page.getByRole("region", { name: "Payment breakdown" })).toContainText("£11,100.00");
+      await page.keyboard.press("Escape");
+      await expect(balance).toHaveAttribute("aria-expanded", "false");
+    } else {
+      await expect(page.locator("[aria-label='Sale amounts']")).toContainText("£11,100.00");
     }
-    await screenshot(page, "payments", width);
-    await page.getByRole("button", { name: "Review & complete", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Completion", exact: true, level: 1 })).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
-    await screenshot(page, "completion", width);
-    expect(errors).toEqual([]); expect(api.blockedWrites).toEqual([]);
+    const fits = () => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1);
+    expect(await fits()).toBe(true);
+    await menu(page);
+    await issueFullInvoice(page);
+    expect(await fits()).toBe(true);
+    expect(api.current().documents.at(-1)?.snapshot.totals.totalDue).toBe(1110000);
+    expect(api.blockedWrites).toEqual([]);
+    expect(errors).toEqual([]);
   });
 }

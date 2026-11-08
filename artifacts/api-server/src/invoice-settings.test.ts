@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { defaultInvoiceSettings, currentInvoiceSettings, invoiceTextLimits, invoiceBranding, saleWorkspaceBranding, saleWorkspaceNumber } from '@workspace/vehicle-meta';
+import { createSaleWorkspace, defaultInvoiceSettings, currentInvoiceSettings, invoiceTextLimits, invoiceBranding, requestSalePayment, saleWorkspaceBranding, saleWorkspaceNumber, type SaleWorkspaceContext } from '@workspace/vehicle-meta';
 import { DealerIntegrationsStore } from './lib/dealer-integrations-store';
 test('approved branded stationery is the default without overwriting an explicit dealer choice',()=>{
  assert.equal(defaultInvoiceSettings.style,'branded');
@@ -91,4 +91,41 @@ test('accountant correction instructions are dealer-specific, revision protected
   assert.deepEqual(legacy.correctionSettings,saved.correctionSettings);
   assert.deepEqual((await a.readSalesPaperwork()).correctionSettings,saved.correctionSettings);
  } finally {await rm(dir,{recursive:true,force:true});}
+});
+
+test('payment defaults stay with the dealer and older settings clients preserve them', async () => {
+ const dir = await mkdtemp(join(tmpdir(),'sale-payment-defaults-'));
+ try {
+  const a = new DealerIntegrationsStore({filename:join(dir,'a.json'),dealerId:'a',production:false,databaseBacked:false});
+  const b = new DealerIntegrationsStore({filename:join(dir,'b.json'),dealerId:'b',production:false,databaseBacked:false});
+  const initial = await a.readSalesPaperwork();
+  const paymentDefaults = { suggestedDepositPence: 25050, preferredShare: 'whatsapp' };
+  const input = { expectedRevision: initial.revision, saleTerms: '', reservationTerms: '', invoiceSettings: { ...defaultInvoiceSettings, paymentInstructions: 'Use the sale reference.' }, paymentDefaults };
+  const saved = await a.updateSalesPaperwork(input);
+  assert.deepEqual(saved.paymentDefaults, paymentDefaults);
+  assert.deepEqual((await b.readSalesPaperwork()).paymentDefaults, { suggestedDepositPence: null, preferredShare: 'email' });
+  await assert.rejects(a.updateSalesPaperwork(input), /changed/);
+  await assert.rejects(a.updateSalesPaperwork({ ...input, expectedRevision: saved.revision, paymentDefaults: { ...paymentDefaults, suggestedDepositPence: -10 } }));
+  const olderClient = await a.updateSalesPaperwork({ expectedRevision: saved.revision, saleTerms: 'Updated wording', reservationTerms: '' });
+  assert.deepEqual(olderClient.paymentDefaults, paymentDefaults);
+  assert.equal(olderClient.invoiceSettings?.paymentInstructions, 'Use the sale reference.');
+ } finally {await rm(dir,{recursive:true,force:true});}
+});
+
+test('individual instructions are saved with the request without changing dealership instructions', () => {
+ let sequence = 0;
+ const context: SaleWorkspaceContext = {
+  now: '2026-11-08T12:00:00Z', actor: 'Owner', nextId: () => `id-${++sequence}`, nextNumber: type => `${type}-${++sequence}`,
+  branding: { ...saleWorkspaceBranding({ identity: { name: 'Fixture Motors' } }), invoiceSettings: { ...defaultInvoiceSettings, paymentInstructions: 'Use the sale reference.' } },
+ };
+ const sale = createSaleWorkspace({ requestId: 'fixture-request', draft: { customer: 'Fixture buyer', vehicleId: 'car-1', vehicle: 'Fixture car', registration: 'AB20 XYZ', price: '10000' } }, context, 'SALE-1').sale;
+ const input = { kind: 'deposit', amount: '250', dueDate: '2026-11-10', note: '' };
+ const standard = requestSalePayment(sale, input, context);
+ const bespoke = requestSalePayment(sale, { ...input, amount: '200', paymentInstructions: 'Use the agreed reservation reference.' }, context);
+ assert.equal(standard.document.snapshot.branding.invoiceSettings?.paymentInstructions, 'Use the sale reference.');
+ assert.equal(bespoke.document.snapshot.branding.invoiceSettings?.paymentInstructions, 'Use the agreed reservation reference.');
+ assert.equal(context.branding.invoiceSettings?.paymentInstructions, 'Use the sale reference.');
+ assert.equal(bespoke.request.amountPence, 20000);
+ assert.deepEqual(bespoke.sale.payments, []);
+ assert.equal(bespoke.sale.lifecycle, undefined);
 });

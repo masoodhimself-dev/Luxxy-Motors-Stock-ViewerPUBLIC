@@ -1,8 +1,10 @@
 import type { Car } from './stock-context';
 import { getThumbnailUrl, vehicleDisplayTitle, vehicleRegistration } from './utils';
+import { privateWebsitePreviewBase } from './private-website-preview';
 export type SavedSnapshot = { title: string; photo: string; price: number | null; currency: string; status: string; savedAt: string; registration?: string };
 const key = 'luxxy.saved-car-snapshots.v1';
 export function readSavedSnapshots(): Record<string, SavedSnapshot> {
+  if (privateWebsitePreviewBase()) return {};
   try {
     const data = JSON.parse(localStorage.getItem(key) || '{}');
     if (!data || typeof data !== 'object' || Array.isArray(data)) return {};

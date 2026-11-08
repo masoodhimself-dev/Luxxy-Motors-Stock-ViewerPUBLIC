@@ -1,3 +1,5 @@
+import { privateWebsitePreviewBase } from './private-website-preview';
+
 export type AnalyticsData = Record<string, string | number | boolean>;
 
 declare global {
@@ -13,7 +15,7 @@ declare global {
  * Analytics is configured by the deployment owner and must never affect the journey.
  */
 export function trackEvent(name: string, data?: AnalyticsData): void {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || privateWebsitePreviewBase()) return;
 
   try {
     window.umami?.track(name, data);

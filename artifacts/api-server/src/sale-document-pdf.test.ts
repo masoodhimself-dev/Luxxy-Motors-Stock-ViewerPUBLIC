@@ -744,6 +744,22 @@ test('v2 invoice reconciles first-class delivery and deposit with the frozen ori
   assert.deepEqual(renderSaleDocumentPdf(document), renderSaleDocumentPdf(JSON.parse(before)), 'Later state cannot rewrite original issued bytes');
 });
 
+test('v2 invoices only show payment instructions when the customer has a balance to pay', () => {
+  const outstanding = workspaceV2Document();
+  const instructions = 'Please quote your sale reference when making payment.';
+  assert.deepEqual(salesDocumentPresentation(outstanding).paymentInstructions, [instructions]);
+  assert.ok(readablePdfText(renderSaleDocumentPdf(outstanding).toString('latin1')).includes(instructions));
+  for (const amount of [970000, 980000]) {
+    const document = structuredClone(outstanding);
+    document.snapshot.payments.push({ ...document.snapshot.payments[0], id: 'final', kind: 'final-payment', amount: (amount / 100).toFixed(2), amountPence: amount, signedAmountPence: amount });
+    document.snapshot.totals = saleWorkspaceTotals(document.snapshot.draft, document.snapshot.payments);
+    document.balanceAtIssue = document.snapshot.totals.balance;
+    assert.ok(document.balanceAtIssue <= 0);
+    assert.deepEqual(salesDocumentPresentation(document).paymentInstructions, []);
+    assert.ok(!readablePdfText(renderSaleDocumentPdf(document).toString('latin1')).includes(instructions));
+  }
+});
+
 test('v2 payment request prints amount, due date and reference without claiming receipt or charging the car', () => {
   const document = workspaceV2Document();
   document.type = 'payment-request'; document.title = 'Payment request'; document.number = 'REQ-2026-0042';

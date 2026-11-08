@@ -14,7 +14,8 @@ test('stock lifecycle is explicit, revision guarded, and prevents switching a re
   assert.throws(() => changeSaleWorkspace(reserve.sale, { action: 'update', draft: { ...reserve.sale.draft, vehicleId: 'car-b' } }, { expectedRevision: reserve.sale.revision, requestId: 'switch-request' }, context()), /Release/);
   assert.throws(() => changeSaleWorkspace(reserve.sale, { action: 'lifecycle', status: 'sold' }, { expectedRevision: 1, requestId: 'stale-request' }, context()), /another device/);
   const checked = changeSaleWorkspace(reserve.sale, { action: 'checklists', completion: Object.fromEntries(saleCompletionChecklistItems.map(item => [item.id, 'checked'])) }, { expectedRevision: reserve.sale.revision, requestId: 'checked-before-sold' }, context()).sale;
-  const sold = changeSaleWorkspace(checked, { action: 'lifecycle', status: 'sold' }, { expectedRevision: checked.revision, requestId: 'sold-request' }, context());
+  const invoiced = changeSaleWorkspace(checked, { action: 'issue-invoice', kind: 'full', acknowledge: true }, { expectedRevision: checked.revision, requestId: 'issue-invoice-request' }, context()).sale;
+  const sold = changeSaleWorkspace(invoiced, { action: 'finish-invoice-sale', acknowledge: true, acknowledgeOutstanding: true }, { expectedRevision: invoiced.revision, requestId: 'sold-request' }, context());
   assert.throws(() => changeSaleWorkspace(sold.sale, { action: 'lifecycle', status: 'released' }, { expectedRevision: sold.sale.revision, requestId: 'release-request' }, context()), /sold vehicle/);
 });
 

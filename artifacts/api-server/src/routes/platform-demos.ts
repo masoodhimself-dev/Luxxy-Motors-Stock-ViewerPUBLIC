@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { getAuth } from '@clerk/express';
 import { z } from 'zod/v4';
-import { db, pool, dealerDemosTable } from '@workspace/db';
+import { db, pool, dealerDemosTable, dealershipsTable } from '@workspace/db';
 import { eq } from 'drizzle-orm';
 import { demoProvisioning } from '../lib/demo-policy';
 import { validatedDemoInput,insertDemo,DemoSetupError } from '../lib/demo-creation';
@@ -11,20 +11,30 @@ router.get('/demo-config', (_req,res) => {
   const p=demoProvisioning();res.json({...p,emailReady:p.emailReady && Boolean(p.emailDomain), configured:Boolean(p.domain && p.domainsReady), note:'Wildcard DNS/TLS and Clerk domain support must be configured once. Creating a demo does not start Grok or verify Resend.'});
 });
 router.post('/demos',async(req,res)=>{
+  const { privatePreview = false, ...body } = req.body ?? {};
+  if (typeof privatePreview !== 'boolean') { res.status(400).json({ error: 'Choose private preview or shareable demo.' }); return; }
   let prepared:ReturnType<typeof validatedDemoInput>;
-  try{prepared=validatedDemoInput(req.body);}catch(error){if(error instanceof DemoSetupError){res.status(error.status).json({error:error.message});return;}throw error;}
+  try{prepared=validatedDemoInput(body,privatePreview);}catch(error){if(error instanceof DemoSetupError){res.status(error.status).json({error:error.message});return;}throw error;}
   const client=await pool.connect();
   try{
     await client.query('BEGIN');
     const result=await insertDemo(client,prepared,getAuth(req).userId!);
-    await client.query('COMMIT');res.status(201).json({...result,next:'Create a dedicated import credential in Stock connection. Demos start with empty enquiries and sales. Import authorised stock to show vehicles. No worker has been started.'});
+    await client.query('COMMIT');
+    if (privatePreview) {
+      res.status(201).json({ dealerId:result.dealerId, privatePreview:true, previewPath:`/platform/preview/${result.dealerId}`, next:'Upload the stock JSON in Stock connection.' });
+    } else {
+      res.status(201).json({...result,next:'Upload stock JSON in Stock connection, or create a dedicated credential for the connected stock worker.'});
+    }
   }catch(error){await client.query('ROLLBACK');if((error as {code?:string}).code==='23505'){res.status(409).json({error:'That demo name is already in use. Nothing was created.'});return;}throw error;}finally{client.release();}
 });
 router.get('/dealers/:id/demo',async(req,res)=>{
-  const [demo]=await db.select().from(dealerDemosTable).where(eq(dealerDemosTable.dealerId,req.params.id));
+  const [row]=await db.select({demo:dealerDemosTable,status:dealershipsTable.status}).from(dealerDemosTable)
+    .innerJoin(dealershipsTable,eq(dealershipsTable.id,dealerDemosTable.dealerId)).where(eq(dealerDemosTable.dealerId,req.params.id));
+  const demo=row?.demo;
   if(!demo){res.json({demo:false});return;}
   if(demo.convertedAt){res.json({demo:false,converted:true,convertedAt:demo.convertedAt});return;}
-  const p=demoProvisioning();res.json({demo:true,recipient:demo.recipient,expiresAt:demo.expiresAt,revision:demo.revision,sender:p.emailDomain?`${demo.dealerId}@${p.emailDomain}`:null,emailReady:p.emailReady && p.recipients.includes(demo.recipient),paymentsDisabled:true});
+  const privatePreview=row.status==='draft';
+  const p=demoProvisioning();res.json({demo:true,privatePreview,recipient:demo.recipient||null,expiresAt:demo.expiresAt,revision:demo.revision,sender:!privatePreview&&p.emailDomain?`${demo.dealerId}@${p.emailDomain}`:null,emailReady:!privatePreview&&p.emailReady&&p.recipients.includes(demo.recipient),paymentsDisabled:true});
 });
 const action=z.object({action:z.enum(['extend','recipient']),expectedRevision:z.number().int().nonnegative(),confirm:z.string(),days:z.number().int().min(1).max(90).optional(),recipient:z.email().transform(v=>v.toLowerCase()).optional()}).strict();
 router.post('/dealers/:id/demo',async(req,res)=>{

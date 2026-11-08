@@ -1,0 +1,12 @@
+.private-website-preview {
+  --site-header-height: 0px;
+}
+
+.private-website-preview .luxxy-shell [data-site-header] {
+  position: sticky;
+  top: 0;
+}
+
+.private-website-preview .multi-home-shell #main-content {
+  padding-top: 0;
+}

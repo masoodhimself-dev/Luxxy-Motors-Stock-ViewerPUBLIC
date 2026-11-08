@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } 
 import { Input } from '@/components/ui/input';
 import { VehicleDialogVehicle, useVehicleDialogTheme } from '@/components/vehicle-dialog-vehicle';
 import { requestUuid } from '@/lib/request-uuid';
+import { privateWebsitePreviewBase } from '@/lib/private-website-preview';
 import type { Car } from '@/lib/stock-context';
 
 const depositPence = 9900;
@@ -23,7 +24,7 @@ export function ReserveCar({ car }: { car: Car }) {
       if (!response.ok) throw new Error('Could not check reservation availability.');
       return response.json();
     },
-    enabled: eligible,
+    enabled: eligible && !privateWebsitePreviewBase(),
     staleTime: 30_000,
     refetchOnMount: 'always',
     refetchOnWindowFocus: 'always',
