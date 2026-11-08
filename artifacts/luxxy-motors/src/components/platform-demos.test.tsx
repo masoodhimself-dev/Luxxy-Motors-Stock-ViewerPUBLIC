@@ -1,7 +1,10 @@
 import { render,screen,fireEvent,waitFor } from '@testing-library/react';
 import { afterEach,it,expect,vi } from 'vitest';
 import { PlatformDemos } from './platform-demos';
-afterEach(()=>vi.unstubAllGlobals());
+afterEach(()=>{
+ vi.unstubAllGlobals();
+ sessionStorage.clear();
+});
 function fillDemoBasics() {
  fireEvent.change(screen.getByLabelText('Demo dealership name'), { target: { value: 'Example Motors' } });
  fireEvent.change(screen.getByLabelText('Demo retailer reference'), { target: { value: 'fictional' } });
@@ -32,6 +35,90 @@ it('defaults to a private demo and creates it without public domain or email set
   name: 'Example Motors', slug: 'example-motors', platform: 'autotrader', retailerId: 'fictional',
   sourceUrl: 'https://www.autotrader.co.uk/fictional', days: 14, privatePreview: true,
  });
+});
+
+it('creates a private demo from one Auto Trader link and only offers a preview after import', async () => {
+ const created = vi.fn();
+ const writes: {path: string; body: unknown}[] = [];
+ let finish: (result: Response) => void = () => {};
+ vi.stubGlobal('fetch', vi.fn(async (path, init) => {
+  if (init?.method !== 'POST') return Response.json({ linkImportReady: true });
+  writes.push({ path: String(path), body: JSON.parse(String(init.body)) });
+  return new Promise<Response>(resolve => { finish = resolve; });
+ }));
+ render(<PlatformDemos onCreated={created}/>);
+ const link = await screen.findByLabelText('Auto Trader stock link');
+ const create = screen.getByRole('button', { name: 'Create private demo' });
+ expect(create).toBeDisabled();
+ fireEvent.change(link, { target: { value: 'https://www.autotrader.co.uk.example.com/dealers/oakwood-cars' } });
+ fireEvent.click(create);
+ expect(screen.getByRole('alert')).toHaveTextContent('Paste an HTTPS stock link');
+ expect(writes).toHaveLength(0);
+
+ const sourceUrl = 'https://www.autotrader.co.uk/dealers/oakwood-cars-123456';
+ fireEvent.change(link, { target: { value: sourceUrl } });
+ fireEvent.click(create);
+ expect(screen.getByRole('status')).toHaveTextContent('Collecting and importing');
+ expect(screen.getByRole('button', { name: 'Creating private demo…' })).toBeDisabled();
+ expect(screen.queryByRole('link', { name: /Open private preview/ })).not.toBeInTheDocument();
+ finish(Response.json({ error: 'The collector could not confirm the complete stock.' }, { status: 502 }));
+ await screen.findByText('The collector could not confirm the complete stock.');
+
+ fireEvent.click(create);
+ finish(Response.json({
+  dealerId: 'demo-oakwood-cars', dealerName: 'Oakwood Cars',
+  previewPath: '/platform/preview/demo-oakwood-cars', received: 8,
+ }));
+ const preview = await screen.findByRole('link', { name: /Open private preview/ });
+ expect(preview).toHaveAttribute('href', '/platform/preview/demo-oakwood-cars');
+ await waitFor(() => expect(preview).toHaveFocus());
+ expect(screen.queryByLabelText('Auto Trader stock link')).not.toBeInTheDocument();
+ expect(screen.getByRole('status')).toHaveTextContent('8 vehicles imported into the private demo.');
+ expect(writes).toEqual([
+  { path: '/api/platform/demos/from-autotrader', body: { sourceUrl } },
+  { path: '/api/platform/demos/from-autotrader', body: { sourceUrl } },
+ ]);
+ expect(created).not.toHaveBeenCalled();
+ fireEvent.click(screen.getByRole('button', { name: 'Manage demo' }));
+ expect(created).toHaveBeenCalledWith('demo-oakwood-cars');
+});
+
+it('resumes an accepted stock collection after navigation and retries a failed status check without resubmitting', async () => {
+ const jobId = '56394415-80f1-463c-b0cf-ed61e83da3b4';
+ const pending = { status: 'collecting', jobId };
+ const reads = vi.fn();
+ const writes = vi.fn();
+ let allowImport = false;
+ vi.stubGlobal('fetch', vi.fn(async (path, init) => {
+  if (String(path).endsWith('/demo-config')) return Response.json({ linkImportReady: true });
+  if (init?.method === 'POST') {
+   writes(path);
+   return Response.json(pending, { status: 202 });
+  }
+  reads(path);
+  if (!allowImport) return Response.json(pending);
+  if (reads.mock.calls.length === 2) return Response.json({ error: 'Temporarily unavailable' }, { status: 503 });
+  return Response.json({
+   status: 'ready', dealerId: 'demo-oakwood-cars', dealerName: 'Oakwood Cars',
+   previewPath: '/platform/preview/demo-oakwood-cars', received: 8,
+  });
+ }));
+ const first = render(<PlatformDemos onCreated={() => {}}/>);
+ fireEvent.change(await screen.findByLabelText('Auto Trader stock link'), {
+  target: { value: 'https://www.autotrader.co.uk/dealers/oakwood-cars-123456' },
+ });
+ fireEvent.click(screen.getByRole('button', { name: 'Create private demo' }));
+ await waitFor(() => expect(reads).toHaveBeenCalledTimes(1));
+ expect(screen.queryByRole('link', { name: /Open private preview/ })).not.toBeInTheDocument();
+ first.unmount();
+ allowImport = true;
+ render(<PlatformDemos onCreated={() => {}}/>);
+ await screen.findByText('Waiting to reconnect and check the stock collection…');
+ expect(screen.getByRole('button', { name: 'Creating private demo…' })).toBeDisabled();
+ const preview = await screen.findByRole('link', { name: /Open private preview/ }, { timeout: 3_000 });
+ expect(preview).toHaveAttribute('href', '/platform/preview/demo-oakwood-cars');
+ expect(reads.mock.calls).toEqual(Array.from({ length: 3 }, () => [`/api/platform/demos/collection/${jobId}`]));
+ expect(writes).toHaveBeenCalledTimes(1);
 });
 
 it('creates a shareable demo using only operator-approved destinations and does not invent a worker connection', async () => {

@@ -5,10 +5,11 @@ import { db, pool, dealerDemosTable, dealershipsTable } from '@workspace/db';
 import { eq } from 'drizzle-orm';
 import { demoProvisioning } from '../lib/demo-policy';
 import { validatedDemoInput,insertDemo,DemoSetupError } from '../lib/demo-creation';
+import { demoStockCollectorConfig } from '../lib/demo-stock-collector';
 const router=Router();
 // Mounted ONLY behind platform-dealers' host, administrator and origin checks.
 router.get('/demo-config', (_req,res) => {
-  const p=demoProvisioning();res.json({...p,emailReady:p.emailReady && Boolean(p.emailDomain), configured:Boolean(p.domain && p.domainsReady), note:'Wildcard DNS/TLS and Clerk domain support must be configured once. Creating a demo does not start Grok or verify Resend.'});
+  const p=demoProvisioning();res.json({...p,emailReady:p.emailReady && Boolean(p.emailDomain), configured:Boolean(p.domain && p.domainsReady), linkImportReady:Boolean(demoStockCollectorConfig()), note:'Wildcard DNS/TLS and Clerk domain support must be configured once. Creating a demo does not start Grok or verify Resend.'});
 });
 router.post('/demos',async(req,res)=>{
   const { privatePreview = false, ...body } = req.body ?? {};

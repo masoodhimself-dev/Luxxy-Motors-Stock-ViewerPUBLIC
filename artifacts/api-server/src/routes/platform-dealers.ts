@@ -6,6 +6,7 @@ import platformConversionRouter from './platform-conversion';
 import platformDomainAutomationRouter from './platform-domain-automation';
 import platformOnboardingKeysRouter from './platform-onboarding-keys';
 import platformDemosRouter from './platform-demos';
+import platformDemoLinkRouter from './platform-demo-link';
 import { sql } from 'drizzle-orm';
 import { onboardingItems } from '@workspace/vehicle-meta';
 import { Router } from 'express';
@@ -38,6 +39,7 @@ router.use(platformFeaturesRouter);
 router.use(platformStockUploadRouter);
 router.use(platformOnboardingKeysRouter);
 router.use(platformDemosRouter);
+router.use(platformDemoLinkRouter);
 router.use(platformConversionRouter);
 router.use(platformDomainAutomationRouter);
 router.get('/capacity', async (req, res) => {

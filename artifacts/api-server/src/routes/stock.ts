@@ -70,7 +70,7 @@ const validSecret = (provided: string | undefined): boolean => {
   return a.length === b.length && timingSafeEqual(a, b);
 };
 
-function semanticIssues(data: Import, settings: Awaited<ReturnType<typeof config>>): Issue[] {
+function semanticIssues(data: Import, settings: Pick<Awaited<ReturnType<typeof config>>, 'retailerId' | 'maxAgeHours'>): Issue[] {
   const problems: Issue[] = [];
   if (data.retailerId !== settings.retailerId) problems.push(issue("retailer_not_allowed", "Retailer is not allowed", "retailerId"));
   if (Date.now() - data.scrapedAt.getTime() > settings.maxAgeHours * 3_600_000 || data.scrapedAt.getTime() > Date.now() + 300_000)
@@ -90,6 +90,17 @@ function semanticIssues(data: Import, settings: Awaited<ReturnType<typeof config
     if (car.heroImage && !safeUrl(car.heroImage)) problems.push(issue("hero_url_invalid", "heroImage must use https", `cars.${index}.heroImage`, car.advertId));
   });
   return problems;
+}
+
+export function checkAutoTraderDemoSnapshot(body: unknown, retailerId: string) {
+  const parsed = ImportGrokStockBody.safeParse(body);
+  if (!parsed.success || parsed.data.source !== 'grok') return null;
+  const snapshot = parsed.data;
+  if (!snapshot.complete || !snapshot.cars.length || snapshot.failedAdvertIds.length || snapshot.errors.length ||
+      snapshot.cars.some(car => car.sourceExtras?.sourcePlatform !== 'autotrader') ||
+      stockPlatformIssues(snapshot.cars, 'autotrader').length ||
+      semanticIssues(snapshot, { retailerId, maxAgeHours: envNumber('STOCK_MAX_AGE_HOURS', 24) }).length) return null;
+  return snapshot;
 }
 
 async function recordRejected(body: unknown, status: "failed" | "quarantined", problems: Issue[]): Promise<"stored" | "existing" | "conflict"> {
@@ -183,10 +194,14 @@ async function syncImages(tx: any, vehicleId: string, car: Import["cars"][number
   return { before, after };
 }
 
-async function importStock(req: Request, res: Response, source: ImportSource, platformUpload = false): Promise<void> {
+type PrivateDemoImport = { body: unknown; onImported: (received: number) => void };
+
+async function importStock(req: Request, res: Response, source: ImportSource, platformUpload = false, privateDemo?: PrivateDemoImport): Promise<void> {
+  const body: unknown = privateDemo ? privateDemo.body : req.body;
+  const envelope = body as { runId?: unknown; retailerId?: unknown } | null;
   const identity = {
-    runId: typeof req.body?.runId === "string" ? req.body.runId : null,
-    retailerId: typeof req.body?.retailerId === "string" ? req.body.retailerId : null,
+    runId: typeof envelope?.runId === "string" ? envelope.runId : null,
+    retailerId: typeof envelope?.retailerId === "string" ? envelope.retailerId : null,
   };
   if (!platformUpload && !validSecret(req.get("x-stock-import-secret"))) {
     req.log.warn("Rejected unauthorized stock import");
@@ -201,10 +216,10 @@ async function importStock(req: Request, res: Response, source: ImportSource, pl
     req.log.error("STOCK_RETAILER_ID is not configured");
     res.status(500).json({ ...identity, status: "rejected", errors: [issue("configuration_error", "Stock import is not configured")] }); return;
   }
-  const parsed = (source === "grok" ? ImportGrokStockBody : ImportAutotraderStockBody).safeParse(req.body);
+  const parsed = (source === "grok" ? ImportGrokStockBody : ImportAutotraderStockBody).safeParse(body);
   if (!parsed.success) {
     const problems = parsed.error.issues.map((e) => issue("invalid_structure", e.message, e.path.join(".")));
-    const recorded = platformUpload ? "stored" : await recordRejected(req.body, "failed", problems);
+    const recorded = platformUpload ? "stored" : await recordRejected(body, "failed", problems);
     if (recorded === "conflict") { res.status(409).json({ ...identity, status: "rejected", errors: [issue("run_id_conflict", "runId was already used with a different payload")] }); return; }
     res.status(400).json({ ...identity, status: "rejected", errors: problems }); return;
   }
@@ -222,23 +237,24 @@ async function importStock(req: Request, res: Response, source: ImportSource, pl
   if (data.failedAdvertIds.length) quarantineProblems.push(issue("failed_adverts", "Snapshot contains failed advert IDs"));
   if (data.errors.length) quarantineProblems.push(issue("source_errors", "Snapshot contains source errors"));
   if (quarantineProblems.length) {
-    const recorded = platformUpload ? "stored" : await recordRejected(req.body, "quarantined", quarantineProblems);
+    const recorded = platformUpload ? "stored" : await recordRejected(body, "quarantined", quarantineProblems);
     if (recorded === "conflict") { res.status(409).json({ ...identity, status: "rejected", errors: [issue("run_id_conflict", "runId was already used with a different payload")] }); return; }
     res.status(422).json({ ...identity, status: "quarantined", errors: quarantineProblems }); return;
   }
   const problems = semanticIssues(data, settings).filter((problem) => problem.code !== "count_mismatch" && problem.code !== "stale_snapshot");
   if (problems.length) {
-    const recorded = platformUpload ? "stored" : await recordRejected(req.body, "failed", problems);
+    const recorded = platformUpload ? "stored" : await recordRejected(body, "failed", problems);
     if (recorded === "conflict") { res.status(409).json({ ...identity, status: "rejected", errors: [issue("run_id_conflict", "runId was already used with a different payload")] }); return; }
     res.status(422).json({ ...identity, status: "rejected", errors: problems }); return;
   }
-  const payloadHash = hash(req.body);
+  const payloadHash = hash(body);
   try {
     const result = await db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`stock-import:${settings.dealerId}`}))`);
       if (platformUpload) {
         const target = await readPlatformStockUploadTarget(settings.dealerId, tx, true);
         if (!target) return { uploadBlocked: 'Dealership not found.' };
+        if (privateDemo && target.status !== 'draft') return { uploadBlocked: 'This dealership is no longer a private draft.' };
         const blocked = platformStockUploadBlock(target);
         if (blocked) return { uploadBlocked: blocked };
         if (target.stockPlatform !== settings.platform || target.retailerId !== settings.retailerId) return { connectionChanged: true as const };
@@ -253,7 +269,7 @@ async function importStock(req: Request, res: Response, source: ImportSource, pl
       // Replay detection precedes freshness/order checks, under the same dealer lock.
       if (Date.now() - data.scrapedAt.getTime() > settings.maxAgeHours * 3_600_000 || data.scrapedAt.getTime() > Date.now() + 300_000) {
         const errors = [issue("stale_snapshot", "Snapshot is outside the allowed freshness window", "scrapedAt")];
-        await tx.insert(stockImportRunsTable).values({ runId: data.runId, dealerId: settings.dealerId, source: settings.platform, retailerId: data.retailerId, schemaVersion: "1", scrapedAt: data.scrapedAt, expectedCount: data.expectedAdvertCount, receivedCount: data.count, complete: data.complete, status: "quarantined", failedAdvertIds: [], errors, rawSnapshot: req.body, payloadHash });
+        await tx.insert(stockImportRunsTable).values({ runId: data.runId, dealerId: settings.dealerId, source: settings.platform, retailerId: data.retailerId, schemaVersion: "1", scrapedAt: data.scrapedAt, expectedCount: data.expectedAdvertCount, receivedCount: data.count, complete: data.complete, status: "quarantined", failedAdvertIds: [], errors, rawSnapshot: body, payloadHash });
         return { freshnessQuarantine: true as const, errors };
       }
       const [latest] = await tx.select().from(stockImportRunsTable).where(and(eq(stockImportRunsTable.dealerId, settings.dealerId), eq(stockImportRunsTable.status, "completed"))).orderBy(desc(stockImportRunsTable.scrapedAt)).limit(1);
@@ -263,10 +279,10 @@ async function importStock(req: Request, res: Response, source: ImportSource, pl
       const current = await tx.select().from(vehiclesTable).where(and(eq(vehiclesTable.dealerId, settings.dealerId), eq(vehiclesTable.source, settings.platform)));
       const liveCount = current.filter((v) => v.sourceStatus === "live").length;
       if (liveCount && data.cars.length < liveCount * (1 - settings.maxDrop / 100)) {
-        await tx.insert(stockImportRunsTable).values({ runId: data.runId, dealerId: settings.dealerId, source: settings.platform, retailerId: data.retailerId, schemaVersion: "1", scrapedAt: data.scrapedAt, expectedCount: data.expectedAdvertCount, receivedCount: data.count, complete: data.complete, status: "quarantined", failedAdvertIds: [], errors: [issue("stock_drop", "Snapshot drop exceeds configured limit")], rawSnapshot: req.body, payloadHash });
+        await tx.insert(stockImportRunsTable).values({ runId: data.runId, dealerId: settings.dealerId, source: settings.platform, retailerId: data.retailerId, schemaVersion: "1", scrapedAt: data.scrapedAt, expectedCount: data.expectedAdvertCount, receivedCount: data.count, complete: data.complete, status: "quarantined", failedAdvertIds: [], errors: [issue("stock_drop", "Snapshot drop exceeds configured limit")], rawSnapshot: body, payloadHash });
         return { quarantined: true as const };
       }
-      const [run] = await tx.insert(stockImportRunsTable).values({ runId: data.runId, dealerId: settings.dealerId, source: settings.platform, retailerId: data.retailerId, schemaVersion: "1", scrapedAt: data.scrapedAt, expectedCount: data.expectedAdvertCount, receivedCount: data.count, complete: true, status: "processing", failedAdvertIds: [], errors: [], rawSnapshot: req.body, payloadHash }).returning();
+      const [run] = await tx.insert(stockImportRunsTable).values({ runId: data.runId, dealerId: settings.dealerId, source: settings.platform, retailerId: data.retailerId, schemaVersion: "1", scrapedAt: data.scrapedAt, expectedCount: data.expectedAdvertCount, receivedCount: data.count, complete: true, status: "processing", failedAdvertIds: [], errors: [], rawSnapshot: body, payloadHash }).returning();
       let created = 0, updated = 0, unchanged = 0, missing = 0;
       const now = new Date(), incomingIds = new Set(data.cars.map((car) => car.advertId));
       const currentByAdvert = new Map(current.map(vehicle => [vehicle.advertId, vehicle]));
@@ -345,6 +361,7 @@ async function importStock(req: Request, res: Response, source: ImportSource, pl
     const replayed = result.replay === true;
     const replayUnchanged = replayed ? Math.max(0, data.cars.length - result.prior!.addedCount - result.prior!.changedCount) : result.unchanged;
     const reply = (source === "grok" ? ImportGrokStockResponse : ImportAutotraderStockResponse).parse({ schemaVersion: 1, status: replayed ? "replayed" : "imported", runId: data.runId, source, retailerId: data.retailerId, received: data.cars.length, created: replayed ? result.prior!.addedCount : result.created, updated: replayed ? result.prior!.changedCount : result.updated, deleted: 0, unchanged: replayUnchanged, errors: [] });
+    if (privateDemo) { privateDemo.onImported(reply.received); return; }
     res.status(replayed ? 200 : 201).json(reply);
   } catch (error) {
     if (platformUpload) req.log?.error("Platform stock upload failed");
@@ -354,9 +371,9 @@ async function importStock(req: Request, res: Response, source: ImportSource, pl
 }
 
 /** Only the authenticated Platform Admin upload route sets this access mode. */
-export async function importPlatformStock(req: Request, res: Response) {
-  const source = req.body?.source === "autotrader" ? "autotrader" : "grok";
-  await importStock(req, res, source, true);
+export async function importPlatformStock(req: Request, res: Response, privateDemo?: PrivateDemoImport) {
+  const source = !privateDemo && req.body?.source === "autotrader" ? "autotrader" : "grok";
+  await importStock(req, res, source, true, privateDemo);
 }
 
 router.post("/stock/imports/autotrader", async (req, res): Promise<void> => {

@@ -1,0 +1,79 @@
+.platform-main:has(.platform-demo-from-link) { margin-block: 0; }
+
+.platform-demo-from-link {
+  display: grid;
+  gap: 15px;
+  max-width: 760px;
+  padding: 17px;
+  border: 1px solid #dce3eb;
+  border-radius: 8px;
+  background: #f7f9fb;
+}
+
+.platform-demo-link-intro {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.platform-demo-link-intro > :first-child { flex-shrink: 0; }
+.platform-demo-link-intro h3 { font-size: 16px; font-weight: 650; color: #202f53; }
+.platform-demo-link-intro p, .platform-demo-link-progress, .platform-demo-link-error { font-size: 13px; }
+.platform-demo-link-icon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 5px;
+  background: #e8edf5;
+  color: #202f53;
+}
+
+.platform-demo-link-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+
+.platform-demo-link-form > .platform-field {
+  flex: 1 1 260px;
+  margin: 0;
+}
+
+.platform-demo-link-form input { height: 48px; }
+.platform-demo-link-form > button { min-height: 48px; }
+.platform-demo-link-error {
+  padding: 8px 10px;
+  border: 1px solid #efcec1;
+  border-radius: 5px;
+  background: #fff6f1;
+}
+.platform-demo-from-link p.platform-demo-link-error { color: #873922; }
+.platform-demo-link-result {
+  display: grid;
+  gap: 11px;
+  padding: 13px;
+  border: 1px solid #dce3eb;
+  border-radius: 5px;
+  background: #fff;
+  color: #202f53;
+}
+
+.platform-demo-link-result svg { margin-top: 3px; }
+.platform-demo-link-result strong { overflow-wrap: anywhere; }
+.platform-demo-link-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.platform-demo-manual { margin-top: 17px; border-top: 1px solid #dce3eb; }
+.platform-demo-manual > summary {
+  min-height: 44px;
+  padding-block: 11px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 650;
+}
+.platform-demo-manual > summary:focus-visible { outline: 2px solid #42657c; outline-offset: 2px; }
+
+@media (max-width: 540px) {
+  .platform-demo-from-link { padding: 13px; }
+  .platform-demo-link-form > button { flex: 1 1 100%; }
+}

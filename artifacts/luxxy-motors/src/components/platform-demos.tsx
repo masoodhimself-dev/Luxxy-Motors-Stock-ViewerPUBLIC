@@ -4,9 +4,10 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { NativeSelect } from './ui/native-select';
 import { ArrowRight, CheckCircle2, Circle, Demo as DemoIcon, ExternalLink, RefreshCw, StockImport } from '@/components/icons';
+import { PlatformDemoFromLink } from './platform-demo-from-link';
 import './platform-demo-conversion.css';
 const api=<T,>(path:string,body?:unknown)=>customFetch<T>('/api/platform'+path,{method:body?'POST':'GET',...(body?{headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{})});
-type Provision={domain:string;emailDomain:string;recipients:string[];configured:boolean;emailReady:boolean;note:string};
+type Provision={domain:string;emailDomain:string;recipients:string[];configured:boolean;emailReady:boolean;note:string;linkImportReady?:boolean};
 type Demo={demo:boolean;privatePreview?:boolean;converted?:boolean;recipient?:string;expiresAt?:string;revision?:number;sender?:string;emailReady?:boolean};
 type ConversionReadiness = {
  demo: boolean;
@@ -120,7 +121,7 @@ export function PlatformDemos({ dealerId, onCreated, onOpenStock }: { dealerId?:
  return <section className="platform-demo" aria-label={dealerId ? 'Demo controls' : 'Create demo dealership'}>
   <header>
    <h2>{dealerId ? (demo?.converted ? 'Live dealership' : demo?.demo === false ? 'Dealership status' : 'Demo controls') : 'Create a dealer demo'}</h2>
-   <p>{dealerId && demo?.demo === false ? 'Website and integration settings are managed in the dealer portal.' : dealerId ? 'Manage access and expiry for this dealership’s demonstration.' : 'Set up the dealership’s branding, then import its stock and open the website preview.'}</p>
+   <p>{dealerId && demo?.demo === false ? 'Website and integration settings are managed in the dealer portal.' : dealerId ? 'Manage access and expiry for this dealership’s demonstration.' : provision?.linkImportReady ? 'Bring a dealer’s own stock into a private website you can show on a visit.' : 'Set up the dealership’s branding, then import its stock and open the website preview.'}</p>
   </header>
   {error && <p role="alert" className="platform-alert">{error}</p>}
   {notice && <p role="status" className="platform-notice">{notice}</p>}
@@ -146,7 +147,11 @@ export function PlatformDemos({ dealerId, onCreated, onOpenStock }: { dealerId?:
     <Button variant="outline" disabled={busy || confirmation !== dealerId || !recipient || recipient === demo.recipient} onClick={() => void action('recipient')}>Update demo inbox</Button>
    </>}
    <div className="platform-demo-actions"><article><h3>Extend demo</h3><p>Keep this demonstration available for another 14 days.</p><Button variant="outline" disabled={busy || confirmation !== dealerId} onClick={() => void action('extend')}>Extend for 14 days</Button></article></div>
-  </> : <form onSubmit={event => { event.preventDefault(); if (canCreate && !busy) void create(); }}>
+  </> : <>
+   {provision?.linkImportReady && <PlatformDemoFromLink busy={busy} onBusyChange={setBusy} onManage={onCreated}/>}
+   <details className={provision?.linkImportReady ? 'platform-demo-manual' : undefined} open={provision?.linkImportReady ? undefined : true}>
+   <summary hidden={!provision?.linkImportReady}>Set up manually and upload stock JSON</summary>
+   <form onSubmit={event => { event.preventDefault(); if (canCreate && !busy) void create(); }}>
    <fieldset className="platform-demo-access" disabled={busy}>
     <legend>Demo access</legend>
     <div className="platform-demo-access-options">
@@ -170,6 +175,8 @@ export function PlatformDemos({ dealerId, onCreated, onOpenStock }: { dealerId?:
    </fieldset>
    <p className="platform-help">Import an existing stock JSON file after creating the demo. Grok collection and scheduling remain separate.</p>
    <Button type="submit" disabled={busy || !canCreate}><DemoIcon size={16} aria-hidden="true"/>{busy ? 'Preparing demo…' : 'Create demo dealership'}</Button>
-  </form>}
+   </form>
+   </details>
+  </>}
  </section>;
 }

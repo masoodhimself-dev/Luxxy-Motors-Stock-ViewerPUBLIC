@@ -2,6 +2,25 @@
 
 Platform administration → Demo dealerships creates a separate tenant with its own ID (`demo-<slug>`), website name/logo, stock source, owner membership, expiration and email test recipient. Existing paying dealers are not converted. No Grok agent, schedule, DNS record, certificate or mailbox is created by this API.
 
+## Private demo from an Auto Trader link
+
+With the stock collector connected, open **Demo dealerships**, paste the dealer's Auto Trader stock page link, and select **Create private demo**. A supported dealer link ends with the numeric retailer ID, for example `/dealers/region/town/dealership-name-123456`. The collector verifies that retailer and obtains their full authorised inventory. Once the import succeeds, select **Open private preview**. The site is a draft with a 14-day expiry and opens only for signed-in platform administrators. Repeating the link reuses the existing private draft while it is eligible. The manual setup and JSON upload remain available.
+
+Set `DEMO_STOCK_COLLECTOR_URL` to a fixed HTTPS endpoint and `DEMO_STOCK_COLLECTOR_TOKEN` to its server-side bearer token. The platform uses one POST per request and does not follow redirects. The JSON body is `{"sourceUrl":"<canonical Auto Trader dealer URL>","retailerId":"<ID from link>"}`. The collector must verify access and identity through its authorised source. Return HTTP 403 or 404 when access is unavailable. On success, return the raw schemaVersion 1 stock snapshot, with `source: "grok"`, the verified retailer and dealer name, and `sourceExtras.sourcePlatform: "autotrader"` on each vehicle. Return one complete, nonempty snapshot of up to 5 MB within 45 seconds. A pasted link does not grant API access.
+
+Keep both environment values on the server. Without a connected collector, use the manual demo and JSON flow. The manual shareable demo and its separate setup are below.
+
+### Grok Bot webhook pilot
+
+Grok Bot's routine webhook acknowledges that a run started. In `grok-webhook` mode DealerOS tracks a collection job and waits for the worker to return the stock. The private preview appears when the import succeeds.
+
+- On the shared DealerOS service, set `DEMO_STOCK_COLLECTOR_MODE=grok-webhook` and `DEMO_STOCK_COLLECTOR_RETAILER_ID=10045264` for the authorised Paramount Auto Group pilot. Set `DEMO_STOCK_COLLECTOR_URL` and `DEMO_STOCK_COLLECTOR_TOKEN` to the routine's HTTPS endpoint and bearer key. DealerOS signs each return pass on the server with `DEMO_STOCK_CALLBACK_SIGNING_KEY`, or the existing `SESSION_SECRET` when no dedicated key is configured. The signing key stays on DealerOS.
+- The routine receives `{jobId, sourceUrl, retailerId, callbackProof}`. Verify the retailer and canonical URL against the authorised pilot configuration. Run the existing collector in an isolated directory with delivery disabled. Use a fresh complete snapshot for that job only.
+- The routine sends the raw JSON snapshot in an authenticated POST to `https://<STOCK_IMPORT_API_HOST>/api/stock/demo-collector-callback/<jobId>`. Use `Content-Type: application/json` and the job's `callbackProof` in the Bearer header. If the source is blocked or incomplete, POST `{"status":"failed"}` instead. Retry a transient callback failure with the identical snapshot. Keep the return pass out of chat, URLs, logs and files.
+- For the pilot, use Platform Admin to paste the authorised dealer link. Check the imported count, open the private preview, and check that it denies a signed-out request. The routine has no schedule and its callback applies only to the pending private demo job.
+
+See the [Grok Bot webhook reference](https://docs.x.ai/grok-bot/skills-routines-and-automations#webhooks) and [secure secrets reference](https://docs.x.ai/grok-bot/vault#api-keys-and-other-secrets).
+
 ## One-time setup
 
 The operator selected the existing test domain **luxxyexmaplenumber2.uk**. Proposed demo namespace: **demo.luxxyexmaplenumber2.uk**, so a fictional example is `smith.demo.luxxyexmaplenumber2.uk`. Do not replace the existing apex domain's dealer mapping.

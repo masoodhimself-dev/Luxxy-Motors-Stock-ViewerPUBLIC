@@ -2,18 +2,19 @@ import type { NextFunction, Request, Response } from 'express';
 import { serviceLifecycle } from './service-lifecycle';
 
 export const platformStockUploadPath = /^\/api\/platform\/dealers\/[^/]+\/stock-upload\/?$/i;
+const stockImportPath = (path: string) => /^\/api\/stock\/imports(?:\/|$)/i.test(path) || platformStockUploadPath.test(path);
 
 type Lease = { startedAt: number; processing: boolean; released: boolean; release: () => void };
 
 /** Reject excess uploads before buffering JSON. This bounds one API process,
  * not the whole fleet; the collector must also pace and retry immutable runs. */
-export function createStockImportAdmission(maximum = 2, now: () => number = Date.now, lifecycle = serviceLifecycle) {
+export function createStockImportAdmission(maximum = 2, now: () => number = Date.now, lifecycle = serviceLifecycle, matchesPath = stockImportPath) {
   maximum = Number.isInteger(maximum) && maximum >= 1 && maximum <= 4 ? maximum : 2;
   const leases = new Set<Lease>();
   const requests = new WeakMap<Request, Lease>();
   let accepted = 0, rejected = 0, completed = 0, peakActive = 0;
   function middleware(req: Request, res: Response, next: NextFunction) {
-    if (req.method !== 'POST' || !(/^\/api\/stock\/imports(?:\/|$)/i.test(req.path) || platformStockUploadPath.test(req.path))) { next(); return; }
+    if (req.method !== 'POST' || !matchesPath(req.path)) { next(); return; }
     const restarting = lifecycle.isDraining();
     if (restarting || leases.size >= maximum) {
       rejected++;

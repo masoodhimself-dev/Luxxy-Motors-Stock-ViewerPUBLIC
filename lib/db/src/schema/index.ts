@@ -41,6 +41,7 @@ export * from "./enquiry-emails";
 export * from './email-delivery-checks';
 export * from './dealer-demos';
 export * from './demo-onboarding';
+export * from './demo-stock-collection-jobs';
 export * from './domain-setup-jobs';
 
 export * from './enquiry-email-drafts';
