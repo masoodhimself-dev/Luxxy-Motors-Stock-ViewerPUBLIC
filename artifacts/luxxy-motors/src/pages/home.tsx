@@ -55,7 +55,7 @@ import { usePageMeta } from '@/hooks/use-page-meta';
 import { showroomPageMeta } from '@/lib/page-meta';
 import { ArrowRight, Grid2X2, List, ChevronDown, Heart, Link2, SlidersHorizontal } from '@/components/icons';
 import { Button } from '@/components/ui/button';
-import { trackEvent } from '@/lib/analytics';
+import { trackEvent, trackJourneyStage } from '@/lib/analytics';
 
 const defaultFilters: FilterState = {
   make: '',
@@ -85,6 +85,9 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     return () => window.removeEventListener('hashchange', redirectStock);
   }, [browseStock, setLocation]);
   const { stock, isLoading, error } = useStock();
+  useEffect(() => {
+    if (browseStock && stock && !isLoading && !error) trackJourneyStage('search');
+  }, [browseStock, stock, isLoading, error]);
   const publicCars = useMemo(() => (stock?.cars ?? []).filter(car => !['sold', 'archived', 'hidden'].includes(String(car.inventoryStatus).toLowerCase())), [stock?.cars]);
   const { settings: dealerConfig, publicEnquiriesEnabled } = useDealerSettings();
   const recommendedCars = useMemo(() => {

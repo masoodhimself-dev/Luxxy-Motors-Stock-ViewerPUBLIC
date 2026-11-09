@@ -14,6 +14,7 @@ import { readVehicleSourceReport } from '@/lib/vehicle-source-report';
 import { VehicleDescription } from '@/components/vehicle-description';
 import { VehicleSellingPoints } from '@/components/vehicle-selling-points';
 import { browseReturnHref, requestBrowseRestore } from '@/lib/browse-session';
+import { trackJourneyStage } from '@/lib/analytics';
 import { prioritiseVehicleFeatures, vehicleContent, vehicleDescriptionParagraphs } from '@/lib/vehicle-content';
 import { vehiclePageSummary, vehiclePageInclusions } from '@/lib/vehicle-page-summary';
 import { PriceReduction } from '@/components/price-reduction';
@@ -96,6 +97,12 @@ export default function CarDetail() {
   const browseSource = new URLSearchParams(window.location.search).get('from');
   const fromStock = browseSource === 'stock';
   const fromSaved = browseSource === 'saved';
+
+  useEffect(() => {
+    if (car && !isLoading && !error && !['sold', 'archived', 'hidden'].includes(String(car.inventoryStatus))) {
+      trackJourneyStage('vehicle');
+    }
+  }, [car, isLoading, error]);
 
   useEffect(() => {
     if (!car) return;
