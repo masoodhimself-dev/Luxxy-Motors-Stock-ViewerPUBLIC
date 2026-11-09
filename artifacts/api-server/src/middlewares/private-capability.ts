@@ -9,11 +9,13 @@ const privateCapabilityHeaders: RequestHandler = (_req, res, next) => {
 /** Apply before API/SPA handlers so failures and public HTML share the same protections. */
 export function protectPrivateCapabilityPages(app: Express) {
   app.use(privateCapabilityPaths, privateCapabilityHeaders);
+  app.use('/api/website-journey', privateCapabilityHeaders);
 }
 
 /** Body-parser errors may contain the original JSON body, including tokens and typed names. */
 export function isPrivateTestDriveDeclarationPath(path: string): boolean {
   const pathname = path.split('?')[0];
+  if (/^\/api\/website-journey(?:\/|$)/i.test(pathname)) return true;
   return /^\/api\/test-drive-declarations(?:\/|$)/i.test(pathname)
     || /^\/api\/(?:delivery-evidence|payment-requests)(?:\/|$)/i.test(pathname)
     || /^\/api\/staff\/sales\/[^/]+\/delivery-evidence(?:\/|$)/i.test(pathname)

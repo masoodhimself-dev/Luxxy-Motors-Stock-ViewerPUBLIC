@@ -80,5 +80,5 @@ export * from './sales-terms';
 
 export * from './vehicle-public-links';
 export * from './stock-alerts';
-
 export * from './staff-reply-presence';
+export * from './website-journey';

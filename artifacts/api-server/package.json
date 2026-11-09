@@ -55,6 +55,7 @@
     "test:website-assets": "node test-website-assets-build.mjs && node --test .cache/website-assets-tests/dealer-website-assets.test.mjs",
     "test:seo": "node test-seo-crawl-build.mjs && node --test .cache/seo-crawl-tests/seo-crawl.test.mjs .cache/seo-crawl-tests/indexnow.test.mjs .cache/seo-crawl-tests/vehicle-public-links.test.mjs && node test-public-page-seo-build.mjs && node --test .cache/public-page-seo-tests/public-page-seo.test.mjs",
     "test:stock-alerts": "node test-enquiry-emails-build.mjs src/stock-alerts.test.ts && node test-enquiry-emails-build.mjs src/stock-alert-worker.test.ts && node --test dist-test/stock-alerts.test.mjs dist-test/stock-alert-worker.test.mjs",
+    "test:website-journey": "node test-website-journey-build.mjs && node --test .cache/website-journey/test.mjs",
     "test:search-visibility": "node test-search-visibility-build.mjs && node --test .cache/search-visibility-tests/search-visibility.test.mjs",
     "test:invitations": "node test-invitations-build.mjs && node --test .cache/invitation-tests/account-invitations.test.mjs",
     "test:customer-replies": "node test-customer-replies-build.mjs && node --test .cache/reply-tests/customer-email-replies.test.mjs",

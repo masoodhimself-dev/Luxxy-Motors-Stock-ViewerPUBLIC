@@ -74,6 +74,7 @@ app.post(platformStockUploadPath, express.json({ limit: platformStockUploadLimit
 app.post('/api/platform/demos/from-autotrader', express.json({ limit: '8kb' }));
 app.use("/api/demo-onboarding", express.json({ limit: "450kb" }));
 app.use('/api/staff/website-assets', express.json({ limit: '3mb' }));
+app.use('/api/website-journey', express.json({ limit: '128b', strict: true }));
 app.use(['/api/reservations/stripe/webhook', '/api/reservations/stripe/live-webhook'], express.json({
   limit: '1mb',
   verify: (req, _res, buffer) => {
