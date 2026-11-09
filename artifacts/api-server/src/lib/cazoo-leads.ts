@@ -19,6 +19,7 @@ import type { MotHistory } from "@workspace/vehicle-meta";
 import { runBoundedDealerJob } from "./tenant-jobs";
 import { serviceLifecycle, startLifecycleWorker } from "./service-lifecycle";
 import { platformStockConnection } from "./platform-stock-connection";
+import { processCazooLeadForwards, queueCazooLeadForward } from "./cazoo-lead-forwarding";
 import { dealerFeatureEnabled } from "./dealer-features";
 import { dealerIntegrationsStore, effectiveResendSettings, integrationReadiness } from "./dealer-integrations-store";
 import { runWithTenant } from "./tenant-context";
@@ -246,6 +247,9 @@ export async function importCazooReceipt(
     await tx.execute(
       sql`UPDATE cazoo_lead_receipts SET status='imported',correlation_id=${lead.correlationId},enquiry_id=${id}::uuid,subject=${email.subject.slice(0, 200)},review_text=NULL,error_code=${car ? (testDelivery ? "owner_test" : null) : "vehicle_not_matched"},lease_until=NULL,draft_status=${car ? "pending" : "skipped"} WHERE id=${row.id}::uuid AND dealer_id=${dealer}`,
     );
+    if (!testDelivery) await queueCazooLeadForward({
+      id: String(row.id), dealer_id: dealer, provider_id: String(row.provider_id), mailbox: String(row.mailbox),
+    }, email, tx);
     return id;
   });
 }
@@ -404,9 +408,14 @@ export async function processCazooLeads(
         await importCazooReceipt(row, email, lease);
       } catch (error) {
         if (!(error instanceof CazooLeadError)) throw error;
-        await db.execute(
-          sql`UPDATE cazoo_lead_receipts SET status='review',draft_status='skipped',subject=${email.subject.slice(0, 200)},review_text=${cazooEmailText(email)},error_code=${error.code},lease_until=NULL WHERE id=${row.id}::uuid AND dealer_id=${row.dealer_id} AND lease_until=${lease}`,
-        );
+        await db.transaction(async (tx) => {
+          const updated = await tx.execute(
+            sql`UPDATE cazoo_lead_receipts SET status='review',draft_status='skipped',subject=${email.subject.slice(0, 200)},review_text=${cazooEmailText(email)},error_code=${error.code},lease_until=NULL WHERE id=${row.id}::uuid AND dealer_id=${row.dealer_id} AND lease_until=${lease} RETURNING id`,
+          );
+          if (updated.rows.length) await queueCazooLeadForward({
+            id: String(row.id), dealer_id: String(row.dealer_id), provider_id: String(row.provider_id), mailbox: String(row.mailbox),
+          }, email, tx);
+        });
       }
     } catch (error) {
       const review =
@@ -471,7 +480,10 @@ export function startCazooLeadWorker(log: { warn: (message: string) => void }) {
   return startLifecycleWorker({
     intervalMs: 15000,
     enabled: cazooLeadsEnabled,
-    work: processCazooLeads,
+    work: async () => {
+      await processCazooLeads();
+      await processCazooLeadForwards();
+    },
     onError: () =>
       log.warn(
         "Cazoo lead processing needs attention.",

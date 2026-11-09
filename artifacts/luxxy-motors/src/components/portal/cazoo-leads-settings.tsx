@@ -2,8 +2,12 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { formatDateTime } from "./portal-ui";
 
+type ForwardingSettings = { enabled: boolean; recipient: string | null; canManage: boolean };
+type ForwardingInput = Omit<ForwardingSettings, "canManage">;
 type Receipt = {
   id: string;
   status: string;
@@ -12,6 +16,8 @@ type Receipt = {
   enquiryId: string | null;
   draftStatus: string;
   automaticReplyStatus?: "sending" | "sent" | "failed" | "unknown" | null;
+  forwardStatus?: "pending" | "sending" | "sent" | "failed" | "unknown" | "cancelled" | null;
+  canForward?: boolean;
   receivedAt: string;
   reviewText: string | null;
 };
@@ -21,7 +27,9 @@ type Connection = {
   receipts: Receipt[];
   ownerTest?: { email: string; expiresAt: string } | null;
   automation?: { automaticDraftsEnabled: boolean; automaticRepliesEnabled: boolean };
+  forwarding?: ForwardingSettings;
 };
+const cazooLeadsKey = ["cazoo-leads"] as const;
 const reasons: Record<string, string> = {
   owner_test: "Owner test — the original customer’s contact details were not imported.",
   owner_test_format: "For a test, forward one original Cazoo lead, or use subject: Enquiry - Audi A5 MW62VLP - Test and write your question in the message.",
@@ -50,11 +58,92 @@ const automaticReplyLabels = {
   failed: "Automatic reply stopped. Open the enquiry to reply.",
   unknown: "Automatic delivery is unconfirmed. Check the enquiry before replying.",
 };
+const forwardingLabels = {
+  pending: "Forwarding queued.",
+  sending: "Forwarding in progress.",
+  sent: "Forwarded to your dealership.",
+  failed: "Could not forward this email.",
+  unknown: "Forwarding could not be confirmed.",
+  cancelled: "Forwarding stopped.",
+};
+
+function CazooForwardingSettings({ settings }: { settings: ForwardingSettings }) {
+  const client = useQueryClient();
+  const [draft, setDraft] = useState<ForwardingInput | null>(null);
+  const enabled = draft?.enabled ?? settings.enabled;
+  const address = (draft ? draft.recipient : settings.recipient) ?? "";
+  const recipient = enabled ? address.trim() || null : null;
+  const dirty = enabled !== settings.enabled || (enabled && recipient !== settings.recipient);
+  const save = useMutation({
+    mutationFn: (next: ForwardingInput) => customFetch<ForwardingSettings>("/api/staff/cazoo-leads/forwarding", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(next),
+    }),
+    onSuccess: async (forwarding) => {
+      await client.cancelQueries({ queryKey: cazooLeadsKey });
+      client.setQueryData<Connection>(cazooLeadsKey, (current) => current ? { ...current, forwarding } : current);
+      setDraft(null);
+    },
+  });
+  function change(next: ForwardingInput) {
+    save.reset();
+    setDraft(next);
+  }
+
+  return (
+    <form
+      className="admin-card my-3 grid gap-3"
+      aria-label="Cazoo enquiry forwarding"
+      data-settings-dirty={dirty}
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (dirty && !save.isPending && (!enabled || recipient)) save.mutate({ enabled, recipient });
+      }}
+    >
+      <div>
+        <h3>Forward enquiries</h3>
+        <p className="text-sm text-muted-foreground">
+          Send a copy of new Cazoo enquiries to your dealership email. They’ll still appear in the Inbox.
+        </p>
+      </div>
+      <label className="flex min-h-11 items-center justify-between gap-4 text-sm font-semibold">
+        <span>Forward new Cazoo enquiries</span>
+        <Switch
+          checked={enabled}
+          disabled={save.isPending}
+          onCheckedChange={(next) => change({ enabled: next, recipient: address })}
+        />
+      </label>
+      {enabled && (
+        <label className="grid gap-2 text-sm font-semibold">
+          Destination email
+          <Input
+            type="email"
+            value={address}
+            autoCapitalize="none"
+            spellCheck={false}
+            maxLength={254}
+            required
+            disabled={save.isPending}
+            onChange={(event) => change({ enabled, recipient: event.currentTarget.value })}
+          />
+        </label>
+      )}
+      <Button type="submit" className="min-h-11 justify-self-start" disabled={!dirty || save.isPending || (enabled && !recipient)}>
+        {save.isPending ? "Saving…" : "Save forwarding"}
+      </Button>
+      {save.isError && <p role="alert">Could not save forwarding. Check the address and try again.</p>}
+      {save.isSuccess && <p role="status">Forwarding turned {save.data.enabled ? "on" : "off"}.</p>}
+    </form>
+  );
+}
+
 export function CazooLeadsSettings() {
   const [open, setOpen] = useState(false);
   const client = useQueryClient();
   const query = useQuery({
-    queryKey: ["cazoo-leads"],
+    queryKey: cazooLeadsKey,
     enabled: open,
     retry: false,
     queryFn: ({ signal }) =>
@@ -63,7 +152,11 @@ export function CazooLeadsSettings() {
   const retry = useMutation({
     mutationFn: (id: string) =>
       customFetch(`/api/staff/cazoo-leads/${id}/retry`, { method: "POST" }),
-    onSuccess: () => client.invalidateQueries({ queryKey: ["cazoo-leads"] }),
+    onSuccess: () => client.invalidateQueries({ queryKey: cazooLeadsKey }),
+  });
+  const forward = useMutation({
+    mutationFn: (id: string) => customFetch(`/api/staff/cazoo-leads/${id}/forward`, { method: "POST" }),
+    onSuccess: () => client.invalidateQueries({ queryKey: cazooLeadsKey }),
   });
   return (
     <details
@@ -112,6 +205,9 @@ export function CazooLeadsSettings() {
               ) : query.data.automation ? (
                 <p>Automatic drafting is off. You can reply in the Inbox.</p>
               ) : null}
+              {query.data.forwarding?.canManage === true && (
+                <CazooForwardingSettings settings={query.data.forwarding} />
+              )}
               <p>
                 {query.data.receipts.length
                   ? "Recent Cazoo emails"
@@ -151,6 +247,22 @@ export function CazooLeadsSettings() {
                           ? "Preparing AI draft…"
                           : "No saved draft. Open the enquiry to see the conversation."}
                     </p>
+                  )}
+                  {receipt.forwardStatus && <p>{forwardingLabels[receipt.forwardStatus]}</p>}
+                  {query.data.forwarding?.canManage === true && receipt.canForward === true && (
+                    <Button
+                      variant="outline"
+                      disabled={forward.isPending || (forward.isSuccess && forward.variables === receipt.id)}
+                      onClick={() => forward.mutate(receipt.id)}
+                    >
+                      {forward.isPending && forward.variables === receipt.id ? "Requesting…" : "Forward to owner"}
+                    </Button>
+                  )}
+                  {forward.variables === receipt.id && forward.isError && (
+                    <p role="alert">Could not forward this enquiry. Try again.</p>
+                  )}
+                  {forward.variables === receipt.id && forward.isSuccess && (
+                    <p role="status">Forwarding requested.</p>
                   )}
                   {receipt.enquiryId && (
                     <a

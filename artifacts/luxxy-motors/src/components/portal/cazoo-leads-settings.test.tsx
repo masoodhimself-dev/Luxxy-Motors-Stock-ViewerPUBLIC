@@ -1,74 +1,100 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { expect, it, vi } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, expect, it, vi } from "vitest";
 import { CazooLeadsSettings } from "./cazoo-leads-settings";
-const state = vi.hoisted(() => ({
-  enabled: [] as boolean[],
-  refetch: vi.fn(),
-  mutate: vi.fn(),
-  data: {
-    enabled: true,
-    ownerTest: { email: "owner@example.test", expiresAt: "2026-11-09T10:00:00Z" },
-    mailbox: "cazoo@leads.example.test",
-    receipts: [
-      {
-        id: "receipt-a",
-        subject: "Enquiry - Lexus RX AB15CDE",
-        status: "imported",
-        enquiryId: "case-a",
-        draftStatus: "ready",
-        receivedAt: "2026-11-02T10:00:00Z",
-        errorCode: null,
-        reviewText: null,
-      },
-      {
-        id: "receipt-b",
-        subject: "Changed template",
-        status: "review",
-        enquiryId: null,
-        draftStatus: "skipped",
-        receivedAt: "2026-11-02T09:00:00Z",
-        errorCode: "unrecognised_message_layout",
-        reviewText: "<script>inert email text</script>",
-      },
-    ],
-  },
-}));
-vi.mock("@tanstack/react-query", () => ({
-  useQuery: (options: any) => {
-    state.enabled.push(options.enabled);
-    return { data: state.data, refetch: state.refetch };
-  },
-  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
-  useMutation: () => ({ mutate: state.mutate }),
-}));
-it("keeps lead connection collapsed and exposes review-only drafts and inert failed email text", () => {
-  render(<CazooLeadsSettings />);
-  expect(state.enabled.at(-1)).toBe(false);
-  expect(
-    screen.queryByText("cazoo@leads.example.test"),
-  ).not.toBeInTheDocument();
+
+const endpoint = "/api/staff/cazoo-leads";
+const receiptId = "e1e07107-188f-4655-9774-41efb288815f";
+const clients: QueryClient[] = [];
+
+function show(transport: typeof fetch) {
+  vi.stubGlobal("fetch", transport);
+  vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  clients.push(client);
+  render(<QueryClientProvider client={client}><CazooLeadsSettings /></QueryClientProvider>);
   const details = screen.getByText("Cazoo enquiries").closest("details")!;
   details.open = true;
   fireEvent(details, new Event("toggle"));
-  expect(state.enabled.at(-1)).toBe(true);
-  expect(screen.getByText("cazoo@leads.example.test")).toBeVisible();
-  expect(screen.getByText("owner@example.test")).toBeVisible();
-  expect(screen.getByText(/Test replies are addressed to this email only/)).toBeVisible();
-  expect(
-    screen.getByText("AI draft ready — review before sending."),
-  ).toBeVisible();
-  expect(screen.getByRole("link", { name: "Open enquiry" })).toHaveAttribute(
-    "href",
-    "/portal?section=notifications&workView=customers&enquiryId=case-a",
-  );
-  expect(screen.getByText("<script>inert email text</script>").tagName).toBe(
-    "PRE",
-  );
-  fireEvent.click(screen.getByRole("button", { name: "Retry import" }));
-  expect(state.mutate).toHaveBeenCalledWith("receipt-b");
-  fireEvent.click(screen.getByRole("button", { name: "Refresh connection" }));
-  expect(state.refetch).toHaveBeenCalledOnce();
-  expect(
-    screen.queryByRole("button", { name: /send/i }),
-  ).not.toBeInTheDocument();
+}
+
+afterEach(() => {
+  clients.splice(0).forEach((client) => client.clear());
+  vi.unstubAllGlobals();
+});
+
+it("saves an explicit destination only after the owner submits, and can switch forwarding off", async () => {
+  let forwarding = { enabled: false, recipient: null as string | null, canManage: true };
+  const transport = vi.fn<typeof fetch>(async (url, init) => {
+    if (String(url) === endpoint + "/forwarding" && init?.method === "PUT") {
+      forwarding = { ...JSON.parse(String(init.body)), canManage: true };
+      return Response.json(forwarding);
+    }
+    expect(String(url)).toBe(endpoint);
+    return Response.json({ enabled: true, mailbox: "leads@example.test", receipts: [], forwarding });
+  });
+  show(transport);
+  const form = within(await screen.findByRole("form", { name: "Cazoo enquiry forwarding" }));
+  const toggle = form.getByRole("switch", { name: "Forward new Cazoo enquiries" });
+  const save = form.getByRole("button", { name: "Save forwarding" });
+  expect(toggle).not.toBeChecked();
+  fireEvent.click(toggle);
+  expect(save).toBeDisabled();
+  fireEvent.change(form.getByLabelText("Destination email"), { target: { value: "owner@example.test" } });
+  expect(transport).toHaveBeenCalledTimes(1);
+  fireEvent.click(save);
+  expect(await form.findByRole("status")).toHaveTextContent("Forwarding turned on.");
+  expect(transport).toHaveBeenLastCalledWith(endpoint + "/forwarding", expect.objectContaining({
+    method: "PUT", body: JSON.stringify({ enabled: true, recipient: "owner@example.test" }),
+  }));
+  fireEvent.click(toggle);
+  expect(form.queryByLabelText("Destination email")).not.toBeInTheDocument();
+  fireEvent.click(save);
+  expect(await form.findByRole("status")).toHaveTextContent("Forwarding turned off.");
+  expect(transport).toHaveBeenLastCalledWith(endpoint + "/forwarding", expect.objectContaining({
+    method: "PUT", body: JSON.stringify({ enabled: false, recipient: null }),
+  }));
+});
+
+it("lets an owner forward an existing receipt without retrying import or replacing its draft", async () => {
+  let queued = false;
+  const transport = vi.fn<typeof fetch>(async (url, init) => {
+    if (String(url) === endpoint + "/" + receiptId + "/forward" && init?.method === "POST") {
+      queued = true;
+      return Response.json({ queued: true, alreadyQueued: false });
+    }
+    expect(String(url)).toBe(endpoint);
+    return Response.json({
+      enabled: true, mailbox: "leads@example.test",
+      forwarding: { enabled: true, recipient: "owner@example.test", canManage: true },
+      receipts: [{
+        id: receiptId, status: "imported", subject: "Fictional Cazoo enquiry",
+        receivedAt: "2026-11-09T05:42:00Z", draftStatus: "ready",
+        canForward: !queued, forwardStatus: queued ? "pending" : null,
+      }],
+    });
+  });
+  show(transport);
+  fireEvent.click(await screen.findByRole("button", { name: "Forward to owner" }));
+  expect(await screen.findByText("Forwarding queued.")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Forward to owner" })).not.toBeInTheDocument();
+  expect(screen.getByText("AI draft ready — review before sending.")).toBeVisible();
+  expect(transport.mock.calls.filter(([, init]) => init?.method === "POST").map(([url]) => url))
+    .toEqual([endpoint + "/" + receiptId + "/forward"]);
+});
+
+it("does not show forwarding controls or the owner's address to other staff", async () => {
+  show(vi.fn(async () => Response.json({
+    enabled: true, mailbox: "leads@example.test",
+    forwarding: { enabled: true, recipient: "owner@example.test", canManage: false },
+    receipts: [{
+      id: receiptId, status: "imported", subject: "Fictional Cazoo enquiry",
+      receivedAt: "2026-11-09T05:42:00Z", draftStatus: "ready",
+      canForward: true, forwardStatus: "cancelled",
+    }],
+  })));
+  expect(await screen.findByText("Forwarding stopped.")).toBeVisible();
+  expect(screen.queryByRole("form", { name: "Cazoo enquiry forwarding" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Forward to owner" })).not.toBeInTheDocument();
+  expect(screen.queryByDisplayValue("owner@example.test")).not.toBeInTheDocument();
 });

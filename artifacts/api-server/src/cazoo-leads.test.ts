@@ -669,6 +669,69 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
       }
     },
   );
+  await t.test("owners can configure forwarding and recover a verified receipt without reimporting", async () => {
+    const review = await queue();
+    const original = email(review, { text: text("1".repeat(32)).replace("sam@example.test", "") });
+    await processCazooLeads(transportFor({ [review]: original }), draftSkip);
+    const before = await receipt(review);
+    assert.equal(before.error_code, "missing_or_ambiguous_customer_email");
+
+    const app = express();
+    app.use(express.json());
+    app.use((req, _res, next) => runWithTenant(tenant(req.get("x-fixture-dealer") === "b" ? "cazoo-b" : "cazoo-a"), () => {
+      req.staff = {
+        authUserId: "fictional-staff", email: "owner@example.test", name: "Fixture",
+        role: req.get("x-fixture-role") === "owner" ? "owner" : "salesperson",
+      };
+      next();
+    }));
+    app.use("/api", createCazooLeadRouter(async id => {
+      assert.equal(id, review);
+      return { ...original, attachments: [] };
+    }));
+    const server = app.listen(0, "127.0.0.1");
+    await new Promise<void>(resolve => server.once("listening", resolve));
+    const url = `http://127.0.0.1:${(server.address() as {port:number}).port}/api/staff/cazoo-leads`;
+    const owner = { "x-fixture-role": "owner", "Content-Type": "application/json" };
+    const save = (recipient: string, headers: Record<string, string> = owner) =>
+      fetch(url + "/forwarding", { method: "PUT", headers, body: JSON.stringify({ enabled: true, recipient }) });
+    const forward = (headers: Record<string, string> = owner) =>
+      fetch(url + `/${before.id}/forward`, { method: "POST", headers });
+    try {
+      assert.equal((await save("owner@example.test", { "Content-Type": "application/json" })).status, 403);
+      assert.equal((await save("owner@example.test", { ...owner, origin: "https://evil.example.test" })).status, 403);
+      assert.equal((await save(address)).status, 400);
+      assert.deepEqual(await (await save("owner@example.test")).json(), { enabled: true, recipient: "owner@example.test", canManage: true });
+      assert.deepEqual((await (await fetch(url)).json() as any).forwarding, { enabled: true, recipient: null, canManage: false });
+      assert.equal((await forward({ ...owner, "x-fixture-dealer": "b" })).status, 409);
+      assert.equal((await forward()).status, 200);
+      assert.deepEqual(await (await forward()).json(), { queued: true, alreadyQueued: true });
+      const after = await receipt(review);
+      assert.equal(after.status, "review");
+      assert.equal(after.enquiry_id, null);
+      assert.equal(after.draft_status, before.draft_status);
+      assert.equal(String(after.received_at), String(before.received_at));
+      const status = (await (await fetch(url, { headers: owner })).json() as any).receipts.find((r: any) => r.id === before.id);
+      assert.equal(status.forwardStatus, "pending");
+      assert.equal(status.canForward, false);
+
+      const direct = await queue();
+      const reviewAgain = await queue();
+      await processCazooLeads(transportFor({
+        [direct]: email(direct, { text: text("2".repeat(32)) }),
+        [reviewAgain]: email(reviewAgain, { text: text("3".repeat(32)).replace("sam@example.test", "") }),
+      }), draftSkip);
+      const copied = (await engine.query<{ status: string; recipient: string }>(
+        "SELECT status,recipient FROM cazoo_lead_forwards WHERE dealer_id='cazoo-a' ORDER BY receipt_id",
+      )).rows;
+      assert.equal(copied.length, 3);
+      assert.ok(copied.every(r => r.status === "pending" && r.recipient === "owner@example.test"));
+    } finally {
+      await engine.exec("DELETE FROM cazoo_lead_forwarding_settings WHERE dealer_id='cazoo-a'");
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  });
   await t.test(
     "webhook requires a valid signature and enabled connection",
     async () => {

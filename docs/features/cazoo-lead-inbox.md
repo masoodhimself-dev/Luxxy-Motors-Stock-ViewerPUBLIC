@@ -28,6 +28,8 @@ Cazoo direct-delivery leads become dealer-scoped Inbox enquiries (`source=cazoo`
 - No separate worker service or cron subscription: the lifecycle-aware, bounded worker runs in the existing web service. Queue state is durable PostgreSQL data.
 - Review copies are inert text and removed after 30 days. Imported enquiry content follows existing customer-record retention. Deleting an enquiry cascades its receipt/draft; provider deduplication history for that enquiry is therefore removed too.
 
+Dealership owners can turn on **Forward new Cazoo leads to the owner** under **Settings → Emails → Cazoo enquiries**. DealerOS still imports leads into the Inbox or holds them for review. It emails a text copy of each verified Cazoo lead to the saved owner address, including genuine leads with missing customer contact details. Copies have their own delivery status and do not count as customer replies. An owner can forward an eligible earlier receipt from the same panel.
+
 ## Verification
 
 `pnpm --filter @workspace/api-server test:cazoo-leads`
