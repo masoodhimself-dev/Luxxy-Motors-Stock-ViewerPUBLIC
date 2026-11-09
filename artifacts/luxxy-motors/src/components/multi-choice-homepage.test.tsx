@@ -352,15 +352,36 @@ it('keeps featured carousel controls keyboard-operable without opening a car and
   try {
     render(<Harness />);
     const rail = screen.getByRole('group', { name: 'Featured cars; scroll for more' });
-    const first = within(rail).getAllByRole('article')[0];
-    Object.defineProperty(first, 'getBoundingClientRect', { value: () => ({ width: 320 }) });
-    const scroll = vi.fn(); Object.defineProperty(rail, 'scrollBy', { configurable: true, value: scroll });
-    const previous = screen.getByRole('button', { name: 'Previous featured cars' }), next = screen.getByRole('button', { name: 'Next featured cars' });
-    previous.focus(); fireEvent.click(previous, { detail: 0 }); expect(scroll).toHaveBeenLastCalledWith({ left: -320, behavior: 'auto' });
-    next.focus(); fireEvent.click(next, { detail: 0 }); expect(scroll).toHaveBeenLastCalledWith({ left: 320, behavior: 'auto' });
-    expect(next).toHaveFocus(); expect(window.location.pathname).toBe('/'); expect(events.analytics).not.toHaveBeenCalled();
-    media.mockReturnValue({ matches: false }); fireEvent.click(next, { detail: 0 });
-    expect(scroll).toHaveBeenLastCalledWith({ left: 320, behavior: 'smooth' });
+    const cars = within(rail).getAllByRole('article');
+    Object.defineProperty(rail, 'clientWidth', { value: 320 });
+    Object.defineProperty(rail, 'scrollWidth', { value: cars.length * 320 });
+    cars.forEach((car, index) => Object.defineProperty(car, 'getBoundingClientRect', {
+      value: () => ({ left: index * 320 - rail.scrollLeft, right: (index + 1) * 320 - rail.scrollLeft }),
+    }));
+    const scroll = vi.fn(({ left }: ScrollToOptions) => {
+      rail.scrollLeft = left ?? 0;
+      fireEvent.scroll(rail);
+    });
+    Object.defineProperty(rail, 'scrollTo', { value: scroll });
+    fireEvent.scroll(rail);
+    const previous = screen.getByRole('button', { name: 'Previous featured cars' });
+    const next = screen.getByRole('button', { name: 'Next featured cars' });
+    expect(previous).toBeDisabled();
+    expect(screen.getByText(`1 of ${cars.length} cars`)).toBeVisible();
+    next.focus();
+    fireEvent.click(next);
+    expect(scroll).toHaveBeenLastCalledWith({ left: 320, behavior: 'auto' });
+    expect(screen.getByText(`2 of ${cars.length} cars`)).toBeVisible();
+    expect(next).toHaveFocus();
+    media.mockReturnValue({ matches: false });
+    fireEvent.keyDown(rail, { key: 'End' });
+    expect(scroll).toHaveBeenLastCalledWith({ left: (cars.length - 1) * 320, behavior: 'smooth' });
+    expect(next).toBeDisabled();
+    fireEvent.keyDown(rail, { key: 'Home' });
+    expect(scroll).toHaveBeenLastCalledWith({ left: 0, behavior: 'smooth' });
+    expect(previous).toBeDisabled();
+    expect(window.location.pathname).toBe('/');
+    expect(events.analytics).not.toHaveBeenCalled();
   } finally { vi.unstubAllGlobals(); }
 });
 

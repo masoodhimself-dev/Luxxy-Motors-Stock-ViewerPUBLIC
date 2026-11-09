@@ -201,7 +201,7 @@ describe("Multi-Choice stock controls", () => {
     expect(within(sidebar()).getByRole("heading", { name: "Search Filters" })).toBeVisible();
     const rows = [...sidebar().querySelectorAll<HTMLButtonElement>(".multi-stock-section__toggle")];
     const expected = [
-      ["Price", "11-filter-max-price-badge-pound-sterling.svg"],
+      ["Price range", "11-filter-max-price-badge-pound-sterling.svg"],
       ["Make", "02-filter-make-car.svg"],
       ["Model", "05-filter-model-layout-list.svg"],
       ["Gearbox", "08-filter-engine-size-and-gearbox-settings.svg"],
@@ -211,9 +211,6 @@ describe("Multi-Choice stock controls", () => {
       ["Seats", "09-filter-seats-users.svg"],
       ["Engine Size", "08-filter-engine-size-and-gearbox-settings.svg"],
       ["Mileage", "10-filter-mileage-gauge.svg"],
-      ["Price range", "11-filter-max-price-badge-pound-sterling.svg"],
-      ["Fuel Type", "12-filter-fuel-type-fuel.svg"],
-      ["Gearbox", "08-filter-engine-size-and-gearbox-settings.svg"],
       ["ULEZ", "13-filter-ulez-leaf.svg"],
     ];
     expect(rows.map(row => row.getAttribute("aria-label"))).toEqual(expected.map(([name]) => name));
@@ -458,8 +455,7 @@ describe("Multi-Choice stock controls", () => {
 
   it("shows honest empty details for missing seats, vehicle type and unconfirmed ULEZ without guessing from the body", () => {
     render(<Harness cars={[car("unknown-details", { make: "BMW", model: "X5", bodyType: "SUV", fuel: "Electric" })]} />);
-    expand("Seats");
-    expect(within(sidebar()).getByText("Seat details are not supplied for this stock.")).toBeVisible();
+    expect(within(sidebar()).queryByRole("button", { name: "Seats" })).not.toBeInTheDocument();
     expect(within(sidebar()).queryByRole("checkbox", { name: "5" })).not.toBeInTheDocument();
     expect(within(sidebar()).queryByRole("button", { name: "Vehicle Type" })).not.toBeInTheDocument();
     expect(within(sidebar()).queryByRole("checkbox", { name: /^(Car|Van)$/ })).not.toBeInTheDocument();

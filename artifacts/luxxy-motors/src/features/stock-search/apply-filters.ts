@@ -12,6 +12,7 @@ export function applyStockFilters(
 ): { items: Car[]; total: number; facets: StockFacets } {
   const { filters, matches, selections } = createStockMatcher(input);
   const items = cars.filter((car) => matches(car));
+  const matchesWithoutModel = filters.model ? createStockMatcher({ ...filters, model: "" }).matches : matches;
   const facets = Object.fromEntries(
     stockFacetKeys.map((key) => {
       const options = new Map<string, StockFacetOption>();
@@ -46,7 +47,9 @@ export function applyStockFilters(
             count: 0,
           });
       }
-      const candidates = cars.filter((car) => matches(car, key));
+      // An existing model choice should not prevent adding a different make.
+      const facetMatches = key === "make" ? matchesWithoutModel : matches;
+      const candidates = cars.filter((car) => facetMatches(car, key));
       for (const option of options.values())
         option.count = candidates.filter((car) =>
           matchFacet(car, key, option.value),

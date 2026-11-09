@@ -617,7 +617,7 @@ describe('shared stock filter integration', () => {
   it('uses the new URL state for empty-result alternatives and clears every advanced filter', async () => {
     multiStock('/stock?make=BMW&maxPrice=100&colour=Blue&engine=1.5&mileage=40000&page=3');
     expect(screen.getByRole('heading', { name: 'No matches' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Remove price limits' }));
+    fireEvent.click(screen.getByRole('button', { name: /Remove price limits/ }));
     expect(resultTitles()).toEqual(['BMW 1 Series']);
     const current = new URLSearchParams(location.search);
     expect(current.has('maxPrice')).toBe(false);
@@ -628,7 +628,7 @@ describe('shared stock filter integration', () => {
 
     act(() => window.history.pushState({}, '', '/stock?make=Unavailable&colour=Blue'));
     await waitFor(() => expect(screen.getByRole('heading', { name: 'No matches' })).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'Search all makes' }));
+    fireEvent.click(screen.getByRole('button', { name: /Search all makes/ }));
     expect(resultTitles()).toEqual(['BMW 1 Series', 'VW Golf']);
     expect(new URLSearchParams(location.search).get('colour')).toBe('Blue');
 

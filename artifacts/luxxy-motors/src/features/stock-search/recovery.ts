@@ -1,5 +1,5 @@
 import type { Car } from "@/lib/stock-context";
-import { applyStockFilters } from "./apply-filters";
+import { createStockMatcher } from "@workspace/vehicle-meta/stock-filters";
 import { createStockFilters } from "./url";
 import type { StockFilters } from "./types";
 
@@ -22,7 +22,7 @@ export function stockRecoverySuggestions(cars: Car[], filters: StockFilters) {
   const choices = [
     ["search", "Remove search words"],
     ["transmission", "Any gearbox"],
-    ["make", "Any make"],
+    ["make", "Search all makes"],
     ["model", "Any model"],
     ["colour", "Any colour"],
     ["bodyType", "Any body type"],
@@ -44,15 +44,10 @@ export function stockRecoverySuggestions(cars: Car[], filters: StockFilters) {
       patch: { ulez: false },
     });
   return candidates
-    .map((candidate) => ({
-      ...candidate,
-      count: applyStockFilters(cars, {
-        ...createStockFilters(),
-        ...filters,
-        ...candidate.patch,
-        page: 1,
-      }).items.length,
-    }))
+    .map((candidate) => {
+      const { matches } = createStockMatcher({ ...createStockFilters(), ...filters, ...candidate.patch });
+      return { ...candidate, count: cars.filter(car => matches(car)).length };
+    })
     .filter((candidate) => candidate.count > 0)
     .sort((a, b) => a.count - b.count)
     .slice(0, 3);
