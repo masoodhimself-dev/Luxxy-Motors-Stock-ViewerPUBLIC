@@ -240,7 +240,7 @@ describe("Multi-Choice stock controls", () => {
       expect(rowStyle.fontSize).toBe("14px");
       expect(rowStyle.fontWeight).toBe("700");
       expect(rowStyle.lineHeight).toBe("20px");
-      expect(rowStyle.padding).toBe("16px 8px");
+      expect(rowStyle.padding).toBe("20px 8px");
     } finally {
       sheet.remove();
     }

@@ -271,10 +271,7 @@ it("never reuses a quote on another vehicle or when the showroom changes", async
   expect(
     screen.queryByRole("button", { name: "Include estimate in my enquiry" }),
   ).not.toBeInTheDocument();
-  expect(screen.getByLabelText("Delivery postcode")).toHaveValue("");
-  fireEvent.change(screen.getByLabelText("Delivery postcode"), {
-    target: { value: "SW1A1AA" },
-  });
+  expect(screen.getByLabelText("Delivery postcode")).toHaveValue("SW1A 1AA");
   fireEvent.click(screen.getByRole("button", { name: "Get estimate" }));
   await screen.findByText("£9,085.10");
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
