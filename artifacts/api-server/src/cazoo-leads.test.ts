@@ -387,12 +387,23 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
     const phoneOnly = await queue();
     const contactMissing = await queue();
     const bodyWithoutEmail = (reference: string) => text(reference).replace("sam@example.test\n", "");
+    const blankAvailability = (body: string) => body
+      .replace("Do you accept px for a Lexus GS450h 2008?", "\n")
+      .replace("Enquiry type\nQuestion", "Enquiry type\n\nAvailability\n");
+    const adjacentHeaders = text().replace(
+      "Customer message\nDo you accept px for a Lexus GS450h 2008?\nEnquiry type\nQuestion",
+      "Customer message\nEnquiry type\nAvailability",
+    );
+    assert.match(parseCazooLead(email(undefined, { text: adjacentHeaders })).message, /Cazoo availability enquiry/);
+    assert.throws(() => parseCazooLead(email(undefined, {
+      text: text().replace("Do you accept px for a Lexus GS450h 2008?", ""),
+    })), { code: "invalid_customer_message" });
     await processCazooLeads(transportFor({
-      [repeated]: email(repeated, { text: text("4".repeat(32))
+      [repeated]: email(repeated, { text: blankAvailability(text("4".repeat(32)))
         .replace("sam@example.test", "sam@example.test ( SAM@EXAMPLE.TEST )")
         .replace("07400000000", "07400 000000 ( tel:07400000000 )") }),
       [phoneOnly]: email(phoneOnly, { text: bodyWithoutEmail("5".repeat(32)) }),
-      [contactMissing]: email(contactMissing, { text: bodyWithoutEmail("6".repeat(32)).replace("07400000000\n", "") }),
+      [contactMissing]: email(contactMissing, { text: blankAvailability(bodyWithoutEmail("6".repeat(32)).replace("07400000000\n", "")) }),
     }), draftSkip);
     for (const [id, expectedEmail, expectedPhone, expectedContact] of [
       [repeated, "sam@example.test", "07400000000", "email"],
@@ -406,6 +417,7 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
       assert.equal(entry.phone, expectedPhone);
       assert.equal(entry.preferred_contact, expectedContact);
       assert.equal(entry.customer_notification_status, "not_sent");
+      if (id !== phoneOnly) assert.match(entry.message, /Cazoo availability enquiry.*did not add a written message/);
       if (!expectedEmail) {
         assert.equal(r.error_code, "customer_email_missing");
         assert.equal(r.draft_status, "skipped");

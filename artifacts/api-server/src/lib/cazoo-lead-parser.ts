@@ -115,7 +115,7 @@ export function parseCazooLeadBody(email: { subject: string; text?: string | nul
     throw new CazooLeadError("missing_or_ambiguous_reference");
   const messages = [
     ...text.matchAll(
-      /(?:^|\n)\s*Customer message\s*\n([\s\S]*?)\n\s*Enquiry type\s*(?:\n|$)/gi,
+      /^[ \t]*Customer message[ \t]*\n([\s\S]*?)^[ \t]*Enquiry type[ \t]*(?:\n|$)/gim,
     ),
   ];
   const details = [
@@ -149,7 +149,13 @@ export function parseCazooLeadBody(email: { subject: string; text?: string | nul
     throw new CazooLeadError("invalid_customer_name");
   const customerName = suppliedName || "Customer";
   if (!suppliedName) contactWarnings.push("customer_name_missing");
-  const message = messages[0]![1]!.trim();
+  const messageSection = messages[0]!;
+  const writtenMessage = messageSection[1]!.trim();
+  const afterTypeHeading = text.slice(messageSection.index! + messageSection[0].length);
+  const isAvailability = /^[ \t\n]*Availability[ \t]*\n[ \t\n]*Customer details[ \t]*(?:\n|$)/i.test(afterTypeHeading);
+  // The Availability form can submit without free text. Mark the source
+  // explicitly so staff and the first-reply rule do not treat it as a quote.
+  const message = writtenMessage || (isAvailability ? "Cazoo availability enquiry. The customer did not add a written message." : "");
   if (!message || message.length > 12000)
     throw new CazooLeadError("invalid_customer_message");
   return {
