@@ -72,7 +72,10 @@ function cazooCustomerEmailLine(value: string): CustomerEmailLine {
 
   // Do not search for addresses inside arbitrary text or strip URL queries.
   // A mailto prefix is accepted only as a complete, otherwise valid address.
-  const address = (text: string) => mailbox(text.replace(/^mailto:/i, ""));
+  const address = (text: string) => {
+    const value = text.replace(/^mailto:/i, "").toLowerCase();
+    return mailbox(value) === value ? value : null;
+  };
   const direct = address(candidate);
   if (direct) return { kind: "email", email: direct };
   const pair = /^([^\s()<>]+)[ \t]+\([ \t]*([^\s()<>]+)[ \t]*\)$/.exec(candidate);
@@ -102,6 +105,17 @@ export function parseCazooLead(email: {
 
 /** Known-layout extraction; caller must separately authenticate the delivery. */
 export function parseCazooLeadBody(email: { subject: string; text?: string | null; html?: string | null }): CazooLead {
+  const { listedPrice: _listedPrice, enquiryType, emailNeedsChecking, invalidName, knownLayout: _knownLayout, ...lead } = readCazooLeadDetails(email);
+  if (emailNeedsChecking) throw new CazooLeadError("missing_or_ambiguous_customer_email");
+  if (invalidName) throw new CazooLeadError("invalid_customer_name");
+  const message = lead.message || (/^Availability$/i.test(enquiryType)
+    ? "Cazoo availability enquiry. The customer did not add a written message." : "");
+  if (!message || message.length > 12000) throw new CazooLeadError("invalid_customer_message");
+  return { ...lead, message };
+}
+
+/** Extract the known contact block even when the enquiry needs staff review. */
+export function readCazooLeadDetails(email: { subject: string; text?: string | null; html?: string | null }) {
   const subject =
     /^Enquiry\s*[-–—]\s*(.+?)\s+([A-Z0-9]{2,4}[ \t\u00a0\u202f]*[A-Z0-9]{2,4})\s*[-–—]\s*([^\r\n]+)$/i.exec(
       email.subject.trim(),
@@ -131,8 +145,6 @@ export function parseCazooLeadBody(email: { subject: string; text?: string | nul
     .filter(Boolean);
   const emailLines = lines.map(cazooCustomerEmailLine);
   const emails = [...new Set(emailLines.flatMap((line) => line.kind === "email" ? [line.email] : []))];
-  if (emailLines.some((line) => line.kind === "invalid") || emails.length > 1 || emails[0] === "dealerleads@info.cazoo.co.uk")
-    throw new CazooLeadError("missing_or_ambiguous_customer_email");
   const phoneLines = lines.filter((s) => /^(?:phone|telephone|tel|mobile)\s*:/i.test(s) || /^[+\d(][\d\s().\-‐‑‒–—+]*(?:(?:ext(?:ension)?\.?|x|#)\s*\d+)?$/i.test(s) || /^[+\d(][^\r\n]*\([ \t]*tel:/i.test(s));
   const phones = [...new Set(phoneLines.map(cazooPhone))];
   const phone = phones.length === 1 ? phones[0]! : null;
@@ -142,30 +154,35 @@ export function parseCazooLeadBody(email: { subject: string; text?: string | nul
   const nameLines = lines.filter((s, index) => emailLines[index]!.kind === "other" && !phoneLines.includes(s));
   // With no valid email, an extra unclassified contact line may be a broken
   // address. Do not silently absorb it into the customer's name.
-  if (!emails.length && nameLines.length > 1)
-    throw new CazooLeadError("missing_or_ambiguous_customer_email");
+  const emailNeedsChecking = emailLines.some((line) => line.kind === "invalid") || emails.length > 1 ||
+    emails[0] === "dealerleads@info.cazoo.co.uk" || (!emails.length && nameLines.length > 1);
   const suppliedName = nameLines.join(" ").replace(/\s+/g, " ").trim();
-  if (suppliedName.length > 150 || /[<>@]/.test(suppliedName))
-    throw new CazooLeadError("invalid_customer_name");
-  const customerName = suppliedName || "Customer";
+  const invalidName = suppliedName.length > 150 || /[<>@]/.test(suppliedName);
+  const customerName = !invalidName && suppliedName ? suppliedName : "Customer";
   if (!suppliedName) contactWarnings.push("customer_name_missing");
   const messageSection = messages[0]!;
   const writtenMessage = messageSection[1]!.trim();
   const afterTypeHeading = text.slice(messageSection.index! + messageSection[0].length);
-  const isAvailability = /^[ \t\n]*Availability[ \t]*\n[ \t\n]*Customer details[ \t]*(?:\n|$)/i.test(afterTypeHeading);
-  // The Availability form can submit without free text. Mark the source
-  // explicitly so staff and the first-reply rule do not treat it as a quote.
-  const message = writtenMessage || (isAvailability ? "Cazoo availability enquiry. The customer did not add a written message." : "");
-  if (!message || message.length > 12000)
-    throw new CazooLeadError("invalid_customer_message");
+  const enquiryType = (/^([\s\S]*?)^[ \t]*Customer details[ \t]*$/im.exec(afterTypeHeading)?.[1] ?? "").trim();
+  const headings = [...text.matchAll(/^[ \t]*(Customer message|Enquiry type|Customer details)[ \t]*$/gim)];
+  const knownLayout = headings.map((heading) => heading[1]!.toLowerCase()).join("|") ===
+    "customer message|enquiry type|customer details";
+  const registration = subject[2]!.replace(/\s/g, "").toUpperCase();
+  const vehicleHeader = text.slice(0, messageSection.index);
+  const price = /^[ \t]*([A-Z0-9]+(?:[ \t]+[A-Z0-9]+)?)[ \t]+Listed at[ \t]+(£[\d,]+(?:\.\d{2})?)[ \t]*$/im.exec(vehicleHeader);
   return {
     correlationId: correlations[0]![1]!.toLowerCase(),
-    registration: subject[2]!.replace(/\s/g, "").toUpperCase(),
+    registration,
     vehicleTitle: subject[1]!.trim().slice(0, 200),
     customerName,
-    email: emails[0] ?? null,
+    email: emailNeedsChecking || invalidName ? null : emails[0] ?? null,
     phone,
-    message,
+    message: writtenMessage,
+    enquiryType,
+    listedPrice: price?.[1]?.replace(/\s/g, "").toUpperCase() === registration ? price[2]! : null,
+    emailNeedsChecking,
+    invalidName,
+    knownLayout,
     ...(contactWarnings.length ? { contactWarnings } : {}),
   };
 }

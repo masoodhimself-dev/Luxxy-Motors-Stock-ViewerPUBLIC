@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { z } from "zod/v4";
 import { cazooEmailText } from "./cazoo-lead-parser";
+import { renderCazooForwardEmail } from "./cazoo-forward-email";
 import { cazooTestSender } from "./cazoo-owner-test";
 import { mailbox, replyConfiguration, type retrieveReply } from "./customer-email-replies";
 import { dealerFeatureEnabled } from "./dealer-features";
@@ -117,19 +118,28 @@ async function deliver(row: Forward, dealer: Dealer, lease: string, options: For
     return;
   }
   const privateSettings = await dealerIntegrationsStore.readPrivate();
-  const resend = { ...effectiveResendSettings(privateSettings), replyTo: "" };
+  const configuredResend = effectiveResendSettings(privateSettings);
+  const resend = { ...configuredResend, replyTo: "" };
   if (!resend.enabled || !integrationReadiness({ ...privateSettings, resend }).resend.ready) {
     await reschedule(row, lease, 300, "delivery_not_ready");
     return;
   }
-  const text = ["Cazoo enquiry forwarded by DealerOS", "", row.body || "No message body was supplied."].join("\n");
   const key = sendKey(row.receipt_id);
-  const prepared = await prepareEmailWithSettings(resend, {
-    to: row.recipient, subject: row.subject, text,
-    html: `<div style="font-family:Arial,sans-serif;line-height:1.5">${escape(text).replace(/\n/g, "<br>")}</div>`,
-    idempotencyKey: key,
-  });
-  const payload = JSON.stringify(prepared.body);
+  const blockedAddresses = [recipient, ...Object.values(mailboxes), mailbox(resend.from),
+    mailbox(configuredResend.replyTo)];
+  const content = renderCazooForwardEmail(row.subject, row.body, blockedAddresses, replyDomain);
+  const envelope = { to: row.recipient, idempotencyKey: key };
+  const prepared = await prepareEmailWithSettings(resend, { ...envelope, ...content });
+  let payload = JSON.stringify(prepared.body);
+  // A retry already attempted by the previous version must retain its exact payload.
+  if (row.payload !== null && row.payload_hash !== hash(payload)) {
+    const text = ["Cazoo enquiry forwarded by DealerOS", "", row.body || "No message body was supplied."].join("\n");
+    const legacy = await prepareEmailWithSettings(resend, {
+      ...envelope, subject: row.subject, text,
+      html: `<div style="font-family:Arial,sans-serif;line-height:1.5">${escape(text).replace(/\n/g, "<br>")}</div>`,
+    });
+    payload = JSON.stringify(legacy.body);
+  }
   const payloadHash = hash(payload), accountHash = emailAccountHash(prepared.config);
   if (row.payload !== null && (row.payload_hash !== payloadHash || row.account_hash !== accountHash || hash(row.payload) !== payloadHash)) {
     await finish(row, lease, row.attempts ? "unknown" : "cancelled", "delivery_configuration_changed");
