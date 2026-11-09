@@ -74,7 +74,7 @@
     "test:staff-cars": "node test-enquiry-emails-build.mjs src/staff-cars.test.ts && node --test dist-test/staff-cars.test.mjs && node test-enquiry-emails-build.mjs src/staff-cars-route.test.ts && node --test dist-test/staff-cars-route.test.mjs",
     "test:ai-assistance": "node test-build.mjs src/ai-assistance.test.ts && node --test dist-test/ai-assistance.test.mjs && node test-build.mjs src/enquiry-ai-context.test.ts && node --test dist-test/enquiry-ai-context.test.mjs",
     "test:mot-stock": "node test-mot-stock-checks-build.mjs && node --test dist-test/mot-stock-checks.test.mjs",
-    "test:cazoo-leads": "node test-cazoo-leads-build.mjs && node --test .cache/cazoo-leads/cazoo-leads.test.mjs",
+    "test:cazoo-leads": "node test-cazoo-leads-build.mjs && node --test .cache/cazoo-leads/*.test.mjs",
     "test:enquiry-resolution": "node test-enquiry-resolution-build.mjs && node --test .cache/enquiry-resolution/enquiry-resolution.test.mjs",
     "test:enquiry-archive": "node test-enquiry-archive-build.mjs && node --test .cache/enquiry-archive/enquiry-archive.test.mjs"
   },

@@ -19,6 +19,8 @@ import {
   renderEmailTemplate,
   approvedEmailLayoutVersion,
   type EmailLayoutVersion,
+  isUKNumberPlate,
+  vehicleRegistration,
   vehicleRegistrationLabel,
   saleDocumentEmailRecipientProblem,
   type EmailFacts,
@@ -42,6 +44,7 @@ import {
   type PrivateDealerSettings,
 } from "../lib/dealer-integrations-store";
 import {
+  EmailProviderError,
   sendEmailWithSettings,
   sendPreparedEmail,
   type EmailEnvelope,
@@ -59,6 +62,9 @@ import {
   EmailPreparationBusy,
 } from "../lib/email-preparation";
 import { dealerProfile } from "../lib/enquiry-notifications";
+import { cazooFirstReplyActor, decideCazooAutomaticFirstReply } from "../lib/cazoo-automatic-first-reply";
+import { replyConfiguration } from "../lib/customer-email-replies";
+import { cazooAutomaticReplyOptedIn } from "../lib/enquiry-ai-automation";
 import { siteOrigin } from "../lib/enquiry-links";
 import { enquiryGalleryContext, selectedEnquiryGallery, EnquiryGalleryError } from "../lib/enquiry-gallery";
 import { createEnquiryVehiclePdf, EnquiryVehiclePdfError } from "../lib/enquiry-vehicle-pdf";
@@ -126,6 +132,15 @@ const hash = (value: string) =>
 const uuid = (value: unknown): value is string =>
   z.string().uuid().safeParse(value).success;
 const key = (dealer: string, id: string) => `enquiry-email:${dealer}:${id}`;
+const cazooFirstReplyKey = (receiptId: string) => `cazoo-first-reply-${receiptId}`;
+type CazooFirstReplyReceipt = {
+  id: string;
+  enquiry_id: string;
+  dealer_id: string;
+  mailbox: string;
+  error_code?: string | null;
+  received_at?: Date | string;
+};
 const describe = (
   row: typeof enquiryEmailsTable.$inferSelect,
   metadata?: { retryAt: string | null; attempts: number },
@@ -482,12 +497,243 @@ async function preview(
   });
 }
 
+async function cazooFirstReplyCandidate(
+  receipt: CazooFirstReplyReceipt,
+  enquiry: typeof enquiriesTable.$inferSelect,
+  dealerName: string,
+  executor: Pick<typeof db, "execute">,
+  ownDeliveryId?: string,
+) {
+  const { dealer_id: dealer, enquiry_id: id } = receipt;
+  if (
+    enquiry.source !== "cazoo" || enquiry.type !== "general" ||
+    enquiry.status !== "new" || enquiry.archivedAt || enquiry.mergedIntoId ||
+    enquiry.preferredContact !== "email" || !enquiry.email || !enquiry.vehicleId ||
+    enquiry.customerNotificationStatus !== "not_sent" ||
+    enquiry.workspaceRevision !== (ownDeliveryId ? 1 : 0) ||
+    !isUKNumberPlate(enquiry.vehicleRegistration)
+  ) return null;
+  const evidence = (await executor.execute(sql`
+    SELECT r.received_at
+    FROM cazoo_lead_receipts r
+    WHERE r.id=${receipt.id}::uuid AND r.dealer_id=${dealer} AND r.enquiry_id=${id}::uuid
+      AND r.mailbox=${receipt.mailbox} AND r.status='imported' AND r.error_code IS NULL
+      AND r.correlation_id IS NOT NULL
+      AND r.received_at BETWEEN now()-interval '15 minutes' AND now()
+      AND NOT EXISTS(SELECT 1 FROM enquiry_events e WHERE e.dealer_id=${dealer} AND e.enquiry_id=${id}::uuid AND e.actor='dealer')
+      AND NOT EXISTS(SELECT 1 FROM enquiry_email_drafts d WHERE d.dealer_id=${dealer} AND d.enquiry_id=${id}::uuid)
+      AND NOT EXISTS(SELECT 1 FROM enquiry_email_replies p WHERE p.dealer_id=${dealer} AND p.enquiry_id=${id}::uuid)
+      AND NOT EXISTS(SELECT 1 FROM enquiry_emails m WHERE m.dealer_id=${dealer} AND m.enquiry_id=${id}::uuid AND m.id IS DISTINCT FROM ${ownDeliveryId ?? null}::uuid)
+      AND NOT EXISTS(SELECT 1 FROM email_outbox q WHERE q.dealer_id=${dealer} AND q.enquiry_id=${id}::uuid AND q.kind IN ('customer','reminder'))
+  `)).rows[0];
+  if (!evidence || !cazooAutomaticReplyOptedIn(dealer, process.env, new Date(evidence.received_at as string | Date))) return null;
+  const registration = enquiry.vehicleRegistration!.toUpperCase().replace(/[\s-]/g, "");
+  const cars = (await executor.execute(sql`
+    WITH latest_stock AS (
+      SELECT r.id,r.run_id,r.retailer_id,r.scraped_at,r.complete,r.expected_count,r.received_count,r.errors,
+        a.dealer_id AS official_dealer,a.enabled AS official_enabled,a.retailer_id AS official_retailer,a.feed_id
+      FROM stock_import_runs r JOIN dealerships d ON d.id=r.dealer_id AND d.retailer_id=r.retailer_id
+      LEFT JOIN cazoo_feed_authority a ON a.dealer_id=d.id
+      WHERE r.dealer_id=${dealer} AND d.stock_platform='cazoo' AND d.status='active'
+        AND r.source='cazoo' AND r.status='completed'
+      ORDER BY r.scraped_at DESC,r.received_at DESC,r.id DESC LIMIT 1
+    ), latest_official_check AS (
+      SELECT c.* FROM cazoo_feed_checks c WHERE c.dealer_id=${dealer}
+      ORDER BY c.received_at DESC,c.id DESC LIMIT 1
+    )
+    SELECT v.id,v.title,v.website_title_override,v.make,v.model,v.registration,v.vrm,v.plate,v.inventory_status,
+      EXISTS(SELECT 1 FROM latest_stock s WHERE s.id=v.import_run_id AND s.complete=true
+        AND s.expected_count=s.received_count AND s.errors='[]'::jsonb
+        AND CASE WHEN s.official_dealer IS NULL THEN
+          s.run_id NOT LIKE 'cazoo-csv:%' AND s.scraped_at BETWEEN now()-interval '36 hours' AND now()
+        ELSE s.official_enabled AND s.official_retailer=s.retailer_id AND s.run_id LIKE 'cazoo-csv:%'
+          AND EXISTS(SELECT 1 FROM latest_official_check c
+            LEFT JOIN cazoo_feed_checks origin ON origin.id=c.based_on_check_id AND origin.dealer_id=c.dealer_id
+            WHERE c.received_at BETWEEN now()-interval '36 hours' AND now()
+              AND c.completed_at IS NOT NULL AND c.error_code IS NULL AND c.file_hash=right(s.run_id,64)
+              AND c.vehicle_count=s.received_count
+              AND (c.status='ready' OR (c.status='unchanged' AND origin.status='ready' AND origin.file_hash=c.file_hash))
+              AND coalesce(c.candidate,origin.candidate)#>>'{metadata,feedId}'=s.feed_id
+              AND coalesce(c.candidate,origin.candidate)#>>'{metadata,retailerId}'=s.official_retailer)
+        END)
+      AND v.source_status='live' AND v.missing_count=0 AND NOT v.price_review_required AS availability_confirmed
+    FROM vehicles v
+    WHERE v.dealer_id=${dealer} AND v.source='cazoo' AND v.archived_at IS NULL
+      AND ${registration} IN (
+        regexp_replace(upper(coalesce(v.registration,'')),'[[:space:]-]','','g'),
+        regexp_replace(upper(coalesce(v.vrm,'')),'[[:space:]-]','','g'),
+        regexp_replace(upper(coalesce(v.plate,'')),'[[:space:]-]','','g'))
+    LIMIT 2
+  `)).rows;
+  if (cars.length !== 1 || cars[0]!.id !== enquiry.vehicleId) return null;
+  const car = cars[0]!;
+  const decision = decideCazooAutomaticFirstReply({
+    enabled: true,
+    isFirstReply: true,
+    customerMessage: enquiry.message,
+    requestedRegistration: registration,
+    matchedVehicle: {
+      title: String(car.website_title_override || car.title || `${car.make || ""} ${car.model || ""}`.trim()),
+      registration: vehicleRegistration({ plate: car.plate as string, vrm: car.vrm as string, registration: car.registration as string }).replace(/[\s-]/g, ""),
+      status: String(car.inventory_status),
+      availabilityConfirmed: car.availability_confirmed === true,
+    },
+    dealerName,
+  });
+  return decision.action === "send" ? decision : null;
+}
+
+async function cazooFirstReplyAlreadyQueued(receipt: CazooFirstReplyReceipt, executor: Pick<typeof db, "execute">) {
+  return Boolean((await executor.execute(sql`
+    SELECT 1 FROM enquiry_emails m JOIN email_outbox q
+      ON q.dealer_id=m.dealer_id AND q.enquiry_id=m.enquiry_id AND q.delivery_id=m.id
+    WHERE m.dealer_id=${receipt.dealer_id} AND m.enquiry_id=${receipt.enquiry_id}::uuid
+      AND m.created_by=${cazooFirstReplyActor} AND m.request_id=${receipt.id}::uuid
+      AND q.kind='staff' AND q.send_key=${cazooFirstReplyKey(receipt.id)}
+  `)).rows[0]);
+}
+
+async function cazooFirstReplySettings(receipt: CazooFirstReplyReceipt, suppliedConfig?: PrivateDealerSettings) {
+  const replies = replyConfiguration(receipt.dealer_id);
+  if (!replies) return null;
+  const { cazooDraftAutomationEligibility } = await import("../lib/cazoo-leads");
+  if (!(await cazooDraftAutomationEligibility(receipt.dealer_id, receipt.mailbox)).automaticRepliesEnabled) return null;
+  const config = suppliedConfig ?? await dealerIntegrationsStore.readPrivate();
+  const resend = effectiveResendSettings(config);
+  if (!resend.enabled || !integrationReadiness({ ...config, resend }).resend.ready) return null;
+  return { config, resend, replies };
+}
+
+async function cazooFirstReplyRouteExists(
+  receipt: CazooFirstReplyReceipt,
+  to: string,
+  domain: string,
+  executor: Pick<typeof db, "execute">,
+) {
+  return Boolean((await executor.execute(sql`
+    SELECT 1 FROM enquiry_email_reply_routes
+    WHERE dealer_id=${receipt.dealer_id} AND enquiry_id=${receipt.enquiry_id}::uuid
+      AND send_key=${cazooFirstReplyKey(receipt.id)} AND recipient=${to}
+      AND split_part(reply_address,'@',2)=${domain}
+  `)).rows[0]);
+}
+
+export async function queueCazooAutomaticFirstReply(receipt: CazooFirstReplyReceipt): Promise<boolean> {
+  const { dealer_id: dealer, enquiry_id: id } = receipt;
+  if (dealer !== currentDealerId() || !uuid(id) || !uuid(receipt.id) || receipt.error_code !== null) return false;
+  if (await cazooFirstReplyAlreadyQueued(receipt, db)) return true;
+  const settings = await cazooFirstReplySettings(receipt);
+  if (!settings) return false;
+  const profile = await dealerProfile();
+  return withEmailPreparation(() => db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${key(dealer, id)}))`);
+    if (await cazooFirstReplyAlreadyQueued(receipt, tx)) return true;
+    const [enquiry] = await tx.select().from(enquiriesTable)
+      .where(and(eq(enquiriesTable.id, id), eq(enquiriesTable.dealerId, dealer))).for("update");
+    if (!enquiry) return false;
+    const decision = await cazooFirstReplyCandidate(receipt, enquiry, profile.identity.name, tx);
+    if (!decision) return false;
+    const input = draftSchema.safeParse({
+      to: enquiry.email,
+      subject: decision.subject,
+      message: decision.bodyText,
+      includeVehicle: false,
+      includeAppointment: false,
+      photoIds: [],
+      expectedRevision: enquiry.workspaceRevision + 1,
+    });
+    if (!input.success) return false;
+    // Invalidate staff previews created before the automatic reply was queued.
+    await tx.update(enquiriesTable).set({ workspaceRevision: input.data.expectedRevision })
+      .where(and(eq(enquiriesTable.id, id), eq(enquiriesTable.dealerId, dealer)));
+    const result = await preview(id, input.data, settings.config, profile, tx as unknown as typeof db);
+    const deliveryId = randomUUID();
+    await tx.insert(enquiryEmailsTable).values({
+      id: deliveryId,
+      dealerId: dealer,
+      enquiryId: id,
+      requestId: receipt.id,
+      requestHash: hash(JSON.stringify(input.data)),
+      status: "sending",
+      recipient: input.data.to,
+      subject: result.rendered.subject,
+      message: result.rendered.bodyText,
+      renderedText: result.rendered.text,
+      createdBy: cazooFirstReplyActor,
+    });
+    await enqueueEmailOutbox({
+      enquiryId: id,
+      deliveryId,
+      kind: "staff",
+      config: settings.resend,
+      request: { to: input.data.to, ...result.rendered, idempotencyKey: cazooFirstReplyKey(receipt.id), attachments: [] },
+      validation: {
+        input: input.data,
+        layoutVersion: "correspondence-v1",
+        previewHash: result.previewHash,
+        cazooFirstReply: { receiptId: receipt.id, mailbox: receipt.mailbox, rule: decision.rule },
+      },
+    }, tx);
+    if (!await cazooFirstReplyRouteExists(receipt, input.data.to, settings.replies.domain, tx))
+      throw new Error("The automatic reply needs a customer reply route.");
+    await tx.insert(enquiryEventsTable).values({
+      dealerId: dealer,
+      enquiryId: id,
+      actor: "system",
+      kind: "conversation_logged",
+      summary: "Automatic availability reply queued",
+      detail: { channel: "email", direction: "outbound", source: "cazoo", rule: decision.rule },
+    });
+    return true;
+  }));
+}
+
+const cazooFirstReplyApproval = z.object({
+  receiptId: z.string().uuid(),
+  mailbox: z.string().email(),
+  rule: z.literal("simple_availability_v1"),
+}).strict();
+
+async function rebuildCazooFirstReply(row: EmailOutbox, suppliedConfig?: PrivateDealerSettings): Promise<EmailRequest> {
+  const approval = cazooFirstReplyApproval.safeParse(row.validation.cazooFirstReply);
+  const input = draftSchema.safeParse(row.validation.input);
+  const noLongerEligible = () => row.attempts === 1
+    ? new EmailProviderError(422, null, "cazoo_first_reply_no_longer_eligible", false)
+    : new Error("Automatic reply eligibility changed after an earlier delivery attempt.");
+  if (!approval.success || !input.success || !row.delivery_id || row.send_key !== cazooFirstReplyKey(approval.data.receiptId))
+    throw noLongerEligible();
+  const receipt = { id: approval.data.receiptId, enquiry_id: row.enquiry_id, dealer_id: row.dealer_id, mailbox: approval.data.mailbox };
+  const settings = await cazooFirstReplySettings(receipt, suppliedConfig);
+  if (!settings || !await cazooFirstReplyRouteExists(receipt, input.data.to, settings.replies.domain, db))
+    throw noLongerEligible();
+  const [enquiry] = await db.select().from(enquiriesTable)
+    .where(and(eq(enquiriesTable.id, receipt.enquiry_id), eq(enquiriesTable.dealerId, receipt.dealer_id)));
+  const [delivery] = await db.select().from(enquiryEmailsTable).where(and(
+    eq(enquiryEmailsTable.id, row.delivery_id),
+    eq(enquiryEmailsTable.dealerId, receipt.dealer_id),
+    eq(enquiryEmailsTable.enquiryId, receipt.enquiry_id),
+    eq(enquiryEmailsTable.createdBy, cazooFirstReplyActor),
+    eq(enquiryEmailsTable.requestId, receipt.id),
+  ));
+  if (!enquiry || !delivery || delivery.status !== "sending" ||
+    enquiry.email?.trim().toLowerCase() !== input.data.to || delivery.recipient !== input.data.to ||
+    enquiry.workspaceRevision !== input.data.expectedRevision) throw noLongerEligible();
+  const profile = await dealerProfile();
+  const decision = await cazooFirstReplyCandidate(receipt, enquiry, profile.identity.name, db, delivery.id);
+  if (!decision || decision.subject !== input.data.subject || decision.bodyText !== input.data.message)
+    throw noLongerEligible();
+  const result = await preview(row.enquiry_id, input.data, settings.config, profile);
+  if (result.previewHash !== row.validation.previewHash || result.attachments.length) throw noLongerEligible();
+  return { to: input.data.to, ...result.rendered, idempotencyKey: row.send_key, attachments: [] };
+}
+
 export async function rebuildStaffOutboxEmail(
   row: EmailOutbox,
   suppliedConfig?: PrivateDealerSettings,
 ): Promise<EmailRequest> {
   if (row.kind !== "staff" || row.dealer_id !== currentDealerId())
     throw new Error("The approved email context is invalid.");
+  if (row.validation.cazooFirstReply) return rebuildCazooFirstReply(row, suppliedConfig);
   if(row.validation.input?.stockChange)throw new Error('This retired stock-update email needs manual review.');
   if (row.validation.saleDocument) {
     const {rebuildSaleDocumentOutbox}=await import('../lib/sale-document-email');
@@ -869,6 +1115,16 @@ export function createEnquiryEmailRouter(
               ),
             )
             .for("update");
+          const automaticReply = (await tx.execute(sql`
+            SELECT 1 FROM enquiry_emails
+            WHERE dealer_id=${dealer} AND enquiry_id=${id}::uuid
+              AND created_by=${cazooFirstReplyActor} AND status='sending'
+            LIMIT 1
+          `)).rows[0];
+          if (automaticReply) throw new EmailError(
+            "An automatic reply is being sent. Wait for its delivery status before sending another email.",
+            409,
+          );
           const result = await preview(
             id,
             input,

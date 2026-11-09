@@ -6,6 +6,7 @@ import { enforceStaffWriteOrigin } from "../middlewares/staff-write-origin";
 import { currentDealerId } from "../lib/tenant-context";
 import { cazooDraftAutomationEligibility, cazooLeadMailboxes, cazooLeadsEnabled } from "../lib/cazoo-leads";
 import { cazooTestSender } from "../lib/cazoo-owner-test";
+import { cazooFirstReplyActor } from "../lib/cazoo-automatic-first-reply";
 export function createCazooLeadRouter() {
   const router = Router();
   router.use(
@@ -21,7 +22,9 @@ export function createCazooLeadRouter() {
     try {
       const dealer = currentDealerId();
       const rows = await db.execute(
-        sql`SELECT id,status,error_code AS "errorCode",subject,enquiry_id AS "enquiryId",draft_status AS "draftStatus",received_at AS "receivedAt",review_text AS "reviewText" FROM cazoo_lead_receipts WHERE dealer_id=${dealer} ORDER BY received_at DESC,id LIMIT 20`,
+        sql`SELECT r.id,r.status,r.error_code AS "errorCode",r.subject,r.enquiry_id AS "enquiryId",r.draft_status AS "draftStatus",r.received_at AS "receivedAt",r.review_text AS "reviewText",
+          (SELECT e.status FROM enquiry_emails e WHERE e.dealer_id=r.dealer_id AND e.enquiry_id=r.enquiry_id AND e.request_id=r.id AND e.created_by=${cazooFirstReplyActor}) AS "automaticReplyStatus"
+          FROM cazoo_lead_receipts r WHERE r.dealer_id=${dealer} ORDER BY r.received_at DESC,r.id LIMIT 20`,
       );
       res.json({
         enabled:

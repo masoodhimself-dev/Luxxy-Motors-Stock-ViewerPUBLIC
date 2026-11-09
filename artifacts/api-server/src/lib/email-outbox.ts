@@ -135,6 +135,7 @@ export async function enqueueEmailOutbox(
 }
 
 function message(row: EmailOutbox) {
+  if (row.error_code === "cazoo_first_reply_no_longer_eligible") return "The automatic reply stopped because the enquiry or stock changed. Review the enquiry before replying.";
   if (row.error_code === 'price_update_already_approved') return 'This customer already has a price update approved, sent or awaiting a delivery check. This additional email was not sent. Review their conversation before preparing another update.';
   if (row.error_code === 'price_update_changed') return 'This price update was not sent because the price, availability or customer eligibility changed. Review the car and prepare a fresh message.';
   if (row.status === "queued")
@@ -404,7 +405,9 @@ export function deliverEmailOutbox(
             );
           if (failure.kind === "permanent") {
             status = "failed";
-            code = "provider_rejected";
+            code = error instanceof EmailProviderError && error.providerCode === "cazoo_first_reply_no_longer_eligible"
+              ? error.providerCode
+              : "provider_rejected";
           } else if (
             failure.kind === "retryable" &&
             (claimed.attempts < 3 || !countAttempt)

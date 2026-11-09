@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { db, pool, enquiriesTable } from "@workspace/db";
-import { mailbox, retrieveReply } from "./customer-email-replies";
+import { mailbox, replyConfiguration, retrieveReply } from "./customer-email-replies";
 import {
   cazooEmailText,
   CazooLeadError,
@@ -19,7 +19,11 @@ import type { MotHistory } from "@workspace/vehicle-meta";
 import { runBoundedDealerJob } from "./tenant-jobs";
 import { serviceLifecycle, startLifecycleWorker } from "./service-lifecycle";
 import { platformStockConnection } from "./platform-stock-connection";
+import { dealerFeatureEnabled } from "./dealer-features";
+import { dealerIntegrationsStore, effectiveResendSettings, integrationReadiness } from "./dealer-integrations-store";
+import { runWithTenant } from "./tenant-context";
 import {
+  cazooAutomaticReplyOptedIn,
   enquiryAiAutomationEligibility,
   enquiryAiAutomationOptIns,
 } from "./enquiry-ai-automation";
@@ -62,6 +66,7 @@ export async function cazooDraftAutomationEligibility(
   const base = {
     provider: "cazoo" as const,
     optIn: enquiryAiAutomationOptIns()[dealer],
+    automaticReplyOptIn: cazooAutomaticReplyOptedIn(dealer),
     aiAvailable: aiConfigured(),
     dedicatedMailbox: {
       provider: "cazoo" as const,
@@ -77,26 +82,45 @@ export async function cazooDraftAutomationEligibility(
     const registered = (await pool.query(
       `SELECT d.*,
        EXISTS(SELECT 1 FROM dealer_demos m WHERE m.dealer_id=d.id AND m.converted_at IS NULL) AS demo,
-       EXISTS(SELECT 1 FROM stock_import_runs r WHERE r.dealer_id=d.id AND r.source=d.stock_platform AND r.retailer_id=d.retailer_id AND r.status='completed' AND r.complete=true) AS stock_verified
-       FROM dealerships d WHERE d.id=$1`,
+       a.dealer_id IS NOT NULL AS official_stock,
+       a.enabled AND a.retailer_id=d.retailer_id AS official_stock_enabled,
+       EXISTS(SELECT 1 FROM stock_import_runs r WHERE r.dealer_id=d.id AND r.source=d.stock_platform
+         AND r.retailer_id=d.retailer_id AND r.status='completed' AND r.complete=true
+         AND (a.dealer_id IS NULL OR r.run_id LIKE ('cazoo-csv:' || d.id || ':%'))) AS stock_verified
+       FROM dealerships d LEFT JOIN cazoo_feed_authority a ON a.dealer_id=d.id AND d.stock_platform='cazoo' WHERE d.id=$1`,
       [dealer],
     )).rows[0];
-    const connection = registered ? await platformStockConnection({
+    const connection = registered && !registered.official_stock ? await platformStockConnection({
       id: dealer,
       stockPlatform: registered.stock_platform,
       retailerId: registered.retailer_id,
       sourceUrl: registered.source_url,
     }) : null;
-    return enquiryAiAutomationEligibility({
+    const evidence = {
       ...base,
       dealerActive: registered?.status === "active",
       demo: registered?.demo !== false,
       stock: {
-        provider: connection?.platform ?? null,
-        enabled: connection?.enabled ?? false,
+        provider: registered?.official_stock ? "cazoo" : connection?.platform ?? null,
+        enabled: registered?.official_stock ? registered.official_stock_enabled === true : connection?.enabled ?? false,
         verified: registered?.stock_verified === true,
       },
-    });
+    };
+    const eligibility = enquiryAiAutomationEligibility(evidence);
+    if (!registered || !eligibility.automaticDraftsEnabled || !base.automaticReplyOptIn || !replyConfiguration(dealer)) return eligibility;
+    const automaticReplyDeliveryAvailable = await runWithTenant({
+      dealerId: dealer,
+      canonicalOrigin: registered.canonical_origin,
+      platform: registered.stock_platform,
+      retailerId: registered.retailer_id,
+      sourceUrl: registered.source_url,
+    }, async () => {
+      if (!(await dealerFeatureEnabled("customerEmails"))) return false;
+      const settings = await dealerIntegrationsStore.readPrivate();
+      const resend = effectiveResendSettings(settings);
+      return resend.enabled && integrationReadiness({ ...settings, resend }).resend.ready;
+    }).catch(() => false);
+    return enquiryAiAutomationEligibility({ ...evidence, automaticReplyDeliveryAvailable });
   } catch {
     // Missing/decryption/database evidence is not proof of an enabled connection.
     return enquiryAiAutomationEligibility({
@@ -256,7 +280,8 @@ export async function draftCazooReply(
   if (
     (
       await db.execute(
-        sql`SELECT enquiry_id FROM enquiry_email_drafts WHERE dealer_id=${dealer} AND enquiry_id=${id}::uuid`,
+        sql`SELECT 1 FROM enquiry_email_drafts WHERE dealer_id=${dealer} AND enquiry_id=${id}::uuid
+            UNION ALL SELECT 1 FROM enquiry_emails WHERE dealer_id=${dealer} AND enquiry_id=${id}::uuid LIMIT 1`,
       )
     ).rows.length
   )
@@ -416,7 +441,22 @@ export async function processCazooLeads(
             retailerId: dealer.retailer_id,
             sourceUrl: dealer.source_url,
           },
-          () => draft(row),
+          async () => {
+            const receivedAt = new Date(String(row.received_at));
+            if (row.error_code === null && cazooAutomaticReplyOptedIn(dealer.id, process.env, receivedAt)) {
+              const { queueCazooAutomaticFirstReply } = await import("../routes/enquiry-emails");
+              const queued = await queueCazooAutomaticFirstReply({
+                id: String(row.id),
+                enquiry_id: String(row.enquiry_id),
+                dealer_id: String(row.dealer_id),
+                mailbox: String(row.mailbox),
+                error_code: null,
+                received_at: receivedAt,
+              }).catch(() => false);
+              if (queued) return "skipped";
+            }
+            return draft(row);
+          },
         );
       } catch {
         status = "failed";
@@ -434,7 +474,7 @@ export function startCazooLeadWorker(log: { warn: (message: string) => void }) {
     work: processCazooLeads,
     onError: () =>
       log.warn(
-        "Cazoo lead import needs attention. No customer email was sent.",
+        "Cazoo lead processing needs attention.",
       ),
   });
 }

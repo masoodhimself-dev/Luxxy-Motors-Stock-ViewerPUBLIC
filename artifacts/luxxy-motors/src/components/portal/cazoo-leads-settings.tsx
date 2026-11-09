@@ -11,6 +11,7 @@ type Receipt = {
   subject: string | null;
   enquiryId: string | null;
   draftStatus: string;
+  automaticReplyStatus?: "sending" | "sent" | "failed" | "unknown" | null;
   receivedAt: string;
   reviewText: string | null;
 };
@@ -19,6 +20,7 @@ type Connection = {
   mailbox: string | null;
   receipts: Receipt[];
   ownerTest?: { email: string; expiresAt: string } | null;
+  automation?: { automaticDraftsEnabled: boolean; automaticRepliesEnabled: boolean };
 };
 const reasons: Record<string, string> = {
   owner_test: "Owner test — the original customer’s contact details were not imported.",
@@ -41,6 +43,12 @@ const reasons: Record<string, string> = {
   vehicle_not_matched:
     "Check the car registration in the enquiry before replying.",
   mailbox_not_connected: "The mailbox connection has changed.",
+};
+const automaticReplyLabels = {
+  sending: "Automatic availability reply queued.",
+  sent: "Automatic availability reply sent.",
+  failed: "Automatic reply stopped. Open the enquiry to reply.",
+  unknown: "Automatic delivery is unconfirmed. Check the enquiry before replying.",
 };
 export function CazooLeadsSettings() {
   const [open, setOpen] = useState(false);
@@ -65,10 +73,7 @@ export function CazooLeadsSettings() {
       <summary>Cazoo enquiries</summary>
       {open && (
         <div>
-          <p>
-            Cazoo leads appear in your Inbox. AI replies are saved as drafts for
-            you to check and send.
-          </p>
+          <p>Cazoo leads appear in your Inbox.</p>
           {query.isPending && <p role="status">Loading Cazoo connection…</p>}
           {query.isError && (
             <p role="alert">
@@ -98,6 +103,15 @@ export function CazooLeadsSettings() {
                 </p>
               )}
               {query.data.ownerTest && <p role="status">Owner testing is enabled for <strong>{query.data.ownerTest.email}</strong> until {formatDateTime(query.data.ownerTest.expiresAt)}. Test replies are addressed to this email only.</p>}
+              {query.data.automation?.automaticDraftsEnabled === true ? (
+                <p>
+                  {query.data.automation.automaticRepliesEnabled === true
+                    ? "Automatic first replies are on for eligible Cazoo enquiries. Staff handle any follow-up."
+                    : "AI prepares drafts for you to check and send."}
+                </p>
+              ) : query.data.automation ? (
+                <p>Automatic drafting is off. You can reply in the Inbox.</p>
+              ) : null}
               <p>
                 {query.data.receipts.length
                   ? "Recent Cazoo emails"
@@ -128,12 +142,14 @@ export function CazooLeadsSettings() {
                   )}
                   {receipt.status === "imported" && (
                     <p>
-                      {receipt.draftStatus === "ready"
+                      {receipt.automaticReplyStatus
+                        ? automaticReplyLabels[receipt.automaticReplyStatus]
+                        : receipt.draftStatus === "ready"
                         ? "AI draft ready — review before sending."
                         : receipt.draftStatus === "pending" ||
                             receipt.draftStatus === "generating"
                           ? "Preparing AI draft…"
-                          : "No automatic draft. You can reply or use AI in the Inbox."}
+                          : "No saved draft. Open the enquiry to see the conversation."}
                     </p>
                   )}
                   {receipt.enquiryId && (
