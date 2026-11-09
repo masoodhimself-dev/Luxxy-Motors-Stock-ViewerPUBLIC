@@ -382,6 +382,38 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
       );
     },
   );
+  await t.test("Cazoo's repeated linked contact values import and absent email stays actionable in Inbox", async () => {
+    const repeated = await queue();
+    const phoneOnly = await queue();
+    const contactMissing = await queue();
+    const bodyWithoutEmail = (reference: string) => text(reference).replace("sam@example.test\n", "");
+    await processCazooLeads(transportFor({
+      [repeated]: email(repeated, { text: text("4".repeat(32))
+        .replace("sam@example.test", "sam@example.test ( SAM@EXAMPLE.TEST )")
+        .replace("07400000000", "07400 000000 ( tel:07400000000 )") }),
+      [phoneOnly]: email(phoneOnly, { text: bodyWithoutEmail("5".repeat(32)) }),
+      [contactMissing]: email(contactMissing, { text: bodyWithoutEmail("6".repeat(32)).replace("07400000000\n", "") }),
+    }), draftSkip);
+    for (const [id, expectedEmail, expectedPhone, expectedContact] of [
+      [repeated, "sam@example.test", "07400000000", "email"],
+      [phoneOnly, null, "07400000000", "phone"],
+      [contactMissing, null, null, null],
+    ]) {
+      const r = await receipt(id!);
+      assert.equal(r.status, "imported");
+      const entry = (await engine.query<any>("SELECT * FROM enquiries WHERE id=$1", [r.enquiry_id])).rows[0];
+      assert.equal(entry.email, expectedEmail);
+      assert.equal(entry.phone, expectedPhone);
+      assert.equal(entry.preferred_contact, expectedContact);
+      assert.equal(entry.customer_notification_status, "not_sent");
+      if (!expectedEmail) {
+        assert.equal(r.error_code, "customer_email_missing");
+        assert.equal(r.draft_status, "skipped");
+        assert.match(entry.staff_note, /did not supply a customer email address/);
+      }
+    }
+    assert.equal((await engine.query<any>("SELECT count(*)::int AS n FROM email_outbox")).rows[0].n, 0);
+  });
   await t.test(
     "unusable optional contact details still reach the Inbox with safe private notes and no send",
     async () => {
@@ -671,7 +703,7 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
   );
   await t.test("owners can configure forwarding and recover a verified receipt without reimporting", async () => {
     const review = await queue();
-    const original = email(review, { text: text("1".repeat(32)).replace("sam@example.test", "") });
+    const original = email(review, { text: text("1".repeat(32)).replace("sam@example.test", "sam@example.test ( another@example.test )") });
     await processCazooLeads(transportFor({ [review]: original }), draftSkip);
     const before = await receipt(review);
     assert.equal(before.error_code, "missing_or_ambiguous_customer_email");
@@ -719,7 +751,7 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
       const reviewAgain = await queue();
       await processCazooLeads(transportFor({
         [direct]: email(direct, { text: text("2".repeat(32)) }),
-        [reviewAgain]: email(reviewAgain, { text: text("3".repeat(32)).replace("sam@example.test", "") }),
+        [reviewAgain]: email(reviewAgain, { text: text("3".repeat(32)).replace("sam@example.test", "sam@example.test ( another@example.test )") }),
       }), draftSkip);
       const copied = (await engine.query<{ status: string; recipient: string }>(
         "SELECT status,recipient FROM cazoo_lead_forwards WHERE dealer_id='cazoo-a' ORDER BY receipt_id",

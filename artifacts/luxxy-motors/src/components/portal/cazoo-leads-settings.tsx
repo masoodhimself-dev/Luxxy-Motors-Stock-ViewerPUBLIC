@@ -42,6 +42,7 @@ const reasons: Record<string, string> = {
   unrecognised_message_layout:
     "The customer details or message could not be separated safely.",
   missing_or_ambiguous_customer_email: "The customer's email needs checking.",
+  customer_email_missing: "Cazoo did not supply a customer email. Check the contact details in the Inbox.",
   invalid_customer_phone: "The customer's phone number needs checking.",
   ambiguous_customer_phone: "More than one phone number was found.",
   invalid_customer_name: "The customer's name needs checking.",
