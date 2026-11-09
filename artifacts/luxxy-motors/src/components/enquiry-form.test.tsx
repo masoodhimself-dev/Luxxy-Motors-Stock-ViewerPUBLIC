@@ -112,13 +112,13 @@ it('removes the booking topic when the dealership turns online booking off',()=>
  expect(screen.getByTestId('form-enquiry')).toBeInTheDocument();
 });
 
-it('adds optional vehicle questions without overwriting a draft or sending it', () => {
+it('adds and safely undoes an untouched shortcut without overwriting the draft or sending it', () => {
  render(<EnquiryForm vehicle={car} embedded initialMessage="I can visit on Saturday." />);
  const input = screen.getByRole('textbox', { name: 'Your question' });
  fireEvent.click(screen.getByRole('button', { name: 'Availability' }));
  expect(input).toHaveValue('I can visit on Saturday.\n\nIs this car still available?');
  fireEvent.click(screen.getByRole('button', { name: 'Availability' }));
- expect(input).toHaveValue('I can visit on Saturday.\n\nIs this car still available?');
+ expect(input).toHaveValue('I can visit on Saturday.');
  expect(input).toHaveFocus();
  expect(state.mutate).not.toHaveBeenCalled();
 });
@@ -399,14 +399,16 @@ it('keeps a restored disabled part exchange out of the form and payload without 
   expect(state.mutate.mock.calls[0][0].data).toMatchObject({ message: 'Is it available?', partExchange: null });
 });
 
-it('treats quick questions as ordinary add buttons and never replaces the existing question', () => {
+it('shows Added and preserves a customer-edited shortcut when clicked again', () => {
   render(<EnquiryForm vehicle={car} initialMessage="My existing question." />);
   const add = screen.getByRole('button', { name: 'Availability' });
-  expect(add).not.toHaveAttribute('aria-pressed');
+  expect(add).toHaveAttribute('aria-pressed', 'false');
   fireEvent.click(add);
   expect(add).toHaveAttribute('data-selected', 'true');
+  expect(add).toHaveTextContent('Added (undo)');
+  fireEvent.change(screen.getByTestId('textarea-enquiry-message'), { target: { value: 'My existing question.\n\nIs this car still available? I can visit Monday.' } });
   fireEvent.click(add);
-  expect(screen.getByTestId('textarea-enquiry-message')).toHaveValue('My existing question.\n\nIs this car still available?');
+  expect(screen.getByTestId('textarea-enquiry-message')).toHaveValue('My existing question.\n\nIs this car still available? I can visit Monday.');
 });
 
 it('confirms the chosen reply method with optional email and starts another enquiry with an empty question and exchange', () => {

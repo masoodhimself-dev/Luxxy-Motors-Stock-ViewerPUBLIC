@@ -1,4 +1,6 @@
 import { VehicleAnswers } from '@/components/vehicle-answers';
+import { VehicleQualityChecks } from '@/components/vehicle-quality-checks';
+import { isMultiChoiceWebsite } from '@/lib/multi-home-scope';
 import { vehicleEnquiryMot } from '@/lib/vehicle-enquiry-information';
 import { VehiclePhotoRequest } from '@/components/vehicle-photo-request';
 import {VehicleQuickChecks} from '@/components/vehicle-quick-checks';
@@ -85,6 +87,19 @@ function LedgerRow({ label, value, testId }: { label: string; value: string; tes
   );
 }
 
+function UnavailableAlternatives({ car, cars }: { car?: Car | null; cars: Car[] }) {
+  const alternatives = car ? getSimilarCars(car, cars) : cars.filter(item =>
+    (!item.inventoryStatus || item.inventoryStatus === 'available') && (!item.sourceStatus || item.sourceStatus === 'live'),
+  ).slice(0, 3);
+  if (!alternatives.length) return null;
+  return <section className="mt-10" aria-label="Other cars to consider">
+    <h2 className="section-heading">Other cars to consider</h2>
+    <div className="mt-5 grid gap-5 sm:grid-cols-2">
+      {alternatives.map(item => <CarCard key={item.id} car={item} />)}
+    </div>
+  </section>;
+}
+
 export default function CarDetail() {
   const [enquiryExpanded, setEnquiryExpanded] = useState(false);
   const [messageRequest, setMessageRequest] = useState<{id: number; text: string; vehicleId: string}>();
@@ -119,7 +134,7 @@ export default function CarDetail() {
     if (!car?.id) return;
     const scrollToSection = () => {
       const id = window.location.hash.slice(1);
-      if (['vehicle-description-heading', 'features-heading', 'vehicle-overview-heading', 'vehicle-running-costs-heading', 'vehicle-records-heading', 'buyer-information-heading', 'vehicle-history', 'vehicle-overview-section', 'vehicle-questions', 'vehicle-history-section', 'vehicle-visit-delivery', 'vehicle-delivery-heading', 'vehicle-enquiry', 'vehicle-source-report-heading'].includes(id)) {
+      if (['vehicle-description-heading', 'features-heading', 'vehicle-overview-heading', 'vehicle-running-costs-heading', 'vehicle-records-heading', 'buyer-information-heading', 'vehicle-history', 'vehicle-overview-section', 'vehicle-questions', 'vehicle-history-section', 'vehicle-visit-delivery', 'vehicle-delivery-heading', 'vehicle-enquiry', 'vehicle-source-report-heading', 'vehicle-quality-checks'].includes(id)) {
         if (id === 'vehicle-enquiry') setEnquiryExpanded(true);
         const target = document.getElementById(id);
         for (let parent = target?.parentElement; parent; parent = parent.parentElement) {
@@ -135,7 +150,7 @@ export default function CarDetail() {
   }, [car?.id]);
 
 
-  usePageMeta(!error && car && !['sold', 'archived', 'hidden'].includes(String(car.inventoryStatus)) ? vehiclePageMeta(car, dealerConfig) : isLoading ? null : {
+  usePageMeta(!error && car && !['sold', 'archived', 'hidden', 'unavailable', 'withdrawn'].includes(String(car.inventoryStatus)) ? vehiclePageMeta(car, dealerConfig) : isLoading ? null : {
     indexable: false,
     title: `${error ? 'Vehicle details unavailable' : 'Vehicle not in stock'} | ${dealerConfig.identity.name}`,
     description: error ? 'Please try again to check this vehicle’s current details.' : 'Browse our current used cars or ask us about this car.',
@@ -173,7 +188,7 @@ export default function CarDetail() {
   }
 
   const stockCars = stock?.cars ?? [];
-  if (!car || ['sold', 'archived', 'hidden'].includes(String(car.inventoryStatus))) return <div className="container mx-auto px-4 py-10 sm:px-6 lg:px-8"><PageHeading eyebrow="Vehicle details" title={car ? `${vehicleDisplayTitle(car)} is no longer available` : "This car isn’t in our current stock"} description="This car is no longer in our online stock. Browse our current cars, or ask us about this one." /><div className="flex flex-wrap gap-3"><Button asChild><Link href="/stock">Browse current stock</Link></Button><Button asChild variant="outline"><Link href="/contact">Contact us</Link></Button></div>{stockCars.some(item => item.id !== car?.id && (!item.inventoryStatus || item.inventoryStatus === 'available')) && <section className="mt-10" aria-label="Other cars to consider"><h2 className="section-heading">Other cars to consider</h2><div className="mt-5 grid gap-5 sm:grid-cols-2">{stockCars.filter(item => item.id !== car?.id && (!item.inventoryStatus || item.inventoryStatus === 'available')).slice(0,3).map(item=><CarCard key={item.id} car={item} />)}</div></section>}</div>;
+  if (!car || ['sold', 'archived', 'hidden', 'unavailable', 'withdrawn'].includes(String(car.inventoryStatus))) return <div className="container mx-auto px-4 py-10 sm:px-6 lg:px-8"><PageHeading eyebrow="Vehicle details" title={car ? `${vehicleDisplayTitle(car)} is no longer available` : "This car isn’t in our current stock"} description="This car is no longer in our online stock. Browse our current cars, or ask us about this one." /><div className="flex flex-wrap gap-3"><Button asChild><Link href="/stock">Browse current stock</Link></Button><Button asChild variant="outline"><Link href="/contact">Contact us</Link></Button></div><UnavailableAlternatives car={car} cars={stockCars} /></div>;
 
   const similarCars = getSimilarCars(car, stockCars);
   const registration = vehicleRegistration(car);
@@ -188,6 +203,9 @@ export default function CarDetail() {
   const showMakeLogo = Boolean(getMakeLogoSrc(car.make));
   const vehicleRunningCostFacts = getVehicleRunningCosts(car);
   const sourceReport = readVehicleSourceReport(car);
+  const originalAdvertDescriptions = Array.isArray(car.sourceExtras?.originalAdvertDescriptions)
+    ? car.sourceExtras.originalAdvertDescriptions.filter((value): value is string => typeof value === 'string').map(value => value.trim()).filter(Boolean)
+    : [];
 
   const overviewSpecs = [
     { label: 'Engine', value: car.engineSize || (car.engineCC ? `${(car.engineCC / 1000).toFixed(1)}L` : 'Ask us') },
@@ -277,6 +295,16 @@ export default function CarDetail() {
   return <VehicleQuickChecks key={car.id} vehicleId={car.id} vehiclePrice={car.price} currency={car.currency} priceType={car.priceType} onEnquire={enquiriesEnabled ? openVehicleEnquiry : undefined}>
     {({ motAction, deliveryAction, motHistory, requestMotHistory, openMotHistory }) => {
   const motSummary = vehicleEnquiryMot(car, motHistory);
+  const coveredAnswerTopics = [
+    'history', 'price', 'mileage', 'specification', 'dealer-hours', 'dealer-location', 'dealer-contact',
+    ...summaryFacts.map(fact => fact.id),
+    ...(features.length ? ['equipment'] : []),
+    ...(vehicleRunningCostFacts.length ? ['costs'] : []),
+    ...(includedItems.length ? ['included'] : []),
+    ...(includedItems.some(item => /\bwarrant(?:y|ies)\b/i.test(item)) ? ['warranty'] : []),
+    ...(deliveryAction ? ['delivery'] : []),
+    ...(motAction && motSummary ? ['mot'] : []),
+  ];
 
   return (
     <div className="vehicle-page vehicle-redesigned vehicle-page-streamlined vehicle-page-enter luxxy-shell min-h-screen">
@@ -358,6 +386,7 @@ export default function CarDetail() {
           <nav aria-label="Vehicle information sections" className="vehicle-section-nav">
             {hasOverview && <a href="#vehicle-overview-section">Overview</a>}
             {features.length > 0 && <a href="#features-heading">Equipment</a>}
+            <a href="#vehicle-quality-checks">Checks</a>
             <a href="#vehicle-history-section">History</a>
             <a href="#vehicle-visit-delivery">Visit &amp; delivery</a>
           </nav>
@@ -406,7 +435,6 @@ export default function CarDetail() {
 
             </details>}
           </div>}
-          {enquiriesEnabled && <VehicleAnswers key={car.id} car={car} motHistory={motHistory} onAskTeam={openVehicleEnquiry} />}
           <div className="vehicle-page-chapter vehicle-equipment-chapter">
             {features.length > 0 && (
               <section
@@ -421,6 +449,7 @@ export default function CarDetail() {
             )}
 
           </div>
+          <VehicleQualityChecks car={car} motHistory={motHistory} dealerConfirmed={isMultiChoiceWebsite()} onAskTeam={enquiriesEnabled ? openVehicleEnquiry : undefined} />
           <div id="vehicle-history-section" className="vehicle-page-chapter vehicle-history-chapter">
             <div className="vehicle-information-row vehicle-records-row">
             <VehicleHistorySummary car={car} motAction={motAction} />
@@ -478,7 +507,7 @@ export default function CarDetail() {
             {enquiriesEnabled ? <button type="button" className="vehicle-service-record-request" onClick={() => openVehicleEnquiry('Please send the available service-book photos and service records for this car.')}><span>Request service records<span className="vehicle-service-record-note">Ask for the available service-book photos and records.</span></span><ArrowRight className="h-4 w-4" aria-hidden="true" /></button> : <Link href="/contact" className="vehicle-service-record-request">Contact the showroom about service records</Link>}
           </div>
           {sourceReport && <details className="vehicle-full-records"><summary>Vehicle checks</summary><VehicleSourceReport car={car} /></details>}
-                {Array.isArray(car.sourceExtras?.originalAdvertDescriptions) && <details className="border-t border-border pt-4 text-sm"><summary className="min-h-11 cursor-pointer py-2 font-semibold">Original advert information</summary>{car.sourceExtras.originalAdvertDescriptions.filter((value): value is string => typeof value === 'string').map((value, index) => <p key={index} className="whitespace-pre-line py-2">{value}</p>)}</details>}
+          {originalAdvertDescriptions.length > 0 && <details className="vehicle-original-advert border-t border-border pt-4 text-sm"><summary className="min-h-11 cursor-pointer py-2 font-semibold">Original advert information</summary>{originalAdvertDescriptions.map((value, index) => <p key={index} className="whitespace-pre-line py-2">{value}</p>)}</details>}
 
           </div>
           <div id="vehicle-visit-delivery" className="vehicle-page-chapter vehicle-visit-delivery-chapter" aria-label="Visit and delivery">
@@ -489,9 +518,10 @@ export default function CarDetail() {
               {deliveryAction}
             </section>}
           </div>
+          {enquiriesEnabled && <VehicleAnswers key={car.id} car={car} motHistory={motHistory} coveredTopics={coveredAnswerTopics} onAskTeam={openVehicleEnquiry} />}
         </div>
         {enquiriesEnabled && <details id="vehicle-enquiry" className="vehicle-inline-enquiry vehicle-message-disclosure" open={enquiryExpanded} onToggle={event => setEnquiryExpanded(event.currentTarget.open)}>
-          <summary><h2 id="vehicle-enquiry-heading" tabIndex={-1} className="section-heading">Message the showroom</h2><span>Ask about this {vehicleLabel}</span></summary>
+          <summary><h2 id="vehicle-enquiry-heading" tabIndex={-1} className="section-heading">Message the showroom</h2><span>Ask a question about this {vehicleLabel}</span></summary>
           <div className="vehicle-message-body">
             <EnquiryForm key={car.id} vehicle={car} initialType="general" embedded messageRequest={messageRequest?.vehicleId === car.id ? messageRequest : undefined} />
             {enquiryExpanded && <VehicleEnquiryInformation key={`information-${car.id}`} car={car} motHistory={motHistory} requestMotHistory={requestMotHistory} dealer={settingsLoading || settingsError ? undefined : dealerConfig} includedItems={includedItems} />}

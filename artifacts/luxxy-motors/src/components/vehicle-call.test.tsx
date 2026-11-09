@@ -106,3 +106,11 @@ it('does not apply Multi-Choice appointment rules to other dealerships', () => {
  show();const dialog=open();
  expect(dialog).not.toHaveTextContent('Visits are by appointment only.');
 });
+it('includes the preferred callback window as a preference, without booking an appointment',()=>{
+ show();const dialog=open();fireEvent.click(within(dialog).getByRole('button',{name:'Request a callback'}));
+ fireEvent.change(screen.getByRole('textbox',{name:'Your name'}),{target:{value:'Alex Buyer'}});
+ fireEvent.change(screen.getByRole('textbox',{name:'Telephone'}),{target:{value:'07700900123'}});
+ fireEvent.change(screen.getByRole('combobox',{name:/Best time to call/}),{target:{value:'afternoon'}});
+ fireEvent.submit(screen.getByRole('form',{name:'Request a callback'}));
+ expect(state.mutate.mock.calls[0][0].data.message).toContain('Preferred callback time: afternoon');expect(state.mutate.mock.calls[0][0].data.appointmentAt).toBeNull();
+});

@@ -5,6 +5,7 @@ import { partExchangeMotSummary, partExchangeValuationQuestion } from '@/lib/par
 import { FeatureUnavailable } from './feature-unavailable';
 import { useDealerFeatures } from '@/lib/dealer-features';
 import './enquiry-form.css';
+import { removeEnquiryShortcut } from '@/lib/enquiry-shortcuts';
 import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
 import { enquiryDraftKey, readEnquiryDraft, saveEnquiryDraft, discardEnquiryDraft } from '@/lib/enquiry-draft';
 import { appendEnquiryMessage, type EnquiryMessageRequest } from '@/lib/enquiry-message-handoff';
@@ -140,6 +141,7 @@ export function EnquiryForm({
   const handledRequests = useRef(new Set<EnquiryMessageRequest['id']>());
   const [pendingRequests, setPendingRequests] = useState<EnquiryMessageRequest[]>([]);
   const messageTouched = useRef(false);
+  const insertedShortcuts = useRef(new Set<string>());
   const generatedExchangeQuestion = useRef<string | null>(null);
   const generatedExchangeMakeModel = useRef('');
   const questionRef = useRef<HTMLTextAreaElement>(null);
@@ -445,11 +447,15 @@ export function EnquiryForm({
           { label: 'Availability', text: 'Is this car still available?' },
           ...(dealerConfig.partExchange?.enabled && features.enabled('partExchange') ? [{ label: 'Part exchange', text: 'Can I part exchange my current car for this vehicle?' }] : []),
           ...(dealerConfig.delivery?.enabled ? [{ label: 'Delivery', text: 'Can you deliver this car to my postcode?' }] : []),
-        ].map(question => <button key={question.label} type="button" data-selected={message.includes(question.text) ? 'true' : undefined} disabled={!message.includes(question.text) && message.length + question.text.length + 2 > messageLimit} onClick={() => {
+        ].map(question => <button key={question.label} type="button" aria-label={question.label} aria-pressed={message.includes(question.text)} data-selected={message.includes(question.text) ? 'true' : undefined} disabled={!message.includes(question.text) && message.length + question.text.length + 2 > messageLimit} onClick={() => {
           messageTouched.current = true;
-          writeMessage(messageRef.current.includes(question.text) ? messageRef.current : [messageRef.current.trim(), question.text].filter(Boolean).join('\n\n'));
+          if (insertedShortcuts.current.has(question.text) && removeEnquiryShortcut(messageRef.current, question.text) !== messageRef.current) {
+            writeMessage(removeEnquiryShortcut(messageRef.current, question.text)); insertedShortcuts.current.delete(question.text);
+          } else if (!messageRef.current.includes(question.text)) {
+            insertedShortcuts.current.add(question.text); writeMessage([messageRef.current.trim(), question.text].filter(Boolean).join('\n\n'));
+          }
           questionRef.current?.focus();
-        }}>{question.label}</button>)}
+        }}>{question.label}{message.includes(question.text) && <span> · Added{insertedShortcuts.current.has(question.text) && removeEnquiryShortcut(message, question.text) !== message ? ' (undo)' : ''}</span>}</button>)}
       </div>}
       <label className="block customer-enquiry-question">
         <span className={labelClass}><MessageSquare className="h-4 w-4 text-accent" aria-hidden="true" />Your question{!embedded && includePartExchange && <span className="text-muted-foreground">(optional)</span>}</span>

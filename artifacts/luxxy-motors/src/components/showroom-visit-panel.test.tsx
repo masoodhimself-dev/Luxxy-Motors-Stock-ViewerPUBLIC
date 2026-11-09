@@ -125,3 +125,18 @@ it.each([
   else expect(booking).not.toBeInTheDocument();
   expect(screen.getAllByRole('link', { name: 'Get directions' })).toHaveLength(1);
 });
+
+it('keeps one working showroom call beside the car-specific booking action', () => {
+  render(<VehicleVisit car={{ id: 'test-car', inventoryStatus: 'available' } as unknown as Car} />);
+  const call = screen.getByRole('link', { name: 'Call the showroom on 07388 831790' });
+  expect(call).toHaveAttribute('href', 'tel:07388831790');
+  expect(call.parentElement).toContainElement(screen.getByRole('link', { name: 'Choose a test-drive time' }));
+  expect(within(screen.getByTestId('showroom-visit-panel')).queryByRole('link', { name: /Call Us/ })).not.toBeInTheDocument();
+});
+
+it.each(['loading', 'error'] as const)('does not offer fallback contact or bookings while vehicle visit settings are %s', kind => {
+  state[kind] = true;
+  render(<VehicleVisit car={{ id: 'test-car', inventoryStatus: 'available' } as unknown as Car} />);
+  expect(screen.queryByRole('link', { name: /Call the showroom on/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Choose a test-drive time' })).not.toBeInTheDocument();
+});

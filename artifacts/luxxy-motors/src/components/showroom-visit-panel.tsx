@@ -20,11 +20,13 @@ export function ShowroomVisitPanel({
   heading = 'Plan your visit',
   bookingHref = '/enquire?type=viewing',
   showBooking = true,
+  showPhone = true,
 }: {
   className?: string;
   heading?: string | null;
   bookingHref?: string;
   showBooking?: boolean;
+  showPhone?: boolean;
 }) {
   const { settings, isLoading, isError } = useDealerSettings();
   const features = useDealerFeatures();
@@ -50,7 +52,7 @@ export function ShowroomVisitPanel({
     ? [...new Set([settings.address?.city, settings.address?.region, settings.address?.postcode].map(value => value?.trim()).filter(Boolean))].join(', ')
     : '';
   const directions = hasAddress ? location.directions : null;
-  const phone = ready ? settings.contact.phone?.trim() : '';
+  const phone = ready && showPhone ? settings.contact.phone?.trim() : '';
   const canBook = ready && showBooking && features.enabled('testDriveBookings') && settings.testDriveBooking?.enabled !== false;
   const instructions = ready ? publishedInstructions(settings.presentation?.visitInstructions) : '';
   const parking = ready ? publishedInstructions(settings.presentation?.parkingInstructions) : '';

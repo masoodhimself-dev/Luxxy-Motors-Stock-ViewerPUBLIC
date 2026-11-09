@@ -4,11 +4,12 @@ import type { Car } from '@/lib/stock-context';
 import { defaultBookingSettings } from '@/lib/test-drive-dates';
 import { TestDriveBooking } from './test-drive-booking';
 
-const state = vi.hoisted(() => ({ failed: false, empty: false, fetching: false, pending: false, success: false, daysAhead: 3, partExchangeEnabled: true, mutate: vi.fn(), reset: vi.fn() }));
+const state = vi.hoisted(() => ({ failed: false, empty: false, fetching: false, pending: false, success: false, daysAhead: 3, partExchangeEnabled: true, mutate: vi.fn(), reset: vi.fn(), nextAvailability: vi.fn() }));
 vi.mock('@workspace/api-client-react', () => ({
   useCreateEnquiry: () => ({ isPending: state.pending, isSuccess: state.success, isError: false, mutate: state.mutate, reset: state.reset,
     data: { appointmentStatus: 'confirmed', appointmentAt: '2026-10-17T09:00:00.000Z', appointmentDurationMinutes: 30, customerNotificationStatus: 'pending', managePath: '/viewing/fictional-booking' },
   }),
+  getEnquiryAvailability: (...args: unknown[]) => state.nextAvailability(...args),
   getGetEnquiryAvailabilityQueryKey: (params: unknown) => [params],
   useGetEnquiryAvailability: ({ date }: { date: string }) => ({
     isLoading: false, isFetching: state.fetching, isError: state.failed,
@@ -35,6 +36,7 @@ beforeEach(() => {
   state.daysAhead = 3;
   state.partExchangeEnabled = true;
   state.mutate.mockClear();
+  state.nextAvailability.mockReset().mockResolvedValue({ slots: [{ available: true }] });
   window.sessionStorage.clear();
   window.history.replaceState({}, '', '/enquire?type=viewing&vehicleId=booking-car');
   HTMLElement.prototype.scrollIntoView = vi.fn();
@@ -267,13 +269,14 @@ it('keeps neighbouring date buttons in place and offers the other permitted date
   expect(screen.getByTestId('button-continue-to-details')).toBeDisabled();
 });
 
-it('offers the next permitted date and direct contact when a day has no slots', () => {
+it('finds the next date with actual availability and keeps contact available', async () => {
   state.empty = true;
   render(booking());
   expect(screen.getByTestId('button-continue-to-details')).toBeDisabled();
   expect(screen.getByRole('link', { name: 'Call Us' })).toHaveAttribute('href', 'tel:07700900123');
   expect(screen.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute('href', expect.stringContaining('wa.me/447700900123'));
-  fireEvent.click(screen.getByRole('button', { name: 'Check times on Saturday 17 October' }));
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Find next available date' })); });
+  expect(state.nextAvailability).toHaveBeenCalledWith({ date: '2026-10-17' }, { signal: expect.any(AbortSignal) });
   expect(screen.getByTestId('button-viewing-date-2026-10-17')).toHaveAttribute('aria-pressed', 'true');
   expect(screen.getByTestId('button-continue-to-details')).toBeDisabled();
   expect(state.mutate).not.toHaveBeenCalled();

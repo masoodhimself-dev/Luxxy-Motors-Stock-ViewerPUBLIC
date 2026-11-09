@@ -30,6 +30,7 @@ import {
   SheetTrigger,
 } from "./ui/sheet";
 import "./multi-stock-filters.css";
+import "./public-search-improvements.css";
 
 type Props = {
   cars: Car[];
@@ -115,15 +116,18 @@ function FilterSection({
   title,
   icon,
   count = 0,
+  summary,
   children,
 }: {
   title: string;
   icon: keyof typeof iconFiles;
   count?: number;
+  summary?: string;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false),
     panelId = useId();
+  const summaryId = useId();
   return (
     <section className="multi-stock-section">
       <button
@@ -132,10 +136,11 @@ function FilterSection({
         aria-label={count ? `${title}, ${count} selected` : title}
         aria-expanded={open}
         aria-controls={panelId}
+        aria-describedby={summary ? summaryId : undefined}
         onClick={() => setOpen((value) => !value)}
       >
         <FilterIcon name={icon} />
-        <span className="multi-stock-section__label">{title}</span>
+        <span className="multi-stock-section__label">{title}{summary && <small id={summaryId} className="multi-stock-selection-summary">{summary}</small>}</span>
         {count > 0 && (
           <span className="multi-stock-selection-count" aria-hidden="true">
             {count}
@@ -201,8 +206,7 @@ function FacetOption({
   make: boolean;
   onToggle: () => void;
 }) {
-  const countId = useId(),
-    disabled = !selected && option.count === 0;
+  const disabled = !selected && option.count === 0;
   return (
     <label className="multi-stock-option" data-disabled={disabled || undefined}>
       <input
@@ -210,7 +214,6 @@ function FacetOption({
         checked={selected}
         disabled={disabled}
         aria-label={option.label}
-        aria-describedby={countId}
         onChange={onToggle}
       />
       <span className="multi-stock-checkbox" aria-hidden="true">
@@ -223,10 +226,6 @@ function FacetOption({
       )}
       {colour && <ColourSwatch value={option.label} />}
       <span className="multi-stock-option__label">{option.label}</span>
-      <span
-        id={countId}
-        className="sr-only"
-      >{`${option.count} ${option.count === 1 ? "matching car" : "matching cars"}`}</span>
     </label>
   );
 }
@@ -243,20 +242,28 @@ function CheckboxFacet({
   onChange: Props["onChange"];
   emptyText?: string;
 }) {
-  const [all, setAll] = useState(false),
-    selected = selectedValues(filters, facet);
+  const [all, setAll] = useState(false);
+  const [query, setQuery] = useState("");
+  const searchId = useId();
+  const selected = selectedValues(filters, facet);
   const ordered = [
     ...options.filter((option) => isSelected(selected, option.value)),
     ...options.filter((option) => !isSelected(selected, option.value)),
   ];
-  const limit = Math.max(8, selected.length),
-    shown = all ? ordered : ordered.slice(0, limit);
+  const limit = Math.max(8, selected.length);
+  const matching = query.trim() ? ordered.filter(option => stockValueKey(option.label).includes(stockValueKey(query))) : ordered;
+  const shown = all || query.trim() ? matching : matching.slice(0, limit);
   return (
     <FilterSection
       title={facetNames[facet]}
       icon={facet}
       count={selected.length}
+      summary={selected.length ? selected.join(", ") : undefined}
     >
+      {ordered.length > 8 && <label className="multi-stock-facet-search" htmlFor={searchId}>
+        <span className="sr-only">Search {facetNames[facet].toLowerCase()} options</span>
+        <input id={searchId} type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={`Find ${facetNames[facet].toLowerCase()}`} autoComplete="off" />
+      </label>}
       <div
         className="multi-stock-options"
         role="group"
@@ -276,10 +283,10 @@ function CheckboxFacet({
             />
           ))
         ) : (
-          <p className="multi-stock-empty-options">{emptyText}</p>
+          <p className="multi-stock-empty-options">{query.trim() ? "No options match. Try another name." : emptyText}</p>
         )}
       </div>
-      {ordered.length > limit && (
+      {!query.trim() && ordered.length > limit && (
         <button
           type="button"
           className="multi-stock-show-all"
@@ -357,12 +364,9 @@ function FilterPanel({
   filters,
   onChange,
   facets,
-  ulezCount,
 }: Pick<Props, "cars" | "filters" | "onChange"> & {
   facets: ReturnType<typeof applyStockFilters>["facets"];
-  ulezCount: number;
 }) {
-  const ulezCountId = useId();
   const hasMileage =
     Boolean(filters.mileage) ||
     cars.some(
@@ -380,7 +384,7 @@ function FilterPanel({
     engine: "Engine size details are not supplied for this stock.",
     seats: "Seat details are not supplied for this stock.",
   };
-  const facet = (key: StockFacetKey) => (
+  const facet = (key: StockFacetKey) => facets[key].length || selectedValues(filters, key).length ? (
     <CheckboxFacet
       key={key}
       facet={key}
@@ -389,11 +393,12 @@ function FilterPanel({
       onChange={onChange}
       emptyText={emptyText[key]}
     />
-  );
+  ) : null;
   return (
     <>
       <FilterSection
-        title="Price"
+        title="Price range"
+        summary={[filters.minPrice && `From ${formatPrice(Number(filters.minPrice))}`, filters.maxPrice && `Up to ${formatPrice(Number(filters.maxPrice))}`].filter(Boolean).join(" · ")}
         icon="price"
         count={
           Number(Boolean(filters.minPrice)) + Number(Boolean(filters.maxPrice))
@@ -406,6 +411,7 @@ function FilterPanel({
         title="Mileage"
         icon="mileage"
         count={filters.mileage ? 1 : 0}
+        summary={filters.mileage ? `Up to ${Number(filters.mileage).toLocaleString("en-GB")} miles` : undefined}
       >
         {hasMileage ? (
           <label className="multi-stock-mileage">
@@ -431,29 +437,19 @@ function FilterPanel({
           </p>
         )}
       </FilterSection>
-      <FilterSection title="Vehicle Type" icon="vehicleType">
-        <p className="multi-stock-empty-options">
-          Vehicle type details are not supplied for this stock.
-        </p>
-      </FilterSection>
-      <FilterSection title="ULEZ" icon="ulez" count={filters.ulez ? 1 : 0}>
+      <FilterSection title="ULEZ" icon="ulez" count={filters.ulez ? 1 : 0} summary={filters.ulez ? "Compliant cars" : undefined}>
         {hasUlezChoice ? (
           <label className="multi-stock-option">
             <input
               type="checkbox"
               checked={filters.ulez}
               aria-label="ULEZ compliant"
-              aria-describedby={ulezCountId}
               onChange={(event) => onChange({ ulez: event.target.checked })}
             />
             <span className="multi-stock-checkbox" aria-hidden="true">
               <FilterIcon name="check" />
             </span>
             <span className="multi-stock-option__label">ULEZ compliant</span>
-            <span
-              id={ulezCountId}
-              className="sr-only"
-            >{`${ulezCount} ${ulezCount === 1 ? "matching car" : "matching cars"}`}</span>
           </label>
         ) : (
           <p className="multi-stock-empty-options">
@@ -571,10 +567,6 @@ export function MultiStockFilters({
     () => applyStockFilters(cars, filters),
     [cars, filters],
   );
-  const ulezCount = useMemo(
-    () => applyStockFilters(cars, { ...filters, ulez: true }).total,
-    [cars, filters],
-  );
   const chips = filterChips(filters, facets),
     activeCount = chips.length;
   const clear = () => {
@@ -604,7 +596,6 @@ export function MultiStockFilters({
       filters={filters}
       onChange={apply}
       facets={facets}
-      ulezCount={ulezCount}
     />
   );
   return (
@@ -746,6 +737,9 @@ export function MultiStockFilters({
                 {panel}
               </div>
               <div className="multi-stock-drawer-footer">
+                <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+                  {matchCount} {matchCount === 1 ? "car matches" : "cars match"} your filters.
+                </p>
                 <button
                   type="button"
                   onClick={() => {

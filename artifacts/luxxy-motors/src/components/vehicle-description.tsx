@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 
-/** Preserve the advert wording; only the phone presentation is shortened. */
+/** Keep the full advert available without a long initial wall of text. */
 export function VehicleDescription({ paragraphs }: { paragraphs: string[] }) {
   const [expanded, setExpanded] = useState(false);
   const id = useId();

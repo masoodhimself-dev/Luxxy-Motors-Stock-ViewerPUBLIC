@@ -1,6 +1,7 @@
 import { AiCarFinder } from '@/components/ai-car-finder';
 import { DealershipHomepage } from '@/components/multi-choice-homepage';
 import { MultiStockFilters } from '@/components/multi-stock-filters';
+import { StockSearchRecovery } from '@/components/stock-search-recovery';
 import { StockAlertOffer } from '@/components/stock-alert-signup';
 import { StockPromiseAd } from '@/components/stock-promise-ad';
 import { useStockSearch } from '@/features/stock-search/use-stock-search';
@@ -599,17 +600,20 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                 <h3 className="section-heading mt-4">No matches</h3>
                 <p className="mt-3 max-w-lg text-sm leading-6 text-muted-foreground">We couldn’t find a car with these filters. Remove a filter above or widen your search below.</p>
                 {stock && <StockAlertOffer filters={stockSearch.filters} privacyUrl={dealerConfig.legal?.privacyUrl} />}
+                {multiStock ? <div className="mt-4"><StockSearchRecovery cars={publicCars} filters={stockSearch.filters} onChange={stockSearch.onChange} /></div> : (
                 <div className="mt-4 flex flex-wrap gap-3">
                   {(filters.minPrice || filters.maxPrice) && <Button variant="outline" onClick={()=>setFilters(current=>({...current,minPrice:'',maxPrice:''}))}>Remove price limits</Button>}
                   {filters.transmission && <Button variant="outline" onClick={() => setFilters(current => ({...current, transmission: ''}))}>Search all transmissions</Button>}
                   {filters.make && <Button variant="outline" onClick={() => setFilters(current => ({...current, make: '', model: ''}))}>Search all makes</Button>}
                   {filters.maxPrice && <Button variant="outline" onClick={() => setFilters(current => ({...current, maxPrice: String(Math.ceil(Number(current.maxPrice) * 1.25 / 500) * 500)}))}>Increase maximum price to £{(Math.ceil(Number(filters.maxPrice) * 1.25 / 500) * 500).toLocaleString('en-GB')}</Button>}
                 </div>
+                )}
                 <Button
                   variant="outline"
                   className="mt-6"
                   onClick={() => {
-                    setFilters(defaultFilters);
+                    if (multiStock) stockSearch.clear();
+                    else setFilters(defaultFilters);
                     setShowAll(false);
                   }}
                   data-testid="button-clear-filters"

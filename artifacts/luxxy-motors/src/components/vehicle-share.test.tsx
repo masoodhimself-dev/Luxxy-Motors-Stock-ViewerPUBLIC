@@ -54,3 +54,8 @@ it('cancels preparation on close without showing a false timeout when reopened',
   open(); await act(async()=>reject(new DOMException('Cancelled','AbortError')));
   expect(screen.queryByText(/took too long/)).not.toBeInTheDocument();
 });
+it('uses the chosen portrait format and clears a prepared image when the shape changes',async()=>{
+ mock.image.mockResolvedValue(new Blob(['photo'],{type:'image/png'}));render(<VehicleShare car={car}/>);open();extras();fireEvent.click(screen.getByRole('button',{name:/Create a share image/}));
+ fireEvent.click(screen.getByRole('radio',{name:'Portrait / story'}));fireEvent.click(screen.getByRole('button',{name:'Preview image'}));await screen.findByRole('button',{name:'Save image'});
+ expect(mock.image.mock.calls[0][5]).toBe('portrait');fireEvent.click(screen.getByRole('radio',{name:'Square'}));expect(screen.queryByRole('button',{name:'Save image'})).not.toBeInTheDocument();
+});

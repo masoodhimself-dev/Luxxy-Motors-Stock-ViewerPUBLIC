@@ -7,22 +7,26 @@ import { featuredVehicleAnswers, vehicleAnswers } from '@/lib/vehicle-answers';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import './vehicle-questions.css';
 
+const EMPTY_COVERED_TOPICS: readonly string[] = [];
+
 /** Published car and dealership facts, with no generation or provider lookups. */
-export function VehicleAnswers({ car, motHistory, onAskTeam }: {
+export function VehicleAnswers({ car, motHistory, onAskTeam, coveredTopics = EMPTY_COVERED_TOPICS }: {
   car: Car;
   motHistory?: MotHistory | null;
   onAskTeam: (message?: string) => void;
+  coveredTopics?: readonly string[];
 }) {
   const headingId = useId();
   const { settings, isLoading, isError } = useDealerSettings();
   const answers = useMemo(() => {
     const supplied = vehicleAnswers(car, motHistory);
-    const all = isLoading || isError ? supplied : withDealerAnswers(supplied, car, settings);
+    const all = (isLoading || isError ? supplied : withDealerAnswers(supplied, car, settings))
+      .filter(answer => !coveredTopics.includes(answer.id));
     // A configured inclusion already answers the warranty question. Keep the
     // first view distinct instead of repeating it in another accordion row.
     const includesWarranty = all.some(answer => answer.id === 'included' && /\bwarrant(?:y|ies)\b/i.test(answer.answer));
     return featuredVehicleAnswers(all.filter(answer => !includesWarranty || answer.id !== 'warranty'));
-  }, [car, motHistory, settings, isLoading, isError]);
+  }, [car, motHistory, settings, isLoading, isError, coveredTopics]);
   if (!answers.length) return null;
   return <section id="vehicle-questions" className="vehicle-questions" aria-labelledby={headingId}>
     <h2 id={headingId} className="section-heading">Questions about this car</h2>

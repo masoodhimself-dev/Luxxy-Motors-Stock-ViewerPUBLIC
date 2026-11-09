@@ -211,7 +211,9 @@ describe("Multi-Choice stock controls", () => {
       ["Seats", "09-filter-seats-users.svg"],
       ["Engine Size", "08-filter-engine-size-and-gearbox-settings.svg"],
       ["Mileage", "10-filter-mileage-gauge.svg"],
-      ["Vehicle Type", "07-filter-body-type-and-vehicle-type-truck.svg"],
+      ["Price range", "11-filter-max-price-badge-pound-sterling.svg"],
+      ["Fuel Type", "12-filter-fuel-type-fuel.svg"],
+      ["Gearbox", "08-filter-engine-size-and-gearbox-settings.svg"],
       ["ULEZ", "13-filter-ulez-leaf.svg"],
     ];
     expect(rows.map(row => row.getAttribute("aria-label"))).toEqual(expected.map(([name]) => name));
@@ -241,7 +243,7 @@ describe("Multi-Choice stock controls", () => {
       expect(rowStyle.fontSize).toBe("14px");
       expect(rowStyle.fontWeight).toBe("700");
       expect(rowStyle.lineHeight).toBe("20px");
-      expect(rowStyle.padding).toBe("20px 8px");
+      expect(rowStyle.padding).toBe("16px 8px");
     } finally {
       sheet.remove();
     }
@@ -295,6 +297,22 @@ describe("Multi-Choice stock controls", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows plain facet labels without car counts while keeping the overall result total", () => {
+    render(<Harness />);
+    for (const title of ["Make", "Model", "Colour", "Body Type", "Engine Size", "Seats", "Fuel Type", "Gearbox", "ULEZ"]) expand(title);
+    const options = within(sidebar()).getAllByRole("checkbox");
+    expect(options.length).toBeGreaterThan(8);
+    for (const option of options) {
+      expect(option).not.toHaveAccessibleDescription();
+      expect(option).not.toHaveAttribute("aria-describedby");
+      expect(option.closest("label")).not.toHaveTextContent(/matching cars?/);
+    }
+    expect(sidebar().querySelector(".multi-stock-option__count")).toBeNull();
+    expect(screen.getByRole("status")).toHaveTextContent("6 cars");
+    fireEvent.click(within(sidebar()).getByRole("checkbox", { name: "Ford" }));
+    expect(screen.getByRole("status")).toHaveTextContent("2 cars");
+  });
+
   it("keeps unavailable selected choices removable and disables only unselected zero-result options", () => {
     render(<Harness initial={{ make: "Saab", transmission: "Manual" }} />);
     expand("Make, 1 selected");
@@ -302,12 +320,12 @@ describe("Multi-Choice stock controls", () => {
     const missing = panel.getByRole("checkbox", { name: "Saab" });
     expect(missing).toBeChecked();
     expect(missing).toBeEnabled();
-    expect(missing).toHaveAccessibleDescription("0 matching cars");
+    expect(missing).not.toHaveAccessibleDescription();
     expect(panel.getByRole("checkbox", { name: "Toyota" })).toBeDisabled();
     expect(panel.getByRole("checkbox", { name: "Ford" })).toBeEnabled();
     expect(
       panel.getByRole("checkbox", { name: "Ford" }),
-    ).toHaveAccessibleDescription("1 matching car");
+    ).not.toHaveAccessibleDescription();
     fireEvent.click(missing);
     expect(state().make).toBe("");
     expect(screen.getByRole("status")).toHaveTextContent("1 car");
@@ -358,9 +376,25 @@ describe("Multi-Choice stock controls", () => {
     expect(screen.getByRole("status")).toHaveTextContent("1 car");
   });
 
+  it("lets shoppers add another make and its model without first losing their existing model choice", () => {
+    render(<Harness initial={{ make: "Ford", model: "Focus" }} />);
+    expand("Make, 1 selected");
+    const toyota = within(sidebar()).getByRole("checkbox", { name: "Toyota" });
+    expect(toyota).toBeEnabled();
+    fireEvent.click(toyota);
+    expect(state()).toMatchObject({ make: "Ford,Toyota", model: "Focus" });
+    expect(screen.getByRole("status")).toHaveTextContent("1 car");
+    expand("Model, 1 selected");
+    const yaris = within(sidebar()).getByRole("checkbox", { name: "Yaris" });
+    expect(yaris).toBeEnabled();
+    fireEvent.click(yaris);
+    expect(state()).toMatchObject({ make: "Ford,Toyota", model: "Focus,Yaris" });
+    expect(screen.getByRole("status")).toHaveTextContent("2 cars");
+  });
+
   it("uses genuine finite budget caps and preserves custom linked budgets with valid counterpart changes", () => {
     render(<Harness initial={{ minPrice: "7600", maxPrice: "9000" }} />);
-    expand("Price, 2 selected");
+    expand("Price range, 2 selected");
     const min = within(sidebar()).getByRole("combobox", { name: "Min price" });
     const max = within(sidebar()).getByRole("combobox", { name: "Max price" });
     expect(min).toHaveValue("7600");
@@ -386,7 +420,7 @@ describe("Multi-Choice stock controls", () => {
     expand("Colour");
     expect(
       within(sidebar()).getByRole("checkbox", { name: "Blue" }),
-    ).toHaveAccessibleDescription("1 matching car");
+    ).not.toHaveAccessibleDescription();
     fireEvent.click(within(sidebar()).getByRole("checkbox", { name: "Blue" }));
     expect(state().colour).toBe("Blue");
     expect(
@@ -407,9 +441,9 @@ describe("Multi-Choice stock controls", () => {
   it("retains supplied single-value facets and keeps an unavailable selected seat removable", () => {
     const { rerender } = render(<Harness cars={[stock[0]]} />);
     expand("Seats");
-    expect(within(sidebar()).getByRole("checkbox", { name: "5" })).toHaveAccessibleDescription("1 matching car");
+    expect(within(sidebar()).getByRole("checkbox", { name: "5" })).not.toHaveAccessibleDescription();
     expand("Colour");
-    expect(within(sidebar()).getByRole("checkbox", { name: "Blue" })).toHaveAccessibleDescription("1 matching car");
+    expect(within(sidebar()).getByRole("checkbox", { name: "Blue" })).not.toHaveAccessibleDescription();
     rerender(
       <Harness key="selected" cars={[stock[0]]} initial={{ seats: "7" }} />,
     );
@@ -427,8 +461,7 @@ describe("Multi-Choice stock controls", () => {
     expand("Seats");
     expect(within(sidebar()).getByText("Seat details are not supplied for this stock.")).toBeVisible();
     expect(within(sidebar()).queryByRole("checkbox", { name: "5" })).not.toBeInTheDocument();
-    expand("Vehicle Type");
-    expect(within(sidebar()).getByText("Vehicle type details are not supplied for this stock.")).toBeVisible();
+    expect(within(sidebar()).queryByRole("button", { name: "Vehicle Type" })).not.toBeInTheDocument();
     expect(within(sidebar()).queryByRole("checkbox", { name: /^(Car|Van)$/ })).not.toBeInTheDocument();
     expand("ULEZ");
     expect(within(sidebar()).getByText("No stock is currently confirmed ULEZ compliant.")).toBeVisible();
@@ -467,7 +500,7 @@ describe("Multi-Choice stock controls", () => {
     });
     expect(checkbox).toBeChecked();
     expect(checkbox).toBeEnabled();
-    expect(checkbox).toHaveAccessibleDescription("0 matching cars");
+    expect(checkbox).not.toHaveAccessibleDescription();
     expect(screen.getByRole("status")).toHaveTextContent("0 cars");
     fireEvent.click(checkbox);
     expect(state().ulez).toBe(false);
@@ -697,10 +730,15 @@ describe("mobile stock drawer", () => {
     render(<Harness />);
     const { dialog, trigger } = await openDrawer();
     expect(dialog).toHaveAccessibleDescription("Results update as you choose.");
+    const resultStatus = within(dialog).getByRole("status");
+    expect(resultStatus).toHaveAttribute("aria-live", "polite");
+    expect(resultStatus).toHaveAttribute("aria-atomic", "true");
+    expect(resultStatus).toHaveTextContent("6 cars match your filters.");
     screen.getByTestId("navigation-reset").focus();
     expect(dialog).toContainElement(document.activeElement as HTMLElement);
     expand("Make", dialog);
     fireEvent.click(within(dialog).getByRole("checkbox", { name: "Ford" }));
+    expect(resultStatus).toHaveTextContent("2 cars match your filters.");
     expect(
       within(dialog).getByRole("button", { name: "Show 2 cars" }),
     ).toBeEnabled();
@@ -804,4 +842,21 @@ describe("mobile stock drawer", () => {
     );
     await waitFor(() => expect(screen.getByRole("searchbox")).toHaveFocus());
   });
+});
+
+
+it('searches long make lists and keeps selected values visible after the section is folded',()=>{
+  const cars=Array.from({length:12},(_,index)=>car(String(index),{make:`Make ${index}`,model:`Model ${index}`}));
+  render(<Harness cars={cars}/>);
+  fireEvent.click(screen.getByRole('button',{name:'Make'}));
+  const input=screen.getByRole('searchbox',{name:'Search make options'});
+  fireEvent.change(input,{target:{value:'Make 11'}});
+  expect(screen.queryByRole('checkbox',{name:'Make 0'})).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('checkbox',{name:'Make 11'}));
+  const toggle=screen.getByRole('button',{name:'Make, 1 selected'});
+  expect(toggle).toHaveTextContent('Make 11');
+  fireEvent.click(toggle);expect(toggle).toHaveAttribute('aria-expanded','false');
+  fireEvent.click(toggle);fireEvent.change(input,{target:{value:''}});
+  expect(screen.getByRole('checkbox',{name:'Make 11'})).toBeChecked();
+  expect(screen.queryByRole('button',{name:'Vehicle Type'})).not.toBeInTheDocument();
 });

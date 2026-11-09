@@ -12,6 +12,7 @@ import { DealerWordmark } from './brand/wordmark';
 import { VehiclePrint } from './vehicle-print';
 import { useVehicleDialogTheme } from './vehicle-dialog-vehicle';
 import './vehicle-share.css';
+import type { VehicleShareImageFormat } from '@/lib/vehicle-share-image';
 
 export function VehicleShare({ car }: { car: Car }) {
   const { settings } = useDealerSettings();
@@ -20,6 +21,7 @@ export function VehicleShare({ car }: { car: Car }) {
   const [status, setStatus] = useState('');
   const [panel, setPanel] = useState<'qr' | 'image' | null>(null);
   const [photo, setPhoto] = useState('');
+  const [imageFormat, setImageFormat] = useState<VehicleShareImageFormat>('square');
   const [busy, setBusy] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
   const [imageBlob, setImageBlob] = useState<Blob | null>(null);
@@ -66,7 +68,7 @@ export function VehicleShare({ car }: { car: Car }) {
     setBusy(true); setStatus(''); setImageBlob(null); setImageUrl('');
     try {
       const { createVehicleShareImage } = await import('@/lib/vehicle-share-image');
-      const blob = await createVehicleShareImage(car, selectedPhoto, settings, url, request.signal);
+      const blob = await createVehicleShareImage(car, selectedPhoto, settings, url, request.signal, imageFormat);
       if (controller.current === request && !request.signal.aborted) { setImageBlob(blob); setImageUrl(URL.createObjectURL(blob)); }
     } catch (error) {
       if (controller.current === request && (!request.signal.aborted || timedOut)) setStatus(timedOut ? 'The image took too long. Please try again.' : error instanceof Error ? error.message : 'The image could not be prepared. Please try again.');
@@ -94,9 +96,9 @@ export function VehicleShare({ car }: { car: Car }) {
         <VehiclePrint car={car} dealer={settings} features={[]} triggerClassName="vehicle-share-option" triggerContent={<><FileText /><span><strong>Car details PDF</strong><small>Download or print the photo, price and details</small></span><ChevronRight size={17} /></>} />
         {photos.length > 0 && <button type="button" className="vehicle-share-option" aria-expanded={panel === 'image'} onClick={() => setPanel(panel === 'image' ? null : 'image')}><ImageIcon /><span><strong>Create a share image</strong><small>A photo and price for your status or story</small></span><ChevronRight size={17} /></button>}
         {panel === 'image' && <div className="vehicle-share-image">
-          <p>Choose a photo</p><div className="vehicle-share-photos" aria-label="Choose a share photo">{photos.map((item, index) => <button type="button" key={item} disabled={busy} aria-label={`Use photo ${index + 1}`} aria-pressed={selectedPhoto === item} onClick={() => { setPhoto(item); setImageBlob(null); setImageUrl(''); }}><img src={item} alt="" loading="lazy" width={96} height={72} /></button>)}</div>
+          <fieldset className="vehicle-share-format"><legend>Image shape</legend><label><input type="radio" name="share-image-format" value="square" checked={imageFormat === 'square'} disabled={busy} onChange={() => { setImageFormat('square'); clearPreparedImage(); }} />Square</label><label><input type="radio" name="share-image-format" value="portrait" checked={imageFormat === 'portrait'} disabled={busy} onChange={() => { setImageFormat('portrait'); clearPreparedImage(); }} />Portrait / story</label></fieldset><p>Choose a photo</p><div className="vehicle-share-photos" aria-label="Choose a share photo">{photos.map((item, index) => <button type="button" key={item} disabled={busy} aria-label={`Use photo ${index + 1}`} aria-pressed={selectedPhoto === item} onClick={() => { setPhoto(item); setImageBlob(null); setImageUrl(''); }}><img src={item} alt="" loading="lazy" width={96} height={72} /></button>)}</div>
           {imageUrl && <img className="vehicle-share-image-preview" src={imageUrl} alt={`Share image for ${label}`} />}
-          {imageBlob ? <button type="button" className="vehicle-share-image-save" onClick={() => { saveShareBlob(imageBlob, `${label.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-share.png`); action('image_download'); }}><Download size={18} />Save image</button> : <button type="button" className="vehicle-share-image-save" disabled={busy} onClick={() => void prepareImage()}>{busy ? 'Preparing image…' : 'Preview image'}</button>}
+          {imageBlob ? <button type="button" className="vehicle-share-image-save" onClick={() => { saveShareBlob(imageBlob, `${label.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${imageFormat}.png`); action('image_download'); }}><Download size={18} />Save image</button> : <button type="button" className="vehicle-share-image-save" disabled={busy} onClick={() => void prepareImage()}>{busy ? 'Preparing image…' : 'Preview image'}</button>}
         </div>}
       </details>
       {status && <p role="status" className="vehicle-share-status">{status}</p>}

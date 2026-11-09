@@ -1,0 +1,42 @@
+.multi-stock-section__label .multi-stock-selection-summary {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--mh-muted, #586671);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.multi-stock-facet-search {
+  display: block;
+  margin-bottom: 12px;
+}
+.multi-stock-facet-search input {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid var(--mh-border, #dfe3e6);
+  border-radius: 6px;
+  background: white;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+}
+.multi-stock-facet-search input:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.stock-search-recovery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.stock-search-recovery button {
+  min-height: 44px;
+}
+.stock-search-recovery button span {
+  margin-left: 6px;
+  font-size: 12px;
+}

@@ -1,13 +1,16 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useLocation } from 'wouter';
-import { ArrowRight, Calendar } from '@/components/icons';
+import { ArrowRight } from '@/components/icons';
 import type { Car } from '@/lib/stock-context';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { useDealerFeatures } from '@/lib/dealer-features';
 import { buyerInformation } from '@/lib/buyer-information';
-import { getVehicleBookingHref, recordBookingIntent } from '@/lib/cta-helpers';
+import { getPhoneHref, getVehicleBookingHref, recordBookingIntent } from '@/lib/cta-helpers';
+import { formatPhoneDisplay } from '@/lib/utils';
 import { readVehicleExchange, saveVehicleExchange } from '@/lib/vehicle-exchange-draft';
 import { ShowroomVisitPanel } from './showroom-visit-panel';
+import { isMultiChoiceWebsite } from '@/lib/multi-home-scope';
+import { appointmentVisitNote } from '@/lib/dealership-customer-copy';
 import { UKNumberPlate } from './uk-number-plate';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -57,10 +60,18 @@ export function VehicleVisit({ car }: { car: Car }) {
   const features = useDealerFeatures();
   const available = !car.inventoryStatus || car.inventoryStatus === 'available';
   const canBook = available && !isLoading && !isError && features.enabled('testDriveBookings') && settings.testDriveBooking?.enabled !== false;
+  const phoneHref = !isLoading && !isError ? getPhoneHref(settings) : null;
   return <section aria-labelledby="vehicle-visit-heading" className="mt-8 border-t border-border pt-7">
     <h2 id="vehicle-visit-heading" className="section-heading">Visit the showroom</h2>
-    <ShowroomVisitPanel heading={null} showBooking={false} className="mt-5" />
-    <p className="mt-3 text-xs leading-5 text-muted-foreground">{available ? 'Please confirm your test drive before travelling.' : 'Contact us to check this car’s availability before travelling.'}</p>
-    <div className="mt-4 flex flex-wrap gap-3">{canBook && <Button asChild><a href={getVehicleBookingHref(car)} onClick={()=>recordBookingIntent({source:'vehicle_visit',vehicleContext:true})}><Calendar className="h-4 w-4" />Choose a test-drive time</a></Button>}</div>
+    <ShowroomVisitPanel heading={null} showBooking={false} showPhone={false} className="mt-5" />
+    <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-border pt-4">
+      <p className="min-w-0 flex-1 basis-56 text-sm leading-6 text-muted-foreground">{isMultiChoiceWebsite()
+        ? available ? appointmentVisitNote : 'Visits are by appointment only. Contact us to check this car’s availability before travelling.'
+        : available ? 'Please confirm your test drive before travelling.' : 'Contact us to check this car’s availability before travelling.'}</p>
+      {(phoneHref || canBook) && <div className="flex flex-wrap items-center gap-2">
+        {phoneHref && <Button asChild variant="outline"><a href={phoneHref} aria-label={`Call the showroom on ${formatPhoneDisplay(settings.contact.phone ?? '')}`}>Call showroom</a></Button>}
+        {canBook && <Button asChild><a href={getVehicleBookingHref(car)} onClick={() => recordBookingIntent({ source: 'vehicle_visit', vehicleContext: true })}>Choose a test-drive time</a></Button>}
+      </div>}
+    </div>
   </section>;
 }

@@ -109,7 +109,7 @@
 .multi-home .mh-stock-rail { display: grid; grid-auto-flow: column; grid-auto-columns: calc((100% - 48px)/4); gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: thin; padding-bottom: 18px; }
 .multi-home .mh-car-card { display: flex; min-width: 0; flex-direction: column; background: white; border: 1px solid var(--mh-border); border-radius: 6px; overflow: hidden; box-shadow: var(--mh-shadow-lg); scroll-snap-align: start; }
 .multi-home .mh-car-photo { display: block; width: 100%; aspect-ratio: 4/3; background: var(--mh-photo-bg); }
-.multi-home .mh-car-photo img { width: 100%; height: 100%; object-fit: cover; }
+.multi-home .mh-car-photo img { width: 100%; height: 100%; object-fit: contain; }
 .multi-home .mh-car-photo > span { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; flex-direction: column; gap: 8px; color: var(--mh-muted); font-size: 12px; }
 .multi-home .mh-car-copy { display: flex; flex: 1; flex-direction: column; padding: 18px 16px; }
 .multi-home .mh-car-copy h3 { overflow: hidden; font-size: 24px; font-weight: 800; white-space: nowrap; text-overflow: ellipsis; line-height: 1.4; }
@@ -271,3 +271,10 @@
 @media (max-width: 767px) {
   .multi-home .mh-reasons-grid, .multi-home .mh-visit-overview { grid-template-columns: minmax(0, 1fr); }
 }
+
+.multi-home .mh-car-reference { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 8px; font-size: 12px; }
+.multi-home .mh-car-registration { border: 1px solid var(--mh-border-strong); border-radius: 2px; padding: 1px 5px; font-weight: 600; line-height: 1.5; }
+.multi-home .mh-car-photo-count { display: inline-flex; align-items: center; gap: 4px; color: var(--mh-muted); }
+.multi-home .mh-carousel-controls button:disabled { opacity: .35; cursor: default; }
+.multi-home .mh-makes-toggle { margin-top: 10px; }
+.multi-home .mh-makes-toggle[aria-expanded='true'] svg { transform: rotate(180deg); }

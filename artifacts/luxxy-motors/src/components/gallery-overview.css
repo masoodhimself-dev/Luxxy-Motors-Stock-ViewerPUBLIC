@@ -147,3 +147,10 @@
   .customer-vehicle-lightbox.is-gallery-overview .vehicle-gallery-overview { margin-bottom: 50px; }
 }
 @media (prefers-reduced-motion: reduce) { .vehicle-photo-gallery :is(.gallery-enlarge-icon, .vehicle-gallery-arrow-face) { transition: none; } }
+
+.vehicle-mobile-photo-details { display: none; }
+@media (max-width: 639px) {
+  .vehicle-photo-gallery .vehicle-mobile-photo-details { display: block; font-size: 13px; }
+  .vehicle-mobile-photo-details summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+  .vehicle-mobile-photo-details p { padding: 0 0 12px; margin: 0; color: var(--gallery-muted); line-height: 1.5; }
+}

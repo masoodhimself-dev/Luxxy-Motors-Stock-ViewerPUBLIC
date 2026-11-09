@@ -9,6 +9,7 @@ import { type Car, type CarImage } from '@/lib/stock-context';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Link } from 'wouter';
 import './gallery-overview.css';
+import { shouldPrefetchVehiclePhotos } from '@/lib/photo-connection';
 
 export interface GalleryProps {
   car?: Car;
@@ -121,14 +122,18 @@ export function Gallery({
   };
   useEffect(() => {
     // Only warm neighbours after the main photograph has finished loading.
-    if (!activeUrl || loadedUrl !== activeUrl || allImages.length < 2) return;
+    if (!activeUrl || loadedUrl !== activeUrl || allImages.length < 2 || !shouldPrefetchVehiclePhotos(navigator)) return;
     const neighbours = [...new Set([(index + 1) % allImages.length, (index + allImages.length - 1) % allImages.length])];
     const requests = neighbours.map(i => {
       const image = new Image();
       image.decoding = 'async';
       image.fetchPriority = 'low';
       image.referrerPolicy = 'no-referrer';
-      image.src = getSafeImageUrl(allImages[i]);
+      const source = getSafeImageUrl(allImages[i]);
+      const responsive = responsiveVehicleImage(source, '(min-width: 1024px) 65vw, 100vw');
+      if (responsive.srcSet) image.srcset = responsive.srcSet;
+      if (responsive.sizes) image.sizes = responsive.sizes;
+      image.src = source;
       return image;
     });
     return () => { requests.forEach(image => { image.onload = null; image.onerror = null; }); };
@@ -309,6 +314,7 @@ export function Gallery({
             <LayoutGrid className="h-4 w-4" aria-hidden="true" />{allImages.length === 1 ? 'View photo' : `View all ${allImages.length} photos`}
           </button>
         </div>
+        {imageCaption(allImages[index]) && <details className="vehicle-mobile-photo-details" key={activeUrl}><summary>Photo details</summary><p>{imageCaption(allImages[index])}</p></details>}
         {failedImages.size > 0 && <p className="mt-2 text-xs text-muted-foreground">{failedImages.size} {failedImages.size === 1 ? 'photo couldn’t' : 'photos couldn’t'} be loaded. <button type="button" onClick={retryPhotos} className="min-h-11 px-2 font-medium underline underline-offset-4">Retry photos</button></p>}
         {!hideInlineThumbnails && allImages.length > 1 && (
           <div

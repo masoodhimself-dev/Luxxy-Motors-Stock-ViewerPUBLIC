@@ -5,7 +5,7 @@ vi.mock('@/lib/dealer-settings-context',()=>({useDealerSettings:()=>({settings:s
 vi.mock('@workspace/api-client-react',()=>({customFetch:(...args:unknown[])=>state.fetch(...args)}));
 import {DeliveryEstimator} from './delivery-estimator';
 const quote={postcode:'SW1A 1AA',roadMiles:23.4,basePricePence:5000,pricePerMilePence:150,mileageChargePence:3510,totalPence:8510,distanceBasis:'driving',estimated:true};
-beforeEach(()=>{state.settings.delivery.enabled=true;state.settings.deliveryPricing.enabled=true;state.settings.deliveryPricing.basePrice="50.00";state.settings.deliveryPricing.pricePerMile="1.50";state.settings.address.postcode="HA2 7LU";state.fetch.mockReset();state.fetch.mockResolvedValue(quote);});
+beforeEach(()=>{sessionStorage.clear();state.settings.delivery.enabled=true;state.settings.deliveryPricing.enabled=true;state.settings.deliveryPricing.basePrice="50.00";state.settings.deliveryPricing.pricePerMile="1.50";state.settings.address.postcode="HA2 7LU";state.fetch.mockReset();state.fetch.mockResolvedValue(quote);});
 function open(){fireEvent.click(screen.getByText('Estimate your delivery cost'));}
 it('requests the road estimate only when asked and displays a matching price breakdown',async()=>{
  render(<DeliveryEstimator/>);open();expect(state.fetch).not.toHaveBeenCalled();fireEvent.change(screen.getByLabelText('Delivery postcode'),{target:{value:'SW1A1AA'}});fireEvent.click(screen.getByRole('button',{name:'Get estimate'}));await screen.findAllByText('£85.10');expect(screen.getByText(/23.4 road miles/)).toBeVisible();fireEvent.click(screen.getByText('How the delivery price is worked out'));expect(screen.getByText('£35.10')).toBeVisible();expect(state.fetch.mock.calls[0][0]).toBe('/api/postcodes/delivery-estimate?postcode=SW1A1AA');
@@ -226,9 +226,10 @@ it("rejects late quotes and failures after a showroom change", async () => {
   await act(async () => resolve(quote));
   expect(screen.queryByText("£85.10")).not.toBeInTheDocument();
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-  expect(
-    screen.getByRole("button", { name: "Get estimate" }),
-  ).toBeEnabled();
+  expect(screen.getByLabelText("Delivery postcode")).toHaveValue("");
+  expect(screen.getByRole("button", { name: "Get estimate" })).toBeDisabled();
+  fireEvent.change(screen.getByLabelText("Delivery postcode"), {target:{value:"SW1A1AA"}});
+  expect(screen.getByRole("button", { name: "Get estimate" })).toBeEnabled();
 });
 it.each([
   { ...quote, totalPence: 8510.5 },
@@ -333,4 +334,10 @@ it('preserves valid high tariff values without silently capping the supplied quo
   fireEvent.click(screen.getByRole('button', { name: 'Get estimate' }));
   expect(await screen.findByText('£109,999.99')).toBeVisible();
   expect(screen.getByText(/0.1 road miles/)).toBeVisible();
+});
+it('restores only the postcode when opening a new car, requiring a new quote',()=>{
+ const first=render(<DeliveryEstimator expanded vehiclePrice={5000}/>);
+ fireEvent.change(screen.getByLabelText('Delivery postcode'),{target:{value:'SW1A1AA'}});first.unmount();
+ render(<DeliveryEstimator expanded vehiclePrice={8000}/>);
+ expect(screen.getByLabelText('Delivery postcode')).toHaveValue('SW1A 1AA');expect(state.fetch).not.toHaveBeenCalled();expect(screen.queryByText('Estimated delivery')).not.toBeInTheDocument();
 });

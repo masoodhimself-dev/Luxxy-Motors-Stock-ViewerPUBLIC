@@ -56,6 +56,33 @@ it('does not repeat warranty when the configured inclusions already cover it', (
   expect(screen.queryByRole('button', { name: /warranty/i })).not.toBeInTheDocument();
 });
 
+it('retains the warranty answer when only the inclusion question is covered elsewhere', () => {
+  state.dealerAnswers = [{ id: 'included', question: 'What’s included with this car?', answer: '6-month warranty included', source: 'dealer' }];
+  const view = render(<VehicleAnswers car={vehicle} coveredTopics={['included']} onAskTeam={askTeam} />);
+  expect(screen.queryByRole('button', { name: 'What’s included with this car?' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'What warranty information is included?' })).toBeVisible();
+  view.rerender(<VehicleAnswers car={vehicle} coveredTopics={['included', 'warranty']} onAskTeam={askTeam} />);
+  expect(screen.queryByRole('button', { name: /warranty/i })).not.toBeInTheDocument();
+});
+
+it('removes covered facts before selecting questions so useful booking and part-exchange answers remain', () => {
+  state.dealerAnswers = [
+    { id: 'dealer-hours', question: 'What are your opening hours?', answer: 'Monday to Friday', source: 'dealer' },
+    { id: 'dealer-location', question: 'Where is the showroom?', answer: 'Test Town', source: 'dealer' },
+    { id: 'dealer-contact', question: 'How can I contact you?', answer: 'Call us', source: 'dealer' },
+    { id: 'dealer-booking', question: 'How do I book a test drive?', answer: 'Choose a time', source: 'dealer' },
+    { id: 'dealer-part-exchange', question: 'Can I part-exchange my current car?', answer: 'Send its registration', source: 'dealer' },
+  ];
+  const coveredTopics = ['history', 'owners', 'service', 'keys', 'equipment', 'delivery', 'price', 'mileage', 'specification', 'mot', 'dealer-hours', 'dealer-location', 'dealer-contact'] as const;
+  render(<VehicleAnswers car={vehicle} coveredTopics={coveredTopics} onAskTeam={askTeam} />);
+  const questions = screen.getByRole('region', { name: 'Questions about this car' }).querySelectorAll('[aria-expanded]');
+  expect([...questions].map(question => question.textContent)).toEqual([
+    'What warranty information is included?', 'How do I book a test drive?', 'Can I part-exchange my current car?',
+  ]);
+  expect(screen.queryByRole('button', { name: 'How many keys come with this car?' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'What are your opening hours?' })).not.toBeInTheDocument();
+});
+
 it('resets an open answer and replaces the facts when the selected car changes', () => {
   const view = render(<VehicleAnswers car={vehicle} onAskTeam={askTeam} />);
   fireEvent.click(screen.getByRole('button', { name: 'How many keys come with this car?' }));

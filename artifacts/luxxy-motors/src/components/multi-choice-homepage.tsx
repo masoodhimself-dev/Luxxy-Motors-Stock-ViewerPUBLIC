@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState, type Dispatch, type FormEvent, type SetStateAction, type PointerEvent, type TouchEvent, type MouseEvent } from 'react';
 import { Link, useLocation } from 'wouter';
+import { vehicleDetailPath } from '@workspace/vehicle-meta';
+import { formatRegistrationPlate } from '@/lib/registration-display';
 import type { DealerSettings } from '@workspace/api-client-react';
 import type { DealerConfig } from '@/config/dealer';
 import type { Car as StockCar } from '@/lib/stock-context';
@@ -12,7 +14,7 @@ import { ShowroomPhoto } from './showroom-photo';
 import { ShoreDriveHeroPhoto, shoreDriveForecourtPhoto } from './shore-drive-hero-photo';
 import { UKNumberPlate } from './uk-number-plate';
 import { VehicleSellingPoints } from './vehicle-selling-points';
-import { ArrowLeftRight, ArrowRight, ArrowUpRight, Calendar, Car, ChevronDown, ChevronLeft, ChevronRight, Handshake, MapPin, Mail, Phone, Search, ShieldCheck, Smile, Tag, CircleCheck, Truck } from 'lucide-react';
+import { ArrowLeftRight, ArrowRight, ArrowUpRight, Calendar, Camera, Car, ChevronDown, ChevronLeft, ChevronRight, Handshake, MapPin, Mail, Phone, Search, ShieldCheck, Smile, Tag, CircleCheck, Truck } from 'lucide-react';
 import { SiWhatsapp } from './icons';
 import { MultiHomeReviews } from './multi-home-reviews';
 import { MultiHomeVisit } from './multi-home-visit';
@@ -22,7 +24,7 @@ import { warrantySummary } from '@/lib/dealership-customer-copy';
 import { stockBodyTypes } from '@/lib/body-types';
 import { stockBudgetOptions } from '@/lib/stock-budget-options';
 import { homepageFeaturedCars } from '@/lib/homepage-featured-cars';
-import { formatMileage, formatPhoneDisplay, formatPrice, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
+import { formatMileage, formatPhoneDisplay, formatPrice, getThumbnailUrl, vehicleDisplayTitle, vehicleRegistration } from '@/lib/utils';
 import { responsiveVehicleImage, retryOriginalImage } from '@/lib/responsive-vehicle-image';
 import { trackEvent } from '@/lib/analytics';
 import { deliveryPriceQualification } from '@/lib/delivery-estimate';
@@ -130,7 +132,9 @@ function StockSearch({ cars, isLoading, error, filters, setFilters, onSearch }: 
 
 function FeaturedCard({ car }: { car: StockCar }) {
   const photo = getThumbnailUrl(car), [failedSrc, setFailedSrc] = useState('');
-  const href = `/vehicle/${encodeURIComponent(car.id)}`;
+  const href = vehicleDetailPath(car);
+  const registration = vehicleRegistration(car);
+  const photoCount = Number.isInteger(car.imageCount) && Number(car.imageCount) > 0 ? Number(car.imageCount) : car.images?.length || (photo ? 1 : 0);
   const opened = () => trackEvent('vehicle_opened', { source: 'showroom', layout: 'card' });
   const price = typeof car.price === 'number' && Number.isFinite(car.price) && car.price > 0 ? formatPrice(car.price, car.currency) : 'Price on request';
   const priceQualification = price === 'Price on request' ? null : deliveryPriceQualification(car.priceType);
@@ -138,12 +142,30 @@ function FeaturedCard({ car }: { car: StockCar }) {
   return <article className="mh-car-card" aria-label={vehicleDisplayTitle(car)}>
     <Link className="mh-car-photo" href={href} onClick={opened} aria-label={`View ${vehicleDisplayTitle(car)}`}>{photo && failedSrc !== photo ? <img src={photo} {...responsiveVehicleImage(photo, '(min-width: 1280px) 300px, (min-width: 640px) 45vw, 85vw')} width={640} height={480} loading="lazy" decoding="async" referrerPolicy="no-referrer" alt={vehicleDisplayTitle(car)} onError={event => { if (!retryOriginalImage(event.currentTarget)) setFailedSrc(photo); }} /> : <span><Car size={40} />Photograph unavailable</span>}</Link>
     <div className="mh-car-copy"><h3><Link href={href} onClick={opened}>{vehicleDisplayTitle(car)}</Link></h3>{(car.variant || car.trim) && <p className="mh-car-variant">{car.variant || car.trim}</p>}
+      {(registration || photoCount > 0) && <div className="mh-car-reference">
+        {registration && <span className="mh-car-registration" aria-label={`Registration ${formatRegistrationPlate(registration)}`}>{formatRegistrationPlate(registration)}</span>}
+        {photoCount > 0 && <span className="mh-car-photo-count"><Camera size={14} aria-hidden="true" />{photoCount} {photoCount === 1 ? 'photo' : 'photos'}</span>}
+      </div>}
       <ul className="mh-car-specs" aria-label="Vehicle details">{[car.year, car.mileage != null ? formatMileage(car.mileage) : null, car.transmission, car.fuel].filter(Boolean).map((fact, index) => <li key={index}>{fact}</li>)}</ul>
       <VehicleSellingPoints car={car} compact omitMileage />
       <div className="mh-car-price"><strong>{price}</strong>{priceNote && <span>{priceNote}</span>}{car.inventoryStatus === 'reserved' && <span>Reserved</span>}</div>
     </div>
     <Link className="mh-car-link" href={href} onClick={opened}>View car<ArrowRight size={17} /></Link>
   </article>;
+}
+
+function FindByMake({ makes }: { makes: string[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const id = useId();
+  const visible = expanded ? makes : makes.slice(0, 12);
+  useEffect(() => { if (makes.length <= 12) setExpanded(false); }, [makes.length]);
+  return <section className="mh-section mh-makes" aria-labelledby="mh-makes-heading">
+    <h2 id="mh-makes-heading">Find by Make</h2>
+    <div id={id}>{visible.map(name => <Link key={name} href={`/stock?make=${encodeURIComponent(name)}`} aria-label={`Used ${name}`}>
+      <MakeLogo make={name} size={24} className="mh-make-logo" /><span>{name}</span>
+    </Link>)}</div>
+    {makes.length > 12 && <button type="button" className="mh-text-link mh-makes-toggle" aria-expanded={expanded} aria-controls={id} onClick={() => setExpanded(value => !value)}>{expanded ? 'Show fewer makes' : `Show all ${makes.length} makes`}<ChevronDown size={16} aria-hidden="true" /></button>}
+  </section>;
 }
 
 /** A swipe scrolls the rail; only a deliberate tap opens a vehicle. */
@@ -174,14 +196,40 @@ function useRailLinkGuard() {
 }
 
 function FeaturedStock({ cars, isLoading, error, enabled, heading }: { cars: StockCar[]; isLoading: boolean; error: string | null; enabled: boolean; heading: string }) {
-  const rail = useRef<HTMLDivElement>(null), gesture = useRailLinkGuard();
-  if (!enabled) return null;
-  const scroll = (direction: number) => {
+  const rail = useRef<HTMLDivElement>(null), gesture = useRailLinkGuard(), railId = useId();
+  const [position, setPosition] = useState({ first: 0, last: 0, previous: false, next: cars.length > 1 });
+  const update = () => {
     const element = rail.current;
-    if (element) element.scrollBy({ left: direction * (element.querySelector('article')?.getBoundingClientRect().width || element.clientWidth), behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    if (!element || !element.clientWidth) return;
+    const bounds = element.getBoundingClientRect();
+    const visible = Array.from(element.children).map((child, index) => ({ index, rect: child.getBoundingClientRect() }))
+      .filter(({ rect }) => rect.right > bounds.left + 1 && rect.left < bounds.left + element.clientWidth - 1);
+    const next = { first: visible[0]?.index ?? 0, last: visible.at(-1)?.index ?? 0,
+      previous: element.scrollLeft > 1, next: element.scrollLeft < element.scrollWidth - element.clientWidth - 1 };
+    setPosition(current => Object.keys(next).every(key => current[key as keyof typeof current] === next[key as keyof typeof next]) ? current : next);
   };
-  return <section className="mh-section mh-featured" aria-labelledby="mh-featured-heading"><div className="mh-section-title"><div><h2 id="mh-featured-heading">{heading}</h2></div><Link href="/stock" className="mh-text-link">View all cars<ArrowRight size={18} /></Link></div>
-    {isLoading ? <p role="status" className="mh-empty">Loading featured cars…</p> : error ? <div role="status" className="mh-empty"><h3>Stock is temporarily unavailable</h3><p>Please try the stock page again, or contact us about a car.</p><Link href="/stock" className="mh-text-link">Browse stock</Link></div> : cars.length ? <><div className="mh-stock-rail" role="group" ref={rail} {...gesture} tabIndex={0} aria-label="Featured cars; scroll for more">{cars.map(car => <FeaturedCard key={car.id} car={car} />)}</div>{cars.length > 1 && <div className="mh-carousel-controls"><button type="button" onClick={() => scroll(-1)} aria-label="Previous featured cars"><ChevronLeft size={20} /></button><span>Scroll to see more cars</span><button type="button" onClick={() => scroll(1)} aria-label="Next featured cars"><ChevronRight size={20} /></button></div>}</> : <div className="mh-empty"><h3>No featured cars to show right now</h3><p>Ask us what’s coming into stock.</p><Link href="/contact" className="mh-text-link">Contact the showroom</Link></div>}
+  useEffect(() => {
+    update();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update);
+    if (rail.current) observer?.observe(rail.current);
+    window.addEventListener('resize', update);
+    return () => { observer?.disconnect(); window.removeEventListener('resize', update); };
+  }, [cars, isLoading, error, enabled]);
+  const goTo = (index: number) => {
+    const element = rail.current, target = element?.children[Math.max(0, Math.min(cars.length - 1, index))];
+    if (!element || !target) return;
+    const left = target.getBoundingClientRect().left - element.getBoundingClientRect().left + element.scrollLeft;
+    const behavior = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+    if (typeof element.scrollTo === 'function') element.scrollTo({ left, behavior });
+    else { element.scrollLeft = left; update(); }
+  };
+  if (!enabled) return null;
+  return <section className="mh-section mh-featured" aria-labelledby="mh-featured-heading"><div className="mh-section-title"><div><h2 id="mh-featured-heading">{heading}</h2><p>A closer look at our current stock.</p></div><Link href="/stock" className="mh-text-link">View all cars<ArrowRight size={18} /></Link></div>
+    {isLoading ? <p role="status" className="mh-empty">Loading featured cars…</p> : error ? <div role="status" className="mh-empty"><h3>Stock is temporarily unavailable</h3><p>Please try the stock page again, or contact us about a car.</p><Link href="/stock" className="mh-text-link">Browse stock</Link></div> : cars.length ? <><div id={railId} className="mh-stock-rail" role="group" ref={rail} {...gesture} tabIndex={0} aria-label="Featured cars; scroll for more" onScroll={update} onKeyDown={event => {
+      if (event.target !== event.currentTarget || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      goTo(event.key === 'Home' ? 0 : event.key === 'End' ? cars.length - 1 : position.first + (event.key === 'ArrowLeft' ? -1 : 1));
+    }}>{cars.map(car => <FeaturedCard key={car.id} car={car} />)}</div>{cars.length > 1 && <div className="mh-carousel-controls"><button type="button" onClick={() => goTo(position.first - 1)} aria-label="Previous featured cars" aria-controls={railId} disabled={!position.previous}><ChevronLeft size={20} /></button><span aria-live="polite">{position.first + 1}{position.last > position.first ? `–${position.last + 1}` : ''} of {cars.length} cars</span><button type="button" onClick={() => goTo(position.first + 1)} aria-label="Next featured cars" aria-controls={railId} disabled={!position.next}><ChevronRight size={20} /></button></div>}</> : <div className="mh-empty"><h3>No featured cars to show right now</h3><p>Ask us what’s coming into stock.</p><Link href="/contact" className="mh-text-link">Contact the showroom</Link></div>}
   </section>;
 }
 
@@ -259,7 +307,7 @@ export function DealershipHomepage({ settings, cars: suppliedCars, isLoading, er
       </div><div role="tabpanel" id={`${tabId}-buy`} aria-labelledby={`${tabId}-buy-tab`} hidden={tab !== 'buy'}><StockSearch cars={cars} isLoading={isLoading} error={error} filters={filters} setFilters={setFilters} onSearch={onSearch} /></div>{sections.partExchange && <div role="tabpanel" id={`${tabId}-px`} aria-labelledby={`${tabId}-px-tab`} hidden={tab !== 'px'}><PartExchangeStart id="hero" /></div>}</div>
     </div></section>
     <div className="mh-container">
-      {!error && makes.length > 0 && <section className="mh-section mh-makes" aria-labelledby="mh-makes-heading"><h2 id="mh-makes-heading">Find by Make</h2><div>{makes.map(make => <Link key={make} href={`/stock?make=${encodeURIComponent(make)}`} aria-label={`Used ${make}`}><MakeLogo make={make} size={24} className="mh-make-logo" /><span>{make}</span></Link>)}</div></section>}
+      {!error && makes.length > 0 && <FindByMake makes={makes} />}
       <section id="about" className="mh-section mh-reasons" aria-labelledby="home-reassurance-heading">
         <h2 id="home-reassurance-heading" tabIndex={-1}>Buying from {settings.identity.name}</h2>
         <ul className="mh-reasons-grid" aria-label="Reasons to choose us">{reasons.map(({ title, text, Icon }) => <li key={title}>

@@ -53,3 +53,7 @@
  .vehicle-share-footer img { max-width:125px; }
  .vehicle-share-footer>button { white-space:nowrap; }
 }
+
+.vehicle-share-format { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; margin: 12px 0; }
+.vehicle-share-format legend { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.vehicle-share-format label { display: flex; gap: 8px; align-items: center; min-height: 44px; cursor: pointer; }

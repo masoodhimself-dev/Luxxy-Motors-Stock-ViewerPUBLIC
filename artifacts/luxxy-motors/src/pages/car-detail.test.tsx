@@ -137,6 +137,13 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
+it.each(['band-only', 'with-plate'])('includes the quality section on every vehicle page, even without public enquiry access (%s)', id => {
+  renderVehicle(id);
+  const quality = screen.getByRole('region', { name: 'Quality is assured' });
+  expect(within(quality).getAllByRole('listitem')).toHaveLength(10);
+  expect(within(quality).getByRole('link', { name: 'Contact the showroom' })).toHaveAttribute('href', '/contact');
+});
+
 it('reports a temporary vehicle error instead of calling the car missing', () => {
   stockStatus.vehicleError = 'Network unavailable';
   renderVehicle('with-plate');
@@ -315,7 +322,9 @@ it('prepares a service-record request in the same-page message form without send
   const disclosure = document.getElementById('vehicle-enquiry') as HTMLDetailsElement;
   expect(disclosure.open).toBe(false);
   expect(screen.queryByRole('link', { name: /Download service/ })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: /Request service records/ }));
+  const request = screen.getByRole('button', { name: /Request service records/ });
+  expect(request.parentElement).toHaveClass('vehicle-records-row');
+  fireEvent.click(request);
   await waitFor(() => expect(disclosure.open).toBe(true));
   await waitFor(() => expect(screen.getByTestId('textarea-enquiry-message')).toHaveValue('Please send the available service-book photos and service records for this car.'));
   expect(screen.getByTestId('form-enquiry')).toBeVisible();
@@ -502,6 +511,7 @@ describe('vehicle gallery contact policy', () => {
     Object.assign(stockFixture.cars[1], { inventoryStatus: 'reserved' });
     renderVehicle('with-plate', settings());
     expect(document.querySelector('.vehicle-price-block [data-vehicle-contact="booking"]')).toBeNull();
+    expect(document.querySelector('.vehicle-stock-status')).toHaveTextContent('Reserved');
     selectTenthPhoto();
     expectUninterruptedGallery();
     fireEvent.click(within(primaryActions()).getByRole('link', { name: 'Message' }));
@@ -593,6 +603,7 @@ it('groups the vehicle information into clear chapters and keeps technical detai
   renderVehicle('with-plate');
   const navigation = screen.getByRole('navigation', { name: 'Vehicle information sections' });
   expect(within(navigation).getByRole('link', { name: 'Overview' })).toHaveAttribute('href', '#vehicle-overview-section');
+  expect(within(navigation).getByRole('link', { name: 'Checks' })).toHaveAttribute('href', '#vehicle-quality-checks');
   expect(within(navigation).getByRole('link', { name: 'History' })).toHaveAttribute('href', '#vehicle-history-section');
   expect(within(navigation).getByRole('link', { name: 'Visit & delivery' })).toHaveAttribute('href', '#vehicle-visit-delivery');
   expect(within(navigation).queryByRole('link', { name: 'Equipment' })).not.toBeInTheDocument();
@@ -607,6 +618,38 @@ it('groups the vehicle information into clear chapters and keeps technical detai
   expect(disclosure.open).toBe(false);
 });
 
+it.each([
+  { label: 'empty', values: [] },
+  { label: 'blank', values: ['', ' \n\t '] },
+  { label: 'malformed', values: [null, 123, {}] },
+])('does not show an empty original advert disclosure for $label source values', ({ values }) => {
+  const car = stockFixture.cars[1];
+  const original = car.sourceExtras;
+  Object.assign(car, { sourceExtras: { originalAdvertDescriptions: values } });
+  try {
+    renderVehicle(car.id, dealerConfig);
+    expect(screen.queryByText('Original advert information')).not.toBeInTheDocument();
+    expect(document.querySelector('.vehicle-original-advert')).toBeNull();
+  } finally { Object.assign(car, { sourceExtras: original }); }
+});
+
+it('keeps nonempty original advert text available in a collapsed disclosure', () => {
+  const car = stockFixture.cars[1];
+  const original = car.sourceExtras;
+  Object.assign(car, { sourceExtras: { originalAdvertDescriptions: ['  First advert details. \n', '', null, '   ', ' Second advert details. '] } });
+  try {
+    renderVehicle(car.id, dealerConfig);
+    const summary = screen.getByText('Original advert information');
+    const disclosure = summary.closest('details')!;
+    expect(disclosure).toHaveClass('vehicle-original-advert');
+    expect(disclosure.open).toBe(false);
+    fireEvent.click(summary);
+    expect(disclosure.open).toBe(true);
+    expect([...disclosure.querySelectorAll('p')].map(paragraph => paragraph.textContent)).toEqual(['First advert details.', 'Second advert details.']);
+    expect(within(disclosure).getByText('First advert details.')).toBeVisible();
+  } finally { Object.assign(car, { sourceExtras: original }); }
+});
+
 it('adds the Equipment chapter only when supplied equipment exists', () => {
   const car = stockFixture.cars[1];
   const original = car.specifications;
@@ -619,6 +662,57 @@ it('adds the Equipment chapter only when supplied equipment exists', () => {
     expect(document.querySelector(equipment.getAttribute('href')!)).not.toBeNull();
     expect(document.querySelector('.vehicle-features-section')).toHaveTextContent('Heated front seats');
     expect(document.querySelector('.vehicle-features-section')).toHaveTextContent('Rear parking sensors');
+  } finally { Object.assign(car, { specifications: original }); }
+});
+
+it('places distinct questions after the main car and visiting details without repeating visible promises', async () => {
+  const car = stockFixture.cars[1];
+  const original = car.specifications;
+  Object.assign(car, { specifications: { description: 'One owner from new. Full service history. Two keys. Heated front seats. Nationwide delivery available.', features: ['Heated front seats'] } });
+  featureState.data.features.publicEnquiries = true;
+  featureState.data.features.testDriveBookings = true;
+  featureState.data.features.partExchange = true;
+  try {
+    renderVehicle(car.id, {
+      ...dealerConfig,
+      presentation: { ...dealerConfig.presentation, includedItems: ['6 months warranty'] },
+      testDriveBooking: { ...defaultBookingSettings, enabled: true },
+      partExchange: { enabled: true, title: 'Part exchange', description: 'Ask us about your current car.', ctaLabel: 'Value your car' },
+      delivery: { enabled: true, title: 'Delivery to your door', description: 'Ask us about delivery.', ctaLabel: 'Ask about delivery' },
+      deliveryPricing: { enabled: true, basePrice: '50', pricePerMile: '1.50' },
+    });
+    const questions = screen.getByRole('region', { name: 'Questions about this car' });
+    const visit = document.getElementById('vehicle-visit-delivery')!;
+    const message = document.getElementById('vehicle-enquiry')!;
+    expect(visit.compareDocumentPosition(questions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(questions.compareDocumentPosition(message) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(questions).toHaveAttribute('id', 'vehicle-questions');
+    expect(within(questions).getByRole('button', { name: 'How do I book a test drive?' })).toBeVisible();
+    expect(within(questions).getByRole('button', { name: 'Can I part-exchange my current car?' })).toBeVisible();
+    for (const name of [/history/i, /keys/i, /equipment/i, /included/i, /warranty/i, /delivered/i, /opening hours/i, /where are you/i, /contact you/i, /advertised price/i, /mileage/i, /main vehicle details/i]) {
+      expect(within(questions).queryByRole('button', { name })).not.toBeInTheDocument();
+    }
+    expect(screen.getByRole('region', { name: 'What’s included' })).toHaveTextContent('6 months warranty');
+    expect(document.querySelector('.vehicle-specific-facts')).toHaveTextContent('2 keys');
+    fireEvent.click(within(questions).getByRole('button', { name: 'Message the showroom' }));
+    await waitFor(() => expect(message).toHaveAttribute('open'));
+  } finally { Object.assign(car, { specifications: original }); }
+});
+
+it('keeps useful warranty and qualified history questions when the summary does not cover them', () => {
+  const car = stockFixture.cars[1];
+  const original = car.specifications;
+  Object.assign(car, { specifications: { description: 'Only one key is supplied; spare key availability has not been confirmed. Partial service history. MOT until July 2027.' } });
+  featureState.data.features.publicEnquiries = true;
+  try {
+    renderVehicle(car.id, { ...dealerConfig, presentation: { ...dealerConfig.presentation, includedItems: ['Owner handbook'] } });
+    const questions = screen.getByRole('region', { name: 'Questions about this car' });
+    expect(within(questions).getByRole('button', { name: 'Does this car come with a warranty?' })).toBeVisible();
+    expect(within(questions).getByRole('button', { name: 'How many keys come with this car?' })).toBeVisible();
+    expect(within(questions).getByRole('button', { name: 'What service history comes with this car?' })).toBeVisible();
+    expect(within(questions).getByRole('button', { name: 'What MOT information is listed?' })).toBeVisible();
+    expect(within(questions).queryByRole('button', { name: 'What can you tell me about this car’s history?' })).not.toBeInTheDocument();
+    expect(within(questions).queryByRole('button', { name: 'What’s included with this car?' })).not.toBeInTheDocument();
   } finally { Object.assign(car, { specifications: original }); }
 });
 

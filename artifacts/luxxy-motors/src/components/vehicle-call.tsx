@@ -45,10 +45,10 @@ export function VehicleCall({
   const [copyStatus, setCopyStatus] = useState('');
   const [phoneError, setPhoneError] = useState('');
   const callback = useCreateEnquiry();
-  const [customer, setCustomer] = useState({ name: '', phone: '', email: '' });
+  const [customer, setCustomer] = useState({ name: '', phone: '', email: '', callWindow: '' });
   useEffect(() => {
     setOpen(false); setCallbackForm(false); setCopyStatus(''); setPhoneError('');
-    setCustomer({ name: '', phone: '', email: '' });
+    setCustomer({ name: '', phone: '', email: '', callWindow: '' });
     callback.reset?.();
   }, [car.id]);
   const [hours, setHours] = useState(() => showroomHours(settings.hours ?? []));
@@ -216,13 +216,14 @@ export function VehicleCall({
                 phone: normalizedPhone,
                 preferredContact: 'phone',
                 appointmentAt: null,
-                message: `${hours.state === 'closed' ? 'Callback requested at next opening' : 'Callback requested during opening hours'}. Please call about ${label}${vehicleRegistration(car) ? ' (' + vehicleRegistration(car) + ')' : ''}.`,
+                message: `${hours.state === 'closed' ? 'Callback requested at next opening' : 'Callback requested during opening hours'}. Please call about ${label}${vehicleRegistration(car) ? ' (' + vehicleRegistration(car) + ')' : ''}.${customer.callWindow ? ` Preferred callback time: ${customer.callWindow} during opening hours (a preference, not a booked time).` : ''}`,
               } });
             }}>
               <div className="vehicle-action-form-grid">
                 <label className="vehicle-action-field">Your name<Input disabled={callback.isPending} required minLength={2} maxLength={120} autoComplete="name" value={customer.name} onChange={event => setCustomer({ ...customer, name: event.target.value })} /></label>
                 <label className="vehicle-action-field">Telephone<Input ref={phoneInput} disabled={callback.isPending} required type="tel" inputMode="tel" minLength={7} maxLength={40} autoComplete="tel" aria-invalid={Boolean(phoneError)} aria-describedby={phoneError ? phoneErrorId : undefined} value={customer.phone} onChange={event => { setCustomer({ ...customer, phone: event.target.value }); setPhoneError(''); }} /></label>
               </div>
+              <label className="vehicle-action-field">Best time to call (optional)<select className="min-h-11 rounded-md border border-input bg-background px-3 text-sm" value={customer.callWindow} disabled={callback.isPending} onChange={event => setCustomer({ ...customer, callWindow: event.target.value })}><option value="">Any time during opening hours</option><option value="morning">Morning</option><option value="afternoon">Afternoon</option></select><small>We’ll do our best to call then.</small></label>
               <details className="vehicle-call-optional-email"><summary>Add an email for confirmation (optional)</summary><label className="vehicle-action-field">Email<Input disabled={callback.isPending} type="email" autoComplete="email" value={customer.email} onChange={event => setCustomer({ ...customer, email: event.target.value })} /></label></details>
               {phoneError && <p id={phoneErrorId} role="alert" className="vehicle-action-feedback vehicle-action-feedback-error">{phoneError}</p>}
               {callback.isError && <p role="alert" className="vehicle-action-feedback vehicle-action-feedback-error"><CircleAlert size={18} aria-hidden="true" /><span>We couldn’t send your request. Please try again.</span></p>}

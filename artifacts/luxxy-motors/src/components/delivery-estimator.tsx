@@ -18,6 +18,7 @@ import {
 } from "@/lib/delivery-estimate";
 export type { DeliveryEstimate } from "@/lib/delivery-estimate";
 import "./delivery-estimator.css";
+import { deliveryPostcodeScope, readDeliveryPostcode, rememberDeliveryPostcode } from "@/lib/delivery-postcode-session";
 export function DeliveryEstimator({
   expanded = false,
   onEstimate,
@@ -42,27 +43,31 @@ export function DeliveryEstimator({
     pricing = settings.deliveryPricing;
   const context = deliveryQuoteContext(settings);
   const enabled = Boolean(settings.delivery?.enabled && pricing?.enabled);
+  const postcodeScope = deliveryPostcodeScope(settings.address?.postcode);
   const postcodeId = useId();
   const postcodeInput = useRef<HTMLInputElement>(null);
-  const [postcode, setPostcode] = useState(initialEstimate?.postcode ?? ""),
+  const [postcode, setPostcode] = useState(initialEstimate?.postcode ?? readDeliveryPostcode(postcodeScope)),
     [busy, setBusy] = useState(false),
     [savedQuote, setSavedQuote] = useState<{
       context: string;
+      scope: string;
       value: DeliveryEstimate;
-    } | null>(initialEstimate ? { context, value: initialEstimate } : null),
+    } | null>(initialEstimate ? { context, scope: postcodeScope, value: initialEstimate } : null),
     [error, setError] = useState("");
   const request = useRef<AbortController | null>(null);
   const current = useRef({
     context,
+    scope: postcodeScope,
     postcode,
     vehiclePrice,
     currency,
     priceType,
     onEnquire,
   });
-  current.current = { context, postcode, vehiclePrice, currency, priceType, onEnquire };
+  current.current = { context, scope: postcodeScope, postcode, vehiclePrice, currency, priceType, onEnquire };
   const estimate =
     enabled &&
+    savedQuote?.scope === postcodeScope &&
     savedQuote?.context === context &&
     usableDeliveryEstimate(savedQuote.value, postcode, pricing)
       ? savedQuote.value
@@ -85,12 +90,20 @@ export function DeliveryEstimator({
     setError("");
     setBusy(false);
   }, [context]);
+  const previousScope = useRef(postcodeScope);
+  useEffect(() => {
+    if (previousScope.current === postcodeScope) return;
+    previousScope.current = postcodeScope;
+    request.current?.abort();
+    setPostcode(readDeliveryPostcode(postcodeScope)); setSavedQuote(null); setError(''); setBusy(false);
+  }, [postcodeScope]);
   useEffect(() => () => request.current?.abort(), []);
   if (!enabled) return null;
   function change(value: string) {
     request.current?.abort();
     setBusy(false);
     setPostcode(value);
+    rememberDeliveryPostcode(value, postcodeScope);
     setSavedQuote(null);
     setError("");
   }
@@ -103,8 +116,10 @@ export function DeliveryEstimator({
       postcodeInput.current?.focus();
       return;
     }
+    rememberDeliveryPostcode(postcode, postcodeScope);
     const controller = new AbortController();
     const requestedContext = context;
+    const requestedScope = postcodeScope;
     const requestedPostcode = postcode;
     request.current = controller;
     setBusy(true);
@@ -113,6 +128,7 @@ export function DeliveryEstimator({
     const isCurrent = () =>
       !controller.signal.aborted &&
       request.current === controller &&
+      current.current.scope === requestedScope &&
       current.current.context === requestedContext &&
       current.current.postcode === requestedPostcode;
     try {
@@ -124,7 +140,7 @@ export function DeliveryEstimator({
       if (!usableDeliveryEstimate(result, requestedPostcode, pricing))
         throw Error("No road estimate");
       setPostcode(result.postcode);
-      setSavedQuote({ context: requestedContext, value: result });
+      setSavedQuote({ context: requestedContext, scope: requestedScope, value: result });
     } catch (cause) {
       if (isCurrent()) {
         const code = (cause as { data?: { code?: string } })?.data?.code;

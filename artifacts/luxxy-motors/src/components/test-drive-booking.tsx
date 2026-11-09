@@ -4,10 +4,13 @@ import { PrivacyNoticeLink } from '@/components/privacy-notice-link';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import '../pages/customer-workflows.css';
 import './test-drive-booking.css';
+import { findNextBookingDate } from '@/lib/next-booking-date';
 import { Link } from "wouter";
+import { vehicleDetailPath } from "@workspace/vehicle-meta";
 import {
   useCreateEnquiry,
   useGetEnquiryAvailability,
+  getEnquiryAvailability,
   getGetEnquiryAvailabilityQueryKey,
   type EnquiryInput,
 } from "@workspace/api-client-react";
@@ -193,6 +196,26 @@ export function TestDriveBooking({
   );
   const slots = availability.data?.slots.filter((slot) => slot.available) ?? [];
   const nextBookingDate = dates.find(date => date > selectedDate);
+  const [findingNextDate, setFindingNextDate] = useState(false);
+  const [nextDateMessage, setNextDateMessage] = useState('');
+  const nextDateRequest = useRef<AbortController | null>(null);
+  useEffect(() => {
+    nextDateRequest.current?.abort(); nextDateRequest.current = null;
+    setFindingNextDate(false); setNextDateMessage('');
+    return () => { nextDateRequest.current?.abort(); };
+  }, [selectedDate, currentCar?.id, pickingCar, mutation.isSuccess]);
+  async function checkNextAvailableDate() {
+    if (findingNextDate || formDisabled) return;
+    const request = new AbortController(); nextDateRequest.current?.abort(); nextDateRequest.current = request;
+    setFindingNextDate(true); setNextDateMessage('Checking the next available dates…');
+    try {
+      const date = await findNextBookingDate(dates, selectedDate, (date, signal) => getEnquiryAvailability({ date }, { signal }), request.signal);
+      if (request.signal.aborted || nextDateRequest.current !== request) return;
+      if (date) { setSelectedSlot(null); setSelectedDate(date); }
+      else setNextDateMessage('No available times were found in the next 14 booking dates. Please ask us about a time.');
+    } catch { if (!request.signal.aborted) setNextDateMessage('We couldn’t check the next dates. Please try again or ask us about a time.'); }
+    finally { if (nextDateRequest.current === request) { setFindingNextDate(false); nextDateRequest.current = null; } }
+  }
   const selectedTime = slots.find((slot) => slot.startAt === selectedSlot);
   const location = dealershipLocation(settings.address);
   const approval = config.confirmationMode === "approval";
@@ -444,7 +467,7 @@ export function TestDriveBooking({
     <div className="booking-page bg-background px-4 pb-14 pt-5 sm:px-6 sm:py-10">
       <div className="booking-shell mx-auto">
         <Link
-          href={currentCar ? `/vehicle/${currentCar.id}` : "/stock"}
+          href={currentCar ? vehicleDetailPath(currentCar) : "/stock"}
           className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-primary"
         >
           <ArrowLeft size={16} aria-hidden="true" />
@@ -854,12 +877,13 @@ export function TestDriveBooking({
                   )}
                   {!availability.isLoading && !availability.isFetching && (availability.isError || !slots.length) ? (
                     <div className="booking-time-recovery mt-4 flex flex-wrap items-center gap-3" aria-label="Help arranging a test drive">
-                      {!availability.isError && nextBookingDate && <Button type="button" variant="outline" className="min-h-11" aria-label={`Check times on ${bookingDateLabel(nextBookingDate)}`} onClick={() => setSelectedDate(nextBookingDate)}>Check next date<ArrowRight size={16} aria-hidden="true" /></Button>}
+                      {!availability.isError && nextBookingDate && <Button type="button" variant="outline" className="min-h-11" disabled={findingNextDate || formDisabled} onClick={() => void checkNextAvailableDate()}>{findingNextDate ? 'Checking dates…' : 'Find next available date'}<ArrowRight size={16} aria-hidden="true" /></Button>}
                       <Link href={timeHelpHref} className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">Ask us about a time</Link>
                       {getPhoneHref(settings) && <a href={getPhoneHref(settings)} className="inline-flex min-h-11 items-center gap-2 text-sm underline underline-offset-4"><Phone size={16} aria-hidden="true" />Call Us</a>}
                       {currentCar && getVehicleWhatsAppHref(currentCar, 'arrange a test drive', settings) && <a href={getVehicleWhatsAppHref(currentCar, 'arrange a test drive', settings)} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-2 text-sm underline underline-offset-4"><MessageCircle size={16} aria-hidden="true" />WhatsApp</a>}
                     </div>
                   ) : <Link href={timeHelpHref} className="mt-3 inline-flex min-h-11 items-center text-sm text-muted-foreground underline underline-offset-4">Can’t find a suitable time?</Link>}
+                  {nextDateMessage && <p role="status" className="mt-3 text-sm text-muted-foreground">{nextDateMessage}</p>}
                   </div>
                   </div>
                   <div className="booking-selection-footer">
