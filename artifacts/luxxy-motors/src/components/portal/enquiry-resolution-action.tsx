@@ -20,10 +20,12 @@ export function EnquiryResolutionAction({
   entry,
   disabled = false,
   linkedCount = 1,
+  onDoneNext,
 }: {
   entry: Enquiry;
   disabled?: boolean;
   linkedCount?: number;
+  onDoneNext?: () => void;
 }) {
   const access = useStaffAccess();
   const [busy, setBusy] = useState(false),
@@ -38,7 +40,7 @@ export function EnquiryResolutionAction({
     entry.status === "closed"
   )
     return null;
-  async function resolve() {
+  async function resolve(advance = false) {
     if (locked.current || disabled) return;
     const scope = button.current?.closest(".enquiry-customer-case");
     if (scope?.querySelector('[data-message-dirty="true"]')) {
@@ -82,6 +84,7 @@ export function EnquiryResolutionAction({
         ),
       );
       await refresh();
+      if (advance) onDoneNext?.();
     } catch (cause) {
       setError(workspaceError(cause));
     } finally {
@@ -107,6 +110,7 @@ export function EnquiryResolutionAction({
         <CheckCircle2 size={15} aria-hidden />
         {busy ? "Saving…" : "Mark done"}
       </Button>
+      {onDoneNext && <Button type="button" size="sm" variant="outline" disabled={busy || disabled} onClick={() => void resolve(true)}>Done & next</Button>}
       {error && <p role="alert">{error}</p>}
     </div>
   );

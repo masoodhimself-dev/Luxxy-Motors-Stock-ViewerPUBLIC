@@ -15,6 +15,7 @@ import {
 import "./enquiry-record-browser.css";
 
 export type EnquiryRecordActions = {
+  onDoneNext?: (entry: Enquiry) => void;
   onDeletedEnquiry?: (id: string) => void;
   onUpdate: (entry: Enquiry) => void;
   onConversation: (entry: Enquiry) => void;

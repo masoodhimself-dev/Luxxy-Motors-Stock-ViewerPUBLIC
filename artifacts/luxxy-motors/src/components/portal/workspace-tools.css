@@ -1,0 +1,221 @@
+.workspace-search-trigger {
+  gap: 8px;
+  min-height: 44px;
+}
+.workspace-search-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 55dvh;
+  overflow: auto;
+}
+.workspace-search-results li + li {
+  border-top: 1px solid var(--portal-border);
+}
+.workspace-search-results a {
+  position: relative;
+  display: grid;
+  gap: 3px;
+  padding: 13px 30px 13px 0;
+  color: var(--portal-ink);
+  text-decoration: none;
+}
+.workspace-search-results a:hover strong {
+  text-decoration: underline;
+}
+.workspace-search-results small,
+.workspace-search-results span {
+  font-size: 12px;
+  color: var(--portal-muted);
+}
+.workspace-search-results svg {
+  position: absolute;
+  right: 0;
+  top: 27px;
+}
+.workspace-owner-setup {
+  margin-bottom: 22px;
+}
+.workspace-health-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.workspace-health-grid > a {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--portal-border);
+  border-radius: 8px;
+  background: var(--portal-panel);
+  font-size: 13px;
+  color: var(--portal-ink);
+  text-decoration: none;
+}
+.workspace-health-grid > a:hover {
+  border-color: var(--portal-accent);
+}
+.workspace-health-grid small,
+.workspace-health-grid span {
+  font-size: 12px;
+  color: var(--portal-muted);
+}
+.workspace-setup-checklist,
+.workspace-operations-report {
+  border: 1px solid var(--portal-border);
+  border-radius: 8px;
+  background: var(--portal-panel);
+  padding: 0 16px;
+  margin: 12px 0;
+}
+.workspace-setup-checklist summary,
+.workspace-operations-report summary {
+  min-height: 50px;
+  padding: 14px 0;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+}
+.workspace-setup-checklist summary span,
+.workspace-operations-report summary span {
+  font-weight: 400;
+  font-size: 12px;
+  margin-left: 10px;
+  color: var(--portal-muted);
+}
+.workspace-setup-checklist p,
+.workspace-operations-report p {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--portal-muted);
+  margin-bottom: 14px;
+}
+.workspace-setup-checklist ul {
+  list-style: none;
+  padding: 0 0 12px;
+}
+.workspace-setup-checklist li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  font-size: 13px;
+}
+.workspace-setup-checklist li a {
+  flex: 1;
+}
+.workspace-setup-checklist li span {
+  font-size: 12px;
+  color: var(--portal-muted);
+}
+.workspace-report-dates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.workspace-report-dates label {
+  display: grid;
+  gap: 5px;
+  font-size: 13px;
+}
+.workspace-report-totals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.workspace-report-totals > div {
+  padding: 12px;
+  background: var(--portal-canvas);
+  border-radius: 6px;
+}
+.workspace-report-totals dt {
+  font-size: 12px;
+  color: var(--portal-muted);
+}
+.workspace-report-totals dd {
+  font-size: 22px;
+  font-weight: 650;
+  margin-top: 4px;
+}
+.workspace-operations-report > button {
+  margin-bottom: 16px;
+}
+.workspace-reply-presence {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 9px 12px;
+  margin: 0 0 12px;
+  border: 1px solid var(--portal-border);
+  border-radius: 6px;
+  background: var(--portal-soft);
+  color: var(--portal-ink);
+  font-size: 12px;
+}
+.workspace-reply-presence p {
+  flex: 1;
+  margin: 0;
+}
+.workspace-owner-filter {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 10px;
+  font-size: 12px;
+}
+.workspace-owner-filter select {
+  min-height: 36px !important;
+  width: auto !important;
+}
+.workspace-density-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.portal-cars-workspace[data-density="compact"] .portal-car-row {
+  padding-block: 10px;
+}
+.portal-cars-workspace[data-density="compact"] .portal-car-facts,
+.portal-cars-workspace[data-density="compact"] .portal-car-variant,
+.portal-cars-workspace[data-density="compact"] .cars-change-list {
+  display: none;
+}
+.portal-cars-workspace[data-density="compact"] .portal-car-photo {
+  width: 74px;
+  height: 52px;
+}
+@media (max-width: 767px) {
+  .workspace-search-trigger span {
+    display: none;
+  }
+  .workspace-health-grid {
+    grid-template-columns: 1fr;
+  }
+  .workspace-report-totals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .workspace-report-dates label {
+    flex: 1;
+    min-width: 120px;
+  }
+  .workspace-setup-checklist summary span,
+  .workspace-operations-report summary span {
+    display: block;
+    margin-left: 0;
+    margin-top: 3px;
+  }
+  .workspace-density-control {
+    display: none;
+  }
+  .workspace-search-dialog {
+    max-height: 90dvh;
+  }
+}

@@ -25,6 +25,7 @@ import { SalesPaperworkSettings } from "@/components/sales-paperwork-settings";
 import { EmailTemplatesSettings } from "@/components/email-templates-settings";
 import { confirmSettingsNavigation } from "@/lib/settings-navigation";
 import "./dealer-administration.css";
+import { OwnerSetup, OwnerOperationsReport } from "./workspace-tools";
 type Role = "owner" | "salesperson" | "accounts";
 type Access = {
   role: Role;
@@ -273,6 +274,8 @@ export function DealerSettingsHub() {
           Owner access
         </span>
       </header>
+      <OwnerSetup />
+      <OwnerOperationsReport />
       <SettingsTabs
         orientation={verticalNavigation ? "vertical" : "horizontal"}
         idPrefix="dealer-settings"

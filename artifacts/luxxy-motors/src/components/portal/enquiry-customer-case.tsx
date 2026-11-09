@@ -41,6 +41,7 @@ import {
   workspaceError,
 } from "./enquiry-workspace-tools";
 import { CustomerActivityTimeline } from "./enquiry-conversation";
+import { ReplyPresence } from "./reply-presence";
 import { EnquiryResolutionAction } from "./enquiry-resolution-action";
 import { EnquiryReplyDesk } from "./enquiry-reply-desk";
 import { EnquiryChecks } from "./enquiry-checks";
@@ -215,6 +216,7 @@ export function EnquiryCustomerCase({
       data-context-open={context ? "true" : "false"}
       aria-label={`Customer workspace for ${entry.customerName}`}
     >
+      <ReplyPresence enquiryId={entry.id} scope={workspace} enabled={canManage && !archived} />
       <header className="enquiry-case-header">
         {compact ? <>
           <div className="enquiry-case-heading"><div className="enquiry-case-identity"><h3>{entry.customerName}</h3></div><span className="enquiry-state-label" data-tone={state.tone} title={state.detail}>{state.label}</span></div>
@@ -320,6 +322,7 @@ export function EnquiryCustomerCase({
               entry={entry}
               disabled={replyBusy}
               linkedCount={entries.length}
+              onDoneNext={actions.onDoneNext ? () => actions.onDoneNext!(entry) : undefined}
             />
           )}
           {canManage && !archived && (

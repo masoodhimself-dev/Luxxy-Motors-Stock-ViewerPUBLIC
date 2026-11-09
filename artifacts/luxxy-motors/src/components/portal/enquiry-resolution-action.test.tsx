@@ -35,6 +35,7 @@ function show(
     dirty?: boolean;
     disabled?: boolean;
     linkedCount?: number;
+    onDoneNext?: () => void;
   } = {},
 ) {
   const client = new QueryClient();
@@ -52,6 +53,7 @@ function show(
           entry={options.current ?? entry}
           disabled={options.disabled}
           linkedCount={options.linkedCount}
+          onDoneNext={options.onDoneNext}
         />
       </section>
     </QueryClientProvider>,
@@ -129,4 +131,11 @@ it("hides the mutation for readonly staff and respects a running composer operat
   show({ disabled: true });
   expect(screen.getByRole("button", { name: "Mark done" })).toBeDisabled();
   expect(state.fetch).not.toHaveBeenCalled();
+});
+
+it('opens the next conversation only after the server confirms closure',async()=>{
+ const next=vi.fn();show({onDoneNext:next});fireEvent.click(screen.getByRole('button',{name:'Done & next'}));expect(next).not.toHaveBeenCalled();await waitFor(()=>expect(next).toHaveBeenCalledOnce());
+});
+it('keeps the current conversation when Done & next fails',async()=>{
+ state.fetch.mockRejectedValue({data:{error:'Appointment still needs an outcome'}});const next=vi.fn();show({onDoneNext:next});fireEvent.click(screen.getByRole('button',{name:'Done & next'}));await screen.findByRole('alert');expect(next).not.toHaveBeenCalled();
 });

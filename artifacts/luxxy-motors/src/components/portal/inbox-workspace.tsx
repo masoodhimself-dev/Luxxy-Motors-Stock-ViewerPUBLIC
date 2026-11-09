@@ -11,6 +11,7 @@ import type { InboxEnquiry } from '@/lib/enquiry-reply-attention';
 import { EnquiryCustomerCase } from './enquiry-customer-case';
 import type { EnquiryRecordActions } from './enquiry-record-browser';
 import './inbox-workspace.css';
+import './workspace-tools.css';
 
 const filters: {id: InboxFilter; label: string}[] = [
   {id:'needs-you',label:'Needs you'}, {id:'all',label:'All'}, {id:'done',label:'Done'},
@@ -19,12 +20,13 @@ const folders: {id:InboxFolder;label:string}[] = [{id:'enquiries',label:'Enquiri
 
 /** The conversation is the workspace. Bookings, email delivery and car tools stay within reach. */
 export function InboxWorkspace({ entries, cars, selectedId, onSelect, onBack, actions, loading=false,
-  error=false, refreshing=false, onRefresh, onNewEnquiry, tools, missingRequested=false,
+  error=false, refreshing=false, onRefresh, onNewEnquiry, tools, missingRequested=false, currentStaffId,
 }: {
   entries: Enquiry[]; cars: Car[]; selectedId: string|null; onSelect:(id:string)=>void;
   onBack:()=>void|boolean; actions:EnquiryRecordActions; loading?:boolean; error?:boolean;
-  refreshing?:boolean; onRefresh:()=>void; onNewEnquiry?:()=>void; tools?:ReactNode; missingRequested?:boolean;
+  refreshing?:boolean; onRefresh:()=>void; onNewEnquiry?:()=>void; tools?:ReactNode; missingRequested?:boolean; currentStaffId?:string;
 }) {
+  const [ownerView,setOwnerView]=useState<'all'|'mine'|'unassigned'>('all');
   const [filter,setFilter]=useState<InboxFilter>('needs-you');
   const [folder,setFolder]=useState<InboxFolder>('enquiries');
   const [search,setSearch]=useState('');
@@ -35,7 +37,7 @@ export function InboxWorkspace({ entries, cars, selectedId, onSelect, onBack, ac
   const folderId=useId(), openedId=useRef<string|null>(null);
   useEffect(()=>{const timer=window.setInterval(()=>setNow(Date.now()),60_000);return()=>window.clearInterval(timer);},[]);
   const folderEntries=inboxFolderEntries(entries,folder);
-  const visible=inboxFilter(folderEntries,folder==='archive'?'archive':filter,search,now);
+  const visible=inboxFilter(folderEntries,folder==='archive'?'archive':filter,search,now).filter(entry=>{const members=enquiryGroup(entry,entries).filter(e=>folder==='archive'||!e.archivedAt);return ownerView==='all'||ownerView==='mine'&&Boolean(currentStaffId)&&members.some(e=>e.assignedToId===currentStaffId)||ownerView==='unassigned'&&members.every(e=>!e.assignedToId);});
   const explicit=entries.find(entry=>entry.id===selectedId);
   useEffect(()=>{
     if (!explicit || openedId.current===explicit.id) return;
@@ -78,6 +80,7 @@ export function InboxWorkspace({ entries, cars, selectedId, onSelect, onBack, ac
       >{item.label}{' '}<span>{loading||error?'—':inboxFilter(inboxFolderEntries(entries,item.id),item.id==='archive'?'archive':'all','',now).length}</span></button>)}
     </div>
     <div className="inbox-desk-navigation">
+      <label className="workspace-owner-filter">Show<select aria-label="Enquiry owner" value={ownerView} onChange={e=>resetSelection(()=>setOwnerView(e.target.value as typeof ownerView))}><option value="all">Everyone</option><option value="mine" disabled={!currentStaffId}>My enquiries</option><option value="unassigned">Unassigned</option></select></label>
       {folder==='archive' ? <p className="inbox-archive-note">Recover for 30 days. Linked business records are protected.</p> : <div className="inbox-desk-filters" role="group" aria-label="Filter conversations">
         {filters.map(item=><button type="button" key={item.id} aria-pressed={filter===item.id} data-filter={item.id}
           onClick={()=>resetSelection(()=>setFilter(item.id))}>{item.label}<span>{loading||error?'—':inboxFilter(folderEntries,item.id,'',now).length}</span></button>)}
@@ -114,7 +117,7 @@ export function InboxWorkspace({ entries, cars, selectedId, onSelect, onBack, ac
           <div className="inbox-conversation-back"><Button size="sm" variant="ghost" onClick={()=>{if(onBack()!==false) {setAutoPreview(false);setPreviewEntry(null);requestAnimationFrame(()=>selectedButton.current?.focus());}}}><ArrowLeft size={17} aria-hidden/>Back to Inbox</Button></div>
           {!selectedVisible&&<div className="inbox-outside-filter" role="status">This conversation is outside your current filter.<Button variant="ghost" size="sm" onClick={()=>{setFolder(selected.archivedAt?'archive':isAiEnquiry(selected)?'ai':'enquiries');setFilter('all');setSearch('');}}>{selected.archivedAt?'View Archive':'Show in All'}</Button></div>}
           {group.length>1&&<details className="inbox-linked-records"><summary>{group.length} linked enquiries</summary><div>{group.map(original=><Button key={original.id} size="sm" variant={original.id===selected.id?'default':'outline'} onClick={()=>onSelect(original.id)}>{original.vehicleTitle||'General enquiry'} · {enquiryPresentation(original).purpose}</Button>)}</div></details>}
-          <EnquiryCustomerCase compact key={selected.id} entry={selected} entries={entries} car={cars.find(car=>car.id===selected.vehicleId)} cars={cars} actions={actions}/>
+          <EnquiryCustomerCase compact key={selected.id} entry={selected} entries={entries} car={cars.find(car=>car.id===selected.vehicleId)} cars={cars} actions={{...actions,onDoneNext:entry=>{const rootId=primaryEnquiry(entry,entries).id;const next=visible.find(candidate=>candidate.id!==rootId);if(next)open(next);else{setAutoPreview(false);setPreviewEntry(null);onBack();}}}}/>
         </> : <div className="inbox-desk-empty">
           <Inbox size={32} aria-hidden/><h3>{missingRequested?'This enquiry is unavailable':'Choose a conversation'}</h3><p>{missingRequested?'It may have been removed or combined with another record. Search the Inbox or refresh to check.':'Read the conversation, review an AI draft and reply here.'}</p>
           {missingRequested&&<Button variant="outline" onClick={onRefresh}>Refresh Inbox</Button>}

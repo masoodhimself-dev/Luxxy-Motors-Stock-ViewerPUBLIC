@@ -48,7 +48,12 @@ export async function retainDealerData(now = new Date()) {
     const sessions = await tx.execute(
       sql`DELETE FROM vehicle_service_upload_sessions WHERE dealer_id=${dealer} AND expires_at<${new Date(now.getTime() - retentionPolicy.expiredUploadDays * day)} RETURNING id`,
     );
+    // Reply presence is a short-lived editing signal.
+    const presence = await tx.execute(
+      sql`DELETE FROM staff_reply_presence WHERE dealer_id=${dealer} AND expires_at<=${now} RETURNING enquiry_id`,
+    );
     return {
+      expiredReplyPresence: presence.rows.length,
       archivedCars: archived.rows.length,
       abandonedDrafts: drafts.rows.length,
       expiredUploadSessions: sessions.rows.length,

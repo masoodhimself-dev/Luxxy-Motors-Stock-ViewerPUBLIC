@@ -2080,6 +2080,7 @@ export function EnquiriesPanel({
           )}
           {mode === "history" && (
             <InboxWorkspace
+              currentStaffId={directory.data?.currentUserId}
               entries={allEntries}
               cars={stock?.cars ?? []}
               selectedId={selectedEnquiryId}

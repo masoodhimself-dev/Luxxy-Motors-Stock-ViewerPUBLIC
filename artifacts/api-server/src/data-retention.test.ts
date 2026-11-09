@@ -133,7 +133,25 @@ test("retention isolates dealers, waits seven days, preserves financial records 
     );
   await engine.query("INSERT INTO sale_terms_documents(id,dealer_id,sale_id,request_id,request_hash,snapshot,dealer_pdf,both_pdf,created_by) VALUES($1,'a',$2,$3,'fixture-hash','{\"terms\":\"KEEP TERMS\"}'::jsonb,'DEALER-PDF','BOTH-PDF','Fixture')", [randomUUID(), externalTerms.id, randomUUID()]);
   await engine.query("INSERT INTO sale_delivery_evidence(id,dealer_id,sale_id,vehicle_id,request_id,create_hash,token_hash,context_hash,snapshot,created_at,created_by,expires_at) VALUES($1,'a',$2,$3,$4,'fixture-hash',$5,'context','{\"evidence\":\"KEEP EVIDENCE\"}'::jsonb,$6,'Fixture',$7)", [randomUUID(), externalEvidence.id, ids[2], randomUUID(), 'a'.repeat(64), ago(100).toISOString(), ago(99).toISOString()]);
+  const presenceIds = Array.from({ length: 3 }, () => randomUUID());
+  for (const [index, enquiryId] of presenceIds.entries()) {
+    const dealer = index === 2 ? "b" : "a";
+    const expires = index === 1 ? new Date(now.getTime() + 90_000) : ago(1);
+    await engine.query(
+      "INSERT INTO enquiries(id,dealer_id,type,customer_name,message) VALUES($1,$2,'general','Test customer','Test message')",
+      [enquiryId, dealer],
+    );
+    await engine.query(
+      "INSERT INTO staff_reply_presence(dealer_id,enquiry_id,staff_id,staff_name,session_id,expires_at) VALUES($1,$2,'staff','Test staff',$3,$4)",
+      [dealer, enquiryId, randomUUID(), expires.toISOString()],
+    );
+  }
   const result = await runWithTenant(tenant("a"), () => retainDealerData(now));
+  assert.equal(result.expiredReplyPresence, 1);
+  const retainedPresence = await engine.query<{ enquiry_id: string }>(
+    "SELECT enquiry_id FROM staff_reply_presence",
+  );
+  assert.deepEqual(retainedPresence.rows.map(row => row.enquiry_id).sort(), presenceIds.slice(1).sort());
   assert.equal(result.archivedCars, 2);
   assert.equal(result.abandonedDrafts, 1);
   const cars = (

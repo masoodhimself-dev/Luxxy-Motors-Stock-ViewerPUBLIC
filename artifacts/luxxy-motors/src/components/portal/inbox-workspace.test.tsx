@@ -16,6 +16,7 @@ vi.mock('./enquiry-customer-case', () => ({
       <p>Selected vehicle: {props.car?.id || 'unavailable'}</p>
       <label>Case draft<textarea value={draft} onChange={event=>setDraft(event.target.value)}/></label>
       <button onClick={() => props.actions.onEmail?.(props.entry)}>Reply to {props.entry.customerName}</button>
+      <button onClick={() => props.actions.onDoneNext?.(props.entry)}>Done & next</button>
     </section>;
   },
 }));
@@ -118,7 +119,7 @@ describe('the rebuilt Inbox queue', () => {
     const booked = record('Booked customer', { status: 'closed', type: 'viewing',
       appointmentAt: '2026-11-03T11:00:00Z', appointmentStatus: 'confirmed' });
     show({ entries: [active, done, booked] });
-    fireEvent.click(screen.getByRole('button', { name: /^Done/ }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Filter conversations' })).getByRole('button', { name: /^Done/ }));
     expect(screen.getByTestId('enquiry-Done customer')).toBeVisible();
     expect(screen.queryByTestId('enquiry-Booked customer')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^All/ }));
@@ -167,7 +168,7 @@ describe('Inbox conversation selection', () => {
 
   it('respects the unsaved-reply guard when changing filter or search', () => {
     show({ entries: [record('Ellie')], selectedId: 'Ellie', onBack: () => false });
-    fireEvent.click(screen.getByRole('button', { name: /^Done/ }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Filter conversations' })).getByRole('button', { name: /^Done/ }));
     expect(screen.getByRole('button', { name: /^Needs you/ })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.change(screen.getByRole('textbox', { name: 'Search enquiries' }), { target: { value: 'different' } });
     expect(screen.getByRole('textbox', { name: 'Search enquiries' })).toHaveValue('');
@@ -272,3 +273,19 @@ describe('Inbox loading and empty states', () => {
     expect(screen.getByText('Website enquiries and test-drive requests will appear here.')).toBeVisible();
   });
 });
+
+ it('filters by my enquiries or unassigned while preserving complete linked cases',()=>{
+  const mine=record('Mine',{assignedToId:'staff-me'}),other=record('Other',{assignedToId:'staff-other'}),unassigned=record('Unassigned');
+  show({entries:[mine,other,unassigned],currentStaffId:'staff-me'});
+  fireEvent.change(screen.getByRole('combobox',{name:'Enquiry owner'}),{target:{value:'mine'}});
+  expect(screen.getByTestId('enquiry-Mine')).toBeVisible();
+  expect(screen.queryByTestId('enquiry-Other')).not.toBeInTheDocument();
+  fireEvent.change(screen.getByRole('combobox',{name:'Enquiry owner'}),{target:{value:'unassigned'}});
+  expect(screen.getByTestId('enquiry-Unassigned')).toBeVisible();
+  expect(screen.queryByTestId('enquiry-Mine')).not.toBeInTheDocument();
+ });
+ it('advances to the next visible conversation when the completed case requests it',()=>{
+  const api=show({entries:[record('First'),record('Second')],selectedId:'First'});
+  fireEvent.click(screen.getByRole('button',{name:'Done & next'}));
+  expect(api.onSelect).toHaveBeenLastCalledWith('Second');
+ });

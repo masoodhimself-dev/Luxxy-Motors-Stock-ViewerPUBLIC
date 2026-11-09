@@ -1,3 +1,4 @@
+vi.mock("./workspace-tools", () => ({ OwnerSetup: () => null, OwnerOperationsReport: () => null }));
 import { useState } from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, it, expect, vi } from "vitest";

@@ -58,7 +58,10 @@ import {
   installSettingsNavigationGuard,
 } from "@/lib/settings-navigation";
 
+import "@/components/portal/portal-workspace.css";
 import "@/components/portal/portal-redesign.css";
+import "@/components/portal/dealer-portal-theme.css";
+import { WorkspaceSearch } from "@/components/portal/workspace-tools";
 
 type TabKey = "notifications" | "cars" | "sales" | "settings";
 type Correspondence = "letter" | "email";
@@ -144,6 +147,7 @@ function PortalToolbar({
           <span className="portal-toolbar-label">Workspace</span>
         </div>
         <div className="portal-toolbar-actions">
+          {staffName && <WorkspaceSearch />}
           {children}
           <a
             href="/"

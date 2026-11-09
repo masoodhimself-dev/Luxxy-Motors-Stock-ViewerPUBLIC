@@ -1,3 +1,5 @@
+import { focusStockMot, type MotFocus } from "./stock-workspace-options";
+import "./workspace-tools.css";
 import {
   useCallback,
   useEffect,
@@ -284,6 +286,8 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
       ? params.get("carsFilter")
       : "all"
   ) as StaffCarsAttention;
+  const motFocus = (["all","expired","due30","unknown","earliest"].includes(params.get("carsMot") ?? "") ? params.get("carsMot") : "all") as MotFocus;
+  const compactRows = params.get("carsDensity") === "compact";
   const [panelId, setPanelId] = useState<string | null>(null),
     [mot, setMot] = useState<Record<string, MotHistory>>({});
   const [refreshing, setRefreshing] = useState(false);
@@ -369,14 +373,14 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
     [activity.data, replies.data, canManage, now],
   );
   const cars = query.data?.cars ?? [];
-  const matches = filterStaffCars(
+  const matches = focusStockMot(filterStaffCars(
       cars,
       search,
       tab,
       sort,
       attention,
       activities,
-    ),
+    ), motFocus, car => workspaceMotSummary(car, mot[car.id], now), now),
     selected = cars.find((c) => c.id === carId),
     panel = cars.find((c) => c.id === panelId);
   const customerView = params.get("carView") === "customers";
@@ -619,6 +623,7 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
     <section
       className="portal-cars-workspace"
       aria-labelledby="portal-cars-title"
+      data-density={compactRows ? "compact" : "comfortable"}
       data-activity={canManage ? "visible" : "hidden"}
       data-options={viewOptions ? "open" : "closed"}
       data-view={carId ? "file" : "list"}
@@ -952,6 +957,7 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
                   </button>
                 ))}
               </div>
+              <label className="cars-attention"><span className="sr-only">MOT focus</span><NativeSelect value={motFocus} onChange={e=>setFilter("carsMot",e.target.value)}><option value="all">All MOT dates</option><option value="expired">MOT expired or failed</option><option value="due30">MOT due within 30 days</option><option value="unknown">MOT date unavailable</option><option value="earliest">Earliest MOT expiry first</option></NativeSelect></label>
               <label className="cars-attention">
                 <span className="sr-only">Focus cars</span>
                 <NativeSelect
@@ -971,6 +977,7 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
             </div>
           </div>
           <div className="cars-result-line">
+            <label className="workspace-density-control">Rows<select aria-label="Stock row spacing" value={compactRows ? "compact" : "comfortable"} onChange={e=>setFilter("carsDensity",e.target.value)}><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></label>
             <button
               className="cars-mobile-options"
               aria-expanded={viewOptions}
@@ -985,7 +992,7 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
             {(search ||
               tab !== "all" ||
               attention !== "all" ||
-              sort !== "stock") && (
+              sort !== "stock" || motFocus !== "all") && (
               <button
                 onClick={() =>
                   navigate("/portal?section=cars", { replace: true })

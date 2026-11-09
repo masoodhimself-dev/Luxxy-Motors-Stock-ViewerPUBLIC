@@ -1,6 +1,7 @@
 import cazooLeadsRouter from "./cazoo-leads";
 import aiAssistanceRouter from './ai-assistance';
 import staffCarsRouter from "./staff-cars";
+import staffWorkspaceToolsRouter from "./staff-workspace-tools";
 import motHistoryRouter from './mot-history';
 import postcodesRouter from './postcodes';
 import historicalStripePaymentsRouter from './stripe-reservations';
@@ -62,6 +63,7 @@ router.use(dealerWebsiteAssetsRouter);
 router.use(testDriveDeclarationsRouter);
 router.use(staffInventoryRouter);
 router.use(staffCarsRouter);
+router.use(staffWorkspaceToolsRouter);
 router.use(soldVehicleFollowUpsRouter);
 router.use(enquiryEmailsRouter);
 router.use(staffNotificationsRouter);
