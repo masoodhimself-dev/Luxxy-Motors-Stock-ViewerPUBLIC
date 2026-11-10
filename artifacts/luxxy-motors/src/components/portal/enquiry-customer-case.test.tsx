@@ -524,13 +524,16 @@ it("keeps the activity journal on demand inside Customer details, away from the 
 });
 
 
-it("keeps compact car and customer details folded and passes message-only mode without remounting the reply", () => {
+it("opens the compact reply on demand and keeps it mounted while viewing details", async () => {
   show({ compact: true });
   expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
   expect(screen.queryByText(entry.email!)).not.toBeInTheDocument();
   expect(state.timeline.mock.calls.at(-1)?.[0]).toMatchObject({ compact: true, messagesOnly: true });
+  expect(state.reply).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Reply" }));
   expect(state.reply.mock.calls.at(-1)?.[0]).toMatchObject({ entry, compact: true });
   const editor = screen.getByRole("region", { name: "Mock inline reply" });
+  await waitFor(() => expect(editor.parentElement).toHaveFocus());
   fireEvent.click(screen.getByRole("button", { name: "Details" }));
   expect(screen.getByRole("button", { name: "Car & MOT" })).toHaveAttribute("aria-pressed", "true");
   expect(state.checks.mock.calls.at(-1)?.[0]).toMatchObject({ entry, car, canManage: true });
@@ -542,6 +545,37 @@ it("keeps compact car and customer details folded and passes message-only mode w
   expect(screen.getByRole("region", { name: "Mock inline reply" })).toBe(editor);
 });
 
+it("summarises a part exchange and opens a ready AI draft through the same Reply button", () => {
+  show({
+    compact: true,
+    current: {
+      ...entry,
+      source: "cazoo",
+      type: "part_exchange",
+      partExchangeRegistration: "LM67 XYZ",
+      partExchangeMileage: 67500,
+      aiDraftStatus: "ready",
+      preferredContact: "whatsapp",
+    },
+  });
+  expect(screen.getByText("Cazoo · Part exchange")).toBeVisible();
+  expect(screen.getByText("LM67 XYZ · 67,500 miles")).toBeVisible();
+  const reply = screen.getByRole("button", { name: "Reply" });
+  expect(reply).toHaveAccessibleDescription("AI draft ready to review");
+  expect(state.reply).not.toHaveBeenCalled();
+  fireEvent.click(reply);
+  expect(screen.getByTestId("requested-channel")).toHaveTextContent("email");
+});
+
+it("shows the compact conversation before appointment controls", () => {
+  show({ compact: true, current: {
+    ...entry, type: "viewing", appointmentStatus: "pending", appointmentAt: "2027-01-08T13:00:00Z",
+  } });
+  const conversation = screen.getByRole("region", { name: "Mock customer activity" });
+  const confirm = screen.getByRole("button", { name: "Review & confirm" });
+  expect(conversation.compareDocumentPosition(confirm) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
 it("does not offer an email reply from compact customer details without staff reply permission", () => {
   state.manage = false;
   show({ compact: true });
@@ -550,6 +584,7 @@ it("does not offer an email reply from compact customer details without staff re
   expect(screen.getByText(entry.email!)).toBeVisible();
   expect(screen.queryByRole("button", { name: entry.email! })).not.toBeInTheDocument();
   expect(screen.queryByRole("region", { name: "Mock inline reply" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Reply" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "More enquiry actions" })).not.toBeInTheDocument();
 });
 
@@ -568,6 +603,7 @@ it("closes compact details with Escape and restores the trigger focus", async ()
 it("keeps compact Mark done in the case scope and blocks it while a reply or private note is unsaved", () => {
   state.dirty = true;
   show({ compact: true });
+  fireEvent.click(screen.getByRole("button", { name: "Reply" }));
   fireEvent.click(screen.getByRole("button", { name: "Mark done" }));
   expect(screen.getByRole("alert")).toHaveTextContent("Save or discard your reply and private note");
   expect(state.fetch).not.toHaveBeenCalled();

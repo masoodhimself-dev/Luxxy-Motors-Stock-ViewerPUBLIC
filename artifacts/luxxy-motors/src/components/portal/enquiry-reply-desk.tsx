@@ -18,6 +18,9 @@ type ReplyDeskProps = {
   requestedChannel?: "email" | "whatsapp" | "note";
   onBusyChange?: (busy: boolean) => void;
   compact?: boolean;
+  allowMissingRecipient?: boolean;
+  editRecipientRequest?: number;
+  enquiryReplyId?: string;
 };
 export function EnquiryReplyDesk(props: ReplyDeskProps) {
   return <ReplyDesk key={props.entry.id} {...props} />;
@@ -30,9 +33,12 @@ function ReplyDesk({
   requestedChannel = "email",
   onBusyChange,
   compact = false,
+  allowMissingRecipient = false,
+  editRecipientRequest = 0,
+  enquiryReplyId,
 }: ReplyDeskProps) {
   const defaultChannel = (requested: "email" | "whatsapp" | "note") =>
-    requested === "email" && !entry.email?.trim() ? "note" : requested;
+    requested === "email" && !allowMissingRecipient && !entry.email?.trim() ? "note" : requested;
   const [channel, setChannel] = useState<"email" | "whatsapp" | "note">(() =>
     defaultChannel(requestedChannel),
   );
@@ -57,7 +63,7 @@ function ReplyDesk({
         behavior: "smooth",
       }),
     );
-  }, [focusRequest, requestedChannel, busy]);
+  }, [focusRequest, requestedChannel, allowMissingRecipient, busy]);
   useEffect(() => {
     if (insertion && !busy && handledInsertion.current !== insertion.id) {
       handledInsertion.current = insertion.id;
@@ -107,6 +113,9 @@ function ReplyDesk({
             compact={compact}
             entry={entry}
             customerPhone={entry.phone}
+            editRecipientRequest={editRecipientRequest}
+            linkedReply={allowMissingRecipient}
+            enquiryReplyId={enquiryReplyId}
             channel={channel === "whatsapp" ? "whatsapp" : "email"}
             insertion={
               insertion?.id === completedInsertion ? undefined : insertion

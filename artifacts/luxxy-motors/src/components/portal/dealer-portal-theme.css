@@ -373,8 +373,16 @@ body[data-dealer-portal="true"] :is(.sales-document, .invoice-sheet, .receipt-bo
     body[data-dealer-portal="true"] .portal-quick-short-label { display: inline; }
   }
 
-  @media (max-width: 359px) {
+  @media (max-width: 420px) {
+    body[data-dealer-portal="true"] .portal-toolbar-actions .workspace-search-trigger {
+      width: 44px;
+      min-width: 44px;
+      padding-inline: 0;
+    }
     body[data-dealer-portal="true"] .portal-quick-short-label { display: none; }
+  }
+
+  @media (max-width: 359px) {
     body[data-dealer-portal="true"] .portal-toolbar-actions .portal-quick-trigger {
       gap: 6px;
       padding-inline: 10px;

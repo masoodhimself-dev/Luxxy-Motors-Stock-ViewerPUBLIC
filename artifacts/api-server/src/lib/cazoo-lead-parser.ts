@@ -108,7 +108,7 @@ export function parseCazooLead(email: {
 /** Known-layout extraction; caller must separately authenticate the delivery. */
 export function parseCazooLeadBody(email: { subject: string; text?: string | null; html?: string | null }): CazooLead {
   const { listedPrice: _listedPrice, enquiryType, emailNeedsChecking, invalidName, knownLayout, ...lead } = readCazooLeadDetails(email);
-  if (lead.partExchange && !knownLayout) throw new CazooLeadError("unrecognised_message_layout");
+  if (!knownLayout) throw new CazooLeadError("unrecognised_message_layout");
   if (emailNeedsChecking) throw new CazooLeadError("missing_or_ambiguous_customer_email");
   if (invalidName) throw new CazooLeadError("invalid_customer_name");
   const type = lead.partExchange ? "part exchange" : /^Availability$/i.test(enquiryType) ? "availability" : null;

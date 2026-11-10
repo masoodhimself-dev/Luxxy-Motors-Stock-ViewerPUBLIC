@@ -11,8 +11,6 @@
 .inbox-desk-filters { display:flex; gap:4px; }
 .inbox-desk-filters button { display:flex; align-items:center; justify-content:center; gap:8px; min-height:40px; padding:7px 12px; border-radius:7px; font-size:13px; font-weight:600; color:var(--inbox-muted); white-space:nowrap; }
 .inbox-desk-filters button[aria-pressed=true] { color:var(--inbox-navy); background:#ececf6; }
-.inbox-desk-filters button span { display:inline-grid; place-items:center; min-width:22px; padding:1px 6px; border-radius:5px; background:#f0f1f5; color:var(--inbox-muted); font-size:11px; }
-.inbox-desk-filters button[aria-pressed=true] span { background:#fff; color:var(--inbox-navy); }
 .inbox-desk-tools { display:flex; gap:4px; }
 .inbox-desk-tools button { display:flex; gap:6px; align-items:center; min-height:36px; padding:5px 8px; font-size:12px; color:var(--inbox-muted); }
 .inbox-desk-tools button:hover { color:var(--inbox-navy); background:#f5f6f9; border-radius:5px; }
@@ -30,7 +28,7 @@
 .inbox-desk-row-car { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }
 .inbox-desk-row-preview { color:var(--inbox-muted); font-size:12px; line-height:1.6; overflow:hidden; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; }
 .inbox-desk-row-tags { display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:10px; margin-top:3px; color:var(--inbox-muted); }
-.inbox-source { padding:2px 0; margin-right:3px; }
+.inbox-source { padding:2px 0; }
 .inbox-status { display:inline-flex; align-items:center; gap:5px; padding:3px 8px; border-radius:5px; font-size:11px; line-height:1.4; font-weight:600; background:#f0f1f4; color:#58616f; }
 .inbox-status[data-tone=warning] { background:#fff0ce; color:#895409; }
 .inbox-status[data-tone=info] { background:#e8f0ff; color:#254f96; }
@@ -78,14 +76,13 @@
  .inbox-desk-row-top strong { font-size:15px; }
  .inbox-desk-row-car,.inbox-desk-row-preview { font-size:13px; }
  .inbox-desk-row-top time { font-size:12px; }
- .inbox-desk-filters button span { min-width:20px; padding:1px 5px; }
 }
 @media(prefers-reduced-motion:reduce) { .inbox-desk * { scroll-behavior:auto!important; animation:none!important; } }
 body[data-dealer-portal=true] .inbox-desk .inbox-desk-search input { border:0; background:transparent; box-shadow:none; padding:8px 0; }
 body[data-dealer-portal=true] .inbox-desk-heading-actions>button:last-child:not(:first-child) { background:#090943; color:#fff; }
 body[data-dealer-portal=true] .inbox-desk .enquiry-email-actions>button:not([class*='outline']):last-of-type { background:#090943; color:white; }
 body[data-dealer-portal=true] .inbox-desk .inbox-desk-search input { border:0!important; border-radius:0!important; }
-@media(max-width:420px) { .inbox-desk-filters { gap:0; width:100%; } .inbox-desk-filters button { flex:1; gap:5px; padding:8px 6px; font-size:11px; } .inbox-desk-filters button span { min-width:18px; padding:1px 4px; font-size:10px; } }
+@media(max-width:420px) { .inbox-desk-filters { gap:0; } .inbox-desk-filters button { padding:8px 10px; } }
 
 /* A compact list and a fixed conversation desk; supporting tools stay folded. */
 .inbox-desk-row { min-height:104px; padding:12px 16px; gap:3px; }
@@ -94,6 +91,7 @@ body[data-dealer-portal=true] .inbox-desk .inbox-desk-search input { border:0!im
 .inbox-tools-menu { position:relative; margin-left:auto; font-size:12px; color:var(--inbox-muted); }
 .inbox-tools-menu>summary { min-height:40px; padding:10px 8px; cursor:pointer; }
 .inbox-tools-menu[open]>.inbox-desk-tools { position:absolute; right:0; top:100%; z-index:30; display:grid; min-width:210px; padding:8px; border:1px solid var(--inbox-line); border-radius:8px; background:white; box-shadow:0 10px 30px #192b3618; }
+.inbox-tools-menu .workspace-owner-filter { justify-content:space-between; padding:0 8px; }
 .inbox-tools-menu .device-alerts { border:0; margin:0; padding:0; }
 .inbox-tools-menu .device-alerts-toggle { padding:7px 8px; font-size:12px; }
 .inbox-tools-menu .device-alerts:has(.device-alerts-toggle[aria-expanded=true]) { width:min(330px,80vw); max-height:55dvh; overflow:auto; }
@@ -116,11 +114,10 @@ body[data-dealer-portal=true] .inbox-desk .inbox-desk-search input { border:0!im
 }
 @media(max-width:899px) { .inbox-desk-row { min-height:104px; } .inbox-desk-tools { width:auto; border:0; } .inbox-desk-navigation { flex-wrap:nowrap; } .inbox-desk-filters { flex:initial; } }
 
-/* Three stable folders keep automatic work separate from staff enquiries. */
+/* Keep the full active queue available alongside focused views. */
 .inbox-folder-tabs { display:flex; gap:2px; padding:0 12px; border-bottom:1px solid var(--inbox-line); }
 .inbox-folder-tabs>[role=tab] { flex:1; display:flex; align-items:center; justify-content:center; gap:5px; min-height:44px; padding:8px 5px; border-bottom:2px solid transparent; font-size:12px; font-weight:600; white-space:nowrap; color:var(--inbox-muted); }
 .inbox-folder-tabs>[role=tab][aria-selected=true] { border-bottom-color:var(--inbox-navy); color:var(--inbox-navy); }
-.inbox-folder-tabs span { font-size:10px; font-weight:500; min-width:15px; text-align:center; }
 .inbox-ai-status { color:#6250a2; }
 .inbox-archive-note { margin:0; font-size:11px; line-height:1.6; color:var(--inbox-muted); padding:9px 0; max-width:210px; }
 .enquiry-archive-summary { display:grid; gap:3px; padding:12px 0; font-size:14px; }

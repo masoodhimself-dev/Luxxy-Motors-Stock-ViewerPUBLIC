@@ -45,6 +45,7 @@ import {
 } from "../lib/dealer-integrations-store";
 import {
   EmailProviderError,
+  prepareEmailWithSettings,
   sendEmailWithSettings,
   sendPreparedEmail,
   type EmailEnvelope,
@@ -63,7 +64,7 @@ import {
 } from "../lib/email-preparation";
 import { dealerProfile } from "../lib/enquiry-notifications";
 import { cazooFirstReplyActor, decideCazooAutomaticFirstReply } from "../lib/cazoo-automatic-first-reply";
-import { replyConfiguration } from "../lib/customer-email-replies";
+import { acceptedEnquiryReply, replyConfiguration } from "../lib/customer-email-replies";
 import { cazooAutomaticReplyOptedIn } from "../lib/enquiry-ai-automation";
 import { siteOrigin } from "../lib/enquiry-links";
 import { enquiryGalleryContext, selectedEnquiryGallery, EnquiryGalleryError } from "../lib/enquiry-gallery";
@@ -113,7 +114,10 @@ export const draftSchema = z
     expectedRevision: z.number().int().nonnegative(),
   })
   .strict();
-const sendSchema = draftSchema.extend({
+const reviewSchema = draftSchema.extend({
+  enquiryReplyId: z.string().uuid().transform((id) => id.toLowerCase()).optional(),
+});
+const sendSchema = reviewSchema.extend({
   savedDraftVersion: z.number().int().positive().optional(),
   requestId: z.string().uuid(),
   previewHash: z.string().regex(/^[a-f0-9]{64}$/),
@@ -132,6 +136,10 @@ const hash = (value: string) =>
 const uuid = (value: unknown): value is string =>
   z.string().uuid().safeParse(value).success;
 const key = (dealer: string, id: string) => `enquiry-email:${dealer}:${id}`;
+async function requireReplyRecipient(enquiryId: string, replyId: string | undefined, to: string, executor?: Pick<typeof db, "execute">) {
+  if (replyId && (await acceptedEnquiryReply(enquiryId, replyId, executor))?.from !== to)
+    throw new EmailError("The linked customer reply is unavailable for this address. Check the reply in the Inbox.", 409);
+}
 const cazooFirstReplyKey = (receiptId: string) => `cazoo-first-reply-${receiptId}`;
 type CazooFirstReplyReceipt = {
   id: string;
@@ -758,6 +766,9 @@ export async function rebuildStaffOutboxEmail(
     throw new Error("The email approval is no longer authorised.");
   const input = draftSchema.parse(row.validation.input),
     config = suppliedConfig ?? (await dealerIntegrationsStore.readPrivate());
+  await requireReplyRecipient(row.enquiry_id, row.validation.enquiryReplyId, input.to);
+  if (row.validation.enquiryReplyId && !replyConfiguration())
+    throw new Error("The approved reply connection is no longer available.");
   const result = await preview(
     row.enquiry_id,
     input,
@@ -781,6 +792,38 @@ export async function rebuildStaffOutboxEmail(
   };
 }
 export { preview as previewEnquiryEmail };
+
+/** Project the approved envelope without issuing a reply address or sending. */
+async function staffPreviewDelivery(
+  config: PrivateDealerSettings,
+  request: Pick<EmailRequest, "to" | "subject" | "html" | "text">,
+  executor?: unknown,
+) {
+  try {
+    const { body } = await prepareEmailWithSettings(
+      effectiveResendSettings(config),
+      { ...request, idempotencyKey: "preview" },
+      executor,
+    );
+    const replyDomain = !currentTenant()?.demo && body.to[0] === request.to
+      ? replyConfiguration()?.domain ?? null
+      : null;
+    return {
+      from: body.from,
+      repliesInInbox: replyDomain !== null,
+      routingHash: hash(JSON.stringify({
+        from: body.from,
+        to: body.to,
+        replyRoute: replyDomain ?? body.reply_to ?? null,
+      })),
+    };
+  } catch {
+    // Wording can still be reviewed when delivery isn't ready.
+    return { from: null, repliesInInbox: false, routingHash: null };
+  }
+}
+const staffApprovalHash = (contentHash: string, routingHash: string | null, enquiryReplyId?: string) =>
+  hash(JSON.stringify({ contentHash, routingHash, enquiryReplyId }));
 
 /** Provider is injectable: tests only send to a recording transport. */
 export function createEnquiryEmailRouter(
@@ -854,6 +897,10 @@ export function createEnquiryEmailRouter(
       const enquiry = await entry(String(req.params.id), db, true),
         config = await deps.settings(),
         profile = await dealerProfile();
+      const replyId = req.query.enquiryReplyId;
+      const acceptedReply = typeof replyId === "string" && !enquiry.archivedAt
+        ? await acceptedEnquiryReply(enquiry.id, replyId)
+        : null;
       const template = {
         ...defaultEmailTemplates.find((t) => t.id === "enquiry_message")!,
         ...config.templates.enquiry_message,
@@ -994,6 +1041,7 @@ export function createEnquiryEmailRouter(
         templates,
         invoices,
         email: enquiry.email || String((await db.execute(sql`SELECT recipient FROM enquiry_email_reply_routes WHERE dealer_id=${enquiry.dealerId} AND enquiry_id=${enquiry.id}::uuid ORDER BY created_at DESC,id DESC LIMIT 1`)).rows[0]?.recipient || ""),
+        ...(replyId !== undefined ? { replyRecipient: acceptedReply ? { id: acceptedReply.id, from: acceptedReply.from, subject: acceptedReply.subject } : null } : {}),
         customerName: enquiry.customerName,
         vehicleId: enquiry.vehicleId,
         vehicleTitle: enquiry.vehicleTitle,
@@ -1018,7 +1066,7 @@ export function createEnquiryEmailRouter(
   });
   router.post("/staff/enquiries/:id/email-preview", async (req, res) => {
     res.setHeader("Cache-Control", "no-store, private");
-    const parsed = draftSchema.safeParse(req.body);
+    const parsed = reviewSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({
         error: "Check the email address, subject, message and attachments.",
@@ -1026,18 +1074,23 @@ export function createEnquiryEmailRouter(
       return;
     }
     try {
+      const config = await deps.settings();
+      await requireReplyRecipient(String(req.params.id), parsed.data.enquiryReplyId, parsed.data.to);
       const result = await preview(
         String(req.params.id),
         parsed.data,
-        await deps.settings(),
+        config,
         await dealerProfile(),
       );
+      const delivery = await staffPreviewDelivery(config, { to: parsed.data.to, ...result.rendered });
       res.json({
         to: parsed.data.to,
+        from: delivery.from,
+        repliesInInbox: delivery.repliesInInbox,
         subject: result.rendered.subject,
         text: result.rendered.text,
         html: result.rendered.html,
-        previewHash: result.previewHash,
+        previewHash: staffApprovalHash(result.previewHash, delivery.routingHash, parsed.data.enquiryReplyId),
         attachments: result.attachments.map(({ id, filename, content }) => ({
           id,
           filename,
@@ -1125,6 +1178,7 @@ export function createEnquiryEmailRouter(
             "An automatic reply is being sent. Wait for its delivery status before sending another email.",
             409,
           );
+          await requireReplyRecipient(id, input.enquiryReplyId, input.to, tx);
           const result = await preview(
             id,
             input,
@@ -1142,6 +1196,7 @@ export function createEnquiryEmailRouter(
               savedDraftVersion: _version,
               requestId: _request,
               previewHash: _preview,
+              enquiryReplyId: _reply,
               ...copy
             } = input;
             const savedContent = draftSchema.safeParse(
@@ -1158,9 +1213,12 @@ export function createEnquiryEmailRouter(
                 409,
               );
           }
-          if (result.previewHash !== input.previewHash)
+          const reviewedDelivery = await staffPreviewDelivery(config, { to: input.to, ...result.rendered }, tx);
+          if (input.enquiryReplyId && !reviewedDelivery.repliesInInbox)
+            throw new EmailError("Sending from this link is paused until the dealership can receive replies in the Inbox.", 409);
+          if (!reviewedDelivery.from || staffApprovalHash(result.previewHash, reviewedDelivery.routingHash, input.enquiryReplyId) !== input.previewHash)
             throw new EmailError(
-              "The details or attachments changed after your preview. Review the email again.",
+              "The email details, attachments or sender changed. Review the email again.",
               409,
             );
           const recent = (
@@ -1200,6 +1258,7 @@ export function createEnquiryEmailRouter(
             requestId: _requestId,
             previewHash: _previewHash,
             savedDraftVersion: _savedVersion,
+            enquiryReplyId,
             ...approvedInput
           } = input;
           const outbox = await enqueueEmailOutbox(
@@ -1219,7 +1278,10 @@ export function createEnquiryEmailRouter(
               validation: {
                 input: approvedInput,
                 layoutVersion: "correspondence-v1",
-                previewHash: input.previewHash,
+                // The outbox independently verifies the final envelope and
+                // keeps its existing content hash compatible with older sends.
+                previewHash: result.previewHash,
+                ...(enquiryReplyId ? { enquiryReplyId } : {}),
                 ...(!multiTenantEnabled() && req.staff!.authUserId === "machine"
                   ? {
                       machineTokenHash: hash(
@@ -1270,6 +1332,12 @@ export function createEnquiryEmailRouter(
                       text: envelope.text,
                       attachments: envelope.attachments,
                       idempotencyKey: sendKey,
+                      ...(envelope.headers?.["In-Reply-To"] && envelope.headers.References
+                        ? { replyHeaders: {
+                            "In-Reply-To": envelope.headers["In-Reply-To"],
+                            References: envelope.headers.References,
+                          } }
+                        : {}),
                     },
                   );
                 },

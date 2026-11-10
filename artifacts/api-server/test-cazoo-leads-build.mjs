@@ -1,7 +1,7 @@
 import { build } from "esbuild";
 import path from "node:path";
 await build({
-  entryPoints: ["src/cazoo-leads.test.ts", "src/cazoo-automatic-first-reply.test.ts", "src/cazoo-first-reply-delivery.test.ts", "src/cazoo-lead-forwarding.test.ts"],
+  entryPoints: ["src/cazoo-leads.test.ts", "src/cazoo-automatic-first-reply.test.ts", "src/cazoo-first-reply-delivery.test.ts", "src/cazoo-lead-forwarding.test.ts", "src/cazoo-customer-reply-forwarding.test.ts"],
   bundle: true, platform: "node", format: "esm",
   outdir: ".cache/cazoo-leads", outExtension: { ".js": ".mjs" }, external: ["@electric-sql/pglite", "@napi-rs/canvas"],
   plugins: [{ name: "isolated-cazoo-lead-adapters", setup(b) {

@@ -12,7 +12,11 @@ import { cazooTestSender } from "../lib/cazoo-owner-test";
 import { cazooFirstReplyActor } from "../lib/cazoo-automatic-first-reply";
 import { cazooLeadForwardRecipient, queueCazooLeadForward } from "../lib/cazoo-lead-forwarding";
 
-const forwardingInput = z.object({ enabled: z.boolean(), recipient: z.string().trim().max(254).nullable() }).strict();
+const forwardingInput = z.object({
+  enabled: z.boolean(),
+  recipient: z.string().trim().max(254).nullable(),
+  forwardReplies: z.boolean().optional(),
+}).strict();
 const nonLeadErrors = new Set([
   "owner_test", "owner_test_format", "sender_not_cazoo", "sender_authentication_unverified",
   "recipient_mismatch", "mailbox_not_connected", "retrieval_failed",
@@ -24,9 +28,10 @@ function canForwardReceipt(receipt: ForwardableReceipt) {
 }
 
 async function readForwarding(dealer: string, canManage: boolean) {
-  const row = (await db.execute(sql`SELECT enabled,recipient FROM cazoo_lead_forwarding_settings WHERE dealer_id=${dealer}`)).rows[0];
+  const row = (await db.execute(sql`SELECT enabled,recipient,forward_replies FROM cazoo_lead_forwarding_settings WHERE dealer_id=${dealer}`)).rows[0];
   return {
     enabled: row?.enabled === true,
+    forwardReplies: canManage && row?.forward_replies === true,
     recipient: canManage && typeof row?.recipient === "string" ? row.recipient : null,
     canManage,
   };
@@ -94,13 +99,19 @@ export function createCazooLeadRouter(retrieve = retrieveReply) {
       res.status(409).json({ error: "Connect the Cazoo mailbox before enabling forwarding." });
       return;
     }
+    if (input.data.forwardReplies && (!input.data.enabled || !replyDomain)) {
+      res.status(409).json({ error: "Connect customer reply routing and enable enquiry forwarding first." });
+      return;
+    }
     try {
+      const forwardReplies = input.data.enabled ? input.data.forwardReplies ?? null : false;
       const saved = await db.execute(sql`
-        INSERT INTO cazoo_lead_forwarding_settings(dealer_id,recipient,enabled,updated_by)
-        SELECT d.id,${recipient},${input.data.enabled},${req.staff!.authUserId}
+        INSERT INTO cazoo_lead_forwarding_settings(dealer_id,recipient,enabled,forward_replies,updated_by)
+        SELECT d.id,${recipient},${input.data.enabled},COALESCE(${forwardReplies}::boolean,false),${req.staff!.authUserId}
         FROM dealerships d WHERE d.id=${dealer} AND d.status='active' AND d.stock_platform='cazoo'
           AND NOT EXISTS(SELECT 1 FROM dealer_demos m WHERE m.dealer_id=d.id AND m.converted_at IS NULL)
         ON CONFLICT(dealer_id) DO UPDATE SET recipient=excluded.recipient,enabled=excluded.enabled,
+          forward_replies=COALESCE(${forwardReplies}::boolean,cazoo_lead_forwarding_settings.forward_replies),
           updated_by=excluded.updated_by,updated_at=now()
         RETURNING dealer_id`);
       if (!saved.rows.length) {

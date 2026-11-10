@@ -140,6 +140,7 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
     appearance: { ...defaultEmailAppearance },
   };
   const sends: any[] = [];
+  let lastReplyTo = "";
   const providerId = randomUUID();
   let providerEvent = "opened",
     providerHTTP = 200;
@@ -152,7 +153,8 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
     "/api",
     createEnquiryEmailRouter({
       settings: async () => config,
-      send: async (_settings, body) => {
+      send: async (settings, body) => {
+        lastReplyTo = settings.replyTo;
         sends.push(body);
         await new Promise((r) => setTimeout(r, 20));
         if (failure) throw new Error(failure);
@@ -832,6 +834,82 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
     assert.equal(Buffer.from(sends.at(-1).attachments[0].content, "base64").subarray(0, 5).toString(), "%PDF-");
     assert.equal((await call(base + "/email", pdfPayload)).status, 200);
     assert.equal(sends.length, beforePdfSend + 1, "an exact retry does not send a second PDF email");
+
+    // Cazoo staff replies use the same reviewed transport and scoped thread.
+    const cazooId = randomUUID(), routeId = randomUUID(), sender = "customer@example.test", mergedEnquiryId = randomUUID();
+    const replyId = randomUUID(), laterReplyId = randomUUID(), reviewReplyId = randomUUID();
+    const originalContact = "original-contact@example.test";
+    const inboundMessageId = "<customer-reply@example.test>";
+    await db.insert(enquiriesTable).values({
+      id: cazooId, dealerId: "a", type: "general", source: "cazoo",
+      customerName: "Example Customer", email: originalContact, message: "Is this still available?",
+    });
+    await db.execute(sql`INSERT INTO enquiry_email_reply_routes(id,dealer_id,enquiry_id,send_key,reply_address,recipient) VALUES(${routeId}::uuid,'a',${cazooId}::uuid,'prior-send','r-prior@replies.a.example.test',${sender})`);
+    await db.execute(sql`INSERT INTO enquiry_email_replies(id,provider_id,route_id,dealer_id,enquiry_id,status,sender,message_id,subject,received_at) VALUES
+      (${replyId}::uuid,${randomUUID()}::uuid,${routeId}::uuid,'a',${cazooId}::uuid,'received',${sender},${inboundMessageId},'Re: re: Is this still available?',now()-interval '1 minute'),
+      (${laterReplyId}::uuid,${randomUUID()}::uuid,${routeId}::uuid,'a',${cazooId}::uuid,'received',${sender},'<later-message@example.test>',${"Re:\nBad subject"},now()),
+      (${reviewReplyId}::uuid,${randomUUID()}::uuid,${routeId}::uuid,'a',${cazooId}::uuid,'review','unverified@example.test','<unverified@example.test>',NULL,now())`);
+    process.env.EMAIL_REPLIES_ENABLED = "true";
+    process.env.RESEND_RECEIVING_API_KEY = "re_fictional_receiving_not_used";
+    process.env.RESEND_RECEIVING_WEBHOOK_SECRET = "fictional_receiving_secret";
+    process.env.EMAIL_REPLY_DOMAINS = JSON.stringify({ a: "replies.a.example.test" });
+    const cazoo = `/api/staff/enquiries/${cazooId}`;
+    const replyContext = await call(cazoo + "/email-context?enquiryReplyId=" + replyId);
+    assert.equal(replyContext.data.email, originalContact);
+    assert.deepEqual(replyContext.data.replyRecipient, { id: replyId, from: sender, subject: "Re: Is this still available?" });
+    assert.equal((await call(cazoo + "/email-context?enquiryReplyId=" + laterReplyId)).data.replyRecipient.subject, null);
+    assert.equal((await call(cazoo + "/email-context?enquiryReplyId=" + reviewReplyId)).data.replyRecipient, null);
+    assert.equal((await call(base + "/email-context?enquiryReplyId=" + replyId)).data.replyRecipient, null);
+    assert.equal((await call(cazoo + "/email-context?enquiryReplyId=" + replyId, undefined, "user_b", "b")).status, 404);
+    // An existing receipt can remain on the original case after an explicit merge.
+    await db.insert(enquiriesTable).values({
+      id: mergedEnquiryId, dealerId: "a", type: "general", source: "cazoo", customerName: "Example Customer",
+      email: originalContact, message: "Merged record", mergedIntoId: cazooId, mergedAt: new Date(), mergedBy: "user_a",
+    });
+    await db.execute(sql`UPDATE enquiry_email_replies SET enquiry_id=${mergedEnquiryId}::uuid WHERE id=${replyId}::uuid`);
+    assert.deepEqual((await call(cazoo + "/email-context?enquiryReplyId=" + replyId)).data.replyRecipient, replyContext.data.replyRecipient);
+    const replyDraft = { to: sender, enquiryReplyId: replyId, subject: "Re: Your enquiry", message: "Thanks for getting back to us.", includeVehicle: false, includeAppointment: false, photoIds: [], expectedRevision: 0 };
+    assert.equal((await call(cazoo + "/email-preview", { ...replyDraft, to: originalContact })).status, 409);
+    assert.equal((await call(cazoo + "/email-preview", { ...replyDraft, enquiryReplyId: reviewReplyId })).status, 409);
+    const replyPreview = await call(cazoo + "/email-preview", replyDraft);
+    assert.equal(replyPreview.status, 200);
+    assert.equal(replyPreview.data.from, config.resend.from);
+    assert.equal(replyPreview.data.repliesInInbox, true);
+    assert.ok(!JSON.stringify(replyPreview.data).includes("re_fictional"));
+    assert.equal((await db.execute(sql`SELECT count(*)::int AS n FROM enquiry_email_reply_routes WHERE enquiry_id=${cazooId}::uuid`)).rows[0]?.n, 1, "preview never issues a new reply address");
+    const replyPayload = { ...replyDraft, requestId: randomUUID(), previewHash: replyPreview.data.previewHash };
+    const beforeReplySend = sends.length;
+    assert.equal((await call(cazoo + "/email", { ...replyPayload, enquiryReplyId: laterReplyId })).status, 409, "a different same-sender reply requires another review");
+    const from = config.resend.from;
+    config.resend.from = "changed-sender@example.test";
+    assert.equal((await call(cazoo + "/email", replyPayload)).status, 409, "a different From needs another review");
+    config.resend.from = from;
+    process.env.EMAIL_REPLIES_ENABLED = "false";
+    const unrouted = await call(cazoo + "/email-preview", replyDraft);
+    assert.equal(unrouted.data.from, from);
+    assert.equal(unrouted.data.repliesInInbox, false);
+    assert.equal((await call(cazoo + "/email", replyPayload)).status, 409, "changed reply routing needs another review");
+    config.resend.enabled = false;
+    const unavailable = await call(cazoo + "/email-preview", replyDraft);
+    assert.equal(unavailable.status, 200, "staff can still review wording while sending is off");
+    assert.equal(unavailable.data.from, null);
+    assert.equal(unavailable.data.repliesInInbox, false);
+    config.resend.enabled = true;
+    process.env.EMAIL_REPLIES_ENABLED = "true";
+    assert.equal(sends.length, beforeReplySend);
+    await db.execute(sql`UPDATE email_account_throttle SET next_allowed_at=now()-interval '1 second'`);
+    const replySent = await call(cazoo + "/email", replyPayload);
+    assert.equal(replySent.status, 201, JSON.stringify(replySent.data));
+    assert.equal(replySent.data.delivery.status, "sent");
+    assert.equal(sends.length, beforeReplySend + 1);
+    assert.match(lastReplyTo, /^r-[a-f0-9]{48}@replies\.a\.example\.test$/);
+    assert.deepEqual(sends.at(-1).replyHeaders, { "In-Reply-To": inboundMessageId, References: inboundMessageId });
+    assert.equal((await db.select().from(enquiryEmailsTable).where(eq(enquiryEmailsTable.id, replySent.data.delivery.id)))[0]?.providerId, providerId);
+    const handled = (await db.execute(sql`SELECT id FROM enquiry_email_replies WHERE dealer_id='a' AND enquiry_id IN (${cazooId}::uuid,${mergedEnquiryId}::uuid) AND resolved_at IS NOT NULL`)).rows;
+    assert.deepEqual(handled.map((row) => row.id), [replyId], "only the selected reply is marked handled");
+    const handledContext = (await call(cazoo + "/email-context?enquiryReplyId=" + replyId)).data;
+    assert.deepEqual(handledContext.replyRecipient, { id: replyId, from: sender, subject: "Re: Is this still available?" }, "handled links remain useful for follow-up");
+    assert.equal(handledContext.email, originalContact);
   } finally {
     await new Promise<void>((r) => server.close(() => r()));
     await engine.close();

@@ -24,10 +24,14 @@ process.env.EMAIL_REPLIES_ENABLED = "true";
 process.env.EMAIL_REPLY_DOMAINS = JSON.stringify({
   "reply-a": "replies.a.example.test",
   "reply-b": "replies.b.example.test",
+  "reply-cazoo": "replies.cazoo.example.test",
 });
 process.env.RESEND_RECEIVING_API_KEY = "re_fictional_receiver";
 process.env.RESEND_RECEIVING_WEBHOOK_SECRET =
   "whsec_" + randomBytes(32).toString("base64");
+const cazooMailbox = "leads@cazoo.example.test";
+process.env.CAZOO_LEADS_ENABLED = "true";
+process.env.CAZOO_LEAD_MAILBOXES = JSON.stringify({ "reply-cazoo": cazooMailbox });
 const a = randomUUID(),
   a2 = randomUUID(),
   b = randomUUID();
@@ -579,6 +583,125 @@ test("receiving routes and enquiry history are durable, tenant isolated and neve
       assert.deepEqual(trace.filter(query => /pg_advisory_xact_lock/.test(query.sql)).map(query => query.params[0]), [`sale-workspace:reply-a`, `enquiry-merge:reply-a`, `enquiry-email:reply-a:${source}`]);
       assert.equal((await row(provider)).status, 'received'); assert.equal((await row(provider)).enquiry_id, primary);
     });
+  });
+
+  await t.test("a reply to a portal-sent Cazoo email stays with the original enquiry", async () => {
+    const dealerId = "reply-cazoo";
+    const enquiryId = randomUUID();
+    const otherEnquiry = randomUUID();
+    const originalLead = randomUUID();
+    const ownerMailbox = "owner@cazoo.example.test";
+    await engine.exec("INSERT INTO dealerships(id,name,status,canonical_origin,stock_platform,retailer_id,source_url) VALUES('reply-cazoo','Fictional Cazoo dealer','active','https://cazoo.example.test','cazoo','fixture','https://www.cazoo.co.uk/fixture')");
+    for (const [id, source] of [[enquiryId, "cazoo"], [otherEnquiry, "website"]]) {
+      await engine.query("INSERT INTO enquiries(id,dealer_id,source,type,customer_name,email,message,status) VALUES($1,$2,$3,'part_exchange','Fictional customer',$4,'Original enquiry','contacted')", [id, dealerId, source, request.to]);
+    }
+    await engine.query("INSERT INTO cazoo_lead_receipts(provider_id,dealer_id,mailbox,enquiry_id,status,draft_status) VALUES($1,$2,$3,$4,'imported','skipped')", [originalLead, dealerId, cazooMailbox, enquiryId]);
+    await engine.query("INSERT INTO cazoo_lead_forwarding_settings(dealer_id,recipient,enabled,updated_by) VALUES($1,$2,true,'fictional-owner')", [dealerId, ownerMailbox]);
+    const initialSettings = (await engine.query<any>("SELECT forward_replies FROM cazoo_lead_forwarding_settings WHERE dealer_id=$1", [dealerId])).rows[0];
+    assert.equal(initialSettings.forward_replies, false);
+
+    const cazooTenant = { ...tenant(), dealerId, canonicalOrigin: "https://cazoo.example.test", platform: "cazoo" as const };
+    const config = { enabled: true, apiKey: "re_fictional_cazoo_lineage_only", from: "Showroom <sales@cazoo.example.test>", replyTo: "" };
+    const send = { ...request, subject: "Your Cazoo enquiry", idempotencyKey: "cazoo-staff-reply" };
+    const outbox = await runWithTenant(cazooTenant, () => enqueueEmailOutbox({
+      enquiryId, kind: "staff", request: send, config, validation: {},
+    }));
+    const replyAddress = JSON.parse(outbox.payload!).reply_to;
+    assert.match(replyAddress, /^r-[0-9a-f]{48}@replies\.cazoo\.example\.test$/);
+
+    const app = express();
+    app.use("/hook", createCustomerEmailWebhook());
+    const server = app.listen(0, "127.0.0.1");
+    await new Promise<void>((resolve) => server.once("listening", resolve));
+    const port = (server.address() as { port: number }).port;
+    async function receive(id: string, to: string[]) {
+      const body = JSON.stringify({ type: "email.received", data: { email_id: id, to } });
+      const time = new Date();
+      const webhookId = `msg_${id}`;
+      const signature = new Webhook(process.env.RESEND_RECEIVING_WEBHOOK_SECRET!).sign(webhookId, time, body);
+      const response = await fetch(`http://127.0.0.1:${port}/hook`, {
+        method: "POST", body, headers: { "content-type": "application/json", "svix-id": webhookId,
+          "svix-timestamp": String(Math.floor(time.getTime() / 1000)), "svix-signature": signature },
+      });
+      assert.equal(response.status, 200);
+    }
+
+    try {
+      const optedOutId = randomUUID();
+      await receive(optedOutId, [replyAddress]);
+      payload = incoming(optedOutId, replyAddress);
+      await processCustomerReplies(log, transport);
+      assert.equal((await row(optedOutId)).status, "received");
+      assert.equal((await engine.query("SELECT 1 FROM cazoo_customer_reply_forwards WHERE dealer_id=$1", [dealerId])).rows.length, 0);
+
+      await engine.query("UPDATE cazoo_lead_forwarding_settings SET forward_replies=true WHERE dealer_id=$1", [dealerId]);
+      const providerId = randomUUID();
+      await receive(providerId, [replyAddress]);
+      await receive(providerId, [replyAddress]);
+      payload = incoming(providerId, replyAddress, {
+        subject: "Re: Your Cazoo enquiry", text: "Can I bring my part exchange on Saturday?",
+        message_id: "<cazoo-customer-followup@example.test>", authentication: null,
+      });
+      await processCustomerReplies(log, transport);
+      const reply = await row(providerId);
+      assert.equal(reply.status, "received");
+      assert.equal(reply.enquiry_id, enquiryId);
+      assert.equal(reply.dealer_id, dealerId);
+      const events = (await engine.query<any>("SELECT enquiry_id,dealer_id,detail FROM enquiry_events WHERE detail->>'replyId'=$1", [reply.id])).rows;
+      assert.deepEqual(events.map((event) => [event.enquiry_id, event.dealer_id, event.detail.direction]), [[enquiryId, dealerId, "inbound"]]);
+      const copies = (await engine.query<any>("SELECT q.reply_id,q.recipient,q.status,l.provider_id AS lead_provider_id FROM cazoo_customer_reply_forwards q JOIN cazoo_lead_receipts l ON l.id=q.lead_receipt_id AND l.dealer_id=q.dealer_id WHERE q.dealer_id=$1", [dealerId])).rows;
+      assert.deepEqual(copies, [{ reply_id: reply.id, recipient: ownerMailbox, status: "pending", lead_provider_id: originalLead }]);
+
+      const unrelatedAddress = await runWithTenant(cazooTenant, async () => {
+        const followUp = await routeCustomerReply({ ...send, idempotencyKey: "cazoo-follow-up" }, enquiryId);
+        assert.equal(followUp.replyHeaders?.["In-Reply-To"], "<cazoo-customer-followup@example.test>");
+        const separateThread = await routeCustomerReply({ ...send, idempotencyKey: "cazoo-other-enquiry" }, otherEnquiry);
+        assert.equal(separateThread.replyHeaders?.["In-Reply-To"], undefined);
+        return separateThread.replyTo!;
+      });
+
+      await engine.query("UPDATE enquiries SET merged_into_id=$2 WHERE id=$1", [enquiryId, otherEnquiry]);
+      const deliveryId = randomUUID();
+      await engine.query("INSERT INTO enquiry_emails(id,dealer_id,enquiry_id,recipient,subject,message,status,request_id,request_hash,created_by) VALUES($1,$2,$3,$4,'Reply','Thanks','sending',gen_random_uuid(),'fixture-hash','fictional-owner')", [deliveryId, dealerId, otherEnquiry, request.to]);
+      const targetedSend = { ...send, idempotencyKey: `enquiry-${deliveryId}` };
+      const targeted = await runWithTenant(cazooTenant, async () => {
+        const outbox = await enqueueEmailOutbox({ enquiryId: otherEnquiry, deliveryId, kind: "staff", request: targetedSend, config, validation: { enquiryReplyId: reply.id } });
+        const sent = await deliverEmailOutbox(outbox.id, { settings: async () => config, rebuild: async () => targetedSend, send: async () => randomUUID() });
+        assert.equal(sent?.status, "sent");
+        return JSON.parse(outbox.payload!);
+      });
+      assert.equal(targeted.headers?.["In-Reply-To"], "<cazoo-customer-followup@example.test>");
+      const continuationId = randomUUID();
+      await receive(continuationId, [targeted.reply_to]);
+      payload = incoming(continuationId, targeted.reply_to, { text: "Saturday works for me." });
+      await processCustomerReplies(log, transport);
+      const continuation = await row(continuationId);
+      assert.equal(continuation.enquiry_id, otherEnquiry);
+      const continuationCopy = (await engine.query<any>("SELECT q.recipient,l.provider_id AS lead_provider_id FROM cazoo_customer_reply_forwards q JOIN cazoo_lead_receipts l ON l.id=q.lead_receipt_id AND l.dealer_id=q.dealer_id WHERE q.reply_id=$1", [continuation.id])).rows[0];
+      assert.deepEqual(continuationCopy, { recipient: ownerMailbox, lead_provider_id: originalLead });
+
+      const unrelatedId = randomUUID();
+      await receive(unrelatedId, [unrelatedAddress]);
+      payload = incoming(unrelatedId, unrelatedAddress, { text: "Replying to my original website enquiry." });
+      await processCustomerReplies(log, transport);
+      const unrelated = await row(unrelatedId);
+      assert.equal(unrelated.status, "received");
+      assert.equal((await engine.query("SELECT 1 FROM cazoo_customer_reply_forwards WHERE reply_id=$1", [unrelated.id])).rows.length, 0);
+
+      const loopId = randomUUID();
+      await receive(loopId, [replyAddress, cazooMailbox]);
+      payload = incoming(loopId, replyAddress, { from: "Cazoo <dealerleads@info.cazoo.co.uk>", to: [replyAddress, cazooMailbox] });
+      await processCustomerReplies(log, transport);
+      const loop = await row(loopId);
+      assert.equal(loop.status, "review");
+      assert.equal(loop.error_code, "sender_mismatch");
+      assert.equal((await engine.query("SELECT 1 FROM enquiry_events WHERE detail->>'replyId'=$1", [loop.id])).rows.length, 0);
+      assert.equal((await engine.query("SELECT 1 FROM cazoo_lead_receipts WHERE dealer_id=$1", [dealerId])).rows.length, 1);
+      assert.equal((await engine.query("SELECT 1 FROM cazoo_customer_reply_forwards WHERE dealer_id=$1", [dealerId])).rows.length, 2);
+      assert.equal((await engine.query("SELECT 1 FROM email_outbox WHERE dealer_id=$1", [dealerId])).rows.length, 2);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 
 });

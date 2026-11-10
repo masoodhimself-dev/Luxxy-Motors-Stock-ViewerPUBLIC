@@ -43,12 +43,42 @@ export function safeMessageId(value: unknown): string | null {
     ? value
     : null;
 }
+/** The approved recipient of the originating send must match the accepted sender. */
+export async function acceptedEnquiryReply(
+  enquiryId: string,
+  replyId: string,
+  executor: Executor = db,
+) {
+  if (!uuid.safeParse(enquiryId).success || !uuid.safeParse(replyId).success) return null;
+  const row = (await executor.execute(sql`
+    SELECT m.id,m.sender,m.message_id,m.subject FROM enquiry_email_replies m
+    JOIN enquiry_email_reply_routes r ON r.id=m.route_id AND r.dealer_id=m.dealer_id
+    JOIN enquiries original ON original.id=m.enquiry_id AND original.dealer_id=m.dealer_id
+    JOIN enquiries target ON target.id=coalesce(original.merged_into_id,original.id) AND target.dealer_id=m.dealer_id
+    JOIN enquiries origin_route ON origin_route.id=r.enquiry_id AND origin_route.dealer_id=m.dealer_id
+      AND coalesce(origin_route.merged_into_id,origin_route.id)=target.id
+    WHERE m.dealer_id=${currentDealerId()} AND target.id=${enquiryId}::uuid
+      AND target.merged_into_id IS NULL AND target.archived_at IS NULL
+      AND m.id=${replyId}::uuid AND m.status='received' AND m.error_code IS NULL AND m.sender=r.recipient
+  `)).rows[0];
+  const from = mailbox(row?.sender);
+  if (!row || !from) return null;
+  const rawSubject = typeof row.subject === "string" ? row.subject : "";
+  const subject = /[\x00-\x1f\x7f]/.test(rawSubject) ? "" : rawSubject.trim().replace(/^(?:re:\s*)+/i, "");
+  return {
+    id: String(row.id),
+    from,
+    messageId: safeMessageId(row.message_id),
+    subject: subject && subject.length <= 196 ? `Re: ${subject}` : null,
+  };
+}
 /** Reuse one route per immutable send key, including provider retries after restart. */
 export async function routeCustomerReply(
   request: EmailRequest,
   enquiryId: string,
   executor: Executor = db,
   create = true,
+  enquiryReplyId?: string,
 ): Promise<EmailRequest> {
   const dealer = currentDealerId();
   let row = (
@@ -62,7 +92,10 @@ export async function routeCustomerReply(
     if (!config) return request;
     const recipient = mailbox(request.to);
     if (!recipient) throw new Error("Check the email recipient.");
-    const latest = (
+    const accepted = enquiryReplyId ? await acceptedEnquiryReply(enquiryId, enquiryReplyId, executor) : null;
+    if (enquiryReplyId && accepted?.from !== recipient)
+      throw new Error("The selected customer reply is no longer available for this address.");
+    const latest = enquiryReplyId ? null : (
       await executor.execute(
         sql`SELECT message_id FROM enquiry_email_replies WHERE dealer_id=${dealer} AND enquiry_id=${enquiryId}::uuid AND status='received' AND lower(sender)=${recipient} ORDER BY received_at DESC,id DESC LIMIT 1`,
       )
@@ -70,7 +103,7 @@ export async function routeCustomerReply(
     const address = `r-${randomBytes(24).toString("hex")}@${config.domain}`;
     row = (
       await executor.execute(
-        sql`INSERT INTO enquiry_email_reply_routes(dealer_id,enquiry_id,send_key,reply_address,recipient,in_reply_to) VALUES(${dealer},${enquiryId}::uuid,${request.idempotencyKey},${address},${recipient},${safeMessageId(latest?.message_id)}) ON CONFLICT(dealer_id,send_key) DO UPDATE SET send_key=excluded.send_key RETURNING reply_address,in_reply_to,recipient,enquiry_id`,
+        sql`INSERT INTO enquiry_email_reply_routes(dealer_id,enquiry_id,send_key,reply_address,recipient,in_reply_to) VALUES(${dealer},${enquiryId}::uuid,${request.idempotencyKey},${address},${recipient},${accepted?.messageId ?? safeMessageId(latest?.message_id)}) ON CONFLICT(dealer_id,send_key) DO UPDATE SET send_key=excluded.send_key RETURNING reply_address,in_reply_to,recipient,enquiry_id`,
       )
     ).rows[0];
   }
@@ -266,7 +299,7 @@ export async function processCustomerReplies(
             ? "recipient_mismatch"
             : sender !== locked.recipient
               ? "sender_mismatch"
-              : email.authentication?.dmarc === "fail"
+              : email.authentication?.dmarc?.trim().toLowerCase() === "fail"
                 ? "authentication_failed"
                 : null;
         const message = (
@@ -294,6 +327,8 @@ export async function processCustomerReplies(
           await tx.execute(
             sql`UPDATE enquiries SET archived_at=NULL,archive_delete_at=NULL,archive_review_at=NULL,archive_hold_reason=NULL,status=CASE WHEN archived_at IS NOT NULL THEN 'new'::enquiry_status ELSE status END,workspace_revision=workspace_revision+1,updated_at=now() WHERE id=${enquiry}::uuid AND dealer_id=${dealer}`,
           );
+          const { queueCazooCustomerReplyForward } = await import("./cazoo-customer-reply-forward-queue");
+          await queueCazooCustomerReplyForward({ replyId: id, dealerId: dealer, originEnquiryId: String(row.enquiry_id) }, tx);
         }
       });
     } catch {

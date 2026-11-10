@@ -85,14 +85,18 @@ test("Cazoo forwarding is scoped, verified and restart-safe for imported and rev
     resend: { enabled: true, apiKey: "re_fictional_only", from: "Fictional Motors <sales@example.test>", replyTo: "sales@example.test" },
   }));
 
-  async function receipt({ status = "review", error = "unrecognised_subject", correlation = randomUUID().replace(/-/g, "") }: {
-    status?: string; error?: string | null; correlation?: string;
+  async function receipt({ status = "review", error = "unrecognised_subject", correlation = randomUUID().replace(/-/g, ""), customerEmail = null }: {
+    status?: string; error?: string | null; correlation?: string; customerEmail?: string | null;
   } = {}) {
     const row = { id: randomUUID(), dealer_id: tenant.dealerId, provider_id: randomUUID(), mailbox: leadMailbox };
-    await engine.query(`INSERT INTO cazoo_lead_receipts(id,dealer_id,provider_id,mailbox,status,error_code,received_at)
-      VALUES($1,$2,$3,$4,$5,$6,now()-interval '1 day')`, [row.id, row.dealer_id, row.provider_id, row.mailbox, status, error]);
+    const enquiryId = status === "imported" ? randomUUID() : null;
+    if (enquiryId) await engine.query(`INSERT INTO enquiries(id,dealer_id,type,customer_name,email,message,source)
+      VALUES($1,$2,'general','Fictional Buyer',$3,'I am interested','cazoo')`, [enquiryId, row.dealer_id, customerEmail]);
+    await engine.query(`INSERT INTO cazoo_lead_receipts(id,dealer_id,provider_id,mailbox,status,error_code,enquiry_id,received_at)
+      VALUES($1,$2,$3,$4,$5,$6,$7,now()-interval '1 day')`, [row.id, row.dealer_id, row.provider_id, row.mailbox, status, error, enquiryId]);
     return {
       row,
+      enquiryId,
       email: {
         id: row.provider_id,
         to: [row.mailbox],
@@ -142,13 +146,16 @@ test("Cazoo forwarding is scoped, verified and restart-safe for imported and rev
   assert.deepEqual(sent.to, [recipient]);
   assert.match(sent.text, /Is the car available\?/);
   assert.match(sent.html, /&lt;script&gt;/);
+  const tenantOrigin = `https://${tenant.dealerId}.example.test`;
+  assert.ok(sent.text.includes(`${tenantOrigin}/portal?section=settings&settingsTab=emails`));
+  assert.doesNotMatch(sent.text, /enquiryId|enquiryAction/);
   assert.equal(sent.reply_to, undefined);
   assert.equal(sent.attachments, undefined);
   assert.equal((await delivery(review.row.id))?.status, "sent");
   assert.equal((await delivery(review.row.id))?.body, null);
   assert.equal((await delivery(review.row.id))?.payload, null);
 
-  const clean = await receipt({ status: "imported", error: null });
+  const clean = await receipt({ status: "imported", error: null, customerEmail: "buyer@example.test" });
   clean.email.text = partExchangeLead("buyer@example.test ( buyer@example.test )").replace(/22222222222222222222222222222222/, clean.correlation);
   clean.email.subject = partExchangeSubject.replace(/^Cazoo lead: /, "");
   assert.equal(await queueCazooLeadForward(clean.row, clean.email), "queued");
@@ -160,6 +167,12 @@ test("Cazoo forwarding is scoped, verified and restart-safe for imported and rev
     assert.match(email.text, /Enquiry: Part exchange · Urgent · Availability\nTrade-in: AB12 CDE · 140,000 miles/);
     assert.match(email.text, /I have a part exchange/);
     assert.doesNotMatch(email.html, /https:\/\/example\.test\/tracking|0001-01-01/);
+    const route = `${tenantOrigin}/portal?section=notifications&workView=customers&enquiryId=${clean.enquiryId}`;
+    assert.ok(email.text.includes(`Reply in DealerOS\n${route}&enquiryAction=reply`));
+    assert.ok(email.text.includes(`Fix email address\n${route}&enquiryAction=fix-email`));
+    for (const action of ["reply", "fix-email"]) {
+      assert.ok(email.html.includes(`href="${`${route}&enquiryAction=${action}`.replace(/&/g, "&amp;")}"`));
+    }
     return "fixture-clean-delivery";
   } });
   assert.equal((await delivery(clean.row.id))?.status, "sent");
@@ -167,6 +180,20 @@ test("Cazoo forwarding is scoped, verified and restart-safe for imported and rev
   const partExchangeWithConflictingEmail = renderCazooForwardEmail(partExchangeSubject, partExchangeLead("buyer@example.test ( different@example.test )"));
   assert.equal(partExchangeWithConflictingEmail.replyTo, undefined);
   assert.match(partExchangeWithConflictingEmail.text, /Customer email unavailable/);
+
+  const noEmail = await receipt({ status: "imported", error: "customer_email_missing" });
+  noEmail.email.subject = structuredSubject.replace(/^Cazoo lead: /, "");
+  noEmail.email.text = structuredLead("buyer@example.test ( different@example.test )").replace(/22222222222222222222222222222222/, noEmail.correlation);
+  assert.equal(await queueCazooLeadForward(noEmail.row, noEmail.email), "queued");
+  await processCazooLeadForwards({ send: async (_settings, payload) => {
+    const email = JSON.parse(payload);
+    assert.equal(email.reply_to, undefined);
+    assert.match(email.text, /Customer email unavailable/);
+    assert.ok(email.text.includes(`Add customer email\n${tenantOrigin}/portal?section=notifications&workView=customers&enquiryId=${noEmail.enquiryId}&enquiryAction=fix-email`));
+    assert.doesNotMatch(email.html, /enquiryAction=reply|buyer@example\.test|different@example\.test/);
+    return "fixture-add-email";
+  } });
+  assert.equal((await delivery(noEmail.row.id))?.status, "sent");
 
   const priorPartExchange = await receipt();
   priorPartExchange.email.subject = partExchangeSubject.replace(/^Cazoo lead: /, "");
@@ -190,6 +217,27 @@ test("Cazoo forwarding is scoped, verified and restart-safe for imported and rev
     return "fixture-part-ex-retry";
   } });
   assert.equal((await delivery(priorPartExchange.row.id))?.status, "sent");
+
+  const beforePortalActions = await receipt({ status: "imported", error: null, customerEmail: "buyer@example.test" });
+  beforePortalActions.email.subject = partExchangeSubject.replace(/^Cazoo lead: /, "");
+  beforePortalActions.email.text = partExchangeLead("buyer@example.test").replace(/22222222222222222222222222222222/, beforePortalActions.correlation);
+  assert.equal(await queueCazooLeadForward(beforePortalActions.row, beforePortalActions.email), "queued");
+  const oldPortalContent = renderCazooForwardEmail(partExchangeSubject, beforePortalActions.email.text);
+  const oldPortalRequest = await runWithTenant(tenant, () => prepareEmailWithSettings(
+    { enabled: true, apiKey: "re_fictional_only", from: "Fictional Motors <sales@example.test>", replyTo: "" },
+    { ...oldPortalContent, to: recipient, idempotencyKey: `cazoo-lead-forward-${beforePortalActions.row.id}` },
+  ));
+  const oldPortalPayload = JSON.stringify(oldPortalRequest.body);
+  await engine.query("UPDATE cazoo_lead_forwards SET attempts=1,payload=$2,payload_hash=$3,account_hash=$4 WHERE receipt_id=$1", [
+    beforePortalActions.row.id, oldPortalPayload, createHash("sha256").update(oldPortalPayload).digest("hex"), emailAccountHash(oldPortalRequest.config),
+  ]);
+  await processCazooLeadForwards({ send: async (_settings, payload, key) => {
+    assert.equal(payload, oldPortalPayload);
+    assert.equal(key, `cazoo-lead-forward-${beforePortalActions.row.id}`);
+    assert.doesNotMatch(payload, /enquiryAction=/);
+    return "fixture-before-portal-retry";
+  } });
+  assert.equal((await delivery(beforePortalActions.row.id))?.status, "sent");
 
   const legacy = await receipt({ status: "imported", error: null });
   legacy.email.subject = structuredSubject.replace(/^Cazoo lead: /, "");

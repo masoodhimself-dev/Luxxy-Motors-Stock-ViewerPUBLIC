@@ -20,7 +20,7 @@ describe('AI and archived Inbox folders',()=>{
     expect(isAiEnquiry(connected)).toBe(true);
     expect(isAiEnquiry(sourceOnly)).toBe(false);
     expect(inboxFolderEntries(all,'ai')).toEqual([connected]);
-    expect(inboxFolderEntries(all,'enquiries')).toEqual([sourceOnly,manual]);
+    expect(inboxFolderEntries(all,'enquiries')).toEqual(all);
   });
   it('keeps archived records searchable in Archive and out of every active filter',()=>{
     const archived=record('archived',{archivedAt:'2026-11-01T12:00:00Z',archiveDeleteAt:'2026-12-01T12:00:00Z',pendingEmailReplies:1,appointmentAt:'2026-11-03T10:00:00Z'});
@@ -35,7 +35,7 @@ describe('AI and archived Inbox folders',()=>{
     const child=record('child',{mergedIntoId:parent.id,source:'cazoo',aiProvider:'cazoo',aiDraftStatus:'failed'});
     expect(inboxFolderEntries([parent,child],'ai')).toEqual([parent,child]);
     expect(inboxFilter(inboxFolderEntries([parent,child],'ai'),'all','',now)).toEqual([parent]);
-    expect(inboxFolderEntries([parent,child],'enquiries')).toEqual([]);
+    expect(inboxFolderEntries([parent,child],'enquiries')).toEqual([parent,child]);
   });
 });
 

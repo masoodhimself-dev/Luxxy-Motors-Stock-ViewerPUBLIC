@@ -1399,8 +1399,15 @@ export function EnquiriesPanel({
   };
   const routeSearch = useSearch();
   const [location, navigate] = useLocation();
-  const requestedEnquiry = new URLSearchParams(routeSearch).get("enquiryId");
-  const requestedDeskView = new URLSearchParams(routeSearch).get("deskView");
+  const params = new URLSearchParams(routeSearch);
+  const requestedEnquiry = params.get("enquiryId");
+  const requestedDeskView = params.get("deskView");
+  const requestedAction = params.get("enquiryAction");
+  const linkedReplyAction =
+    canEmail && requestedEnquiry && (requestedAction === "reply" || requestedAction === "fix-email")
+      ? requestedAction
+      : undefined;
+  const enquiryReplyId = linkedReplyAction === "reply" ? params.get("enquiryReplyId") ?? undefined : undefined;
   const openedEnquiry = useRef<string | null>(null);
   const [mode, setMode] = useState<
     "new" | "history" | "calendar" | "callbacks"
@@ -1614,6 +1621,8 @@ export function EnquiriesPanel({
       if (requestedEnquiry === id) {
         const params = new URLSearchParams(routeSearch);
         params.delete("enquiryId");
+        params.delete("enquiryAction");
+        params.delete("enquiryReplyId");
         navigate(`${location || "/portal"}?${params}`);
       }
       client.setQueriesData<Enquiry[]>(
@@ -2090,6 +2099,8 @@ export function EnquiriesPanel({
               loading={query.isLoading}
               error={query.isError}
               refreshing={query.isFetching}
+              linkedReplyAction={selectedEnquiryId === requestedEnquiry ? linkedReplyAction : undefined}
+              enquiryReplyId={selectedEnquiryId === requestedEnquiry ? enquiryReplyId : undefined}
               missingRequested={missingRequested}
               onRefresh={() => {
                 void query.refetch();

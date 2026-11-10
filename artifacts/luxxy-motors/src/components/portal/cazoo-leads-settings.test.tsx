@@ -42,17 +42,27 @@ it("saves an explicit destination only after the owner submits, and can switch f
   expect(save).toBeDisabled();
   fireEvent.change(form.getByLabelText("Destination email"), { target: { value: "owner@example.test" } });
   expect(transport).toHaveBeenCalledTimes(1);
+  const replies = form.getByRole("switch", { name: "Also forward customer replies" });
+  expect(replies).not.toBeChecked();
   fireEvent.click(save);
   expect(await form.findByRole("status")).toHaveTextContent("Forwarding turned on.");
   expect(transport).toHaveBeenLastCalledWith(endpoint + "/forwarding", expect.objectContaining({
-    method: "PUT", body: JSON.stringify({ enabled: true, recipient: "owner@example.test" }),
+    method: "PUT", body: JSON.stringify({ enabled: true, recipient: "owner@example.test", forwardReplies: false }),
+  }));
+  fireEvent.click(form.getByRole("switch", { name: "Also forward customer replies" }));
+  expect(form.getByRole("switch", { name: "Also forward customer replies" })).toBeChecked();
+  expect(transport).toHaveBeenCalledTimes(2);
+  fireEvent.click(save);
+  expect(await form.findByText("Enquiries and customer replies will be forwarded.")).toBeInTheDocument();
+  expect(transport).toHaveBeenLastCalledWith(endpoint + "/forwarding", expect.objectContaining({
+    method: "PUT", body: JSON.stringify({ enabled: true, recipient: "owner@example.test", forwardReplies: true }),
   }));
   fireEvent.click(toggle);
   expect(form.queryByLabelText("Destination email")).not.toBeInTheDocument();
   fireEvent.click(save);
   expect(await form.findByRole("status")).toHaveTextContent("Forwarding turned off.");
   expect(transport).toHaveBeenLastCalledWith(endpoint + "/forwarding", expect.objectContaining({
-    method: "PUT", body: JSON.stringify({ enabled: false, recipient: null }),
+    method: "PUT", body: JSON.stringify({ enabled: false, recipient: null, forwardReplies: false }),
   }));
 });
 

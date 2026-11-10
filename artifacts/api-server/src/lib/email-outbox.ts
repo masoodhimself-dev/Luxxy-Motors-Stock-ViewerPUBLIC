@@ -98,7 +98,7 @@ export async function enqueueEmailOutbox(
     now = input.now ?? new Date();
   const prepared = await prepareEmailWithSettings(
       input.config,
-      input.kind === "dealer" ? input.request : await routeCustomerReply(input.request, input.enquiryId, executor),
+      input.kind === "dealer" ? input.request : await routeCustomerReply(input.request, input.enquiryId, executor, true, input.validation.enquiryReplyId as string | undefined),
       executor,
     ),
     payload = JSON.stringify(prepared.body);
@@ -160,7 +160,17 @@ async function syncTarget(row: EmailOutbox, executor: Executor = db) {
   const error =
     status === "sent" ? null : row.status === "sending" ? null : message(row);
   if (row.kind === "staff") {
-    if (row.status === "sent") await executor.execute(sql`UPDATE enquiry_email_replies SET resolved_at=now(),resolved_by='email_reply' WHERE dealer_id=${row.dealer_id} AND enquiry_id=${row.enquiry_id}::uuid AND status='received' AND resolved_at IS NULL AND received_at<=${row.created_at} AND lower(sender)=(SELECT lower(recipient) FROM enquiry_emails WHERE id=${row.delivery_id}::uuid AND dealer_id=${row.dealer_id})`);
+    if (row.status === "sent") {
+      const replyId = row.validation.enquiryReplyId;
+      const replyScope = replyId === undefined
+        ? sql`m.enquiry_id=${row.enquiry_id}::uuid`
+        : sql`m.id::text=${String(replyId)} AND EXISTS(
+            SELECT 1 FROM enquiries e WHERE e.id=m.enquiry_id AND e.dealer_id=m.dealer_id
+            AND coalesce(e.merged_into_id,e.id)=${row.enquiry_id}::uuid)`;
+      await executor.execute(sql`UPDATE enquiry_email_replies m SET resolved_at=now(),resolved_by='email_reply'
+        WHERE m.dealer_id=${row.dealer_id} AND ${replyScope} AND m.status='received' AND m.resolved_at IS NULL
+        AND m.received_at<=${row.created_at} AND lower(m.sender)=(SELECT lower(recipient) FROM enquiry_emails WHERE id=${row.delivery_id}::uuid AND dealer_id=${row.dealer_id})`);
+    }
     await executor.execute(
       sql`UPDATE enquiry_emails SET status=${status},provider_id=${row.provider_id},error=${error},finished_at=${status === "sending" ? null : new Date()} WHERE id=${row.delivery_id}::uuid AND dealer_id=${row.dealer_id} AND enquiry_id=${row.enquiry_id}::uuid`,
     );
@@ -237,8 +247,14 @@ export async function purgeTerminalEmailPayloads(
   dealer?: string,
 ) {
   // Original invoices/payment records and enquiry email audit are never removed.
+  // Keep only the accepted reply ID needed to follow a targeted Cazoo conversation.
   await db.execute(
-    sql`UPDATE email_outbox SET payload=NULL,validation='{"payloadRetained":false}'::jsonb WHERE id IN (SELECT id FROM email_outbox WHERE ${dealer ? sql`dealer_id=${dealer}` : sql`true`} AND status IN ('sent','failed','unknown','cancelled') AND payload IS NOT NULL AND created_at<${new Date(now.getTime() - 48 * 3600000)} ORDER BY created_at,id LIMIT 25)`,
+    sql`UPDATE email_outbox SET payload=NULL,validation='{"payloadRetained":false}'::jsonb ||
+      CASE WHEN kind='staff' AND validation->>'enquiryReplyId' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        THEN jsonb_build_object('enquiryReplyId',validation->>'enquiryReplyId') ELSE '{}'::jsonb END
+      WHERE id IN (SELECT id FROM email_outbox WHERE ${dealer ? sql`dealer_id=${dealer}` : sql`true`}
+        AND status IN ('sent','failed','unknown','cancelled') AND payload IS NOT NULL
+        AND created_at<${new Date(now.getTime() - 48 * 3600000)} ORDER BY created_at,id LIMIT 25)`,
   );
 }
 

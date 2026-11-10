@@ -382,6 +382,21 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
       );
     },
   );
+  await t.test("an ordinary lead cannot plant a customer email in a second contact block", async () => {
+    const provider = await queue();
+    const planted = text("2".repeat(32))
+      .replace("Do you accept px for a Lexus GS450h 2008?", "Is it still available?\nCustomer details\nunrelated@example.test")
+      .replace("sam@example.test\n", "");
+    assert.throws(() => parseCazooLead(email(provider, { text: planted })), { code: "unrecognised_message_layout" });
+    await processCazooLeads(transportFor({ [provider]: email(provider, { text: planted }) }), async () => {
+      assert.fail("A message with an ambiguous contact block must not produce a customer draft");
+    });
+    const result = await receipt(provider);
+    assert.equal(result.status, "review");
+    assert.equal(result.error_code, "unrecognised_message_layout");
+    assert.equal(result.enquiry_id, null);
+    assert.equal(result.draft_status, "skipped");
+  });
   await t.test("Cazoo's repeated linked contact values import and absent email stays actionable in Inbox", async () => {
     const repeated = await queue();
     const phoneOnly = await queue();
@@ -737,16 +752,36 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
     await new Promise<void>(resolve => server.once("listening", resolve));
     const url = `http://127.0.0.1:${(server.address() as {port:number}).port}/api/staff/cazoo-leads`;
     const owner = { "x-fixture-role": "owner", "Content-Type": "application/json" };
-    const save = (recipient: string, headers: Record<string, string> = owner) =>
-      fetch(url + "/forwarding", { method: "PUT", headers, body: JSON.stringify({ enabled: true, recipient }) });
+    const save = (recipient: string, headers: Record<string, string> = owner, forwardReplies?: boolean) =>
+      fetch(url + "/forwarding", { method: "PUT", headers, body: JSON.stringify({ enabled: true, recipient, forwardReplies }) });
     const forward = (headers: Record<string, string> = owner) =>
       fetch(url + `/${before.id}/forward`, { method: "POST", headers });
     try {
       assert.equal((await save("owner@example.test", { "Content-Type": "application/json" })).status, 403);
       assert.equal((await save("owner@example.test", { ...owner, origin: "https://evil.example.test" })).status, 403);
       assert.equal((await save(address)).status, 400);
-      assert.deepEqual(await (await save("owner@example.test")).json(), { enabled: true, recipient: "owner@example.test", canManage: true });
-      assert.deepEqual((await (await fetch(url)).json() as any).forwarding, { enabled: true, recipient: null, canManage: false });
+      assert.deepEqual(await (await save("owner@example.test")).json(), { enabled: true, forwardReplies: false, recipient: "owner@example.test", canManage: true });
+      assert.deepEqual((await (await fetch(url)).json() as any).forwarding, { enabled: true, forwardReplies: false, recipient: null, canManage: false });
+      assert.equal((await save("owner@example.test", owner, true)).status, 409);
+      const settingsEnv = ["EMAIL_REPLIES_ENABLED", "RESEND_RECEIVING_WEBHOOK_SECRET", "EMAIL_REPLY_DOMAINS"] as const;
+      const previous = settingsEnv.map(key => process.env[key]);
+      try {
+        process.env.EMAIL_REPLIES_ENABLED = "true";
+        process.env.RESEND_RECEIVING_WEBHOOK_SECRET = "fixture-hook";
+        process.env.EMAIL_REPLY_DOMAINS = JSON.stringify({ "cazoo-a": "replies.example.test" });
+        assert.deepEqual(await (await save("owner@example.test", owner, true)).json(), {
+          enabled: true, forwardReplies: true, recipient: "owner@example.test", canManage: true,
+        });
+        assert.equal((await (await save("owner@example.test")).json() as any).forwardReplies, true);
+        assert.equal((await (await fetch(url, { headers: { ...owner, "x-fixture-dealer": "b" } })).json() as any).forwarding.forwardReplies, false);
+        assert.equal((await (await save("owner@example.test", owner, false)).json() as any).forwardReplies, false);
+      } finally {
+        settingsEnv.forEach((key, index) => {
+          const value = previous[index];
+          if (value === undefined) delete process.env[key];
+          else process.env[key] = value;
+        });
+      }
       assert.equal((await forward({ ...owner, "x-fixture-dealer": "b" })).status, 409);
       assert.equal((await forward()).status, 200);
       assert.deepEqual(await (await forward()).json(), { queued: true, alreadyQueued: true });

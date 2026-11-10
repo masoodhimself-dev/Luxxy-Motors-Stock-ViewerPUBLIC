@@ -70,27 +70,27 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('the rebuilt Inbox queue', () => {
-  it('separates automated enquiries and Archive without hiding ordinary Cazoo leads or web bookings',()=>{
+  it('keeps automated cases in Enquiries and offers focused AI and Archive views',()=>{
     const manual=record('Manual',{source:'cazoo'}), automated=record('AI customer',{source:'cazoo',aiProvider:'cazoo',aiDraftStatus:'ready'});
     const archived=record('Archived customer',{archivedAt:'2026-11-01T10:00:00Z',archiveDeleteAt:'2026-12-01T10:00:00Z'});
     show({entries:[manual,automated,archived]});
-    expect(screen.getByRole('tab',{name:'Enquiries 1'})).toHaveAttribute('aria-selected','true');
+    expect(screen.getByRole('tab',{name:'Enquiries'})).toHaveAttribute('aria-selected','true');
     expect(screen.getByTestId('enquiry-Manual')).toBeVisible();
-    expect(screen.queryByTestId('enquiry-AI customer')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab',{name:'AI enquiries 1'}));
+    expect(screen.getByTestId('enquiry-AI customer')).toBeVisible();
+    fireEvent.click(screen.getByRole('tab',{name:'AI enquiries'}));
     expect(screen.getByTestId('enquiry-AI customer')).toBeVisible();
     expect(screen.getByText('Draft ready')).toBeVisible();
     expect(screen.queryByTestId('enquiry-Manual')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab',{name:'Archive 1'}));
+    fireEvent.click(screen.getByRole('tab',{name:'Archive'}));
     expect(screen.getByTestId('enquiry-Archived customer')).toBeVisible();
     expect(screen.queryByRole('group',{name:'Filter conversations'})).not.toBeInTheDocument();
     expect(screen.getByText('Recover for 30 days. Linked business records are protected.')).toBeVisible();
   });
-  it('opens an AI deep link in its own folder and protects an unsaved reply when tabs change',()=>{
+  it('opens an AI-assisted deep link in the main queue and protects an unsaved reply when tabs change',()=>{
     show({entries:[record('AI customer',{source:'cazoo',aiProvider:'cazoo',aiDraftStatus:'ready'}),record('Manual')],selectedId:'AI customer',onBack:()=>false});
-    expect(screen.getByRole('tab',{name:'AI enquiries 1'})).toHaveAttribute('aria-selected','true');
-    fireEvent.click(screen.getByRole('tab',{name:'Archive 0'}));
-    expect(screen.getByRole('tab',{name:'AI enquiries 1'})).toHaveAttribute('aria-selected','true');
+    expect(screen.getByRole('tab',{name:'Enquiries'})).toHaveAttribute('aria-selected','true');
+    fireEvent.click(screen.getByRole('tab',{name:'Archive'}));
+    expect(screen.getByRole('tab',{name:'Enquiries'})).toHaveAttribute('aria-selected','true');
     expect(screen.getByRole('region',{name:'Selected case AI customer'})).toBeVisible();
   });
   it('keeps website, Cazoo and pending bookings together, with accurate colours and elapsed times', () => {
@@ -194,7 +194,7 @@ describe('Inbox conversation selection', () => {
       cars: [{ id: 'child-car' }, { id: 'Primary-car' }] as Car[] });
     expect(screen.getByTestId('enquiry-Primary')).toBeVisible();
     expect(screen.queryByTestId('enquiry-Booking')).not.toBeInTheDocument();
-    expect(screen.getByText('2 linked')).toBeVisible();
+    expect(screen.getByText('2 linked enquiries')).toBeVisible();
     expect(screen.getByRole('region', { name: 'Selected case Booking' })).toHaveTextContent('Selected vehicle: child-car');
     expect(state.customerCase).toHaveBeenLastCalledWith(expect.objectContaining({ entry: child, entries: all }));
     fireEvent.click(screen.getByText('2 linked enquiries'));
@@ -277,6 +277,7 @@ describe('Inbox loading and empty states', () => {
  it('filters by my enquiries or unassigned while preserving complete linked cases',()=>{
   const mine=record('Mine',{assignedToId:'staff-me'}),other=record('Other',{assignedToId:'staff-other'}),unassigned=record('Unassigned');
   show({entries:[mine,other,unassigned],currentStaffId:'staff-me'});
+  fireEvent.click(screen.getByText('Tools', { selector: 'summary' }));
   fireEvent.change(screen.getByRole('combobox',{name:'Enquiry owner'}),{target:{value:'mine'}});
   expect(screen.getByTestId('enquiry-Mine')).toBeVisible();
   expect(screen.queryByTestId('enquiry-Other')).not.toBeInTheDocument();
@@ -284,8 +285,15 @@ describe('Inbox loading and empty states', () => {
   expect(screen.getByTestId('enquiry-Unassigned')).toBeVisible();
   expect(screen.queryByTestId('enquiry-Mine')).not.toBeInTheDocument();
  });
- it('advances to the next visible conversation when the completed case requests it',()=>{
-  const api=show({entries:[record('First'),record('Second')],selectedId:'First'});
+ it('advances in queue order and skips finished conversations',()=>{
+  const api=show({entries:[record('Earlier'),record('Current'),record('Next'),record('Finished',{status:'closed'})],selectedId:'Current'});
   fireEvent.click(screen.getByRole('button',{name:'Done & next'}));
-  expect(api.onSelect).toHaveBeenLastCalledWith('Second');
+  expect(api.onSelect).toHaveBeenLastCalledWith('Next');
+ });
+ it('finishes outstanding work on a linked enquiry before moving to another customer',()=>{
+  const main=record('Primary');
+  const linked=record('Linked reply',{mergedIntoId:main.id,pendingEmailReplies:1});
+  const api=show({entries:[main,linked,record('Other customer')],selectedId:main.id});
+  fireEvent.click(screen.getByRole('button',{name:'Done & next'}));
+  expect(api.onSelect).toHaveBeenLastCalledWith(linked.id);
  });

@@ -6,8 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { formatDateTime } from "./portal-ui";
 
-type ForwardingSettings = { enabled: boolean; recipient: string | null; canManage: boolean };
-type ForwardingInput = Omit<ForwardingSettings, "canManage">;
+type ForwardingInput = { enabled: boolean; recipient: string | null; forwardReplies: boolean };
+type ForwardingSettings = Omit<ForwardingInput, "forwardReplies"> & { forwardReplies?: boolean; canManage: boolean };
 type Receipt = {
   id: string;
   status: string;
@@ -74,7 +74,9 @@ function CazooForwardingSettings({ settings }: { settings: ForwardingSettings })
   const enabled = draft?.enabled ?? settings.enabled;
   const address = (draft ? draft.recipient : settings.recipient) ?? "";
   const recipient = enabled ? address.trim() || null : null;
-  const dirty = enabled !== settings.enabled || (enabled && recipient !== settings.recipient);
+  const forwardReplies = enabled && (draft?.forwardReplies ?? Boolean(settings.forwardReplies));
+  const dirty = enabled !== settings.enabled ||
+    (enabled && (recipient !== settings.recipient || forwardReplies !== Boolean(settings.forwardReplies)));
   const save = useMutation({
     mutationFn: (next: ForwardingInput) => customFetch<ForwardingSettings>("/api/staff/cazoo-leads/forwarding", {
       method: "PUT",
@@ -99,7 +101,7 @@ function CazooForwardingSettings({ settings }: { settings: ForwardingSettings })
       data-settings-dirty={dirty}
       onSubmit={(event) => {
         event.preventDefault();
-        if (dirty && !save.isPending && (!enabled || recipient)) save.mutate({ enabled, recipient });
+        if (dirty && !save.isPending && (!enabled || recipient)) save.mutate({ enabled, recipient, forwardReplies });
       }}
     >
       <div>
@@ -113,29 +115,50 @@ function CazooForwardingSettings({ settings }: { settings: ForwardingSettings })
         <Switch
           checked={enabled}
           disabled={save.isPending}
-          onCheckedChange={(next) => change({ enabled: next, recipient: address })}
+          onCheckedChange={(next) => change({ enabled: next, recipient: address, forwardReplies: next && forwardReplies })}
         />
       </label>
       {enabled && (
-        <label className="grid gap-2 text-sm font-semibold">
-          Destination email
-          <Input
-            type="email"
-            value={address}
-            autoCapitalize="none"
-            spellCheck={false}
-            maxLength={254}
-            required
-            disabled={save.isPending}
-            onChange={(event) => change({ enabled, recipient: event.currentTarget.value })}
-          />
-        </label>
+        <>
+          <label className="grid gap-2 text-sm font-semibold">
+            Destination email
+            <Input
+              type="email"
+              value={address}
+              autoCapitalize="none"
+              spellCheck={false}
+              maxLength={254}
+              required
+              disabled={save.isPending}
+              onChange={(event) => change({ enabled, recipient: event.currentTarget.value, forwardReplies })}
+            />
+          </label>
+          <div>
+            <label className="flex min-h-11 items-center justify-between gap-4 text-sm font-semibold">
+              <span>Also forward customer replies</span>
+              <Switch
+                checked={forwardReplies}
+                disabled={save.isPending}
+                onCheckedChange={(next) => change({ enabled, recipient: address, forwardReplies: next })}
+              />
+            </label>
+            <p className="text-sm text-muted-foreground">
+              Copy replies to the same address with a link to continue the conversation in DealerOS.
+            </p>
+          </div>
+        </>
       )}
       <Button type="submit" className="min-h-11 justify-self-start" disabled={!dirty || save.isPending || (enabled && !recipient)}>
         {save.isPending ? "Saving…" : "Save forwarding"}
       </Button>
-      {save.isError && <p role="alert">Could not save forwarding. Check the address and try again.</p>}
-      {save.isSuccess && <p role="status">Forwarding turned {save.data.enabled ? "on" : "off"}.</p>}
+      {save.isError && <p role="alert">
+        {(save.error as { data?: { error?: string } })?.data?.error || "Could not save forwarding. Check the address and try again."}
+      </p>}
+      {save.isSuccess && <p role="status">
+        {save.data.enabled && save.data.forwardReplies
+          ? "Enquiries and customer replies will be forwarded."
+          : `Forwarding turned ${save.data.enabled ? "on" : "off"}.`}
+      </p>}
     </form>
   );
 }

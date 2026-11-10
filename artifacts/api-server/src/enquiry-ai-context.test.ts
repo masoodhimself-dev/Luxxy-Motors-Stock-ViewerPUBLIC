@@ -72,6 +72,52 @@ test("archive and missing server-selected registration prevent lookup; customer 
   assert.equal(calls, 1);
   assert.equal(missing.contextAudit.lookups[0].errorCode, "registration_missing");
 });
+test("part exchange context includes supplied facts without the trade-in registration or condition text", async () => {
+  const data = input("Could you value my part exchange CD34 EFG? I also wrote CD34EFG.");
+  const context = await buildEnquiryAiContext({ ...data, enquiry: {
+    ...data.enquiry, type: "part_exchange", partExchangeRegistration: "CD34 EFG", partExchangeMileage: 53000,
+    partExchangeCondition: "Private description of the customer's car",
+  } });
+  assert.deepEqual(context.facts.enquiry.partExchange, {
+    registrationSupplied: true, customerReportedMileage: 53000, conditionSupplied: true, valuation: null,
+  });
+  const payload = JSON.stringify(context);
+  assert.doesNotMatch(payload, /CD34[ -]?EFG|Private description/i);
+  assert.equal(context.contextAudit.lookups[0].status, "not_requested");
+});
+test("a labelled trade-in plate is removed from Part-Ex messages without a saved plate", async () => {
+  const data = input("Can you check the MOT for VRM: CD34 EFG? Can you also check the MOT for VRM: AB12 CDE?");
+  const requested: string[] = [];
+  const context = await buildEnquiryAiContext({ ...data, enquiry: { ...data.enquiry, type: "part_exchange" }, lookupMot: async (registration) => { requested.push(registration); return history(); } });
+  assert.doesNotMatch(JSON.stringify(context), /CD34 EFG/i);
+  assert.equal(context.facts.enquiry.partExchange?.registrationSupplied, true);
+  assert.deepEqual(requested, ["AB12CDE"]);
+  assert.deepEqual(context.contextAudit.questions[0].details, { vehicle: "part_exchange", errorCode: "part_exchange_mot_not_checked" });
+  assert.equal(context.contextAudit.questions[1].outcome, "verified");
+});
+test("MOT context keeps trade-in, unclear and explicitly advertised questions separate", async () => {
+  const data = input("When does the MOT expire?");
+  const enquiry = { ...data.enquiry, type: "part_exchange", partExchangeRegistration: "CD34 EFG" };
+  const requested: string[] = [];
+  const lookupMot = async (registration: string) => { requested.push(registration); return history(); };
+  const unclear = await buildEnquiryAiContext({ ...data, enquiry, lookupMot });
+  assert.equal(unclear.contextAudit.lookups[0].status, "not_requested");
+  assert.deepEqual(unclear.contextAudit.questions[0].details, { vehicle: "unclear", errorCode: "mot_vehicle_unclear" });
+  const tradeIn = await buildEnquiryAiContext({ ...data, enquiry: { ...enquiry, message: "When does the MOT expire for CD34 EFG?" }, lookupMot });
+  assert.deepEqual(tradeIn.contextAudit.questions[0].details, { vehicle: "part_exchange", errorCode: "part_exchange_mot_not_checked" });
+  assert.deepEqual(requested, []);
+
+  const mixed = await buildEnquiryAiContext({ ...data, enquiry: {
+    ...enquiry, message: "Does the advertised car have a current MOT? Can you check my part exchange's MOT history?",
+  }, lookupMot });
+  assert.deepEqual(requested, ["AB12CDE"]);
+  assert.deepEqual(mixed.contextAudit.questions.map((check) => [check.topic, check.outcome]), [["mot", "verified"], ["mot", "unavailable"]]);
+  assert.equal(verifiedMot(mixed).history.length, 0, "Trade-in history must not expand the advertised vehicle lookup facts");
+  const byPlate = await buildEnquiryAiContext({ ...data, enquiry: { ...enquiry, message: "When does AB12 CDE's MOT expire?" }, lookupMot });
+  assert.equal(byPlate.contextAudit.questions[0].outcome, "verified");
+  const tradeInRegistration = await buildEnquiryAiContext({ ...data, enquiry: { ...enquiry, message: "What's the registration on my part exchange?" }, lookupMot });
+  assert.deepEqual(tradeInRegistration.contextAudit.questions[0].details, { vehicle: "part_exchange", registrationSupplied: true });
+});
 test("mismatched and stale MOT records are rejected instead of being labelled verified", async () => {
   for (const result of [{ ...history(), registration: "ZZ99ZZZ" }, { ...history(), checkedAt: "2026-10-01T11:00:00Z" }]) {
     const context = await buildEnquiryAiContext({ ...input("What is the MOT history?"), lookupMot: async () => result });

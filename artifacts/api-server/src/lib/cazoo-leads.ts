@@ -20,6 +20,7 @@ import { runBoundedDealerJob } from "./tenant-jobs";
 import { serviceLifecycle, startLifecycleWorker } from "./service-lifecycle";
 import { platformStockConnection } from "./platform-stock-connection";
 import { processCazooLeadForwards, queueCazooLeadForward } from "./cazoo-lead-forwarding";
+import { processCazooCustomerReplyForwards } from "./cazoo-customer-reply-forwarding";
 import { dealerFeatureEnabled } from "./dealer-features";
 import { dealerIntegrationsStore, effectiveResendSettings, integrationReadiness } from "./dealer-integrations-store";
 import { runWithTenant } from "./tenant-context";
@@ -491,6 +492,7 @@ export function startCazooLeadWorker(log: { warn: (message: string) => void }) {
     work: async () => {
       await processCazooLeads();
       await processCazooLeadForwards();
+      await processCazooCustomerReplyForwards();
     },
     onError: () =>
       log.warn(

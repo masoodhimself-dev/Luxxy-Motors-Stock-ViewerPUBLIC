@@ -35,6 +35,7 @@ type Delivery = {
   attempts?: number;
 };
 type EmailContext = {
+  replyRecipient?: { id: string; from: string; subject?: string | null } | null;
   reviewRequest?: boolean;
   version?: number;
   savedDraft?: {
@@ -83,6 +84,8 @@ type EmailDraft = {
   expectedRevision: number;
 };
 type EmailPreview = {
+  from?: string | null;
+  repliesInInbox?: boolean;
   to: string;
   subject: string;
   text: string;
@@ -244,6 +247,9 @@ function EnquiryEmailEditor({
   verifyContext,
   sendRequestId,
   initialRecipient,
+  editRecipientRequest = 0,
+  linkedReply = false,
+  enquiryReplyId,
   messageMode,
   inline,
   compact = false,
@@ -261,6 +267,9 @@ function EnquiryEmailEditor({
   verifyContext?: () => Promise<void>;
   sendRequestId?: string;
   initialRecipient?: string;
+  editRecipientRequest?: number;
+  linkedReply?: boolean;
+  enquiryReplyId?: string;
   messageMode?: boolean;
   inline?: boolean;
   compact?: boolean;
@@ -272,14 +281,21 @@ function EnquiryEmailEditor({
 }) {
   const base = `/api/staff/enquiries/${entry.id}`;
   const features = useDealerFeatures();
-  const contextKey = ["enquiry-email-context", entry.id] as const;
+  const targetedReply = enquiryReplyId !== undefined;
+  const contextUrl = `${base}/email-context${targetedReply ? `?enquiryReplyId=${encodeURIComponent(enquiryReplyId)}` : ""}`;
+  const contextKey = targetedReply ? ["enquiry-email-context", entry.id, enquiryReplyId] as const : ["enquiry-email-context", entry.id] as const;
   const context = useQuery({
     queryKey: contextKey,
-    queryFn: () => request<EmailContext>(`${base}/email-context`),
+    queryFn: () => request<EmailContext>(contextUrl),
     staleTime: 0,
     retry: false,
     refetchOnMount: "always",
   });
+  const acceptedReply = targetedReply && context.data?.replyRecipient?.id === enquiryReplyId.toLowerCase()
+    ? context.data.replyRecipient
+    : null;
+  const replyRecipient = acceptedReply?.from ?? null;
+  const replySubject = acceptedReply?.subject;
   const refresh = useRefreshDesk(),
     initialized = useRef(false),
     busyRef = useRef(false),
@@ -305,6 +321,7 @@ function EnquiryEmailEditor({
     documentIds: [],
     expectedRevision: 0,
   });
+  const replyRecipientMismatch = targetedReply && (!replyRecipient || draft.to.trim().toLowerCase() !== replyRecipient);
   const [preview, setPreview] = useState<EmailPreview | null>(null),
     [reviewedDraft, setReviewedDraft] = useState<EmailDraft | null>(null),
     [delivery, setDelivery] = useState<Delivery | null>(null);
@@ -312,7 +329,10 @@ function EnquiryEmailEditor({
     "save" | "review" | "send" | "status" | null
   >(null);
   const busy = busyAction !== null;
-  const [messageDetailsOpen, setMessageDetailsOpen] = useState(false);
+  const [messageDetailsOpen, setMessageDetailsOpen] = useState(Boolean(editRecipientRequest));
+  useEffect(() => {
+    if (editRecipientRequest) setMessageDetailsOpen(true);
+  }, [editRecipientRequest]);
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   const attachmentsId = useId();
   const [showPrivatePhotos, setShowPrivatePhotos] = useState(false);
@@ -352,7 +372,7 @@ function EnquiryEmailEditor({
       ...(suggestedContent?.templateId
         ? { templateId: suggestedContent.templateId }
         : {}),
-      to:
+      to: targetedReply ? replyRecipient ?? "" :
         initialRecipient &&
         /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(initialRecipient.trim())
           ? initialRecipient.trim()
@@ -364,7 +384,7 @@ function EnquiryEmailEditor({
               subject: suggestedContent.subject,
               message: suggestedContent.message,
             }
-          : data.defaults),
+          : { ...data.defaults, ...(replySubject ? { subject: replySubject } : {}) }),
       includeVehicle:
         data.reviewRequest || suggestedContent?.includeVehicle === false
           ? false
@@ -386,6 +406,9 @@ function EnquiryEmailEditor({
     initialContent,
     suggestedContent,
     initialRecipient,
+    targetedReply,
+    replyRecipient,
+    replySubject,
   ]);
   function change(value: Partial<EmailDraft>) {
     setDraft((d) => ({ ...d, ...value }));
@@ -480,7 +503,7 @@ function EnquiryEmailEditor({
     }
   }
   async function review() {
-    if (busyRef.current) return;
+    if (busyRef.current || replyRecipientMismatch) return;
     if (missingAttachment) {
       setError(missingAttachment);
       return;
@@ -493,7 +516,7 @@ function EnquiryEmailEditor({
       await persistDraft();
       const result = await request<EmailPreview>(
         `${base}/email-preview`,
-        draft,
+        { ...draft, ...(targetedReply ? { enquiryReplyId } : {}) },
       );
       setPreview(result);
       setReviewedDraft({ ...draft, photoIds: [...draft.photoIds] });
@@ -512,7 +535,9 @@ function EnquiryEmailEditor({
       reviewedDraft.stockChange ||
       busyRef.current ||
       !features.enabled("customerEmails") ||
-      sendBlockedReason
+      sendBlockedReason ||
+      replyRecipientMismatch ||
+      (linkedReply && !preview.repliesInInbox)
     )
       return;
     busyRef.current = true;
@@ -533,6 +558,7 @@ function EnquiryEmailEditor({
         requestId: input.requestId,
         previewHash: input.previewHash,
         savedDraftVersion: input.savedDraftVersion,
+        ...(targetedReply ? { enquiryReplyId } : {}),
       });
       setDelivery(result.delivery);
       setDirty(false);
@@ -611,7 +637,7 @@ function EnquiryEmailEditor({
     .join("\n\n");
   async function verifyWhatsAppContext() {
     await verifyContext?.();
-    const current = await request<EmailContext>(`${base}/email-context`);
+    const current = await request<EmailContext>(contextUrl);
     cache.setQueryData(contextKey, current);
     if (
       !data ||
@@ -906,6 +932,12 @@ function EnquiryEmailEditor({
                       aria-label="Email preview"
                     >
                       <dl>
+                        {preview.from && (
+                          <div>
+                            <dt>From</dt>
+                            <dd>{preview.from}</dd>
+                          </div>
+                        )}
                         <div>
                           <dt>To</dt>
                           <dd>{preview.to}</dd>
@@ -933,13 +965,22 @@ function EnquiryEmailEditor({
                         Check the recipient and any personal information in the
                         photos before sending.
                       </p>
+                      {preview.repliesInInbox && (
+                        <p className="enquiry-email-hint">Customer replies will appear in this conversation.</p>
+                      )}
+                      {linkedReply && !preview.repliesInInbox && (
+                        <p className="enquiry-email-readiness" role="status">
+                          Sending from this link is paused until the dealership can receive replies in DealerOS. Your draft is saved.
+                        </p>
+                      )}
                       <div className="enquiry-email-actions">
                         <Button
                           disabled={
                             busy ||
                             !data.ready ||
                             !features.enabled("customerEmails") ||
-                            !!sendBlockedReason
+                            !!sendBlockedReason ||
+                            (linkedReply && !preview.repliesInInbox)
                           }
                           onClick={() => void send()}
                         >
@@ -1026,7 +1067,20 @@ function EnquiryEmailEditor({
                         )}
                       {!compact && <AiReplyDraft key={entry.id} enquiryId={entry.id} disabled={busy} onApply={text=>change({message:text})} />}
                       <fieldset disabled={busy}>
-                        {initialRecipient &&
+                        {targetedReply && !replyRecipient && (
+                          <p role="status" className="enquiry-email-readiness">
+                            This link could not select a customer reply. Open the conversation in the Inbox to check the address before replying.
+                          </p>
+                        )}
+                        {replyRecipient && replyRecipientMismatch && (
+                          <div className="enquiry-email-readiness">
+                            <p>This reply came from {replyRecipient}. Choose that address to reply from this link.</p>
+                            <Button type="button" variant="outline" onClick={() => change({ to: replyRecipient })}>
+                              Use reply address
+                            </Button>
+                          </div>
+                        )}
+                        {!targetedReply && initialRecipient &&
                           /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
                             initialRecipient.trim(),
                           ) &&
@@ -1050,7 +1104,7 @@ function EnquiryEmailEditor({
                             </div>
                           )}
                         <details className="enquiry-message-details" open={!inline || messageDetailsOpen} onToggle={event=>{ if(inline) setMessageDetailsOpen(event.currentTarget.open); }}>
-                          <summary>To: {draft.to || "Add customer email"}<span>{compact ? "Edit" : "Edit address, subject or template"}</span></summary>
+                          <summary>To: {draft.to || "Add customer email"}<span>{targetedReply ? "Address and subject" : linkedReply ? "Fix email address" : compact ? "Edit" : "Edit address, subject or template"}</span></summary>
                           <div>
                         <label>
                           {preparingMessage
@@ -1354,6 +1408,7 @@ function EnquiryEmailEditor({
                               Boolean(draft.stockChange) ||
                               draft.expectedRevision !== data.revision ||
                               !draft.to.trim() ||
+                              replyRecipientMismatch ||
                               Boolean(missingAttachment)
                             }
                           >
@@ -1438,6 +1493,9 @@ export function EnquiryEmailComposer(props: {
   verifyContext?: () => Promise<void>;
   sendRequestId?: string;
   initialRecipient?: string;
+  editRecipientRequest?: number;
+  linkedReply?: boolean;
+  enquiryReplyId?: string;
   messageMode?: boolean;
   inline?: boolean;
   compact?: boolean;
@@ -1447,5 +1505,5 @@ export function EnquiryEmailComposer(props: {
   onBusyChange?: (busy: boolean) => void;
   onChooseEmail?: () => void;
 }) {
-  return <EnquiryEmailEditor key={props.entry.id} {...props} />;
+  return <EnquiryEmailEditor key={JSON.stringify([props.entry.id, props.enquiryReplyId])} {...props} />;
 }

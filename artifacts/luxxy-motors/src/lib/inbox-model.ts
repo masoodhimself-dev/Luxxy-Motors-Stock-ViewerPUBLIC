@@ -66,15 +66,14 @@ export function isAiEnquiry(entry: InboxEnquiry): boolean {
   return Boolean(entry.aiProvider && entry.aiDraftStatus && ['pending','generating','ready','failed'].includes(entry.aiDraftStatus));
 }
 
-/** Keep explicit combined cases together when switching folders. */
+/** Keep AI-assisted cases in the main queue and make them available as a focused view. */
 export function inboxFolderEntries(entries: readonly InboxEnquiry[], folder: InboxFolder): InboxEnquiry[] {
   return entries.filter(entry => {
     const members = enquiryGroup(entry, entries) as InboxEnquiry[];
     const active = members.filter(member => !member.archivedAt);
     if (folder === 'archive') return active.length === 0;
     if (!active.length) return false;
-    const automated = active.some(isAiEnquiry);
-    return folder === 'ai' ? automated : !automated;
+    return folder === 'enquiries' || active.some(isAiEnquiry);
   });
 }
 

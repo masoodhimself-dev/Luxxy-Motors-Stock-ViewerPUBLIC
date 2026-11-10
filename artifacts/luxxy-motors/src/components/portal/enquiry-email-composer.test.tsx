@@ -160,6 +160,57 @@ it("preserves a saved recipient and requires explicit approval to replace it", a
   expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue("Saved message");
 });
 
+const linkedReplyId = "a45ce3ce-6269-4f57-891b-b8e9fd716fea";
+const verifiedReplyAddress = "verified-reply@example.test";
+
+it("uses the verified sender of the linked reply for a fresh message", async () => {
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options: unknown) =>
+    url.endsWith(`/email-context?enquiryReplyId=${linkedReplyId}`)
+      ? { ...context(), replyRecipient: { id: linkedReplyId, from: verifiedReplyAddress, subject: "Re: Still available?" } }
+      : original(url, options));
+  render(<QueryClientProvider client={new QueryClient()}><EnquiryEmailComposer entry={entry} linkedReply enquiryReplyId={linkedReplyId} onClose={state.close} /></QueryClientProvider>);
+  expect(await screen.findByRole("textbox", { name: "Customer email" })).toHaveValue(verifiedReplyAddress);
+  expect(screen.getByRole("textbox", { name: "Subject" })).toHaveValue("Re: Still available?");
+  expect(calls("/email-draft")).toHaveLength(0);
+  expect(calls("/email")).toHaveLength(0);
+});
+
+it("keeps a saved draft until staff select the reply address and binds the review to that reply", async () => {
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options: unknown) => {
+    if (url.endsWith(`/email-context?enquiryReplyId=${linkedReplyId}`)) return {
+      ...context(),
+      replyRecipient: { id: linkedReplyId, from: verifiedReplyAddress, subject: "Re: Still available?" },
+      savedDraft: { version: 4, status: "draft", content: { to: "saved@example.test", subject: "Saved subject", message: "Saved message", includeVehicle: false, includeAppointment: false, photoIds: [], documentIds: [], expectedRevision: 2 } },
+    };
+    const result = await original(url, options);
+    return url.endsWith("/email-preview") ? { ...result, to: verifiedReplyAddress, repliesInInbox: true } : result;
+  });
+  render(<QueryClientProvider client={new QueryClient()}><EnquiryEmailComposer entry={entry} linkedReply enquiryReplyId={linkedReplyId} onClose={state.close} /></QueryClientProvider>);
+  expect(await screen.findByRole("textbox", { name: "Customer email" })).toHaveValue("saved@example.test");
+  expect(screen.getByRole("button", { name: "Review email" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Use reply address" }));
+  expect(screen.getByRole("textbox", { name: "Customer email" })).toHaveValue(verifiedReplyAddress);
+  expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue("Saved message");
+  expect(screen.getByRole("textbox", { name: "Subject" })).toHaveValue("Saved subject");
+  expect(calls("/email-draft")).toHaveLength(0);
+  fireEvent.click(screen.getByRole("button", { name: "Review email" }));
+  await screen.findByRole("region", { name: "Email preview" });
+  expect(JSON.parse(calls("/email-preview")[0][1].body)).toMatchObject({ enquiryReplyId: linkedReplyId, to: verifiedReplyAddress });
+  expect(JSON.parse(calls("/email-draft")[0][1].body).content).not.toHaveProperty("enquiryReplyId");
+  expect(calls("/email")).toHaveLength(0);
+});
+
+it("does not fall back to the contact address for a stale linked reply", async () => {
+  state.fetch.mockResolvedValue({ ...context(), replyRecipient: null });
+  render(<QueryClientProvider client={new QueryClient()}><EnquiryEmailComposer entry={entry} linkedReply enquiryReplyId={linkedReplyId} onClose={state.close} /></QueryClientProvider>);
+  expect(await screen.findByRole("textbox", { name: "Customer email" })).toHaveValue("");
+  expect(screen.getByText(/This link could not select a customer reply/)).toBeVisible();
+  expect(screen.getByRole("button", { name: "Review email" })).toBeDisabled();
+  expect(calls("/email")).toHaveLength(0);
+});
+
 it("links message wording to Settings while the sender is unconfigured", async () => {
   const original = state.fetch.getMockImplementation()!;
   state.fetch.mockImplementation(async (url: string, options: unknown) => {
@@ -244,7 +295,7 @@ it('disables a reviewed send when declaration status changes without losing the 
   expect(state.close).not.toHaveBeenCalled();
 });
 
-it("waits for the latest server draft instead of hydrating cached defaults from before another staff member saved", async () => {
+it.each(["dialog", "compact reply"] as const)("waits for the latest saved draft with cached defaults in the %s", async (surface) => {
   const original = state.fetch.getMockImplementation()!;
   let finish!: (value: unknown) => void;
   state.fetch.mockImplementation((url: string, options?: unknown) =>
@@ -258,7 +309,17 @@ it("waits for the latest server draft instead of hydrating cached defaults from 
     defaultOptions: { queries: { retry: false } },
   });
   client.setQueryData(["enquiry-email-context", entry.id], context());
-  mount(client);
+  const compact = surface === "compact reply";
+  render(
+    <QueryClientProvider client={client}>
+      <EnquiryEmailComposer
+        inline={compact}
+        compact={compact}
+        entry={entry}
+        onClose={state.close}
+      />
+    </QueryClientProvider>,
+  );
   expect(screen.getByText("Loading latest email details…")).toBeInTheDocument();
   expect(
     screen.queryByRole("textbox", { name: "Message" }),
@@ -285,15 +346,20 @@ it("waits for the latest server draft instead of hydrating cached defaults from 
       },
     });
   });
-  expect(await screen.findByRole("textbox", { name: "Subject" })).toHaveValue(
-    "A teammate’s saved subject",
-  );
-  expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue(
+  const message = await screen.findByRole("textbox", { name: "Message" });
+  expect(message).toHaveValue(
     "A teammate’s saved reply",
   );
+  fireEvent.change(message, { target: { value: "Staff edited the latest reply" } });
   fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
   await screen.findByText("Draft saved · not sent");
-  expect(JSON.parse(calls("/email-draft")[0][1].body).expectedVersion).toBe(8);
+  expect(JSON.parse(calls("/email-draft")[0][1].body)).toMatchObject({
+    expectedVersion: 8,
+    content: {
+      subject: "A teammate’s saved subject",
+      message: "Staff edited the latest reply",
+    },
+  });
 });
 
 it("inserts checked facts after an identical cached-context refetch becomes ready, preserving default or saved wording", async () => {

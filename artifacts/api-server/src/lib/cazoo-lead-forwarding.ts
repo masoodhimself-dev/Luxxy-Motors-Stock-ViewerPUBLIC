@@ -21,7 +21,7 @@ type Forward = {
   subject: string; body: string; payload: string | null; payload_hash: string | null; account_hash: string | null;
   attempts: number; retry_deadline: Date | string;
 };
-type Dealer = { canonical_origin: string; retailer_id: string; source_url: string; mailbox: string };
+type Dealer = { canonical_origin: string; retailer_id: string; source_url: string; mailbox: string; enquiry_id: string | null };
 type EndStatus = "sent" | "failed" | "unknown" | "cancelled";
 const cazooSender = "dealerleads@info.cazoo.co.uk";
 const uuid = z.string().uuid();
@@ -127,13 +127,16 @@ async function deliver(row: Forward, dealer: Dealer, lease: string, options: For
   const key = sendKey(row.receipt_id);
   const blockedAddresses = [recipient, ...Object.values(mailboxes), mailbox(resend.from),
     mailbox(configuredResend.replyTo)];
-  const content = renderCazooForwardEmail(row.subject, row.body, blockedAddresses, replyDomain);
+  const content = renderCazooForwardEmail(row.subject, row.body, blockedAddresses, replyDomain, "current", {
+    origin: dealer.canonical_origin, enquiryId: dealer.enquiry_id,
+  });
   const envelope = { to: row.recipient, idempotencyKey: key };
   const prepared = await prepareEmailWithSettings(resend, { ...envelope, ...content });
   let payload = JSON.stringify(prepared.body);
   // An attempted send must keep its original payload across format changes.
-  if (row.payload !== null && row.payload_hash !== hash(payload)) {
-    const previousContent = renderCazooForwardEmail(row.subject, row.body, blockedAddresses, replyDomain, "before-part-ex");
+  for (const format of ["current", "before-part-ex"] as const) {
+    if (row.payload === null || row.payload_hash === hash(payload)) break;
+    const previousContent = renderCazooForwardEmail(row.subject, row.body, blockedAddresses, replyDomain, format);
     const previous = await prepareEmailWithSettings(resend, { ...envelope, ...previousContent });
     payload = JSON.stringify(previous.body);
   }
@@ -199,7 +202,7 @@ export async function processCazooLeadForwards(options: ForwardOptions = {}) {
     ) UPDATE cazoo_lead_forwards f SET status='sending',lease_token=${lease}::uuid,lease_until=now()+interval '2 minutes'
       FROM candidate c WHERE f.receipt_id=c.receipt_id RETURNING f.*`)).rows[0] as unknown as Forward | undefined;
     if (!row) break;
-    const dealer = (await db.execute(sql`SELECT d.canonical_origin,d.retailer_id,d.source_url,r.mailbox
+    const dealer = (await db.execute(sql`SELECT d.canonical_origin,d.retailer_id,d.source_url,r.mailbox,r.enquiry_id
       FROM cazoo_lead_receipts r JOIN dealerships d ON d.id=r.dealer_id
       WHERE r.id=${row.receipt_id}::uuid AND r.dealer_id=${row.dealer_id} AND d.status='active' AND d.stock_platform='cazoo'
         AND r.status IN ('imported','review') AND r.error_code IS DISTINCT FROM 'owner_test'`)).rows[0] as unknown as Dealer | undefined;

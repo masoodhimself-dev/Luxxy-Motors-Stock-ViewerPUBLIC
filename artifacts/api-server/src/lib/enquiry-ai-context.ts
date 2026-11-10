@@ -2,7 +2,7 @@ import { AI_MODEL, AiError, aiHash, redactAiText } from "./ai-assistance";
 import { publicAiCar, publicAiDealer } from "./ai-public-facts";
 import { normaliseMotRegistration } from "./mot-history";
 import { motVehicleDetails } from "./mot-vehicle-details";
-import type { MotHistory, MotTest } from "@workspace/vehicle-meta";
+import { isUKNumberPlate, type MotHistory, type MotTest } from "@workspace/vehicle-meta";
 
 type LookupStatus = "verified" | "unavailable" | "not_requested";
 type CheckOutcome = "verified" | "listing_only" | "not_recorded" | "unavailable";
@@ -27,6 +27,21 @@ export function enquiryAiContextHash(context: { question: string; facts: unknown
   return aiHash({ version: 2, task: "reply", question: context.question, facts: stable(context.facts) });
 }
 const normalQuestion = (value: string) => value.replace(/\bm\.?o\.?t\.?\b/gi, "MOT").replace(/\bpqrking\b/gi, "parking");
+const partExchangeMention = /\b(?:part[ -]?ex(?:change)?|p[ \t]*\/[ \t]*x|px|trade[ -]?in)\b/i;
+const customerVehicleMention = /\b(?:(?:my|our)\s+(?:(?:current|old|own|existing)\s+)?(?:car|vehicle|MOT)|mine)\b/i;
+const advertisedVehicleMention = /\b(?:(?:this|your|advertised|listed|stock)\s+(?:car|vehicle)|(?:car|vehicle)\s+(?:in (?:the|your) (?:ad|advert|listing)|you(?:'re| are) (?:selling|advertising)))\b/i;
+function registrationMention(registration: unknown, flags: string) {
+  if (typeof registration !== "string" || !isUKNumberPlate(registration)) return undefined;
+  const plate = registration.replace(/[\s-]/g, "");
+  return new RegExp(`\\b${[...plate].join("[ \\t\\u00a0\\u202f-]*")}\\b`, flags);
+}
+function vehicleSubject(question: string, partExchange: boolean, advertisedRegistration?: RegExp) {
+  const tradeIn = partExchangeMention.test(question) || customerVehicleMention.test(question);
+  const advertised = advertisedVehicleMention.test(question) || advertisedRegistration?.test(question);
+  if (tradeIn && advertised) return "unclear";
+  if (tradeIn) return "part_exchange";
+  return advertised || !partExchange ? "advertised" : "unclear";
+}
 export function enquiryNeedsMot(question: string) {
   const value = normalQuestion(question);
   return /\b(?:MOT|advis(?:ory|ories)|test history|MOT history|mileage history|roadworthiness)\b/i.test(value) ||
@@ -101,8 +116,34 @@ export async function buildEnquiryAiContext(input: {
 }) {
   if (enquiryIsArchived(input.enquiry)) throw new AiError("enquiry_archived", "Restore this enquiry before preparing an AI reply.", 409);
   const now = input.now?.() ?? new Date(), checkedAt = now.toISOString();
-  const question = redactAiText(String(input.enquiry.message ?? ""), [String(input.enquiry.customerName ?? "")]);
   const projectedCar = input.car ? publicAiCar(input.car) : null, dealer = publicAiDealer(input.config);
+  const rawMessage = String(input.enquiry.message ?? "");
+  const tradeInRegistration = registrationMention(input.enquiry.partExchangeRegistration, "gi");
+  const mileage = input.enquiry.partExchangeMileage;
+  const recordedMileage = typeof mileage === "number" && Number.isSafeInteger(mileage) && mileage >= 0 && mileage <= 9_999_999 ? mileage : null;
+  const conditionSupplied = typeof input.enquiry.partExchangeCondition === "string" && Boolean(input.enquiry.partExchangeCondition.trim());
+  const advertisedRegistration = registrationMention(projectedCar?.registration, "i");
+  const partExchangeRequested = input.enquiry.type === "part_exchange" || Boolean(tradeInRegistration) || recordedMileage !== null || conditionSupplied || partExchangeMention.test(rawMessage);
+  const tradeInPlatePlaceholder = "[part-exchange plate removed]";
+  let registrationSupplied = Boolean(tradeInRegistration);
+  let message = tradeInRegistration ? rawMessage.replace(tradeInRegistration, tradeInPlatePlaceholder) : rawMessage;
+  if (partExchangeRequested && !tradeInRegistration) {
+    // Some older enquiries have a labelled plate in the message only.
+    message = message.replace(/\bVRM[ \t]*:[ \t]*([A-Z0-9]{2,7}(?:[ \t\u00a0\u202f-]+[A-Z0-9]{1,4})?)[ \t]*(?=$|[\r\n.!?,;])/gi, (match, plate: string) => {
+      if (!isUKNumberPlate(plate) || advertisedRegistration?.test(plate)) return match;
+      registrationSupplied = true;
+      return tradeInPlatePlaceholder;
+    });
+  }
+  const partExchange = partExchangeRequested
+    ? { registrationSupplied, customerReportedMileage: recordedMileage, conditionSupplied, valuation: null }
+    : null;
+  const question = redactAiText(message, [String(input.enquiry.customerName ?? "")]);
+  const questions = question.split(/\?(?:\s+|$)|[\r\n]+/).map((value) => value.trim()).filter(Boolean);
+  const questionChecks = (questions.length ? questions : [question]).map((asked) => ({
+    asked, vehicle: vehicleSubject(asked, Boolean(partExchange), advertisedRegistration), motRequested: enquiryNeedsMot(asked),
+  }));
+  const advertisedMotQuestions = questionChecks.filter((check) => check.motRequested && check.vehicle === "advertised");
   // Keep a useful listing beside the verified history without allowing a rich
   // advert to consume the whole request. Requested equipment is prioritised.
   const equipmentTerms: string[] = normalQuestion(question).match(/\b(?:heated seats|parking sensors|camera|sat[ -]?nav|carplay|android auto|sunroof|bluetooth|isofix|cruise control|air conditioning|climate control|leather|towbar)\b/gi) ?? [];
@@ -110,7 +151,7 @@ export async function buildEnquiryAiContext(input: {
   const car = projectedCar ? { ...projectedCar, description: projectedCar.description?.slice(0, 4500) ?? null, serviceHistory: projectedCar.serviceHistory?.slice(0, 1000) ?? null, features: prioritizedFeatures.slice(0, 50), listingDetailsTruncated: Boolean((projectedCar.description?.length ?? 0) > 4500 || (projectedCar.serviceHistory?.length ?? 0) > 1000 || prioritizedFeatures.length > 50) } : null;
   const audit: EnquiryAiAudit = { version: 1, enquiryId: String(input.enquiry.id ?? ""), vehicleId: car?.id ?? null, model: AI_MODEL, checkedAt, questions: [], lookups: [], vehicleFacts: car };
   let mot: ReturnType<typeof replyMotFacts> | null = null;
-  if (question.split(/\?(?:\s+|$)|[\r\n]+/).some(enquiryNeedsMot)) {
+  if (advertisedMotQuestions.length) {
     let errorCode = "registration_missing";
     try {
       if (!car?.registration) throw new Error("Registration missing");
@@ -120,7 +161,7 @@ export async function buildEnquiryAiContext(input: {
       // motService owns the shared 24-hour cache, in-flight deduplication,
       // credential/host restrictions, timeout and durable provider quota.
       const history = await lookup(registration);
-      mot = replyMotFacts(history, registration, question, input.now?.() ?? new Date());
+      mot = replyMotFacts(history, registration, advertisedMotQuestions.map(({ asked }) => asked).join("\n"), input.now?.() ?? new Date());
       audit.lookups.push({ kind: "mot", status: "verified", source: "DVSA MOT history", checkedAt, sourceCheckedAt: mot.checkedAt });
     } catch (error) {
       errorCode = car?.registration ? motFailureCode(error) : errorCode;
@@ -132,8 +173,7 @@ export async function buildEnquiryAiContext(input: {
   // source rather than repeating whole advert paragraphs for every question.
   const equipmentByTerm = new Map<string, number>();
   let checkBytes = 0;
-  const questions = question.split(/\?(?:\s+|$)|[\r\n]+/).map((value) => value.trim()).filter(Boolean).slice(0, 12);
-  for (const asked of questions.length ? questions : [question]) {
+  for (const { asked, vehicle, motRequested } of questionChecks.slice(0, 12)) {
     const normalizedAsked = normalQuestion(asked);
     const add = (topic: string, outcome: CheckOutcome, source: string, details: unknown) => {
       const check = { question: asked.slice(0, 180), topic, outcome, source, checkedAt: source === "DVSA MOT history" && mot ? mot.checkedAt : checkedAt, details };
@@ -143,14 +183,21 @@ export async function buildEnquiryAiContext(input: {
       audit.questions.push(check);
     };
     const before = audit.questions.length;
-    if (enquiryNeedsMot(asked)) add("mot", mot ? "verified" : "unavailable", "DVSA MOT history", mot
+    if (motRequested && vehicle === "advertised") add("mot", mot ? "verified" : "unavailable", "DVSA MOT history", mot
       ? { latestTestDate: mot.latest?.completedDate ?? null, latestResult: mot.latest?.result ?? null, expiryDate: mot.currentExpiryDate, lastPassedExpiryDate: mot.latestPass?.expiryDate ?? null, totalTests: mot.totalTests, failedTests: mot.failedTests, latestDefectCount: mot.latestDefectCount, latestAdvisoryCount: mot.latestAdvisoryCount, latestDangerousCount: mot.latestDangerousCount, defectDetails: "Supplied vehicle MOT facts", historyTruncated: mot.historyTruncated, ignoredTests: mot.ignoredTests }
       : { errorCode: motLookup?.errorCode ?? "unavailable", message: "MOT details could not be verified; do not replace this with an advert claim." });
+    if (motRequested && vehicle !== "advertised") add("mot", "unavailable", "MOT not checked", {
+      vehicle,
+      errorCode: vehicle === "part_exchange" ? "part_exchange_mot_not_checked" : "mot_vehicle_unclear",
+    });
     if (/\b(?:service|servicing|maintenance|stamp|receipt)\b/i.test(asked)) add("service_history", car?.serviceHistory || /\bservic(?:e|ing)\b/i.test(car?.description ?? "") ? "listing_only" : "not_recorded", "Published vehicle listing", { evidence: "car.serviceHistory and car.description", independentServiceCheck: false });
     if (/\b(?:owner|owners|keeper|keepers)\b/i.test(asked)) add("ownership", car?.owners != null || /\bowner|keeper\b/i.test(car?.description ?? "") ? "listing_only" : "not_recorded", "Published vehicle listing", { owners: car?.owners ?? null });
     if (/\b(?:warranty|cover)\b/i.test(asked)) add("warranty", dealer.warranty || dealer.includedItems.length ? "listing_only" : "not_recorded", "Dealer settings", { evidence: "dealer.warranty and dealer.includedItems" });
     if (/\b(?:available|availability|sold|reserved)\b/i.test(asked)) add("availability", car ? "verified" : "not_recorded", "Current dealer stock", { inventoryStatus: car?.inventoryStatus ?? null });
-    if (/\b(?:reg|registration|number plate|numberplate)\b/i.test(asked)) add("registration", car?.registration ? "verified" : "not_recorded", "Current dealer stock", { registration: car?.registration ?? null });
+    if (/\b(?:reg|registration|number plate|numberplate)\b/i.test(asked)) {
+      if (vehicle === "advertised") add("registration", car?.registration ? "verified" : "not_recorded", "Current dealer stock", { registration: car?.registration ?? null });
+      else add("registration", "unavailable", "Customer enquiry", { vehicle, registrationSupplied: Boolean(partExchange?.registrationSupplied) });
+    }
     if (/\b(?:price|offer|cash|discount)|£\s*\d/i.test(asked)) add("price", car?.price != null ? "verified" : "not_recorded", "Current dealer stock", { askingPrice: car?.price ?? null, negotiationAuthority: "No authorised discount or accepted offer supplied" });
     if (/\b(?:book|booking|appointment|viewing|test drive|visit|tomorrow|today)\b/i.test(asked)) add("appointment", "not_recorded", "Dealer booking policy only", { liveCalendarChecked: false, evidence: "dealer.testDriveBooking", instruction: "Do not confirm a slot, booking, or that staff have been notified." });
     if (/\bdeliver(?:y)?\b/i.test(asked)) add("delivery", dealer.delivery ? "listing_only" : "not_recorded", "Dealer settings", { evidence: "dealer.delivery", quotedRouteChecked: false });
@@ -171,7 +218,7 @@ export async function buildEnquiryAiContext(input: {
     }
     if (before === audit.questions.length) add("other", "not_recorded", "Supplied dealership and vehicle facts only", { instruction: "Answer only supported details; identify any missing answer clearly." });
   }
-  const facts = { dealer, cars: car ? [{ ...car, mot: mot ?? { status: motLookup?.status, errorCode: motLookup?.errorCode ?? null } }] : [], enquiry: { type: input.enquiry.type }, verification: { checkedAt, questions: audit.questions, lookups: audit.lookups, equipment: audit.equipment ?? [], checksTruncated: Boolean(audit.checksTruncated) } };
+  const facts = { dealer, cars: car ? [{ ...car, mot: mot ?? { status: motLookup?.status, errorCode: motLookup?.errorCode ?? null } }] : [], enquiry: { type: input.enquiry.type, ...(partExchange && { partExchange }) }, verification: { checkedAt, questions: audit.questions, lookups: audit.lookups, equipment: audit.equipment ?? [], checksTruncated: Boolean(audit.checksTruncated) } };
   audit.vehicleFacts = facts.cars[0] ?? null;
   return { question, facts, contextAudit: audit };
 }
