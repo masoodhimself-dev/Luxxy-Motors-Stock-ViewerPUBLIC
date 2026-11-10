@@ -1,4 +1,5 @@
 import { convert } from "html-to-text";
+import { formatRegistrationPlate } from "@workspace/vehicle-meta";
 import { mailbox } from "./customer-email-replies";
 
 export class CazooLeadError extends Error {
@@ -14,6 +15,7 @@ export type CazooLead = {
   email: string | null;
   phone: string | null;
   message: string;
+  partExchange?: { registration: string | null; mileage: number | null };
   contactWarnings?: ("phone_needs_checking" | "customer_name_missing" | "customer_email_missing")[];
 };
 export function cazooEmailText(email: {
@@ -105,19 +107,32 @@ export function parseCazooLead(email: {
 
 /** Known-layout extraction; caller must separately authenticate the delivery. */
 export function parseCazooLeadBody(email: { subject: string; text?: string | null; html?: string | null }): CazooLead {
-  const { listedPrice: _listedPrice, enquiryType, emailNeedsChecking, invalidName, knownLayout: _knownLayout, ...lead } = readCazooLeadDetails(email);
+  const { listedPrice: _listedPrice, enquiryType, emailNeedsChecking, invalidName, knownLayout, ...lead } = readCazooLeadDetails(email);
+  if (lead.partExchange && !knownLayout) throw new CazooLeadError("unrecognised_message_layout");
   if (emailNeedsChecking) throw new CazooLeadError("missing_or_ambiguous_customer_email");
   if (invalidName) throw new CazooLeadError("invalid_customer_name");
-  const message = lead.message || (/^Availability$/i.test(enquiryType)
-    ? "Cazoo availability enquiry. The customer did not add a written message." : "");
+  const type = lead.partExchange ? "part exchange" : /^Availability$/i.test(enquiryType) ? "availability" : null;
+  const message = lead.message || (type ? `Cazoo ${type} enquiry. The customer did not add a written message.` : "");
   if (!message || message.length > 12000) throw new CazooLeadError("invalid_customer_message");
   return { ...lead, message };
+}
+
+function readPartExchange(header: string): NonNullable<CazooLead["partExchange"]> {
+  const headings = [...header.matchAll(/^[ \t]*Part-exchange vehicle details[ \t]*$/gim)];
+  if (headings.length !== 1) return { registration: null, mileage: null };
+  const heading = headings[0]!;
+  const [plate, odometer] = header.slice(heading.index! + heading[0].length).trim().split(/\n(?:[ \t]*\n)*/);
+  const miles = /^[ \t]*(\d{1,7}|\d{1,3},\d{3}|\d,\d{3},\d{3})[ \t]+miles(?:[ \t]+\d{4}-\d{2}-\d{2})?[ \t]*$/i.exec(odometer ?? plate ?? "");
+  return {
+    registration: formatRegistrationPlate(plate) || null,
+    mileage: miles ? Number(miles[1]!.replace(/,/g, "")) : null,
+  };
 }
 
 /** Extract the known contact block even when the enquiry needs staff review. */
 export function readCazooLeadDetails(email: { subject: string; text?: string | null; html?: string | null }) {
   const subject =
-    /^Enquiry\s*[-–—]\s*(.+?)\s+([A-Z0-9]{2,4}[ \t\u00a0\u202f]*[A-Z0-9]{2,4})\s*[-–—]\s*([^\r\n]+)$/i.exec(
+    /^(Enquiry|Part[-–—]Ex)\s*[-–—]\s*(.+?)\s+([A-Z0-9]{2,4}[ \t\u00a0\u202f]*[A-Z0-9]{2,4})\s*[-–—]\s*([^\r\n]+)$/i.exec(
       email.subject.trim(),
     );
   if (!subject) throw new CazooLeadError("unrecognised_subject");
@@ -167,13 +182,14 @@ export function readCazooLeadDetails(email: { subject: string; text?: string | n
   const headings = [...text.matchAll(/^[ \t]*(Customer message|Enquiry type|Customer details)[ \t]*$/gim)];
   const knownLayout = headings.map((heading) => heading[1]!.toLowerCase()).join("|") ===
     "customer message|enquiry type|customer details";
-  const registration = subject[2]!.replace(/\s/g, "").toUpperCase();
+  const registration = subject[3]!.replace(/\s/g, "").toUpperCase();
   const vehicleHeader = text.slice(0, messageSection.index);
+  const partExchange = /^Part/i.test(subject[1]!) ? readPartExchange(vehicleHeader) : undefined;
   const price = /^[ \t]*([A-Z0-9]+(?:[ \t]+[A-Z0-9]+)?)[ \t]+Listed at[ \t]+(£[\d,]+(?:\.\d{2})?)[ \t]*$/im.exec(vehicleHeader);
   return {
     correlationId: correlations[0]![1]!.toLowerCase(),
     registration,
-    vehicleTitle: subject[1]!.trim().slice(0, 200),
+    vehicleTitle: subject[2]!.trim().slice(0, 200),
     customerName,
     email: emailNeedsChecking || invalidName ? null : emails[0] ?? null,
     phone,
@@ -183,6 +199,7 @@ export function readCazooLeadDetails(email: { subject: string; text?: string | n
     emailNeedsChecking,
     invalidName,
     knownLayout,
+    ...(partExchange && { partExchange }),
     ...(contactWarnings.length ? { contactWarnings } : {}),
   };
 }

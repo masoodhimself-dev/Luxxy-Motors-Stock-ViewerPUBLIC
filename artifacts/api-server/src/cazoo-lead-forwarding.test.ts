@@ -28,6 +28,10 @@ const structuredLead = (emailLine: string, message = "") => [
   "Follow us", "https://example.test/tracking", "CorrelationID: 22222222222222222222222222222222",
 ].join("\n");
 const structuredSubject = "Cazoo lead: Enquiry - Audi A5 MW62VLP - Buyer";
+const partExchangeSubject = "Cazoo lead: Part-Ex - Audi A5 MW62VLP - Buyer";
+const partExchangeLead = (emailLine: string, message = "I have a part exchange") => structuredLead(emailLine, message)
+  .replace("Customer message", "Part-exchange vehicle details\n\nAB12 CDE\n\n140000 miles 0001-01-01\n\nCustomer message")
+  .replace("Urgent   Test drive   Reserve", "Part-ex  Urgent          Availability");
 
 test("Cazoo forward presents the clean lead and only uses an unambiguous customer reply address", () => {
   const buyerEmail = "buyer@example.test";
@@ -144,18 +148,48 @@ test("Cazoo forwarding is scoped, verified and restart-safe for imported and rev
   assert.equal((await delivery(review.row.id))?.body, null);
   assert.equal((await delivery(review.row.id))?.payload, null);
 
-  const clean = await receipt({ status: "review", error: "invalid_customer_message" });
-  clean.email.text = structuredLead("buyer@example.test").replace(/22222222222222222222222222222222/, clean.correlation);
-  clean.email.subject = structuredSubject.replace(/^Cazoo lead: /, "");
+  const clean = await receipt({ status: "imported", error: null });
+  clean.email.text = partExchangeLead("buyer@example.test ( buyer@example.test )").replace(/22222222222222222222222222222222/, clean.correlation);
+  clean.email.subject = partExchangeSubject.replace(/^Cazoo lead: /, "");
   assert.equal(await queueCazooLeadForward(clean.row, clean.email), "queued");
   await processCazooLeadForwards({ send: async (_settings, payload) => {
     const email = JSON.parse(payload);
     assert.deepEqual(email.to, [recipient]);
+    assert.equal(email.subject, "Cazoo enquiry · Audi A5 (MW62VLP)");
     assert.equal(email.reply_to, "buyer@example.test");
-    assert.doesNotMatch(email.html, /https:\/\/example\.test\/tracking/);
+    assert.match(email.text, /Enquiry: Part exchange · Urgent · Availability\nTrade-in: AB12 CDE · 140,000 miles/);
+    assert.match(email.text, /I have a part exchange/);
+    assert.doesNotMatch(email.html, /https:\/\/example\.test\/tracking|0001-01-01/);
     return "fixture-clean-delivery";
   } });
   assert.equal((await delivery(clean.row.id))?.status, "sent");
+
+  const partExchangeWithConflictingEmail = renderCazooForwardEmail(partExchangeSubject, partExchangeLead("buyer@example.test ( different@example.test )"));
+  assert.equal(partExchangeWithConflictingEmail.replyTo, undefined);
+  assert.match(partExchangeWithConflictingEmail.text, /Customer email unavailable/);
+
+  const priorPartExchange = await receipt();
+  priorPartExchange.email.subject = partExchangeSubject.replace(/^Cazoo lead: /, "");
+  priorPartExchange.email.text = partExchangeLead("buyer@example.test").replace(/22222222222222222222222222222222/, priorPartExchange.correlation);
+  assert.equal(await queueCazooLeadForward(priorPartExchange.row, priorPartExchange.email), "queued");
+  const oldContent = renderCazooForwardEmail(partExchangeSubject, priorPartExchange.email.text, [], undefined, "before-part-ex");
+  assert.equal(oldContent.subject, partExchangeSubject);
+  assert.equal(oldContent.replyTo, undefined);
+  assert.match(oldContent.text, /Original enquiry for review/);
+  const oldRequest = await runWithTenant(tenant, () => prepareEmailWithSettings(
+    { enabled: true, apiKey: "re_fictional_only", from: "Fictional Motors <sales@example.test>", replyTo: "" },
+    { ...oldContent, to: recipient, idempotencyKey: `cazoo-lead-forward-${priorPartExchange.row.id}` },
+  ));
+  const oldPayload = JSON.stringify(oldRequest.body);
+  await engine.query("UPDATE cazoo_lead_forwards SET attempts=1,payload=$2,payload_hash=$3,account_hash=$4 WHERE receipt_id=$1", [
+    priorPartExchange.row.id, oldPayload, createHash("sha256").update(oldPayload).digest("hex"), emailAccountHash(oldRequest.config),
+  ]);
+  await processCazooLeadForwards({ send: async (_settings, payload, key) => {
+    assert.equal(payload, oldPayload);
+    assert.equal(key, `cazoo-lead-forward-${priorPartExchange.row.id}`);
+    return "fixture-part-ex-retry";
+  } });
+  assert.equal((await delivery(priorPartExchange.row.id))?.status, "sent");
 
   const legacy = await receipt({ status: "imported", error: null });
   legacy.email.subject = structuredSubject.replace(/^Cazoo lead: /, "");

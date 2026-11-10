@@ -8,11 +8,12 @@ export function renderCazooForwardEmail(
   body: string,
   blockedAddresses: readonly (string | null)[] = [],
   replyDomain?: string,
+  format: "current" | "before-part-ex" = "current",
 ) {
   let lead: ReturnType<typeof readCazooLeadDetails> | undefined;
   try {
     const details = readCazooLeadDetails({ subject: subject.replace(/^Cazoo lead: /, ""), text: body });
-    if (details.knownLayout) lead = details;
+    if (details.knownLayout && (format === "current" || !details.partExchange)) lead = details;
   } catch (error) {
     if (!(error instanceof CazooLeadError)) throw error;
   }
@@ -24,7 +25,13 @@ export function renderCazooForwardEmail(
     .replace(/^Urgent\s+Test drive\s+Reserve$/i, "Test drive and reservation · Urgent")
     .replace(/(?:[ \t]*\n[ \t]*)+|[ \t]{2,}/g, " · ");
   const facts: [string, string][] = lead ? [["Registration", lead.registration]] : [];
-  if (type) facts.push(["Enquiry", type]);
+  if (lead?.partExchange) {
+    const otherTypes = type?.replace(/^Part-ex(?:change)?(?: · |$)/i, "");
+    facts.push(["Enquiry", ["Part exchange", otherTypes].filter(Boolean).join(" · ")]);
+    const { registration, mileage } = lead.partExchange;
+    const tradeIn = [registration, mileage === null ? null : `${mileage.toLocaleString("en-GB")} miles`].filter(Boolean).join(" · ");
+    if (tradeIn) facts.push(["Trade-in", tradeIn]);
+  } else if (type) facts.push(["Enquiry", type]);
   const phone = lead?.phone?.replace(/^(07\d{3})(\d{6})$/, "$1 $2");
   const customer = [lead?.customerName === "Customer" ? undefined : lead?.customerName, phone, replyTo ?? "Customer email unavailable"].filter(Boolean).join("\n");
   const message = lead

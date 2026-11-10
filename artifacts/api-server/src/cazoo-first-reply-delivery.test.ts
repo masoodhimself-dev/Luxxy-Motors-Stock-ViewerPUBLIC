@@ -82,6 +82,9 @@ test("only a new, eligible Cazoo receipt gets one routed automatic reply", async
       expectedRevision: 0,
       resend: { enabled: true, apiKey: "re_fictional_only", from: "Fictional Motors <sales@example.test>", replyTo: "sales@example.test" },
     });
+    const partExchange = await imported();
+    await engine.query("UPDATE enquiries SET type='part_exchange' WHERE id=$1", [partExchange.enquiry_id]);
+    assert.equal(await queueCazooAutomaticFirstReply(partExchange), false);
     const receipt = await imported();
     const outcomes = await Promise.all([queueCazooAutomaticFirstReply(receipt), queueCazooAutomaticFirstReply(receipt)]);
     assert.deepEqual(outcomes, [true, true]);

@@ -761,10 +761,31 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
 
       const direct = await queue();
       const reviewAgain = await queue();
+      const partExchange = email(direct, {
+        subject: "Part-Ex - Lexus RX AB15CDE - Sam",
+        text: text("2".repeat(32))
+          .replace("Customer message", "Part-exchange vehicle details\n\nPX12 ABC\n\n140000 miles 0001-01-01\n\nCustomer message")
+          .replace("Do you accept px for a Lexus GS450h 2008?", "I have a part exchange\nVRM: PX12 ABC\nMileage: 140000")
+          .replace("Enquiry type\nQuestion", "Enquiry type\nPart-ex  Urgent          Availability"),
+      });
+      const withoutMessage = parseCazooLead({ ...partExchange, text: partExchange.text.replace("I have a part exchange\nVRM: PX12 ABC\nMileage: 140000", "") });
+      assert.match(withoutMessage.message, /Cazoo part exchange enquiry/);
+      assert.throws(() => parseCazooLead({ ...partExchange, text: partExchange.text.replace("I have a part exchange", "Customer details\nsomeone@example.test") }), { code: "unrecognised_message_layout" });
       await processCazooLeads(transportFor({
-        [direct]: email(direct, { text: text("2".repeat(32)) }),
+        [direct]: partExchange,
         [reviewAgain]: email(reviewAgain, { text: text("3".repeat(32)).replace("sam@example.test", "sam@example.test ( another@example.test )") }),
       }), draftSkip);
+      const importedPartExchange = await receipt(direct);
+      assert.equal(importedPartExchange.status, "imported");
+      const entry = (await engine.query(
+        "SELECT type,vehicle_id,vehicle_registration,part_exchange_registration,part_exchange_mileage,email,customer_notification_status FROM enquiries WHERE id=$1",
+        [importedPartExchange.enquiry_id],
+      )).rows[0];
+      assert.deepEqual(entry, {
+        type: "part_exchange", vehicle_id: carId, vehicle_registration: "AB15CDE",
+        part_exchange_registration: "PX12 ABC", part_exchange_mileage: 140000,
+        email: "sam@example.test", customer_notification_status: "not_sent",
+      });
       const copied = (await engine.query<{ status: string; recipient: string }>(
         "SELECT status,recipient FROM cazoo_lead_forwards WHERE dealer_id='cazoo-a' ORDER BY receipt_id",
       )).rows;

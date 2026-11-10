@@ -179,6 +179,7 @@ export async function importCazooReceipt(
   )
     throw new CazooLeadError("recipient_mismatch");
   const { lead, testDelivery } = parseCazooDelivery(dealer, email);
+  const partExchange = testDelivery ? undefined : lead.partExchange;
   return db.transaction(async (tx) => {
     // Serialise correlation checks, including distinct provider IDs for the same lead.
     await tx.execute(
@@ -214,12 +215,16 @@ export async function importCazooReceipt(
         id,
         dealerId: dealer,
         source: "cazoo",
-        type: "general",
+        type: partExchange ? "part_exchange" : "general",
         customerName: lead.customerName,
         email: lead.email,
         phone: lead.phone,
         preferredContact: lead.email ? "email" : lead.phone ? "phone" : null,
         message: lead.message,
+        ...(partExchange && {
+          partExchangeRegistration: partExchange.registration,
+          partExchangeMileage: partExchange.mileage,
+        }),
         vehicleId: car ? String(car.id) : null,
         vehicleRegistration: lead.registration,
         vehicleTitle: car

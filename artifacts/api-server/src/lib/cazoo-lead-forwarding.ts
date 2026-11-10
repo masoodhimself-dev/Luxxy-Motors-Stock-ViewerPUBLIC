@@ -131,7 +131,12 @@ async function deliver(row: Forward, dealer: Dealer, lease: string, options: For
   const envelope = { to: row.recipient, idempotencyKey: key };
   const prepared = await prepareEmailWithSettings(resend, { ...envelope, ...content });
   let payload = JSON.stringify(prepared.body);
-  // A retry already attempted by the previous version must retain its exact payload.
+  // An attempted send must keep its original payload across format changes.
+  if (row.payload !== null && row.payload_hash !== hash(payload)) {
+    const previousContent = renderCazooForwardEmail(row.subject, row.body, blockedAddresses, replyDomain, "before-part-ex");
+    const previous = await prepareEmailWithSettings(resend, { ...envelope, ...previousContent });
+    payload = JSON.stringify(previous.body);
+  }
   if (row.payload !== null && row.payload_hash !== hash(payload)) {
     const text = ["Cazoo enquiry forwarded by DealerOS", "", row.body || "No message body was supplied."].join("\n");
     const legacy = await prepareEmailWithSettings(resend, {
