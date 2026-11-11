@@ -201,7 +201,7 @@ it("uses bookmarkable vehicle pages and restores the list search and filters on 
   await waitFor(() =>
     expect(screen.getByText("Vehicle facts: Toyota Yaris one")).toBeVisible(),
   );
-  fireEvent.click(screen.getByRole("link", { name: "Back to Cars" }));
+  fireEvent.click(screen.getByRole("link", { name: "Back to Stock" }));
   await waitFor(() => expect(screen.getByRole("searchbox")).toHaveValue("one"));
 });
 it("supports direct sold vehicle links and routes staff to the existing sale without creating one", () => {
@@ -239,7 +239,7 @@ it("starts a vehicle file with compact navigation and keeps bulk controls on the
   view.rerender(<CarsWorkspace {...props} canManage={false} />);
   expect(screen.queryByRole('button', { name: /Check (MOT|DVLA) for/ })).not.toBeInTheDocument();
   view.rerender(<CarsWorkspace {...props} />);
-  fireEvent.click(screen.getByRole('link', { name: 'Back to Cars' }));
+  fireEvent.click(screen.getByRole('link', { name: 'Back to Stock' }));
   await waitFor(() => expect(screen.getByRole('button', { name: 'Check all MOTs' })).toBeVisible());
   expect(screen.queryByRole('button', { name: /Check DVLA/ })).not.toBeInTheDocument();
   expect(view.container.querySelector('.portal-cars-workspace')).toHaveAttribute('data-view', 'list');
@@ -257,7 +257,7 @@ it("cancels a pending list scroll restoration before opening another vehicle fil
     render(<CarsWorkspace {...props} />);
     expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 0, left: 0, behavior: 'instant' });
     sessionStorage.setItem(`staff-cars-scroll:${window.location.host}`, '640');
-    fireEvent.click(screen.getByRole('link', { name: 'Back to Cars' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Back to Stock' }));
     expect(frames.size).toBe(1);
     fireEvent.click(screen.getByRole('link', { name: 'Open vehicle file for Toyota Yaris two' }));
     act(() => { for (const callback of frames.values()) callback(0); });

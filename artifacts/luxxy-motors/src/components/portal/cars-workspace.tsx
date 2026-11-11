@@ -40,6 +40,7 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
+  SlidersHorizontal,
 } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -288,6 +289,12 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
       : "all"
   ) as StaffCarsAttention;
   const motFocus = (["all","expired","due30","unknown","earliest"].includes(params.get("carsMot") ?? "") ? params.get("carsMot") : "all") as MotFocus;
+  const filtersApplied =
+    Boolean(search) ||
+    tab !== "all" ||
+    attention !== "all" ||
+    sort !== "stock" ||
+    motFocus !== "all";
   const compactRows = params.get("carsDensity") === "compact";
   const [panelId, setPanelId] = useState<string | null>(null),
     [mot, setMot] = useState<Record<string, MotHistory>>({});
@@ -629,37 +636,41 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
       data-options={viewOptions ? "open" : "closed"}
       data-view={carId ? "file" : "list"}
     >
-      {carId ? <h2 id="portal-cars-title" className="sr-only">Vehicle file</h2> : <header className="portal-cars-heading">
-        <div>
-          <p className="cars-eyebrow">Your dealership</p>
-          <h2 id="portal-cars-title">Cars</h2>
-          <p>
-            Find a car, view customer activity or continue a sale.
-          </p>
-        </div>
-        <div className="cars-heading-actions">
-        <Button size="sm" variant="outline" className="min-h-11" asChild>
-          <Link href={buyerDemandHref}>Buyer demand</Link>
-        </Button>
-        {canManage && <Button
-          size="sm"
-          variant="outline"
-          onClick={() => void motChecks.start()}
-          disabled={motChecks.disabled}
-        >
-          {motChecks.starting || motChecks.active ? "Checking MOTs…" : "Check all MOTs"}
-        </Button>}
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => void refresh()}
-          disabled={refreshing || query.isPending}
-        >
-          <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-          {refreshing ? "Refreshing…" : "Refresh screen"}
-        </Button>
-        </div>
-      </header>}
+      {carId ? (
+        <h2 id="portal-cars-title" className="sr-only">Vehicle file</h2>
+      ) : (
+        <header className="portal-cars-heading">
+          <h2 id="portal-cars-title">Stock</h2>
+          <div className="cars-heading-actions">
+            <Button size="sm" variant="outline" asChild>
+              <Link href={buyerDemandHref}>Buyer demand</Link>
+            </Button>
+            {canManage && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="cars-mot-button"
+                onClick={() => void motChecks.start()}
+                disabled={motChecks.disabled}
+              >
+                {motChecks.starting || motChecks.active ? "Checking MOTs…" : "Check all MOTs"}
+              </Button>
+            )}
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="cars-refresh-button"
+              aria-label={refreshing ? "Refreshing stock" : "Refresh screen"}
+              title="Refresh screen"
+              onClick={() => void refresh()}
+              disabled={refreshing || query.isPending}
+            >
+              <RefreshCw size={17} className={refreshing ? "animate-spin" : ""} aria-hidden="true" />
+            </Button>
+          </div>
+        </header>
+      )}
       {canManage && !carId && <CarsMotCheckStatus checks={motChecks} />}
       {query.isError && (
         <div className="portal-cars-notice" role="alert">
@@ -698,7 +709,7 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
           <>
             <div className="cars-file-navigation">
               <Link href={carHref()} className="cars-back">
-                <ArrowLeft size={16} /> Back to Cars
+                <ArrowLeft size={16} aria-hidden="true" /> Back to Stock
               </Link>
               <nav aria-label="Browse vehicle files">
                 {adjacent(selected.id).previous && (
@@ -913,7 +924,7 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
                 dealership.
               </p>
               <Link className="cars-primary-action" href={carHref()}>
-                Back to Cars
+                Back to Stock
               </Link>
             </div>
           )
@@ -923,15 +934,24 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
           <div className="cars-sticky-controls">
             <div className="portal-cars-toolbar">
               <label className="portal-cars-search">
-                <Search size={18} />
+                <Search size={18} aria-hidden="true" />
                 <span className="sr-only">Search current cars</span>
                 <input
                   type="search"
                   value={search}
                   onChange={(e) => setFilter("carsSearch", e.target.value)}
-                  placeholder="Search make, model or registration"
+                  placeholder="Search"
                 />
               </label>
+              <button
+                type="button"
+                className="cars-mobile-options"
+                aria-expanded={viewOptions}
+                onClick={() => setViewOptions((open) => !open)}
+              >
+                <SlidersHorizontal size={16} aria-hidden="true" />
+                Filter &amp; sort
+              </button>
               <label className="portal-cars-sort">
                 <span className="sr-only">Sort cars</span>
                 <NativeSelect
@@ -954,6 +974,7 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
                 {listTabs.map(([value, label]) => (
                   <button
                     key={value}
+                    type="button"
                     aria-pressed={tab === value}
                     onClick={() => setFilter("carsTab", value)}
                   >
@@ -981,146 +1002,145 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
               </label>
             </div>
           </div>
-          <div className="cars-result-line">
-            <label className="workspace-density-control">Rows<select aria-label="Stock row spacing" value={compactRows ? "compact" : "comfortable"} onChange={e=>setFilter("carsDensity",e.target.value)}><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></label>
-            <button
-              className="cars-mobile-options"
-              aria-expanded={viewOptions}
-              onClick={() => setViewOptions((open) => !open)}
-            >
-              Filter & sort
-            </button>
-            <p role="status">
-              {matches.length} {matches.length === 1 ? "car" : "cars"}
-              {search && <> matching “{search}”</>}
-            </p>
-            {(search ||
-              tab !== "all" ||
-              attention !== "all" ||
-              sort !== "stock" || motFocus !== "all") && (
-              <button
-                onClick={() =>
-                  navigate("/portal?section=cars", { replace: true })
-                }
-              >
-                Clear search and filters
-              </button>
+          <div className="cars-results-surface">
+            <div className="cars-result-line">
+              <p role="status">
+                {matches.length} {matches.length === 1 ? "car" : "cars"}
+                {search && <> matching “{search}”</>}
+              </p>
+              {filtersApplied && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate("/portal?section=cars", { replace: true })
+                  }
+                >
+                  Clear search and filters
+                </button>
+              )}
+              <label className="workspace-density-control">
+                Rows
+                <select
+                  aria-label="Stock row spacing"
+                  value={compactRows ? "compact" : "comfortable"}
+                  onChange={(event) => setFilter("carsDensity", event.target.value)}
+                >
+                  <option value="comfortable">Comfortable</option>
+                  <option value="compact">Compact</option>
+                </select>
+              </label>
+            </div>
+            {matches.length ? (
+              <>
+                <div className="cars-column-headings" aria-hidden="true">
+                  <span>Vehicle</span>
+                  <span>Price & availability</span>
+                  {canManage && <span>Customer activity</span>}
+                  <span>Next step</span>
+                </div>
+                <ul className="portal-cars-list" aria-label="Current cars">
+                  {matches.map((car) => (
+                    <li
+                      key={car.id}
+                      className="portal-car-row"
+                      data-testid={`portal-car-${car.id}`}
+                    >
+                      <div className="cars-identity-cell">
+                        <Link
+                          className="portal-car-identity"
+                          aria-label={`Open vehicle file for ${vehicleDisplayTitle(car)}`}
+                          href={carHref(car.id)}
+                          onClick={rememberScroll}
+                        >
+                          <CarPhoto car={car} />
+                          <span>
+                            <strong className="portal-car-make-title">
+                              <MakeLogo make={car.make} size={24} />
+                              <span>{vehicleDisplayTitle(car)}</span>
+                            </strong>
+                            <span className="portal-car-variant">
+                              {car.variant || car.trim || "Variant not supplied"}
+                            </span>
+                            <span className="portal-car-registration">
+                              {vehicleRegistration(car) ||
+                                "Registration not supplied"}
+                            </span>
+                          </span>
+                        </Link>
+                        <p className="portal-car-facts">
+                          {[
+                            car.year,
+                            car.mileage != null
+                              ? formatMileage(car.mileage)
+                              : car.mileageText,
+                            car.transmission,
+                            car.fuel,
+                          ]
+                            .filter(Boolean)
+                            .map((v, i) => (
+                              <span key={i}>{v}</span>
+                            ))}
+                        </p>
+                        {changeList(car)}
+                      </div>
+                      <div className="portal-car-price">
+                        <strong>
+                          {car.price != null
+                            ? formatPrice(car.price, car.currency)
+                            : "Price not supplied"}
+                        </strong>
+                        <span
+                          className="portal-car-status"
+                          data-status={workspaceStatus(car)}
+                        >
+                          {listTabs.find(
+                            ([value]) => value === workspaceStatus(car),
+                          )?.[1] ?? "Not advertised"}
+                        </span>
+                        {car.inventoryStatus === "reserved" &&
+                          workspaceStatus(car) === "missing" && (
+                            <span
+                              className="portal-car-status"
+                              data-status="reserved"
+                            >
+                              Reserved
+                            </span>
+                          )}
+                        <StaffMotBadge summary={summary(car)} />
+                        {carIssues(car, safeActivity(car))
+                          .filter((issue) => issue !== "Customer awaiting reply")
+                          .slice(0, 2)
+                          .map((issue) => (
+                            <small key={issue}>{issue}</small>
+                          ))}
+                      </div>
+                      {canManage && interest(car)}
+                      <div className="portal-car-actions">
+                        {nextAction(car)}
+                        {canManage && workspaceStatus(car) === "available" && !car.staff.sale && (
+                          <Button size="sm" variant="outline" className="cars-start-sale" onClick={() => openSale(car.id)}>
+                            Start sale
+                          </Button>
+                        )}
+                        {moreMenu(car)}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              !query.isError && (
+                <div className="portal-cars-empty">
+                  <CarFront size={30} />
+                  <h3>{filtersApplied ? "No matching cars" : "No current cars"}</h3>
+                  <p>
+                    Try another view or clear your filters. Sold cars and missing
+                    stock have their own tabs.
+                  </p>
+                </div>
+              )
             )}
           </div>
-          {matches.length ? (
-            <>
-              <div className="cars-column-headings" aria-hidden="true">
-                <span>Vehicle</span>
-                <span>Price & availability</span>
-                {canManage && <span>Customer activity</span>}
-                <span>Next step</span>
-              </div>
-              <ul className="portal-cars-list" aria-label="Current cars">
-                {matches.map((car) => (
-                  <li
-                    key={car.id}
-                    className="portal-car-row"
-                    data-testid={`portal-car-${car.id}`}
-                  >
-                    <div className="cars-identity-cell">
-                      <Link
-                        className="portal-car-identity"
-                        aria-label={`Open vehicle file for ${vehicleDisplayTitle(car)}`}
-                        href={carHref(car.id)}
-                        onClick={rememberScroll}
-                      >
-                        <CarPhoto car={car} />
-                        <span>
-                          <strong className="portal-car-make-title">
-                            <MakeLogo make={car.make} size={24} />
-                            <span>{vehicleDisplayTitle(car)}</span>
-                          </strong>
-                          <span className="portal-car-variant">
-                            {car.variant || car.trim || "Variant not supplied"}
-                          </span>
-                          <span className="portal-car-registration">
-                            {vehicleRegistration(car) ||
-                              "Registration not supplied"}
-                          </span>
-                        </span>
-                      </Link>
-                      <p className="portal-car-facts">
-                        {[
-                          car.year,
-                          car.mileage != null
-                            ? formatMileage(car.mileage)
-                            : car.mileageText,
-                          car.transmission,
-                          car.fuel,
-                        ]
-                          .filter(Boolean)
-                          .map((v, i) => (
-                            <span key={i}>{v}</span>
-                          ))}
-                      </p>
-                      {changeList(car)}
-                    </div>
-                    <div className="portal-car-price">
-                      <strong>
-                        {car.price != null
-                          ? formatPrice(car.price, car.currency)
-                          : "Price not supplied"}
-                      </strong>
-                      <span
-                        className="portal-car-status"
-                        data-status={workspaceStatus(car)}
-                      >
-                        {listTabs.find(
-                          ([value]) => value === workspaceStatus(car),
-                        )?.[1] ?? "Not advertised"}
-                      </span>
-                      {car.inventoryStatus === "reserved" &&
-                        workspaceStatus(car) === "missing" && (
-                          <span
-                            className="portal-car-status"
-                            data-status="reserved"
-                          >
-                            Reserved
-                          </span>
-                        )}
-                      <StaffMotBadge summary={summary(car)} />
-                      {carIssues(car, safeActivity(car))
-                        .filter((issue) => issue !== "Customer awaiting reply")
-                        .slice(0, 2)
-                        .map((issue) => (
-                          <small key={issue}>{issue}</small>
-                        ))}
-                    </div>
-                    {canManage && interest(car)}
-                    <div className="portal-car-actions">
-                      {nextAction(car)}
-                      {canManage && workspaceStatus(car) === "available" && !car.staff.sale && (
-                        <Button size="sm" variant="outline" className="cars-start-sale" onClick={() => openSale(car.id)}>
-                          Start sale
-                        </Button>
-                      )}
-                      {moreMenu(car)}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </>
-          ) : (
-            !query.isError && (
-              <div className="portal-cars-empty">
-                <CarFront size={30} />
-                <h3>
-                  {search || tab !== "all" || attention !== "all"
-                    ? "No matching cars"
-                    : "No current cars"}
-                </h3>
-                <p>
-                  Try another view or clear your filters. Sold cars and missing
-                  stock have their own tabs.
-                </p>
-              </div>
-            )
-          )}
         </>
       )}
       {panel && (

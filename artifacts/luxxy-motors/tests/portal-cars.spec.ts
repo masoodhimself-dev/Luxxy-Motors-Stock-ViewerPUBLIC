@@ -301,7 +301,7 @@ for (const source of ["cazoo", "autotrader"])
       await page.screenshot({
         path: path.join(output, `${source}-${info.project.name}-file.png`),
       });
-    await page.getByRole("link", { name: "Back to Cars", exact: true }).click();
+    await page.getByRole("link", { name: "Back to Stock", exact: true }).click();
     await expect(search).toHaveValue("AB12CDE");
     await expect(list.locator(":scope > li")).toHaveCount(1);
     await page
@@ -402,7 +402,7 @@ for (const source of ["cazoo", "autotrader"])
       enquiry.getByRole("checkbox", { name: "Book a Test Drive", exact: true }),
     ).toBeChecked();
     page.once("dialog", (dialog) => dialog.accept());
-    await enquiry.getByRole("button", { name: "Cancel", exact: true }).click();
+    await enquiry.getByRole("button", { name: "Close", exact: true }).click();
     await expect(enquiry).toHaveCount(0);
     await page.getByRole("button", { name: "Start sale", exact: true }).click();
     await expect(

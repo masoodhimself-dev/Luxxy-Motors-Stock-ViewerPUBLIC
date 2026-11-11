@@ -361,6 +361,13 @@ body[data-dealer-portal="true"] .portal-workspace.portal-redesign .portal-desk-t
   .portal-workspace.portal-redesign .portal-desk-shell .portal-main-area { padding: 21px 14px 28px; }
 }
 
+@media (max-width: 340px) {
+  .portal-workspace.portal-redesign .portal-desk-shell .portal-desk-toolbar {
+    padding-inline: 12px;
+  }
+  .portal-desk-brand-mobile .portal-desk-wordmark { font-size: 18px; }
+}
+
 @media print {
   .portal-desk-shell .portal-desk-rail,
   .portal-desk-shell .portal-desk-toolbar { display: none !important; }
