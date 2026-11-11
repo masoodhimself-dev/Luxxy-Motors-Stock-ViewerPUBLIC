@@ -9,6 +9,7 @@ import {
 import {
   Phone,
   CarFront,
+  ScanLine,
   CalendarDays,
   FilePenLine,
   Mail,
@@ -146,6 +147,7 @@ export function EnquiryCustomerCase({
   >("email");
   const [insertion, setInsertion] = useState<ReplyInsertion>();
   const [replyBusy, setReplyBusy] = useState(false);
+  const [tradeInOpen, setTradeInOpen] = useState(false);
   const [context, setContext] = useState<"vehicle" | "customer" | "activity" | null>(null);
   const [activityOpen, setActivityOpen] = useState(false);
   const [archiveOpen,setArchiveOpen]=useState(false);
@@ -153,6 +155,7 @@ export function EnquiryCustomerCase({
   const workspace=useRef<HTMLElement>(null);
   const contextId = useId();
   const replyId = useId();
+  const tradeInId = useId();
   const replySurface = useRef<HTMLDivElement>(null);
   const insertionId = useRef(0);
   const cache = useQueryClient();
@@ -181,17 +184,45 @@ export function EnquiryCustomerCase({
   const preferredReplyChannel = entry.preferredContact === "whatsapp" && entry.phone &&
     !hasAiDraft && !pendingReply ? "whatsapp" : "email";
   const tradeInMileage = entry.partExchangeMileage;
-  const showLinkedTradeIn = Boolean(
-    canReply &&
-      linkedReplyAction &&
-      (entry.partExchangeRegistration || entry.type === "part_exchange"),
+  const hasTradeIn = Boolean(
+    entry.partExchangeRegistration || entry.type === "part_exchange",
   );
+  const showLinkedTradeIn = canReply && Boolean(linkedReplyAction) && hasTradeIn;
+  const canOpenTradeIn = compact && canManage && !archived && hasTradeIn && !showLinkedTradeIn;
+  const showTradeIn = showLinkedTradeIn || (canOpenTradeIn && tradeInOpen);
   const tradeInFacts = [
     entry.partExchangeRegistration,
     tradeInMileage != null ? formatMileage(tradeInMileage) : null,
   ].filter(Boolean);
   useLayoutEffect(() => {
-    if (compact && replyOpen) replySurface.current?.focus({ preventScroll: true });
+    if (!compact || !replyOpen) return;
+    replySurface.current?.focus({ preventScroll: true });
+    const timeline = workspace.current?.querySelector<HTMLElement>(
+      ".enquiry-case-main > .customer-case-timeline",
+    );
+    if (!timeline || !window.matchMedia("(min-width: 900px)").matches) return;
+
+    let followingLatest = true;
+    const showLatest = () => {
+      if (followingLatest) timeline.scrollTop = timeline.scrollHeight;
+    };
+    const trackPosition = () => {
+      followingLatest = timeline.scrollHeight - timeline.clientHeight - timeline.scrollTop < 4;
+    };
+    showLatest();
+    if (typeof ResizeObserver === "undefined") return;
+
+    // The docked composer can grow when its draft loads. Follow the latest
+    // message until the reader scrolls back to earlier messages.
+    const resize = new ResizeObserver(showLatest);
+    resize.observe(timeline);
+    const messages = timeline.querySelector(".case-timeline-items");
+    if (messages) resize.observe(messages);
+    timeline.addEventListener("scroll", trackPosition, { passive: true });
+    return () => {
+      resize.disconnect();
+      timeline.removeEventListener("scroll", trackPosition);
+    };
   }, [compact, focusRequest, replyOpen]);
 
   function toggleContext(panel: typeof context) {
@@ -199,6 +230,7 @@ export function EnquiryCustomerCase({
     setContext((current) => (current === panel ? null : panel));
   }
   function insertIntoReply(text: string) {
+    setTradeInOpen(false);
     setInsertion({ id: ++insertionId.current, text });
     setFocusRequest((value) => value + 1);
     setRequestedChannel("email");
@@ -281,15 +313,23 @@ export function EnquiryCustomerCase({
       {!compact && <ReplyPresence enquiryId={entry.id} scope={workspace} enabled={canManage && !archived} />}
       <header className="enquiry-case-header">
         {compact ? <>
-          <div className="enquiry-case-heading"><div className="enquiry-case-identity"><h3>{entry.customerName}</h3></div><span className="enquiry-state-label" data-tone={state.tone} title={state.detail}>{state.label}</span></div>
-          <div className="enquiry-case-vehicle-strip">
-            <strong>{entry.vehicleTitle || presentation.purpose}</strong>
-            {entry.vehicleRegistration && <span>{entry.vehicleRegistration}</span>}
-            {(car?.price ?? entry.vehiclePrice) != null && <span>{formatPrice((car?.price ?? entry.vehiclePrice)!)}</span>}
+          <div className="enquiry-case-heading">
+            <div className="enquiry-case-identity"><h3>{entry.customerName}</h3></div>
+            <span className="enquiry-state-label" data-tone={state.tone} title={state.detail}>{state.label}</span>
           </div>
+          {entry.vehicleTitle && (
+            <div className="enquiry-case-vehicle-strip">
+              <CarFront size={17} aria-hidden />
+              <strong>{entry.vehicleTitle}</strong>
+              {entry.vehicleRegistration && <span>{entry.vehicleRegistration}</span>}
+              {(car?.price ?? entry.vehiclePrice) != null && <span>{formatPrice((car?.price ?? entry.vehiclePrice)!)}</span>}
+            </div>
+          )}
           <div className="enquiry-case-summary-facts">
-            <span>{presentation.source}{entry.vehicleTitle && ` · ${presentation.purpose}`}</span>
-            {!showLinkedTradeIn && tradeInFacts.length > 0 && <span><strong>Trade-in</strong> {tradeInFacts.join(" · ")}</span>}
+            <span>{presentation.source} · {presentation.purpose}</span>
+            {!showTradeIn && tradeInFacts.length > 0 && (
+              <span><strong>Trade-in</strong> {tradeInFacts.join(" · ")}</span>
+            )}
           </div>
         </> : <>
 
@@ -357,6 +397,37 @@ export function EnquiryCustomerCase({
           )}
         </div>
         </>}
+        {compact && ((canReply && !replyOpen) || canOpenTradeIn) && (
+          <div className="enquiry-case-reply-action">
+            {canReply && !replyOpen && (
+              <Button
+                type="button"
+                size="sm"
+                className="enquiry-case-reply-button"
+                aria-describedby={hasAiDraft ? replyId : undefined}
+                onClick={() => reply(preferredReplyChannel)}
+              >
+                <Mail size={16} aria-hidden />
+                Reply
+              </Button>
+            )}
+            {canOpenTradeIn && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="enquiry-case-exchange-button"
+                aria-expanded={tradeInOpen}
+                aria-controls={tradeInId}
+                onClick={() => setTradeInOpen(open => !open)}
+              >
+                <ScanLine size={16} aria-hidden />
+                Part exchange
+              </Button>
+            )}
+            {hasAiDraft && canReply && !replyOpen && <span id={replyId}>AI draft ready to review</span>}
+          </div>
+        )}
         <div className="enquiry-case-toolbar" aria-label="Enquiry tools">
           {compact ? <Button type="button" size="sm" variant="ghost" aria-expanded={context!==null} onClick={()=>toggleContext(context ?? "vehicle")}><UserRound size={16} aria-hidden/>Details</Button> : <>
 
@@ -650,15 +721,17 @@ export function EnquiryCustomerCase({
             )}
           </aside></CaseDetailsSurface>
         )}
-        <div className="enquiry-case-main">
+        <div className="enquiry-case-main" data-exchange-open={showTradeIn || undefined}>
           {archived&&<section className="enquiry-archive-banner" aria-label="Archived enquiry"><div><h4>Archived enquiry</h4><p>{entry.archiveHoldReason ? <>Kept with linked business records. {entry.archiveHoldReason}</> : entry.archiveDeleteAt ? <>Scheduled for deletion on {new Date(entry.archiveDeleteAt).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}. Restore it to keep working on it.</> : <>Automatic work is paused. Restore this enquiry to reply.</>}</p></div>{canManage&&<RestoreEnquiryAction entry={entry} onSaved={saveCase}/>}</section>}
-          {showLinkedTradeIn && (
-            <EnquiryTradeInSummary
-              key={`${entry.id}:${entry.partExchangeRegistration ?? ""}`}
-              registration={entry.partExchangeRegistration ?? ""}
-              mileage={tradeInMileage}
-              onInsertText={!replyBusy ? insertIntoReply : undefined}
-            />
+          {(showTradeIn || canOpenTradeIn) && (
+            <div id={tradeInId} hidden={!showTradeIn}>
+              <EnquiryTradeInSummary
+                key={`${entry.id}:${entry.partExchangeRegistration ?? ""}`}
+                registration={entry.partExchangeRegistration ?? ""}
+                mileage={tradeInMileage}
+                onInsertText={canReply && !replyBusy ? insertIntoReply : undefined}
+              />
+            </div>
           )}
           {compact && conversation}
           {bookingRequested ? (
@@ -774,20 +847,6 @@ export function EnquiryCustomerCase({
           {!compact && conversation}
           {!compact && canManage && <EnquiryAiChecks id={entry.id}/>}
           {compact && <ReplyPresence enquiryId={entry.id} scope={workspace} enabled={canManage && !archived} />}
-          {compact && canReply && !replyOpen && (
-            <div className="enquiry-case-reply-action">
-              <Button
-                type="button"
-                size="sm"
-                aria-describedby={hasAiDraft ? replyId : undefined}
-                onClick={() => reply(preferredReplyChannel)}
-              >
-                <Mail size={16} aria-hidden />
-                Reply
-              </Button>
-              {hasAiDraft && <span id={replyId}>AI draft ready to review</span>}
-            </div>
-          )}
           {compact && editor ? (
             <div ref={replySurface} tabIndex={-1} className="enquiry-case-reply-surface">
               {editor}

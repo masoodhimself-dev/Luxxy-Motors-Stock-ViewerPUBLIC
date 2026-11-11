@@ -638,6 +638,27 @@ it("summarises a part exchange and opens a ready AI draft through the same Reply
   expect(screen.getByTestId("requested-channel")).toHaveTextContent("email");
 });
 
+it("opens an identified part exchange directly in the Inbox without starting a lookup", () => {
+  show({
+    compact: true,
+    current: { ...entry, type: "part_exchange", partExchangeRegistration: "LM67 XYZ" },
+  });
+  const shortcut = screen.getByRole("button", { name: "Part exchange" });
+  expect(shortcut).toHaveAttribute("aria-expanded", "false");
+  expect(screen.queryByRole("region", { name: "Part exchange" })).not.toBeInTheDocument();
+
+  fireEvent.click(shortcut);
+  expect(shortcut).toHaveAttribute("aria-expanded", "true");
+  const panel = within(screen.getByRole("region", { name: "Part exchange" }));
+  expect(panel.getByRole("textbox", { name: "Part-exchange registration" })).toHaveValue("LM67 XYZ");
+  expect(panel.getByRole("button", { name: "Check part exchange" })).toBeEnabled();
+  expect(state.fetch).not.toHaveBeenCalled();
+
+  fireEvent.click(shortcut);
+  expect(shortcut).toHaveAttribute("aria-expanded", "false");
+  expect(screen.queryByRole("region", { name: "Part exchange" })).not.toBeInTheDocument();
+});
+
 it("shows the compact conversation before appointment controls", () => {
   show({ compact: true, current: {
     ...entry, type: "viewing", appointmentStatus: "pending", appointmentAt: "2027-01-08T13:00:00Z",
