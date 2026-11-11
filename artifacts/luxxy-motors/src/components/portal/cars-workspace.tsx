@@ -56,6 +56,7 @@ import {
 import { MotHistoryPanel } from "@/components/mot-history";
 import { MakeLogo } from "@/components/make-logo";
 import { CarsMotCheckStatus, useCarsMotChecks } from "./cars-mot-checks";
+import { DvlaVehicleCheck } from "./dvla-vehicle-check";
 import { VehicleDeliveryEvidence } from "./vehicle-delivery-evidence";
 import {
   carInTab,
@@ -845,12 +846,16 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
                       </p>
                     )}
                     {canManage && (
-                      <MotHistoryPanel
-                        key={selected.id}
-                        vehicleId={selected.id}
-                        staff
-                        onHistory={onMot}
-                      />
+                      <div className="grid gap-3" key={selected.id}>
+                        <MotHistoryPanel
+                          vehicleId={selected.id}
+                          staff
+                          onHistory={onMot}
+                        />
+                        <DvlaVehicleCheck
+                          registration={vehicleRegistration(selected)}
+                        />
+                      </div>
                     )}
                   </section>
                   <section>

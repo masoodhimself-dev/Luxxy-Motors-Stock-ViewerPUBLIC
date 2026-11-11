@@ -116,8 +116,7 @@ test("0078 is additive and replay-safe, with exact Drizzle columns/indexes and a
       journal.entries.map((entry: { idx: number }) => entry.idx),
       journal.entries.map((_entry: unknown, index: number) => index),
     );
-    assert.equal(journal.entries.at(-1).tag, "0078_mot_stock_checks");
-    assert.equal(journal.entries.at(-1).idx, 78);
+    assert.equal(journal.entries[78]?.tag, "0078_mot_stock_checks");
     for (const table of [motStockCheckRunsTable, motStockChecksTable]) {
       const schema = getTableConfig(table);
       const columns = (

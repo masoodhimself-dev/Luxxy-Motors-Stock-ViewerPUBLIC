@@ -13,6 +13,7 @@ import {
   type DeliveryEstimate,
 } from "../delivery-estimator";
 import { Button } from "../ui/button";
+import { DvlaVehicleCheck } from "./dvla-vehicle-check";
 import "./enquiry-checks.css";
 
 export type EnquiryChecksProps = {
@@ -217,6 +218,7 @@ function ChecksContent({
             </Button>
             <PartExchangeMotCheck registration={registration} />
           </div>
+          <DvlaVehicleCheck registration={registration} />
           {checkedRegistration && (
             <MotMileageEstimate
               key={`${checkedRegistration}:${estimateRequest}`}

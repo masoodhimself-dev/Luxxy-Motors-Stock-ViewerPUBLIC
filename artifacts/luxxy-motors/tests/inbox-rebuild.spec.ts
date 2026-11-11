@@ -69,6 +69,14 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
     if (!p.startsWith('/api/')) { await route.continue(); return; }
     if (p.startsWith('/api/staff/workspace/presence/')) { await route.fulfill({ json: { presence: null } }); return; }
     if (!['GET', 'HEAD'].includes(req.method())) {
+      if (p === '/api/staff/dvla/vehicle-check' && linkedReply) {
+        expect(req.postDataJSON()).toEqual({ registration: 'PX12ABC' });
+        await route.fulfill({ json: {
+          registration: 'PX12ABC', checkedAt: at(0), make: 'Ford',
+          taxStatus: 'SORN', fuelType: 'Diesel', engineCapacity: 1560,
+        } });
+        return;
+      }
       if(p===`/api/staff/enquiries/${ids.cazoo}/archive`||p===`/api/staff/enquiries/${ids.cazoo}/restore`){
         const entry=records.find(item=>item.id===ids.cazoo)!;
         expect(req.postDataJSON().expectedRevision).toBe(entry.workspaceRevision);
@@ -272,6 +280,11 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
   const tradeIn = finalCase.getByRole('region', { name: 'Part exchange', exact: true });
   await expect(tradeIn.getByText(/140,000 miles reported by customer/)).toBeVisible();
   await expect(tradeIn.getByText(/Ford Focus · Recorded MOT expiry 18 May 2027/)).toBeVisible();
+  await tradeIn.getByRole('button', { name: 'Check DVLA', exact: true }).click();
+  await expect(tradeIn.getByRole('region', { name: 'DVLA vehicle details' }).getByText('SORN', { exact: true })).toBeVisible();
+  await expect(tradeIn.getByText(/Ford Focus · Recorded MOT expiry 18 May 2027/)).toBeVisible();
+  await fits(page);
+  await tradeIn.screenshot({ path: path.join(output, `${info.project.name}-dvla-part-exchange.png`) });
   const recipient = finalCase.getByRole('textbox', { name: 'Customer email', exact: true });
   await expect(recipient).toBeVisible();
   await expect(recipient).toHaveValue('');

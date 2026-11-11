@@ -1,11 +1,13 @@
 import {
   act,
   fireEvent,
-  render,
+  render as renderDom,
   screen,
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactElement } from "react";
 import type { Enquiry } from "@workspace/api-client-react";
 import type { MotHistory } from "@workspace/vehicle-meta";
 import type { Car } from "@/lib/stock-context";
@@ -88,6 +90,13 @@ const quote = {
   estimated: true,
 };
 
+function render(element: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { mutations: { gcTime: 0 } } });
+  return renderDom(element, {
+    wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
+  });
+}
+
 beforeEach(() => {
   state.fetch.mockReset();
   state.settings.delivery.enabled = true;
@@ -110,6 +119,39 @@ it("makes no check requests for the closed tools and respects the existing manag
     screen.queryByRole("group", { name: "Customer enquiry checks" }),
   ).not.toBeInTheDocument();
   expect(state.fetch).not.toHaveBeenCalled();
+});
+
+it("checks the edited part-exchange plate on demand and clears results when the plate changes", async () => {
+  state.fetch.mockResolvedValue({
+    registration: "EF56GHI",
+    checkedAt: "2026-11-11T15:12:00Z",
+    make: "Ford",
+    taxStatus: "SORN",
+    engineCapacity: 1596,
+    co2Emissions: 0,
+  });
+  render(<EnquiryChecks entry={entry} car={car} canManage />);
+  fireEvent.click(screen.getByRole("button", { name: /Part exchange/ }));
+  const registration = screen.getByRole("textbox", { name: "Part-exchange registration" });
+  expect(screen.getByRole("button", { name: "Check part-exchange MOT" })).toBeVisible();
+  expect(state.fetch).not.toHaveBeenCalled();
+  fireEvent.change(registration, { target: { value: "ef56 ghi" } });
+  fireEvent.click(screen.getByRole("button", { name: "Check DVLA" }));
+  expect(await screen.findByRole("region", { name: "DVLA vehicle details" })).toBeVisible();
+  expect(screen.getByText("DVLA details for EF56 GHI")).toBeVisible();
+  expect(screen.getByText("SORN")).toBeVisible();
+  expect(screen.getByText("0 g/km")).toBeVisible();
+  expect(state.fetch).toHaveBeenCalledOnce();
+  expect(state.fetch).toHaveBeenCalledWith("/api/staff/dvla/vehicle-check", expect.objectContaining({
+    method: "POST",
+    body: JSON.stringify({ registration: "EF56GHI" }),
+  }));
+
+  fireEvent.change(registration, { target: { value: "CD34 EFG" } });
+  expect(screen.queryByRole("region", { name: "DVLA vehicle details" })).not.toBeInTheDocument();
+  expect(state.fetch).toHaveBeenCalledOnce();
+  fireEvent.change(registration, { target: { value: "CD" } });
+  expect(screen.queryByRole("button", { name: "Check DVLA" })).not.toBeInTheDocument();
 });
 
 it("checks only the selected stock car and inserts factual text into a draft without sending or saving", async () => {

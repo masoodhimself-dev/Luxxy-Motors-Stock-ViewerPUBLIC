@@ -9,7 +9,8 @@ for (const source of ["cazoo", "autotrader"])
     page.on("pageerror", (e) => pageErrors.push(e.message));
     const now = new Date().toISOString(),
       reads: string[] = [],
-      writes: string[] = [];
+      writes: string[] = [],
+      dvlaLookups: string[] = [];
     const quickExpiry = new Date(Date.now() + 30 * 86400000)
       .toISOString()
       .slice(0, 10);
@@ -78,7 +79,7 @@ for (const source of ["cazoo", "autotrader"])
             tone: "amber",
             label: "MOT due",
             date: "2027-02-01",
-            checkedAt: now,
+            checkedAt: new Date(Date.parse(now) - 60_000).toISOString(),
             lastMileage: "42,000 miles",
           },
           changes: [
@@ -160,6 +161,17 @@ for (const source of ["cazoo", "autotrader"])
     await page.route("**/api/**", async (route) => {
       const req = route.request(),
         p = new URL(req.url()).pathname;
+      if (p === "/api/staff/dvla/vehicle-check" && req.method() === "POST") {
+        dvlaLookups.push(req.postDataJSON().registration);
+        return route.fulfill({ json: {
+          registration: "AB12CDE",
+          checkedAt: now,
+          make: "TOYOTA",
+          taxStatus: "Taxed",
+          taxDueDate: "2027-08-01",
+          dateOfLastV5CIssued: "2026-02-01",
+        } });
+      }
       if (!["GET", "HEAD"].includes(req.method())) {
         writes.push(p);
         return route.fulfill({
@@ -268,6 +280,17 @@ for (const source of ["cazoo", "autotrader"])
       mot.getByRole("button", { name: "View MOT history" }),
     ).toBeVisible();
     expect(reads.filter((p) => p.endsWith("/mot-history"))).toHaveLength(0);
+    expect(dvlaLookups).toHaveLength(0);
+    await page.getByRole("button", { name: "Check DVLA", exact: true }).click();
+    const dvla = page.getByRole("region", { name: "DVLA vehicle details" });
+    await expect(dvla.getByText("Taxed", { exact: true })).toBeVisible();
+    await expect(dvla.getByText("DVLA details for AB12 CDE")).toBeVisible();
+    expect(dvlaLookups).toEqual(["AB12CDE"]);
+    await overflow();
+    if (output) {
+      const checks = page.locator(".cars-file-sidebar > section").filter({ has: dvla });
+      await checks.screenshot({ path: path.join(output, `${source}-${info.project.name}-dvla.png`) });
+    }
     await mot.getByRole("button", { name: "View MOT history" }).click();
     await expect(mot.getByText("Latest test: Passed")).toBeVisible();
     expect(reads.filter((p) => p.endsWith("/mot-history"))).toHaveLength(1);
@@ -300,9 +323,6 @@ for (const source of ["cazoo", "autotrader"])
     await quickView
       .locator("summary")
       .filter({ hasText: /^MOT history$/ })
-      .click();
-    await quickView
-      .getByRole("button", { name: "View MOT history", exact: true })
       .click();
     await expect(quickView.getByText("Latest test: Passed")).toBeVisible();
     await page
@@ -371,7 +391,7 @@ for (const source of ["cazoo", "autotrader"])
       .getByRole("button", { name: "Book test drive", exact: true })
       .click();
     const enquiry = page.getByRole("dialog", {
-      name: "Quick enquiry",
+      name: "Book test drive",
       exact: true,
     });
     await expect(enquiry).toBeVisible();
@@ -387,13 +407,13 @@ for (const source of ["cazoo", "autotrader"])
     await page.getByRole("button", { name: "Start sale", exact: true }).click();
     await expect(
       page.getByRole("heading", {
-        name: "Vehicle & agreed price",
+        name: "Choose the customer",
         exact: true,
       }),
     ).toBeVisible();
     await expect(
-      page.getByRole("region", { name: "Vehicle selection", exact: true }),
-    ).toContainText("Toyota");
+      page.getByRole("button", { name: "Enlarge photo of Toyota Yaris", exact: true }),
+    ).toBeVisible();
     expect(writes).toEqual([]);
     expect(pageErrors).toEqual([]);
   });

@@ -4,6 +4,7 @@ import { isUKNumberPlate, type MotHistory } from "@workspace/vehicle-meta";
 import { firstMotDue } from "@/lib/long-mot";
 import { motDateLabel, newestMotTests } from "@/lib/mot-mileage-history";
 import { formatMileage } from "@/lib/utils";
+import { DvlaVehicleCheck } from "./dvla-vehicle-check";
 
 export function EnquiryTradeInSummary({ registration, mileage }: {
   registration: string;
@@ -42,6 +43,7 @@ export function EnquiryTradeInSummary({ registration, mileage }: {
             : "No MOT expiry returned"}
         </p>
       )}
+      {valid && <div className="mt-3"><DvlaVehicleCheck registration={plate} /></div>}
     </section>
   );
 }

@@ -86,6 +86,9 @@ vi.mock("@/components/mot-history", () => ({
     <button onClick={() => state.motHistory && onHistory?.(state.motHistory)}>Check MOT for {vehicleId}</button>
   ),
 }));
+vi.mock("./dvla-vehicle-check", () => ({
+  DvlaVehicleCheck: ({ registration }: { registration: string }) => <button>Check DVLA for {registration}</button>,
+}));
 const now = "2026-10-29T12:00:00Z";
 function car(id: string, extra: any = {}): StaffCar {
   return {
@@ -232,8 +235,13 @@ it("starts a vehicle file with compact navigation and keeps bulk controls on the
   fireEvent.click(within(navigation).getByRole('button', { name: 'Refresh vehicle file' }));
   await waitFor(() => expect(state.refetch).toHaveBeenCalled());
   expect(screen.getByRole('button', { name: 'Check MOT for one' })).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Check DVLA for AB12 CDE' })).toBeVisible();
+  view.rerender(<CarsWorkspace {...props} canManage={false} />);
+  expect(screen.queryByRole('button', { name: /Check (MOT|DVLA) for/ })).not.toBeInTheDocument();
+  view.rerender(<CarsWorkspace {...props} />);
   fireEvent.click(screen.getByRole('link', { name: 'Back to Cars' }));
   await waitFor(() => expect(screen.getByRole('button', { name: 'Check all MOTs' })).toBeVisible());
+  expect(screen.queryByRole('button', { name: /Check DVLA/ })).not.toBeInTheDocument();
   expect(view.container.querySelector('.portal-cars-workspace')).toHaveAttribute('data-view', 'list');
 });
 it("cancels a pending list scroll restoration before opening another vehicle file", () => {

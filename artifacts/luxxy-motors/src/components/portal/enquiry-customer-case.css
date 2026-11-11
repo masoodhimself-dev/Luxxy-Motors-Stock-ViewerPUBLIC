@@ -567,7 +567,7 @@
 }
 .enquiry-case-trade-in h4,
 .enquiry-case-trade-in strong { color: var(--portal-ink, #172536); font-weight: 650; }
-.enquiry-case-trade-in button { text-decoration: underline; color: var(--portal-ink, #172536); }
+.enquiry-case-trade-in > p button { text-decoration: underline; color: var(--portal-ink, #172536); }
 
 @media (max-width: 899px) {
   .enquiry-case-compact[data-linked-reply] .enquiry-reply-compact .enquiry-email-form--compact .enquiry-email-actions {
