@@ -25,7 +25,7 @@ type SearchResult = {
   detail: string;
   href: string;
 };
-export function WorkspaceSearch() {
+export function WorkspaceSearch({ appearance = "default" }: { appearance?: "default" | "desk" } = {}) {
   const [open, setOpen] = useState(false),
     [value, setValue] = useState(""),
     [search, setSearch] = useState("");
@@ -63,10 +63,11 @@ export function WorkspaceSearch() {
         variant="outline"
         className="workspace-search-trigger"
         onClick={() => setOpen(true)}
-        aria-label="Search cars, customers and invoices"
+        aria-label={appearance === "desk" ? "Search by reg, customer or reference" : "Search cars, customers and invoices"}
       >
         <Search size={18} />
-        <span>Search workspace</span>
+        <span>{appearance === "desk" ? "Search by reg, customer or reference" : "Search workspace"}</span>
+        {appearance === "desk" && <kbd aria-hidden="true">⌘ K</kbd>}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent

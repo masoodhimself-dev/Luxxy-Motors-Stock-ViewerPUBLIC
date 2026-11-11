@@ -94,7 +94,13 @@ export class PostgresSaleWorkspaceStore {
       const record=row.state as SaleWorkspaceRecord,draft=record.draft;
       const identity={id:draft.id,customer:draft.customer,email:draft.email,phone:draft.phone,vehicleId:draft.vehicleId,vehicle:draft.vehicle,registration:draft.registration,sourceEnquiryId:draft.sourceEnquiryId,sourceReservationId:draft.sourceReservationId};
       const totals=saleWorkspaceTotals(draft,(row.list_payment_entries ?? []) as SaleWorkspacePayment[]);
-      const handover=draft.fulfilment ? {method:draft.fulfilment.method,status:saleHandoverStatus({...draft.fulfilment,address:draft.fulfilment.address ?? ''})} : null;
+      const fulfilment = draft.fulfilment;
+      const handover = fulfilment ? {
+        method: fulfilment.method,
+        status: saleHandoverStatus({ ...fulfilment, address: fulfilment.address ?? '' }),
+        ...(fulfilment.scheduledDate ? { scheduledDate: fulfilment.scheduledDate } : {}),
+        ...(fulfilment.timeWindow ? { timeWindow: fulfilment.timeWindow } : {}),
+      } : null;
       const listHasRefunds=(row.list_payment_entries ?? []).some((payment: SaleWorkspacePayment)=>payment.status==='confirmed' && payment.signedAmountPence<0);
       const listHasInvoice = row.list_has_invoice === true;
       const saleFacts = {...record,payments:row.list_payment_entries ?? []};

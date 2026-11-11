@@ -1,4 +1,5 @@
 export const notificationViews = ['customers', 'test-drives', 'email'] as const;
+export const calendarHref = "/portal?section=notifications&workView=test-drives&deskView=calendar";
 export type NotificationView = typeof notificationViews[number];
 const legacyViews: Record<string, NotificationView> = { overview: 'customers', enquiries: 'customers', 'test-drives': 'test-drives', email: 'email' };
 

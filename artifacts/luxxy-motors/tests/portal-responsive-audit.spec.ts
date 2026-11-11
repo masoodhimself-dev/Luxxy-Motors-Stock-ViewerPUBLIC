@@ -10,9 +10,15 @@ test.beforeEach(async ({ page }) => {
 for (const width of [1440, 820, 390, 320]) {
   test(`staff navigation and quick actions remain reachable at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    for (const section of ['notifications', 'inventory', 'sales', 'reservations', 'history', 'settings']) {
-      await page.goto(`/portal?section=${section}`, { waitUntil: 'domcontentloaded' });
-      const current = page.getByTestId(`tab-${section}`);
+    const sections = [
+      ['/portal', 'today'],
+      ['/portal?section=notifications', 'notifications'],
+      ['/portal?section=inventory', 'cars'],
+      ['/portal?section=sales', 'sales'],
+    ];
+    for (const [href, destination] of sections) {
+      await page.goto(href, { waitUntil: 'domcontentloaded' });
+      const current = page.getByTestId(`tab-${destination}`);
       await expect(current).toHaveAttribute('aria-current', 'page');
       await expect.poll(() => current.evaluate(element => {
         const item = element.getBoundingClientRect();
@@ -21,7 +27,7 @@ for (const width of [1440, 820, 390, 320]) {
       })).toBe(true);
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     }
-    const quickActions = page.getByRole('button', { name: 'Quick actions', exact: true });
+    const quickActions = page.getByRole('button', { name: 'New', exact: true });
     await quickActions.click();
     await expect(page.getByRole('menuitem', { name: 'Calendar', exact: true })).toBeVisible();
     await page.keyboard.press('Escape');
@@ -29,7 +35,19 @@ for (const width of [1440, 820, 390, 320]) {
     await quickActions.click();
     await page.getByRole('menuitem', { name: 'Calendar', exact: true }).click();
     await expect(page).toHaveURL(/deskView=calendar/);
-    await expect(page.getByTestId('tab-notifications')).toHaveAttribute('aria-current', 'page');
+    if (width < 768) {
+      const more = page.getByRole('button', { name: 'More', exact: true });
+      await expect(more).toHaveAttribute('aria-current', 'page');
+      await more.click();
+      await expect(page.getByRole('menuitem', { name: 'Calendar', exact: true })).toHaveAttribute('aria-current', 'page');
+      await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
+      await expect(more).toHaveAttribute('aria-current', 'page');
+    } else {
+      await expect(page.getByTestId('tab-calendar')).toHaveAttribute('aria-current', 'page');
+      await page.getByTestId('tab-settings').click();
+      await expect(page.getByTestId('tab-settings')).toHaveAttribute('aria-current', 'page');
+    }
+    await expect(page).toHaveURL(/section=settings/);
   });
 
   test(`a denied account with a long email remains contained at ${width}px`, async ({ page }) => {

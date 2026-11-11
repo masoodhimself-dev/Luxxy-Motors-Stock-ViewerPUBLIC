@@ -11,16 +11,9 @@ import {
 import {
   LoaderCircle,
   Lock,
-  Sale,
-  Settings2,
   ExternalLink,
-  CalendarDays,
-  FilePenLine,
-  Mail,
-  CustomerEnquiry,
   CheckCircle2,
   X,
-  CarFront,
 } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { DealerWordmark } from "@/components/brand/wordmark";
@@ -31,6 +24,8 @@ import {
   useStaffAccess,
 } from "@/components/portal/dealer-administration";
 import { PortalQuickActions } from "@/components/portal/portal-quick-actions";
+import { PortalShell, portalSections, type PortalSection } from "@/components/portal/portal-shell";
+import { TodayWorkspace, useTodayNotifications } from "@/components/portal/today-workspace";
 import { LetterComposer } from "@/components/portal/letter-composer";
 import { DirectEmailComposer } from "@/components/portal/direct-email-composer";
 import { useStaffCars } from "@/components/portal/staff-cars-query";
@@ -51,7 +46,7 @@ import { SalesWorkspace } from "@/pages/sales-demo";
 
 import { NotificationsWorkspace } from "@/components/portal/notifications-workspace";
 import { PortalInstallMetadata } from "@/components/portal/device-notifications";
-import { notificationHref } from "@/lib/notifications-navigation";
+import { calendarHref, notificationHref, notificationView } from "@/lib/notifications-navigation";
 import { ContextHistoryDialog } from "@/components/portal/history-links";
 import {
   confirmSettingsNavigation,
@@ -61,24 +56,16 @@ import {
 import "@/components/portal/portal-workspace.css";
 import "@/components/portal/portal-redesign.css";
 import "@/components/portal/dealer-portal-theme.css";
-import { WorkspaceSearch } from "@/components/portal/workspace-tools";
-
-type TabKey = "notifications" | "cars" | "sales" | "settings";
 type Correspondence = "letter" | "email";
 
-const tabs: Array<{ key: TabKey; label: string; icon: typeof Settings2 }> = [
-  { key: "notifications", label: "Inbox", icon: CustomerEnquiry },
-  { key: "cars", label: "Cars", icon: CarFront },
-  { key: "sales", label: "Sales", icon: Sale },
-  { key: "settings", label: "Settings", icon: Settings2 },
-];
-
-function requestedSection(search: string): TabKey {
-  const section = new URLSearchParams(search).get("section");
+function requestedSection(search: string): PortalSection {
+  const params = new URLSearchParams(search);
+  const section = params.get("section");
   if (section === "cars" || section === "inventory") return "cars";
-  return section === "sales" || section === "settings"
-    ? section
-    : "notifications";
+  if (section === "today" || section === "sales" || section === "settings") return section;
+  if (notificationView(search) === "test-drives" && params.get("deskView") === "calendar") return "calendar";
+  if (section || ["workView", "enquiryId", "enquiryAction", "enquiryReplyId", "compose", "draft", "deskView"].some(key => params.has(key))) return "notifications";
+  return "today";
 }
 
 function PortalCars({
@@ -112,16 +99,7 @@ function PortalCars({
   );
 }
 
-/** One staff bar replaces the separate showroom header and workspace welcome. */
-function PortalToolbar({
-  children,
-  staffName,
-  account,
-}: {
-  children?: React.ReactNode;
-  staffName?: string;
-  account?: React.ReactNode;
-}) {
+function PortalToolbar() {
   const { settings } = useDealerSettings();
   return (
     <header className="portal-toolbar" aria-label="Staff workspace">
@@ -147,8 +125,6 @@ function PortalToolbar({
           <span className="portal-toolbar-label">Workspace</span>
         </div>
         <div className="portal-toolbar-actions">
-          {staffName && <WorkspaceSearch />}
-          {children}
           <a
             href="/"
             target="_blank"
@@ -160,23 +136,6 @@ function PortalToolbar({
             <ExternalLink size={16} aria-hidden="true" />
             <span>View showroom</span>
           </a>
-          {staffName && (
-            <span
-              className="portal-account-name"
-              title={`Signed in as ${staffName}`}
-            >
-              {staffName}
-            </span>
-          )}
-          {account && (
-            <div
-              className="portal-account"
-              aria-label="Staff account"
-              title={staffName ? `Signed in as ${staffName}` : "Staff account"}
-            >
-              {account}
-            </div>
-          )}
         </div>
       </div>
     </header>
@@ -247,7 +206,7 @@ function PortalDesk() {
   const features = useDealerFeatures();
   // Observe stock already loaded by the Cars workspace without another request.
   const staffCars = useStaffCars(false);
-  const [tab, setTab] = useState<TabKey>(() =>
+  const [tab, setTab] = useState<PortalSection>(() =>
     requestedSection(window.location.search),
   );
   const { user } = useUser();
@@ -261,6 +220,7 @@ function PortalDesk() {
   const [correspondence, setCorrespondence] = useState<Correspondence | null>(null);
   const quickActionsTrigger = useRef<HTMLButtonElement>(null);
   const salesQuickActionsTrigger = useRef<HTMLButtonElement>(null);
+  const motLookupTrigger = useRef<HTMLButtonElement | null>(null);
   const quickEnquiryTrigger = useRef<HTMLElement | null>(null);
   const correspondenceTrigger = useRef<HTMLElement | null>(null);
   const [quickEnquiryVehicleId, setQuickEnquiryVehicleId] = useState<
@@ -269,7 +229,6 @@ function PortalDesk() {
   const [quickCreated, setQuickCreated] = useState<QuickEnquiryResult | null>(
     null,
   );
-  const sectionNav = useRef<HTMLElement>(null);
   const search = useSearch();
   const [, navigate] = useLocation();
 
@@ -281,6 +240,7 @@ function PortalDesk() {
     },
   });
   const access = useStaffAccess(sessionQuery.data?.state === "allowed");
+  const todayNotifications = useTodayNotifications(tab === "today" && sessionQuery.data?.state === "allowed");
   useEffect(() => {
     const requested = requestedSection(search);
     // Do not discard an owner's Settings bookmark while permissions are loading.
@@ -288,17 +248,19 @@ function PortalDesk() {
       requested === "settings" &&
       access.data &&
       !access.data.permissions.includes("settings.publish")
-        ? "notifications"
+        ? "today"
         : requested;
     setTab(next);
     if (next === "sales") setSalesOpened(true);
   }, [search, access.data]);
   usePageMeta({
-    title: `${tab === "notifications" ? "Inbox" : tab === "cars" ? "Cars" : tab === "sales" ? "Sales" : "Settings"} | ${settings.identity.name || "Dealership"}`,
+    title: `${portalSections[tab].label} | ${settings.identity.name || "Dealership"}`,
     description: "Private dealership staff workspace.",
     indexable: false,
   });
   const canSell = access.data?.permissions.includes("sales.manage") ?? false;
+  const canRecordPayments = access.data?.permissions.includes("payments.record") ?? false;
+  const canHandover = access.data?.permissions.includes("sales.handover") ?? false;
   const canWriteEmail = canSell && features.enabled("customerEmails");
   const bookingEnabled =
     !settingsLoading &&
@@ -323,40 +285,17 @@ function PortalDesk() {
           workspaceStatus(selectedCar) === "available" && !selectedCar.staff.sale,
       }
     : undefined;
-  const visibleTabs = tabs.filter(
-    (item) =>
-      item.key !== "settings" ||
-      access.data?.permissions.includes("settings.publish"),
-  );
   function go(href: string) {
     if (confirmSettingsNavigation()) navigate(href);
   }
 
-  useEffect(() => {
-    const navigation = sectionNav.current;
-    if (!navigation) return;
-    const revealCurrent = () => {
-      const current = navigation.querySelector<HTMLButtonElement>(
-        '[aria-current="page"]',
-      );
-      if (!current) return;
-      const item = current.getBoundingClientRect();
-      const viewport = navigation.getBoundingClientRect();
-      if (item.left < viewport.left)
-        navigation.scrollLeft -= viewport.left - item.left;
-      else if (item.right > viewport.right)
-        navigation.scrollLeft += item.right - viewport.right;
-    };
-    revealCurrent();
-    const observer = new ResizeObserver(revealCurrent);
-    observer.observe(navigation);
-    return () => observer.disconnect();
-  }, [
-    tab,
-    sessionQuery.isLoading,
-    sessionQuery.data?.state,
-    visibleTabs.length,
-  ]);
+  function openSection(section: PortalSection) {
+    const href = section === "today" ? "/portal"
+      : section === "calendar" ? calendarHref
+      : section === "notifications" ? notificationHref("customers")
+      : `/portal?section=${section}`;
+    go(href);
+  }
 
   if (sessionQuery.isLoading) {
     return (
@@ -458,133 +397,46 @@ function PortalDesk() {
       <PortalInstallMetadata />
       {motLookupOpen && canSell && (
         <StaffMotLookupDialog
-          returnFocusRef={tab === "sales" ? salesQuickActionsTrigger : quickActionsTrigger}
+          returnFocusRef={motLookupTrigger}
           initialRegistration={actionVehicle?.registration}
           onClose={() => setMotLookupOpen(false)}
         />
       )}
-      <PortalToolbar staffName={staffName} account={<UserButton />}>
-        <PortalQuickActions
-          canManage={canSell}
-          bookingEnabled={bookingEnabled}
-          vehicle={actionVehicle}
-          triggerRef={quickActionsTrigger}
-          onEnquiry={(vehicleId, bookTestDrive) => {
-            quickEnquiry(vehicleId, bookTestDrive);
-            quickEnquiryTrigger.current = quickActionsTrigger.current;
-          }}
-          onSale={newSale}
-          onPracticeSale={practiceSale}
-          onWriteLetter={() =>
-            openCorrespondence("letter", quickActionsTrigger.current)
-          }
-          onWriteEmail={canWriteEmail
-            ? () => openCorrespondence("email", quickActionsTrigger.current)
-            : undefined}
-          onMot={() => setMotLookupOpen(true)}
-          onCalendar={() =>
-            go("/portal?section=notifications&workView=test-drives&deskView=calendar")
-          }
-          onDrafts={() =>
-            go("/portal?section=notifications&workView=email&view=drafts")
-          }
-        />
-      </PortalToolbar>
-      <h1 className="sr-only">Dealership workspace</h1>
-      <div className="portal-workspace-inner portal-app-layout mx-auto">
-        <aside
-          className="portal-navigation-rail"
-          aria-label="Workspace navigation"
-        >
-          <p className="portal-rail-caption">Your workspace</p>
-          <nav
-            ref={sectionNav}
-            className="portal-section-nav mb-5 flex max-w-full gap-0.5 overflow-x-auto border-b border-border"
-            aria-label="Portal sections"
-          >
-            {visibleTabs.map(({ key, label, icon: Icon }) => {
-              const active = tab === key;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => {
-                    if (!confirmSettingsNavigation()) return;
-                    if (key === "sales") setSalesOpened(true);
-                    setTab(key);
-                    navigate(
-                      key === "notifications"
-                        ? notificationHref("customers")
-                        : `/portal?section=${key}`,
-                    );
-                  }}
-                  id={`portal-section-${key}`}
-                  aria-controls={`portal-content-${key}`}
-                  aria-current={active ? "page" : undefined}
-                  data-testid={`tab-${key}`}
-                  className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-sm border px-3 sm:px-5 py-3 font-display text-[11px] font-semibold tracking-normal transition-all ${
-                    active
-                      ? "border-primary text-primary"
-                      : "border-transparent text-muted-foreground hover:bg-secondary hover:text-primary"
-                  }`}
-                >
-                  <Icon className="h-4 w-4" aria-hidden="true" />
-                  {label}
-                </button>
-              );
-            })}
-          </nav>
-          <div className="portal-rail-shortcuts">
-            <p className="portal-rail-caption">Shortcuts</p>
-            <button
-              type="button"
-              onClick={() =>
-                go(
-                  "/portal?section=notifications&workView=test-drives&deskView=calendar",
-                )
-              }
-            >
-              <CalendarDays size={17} aria-hidden="true" />
-              Calendar
-            </button>
-            {canSell && (
-              <>
-                <button
-                  type="button"
-                  onClick={() =>
-                    go("/portal?section=notifications&workView=email&view=drafts")
-                  }
-                >
-                  <Mail size={17} aria-hidden="true" />
-                  Email drafts
-                </button>
-                <button type="button" onClick={(event) => openCorrespondence("letter", event.currentTarget)}>
-                  <FilePenLine size={17} aria-hidden="true" />
-                  Write a letter
-                </button>
-                {canWriteEmail && (
-                  <button
-                    type="button"
-                    onClick={(event) => openCorrespondence("email", event.currentTarget)}
-                  >
-                    <Mail size={17} aria-hidden="true" />
-                    Write an email
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-          <div className="portal-rail-footer">
-            <span className="portal-staff-avatar" aria-hidden="true">
-              {staffName.slice(0, 1).toUpperCase()}
-            </span>
-            <div>
-              <strong>{staffName}</strong>
-              <small>Staff workspace</small>
-            </div>
-          </div>
-        </aside>
-        <div className="portal-main-area min-w-0">
+      <PortalShell
+        section={tab}
+        staffName={staffName}
+        staffRole={access.data?.role === "owner" ? "Owner" : access.data?.role === "accounts" ? "Accounts" : "Staff workspace"}
+        inboxCount={todayNotifications.data?.counts?.enquiries}
+        canOpenSettings={access.data?.permissions.includes("settings.publish") ?? false}
+        onNavigate={openSection}
+        account={<UserButton />}
+        actions={
+          <PortalQuickActions
+            variant="new"
+            canManage={canSell}
+            bookingEnabled={bookingEnabled}
+            vehicle={actionVehicle}
+            triggerRef={quickActionsTrigger}
+            onEnquiry={(vehicleId, bookTestDrive) => {
+              quickEnquiry(vehicleId, bookTestDrive);
+              quickEnquiryTrigger.current = quickActionsTrigger.current;
+            }}
+            onSale={newSale}
+            onPracticeSale={practiceSale}
+            onWriteLetter={() =>
+              openCorrespondence("letter", quickActionsTrigger.current)
+            }
+            onWriteEmail={canWriteEmail
+              ? () => openCorrespondence("email", quickActionsTrigger.current)
+              : undefined}
+            onMot={() => { motLookupTrigger.current = quickActionsTrigger.current; setMotLookupOpen(true); }}
+            onCalendar={() => go(calendarHref)}
+            onDrafts={() =>
+              go("/portal?section=notifications&workView=email&view=drafts")
+            }
+          />
+        }
+      >
           {quickCreated && (
             <div className="portal-quick-confirmation" role="status">
               <CheckCircle2 size={18} aria-hidden="true" />
@@ -631,9 +483,17 @@ function PortalDesk() {
               <div
                 role="region"
                 id={`portal-content-${tab}`}
-                aria-labelledby={`portal-section-${tab}`}
+                aria-label={portalSections[tab].label}
               >
-                {tab === "notifications" && (
+                {tab === "today" && <TodayWorkspace
+                  notifications={todayNotifications}
+                  canManage={canSell}
+                  canRecordPayments={canRecordPayments}
+                  canHandover={canHandover}
+                  accessLoading={access.isLoading}
+                  retryAccess={access.isError ? access.refetch : undefined}
+                />}
+                {(tab === "notifications" || tab === "calendar") && (
                   <NotificationsWorkspace
                     canEmail={canSell}
                     onQuickEnquiry={() => quickEnquiry()}
@@ -662,18 +522,19 @@ function PortalDesk() {
                 hidden={tab !== "sales"}
                 role="region"
                 id="portal-content-sales"
-                aria-labelledby="portal-section-sales"
+                aria-label="Sales"
               >
                 <SalesWorkspace
                   embedded
                   quickActions={<PortalQuickActions canManage={canSell} bookingEnabled={bookingEnabled} vehicle={actionVehicle} triggerRef={salesQuickActionsTrigger}
                     onEnquiry={(vehicleId,bookTestDrive)=>{quickEnquiry(vehicleId,bookTestDrive);quickEnquiryTrigger.current=salesQuickActionsTrigger.current;}}
-                    onSale={newSale} onPracticeSale={practiceSale} onMot={()=>setMotLookupOpen(true)}
+                    onSale={newSale} onPracticeSale={practiceSale}
+                    onMot={() => { motLookupTrigger.current = salesQuickActionsTrigger.current; setMotLookupOpen(true); }}
                     onWriteLetter={()=>openCorrespondence("letter", salesQuickActionsTrigger.current)}
                     onWriteEmail={canWriteEmail
                       ? () => openCorrespondence("email", salesQuickActionsTrigger.current)
                       : undefined}
-                    onCalendar={()=>go('/portal?section=notifications&workView=test-drives&deskView=calendar')}
+                    onCalendar={()=>go(calendarHref)}
                     onDrafts={()=>go('/portal?section=notifications&workView=email&view=drafts')}/>}
                   newSaleRequest={newSaleRequest}
                   practiceSaleRequest={practiceSaleRequest}
@@ -686,8 +547,7 @@ function PortalDesk() {
               </div>
             )}
           </div>
-        </div>
-      </div>
+      </PortalShell>
       <ContextHistoryDialog />
       {correspondence === "letter" && canSell && (
         <LetterComposer canEmail={canSell} returnFocusRef={correspondenceTrigger} onClose={() => setCorrespondence(null)} />

@@ -10,6 +10,7 @@ import {
   FilePenLine,
   LayoutGrid,
   Mail,
+  Plus,
   Sale,
 } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ type DraftQueueSummary = { drafts: { enquiryId: string }[]; hasMore: boolean };
 export function PortalQuickActions({
   canManage,
   bookingEnabled,
+  variant = "quick",
   vehicle,
   triggerRef,
   onEnquiry,
@@ -48,6 +50,7 @@ export function PortalQuickActions({
 }: {
   canManage: boolean;
   bookingEnabled: boolean;
+  variant?: "quick" | "new";
   vehicle?: QuickActionVehicle;
   triggerRef: RefObject<HTMLButtonElement | null>;
   onEnquiry: (vehicleId?: string, bookTestDrive?: boolean) => void;
@@ -70,6 +73,7 @@ export function PortalQuickActions({
     retry: false,
   });
   const draftCount = !drafts.isError && drafts.data?.drafts.length;
+  const label = variant === "new" ? canManage ? "New" : "Tools" : "Quick actions";
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
@@ -77,12 +81,19 @@ export function PortalQuickActions({
           type="button"
           className="portal-quick-trigger"
           ref={triggerRef}
-          aria-label="Quick actions"
+          data-presentation={variant}
+          aria-label={label}
         >
-          <LayoutGrid size={16} aria-hidden="true" />
-          <span className="portal-quick-full-label">Quick actions</span>
-          <span className="portal-quick-short-label">Actions</span>
-          <ChevronDown size={14} aria-hidden="true" />
+          {variant === "new" && canManage
+            ? <Plus size={17} aria-hidden="true" />
+            : <LayoutGrid size={16} aria-hidden="true" />}
+          {variant === "new" ? <span>{label}</span> : (
+            <>
+              <span className="portal-quick-full-label">Quick actions</span>
+              <span className="portal-quick-short-label">Actions</span>
+              <ChevronDown size={14} aria-hidden="true" />
+            </>
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -90,7 +101,7 @@ export function PortalQuickActions({
         sideOffset={8}
         collisionPadding={8}
         className="portal-quick-menu"
-        aria-label="Quick actions"
+        aria-label={label}
       >
         {canManage && (
           <>

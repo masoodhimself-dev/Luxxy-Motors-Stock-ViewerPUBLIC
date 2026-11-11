@@ -232,11 +232,13 @@ test("notification home and saved drafts: dealer isolation, permissions, version
         .drafts.length,
       0,
     );
+    await db.execute(sql`UPDATE enquiries SET appointment_at=now()+interval '30 minutes',appointment_status='pending' WHERE id=${ids[0]}::uuid`);
     const notifications = await call("/api/staff/notifications");
     assert.equal(notifications.status, 200);
     assert.equal(notifications.data.counts.enquiries, 1);
     assert.equal(notifications.data.counts.followups, 1);
     assert.equal(notifications.data.counts.drafts, 1);
+    assert.equal(notifications.data.counts.appointments, 1);
     assert.ok(
       notifications.data.items.every((r: any) => r.customer === "Customer a"),
     );
@@ -249,6 +251,24 @@ test("notification home and saved drafts: dealer isolation, permissions, version
     );
     assert.equal(accounts.data.counts.drafts, 0);
     assert.equal(accounts.data.emailAccess, false);
+    const original = randomUUID(), replyRoute = randomUUID();
+    await db.insert(enquiriesTable).values({
+      id: original, dealerId: "a", type: "general", customerName: "Earlier enquiry",
+      message: "Please tell me about this car.", mergedIntoId: ids[0], mergedAt: new Date(), mergedBy: "user_a",
+    });
+    await db.execute(sql`INSERT INTO enquiry_email_reply_routes(id,dealer_id,enquiry_id,send_key,reply_address,recipient) VALUES(${replyRoute}::uuid,'a',${original}::uuid,'fixture-merge','reply-merge@example.test','a@example.test')`);
+    await db.execute(sql`INSERT INTO enquiry_email_replies(provider_id,route_id,dealer_id,enquiry_id,status,message) VALUES(${randomUUID()}::uuid,${replyRoute}::uuid,'a',${original}::uuid,'received','Could you confirm the time?')`);
+    const merged = await call("/api/staff/notifications");
+    assert.equal(merged.data.counts.enquiries, 1);
+    assert.ok(merged.data.items.some((row: any) => row.enquiryId === ids[0] && row.preview === "Could you confirm the time?"));
+    assert.ok(merged.data.items.every((row: any) => row.enquiryId !== original));
+    await db.execute(sql`UPDATE enquiries SET archived_at=now(),archive_delete_at=now()+interval '30 days' WHERE id=${ids[0]}::uuid`);
+    const archived = await call("/api/staff/notifications");
+    assert.equal(archived.status, 200);
+    assert.deepEqual(archived.data.items, [], "archived enquiries, appointments and drafts are not active work");
+    assert.ok(Object.values(archived.data.counts).every(count => count === 0));
+    await db.execute(sql`DELETE FROM enquiry_email_reply_routes WHERE id=${replyRoute}::uuid`);
+    await db.execute(sql`UPDATE enquiries SET archived_at=NULL,archive_delete_at=NULL,appointment_at=NULL,appointment_status=NULL WHERE id=${ids[0]}::uuid`);
     let preview = await call(base + "/email-preview", draft);
     assert.equal(preview.status, 200);
     const send = {

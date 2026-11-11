@@ -82,18 +82,18 @@ test('staff connection failures can recover without incorrectly denying membersh
   await page.goto('/portal');
   await expect(page.getByRole('heading', { name: 'Unable to load your workspace' })).toBeVisible();
   await expect(page.getByText(/not on the staff list/)).toHaveCount(0);
-  await expect(page.getByTestId('input-identity-name')).toHaveCount(0);
+  await expect(page.getByRole('navigation', { name: 'Portal sections' })).toHaveCount(0);
   failed = false;
   await page.getByRole('button', { name: 'Try again', exact: true }).click();
-  await expect(page.getByTestId('input-identity-name')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
+  await expect(page.getByTestId('tab-today')).toHaveAttribute('aria-current', 'page');
 });
 
 test('forbidden staff access still shows the restricted state', async ({ page }) => {
   await page.route('**/api/portal/session', route => route.fulfill({ json: { state: 'forbidden', name: 'Sample Staff', email: 'staff@example.test' } }));
   await page.goto('/portal');
   await expect(page.getByRole('heading', { name: 'Access unavailable' })).toBeVisible();
-  await expect(page.getByTestId('input-identity-name')).toHaveCount(0);
-  await expect(page.getByTestId('tab-reservations')).toHaveCount(0);
+  await expect(page.getByRole('navigation', { name: 'Portal sections' })).toHaveCount(0);
 });
 
 test('phone onboarding Continue keeps its current step horizontally visible', async ({ page }) => {
