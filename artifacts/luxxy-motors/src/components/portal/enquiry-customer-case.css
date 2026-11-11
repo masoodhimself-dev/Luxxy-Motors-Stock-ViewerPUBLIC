@@ -557,6 +557,9 @@
 }
 
 .enquiry-case-trade-in {
+  display: grid;
+  container: linked-part-exchange / inline-size;
+  gap: 10px;
   padding: 10px 12px;
   margin: 0 0 10px;
   border: 1px solid var(--portal-border, #d8e0e9);
@@ -567,7 +570,11 @@
 }
 .enquiry-case-trade-in h4,
 .enquiry-case-trade-in strong { color: var(--portal-ink, #172536); font-weight: 650; }
-.enquiry-case-trade-in > p button { text-decoration: underline; color: var(--portal-ink, #172536); }
+.enquiry-case-trade-in :is(.px-check-result, .px-check-provider) { max-width: 100%; }
+
+@container linked-part-exchange (min-width: 620px) {
+  .enquiry-case-trade-in .px-check-facts { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
 
 @media (max-width: 899px) {
   .enquiry-case-compact[data-linked-reply] .enquiry-reply-compact .enquiry-email-form--compact .enquiry-email-actions {

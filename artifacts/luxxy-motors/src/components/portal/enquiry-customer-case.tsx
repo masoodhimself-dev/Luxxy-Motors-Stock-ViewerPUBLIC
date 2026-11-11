@@ -181,6 +181,11 @@ export function EnquiryCustomerCase({
   const preferredReplyChannel = entry.preferredContact === "whatsapp" && entry.phone &&
     !hasAiDraft && !pendingReply ? "whatsapp" : "email";
   const tradeInMileage = entry.partExchangeMileage;
+  const showLinkedTradeIn = Boolean(
+    canReply &&
+      linkedReplyAction &&
+      (entry.partExchangeRegistration || entry.type === "part_exchange"),
+  );
   const tradeInFacts = [
     entry.partExchangeRegistration,
     tradeInMileage != null ? formatMileage(tradeInMileage) : null,
@@ -284,7 +289,7 @@ export function EnquiryCustomerCase({
           </div>
           <div className="enquiry-case-summary-facts">
             <span>{presentation.source}{entry.vehicleTitle && ` · ${presentation.purpose}`}</span>
-            {!(canReply && linkedReplyAction && entry.partExchangeRegistration) && tradeInFacts.length > 0 && <span><strong>Trade-in</strong> {tradeInFacts.join(" · ")}</span>}
+            {!showLinkedTradeIn && tradeInFacts.length > 0 && <span><strong>Trade-in</strong> {tradeInFacts.join(" · ")}</span>}
           </div>
         </> : <>
 
@@ -647,8 +652,13 @@ export function EnquiryCustomerCase({
         )}
         <div className="enquiry-case-main">
           {archived&&<section className="enquiry-archive-banner" aria-label="Archived enquiry"><div><h4>Archived enquiry</h4><p>{entry.archiveHoldReason ? <>Kept with linked business records. {entry.archiveHoldReason}</> : entry.archiveDeleteAt ? <>Scheduled for deletion on {new Date(entry.archiveDeleteAt).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}. Restore it to keep working on it.</> : <>Automatic work is paused. Restore this enquiry to reply.</>}</p></div>{canManage&&<RestoreEnquiryAction entry={entry} onSaved={saveCase}/>}</section>}
-          {canReply && linkedReplyAction && entry.partExchangeRegistration && (
-            <EnquiryTradeInSummary registration={entry.partExchangeRegistration} mileage={tradeInMileage} />
+          {showLinkedTradeIn && (
+            <EnquiryTradeInSummary
+              key={`${entry.id}:${entry.partExchangeRegistration ?? ""}`}
+              registration={entry.partExchangeRegistration ?? ""}
+              mileage={tradeInMileage}
+              onInsertText={!replyBusy ? insertIntoReply : undefined}
+            />
           )}
           {compact && conversation}
           {bookingRequested ? (

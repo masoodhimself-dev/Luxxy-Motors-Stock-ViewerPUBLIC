@@ -161,6 +161,7 @@ function show(
     canBook?: boolean;
     onEmail?: boolean;
     compact?: boolean;
+    linkedReplyAction?: "reply" | "fix-email";
   } = {},
 ) {
   const actions: EnquiryRecordActions = {
@@ -186,6 +187,7 @@ function show(
         entries={options.entries ?? [options.current ?? entry]}
         car={options.car ?? car}
         actions={actions}
+        linkedReplyAction={options.linkedReplyAction}
       />
     </QueryClientProvider>,
   );
@@ -252,6 +254,75 @@ it("passes the exact selected case group and linked vehicle to connected timelin
   });
   fireEvent.click(screen.getByRole("button", { name: "Vehicle information" }));
   expect(actions.onVehicle).toHaveBeenCalledWith(car);
+  expect(state.fetch).not.toHaveBeenCalled();
+});
+
+it("checks a linked reply's part exchange on demand and puts the mileage question in the draft", async () => {
+  const registration = "LM67XYZ";
+  state.fetch.mockResolvedValueOnce({
+    registration,
+    dvla: {
+      status: "available",
+      details: {
+        registration,
+        checkedAt: "2026-11-11T15:12:00Z",
+        taxStatus: "SORN",
+      },
+    },
+    dvsa: {
+      status: "available",
+      history: {
+        registration,
+        checkedAt: "2026-11-11T15:12:00Z",
+        recall: "Unknown",
+        make: "FORD",
+        model: "FOCUS",
+        tests: [{
+          result: "PASSED",
+          completedDate: "2026-11-01",
+          expiryDate: "2027-10-31",
+          mileage: "68000",
+          mileageUnit: "MI",
+          defects: [],
+        }],
+      },
+      estimate: null,
+    },
+  });
+  const { actions } = show({
+    current: {
+      ...entry,
+      type: "part_exchange",
+      partExchangeRegistration: "LM67 XYZ",
+      partExchangeMileage: 67500,
+    },
+    compact: true,
+    linkedReplyAction: "reply",
+  });
+  const partExchange = within(screen.getByRole("region", { name: "Part exchange" }));
+  expect(partExchange.getByRole("textbox", { name: "Part-exchange registration" })).toHaveValue("LM67 XYZ");
+  expect(state.fetch).not.toHaveBeenCalled();
+  fireEvent.click(partExchange.getByRole("button", { name: "Check part exchange" }));
+  fireEvent.click(await partExchange.findByRole("button", { name: "Add to reply draft" }));
+  expect(screen.getByTestId("inserted-draft")).toHaveTextContent("Could you confirm the current odometer reading for your part exchange (LM67 XYZ)?");
+  expect(state.fetch).toHaveBeenCalledOnce();
+  expect(state.fetch.mock.calls[0][0]).toBe("/api/staff/part-exchange/check");
+  expect(actions.onEmail).not.toHaveBeenCalled();
+});
+
+it("lets staff enter a missing registration on a linked part-exchange reply", () => {
+  show({
+    current: { ...entry, type: "part_exchange" },
+    compact: true,
+    linkedReplyAction: "reply",
+  });
+  const partExchange = within(screen.getByRole("region", { name: "Part exchange" }));
+  const registration = partExchange.getByRole("textbox", { name: "Part-exchange registration" });
+  expect(registration).toHaveValue("");
+  expect(partExchange.getByRole("button", { name: "Check part exchange" })).toBeDisabled();
+  fireEvent.change(registration, { target: { value: "lm67 xyz" } });
+  expect(registration).toHaveValue("LM67 XYZ");
+  expect(partExchange.getByRole("button", { name: "Check part exchange" })).toBeEnabled();
   expect(state.fetch).not.toHaveBeenCalled();
 });
 

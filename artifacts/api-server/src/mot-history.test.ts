@@ -7,9 +7,11 @@ import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 import {
   createMotService,
+  MotError,
   normaliseMotRegistration,
   normaliseMotHistory,
 } from "./lib/mot-history";
+import { DvlaVehicleCheckError } from "./lib/dvla-vehicle-check";
 import { reserveMotBudget } from "./lib/mot-storage";
 import { motRouter } from "./routes/mot-history";
 import { runWithTenant, currentDealerId } from "./lib/tenant-context";
@@ -455,4 +457,95 @@ test("newly registered DVSA records can omit tests and retain the official first
       history.checkedAt,
     ),
   );
+});
+
+test("part-exchange checks require sales access and return independent provider results for one registration", async () => {
+  const app = express();
+  const origin = "https://dealer.example.test";
+  const registration = "AB12CDE";
+  const checkedAt = new Date().toISOString();
+  const latestTestDate = checkedAt.slice(0, 10);
+  const priorTestDate = new Date(Date.parse(checkedAt) - 365 * 86400000).toISOString();
+  const testReading = raw().motTests[0];
+  const history = normaliseMotHistory({
+    ...raw(),
+    motTests: [
+      { ...testReading, completedDate: checkedAt },
+      { ...testReading, completedDate: priorTestDate },
+    ],
+  }, registration, checkedAt);
+  const details = { registration, checkedAt, make: "FORD", taxStatus: "SORN" as const };
+  const calls: string[] = [];
+  let dvlaFailure: Error | undefined;
+  let dvsaFailure: Error | undefined;
+
+  app.use(express.json());
+  app.use((req, _res, next) => {
+    const role = req.get("x-fixture-role");
+    if (role === "salesperson" || role === "accounts") {
+      req.staff = { authUserId: "fixture", email: null, name: null, role };
+    }
+    runWithTenant({ dealerId: "fixture", canonicalOrigin: origin, platform: "cazoo", retailerId: "fixture", sourceUrl: origin, kind: "website" }, next);
+  });
+  app.use("/api", motRouter({ lookup: async (plate) => {
+    calls.push(`dvsa:${plate}`);
+    if (dvsaFailure) throw dvsaFailure;
+    return history;
+  } }, undefined, undefined, undefined, undefined, async (plate) => {
+    calls.push(`dvla:${plate}`);
+    if (dvlaFailure) throw dvlaFailure;
+    return details;
+  }));
+  const server = app.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const { port } = server.address() as { port: number };
+  const post = (body: unknown, role = "salesperson", requestOrigin = origin) =>
+    fetch(`http://127.0.0.1:${port}/api/staff/part-exchange/check`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Origin: requestOrigin, "x-fixture-role": role },
+      body: JSON.stringify(body),
+    });
+  try {
+    const request = { registration: "ab12 cde" };
+    const signedOut = await post(request, "");
+    assert.equal(signedOut.status, 401);
+    assert.equal(signedOut.headers.get("cache-control"), "no-store");
+    assert.equal((await post(request, "accounts")).status, 403);
+    assert.equal((await post(request, "salesperson", "https://other-dealer.example.test")).status, 403);
+    assert.equal((await post({ registration: "2026" })).status, 400);
+    assert.equal((await post({ ...request, source: "anything" })).status, 400);
+    assert.deepEqual(calls, []);
+
+    const result = await post(request);
+    assert.equal(result.status, 200);
+    assert.equal(result.headers.get("cache-control"), "no-store");
+    const dvsa = { status: "available", history, estimate: {
+      mileage: 42000, lastTestDate: latestTestDate, lastTestMileage: 42000, annualMiles: 0,
+    } };
+    assert.deepEqual(await result.json(), { registration, dvla: { status: "available", details }, dvsa });
+    assert.deepEqual(calls.splice(0).sort(), [`dvla:${registration}`, `dvsa:${registration}`]);
+
+    dvlaFailure = new DvlaVehicleCheckError("busy", "private provider text", 429, 3);
+    assert.deepEqual(await (await post(request)).json(), { registration, dvla: { status: "busy" }, dvsa });
+    assert.deepEqual(calls.splice(0).sort(), [`dvla:${registration}`, `dvsa:${registration}`]);
+
+    dvlaFailure = undefined;
+    assert.deepEqual(await (await post({ ...request, source: "dvla" })).json(), {
+      registration, dvla: { status: "available", details },
+    });
+    assert.deepEqual(calls.splice(0), [`dvla:${registration}`]);
+
+    dvsaFailure = new MotError("not_found", "private provider text", 404);
+    assert.deepEqual(await (await post(request)).json(), {
+      registration, dvla: { status: "available", details }, dvsa: { status: "not_found" },
+    });
+    assert.deepEqual(calls.splice(0).sort(), [`dvla:${registration}`, `dvsa:${registration}`]);
+    assert.deepEqual(await (await post({ ...request, source: "dvsa" })).json(), {
+      registration, dvsa: { status: "not_found" },
+    });
+    assert.deepEqual(calls, [`dvsa:${registration}`]);
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
 });

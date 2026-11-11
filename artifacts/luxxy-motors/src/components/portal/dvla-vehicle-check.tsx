@@ -4,7 +4,7 @@ import { formatRegistrationPlate, isUKNumberPlate } from "@workspace/vehicle-met
 import { Button } from "@/components/ui/button";
 import { motDateLabel } from "@/lib/mot-mileage-history";
 
-type DvlaVehicleDetails = {
+export type DvlaVehicleDetails = {
   registration: string;
   checkedAt: string;
   make?: string;
@@ -45,7 +45,7 @@ function lookupError(error: unknown) {
   }
 }
 
-function DvlaResult({ details }: { details: DvlaVehicleDetails }) {
+export function DvlaResult({ details }: { details: DvlaVehicleDetails }) {
   const fields = [
     { label: "Tax status", value: details.taxStatus },
     { label: "Tax due date", value: details.taxDueDate && motDateLabel(details.taxDueDate) },

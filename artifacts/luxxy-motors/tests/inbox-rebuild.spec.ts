@@ -62,6 +62,7 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
   let failEnquiryReads = false;
   let linkedReply = false;
   let repliesConnected = false;
+  const exchangeRequests: { registration: string; source?: string }[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.context().route('**/*', async route => {
     const req = route.request(), url = new URL(req.url()), p = url.pathname;
@@ -69,11 +70,25 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
     if (!p.startsWith('/api/')) { await route.continue(); return; }
     if (p.startsWith('/api/staff/workspace/presence/')) { await route.fulfill({ json: { presence: null } }); return; }
     if (!['GET', 'HEAD'].includes(req.method())) {
-      if (p === '/api/staff/dvla/vehicle-check' && linkedReply) {
-        expect(req.postDataJSON()).toEqual({ registration: 'PX12ABC' });
+      if (p === '/api/staff/part-exchange/check') {
+        const input = req.postDataJSON() as { registration: string; source?: string };
+        const { registration, source } = input;
+        exchangeRequests.push(input);
+        expect(registration).toBe(linkedReply ? 'PX12ABC' : 'AB12CDE');
+        const motReading = linkedReply ? '132000' : '48214';
         await route.fulfill({ json: {
-          registration: 'PX12ABC', checkedAt: at(0), make: 'Ford',
-          taxStatus: 'SORN', fuelType: 'Diesel', engineCapacity: 1560,
+          registration,
+          dvla: linkedReply && !source ? { status: 'unavailable' } : { status: 'available', details: {
+            registration, checkedAt: at(0), make: 'Ford', taxStatus: 'SORN',
+            colour: 'Blue', fuelType: 'Diesel', engineCapacity: 1560, dateOfLastV5CIssued: '2025-09-03',
+          } },
+          ...(source !== 'dvla' ? { dvsa: { status: 'available', history: {
+            registration, make: 'Ford', model: linkedReply ? 'Focus' : 'Fiesta', checkedAt: at(0), recall: 'Unknown',
+            tests: [
+              ...(linkedReply ? [{ result: 'FAILED', completedDate: '2026-10-02', expiryDate: null, mileage: motReading, mileageUnit: 'MI', defects: [] }] : []),
+              { result: 'PASSED', completedDate: '2026-05-19', expiryDate: '2027-05-18', mileage: linkedReply ? '128400' : motReading, mileageUnit: 'MI', defects: [] },
+            ],
+          }, estimate: { mileage: linkedReply ? 134000 : 51000 } } } : {}),
         } });
         return;
       }
@@ -95,14 +110,6 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
       }
       unexpectedWrites.push(`${req.method()} ${p}`);
       await route.fulfill({ status: 405, json: { error: 'Read-only local Inbox browser audit: nothing was saved or sent.' } }); return;
-    }
-    if (p === '/api/staff/mot-history' && linkedReply) {
-      expect(url.searchParams.get('registration')).toBe('PX12ABC');
-      await route.fulfill({ json: { status: 'available', history: {
-        registration: 'PX12ABC', make: 'Ford', model: 'Focus', checkedAt: at(0), recall: 'Unknown',
-        tests: [{ result: 'PASSED', completedDate: '2026-05-19', expiryDate: '2027-05-18', mileage: '132000', mileageUnit: 'MI', defects: [] }],
-      } } });
-      return;
     }
     if (p === '/api/stock') { await route.fulfill({ json: { ...archived, cars: [car], count: 1 } }); return; }
     if (p === '/api/dealer-settings') { await route.fulfill({ json: settings }); return; }
@@ -251,6 +258,25 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
   await page.goto('/portal?section=notifications&workView=test-drives&deskView=calendar');
   await expect(page.getByRole('region', { name: 'Appointment calendar', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  await page.goto('/portal?section=notifications&workView=customers&enquiryId=' + ids.website);
+  const exchangeCase = page.getByRole('article', { name: 'Customer workspace for Sam Patel', exact: true });
+  await exchangeCase.getByRole('button', { name: 'Details', exact: true }).click();
+  const exchangeTools = page.getByRole('dialog', { name: 'Enquiry details', exact: true });
+  await exchangeTools.getByRole('button', { name: /^Part exchange/ }).click();
+  const exchangePanel = exchangeTools.locator('.enquiry-checks-content');
+  expect(exchangeRequests).toHaveLength(0);
+  await exchangePanel.getByRole('button', { name: 'Check part exchange', exact: true }).click();
+  const exchangeResult = exchangePanel.getByRole('region', { name: 'Part-exchange result', exact: true });
+  await expect(exchangeResult.getByText('Ford Fiesta', { exact: true })).toBeVisible();
+  await expect(exchangeResult.getByText('48,214 miles', { exact: true })).toBeVisible();
+  await expect(exchangeResult.getByText('Confirm the current odometer reading', { exact: true })).toBeVisible();
+  await expect(exchangeResult.getByText('SORN', { exact: true })).toBeVisible();
+  await fits(page);
+  await exchangePanel.screenshot({ path: path.join(output, `${info.project.name}-inbox-part-exchange.png`) });
+  await exchangePanel.getByRole('textbox', { name: 'Part-exchange registration', exact: true }).fill('CD34 EFG');
+  await expect(exchangeResult).toHaveCount(0);
+  await expect(exchangePanel.getByText(/45,000 miles/)).toHaveCount(0);
+  expect(exchangeRequests).toEqual([{ registration: 'AB12CDE' }]);
   await page.goto('/portal?section=enquiries&enquiryId=' + ids.cazoo);
   await expect(page.getByRole('article', { name: 'Customer workspace for Ellie Carter', exact: true })).toBeVisible();
   await expect(desk.locator('.inbox-folder-tabs [aria-selected=true]')).toHaveText('Enquiries');
@@ -273,18 +299,31 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
   linkedReply = true;
   const original = records.find(item => item.id === ids.cazoo)!;
   Object.assign(original, {
-    email: '', type: 'part_exchange', partExchangeRegistration: 'PX12 ABC', partExchangeMileage: 140000,
+    email: '', type: 'part_exchange', partExchangeRegistration: 'PX12 ABC', partExchangeMileage: 128000,
   });
   const replyLink = `/portal?section=notifications&workView=customers&enquiryId=${ids.cazoo}`;
   await page.goto(`${replyLink}&enquiryAction=fix-email`);
   const tradeIn = finalCase.getByRole('region', { name: 'Part exchange', exact: true });
-  await expect(tradeIn.getByText(/140,000 miles reported by customer/)).toBeVisible();
-  await expect(tradeIn.getByText(/Ford Focus · Recorded MOT expiry 18 May 2027/)).toBeVisible();
-  await tradeIn.getByRole('button', { name: 'Check DVLA', exact: true }).click();
-  await expect(tradeIn.getByRole('region', { name: 'DVLA vehicle details' }).getByText('SORN', { exact: true })).toBeVisible();
-  await expect(tradeIn.getByText(/Ford Focus · Recorded MOT expiry 18 May 2027/)).toBeVisible();
+  await expect(tradeIn.getByText(/128,000 miles/)).toBeVisible();
+  expect(exchangeRequests).toHaveLength(1);
+  await tradeIn.getByRole('button', { name: 'Check part exchange', exact: true }).click();
+  const replyExchange = tradeIn.getByRole('region', { name: 'Part-exchange result', exact: true });
+  await expect(replyExchange.getByText('Ford Focus', { exact: true })).toBeVisible();
+  await expect(replyExchange.getByText('Failed', { exact: true })).toBeVisible();
+  await expect(replyExchange.getByText('Expiry from earlier pass 18 May 2027', { exact: true })).toBeVisible();
+  await tradeIn.getByRole('button', { name: 'Retry DVLA', exact: true }).click();
+  await expect(replyExchange.getByText('SORN', { exact: true })).toBeVisible();
+  await expect(replyExchange.getByText('132,000 miles', { exact: true })).toBeVisible();
+  expect(exchangeRequests.slice(1)).toEqual([{ registration: 'PX12ABC' }, { registration: 'PX12ABC', source: 'dvla' }]);
   await fits(page);
-  await tradeIn.screenshot({ path: path.join(output, `${info.project.name}-dvla-part-exchange.png`) });
+  await tradeIn.evaluate(element => element.scrollIntoView({ block: 'center' }));
+  await tradeIn.screenshot({ path: path.join(output, `${info.project.name}-reply-part-exchange.png`) });
+  await replyExchange.getByText('View vehicle details', { exact: true }).click();
+  await expect(replyExchange.getByText('Last V5C issued', { exact: true })).toBeVisible();
+  await replyExchange.getByText('View vehicle details', { exact: true }).click();
+  await replyExchange.getByText('View MOT history', { exact: true }).click();
+  await expect(replyExchange.getByRole('region', { name: 'MOT tests', exact: true })).toBeVisible();
+  await replyExchange.getByText('View MOT history', { exact: true }).click();
   const recipient = finalCase.getByRole('textbox', { name: 'Customer email', exact: true });
   await expect(recipient).toBeVisible();
   await expect(recipient).toHaveValue('');

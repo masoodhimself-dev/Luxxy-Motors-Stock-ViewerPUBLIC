@@ -1,49 +1,45 @@
-import { useQuery } from "@tanstack/react-query";
-import { customFetch } from "@workspace/api-client-react";
-import { isUKNumberPlate, type MotHistory } from "@workspace/vehicle-meta";
-import { firstMotDue } from "@/lib/long-mot";
-import { motDateLabel, newestMotTests } from "@/lib/mot-mileage-history";
-import { formatMileage } from "@/lib/utils";
-import { DvlaVehicleCheck } from "./dvla-vehicle-check";
+import { useId, useState } from "react";
+import { isUKNumberPlate } from "@workspace/vehicle-meta";
+import { PartExchangeCheck } from "./part-exchange-check";
+import "./enquiry-checks.css";
 
-export function EnquiryTradeInSummary({ registration, mileage }: {
+export function EnquiryTradeInSummary({ registration, mileage, onInsertText }: {
   registration: string;
   mileage?: number | null;
+  onInsertText?: (text: string) => void;
 }) {
-  const plate = registration.toUpperCase().replace(/[\s-]/g, "");
-  const valid = isUKNumberPlate(plate);
-  const lookup = useQuery({
-    queryKey: ["staff-enquiry-trade-in-mot", plate],
-    queryFn: ({ signal }) => customFetch<{ history: MotHistory }>(
-      `/api/staff/mot-history?registration=${encodeURIComponent(plate)}`,
-      { signal },
-    ),
-    enabled: valid,
-    staleTime: 5 * 60_000,
-    retry: false,
-  });
-  const history = lookup.data?.history;
-  const vehicle = history && [history.make, history.model].filter(Boolean).join(" ");
-  const latest = history && newestMotTests(history.tests)[0];
-  const firstDue = history && !latest && firstMotDue(history);
+  const [plate, setPlate] = useState(registration);
+  const id = useId();
+  const invalid = Boolean(plate.trim() && !isUKNumberPlate(plate));
 
   return (
-    <section className="enquiry-case-trade-in" aria-label="Part exchange">
-      <h4>Part exchange</h4>
-      <p><strong>{registration}</strong>{mileage != null && <> · {formatMileage(mileage)} reported by customer</>}</p>
-      {!valid && <p>Check the registration with the customer to look up the car.</p>}
-      {lookup.isLoading && <p role="status">Checking trade-in MOT history…</p>}
-      {lookup.isError && <p>MOT details unavailable. <button type="button" onClick={() => void lookup.refetch()}>Retry lookup</button></p>}
-      {history && (
-        <p>
-          {vehicle && <>{vehicle} · </>}
-          {latest?.result === "FAILED" ? "Latest MOT failed"
-            : latest?.expiryDate ? `Recorded MOT expiry ${motDateLabel(latest.expiryDate)}`
-            : firstDue ? `First MOT due ${motDateLabel(firstDue)}`
-            : "No MOT expiry returned"}
+    <section className="enquiry-case-trade-in" aria-labelledby={`${id}-title`}>
+      <h4 id={`${id}-title`}>Part exchange</h4>
+      <label className="enquiry-checks-registration">
+        Part-exchange registration
+        <input
+          value={plate}
+          maxLength={20}
+          placeholder="AB12 CDE"
+          autoComplete="off"
+          autoCapitalize="characters"
+          spellCheck={false}
+          aria-invalid={invalid || undefined}
+          aria-describedby={invalid ? `${id}-plate-help` : undefined}
+          onChange={(event) => setPlate(event.target.value.toUpperCase())}
+        />
+      </label>
+      {invalid && (
+        <p className="enquiry-checks-note" id={`${id}-plate-help`}>
+          Enter a complete UK registration, for example AB12 CDE.
         </p>
       )}
-      {valid && <div className="mt-3"><DvlaVehicleCheck registration={plate} /></div>}
+      <PartExchangeCheck
+        registration={plate}
+        reportedRegistration={registration}
+        reportedMileage={mileage}
+        onInsertText={onInsertText}
+      />
     </section>
   );
 }

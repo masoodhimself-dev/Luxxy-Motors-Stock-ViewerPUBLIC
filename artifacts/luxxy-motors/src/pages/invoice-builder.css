@@ -95,6 +95,11 @@ body:has(.invoice-builder.is-editing) { overflow: hidden; }
 .invoice-optional > button { margin: 8px 8px 0 0; }
 .invoice-adjustment-row { display: grid; grid-template-columns: minmax(100px, .9fr) minmax(0, 1.5fr) minmax(100px, .8fr) auto; align-items: end; gap: 12px; margin: 16px 0; padding-bottom: 16px; border-bottom: 1px solid var(--invoice-line); }
 .invoice-adjustment-row input { width: 100%; }
+.invoice-part-exchange-check { container: sale-part-exchange / inline-size; grid-column: 1 / -1; min-width: 0; }
+.invoice-part-exchange-check :is(.px-check-result, .px-check-provider) { max-width: 100%; }
+@container sale-part-exchange (min-width: 640px) {
+  .invoice-part-exchange-check .px-check-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
 .invoice-money-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin: 22px 0; border: 1px solid var(--invoice-line); border-radius: 10px; background: #fff; overflow-wrap: anywhere; }
 .invoice-money-summary > div { min-width: 0; padding: 18px; }
 .invoice-money-summary > div + div { border-left: 1px solid var(--invoice-line); }

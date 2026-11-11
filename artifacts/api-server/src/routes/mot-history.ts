@@ -1,10 +1,12 @@
 import { Router } from "express";
 import { and, eq } from "drizzle-orm";
+import { z } from "zod/v4";
 import { db, vehiclesTable } from "@workspace/db";
 import { vehicleRegistration } from "@workspace/vehicle-meta";
 import { currentDealerId } from "../lib/tenant-context";
 import { requireStaff, requirePermission } from "../middlewares/staff-auth";
 import { MotError, normaliseMotRegistration } from "../lib/mot-history";
+import { DvlaVehicleCheckError, lookupDvlaVehicle } from "../lib/dvla-vehicle-check";
 import { estimateMotMileage } from "../lib/mot-mileage-estimate";
 import { motVehicleDetails } from "../lib/mot-vehicle-details";
 import { motService, readCachedMot } from "../lib/mot-storage";
@@ -12,6 +14,18 @@ import { findPublicVehicle } from "./stock";
 import { stockMotRepository } from "../lib/mot-stock-checks";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const partExchangeInput = z.object({
+  registration: z.string().max(20),
+  source: z.enum(["both", "dvla", "dvsa"]).default("both"),
+}).strict();
+
+function partExchangeLookupFailure(error: unknown) {
+  const code = error instanceof MotError || error instanceof DvlaVehicleCheckError
+    ? error.code
+    : "unavailable";
+  return { status: code === "invalid_registration" ? "unavailable" : code };
+}
+
 export async function findStaffMotVehicle(id: string) {
   const [vehicle] = await db
     .select()
@@ -30,6 +44,7 @@ export function motRouter(
   staffVehicle = findStaffMotVehicle,
   cachedHistory = readCachedMot,
   stockChecks = stockMotRepository,
+  dvlaLookup = lookupDvlaVehicle,
 ) {
   const router = Router(),
     limits = new Map<string, { until: number; count: number }>();
@@ -159,6 +174,47 @@ export function motRouter(
     }
   });
   router.get("/vehicles/:id/mot-history", limit, vehicleHandler(publicVehicle));
+  router.post(
+    "/staff/part-exchange/check",
+    (_req, res, next) => {
+      res.set("Cache-Control", "no-store");
+      next();
+    },
+    requireStaff,
+    requirePermission("sales.manage"),
+    limit,
+    async (req, res) => {
+      const input = partExchangeInput.safeParse(req.body);
+      if (!input.success) {
+        res.status(400).json({
+          code: "invalid_request",
+          error: "Enter a complete UK registration and choose a valid check.",
+        });
+        return;
+      }
+      let registration: string;
+      try {
+        registration = normaliseMotRegistration(input.data.registration);
+      } catch (error) {
+        fail(res, error);
+        return;
+      }
+      const { source } = input.data;
+      const [dvla, dvsa] = await Promise.all([
+        source === "dvsa" ? undefined : dvlaLookup(registration)
+            .then((details) => ({ status: "available", details }))
+            .catch(partExchangeLookupFailure),
+        source === "dvla" ? undefined : service.lookup(registration)
+            .then((history) => ({
+              status: "available",
+              history,
+              estimate: estimateMotMileage(history),
+            }))
+            .catch(partExchangeLookupFailure),
+      ]);
+      res.json({ registration, dvla, dvsa });
+    },
+  );
   router.get(
     "/staff/vehicles/:id/mot-history",
     requireStaff,

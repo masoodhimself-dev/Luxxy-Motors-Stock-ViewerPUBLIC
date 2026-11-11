@@ -110,14 +110,6 @@
   font-size: 16px;
   font-weight: 500;
 }
-.enquiry-checks-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.enquiry-checks-actions > button {
-  flex: 1 1 150px;
-}
 .enquiry-checks-content button {
   min-height: 44px;
   max-width: 100%;

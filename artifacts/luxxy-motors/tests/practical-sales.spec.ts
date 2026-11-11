@@ -1,5 +1,6 @@
 import { expect, test, type BrowserContext, type Page, type Route } from "@playwright/test";
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
 import {
   changeSaleWorkspace,
   createSaleWorkspace,
@@ -247,6 +248,34 @@ test("editing the customer never generates a PDF until staff ask for the saved c
 for (const width of [390, 820, 1440]) {
   test(`the guided breakdown and issued invoice fit at ${width}px`, async ({ page, context }) => {
     const api = new PracticalSalesApi(); await api.attach(context);
+    const partExchangeLookups: unknown[] = [];
+    await page.route("**/api/staff/part-exchange/check", async route => {
+      partExchangeLookups.push(route.request().postDataJSON());
+      await route.fulfill({ json: {
+        registration: "CD16EFG",
+        dvla: {
+          status: "available",
+          details: {
+            registration: "CD16EFG", checkedAt: "2026-11-11T15:00:00Z",
+            make: "FORD", colour: "BLUE", fuelType: "PETROL",
+            yearOfManufacture: 2016, engineCapacity: 1242, taxStatus: "SORN",
+          },
+        },
+        dvsa: {
+          status: "available",
+          estimate: null,
+          history: {
+            registration: "CD16EFG", checkedAt: "2026-11-11T15:00:00Z",
+            make: "FORD", model: "FIESTA", recall: "Unknown",
+            tests: [{
+              completedDate: "2026-08-17T10:00:00Z", result: "PASSED",
+              expiryDate: "2027-08-16", mileage: "62450", mileageUnit: "MI",
+              defects: [],
+            }],
+          },
+        },
+      } });
+    });
     const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
     await page.setViewportSize({ width, height: 1000 }); await startDeal(page);
     await page.getByRole("button", { name: "Extras or part exchange", exact: true }).click();
@@ -254,6 +283,24 @@ for (const width of [390, 820, 1440]) {
     await page.getByLabel("Part-exchange registration", { exact: true }).fill("CD16 EFG");
     await page.getByLabel("Vehicle description", { exact: true }).fill("Fictional part-exchange vehicle");
     await page.getByLabel("Allowance (£)", { exact: true }).fill("1000.10");
+    expect(partExchangeLookups).toHaveLength(0);
+    await page.getByRole("button", { name: "Check part exchange", exact: true }).click();
+    const partExchange = page.getByRole("region", { name: "Part-exchange result", exact: true });
+    await expect(partExchange).toContainText(/62,450/);
+    await expect(partExchange).toContainText("SORN");
+    expect(partExchangeLookups).toHaveLength(1);
+    expect(partExchangeLookups[0]).toMatchObject({ registration: "CD16EFG" });
+    await expect(page.getByLabel("Part-exchange registration", { exact: true })).toHaveValue("CD16 EFG");
+    await expect(page.getByLabel("Vehicle description", { exact: true })).toHaveValue("Fictional part-exchange vehicle");
+    await expect(page.getByLabel("Allowance (£)", { exact: true })).toHaveValue("1000.10");
+    const screenshots = process.env.PART_EXCHANGE_SCREENSHOTS;
+    if (screenshots && width !== 820) {
+      await mkdir(screenshots, { recursive: true });
+      await page.mouse.move(0, 0);
+      await page.locator(".invoice-adjustment-row").filter({ has: partExchange }).screenshot({
+        path: join(screenshots, `sales-${width === 390 ? "phone" : "desktop"}.png`),
+      });
+    }
     await page.getByRole("button", { name: "Add fee or discount", exact: true }).click();
     await page.getByLabel("Description", { exact: true }).fill("Agreed extra");
     await page.getByLabel("Amount (£)", { exact: true }).fill("100.10");

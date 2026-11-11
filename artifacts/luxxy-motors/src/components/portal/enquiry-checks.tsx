@@ -6,14 +6,13 @@ import { useDealerSettings } from "@/lib/dealer-settings-context";
 import type { Car } from "@/lib/stock-context";
 import { vehicleRegistration } from "@/lib/utils";
 import { firstMotDue } from "@/lib/long-mot";
-import { MotHistoryPanel, PartExchangeMotCheck } from "../mot-history";
-import { MotMileageEstimate } from "../mot-mileage-estimate";
+import { MotHistoryPanel } from "../mot-history";
 import {
   DeliveryEstimator,
   type DeliveryEstimate,
 } from "../delivery-estimator";
 import { Button } from "../ui/button";
-import { DvlaVehicleCheck } from "./dvla-vehicle-check";
+import { PartExchangeCheck } from "./part-exchange-check";
 import "./enquiry-checks.css";
 
 export type EnquiryChecksProps = {
@@ -70,23 +69,22 @@ function ChecksContent({
   const [registration, setRegistration] = useState(
     entry.partExchangeRegistration || "",
   );
-  const [checkedRegistration, setCheckedRegistration] = useState("");
-  const [estimateRequest, setEstimateRequest] = useState(0);
-  const [estimatedMileage, setEstimatedMileage] = useState("");
   const id = useId();
   const linkedCar = car?.id === entry.vehicleId ? car : null;
   const stockVehicleId = linkedCar?.id ?? entry.vehicleId;
   const stockRegistration = linkedCar
     ? vehicleRegistration(linkedCar)
     : entry.vehicleRegistration;
-  const validExchangeRegistration = isUKNumberPlate(
-    registration.toUpperCase().replace(/[\s-]/g, ""),
+  const invalidExchangeRegistration = Boolean(
+    registration.trim() && !isUKNumberPlate(registration),
   );
   const deliveryEnabled = Boolean(
     settings.delivery?.enabled && settings.deliveryPricing?.enabled,
   );
   const partExchangeEnabled = Boolean(
-    settings.partExchange?.enabled || entry.partExchangeRegistration,
+    settings.partExchange?.enabled ||
+      entry.partExchangeRegistration ||
+      entry.type === "part_exchange",
   );
   const insert = (text: string) => onInsertText?.(text);
   const open = (value: typeof active) => {
@@ -169,11 +167,6 @@ function ChecksContent({
       )}
       {active === "exchange" && (
         <div className="enquiry-checks-content" id={`${id}-exchange`}>
-          <p className="enquiry-checks-note">
-            Identify the customer’s car and estimate mileage from its own
-            recorded MOT history. These checks do not change the enquiry or an
-            invoice.
-          </p>
           <label className="enquiry-checks-registration">
             Part-exchange registration
             <input
@@ -183,65 +176,22 @@ function ChecksContent({
               autoComplete="off"
               autoCapitalize="characters"
               spellCheck={false}
-              onChange={(event) => {
-                setRegistration(event.target.value.toUpperCase());
-                setCheckedRegistration("");
-                setEstimatedMileage("");
-              }}
+              aria-invalid={invalidExchangeRegistration || undefined}
+              aria-describedby={invalidExchangeRegistration ? `${id}-plate-help` : undefined}
+              onChange={(event) => setRegistration(event.target.value.toUpperCase())}
             />
           </label>
-          {registration.trim() && !validExchangeRegistration && (
-            <p className="enquiry-checks-note">
+          {invalidExchangeRegistration && (
+            <p className="enquiry-checks-note" id={`${id}-plate-help`}>
               Enter a complete UK registration, for example AB12 CDE.
             </p>
           )}
-          {entry.partExchangeMileage != null && (
-            <p className="enquiry-checks-note">
-              Customer supplied:{" "}
-              {entry.partExchangeMileage.toLocaleString("en-GB")} miles. Check
-              the odometer before agreeing an allowance.
-            </p>
-          )}
-          <div className="enquiry-checks-actions">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={!validExchangeRegistration}
-              onClick={() => {
-                setEstimatedMileage("");
-                setCheckedRegistration(registration.trim());
-                setEstimateRequest((value) => value + 1);
-              }}
-            >
-              Identify car & estimate mileage
-            </Button>
-            <PartExchangeMotCheck registration={registration} />
-          </div>
-          <DvlaVehicleCheck registration={registration} />
-          {checkedRegistration && (
-            <MotMileageEstimate
-              key={`${checkedRegistration}:${estimateRequest}`}
-              registration={checkedRegistration}
-              mileage={estimatedMileage}
-              onEstimate={setEstimatedMileage}
-              showMakeLogo
-            />
-          )}
-          {estimatedMileage && onInsertText && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                insert(
-                  `For your part exchange (${checkedRegistration}), the estimated mileage is ${Number(estimatedMileage).toLocaleString("en-GB")} miles, based on recorded MOT history and rounded to the nearest 1,000. Please confirm the current odometer reading; this is an estimate, not an agreed mileage or valuation.`,
-                )
-              }
-            >
-              Add mileage estimate to reply
-            </Button>
-          )}
+          <PartExchangeCheck
+            registration={registration}
+            reportedRegistration={entry.partExchangeRegistration}
+            reportedMileage={entry.partExchangeMileage}
+            onInsertText={onInsertText}
+          />
         </div>
       )}
       {active === "delivery" && (

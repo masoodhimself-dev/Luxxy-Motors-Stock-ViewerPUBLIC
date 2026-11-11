@@ -1,11 +1,10 @@
 import {
-  act,
   fireEvent,
   render as renderDom,
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import type { Enquiry } from "@workspace/api-client-react";
@@ -103,7 +102,6 @@ beforeEach(() => {
   state.settings.deliveryPricing.enabled = true;
   state.settings.partExchange.enabled = true;
 });
-afterEach(() => vi.useRealTimers());
 
 it("makes no check requests for the closed tools and respects the existing manage permission", () => {
   const { rerender } = render(
@@ -121,37 +119,47 @@ it("makes no check requests for the closed tools and respects the existing manag
   expect(state.fetch).not.toHaveBeenCalled();
 });
 
-it("checks the edited part-exchange plate on demand and clears results when the plate changes", async () => {
+it("checks the edited part-exchange plate once on demand and clears the previous result", async () => {
   state.fetch.mockResolvedValue({
     registration: "EF56GHI",
-    checkedAt: "2026-11-11T15:12:00Z",
-    make: "Ford",
-    taxStatus: "SORN",
-    engineCapacity: 1596,
-    co2Emissions: 0,
+    dvla: {
+      status: "available",
+      details: {
+        registration: "EF56GHI",
+        checkedAt: "2026-11-11T15:12:00Z",
+        make: "Ford",
+        taxStatus: "SORN",
+      },
+    },
+    dvsa: {
+      status: "available",
+      history: { ...history, registration: "EF56GHI" },
+      estimate: null,
+    },
   });
   render(<EnquiryChecks entry={entry} car={car} canManage />);
-  fireEvent.click(screen.getByRole("button", { name: /Part exchange/ }));
+  fireEvent.click(screen.getByRole("button", { name: /^Part exchange/ }));
   const registration = screen.getByRole("textbox", { name: "Part-exchange registration" });
-  expect(screen.getByRole("button", { name: "Check part-exchange MOT" })).toBeVisible();
+  expect(registration).toHaveValue("CD34EFG");
   expect(state.fetch).not.toHaveBeenCalled();
   fireEvent.change(registration, { target: { value: "ef56 ghi" } });
-  fireEvent.click(screen.getByRole("button", { name: "Check DVLA" }));
-  expect(await screen.findByRole("region", { name: "DVLA vehicle details" })).toBeVisible();
-  expect(screen.getByText("DVLA details for EF56 GHI")).toBeVisible();
-  expect(screen.getByText("SORN")).toBeVisible();
-  expect(screen.getByText("0 g/km")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Check part exchange" }));
+  const result = await screen.findByRole("region", { name: "Part-exchange result" });
+  expect(result).toBeVisible();
+  expect(result).toHaveTextContent("SORN");
+  expect(screen.queryByText(/53,000/)).not.toBeInTheDocument();
   expect(state.fetch).toHaveBeenCalledOnce();
-  expect(state.fetch).toHaveBeenCalledWith("/api/staff/dvla/vehicle-check", expect.objectContaining({
-    method: "POST",
-    body: JSON.stringify({ registration: "EF56GHI" }),
-  }));
+  expect(state.fetch.mock.calls[0][0]).toBe("/api/staff/part-exchange/check");
+  expect(state.fetch.mock.calls[0][1].method).toBe("POST");
+  expect(JSON.parse(state.fetch.mock.calls[0][1].body)).toMatchObject({ registration: "EF56GHI" });
 
   fireEvent.change(registration, { target: { value: "CD34 EFG" } });
-  expect(screen.queryByRole("region", { name: "DVLA vehicle details" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("region", { name: "Part-exchange result" })).not.toBeInTheDocument();
   expect(state.fetch).toHaveBeenCalledOnce();
   fireEvent.change(registration, { target: { value: "CD" } });
-  expect(screen.queryByRole("button", { name: "Check DVLA" })).not.toBeInTheDocument();
+  expect(registration).toHaveAttribute("aria-invalid", "true");
+  expect(screen.getByRole("button", { name: "Check part exchange" })).toBeDisabled();
+  expect(screen.getByText(/Enter a complete UK registration/)).toBeVisible();
 });
 
 it("checks only the selected stock car and inserts factual text into a draft without sending or saving", async () => {
@@ -217,118 +225,6 @@ it("clears the active check and results when staff change customer records", asy
     "false",
   );
   expect(state.fetch).toHaveBeenCalledOnce();
-});
-
-it("uses the existing part-exchange identity/mileage estimate only after staff request it and keeps supplied mileage", async () => {
-  vi.useFakeTimers();
-  state.fetch.mockResolvedValue({
-    status: "estimated",
-    registration: "CD34EFG",
-    vehicle: { make: "FORD", model: "FIESTA" },
-    estimate: { mileage: 55000 },
-  });
-  const insert = vi.fn();
-  render(<EnquiryChecks entry={entry} canManage onInsertText={insert} />);
-  fireEvent.click(screen.getByRole("button", { name: /Part exchange/ }));
-  await act(async () => {
-    await vi.advanceTimersByTimeAsync(900);
-  });
-  expect(state.fetch).not.toHaveBeenCalled();
-  expect(document.querySelector(".enquiry-checks img")).toBeNull();
-  fireEvent.click(
-    screen.getByRole("button", { name: "Identify car & estimate mileage" }),
-  );
-  await act(async () => {
-    await vi.advanceTimersByTimeAsync(850);
-  });
-  expect(state.fetch.mock.calls[0][0]).toBe(
-    "/api/mot-mileage-estimate?registration=CD34EFG",
-  );
-  expect(screen.getByRole("status")).toHaveTextContent(
-    "FORD FIESTA · Estimated 55,000",
-  );
-  const logo = screen.getByRole("status").querySelector("img");
-  expect(logo).toHaveAttribute("src", "/brand/car-makes/ford.svg");
-  expect(logo).toHaveAttribute("alt", "");
-  expect(logo).toHaveAttribute("aria-hidden", "true");
-  expect(screen.getByText(/Customer supplied: 53,000 miles/)).toBeVisible();
-  fireEvent.click(
-    screen.getByRole("button", { name: "Add mileage estimate to reply" }),
-  );
-  expect(insert).toHaveBeenCalledWith(
-    expect.stringContaining("not an agreed mileage or valuation"),
-  );
-  expect(entry.partExchangeMileage).toBe(53000);
-  fireEvent.click(
-    screen.getByRole("button", { name: "Identify car & estimate mileage" }),
-  );
-  await act(async () => {
-    await vi.advanceTimersByTimeAsync(850);
-  });
-  expect(state.fetch).toHaveBeenCalledTimes(2);
-  expect(
-    screen.getByRole("button", { name: "Add mileage estimate to reply" }),
-  ).toBeEnabled();
-  fireEvent.change(screen.getByLabelText("Part-exchange registration"), {
-    target: { value: "EF56GHI" },
-  });
-  expect(document.querySelector(".enquiry-checks img")).toBeNull();
-  await act(async () => {
-    await vi.advanceTimersByTimeAsync(850);
-  });
-  expect(state.fetch).toHaveBeenCalledTimes(2);
-});
-
-it("asks for a complete registration and does not invent a mileage when history is insufficient", async () => {
-  vi.useFakeTimers();
-  state.fetch.mockResolvedValue({
-    status: "unavailable",
-    registration: "CD34EFG",
-    vehicle: { make: "FORD", model: "FIESTA" },
-  });
-  render(<EnquiryChecks entry={entry} canManage onInsertText={vi.fn()} />);
-  fireEvent.click(screen.getByRole("button", { name: /Part exchange/ }));
-  const registration = screen.getByLabelText("Part-exchange registration");
-  fireEvent.change(registration, { target: { value: "CD" } });
-  expect(
-    screen.getByRole("button", { name: "Identify car & estimate mileage" }),
-  ).toBeDisabled();
-  expect(screen.getByText(/Enter a complete UK registration/)).toBeVisible();
-  fireEvent.change(registration, { target: { value: "CD34 EFG" } });
-  fireEvent.click(
-    screen.getByRole("button", { name: "Identify car & estimate mileage" }),
-  );
-  await act(async () => {
-    await vi.advanceTimersByTimeAsync(850);
-  });
-  expect(screen.getByRole("status")).toHaveTextContent(
-    "Not enough reliable MOT history",
-  );
-  expect(screen.getByRole("status").querySelector("img")).toHaveAttribute(
-    "src", "/brand/car-makes/ford.svg",
-  );
-  expect(
-    screen.queryByRole("button", { name: "Add mileage estimate to reply" }),
-  ).not.toBeInTheDocument();
-});
-
-it("never shows a manufacturer logo for a mismatching MOT registration", async () => {
-  vi.useFakeTimers();
-  state.fetch.mockResolvedValue({
-    status: "estimated",
-    registration: "EF56GHI",
-    vehicle: { make: "MERCEDES-BENZ", model: "A CLASS" },
-    estimate: { mileage: 55000 },
-  });
-  render(<EnquiryChecks entry={entry} canManage />);
-  fireEvent.click(screen.getByRole("button", { name: /Part exchange/ }));
-  fireEvent.click(screen.getByRole("button", { name: "Identify car & estimate mileage" }));
-  await act(async () => {
-    await vi.advanceTimersByTimeAsync(850);
-  });
-  expect(screen.getByRole("status")).toHaveTextContent("Mileage could not be estimated");
-  expect(screen.getByRole("status").querySelector("img")).toBeNull();
-  expect(screen.queryByText(/MERCEDES-BENZ/)).not.toBeInTheDocument();
 });
 
 it("calculates a road quote only on request, and places a clearly estimated price in the editable reply", async () => {
