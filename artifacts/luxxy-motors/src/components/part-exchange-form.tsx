@@ -9,7 +9,7 @@ import { useDealerFeatures } from '@/lib/dealer-features';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { getVisitorId } from '@/lib/visitor';
 import { enquiryDraftKey, readEnquiryDraft } from '@/lib/enquiry-draft';
-import { ArrowLeft, ArrowRight, Check, MessageSquare, Search } from '@/components/icons';
+import { ArrowLeft, ArrowRight, MessageSquare, Search } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
@@ -26,7 +26,7 @@ import { partExchangeDraftKey, readPartExchangeDraft, savePartExchangeDraft, dis
 import { clearHomepagePartExchangeLookup, readHomepagePartExchangeLookup, readHomepagePartExchangeRegistration } from '@/lib/homepage-part-exchange';
 import './part-exchange-form.css';
 
-const steps = ['Your car', 'Your next car', 'Contact & review'];
+const steps = ['Your car', 'Contact & review'];
 const emptyDetails: PartExchangeDetails = { registration: '', makeModel: '', mileage: '', condition: '', conditionNotes: '', keys: '', v5: '', serviceHistory: '', name: '', phone: '', email: '' };
 type Gate = { registration: string; mode: 'lookup'; result: PartExchangeMotDetailsResult } | { registration: string; mode: 'manual' };
 type MessageDraft = { text: string; source: string; edited: boolean };
@@ -43,8 +43,7 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
   const [gate, setGate] = useState<Gate | null>(null);
   const [lookupNotice, setLookupNotice] = useState('');
   const [step, setStep] = useState(0), [furthestStep, setFurthestStep] = useState(0);
-  // A null ID is an explicit choice to enquire without a stock car.
-  const [vehicleId, setVehicleId] = useState<string | null>(vehicle?.id ?? '');
+  const [vehicleId, setVehicleId] = useState<string | null>(vehicle?.id ?? null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const pickerTrigger = useRef<HTMLButtonElement>(null);
   const [messageDraft, setMessageDraft] = useState<MessageDraft>(emptyMessage);
@@ -60,8 +59,7 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
   const hasCurrentCar = Boolean(gate && gate.registration === registration && isUKNumberPlate(registration));
   const currentCars = stockCars.filter(car => !['sold', 'archived', 'hidden'].includes(String(car.inventoryStatus)));
   const selectedVehicle = currentCars.find(car => car.id === vehicleId);
-  const noCarChosen = vehicleId === null;
-  const targetReady = Boolean(selectedVehicle) || noCarChosen;
+  const targetReady = Boolean(selectedVehicle) || vehicleId === null;
   const minimumMileage = partExchangeMinimumMileage(gate?.mode === 'lookup' && hasCurrentCar ? gate.result.mot : null);
   const mileageTooLow = details.mileage !== '' && Number(details.mileage) < minimumMileage;
   const mileageValid = details.mileage !== '' && Number.isInteger(Number(details.mileage)) && Number(details.mileage) >= minimumMileage && Number(details.mileage) <= 1000000;
@@ -94,7 +92,7 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
     const restoredPlate = normaliseExchangeRegistration(restored.details.registration);
     const manual = new URLSearchParams(window.location.search).get('manual') === 'true' && isUKNumberPlate(restoredPlate);
     setGate(seed?.result ? { registration: restoredPlate, mode: 'lookup', result: seed.result } : manual ? { registration: restoredPlate, mode: 'manual' } : null);
-    setVehicleId(draft ? draft.vehicleId : vehicle?.id ?? '');
+    setVehicleId(draft ? (draft.vehicleId || null) : vehicle?.id ?? null);
     setMessageDraft(draft?.message ?? emptyMessage); setLookupNotice('');
     vehicleTouched.current = Boolean(draft); setDraftRestored(Boolean(draft) && !seed);
     setReviewed(false); setStep(0); setFurthestStep(0);
@@ -117,7 +115,7 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
   };
   const discardDraft = () => {
     homepageSeed.current = null; clearHomepagePartExchangeLookup();
-    discardPartExchangeDraft(draftKey); setAnswers({ details: { ...emptyDetails } }); setGate(null); setVehicleId(vehicle?.id ?? ''); setMessageDraft(emptyMessage);
+    discardPartExchangeDraft(draftKey); setAnswers({ details: { ...emptyDetails } }); setGate(null); vehicleTouched.current = false; setVehicleId(vehicle?.id ?? null); setMessageDraft(emptyMessage);
     setDraftRestored(false); setReviewed(false); setStep(0); setFurthestStep(0); setLookupNotice(''); mutation.reset();
   };
   const foundCar = (result: PartExchangeMotDetailsResult) => {
@@ -132,7 +130,7 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
     if (!isUKNumberPlate(registration)) { setLookupNotice('Enter your complete UK registration before continuing manually.'); return; }
     setGate({ registration, mode: 'manual' }); setLookupNotice(''); setReviewed(false);
   };
-  const canVisitStep = (index: number) => index === 0 || (index <= furthestStep && carDetailsReady && (index === 1 || targetReady));
+  const canVisitStep = (index: number) => index === 0 || (index <= furthestStep && carDetailsReady);
 
   function chooseTarget(nextVehicleId: string | null) {
     vehicleTouched.current = true;
@@ -148,7 +146,7 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
     if (!settings.partExchange?.enabled || !features.enabled('partExchange') || mutation.isPending || submitting.current) return;
     if (!hasCurrentCar) { if (!isUKNumberPlate(registration)) setLookupNotice('Enter your complete UK registration to find your car.'); else lookupButton.current?.click(); return; }
     if (!carDetailsReady) return;
-    if (step < 2) { if (step === 1 && !targetReady) return; setStep(step + 1); setFurthestStep(value => Math.max(value, step + 1)); return; }
+    if (step === 0) { setStep(1); setFurthestStep(1); return; }
     const phoneInput = event.currentTarget.elements.namedItem('partExchangePhone') as HTMLInputElement;
     if (!phoneValid(details.phone)) { phoneInput.setCustomValidity('Enter a valid phone number with 7–15 digits.'); phoneInput.reportValidity(); return; }
     if (!ready || !reviewed || details.name.trim().length < 2) return;
@@ -177,7 +175,7 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
     {draftRestored && <div className="part-exchange-draft-notice" role="status"><p>{hasCurrentCar ? 'Your unfinished part-exchange answers were restored.' : 'Your unfinished part-exchange enquiry was restored. Find your car again to check its details, or choose manual entry.'}</p><button type="button" className="text-link min-h-11" onClick={discardDraft}>Discard draft</button></div>}
     <fieldset disabled={mutation.isPending} className="min-w-0 space-y-6"><legend className="sr-only">Part-exchange enquiry</legend>
       {hasCurrentCar && <nav className="part-exchange-steps" aria-label="Part-exchange steps">{steps.map((label, index) => <button key={label} type="button" disabled={!canVisitStep(index)} aria-current={step === index ? 'step' : undefined} onClick={event => { if (index <= step || event.currentTarget.form?.reportValidity()) setStep(index); }}><span>{index + 1}</span>{label}</button>)}</nav>}
-      <div><h2 ref={heading} tabIndex={-1} id="enquiry-form-heading" className="font-display text-2xl font-semibold outline-none">{!hasCurrentCar ? 'What’s your reg?' : steps[step]}</h2>{hasCurrentCar && <p className="mt-2 text-sm leading-6 text-muted-foreground">{['Check we’ve got the right car, then add the mileage from your dashboard.', 'Seen something you like? Add it here. You can decide later, too.', 'Leave your number and we’ll give you a call.'][step]}</p>}</div>
+      <div><h2 ref={heading} tabIndex={-1} id="enquiry-form-heading" className="font-display text-2xl font-semibold outline-none">{!hasCurrentCar ? 'What’s your reg?' : steps[step]}</h2>{hasCurrentCar && <p className="mt-2 text-sm leading-6 text-muted-foreground">{['Check we’ve got the right car, then add the mileage from your dashboard.', 'Leave your number and we’ll give you a call.'][step]}</p>}</div>
       {step === 0 && <div className="part-exchange-current-car space-y-5">
         <div className="part-exchange-registration"><label className="block"><span className="field-label">Your registration</span><UKNumberPlate value={details.registration} editable onChange={value => update('registration', value)} testId="visual-uk-number-plate" inputTestId="input-part-exchange-registration" /></label></div>
         <PartExchangeMotDetails registration={details.registration} mileage={details.mileage} mileageEstimated={exchangeMileageIsEstimated(answers)} lookupButtonRef={lookupButton} initialResult={hasCurrentCar && gate?.mode === 'lookup' ? gate.result : undefined} onDetails={foundCar} onManualEntry={manualEntry} />
@@ -197,6 +195,10 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
         </div>}
       </div>}
       {hasCurrentCar && step === 1 && <div className="space-y-5">
+        <div className="part-exchange-review-vehicles">
+        <div className="part-exchange-review-car"><strong>{details.makeModel} ({details.registration.toUpperCase()})</strong><p>{exchangeMileageIsEstimated(answers) ? 'Estimated mileage' : 'Current mileage'}: {Number(details.mileage).toLocaleString('en-GB')} miles</p>{partExchangeMotSummary(lookupMot) && <p>{partExchangeMotSummary(lookupMot)}</p>}</div>
+          <div className="space-y-2">
+            {selectedVehicle && <p className="field-label">Car you’re interested in</p>}
         {selectedVehicle && <div className="part-exchange-selected-car" data-testid="card-part-exchange-target-vehicle">
           {getThumbnailUrl(selectedVehicle) && <img src={getThumbnailUrl(selectedVehicle)} alt="" referrerPolicy="no-referrer" />}
           <div><h3 className="font-display text-xl font-semibold">{vehicleDisplayTitle(selectedVehicle)}</h3>
@@ -204,20 +206,16 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
             {selectedVehicle.price != null && <p className="mt-1 font-semibold">{formatPrice(selectedVehicle.price, selectedVehicle.currency)}</p>}
           </div>
         </div>}
-        {!currentCars.length && <p className="text-sm text-muted-foreground">There are no cars to choose from right now. You can still ask about part exchange.</p>}
-        <div className="part-exchange-target-options">
-          {currentCars.length > 0 && <Button ref={pickerTrigger} type="button" variant="outline" aria-haspopup="dialog" onClick={() => setPickerOpen(true)}>
-            <Search aria-hidden="true" />{selectedVehicle ? 'Change car' : 'Search our cars'}
-          </Button>}
-          <Button type="button" variant="outline" aria-pressed={noCarChosen} onClick={() => chooseTarget(null)}>
-            {noCarChosen && <Check aria-hidden="true" />}I haven’t chosen a car yet
-          </Button>
+            {!targetReady && <p role="alert">That car is no longer available. Choose another or continue without it.</p>}
+            <div className="part-exchange-target-options">
+              {currentCars.length > 0 && <Button ref={pickerTrigger} type="button" variant="outline" aria-haspopup="dialog" onClick={() => setPickerOpen(true)}>
+                <Search aria-hidden="true" />{selectedVehicle ? 'Change car' : 'Add a car (optional)'}
+              </Button>}
+              {vehicleId && <Button type="button" variant="ghost" onClick={() => chooseTarget(null)}>Remove car</Button>}
+            </div>
+          </div>
         </div>
         <EnquiryCarPicker open={pickerOpen} onOpenChange={setPickerOpen} cars={currentCars} currentId={selectedVehicle?.id} onSelect={car => chooseTarget(car.id)} purpose="part-exchange" returnFocus={pickerTrigger} />
-      </div>}
-      {hasCurrentCar && step === 2 && <div className="space-y-5">
-        <div className="part-exchange-review-car"><strong>{details.makeModel} ({details.registration.toUpperCase()})</strong><p>{exchangeMileageIsEstimated(answers) ? 'Estimated mileage' : 'Current mileage'}: {Number(details.mileage).toLocaleString('en-GB')} miles</p>{partExchangeMotSummary(lookupMot) && <p>{partExchangeMotSummary(lookupMot)}</p>}{selectedVehicle && <p>Interested in: {vehicleDisplayTitle(selectedVehicle)}</p>}{noCarChosen && <p>You haven’t chosen your next car yet.</p>}</div>
-        {!targetReady && <p role="alert">Your selected car is no longer available. Go back to choose another car or continue without one.</p>}
         <fieldset className="part-exchange-contact"><legend className="sr-only">Your contact details</legend>
           <label className="block"><span className="field-label">Your name</span><Input required minLength={2} maxLength={120} value={details.name} autoComplete="name" onChange={event => update('name', event.target.value)} data-testid="input-customer-name" /></label>
           <label className="block"><span className="field-label">Contact number</span><Input name="partExchangePhone" required type="tel" inputMode="tel" maxLength={25} value={details.phone} autoComplete="tel" onChange={event => { event.target.setCustomValidity(''); update('phone', event.target.value); }} data-testid="input-customer-phone" /></label>
@@ -228,10 +226,10 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
         {messageNeedsRefresh && <div className="part-exchange-message-update" role="status"><p>Your car details or selected vehicle changed. Your edited message has been kept. Update it with the latest details, or confirm you want to keep your wording before sending.</p><button type="button" onClick={() => { setMessageDraft(emptyMessage); setReviewed(false); }}>Update message with latest details</button><button type="button" onClick={() => { setMessageDraft(current => ({ ...current, source: generatedMessage })); setReviewed(false); }}>Keep my wording</button></div>}
         {message.length > 2000 && <p role="alert">Shorten your message by {message.length - 2000} characters before sending.</p>}
         <label className="part-exchange-review-confirm"><input type="checkbox" required checked={reviewed} onChange={event => setReviewed(event.target.checked)} />I’ve checked the details and message and want to share them with {settings.identity.name}.</label>
-        <p className="text-xs text-muted-foreground">We’ll talk you through your options. Any part-exchange offer depends on inspecting your car.</p>
+        <p className="text-xs text-muted-foreground">We’ll call during opening hours to talk through what your car could be worth. Any offer depends on seeing your car.</p>
         {mutation.isError && <p role="alert">We couldn’t confirm receipt. Your answers are still here. Please contact the showroom before sending again so we can check whether your enquiry arrived.</p>}
       </div>}
-      {hasCurrentCar && <div className="part-exchange-actions">{step > 0 && <Button type="button" variant="ghost" onClick={() => setStep(step - 1)}><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back</Button>}<Button type="submit" disabled={mutation.isPending || !carDetailsReady || (step === 1 && !targetReady) || (step === 2 && !ready)} data-testid="button-part-exchange-continue">{step === 2 ? <><MessageSquare className="h-4 w-4" aria-hidden="true" />{mutation.isPending ? 'Sending details…' : 'Send enquiry'}</> : <>Continue<ArrowRight className="h-4 w-4" aria-hidden="true" /></>}</Button></div>}
+      {hasCurrentCar && <div className="part-exchange-actions">{step > 0 && <Button type="button" variant="ghost" onClick={() => setStep(step - 1)}><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back</Button>}<Button type="submit" disabled={mutation.isPending || !carDetailsReady || (step === 1 && !ready)} data-testid="button-part-exchange-continue">{step === 1 ? <><MessageSquare className="h-4 w-4" aria-hidden="true" />{mutation.isPending ? 'Sending details…' : 'Ask for a part-exchange quote'}</> : <>Continue<ArrowRight className="h-4 w-4" aria-hidden="true" /></>}</Button></div>}
     </fieldset>
     {hasCurrentCar && <p className="part-exchange-draft-help">Unsent answers are kept in this browser tab for 30 minutes.</p>}
   </form>;
