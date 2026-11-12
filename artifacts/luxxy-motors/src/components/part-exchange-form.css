@@ -98,3 +98,40 @@
   color: #86251c;
   font-size: .875rem;
 }
+
+/* Keep the plate and the next action together, with room for the copy to breathe. */
+.friendly-part-exchange .part-exchange-page-layout {
+  max-width: 68rem;
+  margin-inline: auto;
+}
+.friendly-part-exchange .friendly-banner h1 {
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  letter-spacing: -.04em;
+}
+.friendly-part-exchange .friendly-banner p {
+  max-width: 35ch;
+  font-size: 1rem;
+}
+.friendly-part-exchange .enquiry-form-panel {
+  padding: clamp(1rem, 3vw, 2rem);
+  border-radius: 16px;
+}
+.friendly-part-exchange .part-exchange-mot-details__actions {
+  align-items: center;
+  gap: .5rem 1rem;
+}
+.friendly-part-exchange .part-exchange-mot-details__actions button,
+.friendly-part-exchange .part-exchange-actions button {
+  min-height: 44px;
+}
+.friendly-part-exchange .part-exchange-steps button {
+  min-height: 44px;
+}
+@media (min-width: 64rem) {
+  .friendly-part-exchange .part-exchange-page-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.55fr);
+  }
+  .friendly-part-exchange .enquiry-introduction {
+    padding-top: 1.5rem;
+  }
+}

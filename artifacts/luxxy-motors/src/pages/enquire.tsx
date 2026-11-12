@@ -51,9 +51,9 @@ export default function Enquire() {
   const isPartExchange = type === 'part_exchange';
   const copy = {
     title: isPartExchange
-      ? customerDefaultCopy(title, 'Get a part-exchange quote', ['Part-exchange your car'])
+      ? customerDefaultCopy(title, 'Trade in your car', ['Part-exchange your car', 'Get a part-exchange quote'])
       : customerDefaultCopy(title, isCarMessage ? 'Ask about this car' : 'Message the showroom', ['How can we help?']),
-    description: customerDefaultCopy(description, '', [
+    description: customerDefaultCopy(description, isPartExchange ? 'Start with your reg and mileage. We’ll be in touch to talk through what your car could be worth.' : '', [
       'Tell us what you’d like to know. We’ll get back to you.',
       'Tell us about your car and ask about your part-exchange options.',
     ]),
@@ -101,7 +101,7 @@ export default function Enquire() {
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
           {isCarMessage ? 'Back to car' : 'Back to showroom'}
         </Link>
-        <div className="enquiry-page-layout mt-3 grid items-start gap-5 sm:mt-5 sm:gap-6 lg:grid-cols-[320px_minmax(0,1fr)] xl:gap-12">
+        <div className={`enquiry-page-layout mt-3 grid items-start gap-5 sm:mt-5 sm:gap-6 xl:gap-12 ${isPartExchange ? "part-exchange-page-layout" : "lg:grid-cols-[320px_minmax(0,1fr)]"}`}>
           <section className="enquiry-introduction flex flex-col">
             <div className="friendly-banner">
               <h1 className="heading-2 text-primary">{copy.title}</h1>
