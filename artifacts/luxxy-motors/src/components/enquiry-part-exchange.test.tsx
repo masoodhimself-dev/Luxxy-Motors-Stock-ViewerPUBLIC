@@ -24,7 +24,8 @@ vi.mock('@/lib/dealer-settings-context', () => ({
 vi.mock('@/lib/dealer-features', () => ({
   useDealerFeatures: () => ({ enabled: () => true }),
 }));
-vi.mock('@/lib/part-exchange-lookup', () => ({
+vi.mock('@/lib/part-exchange-lookup', async importOriginal => ({
+  ...await importOriginal<typeof import('@/lib/part-exchange-lookup')>(),
   lookupPartExchangeCar: (...args: unknown[]) => state.lookup(...args),
 }));
 vi.mock('@/lib/analytics', () => ({ trackEvent: vi.fn() }));

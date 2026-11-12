@@ -1,5 +1,6 @@
 import { hslColourToHex } from './brand-colour.ts';
 import { salePaymentRequestAvailable, salePaymentRequestRemaining } from './sale-operations.ts';
+import { cancelSaleHandoffTasks, saleHandoffIdentityChanged } from './sale-handoff-tasks.ts';
 import { confirmSaleInvoiceVehicleReview, type SaleInvoiceVehicleReviewInput, type SaleInvoiceVehicleReviewSnapshot, type StagedSaleInvoiceVehicleReview } from './sale-invoice-vehicle-review.ts';
 /** Shared sale ledger contract and deterministic business rules. No payment processor is called here. */
 export type SaleWorkspaceExchange = { registration: string; description: string; value: string };
@@ -10,7 +11,7 @@ export type SaleWorkspacePayment = {
   method: string; date: string; expectedDate?: string; reference: string; kind: SaleWorkspacePaymentKind;
   status: 'pending' | 'confirmed' | 'cancelled'; recordedBy: string; recordedAt: string;
   receiptId?: string; reversesPaymentId?: string; reason?: string;
-  paymentRequestId?: string;
+  paymentRequestId?: string; stockConflictReconciliation?: true;
 };
 export type SaleWorkspaceFulfilment = {
   method: 'collection' | 'delivery'; viewed: 'not-yet-viewed' | 'viewed';
@@ -177,9 +178,15 @@ export type SaleWorkspaceRecord = {
   corrections?: SaleWorkspaceCorrection[];
   /** Internal assignment and handover note. Neither is part of customer paperwork. */
   team?: SaleWorkspaceTeam;
+  /** Internal task assignments and their audit history. Staff responses only. */
+  handoffTasks?: import('./sale-handoff-tasks.ts').SaleHandoffTask[];
   createdAt: string; updatedAt: string;
   /** Server-computed only; deletion rechecks the full private history transactionally. */
   emptyDraftDeletable?: boolean;
+  /** Staff response only. Current stock ownership is rechecked when saving. */
+  stockActionBlock?: 'online-checkout' | 'another-sale';
+  /** Staff response only. Provider references remain private. */
+  hasProviderPayments?: true;
   /** Server-private retry records. Responses omit these entries. */
   requests?: Record<string, { fingerprint: string; documentId?: string }>;
   /** Pending staff-only check. An issued invoice receives a separate immutable snapshot. */
@@ -213,9 +220,9 @@ export type SaleWorkspaceCommand =
   | ({ action: 'checklists' } & SaleWorkspaceChecklistInput)
   | { action: 'payment'; payment: SaleWorkspacePaymentInput }
   | { action: 'take-deposit'; payment: SaleWorkspacePaymentInput }
-  | { action: 'invoice-payment'; payment: SaleWorkspacePaymentInput }
+  | { action: 'invoice-payment'; payment: SaleWorkspacePaymentInput; stockConflictReconciliation?: { reason?: unknown; acknowledge?: unknown } }
   | { action: 'issue-invoice'; kind: 'deposit' | 'full'; acknowledge: boolean; vehicleReview?: SaleInvoiceVehicleReviewInput }
-  | { action: 'finish-invoice-sale'; acknowledge: boolean; acknowledgeOutstanding?: boolean }
+  | { action: 'finish-invoice-sale'; acknowledge: boolean; acknowledgeOutstanding?: boolean; reviewedInvoiceId?: string }
   | { action: 'complete-sale'; acknowledge: boolean; vehicleReview?: SaleInvoiceVehicleReviewInput }
   | { action: 'confirm'; paymentId: string; date?: string; reserveVehicle?: boolean; acceptShortfall?: boolean; reserveConfirmed?: boolean }
   | { action: 'reverse'; paymentId: string; amount?: string; kind?: 'refund' | 'reversal'; reason: string; date: string; method?: string; invoiceOnly?: boolean }
@@ -237,7 +244,7 @@ export type SaleWorkspaceContext = {
   requireFinalReview?: boolean;
   /** Current external evidence/terms/vehicle digest, read under the mutation lock. */
   reviewContextHash?: string;
-  /** Staff HTTP invoice issuance needs a saved vehicle check. */
+  /** Staff HTTP invoice issuance needs a check. Historical/internal reducer callers retain compatibility. */
   requireInvoiceVehicleReview?: boolean;
 };
 
@@ -285,10 +292,17 @@ function validDate(value: unknown): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) throw new SaleWorkspaceError('Choose a valid payment date.');
   return date;
 }
+/** Financial form dates follow the UK calendar, even when the server clock is UTC. */
+export function saleCalendarDate(at: Date | string = new Date()): string {
+  const date = typeof at === 'string' ? new Date(at) : at;
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(date);
+  return ['year', 'month', 'day'].map(type => parts.find(part => part.type === type)!.value).join('-');
+}
 function receivedDate(value: unknown, now: string): string {
   const date = validDate(value);
-  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now));
-  if (date > today) throw new SaleWorkspaceError('A received payment or refund cannot have a future date.');
+  if (date > saleCalendarDate(now)) throw new SaleWorkspaceError('A received payment or refund cannot have a future date.');
   return date;
 }
 function positiveMoney(value: unknown): { amount: string; amountPence: number } {
@@ -560,6 +574,26 @@ function reserveReceivedDeposit(record: SaleWorkspaceRecord, context: SaleWorksp
   record.packDocumentIds = [...documentIds, statement.id];
   event(record, context, 'deposit-reserved', 'Deposit received; vehicle reserved for this customer');
 }
+function reserveAfterFirstPayment(record: SaleWorkspaceRecord, context: SaleWorkspaceContext) {
+  if (!record.draft.vehicleId || record.completedAt || record.lifecycle?.status === 'sold' || record.lifecycle?.status === 'reserved') return;
+  record.lifecycle = { status: 'reserved', vehicleId: record.draft.vehicleId, changedAt: context.now };
+  event(record, context, 'payment-reserved', 'Payment received; vehicle reserved for this customer');
+}
+export function saleStockConflictRefundDue(record: Pick<SaleWorkspaceRecord, 'payments'>): number {
+  const corrections = new Map<string, number>();
+  for (const row of record.payments) {
+    if (row.status === 'confirmed' && row.reversesPaymentId) {
+      corrections.set(row.reversesPaymentId, (corrections.get(row.reversesPaymentId) ?? 0) + row.signedAmountPence);
+    }
+  }
+  return record.payments.reduce((due, payment) =>
+    payment.stockConflictReconciliation === true && payment.status === 'confirmed'
+      ? due + Math.max(0, payment.signedAmountPence + (corrections.get(payment.id) ?? 0))
+      : due, 0);
+}
+export function hasUnrefundedStockConflictPayment(record: Pick<SaleWorkspaceRecord, 'payments'>): boolean {
+  return saleStockConflictRefundDue(record) > 0;
+}
 function validatePaymentRequest(record: SaleWorkspaceRecord, payment: SaleWorkspacePayment, input: { paymentRequestId?: string; acceptShortfall?: boolean; reserveConfirmed?: boolean }, context: SaleWorkspaceContext) {
   if (!input.paymentRequestId) return undefined;
   const request = record.paymentRequests?.find(row => row.id === input.paymentRequestId);
@@ -601,6 +635,19 @@ export function createSaleWorkspace(input: { draft: unknown; requestId: string }
   return { sale: record };
 }
 
+/** Caller has verified and is cancelling the linked, unpaid online reservation. */
+export function releaseSaleForCancelledReservation(sale: SaleWorkspaceRecord, context: Pick<SaleWorkspaceContext, 'now' | 'actor' | 'nextId'>): boolean {
+  if (!sale.draft.sourceReservationId || sale.completedAt || sale.standaloneReturn || sale.returnReplacement?.direction === 'returned') return false;
+  const untouchedDraft = !sale.lifecycle && !sale.payments.length && !sale.documents.length && !sale.paymentRequests?.length;
+  if (sale.lifecycle?.status !== 'reserved' && !untouchedDraft) return false;
+  sale.lifecycle = { status: 'released', vehicleId: sale.draft.vehicleId, changedAt: context.now };
+  cancelSaleHandoffTasks(sale, 'sale-released', context);
+  sale.revision++;
+  sale.updatedAt = context.now;
+  sale.events.push({ id: context.nextId(), type: 'reservation-cancelled', description: 'Linked online reservation cancelled; car released', actor: context.actor, occurredAt: context.now });
+  return true;
+}
+
 export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleWorkspaceCommand, input: { expectedRevision: number; requestId: string }, context: SaleWorkspaceContext): SaleWorkspaceMutation {
   const key = requestKey(input.requestId);
   const fingerprint = saleWorkspaceFingerprint(command.action === 'team'
@@ -614,6 +661,13 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
   if (!Number.isSafeInteger(input.expectedRevision) || input.expectedRevision !== current.revision) throw new SaleWorkspaceError('This sale changed on another device. Reload it before saving.', 409);
   if (current.returnReplacement?.direction === 'returned' && command.action !== 'email-status' && command.action !== 'correction-note' && command.action !== 'team' && !(command.action === 'document' && command.type === 'statement')) throw new SaleWorkspaceError('This vehicle was returned and its credit transferred. Open the replacement deal for further financial actions.', 409);
   if (current.standaloneReturn && command.action !== 'email-status' && command.action !== 'correction-note' && command.action !== 'team' && !(command.action === 'document' && command.type === 'statement')) throw new SaleWorkspaceError('This vehicle was returned. Use its remaining customer credit to record a real refund; the original agreement stays unchanged.', 409);
+  if (['issue-invoice', 'finish-invoice-sale', 'take-deposit', 'complete-sale', 'lifecycle', 'confirm', 'payment', 'invoice-payment', 'handover'].includes(command.action)
+    || command.action === 'document' && command.type === 'invoice') {
+    const recordingForRefund = command.action === 'invoice-payment' && command.stockConflictReconciliation !== undefined;
+    if (!recordingForRefund && hasUnrefundedStockConflictPayment(current)) {
+      throw new SaleWorkspaceError('Refund or correct the payment recorded against conflicting stock before continuing this sale.', 409);
+    }
+  }
   // AI checks are optional advice. Deterministic ledger, stock and document rules below remain authoritative.
   const record = clone(current);
   let document: SaleWorkspaceDocument | undefined;
@@ -646,6 +700,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     if (record.customerAccess && (updated.customer !== record.draft.customer || updated.email !== record.draft.email || updated.vehicleId !== record.draft.vehicleId)) record.customerAccess.revokedAt = context.now;
     const previousDraft = record.draft;
     record.draft = updated;
+    if (saleHandoffIdentityChanged(previousDraft, updated)) cancelSaleHandoffTasks(record, 'buyer-or-car-changed', context);
     resetUpdatedSaleChecks(record, previousDraft, context);
     event(record, context, 'sale-updated', 'Sale details updated');
   } else if (command.action === 'team') {
@@ -679,6 +734,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
       throw new SaleWorkspaceError('Use the full invoice to review the balance and confirm that the vehicle is sold.', 409);
     }
     record.lifecycle = { status: command.status, vehicleId: record.draft.vehicleId, changedAt: context.now };
+    if (command.status === 'released') cancelSaleHandoffTasks(record, 'sale-released', context);
     event(record, context, 'stock-' + command.status, command.status === 'released' ? 'Vehicle reservation released' : 'Vehicle marked ' + command.status);
   } else if (command.action === 'fulfilment') {
     if (record.lifecycle?.status === 'released') throw new SaleWorkspaceError('This reservation has been released. Start a new sale before arranging handover.', 409);
@@ -700,7 +756,13 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     event(record, context, 'document-email-' + command.delivery.status, 'Document email ' + command.delivery.status);
   } else if (command.action === 'payment' || command.action === 'take-deposit' || command.action === 'invoice-payment') {
     ready(record);
-    if (record.lifecycle?.status === 'released') throw new SaleWorkspaceError('This reservation has been released. Start a new sale before recording another payment.', 409);
+    if (record.lifecycle?.status === 'released' || record.lifecycle?.status === 'returned') throw new SaleWorkspaceError('This sale is closed. Start a new sale before recording another payment.', 409);
+    const reconciliation = command.action === 'invoice-payment' ? command.stockConflictReconciliation : undefined;
+    const reconciliationReason = reconciliation === undefined ? '' : text(reconciliation?.reason, 1000, 'the refund reconciliation reason');
+    if (reconciliation !== undefined && (!reconciliationReason || reconciliation?.acknowledge !== true ||
+      command.payment?.kind !== 'part-payment' || command.payment.status !== 'confirmed' || command.payment.paymentRequestId)) {
+      throw new SaleWorkspaceError('Confirm the money was received and give a reason before recording it for refund.');
+    }
     if (command.action === 'invoice-payment' && command.payment?.status !== 'confirmed') throw new SaleWorkspaceError('Record received funds on this sale.');
     if (command.action === 'invoice-payment' && command.payment.kind === 'deposit' && (record.completedAt || record.lifecycle?.status === 'sold')) throw new SaleWorkspaceError('This car is already sold. Record an interim or final payment instead of another reservation deposit.');
     if (command.action === 'take-deposit') {
@@ -712,24 +774,31 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     const method = text(command.payment.method, 100, 'the payment method');
     if (!method) throw new SaleWorkspaceError('Choose the payment method.');
     const payment: SaleWorkspacePayment = { id: context.nextId(), amount, amountPence, signedAmountPence: amountPence, method, date: command.payment.status === 'confirmed' ? receivedDate(command.payment.date, context.now) : validDate(command.payment.date), reference: text(command.payment.reference ?? '', 200, 'the payment reference'), kind: command.payment.kind, status: command.payment.status, recordedAt: context.now, recordedBy: context.actor };
+    if (reconciliationReason) {
+      payment.reason = reconciliationReason;
+      payment.stockConflictReconciliation = true;
+    }
     if (payment.status === 'pending') payment.expectedDate = payment.date;
     const linkedRequest = validatePaymentRequest(record, payment, command.payment, context);
     if (linkedRequest?.kind === 'deposit' && payment.status === 'confirmed' && command.action === 'payment') throw new SaleWorkspaceError('Use Take deposit to confirm and reserve this car.');
     confirmable(record, payment);
     record.payments.push(payment);
     if (linkedRequest && payment.status === 'confirmed') acceptPaymentRequest(record, linkedRequest, payment, context);
-    event(record, context, 'payment-recorded', `${payment.status === 'pending' ? 'Pending' : 'Confirmed'} ${payment.kind.replaceAll('-', ' ')}: £${amount} (${payment.date})`);
-    if (payment.status === 'confirmed' && (command.action !== 'invoice-payment' || Boolean(linkedRequest) || hasSeparateDeliveryInvoice(record) || (payment.kind === 'deposit' && command.payment.reserveConfirmed === true))) document = receipt(record, context, payment);
+    if (reconciliationReason) event(record, context, 'payment-conflict-reconciled', `£${amount} received and recorded for refund reconciliation: ${reconciliationReason}`);
+    else event(record, context, 'payment-recorded', `${payment.status === 'pending' ? 'Pending' : 'Confirmed'} ${payment.kind.replaceAll('-', ' ')}: £${amount} (${payment.date})`);
+    if (!reconciliationReason && payment.status === 'confirmed' && (command.action !== 'invoice-payment' || Boolean(linkedRequest) || hasSeparateDeliveryInvoice(record) || (payment.kind === 'deposit' && command.payment.reserveConfirmed === true))) document = receipt(record, context, payment);
     if (command.action === 'invoice-payment' && payment.kind === 'deposit') {
       record.lifecycle = { status: 'reserved', vehicleId: record.draft.vehicleId, changedAt: context.now };
       event(record, context, 'deposit-reserved', 'Deposit received; vehicle reserved for this customer');
     }
     if (command.action === 'take-deposit') {
       reserveReceivedDeposit(record, context, document!);
+    } else if (!reconciliationReason && payment.status === 'confirmed' && payment.kind !== 'deposit') {
+      reserveAfterFirstPayment(record, context);
     }
   } else if (command.action === 'confirm') {
     ready(record);
-    if (record.lifecycle?.status === 'released') throw new SaleWorkspaceError('This reservation has been released. Start a new sale before confirming another payment.', 409);
+    if (record.lifecycle?.status === 'released' || record.lifecycle?.status === 'returned') throw new SaleWorkspaceError('This sale is closed. Start a new sale before confirming another payment.', 409);
     const payment = record.payments.find(row => row.id === command.paymentId);
     if (!payment || payment.status !== 'pending') throw new SaleWorkspaceError('Only a pending payment can be confirmed.', 409);
     if (command.reserveVehicle) {
@@ -743,6 +812,8 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     document = receipt(record, context, payment);
     if (command.reserveVehicle) {
       reserveReceivedDeposit(record, context, document);
+    } else if (payment.kind !== 'deposit') {
+      reserveAfterFirstPayment(record, context);
     }
   } else if (command.action === 'reverse') {
     const original = record.payments.find(row => row.id === command.paymentId);
@@ -784,7 +855,6 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
       requireSingleDeliveryInvoice(record);
       document = issueReviewedInvoice(record,context,'Sales invoice',command.vehicleReview);
     } else document = issueDocument(record,context,'statement','Balance statement');
-
   } else if (command.action === 'issue-invoice') {
     ready(record);
     if (record.lifecycle?.status === 'released') throw new SaleWorkspaceError('This reservation has been released. Start a new sale before issuing another invoice.', 409);
@@ -804,6 +874,13 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     if (command.acknowledge !== true) throw new SaleWorkspaceError('Confirm that this car should be marked sold.');
     const fullInvoice = latestFullSaleInvoice(record.documents);
     if (!fullInvoice) throw new SaleWorkspaceError('Create the full invoice before marking the car sold.');
+    if (command.reviewedInvoiceId === undefined) {
+      // Older clients can only complete a sale if there is one possible full invoice to review.
+      const fullInvoiceCount = record.documents.filter(document => document.type === 'invoice' && document.invoiceKind !== 'deposit').length;
+      if (fullInvoiceCount !== 1) throw new SaleWorkspaceError('Open and review the current sales invoice before marking this car sold.', 409);
+    } else if (command.reviewedInvoiceId !== fullInvoice.id) {
+      throw new SaleWorkspaceError('This invoice has been superseded. Review the current sales invoice before marking this car sold.', 409);
+    }
     const outstanding = saleWorkspaceTotals(record.draft, record.payments).balance;
     if (outstanding < 0) throw new SaleWorkspaceError('Resolve the customer credit before marking this car sold.');
     if (outstanding > 0 && command.acknowledgeOutstanding !== true) throw new SaleWorkspaceError('Settle the balance or explicitly acknowledge the outstanding amount before marking the car sold.');
@@ -815,7 +892,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     requireCompletedSaleChecklists(record);
     record.completedAt = context.now;
     record.lifecycle = { status: 'sold', vehicleId: record.draft.vehicleId, changedAt: context.now };
-    event(record, context, 'sale-completed', 'Car marked sold after issuing the full invoice; removed from public stock' + (outstanding > 0 ? `; £${(outstanding / 100).toFixed(2)} remains outstanding (staff acknowledged)` : ''));
+    event(record, context, 'sale-completed', `Car marked sold after reviewing invoice ${fullInvoice.number}; removed from public stock` + (outstanding > 0 ? `; £${(outstanding / 100).toFixed(2)} remains outstanding (staff acknowledged)` : ''), fullInvoice.id);
   } else if (command.action === 'complete-sale') {
     ready(record);
     if (record.lifecycle?.status === 'released') throw new SaleWorkspaceError('This reservation has been released. Start a new sale before completing it.', 409);
@@ -839,7 +916,9 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
   } else if (command.action === 'handover') {
     ready(record);
     if (record.lifecycle?.status === 'released') throw new SaleWorkspaceError('This reservation has been released. Start a new sale before recording handover.', 409);
+    if (record.lifecycle?.status === 'returned') throw new SaleWorkspaceError('This vehicle was returned. Open the current sale before recording handover.', 409);
     if (record.draft.fulfilment?.completedAt) throw new SaleWorkspaceError('Handover is already recorded.', 409);
+    if (!record.completedAt && record.lifecycle?.status !== 'sold') throw new SaleWorkspaceError('Mark this sale sold before recording collection or delivery.', 409);
     const balance = saleWorkspaceTotals(record.draft, record.payments).balance;
     if (balance > 0 && command.acknowledgeOutstanding !== true) throw new SaleWorkspaceError('An outstanding balance remains. Explicitly acknowledge it before recording handover.', 409);
     const recipient = text(command.recipient, 200, 'the handover recipient');
@@ -852,6 +931,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     requireCompletedSaleChecklists(record);
     record.draft.fulfilment = { ...fulfilment, completedAt: new Date(completedAt).toISOString(), completedBy: context.actor, completedRecipient: recipient };
     record.draft.handover = true;
+    cancelSaleHandoffTasks(record, 'handover-completed', context);
     event(record, context, 'handover-completed', `${fulfilment.method === 'delivery' ? 'Delivered' : 'Collected'} by ${recipient}${balance ? ' with an acknowledged outstanding balance' : ''}`);
     document = issueDocument(record, context, 'handover', fulfilment.method === 'delivery' ? 'Delivery confirmation' : 'Collection confirmation');
   } else throw new SaleWorkspaceError('Unknown sale action.', 400);
@@ -868,7 +948,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
 }
 
 export function publicSaleWorkspace(record: SaleWorkspaceRecord): SaleWorkspaceRecord {
-  const { requests: _requests, documentArchives: _archives, providerPayments: _provider, invoiceVehicleReview: _invoiceReview, customerAccess, ...publicRecord } = record;
+  const { requests: _requests, documentArchives: _archives, providerPayments: _provider, stockActionBlock: _stock, hasProviderPayments: _hasProvider, handoffTasks: _handoff, invoiceVehicleReview: _invoiceReview, customerAccess, ...publicRecord } = record;
   if (customerAccess) (publicRecord as SaleWorkspaceRecord).customerAccess = { tokenHash: "", expiresAt: customerAccess.expiresAt, ...(customerAccess.revokedAt ? { revokedAt: customerAccess.revokedAt } : {}) };
   if (publicRecord.paymentRequests) publicRecord.paymentRequests = publicRecord.paymentRequests.map(({ tokenHash: _tokenHash, ...request }) => ({ ...request, tokenHash: '' }));
   return clone(publicRecord);

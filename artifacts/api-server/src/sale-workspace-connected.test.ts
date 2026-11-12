@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
-import { SaleWorkspaceError, saleWorkspaceTotals, saleCompletionChecklistItems, type SaleWorkspaceDraft, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
-import { PostgresSaleWorkspaceStore, readSaleWorkspaceAssets, recordStripeReservationDeposit, recordStripeReservationRefund, type SaleWorkspaceDatabase } from './lib/sale-workspace-store';
+import { publicSaleWorkspace, SaleWorkspaceError, saleCalendarDate, saleWorkspaceTotals, saleCompletionChecklistItems, type SaleWorkspaceDraft, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
+import { PostgresSaleWorkspaceStore, readSaleWorkspaceAssets, recordStripeReservationDeposit, recordStripeReservationRefund, SaleVehicleConflictError, saleVehiclePaymentBlocked, type SaleWorkspaceDatabase } from './lib/sale-workspace-store';
 import { readSaleReviewContext } from './lib/sale-review-context';
 const vehicleId = '00000000-0000-4000-8000-000000000001';
 const reservationId = '00000000-0000-4000-8000-000000000002';
@@ -99,10 +99,81 @@ test('production availability mutations reject a competing buyer and preserve Gr
   assert.equal((await f.store.get(b.id)).revision, 1);
   const checked = await f.store.mutate({ id: a.id, expectedRevision: reserved.sale.revision, requestId: randomUUID(), actor: 'Staff A', command: { action: 'checklists', completion: Object.fromEntries(saleCompletionChecklistItems.map(item => [item.id, 'checked'])) } });
   await f.reviewed(checked.sale);
-  await f.store.mutate({ id: a.id, expectedRevision: checked.sale.revision, requestId: randomUUID(), actor: 'Staff A', command: { action: 'handover', recipient: 'Buyer', acknowledgeOutstanding: true } });
+  await assert.rejects(f.store.mutate({ id: a.id, expectedRevision: checked.sale.revision, requestId: randomUUID(), actor: 'Staff A', command: { action: 'handover', recipient: 'Buyer', acknowledgeOutstanding: true } }), /mark this sale sold/i);
+  assert.equal(f.vehicle().inventory_status, 'reserved');
+  const invoiced = await f.store.mutate({ id: a.id, expectedRevision: checked.sale.revision, requestId: randomUUID(), actor: 'Staff A', command: { action: 'issue-invoice', kind: 'full', acknowledge: true } });
+  const sold = await f.store.mutate({ id: a.id, expectedRevision: invoiced.sale.revision, requestId: randomUUID(), actor: 'Staff A', command: { action: 'finish-invoice-sale', acknowledge: true, acknowledgeOutstanding: true } });
+  const handedOver = await f.store.mutate({ id: a.id, expectedRevision: sold.sale.revision, requestId: randomUUID(), actor: 'Staff A', command: { action: 'handover', recipient: 'Buyer', acknowledgeOutstanding: true } });
+  assert.deepEqual(handedOver.sale.lifecycle, sold.sale.lifecycle);
   assert.equal(f.vehicle().inventory_status, 'sold'); assert.equal(f.vehicle().source_status, 'live'); assert.equal(f.vehicle().source_price, 12345);
   assert.equal((await f.store.get(a.id)).lifecycle?.status, 'sold');
   assert.ok(f.statements.some(q => q.includes('pg_advisory_xact_lock'))); assert.ok(f.statements.some(q => q.includes('FROM vehicles') && q.includes('FOR UPDATE')));
+});
+
+test('first part payment reserves stock and a competing sale can only reconcile received money for refund', async () => {
+  const f = fixture();
+  const create = async (customer: string) => (await f.store.mutate({ draft: { ...draft(), customer }, requestId: randomUUID(), actor: 'Staff' })).sale;
+  const a = await create('First customer'), b = await create('Second customer');
+  const change = (sale: SaleWorkspaceRecord, command: NonNullable<Parameters<typeof f.store.mutate>[0]['command']>, requestId = randomUUID()) =>
+    f.store.mutate({ id: sale.id, expectedRevision: sale.revision, command, requestId, actor: 'Accounts' });
+  const payment = { amount:'400', kind:'part-payment', method:'Bank transfer', reference:'Checked funds', status:'confirmed', date:saleCalendarDate() } as const;
+  const reserved = await change(a, { action:'invoice-payment', payment });
+  assert.equal(reserved.sale.lifecycle?.status, 'reserved');
+  assert.equal(f.vehicle().inventory_status, 'reserved');
+  assert.equal(await saleVehiclePaymentBlocked('fixture-dealer', b, f.database), true);
+  assert.equal(await saleVehiclePaymentBlocked('fixture-dealer', reserved.sale, f.database), false);
+  await assert.rejects(change(b, { action:'invoice-payment', payment }), SaleVehicleConflictError);
+  await assert.rejects(change(b, { action:'issue-invoice', kind:'full', acknowledge:true }), SaleVehicleConflictError);
+  assert.equal((await f.store.get(b.id)).revision, b.revision);
+  assert.equal((await f.store.get(b.id)).payments.length, 0);
+  const reconciliation = { action:'invoice-payment', payment, stockConflictReconciliation: { reason:'Transfer confirmed in bank', acknowledge:true } } as const;
+  await assert.rejects(change(reserved.sale, reconciliation), /stock conflict has changed/i);
+  const requestId = randomUUID();
+  const { sale } = await change(b, reconciliation, requestId);
+  assert.equal(sale.payments[0].stockConflictReconciliation, true);
+  assert.equal(sale.payments[0].receiptId, undefined);
+  assert.equal(sale.documents.length, 0);
+  assert.equal(sale.lifecycle, undefined);
+  assert.ok(sale.events.some(event => event.type === 'payment-conflict-reconciled' && event.actor === 'Accounts'));
+  assert.equal((await change(b, reconciliation, requestId)).replayed, true);
+  await assert.rejects(change(sale, { action:'issue-invoice', kind:'full', acknowledge:true }), /refund or correct/i);
+  const refunded = await change(sale, { action:'reverse', paymentId:sale.payments[0].id, amount:'400', date:payment.date, reason:'Refund confirmed' });
+  assert.equal(saleWorkspaceTotals(refunded.sale.draft, refunded.sale.payments).confirmedPaid, 0);
+  assert.equal(f.vehicle().inventory_status, 'reserved');
+  assert.equal((await f.store.get(a.id)).revision, reserved.sale.revision);
+});
+
+test('staff sale detail exposes stock action blocks and provider presence without private identifiers', async () => {
+  const f = fixture();
+  const create = async (customer: string) => (await f.store.mutate({ draft: { ...draft(), customer }, requestId: randomUUID(), actor: 'Staff' })).sale;
+  const owner = await create('First customer'), other = await create('Other customer');
+  const get = (id: string) => f.store.get(id, { includeStockActionBlock: true });
+  assert.equal((await get(owner.id)).stockActionBlock, undefined);
+  f.setCheckoutHold(true);
+  const held = await get(other.id);
+  assert.equal(held.stockActionBlock, 'online-checkout');
+  assert.doesNotMatch(JSON.stringify(held), new RegExp(reservationId));
+  assert.equal((await f.store.get(other.id)).stockActionBlock, undefined);
+  f.setCheckoutHold(false);
+  const reserved = (await f.store.mutate({ id: owner.id, expectedRevision: owner.revision, requestId: randomUUID(), actor:'Staff', command:{ action:'lifecycle', status:'reserved' } })).sale;
+  assert.equal((await get(owner.id)).stockActionBlock, undefined);
+  const conflict = await get(other.id);
+  assert.equal(conflict.stockActionBlock, 'another-sale');
+  assert.doesNotMatch(JSON.stringify(conflict), /First customer/);
+  assert.equal(publicSaleWorkspace(conflict).stockActionBlock, undefined);
+  f.seed({ ...other, lifecycle: { status: 'released', vehicleId, changedAt: new Date().toISOString() } });
+  f.statements.length = 0;
+  assert.equal((await get(other.id)).stockActionBlock, undefined);
+  assert.equal(f.statements.some(statement => statement.includes('FROM vehicles')), false);
+  f.seed({ ...reserved, providerPayments: { pi_fixture: { paymentId: 'private-payment', eventId: 'evt_fixture' } } });
+  const managed = await get(reserved.id);
+  assert.equal(managed.hasProviderPayments, true);
+  assert.equal(managed.providerPayments, undefined);
+  assert.equal(publicSaleWorkspace(managed).hasProviderPayments, undefined);
+  const updated = await f.store.mutate({ id: reserved.id, expectedRevision: reserved.revision, requestId: randomUUID(), actor:'Staff', command:{ action:'team', ownerId:null, note:'Fixture note' } });
+  assert.equal(updated.sale.hasProviderPayments, true);
+  assert.equal(updated.sale.providerPayments, undefined);
+  assert.doesNotMatch(JSON.stringify(updated.sale), /pi_fixture|evt_fixture|private-payment/);
 });
 
 test('a pending checkout protects its vehicle and prevents manual payment or linked sale writes', async () => {

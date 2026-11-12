@@ -23,14 +23,19 @@ import {
   vehicleRegistration,
   vehicleRegistrationLabel,
   saleDocumentEmailRecipientProblem,
+  canonicalCustomerEmail,
+  saleCustomerUpdates,
   type EmailFacts,
   type SaleWorkspaceDocument,
   type SaleWorkspaceDraft,
+  type SaleWorkspaceRecord,
+  type SaleCustomerUpdateBinding,
 } from "@workspace/vehicle-meta";
 import {
   requireStaff,
   requirePermission,
   staffLabel,
+  staffHasPermission,
 } from "../middlewares/staff-auth";
 import {
   currentDealerId,
@@ -71,6 +76,9 @@ import { enquiryGalleryContext, selectedEnquiryGallery, EnquiryGalleryError } fr
 import { createEnquiryVehiclePdf, EnquiryVehiclePdfError } from "../lib/enquiry-vehicle-pdf";
 import { brochureDealer } from "../lib/vehicle-brochure";
 import { findVisibleStockVehicle } from "./stock";
+import { saleCorrespondenceEnquiry, saleEmailIdentity } from "../lib/sale-correspondence";
+import { executorQuery } from "../lib/query-executor";
+import { saleVehiclePaymentBlocked } from "../lib/sale-workspace-store";
 
 
 export const draftSchema = z
@@ -114,8 +122,14 @@ export const draftSchema = z
     expectedRevision: z.number().int().nonnegative(),
   })
   .strict();
+const saleUpdateSchema = z.object({
+  saleId: z.string().uuid(),
+  revision: z.number().int().nonnegative(),
+  kind: z.enum(["handover-complete", "handover-booked", "sale-complete", "deposit"]),
+}).strict();
 const reviewSchema = draftSchema.extend({
   enquiryReplyId: z.string().uuid().transform((id) => id.toLowerCase()).optional(),
+  saleUpdate: saleUpdateSchema.optional(),
 });
 const sendSchema = reviewSchema.extend({
   savedDraftVersion: z.number().int().positive().optional(),
@@ -139,6 +153,54 @@ const key = (dealer: string, id: string) => `enquiry-email:${dealer}:${id}`;
 async function requireReplyRecipient(enquiryId: string, replyId: string | undefined, to: string, executor?: Pick<typeof db, "execute">) {
   if (replyId && (await acceptedEnquiryReply(enquiryId, replyId, executor))?.from !== to)
     throw new EmailError("The linked customer reply is unavailable for this address. Check the reply in the Inbox.", 409);
+}
+async function requireSaleCustomerUpdate(
+  enquiryId: string, binding: SaleCustomerUpdateBinding, input: Draft,
+  dealerName: string, executor: Pick<typeof db, "execute"> = db, lock = false,
+) {
+  const changed = () => new EmailError("The sale changed. Reopen it and review the customer update before sharing.", 409);
+  const query = executorQuery(executor);
+  const current = (await query(
+    "SELECT state,revision FROM sale_workspace WHERE dealer_id=$1 AND id=$2::uuid" + (lock ? " FOR SHARE" : ""),
+    [currentDealerId(), binding.saleId],
+  )).rows[0];
+  const sale = current?.state as SaleWorkspaceRecord | undefined;
+  if (!sale || Number(current?.revision) !== binding.revision || sale.revision !== binding.revision ||
+      canonicalCustomerEmail(sale.draft.email) !== input.to) throw changed();
+  const update = saleCustomerUpdates(sale, dealerName).find(item => item.kind === binding.kind);
+  if (!update || update.subject.trim() !== input.subject || update.message.trim() !== input.message ||
+      input.templateId !== "enquiry_message" || input.includeVehicle || input.includeAppointment || input.attachVehiclePdf ||
+      input.photoIds.length || input.documentIds.length || input.vehiclePhotoIndices.length) throw changed();
+  if ((binding.kind === "deposit" || binding.kind === "handover-booked") &&
+      await saleVehiclePaymentBlocked(currentDealerId(), sale, { query })) throw changed();
+  const caseId = await saleCorrespondenceEnquiry(sale, sale.draft, executor, false).catch(() => null);
+  if (caseId !== enquiryId) throw changed();
+}
+const saleUpdateRequestId = (enquiryId: string, approvalHash: string, failedDeliveryId?: string) =>
+  saleEmailIdentity(JSON.stringify(["sale-customer-update", currentDealerId(), enquiryId, approvalHash, ...(failedDeliveryId ? [failedDeliveryId] : [])]));
+async function saleUpdateApproval(
+  enquiryId: string, binding: SaleCustomerUpdateBinding, approvalHash: string,
+  executor: Pick<typeof db, "execute"> = db,
+) {
+  const originalId = saleUpdateRequestId(enquiryId, approvalHash);
+  const match = sql`(m.enquiry_id=${enquiryId}::uuid AND (m.request_id=${originalId}::uuid OR q.validation->>'saleUpdateApprovalHash'=${approvalHash}))`;
+  const attempts = (await executor.execute(sql`
+    SELECT m.id,m.request_id,m.status,${match} AS matches_approval
+    FROM email_outbox q JOIN enquiry_emails m ON m.id=q.delivery_id AND m.dealer_id=q.dealer_id
+    WHERE q.dealer_id=${currentDealerId()} AND q.kind='staff'
+      AND q.validation#>>'{saleUpdate,saleId}'=${binding.saleId}
+      AND q.validation#>>'{saleUpdate,kind}'=${binding.kind}
+      AND (m.status IN ('sending','unknown') OR ${match})
+    ORDER BY m.created_at DESC,m.id DESC
+  `)).rows;
+  const exact = attempts.find(row => row.matches_approval === true);
+  const unresolved = attempts.find(row => row.status === "sending" || row.status === "unknown");
+  if (unresolved && unresolved.id !== exact?.id) {
+    throw new EmailError("An earlier email for this sale update is still sending or its acceptance is unconfirmed. Check Email history before sending another copy.", 409);
+  }
+  if (!exact) return { requestId: originalId };
+  if (exact.status === "failed") return { requestId: saleUpdateRequestId(enquiryId, approvalHash, String(exact.id)) };
+  return { requestId: String(exact.request_id), existingStatus: String(exact.status) };
 }
 const cazooFirstReplyKey = (receiptId: string) => `cazoo-first-reply-${receiptId}`;
 type CazooFirstReplyReceipt = {
@@ -246,7 +308,7 @@ async function invoiceAttachments(
 }
 async function preview(
   id: string,
-  rawInput: Omit<Draft, "vehiclePhotoIndices" | "attachVehiclePdf"> & Partial<Pick<Draft, "vehiclePhotoIndices" | "attachVehiclePdf">>,
+  rawInput: Omit<Draft, "vehiclePhotoIndices" | "attachVehiclePdf"> & Partial<Pick<Draft, "vehiclePhotoIndices" | "attachVehiclePdf">> & { saleUpdate?: SaleCustomerUpdateBinding },
   config: PrivateDealerSettings,
   profile: Awaited<ReturnType<typeof dealerProfile>>,
   executor: typeof db = db,
@@ -256,7 +318,7 @@ async function preview(
   return withEmailPreparation(async () => {
     const enquiry = await entry(id, executor);
     const saved = await readEmailDraft(enquiry.dealerId, enquiry.id, executor);
-    if (saved.savedDraft?.content && typeof saved.savedDraft.content === 'object' && 'stockChange' in saved.savedDraft.content) throw new EmailError('This retired stock-update draft must be discarded before composing a fresh email.',409);
+    if (!input.saleUpdate && saved.savedDraft?.content && typeof saved.savedDraft.content === 'object' && 'stockChange' in saved.savedDraft.content) throw new EmailError('This retired stock-update draft must be discarded before composing a fresh email.',409);
     if (enquiry.workspaceRevision !== input.expectedRevision)
       throw new EmailError(
         "This enquiry changed. Close and reopen the email before sending.",
@@ -766,14 +828,17 @@ export async function rebuildStaffOutboxEmail(
     throw new Error("The email approval is no longer authorised.");
   const input = draftSchema.parse(row.validation.input),
     config = suppliedConfig ?? (await dealerIntegrationsStore.readPrivate());
+  const profile = await dealerProfile();
+  const saleUpdate = row.validation.saleUpdate === undefined ? undefined : saleUpdateSchema.parse(row.validation.saleUpdate);
+  if (saleUpdate) await requireSaleCustomerUpdate(row.enquiry_id, saleUpdate, input, profile.identity.name);
   await requireReplyRecipient(row.enquiry_id, row.validation.enquiryReplyId, input.to);
   if (row.validation.enquiryReplyId && !replyConfiguration())
     throw new Error("The approved reply connection is no longer available.");
   const result = await preview(
     row.enquiry_id,
-    input,
+    { ...input, saleUpdate },
     config,
-    await dealerProfile(),
+    profile,
     db,
     approvedEmailLayoutVersion(row.validation.layoutVersion),
   );
@@ -822,8 +887,8 @@ async function staffPreviewDelivery(
     return { from: null, repliesInInbox: false, routingHash: null };
   }
 }
-const staffApprovalHash = (contentHash: string, routingHash: string | null, enquiryReplyId?: string) =>
-  hash(JSON.stringify({ contentHash, routingHash, enquiryReplyId }));
+const staffApprovalHash = (contentHash: string, routingHash: string | null, enquiryReplyId?: string, saleUpdate?: SaleCustomerUpdateBinding) =>
+  hash(JSON.stringify({ contentHash, routingHash, enquiryReplyId, saleUpdate }));
 
 /** Provider is injectable: tests only send to a recording transport. */
 export function createEnquiryEmailRouter(
@@ -1075,14 +1140,22 @@ export function createEnquiryEmailRouter(
     }
     try {
       const config = await deps.settings();
-      await requireReplyRecipient(String(req.params.id), parsed.data.enquiryReplyId, parsed.data.to);
+      const id = String(req.params.id), profile = await dealerProfile(), { saleUpdate } = parsed.data;
+      if (saleUpdate) {
+        if (!staffHasPermission(req, "sales.manage")) throw new EmailError("Ask a salesperson to email this update.", 403);
+        if (parsed.data.enquiryReplyId) throw new EmailError("Open the sale before emailing this update.", 409);
+        await requireSaleCustomerUpdate(id, saleUpdate, parsed.data, profile.identity.name);
+      }
+      await requireReplyRecipient(id, parsed.data.enquiryReplyId, parsed.data.to);
       const result = await preview(
-        String(req.params.id),
+        id,
         parsed.data,
         config,
-        await dealerProfile(),
+        profile,
       );
       const delivery = await staffPreviewDelivery(config, { to: parsed.data.to, ...result.rendered });
+      const previewHash = staffApprovalHash(result.previewHash, delivery.routingHash, parsed.data.enquiryReplyId, saleUpdate);
+      const saleApproval = saleUpdate && await saleUpdateApproval(id, saleUpdate, previewHash);
       res.json({
         to: parsed.data.to,
         from: delivery.from,
@@ -1090,7 +1163,8 @@ export function createEnquiryEmailRouter(
         subject: result.rendered.subject,
         text: result.rendered.text,
         html: result.rendered.html,
-        previewHash: staffApprovalHash(result.previewHash, delivery.routingHash, parsed.data.enquiryReplyId),
+        previewHash,
+        ...(saleApproval ? { saleUpdateRequestId: saleApproval.requestId, saleUpdateExistingStatus: saleApproval.existingStatus } : {}),
         attachments: result.attachments.map(({ id, filename, content }) => ({
           id,
           filename,
@@ -1125,10 +1199,15 @@ export function createEnquiryEmailRouter(
             }),
           );
         if (!uuid(id)) throw new EmailError("Enquiry not found.", 404);
+        if (input.saleUpdate) {
+          if (!staffHasPermission(req, "sales.manage")) throw new EmailError("Ask a salesperson to email this update.", 403);
+          if (input.enquiryReplyId || input.savedDraftVersion !== undefined) throw new EmailError("Review the sale update again before sending.", 409);
+        }
         const config = await deps.settings(),
           resend = effectiveResendSettings(config),
           profile = await dealerProfile();
         const claimed = await db.transaction(async (tx) => {
+          if (input.saleUpdate) await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`sale-customer-update:${dealer}:${input.saleUpdate.saleId}:${input.saleUpdate.kind}`}))`);
           await tx.execute(
             sql`SELECT pg_advisory_xact_lock(hashtext(${key(dealer, id)}))`,
           );
@@ -1158,6 +1237,11 @@ export function createEnquiryEmailRouter(
               "Email delivery is not ready. Ask the owner to enable Resend in Settings → API integrations.",
               503,
             );
+          if (input.saleUpdate) {
+            const approval = await saleUpdateApproval(id, input.saleUpdate, input.previewHash, tx);
+            if (approval.requestId !== input.requestId) throw new EmailError("Review the sale update again before sending.", 409);
+            await requireSaleCustomerUpdate(id, input.saleUpdate, input, profile.identity.name, tx, true);
+          }
           await tx
             .select({ id: enquiriesTable.id })
             .from(enquiriesTable)
@@ -1197,6 +1281,7 @@ export function createEnquiryEmailRouter(
               requestId: _request,
               previewHash: _preview,
               enquiryReplyId: _reply,
+              saleUpdate: _saleUpdate,
               ...copy
             } = input;
             const savedContent = draftSchema.safeParse(
@@ -1216,7 +1301,7 @@ export function createEnquiryEmailRouter(
           const reviewedDelivery = await staffPreviewDelivery(config, { to: input.to, ...result.rendered }, tx);
           if (input.enquiryReplyId && !reviewedDelivery.repliesInInbox)
             throw new EmailError("Sending from this link is paused until the dealership can receive replies in the Inbox.", 409);
-          if (!reviewedDelivery.from || staffApprovalHash(result.previewHash, reviewedDelivery.routingHash, input.enquiryReplyId) !== input.previewHash)
+          if (!reviewedDelivery.from || staffApprovalHash(result.previewHash, reviewedDelivery.routingHash, input.enquiryReplyId, input.saleUpdate) !== input.previewHash)
             throw new EmailError(
               "The email details, attachments or sender changed. Review the email again.",
               409,
@@ -1259,6 +1344,7 @@ export function createEnquiryEmailRouter(
             previewHash: _previewHash,
             savedDraftVersion: _savedVersion,
             enquiryReplyId,
+            saleUpdate,
             ...approvedInput
           } = input;
           const outbox = await enqueueEmailOutbox(
@@ -1282,6 +1368,7 @@ export function createEnquiryEmailRouter(
                 // keeps its existing content hash compatible with older sends.
                 previewHash: result.previewHash,
                 ...(enquiryReplyId ? { enquiryReplyId } : {}),
+                ...(saleUpdate ? { saleUpdate, saleUpdateApprovalHash: input.previewHash } : {}),
                 ...(!multiTenantEnabled() && req.staff!.authUserId === "machine"
                   ? {
                       machineTokenHash: hash(

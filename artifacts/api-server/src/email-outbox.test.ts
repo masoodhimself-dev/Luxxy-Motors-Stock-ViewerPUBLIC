@@ -176,6 +176,7 @@ test("durable immutable email outbox: retry, restart, ownership, freshness, boun
     async function fixture(
       label: string,
       kind: "customer" | "staff" = "customer",
+      validation: Record<string, unknown> = {},
     ) {
       const id = randomUUID(),
         requestId = randomUUID(),
@@ -225,7 +226,7 @@ test("durable immutable email outbox: retry, restart, ownership, freshness, boun
         kind,
         config,
         request,
-        validation: { appointmentRevision: 0 },
+        validation: { appointmentRevision: 0, ...validation },
         now,
       });
       return {
@@ -1005,6 +1006,33 @@ test("durable immutable email outbox: retry, restart, ownership, freshness, boun
           assert.equal(external, 0);
         },
       );
+      await t.test("sale update preflight only blocks fresh approval when a provider attempt may have succeeded", async () => {
+        for (const scenario of [
+          { label: "not_attempted", providerStatus: null, expected: "failed" },
+          { label: "definite_rejection", providerStatus: 429, expected: "failed" },
+          { label: "possible_acceptance", providerStatus: 503, expected: "unknown" },
+        ]) {
+          const f = await fixture(scenario.label, "staff", {
+            saleUpdate: { saleId: randomUUID(), kind: "deposit", revision: 2 },
+          });
+          if (scenario.providerStatus !== null) {
+            const first = await deliverEmailOutbox(f.row.id, {
+              ...f.options, now: f.now,
+              send: async () => { throw new EmailProviderError(scenario.providerStatus, 1); },
+            });
+            assert.equal(first!.status, "queued");
+            assert.equal(first!.validation.saleUpdateAcceptancePossible, scenario.providerStatus === 503);
+          }
+          const stopped = await deliverEmailOutbox(f.row.id, {
+            ...f.options,
+            now: new Date(f.now.getTime() + 120000),
+            rebuild: async () => { throw new Error("The sale changed."); },
+            send: async () => assert.fail("Stale sale data must not reach the provider"),
+          });
+          assert.equal(stopped!.status, scenario.expected);
+          if (scenario.expected === "failed") assert.equal(stopped!.error_code, "sale_update_not_sent");
+        }
+      });
     });
     assert.equal(external, 0);
   } finally {

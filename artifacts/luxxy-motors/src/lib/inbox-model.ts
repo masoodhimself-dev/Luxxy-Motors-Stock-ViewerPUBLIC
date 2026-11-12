@@ -3,7 +3,7 @@ import { enquiryPresentation, enquiryPurpose, enquirySourceLabel } from './enqui
 import type { InboxEnquiry } from './enquiry-reply-attention';
 import { canonicalCustomerPhone } from '@workspace/vehicle-meta';
 
-export type InboxFilter = 'needs-you' | 'all' | 'test-drives' | 'done' | 'archive';
+export type InboxFilter = 'needs-you' | 'all' | 'test-drives' | 'part-exchange' | 'done' | 'archive';
 export type InboxFolder = 'enquiries' | 'ai' | 'archive';
 export type InboxStateKey = 'needs-you' | 'waiting' | 'booked' | 'done';
 export type InboxState = {
@@ -145,6 +145,7 @@ export function inboxFilter(entries: readonly InboxEnquiry[], filter: InboxFilte
     if (search.trim() && !search.trim().split(/\s+/).every(term => members.some(member => inboxMatches(member, term)))) return false;
     if (filter === 'needs-you') return state.key === 'needs-you';
     if (filter === 'done') return state.key === 'done';
+    if (filter === 'part-exchange') return members.some(member => !member.archivedAt && (member.type === 'part_exchange' || Boolean(member.partExchangeRegistration)));
     if (filter === 'test-drives') return members.some(member => member.type === 'viewing' || timestamp(member.appointmentAt) !== null);
     return true;
   }).sort((left, right) => {

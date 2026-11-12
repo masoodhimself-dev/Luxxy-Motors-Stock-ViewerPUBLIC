@@ -33,9 +33,9 @@ export function saleProgress(sale: SaleWorkspaceRecord | null, now = new Date().
   return { stage: 'In progress', next: moneyNote || 'Choose the next step for this customer.', tone: 'neutral' };
 }
 
-export function SaleProgress({ sale }: { sale: SaleWorkspaceRecord | null }) {
+export function SaleProgress({ sale, showDetail = true }: { sale: SaleWorkspaceRecord | null; showDetail?: boolean }) {
   const progress = saleProgress(sale);
-  return <div className="sales-flow-progress" role="status"><span data-tone={progress.tone}>{progress.tone === 'green' ? <Check size={15} aria-hidden="true" /> : <Clock3 size={15} aria-hidden="true" />}{progress.stage}</span><p>{progress.next}</p></div>;
+  return <div className="sales-flow-progress" role="status"><span data-tone={progress.tone}>{progress.tone === 'green' ? <Check size={15} aria-hidden="true" /> : <Clock3 size={15} aria-hidden="true" />}{progress.stage}</span>{showDetail && <p>{progress.next}</p>}</div>;
 }
 
 export function SaleTimeline({ sale }: { sale: SaleWorkspaceRecord }) {

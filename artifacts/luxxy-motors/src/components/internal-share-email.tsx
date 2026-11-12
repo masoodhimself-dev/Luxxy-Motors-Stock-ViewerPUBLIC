@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { customFetch } from "@workspace/api-client-react";
+import type { SaleCustomerUpdateBinding } from "@workspace/vehicle-meta";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -56,6 +57,8 @@ type Props = {
   customerName?: string;
   createNew?: boolean;
   customerEmail?: string;
+  fixedRecipient?: string;
+  saleUpdate?: SaleCustomerUpdateBinding;
   customerPhone?: string;
   vehicleId?: string;
   verifyBeforePrepare?: () => Promise<void>;
@@ -80,6 +83,8 @@ export function InternalShareEmail({
   customerName = "",
   createNew = false,
   customerEmail = "",
+  fixedRecipient,
+  saleUpdate,
   customerPhone = "",
   vehicleId,
   verifyBeforePrepare,
@@ -89,7 +94,7 @@ export function InternalShareEmail({
   const [selected, setSelected] = useState(enquiryId || ""),
     [create, setCreate] = useState(createNew),
     [name, setName] = useState(customerName),
-    [email, setEmail] = useState(customerEmail);
+    [email, setEmail] = useState(fixedRecipient || customerEmail);
   const [loading, setLoading] = useState(true),
     [canCreate, setCanCreate] = useState(false),
     [busy, setBusy] = useState(false),
@@ -107,6 +112,8 @@ export function InternalShareEmail({
     customerName,
     createNew,
     customerEmail,
+    fixedRecipient,
+    saleUpdate,
     customerPhone,
     vehicleId,
     subject,
@@ -117,7 +124,7 @@ export function InternalShareEmail({
     setSelected(enquiryId || "");
     setCreate(createNew && !saleId);
     setName(customerName);
-    setEmail(customerEmail);
+    setEmail(fixedRecipient || customerEmail);
     setPrepared(null);
     setError("");
     attempt.current = null;
@@ -208,7 +215,7 @@ export function InternalShareEmail({
       ...(customerWhatsAppNumber(customerPhone)
         ? { phone: customerPhone }
         : {}),
-      email: email.trim(),
+      email: fixedRecipient || email.trim(),
     };
     attempt.current = body;
     setBusy(true);
@@ -235,11 +242,13 @@ export function InternalShareEmail({
             reference: prepared.enquiry.reference || "",
           }}
           initialRecipient={prepared.customerEmail}
+          fixedRecipient={fixedRecipient}
+          saleUpdate={saleUpdate}
           suggestedContent={{
-            label: "Shared message",
+            label: fixedRecipient ? "Customer update" : "Shared message",
             subject,
             message,
-            applyLabel: "Use this shared message",
+            applyLabel: fixedRecipient ? "Use this customer update" : "Use this shared message",
             includeVehicle: false,
             templateId: "enquiry_message",
             ...(prepared.stockChange
@@ -352,6 +361,7 @@ export function InternalShareEmail({
               autoComplete="email"
               maxLength={254}
               disabled={locked}
+              readOnly={Boolean(fixedRecipient)}
               onChange={(event) => setEmail(event.target.value)}
             />
           </label>

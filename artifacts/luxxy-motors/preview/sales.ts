@@ -10,6 +10,8 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import {
   changeSaleWorkspace,
   createSaleWorkspace,
+  changeSaleHandoffTask,
+  isSaleHandoffTaskKind,
   publicSaleWorkspace,
   currentInvoiceBranding,
   saleWorkspaceBranding,
@@ -17,13 +19,25 @@ import {
   saleWorkspaceTotals,
   requireSaleInvoiceVehicleReviewTarget,
   saleHandoverStatus,
+  saleCollectionTaskResolution,
+  compareSaleHandoffTaskKeys,
+  saleHandoffTaskKey,
+  saleHandoffTaskListOptions,
+  saleHandoffTaskPage,
+  saleHandoffTaskPageSize,
+  saleHandoffTaskSummary,
+  releaseSaleForCancelledReservation,
+  staffSaleHandoffTasks,
   saleQueueFilters,
   saleQueueStatus,
   saleQueueToday,
+  saleRegistrationSearch,
   saleWorkspaceNumber,
   SaleWorkspaceError,
   dailySalePaymentsOptions,
   previewDailySalePayments,
+  type SaleHandoffTaskListOptions,
+  type SaleHandoffTaskSummary,
   type SaleInvoiceVehicleReview,
   type SaleWorkspaceBranding,
   type SaleWorkspaceVehicleSnapshot,
@@ -38,11 +52,27 @@ import {
   attachInvoiceVerification,
   invoiceVerificationView,
 } from "../../api-server/src/lib/invoice-verification";
-import { previewAssignment, readPreviewSettings, readPreviewBookingState } from "./reservations";
+import { previewAssignment, previewReservationMatchesVehicle, readPreviewSettings, readPreviewBookingState } from "./reservations";
 import { previewStock } from "./stock";
 import { saleListStage } from "../../api-server/src/lib/sale-list-stage";
+import { roleHasPermission, saleHandoffTaskPermission, type StaffRole } from "../../api-server/src/lib/staff-permissions";
 
 const previewSalesActorId = "preview-alex";
+class PreviewSaleVehicleConflictError extends SaleWorkspaceError {
+  constructor() { super("This vehicle is reserved or sold to another customer.", 409); }
+}
+const previewStaffSale = (sale: SaleWorkspaceRecord): SaleWorkspaceRecord => ({
+  ...publicSaleWorkspace(sale),
+  ...(Object.keys(sale.providerPayments ?? {}).length ? { hasProviderPayments: true as const } : {}),
+  ...(sale.handoffTasks ? { handoffTasks: staffSaleHandoffTasks(sale) } : {}),
+});
+const previewStockActionsClosed = (sale: SaleWorkspaceRecord) =>
+  sale.lifecycle?.status === 'released' || sale.lifecycle?.status === 'returned' || sale.standaloneReturn || sale.returnReplacement?.direction === 'returned';
+function previewLegacyStockClaim(sale: SaleWorkspaceRecord) {
+  if (previewStockActionsClosed(sale)) return false;
+  const refundOnly = new Set(sale.payments.filter(payment => payment.stockConflictReconciliation).map(payment => payment.id));
+  return sale.payments.reduce((net, payment) => payment.status === 'confirmed' && !refundOnly.has(payment.id) && !refundOnly.has(payment.reversesPaymentId ?? '') ? net + payment.signedAmountPence : net, 0) > 0;
+}
 
 export type PreviewSalesState = {
   schemaVersion: 1;
@@ -145,11 +175,28 @@ export class PreviewSaleWorkspaceStore {
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
     );
   }
-  async get(id: string) {
+  async get(id: string, options: { includeStockActionBlock?: boolean } = {}) {
     return this.serial(async () => {
-      const sale = (await this.load()).sales.find((item) => item.id === id);
+      const { sales } = await this.load();
+      const sale = sales.find((item) => item.id === id);
       if (!sale) throw new SaleWorkspaceError("Sale not found.", 404);
-      return publicSaleWorkspace(sale);
+      const view = previewStaffSale(sale);
+      if (!options.includeStockActionBlock || previewStockActionsClosed(sale)) return view;
+      const vehicleId = sale.draft.vehicleId;
+      const car = previewStock.cars.find(item => item.id === vehicleId);
+      if (!car) return view;
+      const reservations = (await readPreviewBookingState()).reservations.filter(reservation => reservation.status === 'reserved' && previewReservationMatchesVehicle(reservation, vehicleId));
+      const linkedReservation = reservations.some(reservation => reservation.id === sale.draft.sourceReservationId);
+      const ownReservation = linkedReservation || sale.lifecycle?.status === 'reserved';
+      const ownSold = Boolean(sale.completedAt || sale.lifecycle?.status === 'sold');
+      const includeLegacyLedger = !ownReservation && !ownSold && (!car.inventoryStatus || car.inventoryStatus === 'available');
+      if (reservations.some(reservation => reservation.id !== sale.draft.sourceReservationId)
+        || car.inventoryStatus === 'reserved' && !ownReservation || car.inventoryStatus === 'sold' && !ownSold
+        || sales.some(item => item.id !== id && item.draft.vehicleId === vehicleId &&
+          (item.lifecycle?.status === 'reserved' || item.lifecycle?.status === 'sold' || includeLegacyLedger && previewLegacyStockClaim(item)))) {
+        view.stockActionBlock = 'another-sale';
+      }
+      return view;
     });
   }
   async reviewInvoiceVehicle(id: string, expectedRevision: unknown) {
@@ -169,6 +216,45 @@ export class PreviewSaleWorkspaceStore {
       return { review, preview: true };
     });
   }
+  async listHandoffTasks(actorId: string, options: SaleHandoffTaskListOptions, members: Array<{ id: string; role: StaffRole }>) {
+    return this.serial(async () => {
+      const roles = new Map(members.map(member => [member.id, member.role]));
+      const rows = (await this.load()).sales.flatMap(sale => {
+        const resolution = saleCollectionTaskResolution(sale);
+        return (sale.handoffTasks ?? []).flatMap((task): SaleHandoffTaskSummary[] => {
+          if (task.status !== 'open' || !isSaleHandoffTaskKind(task.kind) || task.kind === 'arrange-collection' && resolution) return [];
+          const summary = saleHandoffTaskSummary(sale, task);
+          if (options.cursor && compareSaleHandoffTaskKeys(saleHandoffTaskKey(summary), options.cursor) <= 0) return [];
+          const role = roles.get(task.assigneeId);
+          const assignmentIssue = !role ? 'inactive' : roleHasPermission(role, saleHandoffTaskPermission(task.kind)) ? undefined : 'role-changed';
+          if (options.view === 'needs-reassignment') return assignmentIssue ? [{ ...summary, assignmentIssue }] : [];
+          return task.assigneeId === actorId && !assignmentIssue ? [summary] : [];
+        });
+      }).sort((a, b) => compareSaleHandoffTaskKeys(saleHandoffTaskKey(a), saleHandoffTaskKey(b)));
+      return saleHandoffTaskPage(rows.slice(options.offset, options.offset + saleHandoffTaskPageSize + 1));
+    });
+  }
+  async mutateHandoffTask(id: string, input: Parameters<typeof changeSaleHandoffTask>[1], actor: { id: string; name: string; role: StaffRole }, members: Array<{ id: string; name: string; role: StaffRole }>) {
+    return this.serial(async () => {
+      const state = await this.load();
+      const index = state.sales.findIndex(sale => sale.id === id);
+      if (index < 0) throw new SaleWorkspaceError('Sale not found.', 404);
+      const mutation = await changeSaleHandoffTask(state.sales[index]!, input, {
+        actorId: actor.id, actor: actor.name, canManage: roleHasPermission(actor.role, 'sales.manage'),
+        canRecordPayments: roleHasPermission(actor.role, 'payments.record'), now: new Date().toISOString(), nextId: randomUUID,
+        resolveAssignee: async (assigneeId, kind) => {
+          const member = members.find(item => item.id === assigneeId && roleHasPermission(item.role, saleHandoffTaskPermission(kind)));
+          if (!member) throw new SaleWorkspaceError('Choose an active staff member who can handle this task.');
+          return member.name;
+        },
+      });
+      if (!mutation.replayed) {
+        state.sales[index] = mutation.sale;
+        await this.save(state);
+      }
+      return { ...mutation, sale: previewStaffSale(mutation.sale), preview: true };
+    });
+  }
   async verifyInvoice(saleId: string, documentId: string, token: string) {
     return this.serial(async () =>
       invoiceVerificationView(
@@ -184,27 +270,16 @@ export class PreviewSaleWorkspaceStore {
       const connected = state.sales.filter(
         (s) => s.draft.sourceReservationId === reservationId,
       );
-      if (connected.some((s) => s.lifecycle?.status === "sold"))
+      if (connected.some((s) => s.lifecycle?.status === "sold" || s.completedAt))
         throw new SaleWorkspaceError(
           "This reservation belongs to a sold vehicle. Review its sale file.",
           409,
         );
       let changed = false;
-      for (const s of connected)
-        if (s.lifecycle?.status === "reserved") {
-          const now = new Date().toISOString();
-          s.lifecycle = { ...s.lifecycle, status: "released", changedAt: now };
-          s.revision++;
-          s.updatedAt = now;
-          s.events.push({
-            id: randomUUID(),
-            type: "reservation-cancelled",
-            description: "Linked online reservation cancelled; car released",
-            actor: "Showroom staff",
-            occurredAt: now,
-          });
-          changed = true;
-        }
+      const now = new Date().toISOString();
+      for (const sale of connected) {
+        if (releaseSaleForCancelledReservation(sale, { now, actor: 'Showroom staff', nextId: randomUUID })) changed = true;
+      }
       if (changed) await this.save(state);
     });
   }
@@ -270,7 +345,7 @@ export class PreviewSaleWorkspaceStore {
               409,
             );
           return {
-            sale: publicSaleWorkspace(existing),
+            sale: previewStaffSale(existing),
             replayed: true,
             preview: true,
           };
@@ -327,43 +402,33 @@ export class PreviewSaleWorkspaceStore {
             ),
           );
       if (!mutation.replayed) {
-        if (
-          (input.command?.action === "invoice-payment" &&
-            input.command.payment.kind === "deposit") ||
-          input.command?.action === "finish-invoice-sale" ||
-          input.command?.action === "lifecycle" ||
-          input.command?.action === "handover" ||
-          input.command?.action === "take-deposit" ||
-          input.command?.action === "complete-sale" ||
-          (input.command?.action === "confirm" && input.command.reserveVehicle)
-        ) {
-          const status =
-            input.command.action === "invoice-payment" ||
-            input.command.action === "take-deposit" ||
-            input.command.action === "confirm"
-              ? "reserved"
-              : input.command.action === "finish-invoice-sale" ||
-                  input.command.action === "handover" ||
-                  input.command.action === "complete-sale"
-                ? "sold"
-                : input.command.status;
+        const command = input.command;
+        const recordsPayment = command?.action === 'payment' || command?.action === 'invoice-payment' || command?.action === 'confirm';
+        const reservesCar = command?.action === 'take-deposit'
+          || command?.action === 'invoice-payment' && command.payment.kind === 'deposit'
+          || command?.action === 'confirm' && command.reserveVehicle
+          || recordsPayment && mutation.sale.lifecycle?.status === 'reserved' && current?.lifecycle?.status !== 'reserved';
+        const status = reservesCar ? 'reserved' : command?.action === 'lifecycle' ? command.status
+          : command?.action === 'finish-invoice-sale' || command?.action === 'complete-sale' || command?.action === 'handover' ? 'sold' : undefined;
+        if (status || recordsPayment || command?.action === 'issue-invoice' || command?.action === 'document' && command.type === 'invoice') {
+          const vehicleId = mutation.sale.draft.vehicleId;
           const car = previewStock.cars.find(
-            (c) => c.id === mutation.sale.draft.vehicleId,
+            (c) => c.id === vehicleId,
           );
-          if (!car)
+          if (status && !car)
             throw new SaleWorkspaceError(
               "Choose a current stock vehicle before changing availability.",
             );
           const competing = state.sales.some(
             (s) =>
               s.id !== mutation.sale.id &&
-              s.draft.vehicleId === car.id &&
+              s.draft.vehicleId === vehicleId &&
               ["reserved", "sold"].includes(s.lifecycle?.status ?? ""),
           );
           const booking = await readPreviewBookingState();
           const competingReservation = booking.reservations.some(
             (r) =>
-              r.vehicleId === car.id &&
+              r.vehicleId === vehicleId &&
               r.status === "reserved" &&
               r.id !== mutation.sale.draft.sourceReservationId,
           );
@@ -380,20 +445,18 @@ export class PreviewSaleWorkspaceStore {
               "Cancel the linked customer reservation before releasing this sale reservation.",
               409,
             );
-          if (status !== "released" && (competing || competingReservation))
-            throw new SaleWorkspaceError(
-              "This vehicle is reserved or sold to another customer.",
-              409,
-            );
-          if (status === "reserved" && car.sourceStatus === "missing")
+          const reconciles = command?.action === 'invoice-payment' && command.stockConflictReconciliation !== undefined;
+          if (reconciles && !competing && !competingReservation) throw new SaleWorkspaceError('The stock conflict has changed. Reload this sale before recording the payment.', 409);
+          if (!reconciles && status !== "released" && (competing || competingReservation)) throw new PreviewSaleVehicleConflictError();
+          if (status === "reserved" && car?.sourceStatus === "missing")
             throw new SaleWorkspaceError(
               "This car is missing from the current feed. Review it before reserving.",
               409,
             );
-          mutation.sale.lifecycle = {
+          if (status && mutation.sale.lifecycle?.status !== status) mutation.sale.lifecycle = {
             status,
-            vehicleId: car.id,
-            changedAt: now,
+            vehicleId,
+            changedAt: status === 'sold' ? mutation.sale.completedAt ?? now : now,
           };
         }
         if (
@@ -473,7 +536,7 @@ export class PreviewSaleWorkspaceStore {
       }
       return {
         ...mutation,
-        sale: publicSaleWorkspace(mutation.sale),
+        sale: previewStaffSale(mutation.sale),
         preview: true,
       };
     });
@@ -528,8 +591,9 @@ export async function salesPreview(
   url: URL,
   store: PreviewSaleWorkspaceStore = previewStore,
 ): Promise<boolean> {
+  const replacementRoute = req.method === 'GET' && /^\/api\/sale-operations\/([^/]+)\/replacement-availability$/.exec(url.pathname);
   if (
-    !/^\/api\/(?:sale-workspace|invoice-verification)(?:\/|$)/.test(
+    !replacementRoute && !/^\/api\/(?:sale-workspace|invoice-verification)(?:\/|$)/.test(
       url.pathname,
     )
   )
@@ -541,6 +605,45 @@ export async function salesPreview(
     return true;
   }
   try {
+    const handoffRoute = /^\/api\/sale-workspace(?:\/([^/]+))?\/handoff-tasks$/.exec(url.pathname);
+    if (handoffRoute) {
+      const { readPreviewTaskRoster } = await import('./operations');
+      const members = await readPreviewTaskRoster();
+      const actorId = typeof req.headers['x-preview-staff-id'] === 'string' ? req.headers['x-preview-staff-id'] : previewSalesActorId;
+      const actor = members.find(member => member.id === actorId);
+      if (!actor) throw new SaleWorkspaceError('Sign in to use the dealer portal.', 401);
+      const id = handoffRoute[1];
+      if (req.method === 'GET' && !id) {
+        const options = saleHandoffTaskListOptions({ offset: url.searchParams.get('offset'), view: url.searchParams.get('view'), cursor: url.searchParams.get('cursor') });
+        if (options.view === 'needs-reassignment' && !roleHasPermission(actor.role, 'sales.manage')) throw new SaleWorkspaceError('Your role cannot review staff assignments.', 403);
+        send(res, 200, await store.listHandoffTasks(actor.id, options, members));
+      }
+      else if (req.method === 'GET' && id) {
+        if (!roleHasPermission(actor.role, 'sales.manage')) throw new SaleWorkspaceError('Your staff role does not allow this action.', 403);
+        const kind = url.searchParams.get('kind');
+        if (!isSaleHandoffTaskKind(kind)) throw new SaleWorkspaceError('Choose a handoff task.');
+        await store.get(id);
+        send(res, 200, { members: members.filter(member => roleHasPermission(member.role, saleHandoffTaskPermission(kind))).map(({id,name}) => ({id,name})) });
+      } else if (req.method === 'POST' && id) {
+        const input = await body(req);
+        if (!input || typeof input !== 'object' || Array.isArray(input)) throw new SaleWorkspaceError('Check the handoff task details.');
+        send(res, 200, await store.mutateHandoffTask(id, input, actor, members));
+      } else throw new SaleWorkspaceError('Sale action not found.', 404);
+      return true;
+    }
+    if (replacementRoute) {
+      const sale = await store.get(replacementRoute[1]);
+      const vehicleId = url.searchParams.get('vehicleId');
+      if (!vehicleId || vehicleId === sale.draft.vehicleId || !sale.completedAt || sale.lifecycle?.status !== 'sold') throw new SaleWorkspaceError('Choose an available replacement car.', 409);
+      const car = previewStock.cars.find(item => item.id === vehicleId);
+      const inventory = await store.inventory();
+      if (!car || car.sourceStatus === 'missing' || car.archivedAt || Number(car.missingCount ?? 0) !== 0 || (inventory[vehicleId] ?? car.inventoryStatus ?? 'available') !== 'available') throw new SaleWorkspaceError('This replacement vehicle is not available.', 409);
+      if ((await readPreviewBookingState()).reservations.some(reservation => previewReservationMatchesVehicle(reservation, vehicleId) && reservation.status === 'reserved')) throw new PreviewSaleVehicleConflictError();
+      const competing = (await store.list()).some(item => item.draft.vehicleId === vehicleId && previewLegacyStockClaim(item));
+      if (competing) throw new PreviewSaleVehicleConflictError();
+      send(res, 200, { vehicleId });
+      return true;
+    }
     const proofRoute =
       /^\/api\/invoice-verification\/([^/]+)\/([^/]+)\/([^/]+)$/.exec(
         url.pathname,
@@ -640,18 +743,19 @@ export async function salesPreview(
     if (!route) throw new SaleWorkspaceError("Sale action not found.", 404);
     const [, id, section, paymentId, action] = route;
     if (req.method === "GET" && !section) {
-      if (id) { send(res,200,{sale:await store.get(id),preview:true});return true; }
+      if (id) { send(res,200,{sale:await store.get(id,{includeStockActionBlock:true}),preview:true});return true; }
       const q=(url.searchParams.get('q')??'').trim(),offset=Number(url.searchParams.get('offset')??0),enquiryId=url.searchParams.get('enquiryId'),reservationId=url.searchParams.get('reservationId');
       if(q.length>120||!Number.isSafeInteger(offset)||offset<0||offset>10000)throw new SaleWorkspaceError('Check the sales search or page.',400);
       const digits=/^[+0-9 ().-]+$/.test(q)?q.replace(/\D/g,''):'';
       const { queue, owner } = saleQueueFilters(url.searchParams.get('queue') ?? 'all', url.searchParams.get('owner') ?? 'all');
-      const today = saleQueueToday(new Date());
-      const rows = (await store.list()).map(sale => ({ sale, status: saleQueueStatus(sale, today) })).filter(({ sale, status }) =>
+      const now = new Date(), today = saleQueueToday(now), registration = saleRegistrationSearch(q);
+      const rows = (await store.list()).map(sale => ({ sale, status: saleQueueStatus(sale, today, now.toISOString()) })).filter(({ sale, status }) =>
         (queue === 'all' || (queue === 'attention' && status.attention) || (queue === 'open' && !status.closed) || (queue === 'closed' && status.closed)) &&
         (owner === 'all' || (owner === 'mine' && sale.team?.ownerId === previewSalesActorId) || (owner === 'unassigned' && !sale.team?.ownerId)) &&
         (!enquiryId || sale.draft.sourceEnquiryId === enquiryId) && (!reservationId || sale.draft.sourceReservationId === reservationId) &&
         (!q || sale.id === q || sale.draft.sourceEnquiryId === q || sale.draft.sourceReservationId === q ||
           `${sale.reference} ${sale.draft.customer} ${sale.draft.email} ${sale.draft.vehicle} ${sale.draft.registration}`.toLowerCase().includes(q.toLowerCase()) ||
+          (registration && sale.draft.registration?.replace(/[^a-z0-9]/gi, '').toUpperCase().includes(registration)) ||
           sale.documents.some(document => document.number.toLowerCase().includes(q.toLowerCase())) ||
           (digits && sale.draft.phone.replace(/\D/g, '').includes(digits))))
         .sort((a, b) => b.sale.updatedAt.localeCompare(a.sale.updatedAt) || b.sale.id.localeCompare(a.sale.id));
@@ -665,6 +769,7 @@ export async function salesPreview(
           listHasRefunds: sale.payments.some(payment => payment.status === 'confirmed' && payment.signedAmountPence < 0),
           listHandover: draft.fulfilment ? { method: draft.fulfilment.method, status: saleHandoverStatus(draft.fulfilment) } : null,
           listOwnerId: sale.team?.ownerId ?? null, listOwnerName: sale.team?.ownerName ?? '', listHasTeamNote: Boolean(sale.team?.note), listAttention: status.attention,
+          ...(status.refundDue ? { listRefundDue: status.refundDue } : {}),
           id: sale.id, reference: sale.reference, revision: sale.revision, createdAt: sale.createdAt, updatedAt: sale.updatedAt,
           completedAt: sale.completedAt, lifecycle: sale.lifecycle, emptyDraftDeletable: sale.emptyDraftDeletable,
           draft: { id: draft.id, customer: draft.customer, email: draft.email, phone: draft.phone, vehicleId: draft.vehicleId, vehicle: draft.vehicle,
@@ -727,7 +832,7 @@ export async function salesPreview(
       if (section === "documents")
         command = { action: "document", type: input.type, ...(input.vehicleReview !== undefined ? { vehicleReview: input.vehicleReview } : {}) };
       if (section === "invoice-payments")
-        command = { action: "invoice-payment", payment: input.payment };
+        command = { action: "invoice-payment", payment: input.payment, ...(input.stockConflictReconciliation !== undefined ? { stockConflictReconciliation: input.stockConflictReconciliation } : {}) };
       if (section === "issue-invoice")
         command = {
           action: "issue-invoice",
@@ -740,6 +845,7 @@ export async function salesPreview(
           action: "finish-invoice-sale",
           acknowledge: input.acknowledge,
           acknowledgeOutstanding: input.acknowledgeOutstanding === true,
+          ...(input.reviewedInvoiceId !== undefined ? { reviewedInvoiceId: input.reviewedInvoiceId } : {}),
         };
       if (section === "take-deposit")
         command = { action: "take-deposit", payment: input.payment };
@@ -768,6 +874,7 @@ export async function salesPreview(
     );
   } catch (error) {
     send(res, error instanceof SaleWorkspaceError ? error.status : 500, {
+      ...(error instanceof PreviewSaleVehicleConflictError ? { code: 'sale-vehicle-conflict' } : {}),
       error:
         error instanceof SaleWorkspaceError
           ? error.message

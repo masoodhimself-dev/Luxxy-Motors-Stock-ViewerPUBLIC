@@ -31,10 +31,30 @@ export function SaleReturnReplace({ sale, cars, onSaved, onOpenSale, disabled = 
   const totals = saleWorkspaceTotals(sale.draft, sale.payments);
   const [agreedCredit, setAgreedCredit] = useState(moneyInput(totals.confirmedPaid)), [reason, setReason] = useState(''), [condition, setCondition] = useState(''), [mileage, setMileage] = useState('');
   const [financeConfirmed, setFinanceConfirmed] = useState(false), [acknowledged, setAcknowledged] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState('');
+  const [availability, setAvailability] = useState<{ key: string; error: string }>();
+  const [availabilityAttempt, setAvailabilityAttempt] = useState(0);
   const lock = useRef(false), generation = useRef(0), retry = useRef<{key:string;id:string}|undefined>(undefined);
   const latest = useRef({ sale, disabled }); latest.current = { sale, disabled };
   const eligibleCars = cars.filter(car => car.id !== sale.draft.vehicleId && car.inventoryStatus === 'available' && car.sourceStatus !== 'missing' && !car.archivedAt && Number(car.missingCount ?? 0) === 0);
   const selected = eligibleCars.find(car => car.id === replacementVehicleId), query = search.toLocaleLowerCase('en-GB').replace(/\s/g, '');
+  const selectedId = selected?.id;
+  const availabilityKey = selectedId ? `${sale.id}:${sale.revision}:${selectedId}:${availabilityAttempt}` : '';
+  const availabilityChecked = Boolean(availabilityKey && availability?.key === availabilityKey);
+  const availabilityError = availabilityChecked ? availability?.error : '';
+  useEffect(() => {
+    if (!expanded || !selectedId || !canReturn || disabled || !availabilityKey || sale.lifecycle?.status !== 'sold') return;
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const result = await customFetch<{ vehicleId: string }>(`/api/sale-operations/${encodeURIComponent(sale.id)}/replacement-availability?vehicleId=${encodeURIComponent(selectedId)}`, { signal: controller.signal });
+        if (result.vehicleId !== selectedId) throw new Error('Mismatched replacement car');
+        if (!controller.signal.aborted) setAvailability({ key: availabilityKey, error: '' });
+      } catch (failure) {
+        if (!controller.signal.aborted) setAvailability({ key: availabilityKey, error: apiError(failure, 'Could not check availability. Please try again.') });
+      }
+    })();
+    return () => controller.abort();
+  }, [availabilityKey, canReturn, disabled, expanded, sale.id, sale.lifecycle?.status, selectedId]);
   const matches = eligibleCars.filter(car => `${vehicleDisplayTitle(car)} ${vehicleRegistration(car)} ${car.year ?? ''} ${car.colour ?? ''}`.toLocaleLowerCase('en-GB').replace(/\s/g, '').includes(query));
   const proposal = { replacementVehicleId, replacementPrice, agreedCredit, reason: reason.trim(), condition: condition.trim(), mileage: Number(mileage), financeConfirmed, acknowledge: true };
   useEffect(() => { onBusyChange?.(busy); return () => onBusyChange?.(false); }, [busy,onBusyChange]);
@@ -47,7 +67,7 @@ export function SaleReturnReplace({ sale, cars, onSaved, onOpenSale, disabled = 
   useEffect(() => { setAcknowledged(false); }, [fingerprint, sale.revision, disabled]);
   useEffect(() => () => { generation.current++; }, [sale.id]);
   async function confirm() {
-    if (lock.current || disabled || !canReturn || !acknowledged || invalid) return;
+    if (lock.current || disabled || !canReturn || !acknowledged || invalid || !availabilityChecked || availabilityError) return;
     const requested = { id: sale.id, revision: sale.revision, proposal }, token = generation.current, key = JSON.stringify([sale.id, sale.revision, proposal]);
     if (retry.current?.key !== key) retry.current = { key, id: requestUuid() };
     lock.current = true; setBusy(true); setError('');
@@ -73,15 +93,17 @@ export function SaleReturnReplace({ sale, cars, onSaved, onOpenSale, disabled = 
     {disabled && <p>Save the current deal and any received payment first.</p>}{!canReturn && <p>A staff member with sale and refund permissions must confirm this exchange.</p>}{blocked && <p role="status">{blocked}</p>}
     {expanded && <div id={`${id}-form`}><fieldset disabled={busy || disabled || !canReturn || !!blocked} className="sale-return-fields"><legend className="sr-only">Proposed vehicle exchange</legend>
       <label htmlFor={selected ? undefined : `${id}-search`}>Replacement car</label>
-      {selected ? <div className="sale-return-selected"><span><strong>{vehicleDisplayTitle(selected)}</strong><small>{vehicleRegistration(selected)}{selected.year ? ` · ${selected.year}` : ''}</small></span><Button type="button" variant="outline" onClick={() => { setReplacementVehicleId(''); setReplacementPrice(''); setSearch(''); }}>Change car</Button></div> : <><div className="sale-return-search"><Search size={18}/><Input id={`${id}-search`} value={search} placeholder="Search make, model or registration" onChange={event => setSearch(event.target.value)}/></div><p className="sale-return-result-count" role="status">{matches.length ? `${matches.length} available ${matches.length === 1 ? 'car' : 'cars'}${matches.length > 5 ? ' · Search to narrow the list' : ''}` : 'No available cars match. Try another make or registration.'}</p><ul className="sale-return-cars" aria-label="Available replacement cars">{matches.slice(0,5).map(car => <li key={car.id}><button type="button" onClick={() => { setReplacementVehicleId(car.id);setReplacementPrice(typeof car.price === 'number' && car.price > 0 ? car.price.toFixed(2) : ''); }}><span><strong>{vehicleDisplayTitle(car)}</strong><small>{vehicleRegistration(car)}{car.year ? ` · ${car.year}` : ''}</small></span><span>{typeof car.price === 'number' ? saleMoney(Math.round(car.price*100)) : 'Set agreed price'}</span><ArrowRight size={16}/></button></li>)}</ul></>}
+      {selected ? <div className="sale-return-selected"><span><strong>{vehicleDisplayTitle(selected)}</strong><small>{vehicleRegistration(selected)}{selected.year ? ` · ${selected.year}` : ''}</small></span><Button type="button" variant="outline" onClick={() => { setReplacementVehicleId(''); setReplacementPrice(''); setSearch(''); }}>Change car</Button></div> : <><div className="sale-return-search"><Search size={18}/><Input id={`${id}-search`} value={search} placeholder="Search make, model or registration" onChange={event => setSearch(event.target.value)}/></div><p className="sale-return-result-count" role="status">{matches.length ? `${matches.length} available ${matches.length === 1 ? 'car' : 'cars'}${matches.length > 5 ? ' · Search to narrow the list' : ''}` : 'No available cars match. Try another make or registration.'}</p><ul className="sale-return-cars" aria-label="Available replacement cars">{matches.slice(0,5).map(car => <li key={car.id}><button type="button" onClick={() => { setAvailability(undefined);setReplacementVehicleId(car.id);setReplacementPrice(typeof car.price === 'number' && car.price > 0 ? car.price.toFixed(2) : ''); }}><span><strong>{vehicleDisplayTitle(car)}</strong><small>{vehicleRegistration(car)}{car.year ? ` · ${car.year}` : ''}</small></span><span>{typeof car.price === 'number' ? saleMoney(Math.round(car.price*100)) : 'Set agreed price'}</span><ArrowRight size={16}/></button></li>)}</ul></>}
       <div className="sale-return-grid"><label>Agreed replacement price (£)<Input inputMode="decimal" value={replacementPrice} onChange={event => setReplacementPrice(event.target.value)} maxLength={16}/></label><label>Agreed return credit (£)<Input aria-label="Agreed return credit (£)" inputMode="decimal" value={agreedCredit} onChange={event => setAgreedCredit(event.target.value)} maxLength={16}/><small>Net funds held: {saleMoney(totals.confirmedPaid)}</small></label></div>
+      {selectedId && !availabilityChecked && !disabled && canReturn && <p role="status">Checking replacement availability…</p>}
+      {availabilityError && <div><p className="sale-return-error" role="alert">{availabilityError}</p><Button type="button" variant="outline" size="sm" onClick={() => setAvailabilityAttempt(attempt => attempt + 1)}>Check again</Button></div>}
       {difference !== null && <dl className="sale-return-comparison" aria-label="Replacement comparison"><div><dt>Replacement vehicle</dt><dd>{saleMoney(saleWorkspacePence(replacementPrice))}</dd></div><div><dt>Credit transferred</dt><dd>−{saleMoney(saleWorkspacePence(agreedCredit))}</dd></div><div data-balance={difference === 0 ? 'settled' : difference < 0 ? 'credit' : 'outstanding'}><dt>{difference < 0 ? 'Refund due to customer' : difference > 0 ? 'Extra amount to pay' : 'Nothing further to pay'}</dt><dd>{saleMoney(Math.abs(difference))}</dd></div></dl>}
       <p>New delivery or extras are added to the replacement deal separately.</p>
       <div className="sale-return-grid"><label>Returned mileage (miles)<Input inputMode="numeric" value={mileage} onChange={event => setMileage(event.target.value)} maxLength={7}/></label><label>Reason for return<Textarea rows={2} value={reason} onChange={event => setReason(event.target.value)} maxLength={2000}/></label></div>
       <label>Returned vehicle condition<Textarea rows={2} value={condition} placeholder="Condition, damage, keys and documents received" onChange={event => setCondition(event.target.value)} maxLength={4000}/></label>
       <label className="sale-return-check"><input type="checkbox" checked={financeConfirmed} onChange={event => setFinanceConfirmed(event.target.checked)}/><span>Finance and any third-party settlement have been resolved.</span></label>
       <label className="sale-return-check"><input type="checkbox" checked={acknowledged} onChange={event => setAcknowledged(event.target.checked)}/><span>I confirm the car is back and the customer has agreed this return and credit transfer.</span></label>
-    </fieldset><p>The replacement will be reserved. The returned car stays off sale for inspection. No cash refund is sent.</p><Button type="button" disabled={busy || disabled || !canReturn || !!blocked || !!invalid || !acknowledged} onClick={() => void confirm()}>{busy ? 'Saving replacement…' : 'Confirm return & create replacement'}</Button>{error && <p role="alert" className="sale-return-error">{error}</p>}</div>}
+    </fieldset><p>The replacement will be reserved. The returned car stays off sale for inspection. No cash refund is sent.</p><Button type="button" disabled={busy || disabled || !canReturn || !!blocked || !!invalid || !acknowledged || !availabilityChecked || Boolean(availabilityError)} onClick={() => void confirm()}>{busy ? 'Saving replacement…' : 'Confirm return & create replacement'}</Button>{error && <p role="alert" className="sale-return-error">{error}</p>}</div>}
   </section>;
 }
 

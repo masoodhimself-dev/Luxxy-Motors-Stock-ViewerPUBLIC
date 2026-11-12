@@ -1,0 +1,308 @@
+/* Sales uses the staff portal palette without changing the issued documents. */
+.invoice-builder.sales-flow.is-editing {
+  --invoice-ink: var(--desk-ink, #161f30);
+  --invoice-muted: var(--desk-muted, #576477);
+  --invoice-line: var(--desk-line, #dde3eb);
+  --invoice-accent: var(--desk-blue, #214ac9);
+  --invoice-soft: var(--desk-active, #e9efff);
+  color: var(--invoice-ink);
+  background: var(--desk-canvas, #f2f5f9);
+  font-family: var(--desk-font, "Inter", system-ui, sans-serif);
+}
+
+.sales-flow.is-editing .sales-flow-steps {
+  background: #fff;
+  border-color: var(--invoice-line);
+}
+
+.sales-flow.is-editing .sales-flow-steps > button[aria-current] {
+  color: var(--invoice-accent);
+}
+
+.sales-flow.is-editing .sales-flow-steps > button[aria-current] > span {
+  color: #fff;
+  background: var(--invoice-accent);
+}
+
+.invoice-builder.sales-flow.is-editing .sale-desk-body {
+  background: var(--desk-canvas, #f2f5f9);
+}
+
+.sales-flow.is-editing .sales-flow-context {
+  background: #fff;
+  border-color: var(--invoice-line);
+}
+
+.sales-flow.is-editing .sales-flow-context small {
+  color: var(--invoice-muted);
+  overflow-wrap: anywhere;
+}
+
+.sales-flow.is-editing .sales-flow-context .db-btn {
+  min-width: 44px;
+  min-height: 44px;
+  color: var(--invoice-accent);
+}
+
+.sales-flow.is-editing .sale-desk-section-heading {
+  margin: 0 0 12px;
+}
+
+.sales-flow.is-editing .sales-flow-next,
+.sales-flow.is-editing .sales-flow-confirmation,
+.sales-flow.is-editing .sale-overview-actions,
+.sales-flow.is-editing .sale-desk-sheet {
+  padding: 18px;
+  border: 1px solid var(--invoice-line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.sales-flow.is-editing .sales-flow-next {
+  align-items: center;
+  padding-left: 16px;
+  border-left: 3px solid var(--invoice-accent);
+}
+
+.sales-flow.is-editing .sales-flow-next h2,
+.sales-flow.is-editing .sale-overview-actions h2,
+.sales-flow.is-editing .sales-flow-confirmation h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.sales-flow.is-editing .sales-flow-next p {
+  color: var(--invoice-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.sales-flow.is-editing .sales-flow-next .sales-receipt-reference {
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+.sales-flow.is-editing .sales-flow-next .sales-receipt-reference strong {
+  font-size: inherit;
+}
+
+.sales-flow.is-editing .sale-overview-primary.db-btn,
+body[data-dealer-portal="true"] .portal-workspace.portal-redesign .sales-flow .sale-overview-primary.db-btn {
+  min-height: 44px;
+  border-color: var(--invoice-accent);
+  background: var(--invoice-accent);
+  color: #fff;
+  font: 650 14px/1.35 var(--desk-font, "Inter", system-ui, sans-serif);
+}
+
+.sales-flow.is-editing .sale-overview-primary.db-btn:hover:not(:disabled),
+body[data-dealer-portal="true"] .portal-workspace.portal-redesign .sales-flow .sale-overview-primary.db-btn:hover:not(:disabled) {
+  border-color: #183aa7;
+  background: #183aa7;
+}
+
+.sales-flow.is-editing .sale-overview-actions {
+  margin-top: 14px;
+}
+
+.invoice-builder.sales-flow.is-editing .sale-overview-actions .sales-flow-menu {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.invoice-builder.sales-flow.is-editing .sale-overview-actions .sales-flow-menu > button {
+  min-height: 61px;
+  gap: 10px;
+  padding: 9px 10px;
+  color: var(--invoice-ink);
+  border-color: var(--invoice-line);
+  border-radius: 6px;
+}
+
+.invoice-builder.sales-flow.is-editing .sale-overview-actions .sales-flow-menu > button:hover:not(:disabled) {
+  color: var(--invoice-accent);
+  background: var(--invoice-soft);
+}
+
+.sales-flow.is-editing .sale-overview-actions .sales-flow-menu strong {
+  font-size: 14px;
+}
+
+.sales-flow.is-editing .sale-overview-actions .sales-flow-menu small {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.sales-flow.is-editing .sale-overview-actions .sales-flow-menu-icon {
+  width: 19px;
+  height: 19px;
+}
+
+.sales-flow.is-editing .sale-overview-actions .sales-flow-menu > button:not(:disabled) .sales-flow-menu-icon {
+  color: var(--invoice-accent);
+}
+
+.sale-overview-links,
+.sale-overview-more > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.sale-overview-more {
+  margin-top: 12px;
+  border-top: 1px solid var(--invoice-line);
+}
+
+.sale-overview-more > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+  color: var(--invoice-ink);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.sale-overview-more > summary::-webkit-details-marker { display: none; }
+.sale-overview-more[open] > summary svg { transform: rotate(180deg); }
+.sale-overview-more > summary:focus-visible {
+  outline: 2px solid var(--desk-focus, #668cff);
+  outline-offset: 2px;
+}
+
+.sales-flow.is-editing .sales-flow-breakdown {
+  border-color: var(--invoice-line);
+  background: #fff;
+}
+
+.sales-flow.is-editing .sales-flow-breakdown .sales-flow-breakdown-balance {
+  padding-top: 12px;
+}
+
+.sale-overview-totals {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 9px 10px;
+  border-radius: 5px;
+  background: var(--desk-canvas, #f2f5f9);
+  overflow-wrap: anywhere;
+}
+
+.sale-overview-totals dt {
+  color: var(--invoice-muted);
+  font-size: 12px;
+}
+
+.sale-overview-totals dd {
+  margin: 2px 0 0;
+  font-size: 19px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.sale-overview-totals [data-balance="due"] dd { color: #80500e; }
+
+@media (max-width: 760px) {
+  .invoice-builder.sales-flow.is-editing .sale-desk-body {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .sales-flow.is-editing .sales-flow-context {
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .sales-flow.is-editing .sales-flow-context > .sale-overview-customer {
+    padding-top: 5px;
+  }
+
+  .sales-flow.is-editing .sales-flow-context .invoice-car-photo,
+  .sales-flow.is-editing .sales-flow-context .invoice-car-photo img {
+    width: 57px;
+    height: 41px;
+  }
+
+  .sales-flow.is-editing .sales-flow-next,
+  .sales-flow.is-editing .sales-flow-confirmation,
+  .sales-flow.is-editing .sale-overview-actions,
+  .sales-flow.is-editing .sale-desk-sheet {
+    padding: 12px;
+  }
+
+  .sales-flow.is-editing .sales-flow-next {
+    align-items: stretch;
+    gap: 9px;
+  }
+
+  .invoice-builder.sales-flow.is-editing .sale-overview-actions .sales-flow-menu {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sales-flow.is-editing .sale-overview-actions :is(.db-btn, .sales-flow-menu > button) {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 359px) {
+  .sales-flow.is-editing .sale-desk-header-identity > .db-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .sales-flow.is-editing .sale-desk-header-identity > strong {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .sales-flow.is-editing .sale-desk-header :is(.sale-desk-header-identity > .db-btn, .portal-quick-trigger) > svg {
+    display: block;
+  }
+
+  .sales-flow.is-editing .sale-desk-header-actions > .portal-quick-trigger {
+    min-width: 44px;
+    width: 44px;
+    padding-inline: 0;
+  }
+
+  .sales-flow.is-editing .sale-desk-header-actions > .portal-quick-trigger > svg:last-child {
+    display: none;
+  }
+
+  .sales-flow.is-editing .sale-desk-header-actions > .db-btn:not(.portal-quick-trigger) {
+    padding-inline: 7px;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 599px) {
+  .sales-flow.is-editing .sales-flow-mobile-balance {
+    gap: 4px;
+  }
+
+  .sales-flow.is-editing .sales-flow-mobile-balance strong {
+    font-size: clamp(13px, 3.9vw, 16px);
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
+
+  .sales-flow.is-editing .sales-flow-mobile-balance > svg {
+    width: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sales-flow.is-editing .sale-overview-primary { transition: none; }
+}

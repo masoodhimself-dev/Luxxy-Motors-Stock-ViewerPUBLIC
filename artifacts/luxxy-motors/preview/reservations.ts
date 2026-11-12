@@ -57,6 +57,7 @@ const internalId = (id: string) => {
   return index >= 0 ? `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}` : id;
 };
 const externalId = (id: string) => previewStock.cars.find(car => internalId(car.id) === id)?.id ?? id;
+export const previewReservationMatchesVehicle = (reservation: ReservationRecord, vehicleId: string) => externalId(reservation.vehicleId) === vehicleId;
 const publicView = (record: ReservationRecord) => ({ ...reservationView(record), vehicleId: externalId(record.vehicleId) });
 
 async function load(file = filename): Promise<BookingPreviewState> {

@@ -857,7 +857,10 @@ test('v2 replacement invoice separates transferred credit from cash and exposes 
   document.type = 'receipt'; document.title = 'Credit refund receipt'; document.paymentId = payment.id; document.paymentAmountPence = payment.signedAmountPence;
   document.number = 'RCP-2026-0042';
   const receipt = renderSaleDocumentPdf(document).toString('latin1'), receiptText = readablePdfText(receipt);
-  assert.equal(document.balanceAtIssue, 0); assert.match(receiptText, /Refund Receipt/); assert.match(receiptText, /Amount refunded/); assert.match(receiptText, /-£1,500.00/); assert.doesNotMatch(receiptText, /Amount received|Payment received/);
+  assert.equal(document.balanceAtIssue, 0);
+  assert.equal(salesDocumentPresentation(document).settlementStatus, 'Refund recorded');
+  for (const expected of ['Refund Receipt', 'Refund recorded', 'Amount refunded', '-£1,500.00', 'Balance remaining', '£0.00']) assert.ok(receiptText.includes(expected), expected);
+  assert.doesNotMatch(receiptText, /Amount received|Payment received|No balance outstanding|No agreed charges/);
   assertTextOnA4(receipt); assertRowsDoNotCollide(receipt); saveV2Sample('v2-credit-refund-receipt', document);
 });
 
@@ -869,7 +872,7 @@ test('v2 return credit and later delivery documents charge or credit only their 
   credit.transaction = { kind: 'return-credit', amountPence: 1000000, originalSaleReference: 'SALE-ORIGINAL', replacementSaleReference: 'SALE-REPLACEMENT', originalInvoiceReferences: [original.number], reason: 'Replacement agreed', condition: 'Returned in recorded condition', mileage: 22500 };
   const creditPdf = renderSaleDocumentPdf(credit).toString('latin1'), creditText = readablePdfText(creditPdf);
   for (const expected of ['Return Credit Note', '£10,000.00', 'SALE-REPLACEMENT', 'Credit transferred - no cash refund', 'Cash refund recorded']) assert.ok(creditText.includes(expected), expected);
-  assert.doesNotMatch(creditText, /Vehicle price|DEPOSIT-REF|£10,200.00/); assertTextOnA4(creditPdf); assertRowsDoNotCollide(creditPdf); saveV2Sample('v2-return-credit-note', credit);
+  assert.doesNotMatch(creditText, /Refund recorded|Vehicle price|DEPOSIT-REF|£10,200.00/); assertTextOnA4(creditPdf); assertRowsDoNotCollide(creditPdf); saveV2Sample('v2-return-credit-note', credit);
   const delivery = structuredClone(original);
   delivery.type = 'delivery-invoice'; delivery.title = 'Delivery invoice'; delivery.verification = undefined;
   delivery.number = 'DEL-INV-2026-0042';

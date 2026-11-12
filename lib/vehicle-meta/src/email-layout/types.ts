@@ -36,6 +36,7 @@ export const VARIABLES = [
   "document_type",
   "amount",
   "amount_received",
+  "transferred_credit",
   "balance",
   "payment_status",
   "reservation_status",

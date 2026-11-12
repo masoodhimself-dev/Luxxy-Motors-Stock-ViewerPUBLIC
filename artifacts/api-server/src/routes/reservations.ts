@@ -8,7 +8,7 @@ import {
   db, leadEventsTable, leadsTable, salesTable, vehiclesTable, saleWorkspaceTable,
   type Lead, type LeadEvent,
 } from "@workspace/db";
-import type { SaleWorkspaceRecord } from '@workspace/vehicle-meta';
+import { releaseSaleForCancelledReservation, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 import { requireStaff, requirePermission, staffLabel } from "../middlewares/staff-auth";
 import {
   assertReservationCanBeCancelled, ReservationError, reservationView, type ReservationRecord,
@@ -122,19 +122,16 @@ router.post("/reservations/:id/cancel", requireStaff, requirePermission("sales.m
         throw new ReservationError("The car is held for an online payment and cannot be released here.", 409);
       }
       const connected = await tx.select().from(saleWorkspaceTable).where(and(eq(saleWorkspaceTable.dealerId, id), sql`${saleWorkspaceTable.state}#>>'{draft,sourceReservationId}' = ${lead.id}`)).for('update');
-      if (connected.some(row => (row.state as unknown as SaleWorkspaceRecord).lifecycle?.status === 'sold')) throw new ReservationError('This reservation belongs to a sold vehicle. Review its sale file.', 409);
+      const connectedSales = connected.map(row => row.state as unknown as SaleWorkspaceRecord);
+      if (connectedSales.some(sale => sale.lifecycle?.status === 'sold' || sale.completedAt)) throw new ReservationError('This reservation belongs to a sold vehicle. Review its sale file.', 409);
       assertReservationCanBeCancelled({
         inventoryStatus: vehicle?.inventoryStatus, leadStage: lead.stage, depositPence: lead.depositPence,
         hasActiveSale: Boolean((await tx.select({id:salesTable.id}).from(salesTable).where(and(eq(salesTable.dealerId,id),eq(salesTable.vehicleId,found.record.vehicleId),inArray(salesTable.status,["draft","ready","signing","signed","completed"]))).limit(1)).length),
         hasCompetingReservation: Boolean((await tx.select({id:leadsTable.id}).from(leadsTable).where(and(eq(leadsTable.dealerId,id),eq(leadsTable.vehicleId,found.record.vehicleId),ne(leadsTable.id,lead.id),inArray(leadsTable.stage,["reserved","sale_agreed","collected"]))).limit(1)).length),
       });
       const cancelledAt = new Date().toISOString();
-      for (const row of connected) {
-        const sale = row.state as unknown as SaleWorkspaceRecord;
-        if (sale.lifecycle?.status === 'reserved') {
-          sale.lifecycle = { ...sale.lifecycle, status: 'released', changedAt: cancelledAt };
-          sale.revision += 1; sale.updatedAt = cancelledAt;
-          sale.events.push({ id: randomUUID(), type: 'reservation-cancelled', description: 'Linked online reservation cancelled; car released', actor: staffLabel(req), occurredAt: cancelledAt });
+      for (const sale of connectedSales) {
+        if (sale.draft.vehicleId === found.record.vehicleId && releaseSaleForCancelledReservation(sale, { now: cancelledAt, actor: staffLabel(req), nextId: randomUUID })) {
           await tx.update(saleWorkspaceTable).set({ state: sale as unknown as Record<string, unknown>, revision: sale.revision, updatedAt: new Date(cancelledAt) }).where(eq(saleWorkspaceTable.id, sale.id));
         }
       }

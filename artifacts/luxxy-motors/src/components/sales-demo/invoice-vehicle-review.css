@@ -66,6 +66,31 @@
 .invoice-vehicle-review-warning p + p,
 .invoice-vehicle-review-warning strong + p { margin-top: 4px; }
 
+.invoice-vehicle-review-mot {
+  border: 1px solid #e2c48a;
+  padding: 10px 12px;
+}
+
+.invoice-vehicle-review-mot[data-expired="true"] {
+  border-color: #e5a9a0;
+  background: #fff0ed;
+  color: #802d24;
+}
+
+.invoice-vehicle-review-mot strong { font-size: 14px; }
+.invoice-vehicle-review-mot time { font-weight: 650; }
+
+.invoice-builder .invoice-vehicle-review-mot .invoice-vehicle-review-confirm {
+  align-items: center;
+  min-height: 30px;
+  margin-top: 6px;
+}
+
+.invoice-vehicle-review-mot .invoice-vehicle-review-confirm input {
+  margin-top: 0;
+  accent-color: currentColor;
+}
+
 .invoice-vehicle-review-mileage { margin-top: 12px; }
 .invoice-vehicle-review-mileage label { display: block; font-size: 13px; font-weight: 650; }
 .invoice-vehicle-review-mileage input { width: min(100%, 215px); margin-top: 5px; }

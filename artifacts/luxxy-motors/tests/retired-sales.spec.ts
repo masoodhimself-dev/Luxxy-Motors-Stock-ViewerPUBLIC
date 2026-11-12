@@ -3,14 +3,13 @@ test.skip(process.env.LUXXY_LOCAL_PREVIEW !== '1', 'Local preview only');
 for (const width of [390, 1440]) {
   test(`old sales workflow is unavailable at ${width}px`, async ({ page, request }) => {
     await page.setViewportSize({ width, height: 900 });
-    await page.goto('/portal');
-    await expect(page.getByTestId('input-identity-name')).toBeVisible();
+    await page.goto('/portal?section=sales');
+    await expect(page.getByRole('heading', { name: 'Sales', exact: true })).toBeVisible();
     await expect(page.getByTestId('tab-deals')).toHaveCount(0);
     await expect(page.getByText('Deposits without a deal')).toHaveCount(0);
-    await page.getByTestId('tab-reservations').click();
-    await expect(page.getByTestId('tab-settings')).toBeVisible();
-    await page.getByTestId('tab-settings').click();
-    await expect(page.getByTestId('input-identity-name')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'New sale', exact: true })).toBeVisible();
+    await page.goto('/portal?section=settings');
+    await expect(page.getByRole('heading', { name: 'Settings', exact: true }).first()).toBeVisible();
     for (const path of ['/sign/sample', '/customer-details/sample']) {
       await page.goto(path);
       await expect(page.getByRole('heading', { name: 'This link is no longer available' })).toBeVisible();

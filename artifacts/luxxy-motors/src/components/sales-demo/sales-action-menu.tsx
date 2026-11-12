@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { Car, ChevronRight, Invoice, Mail, RotateCcw, Truck, Wallet } from '@/components/icons';
 
 export type SaleAction = 'request' | 'deposit' | 'payment' | 'invoice' | 'handover' | 'return';
@@ -10,16 +11,22 @@ export const saleActions = [
   { id: 'return', title: 'Return or change a car', description: 'Find the original sale to get started.', icon: RotateCcw },
 ] as const;
 
-export function SalesActionMenu({ onChoose, disabled = false, unavailable = {}, requestTitle }: {
-  onChoose: (action: SaleAction) => void; disabled?: boolean; unavailable?: Partial<Record<SaleAction, string>>; requestTitle?: string;
+export function SalesActionMenu({ onChoose, disabled = false, unavailable = {}, requestTitle, includeReturn = true, includeRequest = true }: {
+  onChoose: (action: SaleAction) => void; disabled?: boolean; unavailable?: Partial<Record<SaleAction, string>>; requestTitle?: string; includeReturn?: boolean; includeRequest?: boolean;
 }) {
+  const menuId = useId();
   return <div className="sales-flow-menu" aria-label="Choose what to do">
-    {saleActions.map(({ id, title, description, icon: Icon }) => <button key={id} type="button"
-      disabled={disabled || Boolean(unavailable[id])} onClick={() => onChoose(id)} aria-describedby={`sale-action-help-${id}`}>
-      <Icon className="sales-flow-menu-icon" size={30} aria-hidden="true" />
-      <span><strong>{id === 'request' && requestTitle ? requestTitle : title}</strong><small id={`sale-action-help-${id}`}>{unavailable[id] || description}</small></span>
-      <ChevronRight size={22} aria-hidden="true" />
-    </button>)}
+    {saleActions.filter(({ id }) => (includeReturn || id !== 'return') && (includeRequest || id !== 'request')).map(({ id, title, description, icon: Icon }) => {
+      const reason = unavailable[id];
+      const isDisabled = disabled || Boolean(reason);
+      const titleId = `${menuId}-${id}-title`;
+      const helpId = `${menuId}-${id}-help`;
+      return <button key={id} type="button" disabled={isDisabled} onClick={() => onChoose(id)} aria-labelledby={titleId} aria-describedby={helpId}>
+        <Icon className="sales-flow-menu-icon" size={30} aria-hidden="true" />
+        <span><strong id={titleId}>{id === 'request' && requestTitle ? requestTitle : title}</strong><small id={helpId}>{reason || description}</small></span>
+        {!isDisabled && <ChevronRight size={22} aria-hidden="true" />}
+      </button>;
+    })}
   </div>;
 }
 

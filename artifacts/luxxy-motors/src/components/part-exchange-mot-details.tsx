@@ -40,7 +40,8 @@ function MotFacts({ details }: { details: PartExchangeMotDetailsResult }) {
         }
       : null);
   return (
-    <div className="part-exchange-mot-details__facts">
+    <div className="part-exchange-mot-details__facts" aria-label="DVSA MOT history">
+      {mot && <strong>DVSA MOT history</strong>}
       {mot?.latestTestResult === "FAILED" ? (
         <p>
           MOT record needs checking.
@@ -188,9 +189,12 @@ export function PartExchangeMotDetails({
             <p className="part-exchange-mot-details__vehicle">
               <MakeLogo make={visible.details.vehicle.make} size={32} />
               <span><strong>{dvsaVehicleName(visible.details.vehicle)}</strong>
-                {visible.details.vehicle.registrationDate && <span className="part-exchange-mot-details__year"> {visible.details.vehicle.registrationDate.slice(0, 4)}</span>}
+                {(visible.details.vehicle.year || visible.details.vehicle.registrationDate) && <span className="part-exchange-mot-details__year"> {visible.details.vehicle.year ?? visible.details.vehicle.registrationDate?.slice(0, 4)}</span>}
               </span>
             </p>
+            {(visible.details.vehicle.fuel || visible.details.vehicle.colour) && <p>
+              {[visible.details.vehicle.fuel, visible.details.vehicle.colour].filter(Boolean).join(" · ")} · DVLA
+            </p>}
             <MotFacts details={visible.details} />
             {visible.details.mileage !== undefined &&
               mileageEstimated !== false &&

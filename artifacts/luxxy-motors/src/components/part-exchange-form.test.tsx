@@ -205,11 +205,11 @@ it('immediately hides a changed registration’s old details, rejects late resul
   expect(mutation.mutate).not.toHaveBeenCalled();
 });
 
-it('preserves manually edited model and mileage on repeat checks and removes the estimated-mileage label', () => {
+it('keeps the lookup identity locked and retains edited mileage on repeat checks', () => {
   render(<PartExchangeForm vehicle={car} stockCars={[car]} />); find();
   input('input-part-exchange-model', 'Honda Civic Sport'); input('input-part-exchange-mileage', '65001'); input('input-part-exchange-mileage', '65000');
   fireEvent.click(screen.getByRole('button', { name: 'Find my car' }));
-  expect(screen.getByTestId('input-part-exchange-model')).toHaveValue('Honda Civic Sport');
+  expect(screen.getByTestId('input-part-exchange-model')).toHaveValue('Honda Civic');
   review();
   expect(messageValue()).toContain('Current mileage: 65,000 miles');
   expect(messageValue()).not.toContain('Estimated mileage');
@@ -241,23 +241,14 @@ it('sends a reviewed website enquiry without a replacement car when there is no 
   }) }, expect.anything());
 });
 
-it('remembers a deliberate skip when a previously selected car is available and carries the choice into WhatsApp', () => {
-  const open = vi.spyOn(window, 'open').mockReturnValue(null);
-  try {
-    const view = render(<PartExchangeForm vehicle={car} stockCars={[car]} />);
-    find(); next(); skipCar(); next(); view.unmount();
-    render(<PartExchangeForm vehicle={car} stockCars={[car]} />);
-    find(); next();
-    expect(screen.getByRole('button', { name: 'I haven’t chosen a car yet' })).toHaveAttribute('aria-pressed', 'true');
-    next(); contacts();
-    fireEvent.click(screen.getByRole('radio', { name: 'Send everything on WhatsApp' }));
-    confirm(); next();
-    const message = new URL(String(open.mock.calls[0][0])).searchParams.get('text');
-    expect(message).toContain('I haven’t chosen my next car yet');
-    expect(message).toContain('Name: Alex Buyer');
-    expect(message).not.toContain('Ford Focus');
-    expect(mutation.mutate).not.toHaveBeenCalled();
-  } finally { open.mockRestore(); }
+it('submits a deliberate skip as a website enquiry', () => {
+  const view = render(<PartExchangeForm vehicle={car} stockCars={[car]} />);
+  find(); next(); skipCar(); next(); view.unmount();
+  render(<PartExchangeForm vehicle={car} stockCars={[car]} />);
+  find(); next();
+  expect(screen.getByRole('button', { name: 'I haven’t chosen a car yet' })).toHaveAttribute('aria-pressed', 'true');
+  next(); contacts(); confirm(); next();
+  expect(mutation.mutate.mock.calls[0][0].data).toMatchObject({ type: 'part_exchange', vehicleId: null, preferredContact: 'phone' });
 });
 
 it('keeps customer-edited wording when the target changes and offers an explicit refresh before sending', () => {
@@ -282,14 +273,14 @@ it('lets customers explicitly retain custom wording and sends exactly their revi
   expect(mutation.mutate.mock.calls[0][0].data).toMatchObject({ vehicleId: toyota.id, message: 'My custom question.' });
 });
 
-it('restores drafts safely behind a new lookup gate and keeps legacy manual values after checking', () => {
-  savePartExchangeDraft(partExchangeDraftKey(car.id), { details: { registration: 'AB12 CDE', makeModel: 'My recorded Honda', mileage: '45678', condition: '', conditionNotes: '', keys: '', v5: '', serviceHistory: '', name: 'Earlier Buyer', phone: '07700900123', email: '' }, vehicleId: car.id, delivery: 'website' });
+it('restores drafts safely behind a new lookup gate and replaces the manual identity after checking', () => {
+  savePartExchangeDraft(partExchangeDraftKey(car.id), { details: { registration: 'AB12 CDE', makeModel: 'My recorded Honda', mileage: '64578', condition: '', conditionNotes: '', keys: '', v5: '', serviceHistory: '', name: 'Earlier Buyer', phone: '07700900123', email: '' }, vehicleId: car.id, delivery: 'website' });
   render(<PartExchangeForm vehicle={car} stockCars={[car]} />);
   expect(screen.getByTestId('input-part-exchange-registration')).toHaveValue('AB12 CDE');
   expect(screen.queryByTestId('input-part-exchange-mileage')).not.toBeInTheDocument(); expect(state.lookup).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Find my car' }));
-  expect(screen.getByTestId('input-part-exchange-mileage')).toHaveValue(45678);
-  expect(screen.getByTestId('input-part-exchange-model')).toHaveValue('My recorded Honda');
+  expect(screen.getByTestId('input-part-exchange-mileage')).toHaveValue(64578);
+  expect(screen.getByTestId('input-part-exchange-model')).toHaveValue('Honda Civic');
   review(); expect(screen.getByTestId('input-customer-name')).toHaveValue('Earlier Buyer');
 });
 
@@ -304,7 +295,7 @@ it('preserves an edited message across remounts without trusting a stored lookup
 });
 
 it('allows a newer identified car without estimated mileage to proceed only after manual odometer entry', () => {
-  state.result = { ...result(), mileage: undefined, mot: { ...result().mot!, firstTest: true, dueDate: '2028-10-20', latestTestResult: null, lastPassedDate: null, lastTestDate: null } };
+  state.result = { ...result(), mileage: undefined, mot: { ...result().mot!, firstTest: true, lastReading: null, dueDate: '2028-10-20', latestTestResult: null, lastPassedDate: null, lastTestDate: null } };
   render(<PartExchangeForm vehicle={car} stockCars={[car]} />); find();
   expect(screen.getByTestId('input-part-exchange-mileage')).toHaveValue(null);
   expect(screen.getByTestId('button-part-exchange-continue')).toBeDisabled();
@@ -320,15 +311,13 @@ it('keeps sending manual and uses the website when WhatsApp is unavailable', () 
   expect(screen.queryByTestId('link-part-exchange-photos')).not.toBeInTheDocument();
 });
 
-it('opens WhatsApp only after explicit review and includes the customer’s current contacts without a website mutation', () => {
-  const open = vi.spyOn(window, 'open').mockImplementation(() => null);
-  try { render(<PartExchangeForm vehicle={car} stockCars={[car]} />); find(); review(); contacts();
-    fireEvent.click(screen.getByRole('radio', { name: 'Send everything on WhatsApp' }));
-    expect(open).not.toHaveBeenCalled(); confirm(); next();
-    expect(open).toHaveBeenCalledOnce(); expect(mutation.mutate).not.toHaveBeenCalled();
-    const text = new URL(String(open.mock.calls[0][0])).searchParams.get('text');
-    expect(text).toContain('Honda Civic'); expect(text).toContain('Ford Focus'); expect(text).toContain('Phone: 07700 900123');
-  } finally { open.mockRestore(); }
+it('rejects mileage below the last MOT reading', () => {
+  render(<PartExchangeForm vehicle={car} stockCars={[car]} />); find();
+  expect(screen.getByTestId('input-part-exchange-model')).toHaveAttribute('readonly');
+  input('input-part-exchange-mileage', '1');
+  expect(screen.getByRole('alert')).toHaveTextContent('cannot be lower than the last MOT reading');
+  expect(screen.getByTestId('button-part-exchange-continue')).toBeDisabled();
+  expect(mutation.mutate).not.toHaveBeenCalled();
 });
 
 it('blocks a removed selected car and overlong messages without submitting', () => {

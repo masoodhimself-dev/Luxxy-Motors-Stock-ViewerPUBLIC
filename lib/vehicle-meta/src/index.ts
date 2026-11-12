@@ -217,6 +217,7 @@ export function buildShowroomMeta(
 }
 
 export * from "./sale-workspace.ts";
+export * from "./sale-handoff-tasks.ts";
 export * from './sale-draft-deletion.ts';
 export * from "./registration.ts";
 export * from './customer-sale.ts';
@@ -255,4 +256,5 @@ export * from "./sale-calculation-check.ts";
 export * from './vehicle-links.ts';
 export * from "./sale-work-queue.ts";
 
+export * from "./sale-customer-update.ts";
 export * from "./sale-invoice-vehicle-review.ts";

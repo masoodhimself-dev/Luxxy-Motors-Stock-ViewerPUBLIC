@@ -2,7 +2,7 @@ import {act,fireEvent,render,screen,within} from '@testing-library/react';
 import {beforeEach,expect,it,vi} from 'vitest';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
 import {changeSaleWorkspace,createSaleWorkspace,type SaleWorkspaceRecord} from '@workspace/vehicle-meta';
-const state=vi.hoisted(()=>({permissions:['sales.manage','sales.handover','payments.record'],api:vi.fn(),navigate:vi.fn(),search:'',enquiries:[] as any[],stock:{cars:[]} as any,stockLoading:false,stockError:null as string|null}));
+const state=vi.hoisted(()=>({permissions:['sales.manage','sales.handover','payments.record'],api:vi.fn(),navigate:vi.fn(),search:'',enquiries:[] as any[],stock:{cars:[]} as any,stockLoading:false,stockError:null as string|null,showHandoverPaymentShortcut:false}));
 vi.mock('@workspace/api-client-react',()=>({customFetch: (...args: unknown[]) => {
     const url = String(args[0]);
     if (url === '/api/sales-terms') return Promise.resolve({ published: null });
@@ -14,8 +14,13 @@ vi.mock('@/lib/enquiry-summary-query',()=>({useEnquirySummaries:()=>({data:state
 vi.mock('@/lib/stock-context',()=>({useStock:()=>({stock:state.stock,isLoading:state.stockLoading,error:state.stockError})}));
 vi.mock('@/lib/dealer-settings-context',()=>({useDealerSettings:()=>({settings:{identity:{name:'Fictional Motors'},contact:{},address:{},legal:{}}})}));
 vi.mock('@/lib/dealer-features',()=>({useDealerFeatures:()=>({enabled:()=>true,isLoading:false,isError:false})}));
-vi.mock('@/components/portal/dealer-administration',()=>({useStaffAccess:()=>({data:{permissions:state.permissions}})}));
-vi.mock('@/components/portal/sale-handover',()=>({SaleHandover:()=>null,SaleHandoverFields:()=>null,handoverDefaults:()=>({})}));
+vi.mock('@/components/portal/dealer-administration',()=>({useStaffAccess:()=>({data:{permissions:state.permissions,user:{authUserId:'staff-test'}}})}));
+vi.mock('@/components/portal/sale-handover',()=>({
+  SaleHandover:({ onReviewPayments }: { onReviewPayments?: () => void }) => state.showHandoverPaymentShortcut
+    ? <button type="button" onClick={onReviewPayments}>Review payments</button>
+    : null,
+  SaleHandoverFields:()=>null,handoverDefaults:()=>({}),
+}));
 vi.mock('@/components/portal/sold-vehicle-customer-review',()=>({SoldVehicleCustomerReview:()=>null}));
 vi.mock('wouter',()=>({useLocation:()=>['/portal',state.navigate],useSearch:()=>state.search}));
 import {SalesWorkspace} from './sales-demo';
@@ -23,7 +28,7 @@ const branding={identity:{name:'Fictional Motors',logoText:'TEST',logoAsset:''},
 function full(id:string,name=id){return createSaleWorkspace({requestId:`create-${id}`,draft:{customer:name,email:'buyer@example.test',phone:'07700900123',address:'Private invoice address',vehicleId:'car-one',vehicle:'Ford Focus',registration:'AB12CDE',price:'6000'}},{now:'2026-10-20T10:00:00Z',actor:'Test',nextId:()=>id,nextNumber:()=>id,branding},`SALE-${id}`).sale;}
 function summary(id:string,name=id){const v=full(id,name);return {id,reference:v.reference,revision:v.revision,createdAt:v.createdAt,updatedAt:v.updatedAt,draft:{customer:name,email:'buyer@example.test',phone:'07700900123',vehicleId:'car-one',vehicle:'Ford Focus',registration:'AB12CDE',sourceEnquiryId:'',sourceReservationId:''},listSummary:true,listTotalDue:600000} as unknown as SaleWorkspaceRecord;}
 function mount(){const client=new QueryClient({defaultOptions:{queries:{retry:false}}});const view=render(<QueryClientProvider client={client}><SalesWorkspace embedded/></QueryClientProvider>);return {...view,refresh:()=>view.rerender(<QueryClientProvider client={client}><SalesWorkspace embedded/></QueryClientProvider>)};}
-beforeEach(()=>{state.permissions=['sales.manage','sales.handover','payments.record'];state.search='';state.enquiries=[];state.stock={cars:[]};state.stockLoading=false;state.stockError=null;state.api.mockReset();state.navigate.mockReset();});
+beforeEach(()=>{state.permissions=['sales.manage','sales.handover','payments.record'];state.search='';state.enquiries=[];state.stock={cars:[]};state.stockLoading=false;state.stockError=null;state.showHandoverPaymentShortcut=false;state.api.mockReset();state.navigate.mockReset();});
 
 function navigateSection(section:string){
  if(section==='Deal'){fireEvent.click(screen.getByRole('button',{name:'Car'}));return;}
@@ -32,7 +37,7 @@ function navigateSection(section:string){
  const target=screen.getByRole('button',{name:new RegExp(`^${title}`)});
  fireEvent.click(section==='Payments'&&target.hasAttribute('disabled')?screen.getByRole('button',{name:'Payments and documents'}):target);
 }
-async function openCarScreen(){return await screen.findByRole('heading',{name:/Choose a car|Choose the customer|Review sale details|What would you like to do\?/});}
+async function openCarScreen(){return await screen.findByRole('heading',{name:/Choose a car|Choose the customer|Review sale details|Sale overview/});}
 function vehicleSelection(){fireEvent.click(screen.getByRole('button',{name:'Car'}));return screen.getByRole('region',{name:'Vehicle selection'});}
 
 const reads=()=>state.api.mock.calls.filter(([,o])=>!o?.method).map(([p])=>p as string);
@@ -101,7 +106,7 @@ it('waits for the latest full sale before allowing edits',async()=>{
 });
 it('debounces global search and starts a fresh result page',async()=>{
  state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace'?{sales:[summary('first','First Customer')],hasMore:false}:{sales:[summary('match','Search Customer')],hasMore:false});
- mount();await screen.findByRole('button',{name:/First Customer/});const input=screen.getByRole('textbox',{name:'Search sales'});
+ mount();await screen.findByRole('button',{name:/First Customer/});const input=screen.getByRole('searchbox',{name:'Search sales'});
  fireEvent.change(input,{target:{value:'A'}});fireEvent.change(input,{target:{value:'AB'}});fireEvent.change(input,{target:{value:'AB12'}});
  await screen.findByRole('button',{name:/Search Customer/});expect(screen.queryByRole('button',{name:/First Customer/})).not.toBeInTheDocument();expect(reads()).toEqual(['/api/sale-workspace','/api/sale-workspace?q=AB12']);expect(writes()).toHaveLength(0);
 });
@@ -262,7 +267,7 @@ it('uses the server queue and owner filter together before opening the matching 
  fireEvent.change(screen.getByRole('combobox',{name:'Sale owner'}),{target:{value:'mine'}});
  await screen.findByRole('button',{name:/Pending buyer/});
  expect(reads()).toContain('/api/sale-workspace?queue=attention&owner=mine');
- expect(filters).toHaveAccessibleName('Filters (2)');
+ expect(filters).toHaveAccessibleName('Filters (1)');
  fireEvent.click(filters);
  expect(filters).toHaveAttribute('aria-expanded','false');
  fireEvent.click(screen.getByRole('button',{name:'Review pending payment'}));
@@ -281,6 +286,29 @@ it('opens an exact next-action URL without changing sale or stock', async () => 
  expect(writes()).toHaveLength(0);
 });
 
+it('takes an unsent deposit confirmation straight from Needs attention to the saved receipt', async () => {
+ const draft = full('receipt-queue', 'Reserved buyer');
+ const saved = changeSaleWorkspace(draft, {
+   action: 'take-deposit',
+   payment: { amount: '400', method: 'Bank transfer', date: '2026-10-20', reference: '', kind: 'deposit', status: 'confirmed', reserveConfirmed: true },
+ }, { expectedRevision: draft.revision, requestId: 'reserved-receipt-test' }, {
+   now: '2026-10-20T10:00:00Z', actor: 'Test', nextId: () => crypto.randomUUID(),
+   nextNumber: () => 'RECEIPT-TEST', branding,
+ }).sale;
+ const row = { ...summary(saved.id, 'Reserved buyer'), lifecycle: saved.lifecycle,
+   listAttention: 'Deposit confirmation to send', listStage: 'Reserved', listBalance: 560000, listLedgerKnown: true };
+ state.api.mockImplementation(async (path: string) => path.includes('queue=attention') ? { sales: [row] }
+   : path === '/api/sale-workspace' ? { sales: [] } : { sale: saved });
+ mount();
+ fireEvent.click(screen.getByRole('button', { name: 'Needs attention' }));
+ const shortcut = await screen.findByRole('button', { name: 'Send deposit confirmation' });
+ fireEvent.click(shortcut);
+ const confirmation = await screen.findByRole('region', { name: 'Deposit confirmation' });
+ expect(confirmation).toHaveTextContent('RECEIPT-TEST');
+ expect(confirmation).toHaveTextContent('£400.00 received');
+ expect(writes()).toHaveLength(0);
+});
+
 it('loads the staff directory on demand and saves the handover note as staff details', async () => {
  const saved=full('owner-test','Buyer with owner');
  const team={ownerId:'alice',ownerName:'Alice',note:'Call before collection.',updatedAt:saved.updatedAt,updatedBy:'Staff'};
@@ -288,7 +316,7 @@ it('loads the staff directory on demand and saves the handover note as staff det
    p==='/api/staff/directory'?{currentUserId:'alice',members:[{id:'alice',name:'Alice'}]}:
    p.endsWith('/team')?{sale:{...saved,revision:saved.revision+1,team}}:{sale:saved});
  mount();fireEvent.click(await screen.findByRole('button',{name:/Buyer with owner/}));
- await screen.findByRole('heading',{name:'What would you like to do?'});
+ await screen.findByRole('heading',{name:'Sale overview'});
  expect(reads()).not.toContain('/api/staff/directory');
  fireEvent.click(screen.getByText('Sale owner'));
  await screen.findByRole('option',{name:'Alice (you)'});
@@ -339,6 +367,63 @@ it('can reopen an exact sale attention link after returning to the queue', async
  state.search=linked;view.refresh();
  await screen.findByRole('heading',{name:'Payments and documents'});
  expect(reads().filter(url=>url==='/api/sale-workspace/attention-link')).toHaveLength(2);
+ expect(writes()).toHaveLength(0);
+});
+
+it('opens the same assigned payment task again after staff return to Today', async () => {
+ const saved = full('repeat-staff-link', 'Linked buyer');
+ const task = {
+   id: '10000000-0000-4000-8000-000000000093', kind: 'check-payment', status: 'open',
+   assigneeId: 'staff-test', assigneeName: 'Staff member', note: 'Check the transfer reference.',
+   createdAt: saved.createdAt, createdBy: 'Manager', updatedAt: saved.updatedAt, updatedBy: 'Manager',
+ } as const;
+ saved.handoffTasks = [task];
+ const linked = `?section=sales&saleId=${saved.id}&saleAction=payments&saleTaskId=${task.id}`;
+ state.search = linked;
+ state.api.mockImplementation(async (path: string) =>
+   path === '/api/sale-workspace' ? { sales: [] } : { sale: saved });
+ const view = mount();
+ await screen.findByRole('heading', { name: 'Payments and documents' });
+ expect(screen.getByText(task.note)).toBeVisible();
+
+ fireEvent.click(screen.getAllByRole('button', { name: 'All actions' })[0]);
+ await screen.findByRole('heading', { name: 'Sale overview' });
+ state.search = '?section=today';
+ view.refresh();
+ state.search = linked;
+ view.refresh();
+
+ await screen.findByRole('heading', { name: 'Payments and documents' });
+ expect(screen.getByText(task.note)).toBeVisible();
+ expect(reads().filter(path => path === `/api/sale-workspace/${saved.id}`)).toHaveLength(2);
+ expect(writes()).toHaveLength(0);
+});
+
+it('clears the collection task focus when staff deliberately open payment history', async () => {
+ const original = full('staff-collection-link', 'Linked buyer');
+ const saved = changeSaleWorkspace(original, {
+   action: 'payment', payment: { kind: 'part-payment', status: 'pending', amount: '500', method: 'Bank transfer', date: '2026-10-20', reference: '' },
+ }, { expectedRevision: original.revision, requestId: 'staff-collection-pending' }, {
+   now: original.createdAt, actor: 'Test', nextId: () => crypto.randomUUID(), nextNumber: () => 'TEST', branding,
+ }).sale;
+ const task = {
+   id: '10000000-0000-4000-8000-000000000095', kind: 'arrange-collection', status: 'open',
+   assigneeId: 'staff-test', assigneeName: 'Staff member', note: 'Check collection availability.',
+   createdAt: saved.createdAt, createdBy: 'Manager', updatedAt: saved.updatedAt, updatedBy: 'Manager',
+ } as const;
+ saved.handoffTasks = [task];
+ state.showHandoverPaymentShortcut = true;
+ state.search = `?section=sales&saleId=${saved.id}&saleAction=handover&saleTaskId=${task.id}`;
+ state.api.mockImplementation(async (path: string) =>
+   path === '/api/sale-workspace' ? { sales: [] } : { sale: saved });
+ mount();
+
+ await screen.findByText(task.note);
+ fireEvent.click(screen.getByRole('button', { name: 'Review payments' }));
+ const heading = await screen.findByRole('heading', { name: 'Payments and documents' });
+ expect(heading).toHaveFocus();
+ expect(screen.queryByText('Staff tasks')).not.toBeInTheDocument();
+ expect(screen.getByRole('button', { name: 'Confirm received' })).toBeVisible();
  expect(writes()).toHaveLength(0);
 });
 

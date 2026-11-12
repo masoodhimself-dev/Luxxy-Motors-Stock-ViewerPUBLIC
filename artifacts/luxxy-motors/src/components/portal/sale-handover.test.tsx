@@ -9,6 +9,7 @@ import {
 } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
+  changeSaleWorkspace,
   createSaleWorkspace,
   saleHandoverMessage,
   type SaleWorkspaceRecord,
@@ -182,6 +183,32 @@ it("rejects sharing a stale arrangement before creating an email or WhatsApp", a
   });
   show(record);
   await expect(state.share.beforeOpen()).rejects.toThrow(/changed/);
+});
+
+it("blocks the older handover sharing controls during stock-conflict refund reconciliation", () => {
+  const original = sale();
+  const record = changeSaleWorkspace({ ...original, completedAt: undefined }, {
+    action: "invoice-payment",
+    payment: { kind: "part-payment", status: "confirmed", method: "Bank transfer", amount: "400", date: "2026-10-23", reference: "" },
+    stockConflictReconciliation: { acknowledge: true, reason: "Competing sale" },
+  }, { expectedRevision: original.revision, requestId: "handover-conflict-fixture" }, {
+    now: "2026-10-23T12:00:00Z", actor: "Staff", nextId: () => crypto.randomUUID(),
+    nextNumber: () => "TEST", branding: {} as any,
+  }).sale;
+  show(record);
+  expect(screen.getByText(/record the outstanding refund before sharing/i)).toBeVisible();
+  expect(screen.getByRole("button", { name: "Email confirmation" })).toBeDisabled();
+  expect(state.share.disabled).toBe(true);
+  expect(state.fetch).not.toHaveBeenCalled();
+});
+
+it("rechecks availability even when another sale changed the stock without changing this sale revision", async () => {
+  const record = sale();
+  state.fetch.mockResolvedValue({ sale: { ...record, stockActionBlock: "another-sale" } });
+  show(record);
+  await expect(state.share.beforeOpen()).rejects.toThrow(/check the car’s availability/i);
+  fireEvent.click(screen.getByRole("button", { name: "Email confirmation" }));
+  await expect(state.email.verifyBeforePrepare()).rejects.toThrow(/check the car’s availability/i);
 });
 
 it("does not expose delivery tasks or controls without existing permissions", () => {

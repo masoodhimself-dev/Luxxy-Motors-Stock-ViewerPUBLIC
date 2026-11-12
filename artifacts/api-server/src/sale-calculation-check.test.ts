@@ -3,7 +3,7 @@ import test from 'node:test';
 import { randomUUID } from 'node:crypto';
 import { PGlite } from '@electric-sql/pglite';
 import { readFile } from 'node:fs/promises';
-import { createSaleWorkspace, changeSaleWorkspace, saleCalculationFigures, saleCalculationSnapshot, saleWorkspaceTotals, type SaleWorkspaceDraft, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
+import { createSaleWorkspace, changeSaleWorkspace, requestSalePayment, saleCalculationFigures, saleCalculationSnapshot, saleWorkspaceTotals, saleQueueToday, type SaleWorkspaceDraft, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 import { saleCalculationPrompt, runSaleCalculationCheck } from './lib/sale-calculation-check';
 import { engine } from './test/tenant-test-db';
 import { runWithTenant } from './lib/tenant-context';
@@ -180,4 +180,121 @@ test('sales queue filters the whole dealer before pagination and keeps handover 
   const cleared = await assign(null, randomUUID(), edited.sale.revision, '');
   assert.equal(cleared.sale.team?.ownerId, null);
   assert.equal((await store.list({ queue: 'attention', owner: 'unassigned' })).sales[0].listHasTeamNote, false);
+});
+
+test('Sales attention skips stale requests before paging and retains an unshared deposit until it is sent', async t => {
+  const db = new PGlite();
+  t.after(() => db.close());
+  await db.exec(await readFile('../../lib/db/drizzle/0016_sale_workspace.sql', 'utf8'));
+  const store = new PostgresSaleWorkspaceStore('queue-proof', async () => context(), {
+    query: db.query.bind(db),
+    connect: async () => ({ query: db.query.bind(db), release() {} }),
+  });
+  const now = new Date();
+  const day = saleQueueToday(now);
+  const saleContext = { ...context(), now: now.toISOString() };
+  const draft = { ...fixture().draft, price: '10000', registration: 'AB12CDE', deliveryCharge: '0', payments: [] };
+  const newSale = () => createSaleWorkspace({ draft, requestId: randomUUID() }, saleContext, randomUUID()).sale;
+  const insert = (sale: SaleWorkspaceRecord, updatedAt: string) => db.query(
+    'INSERT INTO sale_workspace(id,dealer_id,reference,revision,state,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$6)',
+    [sale.id, 'queue-proof', sale.reference, sale.revision, sale, updatedAt],
+  );
+  const requested = requestSalePayment(newSale(), { kind: 'deposit', amount: '500', dueDate: day, note: '' }, saleContext).sale;
+  const fresh = requestSalePayment(newSale(), { kind: 'balance', amount: '10000', dueDate: day, note: '' }, saleContext).sale;
+  fresh.draft.registration = 'ZZ99 XYZ';
+  fresh.paymentRequests![0].agreement = salePaymentAgreement(fresh);
+  const accepted = changeSaleWorkspace(requested, {
+    action: 'take-deposit',
+    payment: { amount: '400', date: day, method: 'Bank transfer', reference: '', kind: 'deposit',
+      status: 'confirmed', reserveConfirmed: true, acceptShortfall: true, paymentRequestId: requested.paymentRequests![0].id },
+  }, { expectedRevision: requested.revision, requestId: randomUUID() }, saleContext).sale;
+  await insert(accepted, '2024-01-01T00:00:00Z');
+  await insert(fresh, '2024-01-02T00:00:00Z');
+  const stale = structuredClone(requested);
+  stale.draft.price = '11000';
+  await db.query(`INSERT INTO sale_workspace(id,dealer_id,reference,revision,state,created_at,updated_at)
+    SELECT gen_random_uuid(),'queue-proof','STALE-' || n,1,$1::jsonb,now(),now() FROM generate_series(1,55) n`, [stale]);
+  const expired = { ...structuredClone(requested), id: randomUUID(), reference: 'EXPIRED-LEGACY' };
+  delete expired.paymentRequests![0].deliveryMode;
+  expired.paymentRequests![0].expiresAt = '2024-01-01T00:00:00Z';
+  await insert(expired, '2024-01-03T00:00:00Z');
+  const settled = changeSaleWorkspace(structuredClone(requested), {
+    action: 'payment',
+    payment: { amount: '10000', date: day, method: 'Bank transfer', reference: '', kind: 'final-payment', status: 'confirmed' },
+  }, { expectedRevision: requested.revision, requestId: randomUUID() }, saleContext).sale;
+  settled.id = randomUUID();
+  settled.reference = 'ALREADY-SETTLED';
+  await insert(settled, '2024-01-04T00:00:00Z');
+
+  const page = await store.list({ queue: 'attention' });
+  assert.deepEqual(page.sales.map(sale => [sale.id, sale.listAttention]), [
+    [fresh.id, 'Payment request due'], [accepted.id, 'Deposit confirmation to send'],
+  ]);
+  assert.equal(page.hasMore, false);
+  assert.deepEqual((await store.list({ queue: 'attention', offset: 1 })).sales.map(sale => sale.id), [accepted.id]);
+  assert.equal((await store.list({ queue: 'attention', q: 'AB12 CDE' })).sales[0].id, accepted.id);
+  assert.equal((await store.list({ queue: 'attention', q: 'ZZ99XYZ' })).sales[0].id, fresh.id);
+
+  const emailed = structuredClone(accepted);
+  emailed.emailDeliveries = [{
+    id: randomUUID(), documentId: emailed.payments[0].receiptId!, to: 'buyer@example.invalid',
+    status: 'sent', attemptedAt: saleContext.now, sentAt: saleContext.now,
+  }];
+  await db.query('UPDATE sale_workspace SET state=$1 WHERE id=$2', [emailed, emailed.id]);
+  assert.deepEqual((await store.list({ queue: 'attention' })).sales.map(sale => sale.id), [fresh.id]);
+
+  accepted.events.push({
+    id: randomUUID(), type: 'deposit-confirmation-shared', documentId: accepted.payments[0].receiptId,
+    actor: 'Staff', occurredAt: saleContext.now, description: 'Receipt shared in person',
+  });
+  await db.query('UPDATE sale_workspace SET state=$1 WHERE id=$2', [accepted, accepted.id]);
+  assert.deepEqual((await store.list({ queue: 'attention' })).sales.map(sale => sale.id), [fresh.id]);
+});
+
+test('Sales attention keeps refund-only payments visible until their own confirmed refunds clear them', async t => {
+  const db = new PGlite();
+  t.after(() => db.close());
+  await db.exec(await readFile('../../lib/db/drizzle/0016_sale_workspace.sql', 'utf8'));
+  const dealerId = 'refund-queue';
+  const store = new PostgresSaleWorkspaceStore(dealerId, async () => context(), {
+    query: db.query.bind(db),
+    connect: async () => ({ query: db.query.bind(db), release() {} }),
+  });
+  const saleContext = context();
+  const day = saleQueueToday(new Date(saleContext.now));
+  const draft = { ...fixture().draft, price: '10000', deliveryCharge: '0', payments: [] };
+  const initial = createSaleWorkspace({ draft, requestId: randomUUID() }, saleContext, 'SALE-REFUND').sale;
+  const reconcile = (sale: SaleWorkspaceRecord, amount: string) => changeSaleWorkspace(sale, {
+    action: 'invoice-payment',
+    payment: { amount, date: day, method: 'Bank transfer', reference: 'Private payment reference', kind: 'part-payment', status: 'confirmed' },
+    stockConflictReconciliation: { reason: 'Already paid on a competing sale', acknowledge: true },
+  }, { requestId: randomUUID(), expectedRevision: sale.revision }, saleContext).sale;
+  const reverse = (sale: SaleWorkspaceRecord, paymentId: string, amount: string) => changeSaleWorkspace(sale, {
+    action: 'reverse', paymentId, amount, kind: 'refund', reason: 'Bank refund made', date: day,
+    method: 'Bank transfer', invoiceOnly: true,
+  }, { requestId: randomUUID(), expectedRevision: sale.revision }, saleContext).sale;
+  const save = (sale: SaleWorkspaceRecord) => db.query(
+    'INSERT INTO sale_workspace(id,dealer_id,reference,revision,state,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$6) ON CONFLICT(id) DO UPDATE SET state=EXCLUDED.state,revision=EXCLUDED.revision',
+    [sale.id, dealerId, sale.reference, sale.revision, sale, sale.updatedAt],
+  );
+  const expectDue = async (amount: number) => {
+    const page = await store.list({ queue: 'attention' });
+    assert.deepEqual(page.sales.map(sale => [sale.id, sale.listAttention, sale.listRefundDue]),
+      amount ? [[initial.id, 'Refund to record', amount]] : []);
+    assert.doesNotMatch(JSON.stringify(page), /Private payment reference|Already paid on a competing sale/);
+    assert.equal(page.hasMore, false);
+  };
+  const first = reconcile(initial, '100');
+  const second = reconcile(first, '25');
+  await save(second);
+  await expectDue(12500);
+  const partial = reverse(second, first.payments[0].id, '40');
+  await save(partial);
+  await expectDue(8500);
+  const firstCleared = reverse(partial, first.payments[0].id, '60');
+  await save(firstCleared);
+  await expectDue(2500);
+  await save(reverse(firstCleared, second.payments[1].id, '25'));
+  await expectDue(0);
+  assert.equal((await store.list({ queue: 'all' })).sales[0].id, initial.id);
 });

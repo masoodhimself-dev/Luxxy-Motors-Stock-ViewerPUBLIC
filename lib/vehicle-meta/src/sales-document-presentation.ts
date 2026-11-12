@@ -116,7 +116,8 @@ export function salesDocumentPresentation(document: SaleWorkspaceDocument): Invo
     const payment = confirmed.find(row => row.id === document.paymentId);
     if (!payment) throw new SaleWorkspaceError('This receipt has no confirmed payment.');
     const refund = payment.kind === 'refund', adjustment = payment.kind === 'reversal' || payment.kind === 'refund-correction';
-    Object.assign(data, { type: refund ? 'Refund Receipt' : adjustment ? 'Payment Adjustment' : 'Payment Receipt', customerLabel: 'Customer', saleLinesHeading: refund ? 'Refund recorded' : adjustment ? 'Payment adjustment' : 'Payment recorded', hidePaymentHistory: true,
+    Object.assign(data, { type: refund ? 'Refund Receipt' : adjustment ? 'Payment Adjustment' : 'Payment Receipt', customerLabel: 'Customer', saleLinesHeading: refund ? 'Refund details' : adjustment ? 'Payment adjustment' : 'Payment recorded', hidePaymentHistory: true,
+      ...(refund ? { settlementStatus: 'Refund recorded' } : {}),
       notice: refund ? 'This confirms the recorded refund to the customer. Transferred credit is shown separately from cash payments.' : adjustment ? 'This records a ledger correction. It is not a new customer payment.' : 'This confirms the individual payment recorded below. Other payments retain their own receipts.',
       facts: [{ label: refund ? 'Refund date' : 'Payment date', value: salesDocumentDate(payment.date) }, { label: 'Method', value: clean(payment.method) }, ...(payment.reference ? [{ label: 'Reference', value: clean(payment.reference) }] : []), ...(payment.reason ? [{ label: 'Reason', value: clean(payment.reason) }] : [])],
       saleLines: [{ id: payment.id, description: refund ? 'Amount refunded' : payment.kind === 'reversal' ? 'Payment reversed' : payment.kind === 'refund-correction' ? 'Refund correction' : 'Amount received', amount: amount(payment.amountPence) }],

@@ -1,3 +1,6 @@
+import { motService } from "../lib/mot-storage";
+import { MotError } from "../lib/mot-history";
+import { motVehicleDetails } from "../lib/mot-vehicle-details";
 import { publicVehicleDetailPath } from '../lib/public-vehicle-links';
 import { dealerFeatureEnabled } from '../lib/dealer-features';
 import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
@@ -467,6 +470,25 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
   if (partExchangeMileage != null && !Number.isInteger(partExchangeMileage)) {
     res.status(400).json(errorResponse("Please provide the mileage in whole miles."));
     return;
+  }
+
+  if (!staff && partExchange?.registration && partExchangeMileage != null) {
+    try {
+      const plate = partExchange.registration.toUpperCase().replace(/[\s-]/g, "");
+      const history = await motService.lookup(plate).catch((error: unknown) => {
+        if (error instanceof MotError && (error.code === "not_found" || error.code === "not_configured")) return null;
+        throw error;
+      });
+      const reading = history ? motVehicleDetails(history).mot.lastReading : null;
+      const minimum = reading ? Math.ceil(reading.unit === "KM" ? reading.mileage / 1.609344 : reading.mileage) : 0;
+      if (partExchangeMileage < minimum) {
+        res.status(400).json(errorResponse(`Enter at least ${minimum.toLocaleString("en-GB")} miles. The current mileage cannot be lower than the last MOT reading.`));
+        return;
+      }
+    } catch {
+      res.status(503).json(errorResponse("We couldn’t verify the mileage. Please try again."));
+      return;
+    }
   }
 
   if (input.type === "viewing" && !input.vehicleId) {

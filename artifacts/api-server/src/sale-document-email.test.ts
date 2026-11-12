@@ -6,10 +6,12 @@ import { engine, pool } from "./test/tenant-test-db";
 import { runWithTenant } from "./lib/tenant-context";
 import {
   approveSaleDocumentEmail,
+  rebuildSaleDocumentOutbox,
   saleEmailIdentity,
+  saleDocumentEmailFigures,
   saleDocumentEmailTemplate,
 } from "./lib/sale-document-email";
-import { deliverEmailOutbox } from "./lib/email-outbox";
+import { deliverEmailOutbox, type EmailOutbox } from "./lib/email-outbox";
 import {
   acceptReplyEvent,
   processCustomerReplies,
@@ -20,7 +22,9 @@ import {
   createSaleWorkspace,
   changeSaleWorkspace,
   saleWorkspaceTotals,
+  saleCalendarDate,
   defaultEmailAppearance,
+  operationDocument,
   requestSalePayment,
   type SaleWorkspaceRecord,
   type SaleWorkspaceDraft,
@@ -261,7 +265,7 @@ test("manual invoice emails use exact customer cases, durable reply routes and f
   await t.test('deposit request emails use requested money and full vehicle price and reject closed requests', async () => {
     const sale = await record();
     const ctx: SaleWorkspaceContext = { now: new Date().toISOString(), actor: 'Staff', nextId: randomUUID, nextNumber: type => `${type.toUpperCase()}-REQUEST`, branding: sale.documents[0]!.snapshot.branding };
-    const created = requestSalePayment(sale, { kind: 'deposit', amount: '500', dueDate: '2026-12-01', note: '' }, ctx);
+    const created = requestSalePayment(sale, { kind: 'deposit', amount: '500', dueDate: saleCalendarDate(ctx.now), note: '' }, ctx);
     (created.sale.documentArchives ??= {})[created.document.id] = archiveSaleDocument(created.document);
     await pool.query('UPDATE sale_workspace SET state=$2::jsonb, revision=$3 WHERE id=$1::uuid', [sale.id, JSON.stringify(created.sale), created.sale.revision]);
     await onTenant(() => approveSaleDocumentEmail({ ...request(created.sale), documentId: created.document.id }, { config, attempt: async () => undefined }));
@@ -272,11 +276,59 @@ test("manual invoice emails use exact customer cases, durable reply routes and f
     assert.doesNotMatch(envelope.text, /payment-request\//);
     assert.equal(envelope.attachments[0].content, created.sale.documentArchives![created.document.id]!.content);
     const current = await rawSale(sale.id);
+    const vehicle = (await pool.query('SELECT inventory_status,audit_metadata FROM vehicles WHERE dealer_id=$1 AND id=$2::uuid', ['invoice-a', car])).rows[0];
+    try {
+      await pool.query("UPDATE vehicles SET inventory_status='reserved',audit_metadata=$3::jsonb WHERE dealer_id=$1 AND id=$2::uuid", ['invoice-a', car, JSON.stringify({ saleWorkspaceId: randomUUID() })]);
+      await assert.rejects(onTenant(() => rebuildSaleDocumentOutbox(queued as EmailOutbox)), /payment request cannot be sent/i);
+      current.emailDeliveries = [];
+      current.revision++;
+      await pool.query('UPDATE sale_workspace SET state=$2::jsonb, revision=$3 WHERE id=$1::uuid', [sale.id, JSON.stringify(current), current.revision]);
+      await assert.rejects(onTenant(() => approveSaleDocumentEmail({ ...request(current), documentId: created.document.id }, { config, attempt: async () => undefined })), /reserved or sold to another customer/i);
+    } finally {
+      await pool.query('UPDATE vehicles SET inventory_status=$3::inventory_status,audit_metadata=$4::jsonb WHERE dealer_id=$1 AND id=$2::uuid', ['invoice-a', car, vehicle.inventory_status, JSON.stringify(vehicle.audit_metadata)]);
+    }
     current.paymentRequests![0].status = 'cancelled';
     current.emailDeliveries = [];
     current.revision++;
     await pool.query('UPDATE sale_workspace SET state=$2::jsonb, revision=$3 WHERE id=$1::uuid', [sale.id, JSON.stringify(current), current.revision]);
     await assert.rejects(onTenant(() => approveSaleDocumentEmail({ ...request(current), documentId: created.document.id }, { config, attempt: async () => undefined })), /request has changed/);
+  });
+  await t.test('issued emails distinguish a delivery-only charge and cash received on a replacement', async () => {
+    const deliverySale = await record();
+    const context: SaleWorkspaceContext = {
+      now: new Date().toISOString(), actor: 'Fictional Staff', nextId: randomUUID,
+      nextNumber: type => `${type.toUpperCase()}-${randomUUID()}`,
+      branding: deliverySale.documents[0]!.snapshot.branding,
+    };
+    async function prepare(sale: SaleWorkspaceRecord, document: SaleWorkspaceRecord['documents'][number]) {
+      (sale.documentArchives ??= {})[document.id] = archiveSaleDocument(document);
+      await pool.query('UPDATE sale_workspace SET state=$2::jsonb, revision=$3 WHERE id=$1::uuid', [sale.id, JSON.stringify(sale), sale.revision]);
+      await onTenant(() => approveSaleDocumentEmail({ ...request(sale), documentId: document.id }, { config, attempt: async () => undefined }));
+      return JSON.parse((await outboxFor(sale)).payload).text as string;
+    }
+
+    deliverySale.draft.deliveryCharge = '100.00';
+    const delivery = operationDocument(deliverySale, context, 'delivery-invoice', 'Delivery invoice', '');
+    delivery.transaction = {
+      kind: 'delivery-invoice', amountPence: 10000, saleReference: deliverySale.reference,
+      invoiceReferences: [deliverySale.documents[0]!.number], deliveryAddress: 'Fictional supplied address',
+      previousDeliveryPence: 0, totalDeliveryPence: 10000,
+    };
+    assert.equal(saleDocumentEmailFigures(delivery).amount, 10000);
+    assert.match(await prepare(deliverySale, delivery), /Delivery invoice total: £100\.00/);
+
+    const replacement = await record();
+    replacement.draft.creditEntries = [{ id: randomUUID(), sourceSaleId: randomUUID(), reference: 'ORIGINAL-SALE', signedAmountPence: 950000, at: context.now }];
+    const paid = changeSaleWorkspace(replacement, {
+      action: 'invoice-payment', payment: { amount: '500', kind: 'final-payment', status: 'confirmed',
+        method: 'Bank transfer', date: context.now.slice(0, 10), reference: 'Additional payment' },
+    }, { requestId: randomUUID(), expectedRevision: replacement.revision }, context).sale;
+    const invoice = changeSaleWorkspace(paid, { action: 'issue-invoice', kind: 'full', acknowledge: true },
+      { requestId: randomUUID(), expectedRevision: paid.revision }, context);
+    const text = await prepare(invoice.sale, invoice.document!);
+    assert.match(text, /Payments recorded at issue: £500\.00/);
+    assert.match(text, /Transferred credit at issue: £9,500\.00/);
+    assert.match(text, /Balance at issue: £0\.00/);
   });
   await t.test('a corrected email blocks new and queued copies to the old address while the archive and approval stay frozen', async () => {
     const sale = await record();

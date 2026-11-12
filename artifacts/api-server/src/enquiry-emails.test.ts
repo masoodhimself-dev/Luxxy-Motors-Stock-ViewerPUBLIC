@@ -23,9 +23,9 @@ import {
   createEnquiryEmailRouter,
   rebuildStaffOutboxEmail,
 } from "./routes/enquiry-emails";
-import { deliverEmailOutbox } from "./lib/email-outbox";
+import { deliverEmailOutbox, purgeTerminalEmailPayloads } from "./lib/email-outbox";
 import { runWithTenant } from "./lib/tenant-context";
-import { defaultEmailAppearance } from "@workspace/vehicle-meta";
+import { createSaleWorkspace, defaultEmailAppearance, saleCustomerUpdates, saleWorkspaceBranding } from "@workspace/vehicle-meta";
 import type { PrivateDealerSettings } from "./lib/dealer-integrations-store";
 
 process.env.MULTI_TENANT_ENABLED = "true";
@@ -910,6 +910,149 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
     const handledContext = (await call(cazoo + "/email-context?enquiryReplyId=" + replyId)).data;
     assert.deepEqual(handledContext.replyRecipient, { id: replyId, from: sender, subject: "Re: Is this still available?" }, "handled links remain useful for follow-up");
     assert.equal(handledContext.email, originalContact);
+
+    // A sale update uses its own exact approval and must not consume the Inbox draft.
+    const saleEnquiryId = randomUUID();
+    await db.insert(enquiriesTable).values({
+      id: saleEnquiryId, reference: "SALE-MAIL-TEST", dealerId: "a",
+      vehicleId: cars[0], vehicleTitle: "Car a", type: "general",
+      customerName: "Example Buyer", email: "buyer@example.test", message: "Sale fixture",
+    });
+    const saleNow = new Date().toISOString();
+    const sale = createSaleWorkspace({
+      requestId: randomUUID(),
+      draft: {
+        customer: "Example Buyer", email: "buyer@example.test", vehicle: "Car a", vehicleId: cars[0],
+        registration: "AB19XYZ", price: "10000", sourceEnquiryId: saleEnquiryId,
+      },
+    }, { now: saleNow, actor: "Staff A", nextId: randomUUID, nextNumber: () => randomUUID(), branding: saleWorkspaceBranding({}) }, "SALE-MAIL-TEST").sale;
+    sale.completedAt = saleNow;
+    sale.lifecycle = { status: "sold", vehicleId: sale.draft.vehicleId, changedAt: saleNow };
+    await db.execute(sql`INSERT INTO sale_workspace(id,dealer_id,reference,revision,state)
+      VALUES(${sale.id}::uuid,'a',${sale.reference},${sale.revision},${JSON.stringify(sale)}::jsonb)`);
+    const preservedDraft = { ...queuedDraft, to: "buyer@example.test", message: "Keep this unrelated draft.", expectedRevision: 0 };
+    await db.execute(sql`INSERT INTO enquiry_email_drafts(dealer_id,enquiry_id,version,status,source,content,updated_by)
+      VALUES('a',${saleEnquiryId}::uuid,2,'draft','manual',${JSON.stringify(preservedDraft)}::jsonb,'user_a')`);
+    const update = saleCustomerUpdates(sale, "Dealer a").find(item => item.kind === "sale-complete")!;
+    const updateDraft = {
+      to: sale.draft.email, subject: update.subject, message: update.message, templateId: "enquiry_message",
+      includeVehicle: false, includeAppointment: false, photoIds: [], expectedRevision: 0,
+      saleUpdate: { saleId: sale.id, revision: sale.revision, kind: update.kind },
+    };
+    const updateBase = `/api/staff/enquiries/${saleEnquiryId}`;
+    assert.equal((await call(updateBase + "/email-preview", { ...updateDraft, to: "wrong@example.test" })).status, 409);
+    assert.equal((await call(updateBase + "/email-preview", { ...updateDraft, message: "Changed saved facts." })).status, 409);
+    assert.equal((await call(base + "/email-preview", updateDraft)).status, 409);
+    const salePreview = await call(updateBase + "/email-preview", updateDraft);
+    assert.equal(salePreview.status, 200, JSON.stringify(salePreview.data));
+    const repeatedPreview = await call(updateBase + "/email-preview", updateDraft);
+    assert.equal(repeatedPreview.data.saleUpdateRequestId, salePreview.data.saleUpdateRequestId);
+    const approvedUpdate = { ...updateDraft, requestId: salePreview.data.saleUpdateRequestId, previewHash: salePreview.data.previewHash };
+    assert.equal((await call(updateBase + "/email", { ...approvedUpdate, requestId: randomUUID() })).status, 409);
+    const changedSale = { ...sale, revision: sale.revision + 1, draft: { ...sale.draft, email: "new@example.test" } };
+    const storeSale = async (current: typeof sale) => db.execute(sql`UPDATE sale_workspace
+      SET state=${JSON.stringify(current)}::jsonb, revision=${current.revision} WHERE id=${current.id}::uuid`);
+    await storeSale(changedSale);
+    const beforeRejectedUpdate = sends.length;
+    assert.equal((await call(updateBase + "/email", approvedUpdate)).status, 409);
+    assert.equal(sends.length, beforeRejectedUpdate);
+    const sameWordingNewRevision = { ...sale, revision: sale.revision + 2 };
+    const sameWordingDraft = { ...updateDraft, saleUpdate: { ...updateDraft.saleUpdate, revision: sameWordingNewRevision.revision } };
+    await storeSale(sameWordingNewRevision);
+    const otherApproval = await call(updateBase + "/email-preview", sameWordingDraft);
+    assert.equal(otherApproval.status, 200, JSON.stringify(otherApproval.data));
+    assert.notEqual(otherApproval.data.saleUpdateRequestId, approvedUpdate.requestId);
+    const otherPayload = { ...sameWordingDraft, requestId: otherApproval.data.saleUpdateRequestId, previewHash: otherApproval.data.previewHash };
+    await storeSale(sale);
+    failure = "Email provider returned HTTP 429.";
+    const queuedUpdate = await call(updateBase + "/email", approvedUpdate);
+    assert.equal(queuedUpdate.status, 201, JSON.stringify(queuedUpdate.data));
+    assert.equal(queuedUpdate.data.delivery.status, "sending");
+    assert.equal((await call(updateBase + "/email", approvedUpdate)).data.replayed, true);
+    const updateOutbox = (await db.execute(sql`SELECT id,validation FROM email_outbox
+      WHERE delivery_id=${queuedUpdate.data.delivery.id}::uuid AND dealer_id='a'`)).rows[0]!;
+    assert.deepEqual((updateOutbox.validation as Record<string, unknown>).saleUpdate, updateDraft.saleUpdate);
+    await storeSale(sameWordingNewRevision);
+    const beforeBlockedCopy = sends.length;
+    assert.equal((await call(updateBase + "/email-preview", sameWordingDraft)).status, 409);
+    assert.equal((await call(updateBase + "/email", otherPayload)).status, 409);
+    assert.equal(sends.length, beforeBlockedCopy, "the older in-progress attempt owns the milestone across revisions");
+    await runWithTenant(
+      { dealerId: "a", canonicalOrigin: "https://a.example.test", platform: "autotrader", retailerId: "a", sourceUrl: "https://www.autotrader.co.uk/example" },
+      async () => {
+        const result = await deliverEmailOutbox(String(updateOutbox.id), {
+          now: new Date(Date.parse(queuedUpdate.data.delivery.retryAt) + 1000),
+          settings: async () => config.resend,
+          rebuild: row => rebuildStaffOutboxEmail(row, config),
+          send: async () => assert.fail("A stale sale update must never reach the provider"),
+        });
+        assert.equal(result!.status, "failed");
+        assert.equal(result!.error_code, "sale_update_not_sent");
+      },
+    );
+    const availableAfterSafeStop = await call(updateBase + "/email-preview", sameWordingDraft);
+    assert.equal(availableAfterSafeStop.status, 200, "a stop after a definite 429 allows a fresh approval");
+    assert.equal(availableAfterSafeStop.data.saleUpdateRequestId, otherPayload.requestId);
+    assert.equal(sends.length, beforeBlockedCopy);
+
+    const laterSale = { ...sale, revision: sale.revision + 3 };
+    const laterDraft = { ...updateDraft, saleUpdate: { ...updateDraft.saleUpdate, revision: laterSale.revision } };
+    await storeSale(laterSale);
+    const laterApproval = await call(updateBase + "/email-preview", laterDraft);
+    assert.equal(laterApproval.status, 200);
+    const laterPayload = { ...laterDraft, requestId: laterApproval.data.saleUpdateRequestId, previewHash: laterApproval.data.previewHash };
+    await storeSale(sameWordingNewRevision);
+    await db.execute(sql`DELETE FROM email_account_throttle`);
+    failure = "Email provider connection failed.";
+    const uncertainUpdate = await call(updateBase + "/email", otherPayload);
+    assert.equal(uncertainUpdate.data.delivery.status, "unknown");
+    await storeSale(laterSale);
+    assert.equal((await call(updateBase + "/email-preview", laterDraft)).status, 409);
+    assert.equal((await call(updateBase + "/email", laterPayload)).status, 409, "uncertain provider acceptance blocks another revision");
+    const uncertainOutbox = (await db.execute(sql`UPDATE email_outbox SET created_at=now()-interval '3 days'
+      WHERE delivery_id=${uncertainUpdate.data.delivery.id}::uuid AND dealer_id='a' RETURNING id`)).rows[0]!;
+    await purgeTerminalEmailPayloads(new Date(), "a");
+    const purged = (await db.execute(sql`SELECT payload,validation FROM email_outbox WHERE id=${String(uncertainOutbox.id)}::uuid`)).rows[0];
+    assert.deepEqual(purged, { payload: null, validation: {
+      payloadRetained: false, saleUpdate: { saleId: sale.id, kind: update.kind }, saleUpdateApprovalHash: otherPayload.previewHash,
+    } });
+    assert.equal((await call(updateBase + "/email", laterPayload)).status, 409, "payload cleanup must not unblock an uncertain send");
+    assert.equal(sends.length, beforeBlockedCopy + 1);
+    const savedUpdateDraft = (await db.execute(sql`SELECT version,status,content FROM enquiry_email_drafts
+      WHERE dealer_id='a' AND enquiry_id=${saleEnquiryId}::uuid`)).rows[0];
+    assert.deepEqual(savedUpdateDraft, { version: 2, status: "draft", content: preservedDraft });
+
+    const retrySale = { ...sale, id: randomUUID(), reference: "SALE-MAIL-RETRY-TEST" };
+    await db.execute(sql`INSERT INTO sale_workspace(id,dealer_id,reference,revision,state)
+      VALUES(${retrySale.id}::uuid,'a',${retrySale.reference},${retrySale.revision},${JSON.stringify(retrySale)}::jsonb)`);
+    const retryDraft = { ...updateDraft, saleUpdate: { ...updateDraft.saleUpdate, saleId: retrySale.id } };
+    const rejectedApproval = await call(updateBase + "/email-preview", retryDraft);
+    assert.equal(rejectedApproval.status, 200);
+    const rejectedPayload = { ...retryDraft, requestId: rejectedApproval.data.saleUpdateRequestId, previewHash: rejectedApproval.data.previewHash };
+    await db.execute(sql`DELETE FROM email_account_throttle`);
+    failure = "Email provider returned HTTP 422.";
+    const failedUpdate = await call(updateBase + "/email", rejectedPayload);
+    assert.equal(failedUpdate.data.delivery.status, "failed");
+    const beforeRetry = sends.length;
+    assert.equal((await call(updateBase + "/email", rejectedPayload)).data.replayed, true);
+    assert.equal(sends.length, beforeRetry, "an old approval is still an exact replay after failure");
+    const retryApproval = await call(updateBase + "/email-preview", retryDraft);
+    assert.equal(retryApproval.status, 200);
+    assert.equal(retryApproval.data.previewHash, rejectedPayload.previewHash);
+    assert.notEqual(retryApproval.data.saleUpdateRequestId, rejectedPayload.requestId);
+    assert.equal((await call(updateBase + "/email-preview", retryDraft)).data.saleUpdateRequestId, retryApproval.data.saleUpdateRequestId);
+    assert.equal(sends.length, beforeRetry, "review does not attempt another send");
+    await db.execute(sql`DELETE FROM email_account_throttle`);
+    failure = null;
+    const retryPayload = { ...retryDraft, requestId: retryApproval.data.saleUpdateRequestId, previewHash: retryApproval.data.previewHash };
+    const [retried, replayedRetry] = await Promise.all([
+      call(updateBase + "/email", retryPayload), call(updateBase + "/email", retryPayload),
+    ]);
+    assert.deepEqual([retried.status, replayedRetry.status].sort(), [200, 201]);
+    assert.equal(sends.length, beforeRetry + 1);
+    const statusPreview = await call(updateBase + "/email-preview", retryDraft);
+    assert.equal(statusPreview.data.saleUpdateExistingStatus, "sent");
+    assert.equal(statusPreview.data.saleUpdateRequestId, retryPayload.requestId);
   } finally {
     await new Promise<void>((r) => server.close(() => r()));
     await engine.close();

@@ -136,6 +136,7 @@ export async function enqueueEmailOutbox(
 
 function message(row: EmailOutbox) {
   if (row.error_code === "cazoo_first_reply_no_longer_eligible") return "The automatic reply stopped because the enquiry or stock changed. Review the enquiry before replying.";
+  if (row.error_code === "sale_update_not_sent") return "This sale update was not sent. Review the current sale before trying again.";
   if (row.error_code === 'price_update_already_approved') return 'This customer already has a price update approved, sent or awaiting a delivery check. This additional email was not sent. Review their conversation before preparing another update.';
   if (row.error_code === 'price_update_changed') return 'This price update was not sent because the price, availability or customer eligibility changed. Review the car and prepare a fresh message.';
   if (row.status === "queued")
@@ -209,8 +210,12 @@ export async function recoverExpiredEmailOutboxes(
   now = new Date(),
   dealer?: string,
 ) {
+  const saleUpdateKnownUnsent = sql`status='queued' AND validation?'saleUpdate'
+    AND (attempts=0 OR validation->>'saleUpdateAcceptancePossible'='false')`;
   const expired = (
-    await db.execute(sql`UPDATE email_outbox SET status='unknown',error_code=CASE WHEN retry_deadline<=${now} THEN 'retry_window_expired' ELSE 'lease_expired' END,lease_token=NULL,lease_until=NULL,finished_at=${now},updated_at=${now}
+    await db.execute(sql`UPDATE email_outbox SET status=CASE WHEN ${saleUpdateKnownUnsent} THEN 'failed' ELSE 'unknown' END,
+      error_code=CASE WHEN ${saleUpdateKnownUnsent} THEN 'sale_update_not_sent' WHEN retry_deadline<=${now} THEN 'retry_window_expired' ELSE 'lease_expired' END,
+      lease_token=NULL,lease_until=NULL,finished_at=${now},updated_at=${now}
     WHERE ${dealer ? sql`dealer_id=${dealer}` : sql`true`} AND status IN ('queued','sending') AND id IN(SELECT id FROM email_outbox WHERE ${dealer ? sql`dealer_id=${dealer}` : sql`true`} AND ((status='sending' AND lease_until<=${now}) OR (status='queued' AND retry_deadline<=${now})) ORDER BY created_at,id LIMIT 10)
     RETURNING id,dealer_id,enquiry_id,delivery_id,kind,status,validation,provider_id,error_code`)
   ).rows as unknown as EmailOutbox[];
@@ -247,11 +252,18 @@ export async function purgeTerminalEmailPayloads(
   dealer?: string,
 ) {
   // Original invoices/payment records and enquiry email audit are never removed.
-  // Keep only the accepted reply ID needed to follow a targeted Cazoo conversation.
+  // Keep the identifiers needed to follow replies and resolve uncertain sale sends.
   await db.execute(
     sql`UPDATE email_outbox SET payload=NULL,validation='{"payloadRetained":false}'::jsonb ||
       CASE WHEN kind='staff' AND validation->>'enquiryReplyId' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
         THEN jsonb_build_object('enquiryReplyId',validation->>'enquiryReplyId') ELSE '{}'::jsonb END
+      || CASE WHEN kind='staff' AND validation#>>'{saleUpdate,saleId}' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        AND validation#>>'{saleUpdate,kind}' IN ('deposit','sale-complete','handover-booked','handover-complete')
+        THEN jsonb_strip_nulls(jsonb_build_object(
+          'saleUpdate',jsonb_build_object('saleId',validation#>>'{saleUpdate,saleId}','kind',validation#>>'{saleUpdate,kind}'),
+          'saleUpdateApprovalHash',CASE WHEN validation->>'saleUpdateApprovalHash' ~ '^[0-9a-f]{64}$'
+            THEN validation->>'saleUpdateApprovalHash' END
+        )) ELSE '{}'::jsonb END
       WHERE id IN (SELECT id FROM email_outbox WHERE ${dealer ? sql`dealer_id=${dealer}` : sql`true`}
         AND status IN ('sent','failed','unknown','cancelled') AND payload IS NOT NULL
         AND created_at<${new Date(now.getTime() - 48 * 3600000)} ORDER BY created_at,id LIMIT 25)`,
@@ -319,9 +331,12 @@ export function deliverEmailOutbox(
             row.attempts >= 3 ||
             instant(row.retry_deadline) <= now.getTime()
           ) {
+            const saleUpdateKnownUnsent = Boolean(row.validation.saleUpdate) &&
+              (row.attempts === 0 || row.validation.saleUpdateAcceptancePossible === false);
             const changed = (
               await tx.execute(
-                sql`UPDATE email_outbox SET status='unknown',error_code='retry_window_expired',finished_at=${now},updated_at=${now} WHERE id=${id}::uuid RETURNING *`,
+                sql`UPDATE email_outbox SET status=${saleUpdateKnownUnsent ? "failed" : "unknown"},
+                  error_code=${saleUpdateKnownUnsent ? "sale_update_not_sent" : "retry_window_expired"},finished_at=${now},updated_at=${now} WHERE id=${id}::uuid RETURNING *`,
               )
             ).rows[0] as unknown as EmailOutbox;
             await syncTarget(changed, tx);
@@ -368,6 +383,11 @@ export function deliverEmailOutbox(
           nextAttempt = now,
           countAttempt = true,
           accountCooldown: Date | null = null;
+        const saleUpdate = Boolean(claimed.validation.saleUpdate);
+        // A missing flag on an older retry cannot prove what happened at the provider.
+        let acceptancePossible = claimed.validation.saleUpdateAcceptancePossible === true ||
+          (claimed.attempts > 1 && claimed.validation.saleUpdateAcceptancePossible !== false);
+        let providerCalled = false;
         try {
           if (
             !claimed.payload ||
@@ -394,14 +414,17 @@ export function deliverEmailOutbox(
             emailAccountHash(prepared.config) !== claimed.account_hash ||
             emailValidationHash(prepared.body) !== claimed.validation_hash
           ) {
-            status = "unknown";
-            code = "policy_changed";
+            status = saleUpdate && !acceptancePossible ? "failed" : "unknown";
+            code = status === "failed" ? "sale_update_not_sent" : "policy_changed";
+            if (saleUpdate) countAttempt = false;
           } else {
+            providerCalled = true;
             providerId = await (options.send ?? sendPreparedEmail)(
               prepared.config,
               claimed.payload!,
               claimed.send_key,
             );
+            if (saleUpdate) acceptancePossible = true;
           }
         } catch (error) {
           const failure = classifyEmailFailure(error);
@@ -409,6 +432,10 @@ export function deliverEmailOutbox(
           countAttempt = !(
             (error instanceof EmailProviderError && !error.attempted)
           );
+          const definiteRejection = failure.kind === "permanent" ||
+            (error instanceof EmailProviderError && error.httpStatus === 429) ||
+            (error instanceof Error && error.message === "Email provider returned HTTP 429.");
+          if (saleUpdate && providerCalled && countAttempt && !definiteRejection) acceptancePossible = true;
           if (
             countAttempt &&
             failure.kind === "retryable" &&
@@ -419,7 +446,11 @@ export function deliverEmailOutbox(
               receivedAt.getTime() +
                 Math.max(failure.retryAfterSeconds ?? 60, 1) * 1000,
             );
-          if (failure.kind === "permanent") {
+          if (saleUpdate && !providerCalled && !acceptancePossible) {
+            status = "failed";
+            code = "sale_update_not_sent";
+            countAttempt = false;
+          } else if (failure.kind === "permanent") {
             status = "failed";
             code = error instanceof EmailProviderError && error.providerCode === "cazoo_first_reply_no_longer_eligible"
               ? error.providerCode
@@ -457,14 +488,19 @@ export function deliverEmailOutbox(
                 ? "attempt_limit"
                 : "acceptance_unknown";
           }
+          if (saleUpdate && status === "failed" && acceptancePossible) {
+            status = "unknown";
+            code = "acceptance_unknown";
+          }
         }
         return db.transaction(async (tx) => {
           if (accountCooldown)
             await tx.execute(
               sql`UPDATE email_account_throttle SET next_allowed_at=greatest(next_allowed_at,${accountCooldown}) WHERE account_hash=${claimed.account_hash}`,
             );
+          const recordedAcceptance = saleUpdate ? { saleUpdateAcceptancePossible: acceptancePossible } : {};
           const row = (
-            await tx.execute(sql`UPDATE email_outbox SET status=${status},provider_id=${providerId},error_code=${code},attempts=greatest(0,attempts-${countAttempt ? 0 : 1}),next_attempt_at=${nextAttempt},lease_token=NULL,lease_until=NULL,finished_at=${status === "queued" ? null : new Date()},updated_at=now()
+            await tx.execute(sql`UPDATE email_outbox SET status=${status},provider_id=${providerId},error_code=${code},validation=validation||${JSON.stringify(recordedAcceptance)}::jsonb,attempts=greatest(0,attempts-${countAttempt ? 0 : 1}),next_attempt_at=${nextAttempt},lease_token=NULL,lease_until=NULL,finished_at=${status === "queued" ? null : new Date()},updated_at=now()
         WHERE id=${id}::uuid AND dealer_id=${dealer} AND status='sending' AND lease_token=${token}::uuid RETURNING *`)
           ).rows[0] as unknown as EmailOutbox | undefined;
           if (row) await syncTarget(row, tx);

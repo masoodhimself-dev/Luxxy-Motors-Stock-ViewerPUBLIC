@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { readFile,readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createSaleWorkspace,changeSaleWorkspace,saleWorkspaceTotals,salesDocumentPresentation,type SaleWorkspaceRecord,type SaleWorkspaceContext } from '@workspace/vehicle-meta';
-import { returnSaleCar,requestSalePayment,returnAndReplaceSale } from '../../../lib/vehicle-meta/src/sale-operations';
+import { refundSaleCredit,returnSaleCar,requestSalePayment,returnAndReplaceSale } from '../../../lib/vehicle-meta/src/sale-operations';
 import { saleOperation } from './lib/sale-operations-store';
 import { engine,pool } from './test/tenant-test-db';
 import { runWithTenant } from './lib/tenant-context';
@@ -38,6 +38,34 @@ test('return of a previously replaced car retains linked funds without inventing
  const old=fixture();const replacementDraft={...old.draft,vehicleId:randomUUID(),price:'10000'};const replacement=returnAndReplaceSale(old,{replacementDraft,...input()},ctx(),'SALE-1002').replacement;
  replacement.lifecycle!.status='sold';replacement.completedAt=ctx().now;
  const returned=returnSaleCar(replacement,input(),ctx()).sale;assert.equal(returned.payments.length,0);assert.equal(returned.standaloneReturn?.refundDuePence,1000000);assert.equal(returned.returnReplacement?.otherSaleId,old.id);
+});
+test('standalone returns and replacements close the original collection task, preserving its note and open payment task',()=>{
+ const sale=fixture();
+ const task={status:'open' as const,assigneeId:'staff',assigneeName:'Showroom staff',note:'Original internal note',
+   createdAt:sale.createdAt,createdBy:'Manager',updatedAt:sale.createdAt,updatedBy:'Manager'};
+ sale.handoffTasks=[{...task,id:randomUUID(),kind:'arrange-collection'},{...task,id:randomUUID(),kind:'check-payment'}];
+ const direct=returnSaleCar(sale,input(),ctx()).sale;
+ const swapped=returnAndReplaceSale(sale,{...input(),replacementDraft:{...sale.draft,vehicleId:randomUUID()}},ctx(),'SALE-1002');
+ for(const original of [direct,swapped.returned]){
+   assert.deepEqual(original.handoffTasks?.map(({status,resolutionReason,note})=>[status,resolutionReason,note]),
+     [['cancelled','vehicle-returned',task.note],['open',undefined,task.note]]);
+ }
+ assert.equal(swapped.replacement.handoffTasks,undefined);
+ assert.ok(sale.handoffTasks.every(task=>task.status==='open'));
+});
+test('returns and refunds use the London calendar at British Summer Time midnight',()=>{
+  const context = { ...ctx(), now: '2026-07-06T23:45:00.000Z' };
+  const sale = fixture();
+  sale.completedAt = '2026-07-06T23:30:00.000Z';
+  assert.throws(() => returnSaleCar(sale, { ...input(), returnedDate: '2026-07-06' }, context), /between the completed sale and today/i);
+  const returned = returnSaleCar(sale, { ...input(), returnedDate: '2026-07-07' }, context).sale;
+  assert.equal(returned.standaloneReturn?.returnedDate, '2026-07-07');
+  const refund = { amount:'100', method:'Bank transfer', confirmReceived:true, date:'2026-07-07' };
+  assert.throws(() => refundSaleCredit(returned, { ...refund, date:'2026-07-06' }, context), /actual refund method and date/i);
+  assert.equal(refundSaleCredit(returned, refund, context).sale.payments.at(-1)?.date, '2026-07-07');
+  const { replacement } = returnAndReplaceSale(sale, { ...input(), replacementDraft:{ ...sale.draft, vehicleId:randomUUID(), price:'9000' } }, context, 'SALE-1002');
+  assert.throws(() => refundSaleCredit(replacement, { ...refund, date:'2026-07-06' }, context), /actual refund method and date/i);
+  assert.equal(refundSaleCredit(replacement, refund, context).sale.payments.at(-1)?.date, '2026-07-07');
 });
 const tenant=(dealerId:string)=>({dealerId,canonicalOrigin:`https://${dealerId}.example.test`,platform:'cazoo' as const,retailerId:dealerId,sourceUrl:'https://www.cazoo.co.uk/example',kind:'website' as const});
 test('stored return and partial refunds enforce tenant/revision/ownership, exact retries, immutable invoices and inspection',async()=>{

@@ -26,7 +26,7 @@ export function customerSaleDocument(document: SaleWorkspaceDocument): SaleWorks
     serviceHistory: vehicle.serviceHistory, description: vehicle.description, registration: vehicle.registration,
     engineSize: vehicle.engineSize, bodyType: vehicle.bodyType, doors: vehicle.doors, seats: vehicle.seats,
     emissionClass: vehicle.emissionClass, photoDataUrl: vehicle.photoDataUrl,
-    ...(document.type === 'invoice' && Array.isArray(vehicle.invoicePhotoDataUrls) ? { invoicePhotoDataUrls: vehicle.invoicePhotoDataUrls.slice(0,3) } : {}),
+    ...(document.type === 'invoice' && vehicle.invoicePhotoDataUrls ? { invoicePhotoDataUrls: vehicle.invoicePhotoDataUrls.slice(0,3) } : {}),
     ...(review ? { invoiceReview: {
       registration: review.registration, mileage: review.mileage, reviewedAt: review.reviewedAt, verification: review.verification,
       motExpiry: review.motExpiry, motSource: review.motSource,
@@ -37,7 +37,7 @@ export function customerSaleDocument(document: SaleWorkspaceDocument): SaleWorks
     ...(p.receiptId ? { receiptId: p.receiptId } : {}), ...(p.expectedDate ? { expectedDate: p.expectedDate } : {}) }));
   const f = original.fulfilment;
   const draft: SaleWorkspaceDraft = { id: original.id, customer: original.customer, email: original.email, phone: original.phone, address: original.address, vehicleId: original.vehicleId,
-    vehicle: original.vehicle, registration: original.registration, price: original.price, partExchange: original.partExchange, pxRegistration: original.pxRegistration, pxDescription: original.pxDescription, pxValue: original.pxValue,
+    vehicle: original.vehicle, registration: original.registration, ...(original.vin ? { vin: original.vin } : {}), price: original.price, partExchange: original.partExchange, pxRegistration: original.pxRegistration, pxDescription: original.pxDescription, pxValue: original.pxValue,
     deposit: '', paymentMethod: original.paymentMethod, notes: document.type === 'vehicle-details' ? original.notes : '', collection: original.collection, preparation: false, documents: true, handover: original.handover,
     exchanges: original.exchanges?.map(r => ({ registration: r.registration, description: r.description, value: r.value })),
     adjustments: original.adjustments?.map(r => ({ description: r.description, amount: r.amount, kind: r.kind })), payments: paymentRows,

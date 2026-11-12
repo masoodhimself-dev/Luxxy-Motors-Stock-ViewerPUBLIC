@@ -33,6 +33,7 @@ export function canDeleteEmptySaleDraft(record: SaleWorkspaceRecord | null | und
   const eligibleDraft = labelledTestDraft(record.draft) ? labelledTestDraft : emptyBuyerDraft;
   if (!eligibleDraft(record.draft)) return false;
   if (!Array.isArray(record.payments) || record.payments.length || !Array.isArray(record.documents) || record.documents.length) return false;
+  if (!emptyArray(record.handoffTasks)) return false;
   if (record.completedAt || record.lifecycle || record.customerAccess || record.customerLinkEmail || record.reviewReminder || record.checklists) return false;
   if (!emptyArray(record.packDocumentIds) || !emptyArray(record.emailDeliveries) || !emptyObject(record.documentArchives) || !emptyObject(record.providerPayments)) return false;
   if (!Array.isArray(record.events) || !record.events.length || record.events.some(event => !['sale-created', 'sale-updated'].includes(event.type))) return false;

@@ -1,0 +1,43 @@
+.sale-staff-handoff-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sale-staff-handoff-list > li {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 8px 0;
+}
+
+.sale-staff-handoff-list > li + li {
+  border-top: 1px solid var(--invoice-line);
+}
+
+.sale-staff-handoff-details {
+  min-width: 0;
+}
+
+.sale-staff-handoff-details .sale-team-note {
+  margin-top: 4px;
+}
+
+.sale-staff-handoff-form {
+  display: grid;
+  gap: 8px;
+}
+
+.sale-staff-handoff-form h3 {
+  margin: 4px 0;
+  font-size: .9375rem;
+  font-weight: 650;
+}
+
+.sale-staff-handoff-form label {
+  align-items: start;
+}

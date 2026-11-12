@@ -117,7 +117,7 @@ it('supports keyboard tabs and looks up a valid registration only after an expli
   fireEvent.submit(form);
   await waitFor(() => expect(window.location.pathname + window.location.search).toBe('/enquire?type=part_exchange'));
   expect(events.lookup).toHaveBeenCalledTimes(1);
-  expect(events.lookup).toHaveBeenCalledWith('/api/mot-mileage-estimate?registration=AB12CDE', { signal: expect.any(AbortSignal) });
+  expect(events.lookup).toHaveBeenCalledWith('/api/mot-mileage-estimate?registration=AB12CDE&identity=dvla', { signal: expect.any(AbortSignal) });
   expect(readHomepagePartExchangeLookup('AB12CDE')?.vehicle).toMatchObject({ make: 'FORD', model: 'FOCUS' });
   const draft = readPartExchangeDraft(partExchangeDraftKey());
   expect(draft?.details).toMatchObject({ name: 'Alex Buyer', phone: '07700900123' }); expect(draft?.details.registration.replace(/\s/g, '')).toBe('AB12CDE');

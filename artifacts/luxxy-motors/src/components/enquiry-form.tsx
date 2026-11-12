@@ -1,3 +1,4 @@
+import { partExchangeMinimumMileage } from "@/lib/part-exchange-lookup";
 import { PartExchangeMotDetails, type PartExchangeMotDetailsResult } from './part-exchange-mot-details';
 import { normaliseExchangeRegistration } from '@/lib/part-exchange-autofill';
 import { dvsaVehicleName } from '@/lib/dvsa-vehicle-name';
@@ -108,6 +109,8 @@ export function EnquiryForm({
   const exchangePlate = normaliseExchangeRegistration(exchange.registration);
   const exchangeReady = Boolean(exchangeGate && exchangeGate.registration === exchangePlate && isUKNumberPlate(exchangePlate));
   const exchangeLookup = exchangeReady && exchangeGate?.mode === 'lookup' ? exchangeGate.result : undefined;
+  const minimumExchangeMileage = partExchangeMinimumMileage(exchangeLookup?.mot ?? null);
+  const exchangeMileageTooLow = exchange.mileage !== '' && Number(exchange.mileage) < minimumExchangeMileage;
   const exchangeMileageEstimated = !exchangeMileageEdited.current && estimatedExchangeMileage !== undefined && exchange.mileage === estimatedExchangeMileage;
   const includePartExchange = hasPartExchange && dealerConfig.partExchange?.enabled && features.enabled('partExchange');
   const exchangeSummary = includePartExchange && vehicle ? [
@@ -132,6 +135,9 @@ export function EnquiryForm({
   exchangeContext.current = { draftKey, plate: exchangePlate, included: Boolean(includePartExchange) };
   const [restoredDraftKey, setRestoredDraftKey] = useState<string | null>(null);
   const [preferredContact, setPreferredContact] = useState<PreferredContact>('email');
+  useEffect(() => {
+    if (includePartExchange && preferredContact === 'whatsapp') setPreferredContact('email');
+  }, [includePartExchange, preferredContact]);
   const [additionalContact, setAdditionalContact] = useState(false);
   const [message, setMessage] = useState(initialMessage);
   const [submittedContact, setSubmittedContact] = useState<{ customerName: string; email: string; preferredContact: PreferredContact; vehicleLabel: string; hasVehicle: boolean } | null>(null);
@@ -232,7 +238,7 @@ export function EnquiryForm({
   const vehicleLabel = selectedVehicle?.title || [selectedVehicle?.make, selectedVehicle?.model].filter(Boolean).join(' ') || 'selected vehicle';
   const phoneRequired = preferredContact !== 'email';
   const phoneHref = getPhoneHref(dealerConfig);
-  const whatsAppHref = getWhatsAppHref(undefined, dealerConfig);
+  const whatsAppHref = includePartExchange ? null : getWhatsAppHref(undefined, dealerConfig);
 
   const clearGeneratedExchangeQuestion = () => {
     if (generatedExchangeQuestion.current && messageRef.current === generatedExchangeQuestion.current) writeMessage('');
@@ -295,6 +301,11 @@ export function EnquiryForm({
       if (!exchangeReady) {
         setExchangeError(isUKNumberPlate(exchangePlate) ? 'Find your car or choose manual entry before sending.' : 'Enter your complete UK registration to find your car.');
         (isUKNumberPlate(exchangePlate) ? exchangeLookupRef : exchangePlateRef).current?.focus();return;
+      }
+      if (exchangeMileageTooLow) {
+        setExchangeError(`Enter at least ${minimumExchangeMileage.toLocaleString('en-GB')} miles. The current mileage cannot be lower than the last MOT reading.`);
+        exchangeMileageRef.current?.focus();
+        return;
       }
       if (!exchange.mileage.trim() || !Number.isInteger(Number(exchange.mileage)) || Number(exchange.mileage) < 0 || Number(exchange.mileage) > 1000000) {
         setExchangeError('Enter your current mileage between 0 and 1,000,000 miles.');exchangeMileageRef.current?.focus();return;
@@ -487,7 +498,7 @@ export function EnquiryForm({
             <label className="block customer-enquiry-reply">
               <span className={labelClass}>How should we reply?</span>
               <NativeSelect value={preferredContact} onChange={(event) => { setPreferredContact(event.target.value as PreferredContact); setPhoneError(''); setEmailError(''); }} className="h-11" data-testid="select-preferred-contact">
-                {contactOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                {contactOptions.filter(option => !includePartExchange || option.value !== 'whatsapp').map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
               </NativeSelect>
             </label>
             <label className="block">
@@ -554,10 +565,11 @@ export function EnquiryForm({
             {exchangeError && <p role="alert" className="text-sm text-destructive">{exchangeError}</p>}
             {exchangeReady && <div className="space-y-4" data-testid="enquiry-part-exchange-car-details"><label className="block max-w-sm">
               <span className={labelClass}>Current mileage (miles)</span>
-              <Input ref={exchangeMileageRef} required type="number" min={0} max={1000000} step={1} inputMode="numeric"
+              <Input ref={exchangeMileageRef} required type="number" min={minimumExchangeMileage} aria-invalid={exchangeMileageTooLow || undefined} aria-describedby={exchangeMileageTooLow ? "enquiry-px-mileage-error" : undefined} max={1000000} step={1} inputMode="numeric"
                 value={exchange.mileage}
                 onChange={event => {exchangeMileageEdited.current=true;setEstimatedExchangeMileage(undefined);setExchangeError('');setExchange(current => ({ ...current, mileage: event.target.value }));}} />
             </label>
+            {exchangeMileageTooLow && <p id="enquiry-px-mileage-error" role="alert" className="text-sm text-destructive">Enter at least {minimumExchangeMileage.toLocaleString('en-GB')} miles. The current mileage cannot be lower than the last MOT reading.</p>}
             <details className="border-t border-border pt-3"><summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-primary">Anything to mention? (optional)</summary><label className="block"><span className={labelClass}>Anything we should know about your car?</span>
               <Textarea rows={3} maxLength={400} value={exchange.notes} onChange={event => setExchange(current => ({ ...current, notes: event.target.value }))} />
             </label></details></div>}

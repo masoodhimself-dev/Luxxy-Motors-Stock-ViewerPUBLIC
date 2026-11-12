@@ -8,7 +8,7 @@ import { dealerConfig } from '@/config/dealer';
 import { emptyDraft } from './model';
 
 it('parses the real invoice with the supported reader when recent browser APIs are absent', () => {
-  const draft = { ...emptyDraft(), id: 'TEST-SALE-1', customer: 'Alex Example', vehicle: 'Ford Focus', registration: 'AB20 XYZ', price: '10000', deliveryCharge: '120' };
+  const draft = { ...emptyDraft(), id: 'TEST-SALE-1', customer: 'Alex Example', vehicle: 'Ford Focus', registration: 'AB20 XYZ', vin: 'WBA12345678901234', price: '10000', deliveryCharge: '120' };
   const document: SaleWorkspaceDocument = {
     id: 'test-document', number: 'TEST ONLY / INV-1', type: 'invoice', title: 'Sales invoice',
     templateVersion: 'sales-workspace-v2', issuedAt: '2026-11-04T12:00:00Z', issuedBy: 'Practice staff',
@@ -44,4 +44,5 @@ it('parses the real invoice with the supported reader when recent browser APIs a
   expect(output.text).toContain('Alex Example');
   expect(output.text).toContain('TEST ONLY');
   expect(output.text).toContain('10,120.00');
+  expect(output.text).toContain(draft.vin);
 });

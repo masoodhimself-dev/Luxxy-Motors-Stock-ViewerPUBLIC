@@ -113,6 +113,16 @@ describe('the rebuilt Inbox queue', () => {
     expect(within(screen.getByTestId('enquiry-Sam')).getByText('Booked')).toHaveAttribute('data-tone', 'success');
   });
 
+  it('filters to part-exchange enquiries and shows their channel', () => {
+    show({ entries: [record('Website buyer', { type: 'part_exchange', source: 'website' }),
+      record('Marketplace buyer', { source: 'cazoo', partExchangeRegistration: 'SB09 YAO' }),
+      record('General buyer')] });
+    fireEvent.click(screen.getByRole('button', { name: 'PX enquiries' }));
+    expect(screen.getByTestId('enquiry-Website buyer')).toHaveTextContent('Website');
+    expect(screen.getByTestId('enquiry-Marketplace buyer')).toHaveTextContent('Cazoo');
+    expect(screen.queryByTestId('enquiry-General buyer')).not.toBeInTheDocument();
+  });
+
   it('switches attention filters and searches customers, number plates and incoming messages', () => {
     const active = record('Ellie', { source: 'cazoo', latestReplyText: 'Could I visit Friday?' });
     const done = record('Done customer', { status: 'closed' });

@@ -47,7 +47,7 @@ async function setup(page: Page, options: { partExchange?: boolean; intakeComple
       let command: SaleWorkspaceCommand;
       if (path.endsWith('/checklists')) command = { action: 'checklists', completion: body.completion, partExchanges: body.partExchanges };
       else if (path.endsWith('/finish-invoice-sale')) {
-        command = { action: 'finish-invoice-sale', acknowledge: body.acknowledge, acknowledgeOutstanding: body.acknowledgeOutstanding };
+        command = { action: 'finish-invoice-sale', acknowledge: body.acknowledge, acknowledgeOutstanding: body.acknowledgeOutstanding, reviewedInvoiceId: body.reviewedInvoiceId };
         if (options.serverReject && sale.checklists) delete sale.checklists.partExchanges.ZZ19PXE;
       } else { writes.push(`${request.method()} ${path}`); return route.abort(); }
       try {
@@ -73,8 +73,8 @@ async function setup(page: Page, options: { partExchange?: boolean; intakeComple
 }
 async function openCompletion(page: Page, id: string) {
   await page.goto(`/portal?section=sales&saleId=${id}`);
-  await page.getByRole('button', { name: 'Review sale completion', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Your invoice is ready.', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Review invoice and mark sold', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Sales invoice', exact: true })).toBeVisible();
 }
 async function noOverflow(page: Page, width: number) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width + 1);
@@ -111,12 +111,12 @@ for (const width of [320, 390, 820, 1440]) {
   });
 }
 
-test('unfinished intake is linked back to Payments without repeating its form', async ({ page }) => {
+test('unfinished intake links back to Extras and part exchange without repeating its form', async ({ page }) => {
   const state = await setup(page, { partExchange: true }); await openCompletion(page, state.id);
   await expect(page.getByRole('button', { name: 'Yes, mark sold & remove', exact: true })).toBeDisabled();
   await expect(page.getByRole('complementary', { name: 'Before completing the sale' }).getByRole('checkbox')).toHaveCount(0);
   await page.getByRole('button', { name: 'Review part-exchange checks', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'What has the customer paid?', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Extras and part exchange', exact: true })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Part-exchange intake checks' }).getByRole('checkbox')).toHaveCount(5);
   expect(state.actions).toEqual([]);
 });

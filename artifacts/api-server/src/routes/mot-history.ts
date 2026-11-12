@@ -161,6 +161,29 @@ export function motRouter(
           400,
         );
       const registration = normaliseMotRegistration(req.query.registration);
+      if (req.query.identity === "dvla") {
+        const [dvla, dvsa] = await Promise.allSettled([
+          dvlaLookup(registration),
+          service.lookup(registration),
+        ]);
+        if (dvla.status === "rejected") {
+          const error = dvla.reason;
+          res.status(error instanceof DvlaVehicleCheckError ? error.status : 503)
+            .json({ error: "We couldn’t find your vehicle through DVLA. Check the registration and try again." });
+          return;
+        }
+        const details = dvsa.status === "fulfilled" ? motVehicleDetails(dvsa.value) : null;
+        res.set("Cache-Control", "no-store");
+        res.json({ status: "unavailable", registration, vehicle: {
+          make: dvla.value.make ?? null,
+          model: details?.vehicle.model ?? null,
+          registrationDate: details?.vehicle.registrationDate ?? null,
+          year: dvla.value.yearOfManufacture,
+          colour: dvla.value.colour,
+          fuel: dvla.value.fuelType,
+        }, mot: details?.mot ?? null });
+        return;
+      }
       const history = await service.lookup(registration);
       const estimate = estimateMotMileage(history);
       const details = motVehicleDetails(history);

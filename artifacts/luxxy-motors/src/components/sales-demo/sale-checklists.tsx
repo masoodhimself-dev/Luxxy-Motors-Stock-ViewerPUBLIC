@@ -56,13 +56,13 @@ export function SaleChecklists({ draft, checklists, busy = false, readOnly = fal
       <header><div><h2>Before completing the sale</h2><p>A quick reminder of what to review.</p></div></header>
       <ul>{saleCompletionChecklistItems.map(item => <li key={item.id}>{item.detail}</li>)}</ul>
       {exchanges.length > 0 && <div className="sale-intake-status">
-        <p>{intakeComplete ? 'Part-exchange intake checks are saved. No need to complete them again.' : 'Part-exchange intake checks still need completing in Payments.'}</p>
+        <p>{intakeComplete ? 'Part-exchange intake checks are saved. No need to complete them again.' : 'Complete the intake checks under Extras and part exchange.'}</p>
         {!intakeComplete && onReviewIntake && !readOnly && <Button type="button" variant="outline" disabled={busy} onClick={onReviewIntake}>Review part-exchange checks</Button>}
       </div>}
     </aside>;
   }
   return <section className="sale-checklists" aria-label={intakeOnly ? 'Part-exchange intake checks' : 'Final sale checklist'} aria-busy={busy}>
-    {duplicates.size > 0 && <p className="sale-check-hint" role="alert">The same part-exchange registration appears more than once. Correct the entries in Payments before completing these checks.</p>}
+    {duplicates.size > 0 && <p className="sale-check-hint" role="alert">The same part-exchange registration appears more than once. Correct the entries before completing these checks.</p>}
     {exchanges.map((exchange, index) => {
       const registration = normalizedSaleExchangeRegistration(exchange.registration);
       const saved = checklists?.partExchanges[registration];

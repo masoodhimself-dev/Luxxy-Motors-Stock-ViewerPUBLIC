@@ -8,8 +8,9 @@ import {
   createSaleWorkspace,
   changeSaleWorkspace,
   saleWorkspaceTotals,
-  saleQueueToday,
   customerSaleDocument,
+  saleCalendarDate,
+  saleHandoffTaskListOptions,
   publicSaleWorkspace,
   type SaleWorkspaceDraft,
   type SaleWorkspaceRecord,
@@ -27,6 +28,7 @@ import {
   finalReviewCurrent,
 } from "../../../lib/vehicle-meta/src/sale-operations";
 import {
+  checkReplacementAvailability,
   saleOperation as persistedSaleOperation,
   saleTokenHash,
 } from "./lib/sale-operations-store";
@@ -674,17 +676,118 @@ test("stored operations enforce tenant/revision boundaries and exact return bala
       )
     ).rows[0].state;
   try {
-    const taskStore = new PostgresSaleWorkspaceStore(a.dealerId,(input,client)=>readSaleWorkspaceAssets(input,a.dealerId,client),pool);
-    const otherStore = new PostgresSaleWorkspaceStore(b.dealerId,(input,client)=>readSaleWorkspaceAssets(input,b.dealerId,client),pool);
-    const manager = {id:'invoice-owner-a',name:'Invoice fixture owner'};
-    const accounts = {id:'invoice-accounts-a'};
+    const staff = [
+      [a.dealerId, 'owner-a', 'Dealer owner', 'owner', null],
+      [a.dealerId, 'accounts-a', 'Accounts', 'accounts', null],
+      [a.dealerId, 'sales-a', 'Sales', 'salesperson', null],
+      [a.dealerId, 'disabled-a', 'Disabled', 'salesperson', context().now],
+      [b.dealerId, 'other-dealer', 'Other dealer', 'owner', null],
+    ];
+    for (const member of staff) await engine.query('INSERT INTO portal_users(dealer_id,auth_user_id,name,role,disabled_at) VALUES($1,$2,$3,$4,$5)', member);
+    const taskSale = create();
+    taskSale.reference = taskSale.draft.id = 'SALE-HANDOFF';
+    await engine.query('INSERT INTO sale_workspace(id,dealer_id,reference,revision,state,created_at,updated_at) VALUES($1,$2,$3,$4,$5::jsonb,$6,$6)',
+      [taskSale.id, a.dealerId, taskSale.reference, taskSale.revision, JSON.stringify(taskSale), context().now]);
+    const taskStore = new PostgresSaleWorkspaceStore(a.dealerId, (draft, client) => readSaleWorkspaceAssets(draft, a.dealerId, client), pool);
+    const otherStore = new PostgresSaleWorkspaceStore(b.dealerId, (draft, client) => readSaleWorkspaceAssets(draft, b.dealerId, client), pool);
+    const manager = { id:'owner-a', name:'Dealer owner', canManage:true, canRecordPayments:true };
+    const accounts = { id:'accounts-a', name:'Accounts', canManage:false, canRecordPayments:true };
+    const salesperson = { id:'sales-a', name:'Sales', canManage:true, canRecordPayments:true };
+    const recovery = { offset:0, view:'needs-reassignment' } as const;
+    const requestTask = { action:'assign', kind:'check-payment', assigneeId:accounts.id, note:'Match the payment to our bank statement.', expectedRevision:taskSale.revision, requestId:randomUUID() };
+    const changeTask = (input: typeof requestTask | Parameters<typeof taskStore.mutateHandoffTask>[1], actor = manager) => taskStore.mutateHandoffTask(taskSale.id, input, actor);
+    assert.deepEqual((await taskStore.listHandoffAssignees(taskSale.id,'arrange-collection')).members.map(item => item.id).sort(), ['owner-a','sales-a']);
+    assert.deepEqual((await taskStore.listHandoffAssignees(taskSale.id,'check-payment')).members.map(item => item.id).sort(), ['accounts-a','owner-a','sales-a']);
+    await assert.rejects(otherStore.mutateHandoffTask(taskSale.id, requestTask, manager), /not found/);
+    await assert.rejects(changeTask(requestTask, accounts), /role cannot assign/);
+    await assert.rejects(changeTask({ ...requestTask, assigneeId:'other-dealer' }), /active staff member/);
+    await assert.rejects(changeTask({ ...requestTask, kind:'arrange-collection' }), /active staff member/);
+    await assert.rejects(changeTask({ ...requestTask, assigneeId:'disabled-a' }), /active staff member/);
+    const assigned = (await changeTask(requestTask)).sale;
+    const paymentTask = assigned.handoffTasks![0]!;
+    assert.equal(paymentTask.assigneeName, 'Accounts');
+    assert.deepEqual(assigned.payments, taskSale.payments);
+    assert.deepEqual(assigned.documents, taskSale.documents);
+    assert.equal(assigned.lifecycle, taskSale.lifecycle);
+    assert.equal((await changeTask(requestTask)).replayed, true);
+    await assert.rejects(changeTask({ ...requestTask, note:'Changed under the same key' }), /different details/);
+    await assert.rejects(changeTask({ ...requestTask, requestId:randomUUID() }), /another device/);
+    assert.deepEqual((await taskStore.listHandoffTasks(accounts.id)).tasks.map(row => [row.saleId,row.task.id]), [[taskSale.id,paymentTask.id]]);
+    assert.deepEqual((await taskStore.listHandoffTasks(manager.id)).tasks, []);
+    assert.deepEqual((await otherStore.listHandoffTasks(accounts.id)).tasks, []);
+    const reassigned = (await changeTask({ ...requestTask, assigneeId:'sales-a', expectedRevision:assigned.revision, requestId:randomUUID() })).sale;
+    assert.equal(reassigned.handoffTasks![0]!.id, paymentTask.id);
+    assert.deepEqual((await taskStore.listHandoffTasks(accounts.id)).tasks, []);
+    const completion = { action:'complete', taskId:paymentTask.id, expectedRevision:reassigned.revision, requestId:randomUUID() };
+    await assert.rejects(changeTask(completion, accounts), /assigned staff member/);
+    const completed = await changeTask(completion, salesperson);
+    assert.equal(completed.sale.handoffTasks![0]!.status, 'completed');
+    assert.equal(completed.sale.handoffTasks![0]!.completedBy, 'Sales');
+    assert.deepEqual((await taskStore.listHandoffTasks('sales-a')).tasks, []);
+    assert.equal((await changeTask(completion, salesperson)).replayed, true);
+    const collection = (await changeTask({ ...requestTask, kind:'arrange-collection', assigneeId:'sales-a', expectedRevision:completed.sale.revision, requestId:randomUUID() })).sale;
+    const cancellation = { action:'cancel', taskId:collection.handoffTasks![1]!.id, expectedRevision:collection.revision, requestId:randomUUID() };
+    await assert.rejects(changeTask(cancellation, accounts), /role cannot assign or cancel/);
+    const cancelled = (await changeTask(cancellation)).sale;
+    assert.equal(cancelled.handoffTasks![1]!.status, 'cancelled');
+    assert.deepEqual(cancelled.draft, taskSale.draft);
+    assert.equal(publicSaleWorkspace(cancelled).handoffTasks, undefined);
+    const privateNote = 'Bank transfer from the original buyer.';
+    const originalTask = (await changeTask({ ...requestTask, note:privateNote, expectedRevision:cancelled.revision, requestId:randomUUID() })).sale;
+    const retargeted = (await within(() => taskStore.mutate({ id:taskSale.id, expectedRevision:originalTask.revision, requestId:randomUUID(), actor:manager.name, actorId:manager.id,
+      command:{ action:'update', draft:{ ...originalTask.draft, customer:'New buyer', vehicleId:randomUUID(), vehicle:'New vehicle' } } }))).sale;
+    assert.equal(retargeted.handoffTasks!.at(-1)?.status,'cancelled');
+    assert.equal(retargeted.handoffTasks!.at(-1)?.resolutionReason,'buyer-or-car-changed');
+    assert.equal(retargeted.handoffTasks!.at(-1)?.note,privateNote);
+    assert.ok(retargeted.events.some(event=>event.type==='handoff-task-auto-cancelled'));
+    assert.deepEqual((await taskStore.listHandoffTasks(accounts.id)).tasks,[]);
+    const freshTaskSale = (await changeTask({ ...requestTask, kind:'arrange-collection', assigneeId:salesperson.id, note:'', expectedRevision:retargeted.revision, requestId:randomUUID() })).sale;
+    const freshTask = freshTaskSale.handoffTasks!.at(-1)!;
+    assert.notEqual(freshTask.id,originalTask.handoffTasks!.at(-1)?.id);
+    assert.equal(freshTask.note,'');
+    assert.equal((await taskStore.listHandoffTasks(salesperson.id,{ offset:1,view:'mine' })).tasks.length,0);
+    await engine.query("UPDATE portal_users SET role='accounts' WHERE dealer_id=$1 AND auth_user_id=$2",[a.dealerId,salesperson.id]);
+    assert.deepEqual((await taskStore.listHandoffTasks(salesperson.id)).tasks,[]);
+    assert.deepEqual((await taskStore.listHandoffTasks(manager.id,recovery)).tasks.map(row=>[row.task.id,row.assignmentIssue]),[[freshTask.id,'role-changed']]);
+    assert.deepEqual((await otherStore.listHandoffTasks(manager.id,recovery)).tasks,[]);
+    const finishCollection = { action:'complete', taskId:freshTask.id, expectedRevision:freshTaskSale.revision, requestId:randomUUID() };
+    await assert.rejects(changeTask(finishCollection,salesperson),/current role cannot complete/);
+    await engine.query('UPDATE portal_users SET disabled_at=$3 WHERE dealer_id=$1 AND auth_user_id=$2',[a.dealerId,salesperson.id,context().now]);
+    await assert.rejects(changeTask(finishCollection,salesperson),/no longer active/);
+    assert.deepEqual((await taskStore.listHandoffTasks(manager.id,recovery)).tasks.map(row=>[row.task.id,row.assignmentIssue]),[[freshTask.id,'inactive']]);
+    const recovered = (await changeTask({ ...requestTask, kind:'arrange-collection', assigneeId:manager.id, note:'', expectedRevision:freshTaskSale.revision, requestId:randomUUID() })).sale;
+    assert.equal(recovered.handoffTasks!.at(-1)?.id,freshTask.id);
+    assert.deepEqual((await taskStore.listHandoffTasks(manager.id,recovery)).tasks,[]);
+    assert.deepEqual((await taskStore.listHandoffTasks(manager.id)).tasks.map(row=>row.task.id),[freshTask.id]);
+    await engine.query("UPDATE sale_workspace SET state=jsonb_set(state,'{lifecycle}',jsonb_build_object('status','released')) WHERE id=$1",[taskSale.id]);
+    const legacy = await taskStore.get(taskSale.id);
+    assert.equal(legacy.handoffTasks!.at(-1)?.resolutionReason,'sale-released');
+    assert.equal(legacy.handoffTasks!.at(-1)?.status,'cancelled');
+    assert.deepEqual((await taskStore.listHandoffTasks(manager.id)).tasks,[]);
+    const persisted = (await engine.query<{state:SaleWorkspaceRecord}>('SELECT state FROM sale_workspace WHERE id=$1',[taskSale.id])).rows[0].state;
+    assert.equal(persisted.handoffTasks!.at(-1)?.status,'open');
+
+    const pageRecord = { ...taskSale, handoffTasks:[{...freshTask, kind:'check-payment', assigneeId:manager.id}] };
+    await engine.query(`INSERT INTO sale_workspace(id,dealer_id,reference,revision,state,created_at,updated_at)
+      SELECT gen_random_uuid(),$1,'SALE-TASK-PAGE-'||n,1,$2::jsonb,$3,$3 FROM generate_series(1,101) n`,
+    [a.dealerId,JSON.stringify(pageRecord),context().now]);
+    const firstPage = await taskStore.listHandoffTasks(manager.id);
+    assert.equal(firstPage.tasks.length,100);
+    assert.ok(firstPage.hasMore && firstPage.nextCursor);
+    const expectedLast = (await taskStore.listHandoffTasks(manager.id,{offset:100,view:'mine'})).tasks[0];
+    assert.ok(expectedLast);
+    await engine.query("UPDATE sale_workspace SET state=jsonb_set(state,'{handoffTasks,0,status}','\"completed\"'::jsonb) WHERE id=$1",[firstPage.tasks[0]!.saleId]);
+    const lastPage = await taskStore.listHandoffTasks(manager.id,saleHandoffTaskListOptions({cursor:firstPage.nextCursor}));
+    assert.deepEqual(lastPage,{tasks:[expectedLast],hasMore:false});
+    assert.deepEqual((await taskStore.listHandoffTasks(manager.id,{offset:100,view:'mine'})).tasks,[]);
+
     const reviewVehicleId = randomUUID();
     const reviewPlate = 'RV20ABC';
     await engine.query(`INSERT INTO vehicles(id,dealer_id,source,advert_id,title,plate,make,year,colour,mileage,source_price)
       VALUES($1,$2,'cazoo','invoice-review-car','Example Toyota','RV20 ABC','Toyota',2020,'Silver',48000,10000)`,[reviewVehicleId,a.dealerId]);
     const reviewNow = Date.now(), motCheckedAt = new Date(reviewNow - 60_000).toISOString();
-    const expiryDate = saleQueueToday(new Date(reviewNow + 30 * 86400_000));
-    const motTestDate = saleQueueToday(new Date(reviewNow - 90 * 86400_000));
+    const expiryDate = saleCalendarDate(new Date(reviewNow + 20 * 86400_000));
+    const motTestDate = saleCalendarDate(new Date(reviewNow - 90 * 86400_000));
     const storedHistory = { registration:reviewPlate, checkedAt:motCheckedAt, make:'Toyota', model:'Example', recall:'Unknown',
       tests:[{completedDate:motTestDate,result:'PASSED',expiryDate,mileage:'47500',mileageUnit:'MI',defects:[]}] };
     await engine.query('INSERT INTO mot_history_cache(registration,data,expires_at) VALUES($1,$2::jsonb,$3)',[reviewPlate,JSON.stringify(storedHistory),new Date(reviewNow+3_600_000).toISOString()]);
@@ -707,9 +810,11 @@ test("stored operations enforce tenant/revision boundaries and exact return bala
     assert.equal((await taskStore.get(saleForReview.id)).revision,saleForReview.revision);
 
     const reviewedInput = { id:saleForReview.id,expectedRevision:saleForReview.revision,actor:manager.name,actorId:manager.id,requestId:randomUUID(),
-      requireInvoiceVehicleReview:true, command:{action:'issue-invoice' as const,kind:'full' as const,acknowledge:true,vehicleReview:{id:review.id,mileage:48123,acknowledge:true}} };
+      requireInvoiceVehicleReview:true, command:{action:'issue-invoice' as const,kind:'full' as const,acknowledge:true,vehicleReview:{id:review.id,mileage:48123,acknowledge:true,acknowledgeMot:true}} };
     const issueReviewed = (input=reviewedInput) => within(() => taskStore.mutate(input));
     await assert.rejects(issueReviewed({...reviewedInput,actorId:accounts.id}),/check the vehicle again/i);
+    await assert.rejects(issueReviewed({...reviewedInput,command:{...reviewedInput.command,vehicleReview:{...reviewedInput.command.vehicleReview,acknowledgeMot:false}}}),/acknowledge the MOT warning/i);
+    assert.equal((await taskStore.get(saleForReview.id)).documents.length,0);
     await engine.query("UPDATE vehicles SET plate='OT20 ABC' WHERE id=$1",[reviewVehicleId]);
     await assert.rejects(issueReviewed(),/stock vehicle details changed/i);
     assert.equal((await taskStore.get(saleForReview.id)).documents.length,0);
@@ -719,6 +824,7 @@ test("stored operations enforce tenant/revision boundaries and exact return bala
     assert.equal(frozen?.mileage,48123);
     assert.equal(frozen?.registration,'RV20 ABC');
     assert.equal(frozen?.motExpiry,expiryDate);
+    assert.equal(frozen?.motAcknowledgedAt,issuedReview.document?.issuedAt);
     assert.equal(frozen?.verification,'dvla');
     const verificationToken = issuedReview.document!.verification!.url.split('/').at(-1)!;
     assert.equal((await taskStore.verifyInvoice(saleForReview.id,issuedReview.document!.id,verificationToken)).registration,'RV20 ABC');
@@ -729,7 +835,7 @@ test("stored operations enforce tenant/revision boundaries and exact return bala
     assert.equal(unavailableReview.status,'unavailable');
     assert.equal(unavailableReview.mot?.source,'DVSA');
     const manualIssue = await issueReviewed({...reviewedInput,expectedRevision:issuedReview.sale.revision,requestId:randomUUID(),
-      command:{...reviewedInput.command,vehicleReview:{id:unavailableReview.id,mileage:48124,acknowledge:true}} });
+      command:{...reviewedInput.command,vehicleReview:{...reviewedInput.command.vehicleReview,id:unavailableReview.id,mileage:48124}} });
     assert.equal(manualIssue.document?.snapshot.vehicle?.invoiceReview?.verification,'manual');
     assert.equal(manualIssue.document?.snapshot.vehicle?.invoiceReview?.mileage,48124);
     assert.deepEqual(manualIssue.sale.documents[0]?.snapshot.vehicle?.invoiceReview,frozen);
@@ -764,7 +870,7 @@ test("stored operations enforce tenant/revision boundaries and exact return bala
     });
     const {review:photoReview}=await invoiceStockStore.checkInvoiceVehicle(saleForReview.id,manualIssue.sale.revision,manager.id,dvla);
     const photoInput = {...reviewedInput,expectedRevision:manualIssue.sale.revision,requestId:randomUUID(),
-      command:{...reviewedInput.command,vehicleReview:{id:photoReview.id,mileage:48125,acknowledge:true}}};
+      command:{...reviewedInput.command,vehicleReview:{...reviewedInput.command.vehicleReview,id:photoReview.id,mileage:48125}}};
     const withPhotos = await within(()=>invoiceStockStore.mutate(photoInput));
     const photoDocument=withPhotos.document!;
     assert.deepEqual(photoDocument.snapshot.vehicle?.invoicePhotoDataUrls,photos);
@@ -964,6 +1070,22 @@ test("stored operations enforce tenant/revision boundaries and exact return bala
     await assert.rejects(within(() => saleOperation(original.id, { ...swap, expectedRevision: 0 }, 'Staff A')), /changed/);
     await assert.rejects(within(() => saleOperation(original.id, { ...swap, financeConfirmed: false }, 'Staff A')), /Confirm/);
     assert.equal((await engine.query<{inventory_status:string}>('SELECT inventory_status FROM vehicles WHERE id=$1',[replacementId])).rows[0].inventory_status,'available');
+    assert.deepEqual(await within(() => checkReplacementAvailability(original.id, replacementId)), { vehicleId: replacementId });
+    const historic = paid();
+    historic.reference = 'SALE-HISTORIC-REPLACEMENT';
+    historic.draft.vehicleId = replacementId;
+    historic.lifecycle = undefined;
+    historic.completedAt = undefined;
+    await engine.query('INSERT INTO sale_workspace(id,dealer_id,reference,revision,state,created_at,updated_at) VALUES($1,$2,$3,$4,$5::jsonb,$6,$6)',
+      [historic.id,a.dealerId,historic.reference,historic.revision,JSON.stringify(historic),context().now]);
+    await assert.rejects(within(() => checkReplacementAvailability(original.id, replacementId)), /another active sale or reservation/);
+    await assert.rejects(within(() => saleOperation(original.id, swap, 'Staff A')), /another active sale or reservation/);
+    assert.equal((await engine.query<{inventory_status:string}>('SELECT inventory_status FROM vehicles WHERE id=$1',[replacementId])).rows[0].inventory_status,'available');
+    assert.equal((await engine.query<{state:SaleWorkspaceRecord}>('SELECT state FROM sale_workspace WHERE id=$1',[original.id])).rows[0].state.revision, original.revision);
+    const prior = historic.payments[0]!;
+    historic.payments.push({ ...prior, id: randomUUID(), signedAmountPence: -prior.amountPence, kind:'refund', reversesPaymentId:prior.id });
+    await engine.query('UPDATE sale_workspace SET state=$2::jsonb WHERE id=$1::uuid',[historic.id,JSON.stringify(historic)]);
+    assert.deepEqual(await within(() => checkReplacementAvailability(original.id, replacementId)), { vehicleId: replacementId });
     const swapped = await within(() =>
       saleOperation(original.id, swap, "Staff A"),
     );
@@ -1148,7 +1270,7 @@ test('new document requests do not infer settlement from unrelated payments', ()
   const paid = changeSaleWorkspace(requested.sale, { action: 'payment', payment: { amount: '500', method: 'Bank transfer', date: '2026-11-03', reference: '', kind: 'part-payment', status: 'confirmed' } }, { expectedRevision: requested.sale.revision, requestId: randomUUID() }, context()).sale;
   assert.equal(salePaymentRequestRemaining(paid, paid.paymentRequests![0]), 50000);
   assert.equal(salePaymentRequestAvailable(paid, paid.paymentRequests![0], '2030-01-01T12:00:00Z'), true);
-  assert.equal(paid.lifecycle, undefined);
+  assert.equal(paid.lifecycle?.status, 'reserved');
 });
 
 
@@ -1157,12 +1279,13 @@ test('linked part payments settle an ordinary request only when its amount is me
   const pay = (sale: SaleWorkspaceRecord, amount: string) => changeSaleWorkspace(sale, { action: 'invoice-payment', payment: { amount, method: 'Bank transfer', date: '2026-11-03', reference: '', kind: 'part-payment', status: 'confirmed', paymentRequestId: requested.request.id } }, { expectedRevision: sale.revision, requestId: randomUUID() }, context()).sale;
   const first = pay(requested.sale, '400');
   assert.equal(first.paymentRequests![0].status, 'active');
+  assert.equal(first.lifecycle?.status, 'reserved');
   assert.equal(salePaymentRequestRemaining(first, first.paymentRequests![0]), 60000);
   const final = pay(first, '600');
   assert.equal(final.paymentRequests![0].status, 'accepted');
   assert.equal(final.paymentRequests![0].acceptedAmountPence, 100000);
   assert.equal(salePaymentRequestRemaining(final, final.paymentRequests![0]), 0);
-  assert.equal(final.lifecycle, undefined);
+  assert.deepEqual(final.lifecycle, first.lifecycle);
 });
 
 

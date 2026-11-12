@@ -160,6 +160,95 @@ it("preserves a saved recipient and requires explicit approval to replace it", a
   expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue("Saved message");
 });
 
+it("keeps a saved draft until staff choose the sale update, then locks the saved sale recipient", async () => {
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options: unknown) => {
+    const result = await original(url, options);
+    return url.endsWith("/email-context") ? { ...result, savedDraft: { version: 4, status: "draft", content: { to: "previous@example.test", subject: "Saved subject", message: "Previous message", includeVehicle: true, includeAppointment: true, photoIds: ["photo-one"], documentIds: ["invoice-one"], expectedRevision: 2 } } } : result;
+  });
+  const verifyContext = vi.fn().mockResolvedValue(undefined);
+  render(<QueryClientProvider client={new QueryClient()}><EnquiryEmailComposer entry={entry}
+    initialRecipient="alex@example.test" fixedRecipient="alex@example.test" verifyContext={verifyContext}
+    suggestedContent={{ label: "Customer update", applyLabel: "Use this customer update", subject: "Deposit received", message: "We have received your deposit.", includeVehicle: false }}
+    onClose={state.close} /></QueryClientProvider>);
+  const recipient = await screen.findByRole("textbox", { name: "Customer email" });
+  expect(recipient).toHaveValue("previous@example.test");
+  expect(recipient).toHaveAttribute("readonly");
+  expect(screen.getByRole("button", { name: "Review email" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Save draft" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Use this customer update" }));
+  expect(recipient).toHaveValue("alex@example.test");
+  expect(calls("/email-draft")).toHaveLength(0);
+  fireEvent.click(screen.getByRole("button", { name: "Review email" }));
+  await screen.findByRole("region", { name: "Email preview" });
+  expect(verifyContext).toHaveBeenCalledOnce();
+  expect(JSON.parse(calls("/email-preview")[0][1].body)).toMatchObject({
+    to: "alex@example.test", subject: "Deposit received", message: "We have received your deposit.",
+    includeVehicle: false, includeAppointment: false, photoIds: [], documentIds: [],
+  });
+  expect(calls("/email")).toHaveLength(0);
+});
+
+it("reviews and approves a sale update without saving over the Inbox draft", async () => {
+  const original = state.fetch.getMockImplementation()!;
+  const requestId = "00000000-0000-4000-8000-000000000042";
+  const saleUpdate = { saleId: "00000000-0000-4000-8000-000000000021", revision: 3, kind: "deposit" as const };
+  state.fetch.mockImplementation(async (url: string, options: unknown) => {
+    if (url.endsWith("/email")) return { delivery: { id: "fixture-delivery", status: "sent", to: "alex@example.test", subject: "Deposit received" } };
+    const result = await original(url, options);
+    if (url.endsWith("/email-preview")) return { ...result, saleUpdateRequestId: requestId };
+    return url.endsWith("/email-context") ? { ...result, savedDraft: { version: 4, status: "draft", content: { to: "previous@example.test", subject: "Saved subject", message: "Keep the Inbox draft", includeVehicle: true, includeAppointment: true, photoIds: ["photo-one"], documentIds: ["invoice-one"], expectedRevision: 2 } } } : result;
+  });
+  render(<QueryClientProvider client={new QueryClient()}><EnquiryEmailComposer entry={entry}
+    initialRecipient="alex@example.test" fixedRecipient="alex@example.test" saleUpdate={saleUpdate}
+    suggestedContent={{ label: "Customer update", subject: "Deposit received", message: "We have received your deposit.", includeVehicle: false }}
+    onClose={state.close} /></QueryClientProvider>);
+  expect(await screen.findByRole("textbox", { name: "Message" })).toHaveValue("We have received your deposit.");
+  expect(screen.getByRole("textbox", { name: "Message" })).toHaveAttribute("readonly");
+  expect(screen.queryByRole("button", { name: "Save draft" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "WhatsApp" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Review email" }));
+  await screen.findByRole("region", { name: "Email preview" });
+  expect(JSON.parse(calls("/email-preview")[0][1].body)).toMatchObject({ saleUpdate, to: "alex@example.test" });
+  expect(calls("/email-draft")).toHaveLength(0);
+  expect(calls("/email")).toHaveLength(0);
+  fireEvent.click(screen.getByRole("button", { name: "Send email" }));
+  await waitFor(() => expect(calls("/email")).toHaveLength(1));
+  const approved = JSON.parse(calls("/email")[0][1].body);
+  expect(approved).toMatchObject({ saleUpdate, requestId, to: "alex@example.test" });
+  expect(approved).not.toHaveProperty("savedDraftVersion");
+});
+
+it("reviews a fresh sale-update attempt after confirmed failure and sends only after approval", async () => {
+  const original = state.fetch.getMockImplementation()!;
+  const requestIds = ["00000000-0000-4000-8000-000000000043", "00000000-0000-4000-8000-000000000044"];
+  const saleUpdate = { saleId: "00000000-0000-4000-8000-000000000022", revision: 3, kind: "deposit" as const };
+  let previews = 0, sends = 0;
+  state.fetch.mockImplementation(async (url: string, options: unknown) => {
+    if (url.endsWith("/email")) {
+      sends++;
+      return { delivery: { id: `fixture-${sends}`, status: sends === 1 ? "failed" : "sent",
+        to: "alex@example.test", subject: "Deposit received", error: sends === 1 ? "Provider rejected this message." : null } };
+    }
+    const result = await original(url, options);
+    return url.endsWith("/email-preview") ? { ...result, saleUpdateRequestId: requestIds[previews++] } : result;
+  });
+  render(<QueryClientProvider client={new QueryClient()}><EnquiryEmailComposer entry={entry}
+    initialRecipient="alex@example.test" fixedRecipient="alex@example.test" saleUpdate={saleUpdate}
+    suggestedContent={{ label: "Customer update", subject: "Deposit received", message: "We have received your deposit.", includeVehicle: false }}
+    onClose={state.close} /></QueryClientProvider>);
+  await screen.findByRole("textbox", { name: "Message" });
+  fireEvent.click(screen.getByRole("button", { name: "Review email" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Send email" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Review and retry" }));
+  const send = await screen.findByRole("button", { name: "Send email" });
+  expect(calls("/email")).toHaveLength(1);
+  fireEvent.click(send);
+  await waitFor(() => expect(calls("/email")).toHaveLength(2));
+  expect(calls("/email").map(call => JSON.parse(call[1].body).requestId)).toEqual(requestIds);
+  expect(calls("/email-draft")).toHaveLength(0);
+});
+
 const linkedReplyId = "a45ce3ce-6269-4f57-891b-b8e9fd716fea";
 const verifiedReplyAddress = "verified-reply@example.test";
 

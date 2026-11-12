@@ -1,3 +1,5 @@
+import type { SaleHandoffTaskKind } from '@workspace/vehicle-meta';
+
 export const staffRoles = ["owner", "salesperson", "accounts"] as const;
 export type StaffRole = (typeof staffRoles)[number];
 export const staffPermissions = [
@@ -30,6 +32,9 @@ export function roleHasPermission(
 ): boolean {
   return Boolean(role && grants[role]?.includes(permission));
 }
+export function saleHandoffTaskPermission(kind: SaleHandoffTaskKind): StaffPermission {
+  return kind === 'check-payment' ? 'payments.record' : 'sales.manage';
+}
 /** Shared routing rule for existing staff actions and the local review service. */
 export function operationPermission(
   method: string,
@@ -40,6 +45,8 @@ export function operationPermission(
     return "integrations.manage";
   if (/^\/staff\/team(\/|$)/.test(path)) return "team.manage";
   if (path === "/dealer-operations/payments.csv") return "finance.export";
+  if (method === "GET" && /^\/sale-operations\/[^/]+\/replacement-availability$/.test(path)) return "sales.manage";
+  if (/^\/sale-workspace\/[^/]+\/handoff-tasks\/?$/.test(path)) return method === "GET" ? "sales.manage" : null; // The task route checks assignment and actor.
   if (
     path.startsWith("/staff/settings-history") ||
     (/^\/dealer-settings(?:\/|$)/.test(path) && write)

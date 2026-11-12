@@ -14,6 +14,7 @@ import './inbox-workspace.css';
 import './workspace-tools.css';
 
 const filters: {id: InboxFilter; label: string}[] = [
+  {id: "part-exchange", label: "PX enquiries"},
   {id:'needs-you',label:'Needs you'}, {id:'all',label:'All'}, {id:'done',label:'Done'},
 ];
 const folders: {id:InboxFolder;label:string}[] = [{id:'enquiries',label:'Enquiries'},{id:'ai',label:'AI enquiries'},{id:'archive',label:'Archive'}];

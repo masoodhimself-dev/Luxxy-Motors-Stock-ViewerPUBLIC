@@ -19,12 +19,14 @@ import {
 } from "../middlewares/staff-auth";
 import { currentDealerId } from "../lib/tenant-context";
 import {
+  checkReplacementAvailability,
   saleOperation,
   saleTokenHash,
 } from "../lib/sale-operations-store";
 import { runSaleCalculationCheck } from "../lib/sale-calculation-check";
 import { archiveSaleDocument } from "../lib/sale-document-pdf";
 import { siteOrigin } from "../lib/enquiry-links";
+import { requireSaleVehiclePaymentAccess, saleVehiclePaymentBlocked } from "../lib/sale-workspace-store";
 const router = Router(),
   uuid = (id: string) =>
     /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(id);
@@ -43,6 +45,12 @@ function failure(req: Request, res: Response, error: unknown) {
 router.use("/sale-operations", requireStaff, (_req, res, next) => {
   res.set("Cache-Control", "no-store");
   next();
+});
+router.get('/sale-operations/:id/replacement-availability', requirePermission('sales.manage'), requirePermission('payments.refund'), async (req, res) => {
+  try {
+    if (!uuid(req.params.id)) throw new SaleWorkspaceError('Deal not found.', 404);
+    res.json(await checkReplacementAvailability(req.params.id, req.query.vehicleId));
+  } catch (error) { failure(req, res, error); }
 });
 for (const [action, permission] of [
   ["request-payment", "payments.record"],
@@ -145,6 +153,7 @@ async function requested(
   token: string,
   client: Pick<typeof pool, "query"> = pool,
   lock = false,
+  allowPaymentReport = false,
 ) {
   if (!/^[a-f0-9]{64}$/.test(token))
     throw new SaleWorkspaceError("This payment request is unavailable.", 404);
@@ -167,6 +176,15 @@ async function requested(
   const document = sale.documents.find((d) => d.id === request.documentId);
   if (!document)
     throw new SaleWorkspaceError("The payment request is unavailable.", 404);
+  if (!allowPaymentReport) {
+    try {
+      if (lock) await requireSaleVehiclePaymentAccess(currentDealerId(), sale, client);
+      else if (await saleVehiclePaymentBlocked(currentDealerId(), sale, client)) throw new SaleWorkspaceError('Payment request unavailable.', 409);
+    } catch (error) {
+      if (!(error instanceof SaleWorkspaceError)) throw error;
+      throw new SaleWorkspaceError("This payment request has expired or changed. Please contact the dealership.", 410);
+    }
+  }
   return { sale, request, document };
 }
 const matchingInvoice = (sale: SaleWorkspaceRecord) =>
@@ -242,7 +260,7 @@ router.post("/payment-requests/:token/:action", async (req, res) => {
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
       `sale-workspace:${currentDealerId()}`,
     ]);
-    const { sale, request } = await requested(req.params.token, client, true),
+    const { sale, request } = await requested(req.params.token, client, true, req.params.action === 'report-payment'),
       now = new Date().toISOString();
     const field =
       req.params.action === "report-payment"

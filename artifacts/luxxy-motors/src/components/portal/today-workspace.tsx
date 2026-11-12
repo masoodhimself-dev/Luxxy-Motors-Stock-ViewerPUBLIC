@@ -1,8 +1,9 @@
 import { useId, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { CalendarDays, ChevronRight, CreditCard, Mail, MessageSquare, ShieldCheck } from "lucide-react";
+import { CalendarDays, ChevronRight, ClipboardList, CreditCard, Mail, MessageSquare, ShieldCheck } from "lucide-react";
 import { customFetch } from "@workspace/api-client-react";
+import { saleRefundAttention, type SaleHandoffTaskSummary } from "@workspace/vehicle-meta";
 import { londonDate, nextDate, bookingDateLabel } from "@/lib/test-drive-dates";
 import { vehicleDisplayTitle, vehicleRegistration } from "@/lib/utils";
 import { calendarHref, notificationsLink } from "@/lib/notifications-navigation";
@@ -16,6 +17,7 @@ const salesHref = "/portal?section=sales";
 const enquiryHref = "/portal?section=notifications&workView=customers";
 const carsHref = "/portal?section=cars";
 const taskLimit = 8;
+const refreshInterval = 60_000;
 
 type CustomerWork = {
   category: "enquiries" | "followups" | "appointments" | "drafts" | "email";
@@ -40,6 +42,7 @@ type SaleSummary = {
   listAttention: string;
   listLedgerKnown: boolean;
   listBalance: number;
+  listRefundDue?: number;
   draft: { customer: string; vehicle: string; registration: string; vehicleId?: string | null };
   listHandover?: {
     method: "collection" | "delivery";
@@ -49,6 +52,7 @@ type SaleSummary = {
   } | null;
 };
 type SalesAttention = { sales: SaleSummary[]; hasMore: boolean };
+type StaffHandoff = { tasks: SaleHandoffTaskSummary[]; hasMore: boolean; nextCursor?: string };
 type Kind = "customers" | "sales" | "stock";
 type Task = {
   key: string;
@@ -78,7 +82,7 @@ export function useTodayNotifications(enabled: boolean) {
     queryFn: ({ signal }) => customFetch<Notifications>("/api/staff/notifications", { signal }),
     enabled,
     staleTime: 30_000,
-    refetchInterval: enabled ? 60_000 : false,
+    refetchInterval: enabled ? refreshInterval : false,
     retry: false,
   });
 }
@@ -117,22 +121,60 @@ function customerTask(item: CustomerWork, today: string): Task | null {
   }
 }
 
-function saleHref(sale: SaleSummary, action: string) {
+function saleHref(sale: Pick<SaleSummary, "id">, action: string) {
   return `${salesHref}&saleId=${encodeURIComponent(sale.id)}&saleAction=${action}`;
+}
+
+function useStaffHandoffTasks(view: "mine" | "needs-reassignment", enabled: boolean) {
+  return useInfiniteQuery({
+    queryKey: ["sale-workspace", "staff-handoff-tasks", view],
+    queryFn: ({ signal, pageParam }) => {
+      const query = new URLSearchParams();
+      if (view !== "mine") query.set("view", view);
+      if (pageParam) query.set("cursor", pageParam);
+      return customFetch<StaffHandoff>(`/api/sale-workspace/handoff-tasks${query.size ? `?${query}` : ""}`, { signal });
+    },
+    initialPageParam: "",
+    getNextPageParam: page => page.nextCursor,
+    enabled,
+    retry: false,
+    refetchOnMount: "always",
+    refetchInterval: refreshInterval,
+  });
 }
 
 function saleTask(sale: SaleSummary, permissions: { canManage: boolean; canRecordPayments: boolean; canHandover: boolean }): Task | null {
   const reason = sale.listAttention;
-  const payment = reason === "Payment to confirm" || reason === "Payment history to review" || reason === "Payment request due";
+  const refund = reason === saleRefundAttention;
+  const confirmation = reason === "Deposit confirmation to send";
+  const request = reason === "Payment request due";
+  const payment = reason === "Payment to confirm" || reason === "Payment history to review" || request || confirmation || refund;
   const handover = reason === "Collection due" || reason === "Delivery due" || reason === "Delivery to rearrange";
   if (!reason || (payment ? !permissions.canRecordPayments : handover ? !permissions.canHandover : !permissions.canManage)) return null;
-  const balance = sale.listLedgerKnown && sale.listBalance > 0 ? `${currency.format(sale.listBalance / 100)} due` : null;
+  const balance = refund
+    ? sale.listRefundDue ? `${currency.format(sale.listRefundDue / 100)} to refund` : null
+    : sale.listLedgerKnown && sale.listBalance > 0 ? `${currency.format(sale.listBalance / 100)} due` : null;
   return {
     key: `sale:${sale.id}`, kind: "sales", icon: CreditCard,
     title: reason, context: [sale.draft.customer, sale.draft.vehicle, balance || sale.reference].filter(Boolean).join(" · "),
     label: handover ? "Handover" : payment ? "Payment" : "Needs review",
     tone: "warning", action: "Open sale", priority: 1, at: sale.updatedAt ?? "",
-    href: saleHref(sale, payment ? "payments" : handover ? "handover" : "next"),
+    href: saleHref(sale, confirmation ? "confirmation" : request ? "request" : payment ? "payments" : handover ? "handover" : "next"),
+  };
+}
+
+function staffHandoffTask({ saleId, reference, customer, vehicle, task, assignmentIssue }: SaleHandoffTaskSummary): Task {
+  const checkPayment = task.kind === "check-payment";
+  const action = assignmentIssue ? "tasks" : checkPayment ? "payments" : "handover";
+  return {
+    key: `staff-task:${task.id}`, kind: "sales", icon: ClipboardList,
+    title: checkPayment ? "Check payment" : "Arrange collection",
+    context: [customer, vehicle, reference].filter(Boolean).join(" · "),
+    label: assignmentIssue ? "Needs reassignment" : "Assigned to you",
+    tone: assignmentIssue ? "warning" : undefined,
+    action: assignmentIssue ? "Reassign task" : checkPayment ? "Open payments" : "Open handover",
+    href: `${saleHref({ id: saleId }, action)}&saleTaskId=${encodeURIComponent(task.id)}`,
+    priority: 1, at: task.createdAt,
   };
 }
 
@@ -179,6 +221,9 @@ export function TodayWorkspace({ notifications, canManage, canRecordPayments, ca
   retryAccess?: () => unknown;
 }) {
   const [filter, setFilter] = useState<Kind | "all">("all");
+  const [visibleLimits, setVisibleLimits] = useState<Partial<Record<Kind | "all", number>>>({});
+  const visibleLimit = visibleLimits[filter] ?? taskLimit;
+  const listId = useId();
   const canReadSaleTasks = canManage || canRecordPayments || canHandover;
   const sales = useQuery({
     queryKey: ["sale-workspace", "today-attention"],
@@ -186,7 +231,10 @@ export function TodayWorkspace({ notifications, canManage, canRecordPayments, ca
     enabled: canReadSaleTasks,
     retry: false,
     refetchOnMount: "always",
+    refetchInterval: refreshInterval,
   });
+  const staffHandoff = useStaffHandoffTasks("mine", canReadSaleTasks);
+  const reassignment = useStaffHandoffTasks("needs-reassignment", canManage);
   const stock = useStaffCars(canManage || canHandover);
   const stockEnabled = canManage || canHandover;
   const now = new Date(notifications.data?.generatedAt ?? Date.now());
@@ -195,9 +243,13 @@ export function TodayWorkspace({ notifications, canManage, canRecordPayments, ca
   const items = notifications.data?.items ?? [];
   const salesRows = sales.data?.sales ?? [];
   const cars = stock.data?.cars ?? [];
+  const assignedTasks = canReadSaleTasks ? staffHandoff.data?.pages.flatMap(page => page.tasks) ?? [] : [];
+  const reassignmentTasks = canManage ? reassignment.data?.pages.flatMap(page => page.tasks) ?? [] : [];
+  const staffTasks = Array.from(new Map([...assignedTasks, ...reassignmentTasks].map(item => [item.task.id, item])).values());
   const tasks = [
     ...(canManage ? items.map(item => customerTask(item, today)) : []),
     ...salesRows.map(row => saleTask(row, { canManage, canRecordPayments, canHandover })),
+    ...staffTasks.map(staffHandoffTask),
     ...(canManage ? cars.map(car => stockTask(car, today, monthAhead)) : []),
   ].filter((task): task is Task => task !== null)
     .sort((a, b) => a.priority - b.priority || a.at.localeCompare(b.at) || a.key.localeCompare(b.key));
@@ -226,14 +278,34 @@ export function TodayWorkspace({ notifications, canManage, canRecordPayments, ca
       href: saleHref(sale, "handover"),
     })),
   ].sort((a, b) => a.time.localeCompare(b.time));
-  const loading = accessLoading || notifications.isLoading || (canReadSaleTasks && sales.isLoading) || (stockEnabled && stock.isLoading);
+  const loading = accessLoading || notifications.isLoading || (canReadSaleTasks && (sales.isLoading || staffHandoff.isLoading))
+    || (canManage && reassignment.isLoading) || (stockEnabled && stock.isLoading);
   const failures: { label: string; retry: () => unknown }[] = [];
   if (retryAccess) failures.push({ label: "Staff access", retry: retryAccess });
   if (notifications.isError) failures.push({ label: "Inbox and appointments", retry: notifications.refetch });
   if (canReadSaleTasks && sales.isError) failures.push({ label: "Sales", retry: sales.refetch });
+  if (canReadSaleTasks && staffHandoff.isError && !staffHandoff.isFetchNextPageError) failures.push({ label: "Staff tasks", retry: staffHandoff.refetch });
+  if (canManage && reassignment.isError && !reassignment.isFetchNextPageError) failures.push({ label: "Tasks needing reassignment", retry: reassignment.refetch });
   if (stockEnabled && stock.isError) failures.push({ label: "Stock", retry: stock.refetch });
-  const partial = sales.data?.hasMore || (canManage && Object.entries(notifications.data?.counts ?? {}).some(([kind, count]) => kind !== "appointments" && count > 8));
-  const moreHref = filter === "sales" ? salesHref : filter === "stock" ? carsHref : enquiryHref;
+  const moreCustomerWork = canManage && Object.entries(notifications.data?.counts ?? {}).some(([kind, count]) => kind !== "appointments" && count > taskLimit);
+  const moreSales = canReadSaleTasks && sales.data?.hasMore;
+  const assignmentPages = [staffHandoff, reassignment].filter((query, index) => (index === 0 ? canReadSaleTasks : canManage) && query.hasNextPage);
+  const moreAssigned = (filter === "all" || filter === "sales") && assignmentPages.length > 0;
+  const loadingMore = moreAssigned && assignmentPages.some(query => query.isFetching);
+  const loadMoreError = moreAssigned && assignmentPages.some(query => query.isFetchNextPageError);
+  const partial = moreSales || moreCustomerWork || assignmentPages.length > 0;
+  function revealMoreJobs() {
+    setVisibleLimits(limits => ({ ...limits, [filter]: (limits[filter] ?? taskLimit) + taskLimit }));
+  }
+  function showMoreJobs() {
+    if (filtered.length > visibleLimit) {
+      revealMoreJobs();
+      return;
+    }
+    void Promise.all(assignmentPages.map(query => query.fetchNextPage())).then(results => {
+      if (results.some(result => !result.isFetchNextPageError)) revealMoreJobs();
+    });
+  }
 
   return (
     <div className="today-workspace">
@@ -257,7 +329,8 @@ export function TodayWorkspace({ notifications, canManage, canRecordPayments, ca
           <div className="today-section-heading">
             <h3 id="today-attention-heading">Needs attention</h3>
             {!loading && <span className="today-count">
-              {filtered.length > taskLimit ? `${taskLimit} of ${filtered.length}` : `${filtered.length} ${filtered.length === 1 ? "job" : "jobs"}`}
+              {filtered.length > visibleLimit ? `${visibleLimit} of ${filtered.length}${moreAssigned ? "+" : ""}`
+                : `${filtered.length}${moreAssigned ? "+" : ""} ${filtered.length === 1 && !moreAssigned ? "job" : "jobs"}`}
             </span>}
           </div>
           <div className="today-filters" aria-label="Filter jobs">
@@ -271,15 +344,18 @@ export function TodayWorkspace({ notifications, canManage, canRecordPayments, ca
             ))}
           </div>
           {filtered.length > 0
-            ? <ul className="today-tasks">{filtered.slice(0, taskLimit).map(task => <TaskRow task={task} key={task.key} />)}</ul>
+            ? <ul id={listId} className="today-tasks">{filtered.slice(0, visibleLimit).map(task => <TaskRow task={task} key={task.key} />)}</ul>
             : <p className="today-empty" role="status">{loading ? "Loading today’s work…" : failures.length ? "No jobs loaded for this view." : filter === "all" ? "Nothing needs attention right now." : "No jobs in this view."}</p>}
-          {(filtered.length > taskLimit || partial) && (
+          {(filtered.length > visibleLimit || moreAssigned || ((filter === "all" || filter === "sales") && moreSales)
+            || ((filter === "all" || filter === "customers") && moreCustomerWork)) && (
             <div className="today-overflow">
-              {filter === "all" ? <>
-                {canManage && <Link href={enquiryHref}>Inbox</Link>}
-                {canReadSaleTasks && <Link href={salesHref}>Sales</Link>}
-                {canManage && <Link href={carsHref}>Stock</Link>}
-              </> : <Link href={moreHref}>View all {filter === "customers" ? "enquiries" : filter}</Link>}
+              {(filtered.length > visibleLimit || moreAssigned) && <Button type="button" variant="outline" size="sm"
+                aria-controls={filtered.length ? listId : undefined} disabled={loadingMore} onClick={showMoreJobs}>
+                {loadingMore ? "Loading jobs…" : loadMoreError && filtered.length <= visibleLimit ? "Retry loading jobs" : "Show more jobs"}
+              </Button>}
+              {loadMoreError && <span role="status">More staff tasks could not be loaded.</span>}
+              {(filter === "all" || filter === "customers") && moreCustomerWork && <Link href={enquiryHref}>View all enquiries</Link>}
+              {(filter === "all" || filter === "sales") && moreSales && <Link href={salesHref}>View all sales</Link>}
             </div>
           )}
         </section>

@@ -30,6 +30,7 @@ export const sampleEmailVariables: Record<string, string> = {
   amount: "£100.00",
   vehicle_price: "£12,500.00",
   amount_received: "£100.00",
+  transferred_credit: "£0.00",
   balance: "£12,400.00",
   payment_status: "confirmed",
   reservation_status: "reserved",

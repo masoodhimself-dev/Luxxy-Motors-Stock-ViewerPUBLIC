@@ -55,7 +55,7 @@ it("does not look up a valid registration until Find my car is clicked", async (
   fireEvent.click(screen.getByRole("button", { name: "Find my car" }));
   await flush();
   expect(state.fetch.mock.calls[0][0]).toBe(
-    "/api/mot-mileage-estimate?registration=AB12CDE",
+    "/api/mot-mileage-estimate?registration=AB12CDE&identity=dvla",
   );
   expect(onDetails).toHaveBeenCalledOnce();
   expect(screen.getByText("Ford Focus")).toBeVisible();

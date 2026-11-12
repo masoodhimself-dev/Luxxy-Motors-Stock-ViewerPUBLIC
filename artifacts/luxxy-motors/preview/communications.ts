@@ -2,14 +2,15 @@ import { reviewReminderEmail } from '@workspace/vehicle-meta';
 // Isolated local review only. Drafts live in memory; this module has no email transport.
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { z } from "zod/v4";
-import { createHash } from 'node:crypto';
-import { defaultEmailTemplates, defaultEmailAppearance, renderEmailTemplate, type EmailFacts, type EmailTemplate, type EmailAppearance } from '@workspace/vehicle-meta';
+import { createHash, randomUUID } from 'node:crypto';
+import { canonicalCustomerEmail, defaultEmailTemplates, defaultEmailAppearance, renderEmailTemplate, saleCustomerUpdates, type EmailFacts, type EmailTemplate, type EmailAppearance, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 import { enquiryGroup } from "../src/lib/enquiry-groups";
 import { readPreviewEnquiries, readPreviewSettings } from "./reservations";
 import { previewStock } from './stock';
 import { previewEnquiryGallery } from './enquiry-gallery';
 import { createEnquiryVehiclePdf, EnquiryVehiclePdfError } from '../../api-server/src/lib/enquiry-vehicle-pdf';
 import { brochureDealer } from '../../api-server/src/lib/vehicle-brochure';
+import { previewStore } from './sales';
 const drafts = new Map<
   string,
   {
@@ -35,13 +36,40 @@ const contentSchema = z
     stockChange: z.object({ taskId: z.string().uuid(), revision: z.number().int().nonnegative() }).strict().optional(),
   })
   .strict();
+const saleUpdateSchema = z.object({
+  saleId: z.string().uuid(), revision: z.number().int().nonnegative(),
+  kind: z.enum(["handover-complete", "handover-booked", "sale-complete", "deposit"]),
+}).strict();
+const previewSchema = contentSchema.extend({ saleUpdate: saleUpdateSchema.optional() });
+type PreviewEnquiry = Awaited<ReturnType<typeof readPreviewEnquiries>>[number];
+function previewSaleCase(sale: SaleWorkspaceRecord, enquiries: PreviewEnquiry[]) {
+  if (!sale.draft.sourceEnquiryId) return {
+    id: sale.id, reference: sale.reference, customerName: sale.draft.customer,
+    email: sale.draft.email, phone: sale.draft.phone, vehicleId: sale.draft.vehicleId,
+    vehicleTitle: sale.draft.vehicle, vehicleRegistration: sale.draft.registration,
+    workspaceRevision: 0, appointmentAt: null, appointmentCancelledAt: null,
+    appointmentStatus: null, appointmentDurationMinutes: null, followUpNote: null,
+  };
+  let id = sale.draft.sourceEnquiryId;
+  const visited = new Set<string>();
+  while (!visited.has(id) && visited.size < 10) {
+    const entry = enquiries.find(item => item.id === id);
+    if (!entry || (!visited.size && entry.vehicleId && entry.vehicleId !== sale.draft.vehicleId)) return null;
+    if (!entry.mergedIntoId) return entry;
+    visited.add(id);
+    id = entry.mergedIntoId;
+  }
+  return null;
+}
 export async function communicationsPreview(
   req: IncomingMessage,
   res: ServerResponse,
   url: URL,
-  options: { readEnquiries?: typeof readPreviewEnquiries; readSettings?: typeof readPreviewSettings; readTemplates?: () => Promise<{ templates: readonly EmailTemplate[]; appearance: EmailAppearance }> } = {},
+  options: { readEnquiries?: typeof readPreviewEnquiries; readSettings?: typeof readPreviewSettings; readSale?: typeof previewStore.get; readTemplates?: () => Promise<{ templates: readonly EmailTemplate[]; appearance: EmailAppearance }> } = {},
 ) {
-  const own =
+  const saleLookup = req.method === "GET" && url.pathname === "/api/staff/whatsapp/enquiries" && url.searchParams.has("saleId");
+  const salePrepare = req.method === "POST" && url.pathname === "/api/staff/whatsapp/email-enquiry";
+  const own = saleLookup || salePrepare ||
     [
       "/api/staff/notifications",
       "/api/staff/email-drafts",
@@ -93,6 +121,33 @@ export async function communicationsPreview(
   }
   try {
     const enquiries = await (options.readEnquiries ?? readPreviewEnquiries)();
+    const readSale = options.readSale ?? previewStore.get.bind(previewStore);
+    if (saleLookup || salePrepare) {
+      let body: unknown;
+      if (salePrepare) {
+        let raw = "";
+        for await (const chunk of req) {
+          raw += chunk;
+          if (Buffer.byteLength(raw) > 30000) { send(413, { error: "Request is too large." }); return true; }
+        }
+        body = JSON.parse(raw);
+      }
+      const parsed = z.object({ saleId: z.string().uuid(), email: z.string().optional() }).safeParse(
+        saleLookup ? { saleId: url.searchParams.get("saleId") } : body,
+      );
+      if (!parsed.success) { send(400, { error: "Choose a saved sale." }); return true; }
+      const sale = await readSale(parsed.data.saleId);
+      const entry = previewSaleCase(sale, enquiries);
+      if (!entry) { send(404, { error: "This sale’s enquiry is unavailable." }); return true; }
+      if (saleLookup) {
+        send(200, { enquiries: [entry], canCreate: true, saleCustomer: { customerName: sale.draft.customer, email: sale.draft.email } });
+      } else {
+        const email = canonicalCustomerEmail(parsed.data.email);
+        if (!email || email !== canonicalCustomerEmail(sale.draft.email)) { send(409, { error: "Check the email saved on this sale." }); return true; }
+        send(200, { enquiry: { id: entry.id, customerName: entry.customerName, reference: entry.reference }, customerEmail: email });
+      }
+      return true;
+    }
     const scopeId = url.searchParams.get('enquiryId'), scopeEntry = enquiries.find(e => e.id === scopeId);
     const scopeIds = scopeId ? new Set(scopeEntry ? enquiryGroup(scopeEntry, enquiries).map(e => e.id) : []) : null;
     if (req.method === "GET" && url.pathname === "/api/staff/notifications") {
@@ -211,8 +266,10 @@ export async function communicationsPreview(
       send(200, { messages: [], hasMore: false, replyTo: null });
       return true;
     }
-    const id = url.pathname.split("/")[4],
-      entry = enquiries.find((e) => e.id === id && !e.mergedIntoId);
+    const id = url.pathname.split("/")[4];
+    const knownEntry = enquiries.find((e) => e.id === id && !e.mergedIntoId);
+    const localSale = !knownEntry && z.string().uuid().safeParse(id).success ? await readSale(id).catch(() => null) : null;
+    const entry = knownEntry ?? (localSale && !localSale.draft.sourceEnquiryId ? previewSaleCase(localSale, enquiries) : null);
     if (!entry) {
       send(404, { error: "Enquiry not found." });
       return true;
@@ -301,7 +358,7 @@ export async function communicationsPreview(
         return true;
       }
       if (url.pathname.endsWith("/email-preview")) {
-        const parsed = contentSchema.safeParse(body);
+        const parsed = previewSchema.safeParse(body);
         if (
           !parsed.success ||
           !parsed.data.to ||
@@ -312,6 +369,16 @@ export async function communicationsPreview(
           return true;
         }
         if (parsed.data.expectedRevision !== (entry.workspaceRevision ?? 0)) { send(409, { error: 'The enquiry changed. Reopen the email before reviewing it.' }); return true; }
+        const binding = parsed.data.saleUpdate;
+        if (binding) {
+          const sale = await readSale(binding.saleId, { includeStockActionBlock: true }).catch(() => null);
+          const update = sale && saleCustomerUpdates(sale, settings.identity.name).find(item => item.kind === binding.kind);
+          if (!sale || sale.revision !== binding.revision || canonicalCustomerEmail(sale.draft.email) !== parsed.data.to ||
+              previewSaleCase(sale, enquiries)?.id !== id || update?.message !== parsed.data.message || update.subject !== parsed.data.subject) {
+            send(409, { error: "The sale changed. Reopen it before reviewing the customer update." });
+            return true;
+          }
+        }
         if (parsed.data.stockChange) { send(409,{error:'This archived price-update draft cannot be sent. Start a new message from current vehicle details.'});return true; }
         if (parsed.data.templateId === 'invoice_copy' && !parsed.data.documentIds.length) { send(400, { error: 'Attach an invoice for this customer before reviewing this invoice email.' }); return true; }
         if (['service_history','pre_accident_photos'].includes(parsed.data.templateId ?? '') && !parsed.data.photoIds.length) { send(400, { error: 'Attach a matching approved vehicle photo before reviewing this email.' }); return true; }
@@ -351,6 +418,7 @@ export async function communicationsPreview(
           text: rendered.text,
           html: rendered.html,
           previewHash: createHash('sha256').update(JSON.stringify({ to: parsed.data.to, ...rendered, attachments, attachmentDigests, stockChange: parsed.data.stockChange })).digest('hex'),
+          ...(binding ? { saleUpdateRequestId: randomUUID() } : {}),
           attachments,
         });
         return true;

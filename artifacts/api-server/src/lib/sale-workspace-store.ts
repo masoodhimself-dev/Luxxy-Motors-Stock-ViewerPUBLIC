@@ -1,5 +1,5 @@
-import { canDeleteEmptySaleDraft, saleHandoverStatus } from '@workspace/vehicle-meta';
-import { currentTenant } from './tenant-context';
+import { canDeleteEmptySaleDraft, hasUnrefundedStockConflictPayment, saleHandoverStatus } from '@workspace/vehicle-meta';
+import { currentTenant, multiTenantEnabled } from './tenant-context';
 import { dealerIntegrationsStore } from './dealer-integrations-store';
 import { createHash, randomUUID } from 'node:crypto';
 import { loadSaleInvoicePhotos } from './sale-invoice-photos';
@@ -11,23 +11,107 @@ import { revokeChangedDeliveryEvidence } from './delivery-evidence';
 import { readSaleReviewContext } from './sale-review-context';
 import { assertSaleFinancialIntegrity } from './sale-financial-integrity';
 import { saleListStage } from './sale-list-stage';
-import { saleQueueFilters, saleQueueToday } from '@workspace/vehicle-meta';
+import { saleQueueFilters, saleQueueStatus, saleQueueToday, saleRegistrationSearch } from '@workspace/vehicle-meta';
 import { createSoldVehicleFollowUps } from './sold-vehicle-follow-ups';
 import { lookupDvlaVehicle } from './dvla-vehicle-check';
 import { readCachedMot } from './mot-storage';
 import { prepareSaleInvoiceVehicleReview, readSaleInvoiceVehicleStock, saleInvoiceStockIdentity } from './sale-invoice-vehicle-review';
 import { requireSaleInvoiceVehicleReviewTarget, type StagedSaleInvoiceVehicleReview } from '@workspace/vehicle-meta';
-
+import { changeSaleHandoffTask, isSaleHandoffTaskKind, saleHandoffTaskPage, saleHandoffTaskPageSize, staffSaleHandoffTasks, type SaleHandoffTaskListOptions, type SaleHandoffTaskPage, type SaleHandoffTaskSummary } from '@workspace/vehicle-meta';
+import { isStaffRole, roleHasPermission, saleHandoffTaskPermission, staffRoles } from './staff-permissions';
 import { changeSaleWorkspace, createSaleWorkspace, saleWorkspaceTotals, publicSaleWorkspace, currentInvoiceBranding, saleWorkspaceBranding, saleWorkspaceFingerprint, saleWorkspaceNumber, SaleWorkspaceError, type SaleWorkspaceBranding, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceMutation, type SaleWorkspaceRecord, type SaleWorkspaceVehicleSnapshot, type SaleWorkspacePayment } from '@workspace/vehicle-meta';
 
 export type SaleWorkspaceAssets = { reviewUrl?: string; branding: SaleWorkspaceBranding; vehicle?: SaleWorkspaceVehicleSnapshot; paperwork?: { saleTerms: string; reservationTerms: string } };
 export type SaleWorkspaceReadClient = { query: (text: string, parameters?: any[]) => Promise<{ rows: Record<string, any>[] }> };
 export type SaleWorkspaceTransactionClient = SaleWorkspaceReadClient & { release: () => void };
 export type SaleWorkspaceDatabase = SaleWorkspaceReadClient & { connect: () => Promise<SaleWorkspaceTransactionClient> };
-const staffSaleWorkspace = (record: SaleWorkspaceRecord): SaleWorkspaceRecord => ({ ...publicSaleWorkspace(record), emptyDraftDeletable: canDeleteEmptySaleDraft(record, true) });
+export const staffSaleWorkspace = (record: SaleWorkspaceRecord): SaleWorkspaceRecord => ({
+  ...publicSaleWorkspace(record),
+  emptyDraftDeletable: canDeleteEmptySaleDraft(record, true),
+  ...(Object.keys(record.providerPayments ?? {}).length ? { hasProviderPayments: true as const } : {}),
+  ...(record.handoffTasks ? { handoffTasks: staffSaleHandoffTasks(record) } : {}),
+});
 const checkoutInProgress = 'This car is held while a customer completes online payment. Wait for the payment to be confirmed or the hold to expire.';
-
 const currentStockId = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+
+export class SaleVehicleConflictError extends SaleWorkspaceError {
+  constructor() { super('This vehicle is reserved or sold to another customer.', 409); }
+}
+
+async function lockSaleVehicle(dealerId: string, vehicleId: string, client: SaleWorkspaceReadClient) {
+  await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`sale-vehicle:${vehicleId}`]);
+  return (await client.query('SELECT inventory_status, source_status, audit_metadata FROM vehicles WHERE dealer_id = $1 AND id = $2::uuid FOR UPDATE', [dealerId, vehicleId])).rows[0];
+}
+
+/** Caller chooses whether an old paid draft can claim stock without an explicit owner. */
+export async function hasSaleWorkspaceStockClaim(
+  client: SaleWorkspaceReadClient,
+  dealerId: string,
+  vehicleId: string,
+  { excludeSaleId = null, includeLegacyLedger = false }: { excludeSaleId?: string | null; includeLegacyLedger?: boolean } = {},
+) {
+  const competing = await client.query(`SELECT id FROM sale_workspace
+    WHERE dealer_id = $1 AND ($2::uuid IS NULL OR id <> $2::uuid) AND state#>>'{draft,vehicleId}' = $3 AND (
+      state#>>'{lifecycle,status}' IN ('reserved','sold') OR (
+        $4::boolean AND coalesce(state#>>'{lifecycle,status}','') NOT IN ('released','returned')
+        AND coalesce(state#>>'{returnReplacement,direction}','') <> 'returned'
+        AND coalesce(state->'standaloneReturn','null'::jsonb) = 'null'::jsonb
+        AND (SELECT coalesce(sum(CASE WHEN jsonb_typeof(p->'signedAmountPence')='number' THEN (p->>'signedAmountPence')::numeric ELSE 0 END),0)
+             FROM jsonb_array_elements(CASE WHEN jsonb_typeof(state->'payments')='array' THEN state->'payments' ELSE '[]'::jsonb END) p
+             WHERE p->>'status'='confirmed' AND p->>'stockConflictReconciliation' IS DISTINCT FROM 'true'
+               AND NOT EXISTS (
+                 SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(state->'payments')='array' THEN state->'payments' ELSE '[]'::jsonb END) original
+                 WHERE original->>'id' = p->>'reversesPaymentId' AND original->>'stockConflictReconciliation' = 'true'
+               )
+        ) > 0
+      )
+    ) LIMIT 1`, [dealerId, excludeSaleId, vehicleId, includeLegacyLedger]);
+  return competing.rows.length > 0;
+}
+
+async function saleVehicleOwnership(dealerId: string, record: SaleWorkspaceRecord, vehicle: Record<string, any>, client: SaleWorkspaceReadClient) {
+  const { vehicleId, sourceReservationId, sourceEnquiryId } = record.draft;
+  const owner = vehicle.audit_metadata?.saleWorkspaceId;
+  const competing = await hasSaleWorkspaceStockClaim(client, dealerId, vehicleId, {
+    excludeSaleId: record.id,
+    includeLegacyLedger: vehicle.inventory_status === 'available' && !owner,
+  });
+  const leads = await client.query("SELECT id FROM leads WHERE dealer_id = $1 AND vehicle_id = $2::uuid AND stage IN ('reserved','sale_agreed','collected') AND ($3::uuid IS NULL OR id <> $3::uuid) AND ($4::uuid IS NULL OR enquiry_id IS DISTINCT FROM $4::uuid)", [dealerId, vehicleId, sourceReservationId || null, sourceEnquiryId || null]);
+  const linkedLead = sourceReservationId ? (await client.query("SELECT stage FROM leads WHERE dealer_id = $1 AND id = $2::uuid AND vehicle_id = $3::uuid", [dealerId, sourceReservationId, vehicleId])).rows[0] : sourceEnquiryId ? (await client.query("SELECT stage FROM leads WHERE dealer_id = $1 AND enquiry_id = $2::uuid AND vehicle_id = $3::uuid", [dealerId, sourceEnquiryId, vehicleId])).rows[0] : undefined;
+  const ownReservation = owner === record.id || Boolean(linkedLead && ['reserved', 'sale_agreed'].includes(linkedLead.stage));
+  const ownSold = owner === record.id || !owner && Boolean(record.completedAt || record.lifecycle?.status === 'sold');
+  const conflict = Boolean(competing || leads.rows.length || owner && owner !== record.id
+    || vehicle.inventory_status === 'reserved' && !ownReservation
+    || vehicle.inventory_status === 'sold' && !ownSold);
+  return { conflict, ownReservation, ownSold };
+}
+
+export async function requireSaleVehiclePaymentAccess(dealerId: string, record: SaleWorkspaceRecord, client: SaleWorkspaceReadClient, reconciliation = false) {
+  const vehicleId = record.draft.vehicleId;
+  const vehicle = currentStockId.test(vehicleId) ? await lockSaleVehicle(dealerId, vehicleId, client) : undefined;
+  if (vehicle?.audit_metadata?.onlineStripeReservationId) throw new SaleWorkspaceError(checkoutInProgress, 409);
+  const conflict = vehicle ? (await saleVehicleOwnership(dealerId, record, vehicle, client)).conflict : false;
+  if (reconciliation) {
+    if (!conflict) throw new SaleWorkspaceError('The stock conflict has changed. Reload this sale before recording the payment.', 409);
+  } else {
+    if (conflict) throw new SaleVehicleConflictError();
+    if (hasUnrefundedStockConflictPayment(record)) throw new SaleWorkspaceError('Refund or correct the payment recorded against conflicting stock before continuing this sale.', 409);
+  }
+}
+
+/** A current payment request can be viewed or sent only while the stock still belongs to this sale. */
+export async function saleVehiclePaymentBlocked(dealerId: string, record: SaleWorkspaceRecord, client: SaleWorkspaceReadClient): Promise<boolean> {
+  return hasUnrefundedStockConflictPayment(record) || Boolean(await readSaleVehicleActionBlock(dealerId, record, client));
+}
+
+async function readSaleVehicleActionBlock(dealerId: string, record: SaleWorkspaceRecord, client: SaleWorkspaceReadClient): Promise<SaleWorkspaceRecord['stockActionBlock']> {
+  const vehicleId = record.draft.vehicleId;
+  if (!currentStockId.test(vehicleId)) return undefined;
+  const vehicle = (await client.query('SELECT inventory_status, source_status, audit_metadata FROM vehicles WHERE dealer_id = $1 AND id = $2::uuid', [dealerId, vehicleId])).rows[0];
+  if (vehicle?.audit_metadata?.onlineStripeReservationId) return 'online-checkout';
+  if (vehicle && (await saleVehicleOwnership(dealerId, record, vehicle, client)).conflict) return 'another-sale';
+  return undefined;
+}
 
 /** Use the already-held transaction client; never acquire another pool connection while holding the dealer lock. */
 export async function readSaleWorkspaceAssets(draft: SaleWorkspaceDraft, dealerId: string, client: SaleWorkspaceReadClient): Promise<SaleWorkspaceAssets> {
@@ -64,22 +148,27 @@ export class PostgresSaleWorkspaceStore {
   async list(options:{q?:string;offset?:number;enquiryId?:string;reservationId?:string;queue?:unknown;owner?:unknown;actorId?:string}={}) {
     const {queue, owner} = saleQueueFilters(options.queue, options.owner);
     const now = new Date();
+    const today = saleQueueToday(now);
+    const nowIso = now.toISOString();
     const q=(options.q??'').trim();
     const offset=options.offset??0;
     if(q.length>120||!Number.isSafeInteger(offset)||offset<0||offset>10000)throw new SaleWorkspaceError('Check the sales search or page.',400);
     const validId=(id:string|undefined)=>!id||/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id);
     if(!validId(options.enquiryId)||!validId(options.reservationId))throw new SaleWorkspaceError('Choose a valid linked customer enquiry.',400);
-    // Bound database results before projection. Historical snapshots, archives,
-    // retry data and event logs never travel in the list response.
-    const result=await this.database.query(`SELECT state - 'invoiceVehicleReview' - 'documentArchives' - 'requests' - 'providerPayments' - 'documents' - 'events' - 'emailDeliveries' - 'payments' - 'corrections' - 'team' AS state,
+    // SQL narrows the search and selects bounded sets of possible attention items.
+    // The shared sale rules determine attention before the visible page is counted.
+    const query = `SELECT state - 'documentArchives' - 'requests' - 'providerPayments' - 'documents' - 'events' - 'emailDeliveries' - 'payments' - 'corrections' - 'team' - 'handoffTasks' - 'invoiceVehicleReview' AS state,
+      id AS list_id, updated_at::text AS list_updated_at,
       state#>>'{team,ownerId}' AS list_owner_id,
       state#>>'{team,ownerName}' AS list_owner_name,
       coalesce(state#>>'{team,note}','')<>'' AS list_has_team_note,
-      attention.reason AS list_attention,
       CASE WHEN jsonb_typeof(state->'corrections')='array' THEN jsonb_array_length(state->'corrections')>0 ELSE false END AS list_has_correction_notes,
       coalesce(jsonb_typeof(state->'payments')='array',false) AS list_ledger_known,
       EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(state->'documents')='array' THEN state->'documents' ELSE '[]'::jsonb END) AS doc WHERE doc->>'type'='invoice') AS list_has_invoice,
-      coalesce((SELECT jsonb_agg(jsonb_build_object('status',p->'status','signedAmountPence',p->'signedAmountPence','amountPence',p->'amountPence')) FROM jsonb_array_elements(CASE WHEN jsonb_typeof(state->'payments')='array' THEN state->'payments' ELSE '[]'::jsonb END) AS p),'[]'::jsonb) AS list_payment_entries,
+      coalesce((SELECT jsonb_agg(jsonb_build_object('id',p->'id','status',p->'status','kind',p->'kind','signedAmountPence',p->'signedAmountPence','amountPence',p->'amountPence','receiptId',p->'receiptId','paymentRequestId',p->'paymentRequestId','reversesPaymentId',p->'reversesPaymentId','stockConflictReconciliation',p->'stockConflictReconciliation') ORDER BY payment.ordinality) FROM jsonb_array_elements(CASE WHEN jsonb_typeof(state->'payments')='array' THEN state->'payments' ELSE '[]'::jsonb END) WITH ORDINALITY AS payment(p,ordinality)),'[]'::jsonb) AS list_payment_entries,
+      coalesce((SELECT jsonb_agg(jsonb_build_object('id',d->'id','type',d->'type','invoiceKind',d->'invoiceKind')) FROM jsonb_array_elements(CASE WHEN jsonb_typeof(state->'documents')='array' THEN state->'documents' ELSE '[]'::jsonb END) d WHERE d->>'type' IN ('invoice','receipt')),'[]'::jsonb) AS list_document_facts,
+      coalesce((SELECT jsonb_agg(jsonb_build_object('documentId',e->'documentId','status',e->'status')) FROM jsonb_array_elements(CASE WHEN jsonb_typeof(state->'emailDeliveries')='array' THEN state->'emailDeliveries' ELSE '[]'::jsonb END) e WHERE e->>'status'='sent'),'[]'::jsonb) AS list_sent_documents,
+      coalesce((SELECT jsonb_agg(jsonb_build_object('documentId',e->'documentId','type',e->'type')) FROM jsonb_array_elements(CASE WHEN jsonb_typeof(state->'events')='array' THEN state->'events' ELSE '[]'::jsonb END) e WHERE e->>'type'='deposit-confirmation-shared'),'[]'::jsonb) AS list_shared_deposits,
       CASE WHEN jsonb_typeof(state->'payments')='array' AND (state->'documents' IS NULL OR jsonb_typeof(state->'documents')='array') THEN CASE WHEN jsonb_array_length(coalesce(state->'documents','[]'::jsonb))=0 AND jsonb_array_length(state->'payments')=0 THEN jsonb_build_object('requests',state->'requests','documentArchives',state->'documentArchives','providerPayments',state->'providerPayments','events',state->'events','documents',state->'documents','payments',state->'payments','emailDeliveries',state->'emailDeliveries') END END AS deletion_evidence
       FROM sale_workspace
       CROSS JOIN LATERAL (SELECT
@@ -88,32 +177,59 @@ export class PostgresSaleWorkspaceStore {
           OR coalesce(state->'standaloneReturn','null'::jsonb)<>'null'::jsonb
           OR coalesce(state#>>'{draft,fulfilment,completedAt}','')<>'') AS closed
       ) AS queue_state
-      CROSS JOIN LATERAL (SELECT CASE
-        WHEN EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(state->'payments')='array' THEN state->'payments' ELSE '[]'::jsonb END) p WHERE p->>'status'='pending') THEN CASE WHEN queue_state.closed THEN 'Payment history to review' ELSE 'Payment to confirm' END
-        WHEN queue_state.closed THEN ''
-        WHEN EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(state->'paymentRequests')='array' THEN state->'paymentRequests' ELSE '[]'::jsonb END) r WHERE r->>'status'='active' AND nullif(r->>'dueDate','')<=$10) THEN 'Payment request due'
-        WHEN state#>>'{draft,fulfilment,stage}'='unsuccessful' THEN 'Delivery to rearrange'
-        WHEN nullif(state#>>'{draft,fulfilment,scheduledDate}','')<=$10
-          AND coalesce(state#>>'{draft,fulfilment,stage}','')<>'to_arrange'
-          AND (coalesce(state#>>'{draft,fulfilment,method}','')<>'delivery' OR btrim(coalesce(state#>>'{draft,fulfilment,address}',''))<>'' OR state#>>'{draft,fulfilment,stage}'='on_way')
-          THEN CASE WHEN state#>>'{draft,fulfilment,method}'='delivery' THEN 'Delivery due' ELSE 'Collection due' END
-        WHEN coalesce(state->>'completedAt','')='' AND coalesce(state#>>'{lifecycle,status}','')<>'sold' AND
-          EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(state->'documents')='array' THEN state->'documents' ELSE '[]'::jsonb END) doc WHERE doc->>'type'='invoice' AND coalesce(doc->>'invoiceKind','')<>'deposit') THEN 'Invoice to review'
-        ELSE '' END AS reason
-      ) AS attention
       WHERE dealer_id=$1
-      AND ($7='all' OR ($7='attention' AND attention.reason<>'') OR ($7='open' AND NOT queue_state.closed) OR ($7='closed' AND queue_state.closed))
+      AND ($7<>'open' OR NOT queue_state.closed) AND ($7<>'closed' OR queue_state.closed)
+      AND ($7<>'attention' OR
+        EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(state->'payments')='array' THEN state->'payments' ELSE '[]'::jsonb END) p WHERE p->>'status'='pending' OR (p->>'status'='confirmed' AND p->>'stockConflictReconciliation'='true')) OR
+        (NOT queue_state.closed AND (
+          EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(state->'paymentRequests')='array' THEN state->'paymentRequests' ELSE '[]'::jsonb END) r WHERE r->>'status'='active' AND nullif(r->>'dueDate','')<=$10)
+          OR state#>>'{draft,fulfilment,stage}'='unsuccessful'
+          OR nullif(state#>>'{draft,fulfilment,scheduledDate}','')<=$10
+          OR (coalesce(state->>'completedAt','')='' AND coalesce(state#>>'{lifecycle,status}','')<>'sold' AND
+            EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(state->'documents')='array' THEN state->'documents' ELSE '[]'::jsonb END) doc WHERE doc->>'type' IN ('invoice','receipt')))
+        )))
       AND ($8='all' OR ($8='mine' AND $9<>'' AND state#>>'{team,ownerId}'=$9) OR ($8='unassigned' AND coalesce(state#>>'{team,ownerId}','')=''))
       AND ($2='' OR id::text=$2 OR state#>>'{draft,sourceEnquiryId}'=$2 OR state#>>'{draft,sourceReservationId}'=$2
         OR strpos(lower(concat_ws(' ',reference,state#>>'{draft,customer}',state#>>'{draft,email}',state#>>'{draft,vehicle}',state#>>'{draft,registration}')),lower($2))>0
+        OR ($11<>'' AND strpos(regexp_replace(upper(coalesce(state#>>'{draft,registration}','')),'[^A-Z0-9]','','g'),$11)>0)
         OR EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(state->'documents')='array' THEN state->'documents' ELSE '[]'::jsonb END) AS doc WHERE strpos(lower(coalesce(doc->>'number','')),lower($2))>0)
         OR ($3<>'' AND strpos(regexp_replace(coalesce(state#>>'{draft,phone}',''),'[^0-9]','','g'),$3)>0))
       AND ($4='' OR state#>>'{draft,sourceEnquiryId}'=$4) AND ($5='' OR state#>>'{draft,sourceReservationId}'=$5)
-      ORDER BY updated_at DESC,id DESC LIMIT 51 OFFSET $6`,[this.dealerId,q,(/^[+0-9 ().-]+$/.test(q)?q.replace(/\D/g,''):''),options.enquiryId??'',options.reservationId??'',offset,queue,owner,options.actorId??'',saleQueueToday(now)]);
-    const sales=result.rows.slice(0,50).map(row=>{
+      AND ($12::timestamptz IS NULL OR (updated_at,id)<($12::timestamptz,$13::uuid))
+      ORDER BY updated_at DESC,id DESC LIMIT 51 OFFSET $6`;
+    const selected: Array<{ row: Record<string, any>; saleFacts: SaleWorkspaceRecord; attention: string; refundDue?: number }> = [];
+    let skip = queue === 'attention' ? offset : 0;
+    let cursor: { updatedAt: string; id: string } | undefined;
+    while (selected.length < 51) {
+      const result = await this.database.query(query, [
+        this.dealerId, q, /^[+0-9 ().-]+$/.test(q) ? q.replace(/\D/g, '') : '',
+        options.enquiryId ?? '', options.reservationId ?? '', queue === 'attention' ? 0 : offset,
+        queue, owner, options.actorId ?? '', today, saleRegistrationSearch(q), cursor?.updatedAt ?? null, cursor?.id ?? null,
+      ]);
+      for (const row of result.rows) {
+        const record = row.state as SaleWorkspaceRecord;
+        const saleFacts: SaleWorkspaceRecord = {
+          ...record,
+          payments: row.list_payment_entries ?? record.payments ?? [],
+          documents: row.list_document_facts ?? record.documents ?? [],
+          events: row.list_shared_deposits ?? record.events ?? [],
+          emailDeliveries: row.list_sent_documents ?? record.emailDeliveries ?? [],
+        };
+        const { attention, refundDue } = saleQueueStatus(saleFacts, today, nowIso);
+        if (queue === 'attention' && !attention) continue;
+        if (skip > 0) { skip--; continue; }
+        selected.push({ row, saleFacts, attention, refundDue });
+        if (selected.length === 51) break;
+      }
+      if (queue !== 'attention' || result.rows.length < 51) break;
+      const last = result.rows.at(-1);
+      if (!last?.list_updated_at || !last.list_id) break;
+      cursor = { updatedAt: last.list_updated_at, id: last.list_id };
+    }
+    const sales=selected.slice(0,50).map(({row,saleFacts,attention,refundDue})=>{
       const record=row.state as SaleWorkspaceRecord,draft=record.draft;
       const identity={id:draft.id,customer:draft.customer,email:draft.email,phone:draft.phone,vehicleId:draft.vehicleId,vehicle:draft.vehicle,registration:draft.registration,sourceEnquiryId:draft.sourceEnquiryId,sourceReservationId:draft.sourceReservationId};
-      const totals=saleWorkspaceTotals(draft,(row.list_payment_entries ?? []) as SaleWorkspacePayment[]);
+      const totals=saleWorkspaceTotals(draft,saleFacts.payments);
       const fulfilment = draft.fulfilment;
       const handover = fulfilment ? {
         method: fulfilment.method,
@@ -123,20 +239,23 @@ export class PostgresSaleWorkspaceStore {
       } : null;
       const listHasRefunds=(row.list_payment_entries ?? []).some((payment: SaleWorkspacePayment)=>payment.status==='confirmed' && payment.signedAmountPence<0);
       const listHasInvoice = row.list_has_invoice === true;
-      const saleFacts = {...record,payments:row.list_payment_entries ?? []};
-      const listStage = saleListStage(saleFacts,listHasInvoice,now.toISOString());
-      return {listSummary:true as const,listOwnerId:row.list_owner_id ?? null,listOwnerName:row.list_owner_name ?? '',listHasTeamNote:row.list_has_team_note === true,listAttention:row.list_attention ?? '',listStage,listHasInvoice,listTotalDue:totals.totalDue,listPaid:totals.confirmedPaid,listPending:totals.pending,listLedgerKnown:row.list_ledger_known === true,listBalance:totals.balance,listHandover:handover,listHasCorrectionNotes:row.list_has_correction_notes === true,listHasRefunds,id:record.id,reference:record.reference,revision:record.revision,createdAt:record.createdAt,updatedAt:record.updatedAt,...(record.completedAt?{completedAt:record.completedAt}:{}),...(record.lifecycle?{lifecycle:record.lifecycle}:{}),...(record.standaloneReturn?{standaloneReturn:{id:record.standaloneReturn.id,creditPence:record.standaloneReturn.creditPence,refundDuePence:record.standaloneReturn.refundDuePence,at:record.standaloneReturn.at}}:{}),...(record.returnReplacement?{returnReplacement:{direction:record.returnReplacement.direction,otherSaleId:record.returnReplacement.otherSaleId,otherReference:record.returnReplacement.otherReference,creditPence:record.returnReplacement.creditPence,at:record.returnReplacement.at}}:{}),draft:identity,documents:[],payments:[],events:[],emptyDraftDeletable:canDeleteEmptySaleDraft({...record,...row.deletion_evidence},true)};
+      const listStage = saleListStage(saleFacts,listHasInvoice,nowIso);
+      return {listSummary:true as const,listOwnerId:row.list_owner_id ?? null,listOwnerName:row.list_owner_name ?? '',listHasTeamNote:row.list_has_team_note === true,listAttention:attention,...(refundDue ? {listRefundDue:refundDue} : {}),listStage,listHasInvoice,listTotalDue:totals.totalDue,listPaid:totals.confirmedPaid,listPending:totals.pending,listLedgerKnown:row.list_ledger_known === true,listBalance:totals.balance,listHandover:handover,listHasCorrectionNotes:row.list_has_correction_notes === true,listHasRefunds,id:record.id,reference:record.reference,revision:record.revision,createdAt:record.createdAt,updatedAt:record.updatedAt,...(record.completedAt?{completedAt:record.completedAt}:{}),...(record.lifecycle?{lifecycle:record.lifecycle}:{}),...(record.standaloneReturn?{standaloneReturn:{id:record.standaloneReturn.id,creditPence:record.standaloneReturn.creditPence,refundDuePence:record.standaloneReturn.refundDuePence,at:record.standaloneReturn.at}}:{}),...(record.returnReplacement?{returnReplacement:{direction:record.returnReplacement.direction,otherSaleId:record.returnReplacement.otherSaleId,otherReference:record.returnReplacement.otherReference,creditPence:record.returnReplacement.creditPence,at:record.returnReplacement.at}}:{}),draft:identity,documents:[],payments:[],events:[],emptyDraftDeletable:canDeleteEmptySaleDraft({...record,...row.deletion_evidence},true)};
     });
-    return {sales,hasMore:result.rows.length>50};
+    return {sales,hasMore:selected.length>50};
   }
-  async get(id: string): Promise<SaleWorkspaceRecord> {
+  async get(id: string, options: { includeStockActionBlock?: boolean } = {}): Promise<SaleWorkspaceRecord> {
     const result = await this.database.query('SELECT state FROM sale_workspace WHERE dealer_id = $1 AND id = $2::uuid', [this.dealerId, id]);
     if (!result.rows[0]) throw new SaleWorkspaceError('Sale not found.', 404);
     const sale = result.rows[0].state as SaleWorkspaceRecord;
     const reviewContext = (sale.finalReview?.status === 'passed' || sale.finalReview?.status === 'overridden') ? await readSaleReviewContext(this.database,this.dealerId,sale) : undefined;
-    return staffSaleWorkspace({...sale,...(reviewContext?{finalReviewContextStale:sale.finalReview?.contextHash!==reviewContext.hash}:{})});
+    const summary = staffSaleWorkspace({...sale,...(reviewContext?{finalReviewContextStale:sale.finalReview?.contextHash!==reviewContext.hash}:{})});
+    if (options.includeStockActionBlock && sale.lifecycle?.status !== 'released' && sale.lifecycle?.status !== 'returned' && !sale.standaloneReturn && sale.returnReplacement?.direction !== 'returned') {
+      const stockActionBlock = await readSaleVehicleActionBlock(this.dealerId, sale, this.database);
+      if (stockActionBlock) summary.stockActionBlock = stockActionBlock;
+    }
+    return summary;
   }
-  /** Remove only unused empty or clearly labelled test drafts; never cascade financial history. */
   async checkInvoiceVehicle(id: string, expectedRevision: unknown, actorId: string, dvla = lookupDvlaVehicle) {
     const { rows } = await this.database.query('SELECT state FROM sale_workspace WHERE dealer_id=$1 AND id=$2::uuid',[this.dealerId,id]);
     const sale = rows[0]?.state as SaleWorkspaceRecord | undefined;
@@ -151,6 +270,79 @@ export class PostgresSaleWorkspaceStore {
     if (!saved.rows.length) throw new SaleWorkspaceError('This sale changed. Reload it before checking the vehicle.',409);
     return { review };
   }
+  async listHandoffTasks(actorId: string, options: SaleHandoffTaskListOptions = { offset: 0, view: 'mine' }): Promise<SaleHandoffTaskPage> {
+    const paymentRoles = staffRoles.filter(role => roleHasPermission(role, saleHandoffTaskPermission('check-payment')));
+    const collectionRoles = staffRoles.filter(role => roleHasPermission(role, saleHandoffTaskPermission('arrange-collection')));
+    const result = await this.database.query(`SELECT sw.id AS "saleId", sw.reference, coalesce(sw.state#>>'{draft,customer}','') AS customer,
+      coalesce(sw.state#>>'{draft,vehicle}','') AS vehicle, t.task, assignee_status.issue AS "assignmentIssue"
+      FROM sale_workspace sw
+      CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(sw.state->'handoffTasks')='array' THEN sw.state->'handoffTasks' ELSE '[]'::jsonb END) AS t(task)
+      LEFT JOIN portal_users assignee ON assignee.dealer_id = sw.dealer_id AND assignee.auth_user_id = t.task->>'assigneeId' AND assignee.disabled_at IS NULL
+      CROSS JOIN LATERAL (SELECT CASE
+        WHEN assignee.id IS NULL THEN 'inactive'
+        WHEN NOT coalesce(assignee.role::text = ANY(CASE WHEN t.task->>'kind' = 'check-payment' THEN $4::text[] ELSE $5::text[] END),false) THEN 'role-changed'
+      END AS issue) assignee_status
+      WHERE sw.dealer_id = $1
+        AND sw.state->'handoffTasks' @> CASE WHEN $3::boolean THEN '[{"status":"open"}]'::jsonb
+          ELSE jsonb_build_array(jsonb_build_object('assigneeId',$2::text,'status','open')) END
+        AND t.task->>'status' = 'open'
+        AND (t.task->>'kind' = 'check-payment' OR t.task->>'kind' = 'arrange-collection'
+          AND coalesce(sw.state#>>'{lifecycle,status}','') NOT IN ('released','returned')
+          AND coalesce(sw.state->'standaloneReturn','null'::jsonb) = 'null'::jsonb
+          AND coalesce(sw.state#>>'{returnReplacement,direction}','') <> 'returned'
+          AND coalesce(sw.state#>>'{draft,fulfilment,completedAt}','') = '')
+        AND (CASE WHEN $3::boolean THEN assignee_status.issue IS NOT NULL
+          ELSE t.task->>'assigneeId' = $2 AND assignee_status.issue IS NULL END)
+        AND ($8::text IS NULL OR ((t.task->>'createdAt') COLLATE "C", sw.id, (t.task->>'id') COLLATE "C") > ($8::text COLLATE "C", $9::uuid, $10::text COLLATE "C"))
+      ORDER BY (t.task->>'createdAt') COLLATE "C", sw.id, (t.task->>'id') COLLATE "C"
+      LIMIT $6 OFFSET $7`, [this.dealerId, actorId, options.view === 'needs-reassignment', paymentRoles, collectionRoles, saleHandoffTaskPageSize + 1,
+        options.offset, options.cursor?.createdAt ?? null, options.cursor?.saleId ?? null, options.cursor?.taskId ?? null]);
+    return saleHandoffTaskPage((result.rows as SaleHandoffTaskSummary[]).map(({ assignmentIssue, ...task }) => assignmentIssue ? { ...task, assignmentIssue } : task));
+  }
+  async listHandoffAssignees(id: string, kind: unknown) {
+    if (!isSaleHandoffTaskKind(kind)) throw new SaleWorkspaceError('Choose a handoff task.');
+    const found = await this.database.query('SELECT id FROM sale_workspace WHERE dealer_id=$1 AND id=$2::uuid', [this.dealerId, id]);
+    if (!found.rows.length) throw new SaleWorkspaceError('Sale not found.', 404);
+    const result = await this.database.query('SELECT auth_user_id, name, email, role FROM portal_users WHERE dealer_id=$1 AND disabled_at IS NULL ORDER BY coalesce(name,email,auth_user_id), auth_user_id', [this.dealerId]);
+    const permission = saleHandoffTaskPermission(kind);
+    return { members: result.rows.filter(member => isStaffRole(member.role) && roleHasPermission(member.role, permission))
+      .map(member => ({ id: String(member.auth_user_id), name: String(member.name || member.email || 'Staff member') })) };
+  }
+  async mutateHandoffTask(id: string, input: Parameters<typeof changeSaleHandoffTask>[1], actor: { id: string; name: string; canManage: boolean; canRecordPayments: boolean }) {
+    const client = await this.database.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`sale-workspace:${this.dealerId}`]);
+      const result = await client.query('SELECT state FROM sale_workspace WHERE dealer_id = $1 AND id = $2::uuid FOR UPDATE', [this.dealerId, id]);
+      if (!result.rows[0]) throw new SaleWorkspaceError('Sale not found.', 404);
+      const isMachine = actor.id === 'machine' && !multiTenantEnabled();
+      const actorRole = isMachine ? 'owner' : (await client.query(
+        'SELECT role FROM portal_users WHERE dealer_id=$1 AND auth_user_id=$2 AND disabled_at IS NULL FOR SHARE',
+        [this.dealerId, actor.id],
+      )).rows[0]?.role;
+      if (!isStaffRole(actorRole)) throw new SaleWorkspaceError('Your staff membership is no longer active.', 403);
+      const mutation = await changeSaleHandoffTask(result.rows[0].state, input, {
+        actorId: actor.id, actor: actor.name, now: new Date().toISOString(), nextId: randomUUID,
+        canManage: actor.canManage && roleHasPermission(actorRole, 'sales.manage'),
+        canRecordPayments: actor.canRecordPayments && roleHasPermission(actorRole, 'payments.record'),
+        resolveAssignee: async (assigneeId, kind) => {
+          const row = (await client.query('SELECT name, email, role FROM portal_users WHERE dealer_id=$1 AND auth_user_id=$2 AND disabled_at IS NULL FOR SHARE', [this.dealerId, assigneeId])).rows[0];
+          if (!row || !isStaffRole(row.role) || !roleHasPermission(row.role, saleHandoffTaskPermission(kind))) throw new SaleWorkspaceError('Choose an active staff member who can handle this task.');
+          return row.name || row.email || 'Staff member';
+        },
+      });
+      if (!mutation.replayed) {
+        const { sale } = mutation;
+        await client.query('UPDATE sale_workspace SET revision = $3, state = $4::jsonb, updated_at = $5 WHERE dealer_id = $1 AND id = $2::uuid', [this.dealerId, id, sale.revision, JSON.stringify(sale), sale.updatedAt]);
+      }
+      await client.query('COMMIT');
+      return { ...mutation, sale: staffSaleWorkspace(mutation.sale) };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally { client.release(); }
+  }
+  /** Remove only unused empty or clearly labelled test drafts; never cascade financial history. */
   async deleteEmptyDraft(id: string, expectedRevision: unknown) {
     if (!Number.isSafeInteger(expectedRevision) || Number(expectedRevision) < 1) throw new SaleWorkspaceError('Reload the saved draft before deleting it.', 409);
     const client = await this.database.connect();
@@ -243,11 +435,10 @@ export class PostgresSaleWorkspaceStore {
       if (duplicate.rows.some(row => row.state.id !== currentId)) throw new SaleWorkspaceError('A sale already exists for this reservation. Open its saved sale file.', 409);
     }
   }
-  private async stock(record: SaleWorkspaceRecord, status: 'reserved' | 'sold' | 'released', client: SaleWorkspaceReadClient, actor: string) {
+  private async stock(record: SaleWorkspaceRecord, status: 'reserved' | 'sold' | 'released', client: SaleWorkspaceReadClient, actor: string, previous?: SaleWorkspaceRecord) {
     const vehicleId = record.draft.vehicleId;
-    if (!/^[0-9a-f-]{36}$/i.test(vehicleId)) throw new SaleWorkspaceError('Choose a current stock vehicle before changing availability.');
-    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`sale-vehicle:${vehicleId}`]);
-    const vehicle = (await client.query('SELECT inventory_status, source_status, audit_metadata FROM vehicles WHERE dealer_id = $1 AND id = $2::uuid FOR UPDATE', [this.dealerId, vehicleId])).rows[0];
+    if (!currentStockId.test(vehicleId)) throw new SaleWorkspaceError('Choose a current stock vehicle before changing availability.');
+    const vehicle = await lockSaleVehicle(this.dealerId, vehicleId, client);
     if (!vehicle) throw new SaleWorkspaceError('Vehicle not found.', 404);
     if (vehicle.audit_metadata?.onlineStripeReservationId) throw new SaleWorkspaceError(checkoutInProgress, 409);
     const owner = vehicle.audit_metadata?.saleWorkspaceId;
@@ -259,12 +450,9 @@ export class PostgresSaleWorkspaceStore {
       }
       if (vehicle.inventory_status !== 'reserved' || owner !== record.id) throw new SaleWorkspaceError('This vehicle is no longer reserved by this sale.', 409);
     } else {
-      const competing = await client.query("SELECT id FROM sale_workspace WHERE dealer_id = $1 AND id <> $2::uuid AND state#>>'{draft,vehicleId}' = $3 AND state#>>'{lifecycle,status}' IN ('reserved','sold')", [this.dealerId, record.id, vehicleId]);
-      const leads = await client.query("SELECT id FROM leads WHERE dealer_id = $1 AND vehicle_id = $2::uuid AND stage IN ('reserved','sale_agreed','collected') AND ($3::uuid IS NULL OR id <> $3::uuid) AND ($4::uuid IS NULL OR enquiry_id IS DISTINCT FROM $4::uuid)", [this.dealerId, vehicleId, record.draft.sourceReservationId || null, record.draft.sourceEnquiryId || null]);
-      if (competing.rows.length || leads.rows.length || owner && owner !== record.id) throw new SaleWorkspaceError('This vehicle is reserved or sold to another customer.', 409);
-      const linkedLead = record.draft.sourceReservationId ? (await client.query("SELECT stage FROM leads WHERE dealer_id = $1 AND id = $2::uuid AND vehicle_id = $3::uuid", [this.dealerId, record.draft.sourceReservationId, vehicleId])).rows[0] : record.draft.sourceEnquiryId ? (await client.query("SELECT stage FROM leads WHERE dealer_id = $1 AND enquiry_id = $2::uuid AND vehicle_id = $3::uuid", [this.dealerId, record.draft.sourceEnquiryId, vehicleId])).rows[0] : undefined;
-      const ownReservation = vehicle.inventory_status === 'reserved' && (owner === record.id || Boolean(linkedLead && ['reserved', 'sale_agreed'].includes(linkedLead.stage)));
-      if (vehicle.inventory_status !== 'available' && !ownReservation && !(vehicle.inventory_status === 'sold' && owner === record.id)) throw new SaleWorkspaceError('This vehicle is not available for this sale.', 409);
+      const ownership = await saleVehicleOwnership(this.dealerId, previous ?? record, vehicle, client);
+      if (ownership.conflict) throw new SaleVehicleConflictError();
+      if (vehicle.inventory_status !== 'available' && !(vehicle.inventory_status === 'reserved' && ownership.ownReservation) && !(status === 'sold' && vehicle.inventory_status === 'sold' && ownership.ownSold)) throw new SaleWorkspaceError('This vehicle is not available for this sale.', 409);
       if (status === 'reserved' && vehicle.source_status === 'missing') throw new SaleWorkspaceError('This vehicle is missing from the current stock feed. Review it before reserving.', 409);
     }
     const metadata = { ...(vehicle.audit_metadata ?? {}), saleWorkspaceId: status === 'released' ? null : record.id, saleWorkspaceStatus: status, saleWorkspaceActor: actor, saleWorkspaceChangedAt: record.updatedAt };
@@ -336,29 +524,24 @@ export class PostgresSaleWorkspaceStore {
         if (command && (['issue-invoice', 'finish-invoice-sale', 'complete-sale', 'handover'].includes(command.action) || command.action === 'document' && command.type === 'invoice' || command.action === 'lifecycle' && command.status === 'sold')) assertSaleFinancialIntegrity(mutation.sale);
         if (!current || input.command?.action === 'update') await this.source(mutation.sale.draft, client, current?.id);
 
-        // These financial actions can write a receipt or invoice without changing
-        // stock. The dealer lock also covers the online hold and its settlement.
-        const vehicleId = mutation.sale.draft.vehicleId;
-        if (/^[0-9a-f-]{36}$/i.test(vehicleId) && command && (
-          command.action === 'payment' || command.action === 'issue-invoice' ||
-          command.action === 'document' && command.type === 'invoice' ||
-          command.action === 'invoice-payment' && command.payment.kind !== 'deposit' ||
-          command.action === 'confirm' && !command.reserveVehicle
-        )) {
-          const held = await client.query("SELECT id FROM vehicles WHERE dealer_id = $1 AND id = $2::uuid AND audit_metadata->>'onlineStripeReservationId' IS NOT NULL", [this.dealerId, vehicleId]);
-          if (held.rows.length) throw new SaleWorkspaceError(checkoutInProgress, 409);
+        const recordsPayment = command?.action === 'payment' || command?.action === 'invoice-payment' || command?.action === 'confirm';
+        const reservesCar = command?.action === 'take-deposit'
+          || command?.action === 'invoice-payment' && command.payment.kind === 'deposit'
+          || command?.action === 'confirm' && command.reserveVehicle
+          || recordsPayment && mutation.sale.lifecycle?.status === 'reserved' && current?.lifecycle?.status !== 'reserved';
+        if (reservesCar) await this.stock(mutation.sale, 'reserved', client, input.actor);
+        else if (current && (recordsPayment || command?.action === 'issue-invoice' || command?.action === 'document' && command.type === 'invoice')) {
+          await requireSaleVehiclePaymentAccess(this.dealerId, current, client, command?.action === 'invoice-payment' && command.stockConflictReconciliation !== undefined);
         }
-
-        if (input.command?.action === 'invoice-payment' && input.command.payment.kind === 'deposit') await this.stock(mutation.sale, 'reserved', client, input.actor);
-        if (input.command?.action === 'finish-invoice-sale') await this.stock(mutation.sale, 'sold', client, input.actor);
-        if (input.command?.action === 'lifecycle') await this.stock(mutation.sale, input.command.status, client, input.actor);
-        if (input.command?.action === 'take-deposit' || input.command?.action === 'complete-sale' || input.command?.action === 'confirm' && input.command.reserveVehicle) await this.stock(mutation.sale, input.command.action === 'complete-sale' ? 'sold' : 'reserved', client, input.actor);
+        if (input.command?.action === 'finish-invoice-sale') await this.stock(mutation.sale, 'sold', client, input.actor, current);
+        if (input.command?.action === 'lifecycle') await this.stock(mutation.sale, input.command.status, client, input.actor, current);
+        if (input.command?.action === 'complete-sale') await this.stock(mutation.sale, 'sold', client, input.actor, current);
         if (input.command?.action === 'handover') {
-          await this.stock(mutation.sale, 'sold', client, input.actor);
-          mutation.sale.lifecycle = { status: 'sold', vehicleId: mutation.sale.draft.vehicleId, changedAt: now };
+          await requireSaleVehiclePaymentAccess(this.dealerId, current!, client);
+          if (mutation.sale.lifecycle?.status !== 'sold') mutation.sale.lifecycle = { status: 'sold', vehicleId: mutation.sale.draft.vehicleId, changedAt: mutation.sale.completedAt ?? now };
         }
         if (current && mutation.document?.snapshot.vehicle?.invoiceReview) {
-          const stock = await readSaleInvoiceVehicleStock(client,this.dealerId,current.draft.vehicleId,true);
+          const stock = await readSaleInvoiceVehicleStock(client,this.dealerId,current.draft.vehicleId);
           if (current.invoiceVehicleReview?.stockIdentity !== saleInvoiceStockIdentity(stock)) {
             throw new SaleWorkspaceError('The stock vehicle details changed. Check the vehicle again before issuing this invoice.',409);
           }

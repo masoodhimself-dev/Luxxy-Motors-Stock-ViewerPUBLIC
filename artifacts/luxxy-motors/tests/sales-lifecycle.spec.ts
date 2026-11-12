@@ -106,7 +106,7 @@ class FixtureSalesApi {
   context(): SaleWorkspaceContext {
     return {
       now: this.now,
-      actor: "Fixture Staff", actorId: "fixture-invoice-staff",
+      actor: "Fixture Staff",
       branding,
       paperwork: { saleTerms: "Fictional sale terms for isolated lifecycle tests.", reservationTerms: "Fictional reservation terms for isolated lifecycle tests." },
       vehicle: {
@@ -263,13 +263,7 @@ class FixtureSalesApi {
           status: 404,
           json: { error: "Sale not found." },
         });
-      if (section === "invoice-vehicle-review") {
-        expect(body.expectedRevision).toBe(current.revision);
-        const context = this.context();
-        const review = fixtureInvoiceVehicleReview(current, context.now);
-        current.invoiceVehicleReview = { review, revision: current.revision, actorId: context.actorId!, stockIdentity: "" };
-        return route.fulfill({ json: { review } });
-      }
+      if (section === "invoice-vehicle-review") return route.fulfill({ json: { review: fixtureInvoiceVehicleReview(current) } });
       let command: SaleWorkspaceCommand;
       if (method === "PUT") command = { action: "update", draft: body.draft };
       else if (section === "payments" && !target)
@@ -289,8 +283,8 @@ class FixtureSalesApi {
         };
       else if (section === "take-deposit") command = { action: "take-deposit", payment: body.payment };
       else if (section === "invoice-payments") command = { action: "invoice-payment", payment: body.payment };
-      else if (section === "issue-invoice") command = { action: "issue-invoice", kind: body.kind, acknowledge: body.acknowledge, vehicleReview: body.vehicleReview };
-      else if (section === "finish-invoice-sale") command = { action: "finish-invoice-sale", acknowledge: body.acknowledge, acknowledgeOutstanding: body.acknowledgeOutstanding };
+      else if (section === "issue-invoice") command = { action: "issue-invoice", kind: body.kind, acknowledge: body.acknowledge };
+      else if (section === "finish-invoice-sale") command = { action: "finish-invoice-sale", acknowledge: body.acknowledge, acknowledgeOutstanding: body.acknowledgeOutstanding, reviewedInvoiceId: body.reviewedInvoiceId };
       else if (section === "fulfilment") command = { action: "fulfilment", fulfilment: body.fulfilment };
       else if (section === "complete-sale") command = { action: "complete-sale", acknowledge: body.acknowledge };
       else if (section === "documents")
@@ -347,12 +341,12 @@ const customerName = "Customer’s full name";
 async function openSale(page: Page, customer = "Alex Lifecycle") {
   await page.goto("/portal?section=sales");
   await page.getByRole("button", { name: new RegExp(customer) }).click();
-  await expect(page.getByRole("heading", { name: "What would you like to do?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sale overview" })).toBeVisible();
   await expect(page.locator(".sales-flow-context")).toContainText(customer);
 }
 
 async function menu(page: Page) {
-  if (await page.getByRole("heading", { name: "What would you like to do?" }).isVisible()) return;
+  if (await page.getByRole("heading", { name: "Sale overview" }).isVisible()) return;
   await page.getByRole("navigation", { name: "Sale steps" }).getByRole("button", { name: "Choose what to do" }).click();
 }
 

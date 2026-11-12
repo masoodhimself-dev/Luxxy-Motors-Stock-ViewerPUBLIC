@@ -254,7 +254,7 @@ export async function operationsPreview(
       );
       if (
         permission &&
-        (!staff || !roleHasPermission(staff.role, permission))
+        (!staff || !roleHasPermission(staff.role, permission) || path.endsWith('/replacement-availability') && !roleHasPermission(staff.role, 'payments.refund'))
       ) {
         send(res, staff ? 403 : 401, {
           error: "Your staff role does not allow this action.",
@@ -484,6 +484,11 @@ export async function readPreviewPriceOverrides(
 export async function readPreviewStaffDirectory(
   stateFile = defaultFile,
 ): Promise<Array<{ id: string; name: string }>> {
+  return (await readPreviewTaskRoster(stateFile)).map(({id,name}) => ({id,name}));
+}
+export async function readPreviewTaskRoster(
+  stateFile = defaultFile,
+): Promise<Array<{ id: string; name: string; role: StaffRole }>> {
   try {
     const state = JSON.parse(
       await readFile(stateFile, "utf8"),
@@ -493,12 +498,13 @@ export async function readPreviewStaffDirectory(
       .map((member) => ({
         id: member.authUserId,
         name: member.name ?? member.email ?? "Staff member",
+        role: member.role,
       }));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT")
       return [
-        { id: "preview-alex", name: "Alex" },
-        { id: "preview-jamie", name: "Jamie" },
+        { id: "preview-alex", name: "Alex", role: "owner" },
+        { id: "preview-jamie", name: "Jamie", role: "salesperson" },
       ];
     throw error;
   }

@@ -7,6 +7,9 @@ export type PartExchangeMotDetailsResult = {
     make: string | null;
     model: string | null;
     registrationDate: string | null;
+    year?: number;
+    colour?: string | null;
+    fuel?: string | null;
   };
   mileage?: string;
   estimate?: {
@@ -86,7 +89,12 @@ export function readPartExchangeMotDetails(
     readingDay = day(reading?.date);
   return {
     registration: plate,
-    vehicle: { make, model, registrationDate: day(vehicle?.registrationDate) },
+    vehicle: {
+      make, model, registrationDate: day(vehicle?.registrationDate),
+      ...(finite(vehicle?.year, 2100) && vehicle.year >= 1886 ? { year: vehicle.year } : {}),
+      ...(vehicle?.colour ? { colour: text(vehicle.colour) } : {}),
+      ...(vehicle?.fuel ? { fuel: text(vehicle.fuel) } : {}),
+    },
     ...(mileage !== undefined
       ? {
           mileage: String(mileage),
@@ -134,6 +142,11 @@ export function readPartExchangeMotDetails(
 export async function lookupPartExchangeCar(registration: string, signal?: AbortSignal): Promise<PartExchangeMotDetailsResult> {
   const plate = normalise(registration);
   if (plate.length > 20 || !isUKNumberPlate(plate)) throw Error("Invalid registration");
-  const reply = await customFetch<unknown>(`/api/mot-mileage-estimate?registration=${encodeURIComponent(plate)}`, { signal });
+  const reply = await customFetch<unknown>(`/api/mot-mileage-estimate?registration=${encodeURIComponent(plate)}&identity=dvla`, { signal });
   return readPartExchangeMotDetails(reply, plate);
+}
+
+export function partExchangeMinimumMileage(mot: PartExchangeMotDetailsResult["mot"]): number {
+  const reading = mot?.lastReading;
+  return reading ? Math.ceil(reading.unit === "KM" ? reading.mileage / 1.609344 : reading.mileage) : 0;
 }

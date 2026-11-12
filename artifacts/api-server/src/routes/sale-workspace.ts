@@ -3,9 +3,9 @@ import { currentDealerId } from "../lib/tenant-context";
 import { dealerIntegrationsStore } from '../lib/dealer-integrations-store';
 import { Router, type Request, type Response } from 'express';
 import { pool } from '@workspace/db';
-import { dailySalePaymentsOptions, SaleWorkspaceError, type SaleWorkspaceCommand } from '@workspace/vehicle-meta';
-import { requireStaff, requirePermission, staffLabel } from '../middlewares/staff-auth';
-import { PostgresSaleWorkspaceStore, readSaleWorkspaceAssets } from '../lib/sale-workspace-store';
+import { dailySalePaymentsOptions, saleHandoffTaskListOptions, SaleWorkspaceError, type SaleWorkspaceCommand } from '@workspace/vehicle-meta';
+import { requireStaff, requirePermission, staffHasPermission, staffLabel } from '../middlewares/staff-auth';
+import { PostgresSaleWorkspaceStore, readSaleWorkspaceAssets, SaleVehicleConflictError } from '../lib/sale-workspace-store';
 import { readDailySalePayments } from '../lib/sale-daily-payments';
 
 const router = Router();
@@ -16,6 +16,7 @@ function store() {
   return new PostgresSaleWorkspaceStore(id, (draft, client) => readSaleWorkspaceAssets(draft, id, client), pool);
 }
 function failure(req: Request, res: Response, error: unknown) {
+  if (error instanceof SaleVehicleConflictError) { res.status(error.status).json({ error: error.message, code: 'sale-vehicle-conflict' }); return; }
   if (error instanceof SaleWorkspaceError) { res.status(error.status).json({ error: error.message }); return; }
   const missingSchema = (error as { code?: string; cause?: { code?: string } })?.code === '42P01' || (error as { cause?: { code?: string } })?.cause?.code === '42P01';
   req.log.error({ err: error }, 'Sale workspace request failed');
@@ -43,8 +44,30 @@ router.get('/sale-workspace/daily-payments', requirePermission('payments.record'
     res.json(await readDailySalePayments(pool, dealerId(), options));
   } catch (error) { failure(req, res, error); }
 });
+router.get('/sale-workspace/handoff-tasks', async (req, res) => {
+  try {
+    const options = saleHandoffTaskListOptions(req.query);
+    if (options.view === 'needs-reassignment' && !staffHasPermission(req, 'sales.manage')) throw new SaleWorkspaceError('Your role cannot review staff assignments.', 403);
+    res.json(await store().listHandoffTasks(req.staff!.authUserId, options));
+  } catch (error) { failure(req, res, error); }
+});
+router.get('/sale-workspace/:id/handoff-tasks', requirePermission('sales.manage'), async (req, res) => {
+  try {
+    if (!uuid(req.params.id)) throw new SaleWorkspaceError('Sale not found.', 404);
+    res.json(await store().listHandoffAssignees(req.params.id, req.query.kind));
+  } catch (error) { failure(req, res, error); }
+});
+router.post('/sale-workspace/:id/handoff-tasks', async (req, res) => {
+  try {
+    if (!uuid(req.params.id)) throw new SaleWorkspaceError('Sale not found.', 404);
+    const body = req.body;
+    if (!body || typeof body !== 'object' || Array.isArray(body)) throw new SaleWorkspaceError('Check the handoff task details.');
+    const result = await store().mutateHandoffTask(req.params.id, body, { id: req.staff!.authUserId, name: staffLabel(req), canManage: staffHasPermission(req, 'sales.manage'), canRecordPayments: staffHasPermission(req, 'payments.record') });
+    res.json({ ...result, preview: false });
+  } catch (error) { failure(req, res, error); }
+});
 router.get('/sale-workspace/:id', async (req, res) => {
-  try { if (!uuid(req.params.id)) throw new SaleWorkspaceError('Sale not found.', 404); res.json({ sale: await store().get(req.params.id), preview: false }); } catch (error) { failure(req, res, error); }
+  try { if (!uuid(req.params.id)) throw new SaleWorkspaceError('Sale not found.', 404); res.json({ sale: await store().get(req.params.id, { includeStockActionBlock: true }), preview: false }); } catch (error) { failure(req, res, error); }
 });
 router.post('/sale-workspace', requirePermission('sales.manage'), async (req, res) => {
   try {
@@ -78,7 +101,14 @@ router.post('/sale-workspace/:id/documents', requirePermission('payments.record'
   const { type, vehicleReview } = req.body ?? {};
   await mutate(req,res,{ action:'document',type,...(type === 'invoice' && vehicleReview !== undefined ? {vehicleReview} : {}) });
 });
-router.post('/sale-workspace/:id/invoice-payments', requirePermission('payments.record'), (req, res, next) => req.body?.payment?.kind === 'deposit' ? requirePermission('sales.manage')(req, res, next) : next(), async (req, res) => { await mutate(req, res, { action: 'invoice-payment', payment: req.body?.payment }); });
+router.post('/sale-workspace/:id/invoice-payments', requirePermission('payments.record'), (req, res, next) => {
+  if (req.body?.stockConflictReconciliation !== undefined) return requirePermission('payments.refund')(req, res, next);
+  if (req.body?.payment?.kind === 'deposit') return requirePermission('sales.manage')(req, res, next);
+  return next();
+}, async (req, res) => {
+  const stockConflictReconciliation = req.body?.stockConflictReconciliation;
+  await mutate(req, res, { action: 'invoice-payment', payment: req.body?.payment, ...(stockConflictReconciliation !== undefined ? { stockConflictReconciliation } : {}) });
+});
 router.post('/sale-workspace/:id/invoice-vehicle-review', requirePermission('payments.record'), async (req, res) => {
   try {
     if (!uuid(req.params.id)) throw new SaleWorkspaceError('Sale not found.',404);
@@ -89,7 +119,15 @@ router.post('/sale-workspace/:id/issue-invoice', requirePermission('payments.rec
   const { kind, acknowledge, vehicleReview } = req.body ?? {};
   await mutate(req,res,{ action:'issue-invoice',kind,acknowledge,...(vehicleReview !== undefined ? {vehicleReview} : {}) });
 });
-router.post('/sale-workspace/:id/finish-invoice-sale', requirePermission('payments.record'), requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'finish-invoice-sale', acknowledge: req.body?.acknowledge, acknowledgeOutstanding: req.body?.acknowledgeOutstanding === true }); });
+router.post('/sale-workspace/:id/finish-invoice-sale', requirePermission('payments.record'), requirePermission('sales.manage'), async (req, res) => {
+  const reviewedInvoiceId = req.body?.reviewedInvoiceId;
+  await mutate(req, res, {
+    action: 'finish-invoice-sale',
+    acknowledge: req.body?.acknowledge,
+    acknowledgeOutstanding: req.body?.acknowledgeOutstanding === true,
+    ...(reviewedInvoiceId !== undefined ? { reviewedInvoiceId } : {}),
+  });
+});
 router.post('/sale-workspace/:id/take-deposit', requirePermission('payments.record'), requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'take-deposit', payment: req.body?.payment }); });
 router.post('/sale-workspace/:id/complete-sale', requirePermission('payments.record'), requirePermission('sales.manage'), async (req, res) => {
   const { acknowledge, vehicleReview } = req.body ?? {};

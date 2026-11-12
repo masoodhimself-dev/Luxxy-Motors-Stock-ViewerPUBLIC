@@ -31,7 +31,18 @@
 .sales-flow-menu > button { display: flex; align-items: center; gap: 18px; min-height: 104px; text-align: left; padding: 20px 24px; border: 1px solid #d3dce4; border-radius: 8px; background: #fff; color: #192c38; transition: background .15s ease, border-color .15s ease; }
 .sales-flow-menu > button:hover:not(:disabled), .sales-flow-menu > button:focus-visible { background: #eff7fc; border-color: #192c38; }
 .sales-flow-menu > button:focus-visible { outline: 2px solid #245ca5; outline-offset: 3px; }
-.sales-flow-menu > button:disabled { opacity: .55; cursor: not-allowed; }
+:is(.sales-flow-menu, .sales-flow-return-choices) > button:disabled {
+  background: var(--desk-canvas, #f2f5f9);
+  border-color: var(--invoice-line, #d3dce4);
+  cursor: not-allowed;
+}
+:is(.sales-flow-menu, .sales-flow-return-choices) > button:disabled :is(strong, .sales-flow-menu-icon) {
+  color: var(--invoice-muted, #576477);
+}
+.sales-flow-menu > button:disabled small,
+.sales-flow-return-choices > button:disabled > span {
+  color: var(--invoice-ink, #192c38);
+}
 .sales-flow-menu > button > span { flex: 1; min-width: 0; }
 .sales-flow-menu-icon { width: 34px; height: 34px; flex-shrink: 0; }
 .sales-flow-menu strong { display: block; font-size: 18px; line-height: 1.4; font-weight: 700; }
@@ -79,6 +90,7 @@
 .sales-flow-money strong { color: #192c38; margin-left: 4px; font-variant-numeric: tabular-nums; }
 .sales-flow-return-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .sales-flow-return-choices > button { padding: 24px; border: 1px solid #d3dce4; border-radius: 8px; text-align: left; }
+.sales-flow-return-choices > button:disabled { background: var(--invoice-line, #e4e9ee); }
 .sales-flow-return-choices strong, .sales-flow-return-choices span { display: block; }
 .sales-flow-return-choices span { color: #62717d; margin-top: 6px; font-size: 13px; }
 .sales-flow-list-actions { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -262,7 +274,7 @@
   display: block;
   margin-top: 2px;
   color: var(--invoice-ink);
-  font-size: clamp(15px, 4.8vw, 21px);
+  font-size: clamp(13px, 4vw, 17px);
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }

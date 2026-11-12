@@ -151,6 +151,7 @@ for (const width of [390, 834, 1440]) {
       return route.abort();
     });
     await page.goto(`/portal?section=sales&saleId=${sale.id}`);
+    await openArrangements(page);
     const panel = page.getByRole("region", { name: "Collection and delivery" });
     await expect(panel).toBeVisible();
     await panel.getByRole("button", { name: "Edit arrangements" }).click();
@@ -162,7 +163,7 @@ for (const width of [390, 834, 1440]) {
       .fill("25 Confirmed Road\nLondon\nHA2 8LY");
     await panel.getByLabel("Planned date", { exact: true }).fill("2026-10-24");
     await panel
-      .getByLabel("Arrival window (UK time)", { exact: true })
+      .getByLabel("Arrival window", { exact: true })
       .fill("14:00–16:00");
     await panel
       .getByLabel("Staff delivery notes")
@@ -232,6 +233,7 @@ for (const width of [390, 834, 1440]) {
     expect(JSON.stringify(sale.documents.slice(0, -1))).toBe(documents);
     expect(unhandled).toEqual([]);
     await page.reload();
+    await openArrangements(page);
     await expect(
       page.getByRole("region", { name: "Collection and delivery" }),
     ).toContainText("Delivered");
@@ -239,72 +241,54 @@ for (const width of [390, 834, 1440]) {
   });
 }
 
+
+async function openArrangements(page: import('@playwright/test').Page) {
+  await expect(page.getByRole('heading', { name: 'Sale overview', exact: true })).toBeVisible();
+  await page.locator('.sales-flow-menu').getByRole('button', { name: /^Arrange collection or delivery/ }).click();
+}
+
 for (const width of [390, 834, 1440]) {
-  test(`choose collection or delivery on the final invoice step at ${width}`, async ({
-    page,
-    request,
-  }) => {
+  test(`guided sale chooses collection or delivery separately from invoicing at ${width}`, async ({ page, request }) => {
     await page.setViewportSize({ width, height: 1000 });
+    const settings = await (await request.get('/api/dealer-settings')).json();
+    const stock = await (await request.get('/api/stock')).json();
+    const car = stock.cars.find((candidate: { inventoryStatus: string }) => candidate.inventoryStatus === 'available');
+    const context: SaleWorkspaceContext = {
+      now: new Date().toISOString(), actor: 'Fictional staff', branding: saleWorkspaceBranding(settings),
+      nextId: () => crypto.randomUUID(), nextNumber: kind => `TEST-${kind}`,
+    };
+    const sale = createSaleWorkspace({ requestId: 'fictional-arrangements', draft: {
+      customer: 'Fictional Delivery Buyer', phone: '07700900123', address: 'Invoice address',
+      vehicleId: car.id, vehicle: car.title, price: '10000',
+    } }, context, 'TEST-SALE-ARRANGEMENTS').sale;
     const writes: string[] = [];
-    await page.route("**/api/**", (route) =>
-      ["GET", "HEAD"].includes(route.request().method())
-        ? route.continue()
-        : (writes.push(route.request().url()), route.abort()),
-    );
-    const stock = await (await request.get("/api/stock")).json();
-    const car = stock.cars.find(
-      (car: any) => car.inventoryStatus === "available",
-    );
-    await page.goto("/portal?section=sales");
-    await page
-      .getByRole("button", { name: "New invoice", exact: true })
-      .click();
-    await page.getByLabel("Vehicle", { exact: true }).selectOption(car.id);
-    await page.getByRole("button", { name: "Continue", exact: true }).click();
-    await page
-      .getByRole("combobox", { name: "Customer’s full name", exact: true })
-      .fill("Fictional Delivery Buyer");
-    await page
-      .getByRole("combobox", { name: "Telephone", exact: true })
-      .fill("07700900123");
-    for (let i = 0; i < 3; i++)
-      await page.getByRole("button", { name: "Continue", exact: true }).click();
-    await expect(
-      page.getByRole("heading", {
-        name: "Are these details correct?",
-        exact: true,
-      }),
-    ).toBeVisible();
-    const fields = page.getByRole("group", {
-      name: "How will the customer receive the car?",
-      exact: true,
+    await page.route('**/api/**', route => {
+      const req = route.request(), path = new URL(req.url()).pathname;
+      if (!['GET', 'HEAD'].includes(req.method())) {
+        writes.push(`${req.method()} ${path}`);
+        return route.abort();
+      }
+      if (path === '/api/sale-workspace') return route.fulfill({ json: { sales: [sale], preview: true } });
+      if (path === `/api/sale-workspace/${sale.id}`) return route.fulfill({ json: { sale, preview: true } });
+      return route.continue();
     });
-    await expect(
-      fields.getByRole("button", { name: "Customer collecting", exact: true }),
-    ).toHaveAttribute("aria-pressed", "true");
-    await fields
-      .getByRole("button", { name: "Deliver to customer", exact: true })
-      .click();
-    await expect(
-      fields.getByRole("textbox", { name: "Recipient", exact: true }),
-    ).toHaveValue("Fictional Delivery Buyer");
-    await expect(
-      fields.getByRole("textbox", { name: "Contact number", exact: true }),
-    ).toHaveValue("07700900123");
-    await expect(
-      fields.getByRole("textbox", { name: "Delivery address", exact: true }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Create full invoice", exact: true }),
-    ).toBeDisabled();
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= innerWidth,
-      ),
-    ).toBe(true);
+    await page.goto(`/portal?section=sales&saleId=${sale.id}`);
+    await openArrangements(page);
+    const panel = page.getByRole('region', { name: 'Collection and delivery' });
+    await expect(panel.getByRole('button', { name: /Mark collected|Mark delivered/ })).toHaveCount(0);
+    await panel.getByRole('button', { name: 'Edit arrangements' }).click();
+    const collection = panel.getByRole('button', { name: 'Customer collecting', exact: true });
+    const delivery = panel.getByRole('button', { name: 'Deliver to customer', exact: true });
+    await expect(collection).toHaveAttribute('aria-pressed', 'true');
+    await delivery.click();
+    await expect(delivery).toHaveAttribute('aria-pressed', 'true');
+    await expect(panel.getByLabel('Recipient', { exact: true })).toHaveValue('Fictional Delivery Buyer');
+    await expect(panel.getByLabel('Contact number', { exact: true })).toHaveValue('07700900123');
+    await expect(panel.getByRole('textbox', { name: 'Delivery address', exact: true })).toBeVisible();
+    await collection.click();
+    await expect(panel.getByRole('textbox', { name: 'Delivery address', exact: true })).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    expect(sale.documents).toEqual([]);
     expect(writes).toEqual([]);
-    await fields.screenshot({
-      path: `/tmp/luxxy-delivery-review/final-step-${width}.png`,
-    });
   });
 }

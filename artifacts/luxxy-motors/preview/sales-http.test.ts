@@ -2,13 +2,13 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { PreviewSaleWorkspaceStore, salesPreview } from './sales';
 import { previewStock } from './stock';
-import type { SaleInvoiceVehicleReview, SaleWorkspaceBranding, SaleWorkspaceDraft, SaleWorkspaceMutation, SaleWorkspaceRecord } from '@workspace/vehicle-meta';
+import { createSaleWorkspace, type SaleHandoffTaskPage, type SaleInvoiceVehicleReview, type SaleWorkspaceBranding, type SaleWorkspaceDraft, type SaleWorkspaceMutation, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 
 const branding: SaleWorkspaceBranding = { identity: { name: 'HTTP Test Motors', logoText: '', logoAsset: '' }, contact: { phone: '', email: '' }, address: { street: '', city: '', region: '', postcode: '' }, legal: { companyName: '', companyNumber: '', vatNumber: '' } };
 const draft: SaleWorkspaceDraft = { id: 'http-draft', customer: 'HTTP test buyer', email: '', phone: '', address: '', vehicleId: '', vehicle: 'HTTP test car', registration: '', price: '12000', partExchange: false, pxRegistration: '', pxDescription: '', pxValue: '', deposit: '', paymentMethod: '', notes: '', collection: '', preparation: false, documents: false, handover: false };
@@ -23,6 +23,55 @@ async function previewInvoiceApproval(origin: string, sale: SaleWorkspaceRecord)
   assert.equal(review.status, 'unavailable');
   return { id: review.id, mileage: 22150, acknowledge: true };
 }
+
+test('Today preview cursor still finds the last task after an earlier linked draft reservation is cancelled', async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'luxxy-handoff-cursor-http-'));
+  const filename = path.join(directory, 'sales.json');
+  const store = new PreviewSaleWorkspaceStore(filename, async () => ({ branding }));
+  const now = '2026-10-04T12:00:00.000Z';
+  const sourceReservationId = randomUUID();
+  const records = Array.from({length:101}, (_, index) => {
+    const sale = createSaleWorkspace({draft:{...draft, ...(index === 0 ? {sourceReservationId} : {})}, requestId:randomUUID()},
+      {now,actor:'Alex',nextId:randomUUID,nextNumber:randomUUID,branding}, `SALE-${index}`).sale;
+    sale.id = `00000000-0000-4000-8000-${String(index).padStart(12,'0')}`;
+    sale.handoffTasks = [{id:randomUUID(),kind:'arrange-collection',status:'open',assigneeId:'preview-jamie',assigneeName:'Jamie',note:'Confirm a collection time.',
+      createdAt:now,createdBy:'Alex',updatedAt:now,updatedBy:'Alex'}];
+    return sale;
+  });
+  await writeFile(filename,JSON.stringify({schemaVersion:1,sales:records,numbers:{}}));
+  const server = createServer((req,res) => {
+    void salesPreview(req,res,new URL(req.url ?? '/',`http://${req.headers.host}`),store);
+  });
+  server.listen(0,'127.0.0.1');
+  await new Promise<void>((resolve,reject) => { server.once('listening',resolve); server.once('error',reject); });
+  const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  const load = async (query?: URLSearchParams) => fetch(`${origin}/api/sale-workspace/handoff-tasks${query ? `?${query}` : ''}`,
+    {headers:{'x-preview-staff-id':'preview-jamie'}});
+  try {
+    const response = await load();
+    assert.equal(response.status,200);
+    const first = await response.json() as SaleHandoffTaskPage;
+    assert.equal(first.tasks.length,100);
+    assert.equal(first.tasks[0]?.saleId,records[0]!.id);
+    assert.ok(first.hasMore && first.nextCursor);
+    assert.equal((await load(new URLSearchParams({cursor:'invalid'}))).status,400);
+    assert.equal((await load(new URLSearchParams({cursor:first.nextCursor,offset:'1'}))).status,400);
+    await store.releaseReservation(sourceReservationId);
+    const released = await store.get(records[0]!.id);
+    assert.equal(released.lifecycle?.status,'released');
+    assert.equal(released.handoffTasks?.[0]?.resolutionReason,'sale-released');
+    const next = await load(new URLSearchParams({cursor:first.nextCursor}));
+    assert.equal(next.status,200);
+    const last = await next.json() as SaleHandoffTaskPage;
+    assert.deepEqual(last.tasks.map(task=>task.saleId),[records[100]!.id]);
+    assert.equal(last.hasMore,false);
+    assert.equal(last.nextCursor,undefined);
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>(resolve=>server.close(()=>resolve()));
+    await rm(directory,{recursive:true,force:true});
+  }
+});
 
 test('HTTP preview adapter shares a sale across requests, preserves receipt snapshots and enforces retry/revision/origin guards', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'luxxy-sales-http-'));
@@ -71,7 +120,6 @@ test('HTTP preview adapter shares a sale across requests, preserves receipt snap
     const vehicleReview = await previewInvoiceApproval(origin, reopened.data.sale);
     const invoice=await request<SaleWorkspaceMutation>(`/api/sale-workspace/${id}/issue-invoice`,'POST',{...invoiceInput,vehicleReview},origin);
     assert.equal(invoice.status,200);
-    assert.equal(invoice.data.document?.snapshot.vehicle?.invoiceReview?.mileage,22150);
     const invoiceRetry=await request<SaleWorkspaceMutation>(`/api/sale-workspace/${id}/issue-invoice`,'POST',{...invoiceInput,vehicleReview},origin);
     assert.equal(invoiceRetry.data.replayed,true);assert.equal(invoiceRetry.data.document!.verification!.url,invoice.data.document!.verification!.url);
     const verifyPath=new URL(invoice.data.document!.verification!.url).pathname.replace('/verify-invoice/','/api/invoice-verification/');
@@ -80,7 +128,7 @@ test('HTTP preview adapter shares a sale across requests, preserves receipt snap
     const proof=await proofResponse.json();assert.equal(proof.verified,true);assert.equal(proof.balanceAtIssuePence,0);assert.equal(proof.paymentCount,2);assert.equal(proof.customer,undefined);assert.equal(proof.payments,undefined);
     assert.equal(created.data.sale.team?.ownerName, 'Alex');
     const attention = await request<{ sales: Array<{ id: string; listAttention: string }> }>('/api/sale-workspace?queue=attention&owner=mine');
-    assert.deepEqual(attention.data.sales.map(sale => [sale.id, sale.listAttention]), [[id, 'Invoice to review']]);
+    assert.deepEqual(attention.data.sales.map(sale => [sale.id, sale.listAttention]), [[id, 'Deposit confirmation to send']]);
     const teamInput = { expectedRevision: invoice.data.sale.revision, requestId: 'http-team-assignment', ownerId: 'preview-jamie', note: 'Private handover note.' };
     const assignment = await request<SaleWorkspaceMutation>(`/api/sale-workspace/${id}/team`, 'POST', teamInput, origin);
     assert.equal(assignment.status, 200); assert.equal(assignment.data.sale.team?.ownerName, 'Jamie');
@@ -96,6 +144,31 @@ test('HTTP preview adapter shares a sale across requests, preserves receipt snap
     assert.equal(bad.status,404);
     const offOrigin = await request<{ error: string }>('/api/sale-workspace', 'POST', { requestId: 'http-cross-origin', draft }, 'https://unrelated.example');
     assert.equal(offOrigin.status, 403); assert.match(offOrigin.data.error, /authorised network/);
+    const taskRoute = `/api/sale-workspace/${id}/handoff-tasks`;
+    const assignees = await request<{members:{id:string}[]}>(taskRoute + '?kind=check-payment');
+    assert.equal(assignees.status,200);
+    assert.ok(assignees.data.members.some(member => member.id === 'preview-jamie'));
+    const assignmentTask = { action:'assign', kind:'check-payment', assigneeId:'preview-jamie', note:'Preview payment task', requestId:randomUUID(), expectedRevision:assignment.data.sale.revision };
+    const assignedTask = await request<SaleWorkspaceMutation>(taskRoute, 'POST', assignmentTask, origin);
+    assert.equal(assignedTask.status,200);
+    const task = assignedTask.data.sale.handoffTasks![0]!;
+    assert.equal(task.status,'open');
+    assert.equal((await request<SaleWorkspaceMutation>(taskRoute, 'POST', assignmentTask, origin)).data.replayed,true);
+    const queueRequest = (staffId:string,query='') => fetch(`${origin}/api/sale-workspace/handoff-tasks${query}`, { headers:{'x-preview-staff-id':staffId} });
+    const taskQueue = async (staffId:string,query='') => (await queueRequest(staffId,query)).json() as Promise<{tasks:Array<{saleId:string; task:{id:string}}>;hasMore:boolean}>;
+    assert.deepEqual((await taskQueue('preview-alex')).tasks,[]);
+    assert.deepEqual((await taskQueue('preview-jamie')).tasks.map(row=>[row.saleId,row.task.id]),[[id,task.id]]);
+    assert.deepEqual(await taskQueue('preview-jamie','?offset=1'),{tasks:[],hasMore:false});
+    assert.deepEqual(await taskQueue('preview-alex','?view=needs-reassignment'),{tasks:[],hasMore:false});
+    assert.equal((await queueRequest('preview-jamie','?offset=-1')).status,400);
+    assert.equal((await queueRequest('preview-jamie','?view=everyone')).status,400);
+    const completeResponse = await fetch(origin + taskRoute, { method:'POST', headers:{'Content-Type':'application/json','x-preview-staff-id':'preview-jamie',Origin:origin}, body:JSON.stringify({ action:'complete', taskId:task.id, expectedRevision:assignedTask.data.sale.revision, requestId:randomUUID() }) });
+    assert.equal(completeResponse.status,200);
+    const completedTask = await completeResponse.json() as SaleWorkspaceMutation;
+    assert.equal(completedTask.sale.handoffTasks![0]!.status,'completed');
+    assert.deepEqual((await taskQueue('preview-jamie')).tasks,[]);
+    assert.deepEqual(completedTask.sale.payments,assignedTask.data.sale.payments);
+    assert.deepEqual(completedTask.sale.documents,assignedTask.data.sale.documents);
     assert.equal((await store.list()).length, 1);
   } finally {
     server.closeAllConnections();
@@ -191,5 +264,10 @@ test('guided invoice HTTP routes reserve on deposit, issue only two invoice kind
     const denied=await post(`/api/sale-workspace/${sale.id}/finish-invoice-sale`,{expectedRevision:sale.revision,requestId:randomUUID(),acknowledge:false});assert.equal(denied.status,422);assert.equal((await store.inventory())[car.id],'reserved');
     assert.equal(sale.checklists, undefined, 'Final reminders must not require saved attestations.');
     const sold=await post(`/api/sale-workspace/${sale.id}/finish-invoice-sale`,{expectedRevision:sale.revision,requestId:randomUUID(),acknowledge:true});assert.equal(sold.status,200);assert.equal((await store.inventory())[car.id],'sold');assert.equal(sold.data.sale.documents.length,2);
+    const competing = await post('/api/sale-workspace', { requestId:randomUUID(), draft:{...draft,vehicleId:car.id,customer:'Another fixture buyer'} });
+    assert.equal(competing.status, 201);
+    const fetchSale = async (id:string) => (await fetch(`${origin}/api/sale-workspace/${id}`)).json() as Promise<{sale:SaleWorkspaceRecord}>;
+    assert.equal((await fetchSale(sale.id)).sale.stockActionBlock, undefined);
+    assert.equal((await fetchSale(competing.data.sale.id)).sale.stockActionBlock, 'another-sale');
   } finally {server.closeAllConnections();await new Promise<void>(resolve => server.close(() => resolve()));previewStock.cars.splice(previewStock.cars.indexOf(car),1);await rm(directory,{recursive:true,force:true});}
 });

@@ -14,6 +14,7 @@ import {
 import { Receipt, WalletCards, Truck, CheckCircle2 } from "@/components/icons";
 import { pence, saleStaffLabel, totals, type SaleDraft } from "./model";
 import "./sales-dialogs.css";
+import { saleCalendarDate } from "@workspace/vehicle-meta";
 import type {
   SaleWorkspacePayment,
   SaleWorkspacePaymentInput,
@@ -29,15 +30,7 @@ export const saleMoney = (value: number) =>
       }).format((value || 0) / 100)
     : "—";
 export function todayLondon() {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date());
-  return ["year", "month", "day"]
-    .map((key) => parts.find((part) => part.type === key)!.value)
-    .join("-");
+  return saleCalendarDate();
 }
 export function salePaymentState(draft: SaleDraft) {
   const amount = totals(draft);

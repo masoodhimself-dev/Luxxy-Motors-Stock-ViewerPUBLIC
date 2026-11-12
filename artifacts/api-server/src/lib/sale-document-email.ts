@@ -10,6 +10,8 @@ import { currentDealerId, multiTenantEnabled } from "./tenant-context";
 import {
   PostgresSaleWorkspaceStore,
   readSaleWorkspaceAssets,
+  requireSaleVehiclePaymentAccess,
+  saleVehiclePaymentBlocked,
 } from "./sale-workspace-store";
 import {
   dealerIntegrationsStore,
@@ -108,6 +110,16 @@ function assertCurrentRecipient(record: SaleWorkspaceRecord, document: SaleWorks
   const problem = saleDocumentEmailRecipientProblem(record.draft, document.snapshot.draft);
   if (problem) throw new SaleWorkspaceError(problem, 409);
 }
+export function saleDocumentEmailFigures(document: SaleWorkspaceDocument) {
+  const { draft, payments, totals } = document.snapshot;
+  const transferredCredit = (draft.creditEntries ?? []).reduce((sum, entry) => sum + entry.signedAmountPence, 0);
+  const paymentAmount = document.paymentAmountPence ?? payments.find(payment => payment.id === document.paymentId)?.signedAmountPence;
+  return {
+    amount: document.transaction?.amountPence ?? (paymentAmount === undefined ? totals.totalDue : Math.abs(paymentAmount)),
+    cashReceived: totals.confirmedPaid - transferredCredit,
+    transferredCredit,
+  };
+}
 async function renderInvoice(
   record: SaleWorkspaceRecord,
   document: SaleWorkspaceDocument,
@@ -119,6 +131,7 @@ async function renderInvoice(
   // correspondence uses today's published contact identity, so a converted
   // dealership does not reintroduce its old demo name or reply details.
   const profile = await dealerProfile();
+  const figures = saleDocumentEmailFigures(document);
   const money = (pence: number) =>
       new Intl.NumberFormat("en-GB", {
         style: "currency",
@@ -141,9 +154,10 @@ async function renderInvoice(
       document_type: document.title,
       document_number: document.number,
       issued_at: document.issuedAt,
-      amount: money(document.transaction?.kind === 'payment-request' ? document.transaction.amountPence : document.paymentAmountPence ?? document.snapshot.totals.totalDue),
+      amount: money(figures.amount),
       vehicle_price: money(document.snapshot.totals.price),
-      amount_received: money(document.snapshot.totals.confirmedPaid),
+      amount_received: money(figures.cashReceived),
+      transferred_credit: money(figures.transferredCredit),
       balance: money(document.balanceAtIssue),
     },
     facts: [
@@ -160,9 +174,12 @@ async function renderInvoice(
       },
       {
         label: "Payments recorded at issue",
-        value: money(document.snapshot.totals.confirmedPaid),
+        value: money(figures.cashReceived),
       },
-      { label: "Balance at issue", value: money(document.balanceAtIssue) },
+      ...(figures.transferredCredit !== 0 ? [{ label: "Transferred credit at issue", value: money(figures.transferredCredit) }] : []),
+      { label: document.type === 'delivery-invoice' || document.type === 'credit-note' ? "Sale balance at issue" : "Balance at issue", value: money(document.balanceAtIssue) },
+      ...(document.type === 'delivery-invoice' ? [{ label: "Delivery invoice total", value: money(figures.amount) }] : []),
+      ...(document.type === 'credit-note' ? [{ label: "Credit amount", value: money(figures.amount) }] : []),
       ...(document.transaction?.kind === 'payment-request' ? [{ label: 'Requested now', value: money(document.transaction.amountPence) }, { label: 'Vehicle price', value: money(document.snapshot.totals.price) }] : []),
     ],
     attachments,
@@ -273,6 +290,7 @@ export async function approveSaleDocumentEmail(
       );
     const frozen = issued(current, input.documentId);
     assertCurrentPaymentRequest(current, frozen.document);
+    if (frozen.document.type === 'payment-request') await requireSaleVehiclePaymentAccess(dealer, current, { query });
     assertCurrentRecipient(current, frozen.document);
     if (
       hash(JSON.stringify(frozen.document)) !==
@@ -412,6 +430,9 @@ export async function rebuildSaleDocumentOutbox(
   if (!record) throw new Error("The invoice sale is unavailable.");
   const { document, archive } = issued(record, c.documentId);
   assertCurrentPaymentRequest(record, document);
+  if (document.type === 'payment-request' && await saleVehiclePaymentBlocked(row.dealer_id, record, { query })) {
+    throw new SaleWorkspaceError('This payment request cannot be sent while the car belongs to another sale or an online checkout.', 409);
+  }
   assertCurrentRecipient(record, document);
   if (c.templateId === 'deposit_confirmation' && saleDocumentEmailTemplate(record, document) !== 'deposit_confirmation') throw new Error('The deposit or reservation changed. Review the receipt before sending a new confirmation.');
   if (

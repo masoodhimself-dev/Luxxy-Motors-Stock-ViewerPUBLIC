@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Readable } from 'node:stream';
+import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { defaultEmailAppearance, defaultEmailTemplates } from '@workspace/vehicle-meta';
+import { createSaleWorkspace, defaultEmailAppearance, defaultEmailTemplates, saleCustomerUpdates, saleWorkspaceBranding, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 import { communicationsPreview } from './communications';
 import { previewSettings } from './settings';
 import { previewStock } from './stock';
@@ -26,7 +27,7 @@ const templates = defaultEmailTemplates.map(template => template.id === 'appoint
   ...template, body: '{{appointment_time}}\n{{appointment_status}}\n{{duration}}\n{{visit_instructions}}\n{{parking_instructions}}\n{{dealer_address}}',
 } : template);
 
-async function call(path: string, method = 'GET', body?: unknown, entry = fixture, origin?: string) {
+async function call(path: string, method = 'GET', body?: unknown, entry = fixture, origin?: string, sale?: SaleWorkspaceRecord) {
   let output = '';
   const headers: Record<string, string> = {};
   const req = Readable.from(body === undefined ? [] : [JSON.stringify(body)]) as unknown as IncomingMessage;
@@ -41,6 +42,10 @@ async function call(path: string, method = 'GET', body?: unknown, entry = fixtur
   const handled = await communicationsPreview(req, res, new URL(path, 'http://127.0.0.1:4186'), {
     readEnquiries: async () => [entry], readSettings: async () => settings,
     readTemplates: async () => ({ templates, appearance: defaultEmailAppearance }),
+    ...(sale ? { readSale: async (id: string) => {
+      if (id !== sale.id) throw new Error('Fixture sale not found.');
+      return sale;
+    } } : {}),
   });
   return { handled, status: res.statusCode, headers, data: JSON.parse(output) };
 }
@@ -128,4 +133,36 @@ test('local vehicle PDF review is opt-in, reproducible and never enables sending
   assert.equal((await call(`${path}/email-preview`, 'POST', withPdf, { ...entry, vehicleId: null })).status, 409);
   assert.equal((await call(`${path}/email`, 'POST', withPdf, entry)).status, 503);
   assert.equal(fetchMock.mock.callCount(), 0);
+});
+
+test('local sale update is prepared and reviewed without writing a draft or enabling send', async () => {
+  const now = new Date().toISOString();
+  const sale = createSaleWorkspace({ requestId: randomUUID(), draft: {
+    customer: 'Fictional Buyer', email: 'buyer@example.test', vehicle: 'Ford Focus', vehicleId: randomUUID(),
+    registration: 'AB20XYZ', price: '10000',
+  } }, { now, actor: 'Fixture', nextId: randomUUID, nextNumber: () => randomUUID(), branding: saleWorkspaceBranding(settings) }, 'SALE-PREVIEW-TEST').sale;
+  sale.completedAt = now;
+  sale.lifecycle = { status: 'sold', vehicleId: sale.draft.vehicleId, changedAt: now };
+  const send = (url: string, method = 'GET', data?: unknown) => call(url, method, data, fixture, undefined, sale);
+  const lookup = await send(`/api/staff/whatsapp/enquiries?saleId=${sale.id}`);
+  assert.equal(lookup.status, 200);
+  assert.equal(lookup.data.saleCustomer.email, sale.draft.email);
+  const prepared = await send('/api/staff/whatsapp/email-enquiry', 'POST', { saleId: sale.id, email: sale.draft.email });
+  assert.equal(prepared.status, 200);
+  const base = `/api/staff/enquiries/${prepared.data.enquiry.id}`;
+  const update = saleCustomerUpdates(sale, settings.identity.name)[0];
+  const draft = { ...content, includeVehicle: false, includeAppointment: false, expectedRevision: 0,
+    to: sale.draft.email, subject: update.subject, message: update.message,
+    saleUpdate: { saleId: sale.id, revision: sale.revision, kind: update.kind },
+  };
+  const context = await send(base + '/email-context');
+  assert.equal(context.data.ready, false);
+  assert.equal(context.data.savedDraft, null);
+  const reviewed = await send(base + '/email-preview', 'POST', draft);
+  assert.equal(reviewed.status, 200, JSON.stringify(reviewed.data));
+  assert.match(reviewed.data.saleUpdateRequestId, /^[a-f0-9-]{36}$/);
+  assert.match(reviewed.data.text, /£10,000\.00 left to pay/);
+  assert.equal((await send(base + '/email-preview', 'POST', { ...draft, saleUpdate: { ...draft.saleUpdate, revision: sale.revision + 1 } })).status, 409);
+  assert.equal((await send(base + '/email', 'POST', draft)).status, 503);
+  assert.equal((await send(base + '/email-context')).data.savedDraft, null);
 });

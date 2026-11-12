@@ -35,11 +35,13 @@ class PracticalSalesApi {
   archives = new Map<string, Uint8Array>();
   private numbers: Record<string, number> = {};
 
+  constructor(private readonly invoiceCheck?: { now: string; expiryDate: string }) {}
+
   current() { return [...this.sales.values()].at(-1)!; }
 
   context(): SaleWorkspaceContext {
     return {
-      now: new Date().toISOString(), actor: "Fixture Staff", actorId: "fixture-invoice-staff", branding,
+      now: this.invoiceCheck?.now ?? new Date().toISOString(), actor: "Fixture Staff", actorId: "fixture-invoice-staff", branding,
       vehicle: { id: vehicleId, title: "2018 Fixture Touring 1.6", year: 2018, fuel: "Petrol", transmission: "Automatic", mileage: 42000 },
       paperwork: { reservationTerms: this.reservationTerms, saleTerms: "Fictional dealer terms of sale for this isolated test." },
       nextId: () => crypto.randomUUID(),
@@ -109,7 +111,7 @@ class PracticalSalesApi {
       if (section === "invoice-vehicle-review") {
         expect(body.expectedRevision).toBe(saved.revision);
         const context = this.context();
-        const review = fixtureInvoiceVehicleReview(saved, context.now);
+        const review = fixtureInvoiceVehicleReview(saved, context.now, this.invoiceCheck?.expiryDate);
         saved.invoiceVehicleReview = { review, revision: saved.revision, actorId: context.actorId!, stockIdentity: "" };
         return route.fulfill({ json: { review } });
       }
@@ -154,7 +156,7 @@ async function startDeal(page: Page) {
 
 async function saveAndOpenActions(page: Page) {
   await page.locator(".sale-desk-section-actions, .sales-flow-mobile-action").getByRole("button", { name: "Choose what to do", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "What would you like to do?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sale overview" })).toBeVisible();
 }
 
 async function receivedPayment(page: Page, amount: string, method: string, deposit = false) {
@@ -182,6 +184,50 @@ async function issueFullInvoice(page: Page) {
   await page.getByRole("checkbox", { name: /checked the customer, vehicle, agreed price/ }).check();
   await page.getByRole("button", { name: "Create & save invoice", exact: true }).click();
   await expect(page.getByRole("button", { name: "Download PDF", exact: true })).toBeVisible();
+}
+
+for (const [viewport, width] of [['phone', 390], ['tablet', 820], ['desktop', 1440]] as const) {
+  test(`expired MOT requires explicit invoice acknowledgment on ${viewport}`, async ({ page, context }) => {
+    const now = '2026-11-12T10:00:00.000Z';
+    const api = new PracticalSalesApi({ now, expiryDate: '2026-11-11' });
+    await api.attach(context);
+    await page.clock.setFixedTime(new Date(now));
+    await page.setViewportSize({ width, height: 900 });
+    await startDeal(page);
+    await choice(page, /Create an invoice/);
+    await confirmInvoiceVehicle(page);
+    await page.getByRole('checkbox', { name: /checked the customer, vehicle, agreed price/ }).check();
+
+    const panel = page.getByRole('region', { name: 'Vehicle check' });
+    const acknowledgment = panel.getByRole('checkbox', { name: 'I acknowledge the MOT warning and want to continue.' });
+    const issue = page.getByRole('button', { name: 'Create & save invoice', exact: true });
+    await expect(panel.getByText('MOT expired', { exact: true })).toBeVisible();
+    await expect(acknowledgment).toHaveAccessibleDescription(/11 Nov 2026/);
+    await expect(acknowledgment).not.toBeChecked();
+    await expect(issue).toBeDisabled();
+    expect(api.current().documents).toEqual([]);
+    expect(api.commands.filter(command => command.action === 'issue-invoice')).toEqual([]);
+
+    const screenshots = process.env.INVOICE_MOT_WARNING_SCREENSHOTS;
+    if (screenshots) {
+      await mkdir(screenshots, { recursive: true });
+      await panel.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: join(screenshots, `mot-warning-${viewport}.png`), animations: 'disabled' });
+    }
+
+    await acknowledgment.check();
+    await expect(issue).toBeEnabled();
+    await issue.click();
+    await expect(page.getByRole('button', { name: 'Download PDF', exact: true })).toBeVisible();
+    expect(api.commands.filter(command => command.action === 'issue-invoice')).toMatchObject([
+      { kind: 'full', vehicleReview: { mileage: 64150, acknowledge: true, acknowledgeMot: true } },
+    ]);
+    expect(api.current().documents.at(-1)?.snapshot.vehicle?.invoiceReview).toMatchObject({
+      motExpiry: '2026-11-11', motAcknowledgedAt: now,
+    });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    expect(api.blockedWrites).toEqual([]);
+  });
 }
 
 test("guided sale records a deposit and later payments and preserves the original receipt", async ({ page, context }) => {

@@ -1,7 +1,15 @@
-import { latestFullSaleInvoice, SaleWorkspaceError, type SaleWorkspaceRecord } from './sale-workspace.ts';
+import { latestFullSaleInvoice, saleCalendarDate, saleStockConflictRefundDue, SaleWorkspaceError, type SaleWorkspaceRecord } from './sale-workspace.ts';
+import { saleDepositConfirmationDue, salePaymentRequestAvailable, salePaymentRequestRemaining } from './sale-operations.ts';
 
 export type SaleQueueFilter = 'all' | 'attention' | 'open' | 'closed';
 export type SaleQueueOwner = 'all' | 'mine' | 'unassigned';
+export const saleRefundAttention = 'Refund to record';
+
+/** Normalise only a plate-shaped search, leaving names, emails and references intact. */
+export function saleRegistrationSearch(query: string) {
+  const plate = query.replace(/\s+/g, '').toUpperCase();
+  return /^[A-Z0-9]{2,8}$/.test(plate) && /[A-Z]/.test(plate) && /\d/.test(plate) ? plate : '';
+}
 
 export function saleQueueFilters(queue: unknown = 'all', owner: unknown = 'all'): { queue: SaleQueueFilter; owner: SaleQueueOwner } {
   if (queue !== 'all' && queue !== 'attention' && queue !== 'open' && queue !== 'closed') throw new SaleWorkspaceError('Choose a valid sales view.', 400);
@@ -10,7 +18,7 @@ export function saleQueueFilters(queue: unknown = 'all', owner: unknown = 'all')
 }
 
 export function saleQueueToday(now = new Date()) {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+  return saleCalendarDate(now);
 }
 
 function saleQueueClosed(sale: SaleWorkspaceRecord) {
@@ -18,13 +26,18 @@ function saleQueueClosed(sale: SaleWorkspaceRecord) {
     sale.lifecycle?.status === 'released' || sale.lifecycle?.status === 'returned' || sale.draft.fulfilment?.completedAt);
 }
 
-export function saleQueueStatus(sale: SaleWorkspaceRecord, today: string) {
+export function saleQueueStatus(sale: SaleWorkspaceRecord, today: string, now = new Date().toISOString()) {
   const fulfilment = sale.draft.fulfilment;
   const closed = saleQueueClosed(sale);
+  const refundDue = saleStockConflictRefundDue(sale);
+  if (refundDue > 0) return { closed, attention: saleRefundAttention, refundDue };
   const pending = sale.payments.some(payment => payment.status === 'pending');
   if (pending) return { closed, attention: closed ? 'Payment history to review' : 'Payment to confirm' };
   if (closed) return { closed, attention: '' };
-  if (sale.paymentRequests?.some(request => request.status === 'active' && request.dueDate && request.dueDate <= today)) {
+  if (saleDepositConfirmationDue(sale)) return { closed, attention: 'Deposit confirmation to send' };
+  if (sale.paymentRequests?.some(request =>
+    request.dueDate && request.dueDate <= today &&
+    salePaymentRequestAvailable(sale, request, now) && salePaymentRequestRemaining(sale, request) > 0)) {
     return { closed, attention: 'Payment request due' };
   }
   if (fulfilment?.stage === 'unsuccessful') return { closed, attention: 'Delivery to rearrange' };

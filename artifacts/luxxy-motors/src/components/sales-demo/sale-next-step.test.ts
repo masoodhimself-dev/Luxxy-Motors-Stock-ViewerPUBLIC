@@ -72,6 +72,16 @@ it('checks an incomplete payment before suggesting more money or issuing paperwo
   expect(saleWorkspaceTotals(sale.draft, sale.payments)).toMatchObject({ pending: 50000, confirmedPaid: 0, balance: 1000000 });
 });
 
+it('routes a payment received for conflicting stock to refund history', () => {
+  const sale = fixture();
+  const result = changeSaleWorkspace(sale, {
+    action: 'invoice-payment',
+    payment: { amount: '400', kind: 'part-payment', status: 'confirmed', method: 'Bank transfer', date: '2026-11-04', reference: 'TEST' },
+    stockConflictReconciliation: { reason: 'Car reserved by another sale', acknowledge: true },
+  }, { requestId: 'record-refund-payment', expectedRevision: sale.revision }, context()).sale;
+  expect(saleNextStep(result, now)).toMatchObject({ action: 'history', label: 'Review payment for refund' });
+});
+
 it.each(['prepared', 'failed', 'unknown', 'sending'] as const)('does not treat a %s deposit confirmation as sent', status => {
   const sale = pay(), receiptId = sale.payments[0].receiptId!; delivery(sale, receiptId, status);
   expect(saleNextStep(sale, now)).toMatchObject({ action: 'confirmation', documentId: receiptId });

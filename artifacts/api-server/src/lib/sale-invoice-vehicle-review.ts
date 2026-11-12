@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { formatRegistrationPlate, isUKNumberPlate, saleQueueToday, staffMotSummary, vehicleRegistration, type MotHistory, type SaleInvoiceVehicleReview, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
+import { formatRegistrationPlate, isUKNumberPlate, saleCalendarDate, staffMotSummary, vehicleRegistration, type MotHistory, type SaleInvoiceVehicleReview, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 import { DvlaVehicleCheckError, lookupDvlaVehicle } from './dvla-vehicle-check';
 import type { SaleWorkspaceReadClient } from './sale-workspace-store';
 
@@ -19,9 +19,9 @@ const makeKey = (value: string | null | undefined) => {
   return make;
 };
 
-export async function readSaleInvoiceVehicleStock(database: SaleWorkspaceReadClient, dealerId: string, vehicleId: string, lock = false): Promise<StockVehicle | undefined> {
+export async function readSaleInvoiceVehicleStock(database: SaleWorkspaceReadClient, dealerId: string, vehicleId: string): Promise<StockVehicle | undefined> {
   if (!uuid.test(vehicleId)) return undefined;
-  const { rows } = await database.query(`SELECT id,plate,vrm,registration,make,year,colour,mileage FROM vehicles WHERE dealer_id=$1 AND id=$2::uuid${lock ? ' FOR SHARE' : ''}`,[dealerId,vehicleId]);
+  const { rows } = await database.query('SELECT id,plate,vrm,registration,make,year,colour,mileage FROM vehicles WHERE dealer_id=$1 AND id=$2::uuid',[dealerId,vehicleId]);
   return rows[0] as StockVehicle | undefined;
 }
 
@@ -78,16 +78,15 @@ export async function prepareSaleInvoiceVehicleReview(sale: SaleWorkspaceRecord,
     && Number.isFinite(historyAge) && historyAge >= 0 && historyAge <= 86_400_000 && Array.isArray(cached.value.tests) ? cached.value : null;
   const mot = staffMotSummary(history, now);
   if (mot.state === 'failed') review.warnings.push('The latest DVSA MOT test failed. Check the current MOT before continuing.');
-  if (mot.state === 'expired' && history?.tests.length) review.warnings.push('The stored DVSA MOT has expired.');
   if (mot.date && mot.checkedAt && history?.tests.length && (mot.state === 'current' || mot.state === 'due' || mot.state === 'expired')) {
     review.mot = { expiryDate:mot.date, source:'DVSA', checkedAt:mot.checkedAt };
   } else if (mot.state !== 'failed' && dvla.status === 'fulfilled' && dvla.value.registration === registration && dvla.value.motExpiry) {
     if (dvla.value.motStatus === 'Not valid') review.warnings.push('DVLA shows that the MOT is not valid.');
-    if (dvla.value.motStatus !== 'Not valid' || dvla.value.motExpiry < saleQueueToday(now)) {
+    if (dvla.value.motStatus !== 'Not valid' || dvla.value.motExpiry < saleCalendarDate(now)) {
       review.mot = { expiryDate:dvla.value.motExpiry, source:'DVLA', checkedAt:dvla.value.checkedAt };
     }
   }
-  const today = saleQueueToday(now);
+  const today = saleCalendarDate(now);
   const lastReading = history?.tests.filter(test => test.mileage !== null && test.mileageUnit
     && Number.isFinite(Date.parse(test.completedDate)) && test.completedDate.slice(0,10) <= today)
     .sort((a,b) => Date.parse(b.completedDate) - Date.parse(a.completedDate))[0];

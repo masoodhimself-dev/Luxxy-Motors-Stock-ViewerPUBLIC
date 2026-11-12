@@ -1,5 +1,6 @@
 import {
   createSaleWorkspace,
+  saleCalendarDate,
   saleWorkspaceTotals,
   saleWorkspacePence,
   SaleWorkspaceError,
@@ -11,6 +12,7 @@ import {
   type SaleWorkspaceDraft,
   type SaleWorkspaceEvent,
 } from "./sale-workspace.ts";
+import { cancelSaleHandoffTasks } from './sale-handoff-tasks.ts';
 
 export const salePaymentShareMethods = ['email', 'whatsapp', 'manual'] as const;
 export type SalePaymentDefaults = {
@@ -148,6 +150,17 @@ export function finishSaleOperation(
 export function saleDepositConfirmationShared(sale: SaleWorkspaceRecord, documentId: string) {
   return Boolean(sale.emailDeliveries?.some(row => row.documentId === documentId && row.status === 'sent') ||
     sale.events.some(event => event.type === 'deposit-confirmation-shared' && event.documentId === documentId));
+}
+
+export function saleDepositConfirmationDue(sale: SaleWorkspaceRecord) {
+  if (!saleCanRequestDeposit(sale) || sale.lifecycle?.status === 'released' ||
+      sale.lifecycle?.status === 'returned' || sale.standaloneReturn ||
+      sale.returnReplacement?.direction === 'returned' || sale.draft.fulfilment?.completedAt) return undefined;
+  const deposit = [...sale.payments].reverse().find(payment =>
+    payment.kind === 'deposit' && payment.status === 'confirmed' && payment.signedAmountPence > 0 &&
+    !sale.payments.some(row => row.reversesPaymentId === payment.id && row.status === 'confirmed'));
+  const receipt = deposit && sale.documents.find(document => document.id === deposit.receiptId && document.type === 'receipt');
+  return receipt && !saleDepositConfirmationShared(sale, receipt.id) ? receipt : undefined;
 }
 
 /** This records an action staff took outside the portal. It never sends a message. */
@@ -519,8 +532,8 @@ export function refundSaleCredit(
   if (!Number.isSafeInteger(totals.balance) || totals.balance >= 0 || amount > -totals.balance) throw new SaleWorkspaceError('The refund exceeds the customer credit still held.');
   if (input.confirmReceived !== true) throw new SaleWorkspaceError('Confirm this refund has actually been paid to the customer.');
   const method = operationText(input.method, 100, 'refund method'), date = operationDate(input.date, 'refund date');
-  const earliestDate = current.standaloneReturn?.returnedDate ?? current.returnReplacement!.at.slice(0, 10);
-  if (!method || date > context.now.slice(0, 10) || date < earliestDate) throw new SaleWorkspaceError('Check the actual refund method and date.');
+  const earliestDate = current.standaloneReturn?.returnedDate ?? saleCalendarDate(current.returnReplacement!.at);
+  if (!method || date > saleCalendarDate(context.now) || date < earliestDate) throw new SaleWorkspaceError('Check the actual refund method and date.');
   const sale = clone(current), paymentId = context.nextId();
   sale.payments.push({ id: paymentId, amount: (amount / 100).toFixed(2), amountPence: amount, signedAmountPence: -amount, kind: 'refund', status: 'confirmed', method, date, reference: sale.standaloneReturn ? sale.reference : sale.returnReplacement!.otherReference, reason: sale.standaloneReturn ? 'Refund of returned vehicle credit' : 'Refund of replacement credit', recordedAt: context.now, recordedBy: context.actor });
   const document = operationDocument(sale, context, 'receipt', 'Credit refund receipt', `${sale.standaloneReturn ? 'Vehicle return' : 'Replacement'} credit refund recorded: ${(amount / 100).toFixed(2)} GBP\nMethod: ${method}\nDate: ${date}\nThis records a refund reported by staff; no bank transfer has been initiated by this portal.`);
@@ -550,13 +563,14 @@ export function returnSaleCar(
   if (!reason || !condition) throw new SaleWorkspaceError('Record the return reason and returned vehicle condition.');
   if (!Number.isSafeInteger(input.mileage) || Number(input.mileage) < 0 || Number(input.mileage) > 2_000_000) throw new SaleWorkspaceError('Enter the returned vehicle mileage.');
   const returnedDate = operationDate(input.returnedDate, 'actual return date');
-  if (returnedDate > context.now.slice(0, 10) || returnedDate < current.completedAt.slice(0, 10)) throw new SaleWorkspaceError('The actual return date must be between the completed sale and today.');
+  if (returnedDate > saleCalendarDate(context.now) || returnedDate < saleCalendarDate(current.completedAt)) throw new SaleWorkspaceError('The actual return date must be between the completed sale and today.');
   const sale = clone(current);
   sale.draft.returnCreditPence = amount;
   const after = saleWorkspaceTotals(sale.draft, sale.payments), unpaidCancelledPence = Math.min(amount, Math.max(0, before.balance)), refundDuePence = Math.max(0, -after.balance);
   if (![after.totalDue, after.confirmedPaid, after.balance, unpaidCancelledPence, refundDuePence].every(Number.isSafeInteger)) throw new SaleWorkspaceError('Check the return amounts.');
   sale.standaloneReturn = { id: context.nextId(), creditPence: amount, originalTotalPence: before.totalDue, unpaidCancelledPence, refundDuePence, balanceDuePence: Math.max(0, after.balance), reason, condition, mileage: Number(input.mileage), returnedDate, at: context.now, actor: context.actor };
   sale.lifecycle = { status: 'returned', vehicleId: sale.draft.vehicleId, changedAt: context.now };
+  cancelSaleHandoffTasks(sale, 'vehicle-returned', context);
   for (const request of sale.paymentRequests ?? []) request.status = 'cancelled';
   const document = operationDocument(sale, context, 'credit-note', 'Vehicle return credit note', `Vehicle returned: ${sale.draft.vehicle} (${sale.draft.registration})\nAgreed return credit: ${saleMoney(amount)}\nUnpaid balance cancelled: ${saleMoney(unpaidCancelledPence)}\nRefund due at return: ${saleMoney(refundDuePence)}\nNo refund has been sent by this action.\nReason: ${reason}`);
   document.transaction = { kind: 'return-only-credit', amountPence: amount, originalSaleReference: sale.reference, originalInvoiceReferences: current.documents.filter(d => d.type === 'invoice').map(d => d.number), originalTotalPence: before.totalDue, unpaidCancelledPence, refundDuePence, balanceDuePence: Math.max(0, after.balance), reason, condition, mileage: Number(input.mileage), returnedDate };
@@ -679,6 +693,7 @@ export function returnAndReplaceSale(
     vehicleId: returned.draft.vehicleId,
     changedAt: context.now,
   };
+  cancelSaleHandoffTasks(returned, 'vehicle-returned', context);
   replacement.returnReplacement = {
     ...common,
     otherSaleId: current.id,

@@ -180,7 +180,7 @@ for (const width of [390, 834, 1440])
         return route.abort();
       });
       await page.goto(`/portal?section=sales&saleId=${sale.id}`);
-      await expect(page.getByRole("heading", { name: "What would you like to do?" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Sale overview" })).toBeVisible();
       const saved = page.locator(".sale-desk-document-list > div").filter({ hasText: invoice.number });
       async function openSavedDocument() {
         await page.getByRole("button", { name: "Payments and documents", exact: true }).click();

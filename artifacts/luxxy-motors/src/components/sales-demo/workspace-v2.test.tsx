@@ -61,7 +61,7 @@ beforeEach(() => {
 });
 
 it('opens the guided sale and keeps unsaved contact edits across actions', async () => {
-  mount(); await screen.findByRole('heading', { name: 'What would you like to do?' });
+  mount(); await screen.findByRole('heading', { name: 'Sale overview' });
   const changeCustomer = () => fireEvent.click(screen.getByRole('button', { name: 'Back to customer' }));
   changeCustomer();
   fireEvent.change(screen.getByLabelText('Telephone'), { target: { value: '07700900456' } });
@@ -74,7 +74,7 @@ it('opens the guided sale and keeps unsaved contact edits across actions', async
 });
 
 it('preserves an unsaved payment and blocks invoice creation until it is recorded or cleared', async () => {
-  mount(); await screen.findByRole('heading', { name: 'What would you like to do?' });
+  mount(); await screen.findByRole('heading', { name: 'Sale overview' });
   choose(/Take a payment/);
   fireEvent.change(screen.getByLabelText('Payment amount (£)'), { target: { value: '500' } });
   back();
@@ -87,7 +87,7 @@ it('preserves an unsaved payment and blocks invoice creation until it is recorde
 });
 
 it('requires received-money confirmation and updates the shared balance using exact pence', async () => {
-  mount(); await screen.findByRole('heading', { name: 'What would you like to do?' });
+  mount(); await screen.findByRole('heading', { name: 'Sale overview' });
   choose(/Take a payment/);
   fireEvent.change(screen.getByLabelText('Payment amount (£)'), { target: { value: '500.25' } });
   expect(screen.getByRole('button', { name: 'Save £500.25 payment' })).toBeDisabled();
@@ -104,7 +104,7 @@ it('opens saved paperwork without issuing a duplicate or rewriting the original 
   state.sale = savedSale();
   state.sale = changeSaleWorkspace(state.sale, { action: 'issue-invoice', kind: 'full', acknowledge: true }, { expectedRevision: state.sale.revision, requestId: 'issue-fixture' }, context()).sale;
   const frozen = structuredClone(state.sale.documents);
-  mount(); await screen.findByRole('heading', { name: 'What would you like to do?' });
+  mount(); await screen.findByRole('heading', { name: 'Sale overview' });
   fireEvent.click(screen.getByRole('button', { name: 'Payments and documents' }));
   fireEvent.click(screen.getByRole('button', { name: 'View & share' }));
   fireEvent.click(screen.getByRole('button', { name: 'Open & print invoice' }));
@@ -115,7 +115,7 @@ it('opens saved paperwork without issuing a duplicate or rewriting the original 
 
 it('keeps Accounts payment access while protecting customer and vehicle edits', async () => {
   state.permissions = ['payments.record', 'payments.refund'];
-  mount(); await screen.findByRole('heading', { name: 'What would you like to do?' });
+  mount(); await screen.findByRole('heading', { name: 'Sale overview' });
   expect(screen.getByRole('button', { name: /Create an invoice/ })).toBeEnabled();
   choose(/Take a payment/);
   expect(screen.getByRole('textbox', { name: /Payment amount/ })).toBeEnabled();
@@ -128,8 +128,8 @@ it('keeps Accounts payment access while protecting customer and vehicle edits', 
 
 it('keeps quick actions available inside the full-screen sale without clearing the deal', async () => {
   const quick = vi.fn(); mount(true, <button onClick={quick}>Quick actions</button>);
-  await screen.findByRole('heading', { name: 'What would you like to do?' });
-  fireEvent.click(screen.getAllByRole('button', { name: 'Change' })[1]);
+  await screen.findByRole('heading', { name: 'Sale overview' });
+  fireEvent.click(screen.getByRole('button', { name: 'Change customer' }));
   fireEvent.change(screen.getByLabelText('Telephone'), { target: { value: '07700900789' } });
   fireEvent.click(screen.getByRole('button', { name: 'Quick actions' }));
   expect(quick).toHaveBeenCalledOnce();
@@ -142,7 +142,7 @@ it('shows transferred credit separately from cash received and the delivery char
   state.sale.draft.deliveryCharge = '200';
   state.sale.draft.adjustments = [{ kind: 'fee', description: 'Agreed extra', amount: '50' }];
   state.sale.draft.creditEntries = [{ id: 'transfer-1', sourceSaleId: 'previous-sale', reference: 'SALE-OLD', signedAmountPence: 100000, at: '2026-11-03T10:00:00Z' }];
-  mount(); await screen.findByRole('heading', { name: 'What would you like to do?' });
+  mount(); await screen.findByRole('heading', { name: 'Sale overview' });
   const summary = screen.getByRole('complementary', { name: 'Payment breakdown' });
   expect(within(summary).getByText('Payments received').parentElement).toHaveTextContent('£0.00');
   expect(within(summary).getByText('Transferred credit').parentElement).toHaveTextContent('£1,000.00');

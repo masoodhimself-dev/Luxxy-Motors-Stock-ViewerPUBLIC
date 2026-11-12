@@ -243,3 +243,76 @@ test('a verified payment with a changed hold is flagged for review and never cla
     assert.deepEqual(await f.vehicle(), { inventory_status: 'reserved', audit_metadata: { onlineStripeReservationId: 'someone-else' } });
   } finally { await f.engine.close(); }
 });
+
+async function seedHistoricPayment(f: Awaited<ReturnType<typeof fixture>>) {
+  await f.engine.query('INSERT INTO sale_workspace(id,dealer_id,state) VALUES($1::uuid,$2,$3::jsonb)', [randomUUID(), dealerId,
+    JSON.stringify({ draft: { vehicleId: f.input.vehicleId }, payments: [{ id: randomUUID(), status: 'confirmed', signedAmountPence: 50000 }] })]);
+}
+
+test('a historical paid draft blocks public checkout before contacting Stripe', async () => {
+  const f = await fixture();
+  try {
+    await seedHistoricPayment(f);
+    let attempts = 0;
+    await assert.rejects(f.checkout(async () => { attempts++; return checkoutResponse(); }), /already being purchased or reserved/);
+    assert.equal(attempts, 0);
+    assert.equal(await f.current(), undefined);
+    assert.equal((await f.vehicle()).inventory_status, 'available');
+  } finally { await f.engine.close(); }
+});
+
+test('a paid checkout with a newly found historical sale requires verified full refund before releasing its hold', async () => {
+  const f = await fixture();
+  try {
+    await f.checkout(openCheckout);
+    const record = (await f.current())!;
+    await seedHistoricPayment(f);
+    await assert.rejects(f.checkout(openCheckout), /already being purchased or reserved/);
+    const services = { database: f.database, channel: 'public-v1' as const,
+      depositRecorder: async () => { throw new Error('Must not allocate the conflicting payment'); },
+      refundRecorder: async () => { throw new Error('Must not book the unallocated refund in a sale ledger'); },
+    };
+    const process = (event: StripeEvent) => processStripeReservationEvent(event, dealerId, settings, services);
+    const completion = providerEvent('checkout.session.completed', checkoutObject(record, 'complete'));
+    await process(completion);
+    await process(completion);
+    await process(providerEvent('checkout.session.completed', completion.data.object));
+    assert.equal((await f.current())?.needsReview, true);
+    assert.deepEqual((await f.current())?.stockConflictPayment, { paymentIntentId: paymentIntent, amountPence: 9900 });
+    assert.equal((await f.current())?.amountReceivedPence, 0);
+    assert.equal((await f.current())?.saleId, undefined);
+    await assert.rejects(f.checkout(openCheckout), /checkout has closed/i);
+    await process(providerEvent('checkout.session.expired', checkoutObject(record, 'expired')));
+    assert.equal((await f.vehicle()).audit_metadata.onlineStripeReservationId, record.id);
+    const firstRefund = providerEvent('refund.updated', { id: 're_fixtureFirst', currency:'gbp', payment_intent:paymentIntent, amount:5000, status:'succeeded' }, 2);
+    await process(firstRefund);
+    assert.equal((await f.vehicle()).audit_metadata.onlineStripeReservationId, record.id);
+    assert.equal((await f.current())?.needsReview, true);
+    const finalRefund = providerEvent('refund.updated', { id: 're_fixtureFinal', currency:'gbp', payment_intent:paymentIntent, amount:4900, status:'succeeded' }, 3);
+    await process(finalRefund);
+    await process(finalRefund);
+    await process(providerEvent('refund.updated', finalRefund.data.object, 4));
+    assert.equal((await f.current())?.paymentStatus, 'refunded');
+    assert.equal((await f.current())?.amountRefundedPence, 9900);
+    assert.equal((await f.current())?.needsReview, false);
+    assert.equal((await f.current())?.saleId, undefined);
+    assert.deepEqual(await f.vehicle(), { inventory_status: 'available', audit_metadata: { existing: true } });
+  } finally { await f.engine.close(); }
+});
+
+test('a verified refund for a conflicting payment preserves a different checkout hold', async () => {
+  const f = await fixture();
+  try {
+    await f.checkout(openCheckout);
+    const record = (await f.current())!;
+    await seedHistoricPayment(f);
+    const services = { database: f.database, channel:'public-v1' as const };
+    await processStripeReservationEvent(providerEvent('checkout.session.completed', checkoutObject(record, 'complete')), dealerId, settings, services);
+    await f.engine.query("UPDATE vehicles SET audit_metadata=jsonb_build_object('onlineStripeReservationId','different-checkout')");
+    const refund = providerEvent('refund.updated', { id:'re_fixtureFull', currency:'gbp', payment_intent:paymentIntent, amount:9900, status:'succeeded' }, 2);
+    const result = await processStripeReservationEvent(refund, dealerId, settings, services);
+    assert.equal(result?.amountRefundedPence, 9900);
+    assert.equal(result?.saleId, undefined);
+    assert.deepEqual(await f.vehicle(), { inventory_status:'reserved', audit_metadata:{ onlineStripeReservationId:'different-checkout' } });
+  } finally { await f.engine.close(); }
+});

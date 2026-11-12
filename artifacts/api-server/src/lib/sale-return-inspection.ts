@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { SaleWorkspaceError, publicSaleWorkspace, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
-import type { SaleWorkspaceDatabase } from './sale-workspace-store';
+import { SaleWorkspaceError, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
+import { staffSaleWorkspace, type SaleWorkspaceDatabase } from './sale-workspace-store';
 
 const uuid = (value: unknown): value is string => typeof value === 'string' && /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value);
 export type SaleReturnInspectionInput = { expectedRevision: unknown; requestId: unknown; confirm: unknown; note: unknown };
@@ -24,7 +24,7 @@ export async function completeSaleReturnInspection(database: SaleWorkspaceDataba
     if (prior) {
       if (prior.fingerprint !== fingerprint || !sale.returnInspection) throw new SaleWorkspaceError('This request reference was already used for different inspection details.', 409);
       await client.query('COMMIT');
-      return { sale: publicSaleWorkspace(sale), replayed: true };
+      return { sale: staffSaleWorkspace(sale), replayed: true };
     }
     if (sale.revision !== input.expectedRevision) throw new SaleWorkspaceError('This returned sale changed. Reload it before continuing.', 409);
     if (sale.lifecycle?.status !== 'returned' || (!sale.standaloneReturn && sale.returnReplacement?.direction !== 'returned') || sale.returnInspection) throw new SaleWorkspaceError('This sale has no returned vehicle awaiting inspection.', 409);
@@ -61,7 +61,7 @@ export async function completeSaleReturnInspection(database: SaleWorkspaceDataba
     await client.query("UPDATE sold_vehicle_follow_ups SET status='not_needed',outcome='not_needed',note=concat_ws(E'\\n',nullif(note,''),'Vehicle returned; original sold follow-up no longer applies.'),revision=revision+1,updated_by=$4,updated_at=$5 WHERE dealer_id=$1 AND sale_id=$2::uuid AND vehicle_id=$3::uuid AND status='pending'", [dealerId, saleId, vehicleId, actor, now]);
     await client.query('UPDATE sale_workspace SET revision=$3,state=$4::jsonb,updated_at=$5 WHERE dealer_id=$1 AND id=$2::uuid', [dealerId, saleId, sale.revision, JSON.stringify(sale), now]);
     await client.query('COMMIT');
-    return { sale: publicSaleWorkspace(sale), replayed: false };
+    return { sale: staffSaleWorkspace(sale), replayed: false };
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;

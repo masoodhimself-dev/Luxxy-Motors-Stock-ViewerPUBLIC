@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
 import {
+  hasUnrefundedStockConflictPayment,
   latestFullSaleInvoice,
   saleInvoiceMatchesSale,
   saleHandoverMessage,
@@ -21,6 +22,13 @@ import { useDealerSettings } from "@/lib/dealer-settings-context";
 import { useStaffAccess } from "./dealer-administration";
 import { saleMoney, HandoverDialog } from "@/components/sales-demo/sales-controls";
 import "./sale-handover.css";
+
+function handoverHold(sale: SaleWorkspaceRecord): string | undefined {
+  if (sale.draft.fulfilment?.completedAt) return undefined;
+  if (hasUnrefundedStockConflictPayment(sale)) return "Record the outstanding refund before sharing or completing the handover.";
+  if (sale.stockActionBlock) return "Check the car’s availability before sharing or completing the handover.";
+  return undefined;
+}
 
 type HandoverDraft = Pick<
   SaleWorkspaceDraft,
@@ -196,6 +204,7 @@ export function SaleHandover({
   const completed = Boolean(value.completedAt),
     sold = Boolean(sale.completedAt || sale.lifecycle?.status === "sold");
   const message = saleHandoverMessage(sale, settings.identity.name);
+  const hold = handoverHold(sale);
   const totals = saleWorkspaceTotals(sale.draft, sale.payments);
   const invoice = latestFullSaleInvoice(sale.documents);
   const invoiceReady = Boolean(invoice && saleInvoiceMatchesSale(invoice, sale.draft, sale.payments, sale.documents));
@@ -241,6 +250,8 @@ export function SaleHandover({
       throw new Error(
         "The arrangements changed. Reload the sale and review them before sharing.",
       );
+    const currentHold = handoverHold(latest.sale);
+    if (currentHold) throw new Error(currentHold);
   }
   async function save(
     next: SaleWorkspaceFulfilment,
@@ -445,12 +456,13 @@ export function SaleHandover({
               </ul>
             </div>
           )}
+          {hold && <p role="status">{hold}</p>}
           <div className="handover-actions">
             {canManage && (
               <>
                 <Button
                   variant="outline"
-                  disabled={busy || conflict}
+                  disabled={busy || conflict || Boolean(hold)}
                   onClick={() => {
                     setEmailMessage(message);
                     setEmail(true);
@@ -461,7 +473,7 @@ export function SaleHandover({
                 <DirectWhatsApp
                   confirmedPhone={value.phone || sale.draft.phone}
                   label="WhatsApp confirmation"
-                  disabled={busy || conflict}
+                  disabled={busy || conflict || Boolean(hold)}
                   customerPhone={value.phone || sale.draft.phone}
                   customerName={sale.draft.customer}
                   saleId={sale.id}
@@ -479,6 +491,7 @@ export function SaleHandover({
                 disabled={
                   busy ||
                   conflict ||
+                  Boolean(hold) ||
                   !(value.recipient || sale.draft.customer).trim() ||
                   (value.method === "delivery" && !value.address.trim())
                 }

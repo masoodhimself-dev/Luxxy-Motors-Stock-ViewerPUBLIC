@@ -7,7 +7,7 @@ beforeEach(() => api.fetch.mockReset());
 it('normalises a valid registration and validates the read-only API response', async () => {
   api.fetch.mockResolvedValue(reply()); const controller = new AbortController();
   const result = await lookupPartExchangeCar('ys67 lmk', controller.signal);
-  expect(api.fetch).toHaveBeenCalledWith('/api/mot-mileage-estimate?registration=YS67LMK', { signal: controller.signal });
+  expect(api.fetch).toHaveBeenCalledWith('/api/mot-mileage-estimate?registration=YS67LMK&identity=dvla', { signal: controller.signal });
   expect(result).toMatchObject({ registration: 'YS67LMK', mileage: '88000', vehicle: { make: 'MERCEDES-BENZ' }, mot: { dueDate: '2027-10-01', lastReading: { mileage: 87000, unit: 'MI' } } });
 });
 it('rejects invalid plates before a request and mismatched identities after a request', async () => {

@@ -23,6 +23,7 @@ export const emailTemplateVariables = [
   "amount",
   "vehicle_price",
   "amount_received",
+  "transferred_credit",
   "balance",
   "payment_status",
   "reservation_status",

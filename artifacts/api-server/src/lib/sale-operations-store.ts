@@ -18,7 +18,6 @@ import {
 } from "../../../../lib/vehicle-meta/src/sale-operations";
 import {
   saleWorkspaceTotals,
-  publicSaleWorkspace,
   saleWorkspaceNumber,
   latestFullSaleInvoice,
   saleInvoiceDeliveryCoverage,
@@ -30,7 +29,10 @@ import {
   type SaleWorkspaceDraft,
 } from "@workspace/vehicle-meta";
 import {
+  hasSaleWorkspaceStockClaim,
   readSaleWorkspaceAssets,
+  requireSaleVehiclePaymentAccess,
+  staffSaleWorkspace,
   type SaleWorkspaceReadClient,
 } from "./sale-workspace-store";
 import { archiveSaleDocument } from "./sale-document-pdf";
@@ -131,23 +133,41 @@ async function context(
   };
 }
 
+const stockId = /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
+function replacementVehicle(value: unknown) {
+  const vehicleId = operationText(value, 36, 'the replacement vehicle');
+  if (!stockId.test(vehicleId)) throw new SaleWorkspaceError('Choose the replacement vehicle.');
+  return vehicleId.toLowerCase();
+}
 function replacementProposal(input: Record<string, unknown>): SaleReplacementProposal {
-  const replacementVehicleId = operationText(input.replacementVehicleId, 36, 'the replacement vehicle');
-  if (!/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(replacementVehicleId)) throw new SaleWorkspaceError('Choose the replacement vehicle.');
+  const replacementVehicleId = replacementVehicle(input.replacementVehicleId);
   if (input.financeConfirmed !== true || input.acknowledge !== true) throw new SaleWorkspaceError('Confirm the agreed return and that finance or third-party settlement has been resolved.');
   if (!Number.isSafeInteger(input.mileage) || Number(input.mileage) < 0 || Number(input.mileage) > 2_000_000) throw new SaleWorkspaceError('Enter the returned vehicle mileage.');
   return { replacementVehicleId, replacementPrice: (operationMoney(input.replacementPrice, 'replacement price') / 100).toFixed(2), agreedCredit: (operationMoney(input.agreedCredit, 'agreed return credit') / 100).toFixed(2), reason: operationText(input.reason, 2000, 'the return reason'), condition: operationText(input.condition, 4000, 'the returned vehicle condition'), mileage: Number(input.mileage), financeConfirmed: true, acknowledge: true };
 }
-async function prepareReplacement(client: SaleWorkspaceReadClient, dealer: string, current: SaleWorkspaceRecord, proposal: SaleReplacementProposal, ctx: SaleWorkspaceContext, lock: boolean) {
-  const vehicleId = proposal.replacementVehicleId;
-  if (vehicleId === current.draft.vehicleId) throw new SaleWorkspaceError('Choose a different replacement vehicle.');
+async function replacementStock(client: SaleWorkspaceReadClient, dealer: string, current: SaleWorkspaceRecord, vehicleId: string, lock: boolean) {
+  if (!stockId.test(current.draft.vehicleId) || !current.completedAt || current.lifecycle?.status !== 'sold') throw new SaleWorkspaceError('The original vehicle no longer belongs to this completed sale.', 409);
+  if (vehicleId === current.draft.vehicleId.toLowerCase()) throw new SaleWorkspaceError('Choose a different replacement vehicle.');
   if (lock) for (const carId of [current.draft.vehicleId, vehicleId].sort()) await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`sale-vehicle:${carId}`]);
   const oldCar = (await client.query(`SELECT inventory_status,audit_metadata FROM vehicles WHERE dealer_id=$1 AND id=$2::uuid${lock ? ' FOR UPDATE' : ''}`, [dealer, current.draft.vehicleId])).rows[0];
   const car = (await client.query(`SELECT id,coalesce(website_title_override,title,'') AS title,coalesce(plate,vrm,registration,'') AS registration,source_price,website_price_override,source_status,missing_count,archived_at,inventory_status,audit_metadata FROM vehicles WHERE dealer_id=$1 AND id=$2::uuid${lock ? ' FOR UPDATE' : ''}`, [dealer, vehicleId])).rows[0];
   if (!oldCar || oldCar.inventory_status !== 'sold' || oldCar.audit_metadata?.saleWorkspaceId !== current.id) throw new SaleWorkspaceError('The original vehicle no longer belongs to this completed sale.', 409);
-  if (!car || car.inventory_status !== 'available' || car.source_status !== 'live' || car.archived_at || Number(car.missing_count ?? 0) !== 0 || car.audit_metadata?.saleWorkspaceId || car.audit_metadata?.returnInspectionPending === true) throw new SaleWorkspaceError('This replacement vehicle is not available.', 409);
-  const competing = await client.query("SELECT id FROM leads WHERE dealer_id=$1 AND vehicle_id=$2::uuid AND stage IN ('reserved','sale_agreed','collected') UNION ALL SELECT id FROM sale_workspace WHERE dealer_id=$1 AND state#>>'{draft,vehicleId}'=$2::text AND state#>>'{lifecycle,status}' IN ('reserved','sold')", [dealer, vehicleId]);
-  if (competing.rows.length) throw new SaleWorkspaceError('The replacement car has another active sale or reservation.', 409);
+  if (!car || car.inventory_status !== 'available' || car.source_status !== 'live' || car.archived_at || Number(car.missing_count ?? 0) !== 0 || car.audit_metadata?.saleWorkspaceId || car.audit_metadata?.onlineStripeReservationId || car.audit_metadata?.returnInspectionPending === true) throw new SaleWorkspaceError('This replacement vehicle is not available.', 409);
+  const competing = await client.query("SELECT id FROM leads WHERE dealer_id=$1 AND vehicle_id=$2::uuid AND stage IN ('reserved','sale_agreed','collected') LIMIT 1", [dealer, vehicleId]);
+  if (competing.rows.length || await hasSaleWorkspaceStockClaim(client, dealer, vehicleId, { includeLegacyLedger: true })) throw new SaleWorkspaceError('The replacement car has another active sale or reservation.', 409);
+  return { oldCar, car };
+}
+
+export async function checkReplacementAvailability(id: string, requestedVehicleId: unknown) {
+  const dealer = currentDealerId(), vehicleId = replacementVehicle(requestedVehicleId);
+  const sale = await load(pool, dealer, id, false);
+  await replacementStock(pool, dealer, sale, vehicleId, false);
+  return { vehicleId };
+}
+
+async function prepareReplacement(client: SaleWorkspaceReadClient, dealer: string, current: SaleWorkspaceRecord, proposal: SaleReplacementProposal, ctx: SaleWorkspaceContext) {
+  const vehicleId = proposal.replacementVehicleId;
+  const { oldCar, car } = await replacementStock(client, dealer, current, vehicleId, true);
       const price = operationMoney(proposal.replacementPrice, "replacement price");
       const replacementDraft: SaleWorkspaceDraft = {
         ...current.draft,
@@ -222,7 +242,7 @@ export async function saleOperation(
         );
       await client.query("COMMIT");
       return {
-        sale: publicSaleWorkspace(current),
+        sale: staffSaleWorkspace(current),
         replayed: true,
         ...(current.returnReplacement
           ? { replacementId: current.returnReplacement.otherSaleId }
@@ -234,6 +254,7 @@ export async function saleOperation(
     let sale = structuredClone(current),
       result: Record<string, unknown> = {};
     if (input.action === "request-payment") {
+      await requireSaleVehiclePaymentAccess(dealer, current, client);
       const mutation = requestSalePayment(
         current,
         {
@@ -251,6 +272,7 @@ export async function saleOperation(
         requestId: mutation.request.id,
       };
     } else if (input.action === "mark-request-shared") {
+      await requireSaleVehiclePaymentAccess(dealer, current, client);
       const request = sale.paymentRequests?.find(r => r.id === input.paymentRequestId);
       if (!request || !salePaymentRequestAvailable(sale, request, ctx.now)) throw new SaleWorkspaceError("This payment request is no longer current.", 409);
       if (salePaymentRequestRemaining(sale, request) !== request.amountPence) throw new SaleWorkspaceError("This request has changed since it was issued. Record the remaining payment or create a new request.", 409);
@@ -271,6 +293,7 @@ export async function saleOperation(
       request.status = "cancelled";
       finishSaleOperation(sale, ctx, "Payment request cancelled");
     } else if (input.action === "renew-request-link") {
+      await requireSaleVehiclePaymentAccess(dealer, current, client);
       const request = sale.paymentRequests?.find(
         (r) => r.id === input.paymentRequestId,
       );
@@ -361,7 +384,7 @@ export async function saleOperation(
     } else if (input.action === "return-replace") {
       assertSaleFinancialIntegrity(current, true);
       const proposal = replacementProposal(input);
-      const { oldCar, car, vehicleId, replacementDraft, replacementContext } = await prepareReplacement(client, dealer, current, proposal, ctx, true);
+      const { oldCar, car, vehicleId, replacementDraft, replacementContext } = await prepareReplacement(client, dealer, current, proposal, ctx);
       // Revalidate the actual stock and ledger under lock; optional AI advice never authorises a transfer.
       const mutation = returnAndReplaceSale(
         current,
@@ -439,7 +462,7 @@ export async function saleOperation(
       [dealer, JSON.stringify(numbers)],
     );
     await client.query("COMMIT");
-    return { sale: publicSaleWorkspace(sale), ...result };
+    return { sale: staffSaleWorkspace(sale), ...result };
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;

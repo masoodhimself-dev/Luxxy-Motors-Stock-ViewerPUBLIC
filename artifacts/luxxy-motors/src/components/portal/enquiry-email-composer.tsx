@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, Paperclip, Send } from "@/components/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { customFetch, type Enquiry } from "@workspace/api-client-react";
+import type { SaleCustomerUpdateBinding } from "@workspace/vehicle-meta";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -91,6 +92,8 @@ type EmailPreview = {
   text: string;
   html?: string;
   previewHash: string;
+  saleUpdateRequestId?: string;
+  saleUpdateExistingStatus?: "sending" | "sent" | "unknown";
   attachments: { id: string; filename: string; byteSize: number }[];
 };
 export type SuggestedEmailContent = {
@@ -247,6 +250,8 @@ function EnquiryEmailEditor({
   verifyContext,
   sendRequestId,
   initialRecipient,
+  fixedRecipient,
+  saleUpdate,
   editRecipientRequest = 0,
   linkedReply = false,
   enquiryReplyId,
@@ -267,6 +272,8 @@ function EnquiryEmailEditor({
   verifyContext?: () => Promise<void>;
   sendRequestId?: string;
   initialRecipient?: string;
+  fixedRecipient?: string;
+  saleUpdate?: SaleCustomerUpdateBinding;
   editRecipientRequest?: number;
   linkedReply?: boolean;
   enquiryReplyId?: string;
@@ -322,6 +329,7 @@ function EnquiryEmailEditor({
     expectedRevision: 0,
   });
   const replyRecipientMismatch = targetedReply && (!replyRecipient || draft.to.trim().toLowerCase() !== replyRecipient);
+  const fixedRecipientMismatch = Boolean(fixedRecipient && (!suggestionApplied || draft.to.trim().toLowerCase() !== fixedRecipient));
   const [preview, setPreview] = useState<EmailPreview | null>(null),
     [reviewedDraft, setReviewedDraft] = useState<EmailDraft | null>(null),
     [delivery, setDelivery] = useState<Delivery | null>(null);
@@ -362,7 +370,7 @@ function EnquiryEmailEditor({
     const data = context.data;
     initialized.current = true;
     savedVersion.current = data.version ?? 0;
-    if (data.savedDraft) {
+    if (data.savedDraft && !saleUpdate) {
       setDraft({ ...data.savedDraft.content, attachVehiclePdf: data.savedDraft.content.attachVehiclePdf ?? false });
       setSaveNotice(data.savedDraft.source === "ai" ? "AI draft ready · check the details before sending" : "Saved draft restored · not sent");
       return;
@@ -406,6 +414,7 @@ function EnquiryEmailEditor({
     initialContent,
     suggestedContent,
     initialRecipient,
+    saleUpdate,
     targetedReply,
     replyRecipient,
     replySubject,
@@ -489,7 +498,7 @@ function EnquiryEmailEditor({
     ]);
   }
   async function saveDraft() {
-    if (busyRef.current) return;
+    if (busyRef.current || fixedRecipientMismatch || saleUpdate) return;
     busyRef.current = true;
     setBusyAction("save");
     setError("");
@@ -503,7 +512,7 @@ function EnquiryEmailEditor({
     }
   }
   async function review() {
-    if (busyRef.current || replyRecipientMismatch) return;
+    if (busyRef.current || replyRecipientMismatch || fixedRecipientMismatch) return;
     if (missingAttachment) {
       setError(missingAttachment);
       return;
@@ -513,10 +522,10 @@ function EnquiryEmailEditor({
     setError("");
     try {
       await verifyContext?.();
-      await persistDraft();
+      if (!saleUpdate) await persistDraft();
       const result = await request<EmailPreview>(
         `${base}/email-preview`,
-        { ...draft, ...(targetedReply ? { enquiryReplyId } : {}) },
+        { ...draft, ...(targetedReply ? { enquiryReplyId } : {}), ...(saleUpdate ? { saleUpdate } : {}) },
       );
       setPreview(result);
       setReviewedDraft({ ...draft, photoIds: [...draft.photoIds] });
@@ -537,6 +546,8 @@ function EnquiryEmailEditor({
       !features.enabled("customerEmails") ||
       sendBlockedReason ||
       replyRecipientMismatch ||
+      fixedRecipientMismatch ||
+      (saleUpdate && !preview.saleUpdateRequestId) ||
       (linkedReply && !preview.repliesInInbox)
     )
       return;
@@ -547,10 +558,10 @@ function EnquiryEmailEditor({
     try {
       await verifyContext?.();
       sendingRequest.current ??= {
-        requestId: sendRequestId || requestUuid(),
+        requestId: preview.saleUpdateRequestId || sendRequestId || requestUuid(),
         draft: reviewedDraft,
         previewHash: preview.previewHash,
-        savedDraftVersion: savedVersion.current,
+        savedDraftVersion: saleUpdate ? undefined : savedVersion.current,
       };
       const input = sendingRequest.current;
       const result = await request<{ delivery: Delivery }>(`${base}/email`, {
@@ -559,6 +570,7 @@ function EnquiryEmailEditor({
         previewHash: input.previewHash,
         savedDraftVersion: input.savedDraftVersion,
         ...(targetedReply ? { enquiryReplyId } : {}),
+        ...(saleUpdate ? { saleUpdate } : {}),
       });
       setDelivery(result.delivery);
       setDirty(false);
@@ -807,19 +819,27 @@ function EnquiryEmailEditor({
                 : delivery.error ||
                   "This request is still recorded as sending. Check the email history and Resend before sending another copy."}
             </p>
-            <p>
-              {delivery.photoCount} vehicle photo
-              {delivery.photoCount === 1 ? "" : "s"} ·{" "}
-              {delivery.documentCount ?? 0} document(s) · recorded in enquiry
-              history
-            </p>
-            <Button
-              onClick={() =>
-                onClose(delivery.status === "sent" ? "sent" : "draft")
-              }
-            >
-              Done
-            </Button>
+            {saleUpdate ? <p>Recorded in enquiry history</p> : (
+              <p>
+                {delivery.photoCount} vehicle photo
+                {delivery.photoCount === 1 ? "" : "s"} ·{" "}
+                {delivery.documentCount ?? 0} document(s) · recorded in enquiry
+                history
+              </p>
+            )}
+            {saleUpdate && delivery.status === "failed" ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button disabled={busy} onClick={() => {
+                  setDelivery(null);
+                  setPreview(null);
+                  setReviewedDraft(null);
+                  void review();
+                }}>Review and retry</Button>
+                <Button variant="outline" onClick={() => onClose("draft")}>Done</Button>
+              </div>
+            ) : (
+              <Button onClick={() => onClose(delivery.status === "sent" ? "sent" : "draft")}>Done</Button>
+            )}
             {["sending", "unknown"].includes(delivery.status) && (
               <Button
                 type="button"
@@ -847,6 +867,7 @@ function EnquiryEmailEditor({
                     ? "Checking email availability…"
                     : features.isError
                       ? "Email availability could not be checked. Sending is paused; your draft is safe."
+                      : saleUpdate ? "Email sending is off. You can copy or print this update in Sales."
                       : compact
                         ? "Email sending is off. You can save drafts."
                         : "Email sending is switched off by platform administration. You can still prepare and save drafts."}
@@ -897,7 +918,7 @@ function EnquiryEmailEditor({
                   {saveNotice}
                 </p>
               )}
-              {data.savedDraft &&
+              {!saleUpdate && data.savedDraft &&
               ["sending", "unknown"].includes(data.savedDraft.status) ? (
                 <div className="enquiry-email-readiness">
                   <p>
@@ -980,12 +1001,16 @@ function EnquiryEmailEditor({
                             !data.ready ||
                             !features.enabled("customerEmails") ||
                             !!sendBlockedReason ||
+                            fixedRecipientMismatch ||
+                            Boolean(saleUpdate && !preview.saleUpdateRequestId) ||
                             (linkedReply && !preview.repliesInInbox)
                           }
                           onClick={() => void send()}
                         >
                           {busyAction === "send"
-                            ? "Sending…"
+                            ? (preview.saleUpdateExistingStatus ? "Checking delivery…" : "Sending…")
+                            : preview.saleUpdateExistingStatus
+                              ? "Check delivery status"
                             : sendingRequest.current
                               ? "Check or retry same email"
                               : "Send email"}
@@ -1014,9 +1039,10 @@ function EnquiryEmailEditor({
                     >
                       {suggestedContent && (
                         <div className="enquiry-email-readiness" role="status">
-                          <p>
+                            <p>
                             {suggestionApplied
-                              ? `${suggestedContent.label} prepared. Edit the wording and review before sending.`
+                              ? saleUpdate ? "Review the saved sale details before sending this update."
+                                : `${suggestedContent.label} prepared. Edit the wording and review before sending.`
                               : `Your saved draft has been kept. You can choose the ${suggestedContent.label.toLowerCase()} wording instead.`}
                           </p>
                           {!suggestionApplied && (
@@ -1030,6 +1056,14 @@ function EnquiryEmailEditor({
                                   subject: suggestedContent.subject,
                                   message: suggestedContent.message,
                                   includeAppointment: false,
+                                  ...(fixedRecipient ? {
+                                    to: fixedRecipient,
+                                    attachVehiclePdf: false,
+                                    photoIds: [],
+                                    documentIds: [],
+                                    vehiclePhotoIndices: [],
+                                    stockChange: undefined,
+                                  } : {}),
                                   ...(suggestedContent.includeVehicle === false
                                     ? { includeVehicle: false }
                                     : {}),
@@ -1065,7 +1099,7 @@ function EnquiryEmailEditor({
                             </Button>
                           </div>
                         )}
-                      {!compact && <AiReplyDraft key={entry.id} enquiryId={entry.id} disabled={busy} onApply={text=>change({message:text})} />}
+                      {!compact && !fixedRecipient && <AiReplyDraft key={entry.id} enquiryId={entry.id} disabled={busy} onApply={text=>change({message:text})} />}
                       <fieldset disabled={busy}>
                         {targetedReply && !replyRecipient && (
                           <p role="status" className="enquiry-email-readiness">
@@ -1080,7 +1114,7 @@ function EnquiryEmailEditor({
                             </Button>
                           </div>
                         )}
-                        {!targetedReply && initialRecipient &&
+                        {!fixedRecipient && !targetedReply && initialRecipient &&
                           /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
                             initialRecipient.trim(),
                           ) &&
@@ -1115,12 +1149,13 @@ function EnquiryEmailEditor({
                             required={!preparingMessage}
                             maxLength={254}
                             value={draft.to}
+                            readOnly={Boolean(fixedRecipient)}
                             onChange={(event) =>
                               change({ to: event.target.value })
                             }
                           />
                         </label>
-                        {!compact && templateChoice}
+                        {!compact && !saleUpdate && templateChoice}
 
                         <label>
                           Subject
@@ -1128,6 +1163,7 @@ function EnquiryEmailEditor({
                             required
                             maxLength={200}
                             value={draft.subject}
+                            readOnly={Boolean(saleUpdate)}
                             onChange={(event) =>
                               change({ subject: event.target.value })
                             }
@@ -1142,13 +1178,14 @@ function EnquiryEmailEditor({
                             rows={5}
                             maxLength={12000}
                             value={draft.message}
+                            readOnly={Boolean(saleUpdate)}
                             onChange={(event) =>
                               change({ message: event.target.value })
                             }
                           />
                         </label>
 
-                        {compact && (
+                        {!saleUpdate && compact && (
                           <div className="enquiry-compact-tools">
                             <AiReplyDraft key={entry.id} enquiryId={entry.id} disabled={busy} compact message={draft.message} onApply={text=>change({message:text})} />
                             <Button type="button" variant="ghost" aria-expanded={attachmentsOpen} aria-controls={attachmentsId} onClick={() => setAttachmentsOpen(value => !value)}>
@@ -1156,12 +1193,12 @@ function EnquiryEmailEditor({
                             </Button>
                           </div>
                         )}
-                        {compact && additions.length > 0 && (
+                        {!saleUpdate && compact && additions.length > 0 && (
                           <button type="button" className="enquiry-email-added" aria-expanded={attachmentsOpen} aria-controls={attachmentsId} onClick={() => setAttachmentsOpen(value => !value)}>
                             Included: {additions.join(" · ")} <span>Edit</span>
                           </button>
                         )}
-                        <div id={attachmentsId} hidden={compact && !attachmentsOpen} className={compact ? "enquiry-email-content-tray" : "enquiry-email-content-options"}>
+                        {!saleUpdate && <div id={attachmentsId} hidden={compact && !attachmentsOpen} className={compact ? "enquiry-email-content-tray" : "enquiry-email-content-options"}>
                           {compact && <><h5>Add to this reply</h5>{templateChoice}</>}
                         {Boolean(data.vehiclePhotos?.length) && (
                           <details className="enquiry-email-service-book">
@@ -1348,7 +1385,7 @@ function EnquiryEmailEditor({
                             ))}
                           </details>
                         )}
-                        </div>
+                        </div>}
                       </fieldset>
                       {missingAttachment && (
                         <p
@@ -1359,7 +1396,7 @@ function EnquiryEmailEditor({
                         </p>
                       )}
                       <div className="enquiry-email-actions">
-                        {(channel === "whatsapp" || !inline) && (
+                        {!saleUpdate && (channel === "whatsapp" || !inline) && (
                           <DirectWhatsApp
                             enquiryId={entry.id}
                             customerName={entry.customerName}
@@ -1384,14 +1421,15 @@ function EnquiryEmailEditor({
                             }}
                           />
                         )}
-                        {channel !== "whatsapp" && (
+                        {!saleUpdate && channel !== "whatsapp" && (
                           <Button
                             type="button"
                             variant="outline"
                             disabled={
                               busy ||
                               Boolean(draft.stockChange) ||
-                              draft.expectedRevision !== data.revision
+                              draft.expectedRevision !== data.revision ||
+                              fixedRecipientMismatch
                             }
                             onClick={() => void saveDraft()}
                           >
@@ -1409,6 +1447,7 @@ function EnquiryEmailEditor({
                               draft.expectedRevision !== data.revision ||
                               !draft.to.trim() ||
                               replyRecipientMismatch ||
+                              fixedRecipientMismatch ||
                               Boolean(missingAttachment)
                             }
                           >
@@ -1493,6 +1532,8 @@ export function EnquiryEmailComposer(props: {
   verifyContext?: () => Promise<void>;
   sendRequestId?: string;
   initialRecipient?: string;
+  fixedRecipient?: string;
+  saleUpdate?: SaleCustomerUpdateBinding;
   editRecipientRequest?: number;
   linkedReply?: boolean;
   enquiryReplyId?: string;

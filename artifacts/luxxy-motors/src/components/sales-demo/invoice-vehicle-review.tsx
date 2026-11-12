@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { customFetch, HttpApiError } from '@workspace/api-client-react';
-import { formatRegistrationPlate, saleInvoiceMileageMax, type SaleInvoiceVehicleReview, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
+import { formatRegistrationPlate, saleInvoiceMileageMax, saleInvoiceMotWarning, type SaleInvoiceVehicleReview, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 import { AlertCircle, ShieldCheck } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,9 +13,15 @@ export type InvoiceVehicleApproval = {
   id: string;
   mileage: number;
   acknowledge: true;
+  acknowledgeMot?: true;
 };
 
 const numberLabel = new Intl.NumberFormat('en-GB');
+const motWarningTitle = {
+  expired: 'MOT expired',
+  'due-today': 'MOT expires today',
+  'due-soon': 'MOT due soon',
+};
 
 function odometerReading(value: string) {
   if (!/^\d{1,7}$|^\d{1,3}(?:,\d{3}){1,2}$/.test(value.trim())) return null;
@@ -32,6 +38,7 @@ export function InvoiceVehicleReview({ sale, disabled, onApproval }: {
   const [review, setReview] = useState<SaleInvoiceVehicleReview | null>(null);
   const [mileageText, setMileageText] = useState('');
   const [accepted, setAccepted] = useState(false);
+  const [motAccepted, setMotAccepted] = useState(false);
   const [checking, setChecking] = useState(false);
   const [problem, setProblem] = useState('');
   const pending = useRef<AbortController | null>(null);
@@ -43,6 +50,8 @@ export function InvoiceVehicleReview({ sale, disabled, onApproval }: {
   const mileage = odometerReading(mileageText);
   const mileageError = Boolean(mileageText && mileage === null);
   const motReading = review?.lastMotMileage;
+  const expiryDate = review?.mot?.expiryDate;
+  const motWarning = saleInvoiceMotWarning(expiryDate);
   const motMiles = motReading && (motReading.unit === 'km' ? Math.round(motReading.reading / 1.609344) : motReading.reading);
   const belowMot = mileage !== null && motMiles !== undefined && mileage < motMiles;
   const savedRegistration = review?.registration || sale.draft.registration;
@@ -56,6 +65,7 @@ export function InvoiceVehicleReview({ sale, disabled, onApproval }: {
     pending.current = controller;
     setReview(null);
     setAccepted(false);
+    setMotAccepted(false);
     onApproval(null);
     setChecking(true);
     setProblem('');
@@ -76,10 +86,17 @@ export function InvoiceVehicleReview({ sale, disabled, onApproval }: {
     }
   }
 
-  function confirm(checked: boolean) {
-    if (!review || mileage === null) return;
-    setAccepted(checked);
-    onApproval(checked ? { saleId: sale.id, revision: sale.revision, id: review.id, mileage, acknowledge: true } : null);
+  function confirm(vehicleAccepted: boolean, motAcknowledged: boolean) {
+    setAccepted(vehicleAccepted);
+    setMotAccepted(motAcknowledged);
+    if (!review || mileage === null || !vehicleAccepted || (motWarning && !motAcknowledged)) {
+      onApproval(null);
+      return;
+    }
+    onApproval({
+      saleId: sale.id, revision: sale.revision, id: review.id, mileage, acknowledge: true,
+      ...(motWarning ? { acknowledgeMot: true } : {}),
+    });
   }
 
   return <section className="invoice-vehicle-review" aria-labelledby={`${id}-heading`}>
@@ -104,6 +121,20 @@ export function InvoiceVehicleReview({ sale, disabled, onApproval }: {
           {review.stockMileage !== undefined && <div><dt>Mileage on stock record</dt><dd>{numberLabel.format(review.stockMileage)} miles</dd></div>}
         </dl>
       )}
+      {motWarning && expiryDate && <div className="invoice-vehicle-review-warning invoice-vehicle-review-mot" data-expired={motWarning.kind === 'expired'}>
+        <AlertCircle size={19} aria-hidden="true" />
+        <div>
+          <div role="status" id={`${id}-mot-warning`}>
+            <strong>{motWarningTitle[motWarning.kind]}</strong>
+            <p>The recorded MOT {motWarning.kind === 'expired' ? 'expired' : 'expires'} on <time dateTime={expiryDate}>{motDateLabel(expiryDate)}</time>.</p>
+          </div>
+          <label className="invoice-vehicle-review-confirm">
+            <input type="checkbox" checked={motAccepted} disabled={disabled} aria-describedby={`${id}-mot-warning`}
+              onChange={event => confirm(accepted, event.target.checked)} />
+            I acknowledge the MOT warning and want to continue.
+          </label>
+        </div>
+      </div>}
       {(review.warnings.length > 0 || review.status !== 'checked' || belowMot) && <div className="invoice-vehicle-review-warning" role="status">
         <AlertCircle size={17} aria-hidden="true" />
         <div>
@@ -121,7 +152,7 @@ export function InvoiceVehicleReview({ sale, disabled, onApproval }: {
         <p id={`${id}-mileage-hint`}>{mileageError ? 'Enter a whole number from 0 to 2,000,000.' : 'Use the reading on the dashboard.'}</p>
       </div>
       <label className="invoice-vehicle-review-confirm">
-        <input type="checkbox" checked={accepted} disabled={disabled || mileage === null} onChange={event => confirm(event.target.checked)} />
+        <input type="checkbox" checked={accepted} disabled={disabled || mileage === null} onChange={event => confirm(event.target.checked, motAccepted)} />
         {review.status !== 'checked' ? 'I checked the vehicle manually and confirmed the current odometer reading.'
           : 'I checked the vehicle details and confirmed the current odometer reading.'}
       </label>

@@ -1,4 +1,4 @@
-import { hasSeparateDeliveryInvoice, latestFullSaleInvoice, saleCanRequestDeposit, saleDepositConfirmationShared, salePaymentRequestAvailable, salePaymentRequestRemaining, saleWorkspaceTotals, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
+import { hasSeparateDeliveryInvoice, hasUnrefundedStockConflictPayment, latestFullSaleInvoice, saleCanRequestDeposit, saleDepositConfirmationDue, salePaymentRequestAvailable, salePaymentRequestRemaining, saleWorkspaceTotals, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 
 import { saleInvoiceIsCurrent } from '@/lib/sale-invoice-current';
 
@@ -9,10 +9,10 @@ export function saleNextStep(sale: SaleWorkspaceRecord, now = new Date().toISOSt
   const totals = saleWorkspaceTotals(sale.draft, sale.payments);
   const sold = !saleCanRequestDeposit(sale);
   if (sale.lifecycle?.status === 'released' || sale.lifecycle?.status === 'returned' || sale.returnReplacement?.direction === 'returned' || sale.standaloneReturn) return null;
+  if (hasUnrefundedStockConflictPayment(sale)) return { action: 'history', label: 'Review payment for refund', note: 'This car belongs to another sale. Open the payment history to record the refund once it has been paid.' };
   if (totals.pending > 0 || totals.balance < 0 || sale.corrections?.length || (sale.completedAt && sale.payments.some(payment => payment.status === 'confirmed' && payment.signedAmountPence < 0))) return { action: 'history', label: 'Check payments', note: 'Review the payment history before continuing.' };
-  const deposit = [...sale.payments].reverse().find(payment => payment.kind === 'deposit' && payment.status === 'confirmed' && payment.signedAmountPence > 0 && !sale.payments.some(row => row.reversesPaymentId === payment.id));
-  const receipt = deposit && sale.documents.find(document => document.id === deposit.receiptId);
-  if (receipt && !sold && !saleDepositConfirmationShared(sale, receipt.id)) return { action: 'confirmation', label: 'Send deposit confirmation', note: sale.lifecycle?.status === 'reserved' ? 'The deposit is recorded. Let the customer know the car is reserved.' : 'The deposit is recorded. Send the customer a receipt.', documentId: receipt.id };
+  const receipt = saleDepositConfirmationDue(sale);
+  if (receipt) return { action: 'confirmation', label: 'Send deposit confirmation', note: sale.lifecycle?.status === 'reserved' ? 'The deposit is recorded. Let the customer know the car is reserved.' : 'The deposit is recorded. Send the customer a receipt.', documentId: receipt.id };
   const request = [...(sale.paymentRequests ?? [])].reverse().find(row => salePaymentRequestAvailable(sale, row, now) && salePaymentRequestRemaining(sale, row) > 0);
   const requestAmountChanged = request && salePaymentRequestRemaining(sale, request) < request.amountPence;
   const requestShared = request && (request.sharedAt || sale.emailDeliveries?.some(delivery => delivery.documentId === request.documentId && delivery.status === 'sent'));

@@ -25,6 +25,7 @@ export function ConfirmSavedPayment({ sale, payment, busy, problem, onClose, onC
   const [received, setReceived] = useState(false);
   const [acceptShortfall, setAcceptShortfall] = useState(false);
   const deposit = payment.kind === 'deposit';
+  const reservesCar = deposit || Boolean(sale.draft.vehicleId && !sale.completedAt && sale.lifecycle?.status !== 'sold' && sale.lifecycle?.status !== 'reserved');
   const request = sale.paymentRequests?.find(row => row.id === payment.paymentRequestId);
   const requested = request?.kind === 'deposit' ? salePaymentRequestRemaining(sale, request) : 0;
   const shortfall = Math.max(0, requested - payment.amountPence);
@@ -49,7 +50,7 @@ export function ConfirmSavedPayment({ sale, payment, busy, problem, onClose, onC
             <p>{saleMoney(payment.amountPence)} is {saleMoney(shortfall)} less than the {saleMoney(requested)} requested. The unpaid amount stays in the balance.</p>
             <label className="invoice-check"><input type="checkbox" checked={acceptShortfall} onChange={event => setAcceptShortfall(event.target.checked)}/>Accept {saleMoney(payment.amountPence)} as the deposit.</label>
           </div>}
-          <label className="invoice-check"><input type="checkbox" checked={received} onChange={event => setReceived(event.target.checked)}/>{deposit ? `I confirm ${saleMoney(payment.amountPence)} has arrived. This will reserve the car and remove it from available stock.` : `I confirm ${saleMoney(payment.amountPence)} has arrived.`}</label>
+          <label className="invoice-check"><input type="checkbox" checked={received} onChange={event => setReceived(event.target.checked)}/>{`I confirm ${saleMoney(payment.amountPence)} has arrived.`}{reservesCar && ' This will reserve the car and remove it from available stock.'}</label>
         </fieldset>
         {problem && <p className="invoice-error" role="alert">{problem}</p>}
         <DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={close}>Go back</Button><Button type="submit" disabled={busy || !valid}>{busy ? 'Confirming…' : deposit ? 'Confirm deposit & reserve car' : 'Confirm payment'}</Button></DialogFooter>

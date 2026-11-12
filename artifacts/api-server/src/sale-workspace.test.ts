@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createCanvas } from '@napi-rs/canvas';
-import { changeSaleWorkspace, createSaleWorkspace, saleWorkspacePence, saleWorkspaceTotals, saleInvoiceMatchesSale, saleCompletionChecklistItems, partExchangeChecklistItems, saleWorkspaceExchanges, saleWorkspaceChecklistProgress, SaleWorkspaceError, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
+import { changeSaleWorkspace, createSaleWorkspace, releaseSaleForCancelledReservation, saleWorkspacePence, saleWorkspaceTotals, saleInvoiceMatchesSale, saleCompletionChecklistItems, partExchangeChecklistItems, saleWorkspaceExchanges, saleWorkspaceChecklistProgress, SaleWorkspaceError, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 import { operationDocument } from '../../../lib/vehicle-meta/src/sale-operations';
 import { PostgresSaleWorkspaceStore, readSaleWorkspaceAssets, type SaleWorkspaceDatabase } from './lib/sale-workspace-store';
 import { loadSaleInvoicePhotos } from './lib/sale-invoice-photos';
@@ -100,7 +100,7 @@ test('sold and handover actions keep exact balance checks without depending on A
   const handedOver=changeSaleWorkspace(sold,{action:'handover',recipient:'Buyer'},{expectedRevision:sold.revision,requestId:'no-ai-handover'},noAi).sale;
   assert.equal(handedOver.draft.fulfilment?.completedRecipient,'Buyer');
   const incomplete=create();
-  assert.throws(()=>changeSaleWorkspace(incomplete,{action:'handover',recipient:'Buyer'},{expectedRevision:incomplete.revision,requestId:'unpaid-no-ai-handover'},noAi),/outstanding balance/);
+  assert.throws(()=>changeSaleWorkspace(incomplete,{action:'handover',recipient:'Buyer'},{expectedRevision:incomplete.revision,requestId:'unpaid-no-ai-handover'},noAi),/mark this sale sold/i);
   const completed=changeSaleWorkspace(paid,{action:'complete-sale',acknowledge:true},{expectedRevision:paid.revision,requestId:'no-ai-complete'}, {...noAi,paperwork:{saleTerms:'Agreed sale terms',reservationTerms:''}}).sale;
   assert.ok(completed.completedAt); assert.equal(completed.finalReview,undefined);
 });
@@ -234,9 +234,12 @@ test('collection and unseen delivery are independent of payment status and requi
   const deliveryDraft = { ...sale.draft, fulfilment: { method: 'delivery' as const, viewed: 'not-yet-viewed' as const, address: 'A real supplied delivery address', recipient: 'Buyer', phone: '', scheduledDate: '2026-10-06', timeWindow: 'Morning', instructions: '' } };
   const updated = changeSaleWorkspace(sale, { action: 'update', draft: deliveryDraft }, { expectedRevision: sale.revision, requestId: 'request-delivery' }, context());
   const handover: SaleWorkspaceCommand = { action: 'handover', recipient: 'Buyer' };
-  assert.throws(() => changeSaleWorkspace(updated.sale, handover, { expectedRevision: updated.sale.revision, requestId: 'request-handover' }, context()), /outstanding balance/);
+  assert.throws(() => changeSaleWorkspace(updated.sale, { ...handover, acknowledgeOutstanding: true }, { expectedRevision: updated.sale.revision, requestId: 'request-early-handover' }, context()), /mark this sale sold/i);
   const checked = reviewChecks(updated.sale);
-  const completed = changeSaleWorkspace(checked, { ...handover, acknowledgeOutstanding: true }, { expectedRevision: checked.revision, requestId: 'request-handover' }, context());
+  const invoiced = changeSaleWorkspace(checked, { action: 'issue-invoice', kind: 'full', acknowledge: true }, { expectedRevision: checked.revision, requestId: 'handover-invoice' }, context()).sale;
+  const sold = changeSaleWorkspace(invoiced, { action: 'finish-invoice-sale', acknowledge: true, acknowledgeOutstanding: true }, { expectedRevision: invoiced.revision, requestId: 'handover-mark-sold' }, context()).sale;
+  assert.throws(() => changeSaleWorkspace(sold, handover, { expectedRevision: sold.revision, requestId: 'request-handover' }, context()), /outstanding balance/);
+  const completed = changeSaleWorkspace(sold, { ...handover, acknowledgeOutstanding: true }, { expectedRevision: sold.revision, requestId: 'request-handover' }, context());
   assert.equal(completed.document?.title, 'Delivery confirmation'); assert.equal(completed.sale.draft.fulfilment?.viewed, 'not-yet-viewed'); assert.equal(saleWorkspaceTotals(completed.sale.draft, completed.sale.payments).balance, 1200000);
 });
 
@@ -314,6 +317,7 @@ test('pending expected dates are retained and confirmation uses the actual recei
 
 test('a later details save cannot rewrite completed collection or delivery evidence', () => {
   const checked = reviewChecks(create());
+  checked.completedAt = context().now;
   const completed = changeSaleWorkspace(checked, { action: 'handover', recipient: 'Original recipient', acknowledgeOutstanding: true }, { expectedRevision: checked.revision, requestId: 'request-handover' }, context());
   const changed = { ...completed.sale.draft, fulfilment: { ...completed.sale.draft.fulfilment!, method: 'delivery' as const, viewed: 'viewed' as const, recipient: 'Someone else', address: 'Another place' } };
   const updated = changeSaleWorkspace(completed.sale, { action: 'update', draft: changed }, { expectedRevision: completed.sale.revision, requestId: 'request-edit' }, context());
@@ -511,6 +515,26 @@ test('guided corrections preserve history without generating unwanted receipts',
   assert.equal(corrected.documents.length,0);assert.equal(corrected.payments.length,2);assert.equal(saleWorkspaceTotals(corrected.draft,corrected.payments).confirmedPaid,40000);
 });
 
+test('completion is bound to the reviewed full invoice when historical copies exist', () => {
+  const command = { action: 'issue-invoice', kind: 'full', acknowledge: true } as const;
+  const sale = create();
+  const historical = changeSaleWorkspace(sale, command, { expectedRevision: sale.revision, requestId: 'first-invoice-for-completion' }, context());
+  const paid = changeSaleWorkspace(historical.sale, payment('12000', 'final-payment'), { expectedRevision: historical.sale.revision, requestId: 'received-before-final-invoice' }, context()).sale;
+  const current = changeSaleWorkspace(paid, command, { expectedRevision: paid.revision, requestId: 'current-invoice-for-completion' }, context());
+  const completion = { action: 'finish-invoice-sale', acknowledge: true } as const;
+  const request = { expectedRevision: current.sale.revision, requestId: 'complete-current-invoice' };
+
+  assert.throws(() => changeSaleWorkspace(current.sale, { ...completion, reviewedInvoiceId: historical.document!.id }, request, context()), /superseded/);
+  assert.throws(() => changeSaleWorkspace(current.sale, completion, request, context()), /review the current sales invoice/);
+  assert.equal(current.sale.completedAt, undefined);
+  const approved = { ...completion, reviewedInvoiceId: current.document!.id };
+  const sold = changeSaleWorkspace(current.sale, approved, request, context());
+  assert.equal(sold.sale.lifecycle?.status, 'sold');
+  assert.equal(JSON.stringify(sold.sale.documents), JSON.stringify(current.sale.documents));
+  assert.equal(sold.sale.events.at(-1)?.documentId, current.document!.id);
+  assert.equal(changeSaleWorkspace(sold.sale, approved, request, context()).replayed, true);
+});
+
 test('staff may explicitly sell with an outstanding balance, then record later funds without losing the debt or invoice', () => {
   const sale=create();const issued=changeSaleWorkspace(sale,{action:'issue-invoice',kind:'full',acknowledge:true},{expectedRevision:sale.revision,requestId:'guided-credit-invoice'},context()).sale;
   const checked=reviewChecks(issued);
@@ -525,11 +549,13 @@ test('final reminders do not block sale completion, handover or sold transitions
   const sale = create();
   const unchanged = JSON.stringify(sale);
   const invoice = changeSaleWorkspace(sale, { action: 'issue-invoice', kind: 'full', acknowledge: true }, { expectedRevision: sale.revision, requestId: 'reminder-invoice' }, context()).sale;
+  let current = invoice;
   for (const command of [
     { action: 'finish-invoice-sale', acknowledge: true, acknowledgeOutstanding: true },
     { action: 'handover', recipient: 'Buyer', acknowledgeOutstanding: true },
   ] as SaleWorkspaceCommand[]) {
-    const result = changeSaleWorkspace(invoice, command, { expectedRevision: invoice.revision, requestId: 'reminder-' + command.action }, context()).sale;
+    const result = changeSaleWorkspace(current, command, { expectedRevision: current.revision, requestId: 'reminder-' + command.action }, context()).sale;
+    current = result;
     assert.equal(result.checklists, undefined);
     assert.equal(JSON.stringify(result.documents[0]), JSON.stringify(invoice.documents[0]));
     assert.deepEqual(result.payments, invoice.payments);
@@ -618,10 +644,42 @@ test('payment changes reset the payments attestation without changing reviewed d
 
 test('old completed sales retain their history and can record handover without retroactive checklists', () => {
   const old = create(); old.lifecycle = { status: 'sold', vehicleId: old.draft.vehicleId, changedAt: '2026-09-01T10:00:00Z' }; old.completedAt = '2026-09-01T10:00:00Z';
+  const task = { status:'open' as const, assigneeId:'staff', assigneeName:'Showroom staff', note:'Keep this internal note in history',
+    createdAt:old.createdAt, createdBy:'Manager', updatedAt:old.createdAt, updatedBy:'Manager' };
+  old.handoffTasks = [
+    { ...task, id:'collection-task', kind:'arrange-collection' },
+    { ...task, id:'payment-task', kind:'check-payment' },
+  ];
   const before = JSON.stringify(old.documents);
   const handedOver = changeSaleWorkspace(old, { action: 'handover', recipient: 'Historic buyer', acknowledgeOutstanding: true }, { expectedRevision: old.revision, requestId: 'historic-handover' }, context()).sale;
   assert.equal(handedOver.checklists, undefined); assert.equal(JSON.stringify(old.documents), before);
+  assert.deepEqual(handedOver.handoffTasks?.map(({status,resolutionReason,note})=>[status,resolutionReason,note]),
+    [['cancelled','handover-completed',task.note],['open',undefined,task.note]]);
   assert.throws(() => changeSaleWorkspace(old, { action: 'checklists', completion: { documents: 'checked' } }, { expectedRevision: old.revision, requestId: 'historic-forge' }, context()), /cannot be changed/);
+});
+
+test('cancelling a historical reservation closes collection tasks on a linked unpaid draft without a lifecycle', () => {
+  const sale = create();
+  sale.draft.sourceReservationId = 'historical-reservation';
+  const task = { status:'open' as const, assigneeId:'staff', assigneeName:'Showroom staff', note:'Internal note',
+    createdAt:sale.createdAt, createdBy:'Manager', updatedAt:sale.createdAt, updatedBy:'Manager' };
+  sale.handoffTasks = [{ ...task, id:'collection-task', kind:'arrange-collection' },{ ...task, id:'payment-task', kind:'check-payment' }];
+  const paidDraft = structuredClone(sale);
+  const paid = changeSaleWorkspace(paidDraft,payment('200'),{expectedRevision:paidDraft.revision,requestId:'linked-paid-draft'},context()).sale;
+  delete paid.lifecycle;
+  const beforePaid = structuredClone(paid);
+  assert.equal(releaseSaleForCancelledReservation(paid,context()),false);
+  assert.deepEqual(paid,beforePaid);
+  const revision = sale.revision;
+  assert.ok(!Object.hasOwn(sale,'lifecycle'));
+  assert.equal(releaseSaleForCancelledReservation(sale,context()),true);
+  assert.equal(sale.lifecycle?.status,'released');
+  assert.equal(sale.revision,revision+1);
+  assert.deepEqual(sale.handoffTasks.map(({status,resolutionReason,note})=>[status,resolutionReason,note]),
+    [['cancelled','sale-released',task.note],['open',undefined,task.note]]);
+  assert.equal(sale.events.at(-1)?.type,'reservation-cancelled');
+  assert.equal(releaseSaleForCancelledReservation(sale,context()),false);
+  assert.equal(sale.revision,revision+1);
 });
 
 test('legacy part-exchange scalar edits reset the final checks and effective intake evidence', () => {
