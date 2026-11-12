@@ -17,11 +17,16 @@ export interface Vehicle {
   registration?: string | null;
   year?: string | null;
   mileage?: string | null;
+  /** An odometer reading confirmed for this sale. */
+  saleMileage?: string;
+  officialMot?: { label: string; expiry: string };
   fuel?: string | null;
   gearbox?: string | null;
   colour?: string | null;
   vin?: string | null;
   photo?: ImageAsset;
+  /** Frozen invoice photo strip. An empty strip explicitly omits photos. */
+  photos?: readonly ImageAsset[];
   /** Additional facts from the immutable vehicle snapshot, never inferred. */
   details?: readonly { label: string; value: string }[];
 }
@@ -52,6 +57,8 @@ export interface InvoiceData {
   totals: { saleTotal: string; paymentsReceived: string; balanceRemaining: string };
   /** E.g. Paid in full / Balance outstanding / Deposit received; host decides. */
   settlementStatus?: string;
+  /** Shown prominently on the first page of an invoice with a reviewed vehicle. */
+  firstPageBalance?: { label: string; amount: string };
   balanceLabel?: string;
   receivedLabel?: string;
   pendingNote?: string;

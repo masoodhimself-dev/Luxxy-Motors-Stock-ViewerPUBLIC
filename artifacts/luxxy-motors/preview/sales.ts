@@ -1,5 +1,5 @@
 import { invoiceEmailAttachments } from "../../api-server/src/lib/invoice-email-attachments";
-import { loadBrochurePhotos } from "../../api-server/src/lib/vehicle-brochure-images";
+import { loadSaleInvoicePhotos } from "../../api-server/src/lib/sale-invoice-photos";
 // Local network sandbox only. The production entry never imports this file.
 import { previewIntegrationsStore } from "./dealer-integrations";
 import { randomUUID } from "node:crypto";
@@ -15,6 +15,7 @@ import {
   saleWorkspaceBranding,
   saleWorkspaceFingerprint,
   saleWorkspaceTotals,
+  requireSaleInvoiceVehicleReviewTarget,
   saleHandoverStatus,
   saleQueueFilters,
   saleQueueStatus,
@@ -23,6 +24,7 @@ import {
   SaleWorkspaceError,
   dailySalePaymentsOptions,
   previewDailySalePayments,
+  type SaleInvoiceVehicleReview,
   type SaleWorkspaceBranding,
   type SaleWorkspaceVehicleSnapshot,
   type SaleWorkspaceCommand,
@@ -77,6 +79,7 @@ export class PreviewSaleWorkspaceStore {
               vehicle: {
                 id: vehicle.id,
                 title: vehicle.title ?? "",
+                trim: vehicle.trim?.trim() || vehicle.variant,
                 registration:
                   vehicle.plate || vehicle.vrm || vehicle.registration,
                 engineSize: vehicle.engineSize,
@@ -84,7 +87,7 @@ export class PreviewSaleWorkspaceStore {
                 doors: vehicle.doors,
                 seats: vehicle.seats,
                 emissionClass: vehicle.emissionClass,
-                imageUrl: vehicle.heroImage,
+                imageUrl: vehicle.heroImage || vehicle.images?.[0]?.url,
                 year: vehicle.year,
                 fuel: vehicle.fuel,
                 transmission: vehicle.transmission,
@@ -147,6 +150,23 @@ export class PreviewSaleWorkspaceStore {
       const sale = (await this.load()).sales.find((item) => item.id === id);
       if (!sale) throw new SaleWorkspaceError("Sale not found.", 404);
       return publicSaleWorkspace(sale);
+    });
+  }
+  async reviewInvoiceVehicle(id: string, expectedRevision: unknown) {
+    return this.serial(async () => {
+      const state = await this.load();
+      const sale = state.sales.find(item => item.id === id);
+      if (!sale) throw new SaleWorkspaceError("Sale not found.", 404);
+      requireSaleInvoiceVehicleReviewTarget(sale, expectedRevision);
+      const stock = previewStock.cars.find(car => car.id === sale.draft.vehicleId);
+      const review: SaleInvoiceVehicleReview = {
+        id: randomUUID(), registration: sale.draft.registration, checkedAt: new Date().toISOString(), status: 'unavailable',
+        ...(typeof stock?.mileage === 'number' && stock.mileage >= 0 ? { stockMileage: stock.mileage } : {}),
+        warnings: ['Official vehicle checks are unavailable in this local preview.'],
+      };
+      sale.invoiceVehicleReview = { review, revision: sale.revision, actorId: previewSalesActorId, stockIdentity: '' };
+      await this.save(state);
+      return { review, preview: true };
     });
   }
   async verifyInvoice(saleId: string, documentId: string, token: string) {
@@ -222,6 +242,7 @@ export class PreviewSaleWorkspaceStore {
     draft?: unknown;
     command?: SaleWorkspaceCommand;
     actor?: string;
+    requireInvoiceVehicleReview?: boolean;
   }): Promise<SaleWorkspaceMutation> {
     if (input.command?.action === "provider-refund-correction")
       throw new SaleWorkspaceError(
@@ -261,29 +282,20 @@ export class PreviewSaleWorkspaceStore {
           ? input.command.draft
           : (current?.draft ?? (input.draft as SaleWorkspaceDraft));
       const assets = await this.assets(draft);
-      if (
-        input.command?.action === "issue-invoice" &&
-        assets.vehicle?.imageUrl
-      ) {
-        const photo = (
-          await loadBrochurePhotos(
-            [
-              {
-                url: assets.vehicle.imageUrl.replace(/w\d+-h\d+/, "w480-h360"),
-                caption: "",
-              },
-            ],
-            "",
-            4000,
-          )
-        )[0];
-        if (photo?.bytes && photo.format)
-          assets.vehicle.photoDataUrl = `data:image/${photo.format === "JPEG" ? "jpeg" : "png"};base64,${Buffer.from(photo.bytes).toString("base64")}`;
+      const command = input.command;
+      const issuesInvoice = command?.action === 'issue-invoice' || command?.action === 'complete-sale' || command?.action === 'document' && command.type === 'invoice';
+      if (issuesInvoice && assets.vehicle?.id && assets.vehicle.id === draft?.vehicleId &&
+        assets.vehicle.invoicePhotoDataUrls === undefined && current?.revision === input.expectedRevision &&
+        !Object.hasOwn(current?.requests ?? {},input.requestId) && (!input.requireInvoiceVehicleReview || command.vehicleReview !== undefined)) {
+        const car = previewStock.cars.find(item=>item.id===draft.vehicleId);
+        const gallery = assets.vehicle.imageUrl ? await loadSaleInvoicePhotos([assets.vehicle.imageUrl,...(car?.images ?? []).map(image=>image.url)],'') : [];
+        assets.vehicle = { ...assets.vehicle,invoicePhotoDataUrls:gallery };
       }
       const context: SaleWorkspaceContext = {
         now,
         actor: input.actor ?? previewAssignment(previewSalesActorId).assignedToName ?? "Showroom staff",
         actorId: previewSalesActorId,
+        requireInvoiceVehicleReview: input.requireInvoiceVehicleReview,
         nextId: randomUUID,
         nextNumber: (type) =>
           saleWorkspaceNumber(
@@ -622,7 +634,7 @@ export async function salesPreview(
       return true;
     }
     const route =
-      /^\/api\/sale-workspace(?:\/([^/]+))?(?:\/(payments|documents|handover|fulfilment|take-deposit|complete-sale|invoice-payments|issue-invoice|finish-invoice-sale|checklists|team))?(?:\/([^/]+)\/(confirm|reverse))?$/.exec(
+      /^\/api\/sale-workspace(?:\/([^/]+))?(?:\/(payments|documents|handover|fulfilment|take-deposit|complete-sale|invoice-payments|invoice-vehicle-review|issue-invoice|finish-invoice-sale|checklists|team))?(?:\/([^/]+)\/(confirm|reverse))?$/.exec(
         url.pathname,
       );
     if (!route) throw new SaleWorkspaceError("Sale action not found.", 404);
@@ -664,6 +676,10 @@ export async function salesPreview(
       return true;
     }
     const input = await body(req);
+    if (req.method === "POST" && id && section === "invoice-vehicle-review") {
+      send(res, 200, await store.reviewInvoiceVehicle(id, input.expectedRevision));
+      return true;
+    }
     if (req.method === "POST" && !id) {
       const mutation = await store.mutate({
         requestId: input.requestId,
@@ -709,7 +725,7 @@ export async function salesPreview(
           invoiceOnly: input.invoiceOnly === true,
         };
       if (section === "documents")
-        command = { action: "document", type: input.type };
+        command = { action: "document", type: input.type, ...(input.vehicleReview !== undefined ? { vehicleReview: input.vehicleReview } : {}) };
       if (section === "invoice-payments")
         command = { action: "invoice-payment", payment: input.payment };
       if (section === "issue-invoice")
@@ -717,6 +733,7 @@ export async function salesPreview(
           action: "issue-invoice",
           kind: input.kind,
           acknowledge: input.acknowledge,
+          ...(input.vehicleReview !== undefined ? { vehicleReview: input.vehicleReview } : {}),
         };
       if (section === "finish-invoice-sale")
         command = {
@@ -727,7 +744,7 @@ export async function salesPreview(
       if (section === "take-deposit")
         command = { action: "take-deposit", payment: input.payment };
       if (section === "complete-sale")
-        command = { action: "complete-sale", acknowledge: input.acknowledge };
+        command = { action: "complete-sale", acknowledge: input.acknowledge, ...(input.vehicleReview !== undefined ? { vehicleReview: input.vehicleReview } : {}) };
       if (section === "handover")
         command = {
           action: "handover",
@@ -746,6 +763,7 @@ export async function salesPreview(
         command,
         requestId: input.requestId,
         expectedRevision: input.expectedRevision,
+        requireInvoiceVehicleReview: true,
       }),
     );
   } catch (error) {

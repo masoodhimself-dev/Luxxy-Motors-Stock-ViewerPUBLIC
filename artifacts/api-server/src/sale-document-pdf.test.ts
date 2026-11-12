@@ -744,6 +744,74 @@ test('v2 invoice reconciles first-class delivery and deposit with the frozen ori
   assert.deepEqual(renderSaleDocumentPdf(document), renderSaleDocumentPdf(JSON.parse(before)), 'Later state cannot rewrite original issued bytes');
 });
 
+test('reviewed invoice puts confirmed vehicle facts and the frozen balance on its first page', () => {
+  const document = workspaceV2Document();
+  document.snapshot.vehicle!.invoiceReview = {
+    registration: 'AB20XYZ', mileage: 42610, verification: 'dvla', reviewedAt: document.issuedAt,
+    dvlaCheckedAt: '2026-11-03T14:58:00Z', motExpiry: '2027-09-30', motSource: 'DVSA', motCheckedAt: '2026-11-03T14:58:00Z',
+  };
+  const bytes = renderSaleDocumentPdf(document), text = bytes.toString('latin1');
+  const expectedFacts = ['AB20 XYZ', 'Mileage at sale', '42,610 miles', 'MOT expiry (DVSA)', '30 Sept 2027', 'Balance at issue'];
+  const assertFirstPageFacts = (pdfText: string) => {
+    const rows = textRows(pdfText), first = rows.filter(row => row.page === 0);
+    for (const fact of expectedFacts) assert.ok(first.some(row => row.text === fact), `Page one shows ${fact}`);
+    assert.ok(first.some(row => row.text === '£9,700.00' && row.size === 17), 'The issued balance is prominent');
+    assert.ok(!rows.some(row => row.text === '22,000 miles'), 'The old stock mileage is not printed');
+    assert.equal(rows.filter(row => row.text === 'Balance at issue').length, 1);
+    assertTextOnA4(pdfText);
+    assertRowsDoNotCollide(pdfText);
+  };
+  assertFirstPageFacts(text);
+  assert.equal(pageCount(text), 1);
+  saveV2Sample('v2-reviewed-sales-invoice', document);
+  const longAddress = structuredClone(document);
+  longAddress.snapshot.draft.address = Array.from({ length: 64 }, (_, index) => `Address line ${index + 1}`).join('\n');
+  const continued = renderSaleDocumentPdf(longAddress).toString('latin1');
+  assert.ok(pageCount(continued) > 1);
+  assertFirstPageFacts(continued);
+  assert.deepEqual(renderSaleDocumentPdf(document), bytes, 'A different invoice snapshot cannot rewrite the original');
+});
+
+test('reviewed invoices suppress unverified MOT and keep a manual mileage of zero', () => {
+  const document = workspaceV2Document();
+  document.snapshot.vehicle!.invoiceReview = {
+    registration: '', mileage: 0, verification: 'manual', reviewedAt: document.issuedAt, motExpiry: '2027-09-30',
+  };
+  document.balanceAtIssue = -5000;
+  const rows = textRows(renderSaleDocumentPdf(document).toString('latin1'));
+  assert.ok(rows.some(row => row.text === '0 miles'));
+  assert.ok(rows.some(row => row.text === 'Credit at issue'));
+  assert.ok(rows.some(row => row.text === '£50.00' && row.size === 17));
+  assert.ok(!rows.some(row => /MOT expiry|AB20 XYZ|22,000 miles/.test(row.text)));
+  assert.ok(!readablePdfText(renderSaleDocumentPdf(workspaceV2Document()).toString('latin1')).includes('Balance at issue'), 'Existing unreviewed documents retain their layout');
+});
+
+test('new invoices fit a short stock-photo strip and the agreed vehicle details on page one', () => {
+  const document = workspaceV2Document();
+  const vehicle = document.snapshot.vehicle!;
+  vehicle.invoiceReview = { registration: 'AB20XYZ', mileage: 42610, verification: 'manual', reviewedAt: document.issuedAt, motExpiry: '2027-09-30', motSource: 'DVSA' };
+  vehicle.trim = '2.0 AMG Premium';
+  vehicle.seats = 5;
+  vehicle.doors = 4;
+  const extraPhoto = (name: string) => 'data:image/jpeg;base64,' + readFileSync(new URL(`../../luxxy-motors/src/assets/${name}`, import.meta.url)).toString('base64');
+  vehicle.invoicePhotoDataUrls = [ledgerPhoto(), extraPhoto('demo-car-hero.jpg'), extraPhoto('dealership/luxxy-forecourt.jpg')];
+  const pdf = renderSaleDocumentPdf(document).toString('latin1');
+  assert.equal(pageCount(pdf), 1);
+  assert.equal((pdfStreams(pdf)[0].match(/\/I\d+ Do\b/g) ?? []).length, 3);
+  for (const text of ['AB20 XYZ', '42,610 miles', 'MOT expiry (DVSA)', '£9,700.00', '2.0 AMG Premium', 'Seats', 'Doors']) {
+    assert.ok(textRows(pdf).some(row => row.page === 0 && row.text === text), text);
+  }
+  assertTextOnA4(pdf);
+  assertRowsDoNotCollide(pdf);
+
+  vehicle.invoicePhotoDataUrls = ['https://example.test/unsaved.jpg', ledgerPhoto()];
+  const onePhoto = renderSaleDocumentPdf(document).toString('latin1');
+  assert.equal((pdfStreams(onePhoto)[0].match(/\/I\d+ Do\b/g) ?? []).length, 1);
+  vehicle.invoicePhotoDataUrls = [];
+  const noPhoto = renderSaleDocumentPdf(document).toString('latin1');
+  assert.doesNotMatch(pdfStreams(noPhoto)[0], /\/I\d+ Do\b/);
+});
+
 test('v2 invoices only show payment instructions when the customer has a balance to pay', () => {
   const outstanding = workspaceV2Document();
   const instructions = 'Please quote your sale reference when making payment.';

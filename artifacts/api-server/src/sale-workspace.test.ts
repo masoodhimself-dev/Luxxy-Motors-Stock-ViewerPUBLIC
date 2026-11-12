@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createCanvas } from '@napi-rs/canvas';
 import { changeSaleWorkspace, createSaleWorkspace, saleWorkspacePence, saleWorkspaceTotals, saleInvoiceMatchesSale, saleCompletionChecklistItems, partExchangeChecklistItems, saleWorkspaceExchanges, saleWorkspaceChecklistProgress, SaleWorkspaceError, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 import { operationDocument } from '../../../lib/vehicle-meta/src/sale-operations';
 import { PostgresSaleWorkspaceStore, readSaleWorkspaceAssets, type SaleWorkspaceDatabase } from './lib/sale-workspace-store';
+import { loadSaleInvoicePhotos } from './lib/sale-invoice-photos';
+import { imageDimensions } from './lib/vehicle-brochure-images';
 
 let sequence = 0;
 const context = (): SaleWorkspaceContext => ({ now: '2026-10-04T12:00:00.000Z', actor: 'Test staff', nextId: () => `id-${++sequence}`, nextNumber: type => `${type}-${++sequence}`, branding: { identity: { name: 'Test Motors', logoText: 'TEST', logoAsset: '' }, contact: { phone: '02000000000', email: '' }, address: { street: '', city: 'London', region: '', postcode: '' }, legal: { companyName: '', companyNumber: '', vatNumber: '' } }, vehicle: { year: 2016, fuel: 'Petrol', mileage: 38000 } });
@@ -14,6 +17,64 @@ const reviewChecks = (sale: SaleWorkspaceRecord) => changeSaleWorkspace(sale, {
   action: 'checklists', completion: Object.fromEntries(saleCompletionChecklistItems.map(item => [item.id, 'checked' as const])),
   partExchanges: saleWorkspaceExchanges(sale.draft).map(exchange => ({ registration: exchange.registration, items: Object.fromEntries(partExchangeChecklistItems.map(item => [item.id, 'checked' as const])) })),
 }, { expectedRevision: sale.revision, requestId: `review-checks-${++sequence}` }, context()).sale;
+
+test('invoice gallery accepts approved stock sources, caps candidates and saves only compact distinct photos', async () => {
+  const canvas = createCanvas(1080,810);
+  const raster = canvas.getContext('2d');
+  const photoBytes = ['#123456','#654321','#997766'].map(colour => {
+    raster.fillStyle = colour;
+    raster.fillRect(0,0,1080,810);
+    return canvas.toBuffer('image/png');
+  });
+  const photos = await loadSaleInvoicePhotos([
+    'https://127.0.0.1/private.jpg',
+    'https://not-approved.example/photo.jpg',
+    'https://m.atcdn.co.uk/a/w1600-h1200/car.jpg#main',
+    'https://m.atcdn.co.uk/a/w320-h240/car.jpg',
+    'https://images.autotrader.co.uk/bad.jpg',
+    'https://images.autotrader.co.uk/alternate.jpg',
+    'https://media.fixture.example/car/2.jpg',
+    'https://media.fixture.example/car/3.jpg',
+    'https://media.fixture.example/car/never.jpg',
+  ],'media.fixture.example',async (urls,hosts,timeout) => {
+    assert.deepEqual(urls.map(photo=>photo.url),[
+      'https://m.atcdn.co.uk/a/w720-h540/car.jpg',
+      'https://images.autotrader.co.uk/bad.jpg',
+      'https://images.autotrader.co.uk/alternate.jpg',
+      'https://media.fixture.example/car/2.jpg',
+      'https://media.fixture.example/car/3.jpg',
+    ]);
+    assert.equal(hosts,'media.fixture.example');
+    assert.equal(timeout,4000);
+    const rows = [photoBytes[0],Buffer.from('not a photo'),photoBytes[0],photoBytes[1],photoBytes[2]];
+    return urls.map((photo,index)=>({...photo,bytes:rows[index]}));
+  });
+  assert.equal(photos.length,3);
+  assert.equal(new Set(photos).size,3);
+  for (const photo of photos) {
+    assert.match(photo,/^data:image\/jpeg;base64,/);
+    const bytes = Buffer.from(photo.split(',')[1]!,'base64');
+    assert.ok(bytes.length <= 180_000);
+    assert.deepEqual(imageDimensions(bytes),{format:'JPEG',width:720,height:540});
+  }
+});
+
+test('a new invoice can reuse a prior genuine single photo only for the same car', () => {
+  const canvas = createCanvas(8,8);
+  const single = 'data:image/png;base64,'+canvas.toBuffer('image/png').toString('base64');
+  const first = create();
+  const issue = (sale: SaleWorkspaceRecord, vehicle: SaleWorkspaceContext['vehicle']) =>
+    changeSaleWorkspace(sale,{action:'issue-invoice',kind:'full',acknowledge:true},{expectedRevision:sale.revision,requestId:`photo-issue-${++sequence}`},{...context(),vehicle});
+  const historic = issue(first,{id:first.draft.vehicleId,photoDataUrl:single});
+  assert.equal(historic.document?.snapshot.vehicle?.invoicePhotoDataUrls,undefined);
+  const current = issue(historic.sale,{id:first.draft.vehicleId,invoicePhotoDataUrls:[]});
+  assert.deepEqual(current.document?.snapshot.vehicle?.invoicePhotoDataUrls,[single]);
+  assert.equal(current.document?.snapshot.vehicle?.photoDataUrl,undefined);
+  assert.equal(historic.document?.snapshot.vehicle?.photoDataUrl,single);
+  const another = { ...historic.sale, draft:{...historic.sale.draft,vehicleId:'another-car'} };
+  const different = issue(another,{id:another.draft.vehicleId,invoicePhotoDataUrls:[]});
+  assert.deepEqual(different.document?.snapshot.vehicle?.invoicePhotoDataUrls,[]);
+});
 
 test('financial actions do not require AI approval and exact retries retain the document', () => {
   for (const status of [undefined, 'unavailable', 'attention', 'passed'] as const) {

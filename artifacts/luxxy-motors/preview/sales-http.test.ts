@@ -8,10 +8,21 @@ import path from 'node:path';
 import test from 'node:test';
 import { PreviewSaleWorkspaceStore, salesPreview } from './sales';
 import { previewStock } from './stock';
-import type { SaleWorkspaceBranding, SaleWorkspaceDraft, SaleWorkspaceMutation, SaleWorkspaceRecord } from '@workspace/vehicle-meta';
+import type { SaleInvoiceVehicleReview, SaleWorkspaceBranding, SaleWorkspaceDraft, SaleWorkspaceMutation, SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 
 const branding: SaleWorkspaceBranding = { identity: { name: 'HTTP Test Motors', logoText: '', logoAsset: '' }, contact: { phone: '', email: '' }, address: { street: '', city: '', region: '', postcode: '' }, legal: { companyName: '', companyNumber: '', vatNumber: '' } };
 const draft: SaleWorkspaceDraft = { id: 'http-draft', customer: 'HTTP test buyer', email: '', phone: '', address: '', vehicleId: '', vehicle: 'HTTP test car', registration: '', price: '12000', partExchange: false, pxRegistration: '', pxDescription: '', pxValue: '', deposit: '', paymentMethod: '', notes: '', collection: '', preparation: false, documents: false, handover: false };
+
+async function previewInvoiceApproval(origin: string, sale: SaleWorkspaceRecord) {
+  const result = await fetch(`${origin}/api/sale-workspace/${sale.id}/invoice-vehicle-review`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Origin: origin },
+    body: JSON.stringify({ expectedRevision: sale.revision }),
+  });
+  assert.equal(result.status, 200);
+  const { review } = await result.json() as { review: SaleInvoiceVehicleReview };
+  assert.equal(review.status, 'unavailable');
+  return { id: review.id, mileage: 22150, acknowledge: true };
+}
 
 test('HTTP preview adapter shares a sale across requests, preserves receipt snapshots and enforces retry/revision/origin guards', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'luxxy-sales-http-'));
@@ -53,9 +64,15 @@ test('HTTP preview adapter shares a sale across requests, preserves receipt snap
     assert.equal(reopened.data.sale.payments.length, 2); assert.equal(JSON.stringify(reopened.data.sale.documents[0]), originalReceipt);
     const listed = await request<{ sales: SaleWorkspaceRecord[] }>('/api/sale-workspace');
     assert.equal(listed.data.sales.length, 1); assert.equal(listed.data.sales[0].id, id);
-    const invoice=await request<SaleWorkspaceMutation>(`/api/sale-workspace/${id}/issue-invoice`,'POST',{expectedRevision:reopened.data.sale.revision,requestId:'verify-http-invoice',kind:'full',acknowledge:true},origin);
+    const invoiceInput = { expectedRevision: reopened.data.sale.revision, requestId: 'verify-http-invoice', kind: 'full', acknowledge: true };
+    const withoutVehicleCheck = await request<{ error: string }>(`/api/sale-workspace/${id}/issue-invoice`, 'POST', invoiceInput, origin);
+    assert.equal(withoutVehicleCheck.status, 422);
+    assert.match(withoutVehicleCheck.data.error, /vehicle details and odometer/);
+    const vehicleReview = await previewInvoiceApproval(origin, reopened.data.sale);
+    const invoice=await request<SaleWorkspaceMutation>(`/api/sale-workspace/${id}/issue-invoice`,'POST',{...invoiceInput,vehicleReview},origin);
     assert.equal(invoice.status,200);
-    const invoiceRetry=await request<SaleWorkspaceMutation>(`/api/sale-workspace/${id}/issue-invoice`,'POST',{expectedRevision:reopened.data.sale.revision,requestId:'verify-http-invoice',kind:'full',acknowledge:true},origin);
+    assert.equal(invoice.data.document?.snapshot.vehicle?.invoiceReview?.mileage,22150);
+    const invoiceRetry=await request<SaleWorkspaceMutation>(`/api/sale-workspace/${id}/issue-invoice`,'POST',{...invoiceInput,vehicleReview},origin);
     assert.equal(invoiceRetry.data.replayed,true);assert.equal(invoiceRetry.data.document!.verification!.url,invoice.data.document!.verification!.url);
     const verifyPath=new URL(invoice.data.document!.verification!.url).pathname.replace('/verify-invoice/','/api/invoice-verification/');
     const proofResponse=await fetch(origin+verifyPath);
@@ -167,9 +184,9 @@ test('guided invoice HTTP routes reserve on deposit, issue only two invoice kind
     const input={expectedRevision:sale.revision,requestId:randomUUID(),payment};
     const received=await post(`/api/sale-workspace/${sale.id}/invoice-payments`,input);assert.equal(received.status,200);sale=received.data.sale;assert.equal(sale.documents.length,0);assert.equal((await store.inventory())[car.id],'reserved');
     const repeated=await post(`/api/sale-workspace/${sale.id}/invoice-payments`,input);assert.equal(repeated.data.replayed,true);assert.equal(repeated.data.sale.payments.length,1);
-    const deposit=await post(`/api/sale-workspace/${sale.id}/issue-invoice`,{expectedRevision:sale.revision,requestId:randomUUID(),kind:'deposit',acknowledge:true});assert.equal(deposit.status,200);sale=deposit.data.sale;assert.equal(deposit.data.document?.invoiceKind,'deposit');
+    const deposit=await post(`/api/sale-workspace/${sale.id}/issue-invoice`,{expectedRevision:sale.revision,requestId:randomUUID(),kind:'deposit',acknowledge:true,vehicleReview:await previewInvoiceApproval(origin,sale)});assert.equal(deposit.status,200);sale=deposit.data.sale;assert.equal(deposit.data.document?.invoiceKind,'deposit');
     const paid=await post(`/api/sale-workspace/${sale.id}/invoice-payments`,{expectedRevision:sale.revision,requestId:randomUUID(),payment:{...payment,amount:'11500',kind:'final-payment',method:'Bank transfer'}});assert.equal(paid.status,200);sale=paid.data.sale;
-    const full=await post(`/api/sale-workspace/${sale.id}/issue-invoice`,{expectedRevision:sale.revision,requestId:randomUUID(),kind:'full',acknowledge:true});assert.equal(full.status,200);sale=full.data.sale;assert.equal(sale.documents.length,2);assert.equal(sale.lifecycle?.status,'reserved');
+    const full=await post(`/api/sale-workspace/${sale.id}/issue-invoice`,{expectedRevision:sale.revision,requestId:randomUUID(),kind:'full',acknowledge:true,vehicleReview:await previewInvoiceApproval(origin,sale)});assert.equal(full.status,200);sale=full.data.sale;assert.equal(sale.documents.length,2);assert.equal(sale.lifecycle?.status,'reserved');
     const pdf=await fetch(`${origin}/api/sale-workspace/${sale.id}/documents/${full.data.document!.id}/pdf`);assert.equal(pdf.status,200);assert.match(pdf.headers.get('content-type') ?? '',/application\/pdf/);assert.ok((await pdf.arrayBuffer()).byteLength>1000);
     const denied=await post(`/api/sale-workspace/${sale.id}/finish-invoice-sale`,{expectedRevision:sale.revision,requestId:randomUUID(),acknowledge:false});assert.equal(denied.status,422);assert.equal((await store.inventory())[car.id],'reserved');
     assert.equal(sale.checklists, undefined, 'Final reminders must not require saved attestations.');

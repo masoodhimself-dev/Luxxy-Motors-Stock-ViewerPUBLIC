@@ -142,9 +142,15 @@ export function renderInvoice(data: InvoiceData, options: RenderOptions) {
     if (branding.logo) fitImage(branding.logo, 14, 10.5, branding.logoWidth ?? 49, branding.logoHeight ?? 13.07);
     else if (present(data.dealer.name)) leftEnd = lines(wrap(data.dealer.name, 90, 12.4, 'bold'), 14, 14.5, 12.4, 'bold', colours.ink, 5);
     const statusTop = Math.max(27, leftEnd + 2);
-    const status = wrap([data.draft ? 'Draft - not issued' : '', data.settlementStatus].filter(present).join(' · '), 90, 9.1, 'bold');
-    lines(status, 14, statusTop, 9.1, 'bold', colours.accent);
-    const end = Math.max(33, dateTop + date.length * 4 + 2, statusTop + status.length * 4 + 2);
+    const firstBalance = !continued ? data.firstPageBalance : undefined;
+    const status = wrap([data.draft ? 'Draft - not issued' : '', !firstBalance ? data.settlementStatus : undefined].filter(present).join(' · '), 90, 9.1, 'bold');
+    let statusEnd = lines(status, 14, statusTop, 9.1, 'bold', colours.accent);
+    if (firstBalance) {
+      const balanceLabel = data.draft ? firstBalance.label.replace('at issue', 'on draft') : firstBalance.label;
+      text(balanceLabel, 14, statusEnd, 8.5, 'bold', colours.muted);
+      statusEnd = lines(wrap(firstBalance.amount, 90, 17, 'bold'), 14, statusEnd + 3.8, 17, 'bold', colours.ink, 6.3);
+    }
+    const end = Math.max(33, dateTop + date.length * 4 + 2, statusEnd + 2);
     if (end > 90) throw new Error('Invoice identification/status is too long for a repeated header.');
     rule(end, 14, 182, colours.accent, 0.4);
     y = end + 4;
@@ -172,8 +178,9 @@ export function renderInvoice(data: InvoiceData, options: RenderOptions) {
     for (const entry of who.contacts ?? []) for (const s of wrap(entry, 86, 8.7)) rows.push({ s, size: 8.7, weight: 'normal' });
     return rows;
   }
-  const left = partyRows(data.dealer), right = partyRows(data.customer);
-  if (left.length || right.length) {
+  function parties() {
+    const left = partyRows(data.dealer), right = partyRows(data.customer);
+    if (!left.length && !right.length) return;
     ensure(9); if (left.length) label('From', 14, y); if (right.length) label(data.customerLabel ?? 'Bill to', 110, y); y += 4.5;
     for (let i = 0; i < Math.max(left.length, right.length); i++) {
       if (y + 4.1 > limit) { next(); if (i < left.length) label('From - continued', 14, y); if (i < right.length) label('Bill to - continued', 110, y); y += 4.5; }
@@ -185,47 +192,81 @@ export function renderInvoice(data: InvoiceData, options: RenderOptions) {
   }
 
   // Reserve an ordinary vehicle block together, keeping its title and plate with the photo/facts.
-  const v = data.vehicle;
-  const detailX = v.photo ? 51 : 14, detailW = v.photo ? 145 : 182;
-  const pairs = [...[['Year', v.year], ['Mileage', v.mileage], ['Fuel', v.fuel], ['Gearbox', v.gearbox], ['Colour', v.colour]], ...(v.details ?? []).map(p => [p.label, p.value])].filter((p): p is [string, string] => present(p[1]));
-  const columns = pairs.length > 6 ? 4 : 3;
-  const cw = detailW / columns;
-  const rows: { cells: [string, string[]][]; height: number }[] = [];
-  for (let i = 0; i < pairs.length; i += columns) {
-    const cells = pairs.slice(i, i + columns).map(([k, value]): [string, string[]] => [k, wrap(value, cw - 3, 9.2, 'bold')]);
-    rows.push({ cells, height: 3.6 + Math.max(...cells.map(c => c[1].length)) * 4 + 1 });
-  }
-  const vinLines = wrap(v.vin, detailW - 10, 9.0);
-  const detailsHeight = rows.reduce((n, r) => n + r.height, 0) + (vinLines.length ? vinLines.length * 4 + 0.5 : 0);
-  const vehicleHeaderHeight = 4.8 + Math.max(wrap(v.makeModel, 143, 12.4, 'bold').length * 5 + wrap(v.derivative, 143, 9.3).length * 4.1 + 3, present(v.derivative) ? 12 : 9);
-  const vehicleBlockHeight = vehicleHeaderHeight + Math.max(detailsHeight, v.photo ? L.photoHeight : 0) + 4;
-  ensure(Math.min(vehicleBlockHeight, Math.max(48, limit - 110))); label('Vehicle details', 14, y);
-  plate(162, y + 2);
-  y += 4.8;
-  const titleStart = y;
-  if (present(v.makeModel)) paragraph(v.makeModel, 14, 143, 12.4, 'bold', 5);
-  if (present(v.derivative)) paragraph(v.derivative, 14, 143, 9.3, 'normal', 4.1);
-  y = Math.max(y + 3, titleStart + (present(v.derivative) ? 12 : 9));
-  ensure(Math.min(Math.max(detailsHeight, v.photo ? L.photoHeight : 0), 50));
-  const photoPage = page, photoTop = y;
-  const photoH = v.photo ? fitImage(v.photo, 14, y, L.photoWidth, L.photoHeight) : 0;
-  for (const r of rows) {
-    // Field values are measured and may span pages; their labels repeat with the field.
-    let offset = 0; const n = Math.max(...r.cells.map(c => c[1].length));
-    while (offset < n) {
-      ensure(8.6);
-      const count = Math.max(1, Math.min(n - offset, Math.floor((limit - y - 4.6) / 4)));
-      r.cells.forEach(([k, ss], i) => { text(k + (offset ? ' (continued)' : ''), detailX + i * cw, y, 8.5, 'normal', colours.muted); lines(ss.slice(offset, offset + count), detailX + i * cw, y + 3.6, 9.2, 'bold'); });
-      y += 3.6 + count * 4 + 1; offset += count;
-      if (offset < n) next();
+  function vehicleDetails() {
+    const v = data.vehicle;
+    const legacyPhoto = v.photos === undefined ? v.photo : undefined;
+    const photos = v.photos?.slice(0, 3) ?? [];
+    const photoGap = 4;
+    const photoTopSpace = 3;
+    const photoRatios = photos.map(photo => {
+      const { width, height } = doc.getImageProperties(photo.data);
+      return width / height;
+    });
+    const photoWidthLimit = Math.min(L.width, 60 * photos.length);
+    const totalPhotoRatio = photoRatios.reduce((sum, ratio) => sum + ratio, 0);
+    const photoHeight = totalPhotoRatio ? Math.min(40, (photoWidthLimit - photoGap * (photos.length - 1)) / totalPhotoRatio) : 0;
+    const detailX = legacyPhoto ? 51 : 14, detailW = legacyPhoto ? 145 : 182;
+    const pairs = [...[['Mileage at sale', v.saleMileage], [v.officialMot?.label ?? '', v.officialMot?.expiry], ['Year', v.year], ['Mileage', v.mileage], ['Fuel', v.fuel], ['Gearbox', v.gearbox], ['Colour', v.colour]], ...(v.details ?? []).map(p => [p.label, p.value])].filter((p): p is [string, string] => present(p[1]));
+    const columns = pairs.length > 6 ? 4 : 3;
+    const cw = detailW / columns;
+    const rows: { cells: [string, string[]][]; height: number }[] = [];
+    for (let i = 0; i < pairs.length; i += columns) {
+      const cells = pairs.slice(i, i + columns).map(([k, value]): [string, string[]] => [k, wrap(value, cw - 3, 9.2, 'bold')]);
+      rows.push({ cells, height: 3.6 + Math.max(...cells.map(c => c[1].length)) * 4 + 1 });
     }
+    const vinLines = wrap(v.vin, detailW - 10, 9.0);
+    const detailsHeight = rows.reduce((n, r) => n + r.height, 0) + (vinLines.length ? vinLines.length * 4 + 0.5 : 0);
+    const vehicleHeaderHeight = 4.8 + Math.max(wrap(v.makeModel, 143, 12.4, 'bold').length * 5 + wrap(v.derivative, 143, 9.3).length * 4.1 + 3, present(v.derivative) ? 12 : 9);
+    const sidePhotoHeight = legacyPhoto ? L.photoHeight : 0;
+    const stripHeight = photos.length ? photoTopSpace + photoHeight : 0;
+    const vehicleBlockHeight = vehicleHeaderHeight + Math.max(detailsHeight, sidePhotoHeight) + stripHeight + 4;
+    ensure(Math.min(vehicleBlockHeight, Math.max(48, limit - 110))); label('Vehicle details', 14, y);
+    plate(162, y + 2);
+    y += 4.8;
+    const titleStart = y;
+    if (present(v.makeModel)) paragraph(v.makeModel, 14, 143, 12.4, 'bold', 5);
+    if (present(v.derivative)) paragraph(v.derivative, 14, 143, 9.3, 'normal', 4.1);
+    y = Math.max(y + 3, titleStart + (present(v.derivative) ? 12 : 9));
+    ensure(Math.min(Math.max(detailsHeight, sidePhotoHeight), 50));
+    const photoPage = page, photoTop = y;
+    const photoH = legacyPhoto ? fitImage(legacyPhoto, 14, y, L.photoWidth, L.photoHeight) : 0;
+    for (const r of rows) {
+      // Field values are measured and may span pages; their labels repeat with the field.
+      let offset = 0; const n = Math.max(...r.cells.map(c => c[1].length));
+      while (offset < n) {
+        ensure(8.6);
+        const count = Math.max(1, Math.min(n - offset, Math.floor((limit - y - 4.6) / 4)));
+        r.cells.forEach(([k, ss], i) => { text(k + (offset ? ' (continued)' : ''), detailX + i * cw, y, 8.5, 'normal', colours.muted); lines(ss.slice(offset, offset + count), detailX + i * cw, y + 3.6, 9.2, 'bold'); });
+        y += 3.6 + count * 4 + 1; offset += count;
+        if (offset < n) next();
+      }
+    }
+    if (vinLines.length) {
+      for (let i = 0; i < vinLines.length; i++) { ensure(4); text(i ? 'VIN +' : 'VIN', detailX, y, 8.5, 'normal', colours.muted); text(vinLines[i], detailX + 10, y, 9); y += 4; }
+      y += 0.5;
+    }
+    if (page === photoPage) y = Math.max(y, photoTop + photoH);
+    if (photos.length) {
+      ensure(stripHeight + 4);
+      y += photoTopSpace;
+      let x: number = L.left;
+      photos.forEach((photo, index) => {
+        const width = photoHeight * photoRatios[index];
+        fitImage(photo, x, y, width, photoHeight);
+        x += width + photoGap;
+      });
+      y += photoHeight;
+    }
+    y += 1.5; ensure(4); rule(y); y += 2;
   }
-  if (vinLines.length) {
-    for (let i = 0; i < vinLines.length; i++) { ensure(4); text(i ? 'VIN +' : 'VIN', detailX, y, 8.5, 'normal', colours.muted); text(vinLines[i], detailX + 10, y, 9); y += 4; }
-    y += 0.5;
+  if (data.firstPageBalance) {
+    vehicleDetails();
+    parties();
+    ensure(4); rule(y); y += 2;
+  } else {
+    parties();
+    vehicleDetails();
   }
-  if (page === photoPage) y = Math.max(y, photoTop + photoH);
-  y += 1.5; ensure(4); rule(y); y += 2;
 
   function table(title: string, suppliedColumns: readonly number[], heads: string[], input: { id: string; values: string[] }[], kind: 'payment' | 'sale-line', showCount = false) {
     // Financial values remain intact, even at the largest supported pence amount.

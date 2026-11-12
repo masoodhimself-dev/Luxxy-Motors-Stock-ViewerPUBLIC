@@ -1,0 +1,91 @@
+.invoice-vehicle-review {
+  margin-block: 16px;
+  padding: 15px;
+  border: 1px solid var(--invoice-line, #dce3e8);
+  border-radius: 8px;
+  color: var(--invoice-ink, #192c38);
+}
+
+.invoice-vehicle-review-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.invoice-vehicle-review-header h3 {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.invoice-vehicle-review-header p,
+.invoice-vehicle-review-mileage p,
+.invoice-vehicle-review-facts small,
+.invoice-vehicle-review-status {
+  margin: 4px 0 0;
+  color: var(--invoice-muted, #536474);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.invoice-vehicle-review-status { margin-top: 12px; }
+
+.invoice-vehicle-review-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 132px), 1fr));
+  gap: 11px 16px;
+  margin: 12px 0;
+  padding: 12px 0;
+  border-block: 1px solid var(--invoice-line, #dce3e8);
+}
+
+.invoice-vehicle-review-facts dt { color: var(--invoice-muted, #536474); font-size: 12px; }
+.invoice-vehicle-review-facts dd { margin: 2px 0 0; font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
+.invoice-vehicle-review-facts small { display: block; margin: 1px 0 0; font-weight: 400; }
+
+.invoice-vehicle-review-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 9px 10px;
+  border-radius: 5px;
+  background: #fff3dc;
+  color: #68420d;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.invoice-vehicle-review-warning svg { flex: 0 0 auto; margin-top: 2px; }
+.invoice-vehicle-review-warning p { margin: 0; }
+.invoice-vehicle-review-warning p + p,
+.invoice-vehicle-review-warning strong + p { margin-top: 4px; }
+
+.invoice-vehicle-review-mileage { margin-top: 12px; }
+.invoice-vehicle-review-mileage label { display: block; font-size: 13px; font-weight: 650; }
+.invoice-vehicle-review-mileage input { width: min(100%, 215px); margin-top: 5px; }
+.invoice-vehicle-review-mileage input[aria-invalid] { border-color: #a0372d; }
+.invoice-vehicle-review-mileage input[aria-invalid] + p { color: #942c24; }
+
+.invoice-builder .invoice-vehicle-review-confirm {
+  display: flex;
+  flex-direction: row;
+  gap: 9px;
+  align-items: flex-start;
+  margin-top: 13px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.invoice-vehicle-review-confirm input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--invoice-accent, #192c38);
+}

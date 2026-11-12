@@ -20,8 +20,9 @@ export async function reserveMotBudget(
 }
 export async function readCachedMot(
   registration: string,
+  database: { query: (text: string, parameters: [string]) => Promise<{ rows: { data?: unknown }[] }> } = pool,
 ): Promise<MotHistory | null> {
-  const result = await pool.query(
+  const result = await database.query(
     "SELECT data FROM mot_history_cache WHERE registration=$1 AND expires_at>now()",
     [registration],
   );

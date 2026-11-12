@@ -23,6 +23,16 @@ export function salesDocumentPresentation(document: SaleWorkspaceDocument): Invo
   const credit = (draft.creditEntries ?? []).reduce((amount, row) => amount + row.signedAmountPence, 0);
   const amount = salesDocumentMoney;
   const balanceLabel = document.balanceAtIssue < 0 ? 'Refund / credit due' : 'Balance remaining';
+  const review = document.type === 'invoice' ? vehicle?.invoiceReview : undefined;
+  const hasVehiclePhotoSnapshot = document.type === 'invoice' && Array.isArray(vehicle?.invoicePhotoDataUrls);
+  const vehicleName = supplied(draft.vehicle) || supplied(vehicle?.title);
+  const trim = hasVehiclePhotoSnapshot ? supplied(vehicle?.trim) : '';
+  const derivative = trim && !vehicleName.toLowerCase().includes(trim.toLowerCase()) ? trim : undefined;
+  const displayedDoorCount = Number(`${vehicleName} ${derivative ?? ''}`.match(/\b(\d+)\s*(?:dr|doors?)\b/i)?.[1]);
+  const doors = vehicle?.doors && vehicle.doors !== displayedDoorCount ? vehicle.doors : undefined;
+  const paymentsLabel = !review ? 'Cash payments / refunds' : confirmed.some(row => row.signedAmountPence < 0) ? 'Payments after refunds' : 'Payments received';
+  const mot = review?.motExpiry && (review.motSource === 'DVSA' || review.motSource === 'DVLA')
+    ? { label: `MOT expiry (${review.motSource})`, expiry: salesDocumentDate(review.motExpiry) } : undefined;
   const saleLines: SaleLine[] = [
     { id: 'vehicle-price', description: 'Vehicle price', amount: amount(totals.price) },
     ...(saleWorkspacePence(draft.deliveryCharge ?? '') > 0 ? [{ id: 'delivery-charge', description: 'Delivery', amount: amount(saleWorkspacePence(draft.deliveryCharge!)) }] : []),
@@ -36,15 +46,23 @@ export function salesDocumentPresentation(document: SaleWorkspaceDocument): Invo
     number: clean(document.number), issueDate: salesDocumentDate(document.issuedAt),
     dealer: { name: supplied(branding.identity.name) || supplied(branding.legal.companyName), address: [branding.address.street, branding.address.city, branding.address.region, branding.address.postcode].map(supplied).filter(Boolean).flatMap(lines), contacts: [branding.contact.phone, branding.contact.email].map(supplied).filter(Boolean) },
     customer: { name: supplied(draft.customer), address: lines(draft.address), contacts: [draft.email, draft.phone].map(supplied).filter(Boolean) },
-    vehicle: { makeModel: supplied(draft.vehicle) || supplied(vehicle?.title), registration: clean(draft.registration), year: supplied(vehicle?.year), mileage: typeof vehicle?.mileage === 'number' ? `${vehicle.mileage.toLocaleString('en-GB')} miles` : '', fuel: supplied(vehicle?.fuel), gearbox: supplied(vehicle?.transmission), colour: supplied(vehicle?.colour), vin: supplied(draft.vin),
-      details: [['Engine', vehicle?.engineSize], ['Previous keepers', vehicle?.owners], ['Service history', vehicle?.serviceHistory], ['Body type', vehicle?.bodyType], ['Write-off category', vehicle?.writeOffCategory]].filter(([, value]) => supplied(value)).map(([label, value]) => ({ label: String(label), value: supplied(value) })) },
+    vehicle: { makeModel: vehicleName, ...(derivative ? { derivative } : {}), registration: clean(review?.registration ?? draft.registration), year: supplied(vehicle?.year),
+      mileage: !review && typeof vehicle?.mileage === 'number' ? `${vehicle.mileage.toLocaleString('en-GB')} miles` : '',
+      ...(review ? { saleMileage: `${review.mileage.toLocaleString('en-GB')} miles` } : {}), ...(mot ? { officialMot: mot } : {}),
+      fuel: supplied(vehicle?.fuel), gearbox: supplied(vehicle?.transmission), colour: supplied(vehicle?.colour), vin: supplied(draft.vin),
+      details: [
+        ['Engine', vehicle?.engineSize], ['Previous keepers', vehicle?.owners], ['Service history', vehicle?.serviceHistory], ['Body type', vehicle?.bodyType],
+        ...(hasVehiclePhotoSnapshot ? [['Seats', vehicle?.seats || undefined], ['Doors', doors]] : []),
+        ['Write-off category', vehicle?.writeOffCategory],
+      ].filter(([, value]) => supplied(value)).map(([label, value]) => ({ label: String(label), value: supplied(value) })) },
     saleLines,
     confirmedPayments: [...confirmed.map(row => ({ id: row.id, date: salesDocumentDate(row.date), description: `${paymentLabels[row.kind] ?? clean(row.kind)}${row.reference ? ` / ${clean(row.reference)}` : ''}`, method: clean(row.method), amount: amount(row.signedAmountPence) })), ...(draft.creditEntries ?? []).map(row => ({ id: `credit-${row.id}`, date: salesDocumentDate(row.at), description: `Credit ${row.signedAmountPence > 0 ? 'from' : 'to'} ${clean(row.reference)}`, method: 'Credit transfer', amount: amount(row.signedAmountPence) }))],
     ...(document.type === 'statement' ? { pendingPayments: payments.filter(row => row.status === 'pending').map(row => ({ id: row.id, date: salesDocumentDate(row.date), description: `${paymentLabels[row.kind] ?? clean(row.kind)}${row.reference ? ` / ${clean(row.reference)}` : ''}`, method: clean(row.method), amount: amount(row.amountPence) })) } : {}),
     totals: { saleTotal: amount(totals.totalDue), paymentsReceived: amount(totals.confirmedPaid), balanceRemaining: amount(Math.abs(document.balanceAtIssue)) },
-    summaryRows: [{ label: 'Sale total', amount: amount(totals.totalDue) }, { label: 'Cash payments / refunds', amount: amount(cash) }, ...(draft.creditEntries?.length ? [{ label: 'Transferred credit (net)', amount: amount(credit) }] : []), { label: balanceLabel, amount: amount(Math.abs(document.balanceAtIssue)), emphasis: true }],
+    summaryRows: [{ label: 'Sale total', amount: amount(totals.totalDue) }, { label: paymentsLabel, amount: amount(cash) }, ...(draft.creditEntries?.length ? [{ label: 'Transferred credit (net)', amount: amount(credit) }] : []), { label: balanceLabel, amount: amount(Math.abs(document.balanceAtIssue)), emphasis: true }],
     paymentHistory: { heading: draft.creditEntries?.length ? 'Payments and transferred credit' : 'Payment history', countLabel: `${confirmed.length} payment ${confirmed.length === 1 ? 'entry' : 'entries'}${draft.creditEntries?.length ? ` / ${draft.creditEntries.length} credit ${draft.creditEntries.length === 1 ? 'entry' : 'entries'}` : ''}`, emptyLabel: 'No confirmed payments recorded at issue' },
     settlementStatus: status,
+    ...(review ? { firstPageBalance: { label: document.balanceAtIssue < 0 ? 'Credit at issue' : 'Balance at issue', amount: amount(Math.abs(document.balanceAtIssue)) } } : {}),
     notice: 'Figures and payment status are recorded at the issue date. Later changes appear on separate receipts or statements.',
     ...(totals.pending > 0 ? { pendingNote: `Awaiting confirmation: ${amount(totals.pending)}. Not deducted from the balance.` } : {}),
     paymentInstructions: document.balanceAtIssue > 0 || document.type === 'delivery-invoice' || document.type === 'payment-request'

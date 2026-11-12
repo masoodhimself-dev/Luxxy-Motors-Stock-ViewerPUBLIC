@@ -56,7 +56,7 @@ async function mutate(req: Request, res: Response, command: SaleWorkspaceCommand
   try {
     const id = String(req.params.id);
     if (!uuid(id)) throw new SaleWorkspaceError('Sale not found.', 404);
-    const mutation = await store().mutate({ id, command, requestId: req.body?.requestId, expectedRevision: req.body?.expectedRevision, actor: staffLabel(req), actorId: req.staff?.authUserId });
+    const mutation = await store().mutate({ id, command, requestId: req.body?.requestId, expectedRevision: req.body?.expectedRevision, actor: staffLabel(req), actorId: req.staff?.authUserId, requireInvoiceVehicleReview: true });
     res.json({ ...mutation, preview: false });
   } catch (error) { failure(req, res, error); }
 }
@@ -74,12 +74,27 @@ router.post('/sale-workspace/:id/corrections', requirePermission('sales.manage')
 router.post('/sale-workspace/:id/payments', requirePermission('payments.record'), async (req, res) => { await mutate(req, res, { action: 'payment', payment: req.body?.payment }); });
 router.post('/sale-workspace/:id/payments/:paymentId/confirm', requirePermission('payments.record'), (req, res, next) => req.body?.reserveVehicle === true ? requirePermission('sales.manage')(req, res, next) : next(), async (req, res) => { await mutate(req, res, { action: 'confirm', paymentId: String(req.params.paymentId), date: req.body?.date, reserveVehicle: req.body?.reserveVehicle === true, reserveConfirmed: req.body?.reserveConfirmed === true, acceptShortfall: req.body?.acceptShortfall === true }); });
 router.post('/sale-workspace/:id/payments/:paymentId/reverse', requirePermission('payments.refund'), async (req, res) => { await mutate(req, res, { action: 'reverse', paymentId: String(req.params.paymentId), amount: req.body?.amount, kind: req.body?.kind, reason: req.body?.reason, date: req.body?.date, method: req.body?.method, invoiceOnly: req.body?.invoiceOnly === true }); });
-router.post('/sale-workspace/:id/documents', requirePermission('payments.record'), async (req, res) => { await mutate(req, res, { action: 'document', type: req.body?.type }); });
+router.post('/sale-workspace/:id/documents', requirePermission('payments.record'), async (req, res) => {
+  const { type, vehicleReview } = req.body ?? {};
+  await mutate(req,res,{ action:'document',type,...(type === 'invoice' && vehicleReview !== undefined ? {vehicleReview} : {}) });
+});
 router.post('/sale-workspace/:id/invoice-payments', requirePermission('payments.record'), (req, res, next) => req.body?.payment?.kind === 'deposit' ? requirePermission('sales.manage')(req, res, next) : next(), async (req, res) => { await mutate(req, res, { action: 'invoice-payment', payment: req.body?.payment }); });
-router.post('/sale-workspace/:id/issue-invoice', requirePermission('payments.record'), async (req, res) => { await mutate(req, res, { action: 'issue-invoice', kind: req.body?.kind, acknowledge: req.body?.acknowledge }); });
+router.post('/sale-workspace/:id/invoice-vehicle-review', requirePermission('payments.record'), async (req, res) => {
+  try {
+    if (!uuid(req.params.id)) throw new SaleWorkspaceError('Sale not found.',404);
+    res.json(await store().checkInvoiceVehicle(req.params.id,req.body?.expectedRevision,req.staff!.authUserId));
+  } catch (error) { failure(req,res,error); }
+});
+router.post('/sale-workspace/:id/issue-invoice', requirePermission('payments.record'), async (req, res) => {
+  const { kind, acknowledge, vehicleReview } = req.body ?? {};
+  await mutate(req,res,{ action:'issue-invoice',kind,acknowledge,...(vehicleReview !== undefined ? {vehicleReview} : {}) });
+});
 router.post('/sale-workspace/:id/finish-invoice-sale', requirePermission('payments.record'), requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'finish-invoice-sale', acknowledge: req.body?.acknowledge, acknowledgeOutstanding: req.body?.acknowledgeOutstanding === true }); });
 router.post('/sale-workspace/:id/take-deposit', requirePermission('payments.record'), requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'take-deposit', payment: req.body?.payment }); });
-router.post('/sale-workspace/:id/complete-sale', requirePermission('payments.record'), requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'complete-sale', acknowledge: req.body?.acknowledge }); });
+router.post('/sale-workspace/:id/complete-sale', requirePermission('payments.record'), requirePermission('sales.manage'), async (req, res) => {
+  const { acknowledge, vehicleReview } = req.body ?? {};
+  await mutate(req,res,{ action:'complete-sale',acknowledge,...(vehicleReview !== undefined ? {vehicleReview} : {}) });
+});
 router.post('/sale-workspace/:id/fulfilment', requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'fulfilment', fulfilment: req.body?.fulfilment }); });
 router.post('/sale-workspace/:id/handover', requirePermission('sales.handover'), async (req, res) => { await mutate(req, res, { action: 'handover', recipient: req.body?.recipient, completedAt: req.body?.completedAt, acknowledgeOutstanding: req.body?.acknowledgeOutstanding }); });
 router.post('/sale-workspace/:id/lifecycle', requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'lifecycle', status: req.body?.status }); });

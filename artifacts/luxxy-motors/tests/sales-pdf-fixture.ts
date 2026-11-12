@@ -1,6 +1,26 @@
 import { expect, type Page } from "@playwright/test";
+import { randomUUID } from "node:crypto";
+import type { SaleInvoiceVehicleReview, SaleWorkspaceRecord } from "@workspace/vehicle-meta";
 import { saleDocumentPdfBytes } from "../../../lib/vehicle-meta/src/sale-document-pdf";
 import type { SaleWorkspaceDocument } from "../../../lib/vehicle-meta/src/sale-workspace";
+
+export function fixtureInvoiceVehicleReview(sale: SaleWorkspaceRecord, checkedAt = new Date().toISOString()): SaleInvoiceVehicleReview {
+  return {
+    id: randomUUID(), registration: sale.draft.registration, checkedAt, status: 'checked', warnings: [],
+    dvla: { make: sale.draft.vehicle.split(' ')[0], colour: 'Blue', fuelType: 'Petrol', checkedAt },
+    mot: { expiryDate: '2027-08-30', source: 'DVSA', checkedAt },
+    lastMotMileage: { reading: 62114, unit: 'miles', recordedAt: '2026-08-31' },
+    stockMileage: 64000,
+  };
+}
+
+export async function confirmInvoiceVehicle(page: Page) {
+  await page.getByRole('button', { name: 'Check DVLA and MOT', exact: true }).click();
+  const odometer = page.getByRole('textbox', { name: 'Current odometer (miles)', exact: true });
+  await expect(odometer).toHaveValue('');
+  await odometer.fill('64150');
+  await page.getByRole('checkbox', { name: /confirmed the current odometer reading/ }).check();
+}
 
 export function archivedPdf(document: SaleWorkspaceDocument) {
   return Buffer.from(saleDocumentPdfBytes(document));

@@ -48,6 +48,7 @@ export function operationPermission(
   if (!write) return null;
   if (/^\/sale-workspace(?:\/|$)/.test(path)) {
     if (/\/payments\/[^/]+\/reverse$/.test(path)) return "payments.refund";
+    if (/\/invoice-vehicle-review\/?$/.test(path)) return "payments.record";
     if (/\/payments(?:\/|$)/.test(path)) return "payments.record";
     if (/\/documents(?:\/|$)/.test(path)) return "payments.record";
     if (/\/handover$/.test(path)) return "sales.handover";

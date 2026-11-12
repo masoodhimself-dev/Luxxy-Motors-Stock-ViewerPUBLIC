@@ -26,7 +26,7 @@ export function invoiceVerificationView(record: SaleWorkspaceRecord | undefined,
   return {
     verified: true as const, number: doc.number, title: doc.title, issuedAt: doc.issuedAt,
     dealer: doc.snapshot.branding.identity.name, vehicle: doc.snapshot.draft.vehicle,
-    registration: doc.snapshot.draft.registration,
+    registration: doc.snapshot.vehicle?.invoiceReview?.registration ?? doc.snapshot.draft.registration,
     saleTotalPence: doc.snapshot.totals.totalDue, paymentsReceivedPence: doc.snapshot.totals.confirmedPaid,
     balanceAtIssuePence: doc.balanceAtIssue, paymentCount: doc.snapshot.payments.filter(p => p.status === 'confirmed').length,
     supersededBy: latest && latest.id !== doc.id ? latest.number : null,

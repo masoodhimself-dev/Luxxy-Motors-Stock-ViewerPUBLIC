@@ -6,7 +6,7 @@ import {
   type Route,
 } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import { archivedPdf } from "./sales-pdf-fixture";
+import { archivedPdf, confirmInvoiceVehicle, fixtureInvoiceVehicleReview } from "./sales-pdf-fixture";
 import {
   changeSaleWorkspace,
   createSaleWorkspace,
@@ -106,7 +106,7 @@ class FixtureSalesApi {
   context(): SaleWorkspaceContext {
     return {
       now: this.now,
-      actor: "Fixture Staff",
+      actor: "Fixture Staff", actorId: "fixture-invoice-staff",
       branding,
       paperwork: { saleTerms: "Fictional sale terms for isolated lifecycle tests.", reservationTerms: "Fictional reservation terms for isolated lifecycle tests." },
       vehicle: {
@@ -263,6 +263,13 @@ class FixtureSalesApi {
           status: 404,
           json: { error: "Sale not found." },
         });
+      if (section === "invoice-vehicle-review") {
+        expect(body.expectedRevision).toBe(current.revision);
+        const context = this.context();
+        const review = fixtureInvoiceVehicleReview(current, context.now);
+        current.invoiceVehicleReview = { review, revision: current.revision, actorId: context.actorId!, stockIdentity: "" };
+        return route.fulfill({ json: { review } });
+      }
       let command: SaleWorkspaceCommand;
       if (method === "PUT") command = { action: "update", draft: body.draft };
       else if (section === "payments" && !target)
@@ -282,7 +289,7 @@ class FixtureSalesApi {
         };
       else if (section === "take-deposit") command = { action: "take-deposit", payment: body.payment };
       else if (section === "invoice-payments") command = { action: "invoice-payment", payment: body.payment };
-      else if (section === "issue-invoice") command = { action: "issue-invoice", kind: body.kind, acknowledge: body.acknowledge };
+      else if (section === "issue-invoice") command = { action: "issue-invoice", kind: body.kind, acknowledge: body.acknowledge, vehicleReview: body.vehicleReview };
       else if (section === "finish-invoice-sale") command = { action: "finish-invoice-sale", acknowledge: body.acknowledge, acknowledgeOutstanding: body.acknowledgeOutstanding };
       else if (section === "fulfilment") command = { action: "fulfilment", fulfilment: body.fulfilment };
       else if (section === "complete-sale") command = { action: "complete-sale", acknowledge: body.acknowledge };
@@ -392,6 +399,7 @@ async function recordPayment(page: Page, api: FixtureSalesApi, amount: string, k
 
 async function issueInvoice(page: Page) {
   await action(page, "Create an invoice");
+  await confirmInvoiceVehicle(page);
   await page.getByRole("checkbox", { name: /checked the customer, vehicle/ }).check();
   await page.getByRole("button", { name: "Create & save invoice" }).click();
   await expect(page.getByRole("heading", { name: "Sales invoice", exact: true })).toBeVisible();

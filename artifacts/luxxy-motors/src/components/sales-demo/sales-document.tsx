@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { defaultInvoiceSettings, invoiceTextLimits, invoicePalette, customerSaleDocument, saleWorkspaceBranding, saleWorkspaceTotals, compactInvoiceStyle, salesDocumentPresentation } from "@workspace/vehicle-meta";
+import { defaultInvoiceSettings, invoiceTextLimits, invoicePalette, customerSaleDocument, saleWorkspaceBranding, saleWorkspaceTotals, compactInvoiceStyle, salesDocumentPresentation, formatRegistrationPlate } from "@workspace/vehicle-meta";
 import { customFetch } from "@workspace/api-client-react";
 import pdfWorkerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 import type {
@@ -181,6 +181,12 @@ export function buildDraftSaleDocument({ draft, dealer, vehicle, documentType, s
   const snapshotDraft = { ...draft, exchanges: exchanges(draft), payments: ledger };
   const amount = saleWorkspaceTotals(snapshotDraft, ledger);
   const receiptPayment = [...ledger].reverse().find(payment => payment.status === 'confirmed');
+  const { invoiceReview: _previousReview, ...previousVehicle } = savedVehicle ?? {};
+  const snapshotVehicle = vehicle ? {
+    id: vehicle.id, title: vehicle.title ?? undefined, year: vehicle.year, fuel: vehicle.fuel,
+    transmission: vehicle.transmission, mileage: vehicle.mileage, colour: vehicle.colour,
+    owners: vehicle.owners, writeOffCategory: vehicle.writeOffCategory,
+  } : savedVehicle?.id && savedVehicle.id === draft.vehicleId ? previousVehicle : undefined;
   return {
     id: `draft-${draft.id}`, number: 'DRAFT', type: documentType === 'Deposit receipt' ? 'receipt' : 'invoice',
     title: documentType, issuedAt: preparedAt ?? new Date().toISOString(), issuedBy: '', version: 1,
@@ -190,7 +196,7 @@ export function buildDraftSaleDocument({ draft, dealer, vehicle, documentType, s
     ...(documentType === 'Deposit receipt' && receiptPayment ? { paymentId: receiptPayment.id, paymentAmountPence: receiptPayment.signedAmountPence } : {}),
     snapshot: {
       draft: snapshotDraft, payments: ledger, totals: amount, branding: saleWorkspaceBranding(dealer),
-      ...(vehicle ? { vehicle: { id: vehicle.id, title: vehicle.title ?? undefined, year: vehicle.year, fuel: vehicle.fuel, transmission: vehicle.transmission, mileage: vehicle.mileage, colour: vehicle.colour, owners: vehicle.owners, writeOffCategory: vehicle.writeOffCategory } } : savedVehicle?.id === draft.vehicleId ? { vehicle: savedVehicle } : {}),
+      ...(snapshotVehicle ? { vehicle: snapshotVehicle } : {}),
     },
   };
 }
@@ -980,18 +986,21 @@ function DocumentDealer({ branding }: { branding: SaleWorkspaceBranding }) {
 }
 
 function IssuedDocumentParties({
-  document,
+  document, reviewedVehicle,
 }: {
   document: SaleWorkspaceDocument;
+  reviewedVehicle?: ReturnType<typeof salesDocumentPresentation>['vehicle'];
 }) {
   const { draft, vehicle } = document.snapshot;
   const vehicleFacts = [
+    reviewedVehicle?.saleMileage ? ["Mileage at sale", reviewedVehicle.saleMileage] : null,
+    reviewedVehicle?.officialMot ? [reviewedVehicle.officialMot.label, reviewedVehicle.officialMot.expiry] : null,
     vehicle?.year ? ["Year", String(vehicle.year)] : null,
     supplied(vehicle?.fuel) ? ["Fuel", supplied(vehicle?.fuel)] : null,
     supplied(vehicle?.transmission)
       ? ["Transmission", supplied(vehicle?.transmission)]
       : null,
-    typeof vehicle?.mileage === "number" &&
+    !reviewedVehicle && typeof vehicle?.mileage === "number" &&
     Number.isFinite(vehicle.mileage) &&
     vehicle.mileage >= 0
       ? [
@@ -1005,7 +1014,7 @@ function IssuedDocumentParties({
   const phone = supplied(draft.phone);
   const email = supplied(draft.email);
   const vehicleName = supplied(draft.vehicle) || supplied(vehicle?.title);
-  const registration = supplied(draft.registration);
+  const registration = reviewedVehicle ? formatRegistrationPlate(reviewedVehicle.registration) || supplied(reviewedVehicle.registration) : supplied(draft.registration);
   return (
     <div className="invoice-parties">
       {(customer || address || phone || email) && (
@@ -1328,8 +1337,9 @@ export function CurrentSalesDocument({ document, textOnly = false, draft = false
       {textOnly ? <p>{data.dealer.name}</p> : <DocumentDealer branding={branding} />}
       <div className="invoice-heading"><h2>{data.type}</h2><dl className="invoice-reference"><div><dt>Document no.</dt><dd>{data.number}</dd></div><div><dt>{draft ? 'Prepared' : 'Issued'}</dt><dd>{data.issueDate}</dd></div></dl></div>
     </header>
+    {data.firstPageBalance && <dl className="invoice-first-page-balance"><dt>{draft ? data.firstPageBalance.label.replace('at issue', 'on draft') : data.firstPageBalance.label}</dt><dd>{data.firstPageBalance.amount}</dd></dl>}
     <aside className="invoice-issued-note"><strong>{data.settlementStatus}</strong><span>{draft ? 'Draft preview — not issued.' : data.notice}</span></aside>
-    <IssuedDocumentParties document={document} />
+    <IssuedDocumentParties document={document} reviewedVehicle={data.firstPageBalance ? data.vehicle : undefined} />
     {data.facts && <dl className="invoice-receipt-facts">{data.facts.map((row, index) => <div key={index}><dt>{row.label}</dt><dd className="invoice-multiline">{row.value}</dd></div>)}</dl>}
     {data.saleLines.length > 0 && <section className="invoice-section"><div className="invoice-section-heading"><h3>{data.saleLinesHeading ?? 'Sale breakdown'}</h3><span>All amounts in GBP</span></div><table className="invoice-items" aria-label={data.saleLinesHeading ?? 'Sale breakdown'}><thead><tr><th scope="col">Description</th><th scope="col">Amount</th></tr></thead><tbody>{data.saleLines.map(row => <tr key={row.id}><td>{row.description}</td><td>{row.amount}</td></tr>)}</tbody></table></section>}
     {!data.hidePaymentHistory && <section className="invoice-section invoice-payment-section"><div className="invoice-section-heading"><h3>{data.paymentHistory?.heading ?? 'Payment history'}</h3><span>{data.paymentHistory?.countLabel}</span></div>{data.confirmedPayments.length ? <table className="invoice-payments" aria-label={data.paymentHistory?.heading ?? 'Payment history'}><thead><tr><th scope="col">Date</th><th scope="col">Description / method</th><th scope="col">Amount</th></tr></thead><tbody>{data.confirmedPayments.map(row => <tr key={row.id}><td>{row.date}</td><td>{row.description}<small>{row.method}</small></td><td>{row.amount}</td></tr>)}</tbody></table> : <p>{data.paymentHistory?.emptyLabel}</p>}</section>}

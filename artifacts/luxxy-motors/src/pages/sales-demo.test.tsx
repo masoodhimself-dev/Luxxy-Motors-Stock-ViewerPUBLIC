@@ -99,6 +99,7 @@ let serial = 0;
 const context = (): SaleWorkspaceContext => ({
   now: new Date().toISOString(),
   actor: "Test staff",
+  actorId: 'test-vehicle-review-staff',
   nextId: () => `generated-${++serial}`,
   nextNumber: (type) => `${type}-${++serial}`,
   branding: {
@@ -153,6 +154,13 @@ beforeEach(() => {
           return result;
         }
         const current = state.sales[0];
+        if (url.endsWith('/invoice-vehicle-review')) {
+          const checked = context();
+          const review = { id: 'test-vehicle-review', registration: current.draft.registration, checkedAt: checked.now,
+            status: 'unavailable' as const, warnings: ['Official vehicle checks are unavailable in this fixture.'] };
+          current.invoiceVehicleReview = { review, revision: current.revision, actorId: checked.actorId!, stockIdentity: '' };
+          return { review };
+        }
         if(url.endsWith('/request-payment')){
           const result=requestSalePayment(current,{...payload,tokenHash:'test-token-hash',expiresAt:new Date(Date.now()+30*86400000).toISOString()},context());
           state.sales[0]=result.sale;return {...result,requestId:result.request.id,url:`https://example.test/payment-request/${'a'.repeat(64)}`};
@@ -180,6 +188,7 @@ beforeEach(() => {
                     action: "issue-invoice",
                     kind: payload.kind,
                     acknowledge: payload.acknowledge,
+                    vehicleReview: payload.vehicleReview,
                   }
                 : {
                     action: "finish-invoice-sale",
@@ -336,9 +345,15 @@ async function issue(type:'deposit'|'full') {
  navigateSection('Invoices');
  const create=screen.queryByRole('button',{name:'Create invoice'});if(create)fireEvent.click(create);
  fireEvent.click(screen.getByRole('button',{name:type==='deposit'?'Received deposit invoice':'Sales invoice'}));
+ await approveInvoiceVehicle();
  fireEvent.click(screen.getByRole('checkbox',{name:/I have checked the customer/}));
  fireEvent.click(screen.getByRole('button',{name:'Create & save invoice'}));
  await screen.findByRole('button',{name:'Open & print invoice'});
+}
+async function approveInvoiceVehicle() {
+ fireEvent.click(screen.getByRole('button', { name: 'Check DVLA and MOT' }));
+ fireEvent.change(await screen.findByRole('textbox', { name: 'Current odometer (miles)' }), { target: { value: '64150' } });
+ fireEvent.click(screen.getByRole('checkbox', { name: /checked the vehicle manually/ }));
 }
 it("creates deposit and full invoices with interim payments, and asks before marking the car sold", async () => {
   mount();
@@ -382,7 +397,7 @@ it('blocks overpayments and prevents creating an invoice for an unreceived depos
  mount();await details('deposit');fireEvent.change(screen.getByLabelText('Payment amount (£)'),{target:{value:'10001'}});
  fireEvent.click(screen.getByRole('checkbox',{name:/I have checked that this money/}));expect(screen.getByRole('button',{name:/^Save (?:£[\d,.]+ )?(?:deposit|payment)$/})).toBeDisabled();
  fireEvent.change(screen.getByLabelText('Payment amount (£)'),{target:{value:''}});navigateSection('Invoices');
- fireEvent.click(screen.getByRole('button',{name:'Received deposit invoice'}));fireEvent.click(screen.getByRole('checkbox',{name:/I have checked the customer/}));fireEvent.click(screen.getByRole('button',{name:'Create & save invoice'}));
+ fireEvent.click(screen.getByRole('button',{name:'Received deposit invoice'}));await approveInvoiceVehicle();fireEvent.click(screen.getByRole('checkbox',{name:/I have checked the customer/}));fireEvent.click(screen.getByRole('button',{name:'Create & save invoice'}));
  await waitFor(()=>expect(document.body).toHaveTextContent(/received deposit|confirmed deposit/i));expect(state.sales.flatMap(sale=>sale.documents)).toHaveLength(0);
 });
 

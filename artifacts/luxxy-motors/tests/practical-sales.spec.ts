@@ -12,6 +12,7 @@ import {
   type SaleWorkspaceContext,
   type SaleWorkspaceRecord,
 } from "../../../lib/vehicle-meta/src/sale-workspace";
+import { confirmInvoiceVehicle, fixtureInvoiceVehicleReview } from "./sales-pdf-fixture";
 import { saleDocumentPdfBytes } from "../../../lib/vehicle-meta/src/sale-document-pdf";
 
 test.skip(process.env.LUXXY_LOCAL_PREVIEW !== "1", "Fictional sales only; all writes are intercepted.");
@@ -38,7 +39,7 @@ class PracticalSalesApi {
 
   context(): SaleWorkspaceContext {
     return {
-      now: new Date().toISOString(), actor: "Fixture Staff", branding,
+      now: new Date().toISOString(), actor: "Fixture Staff", actorId: "fixture-invoice-staff", branding,
       vehicle: { id: vehicleId, title: "2018 Fixture Touring 1.6", year: 2018, fuel: "Petrol", transmission: "Automatic", mileage: 42000 },
       paperwork: { reservationTerms: this.reservationTerms, saleTerms: "Fictional dealer terms of sale for this isolated test." },
       nextId: () => crypto.randomUUID(),
@@ -105,10 +106,17 @@ class PracticalSalesApi {
       const [id, section, target, action] = segments;
       const saved = this.sales.get(id);
       if (!saved) return route.fulfill({ status: 404, json: { error: "Fictional sale not found." } });
+      if (section === "invoice-vehicle-review") {
+        expect(body.expectedRevision).toBe(saved.revision);
+        const context = this.context();
+        const review = fixtureInvoiceVehicleReview(saved, context.now);
+        saved.invoiceVehicleReview = { review, revision: saved.revision, actorId: context.actorId!, stockIdentity: "" };
+        return route.fulfill({ json: { review } });
+      }
       let command: SaleWorkspaceCommand;
       if (method === "PUT") command = { action: "update", draft: body.draft };
       else if (section === "invoice-payments") command = { action: "invoice-payment", payment: body.payment };
-      else if (section === "issue-invoice") command = { action: "issue-invoice", kind: body.kind, acknowledge: body.acknowledge };
+      else if (section === "issue-invoice") command = { action: "issue-invoice", kind: body.kind, acknowledge: body.acknowledge, vehicleReview: body.vehicleReview };
       else if (section === "payments" && !target) command = { action: "payment", payment: body.payment };
       else if (section === "payments" && action === "confirm") command = { action: "confirm", paymentId: target, date: body.date, reserveVehicle: body.reserveVehicle === true };
       else if (section === "take-deposit") command = { action: "take-deposit", payment: body.payment };
@@ -170,6 +178,7 @@ async function receivedPayment(page: Page, amount: string, method: string, depos
 
 async function issueFullInvoice(page: Page) {
   await choice(page, /Create an invoice/);
+  await confirmInvoiceVehicle(page);
   await page.getByRole("checkbox", { name: /checked the customer, vehicle, agreed price/ }).check();
   await page.getByRole("button", { name: "Create & save invoice", exact: true }).click();
   await expect(page.getByRole("button", { name: "Download PDF", exact: true })).toBeVisible();

@@ -6,7 +6,7 @@ import type {
 } from "@workspace/vehicle-meta";
 import { dealerConfig } from "@/config/dealer";
 import { emptyDraft } from "./model";
-import { SalesDocument } from "./sales-document";
+import { buildDraftSaleDocument, CurrentSalesDocument, SalesDocument } from "./sales-document";
 import { saleWorkspaceTotals } from "@workspace/vehicle-meta";
 
 const payment = (
@@ -95,6 +95,30 @@ describe('current sales stationery text review', () => {
     expect(screen.getByText('Balance remaining').closest('div')).toHaveTextContent('£8,700.00');
     expect(screen.getByText('1 payment entry / 1 credit entry')).toBeInTheDocument();
     expect(screen.queryByText('Total received at issue')).not.toBeInTheDocument();
+  });
+  it('shows frozen invoice vehicle facts and balance in the accessible preview', () => {
+    const doc = document({ type: 'invoice', title: 'Sales invoice', templateVersion: 'sales-workspace-v2', invoiceKind: 'full' });
+    const review = { registration: 'AB12CDE', mileage: 58340, verification: 'manual' as const, reviewedAt: doc.issuedAt, motExpiry: '2027-09-30', motSource: 'DVSA' as const };
+    doc.snapshot.vehicle = { ...doc.snapshot.vehicle, id: doc.snapshot.draft.vehicleId, invoiceReview: review };
+    const { rerender } = render(<SalesDocument issuedDocument={doc} />);
+    expect(screen.getByText('Balance at issue').closest('dl')).toHaveTextContent('£11,500.00');
+    expect(screen.getByText('AB12 CDE')).toBeInTheDocument();
+    expect(screen.getByText('Mileage at sale').nextElementSibling).toHaveTextContent('58,340 miles');
+    expect(screen.getByText('MOT expiry (DVSA)').nextElementSibling).toHaveTextContent('30 Sept 2027');
+    expect(screen.queryByText('Listed mileage')).toBeNull();
+
+    rerender(<CurrentSalesDocument document={doc} draft />);
+    expect(screen.getByText('Balance on draft')).toBeInTheDocument();
+    expect(screen.getByText('58,340 miles')).toBeInTheDocument();
+
+    const unreviewed = buildDraftSaleDocument({
+      draft: { ...doc.snapshot.draft, registration: 'CD12EFG' }, dealer: dealerConfig,
+      documentType: 'Sales invoice', savedVehicle: doc.snapshot.vehicle,
+    });
+    rerender(<CurrentSalesDocument document={unreviewed} draft />);
+    expect(screen.queryByText('Balance on draft')).toBeNull();
+    expect(screen.queryByText('MOT expiry (DVSA)')).toBeNull();
+    expect(screen.getByText('Listed mileage').nextElementSibling).toHaveTextContent('58,000 miles');
   });
   it('reviews a request as a request with its reference and due date', () => {
     const doc = document({ type: 'payment-request', title: 'Payment request', templateVersion: 'sales-workspace-v2', transaction: { kind: 'payment-request', requestKind: 'deposit', amountPence: 50000, dueDate: '2026-11-10', paymentReference: 'SALE-42', saleReference: 'SALE-42' } });

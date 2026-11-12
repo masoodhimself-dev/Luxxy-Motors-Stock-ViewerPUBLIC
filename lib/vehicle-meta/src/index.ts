@@ -254,3 +254,5 @@ export * from "./sale-calculation-check.ts";
 
 export * from './vehicle-links.ts';
 export * from "./sale-work-queue.ts";
+
+export * from "./sale-invoice-vehicle-review.ts";

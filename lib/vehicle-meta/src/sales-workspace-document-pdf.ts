@@ -38,7 +38,15 @@ export function salesWorkspaceDocumentPdf(document: SaleWorkspaceDocument, optio
   data.draft = options.draft;
   data.showDraftVerificationNote = false;
   data.issueDateLabel = options.draft ? 'Prepared' : 'Issued';
-  data.vehicle.photo = embeddedImage(vehicle?.photoDataUrl, 2_800_000);
+  if (document.type === 'invoice' && vehicle?.invoicePhotoDataUrls !== undefined) {
+    data.vehicle.photos = Array.isArray(vehicle.invoicePhotoDataUrls)
+      ? vehicle.invoicePhotoDataUrls.slice(0, 3).flatMap(value => {
+        const image = embeddedImage(value, 2_800_000);
+        return image ? [image] : [];
+      }) : [];
+  } else {
+    data.vehicle.photo = embeddedImage(vehicle?.photoDataUrl, 2_800_000);
+  }
   const palette = invoicePalette(branding.presentation?.linkColour);
   const logoWidth = design?.logoSize === 'small' ? 28 : design?.logoSize === 'large' ? 49 : 38;
   const logoHeight = design?.logoSize === 'small' ? 9 : design?.logoSize === 'large' ? 13.07 : 12;

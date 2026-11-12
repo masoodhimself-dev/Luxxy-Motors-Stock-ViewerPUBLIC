@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash, randomUUID } from "node:crypto";
+import { createCanvas } from '@napi-rs/canvas';
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
   createSaleWorkspace,
   changeSaleWorkspace,
   saleWorkspaceTotals,
+  saleQueueToday,
+  customerSaleDocument,
   publicSaleWorkspace,
   type SaleWorkspaceDraft,
   type SaleWorkspaceRecord,
@@ -27,7 +30,8 @@ import {
   saleOperation as persistedSaleOperation,
   saleTokenHash,
 } from "./lib/sale-operations-store";
-import { engine } from "./test/tenant-test-db";
+import { engine, pool } from "./test/tenant-test-db";
+import { PostgresSaleWorkspaceStore, readSaleWorkspaceAssets } from "./lib/sale-workspace-store";
 import { runWithTenant } from "./lib/tenant-context";
 
 const saleOperation = (...args: Parameters<typeof persistedSaleOperation>) =>
@@ -670,6 +674,111 @@ test("stored operations enforce tenant/revision boundaries and exact return bala
       )
     ).rows[0].state;
   try {
+    const taskStore = new PostgresSaleWorkspaceStore(a.dealerId,(input,client)=>readSaleWorkspaceAssets(input,a.dealerId,client),pool);
+    const otherStore = new PostgresSaleWorkspaceStore(b.dealerId,(input,client)=>readSaleWorkspaceAssets(input,b.dealerId,client),pool);
+    const manager = {id:'invoice-owner-a',name:'Invoice fixture owner'};
+    const accounts = {id:'invoice-accounts-a'};
+    const reviewVehicleId = randomUUID();
+    const reviewPlate = 'RV20ABC';
+    await engine.query(`INSERT INTO vehicles(id,dealer_id,source,advert_id,title,plate,make,year,colour,mileage,source_price)
+      VALUES($1,$2,'cazoo','invoice-review-car','Example Toyota','RV20 ABC','Toyota',2020,'Silver',48000,10000)`,[reviewVehicleId,a.dealerId]);
+    const reviewNow = Date.now(), motCheckedAt = new Date(reviewNow - 60_000).toISOString();
+    const expiryDate = saleQueueToday(new Date(reviewNow + 30 * 86400_000));
+    const motTestDate = saleQueueToday(new Date(reviewNow - 90 * 86400_000));
+    const storedHistory = { registration:reviewPlate, checkedAt:motCheckedAt, make:'Toyota', model:'Example', recall:'Unknown',
+      tests:[{completedDate:motTestDate,result:'PASSED',expiryDate,mileage:'47500',mileageUnit:'MI',defects:[]}] };
+    await engine.query('INSERT INTO mot_history_cache(registration,data,expires_at) VALUES($1,$2::jsonb,$3)',[reviewPlate,JSON.stringify(storedHistory),new Date(reviewNow+3_600_000).toISOString()]);
+    const saleForReview = (await within(() => taskStore.mutate({ draft:{...draft(),vehicleId:reviewVehicleId,registration:''},requestId:randomUUID(),actor:manager.name,actorId:manager.id }))).sale;
+    let providerCalls = 0;
+    const dvla = async (registration: string) => {
+      providerCalls++;
+      return {registration,checkedAt:new Date().toISOString(),make:'TOYOTA',yearOfManufacture:2020,colour:'SILVER'};
+    };
+    await assert.rejects(otherStore.checkInvoiceVehicle(saleForReview.id,saleForReview.revision,manager.id,dvla),/not found/i);
+    await assert.rejects(taskStore.checkInvoiceVehicle(saleForReview.id,saleForReview.revision-1,manager.id,dvla),/sale changed/i);
+    assert.equal(providerCalls,0);
+    const { review } = await taskStore.checkInvoiceVehicle(saleForReview.id,saleForReview.revision,manager.id,dvla);
+    assert.equal(review.status,'checked');
+    assert.equal(review.registration,'RV20 ABC');
+    assert.equal(review.stockMileage,48000);
+    assert.deepEqual(review.mot,{expiryDate,source:'DVSA',checkedAt:motCheckedAt});
+    assert.deepEqual(review.lastMotMileage,{reading:47500,unit:'miles',recordedAt:motTestDate});
+    assert.equal((await taskStore.get(saleForReview.id)).invoiceVehicleReview,undefined);
+    assert.equal((await taskStore.get(saleForReview.id)).revision,saleForReview.revision);
+
+    const reviewedInput = { id:saleForReview.id,expectedRevision:saleForReview.revision,actor:manager.name,actorId:manager.id,requestId:randomUUID(),
+      requireInvoiceVehicleReview:true, command:{action:'issue-invoice' as const,kind:'full' as const,acknowledge:true,vehicleReview:{id:review.id,mileage:48123,acknowledge:true}} };
+    const issueReviewed = (input=reviewedInput) => within(() => taskStore.mutate(input));
+    await assert.rejects(issueReviewed({...reviewedInput,actorId:accounts.id}),/check the vehicle again/i);
+    await engine.query("UPDATE vehicles SET plate='OT20 ABC' WHERE id=$1",[reviewVehicleId]);
+    await assert.rejects(issueReviewed(),/stock vehicle details changed/i);
+    assert.equal((await taskStore.get(saleForReview.id)).documents.length,0);
+    await engine.query("UPDATE vehicles SET plate='RV20 ABC' WHERE id=$1",[reviewVehicleId]);
+    const issuedReview = await issueReviewed();
+    const frozen = issuedReview.document?.snapshot.vehicle?.invoiceReview;
+    assert.equal(frozen?.mileage,48123);
+    assert.equal(frozen?.registration,'RV20 ABC');
+    assert.equal(frozen?.motExpiry,expiryDate);
+    assert.equal(frozen?.verification,'dvla');
+    const verificationToken = issuedReview.document!.verification!.url.split('/').at(-1)!;
+    assert.equal((await taskStore.verifyInvoice(saleForReview.id,issuedReview.document!.id,verificationToken)).registration,'RV20 ABC');
+    assert.equal((await issueReviewed()).replayed,true);
+    assert.deepEqual((await issueReviewed()).document?.snapshot.vehicle?.invoiceReview,frozen);
+    assert.equal(providerCalls,1);
+    const { review: unavailableReview } = await taskStore.checkInvoiceVehicle(saleForReview.id,issuedReview.sale.revision,manager.id,async()=>{throw new Error('Simulated outage');});
+    assert.equal(unavailableReview.status,'unavailable');
+    assert.equal(unavailableReview.mot?.source,'DVSA');
+    const manualIssue = await issueReviewed({...reviewedInput,expectedRevision:issuedReview.sale.revision,requestId:randomUUID(),
+      command:{...reviewedInput.command,vehicleReview:{id:unavailableReview.id,mileage:48124,acknowledge:true}} });
+    assert.equal(manualIssue.document?.snapshot.vehicle?.invoiceReview?.verification,'manual');
+    assert.equal(manualIssue.document?.snapshot.vehicle?.invoiceReview?.mileage,48124);
+    assert.deepEqual(manualIssue.sale.documents[0]?.snapshot.vehicle?.invoiceReview,frozen);
+
+    const invoiceHero = 'https://m.atcdn.co.uk/fixture/hero.jpg';
+    const invoiceGallery = ['https://m.atcdn.co.uk/fixture/inside.jpg','https://m.atcdn.co.uk/fixture/rear.jpg'];
+    await engine.query('UPDATE vehicles SET source_hero_image=$2,variant=$3 WHERE id=$1',[reviewVehicleId,invoiceHero,'1.8 Hybrid Design']);
+    await engine.query(`INSERT INTO vehicle_images(vehicle_id,source_url,sort_order,is_active)
+      VALUES($1,$2,2,true),($1,$3,1,true),($1,$4,0,false)`,[reviewVehicleId,invoiceGallery[1],invoiceGallery[0],'https://m.atcdn.co.uk/fixture/inactive.jpg']);
+    const canvas = createCanvas(40,30), graphics = canvas.getContext('2d');
+    const photos = ['#112244','#665533','#aa1177'].map(colour=>{
+      graphics.fillStyle=colour;
+      graphics.fillRect(0,0,40,30);
+      return 'data:image/jpeg;base64,'+canvas.toBuffer('image/jpeg').toString('base64');
+    });
+    let downloaded = 0, transactionOpen = false;
+    const invoiceStockStore = new PostgresSaleWorkspaceStore(a.dealerId,(input,client)=>readSaleWorkspaceAssets(input,a.dealerId,client),{
+      query:pool.query,
+      connect:async()=>{
+        const client=await pool.connect();
+        return {...client,query:async (statement,parameters)=>{
+          if (statement==='BEGIN') transactionOpen=true;
+          try { return await client.query(statement,parameters); }
+          finally { if (statement==='COMMIT'||statement==='ROLLBACK') transactionOpen=false; }
+        }};
+      },
+    },async urls=>{
+      downloaded++;
+      assert.equal(transactionOpen,false);
+      assert.deepEqual(urls,[null,invoiceHero,...invoiceGallery]);
+      return photos;
+    });
+    const {review:photoReview}=await invoiceStockStore.checkInvoiceVehicle(saleForReview.id,manualIssue.sale.revision,manager.id,dvla);
+    const photoInput = {...reviewedInput,expectedRevision:manualIssue.sale.revision,requestId:randomUUID(),
+      command:{...reviewedInput.command,vehicleReview:{id:photoReview.id,mileage:48125,acknowledge:true}}};
+    const withPhotos = await within(()=>invoiceStockStore.mutate(photoInput));
+    const photoDocument=withPhotos.document!;
+    assert.deepEqual(photoDocument.snapshot.vehicle?.invoicePhotoDataUrls,photos);
+    assert.equal(photoDocument.snapshot.vehicle?.trim,'1.8 Hybrid Design');
+    assert.deepEqual(customerSaleDocument(photoDocument).snapshot.vehicle?.invoicePhotoDataUrls,photos);
+    assert.equal(customerSaleDocument(photoDocument).snapshot.vehicle?.imageUrl,undefined);
+    const savedArchive = (await invoiceStockStore.pdf(saleForReview.id,photoDocument.id)).archive;
+    await engine.query('UPDATE vehicle_images SET is_active=false WHERE vehicle_id=$1',[reviewVehicleId]);
+    await engine.query('UPDATE vehicles SET source_hero_image=NULL,variant=NULL WHERE id=$1',[reviewVehicleId]);
+    const photoReplay = await within(()=>invoiceStockStore.mutate(photoInput));
+    assert.equal(photoReplay.replayed,true);
+    assert.equal(downloaded,1);
+    assert.deepEqual((await invoiceStockStore.pdf(saleForReview.id,photoDocument.id)).archive,savedArchive);
+
     const request = {
       action: "request-payment",
       requestId: randomUUID(),

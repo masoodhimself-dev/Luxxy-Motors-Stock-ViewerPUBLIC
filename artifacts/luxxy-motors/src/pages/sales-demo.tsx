@@ -61,6 +61,7 @@ import { isMultiChoiceWebsite } from '@/lib/multi-home-scope';
 import { SaleProgress, SaleTimeline } from '@/components/sales-demo/sale-progress';
 import { SalesPracticeWorkspace } from '@/components/sales-demo/sales-practice-workspace';
 import { CalculationCheck, useSaleCalculationCheck } from '@/components/sales-demo/calculation-check';
+import { InvoiceVehicleReview, type InvoiceVehicleApproval } from '@/components/sales-demo/invoice-vehicle-review';
 import {
   vehicleDisplayTitle,
   vehicleRegistration,
@@ -283,6 +284,7 @@ export function SalesWorkspace({
   const [message, setMessage] = useState("");
   const [contactAutofillNotice, setContactAutofillNotice] = useState("");
   const [reviewed, setReviewed] = useState(false);
+  const [vehicleApproval, setVehicleApproval] = useState<InvoiceVehicleApproval | null>(null);
   const [issued, setIssued] = useState<SaleWorkspaceDocument | null>(null);
   const [emailReview, setEmailReview] = useState<SaleWorkspaceDocument | null>(null);
   const [correction, setCorrection] = useState<{ issue?: SaleCorrectionIssue } | null>(null);
@@ -317,6 +319,8 @@ export function SalesWorkspace({
   const detailsDirty = Boolean(
     draft && JSON.stringify(draft) !== JSON.stringify(record?.draft),
   );
+  const currentVehicleApproval = vehicleApproval && vehicleApproval.saleId === record?.id &&
+    vehicleApproval.revision === record.revision && !detailsDirty ? vehicleApproval : null;
   const checklistReady = Boolean(record && !detailsDirty && saleWorkspaceChecklistProgress(record).ready);
   const saleDraftDirty = detailsDirty || Boolean(payment.amount.trim()) || returnDraftDirty || refundDraftDirty || requestDraftDirty;
   const dirty = saleDraftDirty || teamDraftDirty;
@@ -748,14 +752,19 @@ export function SalesWorkspace({
     recordPayment();
   }
   function generate() {
+    if (!currentVehicleApproval || !reviewed) return;
     run(async () => {
       if (!draft) return;
       const issues = errors({ ...draft, payments: rows }, record?.draft);
       if (issues.length) throw new Error(issues.join(" "));
       const saved = await saveInternal();
+      if (saved.id !== currentVehicleApproval.saleId || saved.revision !== currentVehicleApproval.revision) {
+        throw new Error('Check the vehicle again before creating this invoice.');
+      }
       await calculation.check(saved, draft as SaleWorkspaceDraft);
       const result = await request(`/api/sale-workspace/${saved.id}/issue-invoice`, 'POST', {
         expectedRevision: saved.revision, kind, acknowledge: reviewed,
+        vehicleReview: { id: currentVehicleApproval.id, mileage: currentVehicleApproval.mileage, acknowledge: true },
       });
       accept(result);
       setWorkspaceTab("invoices");
@@ -1063,7 +1072,7 @@ export function SalesWorkspace({
     </Button>
   );
   const createInvoiceAction = flowScreen === 'invoice' && !issued && canRecordPayments && !released && !returned && (
-    <Button disabled={busy || !reviewed || Boolean(payment.amount.trim())} onClick={generate}><Invoice size={17} aria-hidden="true" />{busy ? 'Creating invoice…' : 'Create & save invoice'}</Button>
+    <Button disabled={busy || !reviewed || !currentVehicleApproval || Boolean(payment.amount.trim())} onClick={generate}><Invoice size={17} aria-hidden="true" />{busy ? 'Creating invoice…' : 'Create & save invoice'}</Button>
   );
   const confirmationAction = confirmationDocument && ['deposit', 'payment', 'menu'].includes(flowScreen) && (
     <Button disabled={busy || Boolean(receiptEmailProblem) || receiptEmailSent} aria-describedby={receiptEmailProblem ? receiptEmailAvailabilityId : undefined}
@@ -1980,6 +1989,9 @@ export function SalesWorkspace({
                         </div>
                       </dl>
 </details>
+                {record && !detailsDirty ? <InvoiceVehicleReview key={`${record.id}:${record.revision}`} sale={record}
+                  disabled={busy || Boolean(payment.amount.trim())} onApproval={setVehicleApproval} />
+                  : <p className="invoice-note">Save the sale details before checking the vehicle.</p>}
                 <label className="invoice-check"><input type="checkbox" checked={reviewed} onChange={event => setReviewed(event.target.checked)} disabled={busy || Boolean(payment.amount.trim())}/>I have checked the customer, vehicle, agreed price and received payments.</label>
                 {payment.amount.trim() && <p className="invoice-error">Save or clear the payment entry in Payments before creating an invoice.</p>}
                 <p className="invoice-note">Creating an invoice keeps the car’s current availability. You can mark it sold after reviewing the saved invoice.</p>

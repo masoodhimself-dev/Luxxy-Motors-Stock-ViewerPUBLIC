@@ -1,5 +1,6 @@
 import { hslColourToHex } from './brand-colour.ts';
 import { salePaymentRequestAvailable, salePaymentRequestRemaining } from './sale-operations.ts';
+import { confirmSaleInvoiceVehicleReview, type SaleInvoiceVehicleReviewInput, type SaleInvoiceVehicleReviewSnapshot, type StagedSaleInvoiceVehicleReview } from './sale-invoice-vehicle-review.ts';
 /** Shared sale ledger contract and deterministic business rules. No payment processor is called here. */
 export type SaleWorkspaceExchange = { registration: string; description: string; value: string };
 export type SaleWorkspaceAdjustment = { description: string; amount: string; kind: 'fee' | 'discount' };
@@ -83,7 +84,15 @@ export type SaleWorkspaceBranding = {
   legal: { companyName: string; companyNumber: string; vatNumber: string; termsUrl?: string; privacyUrl?: string; cookieUrl?: string };
   presentation?: { linkColour?: string };
 };
-export type SaleWorkspaceVehicleSnapshot = { id?: string; title?: string; year?: number | null; fuel?: string | null; transmission?: string | null; mileage?: number | null; colour?: string | null; owners?: number | null; writeOffCategory?: string | null; serviceHistory?: string | null; description?: string | null; registration?: string | null; engineSize?: string | null; bodyType?: string | null; doors?: number | null; seats?: number | null; emissionClass?: string | null; imageUrl?: string | null; photoDataUrl?: string | null };
+export type SaleWorkspaceVehicleSnapshot = {
+  id?: string; title?: string; trim?: string | null; year?: number | null; fuel?: string | null; transmission?: string | null;
+  mileage?: number | null; colour?: string | null; owners?: number | null; writeOffCategory?: string | null;
+  serviceHistory?: string | null; description?: string | null; registration?: string | null; engineSize?: string | null;
+  bodyType?: string | null; doors?: number | null; seats?: number | null; emissionClass?: string | null;
+  imageUrl?: string | null; photoDataUrl?: string | null; invoiceReview?: SaleInvoiceVehicleReviewSnapshot;
+  /** Frozen stock photos on newer invoices. An empty list records that none were available. */
+  invoicePhotoDataUrls?: string[];
+};
 export type SaleWorkspaceDocument = {
   id: string; number: string; type: 'invoice' | 'statement' | 'receipt' | 'handover' | 'terms' | 'reservation' | 'vehicle-details' | 'payment-request' | 'credit-note' | 'delivery-invoice';
   /** Only newly prepared documents opt into the current stationery. */
@@ -173,6 +182,8 @@ export type SaleWorkspaceRecord = {
   emptyDraftDeletable?: boolean;
   /** Server-private retry records. Responses omit these entries. */
   requests?: Record<string, { fingerprint: string; documentId?: string }>;
+  /** Pending staff-only check. An issued invoice receives a separate immutable snapshot. */
+  invoiceVehicleReview?: StagedSaleInvoiceVehicleReview;
   completedAt?: string; packDocumentIds?: string[];
   reviewReminder?: { enquiryId: string; at: string; url: string; cancelledAt?: string };
   lifecycle?: { status: "draft" | "reserved" | "sold" | "released" | "returned"; vehicleId: string; changedAt: string };
@@ -203,14 +214,14 @@ export type SaleWorkspaceCommand =
   | { action: 'payment'; payment: SaleWorkspacePaymentInput }
   | { action: 'take-deposit'; payment: SaleWorkspacePaymentInput }
   | { action: 'invoice-payment'; payment: SaleWorkspacePaymentInput }
-  | { action: 'issue-invoice'; kind: 'deposit' | 'full'; acknowledge: boolean }
+  | { action: 'issue-invoice'; kind: 'deposit' | 'full'; acknowledge: boolean; vehicleReview?: SaleInvoiceVehicleReviewInput }
   | { action: 'finish-invoice-sale'; acknowledge: boolean; acknowledgeOutstanding?: boolean }
-  | { action: 'complete-sale'; acknowledge: boolean }
+  | { action: 'complete-sale'; acknowledge: boolean; vehicleReview?: SaleInvoiceVehicleReviewInput }
   | { action: 'confirm'; paymentId: string; date?: string; reserveVehicle?: boolean; acceptShortfall?: boolean; reserveConfirmed?: boolean }
   | { action: 'reverse'; paymentId: string; amount?: string; kind?: 'refund' | 'reversal'; reason: string; date: string; method?: string; invoiceOnly?: boolean }
   /** Internal provider reconciliation; there is no staff API for this command. */
   | { action: 'provider-refund-correction'; paymentId: string; amount: string; reason: string; date: string }
-  | { action: 'document'; type: 'invoice' | 'statement' }
+  | { action: 'document'; type: 'invoice' | 'statement'; vehicleReview?: SaleInvoiceVehicleReviewInput }
   | { action: 'lifecycle'; status: 'reserved' | 'sold' | 'released' }
   | { action: 'email-status'; delivery: NonNullable<SaleWorkspaceRecord['emailDeliveries']>[number] }
   | { action: 'fulfilment'; fulfilment: SaleWorkspaceFulfilment }
@@ -226,6 +237,8 @@ export type SaleWorkspaceContext = {
   requireFinalReview?: boolean;
   /** Current external evidence/terms/vehicle digest, read under the mutation lock. */
   reviewContextHash?: string;
+  /** Staff HTTP invoice issuance needs a saved vehicle check. */
+  requireInvoiceVehicleReview?: boolean;
 };
 
 export class SaleWorkspaceError extends Error {
@@ -415,8 +428,8 @@ export function cleanSaleWorkspaceDraft(input: unknown, reference: string, ledge
 function ready(record: SaleWorkspaceRecord) {
   if (!record.draft.customer || !record.draft.vehicle || !(saleWorkspaceTotals(record.draft, record.payments).price > 0)) throw new SaleWorkspaceError('Add the customer, vehicle and agreed price before recording a payment or issuing documents.');
 }
-function event(record: SaleWorkspaceRecord, context: SaleWorkspaceContext, type: string, description: string) {
-  record.events.push({ id: context.nextId(), type, description, occurredAt: context.now, actor: context.actor });
+function event(record: SaleWorkspaceRecord, context: SaleWorkspaceContext, type: string, description: string, documentId?: string) {
+  record.events.push({ id: context.nextId(), type, description, occurredAt: context.now, actor: context.actor, ...(documentId ? { documentId } : {}) });
 }
 function requireCompletedSaleChecklists(record: SaleWorkspaceRecord) {
   // Previously completed sales remain usable; never invent attestations for historic sales.
@@ -470,13 +483,40 @@ function resetUpdatedSaleChecks(record: SaleWorkspaceRecord, previous: SaleWorks
   record.checklists.partExchanges = next;
   if (reset) event(record, context, 'sale-checks-reset', 'Relevant sale checks reset because the sale or part-exchange details changed');
 }
+function invoiceStockPhotoUrls(photos: readonly (string | null | undefined)[]): string[] {
+  return [...new Set(photos.filter((photo): photo is string => typeof photo === 'string' && photo.length <= 2_800_000 &&
+    /^data:image\/(?:jpeg|png);base64,[A-Za-z0-9+/]+={0,2}$/i.test(photo)))].slice(0,3);
+}
 function issueDocument(record: SaleWorkspaceRecord, context: SaleWorkspaceContext, type: SaleWorkspaceDocument['type'], title: string, payment?: SaleWorkspacePayment): SaleWorkspaceDocument {
   const amount = saleWorkspaceTotals(record.draft, record.payments);
   if (Object.values(amount).some(value => !Number.isSafeInteger(value))) throw new SaleWorkspaceError('Check the sale amounts before issuing paperwork.');
   // A car can leave the current feed before the final payment. Reuse only facts already issued for that same vehicle.
-  const previousVehicle = [...record.documents].reverse().find(item => item.snapshot.vehicle?.id === record.draft.vehicleId)?.snapshot.vehicle;
-  const suppliedVehicle = context.vehicle ?? previousVehicle;
-  const vehicle = suppliedVehicle && { ...suppliedVehicle, ...(!suppliedVehicle.photoDataUrl && suppliedVehicle.id === record.draft.vehicleId && previousVehicle?.photoDataUrl ? { photoDataUrl: previousVehicle.photoDataUrl } : {}) };
+  const sameCarVehicles = record.draft.vehicleId
+    ? [...record.documents].reverse().flatMap(item => item.snapshot.vehicle?.id === record.draft.vehicleId ? [item.snapshot.vehicle] : []) : [];
+  const previousVehicle = sameCarVehicles[0];
+  const { invoiceReview: _invoiceReview, invoicePhotoDataUrls: _invoicePhotos, ...vehicleDetails } = context.vehicle ?? previousVehicle ?? {};
+  const suppliedVehicle = context.vehicle || previousVehicle ? vehicleDetails : undefined;
+  const vehicle: SaleWorkspaceVehicleSnapshot | undefined = suppliedVehicle && {
+    ...suppliedVehicle,
+    ...(!suppliedVehicle.photoDataUrl && suppliedVehicle.id === record.draft.vehicleId && previousVehicle?.photoDataUrl ? { photoDataUrl: previousVehicle.photoDataUrl } : {}),
+  };
+  if (type === 'invoice' && vehicle) {
+    const currentPhotos = context.vehicle?.invoicePhotoDataUrls;
+    const gallery = invoiceStockPhotoUrls(currentPhotos ?? []);
+    if (currentPhotos !== undefined || sameCarVehicles.some(candidate => candidate.invoicePhotoDataUrls !== undefined)) {
+      const fallback = () => {
+        const supplied = invoiceStockPhotoUrls([context.vehicle?.photoDataUrl]);
+        if (supplied.length) return supplied;
+        for (const candidate of sameCarVehicles) {
+          const photos = invoiceStockPhotoUrls([...(candidate.invoicePhotoDataUrls ?? []),candidate.photoDataUrl]);
+          if (photos.length) return photos;
+        }
+        return [];
+      };
+      vehicle.invoicePhotoDataUrls = gallery.length ? gallery : fallback();
+      delete vehicle.photoDataUrl;
+    }
+  }
   const document: SaleWorkspaceDocument = {
     id: context.nextId(), number: context.nextNumber(type), type, title,
     ...(['invoice', 'statement', 'receipt', 'payment-request', 'credit-note', 'delivery-invoice'].includes(type) ? { templateVersion: 'sales-workspace-v2' as const } : {}),
@@ -489,6 +529,16 @@ function issueDocument(record: SaleWorkspaceRecord, context: SaleWorkspaceContex
   if (payment) { payment.receiptId = document.id; document.snapshot.payments.find(row => row.id === payment.id)!.receiptId = document.id; document.snapshot.draft.payments = clone(document.snapshot.payments); }
   record.documents.push(document);
   event(record, context, 'document-issued', `${title} ${document.number} issued`);
+  return document;
+}
+function issueReviewedInvoice(record: SaleWorkspaceRecord, context: SaleWorkspaceContext, title: string, reviewInput: SaleInvoiceVehicleReviewInput | undefined) {
+  const review = reviewInput !== undefined || context.requireInvoiceVehicleReview
+    ? confirmSaleInvoiceVehicleReview(record,reviewInput,context) : undefined;
+  const document = issueDocument(record,context,'invoice',title);
+  if (review) {
+    document.snapshot.vehicle = { ...document.snapshot.vehicle,id:record.draft.vehicleId,invoiceReview:review };
+    event(record,context,'invoice-vehicle-reviewed',review.verification === 'dvla' ? 'Vehicle checked with DVLA and odometer confirmed by staff' : 'Vehicle and odometer confirmed by staff',document.id);
+  }
   return document;
 }
 function receipt(record: SaleWorkspaceRecord, context: SaleWorkspaceContext, payment: SaleWorkspacePayment): SaleWorkspaceDocument {
@@ -730,8 +780,11 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     ready(record);
     if (!['invoice', 'statement'].includes(command.type)) throw new SaleWorkspaceError('Choose an invoice or statement.');
     if (record.lifecycle?.status === 'released' && command.type === 'invoice') throw new SaleWorkspaceError('This reservation has been released. Start a new sale before issuing another invoice.', 409);
-    if (command.type === 'invoice') requireSingleDeliveryInvoice(record);
-    document = issueDocument(record, context, command.type, command.type === 'invoice' ? 'Sales invoice' : 'Balance statement');
+    if (command.type === 'invoice') {
+      requireSingleDeliveryInvoice(record);
+      document = issueReviewedInvoice(record,context,'Sales invoice',command.vehicleReview);
+    } else document = issueDocument(record,context,'statement','Balance statement');
+
   } else if (command.action === 'issue-invoice') {
     ready(record);
     if (record.lifecycle?.status === 'released') throw new SaleWorkspaceError('This reservation has been released. Start a new sale before issuing another invoice.', 409);
@@ -740,7 +793,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     const amount = saleWorkspaceTotals(record.draft, record.payments);
     if (amount.balance < 0) throw new SaleWorkspaceError('Resolve the customer credit before issuing an invoice.');
     if (command.kind === 'deposit' && !(amount.confirmedPaid > 0 && record.payments.some(p => p.status === 'confirmed' && p.kind === 'deposit'))) throw new SaleWorkspaceError('Record a received deposit before creating its invoice.');
-    document = issueDocument(record, context, 'invoice', command.kind === 'deposit' ? 'Deposit invoice' : 'Sales invoice');
+    document = issueReviewedInvoice(record,context,command.kind === 'deposit' ? 'Deposit invoice' : 'Sales invoice',command.vehicleReview);
     document.invoiceKind = command.kind;
     document.content = (command.kind === 'deposit' ? context.paperwork?.reservationTerms : context.paperwork?.saleTerms)?.trim() || undefined;
     record.packDocumentIds = [document.id];
@@ -774,7 +827,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     if (f?.method === 'delivery' && !f.address.trim()) throw new SaleWorkspaceError('Enter the delivery address before completing this sale.');
     requireCompletedSaleChecklists(record);
     requireSingleDeliveryInvoice(record);
-    const invoice = issueDocument(record, context, 'invoice', 'Sales invoice');
+    const invoice = issueReviewedInvoice(record,context,'Sales invoice',command.vehicleReview);
     const terms = issueDocument(record, context, 'terms', 'Terms and conditions of sale');
     terms.content = context.paperwork.saleTerms.trim();
     const details = issueDocument(record, context, 'vehicle-details', 'Vehicle details and disclosures');
@@ -808,13 +861,14 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
   }
   if (command.action !== 'team' && Object.values(saleWorkspaceTotals(record.draft, record.payments)).some(value => !Number.isSafeInteger(value))) throw new SaleWorkspaceError('The sale amounts exceed the supported range. Check the payment entries.');
   record.revision += 1; record.updatedAt = context.now;
+  delete record.invoiceVehicleReview;
   if (command.action !== 'correction-note' && command.action !== 'team') record.draft.payments = clone(record.payments);
   (record.requests ??= {})[key] = { fingerprint, ...(document ? { documentId: document.id } : {}) };
   return { sale: record, ...(document ? { document } : {}) };
 }
 
 export function publicSaleWorkspace(record: SaleWorkspaceRecord): SaleWorkspaceRecord {
-  const { requests: _requests, documentArchives: _archives, providerPayments: _provider, customerAccess, ...publicRecord } = record;
+  const { requests: _requests, documentArchives: _archives, providerPayments: _provider, invoiceVehicleReview: _invoiceReview, customerAccess, ...publicRecord } = record;
   if (customerAccess) (publicRecord as SaleWorkspaceRecord).customerAccess = { tokenHash: "", expiresAt: customerAccess.expiresAt, ...(customerAccess.revokedAt ? { revokedAt: customerAccess.revokedAt } : {}) };
   if (publicRecord.paymentRequests) publicRecord.paymentRequests = publicRecord.paymentRequests.map(({ tokenHash: _tokenHash, ...request }) => ({ ...request, tokenHash: '' }));
   return clone(publicRecord);
