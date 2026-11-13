@@ -97,6 +97,7 @@ function issued(record: SaleWorkspaceRecord, documentId: string) {
   return { document, archive };
 }
 export function saleDocumentEmailTemplate(record: SaleWorkspaceRecord, document: SaleWorkspaceDocument) {
+  if (document.type === 'handover' && document.snapshot.draft.fulfilment?.method === 'delivery') return 'delivery_confirmation';
   if (document.type === 'payment-request' && document.transaction?.kind === 'payment-request' && document.transaction.requestKind === 'deposit') return 'deposit_request';
   if (document.type === 'receipt' && record.lifecycle?.status === 'reserved' && record.draft.vehicleId === document.snapshot.draft.vehicleId && record.draft.customer.trim() === document.snapshot.draft.customer.trim() && record.draft.email.trim().toLowerCase() === document.snapshot.draft.email.trim().toLowerCase() && record.payments.some(payment => payment.id === document.paymentId && payment.kind === 'deposit' && payment.status === 'confirmed' && !record.payments.some(row => row.reversesPaymentId === payment.id))) return 'deposit_confirmation';
   return document.type === 'invoice' ? 'invoice' : document.type === 'statement' ? 'balance_statement' : document.type === 'receipt' ? 'payment_receipt' : 'document_email';
@@ -120,7 +121,7 @@ export function saleDocumentEmailFigures(document: SaleWorkspaceDocument) {
     transferredCredit,
   };
 }
-async function renderInvoice(
+export async function renderInvoice(
   record: SaleWorkspaceRecord,
   document: SaleWorkspaceDocument,
   content: string,
@@ -142,6 +143,7 @@ async function renderInvoice(
     templateId: saleDocumentEmailTemplate(record, document),
     variables: {
       customer_name: buyer.customer,
+      delivery_address: buyer.fulfilment?.address ?? "",
       customer_email: to,
       dealer_name: profile.identity.name,
       dealer_email: profile.contact.email,
@@ -160,7 +162,10 @@ async function renderInvoice(
       transferred_credit: money(figures.transferredCredit),
       balance: money(document.balanceAtIssue),
     },
-    facts: [
+    facts: saleDocumentEmailTemplate(record, document) === "delivery_confirmation" ? [
+      { label: "Sale reference", value: record.reference },
+      { label: "Balance due", value: money(document.balanceAtIssue) },
+    ] : [
       { label: "Document", value: `${document.title} ${document.number}` },
       { label: "Vehicle", value: buyer.vehicle },
       ...(buyer.registration

@@ -6,6 +6,7 @@ export const emailTemplateVariables = [
   "dealer_email",
   "dealer_phone",
   "dealer_address",
+  "delivery_address",
   "customer_name",
   "customer_email",
   "vehicle_title",
@@ -235,6 +236,13 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
       signoff,
   },
   {
+    id: "delivery_confirmation",
+    label: "Delivery confirmation",
+    category: "Sales",
+    subject: "Delivery confirmation for your {{vehicle_title}}",
+    body: greeting + "Your {{vehicle_title}} was delivered to {{delivery_address}}. Your delivery confirmation is attached for your records." + signoff,
+  },
+  {
     id: "document_email",
     label: "Sales document",
     category: "Sales",
@@ -445,6 +453,7 @@ const emailPresentation: Record<string, { title: string; kicker: string }> = {
     title: "Your balance statement",
     kicker: "Your documents",
   },
+  delivery_confirmation: { title: "Delivery confirmation", kicker: "" },
   document_email: { title: "Your sales document", kicker: "Your documents" },
 };
 function secureEmailLink(value: unknown): string | undefined {
@@ -646,6 +655,7 @@ export function renderEmailTemplate(
             "deposit_request",
             "deposit_confirmation",
             "balance_statement",
+            "delivery_confirmation",
             "document_email",
           ].includes(options.templateId ?? "")
         ? "Document details"

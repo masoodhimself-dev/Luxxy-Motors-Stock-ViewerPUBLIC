@@ -2346,6 +2346,12 @@ export function SalesWorkspace({
                 <SaleDeliveryEvidence saleId={record.id} revision={record.revision} readOnly={handoverCompleted} />
               </details>
             </>}
+            {handoverCompleted && record?.draft.fulfilment?.method === 'delivery' && record.documents.filter(doc => doc.type === 'handover').slice(-1).map(doc => (
+              <Button key={doc.id} variant="outline" disabled={busy || Boolean(documentEmailProblem(doc))}
+                title={documentEmailProblem(doc)} onClick={event => reviewDocumentEmail(doc, event.currentTarget)}>
+                Email delivery confirmation
+              </Button>
+            ))}
             {!handoverCompleted && <details className="sale-desk-fold"><summary>Before handing over the car</summary>{checklistPanel()}</details>}
             {record && (record.completedAt || record.lifecycle?.status === 'sold') && <details className="sale-desk-fold"><summary>Customer follow-up</summary><SoldVehicleCustomerReview saleId={record.id} /></details>}
           </>}
