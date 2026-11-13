@@ -3,7 +3,7 @@
   --today-ink: #161f30;
   --today-muted: #576477;
   --today-line: #dde3eb;
-  --today-blue: #214ac9;
+  --today-blue: var(--desk-blue, #263d56);
   color: var(--today-ink);
   font-family: var(--app-font-sans);
 }
@@ -11,9 +11,9 @@
 .today-page-heading { margin-bottom: 24px; }
 .today-page-heading h2 {
   margin: 2px 0 0;
-  font-size: clamp(34px, 3.5vw, 48px);
-  font-weight: 760;
-  letter-spacing: -.065em;
+  font-size: clamp(30px, 2.6vw, 37px);
+  font-weight: 720;
+  letter-spacing: -.035em;
   line-height: 1.06;
 }
 .today-date { margin: 0; color: var(--today-muted); font-size: 12px; font-weight: 620; }
@@ -28,24 +28,24 @@
 .today-count { flex: none; color: var(--today-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
 .today-filters { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 16px 12px; }
 .today-filters button { min-height: 34px; padding: 6px 10px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--today-muted); font-size: 12px; font-weight: 620; }
-.today-filters button[aria-pressed="true"] { border-color: #d8e3ff; background: #e9efff; color: #1d3d9a; }
+.today-filters button[aria-pressed="true"] { border-color: var(--today-line); background: var(--desk-active, #e7ebf0); color: var(--today-ink); }
 .today-filters button:hover { border-color: #aab9d5; }
 .today-tasks, .today-appointments { margin: 0; padding: 0; list-style: none; }
 .today-task { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 11px; padding: 13px 16px; border-top: 1px solid var(--today-line); }
-.today-task-icon { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 7px; background: #edf2fc; color: #304a78; }
+.today-task-icon { display: grid; width: 30px; height: 36px; place-items: center; color: var(--today-muted); }
 .today-task-copy { min-width: 0; overflow-wrap: anywhere; }
 .today-task-copy strong, .today-appointments strong { display: block; font-size: 14px; font-weight: 690; line-height: 1.35; }
 .today-task-copy p, .today-appointments small { display: block; margin: 3px 0 0; color: var(--today-muted); font-size: 12px; line-height: 1.4; }
 .today-task-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px 8px; }
-.today-badge { padding: 2px 6px; border-radius: 5px; color: #365184; background: #edf2fc; font-size: 11px; font-weight: 650; line-height: 1.45; white-space: nowrap; }
-.today-badge[data-tone="warning"] { background: #fff3df; color: #805009; }
-.today-badge[data-tone="urgent"] { background: #ffeff0; color: #a72c36; }
+.today-badge { color: var(--today-muted); font-size: 12px; font-weight: 650; line-height: 1.45; white-space: nowrap; }
+.today-badge[data-tone="warning"] { color: #805009; }
+.today-badge[data-tone="urgent"] { color: #a72c36; }
 .today-task-link {
   display: inline-flex; min-height: 42px; min-width: 108px; align-items: center; justify-content: space-between; gap: 6px;
-  padding: 7px 10px; border: 1px solid #cbd4e0; border-radius: 7px; background: #fff; color: var(--today-ink);
+  padding: 7px 10px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--today-ink);
   font-size: 12px; font-weight: 650; text-decoration: none; white-space: nowrap;
 }
-.today-task-link:hover { border-color: #8b9fbc; background: #f3f6fc; }
+.today-task-link:hover { background: var(--desk-active, #e7ebf0); text-decoration: underline; }
 .today-appointments li { border-top: 1px solid var(--today-line); }
 .today-appointments li > a { display: grid; min-height: 64px; grid-template-columns: 47px minmax(0, 1fr); align-items: start; gap: 8px; padding: 14px 16px; color: var(--today-ink); text-decoration: none; overflow-wrap: anywhere; }
 .today-appointments li > a:hover { background: #f5f8fc; }

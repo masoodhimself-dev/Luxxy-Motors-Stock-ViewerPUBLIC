@@ -84,11 +84,9 @@
 .enquiries-premium-workspace .enquiry-queue-nav button[aria-pressed="true"] { border-color: #27638a; background: #edf5fc; color: #194d72; }
 .enquiries-premium-workspace .enquiry-queue-nav button[data-tone="warning"][aria-pressed="true"] { background: #fff5df; border-color: #b78119; color: #6d4b0d; }
 .enquiries-premium-workspace .enquiry-queue-nav button[data-tone="success"][aria-pressed="true"] { background: #ecf7ef; border-color: #43815c; color: #285a3c; }
-.enquiries-premium-workspace .enquiry-state-label { display: inline-flex; width: fit-content; max-width: 100%; padding: 3px 7px; border-radius: 4px; color: #526071; background: #edf0f4; font-size: 11px; font-weight: 600; line-height: 1.5; }
-.enquiries-premium-workspace .enquiry-state-label[data-tone="danger"] { color: #9b2c28; background: #fcece9; }
-.enquiries-premium-workspace .enquiry-state-label[data-tone="warning"] { color: #79540b; background: #fff2d6; }
-.enquiries-premium-workspace .enquiry-state-label[data-tone="info"] { color: #245f88; background: #e8f2fc; }
-.enquiries-premium-workspace .enquiry-state-label[data-tone="success"] { color: #2a6946; background: #e7f5ec; }
+.enquiries-premium-workspace .enquiry-state-label { display: inline-flex; width: fit-content; max-width: 100%; color: var(--portal-muted); font-size: 12px; font-weight: 600; line-height: 1.5; }
+.enquiries-premium-workspace .enquiry-state-label[data-tone="danger"] { color: var(--portal-danger); }
+.enquiries-premium-workspace .enquiry-state-label[data-tone="warning"] { color: var(--portal-warning); }
 .enquiries-premium-workspace .enquiry-record-select { gap: 6px; padding: 15px; }
 .enquiries-premium-workspace .enquiry-record-row-purpose { display: flex; flex-wrap: wrap; gap: 6px 12px; color: #355d7b; font-size: 12px; font-weight: 600; }
 .enquiries-premium-workspace .enquiry-record-row-purpose > span { color: var(--portal-muted); font-weight: 400; }

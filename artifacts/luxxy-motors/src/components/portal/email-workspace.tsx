@@ -653,6 +653,7 @@ export function EmailWorkspace({
             </details>
             <div
               className={`email-columns${conversation ? " has-selection" : ""}`}
+              data-empty={!conversations.length && !conversation}
             >
               <section
                 className="email-message-list"
@@ -733,38 +734,37 @@ export function EmailWorkspace({
                       <h3>
                         {query
                           ? "No matching conversations"
-                          : "Your customer conversations appear here"}
+                          : "No email conversations yet"}
                       </h3>
-                      <p>
-                        Send a customer email or invoice to keep it alongside
-                        their enquiry.
-                      </p>
+                      {!query && <p>Use New email to start a conversation.</p>}
                     </div>
                   )}
-                <div className="email-pagination">
-                  <Button
-                    variant="outline"
-                    disabled={offset === 0}
-                    onClick={() => {
-                      setOffset(Math.max(0, offset - 50));
-                      setSelected(null);
-                      setConversation(null);
-                    }}
-                  >
-                    Newer
-                  </Button>
-                  <Button
-                    variant="outline"
-                    disabled={!history.data?.hasMore}
-                    onClick={() => {
-                      setOffset(offset + 50);
-                      setSelected(null);
-                      setConversation(null);
-                    }}
-                  >
-                    Older
-                  </Button>
-                </div>
+                {(offset > 0 || history.data?.hasMore) && (
+                  <div className="email-pagination">
+                    <Button
+                      variant="outline"
+                      disabled={offset === 0}
+                      onClick={() => {
+                        setOffset(Math.max(0, offset - 50));
+                        setSelected(null);
+                        setConversation(null);
+                      }}
+                    >
+                      Newer
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={!history.data?.hasMore}
+                      onClick={() => {
+                        setOffset(offset + 50);
+                        setSelected(null);
+                        setConversation(null);
+                      }}
+                    >
+                      Older
+                    </Button>
+                  </div>
+                )}
               </section>
               <section
                 className="email-message-detail"

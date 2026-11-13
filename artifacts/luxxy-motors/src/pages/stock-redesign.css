@@ -199,7 +199,7 @@
 .stock-redesign.stock-refined .stock-title-group { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; min-width: 0; }
 .stock-redesign.stock-refined .stock-toolbar { padding: 14px; border-color: hsl(var(--border)); border-radius: 12px; }
 .stock-redesign.stock-refined .stock-shopping-shortcuts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-.stock-shopping-shortcuts button { min-height: 44px; padding: 8px 16px; border: 1px solid hsl(var(--border)); border-radius: 999px; background: var(--premium-panel, #fff); font-size: 13px; color: var(--premium-ink); }
+.stock-shopping-shortcuts button { min-height: 44px; padding: 8px 14px; border: 1px solid hsl(var(--border)); border-radius: 6px; background: var(--premium-panel, #fff); font-size: 13px; color: var(--premium-ink); }
 .stock-shopping-shortcuts button[aria-pressed="true"] { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); border-color: hsl(var(--primary)); }
 .stock-shopping-shortcuts button:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; }
 .stock-redesign.stock-refined .vehicle-card-catalogue .vehicle-card-heading { min-height: 0; }

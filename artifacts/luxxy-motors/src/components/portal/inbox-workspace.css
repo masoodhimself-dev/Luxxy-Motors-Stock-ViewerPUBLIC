@@ -28,9 +28,9 @@
 
 .inbox-desk-heading h2 {
   margin: 0;
-  font-size: clamp(34px, 3.5vw, 48px);
-  font-weight: 760;
-  letter-spacing: -.065em;
+  font-size: clamp(30px, 2.6vw, 37px);
+  font-weight: 720;
+  letter-spacing: -.035em;
   line-height: 1.06;
 }
 
@@ -47,8 +47,8 @@ body[data-dealer-portal=true] .portal-workspace.portal-redesign .inbox-desk
 }
 body[data-dealer-portal=true] .portal-workspace.portal-redesign .inbox-desk
   :is(.inbox-new-enquiry, .enquiry-email-actions > button.bg-primary):hover:not(:disabled) {
-  border-color: #183baf;
-  background: #183baf;
+  border-color: #1b2d40;
+  background: #1b2d40;
 }
 
 .inbox-desk-columns { display: grid; grid-template-columns: minmax(280px, 31%) minmax(0, 1fr); gap: 16px; }
@@ -114,7 +114,7 @@ body[data-dealer-portal=true] .inbox-desk .inbox-desk-search input {
   white-space: nowrap;
 }
 .inbox-desk-filters button:hover { border-color: #aab9d5; }
-.inbox-desk-filters button[aria-pressed=true] { border-color: #d8e3ff; background: var(--inbox-active); color: #1d3d9a; }
+.inbox-desk-filters button[aria-pressed=true] { border-color: var(--inbox-line); background: var(--inbox-active); color: var(--inbox-ink); }
 .inbox-archive-note { margin: 0; padding: 4px 2px; color: var(--inbox-muted); font-size: 12px; line-height: 1.45; }
 .inbox-tools-menu { position: relative; flex: none; margin-left: auto; font-size: 12px; color: var(--inbox-muted); }
 .inbox-tools-menu > summary {
@@ -164,24 +164,21 @@ body[data-dealer-portal=true] .inbox-desk .inbox-desk-search input {
 .inbox-desk-list li + li { border-top: 1px solid var(--inbox-line); }
 .inbox-desk-row {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
+  grid-template-columns: 24px minmax(0, 1fr);
   align-items: start;
   gap: 9px;
   width: 100%;
   padding: 12px 12px 12px 11px;
-  border-left: 3px solid transparent;
   text-align: left;
 }
 .inbox-desk-row:focus-visible { outline-offset: -3px !important; }
 .inbox-desk-row:hover { background: #f5f8fc; }
 .inbox-desk-row-icon {
   display: grid;
-  width: 32px;
-  height: 32px;
-  place-items: center;
-  border-radius: 7px;
-  background: #edf2fc;
-  color: #304a78;
+  width: 24px;
+  height: 28px;
+  place-items: start center;
+  color: var(--inbox-muted);
 }
 .inbox-desk-row-copy { display: grid; min-width: 0; gap: 3px; }
 .inbox-desk-row-top { display: flex; align-items: baseline; justify-content: space-between; gap: 7px; }
@@ -191,10 +188,10 @@ body[data-dealer-portal=true] .inbox-desk .inbox-desk-search input {
 .inbox-desk-row-preview { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 1.4; }
 .inbox-desk-row-preview { color: var(--inbox-muted); }
 .inbox-desk-row-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 7px; margin-top: 2px; color: var(--inbox-muted); font-size: 11px; }
-.inbox-status { padding: 2px 6px; border-radius: 5px; background: #edf0f5; color: #4d5a6e; font-size: 11px; line-height: 1.4; font-weight: 650; white-space: nowrap; }
-.inbox-status[data-tone=warning] { background: #fff3df; color: #805009; }
-.inbox-status[data-tone=info] { background: #edf2fc; color: #365184; }
-.inbox-status[data-tone=success] { background: #edf2fc; color: #304a78; }
+.inbox-status { color: var(--inbox-muted); font-size: 11px; line-height: 1.4; font-weight: 650; white-space: nowrap; }
+.inbox-status[data-tone=warning] { color: #805009; }
+.inbox-status[data-tone=info] { color: var(--inbox-blue); }
+.inbox-status[data-tone=success] { color: var(--inbox-muted); }
 .inbox-ai-status { color: #58468b; }
 
 .inbox-desk-conversation { padding: 20px clamp(16px, 2vw, 24px) 14px; }
@@ -242,8 +239,8 @@ body[data-dealer-portal=true] .inbox-desk .inbox-desk-search input {
 @media (min-width: 900px) {
   .inbox-desk-columns { height: max(485px, calc(100dvh - 204px)); }
   .inbox-desk-list { flex: 1; overflow: auto; overscroll-behavior: contain; border-radius: 0 0 10px 10px; }
-  .inbox-desk-row[aria-pressed=true] { border-left-color: var(--inbox-blue); background: #f1f5ff; }
-  .inbox-desk-row[aria-pressed=true] .inbox-desk-row-icon { background: var(--inbox-active); color: var(--inbox-blue); }
+  .inbox-desk-row[aria-pressed=true] { background: var(--inbox-active); }
+  .inbox-desk-row[aria-pressed=true] .inbox-desk-row-icon { color: var(--inbox-blue); }
   .inbox-desk-conversation { display: flex; flex-direction: column; overflow: hidden; }
   .inbox-desk-conversation > .enquiry-customer-case { flex: 1; min-height: 0; }
   .inbox-desk-conversation > :is(.inbox-outside-filter, .inbox-linked-records) { flex: none; }

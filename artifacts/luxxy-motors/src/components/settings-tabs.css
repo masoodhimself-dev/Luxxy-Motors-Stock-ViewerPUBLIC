@@ -1,19 +1,19 @@
-.settings-tabs { display:flex; flex-wrap:wrap; align-items:stretch; gap:4px; min-width:0; padding:5px; border:1px solid #dde5e8; border-radius:12px; background:#edf2f3; }
-.settings-tabs > [role=tab] { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:10px 15px; border:1px solid transparent; border-radius:8px; color:#50636b; font-family:var(--app-font-sans, sans-serif); font-size:13px; font-weight:550; line-height:1.4; text-align:center; cursor:pointer; touch-action:manipulation; }
+.settings-tabs { display:flex; flex-wrap:wrap; align-items:stretch; gap:4px; min-width:0; padding:5px; border:1px solid #dde5e8; border-radius:12px; background:#f2f3f5; }
+.settings-tabs > [role=tab] { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:10px 15px; border:1px solid transparent; border-radius:8px; color:#52606d; font-family:var(--app-font-sans, sans-serif); font-size:13px; font-weight:550; line-height:1.4; text-align:center; cursor:pointer; touch-action:manipulation; }
 .settings-tabs > [role=tab] svg { flex-shrink:0; }
-.settings-tabs > [role=tab]:hover { color:#163e3c; background:#ffffff8c; }
-.settings-tabs > [role=tab][aria-selected=true] { color:#115e59; background:#fff; border-color:#d5e2e1; box-shadow:0 1px 3px #153c3810; font-weight:650; }
-.settings-tabs > [role=tab]:focus-visible { outline:2px solid #0f766e; outline-offset:2px; }
+.settings-tabs > [role=tab]:hover { color:#202731; background:#e7ebf0; }
+.settings-tabs > [role=tab][aria-selected=true] { color:#202731; background:#e7ebf0; border-color:#d9dee4; font-weight:650; }
+.settings-tabs > [role=tab]:focus-visible { outline:2px solid #263d56; outline-offset:2px; }
 @media(max-width:767px) {
   .settings-tabs { flex-wrap:nowrap; overflow-x:auto; overscroll-behavior-x:contain; scrollbar-width:thin; scroll-padding-inline:5px; }
   .settings-tabs > [role=tab] { flex-shrink:0; min-height:48px; padding:11px 13px; font-size:13px; }
 }
 
-/* Colour marks the selected settings area; inactive choices stay quiet. */
+/* A consistent tab treatment lets the label identify the settings area. */
 .portal-premium-workspace .settings-tabs {
-  --settings-tab-ink: var(--portal-info, #245ca5);
-  --settings-tab-soft: var(--portal-info-soft, #edf4ff);
-  --settings-tab-border: var(--portal-info-border, #c9d9ef);
+  --settings-tab-ink: #263d56;
+  --settings-tab-soft: #e7ebf0;
+  --settings-tab-border: #d9dee4;
   background: var(--portal-neutral-soft, #f0f3f6);
   border-color: var(--portal-neutral-border, #d5dde4);
 }
@@ -28,47 +28,25 @@
   background: var(--settings-tab-soft);
   border-color: var(--settings-tab-border);
   color: var(--settings-tab-ink);
-  box-shadow: inset 0 -2px 0 var(--settings-tab-ink);
+  font-weight: 650;
 }
 .portal-premium-workspace .settings-tabs > [role=tab]:focus-visible {
-  outline-color: var(--portal-info, #245ca5);
-}
-.portal-premium-workspace :is(#dealer-settings-tab-paperwork, #invoice-settings-tab-design, #website-settings-tab-identity) {
-  --settings-tab-ink: var(--portal-violet, #6754a3);
-  --settings-tab-soft: var(--portal-violet-soft, #f3f0ff);
-  --settings-tab-border: var(--portal-violet-border, #d9d0f0);
-}
-.portal-premium-workspace :is(#dealer-settings-tab-website, #website-settings-tab-contact, #invoice-settings-tab-payment) {
-  --settings-tab-ink: var(--portal-teal, #116773);
-  --settings-tab-soft: var(--portal-teal-soft, #eaf7f7);
-  --settings-tab-border: var(--portal-teal-border, #b8dddd);
-}
-.portal-premium-workspace #dealer-settings-tab-advanced,
-.portal-premium-workspace .settings-advanced-navigation .settings-tabs {
-  --settings-tab-ink: var(--portal-neutral, #536374);
-  --settings-tab-soft: var(--portal-neutral-soft, #f0f3f6);
-  --settings-tab-border: var(--portal-neutral-border, #d5dde4);
-}
-.portal-premium-workspace .settings-tabs-heading > span {
-  background: var(--portal-violet-soft, #f3f0ff);
-  border-color: var(--portal-violet-border, #d9d0f0);
-  color: var(--portal-violet, #6754a3);
+  outline-color: #263d56;
 }
 .portal-premium-workspace .settings-advanced-navigation {
   border-color: var(--portal-neutral-border, #d5dde4);
-  border-left: 3px solid var(--portal-neutral-border, #d5dde4);
 }
 .portal-premium-workspace .settings-advanced-navigation h3 {
   color: var(--portal-neutral, #536374);
 }
 .portal-premium-workspace .settings-tabs-workspace :is(.integration-actions, .admin-inline-form) > button.bg-primary {
-  background: var(--portal-info, #245ca5);
-  border-color: var(--portal-info, #245ca5);
+  background: #263d56;
+  border-color: #263d56;
   color: #fff;
 }
 .portal-premium-workspace .settings-tabs-workspace :is(input, select, textarea):focus-visible {
-  outline-color: var(--portal-info, #245ca5);
+  outline-color: #263d56;
 }
 .portal-premium-workspace .settings-tabs-workspace :is(input[type=checkbox], input[type=radio]) {
-  accent-color: var(--portal-info, #245ca5);
+  accent-color: #263d56;
 }

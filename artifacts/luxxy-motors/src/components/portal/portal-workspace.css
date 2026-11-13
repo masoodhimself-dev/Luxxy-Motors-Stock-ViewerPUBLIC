@@ -1,11 +1,11 @@
 /* Shared staff workspace foundation. Customer routes keep their own tokens. */
 :is(.premium-portal, .portal-premium-workspace, .sales-premium-workspace, .portal-action-dialog, .portal-quick-menu, .staff-diary-detail) {
-  --portal-ink: #192a36;
-  --portal-accent: #215a7e;
-  --portal-muted: #586976;
-  --portal-canvas: #f5f7f9;
+  --portal-ink: #202731;
+  --portal-accent: #263d56;
+  --portal-muted: #52606d;
+  --portal-canvas: #f2f3f5;
   --portal-panel: #fff;
-  --portal-border: #dce3e8;
+  --portal-border: #d9dee4;
   --portal-info: #245ca5;
   --portal-info-soft: #edf4ff;
   --portal-info-border: #c9d9ef;

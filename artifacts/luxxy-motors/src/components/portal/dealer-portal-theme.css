@@ -179,11 +179,11 @@ body[data-dealer-portal="true"] :is(.sales-document, .invoice-sheet, .receipt-bo
     --cars-paper: var(--portal-panel);
   }
   body[data-dealer-portal="true"] .portal-cars-tabs button span {
-    background: var(--portal-border);
+    background: transparent;
   }
   body[data-dealer-portal="true"] .portal-cars-tabs button[aria-pressed="true"] {
     color: var(--portal-ink);
-    border-bottom-color: var(--portal-focus);
+    border-bottom-color: var(--portal-border);
   }
 
   /* Inbox, full-screen enquiry cases and tools use the same quiet surfaces. */

@@ -1,16 +1,16 @@
 /* A contained staff diary: all sizes are independent of the public calendar widget. */
 .staff-diary {
-  --diary-ink: #1d3347;
-  --diary-muted: var(--portal-neutral, #536374);
-  --diary-line: #dce5ec;
-  --diary-blue: var(--portal-teal, #116773);
+  --diary-ink: #202731;
+  --diary-muted: #52606d;
+  --diary-line: #d9dee4;
+  --diary-blue: #263d56;
   display: grid;
   gap: 18px;
   color: var(--diary-ink);
   min-width: 0;
 }
 .staff-diary :is(button, a, input, select):focus-visible {
-  outline: 3px solid #2b739f;
+  outline: 3px solid var(--diary-blue);
   outline-offset: 3px;
 }
 .staff-diary-heading {
@@ -26,20 +26,6 @@
   letter-spacing: -0.6px;
   line-height: 1.2;
 }
-.staff-diary-heading p {
-  margin: 0;
-  color: var(--diary-muted);
-  font-size: 13px;
-}
-.staff-diary .staff-diary-eyebrow,
-.staff-diary-detail .staff-diary-eyebrow {
-  margin: 0;
-  color: #55728b;
-  text-transform: uppercase;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-}
 .staff-diary-add {
   min-height: 44px;
   padding-inline: 16px;
@@ -52,7 +38,7 @@
   align-items: center;
   justify-content: space-between;
   border: 1px solid var(--diary-line);
-  border-radius: 14px;
+  border-radius: 8px;
   background: #fff;
   padding: 12px;
 }
@@ -83,9 +69,7 @@
 .staff-diary-view-switch {
   display: flex;
   gap: 3px;
-  border-radius: 9px;
-  padding: 3px;
-  background: #eef2f6;
+  padding: 0;
 }
 .staff-diary-view-switch button {
   min-width: 57px;
@@ -97,15 +81,14 @@
   font-weight: 600;
 }
 .staff-diary-view-switch button[aria-pressed="true"] {
-  background: white;
-  color: #173f5d;
-  box-shadow: 0 1px 4px #20364b21;
+  background: #e7ebf0;
+  color: var(--diary-ink);
 }
 .staff-diary-active-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--portal-teal, #116773);
+  background: var(--diary-blue);
 }
 .staff-diary-filters {
   display: flex;
@@ -157,7 +140,7 @@
 .staff-diary-cancelled input {
   width: 18px;
   height: 18px;
-  accent-color: var(--portal-teal, #116773);
+  accent-color: var(--diary-blue);
 }
 .staff-diary-summary {
   display: flex;
@@ -190,7 +173,7 @@
   display: grid;
   grid-template-columns: repeat(7, minmax(122px, 1fr));
   border: 1px solid var(--diary-line);
-  border-radius: 14px;
+  border-radius: 8px;
   background: #fff;
   overflow-x: auto;
   align-items: stretch;
@@ -200,7 +183,7 @@
 .staff-diary-week-day {
   border-right: 1px solid var(--diary-line);
   min-width: 0;
-  background: linear-gradient(#fff, #fcfdfe);
+  background: #fff;
 }
 .staff-diary-week-day:last-child {
   border-right: 0;
@@ -210,14 +193,13 @@
   align-items: center;
   flex-direction: column;
   width: 100%;
-  min-height: 95px;
-  padding: 12px 8px;
+  min-height: 76px;
+  padding: 9px 8px;
   border-bottom: 1px solid var(--diary-line);
   gap: 3px;
 }
 .staff-diary-column-heading > span {
   font-size: 11px;
-  text-transform: uppercase;
   color: #617386;
   font-weight: 650;
 }
@@ -234,10 +216,10 @@
   color: #6e8090;
 }
 .staff-diary-week-day[data-today="true"] .staff-diary-column-heading {
-  background: #f3f8fc;
+  background: #e7ebf0;
 }
 .staff-diary-week-day[data-today="true"] .staff-diary-column-heading strong {
-  background: var(--portal-teal, #116773);
+  background: var(--diary-blue);
   color: white;
   border-radius: 50%;
 }
@@ -259,30 +241,14 @@
   min-width: 0;
   text-align: left;
   border: 1px solid var(--diary-line);
-  border-left: 3px solid #4884a5;
-  border-radius: 11px;
+  border-radius: 6px;
   padding: 14px;
   background: #fff;
-  transition:
-    box-shadow 130ms ease,
-    border-color 130ms ease;
+  transition: border-color 130ms ease, background-color 130ms ease;
 }
 .staff-diary-booking:hover {
-  border-color: #9db8cc;
-  box-shadow: 0 3px 10px #19354c0c;
-}
-.staff-diary-booking[data-status="pending"] {
-  border-left-color: #b17c20;
-}
-.staff-diary-booking:is([data-status="arrived"], [data-status="completed"]) {
-  border-left-color: #398166;
-}
-.staff-diary-booking[data-status="no_show"] {
-  border-left-color: #a65c5c;
-}
-.staff-diary-booking[data-status="cancelled"] {
-  border-left-color: #a6afb8;
-  background: #f8fafb;
+  border-color: #b2bdc8;
+  background: #f5f6f8;
 }
 .staff-diary-photo {
   display: grid;
@@ -370,29 +336,16 @@
   display: inline-flex;
   width: fit-content;
   align-items: center;
-  border-radius: 5px;
-  padding: 3px 6px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 650;
   line-height: 1.4;
-  color: #2d6688;
-  background: #edf5fa;
+  color: #52606d;
 }
 .staff-diary-status[data-status="pending"] {
-  color: #805815;
-  background: #fff4d9;
-}
-.staff-diary-status:is([data-status="arrived"], [data-status="completed"]) {
-  color: #2f7159;
-  background: #eaf5ee;
+  color: var(--portal-warning, #87510b);
 }
 .staff-diary-status[data-status="no_show"] {
-  color: #914c4c;
-  background: #faeded;
-}
-.staff-diary-status[data-status="cancelled"] {
-  color: #667483;
-  background: #edf0f3;
+  color: var(--portal-danger, #a5303e);
 }
 .staff-diary-exception-indicator {
   color: #8a591b;
@@ -445,7 +398,7 @@
   font-weight: 650;
 }
 .staff-diary-day-strip button[aria-pressed="true"] {
-  background: var(--portal-teal, #116773);
+  background: var(--diary-blue);
   color: #e6eff5;
 }
 .staff-diary-day-strip button[aria-pressed="true"] strong {
@@ -464,7 +417,7 @@
   min-width: 0;
   background: #fff;
   border: 1px solid var(--diary-line);
-  border-radius: 14px;
+  border-radius: 8px;
   padding: 20px;
 }
 .staff-diary-agenda h3 {
@@ -483,21 +436,10 @@
   padding: 40px 15px;
   text-align: center;
 }
-.staff-diary-empty > svg {
-  width: 32px;
-  height: 32px;
-  color: #839cac;
-  margin-bottom: 6px;
-}
 .staff-diary-empty h4 {
   margin: 0;
   font-weight: 650;
   font-size: 16px;
-}
-.staff-diary-empty p {
-  margin: 0 0 10px;
-  font-size: 13px;
-  color: var(--diary-muted);
 }
 .staff-diary-month-layout {
   display: grid;
@@ -508,7 +450,7 @@
 .staff-diary-month {
   border: 1px solid var(--diary-line);
   background: #fff;
-  border-radius: 14px;
+  border-radius: 8px;
   overflow: hidden;
 }
 .staff-diary-weekday-labels,
@@ -520,7 +462,6 @@
   background: #f7f9fb;
   font-size: 10px;
   font-weight: 650;
-  text-transform: uppercase;
   text-align: center;
   color: #657a8c;
 }
@@ -547,8 +488,8 @@
   color: #8394a2;
 }
 .staff-diary-month-day[data-selected="true"] {
-  background: #edf5fb;
-  box-shadow: inset 0 0 0 2px #39749c;
+  background: #e7ebf0;
+  box-shadow: inset 0 0 0 1px var(--diary-blue);
 }
 .staff-diary-month-date {
   display: grid;
@@ -560,7 +501,7 @@
 }
 .staff-diary-month-day[data-today="true"] .staff-diary-month-date {
   border-radius: 50%;
-  background: var(--portal-teal, #116773);
+  background: var(--diary-blue);
   color: #fff;
 }
 .staff-diary-month-preview {
@@ -572,7 +513,7 @@
   color: #335e7c;
 }
 .staff-diary-month-preview[data-status="pending"] {
-  color: #8d631f;
+  color: var(--portal-warning, #87510b);
 }
 .staff-diary-month-preview[data-status="cancelled"] {
   color: #74808c;
@@ -865,69 +806,6 @@
   }
 }
 
-/* Appointment state colours match their visible status labels in every diary view. */
-.staff-diary-booking[data-status="pending"],
-.staff-diary-status[data-status="pending"],
-.staff-diary-month-preview[data-status="pending"] {
-  --diary-state-ink: var(--portal-warning, #87510b);
-  --diary-state-soft: var(--portal-warning-soft, #fff6e5);
-  --diary-state-border: var(--portal-warning-border, #ead2a5);
-}
-.staff-diary-booking[data-status="confirmed"],
-.staff-diary-status[data-status="confirmed"],
-.staff-diary-month-preview[data-status="confirmed"] {
-  --diary-state-ink: var(--portal-info, #245ca5);
-  --diary-state-soft: var(--portal-info-soft, #edf4ff);
-  --diary-state-border: var(--portal-info-border, #c9d9ef);
-}
-.staff-diary-booking[data-status="arrived"],
-.staff-diary-status[data-status="arrived"],
-.staff-diary-month-preview[data-status="arrived"] {
-  --diary-state-ink: var(--portal-teal, #116773);
-  --diary-state-soft: var(--portal-teal-soft, #eaf7f7);
-  --diary-state-border: var(--portal-teal-border, #b8dddd);
-}
-.staff-diary-booking[data-status="completed"],
-.staff-diary-status[data-status="completed"],
-.staff-diary-month-preview[data-status="completed"] {
-  --diary-state-ink: var(--portal-success, #14634a);
-  --diary-state-soft: var(--portal-success-soft, #edf8f2);
-  --diary-state-border: var(--portal-success-border, #bfdfcf);
-}
-.staff-diary-booking[data-status="no_show"],
-.staff-diary-status[data-status="no_show"],
-.staff-diary-month-preview[data-status="no_show"] {
-  --diary-state-ink: var(--portal-danger, #a5303e);
-  --diary-state-soft: var(--portal-danger-soft, #fff0f1);
-  --diary-state-border: var(--portal-danger-border, #edc5cb);
-}
-.staff-diary-booking[data-status="cancelled"],
-.staff-diary-status[data-status="cancelled"],
-.staff-diary-month-preview[data-status="cancelled"] {
-  --diary-state-ink: var(--portal-neutral, #536374);
-  --diary-state-soft: var(--portal-neutral-soft, #f0f3f6);
-  --diary-state-border: var(--portal-neutral-border, #d5dde4);
-}
-.staff-diary-booking[data-status] {
-  border-left-color: var(--diary-state-ink);
-}
-.staff-diary-booking[data-status]:hover {
-  border-color: var(--diary-state-border);
-  border-left-color: var(--diary-state-ink);
-}
-.staff-diary-status[data-status] {
-  color: var(--diary-state-ink);
-  background: var(--diary-state-soft);
-  border: 1px solid var(--diary-state-border);
-}
-.staff-diary-month-preview[data-status] {
-  color: var(--diary-state-ink);
-}
-.staff-diary-view-switch button[aria-pressed="true"] {
-  color: var(--portal-teal, #116773);
-  background: var(--portal-teal-soft, #eaf7f7);
-  box-shadow: inset 0 0 0 1px var(--portal-teal-border, #b8dddd);
-}
 .staff-diary-summary p span,
 .staff-diary-exception-indicator {
   color: var(--portal-warning, #87510b);
@@ -936,13 +814,6 @@
   color: var(--portal-warning, #87510b);
   background: var(--portal-warning-soft, #fff6e5);
   border-color: var(--portal-warning-border, #ead2a5);
-}
-.staff-diary-week-day[data-today="true"] .staff-diary-column-heading {
-  background: var(--portal-teal-soft, #eaf7f7);
-}
-.staff-diary-month-day[data-selected="true"] {
-  background: var(--portal-teal-soft, #eaf7f7);
-  box-shadow: inset 0 0 0 2px var(--portal-teal, #116773);
 }
 .staff-diary-owner,
 .staff-diary-duration,

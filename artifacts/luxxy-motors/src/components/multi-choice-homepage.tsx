@@ -276,12 +276,8 @@ export function DealershipHomepage({ settings, cars: suppliedCars, isLoading, er
     { title: 'Multipoint inspection', text: 'We inspect each car before it goes on sale.', Icon: CircleCheck },
     { title: 'Visits by appointment', text: 'Arrange a viewing or test drive at our showroom.', Icon: Calendar },
   ] : [
-    { title: 'Browse our current stock', text: 'Explore the cars available and compare the ones that interest you.', Icon: Car },
-    { title: 'The details in one place', text: 'Check each car’s price, mileage and specification before you decide.', Icon: CircleCheck },
-    { title: 'Ask us about a car', text: 'Contact our team with questions about the car you have in mind.', Icon: Smile },
-    { title: 'Plan your visit', text: 'Confirm the showroom address and opening times before travelling.', Icon: MapPin },
-    { title: 'Talk through the next steps', text: 'Ask us about payment, paperwork and collection arrangements.', Icon: Handshake },
-    { title: 'Keep your favourites', text: 'Save cars while you browse so you can find them again.', Icon: Tag },
+    ...(sections.warranty ? [{ title: 'Warranty', text: warranty, Icon: ShieldCheck }] : []),
+    ...(canBook ? [{ title: 'Test drives', text: 'Choose an available time to see the car and take it for a drive.', Icon: Calendar }] : []),
   ];
   const reasonIcon = (text: string) => /warrant|cover|protect/i.test(text) ? ShieldCheck : /deliver|transport/i.test(text) ? Truck : /price|value|budget/i.test(text) ? Tag : /inspect|check|prepar/i.test(text) ? CircleCheck : /exchange|trade|hagg/i.test(text) ? Handshake : /visit|location|hayes/i.test(text) ? MapPin : /test drive|appointment/i.test(text) ? Calendar : Smile;
   const providedReasons = (settings.whyBuy ?? []).filter(reason => reason.title.trim() && reason.description.trim()).slice(0, 6).map(reason => (
@@ -290,7 +286,7 @@ export function DealershipHomepage({ settings, cars: suppliedCars, isLoading, er
       : { title: reason.title, text: reason.description, Icon: reasonIcon(`${reason.title} ${reason.description}`) }
   ));
   const trustItems = !providedReasons.length ? (settings.trustItems ?? []).filter(item => item.trim()) : [];
-  const reasons = [...providedReasons, ...defaultReasons.filter(reason => !providedReasons.some(provided => provided.title.toLowerCase() === reason.title.toLowerCase()))].slice(0, 6);
+  const reasons = providedReasons.length ? providedReasons : defaultReasons;
   const faqs: Array<{ question: string; answer: string; href: string; label: string; id?: 'delivery' }> = [
     { question: 'How do I find the right car?', answer: 'Choose a make and budget above, or browse all our cars to filter by gearbox, fuel and body type.', href: '/stock', label: 'Browse our cars' },
     ...(sections.partExchange ? [{ question: 'Can I part-exchange my current car?', answer: 'Start with your registration and check your car’s details. You can tell us which car interests you or ask about a valuation first.', href: '/enquire?type=part_exchange', label: 'Start a part-exchange enquiry' }] : []),
@@ -306,15 +302,15 @@ export function DealershipHomepage({ settings, cars: suppliedCars, isLoading, er
         {sections.partExchange && <button type="button" ref={element => { tabs.current[1] = element; }} id={`${tabId}-px-tab`} role="tab" aria-selected={tab === 'px'} aria-controls={`${tabId}-px`} tabIndex={tab === 'px' ? 0 : -1} onClick={() => setTab('px')}><ArrowLeftRight size={16} aria-hidden="true" />Part exchange</button>}
       </div><div role="tabpanel" id={`${tabId}-buy`} aria-labelledby={`${tabId}-buy-tab`} hidden={tab !== 'buy'}><StockSearch cars={cars} isLoading={isLoading} error={error} filters={filters} setFilters={setFilters} onSearch={onSearch} /></div>{sections.partExchange && <div role="tabpanel" id={`${tabId}-px`} aria-labelledby={`${tabId}-px-tab`} hidden={tab !== 'px'}><PartExchangeStart id="hero" /></div>}</div>
     </div></section>
-    <div className="mh-container">
+    <div className="mh-container" id="about">
       {!error && makes.length > 0 && <FindByMake makes={makes} />}
-      <section id="about" className="mh-section mh-reasons" aria-labelledby="home-reassurance-heading">
+      {(reasons.length > 0 || trustItems.length > 0) && <section className="mh-section mh-reasons" aria-labelledby="home-reassurance-heading">
         <h2 id="home-reassurance-heading" tabIndex={-1}>Buying from {settings.identity.name}</h2>
-        <ul className="mh-reasons-grid" aria-label="Reasons to choose us">{reasons.map(({ title, text, Icon }) => <li key={title}>
+        {reasons.length > 0 && <ul className="mh-reasons-grid" aria-label="Reasons to choose us">{reasons.map(({ title, text, Icon }) => <li key={title}>
           <Icon size={22} aria-hidden="true" /><div><h3>{title}</h3><p>{text}</p></div>
-        </li>)}</ul>
+        </li>)}</ul>}
         {trustItems.length > 0 && <ul className="mh-trust-items" aria-label="Dealership details">{trustItems.map(item => <li key={item}><CircleCheck size={18} aria-hidden="true" />{item}</li>)}</ul>}
-      </section>
+      </section>}
       {sections.reviews && <MultiHomeReviews reviews={reviews} reviewsUrl={reviewsUrl} heading={settings.presentation?.websiteCopy?.reviewsHeading?.trim() || 'What our customers say'} />}
     </div>
     {sections.partExchange && <section id="part-exchange" className="mh-px-strip"><div className="mh-container"><h2 id="part-exchange-heading" tabIndex={-1}>Part exchange</h2><p>Enter your registration to get started.</p><PartExchangeStart id="strip" /></div></section>}

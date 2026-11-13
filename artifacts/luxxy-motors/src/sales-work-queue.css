@@ -1,12 +1,12 @@
 .sale-desk .sale-queue-workspace {
   --app-font-sans: var(--desk-font, Inter, system-ui, sans-serif);
   --font-display: var(--app-font-sans);
-  --sale-queue-ink: var(--desk-ink, #161f30);
-  --sale-queue-slate: var(--desk-muted, #576477);
-  --sale-queue-canvas: var(--desk-canvas, #f2f5f9);
-  --sale-queue-active: var(--desk-active, #e9efff);
-  --sale-queue-blue: var(--desk-blue, #214ac9);
-  --sale-queue-rule: var(--desk-line, #dde3eb);
+  --sale-queue-ink: var(--desk-ink, #202731);
+  --sale-queue-slate: var(--desk-muted, #52606d);
+  --sale-queue-canvas: var(--desk-canvas, #f2f3f5);
+  --sale-queue-active: var(--desk-active, #e7ebf0);
+  --sale-queue-blue: var(--desk-blue, #263d56);
+  --sale-queue-rule: var(--desk-line, #d9dee4);
   --sale-queue-attention: #855515;
   --sale-queue-columns: minmax(0, 1.45fr) minmax(0, 1fr) minmax(0, .9fr) minmax(140px, 1fr);
   width: 100%;
@@ -46,9 +46,9 @@
 
 .sale-queue-workspace .sale-queue-heading h1 {
   margin: 0;
-  font-size: clamp(34px, 3.5vw, 48px);
-  font-weight: 760;
-  letter-spacing: -.065em;
+  font-size: clamp(28px, 3vw, 35px);
+  font-weight: 700;
+  letter-spacing: -.035em;
   line-height: 1.06;
 }
 
@@ -72,8 +72,8 @@ body[data-dealer-portal="true"] .portal-workspace.portal-redesign .sale-queue-wo
 
 body[data-dealer-portal="true"] .portal-workspace.portal-redesign .sale-queue-workspace .sale-queue-heading-actions > button.bg-primary:hover:not(:disabled),
 .sale-queue-heading-actions > button.bg-primary:hover:not(:disabled) {
-  border-color: #183db0;
-  background: #183db0;
+  border-color: #192d42;
+  background: #192d42;
 }
 
 .sale-desk .sale-queue-toolbar {
@@ -148,7 +148,7 @@ body[data-dealer-portal="true"] .portal-workspace.portal-redesign .sale-queue-wo
 }
 
 .sale-queue-filters button[aria-pressed="true"] {
-  border-color: #dce5ff;
+  border-color: #d9dee4;
   background: var(--sale-queue-active);
   color: var(--sale-queue-blue);
 }
@@ -196,10 +196,6 @@ body[data-dealer-portal="true"] .portal-workspace.portal-redesign .sale-queue-wo
 
 .sale-queue-row:last-child {
   border-radius: 0 0 10px 10px;
-}
-
-.sale-queue-row[data-attention="true"] {
-  box-shadow: inset 3px 0 #c58e38;
 }
 
 .sale-queue-row:is(:hover, :focus-within) {
@@ -268,33 +264,11 @@ body[data-dealer-portal="true"] .portal-workspace.portal-redesign .sale-queue-wo
 .sale-queue-stage {
   display: inline-block;
   max-width: 100%;
-  padding: 3px 7px;
   margin-bottom: 3px;
-  border: 1px solid var(--sale-queue-rule);
-  border-radius: 5px;
-  background: var(--sale-queue-canvas);
-  color: var(--sale-queue-slate);
-  font-size: 11px;
-  font-weight: 700;
+  color: var(--sale-queue-ink);
+  font-size: 13px;
+  font-weight: 650;
   line-height: 1.35;
-}
-
-.sale-queue-stage:is([data-stage="Reserved"], [data-stage="Deposit requested"]) {
-  border-color: #ead7b2;
-  background: #fbf4e7;
-  color: var(--sale-queue-attention);
-}
-
-.sale-queue-stage[data-stage="Invoice ready"] {
-  border-color: #dce5ff;
-  background: var(--sale-queue-active);
-  color: var(--sale-queue-blue);
-}
-
-.sale-queue-stage:is([data-stage="Sold"], [data-stage="Delivered"], [data-stage="Collected"]) {
-  border-color: #d8e8df;
-  background: #edf7f1;
-  color: #216146;
 }
 
 .sale-desk .sale-queue-summary .sale-queue-attention {
@@ -327,7 +301,7 @@ body[data-dealer-portal="true"] .portal-workspace.portal-redesign .sale-queue-wo
 }
 
 .sale-queue-amount .sale-queue-paid {
-  color: #216146;
+  color: var(--sale-queue-ink);
 }
 
 .sale-queue-summary .sale-queue-open {
@@ -354,7 +328,7 @@ body[data-dealer-portal="true"] .portal-workspace.portal-redesign .sale-queue-wo
 }
 
 .sale-desk .sale-queue-next:hover:not(:disabled) {
-  border-color: #b8c9ee;
+  border-color: #b8c2cc;
   background: var(--sale-queue-active);
   color: var(--sale-queue-blue);
 }
@@ -565,7 +539,7 @@ body[data-dealer-portal="true"] .portal-workspace.portal-redesign .sale-queue-wo
   }
 
   .sale-desk .sale-queue-filter-toggle[aria-expanded="true"] {
-    border-color: #b8c9ee;
+    border-color: #b8c2cc;
     background: var(--sale-queue-active);
     color: var(--sale-queue-blue);
   }
@@ -608,16 +582,7 @@ body[data-dealer-portal="true"] .portal-workspace.portal-redesign .sale-queue-wo
     gap: 20px;
   }
 
-  .sale-queue-split .sale-queue-row { box-shadow: none; }
   .sale-queue-split .sale-queue-row[data-selected="true"] { background: #edf0f4; }
-
-  .sale-queue-split .sale-queue-stage {
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: inherit;
-    font-size: 13px;
-  }
 
   .sale-desk .sale-queue-split .sale-queue-next {
     padding: 6px 0;

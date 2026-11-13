@@ -23,7 +23,7 @@
   margin: 8px 0 18px;
 }
 .buyer-demand-heading h2 {
-  font-size: clamp(23px, 3vw, 30px);
+  font-size: 24px;
   font-weight: 650;
   letter-spacing: -0.035em;
   line-height: 1.25;
@@ -148,15 +148,11 @@
   font-size: 14px;
 }
 .stock-alert-request-status {
-  border-radius: 4px;
-  padding: 3px 7px;
-  background: var(--portal-canvas, #f9fafb);
   color: var(--portal-muted, #59656e);
   font-size: 12px;
   font-weight: 600;
 }
 .stock-alert-request-status[data-status="active"] {
-  background: var(--portal-soft, #eef9fc);
   color: var(--portal-ink, #192a36);
 }
 .stock-alert-request-dates,

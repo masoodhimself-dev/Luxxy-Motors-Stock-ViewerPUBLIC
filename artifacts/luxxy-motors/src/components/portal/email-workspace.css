@@ -17,9 +17,9 @@
   margin-bottom: 22px;
 }
 .email-heading h2 {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 650;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
 }
 .email-heading > div:last-child {
   display: flex;
@@ -45,7 +45,7 @@
 .email-customer-picker {
   border: 1px solid #dce5ec;
   background: #fff;
-  border-radius: 14px;
+  border-radius: 8px;
   overflow: hidden;
 }
 .email-message-list {
@@ -62,10 +62,7 @@
 }
 .email-message-list > button:hover,
 .email-message-list > button.selected {
-  background: var(--portal-info-soft, #edf4ff);
-}
-.email-message-list > button.selected {
-  box-shadow: inset 3px 0 var(--portal-info, #245ca5);
+  background: var(--portal-neutral-soft, #f0f3f6);
 }
 .email-message-list > button > span:first-child {
   display: flex;
@@ -90,9 +87,7 @@
 .email-row-meta em {
   font-style: normal;
   font-size: 12px;
-  background: #f1f5f8;
-  border-radius: 20px;
-  padding: 3px 9px;
+  font-weight: 600;
 }
 .email-row-meta small {
   display: flex;
@@ -252,7 +247,7 @@
 }
 .email-draft-queue {
   border: 1px solid #dce5ec;
-  border-radius: 14px;
+  border-radius: 8px;
   background: white;
   overflow: hidden;
 }
@@ -278,11 +273,8 @@
 }
 .email-draft-status {
   font-size: 12px;
-  color: var(--portal-violet, #6754a3);
-  background: var(--portal-violet-soft, #f3f0ff);
-  border: 1px solid var(--portal-violet-border, #d9d0f0);
-  padding: 4px 8px;
-  border-radius: 6px;
+  color: var(--portal-neutral, #536374);
+  font-weight: 600;
 }
 .email-draft-row-actions {
   display: flex;
@@ -321,9 +313,9 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 10px 18px;
-  background: #edf4f7;
-  border: 1px solid #dce5ec;
-  border-radius: 12px;
+  background: var(--portal-neutral-soft, #f0f3f6);
+  border: 1px solid var(--portal-border, #dce5ec);
+  border-radius: 8px;
   padding: 14px 16px;
   margin: 0 0 16px;
   font-size: 13px;
@@ -377,6 +369,12 @@
 .email-columns {
   grid-template-columns: minmax(260px, 0.68fr) minmax(0, 1.32fr);
   gap: 18px;
+}
+.email-columns[data-empty="true"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+.email-columns[data-empty="true"] .email-message-detail {
+  display: none;
 }
 .email-columns > * {
   min-width: 0;
@@ -545,9 +543,8 @@
   width: fit-content;
   padding: 14px 16px 10px;
   border: 1px solid #dfe7ed;
-  border-radius: 16px;
+  border-radius: 8px;
   background: #fff;
-  box-shadow: 0 1px 2px #1b394508;
 }
 .email-bubble-original {
   border-bottom-left-radius: 4px;
@@ -873,44 +870,35 @@
 .email-row-meta em[data-tone],
 .email-delivery-status[data-tone] {
   color: var(--email-status-ink);
-  background: var(--email-status-soft);
-  border: 1px solid var(--email-status-border);
-}
-.email-delivery-status[data-tone] {
-  border-radius: 5px;
-  padding: 2px 5px;
+  background: transparent;
+  border: 0;
+  font-weight: 600;
 }
 .email-bubble-outgoing {
-  background: var(--portal-info-soft, #edf4ff);
-  border-color: var(--portal-info-border, #c9d9ef);
+  background: var(--portal-neutral-soft, #f0f3f6);
+  border-color: var(--portal-neutral-border, #d5dde4);
 }
 .email-bubble-outgoing.is-active {
   border-color: var(--portal-info, #245ca5);
 }
-.email-bubble-outgoing[data-tone="success"] {
-  background: var(--portal-teal-soft, #eaf7f7);
-  border-color: var(--portal-teal-border, #b8dddd);
-}
 .email-bubble-outgoing:is(
   [data-tone="danger"],
-  [data-tone="warning"],
-  [data-tone="violet"]
+  [data-tone="warning"]
 ) {
   background: var(--email-status-soft);
   border-color: var(--email-status-border);
 }
 .email-bubble-outgoing.is-active:is(
     [data-tone="danger"],
-    [data-tone="warning"],
-    [data-tone="violet"]
+    [data-tone="warning"]
   ) {
   border-color: var(--email-status-ink);
 }
 .email-bubble-original {
-  border-color: var(--portal-teal-border, #b8dddd);
+  border-color: var(--portal-border, #dce5ec);
 }
 .email-bubble-original > header > span {
-  color: var(--portal-teal, #116773);
+  color: var(--portal-neutral, #536374);
 }
 .is-recorded .email-bubble {
   background: var(--portal-neutral-soft, #f0f3f6);
@@ -926,11 +914,10 @@
   );
 }
 .email-draft-intro > svg {
-  color: var(--portal-violet, #6754a3);
+  color: var(--portal-neutral, #536374);
 }
 .email-workspace .email-view-tabs > button[aria-pressed="true"][data-tone] {
-  color: var(--email-status-ink);
-  background: var(--email-status-soft);
-  border-color: var(--email-status-border);
-  box-shadow: inset 0 -2px var(--email-status-ink);
+  color: var(--portal-ink, #192a36);
+  background: var(--portal-neutral-soft, #f0f3f6);
+  border-color: var(--portal-neutral-border, #d5dde4);
 }

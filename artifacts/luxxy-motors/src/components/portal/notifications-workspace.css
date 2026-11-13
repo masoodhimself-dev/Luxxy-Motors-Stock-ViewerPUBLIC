@@ -435,3 +435,18 @@
 .inbox-secondary-heading h2 { font-size:22px; font-weight:650; }
 .inbox-secondary-heading>nav { display:flex; gap:5px; margin-left:auto; }
 @media(max-width:600px) { .inbox-secondary-heading { gap:6px; } .inbox-secondary-heading h2 { font-size:19px; } .inbox-secondary-heading>nav { margin-left:0; width:100%; } }
+
+@media (max-width: 600px) {
+  .portal-workspace.portal-redesign .inbox-secondary-heading > nav {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .portal-workspace.portal-redesign .inbox-secondary-heading > nav > button {
+    min-width: 0;
+    min-height: 44px;
+    padding-inline: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .portal-workspace.portal-redesign .inbox-secondary-heading > nav svg { display: none; }
+}

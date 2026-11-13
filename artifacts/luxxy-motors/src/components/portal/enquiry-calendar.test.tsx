@@ -56,7 +56,7 @@ it('opens the phone on one day with a simple date strip', () => {
   expect(screen.getByRole('navigation', { name: 'Choose appointment day' })).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Sunday 18 October' }));
   expect(screen.getByRole('heading', { name: 'Sunday 18 October' })).toBeVisible();
-  expect(screen.getByText('A clear diary for this day')).toBeVisible();
+  expect(screen.getByText('No appointments on this day')).toBeVisible();
   fireEvent.click(screen.getAllByRole('button', { name: 'Add appointment' })[0]);
   expect(onAdd).toHaveBeenCalledWith('2026-10-18');
 });

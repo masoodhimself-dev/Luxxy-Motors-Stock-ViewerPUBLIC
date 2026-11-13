@@ -1,13 +1,13 @@
 .portal-workspace.portal-redesign .portal-workspace-inner.portal-app-layout.portal-desk-shell {
-  --desk-ink: #161f30;
-  --desk-muted: #576477;
-  --desk-line: #dde3eb;
-  --desk-canvas: #f2f5f9;
+  --desk-ink: #202731;
+  --desk-muted: #52606d;
+  --desk-line: #d9dee4;
+  --desk-canvas: #f2f3f5;
   --desk-nav: #121e32;
   --desk-nav-active: #24334c;
-  --desk-blue: #214ac9;
-  --desk-active: #e9efff;
-  --desk-focus: #668cff;
+  --desk-blue: #263d56;
+  --desk-active: #e7ebf0;
+  --desk-focus: #718ba5;
   --desk-font: "Inter", system-ui, sans-serif;
   display: grid;
   grid-template-columns: 224px minmax(0, 1fr);
@@ -52,8 +52,7 @@
   height: 29px;
   padding: 6px;
   border-radius: 7px;
-  background: #426bed;
-  transform: skewX(-4deg);
+  background: #354c65;
 }
 
 .portal-desk-mark > span { height: 3px; border-radius: 2px; background: #fff; }
@@ -64,9 +63,9 @@
   font-size: 25px;
   font-weight: 780;
   line-height: 1;
-  letter-spacing: -.075em;
+  letter-spacing: -.045em;
 }
-.portal-desk-wordmark > span { color: #a8bbfa; }
+.portal-desk-wordmark > span { color: #d4dee9; }
 
 .portal-desk-dealer {
   display: flex;
@@ -141,15 +140,11 @@
   color: #fff;
 }
 
-.portal-workspace.portal-redesign .portal-desk-shell .portal-desk-link[aria-current="page"] {
-  box-shadow: inset 3px 0 #8aa6ff;
-}
-
 .portal-desk-count {
   margin-left: auto;
   padding: 1px 6px;
   border-radius: 5px;
-  background: #34476b;
+  background: #36475b;
   color: #eef4ff;
   font-size: 11px;
   font-variant-numeric: tabular-nums;
@@ -234,8 +229,8 @@ body[data-dealer-portal="true"] .portal-workspace.portal-redesign .portal-desk-t
 }
 
 body[data-dealer-portal="true"] .portal-workspace.portal-redesign .portal-desk-toolbar .portal-quick-trigger[data-presentation="new"]:hover {
-  border-color: #193ba7;
-  background: #193ba7;
+  border-color: #1b2d40;
+  background: #1b2d40;
 }
 
 .portal-desk-showroom {

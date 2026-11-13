@@ -10,7 +10,6 @@ import {
   FileText,
   Mail,
   Users,
-  ShieldCheck,
 } from "@/components/icons";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -265,17 +264,12 @@ export function DealerSettingsHub() {
       aria-label="Dealership settings"
     >
       <header className="settings-tabs-heading">
-        <div>
-          <h2>Settings</h2>
-          <p>Your business, customer experience and team access.</p>
-        </div>
-        <span>
-          <ShieldCheck size={15} />
-          Owner access
-        </span>
+        <h2>Settings</h2>
       </header>
-      <OwnerSetup />
-      <OwnerOperationsReport />
+      <div className="settings-owner-tools">
+        <OwnerSetup />
+        <OwnerOperationsReport />
+      </div>
       <SettingsTabs
         orientation={verticalNavigation ? "vertical" : "horizontal"}
         idPrefix="dealer-settings"
