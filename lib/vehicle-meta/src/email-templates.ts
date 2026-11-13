@@ -607,7 +607,10 @@ export function renderEmailTemplate(
     footer = interpolate(branding.footer);
   const details = facts.filter(
     (fact) =>
-      !internalReferenceLabel.test(fact.label.trim()) &&
+      (!internalReferenceLabel.test(fact.label.trim()) ||
+        (options.templateId === "delivery_confirmation" &&
+          fact.label === "Sale reference" &&
+          String(fact.value).trim() === reference)) &&
       !(
         reference &&
         String(fact.value).trim() === reference &&
