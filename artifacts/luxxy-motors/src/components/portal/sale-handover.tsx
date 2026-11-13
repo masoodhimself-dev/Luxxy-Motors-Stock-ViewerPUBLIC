@@ -458,7 +458,7 @@ export function SaleHandover({
           )}
           {hold && <p role="status">{hold}</p>}
           <div className="handover-actions">
-            {canManage && (
+            {canManage && !completed && (
               <>
                 <Button
                   variant="outline"

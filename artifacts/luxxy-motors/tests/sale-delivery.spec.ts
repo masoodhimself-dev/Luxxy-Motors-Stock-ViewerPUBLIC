@@ -11,8 +11,8 @@ test.skip(
   process.env.LUXXY_LOCAL_PREVIEW !== "1",
   "Fictional local deliveries only.",
 );
-for (const width of [390, 834, 1440]) {
-  test(`saved-sale delivery arrangements, manual confirmations and handover at ${width}`, async ({
+for (const [width, method] of [[390, "delivery"], [834, "delivery"], [1440, "delivery"], [390, "collection"], [1440, "collection"]] as const) {
+  test(`saved-sale ${method} handover can be reopened at ${width}`, async ({
     page,
     request,
   }) => {
@@ -154,90 +154,97 @@ for (const width of [390, 834, 1440]) {
     await openArrangements(page);
     const panel = page.getByRole("region", { name: "Collection and delivery" });
     await expect(panel).toBeVisible();
-    await panel.getByRole("button", { name: "Edit arrangements" }).click();
-    await panel
-      .getByRole("button", { name: "Deliver to customer", exact: true })
-      .click();
-    await panel
-      .getByRole("textbox", { name: "Delivery address", exact: true })
-      .fill("25 Confirmed Road\nLondon\nHA2 8LY");
-    await panel.getByLabel("Planned date", { exact: true }).fill("2026-10-24");
-    await panel
-      .getByLabel("Arrival window", { exact: true })
-      .fill("14:00–16:00");
-    await panel
-      .getByLabel("Staff delivery notes")
-      .fill("Internal gate instructions");
-    await panel
-      .getByRole("button", { name: "Save arrangements", exact: true })
-      .click();
-    await expect(panel.getByRole("status")).toContainText("Arrangements saved");
-    expect(JSON.stringify(sale.payments)).toBe(payments);
-    expect(JSON.stringify(sale.documents)).toBe(documents);
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= innerWidth,
-      ),
-    ).toBe(true);
-    await mkdir("/tmp/luxxy-delivery-review", { recursive: true });
-    await panel.screenshot({
-      path: `/tmp/luxxy-delivery-review/saved-${width}.png`,
-    });
-    await panel
-      .getByRole("button", { name: "Email confirmation", exact: true })
-      .click();
-    const prepare = page.getByRole("dialog", {
-      name: "Prepare customer email",
-    });
-    await expect(
-      prepare.getByLabel("Customer email", { exact: true }),
-    ).toHaveValue(buyer.email);
-    await prepare
-      .getByRole("button", { name: "Continue to email", exact: true })
-      .click();
-    await expect(
-      page.getByRole("textbox", { name: "Message", exact: true }),
-    ).toHaveValue(/25 Confirmed Road/);
-    await expect(
-      page.getByRole("textbox", { name: "Message", exact: true }),
-    ).not.toHaveValue(/Internal gate/);
-    expect(emailPrepared).toBe(1);
-    await page.keyboard.press("Escape");
-    await panel
-      .getByRole("button", { name: "WhatsApp confirmation", exact: true })
-      .click();
-    const share = page.getByRole("dialog", { name: "Send on WhatsApp" });
-    await expect(
-      share.getByLabel("Customer number", { exact: true }),
-    ).toHaveValue("07700900123");
-    const handoff = share.getByRole("link", {
-      name: "Open WhatsApp",
-      exact: true,
-    });
-    await expect(handoff).toHaveAttribute("href", /447700900123/);
-    const message = new URL(
-      (await handoff.getAttribute("href"))!,
-    ).searchParams.get("text")!;
-    expect(message).toContain("25 Confirmed Road");
-    expect(message).not.toMatch(/Internal gate|phone-share/);
-    await page.keyboard.press("Escape");
-    await panel
-      .getByRole("button", { name: "Mark delivered", exact: true })
-      .click();
-    const handover = page.getByRole("dialog", { name: "Confirm delivery" });
-    await handover
-      .getByRole("button", { name: "Confirm handover", exact: true })
-      .click();
-    await expect(panel).toContainText("Delivered");
+    if (method === "collection") {
+      await panel.getByRole("button", { name: "Mark collected", exact: true }).click();
+      await page.getByRole("button", { name: "Confirm handover", exact: true }).click();
+    } else {
+      await panel.getByRole("button", { name: "Edit arrangements" }).click();
+      await panel
+        .getByRole("button", { name: "Deliver to customer", exact: true })
+        .click();
+      await panel
+        .getByRole("textbox", { name: "Delivery address", exact: true })
+        .fill("25 Confirmed Road\nLondon\nHA2 8LY");
+      await panel.getByLabel("Planned date", { exact: true }).fill("2026-10-24");
+      await panel
+        .getByLabel("Arrival window", { exact: true })
+        .fill("14:00–16:00");
+      await panel
+        .getByLabel("Staff delivery notes")
+        .fill("Internal gate instructions");
+      await panel
+        .getByRole("button", { name: "Save arrangements", exact: true })
+        .click();
+      await expect(panel.getByRole("status")).toContainText("Arrangements saved");
+      expect(JSON.stringify(sale.payments)).toBe(payments);
+      expect(JSON.stringify(sale.documents)).toBe(documents);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      await mkdir("/tmp/luxxy-delivery-review", { recursive: true });
+      await panel.screenshot({
+        path: `/tmp/luxxy-delivery-review/saved-${width}.png`,
+      });
+      await panel
+        .getByRole("button", { name: "Email confirmation", exact: true })
+        .click();
+      const prepare = page.getByRole("dialog", {
+        name: "Prepare customer email",
+      });
+      await expect(
+        prepare.getByLabel("Customer email", { exact: true }),
+      ).toHaveValue(buyer.email);
+      await prepare
+        .getByRole("button", { name: "Continue to email", exact: true })
+        .click();
+      await expect(
+        page.getByRole("textbox", { name: "Message", exact: true }),
+      ).toHaveValue(/25 Confirmed Road/);
+      await expect(
+        page.getByRole("textbox", { name: "Message", exact: true }),
+      ).not.toHaveValue(/Internal gate/);
+      expect(emailPrepared).toBe(1);
+      await page.keyboard.press("Escape");
+      await panel
+        .getByRole("button", { name: "WhatsApp confirmation", exact: true })
+        .click();
+      const share = page.getByRole("dialog", { name: "Send on WhatsApp" });
+      await expect(
+        share.getByLabel("Customer number", { exact: true }),
+      ).toHaveValue("07700900123");
+      const handoff = share.getByRole("link", {
+        name: "Open WhatsApp",
+        exact: true,
+      });
+      await expect(handoff).toHaveAttribute("href", /447700900123/);
+      const message = new URL(
+        (await handoff.getAttribute("href"))!,
+      ).searchParams.get("text")!;
+      expect(message).toContain("25 Confirmed Road");
+      expect(message).not.toMatch(/Internal gate|phone-share/);
+      await page.keyboard.press("Escape");
+      await panel
+        .getByRole("button", { name: "Mark delivered", exact: true })
+        .click();
+      const handover = page.getByRole("dialog", { name: "Confirm delivery" });
+      await handover
+        .getByRole("button", { name: "Confirm handover", exact: true })
+        .click();
+    }
+    const status = method === "delivery" ? "Delivered" : "Collected";
+    await expect(panel).toContainText(status);
     expect(JSON.stringify(sale.payments)).toBe(payments);
     expect(JSON.stringify(sale.documents.slice(0, -1))).toBe(documents);
     expect(unhandled).toEqual([]);
     await page.reload();
-    await openArrangements(page);
-    await expect(
-      page.getByRole("region", { name: "Collection and delivery" }),
-    ).toContainText("Delivered");
-    expect(emailPrepared).toBe(1);
+    await page.getByRole("button", { name: "View handover", exact: true }).click();
+    await expect(panel).toContainText(status);
+    await expect(panel).toContainText("Received by");
+    await expect(panel).toContainText(sale.draft.customer);
+    await expect(panel.getByRole("button", { name: /Edit arrangements|Mark collected|Mark delivered/ })).toHaveCount(0);
+    expect(emailPrepared).toBe(method === "delivery" ? 1 : 0);
   });
 }
 

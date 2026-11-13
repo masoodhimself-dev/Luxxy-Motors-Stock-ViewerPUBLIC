@@ -11,19 +11,20 @@ export const saleActions = [
   { id: 'return', title: 'Return or change a car', description: 'Find the original sale to get started.', icon: RotateCcw },
 ] as const;
 
-export function SalesActionMenu({ onChoose, disabled = false, unavailable = {}, requestTitle, includeReturn = true, includeRequest = true }: {
-  onChoose: (action: SaleAction) => void; disabled?: boolean; unavailable?: Partial<Record<SaleAction, string>>; requestTitle?: string; includeReturn?: boolean; includeRequest?: boolean;
+export function SalesActionMenu({ onChoose, disabled = false, unavailable = {}, requestTitle, handoverCompleted = false, includeReturn = true, includeRequest = true }: {
+  onChoose: (action: SaleAction) => void; disabled?: boolean; unavailable?: Partial<Record<SaleAction, string>>; requestTitle?: string; handoverCompleted?: boolean; includeReturn?: boolean; includeRequest?: boolean;
 }) {
   const menuId = useId();
   return <div className="sales-flow-menu" aria-label="Choose what to do">
     {saleActions.filter(({ id }) => (includeReturn || id !== 'return') && (includeRequest || id !== 'request')).map(({ id, title, description, icon: Icon }) => {
       const reason = unavailable[id];
+      const viewingHandover = id === 'handover' && handoverCompleted;
       const isDisabled = disabled || Boolean(reason);
       const titleId = `${menuId}-${id}-title`;
       const helpId = `${menuId}-${id}-help`;
       return <button key={id} type="button" disabled={isDisabled} onClick={() => onChoose(id)} aria-labelledby={titleId} aria-describedby={helpId}>
         <Icon className="sales-flow-menu-icon" size={30} aria-hidden="true" />
-        <span><strong id={titleId}>{id === 'request' && requestTitle ? requestTitle : title}</strong><small id={helpId}>{reason || description}</small></span>
+        <span><strong id={titleId}>{id === 'request' && requestTitle ? requestTitle : viewingHandover ? 'View handover' : title}</strong><small id={helpId}>{reason || (viewingHandover ? 'See the recorded collection or delivery.' : description)}</small></span>
         {!isDisabled && <ChevronRight size={22} aria-hidden="true" />}
       </button>;
     })}

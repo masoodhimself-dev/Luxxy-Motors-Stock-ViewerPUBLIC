@@ -1068,6 +1068,7 @@ export function SalesWorkspace({
   const canChangeAction = () => !busy && (!(returnDraftDirty || refundDraftDirty || requestDraftDirty || teamDraftDirty || handoffDraftDirty) || window.confirm('Leave this unfinished action? Its unsaved details will be lost.'));
   const showMenu = () => { setFocusedStaffTask(null); setQuickSale(false); setResumeInvoice(null); setResumeAfterPayment(null); setConfirmationDocument(null); setFlowScreen('menu'); setWorkspaceTab('deal'); setIssued(null); setProblem(''); };
   const goToMenu = () => { if (canChangeAction()) showMenu(); };
+  const handoverCompleted = Boolean(record?.draft.fulfilment?.completedAt);
   function chooseAction(action: SaleAction) {
     if (!draft || unavailable[action] || !canChangeAction()) return;
     setFocusedStaffTask(null);
@@ -1246,7 +1247,9 @@ export function SalesWorkspace({
     extras: 'Extras and part exchange',
     history: 'Payments and documents',
   };
-  const actionHeading = flowScreen === 'request' && sold ? 'Request a payment' : saleActions.find(action => action.id === flowScreen)?.title;
+  const actionHeading = flowScreen === 'handover' && handoverCompleted
+    ? 'View handover'
+    : flowScreen === 'request' && sold ? 'Request a payment' : saleActions.find(action => action.id === flowScreen)?.title;
   const screenHeading = depositConfirmation ? 'Deposit recorded' : screenHeadings[flowScreen] ?? actionHeading;
   const nextStepDocument = showNextStep && nextStep.documentId
     ? record?.documents.find(document => document.id === nextStep.documentId)
@@ -1492,7 +1495,7 @@ export function SalesWorkspace({
             <div><h3>Quick sale</h3><p>For a car paid in full and collected from the showroom.</p></div>
             <Button variant="outline" onClick={startQuickSale}>Start quick sale<ArrowRight size={16} aria-hidden="true" /></Button>
           </div>}
-          <SalesActionMenu includeReturn={false} includeRequest={!requestIsNextStep} onChoose={chooseAction} disabled={busy} requestTitle={sold ? 'Request a payment' : undefined} unavailable={unavailable} />
+          <SalesActionMenu handoverCompleted={handoverCompleted} includeReturn={false} includeRequest={!requestIsNextStep} onChoose={chooseAction} disabled={busy} requestTitle={sold ? 'Request a payment' : undefined} unavailable={unavailable} />
           <div className="sale-overview-links">
             <Button variant="outline" disabled={busy} onClick={openPaymentHistory}><History size={16} aria-hidden="true" />Payments and documents</Button>
             {customerUpdate}
@@ -1528,7 +1531,7 @@ export function SalesWorkspace({
             onSaving={setChildBusy}
             onDirtyChange={setHandoffDraftDirty}
           />}
-          {!isOverview && (depositConfirmation || flowScreen === 'handover' || (flowScreen === 'invoice' && sold)) && customerUpdate}
+          {!isOverview && (depositConfirmation || (flowScreen === 'handover' && !handoverCompleted) || (flowScreen === 'invoice' && sold)) && customerUpdate}
           {workspaceTab === 'deal' && ['car', 'customer', 'extras'].includes(flowScreen) && <>
             <section className="sale-desk-sheet"><fieldset disabled={busy || frozen}>
               {dealSection === 'vehicle' && <>
@@ -2317,10 +2320,10 @@ export function SalesWorkspace({
           </>}
           {workspaceTab === 'handover' && <>
             <section className="sale-desk-sheet">
-              {payment.amount.trim() ? <div className="invoice-error">
+              {!handoverCompleted && payment.amount.trim() ? <div className="invoice-error">
                 <p>Save or clear the payment entry in Payments before confirming the handover.</p>
                 <Button variant="outline" disabled={busy} onClick={() => openUnfinishedPayment('handover')}>Open unfinished payment</Button>
-              </div> : record && !detailsDirty ? <SaleHandover
+              </div> : record && (handoverCompleted || !detailsDirty) ? <SaleHandover
                 key={`handover:${record.id}`}
                 sale={record}
                 onSaved={sale => {
@@ -2336,8 +2339,14 @@ export function SalesWorkspace({
                 } : undefined}
               /> : <><SaleHandoverFields draft={draft} value={handoverDefaults(draft)} onChange={value => update('fulfilment', value)} disabled={busy || !canManageSales || Boolean(record?.draft.fulfilment?.completedAt)}/><p className="invoice-note">Save these details to continue with the handover.</p><Button onClick={save} disabled={busy || !canManageSales}>Save arrangements</Button></>}
             </section>
-            {record && !detailsDirty && !payment.amount.trim() && record.draft.fulfilment?.method==='delivery' && canManageSales && <><SaleDeliveryCharge sale={record} onSaved={sale=>accept({sale})} onBusyChange={setChildBusy}/><details className="sale-desk-fold"><summary>Delivery evidence and signed paperwork</summary><SaleDeliveryEvidence saleId={record.id} revision={record.revision}/></details></>}
-            <details className="sale-desk-fold"><summary>Before handing over the car</summary>{checklistPanel()}</details>
+            {record?.draft.fulfilment?.method === 'delivery' && canManageSales && (handoverCompleted || (!detailsDirty && !payment.amount.trim())) && <>
+              {!handoverCompleted && <SaleDeliveryCharge sale={record} onSaved={sale => accept({ sale })} onBusyChange={setChildBusy} />}
+              <details className="sale-desk-fold">
+                <summary>Delivery evidence and signed paperwork</summary>
+                <SaleDeliveryEvidence saleId={record.id} revision={record.revision} readOnly={handoverCompleted} />
+              </details>
+            </>}
+            {!handoverCompleted && <details className="sale-desk-fold"><summary>Before handing over the car</summary>{checklistPanel()}</details>}
             {record && (record.completedAt || record.lifecycle?.status === 'sold') && <details className="sale-desk-fold"><summary>Customer follow-up</summary><SoldVehicleCustomerReview saleId={record.id} /></details>}
           </>}
         </div>

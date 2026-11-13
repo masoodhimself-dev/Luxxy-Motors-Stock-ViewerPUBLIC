@@ -24,7 +24,6 @@ export function saleActionUnavailable(
   if (!access.handover) unavailable.handover = 'Ask someone with handover access.';
   if (!access.manage || !access.refund) unavailable.return = 'Ask a manager with refund access.';
   if (sold) unavailable.deposit = 'This car is already sold.';
-  if (sale?.draft.fulfilment?.completedAt) unavailable.handover = 'The handover is already recorded.';
   if (sale && hasSeparateDeliveryInvoice(sale)) unavailable.invoice = 'View the saved vehicle and delivery invoices in Payments and documents.';
 
   if (!draft?.customer?.trim() || !draft.vehicleId || !totals || !(totals.price > 0) || !Number.isSafeInteger(totals.balance)) {
@@ -49,7 +48,7 @@ export function saleActionUnavailable(
     unavailable.payment = paymentBlock;
     unavailable.invoice = closed ? 'View the saved invoices in Payments and documents.' : paymentBlock;
   }
-  if (closed || stockReason || refundDue > 0) {
+  if (!sale?.draft.fulfilment?.completedAt && (closed || stockReason || refundDue > 0)) {
     unavailable.handover = closed ? 'This sale is closed.' : stockReason || 'Record the outstanding refund first.';
   }
 

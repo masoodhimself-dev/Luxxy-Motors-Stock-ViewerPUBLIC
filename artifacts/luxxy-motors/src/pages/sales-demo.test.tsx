@@ -834,9 +834,8 @@ it('greys out settled payments and completed handover while leaving the saved pa
  const payment = actions.getByRole('button', { name: /^Take a payment/ });
  expect(payment).toBeDisabled();
  expect(payment).toHaveAccessibleDescription('The balance is settled.');
- const handover = actions.getByRole('button', { name: /^Arrange collection or delivery/ });
- expect(handover).toBeDisabled();
- expect(handover).toHaveAccessibleDescription('The handover is already recorded.');
+ const handover = actions.getByRole('button', { name: 'View handover' });
+ expect(handover).toBeEnabled();
  expect(actions.getByRole('button', { name: 'Payments and documents' })).toBeEnabled();
  expect(mutations()).toHaveLength(0);
 });
