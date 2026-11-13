@@ -287,6 +287,7 @@ export function DealershipHomepage({ settings, cars: suppliedCars, isLoading, er
   ));
   const trustItems = !providedReasons.length ? (settings.trustItems ?? []).filter(item => item.trim()) : [];
   const reasons = providedReasons.length ? providedReasons : defaultReasons;
+  const showReassurance = reasons.length > 0 || trustItems.length > 0;
   const faqs: Array<{ question: string; answer: string; href: string; label: string; id?: 'delivery' }> = [
     { question: 'How do I find the right car?', answer: 'Choose a make and budget above, or browse all our cars to filter by gearbox, fuel and body type.', href: '/stock', label: 'Browse our cars' },
     ...(sections.partExchange ? [{ question: 'Can I part-exchange my current car?', answer: 'Start with your registration and check your car’s details. You can tell us which car interests you or ask about a valuation first.', href: '/enquire?type=part_exchange', label: 'Start a part-exchange enquiry' }] : []),
@@ -302,9 +303,9 @@ export function DealershipHomepage({ settings, cars: suppliedCars, isLoading, er
         {sections.partExchange && <button type="button" ref={element => { tabs.current[1] = element; }} id={`${tabId}-px-tab`} role="tab" aria-selected={tab === 'px'} aria-controls={`${tabId}-px`} tabIndex={tab === 'px' ? 0 : -1} onClick={() => setTab('px')}><ArrowLeftRight size={16} aria-hidden="true" />Part exchange</button>}
       </div><div role="tabpanel" id={`${tabId}-buy`} aria-labelledby={`${tabId}-buy-tab`} hidden={tab !== 'buy'}><StockSearch cars={cars} isLoading={isLoading} error={error} filters={filters} setFilters={setFilters} onSearch={onSearch} /></div>{sections.partExchange && <div role="tabpanel" id={`${tabId}-px`} aria-labelledby={`${tabId}-px-tab`} hidden={tab !== 'px'}><PartExchangeStart id="hero" /></div>}</div>
     </div></section>
-    <div className="mh-container" id="about">
+    <div className="mh-container" id={showReassurance ? undefined : "about"}>
       {!error && makes.length > 0 && <FindByMake makes={makes} />}
-      {(reasons.length > 0 || trustItems.length > 0) && <section className="mh-section mh-reasons" aria-labelledby="home-reassurance-heading">
+      {showReassurance && <section id="about" className="mh-section mh-reasons" aria-labelledby="home-reassurance-heading">
         <h2 id="home-reassurance-heading" tabIndex={-1}>Buying from {settings.identity.name}</h2>
         {reasons.length > 0 && <ul className="mh-reasons-grid" aria-label="Reasons to choose us">{reasons.map(({ title, text, Icon }) => <li key={title}>
           <Icon size={22} aria-hidden="true" /><div><h3>{title}</h3><p>{text}</p></div>

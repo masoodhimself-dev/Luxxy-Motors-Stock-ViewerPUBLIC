@@ -32,6 +32,7 @@ it('uses the shared homepage with only another dealership’s published content 
   const before = JSON.stringify(config);
   const view = render(<Harness config={config} />);
   expect(screen.getByRole('img', { name: 'Shore Drive showroom' })).toHaveAttribute('src', '/shore-showroom.jpg');
+  expect(screen.getByRole('region', { name: 'Buying from Shore Drive' })).toHaveAttribute('id', 'about');
   expect(screen.getByText('Ask about the vehicle records before your visit.')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /Email us\s*hello@shoredrive.uk/ })).toHaveAttribute('href', 'mailto:hello@shoredrive.uk');
   expect(view.container.textContent).not.toMatch(/6.month warranty|36 months|price.checked daily|triple.check|same day drive away|hayes|coldharbour/i);
