@@ -127,7 +127,7 @@ export interface SalesWorkspaceProps {
   onExit?: () => void;
   quickActions?: ReactNode;
 }
-type SaleListRow = SaleWorkspaceRecord & { listSummary?: boolean; listOwnerName?: string; listHasTeamNote?: boolean; listAttention?: string; listStage?: string; listHasInvoice?: boolean; listTotalDue?: number; listPaid?: number; listPending?: number; listLedgerKnown?: boolean; listBalance?: number; listRefundDue?: number; listHasCorrectionNotes?: boolean; listHasRefunds?: boolean; listHandover?: { method: 'collection' | 'delivery'; status: string } | null };
+type SaleListRow = SaleWorkspaceRecord & { listSummary?: boolean; listOwnerName?: string; listHasTeamNote?: boolean; listAttention?: string; listStage?: string; listHasInvoice?: boolean; listTotalDue?: number; listPaid?: number; listPending?: number; listLedgerKnown?: boolean; listBalance?: number; listRefundDue?: number; listHasCorrectionNotes?: boolean; listHasRefunds?: boolean; listPaymentDue?: string; listHandover?: { method: 'collection' | 'delivery'; status: string; scheduledDate?: string; timeWindow?: string } | null };
 
 type SaleQueueDestination = 'payments' | 'request' | 'handover' | 'invoice' | 'confirmation';
 type SaleQueueAction = { label: string; destination: SaleQueueDestination };
@@ -177,6 +177,16 @@ function saleListProgress(sale: SaleListRow) {
     shortcut = { label: handover && handover.status !== 'To arrange' ? 'View handover' : 'Arrange handover', destination: 'handover' };
   }
   return { status, hint, shortcut, handover, balance, correctionReview, released };
+}
+function saleQueueDate(sale: SaleListRow, destination?: SaleOpenDestination) {
+  const handover = destination === 'handover' ? sale.listHandover : undefined;
+  const paymentDue = destination === 'request' || destination === 'payments' ? sale.listPaymentDue : undefined;
+  const date = handover?.status === 'Booked' ? handover.scheduledDate : paymentDue;
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return '';
+  const day = new Date(date + 'T12:00:00Z');
+  if (!Number.isFinite(day.getTime())) return '';
+  const label = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(day);
+  return handover ? [label, handover.timeWindow].filter(Boolean).join(' · ') : `Due ${label}`;
 }
 type SaleListPage = { sales: SaleListRow[]; hasMore?: boolean };
 const salesListKey = ['sale-workspace', 'list'] as const;
@@ -249,7 +259,8 @@ export function SalesWorkspace({
   const [childBusy, setChildBusy] = useState(false);
   const [teamDraftDirty, setTeamDraftDirty] = useState(false);
   const [filter, setFilter] = useState(''), [listSearch, setListSearch] = useState('');
-  const [queue, setQueue] = useState<SaleQueueFilter>('all');
+  const [selectedQueueId, setSelectedQueueId] = useState<string>();
+  const [queue, setQueue] = useState<SaleQueueFilter>('attention');
   const [ownerFilter, setOwnerFilter] = useState<SaleQueueOwner>('all');
   const pendingNextSale = useRef<{ id: string; destination: SaleOpenDestination } | null>(null);
   const [focusedStaffTask, setFocusedStaffTask] = useState<{ id: string; request: number } | null>(null);
@@ -1016,6 +1027,13 @@ export function SalesWorkspace({
       ? { label: "Record a payment", note: "Continue with the next payment, or prepare the invoice when you need it.", run: () => resumeAt(2) }
     : { label: latestInvoice ? "Create updated invoice" : "Create invoice", note: latestInvoice ? "The details or payments have changed since the saved invoice." : "The balance is settled. Prepare the customer’s invoice.", run: () => resumeAt(3) };
   const matchingSales = listRows;
+  const selectedQueueSale = matchingSales.find(sale => sale.id === selectedQueueId) ?? matchingSales[0];
+  const selectedProgress = selectedQueueSale && saleListProgress(selectedQueueSale);
+  const canOpenQueueAction = (action?: SaleQueueAction) => action &&
+    (!['request', 'confirmation'].includes(action.destination) || canRecordPayments) &&
+    (action.destination !== 'handover' || canHandover);
+  const selectedAction = selectedProgress?.shortcut;
+  const selectedDate = selectedQueueSale && saleQueueDate(selectedQueueSale, selectedAction?.destination);
   function field(
     key: "customer" | "phone" | "email" | "registration" | "price",
     label: string,
@@ -1362,7 +1380,7 @@ export function SalesWorkspace({
             </p>
           )}
           {message && <p className="invoice-message" role="status">{message}</p>}
-          {matchingSales.length > 0 && <section className="sale-queue-results" aria-label="Sales results">
+          {matchingSales.length > 0 && <div className="sale-queue-split"><section className="sale-queue-results" aria-label="Sales results">
             <div className="sale-queue-results-count" role="status">
               {matchingSales.length} {matchingSales.length === 1 ? 'sale' : 'sales'}{sales.hasNextPage ? ' shown' : ''}
             </div>
@@ -1376,15 +1394,16 @@ export function SalesWorkspace({
               {matchingSales.map(sale => {
                 const progress = saleListProgress(sale);
                 const shortcut = progress.shortcut;
-                const showShortcut = shortcut && (!['request', 'confirmation'].includes(shortcut.destination) || canRecordPayments) && (shortcut.destination !== 'handover' || canHandover);
+                const showShortcut = shortcut && canOpenQueueAction(shortcut);
+                const due = saleQueueDate(sale, showShortcut ? shortcut.destination : undefined);
                 const refund = sale.listAttention === saleRefundAttention;
                 const balance = !refund && sale.listLedgerKnown !== false ? progress.balance : undefined;
                 const price = saleMoney(typeof sale.listTotalDue === 'number' ? sale.listTotalDue : saleWorkspaceTotals(sale.draft, sale.payments).totalDue);
                 const amountLabel = progress.correctionReview ? 'Calculated balance (review)' : (balance ?? 0) < 0 ? 'Customer credit' : 'Balance due';
                 const balanceText = typeof balance === 'number' ? saleMoney(progress.correctionReview ? balance : Math.abs(balance)) : '';
                 const paymentAlert = sale.listAttention || (progress.correctionReview ? 'Correction to review' : '');
-                return <article key={sale.id} className="sale-queue-row" data-attention={Boolean(paymentAlert)}>
-                  <button type="button" className="sale-queue-summary" aria-busy={openingId === sale.id} onClick={() => void open(sale)}>
+                return <article key={sale.id} className="sale-queue-row" data-attention={Boolean(paymentAlert)} data-selected={selectedQueueSale?.id === sale.id}>
+                  <button type="button" className="sale-queue-summary" aria-busy={openingId === sale.id} onClick={() => window.matchMedia?.("(min-width: 1280px)")?.matches ? setSelectedQueueId(sale.id) : void open(sale)}>
                     <span className="sale-queue-identity">
                       <strong className="sale-queue-vehicle">{sale.draft.vehicle || 'Vehicle to add'}</strong>
                       <span className="sale-queue-customer">
@@ -1411,11 +1430,28 @@ export function SalesWorkspace({
                     </span>
                     {!showShortcut && <span className="sale-queue-open">Open sale <ArrowRight size={14} aria-hidden="true" /></span>}
                   </button>
-                  {showShortcut && <Button type="button" size="sm" variant="outline" className="sale-queue-next" disabled={Boolean(openingId)} aria-describedby={`${queueContextId}-${sale.id}`} onClick={() => void open(sale, undefined, shortcut.destination)}><span>{shortcut.label}</span><ArrowRight size={15} aria-hidden="true" /></Button>}
+                  {showShortcut && <Button type="button" size="sm" variant="outline" className="sale-queue-next" disabled={Boolean(openingId)} aria-describedby={`${queueContextId}-${sale.id}`} onClick={() => void open(sale, undefined, shortcut.destination)}><span>{shortcut.label}{due && <small className="sale-queue-date">{due}</small>}</span><ArrowRight size={15} aria-hidden="true" /></Button>}
                 </article>;
               })}
             </div>
-          </section>}
+          </section>
+          {selectedQueueSale && selectedProgress && <aside className="sale-queue-preview" aria-label="Selected sale">
+            <header><small>{selectedQueueSale.reference}</small><h2>{selectedQueueSale.draft.vehicle || 'Vehicle to add'}</h2>
+              {selectedQueueSale.draft.registration && <UKNumberPlate value={selectedQueueSale.draft.registration} size="sm" />}
+            </header>
+            <div className="sale-queue-preview-body">
+              <strong>{selectedQueueSale.draft.customer || 'Customer to add'}</strong>
+              <p>{selectedProgress.status}{selectedDate && <small>{selectedDate}</small>}</p>
+              <dl>
+                {typeof selectedQueueSale.listTotalDue === 'number' && <><dt>Sale total</dt><dd>{saleMoney(selectedQueueSale.listTotalDue)}</dd></>}
+                {selectedQueueSale.listLedgerKnown !== false && typeof selectedQueueSale.listPaid === 'number' && <><dt>Paid</dt><dd>{saleMoney(selectedQueueSale.listPaid)}</dd></>}
+                {selectedQueueSale.listLedgerKnown !== false && !selectedProgress.released && typeof selectedProgress.balance === 'number' && <><dt>{selectedProgress.correctionReview ? 'Calculated balance (review)' : selectedProgress.balance < 0 ? 'Customer credit' : 'Balance due'}</dt><dd>{saleMoney(selectedProgress.correctionReview ? selectedProgress.balance : Math.abs(selectedProgress.balance))}</dd></>}
+              </dl>
+              {selectedAction && canOpenQueueAction(selectedAction) && <Button aria-label={`${selectedAction.label} for selected sale`} disabled={Boolean(openingId)} onClick={() => void open(selectedQueueSale, undefined, selectedAction.destination)}>{selectedAction.label}</Button>}
+              <Button variant="outline" disabled={Boolean(openingId)} onClick={() => void open(selectedQueueSale)}>Open sale</Button>
+            </div>
+          </aside>}
+          </div>}
           {sales.hasNextPage && <Button className="sale-queue-load" variant="outline" disabled={sales.isFetchingNextPage || sales.isFetching} onClick={() => void sales.fetchNextPage()}>{sales.isFetchingNextPage ? 'Loading more sales…' : 'Load more sales'}</Button>}
           {!sales.isLoading && !sales.isError && (Boolean(listSearch) || queue !== 'all' || ownerFilter !== 'all') && !matchingSales.length && (
             <div className="invoice-empty" role="status">
