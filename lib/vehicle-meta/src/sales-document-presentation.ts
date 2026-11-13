@@ -55,6 +55,8 @@ export function salesDocumentPresentation(document: SaleWorkspaceDocument): Invo
         ...(hasVehiclePhotoSnapshot ? [['Seats', vehicle?.seats || undefined], ['Doors', doors]] : []),
         ['Write-off category', vehicle?.writeOffCategory],
       ].filter(([, value]) => supplied(value)).map(([label, value]) => ({ label: String(label), value: supplied(value) })) },
+    ...(document.type === 'invoice' && draft.fulfilment?.method === 'delivery' && draft.fulfilment.address.trim()
+      ? { facts: [{ label: 'Delivery address', value: clean(draft.fulfilment.address) }] } : {}),
     saleLines,
     confirmedPayments: [...confirmed.map(row => ({ id: row.id, date: salesDocumentDate(row.date), description: `${paymentLabels[row.kind] ?? clean(row.kind)}${row.reference ? ` / ${clean(row.reference)}` : ''}`, method: clean(row.method), amount: amount(row.signedAmountPence) })), ...(draft.creditEntries ?? []).map(row => ({ id: `credit-${row.id}`, date: salesDocumentDate(row.at), description: `Credit ${row.signedAmountPence > 0 ? 'from' : 'to'} ${clean(row.reference)}`, method: 'Credit transfer', amount: amount(row.signedAmountPence) }))],
     ...(document.type === 'statement' ? { pendingPayments: payments.filter(row => row.status === 'pending').map(row => ({ id: row.id, date: salesDocumentDate(row.date), description: `${paymentLabels[row.kind] ?? clean(row.kind)}${row.reference ? ` / ${clean(row.reference)}` : ''}`, method: clean(row.method), amount: amount(row.amountPence) })) } : {}),

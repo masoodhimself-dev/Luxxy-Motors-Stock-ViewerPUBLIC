@@ -1495,7 +1495,7 @@ export function SalesWorkspace({
             <div><h3>Quick sale</h3><p>For a car paid in full and collected from the showroom.</p></div>
             <Button variant="outline" onClick={startQuickSale}>Start quick sale<ArrowRight size={16} aria-hidden="true" /></Button>
           </div>}
-          <SalesActionMenu handoverCompleted={handoverCompleted} includeReturn={false} includeRequest={!requestIsNextStep} onChoose={chooseAction} disabled={busy} requestTitle={sold ? 'Request a payment' : undefined} unavailable={unavailable} />
+          <SalesActionMenu canAddDelivery={Boolean(latestInvoice && record?.draft.fulfilment?.method !== 'delivery')} handoverCompleted={handoverCompleted} includeReturn={false} includeRequest={!requestIsNextStep} onChoose={chooseAction} disabled={busy} requestTitle={sold ? 'Request a payment' : undefined} unavailable={unavailable} />
           <div className="sale-overview-links">
             <Button variant="outline" disabled={busy} onClick={openPaymentHistory}><History size={16} aria-hidden="true" />Payments and documents</Button>
             {customerUpdate}
