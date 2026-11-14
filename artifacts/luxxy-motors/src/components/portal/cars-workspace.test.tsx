@@ -86,6 +86,13 @@ vi.mock("@/components/mot-history", () => ({
     <button onClick={() => state.motHistory && onHistory?.(state.motHistory)}>Check MOT for {vehicleId}</button>
   ),
 }));
+vi.mock("./cars-tax-checks", () => ({
+  useCarsTaxChecks: () => ({
+    query: { data: { configured: true }, refetch: state.refetch },
+    progress: { total: 4, checked: 3, pending: 0, unavailable: 1, missingRegistration: 0 },
+    start: { mutate: vi.fn() },
+  }),
+}));
 vi.mock("./dvla-vehicle-check", () => ({
   DvlaVehicleCheck: ({ registration }: { registration: string }) => <button>Check DVLA for {registration}</button>,
 }));
@@ -187,6 +194,32 @@ it("keeps sold and missing staff views separate from current stock", async () =>
   );
   expect(screen.queryByTestId("portal-car-sold")).not.toBeInTheDocument();
 });
+it("opens the Today tax link with only confirmed untaxed current cars", async () => {
+  const withTax = (id: string, status: "Taxed" | "Untaxed" | "SORN") => {
+    const item = car(id);
+    return { ...item, staff: { ...item.staff, tax: { status, checkedAt: now, dueDate: null } } };
+  };
+  const sold = withTax("sold", "Untaxed");
+  state.data!.cars = [
+    withTax("untaxed", "Untaxed"), withTax("taxed", "Taxed"),
+    withTax("sorn", "SORN"), car("unknown"), { ...sold, inventoryStatus: "sold" },
+  ];
+  window.history.replaceState({}, "", "/portal?section=cars&carsTax=untaxed");
+
+  render(<CarsWorkspace {...props} />);
+  const filter = screen.getByRole("combobox", { name: "Tax status" });
+  expect(filter).toHaveValue("untaxed");
+  expect(screen.getAllByTestId(/^portal-car-/)).toEqual([screen.getByTestId("portal-car-untaxed")]);
+  expect(within(screen.getByTestId("portal-car-untaxed")).getByText("Untaxed")).toBeVisible();
+
+  fireEvent.change(filter, { target: { value: "taxed" } });
+  await waitFor(() => expect(screen.getAllByTestId(/^portal-car-/)).toEqual([screen.getByTestId("portal-car-taxed")]));
+  expect(within(screen.getByTestId("portal-car-taxed")).getByText("Taxed")).toBeVisible();
+
+  fireEvent.change(filter, { target: { value: "unknown" } });
+  await waitFor(() => expect(screen.getAllByTestId(/^portal-car-/)).toEqual([screen.getByTestId("portal-car-unknown")]));
+});
+
 it("uses bookmarkable vehicle pages and restores the list search and filters on Back", async () => {
   render(<CarsWorkspace {...props} />);
   fireEvent.change(screen.getByRole("searchbox"), { target: { value: "one" } });

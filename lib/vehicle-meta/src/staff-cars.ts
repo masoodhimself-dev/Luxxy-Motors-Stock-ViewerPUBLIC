@@ -14,6 +14,12 @@ export type StaffCarChange = {
   before?: number;
   after?: number;
 };
+export const stockTaxStatuses = ["Taxed", "Untaxed", "SORN", "Not Taxed for on Road Use"] as const;
+export type StaffTaxSummary = {
+  status: (typeof stockTaxStatuses)[number] | null;
+  checkedAt: string;
+  dueDate: string | null;
+};
 export type StaffCarMeta = {
   source: "cazoo" | "autotrader";
   sourceStatus: string;
@@ -23,6 +29,7 @@ export type StaffCarMeta = {
   lastSeenAt: string;
   archivedAt: string | null;
   mot: StaffMotSummary;
+  tax?: StaffTaxSummary | null;
   changes: StaffCarChange[];
   sale: { id: string; reference: string; status: string } | null;
 };
@@ -167,5 +174,16 @@ export type StaffMotCheckStatus = {
     pending: number;
     startedAt: string;
     finishedAt: string | null;
+  };
+};
+
+export type StaffTaxCheckStatus = {
+  configured: boolean;
+  current: {
+    total: number;
+    checked: number;
+    pending: number;
+    unavailable: number;
+    missingRegistration: number;
   };
 };

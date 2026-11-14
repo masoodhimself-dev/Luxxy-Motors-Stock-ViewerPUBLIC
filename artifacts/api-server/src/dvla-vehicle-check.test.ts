@@ -91,7 +91,17 @@ test("only same-site sales staff can check a vehicle, with no cache and safe err
     calls++;
     return Response.json(record);
   } });
-  app.use("/api", dvlaVehicleCheckRouter(lookup));
+  const saved: string[] = [];
+  const refreshed: string[] = [];
+  app.use("/api", dvlaVehicleCheckRouter(lookup, {
+    configured: () => true,
+    status: async dealerId => ({ configured: dealerId === "fixture", current: { total: 1, checked: 0, pending: 1, unavailable: 0, missingRegistration: 0 } }),
+    discover: async (dealerId, manual) => { assert.equal(manual, true); refreshed.push(dealerId); },
+    recordVehicleResult: async (dealerId, vehicleId) => {
+      saved.push(dealerId + "/" + vehicleId);
+      throw new Error("simulated database failure");
+    },
+  }));
   const server = app.listen(0, "127.0.0.1");
   await once(server, "listening");
   const { port } = server.address() as { port: number };
@@ -109,11 +119,25 @@ test("only same-site sales staff can check a vehicle, with no cache and safe err
     assert.equal(invalid.status, 400);
     assert.equal((await invalid.json() as { code: string }).code, "invalid_registration");
     assert.equal(calls, 0);
-    const accepted = await post({ registration: "AB12 CDE" }, "salesperson");
+    const stockPath = `http://127.0.0.1:${port}/api/staff/vehicles/tax-checks`;
+    assert.equal((await fetch(stockPath)).status, 401);
+    const stockResponse = await fetch(stockPath, { headers: { "x-fixture-role": "accounts" } });
+    assert.equal(stockResponse.status, 200);
+    assert.equal(stockResponse.headers.get("Cache-Control"), "no-store");
+    assert.deepEqual(await stockResponse.json(), { configured: true, current: { total: 1, checked: 0, pending: 1, unavailable: 0, missingRegistration: 0 } });
+    const refresh = (role: string, origin = canonicalOrigin) => fetch(stockPath, { method: "POST", headers: { Origin: origin, "x-fixture-role": role } });
+    assert.equal((await refresh("accounts")).status, 403);
+    assert.equal((await refresh("salesperson", "https://other-dealer.example.test")).status, 403);
+    assert.equal((await refresh("salesperson")).status, 202);
+    assert.deepEqual(refreshed, ["fixture"]);
+    assert.equal(calls, 0);
+    const vehicleId = "11111111-1111-4111-8111-111111111111";
+    const accepted = await post({ registration: "AB12 CDE", vehicleId }, "salesperson");
     assert.equal(accepted.status, 200);
     assert.equal(accepted.headers.get("Cache-Control"), "no-store");
     const { registrationNumber: registration, ...facts } = record;
     assert.deepEqual(await accepted.json(), { registration, checkedAt, ...facts });
+    assert.deepEqual(saved, ["fixture/" + vehicleId]);
     const limited = await post({ registration: "CD34EFG" }, "salesperson");
     assert.equal(limited.status, 429);
     assert.equal(limited.headers.get("Retry-After"), "1");

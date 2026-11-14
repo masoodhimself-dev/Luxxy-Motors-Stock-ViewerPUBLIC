@@ -57,6 +57,7 @@ import {
 import { MotHistoryPanel } from "@/components/mot-history";
 import { MakeLogo } from "@/components/make-logo";
 import { CarsMotCheckStatus, useCarsMotChecks } from "./cars-mot-checks";
+import { useCarsTaxChecks } from "./cars-tax-checks";
 import { DvlaVehicleCheck } from "./dvla-vehicle-check";
 import { VehicleDeliveryEvidence } from "./vehicle-delivery-evidence";
 import {
@@ -105,6 +106,75 @@ function CarPhoto({ car }: { car: StaffCar }) {
     </span>
   );
 }
+const taxFilters = [
+  ["all", "All tax statuses"],
+  ["taxed", "Taxed"],
+  ["untaxed", "Untaxed"],
+  ["sorn", "SORN"],
+  ["off-road", "Not taxed for on-road use"],
+  ["unknown", "Tax status unknown"],
+] as const;
+type TaxFilter = (typeof taxFilters)[number][0];
+
+function taxFilterForCar(car: StaffCar): Exclude<TaxFilter, "all"> {
+  switch (car.staff.tax?.status) {
+    case "Taxed": return "taxed";
+    case "Untaxed": return "untaxed";
+    case "SORN": return "sorn";
+    case "Not Taxed for on Road Use": return "off-road";
+    default: return "unknown";
+  }
+}
+
+function StaffTaxStatus({ car, showChecked = false }: { car: StaffCar; showChecked?: boolean }) {
+  const tax = car.staff.tax;
+  const status = taxFilterForCar(car);
+  const label = taxFilters.find(([value]) => value === status)?.[1] ?? "Tax status unknown";
+  return (
+    <span className="staff-tax-status" data-tax={status}>
+      {label}
+      {showChecked && tax?.checkedAt && <> · DVLA checked {formatDateTime(tax.checkedAt)}</>}
+    </span>
+  );
+}
+
+function CarsTaxCheckStatus({ checks, canManage }: {
+  checks: ReturnType<typeof useCarsTaxChecks>;
+  canManage: boolean;
+}) {
+  const { query, progress, start } = checks;
+  const checking = start.isPending || Boolean(progress?.pending);
+  let message = "Loading DVLA tax check progress…";
+  if (query.isError) message = "Tax check progress is unavailable.";
+  else if (start.isError) message = "Tax checks could not be started. Try again.";
+  else if (query.data?.configured === false) message = "DVLA tax checks are unavailable.";
+  else if (progress) {
+    message = [
+      `DVLA tax status confirmed for ${progress.checked} of ${progress.total} current cars`,
+      progress.pending > 0 ? `${progress.pending} pending` : "",
+      progress.unavailable > 0 ? `${progress.unavailable} unavailable` : "",
+      progress.missingRegistration > 0 ? `${progress.missingRegistration} without a usable registration` : "",
+      start.isSuccess && !start.data.current.pending && !progress.pending ? "No additional checks queued" : "",
+    ].filter(Boolean).join(" · ");
+  }
+  return (
+    <div className="cars-tax-check-status">
+      <p role="status">{message}</p>
+      {query.isError && (
+        <Button size="sm" variant="ghost" onClick={() => void query.refetch()}>Retry tax status</Button>
+      )}
+      {canManage && query.data?.configured && progress && progress.total > progress.missingRegistration && (
+        <Button size="sm" variant="outline" onClick={() => start.mutate()} disabled={checking}>
+          {checking ? "Checking tax…" : "Check vehicle tax"}
+        </Button>
+      )}
+      <a href="https://www.gov.uk/check-vehicle-tax" target="_blank" rel="noopener noreferrer">
+        Check on GOV.UK<span className="sr-only"> (opens in a new tab)</span>
+      </a>
+    </div>
+  );
+}
+
 export function StaffMotBadge({ summary }: { summary: StaffMotSummary }) {
   return (
     <span className="staff-mot-badge" data-tone={summary.tone}>
@@ -289,18 +359,21 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
       : "all"
   ) as StaffCarsAttention;
   const motFocus = (["all","expired","due30","unknown","earliest"].includes(params.get("carsMot") ?? "") ? params.get("carsMot") : "all") as MotFocus;
+  const taxFocus = taxFilters.find(([value]) => value === params.get("carsTax"))?.[0] ?? "all";
   const filtersApplied =
     Boolean(search) ||
     tab !== "all" ||
     attention !== "all" ||
     sort !== "stock" ||
-    motFocus !== "all";
+    motFocus !== "all" ||
+    taxFocus !== "all";
   const compactRows = params.get("carsDensity") === "compact";
   const [panelId, setPanelId] = useState<string | null>(null),
     [mot, setMot] = useState<Record<string, MotHistory>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [viewOptions, setViewOptions] = useState(false);
   const motChecks = useCarsMotChecks(canManage);
+  const taxChecks = useCarsTaxChecks(!carId);
   const heading = useRef<HTMLHeadingElement>(null),
     lastCarId = useRef<string | null>(null),
     opener = useRef<HTMLElement | null>(null),
@@ -382,7 +455,7 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
   );
   const cars = query.data?.cars ?? [];
   const matches = focusStockMot(filterStaffCars(
-      cars,
+      taxFocus === "all" ? cars : cars.filter((car) => taxFilterForCar(car) === taxFocus),
       search,
       tab,
       sort,
@@ -425,6 +498,7 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
     try {
       await Promise.all([
         query.refetch(),
+        ...(!carId ? [taxChecks.query.refetch()] : []),
         ...(canManage ? [activity.refetch(), replies.refetch(), motChecks.query.refetch()] : []),
       ]);
     } finally {
@@ -865,6 +939,8 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
                         />
                         <DvlaVehicleCheck
                           registration={vehicleRegistration(selected)}
+                          vehicleId={selected.id}
+                          onChecked={() => void client.invalidateQueries({ queryKey: staffCarsKey })}
                         />
                       </div>
                     )}
@@ -984,6 +1060,12 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
                 ))}
               </div>
               <label className="cars-attention"><span className="sr-only">MOT focus</span><NativeSelect value={motFocus} onChange={e=>setFilter("carsMot",e.target.value)}><option value="all">All MOT dates</option><option value="expired">MOT expired or failed</option><option value="due30">MOT due within 30 days</option><option value="unknown">MOT date unavailable</option><option value="earliest">Earliest MOT expiry first</option></NativeSelect></label>
+              <label className="cars-attention" data-active-tax={taxFocus !== "all"}>
+                <span className="sr-only">Tax status</span>
+                <NativeSelect value={taxFocus} onChange={(event) => setFilter("carsTax", event.target.value)}>
+                  {taxFilters.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </NativeSelect>
+              </label>
               <label className="cars-attention">
                 <span className="sr-only">Focus cars</span>
                 <NativeSelect
@@ -1001,6 +1083,9 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
                 </NativeSelect>
               </label>
             </div>
+            {(taxFocus !== "all" || Boolean(taxChecks.progress && taxChecks.progress.checked < taxChecks.progress.total)) && (
+              <CarsTaxCheckStatus checks={taxChecks} canManage={canManage} />
+            )}
           </div>
           <div className="cars-results-surface">
             <div className="cars-result-line">
@@ -1107,6 +1192,7 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
                             </span>
                           )}
                         <StaffMotBadge summary={summary(car)} />
+                        <StaffTaxStatus car={car} />
                         {carIssues(car, safeActivity(car))
                           .filter((issue) => issue !== "Customer awaiting reply")
                           .slice(0, 2)
@@ -1132,7 +1218,9 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
               !query.isError && (
                 <div className="portal-cars-empty">
                   <CarFront size={30} />
-                  <h3>{filtersApplied ? "No matching cars" : "No current cars"}</h3>
+                  <h3>{taxFocus === "untaxed" && !search && attention === "all" && motFocus === "all"
+                    ? "No confirmed untaxed cars in this view"
+                    : filtersApplied ? "No matching cars" : "No current cars"}</h3>
                   <p>
                     Try another view or clear your filters. Sold cars and missing
                     stock have their own tabs.

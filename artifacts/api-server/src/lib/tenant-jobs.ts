@@ -8,7 +8,7 @@ import { createDealerJobLimiter, createDealerJobSweepGuard, runDealerJobBatch, t
 
 const execute = createDealerJobLimiter(tenantJobConcurrency);
 const sweep = createDealerJobSweepGuard();
-type TenantJobName = 'reminders' | 'staff-push' | 'retention' | 'lead-backfill' | 'mot-stock-checks' | 'stripe-reservations' | 'stock-alerts';
+type TenantJobName = 'reminders' | 'staff-push' | 'retention' | 'lead-backfill' | 'mot-stock-checks' | 'stock-tax-checks' | 'stripe-reservations' | 'stock-alerts';
 type TenantJobOptions = { name?: TenantJobName; log?: Pick<Logger, 'info' | 'warn'> };
 type SweepStatus = Omit<DealerJobSummary, 'concurrency'> & {
   name: string;

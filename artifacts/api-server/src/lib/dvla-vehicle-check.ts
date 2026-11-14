@@ -1,4 +1,4 @@
-import { isUKNumberPlate } from "@workspace/vehicle-meta";
+import { isUKNumberPlate, stockTaxStatuses } from "@workspace/vehicle-meta";
 import { z } from "zod/v4";
 
 const vehicleEnquiryUrl = "https://driver-vehicle-licensing.api.gov.uk/vehicle-enquiry/v1/vehicles";
@@ -39,7 +39,7 @@ const vehicleRecord = z.object({
   engineCapacity: optionalMeasure,
   co2Emissions: optionalMeasure,
   euroStatus: optionalText,
-  taxStatus: z.enum(["Not Taxed for on Road Use", "SORN", "Untaxed", "Taxed"]).optional().catch(undefined),
+  taxStatus: z.enum(stockTaxStatuses).optional().catch(undefined),
   taxDueDate: optionalDate,
   dateOfLastV5CIssued: optionalDate,
   motStatus: z.enum(["No details held by DVLA", "No results returned", "Valid", "Not valid"]).optional().catch(undefined),

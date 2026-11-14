@@ -317,6 +317,11 @@ export function TodayWorkspace({ notifications, canManage, canRecordPayments, ca
           {" "}{appointments.length} {appointments.length === 1 ? "appointment" : "appointments"}
           {(notifications.data?.counts?.appointments ?? 0) > 8 ? " shown." : " today."}
         </p>}
+        <Button asChild variant="outline" size="sm" className="today-stock-shortcut">
+          <Link href={`${carsHref}&carsTax=untaxed`}>
+            Untaxed vehicles <ChevronRight size={16} aria-hidden="true" />
+          </Link>
+        </Button>
       </header>
       {failures.length > 0 && (
         <div className="today-feedback" role="status">

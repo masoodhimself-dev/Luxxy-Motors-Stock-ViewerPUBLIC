@@ -1153,7 +1153,7 @@ body[data-dealer-portal=true] .portal-workspace.portal-redesign .portal-cars-wor
     flex-basis: 100%;
   }
   .portal-cars-workspace[data-options="closed"]
-    :is(.portal-cars-sort, .cars-attention) {
+    :is(.portal-cars-sort, .cars-attention:not([data-active-tax="true"])) {
     display: none;
   }
   .cars-results-surface {
@@ -1277,3 +1277,35 @@ body[data-dealer-portal=true] .portal-workspace.portal-redesign .portal-cars-wor
 }
 
 .portal-cars-workspace .staff-mot-dot { display: none; }
+
+.staff-tax-status {
+  color: var(--cars-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.staff-tax-status:is([data-tax="untaxed"], [data-tax="off-road"]) {
+  color: #885a14;
+  font-weight: 600;
+}
+
+.cars-tax-check-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 8px;
+  color: var(--cars-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.cars-tax-check-status p {
+  margin: 0;
+}
+
+.cars-tax-check-status > a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

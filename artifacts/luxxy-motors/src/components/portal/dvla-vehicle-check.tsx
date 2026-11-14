@@ -92,14 +92,21 @@ export function DvlaResult({ details }: { details: DvlaVehicleDetails }) {
   );
 }
 
-function RegistrationCheck({ registration }: { registration: string }) {
+type VehicleCheckProps = {
+  registration: string | null | undefined;
+  vehicleId?: string;
+  onChecked?: () => void;
+};
+
+function RegistrationCheck({ registration, vehicleId, onChecked }: Omit<VehicleCheckProps, "registration"> & { registration: string }) {
   const lookup = useMutation({
     mutationFn: () => customFetch<DvlaVehicleDetails>("/api/staff/dvla/vehicle-check", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ registration }),
+      body: JSON.stringify({ registration, vehicleId }),
       responseType: "json",
     }),
+    onSuccess: onChecked,
   });
 
   return (
@@ -120,7 +127,7 @@ function RegistrationCheck({ registration }: { registration: string }) {
   );
 }
 
-export function DvlaVehicleCheck({ registration }: { registration: string | null | undefined }) {
+export function DvlaVehicleCheck({ registration, vehicleId, onChecked }: VehicleCheckProps) {
   const plate = registration?.toUpperCase().replace(/[\s-]/g, "") ?? "";
-  return isUKNumberPlate(plate) ? <RegistrationCheck key={plate} registration={plate} /> : null;
+  return isUKNumberPlate(plate) ? <RegistrationCheck key={`${vehicleId ?? ""}:${plate}`} registration={plate} vehicleId={vehicleId} onChecked={onChecked} /> : null;
 }

@@ -128,7 +128,7 @@ test("staff changes use actual previous values and distinguish new arrivals and 
   assert.equal(staffCarChanges(rows, at, run)[0].kind, "arrival");
   assert.deepEqual(staffCarChanges([], "2026-10-01T12:00:00Z", run), []);
 });
-test("staff aggregate scopes business reads to the dealer, reads cached MOT in one batch and keeps secrets out", async () => {
+test("staff aggregate scopes business reads to the dealer, reads cached MOT and tax in batches and keeps secrets out", async () => {
   const calls: { sql: string; values: unknown[] | undefined }[] = [];
   const v = (id: string, status = "available", source = "live") => ({
     id,
@@ -163,6 +163,8 @@ test("staff aggregate scopes business reads to the dealer, reads cached MOT in o
               ]
             : sql === staffCarQueries.cache
               ? [{ registration: "AB12CDE", data: history() }]
+              : sql === staffCarQueries.tax && values?.[0] === "dealer-one"
+                ? [{ vehicle_id: "one", registration: "AB12CDE", tax_status: "Untaxed", checked_at: now, due_date: null, secret: "not returned" }]
               : sql === staffCarQueries.sales
                 ? [
                     {
@@ -195,12 +197,15 @@ test("staff aggregate scopes business reads to the dealer, reads cached MOT in o
     project: async (rows) => rows.map((v) => ({ id: v.id })) as any,
     now,
   });
-  assert.equal(calls.length, 6);
+  assert.equal(calls.length, 7);
   for (const call of calls.filter((c) => c.sql !== staffCarQueries.cache))
     assert.equal(call.values?.[0], "dealer-one");
   assert.deepEqual(calls.find((c) => c.sql === staffCarQueries.cache)?.values, [
     ["AB12CDE"],
   ]);
+  assert.deepEqual(calls.find((c) => c.sql === staffCarQueries.tax)?.values, ["dealer-one", ["one", "sold", "missing"]]);
+  assert.deepEqual(result.cars[0].staff.tax, { status: "Untaxed", checkedAt: now.toISOString(), dueDate: null });
+  assert.equal(result.cars[1].staff.tax, null);
   assert.equal(result.cars[0].staff.mot.tone, "green");
   assert.equal(result.cars[1].staff.published, false);
   assert.equal(result.cars[2].staff.published, false);
@@ -221,6 +226,7 @@ test("staff aggregate scopes business reads to the dealer, reads cached MOT in o
   });
   assert.ok(!calls.some((c) => c.sql === staffCarQueries.sales));
   assert.equal(restricted.cars[0].staff.sale, null);
+  assert.equal(restricted.cars[0].staff.tax, null);
   assert.ok(calls.every((c) => /^SELECT/.test(c.sql)));
 });
 

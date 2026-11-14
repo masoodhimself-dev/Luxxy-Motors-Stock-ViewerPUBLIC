@@ -8,6 +8,7 @@ import {
 } from "@workspace/vehicle-meta";
 import type { Vehicle } from "@workspace/db";
 import type { PublicVehicle } from "../routes/stock";
+import { stockTaxRegistration, stockTaxRowsQuery, stockTaxSummary } from "./stock-tax-checks";
 type SqlReader = {
   query(sql: string, values?: unknown[]): Promise<{ rows: any[] }>;
 };
@@ -18,6 +19,7 @@ export const staffCarQueries = {
     "SELECT c.vehicle_id,c.field_name,c.old_value,c.new_value,c.changed_at FROM vehicle_changes c JOIN vehicles v ON v.id=c.vehicle_id WHERE v.dealer_id=$1 AND c.import_run_id=$2 ORDER BY c.changed_at DESC",
   cache:
     "SELECT registration,data FROM mot_history_cache WHERE registration=ANY($1::text[]) AND expires_at>now()",
+  tax: stockTaxRowsQuery,
   sales:
     "SELECT DISTINCT ON (state#>>'{draft,vehicleId}') id,reference,state#>>'{draft,vehicleId}' AS vehicle_id,coalesce(state#>>'{lifecycle,status}',CASE WHEN state->>'completedAt' IS NOT NULL THEN 'sold' ELSE 'draft' END) AS status FROM sale_workspace WHERE dealer_id=$1 AND coalesce(state#>>'{lifecycle,status}','')<>'released' ORDER BY state#>>'{draft,vehicleId}',updated_at DESC",
   connection: "SELECT enabled FROM cazoo_feed_authority WHERE dealer_id=$1",
@@ -108,13 +110,16 @@ export async function readStaffCars(options: {
   ];
   const latest = (await database.query(staffCarQueries.latest, [dealerId]))
     .rows[0];
-  const [changeResult, cacheResult, saleResult, connectionResult, checkResult] =
+  const [changeResult, cacheResult, taxResult, saleResult, connectionResult, checkResult] =
     await Promise.all([
       latest
         ? database.query(staffCarQueries.changes, [dealerId, latest.id])
         : Promise.resolve({ rows: [] }),
       registrations.length
         ? database.query(staffCarQueries.cache, [registrations])
+        : Promise.resolve({ rows: [] }),
+      vehicles.length
+        ? database.query(staffCarQueries.tax, [dealerId, vehicles.map(vehicle => vehicle.id)])
         : Promise.resolve({ rows: [] }),
       canManage
         ? database.query(staffCarQueries.sales, [dealerId])
@@ -125,7 +130,8 @@ export async function readStaffCars(options: {
   const histories = new Map<string, MotHistory>(
       cacheResult.rows.map((r) => [r.registration, r.data]),
     ),
-    sales = new Map(saleResult.rows.map((r) => [r.vehicle_id, r]));
+    sales = new Map(saleResult.rows.map((r) => [r.vehicle_id, r])),
+    tax = new Map(taxResult.rows.map(row => [row.vehicle_id, row]));
   const changes = new Map<string, any[]>();
   for (const row of changeResult.rows) {
     const group = changes.get(row.vehicle_id) ?? [];
@@ -184,6 +190,7 @@ export async function readStaffCars(options: {
         lastSeenAt: iso(v.lastSeenAt)!,
         archivedAt: iso(v.archivedAt),
         mot: staffMotSummary(histories.get(reg) ?? null, now),
+        tax: stockTaxSummary(tax.get(v.id), stockTaxRegistration(v), now),
         changes: staffCarChanges(
           scheduled && check?.status === "unchanged"
             ? []

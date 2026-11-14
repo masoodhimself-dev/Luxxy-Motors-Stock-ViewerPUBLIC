@@ -17,10 +17,15 @@ test("Cars endpoint requires staff, uses the current dealer and exposes GET only
   await engine.exec(`CREATE TABLE cazoo_feed_authority(dealer_id text,enabled boolean);
     CREATE TABLE cazoo_feed_checks(dealer_id text,received_at timestamptz,status text,error_code text,file_hash text);
     CREATE TABLE sale_workspace(id uuid,reference text,dealer_id text,state jsonb,updated_at timestamptz);`);
+  await engine.exec(await readFile("../../lib/db/drizzle/0074_mot_history.sql", "utf8"));
+  await engine.exec(await readFile("../../lib/db/drizzle/0083_vehicle_public_links.sql", "utf8"));
+  await engine.exec("CREATE UNIQUE INDEX vehicles_id_dealer_id_unique ON vehicles(id,dealer_id)");
+  await engine.exec(await readFile("../../lib/db/drizzle/0090_stock_tax_checks.sql", "utf8"));
   const calls: any[] = [];
+  const routeErrors: unknown[] = [];
   const app = express();
   app.use((req, _res, next) => {
-    (req as any).log = { error() {}, warn() {} };
+    (req as any).log = { error(fields: unknown) { routeErrors.push(fields); }, warn() {} };
     next();
   });
   app.use(
@@ -57,7 +62,7 @@ test("Cars endpoint requires staff, uses the current dealer and exposes GET only
     const real = await fetch(base + "/actual/staff/cars", {
       headers: { "x-portal-token": "isolated-cars-token" },
     });
-    assert.equal(real.status, 200, await real.clone().text());
+    assert.equal(real.status, 200, JSON.stringify(routeErrors) || await real.clone().text());
     const actual = (await real.json()) as {
       cars: {
         advertId: string;
