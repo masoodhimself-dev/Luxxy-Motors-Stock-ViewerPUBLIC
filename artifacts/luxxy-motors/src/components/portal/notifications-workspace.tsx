@@ -10,8 +10,8 @@ import { DeviceNotifications } from './device-notifications';
 import { LetterComposer } from './letter-composer';
 import './notifications-workspace.css';
 
-export function NotificationsWorkspace({canEmail,onQuickEnquiry,onNewSale}: {
-  canEmail:boolean;onQuickEnquiry?:()=>void;onNewSale?:()=>void;
+export function NotificationsWorkspace({canEmail,onNewSale}: {
+  canEmail:boolean;onNewSale?:()=>void;
 }) {
   const [letterOpen, setLetterOpen] = useState(false);
   const search=useSearch(),[,navigate]=useLocation(),params=new URLSearchParams(search);
@@ -30,7 +30,7 @@ export function NotificationsWorkspace({canEmail,onQuickEnquiry,onNewSale}: {
     <DeviceNotifications canEmail={canEmail}/>
   </>;
   return <section className="customer-notifications-workspace inbox-rebuilt" data-calendar={calendar} aria-label="Customer notifications workspace">
-    {view==='customers' ? <EnquiriesPanel embedded initialView="history" canEmail={canEmail} inboxTools={tools} onQuickEnquiry={onQuickEnquiry}/>
+    {view==='customers' ? <EnquiriesPanel embedded initialView="history" canEmail={canEmail} inboxTools={tools}/>
     : <>
       <header className="inbox-secondary-heading">
         <Button variant="ghost" onClick={()=>choose('customers')}><ArrowLeft size={17} aria-hidden/>Back to Inbox</Button>

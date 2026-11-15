@@ -1,7 +1,7 @@
 import { AiReplyDraft } from './ai-reply-draft';
 import { DirectWhatsApp } from "@/components/direct-whatsapp";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { ChevronDown, Paperclip, Send } from "@/components/icons";
+import { ChevronDown, FilePenLine, Paperclip, Send } from "@/components/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { customFetch, type Enquiry } from "@workspace/api-client-react";
 import type { SaleCustomerUpdateBinding } from "@workspace/vehicle-meta";
@@ -18,6 +18,7 @@ import {
 import { useRefreshDesk, workspaceError } from "./enquiry-workspace-tools";
 import { requestUuid } from "@/lib/request-uuid";
 import { useDealerFeatures } from "@/lib/dealer-features";
+import { useAiAssistance } from "@/lib/ai-assistance";
 import { CustomerEmailPreview } from "./customer-email-preview";
 import "./enquiry-email-composer.css";
 import { usePopupDraftGuard } from "./popup-draft-guard";
@@ -288,6 +289,10 @@ function EnquiryEmailEditor({
 }) {
   const base = `/api/staff/enquiries/${entry.id}`;
   const features = useDealerFeatures();
+  const ai = useAiAssistance("staff", {
+    enabled: compact && channel === "email" && !fixedRecipient && !saleUpdate,
+  });
+  const [originalMessage, setOriginalMessage] = useState<string | null>(null);
   const targetedReply = enquiryReplyId !== undefined;
   const contextUrl = `${base}/email-context${targetedReply ? `?enquiryReplyId=${encodeURIComponent(enquiryReplyId)}` : ""}`;
   const contextKey = targetedReply ? ["enquiry-email-context", entry.id, enquiryReplyId] as const : ["enquiry-email-context", entry.id] as const;
@@ -334,7 +339,7 @@ function EnquiryEmailEditor({
     [reviewedDraft, setReviewedDraft] = useState<EmailDraft | null>(null),
     [delivery, setDelivery] = useState<Delivery | null>(null);
   const [busyAction, setBusyAction] = useState<
-    "save" | "review" | "send" | "status" | null
+    "save" | "review" | "ai-review" | "send" | "status" | null
   >(null);
   const busy = busyAction !== null;
   const [messageDetailsOpen, setMessageDetailsOpen] = useState(Boolean(editRecipientRequest));
@@ -456,8 +461,8 @@ function EnquiryEmailEditor({
     setPreview(null);
     setReviewedDraft(null);
   }, [channel]);
-  async function persistDraft() {
-    if (draft.stockChange)
+  async function persistDraft(content = draft) {
+    if (content.stockChange)
       throw new Error(
         "Start a new message before saving or sending this archived price-update draft.",
       );
@@ -466,13 +471,13 @@ function EnquiryEmailEditor({
       savedDraft?: EmailContext["savedDraft"];
     }>(`${base}/email-draft`, {
       expectedVersion: savedVersion.current,
-      content: draft,
+      content,
     });
     savedVersion.current = result.version;
     await cache.cancelQueries({ queryKey: contextKey, exact: true });
     cache.setQueryData<EmailContext>(contextKey, (current) => {
       if (!current) return current;
-      const source = draft.templateId ? "template" : "manual";
+      const source = content.templateId ? "template" : "manual";
       return {
         ...current,
         version: result.version,
@@ -481,9 +486,9 @@ function EnquiryEmailEditor({
           status: "draft",
           source,
           content: {
-            ...draft,
-            photoIds: [...draft.photoIds],
-            documentIds: [...draft.documentIds],
+            ...content,
+            photoIds: [...content.photoIds],
+            documentIds: [...content.documentIds],
           },
           updatedAt: new Date().toISOString(),
         },
@@ -511,24 +516,38 @@ function EnquiryEmailEditor({
       setBusyAction(null);
     }
   }
-  async function review() {
+  async function review(polish = false) {
     if (busyRef.current || replyRecipientMismatch || fixedRecipientMismatch) return;
     if (missingAttachment) {
       setError(missingAttachment);
       return;
     }
+    if (polish && !canPolish) return;
     busyRef.current = true;
-    setBusyAction("review");
+    setBusyAction(polish ? "ai-review" : "review");
     setError("");
     try {
       await verifyContext?.();
-      if (!saleUpdate) await persistDraft();
+      let content = draft;
+      if (polish) {
+        const result = await ai.run("reply", { enquiryId: entry.id, draft: draft.message.trim() });
+        if (!result) return;
+        const message = result.answer.trim();
+        if (!message) return;
+        content = { ...draft, message };
+      }
+      if (!saleUpdate && !polish) await persistDraft(content);
       const result = await request<EmailPreview>(
         `${base}/email-preview`,
-        { ...draft, ...(targetedReply ? { enquiryReplyId } : {}), ...(saleUpdate ? { saleUpdate } : {}) },
+        { ...content, ...(targetedReply ? { enquiryReplyId } : {}), ...(saleUpdate ? { saleUpdate } : {}) },
       );
+      if (polish) {
+        await persistDraft(content);
+        setOriginalMessage(draft.message);
+        setDraft(content);
+      }
       setPreview(result);
-      setReviewedDraft({ ...draft, photoIds: [...draft.photoIds] });
+      setReviewedDraft({ ...content, photoIds: [...content.photoIds] });
       sendingRequest.current = null;
     } catch (cause) {
       setError(workspaceError(cause));
@@ -678,6 +697,16 @@ function EnquiryEmailEditor({
           )
         ? `Choose at least one ${photoCategory === "pre_accident" ? "pre-accident" : "service-book"} photo to attach, or use a different template.`
         : "";
+  const reviewDisabled =
+    busy || Boolean(draft.stockChange) ||
+    draft.expectedRevision !== data?.revision ||
+    !draft.to.trim() || replyRecipientMismatch || fixedRecipientMismatch ||
+    Boolean(missingAttachment);
+  const showAiReview = ai.enabled && compact && channel === "email" && !fixedRecipient && !saleUpdate;
+  const canPolish =
+    showAiReview && ai.remaining > 0 && !reviewDisabled &&
+    features.enabled("customerEmails") && Boolean(data?.ready) && !sendBlockedReason &&
+    Boolean(draft.subject.trim()) && draft.message.trim().length > 0 && draft.message.trim().length <= 5000;
   const additions = [
     draft.attachVehiclePdf ? "Vehicle PDF" : "",
     draft.photoIds.length ? `${draft.photoIds.length} history photo${draft.photoIds.length === 1 ? "" : "s"}` : "",
@@ -772,7 +801,7 @@ function EnquiryEmailEditor({
         delivery
           ? deliveryLabel(delivery)
           : preview
-            ? "Review customer email"
+            ? originalMessage !== null ? "Review AI-checked email" : "Review customer email"
             : channel === "whatsapp"
               ? "Prepare WhatsApp message"
               : preparingMessage
@@ -952,6 +981,9 @@ function EnquiryEmailEditor({
                       className="enquiry-email-review"
                       aria-label="Email preview"
                     >
+                      {originalMessage !== null && (
+                        <p className="enquiry-email-hint">AI checked your wording. Review the edited reply before sending.</p>
+                      )}
                       <dl>
                         {preview.from && (
                           <div>
@@ -1027,12 +1059,21 @@ function EnquiryEmailEditor({
                         >
                           Edit message
                         </Button>
+                        {originalMessage !== null && !sendingRequest.current && (
+                          <Button type="button" variant="ghost" disabled={busy} onClick={() => {
+                            change({ message: originalMessage });
+                            setOriginalMessage(null);
+                          }}>
+                            Use my original wording
+                          </Button>
+                        )}
                       </div>
                     </section>
                   ) : (
                     <form
                       onSubmit={(event) => {
                         event.preventDefault();
+                        setOriginalMessage(null);
                         void review();
                       }}
                       className={`enquiry-email-form${compact ? " enquiry-email-form--compact" : ""}`}
@@ -1172,10 +1213,12 @@ function EnquiryEmailEditor({
                           </div>
                         </details>
                         <label>
-                          {compact ? <span className="sr-only">Message</span> : "Message"}
+                          {compact ? "Your reply" : "Message"}
                           <Textarea
                             required
-                            rows={5}
+                            className={compact ? "enquiry-reply-message" : undefined}
+                            rows={compact ? 8 : 5}
+                            placeholder={compact ? "Write your reply to the customer…" : undefined}
                             maxLength={12000}
                             value={draft.message}
                             readOnly={Boolean(saleUpdate)}
@@ -1187,7 +1230,6 @@ function EnquiryEmailEditor({
 
                         {!saleUpdate && compact && (
                           <div className="enquiry-compact-tools">
-                            <AiReplyDraft key={entry.id} enquiryId={entry.id} disabled={busy} compact message={draft.message} onApply={text=>change({message:text})} />
                             <Button type="button" variant="ghost" aria-expanded={attachmentsOpen} aria-controls={attachmentsId} onClick={() => setAttachmentsOpen(value => !value)}>
                               <Paperclip size={16} aria-hidden /> Attach <ChevronDown size={14} aria-hidden />
                             </Button>
@@ -1421,6 +1463,13 @@ function EnquiryEmailEditor({
                             }}
                           />
                         )}
+                        {showAiReview && (
+                          <Button className="enquiry-ai-check-send" type="button" disabled={!canPolish}
+                            onClick={() => void review(true)}>
+                            <FilePenLine size={16} aria-hidden />
+                            {busyAction === "ai-review" ? "Checking your reply…" : "AI check & send"}
+                          </Button>
+                        )}
                         {!saleUpdate && channel !== "whatsapp" && (
                           <Button
                             type="button"
@@ -1441,15 +1490,8 @@ function EnquiryEmailEditor({
                         {channel !== "whatsapp" && (
                           <Button
                             type="submit"
-                            disabled={
-                              busy ||
-                              Boolean(draft.stockChange) ||
-                              draft.expectedRevision !== data.revision ||
-                              !draft.to.trim() ||
-                              replyRecipientMismatch ||
-                              fixedRecipientMismatch ||
-                              Boolean(missingAttachment)
-                            }
+                            variant={showAiReview ? "outline" : "default"}
+                            disabled={reviewDisabled}
                           >
                             {busyAction === "review"
                               ? "Preparing preview…"
@@ -1467,6 +1509,10 @@ function EnquiryEmailEditor({
                           </Button>
                         )}
                       </div>
+                      {showAiReview && ai.error && <p role="alert" className="enquiry-email-error">{ai.error}</p>}
+                      {showAiReview && draft.message.trim().length > 5000 && (
+                        <p className="enquiry-email-hint">AI can check up to 5,000 characters. You can still review and send this reply.</p>
+                      )}
                       {channel === "whatsapp" && (
                         <p className="enquiry-email-hint">
                           WhatsApp opens on your device. After sending, choose

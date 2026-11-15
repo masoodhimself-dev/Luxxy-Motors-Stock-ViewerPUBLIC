@@ -394,6 +394,8 @@ export type EmailRenderOptions = {
   actionUrl?: string;
   actionLabel?: string;
   layoutVersion?: EmailLayoutVersion;
+  /** Public stock context for an internal dealership enquiry notification. */
+  dealerVehicleNotice?: { photoUrl?: string };
   templateId?: string;
   attachments?: readonly string[];
 };
@@ -669,6 +671,15 @@ export function renderEmailTemplate(
             ].includes(options.templateId ?? "")
           ? "Vehicle details"
           : "Details for your records";
+  const dealerVehicleNotice = options.templateId === "dealer_notification" &&
+    displayedDetails.some((fact) => fact.label === "Vehicle")
+    ? options.dealerVehicleNotice
+    : undefined;
+  const publishedContact = dealerVehicleNotice ? [] : [
+    [contactEmail, phone].filter(Boolean).join(" · "),
+    address,
+    footer,
+  ];
   const html = renderCompatibleEmailLayout({
     templateId: options.templateId,
     subject,
@@ -679,6 +690,9 @@ export function renderEmailTemplate(
     dealer,
     logoUrl: branding.logoUrl,
     brandColour: branding.brandColour,
+    dealerVehicleNotice: dealerVehicleNotice
+      ? { photoUrl: secureEmailLink(dealerVehicleNotice.photoUrl) }
+      : undefined,
     details: displayedDetails
       .map((fact) => ({ label: fact.label, value: String(fact.value) })),
     attachments,
@@ -695,9 +709,7 @@ export function renderEmailTemplate(
     actionUrl ? `${actionLabel}: ${actionUrl}` : "",
     factText ? `${detailsHeading}\n${factText}` : "",
     attachments.length ? "Attachments\n" + attachments.join("\n") : "",
-    [contactEmail, phone].filter(Boolean).join(" · "),
-    address,
-    footer,
+    ...publishedContact,
   ].filter(Boolean);
   const rendered = {
     subject,
@@ -710,9 +722,7 @@ export function renderEmailTemplate(
       actionUrl ? `${actionLabel}: ${actionUrl}` : "",
       factText ? `${detailsHeading}\n${factText}` : "",
       attachments.length ? "Attachments\n" + attachments.join("\n") : "",
-      [contactEmail, phone].filter(Boolean).join(" · "),
-      address,
-      footer,
+      ...publishedContact,
     ]
       .filter(Boolean)
       .join("\n\n"),

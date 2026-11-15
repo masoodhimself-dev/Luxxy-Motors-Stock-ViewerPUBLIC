@@ -158,14 +158,27 @@ test("Cazoo forwarding is scoped, verified and restart-safe for imported and rev
   const clean = await receipt({ status: "imported", error: null, customerEmail: "buyer@example.test" });
   clean.email.text = partExchangeLead("buyer@example.test ( buyer@example.test )").replace(/22222222222222222222222222222222/, clean.correlation);
   clean.email.subject = partExchangeSubject.replace(/^Cazoo lead: /, "");
+  clean.email.text = clean.email.text.replace("Part-ex  Urgent          Availability", "Part-ex Availability");
+  const picturedVehicle = randomUUID();
+  const photo = "https://cdn.images.autoexposure.co.uk/fictional/audi.jpg?size=600&quality=80";
+  await engine.query(`INSERT INTO vehicles(id,dealer_id,source,advert_id,make,model,trim,year,source_price,mileage,fuel,transmission)
+    VALUES($1,$2,'cazoo','fixture-audi','Audi','A5','S line',2013,5990,76000,'Diesel','Automatic')`,
+  [picturedVehicle, tenant.dealerId]);
+  await engine.query("INSERT INTO vehicle_images(vehicle_id,source_url,is_hero) VALUES($1,$2,true)", [picturedVehicle, photo]);
+  await engine.query("UPDATE enquiries SET vehicle_id=$2 WHERE id=$1", [clean.enquiryId, picturedVehicle]);
   assert.equal(await queueCazooLeadForward(clean.row, clean.email), "queued");
+  let picturedPayload: string | undefined;
   await processCazooLeadForwards({ send: async (_settings, payload) => {
+    picturedPayload = payload;
     const email = JSON.parse(payload);
     assert.deepEqual(email.to, [recipient]);
     assert.equal(email.subject, "Cazoo enquiry · Audi A5 (MW62VLP)");
     assert.equal(email.reply_to, "buyer@example.test");
-    assert.match(email.text, /Enquiry: Part exchange · Urgent · Availability\nTrade-in: AB12 CDE · 140,000 miles/);
+    assert.match(email.text, /Enquiry: Part exchange · Availability\nTrade-in: AB12 CDE · 140,000 miles/);
     assert.match(email.text, /I have a part exchange/);
+    assert.match(email.text, /Listed on Cazoo: £5,490\nTrim: S line\nYear: 2013\nMileage: 76,000 miles\nFuel: Diesel\nGearbox: Automatic/);
+    assert.ok(email.html.includes(`<img src="${photo.replace(/&/g, "&amp;")}" alt="Audi A5"`));
+    assert.doesNotMatch(email.text, /£5,990|autoexposure/);
     assert.doesNotMatch(email.html, /https:\/\/example\.test\/tracking|0001-01-01/);
     const route = `${tenantOrigin}/portal?section=notifications&workView=customers&enquiryId=${clean.enquiryId}`;
     assert.ok(email.text.includes(`Reply in DealerOS\n${route}&enquiryAction=reply`));
@@ -173,9 +186,34 @@ test("Cazoo forwarding is scoped, verified and restart-safe for imported and rev
     for (const action of ["reply", "fix-email"]) {
       assert.ok(email.html.includes(`href="${`${route}&enquiryAction=${action}`.replace(/&/g, "&amp;")}"`));
     }
+    throw new EmailProviderError(503);
+  } });
+  assert.ok(picturedPayload);
+  assert.equal((await delivery(clean.row.id))?.status, "pending");
+  await engine.query("UPDATE vehicles SET mileage=90000 WHERE id=$1", [picturedVehicle]);
+  await engine.query("UPDATE vehicle_images SET is_active=false WHERE vehicle_id=$1", [picturedVehicle]);
+  await engine.query("UPDATE cazoo_lead_forwards SET next_attempt_at=now() WHERE receipt_id=$1", [clean.row.id]);
+  await processCazooLeadForwards({ send: async (_settings, payload, key) => {
+    assert.equal(payload, picturedPayload);
+    assert.equal(key, `cazoo-lead-forward-${clean.row.id}`);
     return "fixture-clean-delivery";
   } });
   assert.equal((await delivery(clean.row.id))?.status, "sent");
+
+  const unrelatedStock = await receipt({ status: "imported", error: null });
+  unrelatedStock.email.subject = structuredSubject.replace(/^Cazoo lead: /, "");
+  unrelatedStock.email.text = structuredLead("buyer@example.test").replace(/22222222222222222222222222222222/, unrelatedStock.correlation);
+  await engine.query("UPDATE vehicles SET dealer_id=$2 WHERE id=$1", [picturedVehicle, secondDealer]);
+  await engine.query("UPDATE vehicle_images SET is_active=true WHERE vehicle_id=$1", [picturedVehicle]);
+  await engine.query("UPDATE enquiries SET vehicle_id=$2 WHERE id=$1", [unrelatedStock.enquiryId, picturedVehicle]);
+  assert.equal(await queueCazooLeadForward(unrelatedStock.row, unrelatedStock.email), "queued");
+  await processCazooLeadForwards({ send: async (_settings, payload) => {
+    const email = JSON.parse(payload);
+    assert.match(email.text, /Audi A5 · £5,490/);
+    assert.doesNotMatch(email.html, /<img|90,000 miles|S line/);
+    return "fixture-unrelated-stock";
+  } });
+  assert.equal((await delivery(unrelatedStock.row.id))?.status, "sent");
 
   const partExchangeWithConflictingEmail = renderCazooForwardEmail(partExchangeSubject, partExchangeLead("buyer@example.test ( different@example.test )"));
   assert.equal(partExchangeWithConflictingEmail.replyTo, undefined);

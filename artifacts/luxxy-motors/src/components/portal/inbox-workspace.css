@@ -39,14 +39,14 @@
 .inbox-desk-heading-actions button[aria-label="Refresh inbox"] { width: 44px; color: var(--inbox-muted); }
 .inbox-desk-heading-actions button[aria-label="Refresh inbox"]:hover { background: var(--inbox-active); color: var(--inbox-blue); }
 body[data-dealer-portal=true] .portal-workspace.portal-redesign .inbox-desk
-  :is(.inbox-new-enquiry, .enquiry-email-actions > button.bg-primary) {
+  .enquiry-email-actions > button.bg-primary {
   border-color: var(--inbox-blue);
   border-radius: 7px;
   background: var(--inbox-blue);
   color: #fff;
 }
 body[data-dealer-portal=true] .portal-workspace.portal-redesign .inbox-desk
-  :is(.inbox-new-enquiry, .enquiry-email-actions > button.bg-primary):hover:not(:disabled) {
+  .enquiry-email-actions > button.bg-primary:hover:not(:disabled) {
   border-color: #1b2d40;
   background: #1b2d40;
 }

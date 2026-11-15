@@ -5,11 +5,10 @@ import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 const state = vi.hoisted(() => ({ enquiries: vi.fn() }));
 vi.mock("./enquiries-panel", () => ({
-  EnquiriesPanel: (props: { initialView: string; inboxTools?: ReactNode; onQuickEnquiry?: () => void; onOpenCustomer?: (id: string) => void }) => {
+  EnquiriesPanel: (props: { initialView: string; inboxTools?: ReactNode; onOpenCustomer?: (id: string) => void }) => {
     state.enquiries(props);
     return <section aria-label={props.initialView === "calendar" ? "Calendar content" : "Conversation list"}>
       {props.inboxTools}
-      {props.onQuickEnquiry && <button onClick={props.onQuickEnquiry}>New enquiry</button>}
       {props.onOpenCustomer && <button onClick={() => props.onOpenCustomer!("e1")}>Open customer from calendar</button>}
     </section>;
   },
@@ -22,11 +21,11 @@ vi.mock("./email-workspace", () => ({
 }));
 vi.mock("./device-notifications", () => ({ DeviceNotifications: () => null }));
 import { NotificationsWorkspace } from "./notifications-workspace";
-function show(search = "", canEmail = true, onQuickEnquiry?: () => void) {
+function show(search = "", canEmail = true) {
   const location = memoryLocation({ path: `/portal${search}`, record: true });
   render(
     <Router hook={location.hook}>
-      <NotificationsWorkspace canEmail={canEmail} onQuickEnquiry={onQuickEnquiry} />
+      <NotificationsWorkspace canEmail={canEmail} />
     </Router>,
   );
   return location;
@@ -94,10 +93,4 @@ it("explains a bookmarked email page when the staff role lacks email permission"
   show("?section=notifications&workView=email", false);
   expect(screen.getByRole("status")).toHaveTextContent("Email access isn’t included in your staff role.");
   expect(screen.queryByRole("region", { name: "Email record content" })).not.toBeInTheDocument();
-});
-it("hands the new-enquiry action to the existing quick-enquiry flow", () => {
-  const quick = vi.fn();
-  show("", true, quick);
-  fireEvent.click(screen.getByRole("button", { name: "New enquiry" }));
-  expect(quick).toHaveBeenCalledOnce();
 });

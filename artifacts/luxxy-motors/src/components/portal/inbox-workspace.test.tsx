@@ -40,12 +40,12 @@ type Props = React.ComponentProps<typeof InboxWorkspace>;
 
 function show(options: Partial<Props> = {}) {
   const onSelect = vi.fn(), onBack = vi.fn((): boolean | void => undefined);
-  const onRefresh = vi.fn(), onNewEnquiry = vi.fn();
+  const onRefresh = vi.fn();
   const caseActions = actions();
   function Harness() {
     const [selected, setSelected] = useState(options.selectedId ?? null);
     return <InboxWorkspace entries={[]} cars={[]} actions={caseActions}
-      onRefresh={onRefresh} onNewEnquiry={onNewEnquiry} {...options} selectedId={selected}
+      onRefresh={onRefresh} {...options} selectedId={selected}
       onSelect={id => { onSelect(id); options.onSelect?.(id); setSelected(id); }}
       onBack={() => {
         onBack();
@@ -55,7 +55,7 @@ function show(options: Partial<Props> = {}) {
       }}/>
   }
   const view=render(<Harness/>);
-  return { onSelect, onBack, onRefresh, onNewEnquiry, caseActions,
+  return { onSelect, onBack, onRefresh, caseActions,
     update:(patch:Partial<Props>)=>{options={...options,...patch};view.rerender(<Harness/>);},
   };
 }
@@ -154,8 +154,7 @@ describe('the rebuilt Inbox queue', () => {
     expect(screen.queryByText(/AI handling|auto.?sending|AI is replying/i)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Refresh inbox' }));
     expect(api.onRefresh).toHaveBeenCalledOnce();
-    fireEvent.click(screen.getByRole('button', { name: 'New enquiry' }));
-    expect(api.onNewEnquiry).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('button', { name: 'New enquiry' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Reply to Ellie' }));
     expect(api.caseActions.onEmail).toHaveBeenCalledWith(expect.objectContaining({ id: 'Ellie' }));
   });

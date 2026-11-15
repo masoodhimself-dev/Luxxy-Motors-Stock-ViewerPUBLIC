@@ -322,7 +322,16 @@
 .enquiry-email-content-tray[hidden] { display: none; }
 .enquiry-email-content-tray h5 { margin: 0; font-size: 13px; font-weight: 600; }
 .enquiry-email-form--compact fieldset { gap: 10px; }
-.enquiry-email-form--compact > fieldset > label > textarea { min-height: 130px; border-radius: 8px; }
+body[data-dealer-portal="true"] .portal-workspace.portal-redesign .enquiry-email-form--compact .enquiry-reply-message {
+  width: 100%;
+  min-height: 184px;
+  height: auto;
+  max-height: none;
+  padding: 12px 14px;
+  border-radius: 7px;
+  font-size: 16px;
+  line-height: 1.5;
+}
 .enquiry-compact-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; }
 .enquiry-compact-tools > button { min-height: 36px; padding-inline: 8px; font-size: 12px; font-weight: 500; gap: 6px; }
 .enquiry-compact-tools > .ai-reply-info { min-height: 28px; padding-inline: 0; }
@@ -335,6 +344,13 @@
 .enquiry-email-form--compact .enquiry-email-service-book { background: #fff; padding: 12px; border-radius: 7px; }
 .enquiry-email-form--compact .enquiry-email-service-book > summary { padding-block: 6px; min-height: 36px; font-size: 12px; }
 @media (max-width: 600px) {
-  .enquiry-email-form--compact .enquiry-email-actions { flex-wrap: nowrap; }
-  .enquiry-email-form--compact .enquiry-email-actions > button { flex: 1 1 auto; }
+  body[data-dealer-portal="true"] .portal-workspace.portal-redesign .enquiry-email-form--compact .enquiry-reply-message {
+    min-height: clamp(218px, 31svh, 290px);
+  }
+  .enquiry-email-form--compact .enquiry-email-actions { flex-wrap: wrap; }
+  .enquiry-email-form--compact .enquiry-email-actions > button { flex: 1 1 auto; min-height: 44px; }
+  .enquiry-email-form--compact .enquiry-email-actions > .enquiry-ai-check-send {
+    flex: 1 1 100%;
+    font-size: 14px;
+  }
 }

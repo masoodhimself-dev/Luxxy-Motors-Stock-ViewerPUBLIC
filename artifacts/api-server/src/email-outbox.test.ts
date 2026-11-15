@@ -13,6 +13,8 @@ import {
   enquiryEmailsTable,
   dealerSettingsTable,
   dealerDemosTable,
+  vehiclesTable,
+  vehicleImagesTable,
 } from "./test/tenant-test-db";
 import { runWithTenant, type TenantContext } from "./lib/tenant-context";
 import {
@@ -725,6 +727,48 @@ test("durable immutable email outbox: retry, restart, ownership, freshness, boun
           }
         },
       );
+      await t.test("website vehicle notices snapshot public stock data for stable dealer retries", async (sub) => {
+        const photoUrl = "https://example.test/stock/blue-suv.jpg";
+        const [car] = await db.insert(vehiclesTable).values({
+          dealerId: "a", source: "autotrader", advertId: "notification-sample-1",
+          title: "2015 Lexus RX", variant: "450h F Sport", year: 2015,
+          sourcePrice: 10_500, mileage: 132_000, fuel: "Petrol hybrid", transmission: "Automatic",
+        }).returning();
+        const [photo] = await db.insert(vehicleImagesTable).values({
+          vehicleId: car!.id, sourceUrl: photoUrl, isHero: true,
+        }).returning();
+        const [enquiry] = await db.insert(enquiriesTable).values({
+          dealerId: "a", source: "website", type: "general",
+          vehicleId: car!.id, vehicleTitle: car!.title, vehicleRegistration: "SK15 NVJ",
+          vehiclePrice: 9_990, customerName: "Fictional website enquiry",
+          email: "website-buyer@example.test", message: "Is a viewing available?",
+          customerNotificationStatus: "not_sent", dealerNotificationStatus: "pending",
+        }).returning();
+        sub.mock.method(globalThis, "fetch", async () => new Response(null, { status: 429 }));
+        await deliverEnquiryNotifications(enquiry!, quiet);
+        const row = (await db.execute(
+          sql`SELECT * FROM email_outbox WHERE dealer_id='a' AND enquiry_id=${enquiry!.id}::uuid AND kind='dealer'`,
+        )).rows[0] as unknown as EmailOutbox;
+        assert.ok(row?.payload, "dealer notice was queued");
+        const original = JSON.parse(row.payload);
+        assert.deepEqual(original.to, ["sales@example.test"]);
+        assert.ok(original.html.includes(photoUrl));
+        assert.match(original.text, /Price at enquiry: £9,990/);
+        assert.match(original.text, /Mileage: 132,000 miles/);
+        assert.doesNotMatch(original.text, /£10,500|Reply in DealerOS/);
+
+        await db.update(vehiclesTable).set({ mileage: 140_000, inventoryStatus: "sold" }).where(eq(vehiclesTable.id, car!.id));
+        await db.update(vehicleImagesTable).set({ isActive: false }).where(eq(vehicleImagesTable.id, photo!.id));
+        const retry = await rebuildAutomaticOutboxEmail(row);
+        assert.equal(retry.html, original.html);
+        assert.equal(retry.text, original.text);
+
+        const { notificationStock: _, ...legacyValidation } = row.validation;
+        const oldNotice = await rebuildAutomaticOutboxEmail({ ...row, validation: legacyValidation });
+        assert.doesNotMatch(oldNotice.html, /blue-suv\.jpg/);
+        assert.doesNotMatch(oldNotice.text!, /Price at enquiry|132,000 miles/);
+        await assert.rejects(runWithTenant(b, () => rebuildAutomaticOutboxEmail(row)), /approved email details changed/i);
+      });
       await t.test(
         "old and new queued layouts validate and transport the exact approved bytes across the upgrade",
         async () => {

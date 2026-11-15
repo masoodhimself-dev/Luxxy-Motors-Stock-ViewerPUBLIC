@@ -1355,14 +1355,12 @@ export function EnquiriesPanel({
   initialView = "history",
   onOpenCustomer,
   inboxTools,
-  onQuickEnquiry,
 }: {
   canEmail?: boolean;
   embedded?: boolean;
   initialView?: "history" | "calendar";
   onOpenCustomer?: (id: string) => void;
   inboxTools?: ReactNode;
-  onQuickEnquiry?: () => void;
 } = {}) {
   const features = useDealerFeatures();
   const {
@@ -2108,11 +2106,6 @@ export function EnquiriesPanel({
                 void directory.refetch();
                 void client.invalidateQueries({ queryKey: ["/api/stock"] });
               }}
-              onNewEnquiry={canEmail ? () => {
-                if (!confirmSettingsNavigation()) return;
-                if (onQuickEnquiry) onQuickEnquiry();
-                else { setMode("new"); setGlobalSearch(""); }
-              } : undefined}
               tools={inboxTools}
             />
           )}

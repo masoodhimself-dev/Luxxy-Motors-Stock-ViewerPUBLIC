@@ -496,7 +496,6 @@ function PortalDesk() {
                 {(tab === "notifications" || tab === "calendar") && (
                   <NotificationsWorkspace
                     canEmail={canSell}
-                    onQuickEnquiry={() => quickEnquiry()}
                     onNewSale={() => newSale()}
                   />
                 )}

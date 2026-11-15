@@ -289,6 +289,7 @@ async function resendSettings(): Promise<ResendSettings> {
 export async function renderDealerEmail(input: {
   templateId: string;
   layoutVersion?: EmailLayoutVersion;
+  dealerVehicleNotice?: { photoUrl?: string };
   variables: Record<string, string | number | null | undefined>;
   facts: EmailFacts;
   attachments?: Array<{ filename: string; content: string }>;
@@ -309,6 +310,7 @@ export async function renderDealerEmail(input: {
     {
       templateId: input.templateId,
       layoutVersion: input.layoutVersion,
+      dealerVehicleNotice: input.dealerVehicleNotice,
       attachments: input.attachments?.map((item) => item.filename),
     },
   );

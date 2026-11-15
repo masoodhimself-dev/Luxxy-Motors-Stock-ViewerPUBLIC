@@ -8,6 +8,7 @@ import { enforceStaffWriteOrigin } from "../middlewares/staff-write-origin";
 import { AiError, aiConfigured, aiHash, generateAi } from "./ai-assistance";
 import { AiAssistanceStore } from "./ai-assistance-store";
 import { buildEnquiryAiContext, enquiryAiContextHash, enquiryIsArchived } from "./enquiry-ai-context";
+import { prepareStaffReplyDraft } from "./enquiry-ai-reply-draft";
 import type { MotHistory } from "@workspace/vehicle-meta";
 import {
   publicAiCar,
@@ -20,6 +21,7 @@ const schema = z
     kind: z.enum(["question", "finder", "faqs", "explain", "reply"]),
     requestId: z.string().uuid(),
     text: z.string().trim().max(800).optional(),
+    draft: z.string().trim().min(1).max(5000).optional(),
     vehicleId: z.string().uuid().optional(),
     enquiryId: z.string().uuid().optional(),
   })
@@ -95,11 +97,13 @@ export function aiAssistanceRouter(deps: Dependencies) {
       if (!parsed.success)
         throw new AiError(
           "invalid_request",
-          "Enter a short question or search.",
+          parsed.error.issues.some((issue) => issue.path[0] === "draft")
+            ? "Enter a draft between 1 and 5,000 characters for AI to check."
+            : "Enter a short question or search.",
           400,
         );
       const body = parsed.data;
-      if (staff !== (body.kind === "reply") || (!staff && body.enquiryId))
+      if (staff !== (body.kind === "reply") || (!staff && (body.enquiryId || body.draft)))
         throw new AiError(
           "invalid_request",
           "This action is unavailable.",
@@ -140,6 +144,7 @@ export function aiAssistanceRouter(deps: Dependencies) {
           "Dealer information is unavailable. Please try later.",
         );
       let replyContext: Awaited<ReturnType<typeof buildEnquiryAiContext>> | undefined;
+      let staffDraft: ReturnType<typeof prepareStaffReplyDraft> | undefined;
       let expectedWorkspaceRevision: number | undefined;
       let cars: any[] = [],
         question = redactAiText(body.text ?? ""),
@@ -150,6 +155,7 @@ export function aiAssistanceRouter(deps: Dependencies) {
         enquiry = await deps.getEnquiry(dealer, body.enquiryId);
         if (!enquiry) throw new AiError("not_found", "Enquiry not found.", 404);
         if (enquiryIsArchived(enquiry)) throw new AiError("enquiry_archived", "Restore this enquiry before preparing an AI reply.", 409);
+        if (body.draft) staffDraft = prepareStaffReplyDraft(body.draft, enquiry);
         expectedWorkspaceRevision = enquiry.workspaceRevision;
         const car = enquiry.vehicleId ? await deps.getCar(enquiry.vehicleId) : null;
         replyContext = await buildEnquiryAiContext({ enquiry: { ...enquiry, id: body.enquiryId }, car, config, lookupMot: deps.replyMotLookup });
@@ -181,14 +187,16 @@ export function aiAssistanceRouter(deps: Dependencies) {
         );
       if (!staff && deps.motFact && cars.length === 1 && body.kind !== "finder")
         cars[0].mot = await deps.motFact(cars[0]);
-      const facts = replyContext?.facts ?? {
+      const factContext = replyContext?.facts ?? {
         dealer: publicAiDealer(config),
         cars,
         ...(staff
           ? { enquiry: { type: enquiry.type, message: question } }
           : {}),
       };
-      const hash = replyContext ? enquiryAiContextHash(replyContext) : aiHash({ version: 1, task: body.kind, question, facts });
+      const facts = staffDraft ? { ...factContext, staffDraft: staffDraft.text } : factContext;
+      const contextHash = replyContext ? enquiryAiContextHash(replyContext) : aiHash({ version: 1, task: body.kind, question, facts });
+      const hash = staffDraft ? aiHash({ contextHash, draft: body.draft }) : contextHash;
       const ip = createHmac("sha256", process.env.OPENAI_API_KEY!)
         .update(connection)
         .digest("hex");
@@ -204,9 +212,12 @@ export function aiAssistanceRouter(deps: Dependencies) {
         ...(replyContext ? { contextAudit: replyContext.contextAudit } : {}),
       });
       if (reservation.cached) {
+        const result = staffDraft
+          ? { ...reservation.cached, answer: staffDraft.restore(reservation.cached.answer) }
+          : reservation.cached;
         if (staff) await store.completeForEnquiry({ id: reservation.id, dealer, enquiryId: body.enquiryId!, expectedWorkspaceRevision: expectedWorkspaceRevision! });
         res.json({
-          ...reservation.cached,
+          ...result,
           remaining: reservation.remaining,
           cached: true,
         });
@@ -217,6 +228,7 @@ export function aiAssistanceRouter(deps: Dependencies) {
         question,
         facts,
       );
+      const polishedAnswer = staffDraft?.restore(generated.result.answer);
       if (body.kind === "finder") {
         generated.result.vehicleIds = verifiedAiMatches(
           generated.result.vehicleIds,
@@ -238,6 +250,7 @@ export function aiAssistanceRouter(deps: Dependencies) {
       );
       res.json({
         ...generated.result,
+        ...(polishedAnswer === undefined ? {} : { answer: polishedAnswer }),
         remaining: reservation.remaining,
         cached: false,
       });

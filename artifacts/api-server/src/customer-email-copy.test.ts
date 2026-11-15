@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { defaultEmailTemplates, renderEmailTemplate, defaultEmailAppearance } from '@workspace/vehicle-meta';
-import { notificationVehicleFacts } from './lib/notification-email-copy';
+import { captureNotificationStock, notificationVehicleFacts } from './lib/notification-email-copy';
 import { sampleEmailVariables, previewEmailTemplate } from './lib/email-template-preview';
 const template = (id: string) => defaultEmailTemplates.find(item => item.id === id)!;
 
@@ -33,6 +33,44 @@ test('team enquiry notices show the customer details once and keep the message a
   }
   assert.match(rendered.text, /Preferred contact: Phone call/);
   assert.match(rendered.text, /Phone: 07700 900456/);
+});
+
+test('dealer vehicle notifications show a public stock photo without exposing it to customer acknowledgements', () => {
+  const title = '2015 Lexus RX';
+  const stock = captureNotificationStock({
+    title, year: 2015, variant: '450h F Sport', mileage: 132_000,
+    fuel: 'Petrol hybrid', transmission: 'Automatic', currency: 'GBP',
+    heroImage: '/media/lexus.jpg?width=640&format=jpeg',
+  }, { registration: 'SK15 NVJ', price: 9_990 }, 'https://example.test');
+  const facts = notificationVehicleFacts(title, stock);
+  const variables = { ...sampleEmailVariables, vehicle_title: title };
+  const dealer = renderEmailTemplate(template('dealer_notification'), variables, facts, defaultEmailAppearance,
+    { templateId: 'dealer_notification', dealerVehicleNotice: { photoUrl: stock.photoUrl } });
+  assert.match(dealer.html, /src="https:\/\/example\.test\/media\/lexus\.jpg\?width=640&amp;format=jpeg"/);
+  assert.match(dealer.html, /alt="2015 Lexus RX listing photo"/);
+  assert.match(dealer.html, />Vehicle<\/p>/);
+  assert.doesNotMatch(dealer.html, /Your vehicle|Contact the dealership|hello@example.test/);
+  assert.doesNotMatch(dealer.text, /hello@example.test/);
+  assert.match(dealer.text, /Registration: SK15 NVJ/);
+  assert.match(dealer.text, /Price at enquiry: £9,990/);
+  assert.match(dealer.text, /Mileage: 132,000 miles/);
+  assert.match(dealer.text, /Fuel: Petrol hybrid/);
+  assert.match(dealer.text, /Gearbox: Automatic/);
+  assert.doesNotMatch(dealer.text, /Year: 2015|Reply in DealerOS/);
+
+  const customer = renderEmailTemplate(template('enquiry_acknowledgement'), variables, facts, defaultEmailAppearance,
+    { templateId: 'enquiry_acknowledgement', dealerVehicleNotice: { photoUrl: stock.photoUrl } });
+  assert.doesNotMatch(customer.html, /lexus\.jpg/);
+  assert.match(customer.html, /Your vehicle|Contact the dealership/);
+  assert.match(customer.text, /hello@example.test/);
+
+  for (const heroImage of [
+    'javascript:alert(1)', 'https://user:pass@example.test/photo.jpg',
+    'https://example.test/photo.jpg" onerror="alert(1)', '//example.test/photo.jpg',
+  ]) {
+    const invalid = captureNotificationStock({ heroImage }, { registration: null, price: null }, 'https://example.test');
+    assert.equal(invalid.photoUrl, undefined);
+  }
 });
 
 test('zero-balance statements report the issued balance without asking for another payment', () => {

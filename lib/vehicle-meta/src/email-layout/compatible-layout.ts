@@ -14,6 +14,7 @@ export function renderCompatibleEmailLayout(input: {
   dealer: string;
   logoUrl: string;
   brandColour: string;
+  dealerVehicleNotice?: { photoUrl?: string };
   details: Array<{ label: string; value: string }>;
   attachments: string[];
   actionUrl?: string;
@@ -64,6 +65,7 @@ export function renderCompatibleEmailLayout(input: {
     greeting: "",
     paragraphs: input.prose.split(/\n\s*\n/).filter(Boolean),
     vehicleTitle: vehicle?.value,
+    dealerVehicleNotice: input.dealerVehicleNotice,
     registration: registration?.value,
     sections: details.length ? [section] : [],
     fileNames: input.attachments,

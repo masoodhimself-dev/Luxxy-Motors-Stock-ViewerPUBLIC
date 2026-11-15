@@ -4,7 +4,7 @@ import {
 } from "@workspace/vehicle-meta";
 import { forEachActiveDealer } from "./tenant-jobs";
 import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
-import { currentDealerId, multiTenantEnabled } from "./tenant-context";
+import { currentDealerId, currentTenant, multiTenantEnabled } from "./tenant-context";
 import { renderDealerEmail, type EmailRequest } from "./email-provider";
 import {
   enqueueEmailOutbox,
@@ -18,7 +18,13 @@ import {
   effectiveResendSettings,
 } from "./dealer-integrations-store";
 import { serviceLifecycle } from "./service-lifecycle";
-import { notificationVehicleFacts } from "./notification-email-copy";
+import {
+  approvedNotificationStock,
+  captureNotificationStock,
+  notificationVehicleFacts,
+  type NotificationStock,
+} from "./notification-email-copy";
+import { publicSeoOrigin } from "./public-page-seo";
 import {
   and,
   desc,
@@ -159,6 +165,7 @@ async function attemptEmail({
   attachments,
   enquiry,
   kind,
+  notificationStock,
 }: {
   to: string | null;
   subject: string;
@@ -173,6 +180,7 @@ async function attemptEmail({
   attachments?: Array<{ filename: string; content: string }>;
   enquiry: Enquiry;
   kind: OutboxKind;
+  notificationStock?: NotificationStock;
 }): Promise<DeliveryResult> {
   if (!to) {
     return {
@@ -197,6 +205,7 @@ async function attemptEmail({
         appointmentRevision: enquiry.appointmentRevision,
         workspaceRevision: enquiry.workspaceRevision,
         version: notificationVersion(enquiry),
+        ...(notificationStock ? { notificationStock } : {}),
       },
     });
     const outcome = await attemptQueuedEmail(outbox.id);
@@ -285,6 +294,7 @@ async function enquiryEmail(
   audience: "customer" | "dealer",
   reminder = false,
   layoutVersion: EmailLayoutVersion = "correspondence-v1",
+  stock?: NotificationStock,
 ) {
   const isViewing = enquiry.type === "viewing" && enquiry.appointmentAt != null;
   let moved = false;
@@ -327,7 +337,7 @@ async function enquiryEmail(
           ? "callback"
           : "enquiry_acknowledgement";
   const facts = [
-    ...notificationVehicleFacts(enquiry.vehicleTitle),
+    ...notificationVehicleFacts(enquiry.vehicleTitle, stock),
     ...(isViewing
       ? [
           { label: "Appointment status", value: appointmentState(enquiry) },
@@ -396,6 +406,7 @@ async function enquiryEmail(
         : "",
     },
     facts,
+    dealerVehicleNotice: stock ? { photoUrl: stock.photoUrl } : undefined,
   });
 }
 
@@ -494,6 +505,31 @@ async function processCustomerConfirmation(
     );
 }
 
+async function notificationStockForEnquiry(enquiry: Enquiry, log: Logger) {
+  if (
+    !enquiry.vehicleId ||
+    !enquiry.vehicleTitle ||
+    enquiry.dealerId !== currentDealerId() ||
+    !["website", "website_callback"].includes(enquiry.source)
+  ) return undefined;
+  try {
+    const { findPublicVehicle } = await import("../routes/stock");
+    const car = await findPublicVehicle(enquiry.vehicleId);
+    if (!car) return undefined;
+    const origin = publicSeoOrigin(currentTenant()?.canonicalOrigin ?? process.env.PUBLIC_SITE_URL);
+    return captureNotificationStock(car, {
+      registration: enquiry.vehicleRegistration,
+      price: enquiry.vehiclePrice,
+    }, origin);
+  } catch {
+    log.warn(
+      { stage: "dealer_notification", code: "notification_stock_unavailable" },
+      "Dealer notification will be prepared without stock details",
+    );
+    return undefined;
+  }
+}
+
 async function processDealerNotification(
   enquiry: Enquiry,
   log: Logger,
@@ -523,9 +559,11 @@ async function processDealerNotification(
     .returning();
   if (!claimed) return;
 
+  const notificationStock = await notificationStockForEnquiry(claimed, log);
   const result = await attemptEmail({
     to: dealerNotificationRecipient(dealer.contact.email),
-    ...(await enquiryEmail(claimed, dealer, "dealer")),
+    ...(await enquiryEmail(claimed, dealer, "dealer", false, "correspondence-v1", notificationStock)),
+    notificationStock,
     idempotencyKey: `enquiry-${claimed.id}-dealer-${notificationVersion(claimed)}`,
     dealerName: dealer.identity.name,
     missingRecipientMessage: "Dealer notification email is not configured.",
@@ -686,6 +724,7 @@ export async function rebuildAutomaticOutboxEmail(
     audience,
     row.kind === "reminder",
     approvedEmailLayoutVersion(row.validation.layoutVersion),
+    audience === "dealer" ? approvedNotificationStock(row.validation.notificationStock) : undefined,
   );
   const to =
     audience === "dealer"

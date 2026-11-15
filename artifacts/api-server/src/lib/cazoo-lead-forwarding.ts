@@ -2,8 +2,10 @@ import { createHash, randomUUID } from "node:crypto";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { z } from "zod/v4";
+import { formatVehicleMileage, formatVehiclePrice, pickVehicleImage } from "@workspace/vehicle-meta";
+import { findPublicVehicle } from "../routes/stock";
 import { cazooEmailText } from "./cazoo-lead-parser";
-import { renderCazooForwardEmail } from "./cazoo-forward-email";
+import { renderCazooForwardEmail, type CazooForwardVehicle } from "./cazoo-forward-email";
 import { cazooTestSender } from "./cazoo-owner-test";
 import { mailbox, replyConfiguration, type retrieveReply } from "./customer-email-replies";
 import { dealerFeatureEnabled } from "./dealer-features";
@@ -12,6 +14,7 @@ import { classifyEmailFailure, EmailProviderError, emailAccountHash, prepareEmai
 import { emailRetryWindowMs } from "./email-outbox";
 import { serviceLifecycle } from "./service-lifecycle";
 import { runBoundedDealerJob } from "./tenant-jobs";
+import { permittedVehicleSheetImage } from "./vehicle-sheet-image";
 
 type Executor = Pick<typeof db, "execute">;
 type Receipt = { id: string; dealer_id: string; provider_id: string; mailbox: string };
@@ -21,8 +24,20 @@ type Forward = {
   subject: string; body: string; payload: string | null; payload_hash: string | null; account_hash: string | null;
   attempts: number; retry_deadline: Date | string;
 };
-type Dealer = { canonical_origin: string; retailer_id: string; source_url: string; mailbox: string; enquiry_id: string | null };
+type Dealer = { canonical_origin: string; retailer_id: string; source_url: string; mailbox: string; enquiry_id: string | null; vehicle_id: string | null };
 type EndStatus = "sent" | "failed" | "unknown" | "cancelled";
+const vehicleText = z.string().max(200).nullable();
+const frozenVehiclePayload = z.object({
+  version: z.literal("vehicle-v1"),
+  vehicle: z.object({
+    name: vehicleText, trim: vehicleText, year: vehicleText, mileage: vehicleText,
+    fuel: vehicleText, gearbox: vehicleText, websitePrice: vehicleText,
+    photoUrl: z.string().max(2048).nullable(),
+  }),
+  email: z.string(),
+});
+const stockText = (value: string | null | undefined) =>
+  value?.replace(/[\p{Cc}\p{Cf}]+/gu, " ").trim().slice(0, 200) || null;
 const cazooSender = "dealerleads@info.cazoo.co.uk";
 const uuid = z.string().uuid();
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
@@ -99,6 +114,31 @@ async function reschedule(row: Forward, lease: string, seconds: number, reason: 
     WHERE receipt_id=${row.receipt_id}::uuid AND dealer_id=${row.dealer_id} AND lease_token=${lease}::uuid`);
 }
 
+/** Keep the current stock lookup out of retries for an already attempted send. */
+async function stockSnapshot(id: string | null): Promise<CazooForwardVehicle | undefined> {
+  if (!id) return undefined;
+  const car = await findPublicVehicle(id);
+  if (!car) return undefined;
+  const name = [stockText(car.make), stockText(car.model)].filter(Boolean).join(" ").slice(0, 200) || stockText(car.title);
+  const trim = stockText(car.trim) ?? stockText(car.variant);
+  const photoUrl = [pickVehicleImage(car), ...car.images.map(image => image.url)].find(permittedVehicleSheetImage);
+  return {
+    name,
+    trim: trim && !name?.toLocaleLowerCase("en-GB").includes(trim.toLocaleLowerCase("en-GB")) ? trim : null,
+    year: car.year ? String(car.year) : null,
+    mileage: formatVehicleMileage({ mileage: car.mileage }),
+    fuel: stockText(car.fuel),
+    gearbox: stockText(car.transmission),
+    websitePrice: car.currency === "GBP" ? formatVehiclePrice(car.price) : null,
+    photoUrl: photoUrl ?? null,
+  };
+}
+
+function readFrozenVehiclePayload(payload: string) {
+  try { return frozenVehiclePayload.safeParse(JSON.parse(payload)).data; }
+  catch { return undefined; }
+}
+
 type ForwardOptions = { send?: typeof sendPreparedEmail };
 async function deliver(row: Forward, dealer: Dealer, lease: string, options: ForwardOptions) {
   const { cazooLeadMailboxes, cazooLeadsEnabled } = await import("./cazoo-leads");
@@ -127,20 +167,24 @@ async function deliver(row: Forward, dealer: Dealer, lease: string, options: For
   const key = sendKey(row.receipt_id);
   const blockedAddresses = [recipient, ...Object.values(mailboxes), mailbox(resend.from),
     mailbox(configuredResend.replyTo)];
+  const frozen = row.payload === null ? undefined : readFrozenVehiclePayload(row.payload);
+  const vehicle = frozen?.vehicle ?? (row.payload === null
+    ? await stockSnapshot(dealer.vehicle_id).catch(() => undefined)
+    : undefined);
   const content = renderCazooForwardEmail(row.subject, row.body, blockedAddresses, replyDomain, "current", {
     origin: dealer.canonical_origin, enquiryId: dealer.enquiry_id,
-  });
+  }, vehicle);
   const envelope = { to: row.recipient, idempotencyKey: key };
   const prepared = await prepareEmailWithSettings(resend, { ...envelope, ...content });
   let payload = JSON.stringify(prepared.body);
   // An attempted send must keep its original payload across format changes.
   for (const format of ["current", "before-part-ex"] as const) {
-    if (row.payload === null || row.payload_hash === hash(payload)) break;
+    if (row.payload === null || frozen || row.payload_hash === hash(payload)) break;
     const previousContent = renderCazooForwardEmail(row.subject, row.body, blockedAddresses, replyDomain, format);
     const previous = await prepareEmailWithSettings(resend, { ...envelope, ...previousContent });
     payload = JSON.stringify(previous.body);
   }
-  if (row.payload !== null && row.payload_hash !== hash(payload)) {
+  if (row.payload !== null && !frozen && row.payload_hash !== hash(payload)) {
     const text = ["Cazoo enquiry forwarded by DealerOS", "", row.body || "No message body was supplied."].join("\n");
     const legacy = await prepareEmailWithSettings(resend, {
       ...envelope, subject: row.subject, text,
@@ -148,13 +192,15 @@ async function deliver(row: Forward, dealer: Dealer, lease: string, options: For
     });
     payload = JSON.stringify(legacy.body);
   }
-  const payloadHash = hash(payload), accountHash = emailAccountHash(prepared.config);
-  if (row.payload !== null && (row.payload_hash !== payloadHash || row.account_hash !== accountHash || hash(row.payload) !== payloadHash)) {
+  // Changing a car must never change the bytes of an attempted send.
+  const storedPayload = vehicle ? JSON.stringify({ version: "vehicle-v1", vehicle, email: payload }) : payload;
+  const payloadHash = hash(storedPayload), accountHash = emailAccountHash(prepared.config);
+  if (row.payload !== null && (row.payload_hash !== payloadHash || row.account_hash !== accountHash || row.payload !== storedPayload)) {
     await finish(row, lease, row.attempts ? "unknown" : "cancelled", "delivery_configuration_changed");
     return;
   }
   const attempt = (await db.execute(sql`UPDATE cazoo_lead_forwards f
-    SET attempts=attempts+1,payload=${row.payload ?? payload},payload_hash=${payloadHash},account_hash=${accountHash}
+    SET attempts=attempts+1,payload=${row.payload ?? storedPayload},payload_hash=${payloadHash},account_hash=${accountHash}
     WHERE f.receipt_id=${row.receipt_id}::uuid AND f.dealer_id=${row.dealer_id} AND f.lease_token=${lease}::uuid
       AND f.lease_until>now() AND f.retry_deadline>now()
       AND EXISTS(SELECT 1 FROM cazoo_lead_receipts r WHERE r.id=f.receipt_id AND r.dealer_id=f.dealer_id
@@ -170,7 +216,7 @@ async function deliver(row: Forward, dealer: Dealer, lease: string, options: For
   }
   row.attempts = Number(attempt.attempts);
   try {
-    const providerId = await (options.send ?? sendPreparedEmail)(prepared.config, row.payload ?? payload, key);
+    const providerId = await (options.send ?? sendPreparedEmail)(prepared.config, payload, key);
     await finish(row, lease, "sent", null, providerId);
   } catch (error) {
     const result = classifyEmailFailure(error);
@@ -202,8 +248,9 @@ export async function processCazooLeadForwards(options: ForwardOptions = {}) {
     ) UPDATE cazoo_lead_forwards f SET status='sending',lease_token=${lease}::uuid,lease_until=now()+interval '2 minutes'
       FROM candidate c WHERE f.receipt_id=c.receipt_id RETURNING f.*`)).rows[0] as unknown as Forward | undefined;
     if (!row) break;
-    const dealer = (await db.execute(sql`SELECT d.canonical_origin,d.retailer_id,d.source_url,r.mailbox,r.enquiry_id
+    const dealer = (await db.execute(sql`SELECT d.canonical_origin,d.retailer_id,d.source_url,r.mailbox,r.enquiry_id,e.vehicle_id
       FROM cazoo_lead_receipts r JOIN dealerships d ON d.id=r.dealer_id
+      LEFT JOIN enquiries e ON e.id=r.enquiry_id AND e.dealer_id=r.dealer_id AND e.source='cazoo'
       WHERE r.id=${row.receipt_id}::uuid AND r.dealer_id=${row.dealer_id} AND d.status='active' AND d.stock_platform='cazoo'
         AND r.status IN ('imported','review') AND r.error_code IS DISTINCT FROM 'owner_test'`)).rows[0] as unknown as Dealer | undefined;
     if (!dealer) {

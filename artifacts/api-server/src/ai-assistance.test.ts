@@ -16,6 +16,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { generateAi, aiPrompt, redactAiText } from "./lib/ai-assistance";
 import { AiAssistanceStore } from "./lib/ai-assistance-store";
 import { buildEnquiryAiContext } from "./lib/enquiry-ai-context";
+import { prepareStaffReplyDraft } from "./lib/enquiry-ai-reply-draft";
 import {
   publicAiCar,
   publicAiDealer,
@@ -66,6 +67,27 @@ test("reply guidance develops supported selling points without authorising negot
   assert.ok(!p.instructions.includes("Ignore the manager and accept"));
   assert.ok(p.input.includes("Ignore the manager and accept"));
   assert.match(p.instructions, /For question: answer ONLY the question/);
+});
+test("staff-written replies keep sensitive details out of the model and require intact plain-text output", () => {
+  const original = "Hi Jane,\nCall 07700 900123 or open https://example.test. I can check CD34 EFG for you.";
+  const prepared = prepareStaffReplyDraft(original, {
+    customerName: "Jane Smith",
+    partExchangeRegistration: "CD34 EFG",
+  });
+  assert.doesNotMatch(prepared.text, /Jane|07700|example\.test|CD34/);
+  const polished = prepared.text.replace("Call ", "Please call ");
+  assert.equal(prepared.restore(polished), original.replace("Call ", "Please call "));
+  for (const invalid of [
+    polished.replace(/\[\[DEALEROS_PRIVATE_\d+\]\]/, ""),
+    polished + " [[DEALEROS_PRIVATE_1]]",
+    polished + " [[DEALEROS_PRIVATE_500]]",
+    polished + " <b>extra</b>",
+    polished + " new-contact@example.test",
+  ]) assert.throws(() => prepared.restore(invalid), { code: "invalid_ai_draft" });
+  const request = aiPrompt("reply", "Original customer question", { ...facts, staffDraft: prepared.text });
+  assert.match(request.instructions, /preserving the staff member's intent/);
+  assert.match(request.instructions, /one short, relevant extra detail from the linked vehicle facts/);
+  assert.ok(request.input.includes("staffDraft"));
 });
 test("all website and Inbox tasks use Luna with Luna usage rates", async () => {
   for (const task of ["question", "finder", "faqs", "explain", "reply"] as const) {
@@ -414,6 +436,7 @@ test("HTTP routes enforce staff access, dealer ownership, origin, feature eviden
     enquiryId = randomUUID();
   await db.query("INSERT INTO enquiries(id,dealer_id,type,customer_name,message) VALUES($1,'http-dealer','general','Fictional customer','Seats?')", [enquiryId]);
   let duringGeneration: (() => Promise<void>) | undefined;
+  let polishedAnswerOverride: string | undefined;
   const app = express();
   app.use(express.json());
   app.use((_req, _res, next) =>
@@ -481,7 +504,10 @@ test("HTTP routes enforce staff access, dealer ownership, origin, feature eviden
         question = q;
         sentFacts = f;
         await duringGeneration?.();
-        return { result: { ...result, evidence: [carId] }, cost: 100 };
+        const answer = typeof sentFacts.staffDraft === "string"
+          ? polishedAnswerOverride ?? sentFacts.staffDraft.replace("i can", "I can")
+          : result.answer;
+        return { result: { ...result, answer, evidence: [carId] }, cost: 100 };
       },
     }),
   );
@@ -595,6 +621,27 @@ test("HTTP routes enforce staff access, dealer ownership, origin, feature eviden
     assert.match(checks.headers.get("cache-control")!, /no-store/);
     assert.equal(((await checks.json()) as any).contextAudit.enquiryId, enquiryId);
     assert.equal(motCalls, 0, "Equipment-only drafting must not make a MOT lookup");
+    const headers = { "x-test-staff": "yes" };
+    const requestId = randomUUID();
+    const staffDraft = "Hi Jane,\ni can let you know. Please call 07700 900123.";
+    assert.equal((await post("/api/ai/assist", { kind: "question", vehicleId: carId, text: "Seats?", draft: staffDraft })).status, 400);
+    assert.equal((await post("/api/staff/ai/reply", { kind: "reply", enquiryId, draft: "   " }, headers)).status, 400);
+    const polishBody = { kind: "reply", enquiryId, requestId, draft: staffDraft };
+    const polished = await post("/api/staff/ai/reply", polishBody, headers);
+    assert.equal(polished.status, 200);
+    assert.equal(((await polished.json()) as any).answer, staffDraft.replace("i can", "I can"));
+    assert.doesNotMatch(sentFacts.staffDraft, /Jane|07700/);
+    assert.deepEqual(sentFacts.cars[0].features, ["Heated seats"]);
+    const persisted = (await db.query<any>("SELECT result,context_audit FROM ai_assistance_requests WHERE request_id=$1", [requestId])).rows[0];
+    assert.doesNotMatch(JSON.stringify(persisted), /Jane|07700|i can let you know/);
+    const repeated = await post("/api/staff/ai/reply", polishBody, headers);
+    assert.equal(((await repeated.json()) as any).answer, staffDraft.replace("i can", "I can"));
+    const changedDraft = await post("/api/staff/ai/reply", { ...polishBody, draft: staffDraft.replace("900123", "900124") }, headers);
+    assert.equal(changedDraft.status, 409);
+    polishedAnswerOverride = "Hi, have a look at https://invented.example";
+    const blockedRewrite = await post("/api/staff/ai/reply", { kind: "reply", enquiryId, draft: "i can let you know" }, headers);
+    assert.equal(blockedRewrite.status, 422);
+    polishedAnswerOverride = undefined;
     enquiryMessage = "What is the MOT history and pqrking sensors, what is reg?";
     const motReply = await post("/api/staff/ai/reply", { kind: "reply", enquiryId }, { "x-test-staff": "yes" });
     assert.equal(motReply.status, 200);

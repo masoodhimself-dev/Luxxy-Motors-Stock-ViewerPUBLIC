@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import type { Enquiry } from '@workspace/api-client-react';
-import { ArrowLeft, CalendarDays, CarFront, CheckCircle2, ChevronDown, Inbox, MessageSquare, Plus, RefreshCw, Search } from '@/components/icons';
+import { ArrowLeft, CalendarDays, CarFront, CheckCircle2, ChevronDown, Inbox, MessageSquare, RefreshCw, Search } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { Car } from '@/lib/stock-context';
@@ -21,11 +21,11 @@ const folders: {id:InboxFolder;label:string}[] = [{id:'enquiries',label:'Enquiri
 
 /** The conversation is the workspace. Bookings, email delivery and car tools stay within reach. */
 export function InboxWorkspace({ entries, cars, selectedId, onSelect, onBack, actions, loading=false,
-  error=false, refreshing=false, onRefresh, onNewEnquiry, tools, missingRequested=false, currentStaffId, linkedReplyAction, enquiryReplyId,
+  error=false, refreshing=false, onRefresh, tools, missingRequested=false, currentStaffId, linkedReplyAction, enquiryReplyId,
 }: {
   entries: Enquiry[]; cars: Car[]; selectedId: string|null; onSelect:(id:string)=>void;
   onBack:()=>void|boolean; actions:EnquiryRecordActions; loading?:boolean; error?:boolean;
-  refreshing?:boolean; onRefresh:()=>void; onNewEnquiry?:()=>void; tools?:ReactNode; missingRequested?:boolean; currentStaffId?:string;
+  refreshing?:boolean; onRefresh:()=>void; tools?:ReactNode; missingRequested?:boolean; currentStaffId?:string;
   linkedReplyAction?: "reply" | "fix-email";
   enquiryReplyId?: string;
 }) {
@@ -91,7 +91,6 @@ export function InboxWorkspace({ entries, cars, selectedId, onSelect, onBack, ac
       <h2>Inbox</h2>
       <div className="inbox-desk-heading-actions">
         <Button variant="ghost" size="icon" aria-label="Refresh inbox" disabled={refreshing} onClick={onRefresh}><RefreshCw size={17} className={refreshing?'animate-spin':''} aria-hidden/></Button>
-        {onNewEnquiry && <Button size="sm" className="inbox-new-enquiry" onClick={onNewEnquiry}><Plus size={17} aria-hidden/>New enquiry</Button>}
       </div>
     </header>
     {error && entries.length>0 && !loading && <div role="alert" className="inbox-outside-filter">The latest update couldn’t be loaded. Your conversation and draft are kept.<Button variant="ghost" size="sm" onClick={onRefresh}>Retry update</Button></div>}

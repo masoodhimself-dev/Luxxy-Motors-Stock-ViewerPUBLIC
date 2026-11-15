@@ -20,10 +20,14 @@ export type AiReply = {
   remaining: number;
   cached: boolean;
 };
-export function useAiAssistance(scope: "public" | "staff" = "public") {
+export function useAiAssistance(
+  scope: "public" | "staff" = "public",
+  { enabled = true }: { enabled?: boolean } = {},
+) {
   const cache = useQueryClient();
   const status = useQuery({
     queryKey: ["ai-assistance-status", scope],
+    enabled,
     queryFn: () =>
       customFetch<{ enabled: boolean; remaining: number; limit: number }>(
         scope === "staff" ? "/api/staff/ai/status" : "/api/ai/status",
@@ -39,9 +43,9 @@ export function useAiAssistance(scope: "public" | "staff" = "public") {
   );
   async function run(
     kind: "question" | "finder" | "faqs" | "explain" | "reply",
-    input: { text?: string; vehicleId?: string; enquiryId?: string },
+    input: { text?: string; vehicleId?: string; enquiryId?: string; draft?: string },
   ): Promise<AiReply | null> {
-    if (busy) return null;
+    if (!enabled || busy) return null;
     setBusy(true);
     setError("");
     const fingerprint = JSON.stringify({ kind, ...input });
@@ -93,7 +97,7 @@ export function useAiAssistance(scope: "public" | "staff" = "public") {
     }
   }
   return {
-    enabled: status.data?.enabled === true,
+    enabled: enabled && status.data?.enabled === true,
     remaining: status.data?.remaining ?? 10,
     busy,
     error,

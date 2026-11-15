@@ -38,6 +38,7 @@ export type View = {
   greeting: string;
   paragraphs: string[];
   vehicleTitle?: string;
+  dealerVehicleNotice?: { photoUrl?: string };
   registration?: string;
   sections: Section[];
   attachmentNotice?: string;
@@ -103,13 +104,17 @@ function metadata(view: View): string {
 }
 function vehicle(view: View, letter = false): string {
   if (!view.vehicleTitle && !view.registration) return "";
-  const content = `${!letter ? `<p class="secondary" style="margin:0 0 5px;${small}">Your vehicle</p>` : ""}${view.vehicleTitle ? `<p style="margin:0 0 3px;${copy}font-size:${letter ? 16 : 18}px;line-height:25px;font-weight:bold;">${t(view.vehicleTitle)}</p>` : ""}${view.registration ? `<p class="secondary" style="margin:0;${small}">Registration <span style="color:${SYSTEM.ink};font-weight:bold;letter-spacing:.4px;">${t(view.registration)}</span></p>` : ""}`;
+  const content = `${!letter ? `<p class="secondary" style="margin:0 0 5px;${small}">${view.dealerVehicleNotice ? "Vehicle" : "Your vehicle"}</p>` : ""}${view.vehicleTitle ? `<p style="margin:0 0 3px;${copy}font-size:${letter ? 16 : 18}px;line-height:25px;font-weight:bold;">${t(view.vehicleTitle)}</p>` : ""}${view.registration ? `<p class="secondary" style="margin:0;${small}">Registration <span style="color:${SYSTEM.ink};font-weight:bold;letter-spacing:.4px;">${t(view.registration)}</span></p>` : ""}`;
+  const photoUrl = view.dealerVehicleNotice?.photoUrl;
+  const photo = view.vehicleTitle && photoUrl
+    ? `<img src="${e(photoUrl)}" alt="${e(view.vehicleTitle)} listing photo" width="320" style="display:block;width:320px;max-width:100%;height:auto;margin:12px 0 0;border:0;">`
+    : "";
   return row(
     letter
       ? table(
           `<tr><td style="padding:1px 0 1px 15px;border-left:3px solid ${view.palette.brand};">${content}</td></tr>`,
         )
-      : content,
+      : content + photo,
   );
 }
 function section(s: Section, format: (value: string) => string = t): string {
@@ -200,6 +205,7 @@ function files(view: View, notice: boolean): string {
   );
 }
 function contact(view: View): string {
+  if (view.dealerVehicleNotice) return "";
   const links: string[] = [];
   if (view.email) {
     const href = mailLink(view.email);

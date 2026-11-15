@@ -11,8 +11,11 @@ const state = vi.hoisted(() => ({
   fetch: vi.fn(),
   close: vi.fn(),
   features: { customerEmails: true },
+  aiEnabled: false,
+  polish: vi.fn(),
 }));
 vi.mock('@/lib/dealer-features', () => ({ useDealerFeatures: () => ({ data: { features: state.features }, enabled: (key: 'customerEmails') => state.features[key], isLoading: false, isError: false }) }));
+vi.mock("@/lib/ai-assistance", () => ({ useAiAssistance: () => ({ enabled: state.aiEnabled, remaining: 2, run: state.polish, error: "" }) }));
 vi.mock("@workspace/api-client-react", () => ({
   customFetch: (...args: unknown[]) => state.fetch(...args),
   getGetDealerSettingsQueryKey: () => ['/api/dealer-settings'],
@@ -121,6 +124,8 @@ it('blocks a WhatsApp handoff when fresh context no longer matches the checked v
 });
 beforeEach(() => {
   state.close.mockReset();
+  state.aiEnabled = false;
+  state.polish.mockReset();
   state.features = { customerEmails: true };
   state.fetch.mockReset().mockImplementation(async (url: string) => {
     if (url.endsWith("/email-context")) return context(url.includes("enquiry-two"));
@@ -411,7 +416,7 @@ it.each(["dialog", "compact reply"] as const)("waits for the latest saved draft 
   );
   expect(screen.getByText("Loading latest email details…")).toBeInTheDocument();
   expect(
-    screen.queryByRole("textbox", { name: "Message" }),
+    screen.queryByRole("textbox", { name: compact ? "Your reply" : "Message" }),
   ).not.toBeInTheDocument();
   await act(async () => {
     finish({
@@ -435,7 +440,7 @@ it.each(["dialog", "compact reply"] as const)("waits for the latest saved draft 
       },
     });
   });
-  const message = await screen.findByRole("textbox", { name: "Message" });
+  const message = await screen.findByRole("textbox", { name: compact ? "Your reply" : "Message" });
   expect(message).toHaveValue(
     "A teammate’s saved reply",
   );
@@ -1061,7 +1066,7 @@ it('compact Inbox keeps templates, PDFs and invoice options inside Attach withou
   const original=state.fetch.getMockImplementation()!;
   state.fetch.mockImplementation(async(url:string,options:unknown)=>url.endsWith('/email-context')?{...context(),vehiclePdfAvailable:true}:original(url,options));
   render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><EnquiryEmailComposer inline compact entry={entry} onClose={state.close}/></QueryClientProvider>);
-  await screen.findByRole('textbox', {name:'Message'});
+  await screen.findByRole('textbox', {name:'Your reply'});
   const attach=screen.getByRole('button', {name:'Attach'});
   const tray=document.getElementById(attach.getAttribute('aria-controls')!)!;
   expect(attach).toHaveAttribute('aria-expanded', 'false');
@@ -1076,7 +1081,7 @@ it('compact Inbox keeps templates, PDFs and invoice options inside Attach withou
   expect(screen.getByRole('checkbox', {name:/Full invoice/})).toBeVisible();
   fireEvent.click(attach);
   expect(tray).toHaveAttribute('hidden');
-  expect(screen.getByRole('textbox', {name:'Message'})).toHaveValue('Original staff message');
+  expect(screen.getByRole('textbox', {name:'Your reply'})).toHaveValue('Original staff message');
   expect(calls('/email')).toHaveLength(0);
   expect(calls('/email-draft')).toHaveLength(0);
 });
@@ -1085,7 +1090,7 @@ it('compact PDF selection remains visible in the summary and requires the server
   const original=state.fetch.getMockImplementation()!;
   state.fetch.mockImplementation(async(url:string,options:unknown)=>url.endsWith('/email-context')?{...context(),vehiclePdfAvailable:true}:original(url,options));
   render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><EnquiryEmailComposer inline compact entry={entry} onClose={state.close}/></QueryClientProvider>);
-  await screen.findByRole('textbox', {name:'Message'});
+  await screen.findByRole('textbox', {name:'Your reply'});
   fireEvent.click(screen.getByRole('button', {name:'Attach'}));
   fireEvent.click(screen.getByRole('checkbox', {name:/^Attach vehicle PDF/}));
   fireEvent.click(screen.getByRole('button', {name:'Attach'}));
@@ -1096,13 +1101,13 @@ it('compact PDF selection remains visible in the summary and requires the server
   expect(JSON.parse(calls('/email-preview')[0][1].body)).toMatchObject({attachVehiclePdf:true});
   expect(screen.getByRole('button', {name:'Send email'})).toBeEnabled();
   fireEvent.click(screen.getByRole('button', {name:'Edit message'}));
-  expect(screen.getByRole('textbox', {name:'Message'})).toHaveValue('Original staff message');
+  expect(screen.getByRole('textbox', {name:'Your reply'})).toHaveValue('Original staff message');
   expect(screen.getByRole('button', {name:/Included: Vehicle PDF/})).toBeVisible();
 });
 
 it('compact editor omits repeated prepare heading but retains the reviewed email title', async () => {
   render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><EnquiryEmailComposer inline compact entry={entry} onClose={state.close}/></QueryClientProvider>);
-  await screen.findByRole('textbox', {name:'Message'});
+  await screen.findByRole('textbox', {name:'Your reply'});
   expect(screen.queryByRole('heading', {name:'Prepare customer email'})).not.toBeInTheDocument();
   expect(screen.queryByText('Alex · Review before sending')).not.toBeInTheDocument();
   expect(screen.getByRole('region', {name:'Customer reply editor'})).toBeInTheDocument();
@@ -1115,9 +1120,50 @@ it('compact editor omits repeated prepare heading but retains the reviewed email
 it('compact Inbox gives one short notice when platform email sending is off', async () => {
   state.features = { customerEmails: false };
   render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><EnquiryEmailComposer inline compact entry={entry} onClose={state.close}/></QueryClientProvider>);
-  await screen.findByRole('textbox', {name:'Message'});
+  await screen.findByRole('textbox', {name:'Your reply'});
   expect(screen.getByText('Email sending is off. You can save drafts.')).toBeVisible();
   expect(screen.queryByText(/Email sending is switched off by platform administration/)).not.toBeInTheDocument();
   expect(screen.getByRole('button', {name:'Save draft'})).toBeEnabled();
   expect(calls('/email')).toHaveLength(0);
+});
+
+it("checks the staff-written reply with AI and sends only the reviewed wording to the existing recipient", async () => {
+  state.aiEnabled = true;
+  state.polish.mockResolvedValue({ answer: "The Fiesta is a 2018 petrol manual. I can arrange a viewing." });
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options: { body?: string }) => {
+    if (url.endsWith("/email")) return { delivery: { id: "delivery-1", status: "sent", to: "alex@example.test", subject: "Original subject" } };
+    if (url.endsWith("/email-preview")) {
+      const draft = JSON.parse(options.body!);
+      return { to: draft.to, subject: draft.subject, text: draft.message, previewHash: "a".repeat(64), attachments: [] };
+    }
+    return original(url, options);
+  });
+  render(<QueryClientProvider client={new QueryClient()}><EnquiryEmailComposer inline compact entry={entry} onClose={state.close} /></QueryClientProvider>);
+  const message = await screen.findByRole("textbox", { name: "Your reply" });
+  fireEvent.change(message, { target: { value: "can arange a viewing" } });
+  fireEvent.click(screen.getByRole("button", { name: "AI check & send" }));
+  await screen.findByRole("region", { name: "Email preview" });
+  expect(state.polish).toHaveBeenCalledExactlyOnceWith("reply", { enquiryId: entry.id, draft: "can arange a viewing" });
+  expect(calls("/email")).toHaveLength(0);
+  fireEvent.click(screen.getByRole("button", { name: "Send email" }));
+  await waitFor(() => expect(calls("/email")).toHaveLength(1));
+  expect(JSON.parse(calls("/email")[0][1].body)).toMatchObject({
+    to: "alex@example.test", subject: "Original subject",
+    message: "The Fiesta is a 2018 petrol manual. I can arrange a viewing.",
+    previewHash: "a".repeat(64), savedDraftVersion: 5,
+  });
+});
+
+it("keeps the typed text when the AI check fails and still offers a manual review", async () => {
+  state.aiEnabled = true;
+  state.polish.mockResolvedValue(null);
+  render(<QueryClientProvider client={new QueryClient()}><EnquiryEmailComposer inline compact entry={entry} onClose={state.close} /></QueryClientProvider>);
+  const message = await screen.findByRole("textbox", { name: "Your reply" });
+  fireEvent.change(message, { target: { value: "I can arrange a viewing." } });
+  fireEvent.click(screen.getByRole("button", { name: "AI check & send" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Review & send" })).toBeEnabled());
+  expect(message).toHaveValue("I can arrange a viewing.");
+  expect(calls("/email-draft")).toHaveLength(0);
+  expect(calls("/email")).toHaveLength(0);
 });

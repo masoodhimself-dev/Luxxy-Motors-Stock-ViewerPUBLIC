@@ -1,9 +1,21 @@
 import { CazooLeadError, readCazooLeadDetails } from "./cazoo-lead-parser";
 import { publicSeoOrigin } from "./public-page-seo";
+import { permittedVehicleSheetImage } from "./vehicle-sheet-image";
 
 const escape = (value: string) => value.replace(/[&<>]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[char]!));
 const htmlText = (value: string) => escape(value).replace(/\n/g, "<br>");
 type PortalDestination = { origin: string; enquiryId: string | null };
+
+export type CazooForwardVehicle = {
+  name: string | null;
+  trim: string | null;
+  year: string | null;
+  mileage: string | null;
+  fuel: string | null;
+  gearbox: string | null;
+  websitePrice: string | null;
+  photoUrl: string | null;
+};
 
 function portalActions(destination: PortalDestination | undefined, canReply: boolean) {
   const origin = publicSeoOrigin(destination?.origin);
@@ -29,6 +41,7 @@ export function renderCazooForwardEmail(
   replyDomain?: string,
   format: "current" | "before-part-ex" = "current",
   destination?: PortalDestination,
+  vehicle?: CazooForwardVehicle,
 ) {
   let lead: ReturnType<typeof readCazooLeadDetails> | undefined;
   try {
@@ -40,13 +53,33 @@ export function renderCazooForwardEmail(
   const candidate = lead?.email;
   const replyTo = candidate && !blockedAddresses.includes(candidate) &&
     !(replyDomain && candidate.endsWith(`@${replyDomain}`)) ? candidate : undefined;
-  const title = lead ? [lead.vehicleTitle, lead.listedPrice].filter(Boolean).join(" · ") : "Cazoo enquiry";
+  const linkedVehicle = lead && vehicle ? vehicle : null;
+  const title = linkedVehicle
+    ? linkedVehicle.name || lead?.vehicleTitle || "Cazoo enquiry"
+    : lead ? [lead.vehicleTitle, lead.listedPrice].filter(Boolean).join(" · ") : "Cazoo enquiry";
   const type = lead?.enquiryType
     .replace(/^Urgent\s+Test drive\s+Reserve$/i, "Test drive and reservation · Urgent")
     .replace(/(?:[ \t]*\n[ \t]*)+|[ \t]{2,}/g, " · ");
   const facts: [string, string][] = lead ? [["Registration", lead.registration]] : [];
+  if (linkedVehicle) {
+    if (lead?.listedPrice) facts.push(["Listed on Cazoo", lead.listedPrice]);
+    else if (linkedVehicle.websitePrice) facts.push(["Website price", linkedVehicle.websitePrice]);
+    const details = [
+      ["Trim", linkedVehicle.trim],
+      ["Year", linkedVehicle.year],
+      ["Mileage", linkedVehicle.mileage],
+      ["Fuel", linkedVehicle.fuel],
+      ["Gearbox", linkedVehicle.gearbox],
+    ] as const;
+    for (const [label, value] of details) {
+      if (value) facts.push([label, value]);
+    }
+  }
   if (lead?.partExchange) {
-    const otherTypes = type?.replace(/^Part-ex(?:change)?(?: · |$)/i, "");
+    // Keep the original layout intact for unlinked and already queued forwards.
+    const otherTypes = linkedVehicle
+      ? type?.replace(/^Part[-‑– ]+(?:exchange|ex)(?:\s*[·,:–—-]\s*|\s+|$)/i, "").trim()
+      : type?.replace(/^Part-ex(?:change)?(?: · |$)/i, "");
     facts.push(["Enquiry", ["Part exchange", otherTypes].filter(Boolean).join(" · ")]);
     const { registration, mileage } = lead.partExchange;
     const tradeIn = [registration, mileage === null ? null : `${mileage.toLocaleString("en-GB")} miles`].filter(Boolean).join(" · ");
@@ -75,10 +108,19 @@ export function renderCazooForwardEmail(
     return `<p style="margin:0 0 6px"><a href="${escape(href).replace(/"/g, "&quot;")}" style="${style}">${label}</a></p>`;
   }).join("");
   const section = (label: string, value: string) => `<h2 style="margin:0 0 6px;color:#172740;font-size:16px;line-height:1.4">${label}</h2><p style="margin:0 0 20px">${htmlText(value)}</p>`;
+  const photoUrl = linkedVehicle?.photoUrl;
+  const factsHtml = facts.map(([label, value]) => `<p style="margin:2px 0"><strong>${label}</strong> · ${escape(value)}</p>`).join("");
+  const vehicleSummary = permittedVehicleSheetImage(photoUrl)
+    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr>
+        <td width="38%" valign="top" style="padding:4px 14px 0 0">
+          <img src="${escape(photoUrl).replace(/"/g, "&quot;")}" alt="${escape(title).replace(/"/g, "&quot;")}" width="188" referrerpolicy="no-referrer" style="display:block;width:100%;max-width:188px;height:auto;border-radius:6px">
+        </td><td valign="top">${factsHtml}</td>
+      </tr></table>`
+    : factsHtml;
   const html = `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;font:16px/1.5 Arial,sans-serif;color:#172740;overflow-wrap:anywhere">
     <tr><td style="padding:12px 16px 20px">
       <h1 style="font-size:24px;line-height:1.3;margin:0 0 10px">${escape(title)}</h1>
-      ${facts.map(([label, value]) => `<p style="margin:2px 0"><strong>${label}</strong> · ${escape(value)}</p>`).join("")}
+      ${vehicleSummary}
       <div style="height:0;margin:18px 0;border-top:1px solid #d7dde7"></div>
       ${section("Customer", customer)}
       ${section(messageLabel, message)}

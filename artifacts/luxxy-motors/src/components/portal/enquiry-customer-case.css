@@ -766,10 +766,6 @@ body[data-dealer-portal=true] .enquiries-premium-workspace .enquiry-case-compact
     height: 36px;
   }
 
-  .enquiries-premium-workspace .enquiry-reply-compact .enquiry-email-form--compact > fieldset > label > textarea {
-    min-height: 90px !important;
-    height: 96px !important;
-  }
 }
 
 @media (min-width: 900px) and (max-width: 1120px) {
@@ -824,10 +820,6 @@ body[data-dealer-portal=true] .enquiries-premium-workspace .enquiry-case-compact
     font-size: 13px;
   }
 
-  body[data-dealer-portal="true"] .inbox-desk .enquiry-case-compact .enquiry-reply-compact .enquiry-email-form--compact textarea {
-    min-height: 110px !important;
-    height: 110px !important;
-  }
 
   .enquiry-reply-compact .enquiry-email-form--compact .enquiry-email-actions {
     position: static;
