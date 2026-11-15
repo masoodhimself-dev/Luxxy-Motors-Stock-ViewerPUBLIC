@@ -161,6 +161,8 @@ test("staff aggregate scopes business reads to the dealer, reads cached MOT and 
                   received_at: now,
                 },
               ]
+            : sql === staffCarQueries.lastRecordedChange && values?.[0] === "dealer-one"
+              ? [{ vehicle_id: "one", label: "Details updated", changed_at: now, secret: "not returned" }]
             : sql === staffCarQueries.cache
               ? [{ registration: "AB12CDE", data: history() }]
               : sql === staffCarQueries.tax && values?.[0] === "dealer-one"
@@ -197,13 +199,16 @@ test("staff aggregate scopes business reads to the dealer, reads cached MOT and 
     project: async (rows) => rows.map((v) => ({ id: v.id })) as any,
     now,
   });
-  assert.equal(calls.length, 7);
+  assert.equal(calls.length, 8);
   for (const call of calls.filter((c) => c.sql !== staffCarQueries.cache))
     assert.equal(call.values?.[0], "dealer-one");
   assert.deepEqual(calls.find((c) => c.sql === staffCarQueries.cache)?.values, [
     ["AB12CDE"],
   ]);
   assert.deepEqual(calls.find((c) => c.sql === staffCarQueries.tax)?.values, ["dealer-one", ["one", "sold", "missing"]]);
+  assert.deepEqual(calls.find((c) => c.sql === staffCarQueries.lastRecordedChange)?.values, ["dealer-one", ["one", "sold", "missing"]]);
+  assert.deepEqual(result.cars[0].staff.lastRecordedChange, { label: "Details updated", at: now.toISOString() });
+  assert.equal(result.cars[1].staff.lastRecordedChange, null);
   assert.deepEqual(result.cars[0].staff.tax, { status: "Untaxed", checkedAt: now.toISOString(), dueDate: null });
   assert.equal(result.cars[1].staff.tax, null);
   assert.equal(result.cars[0].staff.mot.tone, "green");
@@ -227,6 +232,7 @@ test("staff aggregate scopes business reads to the dealer, reads cached MOT and 
   assert.ok(!calls.some((c) => c.sql === staffCarQueries.sales));
   assert.equal(restricted.cars[0].staff.sale, null);
   assert.equal(restricted.cars[0].staff.tax, null);
+  assert.equal(restricted.cars[0].staff.lastRecordedChange, null);
   assert.ok(calls.every((c) => /^SELECT/.test(c.sql)));
 });
 

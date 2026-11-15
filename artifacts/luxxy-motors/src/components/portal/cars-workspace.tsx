@@ -33,7 +33,12 @@ import {
   vehicleRegistration,
 } from "@/lib/utils";
 import {
+  Camera,
   CarFront,
+  ClipboardCheck,
+  ExternalLink,
+  FileText,
+  MessageSquare,
   MoreHorizontal,
   RefreshCw,
   Search,
@@ -50,15 +55,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  EnquiryVehicleInformation,
-  VehicleInformationBody,
-} from "./enquiry-vehicle-information";
-import { MotHistoryPanel } from "@/components/mot-history";
+import * as Tabs from "@radix-ui/react-tabs";
+import { EnquiryVehicleInformation } from "./enquiry-vehicle-information";
+import { VehicleFileChecks } from "./vehicle-file-checks";
+import { VehicleFileDetails, VehicleFilePhotos } from "./vehicle-file-details";
+import { VehicleFileFacts, VehicleFilePhoto, VehicleFileStock } from "./vehicle-file-overview";
 import { MakeLogo } from "@/components/make-logo";
 import { CarsMotCheckStatus, useCarsMotChecks } from "./cars-mot-checks";
 import { useCarsTaxChecks } from "./cars-tax-checks";
-import { DvlaVehicleCheck } from "./dvla-vehicle-check";
 import { VehicleDeliveryEvidence } from "./vehicle-delivery-evidence";
 import {
   carInTab,
@@ -77,6 +81,7 @@ import { useStaffCars, staffCarsKey, type StaffCar } from "./staff-cars-query";
 import { formatDateTime } from "./portal-ui";
 import { buyerDemandHref } from "./stock-alerts";
 import "./cars-workspace.css";
+import "./vehicle-file.css";
 type CarsWorkspaceProps = {
   canManage: boolean;
   bookingEnabled: boolean;
@@ -84,6 +89,14 @@ type CarsWorkspaceProps = {
   onSale: (vehicleId: string) => void;
   onOpenEnquiry?: (id: string) => void;
 };
+const fileTabs = [
+  ["overview", "Overview", CarFront],
+  ["checks", "DVLA & MOT", ClipboardCheck],
+  ["photos", "Photos", Camera],
+  ["customers", "Enquiries", MessageSquare],
+  ["stock", "Stock & sale", FileText],
+] as const;
+type FileView = (typeof fileTabs)[number][0];
 const inboxHref = (e: Enquiry) =>
   `/portal?section=notifications&workView=customers&enquiryId=${encodeURIComponent(e.id)}`;
 const date = (v: string) =>
@@ -377,7 +390,6 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
   const heading = useRef<HTMLHeadingElement>(null),
     lastCarId = useRef<string | null>(null),
     opener = useRef<HTMLElement | null>(null),
-    customersSection = useRef<HTMLElement | null>(null),
     moreTriggers = useRef(new Map<string, HTMLButtonElement>());
   const scrollKey = `staff-cars-scroll:${window.location.host}`;
   const setFilter = (key: string, value: string) => {
@@ -464,13 +476,26 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
     ), motFocus, car => workspaceMotSummary(car, mot[car.id], now), now),
     selected = cars.find((c) => c.id === carId),
     panel = cars.find((c) => c.id === panelId);
-  const customerView = params.get("carView") === "customers";
+  const visibleFileTabs = fileTabs.filter(([key]) => canManage || key !== "customers");
+  const fileView = visibleFileTabs.find(([view]) => view === params.get("carView"))?.[0] ?? "overview";
+  const setFileView = (view: FileView) => {
+    const p = new URLSearchParams(searchParams);
+    if (view === "overview") p.delete("carView");
+    else p.set("carView", view);
+    navigate(`/portal?${p}`, { replace: true });
+  };
+  const openFileSection = (view: FileView) => {
+    setFileView(view);
+    requestAnimationFrame(() => {
+      const tabs = document.getElementById("vehicle-file-tabs");
+      const trigger = tabs?.querySelector<HTMLButtonElement>(`[data-file-tab="${view}"]`);
+      trigger?.focus({ preventScroll: true });
+      tabs?.scrollIntoView({ block: "nearest" });
+    });
+  };
   useEffect(() => {
-    if (selected && customerView && canManage) {
-      customersSection.current?.scrollIntoView({ block: "start" });
-      customersSection.current?.focus({ preventScroll: true });
-    }
-  }, [selected?.id, customerView, canManage]);
+    if (selected) heading.current?.focus({ preventScroll: true });
+  }, [selected?.id]);
   const adjacent = (id: string) => {
     const list = matches.some((c) => c.id === id)
       ? matches
@@ -817,178 +842,140 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
                 </Button>
               </nav>
             </div>
-            <article className="cars-vehicle-file">
-              <header className="cars-file-heading">
-                <div>
-                  <p className="portal-car-registration">
-                    {vehicleRegistration(selected) ||
-                      "Registration not supplied"}
-                  </p>
-                  <h3 ref={heading} tabIndex={-1}>
-                    <MakeLogo make={selected.make} size={30} />
-                    <span>{vehicleDisplayTitle(selected)}</span>
-                  </h3>
-                  <p>{selected.variant}</p>
-                  <div className="cars-file-status">
-                    <span
-                      className="portal-car-status"
-                      data-status={workspaceStatus(selected)}
-                    >
-                      {listTabs.find(
-                        ([s]) => s === workspaceStatus(selected),
-                      )?.[1] ?? "Not advertised"}
+            <article className="vehicle-file" aria-labelledby="vehicle-file-title">
+              <header className="vehicle-file-header">
+                <div className="vehicle-file-identification">
+                  <div className="vehicle-file-identity-line">
+                    <span className="portal-car-registration">
+                      {vehicleRegistration(selected) || "Registration not supplied"}
                     </span>
-                    {selected.inventoryStatus === "reserved" &&
-                      workspaceStatus(selected) === "missing" && (
-                        <span
-                          className="portal-car-status"
-                          data-status="reserved"
-                        >
-                          Reserved
-                        </span>
-                      )}
-                    <StaffMotBadge summary={summary(selected)} />
+                    <span className="vehicle-file-availability" data-status={workspaceStatus(selected)}>
+                      {listTabs.find(([status]) => status === workspaceStatus(selected))?.[1] ?? "Not advertised"}
+                      {selected.inventoryStatus === "reserved" && workspaceStatus(selected) === "missing" && " · Reserved"}
+                    </span>
                   </div>
+                  <h2 id="vehicle-file-title" ref={heading} tabIndex={-1}>
+                    <MakeLogo make={selected.make} size={27} />
+                    <span>{vehicleDisplayTitle(selected)}</span>
+                  </h2>
+                  {selected.variant && selected.variant !== selected.title && (
+                    <p className="vehicle-file-variant">{selected.variant}</p>
+                  )}
                 </div>
-                <strong className="cars-file-price">
-                  {selected.price != null
+                <div className="vehicle-file-price">
+                  <span>Advertised price</span>
+                  <strong>{selected.price != null
                     ? formatPrice(selected.price, selected.currency)
-                    : "Price not supplied"}
-                </strong>
-              </header>
-              <div className="cars-file-actions">
-                {nextAction(selected, true)}
-                {canManage &&
-                  workspaceStatus(selected) === "available" &&
-                  bookingEnabled && (
-                    <Button
-                      variant="outline"
-                      onClick={() => openEnquiry(selected.id, true)}
-                    >
+                    : "Not supplied"}</strong>
+                </div>
+                <div className="vehicle-file-actions">
+                  {nextAction(selected, true)}
+                  {canManage && workspaceStatus(selected) === "available" && bookingEnabled && (
+                    <Button size="sm" variant="outline" onClick={() => openEnquiry(selected.id, true)}>
                       Book test drive
                     </Button>
                   )}
-                {canManage &&
-                  workspaceStatus(selected) === "available" &&
-                  !selected.staff.sale && (
-                    <Button
-                      variant="outline"
-                      onClick={() => openSale(selected.id)}
-                    >
+                  {canManage && workspaceStatus(selected) === "available" && !selected.staff.sale && (
+                    <Button size="sm" variant="outline" onClick={() => openSale(selected.id)}>
                       Start sale
                     </Button>
                   )}
-                {selected.staff.published && (
-                  <a
-                    href={`/vehicle/${selected.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    View customer advert ↗
-                  </a>
-                )}
-              </div>
-              <div className="cars-file-layout">
-                <div className="cars-file-main">
-                  <VehicleInformationBody
-                    car={selected}
-                    canManage={canManage}
-                    includeMot={false}
-                    published={selected.staff.published}
-                  />
-                  {canManage && <VehicleDeliveryEvidence key={selected.id} vehicleId={selected.id}/>}
+                  {selected.staff.published && (
+                    <a className="vehicle-file-link vehicle-file-advert" href={`/vehicle/${selected.id}`} target="_blank" rel="noopener noreferrer">
+                      View customer advert <ExternalLink size={15} aria-hidden="true" />
+                    </a>
+                  )}
                 </div>
-                <aside className="cars-file-sidebar">
-                  {canManage && (
-                    <section
-                      id="car-customers"
-                      ref={customersSection}
-                      tabIndex={-1}
-                    >
-                      <h4>Customers & appointments</h4>
+              </header>
+              <Tabs.Root key={selected.id} value={fileView} onValueChange={(view) => setFileView(view as FileView)} activationMode="manual">
+                <Tabs.List id="vehicle-file-tabs" className="vehicle-file-tabs" aria-label="Vehicle File sections">
+                  {visibleFileTabs.map(([view, label, Icon]) => (
+                    <Tabs.Trigger key={view} value={view} data-file-tab={view}>
+                      <Icon size={17} aria-hidden="true" />
+                      <span>{view === "stock" && !canManage ? "Stock details" : label}</span>
+                    </Tabs.Trigger>
+                  ))}
+                </Tabs.List>
+
+                <Tabs.Content value="overview" className="vehicle-file-pane">
+                  <div className="vehicle-file-overview">
+                    <VehicleFilePhoto key={selected.id} car={selected} onPhotos={() => openFileSection("photos")} />
+                    <section className="vehicle-file-sheet vehicle-file-facts">
+                      <VehicleFileFacts car={selected} mot={<StaffMotBadge summary={summary(selected)} />}
+                        tax={<StaffTaxStatus car={selected} />} onChecks={() => openFileSection("checks")} />
+                    </section>
+                    {canManage && (
+                      <section className="vehicle-file-sheet">
+                        <div className="vehicle-file-sheet-heading">
+                          <h3>Recent enquiries</h3>
+                          <button className="vehicle-file-link" type="button" onClick={() => openFileSection("customers")}>
+                            All enquiries <ChevronRight size={16} aria-hidden="true" />
+                          </button>
+                        </div>
+                        {interest(selected, true)}
+                      </section>
+                    )}
+                    <section className="vehicle-file-sheet">
+                      <div className="vehicle-file-sheet-heading">
+                        <h3>Stock information</h3>
+                        <button className="vehicle-file-link" type="button" onClick={() => openFileSection("stock")}>
+                          Stock details <ChevronRight size={16} aria-hidden="true" />
+                        </button>
+                      </div>
+                      <VehicleFileStock car={selected} />
+                    </section>
+                  </div>
+                </Tabs.Content>
+
+                <Tabs.Content value="checks" className="vehicle-file-pane">
+                  <VehicleFileChecks vehicleId={selected.id} registration={vehicleRegistration(selected)}
+                    tax={selected.staff.tax} mot={summary(selected)} canManage={canManage}
+                    onMotHistory={onMot} onDvlaChecked={() => void client.invalidateQueries({ queryKey: staffCarsKey })} />
+                </Tabs.Content>
+
+                <Tabs.Content value="photos" className="vehicle-file-pane">
+                  <VehicleFilePhotos car={selected} />
+                </Tabs.Content>
+
+                {canManage && (
+                  <Tabs.Content value="customers" className="vehicle-file-pane">
+                    <section id="car-customers" className="vehicle-file-sheet">
+                      <div className="vehicle-file-sheet-heading"><h3>Customers & appointments</h3></div>
                       {interest(selected, true)}
                     </section>
-                  )}
-                  <section>
-                    <h4>MOT status</h4>
-                    {selected.inventoryStatus === "reserved" &&
-                      workspaceStatus(selected) === "missing" && (
-                        <span
-                          className="portal-car-status"
-                          data-status="reserved"
-                        >
-                          Reserved
-                        </span>
-                      )}
-                    <StaffMotBadge summary={summary(selected)} />
-                    {summary(selected).lastMileage && (
-                      <p>Last recorded: {summary(selected).lastMileage}</p>
-                    )}
-                    {summary(selected).checkedAt && (
-                      <p>
-                        Checked {formatDateTime(summary(selected).checkedAt!)}{" "}
-                        (UK)
-                      </p>
-                    )}
-                    {canManage && (
-                      <div className="grid gap-3" key={selected.id}>
-                        <MotHistoryPanel
-                          vehicleId={selected.id}
-                          staff
-                          onHistory={onMot}
-                        />
-                        <DvlaVehicleCheck
-                          registration={vehicleRegistration(selected)}
-                          vehicleId={selected.id}
-                          onChecked={() => void client.invalidateQueries({ queryKey: staffCarsKey })}
-                        />
-                      </div>
-                    )}
-                  </section>
-                  <section>
-                    <h4>Stock information</h4>
-                    <p>
-                      {selected.staff.source === "cazoo"
-                        ? "Cazoo"
-                        : "Auto Trader"}{" "}
-                      · Feed-controlled details
-                    </p>
-                    <p>
-                      Added to this website {date(selected.staff.firstSeenAt)}
-                    </p>
-                    <p>
-                      Last seen in feed{" "}
-                      {formatDateTime(selected.staff.lastSeenAt)} (UK)
-                    </p>
-                    {workspaceStatus(selected) === "missing" && (
-                      <p>
-                        Not included in the latest feed. This does not confirm a
-                        sale.
-                      </p>
-                    )}
-                    {changeList(selected)}
-                    {selected.staff.changes
-                      .filter((c) => c.kind === "price")
-                      .map((c, i) => (
-                        <p key={i}>
-                          {c.before != null && formatPrice(c.before, "GBP")} →{" "}
-                          {c.after != null && formatPrice(c.after, "GBP")} ·{" "}
-                          {date(c.at)}
-                        </p>
-                      ))}
-                    {carIssues(selected, safeActivity(selected)).map(
-                      (issue) => (
-                        <p className="cars-issue" key={issue}>
+                  </Tabs.Content>
+                )}
+
+                <Tabs.Content value="stock" className="vehicle-file-pane">
+                  <div className="vehicle-file-stock-pane">
+                    <section className="vehicle-file-sheet">
+                      <div className="vehicle-file-sheet-heading"><h3>Stock record</h3></div>
+                      <VehicleFileStock car={selected} detailed />
+                      {carIssues(selected, safeActivity(selected)).map((issue) => (
+                        <p className="vehicle-file-stock-issue" key={issue}>
                           {issue}
                           {["No photos", "Missing price"].includes(issue)
                             ? ` · Update in ${selected.staff.source === "cazoo" ? "Cazoo" : "Auto Trader"}; the next feed supplies this information.`
                             : ""}
                         </p>
-                      ),
+                      ))}
+                    </section>
+                    {canManage && (
+                      <section className="vehicle-file-sheet">
+                        <div className="vehicle-file-sheet-heading"><h3>Sale & handover</h3></div>
+                        {selected.staff.sale ? (
+                          <Link className="vehicle-file-link" href={`/portal?section=sales&saleId=${encodeURIComponent(selected.staff.sale.id)}`}>
+                            {selected.staff.sale.status === "sold" ? "View sale" : "Open sale"} · {selected.staff.sale.reference}
+                            <ChevronRight size={16} aria-hidden="true" />
+                          </Link>
+                        ) : <p className="portal-car-muted">No sale linked to this car.</p>}
+                        <VehicleDeliveryEvidence key={selected.id} vehicleId={selected.id} />
+                      </section>
                     )}
-                  </section>
-                </aside>
-              </div>
+                    <div className="vehicle-file-all-details"><VehicleFileDetails car={selected} /></div>
+                  </div>
+                </Tabs.Content>
+              </Tabs.Root>
             </article>
           </>
         ) : (

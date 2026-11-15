@@ -29,7 +29,7 @@ const dateTime = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London",
 });
 
-function lookupError(error: unknown) {
+export function dvlaLookupError(error: unknown) {
   const code = (error as { data?: { code?: string } } | null)?.data?.code;
   switch (code) {
     case "not_configured":
@@ -98,14 +98,18 @@ type VehicleCheckProps = {
   onChecked?: () => void;
 };
 
+export function lookupStaffDvlaVehicle(registration: string, vehicleId?: string) {
+  return customFetch<DvlaVehicleDetails>("/api/staff/dvla/vehicle-check", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ registration, vehicleId }),
+    responseType: "json",
+  });
+}
+
 function RegistrationCheck({ registration, vehicleId, onChecked }: Omit<VehicleCheckProps, "registration"> & { registration: string }) {
   const lookup = useMutation({
-    mutationFn: () => customFetch<DvlaVehicleDetails>("/api/staff/dvla/vehicle-check", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ registration, vehicleId }),
-      responseType: "json",
-    }),
+    mutationFn: () => lookupStaffDvlaVehicle(registration, vehicleId),
     onSuccess: onChecked,
   });
 
@@ -121,7 +125,7 @@ function RegistrationCheck({ registration, vehicleId, onChecked }: Omit<VehicleC
         {lookup.isPending ? "Checking DVLA…" : lookup.data ? "Check DVLA again" : "Check DVLA"}
       </Button>
       {lookup.isPending && <span role="status" className="sr-only">Checking DVLA vehicle details</span>}
-      {lookup.isError && <p role="alert" className="mt-2 text-sm text-muted-foreground">{lookupError(lookup.error)}</p>}
+      {lookup.isError && <p role="alert" className="mt-2 text-sm text-muted-foreground">{dvlaLookupError(lookup.error)}</p>}
       {lookup.data && <DvlaResult details={lookup.data} />}
     </div>
   );

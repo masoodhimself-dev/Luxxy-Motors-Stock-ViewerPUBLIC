@@ -31,6 +31,7 @@ export type StaffCarMeta = {
   mot: StaffMotSummary;
   tax?: StaffTaxSummary | null;
   changes: StaffCarChange[];
+  lastRecordedChange?: { label: string; at: string } | null;
   sale: { id: string; reference: string; status: string } | null;
 };
 export type StaffCarsFeed = {

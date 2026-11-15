@@ -17,6 +17,31 @@ export const staffCarQueries = {
     "SELECT id,source,received_at,created_at,status FROM stock_import_runs WHERE dealer_id=$1 AND status='completed' ORDER BY received_at DESC LIMIT 1",
   changes:
     "SELECT c.vehicle_id,c.field_name,c.old_value,c.new_value,c.changed_at FROM vehicle_changes c JOIN vehicles v ON v.id=c.vehicle_id WHERE v.dealer_id=$1 AND c.import_run_id=$2 ORDER BY c.changed_at DESC",
+  // Keep only catalogue facts. Auto Trader also records a baseline for every
+  // populated field on import, at the database transaction's start time.
+  lastRecordedChange: `SELECT v.id AS vehicle_id, latest.label, latest.changed_at
+    FROM vehicles v
+    JOIN LATERAL (
+      SELECT c.changed_at, CASE
+        WHEN c.field_name = 'websitePublishedPrice' THEN 'Price updated'
+        WHEN c.field_name IN ('sourcePrice', 'currency') THEN 'Feed price updated'
+        WHEN c.field_name = 'sourceImages' THEN 'Photos updated'
+        ELSE 'Details updated'
+      END AS label
+      FROM vehicle_changes c
+      WHERE c.vehicle_id=v.id AND c.changed_at>v.first_seen_at
+        AND c.field_name IN (
+          'websitePublishedPrice','sourcePrice','currency','sourceImages','description',
+          'title','variant','make','model','trim','year','mileage','mileageText',
+          'registration','registrationBand','plate','vrm','vrmVerified','fuel',
+          'transmission','bodyType','engineSize','engineCC','doors','seats','colour',
+          'emissionClass','drivetrain','owners','writeOffCategory'
+        )
+        AND coalesce(c.old_value, 'null'::jsonb) IS DISTINCT FROM coalesce(c.new_value, 'null'::jsonb)
+      ORDER BY c.changed_at DESC, c.field_name, c.id
+      LIMIT 1
+    ) latest ON true
+    WHERE v.dealer_id=$1 AND v.id=ANY($2::uuid[])`,
   cache:
     "SELECT registration,data FROM mot_history_cache WHERE registration=ANY($1::text[]) AND expires_at>now()",
   tax: stockTaxRowsQuery,
@@ -101,6 +126,7 @@ export async function readStaffCars(options: {
   const { dealerId, canManage, vehicles, project, database } = options,
     now = options.now ?? new Date();
   const cars = await project(vehicles);
+  const vehicleIds = vehicles.map((vehicle) => vehicle.id);
   const registrations = [
     ...new Set(
       vehicles
@@ -110,16 +136,19 @@ export async function readStaffCars(options: {
   ];
   const latest = (await database.query(staffCarQueries.latest, [dealerId]))
     .rows[0];
-  const [changeResult, cacheResult, taxResult, saleResult, connectionResult, checkResult] =
+  const [changeResult, lastRecordedChangeResult, cacheResult, taxResult, saleResult, connectionResult, checkResult] =
     await Promise.all([
       latest
         ? database.query(staffCarQueries.changes, [dealerId, latest.id])
+        : Promise.resolve({ rows: [] }),
+      vehicleIds.length
+        ? database.query(staffCarQueries.lastRecordedChange, [dealerId, vehicleIds])
         : Promise.resolve({ rows: [] }),
       registrations.length
         ? database.query(staffCarQueries.cache, [registrations])
         : Promise.resolve({ rows: [] }),
       vehicles.length
-        ? database.query(staffCarQueries.tax, [dealerId, vehicles.map(vehicle => vehicle.id)])
+        ? database.query(staffCarQueries.tax, [dealerId, vehicleIds])
         : Promise.resolve({ rows: [] }),
       canManage
         ? database.query(staffCarQueries.sales, [dealerId])
@@ -133,6 +162,11 @@ export async function readStaffCars(options: {
     sales = new Map(saleResult.rows.map((r) => [r.vehicle_id, r])),
     tax = new Map(taxResult.rows.map(row => [row.vehicle_id, row]));
   const changes = new Map<string, any[]>();
+  const lastRecordedChanges = new Map<string, NonNullable<StaffCarMeta["lastRecordedChange"]>>();
+  for (const row of lastRecordedChangeResult.rows) {
+    const at = iso(row.changed_at);
+    if (at) lastRecordedChanges.set(row.vehicle_id, { label: row.label, at });
+  }
   for (const row of changeResult.rows) {
     const group = changes.get(row.vehicle_id) ?? [];
     group.push(row);
@@ -198,6 +232,7 @@ export async function readStaffCars(options: {
           iso(v.firstSeenAt)!,
           scheduled && check?.status === "unchanged" ? undefined : latest,
         ),
+        lastRecordedChange: lastRecordedChanges.get(v.id) ?? null,
         sale: sale
           ? { id: sale.id, reference: sale.reference, status: sale.status }
           : null,

@@ -72,7 +72,6 @@ vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({ invalidateQueries: state.invalidate }),
 }));
 vi.mock("./enquiry-vehicle-information", () => ({
-  VehicleInformationBody: ({ car }: any) => <p>Vehicle facts: {car.title}</p>,
   EnquiryVehicleInformation: ({ car, actions, onClose, published }: any) => (
     <div role="dialog" aria-label={car.title}>
       <button onClick={onClose}>Close</button>
@@ -81,10 +80,17 @@ vi.mock("./enquiry-vehicle-information", () => ({
     </div>
   ),
 }));
-vi.mock("@/components/mot-history", () => ({
-  MotHistoryPanel: ({ vehicleId, onHistory }: any) => (
-    <button onClick={() => state.motHistory && onHistory?.(state.motHistory)}>Check MOT for {vehicleId}</button>
+vi.mock("./vehicle-file-checks", () => ({
+  VehicleFileChecks: ({ vehicleId, registration, canManage, onMotHistory }: any) => canManage && (
+    <>
+      <button onClick={() => state.motHistory && onMotHistory?.(state.motHistory)}>Check MOT for {vehicleId}</button>
+      <button>Check DVLA for {registration}</button>
+    </>
   ),
+}));
+vi.mock("./vehicle-file-details", () => ({
+  VehicleFilePhotos: () => <h3>Vehicle photographs</h3>,
+  VehicleFileDetails: () => <h3>Vehicle specifications</h3>,
 }));
 vi.mock("./cars-tax-checks", () => ({
   useCarsTaxChecks: () => ({
@@ -92,9 +98,6 @@ vi.mock("./cars-tax-checks", () => ({
     progress: { total: 4, checked: 3, pending: 0, unavailable: 1, missingRegistration: 0 },
     start: { mutate: vi.fn() },
   }),
-}));
-vi.mock("./dvla-vehicle-check", () => ({
-  DvlaVehicleCheck: ({ registration }: { registration: string }) => <button>Check DVLA for {registration}</button>,
 }));
 const now = "2026-10-29T12:00:00Z";
 function car(id: string, extra: any = {}): StaffCar {
@@ -232,7 +235,7 @@ it("uses bookmarkable vehicle pages and restores the list search and filters on 
   expect(link.getAttribute("href")).toContain("carId=one");
   fireEvent.click(link);
   await waitFor(() =>
-    expect(screen.getByText("Vehicle facts: Toyota Yaris one")).toBeVisible(),
+    expect(screen.getByRole("heading", { name: "Toyota Yaris one" })).toBeVisible(),
   );
   fireEvent.click(screen.getByRole("link", { name: "Back to Stock" }));
   await waitFor(() => expect(screen.getByRole("searchbox")).toHaveValue("one"));
@@ -267,6 +270,10 @@ it("starts a vehicle file with compact navigation and keeps bulk controls on the
   expect(within(navigation).getByRole('link', { name: 'Next car' })).toHaveAttribute('href', expect.stringContaining('carId=two'));
   fireEvent.click(within(navigation).getByRole('button', { name: 'Refresh vehicle file' }));
   await waitFor(() => expect(state.refetch).toHaveBeenCalled());
+  expect(screen.getByRole('heading', { name: 'Toyota Yaris one' })).toBeVisible();
+  expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true');
+  fireEvent.mouseDown(screen.getByRole('tab', { name: 'DVLA & MOT' }), { button: 0 });
+  await waitFor(() => expect(screen.getByRole('tab', { name: 'DVLA & MOT' })).toHaveAttribute('aria-selected', 'true'));
   expect(screen.getByRole('button', { name: 'Check MOT for one' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Check DVLA for AB12 CDE' })).toBeVisible();
   view.rerender(<CarsWorkspace {...props} canManage={false} />);
@@ -292,9 +299,11 @@ it("cancels a pending list scroll restoration before opening another vehicle fil
     sessionStorage.setItem(`staff-cars-scroll:${window.location.host}`, '640');
     fireEvent.click(screen.getByRole('link', { name: 'Back to Stock' }));
     expect(frames.size).toBe(1);
+    const scrollFrame = frames.keys().next().value;
     fireEvent.click(screen.getByRole('link', { name: 'Open vehicle file for Toyota Yaris two' }));
-    act(() => { for (const callback of frames.values()) callback(0); });
-    expect(frames.size).toBe(0);
+    expect(cancel).toHaveBeenCalledWith(scrollFrame);
+    expect(frames.has(scrollFrame!)).toBe(false);
+    act(() => { for (const callback of [...frames.values()]) callback(0); });
     expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 0, left: 0, behavior: 'instant' });
   } finally {
     request.mockRestore();
@@ -481,7 +490,7 @@ it("uses the supplied manufacturer SVG beside each vehicle title and on its vehi
   expect(logo).toHaveAttribute("alt", "");
   expect(logo).toHaveAttribute("aria-hidden", "true");
   fireEvent.click(within(row).getByRole("link", { name: "Open vehicle file for Toyota Yaris one" }));
-  await screen.findByText("Vehicle facts: Toyota Yaris one");
+  await screen.findByRole("heading", { name: "Toyota Yaris one" });
   expect(screen.getByRole("heading", { name: "Toyota Yaris one" }).querySelector("img")).toHaveAttribute("src", "/brand/car-makes/toyota.svg");
 });
 
@@ -504,13 +513,14 @@ it("exposes the single dealership-wide MOT action only to staff who can manage s
 it("replaces an earlier on-demand MOT summary with a newer saved bulk check", () => {
   const checkedAt = new Date(Date.now() - 60_000).toISOString();
   state.motHistory = { registration: "AB12CDE", make: "Toyota", model: "Yaris", checkedAt, recall: "Unknown", tests: [{ completedDate: "2026-10-01", result: "PASSED", expiryDate: "2027-10-01", mileage: "22000", mileageUnit: "MI", defects: [] }] };
-  window.history.replaceState({}, "", "/portal?section=cars&carId=one");
+  window.history.replaceState({}, "", "/portal?section=cars&carId=one&carView=checks");
   const view = render(<CarsWorkspace {...props} />);
   fireEvent.click(screen.getByRole("button", { name: "Check MOT for one" }));
-  expect(screen.getAllByText(/MOT until · 1 Oct 2027/)).toHaveLength(2);
+  fireEvent.mouseDown(screen.getByRole("tab", { name: "Overview" }), { button: 0 });
+  expect(screen.getByText(/MOT until · 1 Oct 2027/)).toBeVisible();
   state.data!.cars[0].staff.mot = { state: "current", tone: "green", label: "MOT until", date: "2027-11-01", checkedAt: new Date(Date.now() - 1000).toISOString(), lastMileage: "23000 miles" };
   view.rerender(<CarsWorkspace {...props} />);
-  expect(screen.getAllByText(/MOT until · 1 Nov 2027/)).toHaveLength(2);
+  expect(screen.getByText(/MOT until · 1 Nov 2027/)).toBeVisible();
   expect(screen.queryByText(/MOT until · 1 Oct 2027/)).not.toBeInTheDocument();
 });
 
@@ -524,4 +534,27 @@ it("uses local MOT history only for the same plate and a valid newer check time"
     expect(workspaceMotSummary(vehicle, { ...local, ...change }, nowAt)).toBe(vehicle.staff.mot);
   }
   expect(workspaceMotSummary({ ...vehicle, plate: "XY21 ZAB" }, local, nowAt)).toBe(vehicle.staff.mot);
+});
+
+it("preserves stock search and loads the correct enquiry tab, without showing it to read-only staff", () => {
+  window.history.replaceState({}, "", "/portal?section=cars&carsSearch=yaris&carId=one&carView=customers");
+  state.entries = [entry()];
+  const view = render(<CarsWorkspace {...props} />);
+  expect(screen.getByRole("tab", { name: "Enquiries" })).toHaveAttribute("aria-selected", "true");
+  expect(screen.getByRole("link", { name: /Amelia Buyer/ })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Back to Stock" })).toHaveAttribute("href", "/portal?section=cars&carsSearch=yaris");
+  view.rerender(<CarsWorkspace {...props} canManage={false} />);
+  expect(screen.queryByRole("tab", { name: "Enquiries" })).not.toBeInTheDocument();
+  expect(screen.queryByText(/Amelia Buyer/)).not.toBeInTheDocument();
+  expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
+});
+
+it("shows the recorded change separately from the latest feed appearance", () => {
+  window.history.replaceState({}, "", "/portal?section=cars&carId=one");
+  const staff = state.data!.cars[0].staff;
+  staff.lastRecordedChange = { at: "2026-10-26T16:30:00Z", label: "Mileage updated" };
+  render(<CarsWorkspace {...props} />);
+  expect(screen.getByText("Mileage updated")).toBeVisible();
+  expect(screen.getByText(/26 Oct 2026/)).toHaveAttribute("datetime", "2026-10-26T16:30:00Z");
+  expect(screen.getByText("Last seen in feed")).toBeVisible();
 });

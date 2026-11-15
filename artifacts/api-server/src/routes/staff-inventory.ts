@@ -7,10 +7,28 @@ import { currentDealerId } from '../lib/tenant-context';
 
 const router = Router();
 const uuid = z.string().uuid();
-/** Retained historical service-photo reads for enquiry emails only.
+/** Staff reads of retained service-book and pre-accident photographs.
  * Stock administration, preparation, plate edits, reservation release and
  * upload capabilities have no routes in the core portal.
  */
+router.get('/staff/inventory/:id/photos', requireStaff, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (!uuid.safeParse(req.params.id).success) {
+    res.status(404).end(); return;
+  }
+  const { rows } = await db.execute<{ id: string | null; category: string | null }>(sql`
+    SELECT photo.id, photo.category
+    FROM vehicles vehicle
+    LEFT JOIN vehicle_service_photos photo
+      ON photo.vehicle_id = vehicle.id AND photo.dealer_id = vehicle.dealer_id
+    WHERE vehicle.id = ${req.params.id}::uuid AND vehicle.dealer_id = ${currentDealerId()}
+    ORDER BY photo.category, photo.created_at, photo.id
+  `);
+  if (!rows.length) {
+    res.status(404).end(); return;
+  }
+  res.json({ photos: rows.filter(photo => photo.id !== null) });
+});
 router.get('/staff/inventory/:id/photos/:photo', requireStaff, async (req, res) => {
   res.set({
     'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer',

@@ -1,0 +1,124 @@
+.vehicle-file-photos,
+.vehicle-file-details {
+  min-width: 0;
+}
+
+.vehicle-file-photos-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-bottom: 14px;
+}
+
+.vehicle-file-photos-heading h3,
+.vehicle-file-details .staff-vehicle-body h3 {
+  color: var(--portal-ink, #202731);
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.vehicle-file-photos-heading span,
+.vehicle-file-photos-empty {
+  color: var(--portal-muted, #52606d);
+  font-size: 14px;
+}
+
+.vehicle-file-photos-empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid var(--portal-border, #d8e2e8);
+  padding: 18px 0;
+}
+
+.portal-cars-workspace[data-view="file"] .vehicle-file-photos .vehicle-gallery-frame {
+  overflow: hidden;
+  padding: 0;
+  border-radius: 8px;
+  background: hsl(var(--muted));
+}
+
+.portal-cars-workspace[data-view="file"] .vehicle-file-photos .vehicle-gallery-image-stage {
+  max-height: min(55dvh, 480px);
+  border: 0;
+  border-radius: 0;
+}
+
+.portal-cars-workspace[data-view="file"] .vehicle-file-photos .vehicle-thumbnail-grid > button {
+  flex-basis: 76px;
+  width: 76px;
+}
+
+.vehicle-file-details .staff-vehicle-key-facts {
+  grid-template-columns: repeat(auto-fit, minmax(min(135px, 100%), 1fr));
+  gap: 10px 18px;
+}
+
+.vehicle-file-details .staff-vehicle-fact-group {
+  border-top: 1px solid var(--portal-border, #d8e2e8);
+}
+
+.vehicle-file-details .staff-vehicle-body > details + details {
+  margin-top: 0;
+}
+
+.vehicle-file-details .staff-vehicle-disclosure {
+  border-left: 2px solid #ae791e;
+  padding: 4px 10px;
+  color: var(--portal-ink, #202731);
+  font-size: 14px;
+}
+
+.vehicle-file-saved-photos {
+  margin-top: 14px;
+  border-top: 1px solid var(--portal-border);
+  font-size: 14px;
+}
+
+.vehicle-file-saved-photos summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  min-height: 48px;
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+}
+
+.vehicle-file-saved-photos summary::-webkit-details-marker {
+  display: none;
+}
+
+.vehicle-file-saved-photos[open] summary svg:last-child {
+  transform: rotate(180deg);
+}
+
+.vehicle-file-saved-photos > :not(summary) {
+  margin-bottom: 12px;
+}
+
+.vehicle-file-saved-photos h4 {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.vehicle-file-saved-photos ul,
+.vehicle-file-saved-photo-error {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.vehicle-file-saved-photos button {
+  min-height: 44px;
+}
+
+.vehicle-file-saved-photo-image {
+  width: 100%;
+  max-height: 65dvh;
+  object-fit: contain;
+}

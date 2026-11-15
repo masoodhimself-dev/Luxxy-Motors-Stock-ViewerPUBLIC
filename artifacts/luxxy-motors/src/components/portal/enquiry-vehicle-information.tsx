@@ -164,12 +164,14 @@ export function VehicleInformationBody({
   canManage = true,
   includeMot = true,
   published = true,
+  layout = "dialog",
   onMotHistory,
 }: {
   car: Car;
   canManage?: boolean;
   includeMot?: boolean;
   published?: boolean;
+  layout?: "dialog" | "file";
   onMotHistory?: (history: MotHistory) => void;
 }) {
   const { description, features } = vehicleContent(car);
@@ -210,9 +212,21 @@ export function VehicleInformationBody({
   const specificationGroups = vehicleSpecificationGroups(car);
   const primaryLabels = new Set(["Price", "Year", "Registration / plate", "Mileage", "Fuel", "Transmission"]);
   const suppliedFacts = facts.filter(([, value]) => value !== null && value !== undefined && value !== "");
+  const fileLayout = layout === "file";
+  const overviewFacts = fileLayout
+    ? suppliedFacts
+    : suppliedFacts.filter(([label]) => primaryLabels.has(label));
+  const conditionFacts = buyerInformation(car).filter((item) => {
+    if (!fileLayout) {
+      return !["Owners", "Previous keepers", "Service history", "Keys"].includes(item.label);
+    }
+    if (!item.value) return false;
+    const label = item.label === "Keys" ? "Keys included" : item.label;
+    return !recordFacts.some((fact) => fact.label === label && fact.value === item.value);
+  });
   return (
     <div className="staff-vehicle-body">
-      <HistoryLinks vehicleId={car.id} />
+      {!fileLayout && <HistoryLinks vehicleId={car.id} />}
       {car.writeOffCategory && (
         <p className="staff-vehicle-disclosure">
           Recorded write-off category: <strong>{car.writeOffCategory}</strong>.
@@ -220,24 +234,25 @@ export function VehicleInformationBody({
           customer.
         </p>
       )}
-      <div className="enquiry-vehicle-overview grid min-w-0 gap-6 md:grid-cols-2">
-        <div className="min-w-0">
-          <Gallery
-            images={car.images}
-            heroImage={car.heroImage}
-            vehicleLabel={vehicleDisplayTitle(car)}
-          />
-        </div>
+      <div className={fileLayout ? undefined : "enquiry-vehicle-overview grid min-w-0 gap-6 md:grid-cols-2"}>
+        {!fileLayout && (
+          <div className="min-w-0">
+            <Gallery
+              images={car.images}
+              heroImage={car.heroImage}
+              vehicleLabel={vehicleDisplayTitle(car)}
+            />
+          </div>
+        )}
         <section>
-          <h3 className="mb-3 font-semibold">At a glance</h3>
+          <h3 className="mb-3 font-semibold">{fileLayout ? "Vehicle details" : "At a glance"}</h3>
           <dl className="staff-vehicle-key-facts text-sm">
-            {suppliedFacts.filter(([label]) => primaryLabels.has(label))
-              .map(([label, value]) => (
-                <div key={label}>
-                  <dt className="text-muted-foreground">{label}</dt>
-                  <dd className="font-medium">{String(value)}</dd>
-                </div>
-              ))}
+            {overviewFacts.map(([label, value]) => (
+              <div key={label}>
+                <dt className="text-muted-foreground">{label}</dt>
+                <dd className="font-medium">{String(value)}</dd>
+              </div>
+            ))}
           </dl>
         </section>
       </div>
@@ -249,7 +264,7 @@ export function VehicleInformationBody({
           {motRequestedFor === car.id && <MotHistoryPanel vehicleId={car.id} staff autoLoad onHistory={onMotHistory} />}
         </details>
       )}
-      {suppliedFacts.some(([label]) => !primaryLabels.has(label)) && (
+      {!fileLayout && suppliedFacts.some(([label]) => !primaryLabels.has(label)) && (
         <details className="staff-vehicle-fact-group">
           <summary>More vehicle details</summary>
           <dl className="enquiry-vehicle-facts divide-y divide-border text-sm">
@@ -262,37 +277,31 @@ export function VehicleInformationBody({
           </dl>
         </details>
       )}
-      <details className="staff-vehicle-fact-group">
-        <summary>History & condition</summary>
-        <dl className="grid gap-4 text-sm sm:grid-cols-2">
-          {buyerInformation(car)
-            .filter(
-              (item) =>
-                ![
-                  "Owners",
-                  "Previous keepers",
-                  "Service history",
-                  "Keys",
-                ].includes(item.label),
-            )
-            .map((item) => (
-              <div key={item.label}>
-                <dt className="font-medium">{item.label}</dt>
-                <dd className="mt-1 text-muted-foreground">
-                  {item.value || "Not supplied — check before confirming"}
-                </dd>
-              </div>
-            ))}
-        </dl>
-        {typeof extra.writeOffCheck === "string" && (
-          <p className="mt-3 text-sm">History check: {extra.writeOffCheck}</p>
-        )}
-      </details>
+      {(!fileLayout || conditionFacts.length > 0 || typeof extra.writeOffCheck === "string") && (
+        <details className="staff-vehicle-fact-group">
+          <summary>History & condition</summary>
+          {conditionFacts.length > 0 && (
+            <dl className="grid gap-4 text-sm sm:grid-cols-2">
+              {conditionFacts.map((item) => (
+                <div key={item.label}>
+                  <dt className="font-medium">{item.label}</dt>
+                  <dd className="mt-1 text-muted-foreground">
+                    {item.value || "Not supplied — check before confirming"}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          )}
+          {typeof extra.writeOffCheck === "string" && (
+            <p className="mt-3 text-sm">History check: {extra.writeOffCheck}</p>
+          )}
+        </details>
+      )}
       {description && (
         <section className="border-t border-border pt-4">
           <h3 className="mb-2 font-semibold">
             {car.sourceExtras?.descriptionOrigin === "generated-facts"
-              ? "Vehicle description · Generated from supplied facts"
+              ? (fileLayout ? "Description from stock data" : "Vehicle description · Generated from supplied facts")
               : "Advert description"}
           </h3>
           <p className="whitespace-pre-wrap break-words text-sm leading-6">
@@ -385,6 +394,7 @@ export function VehicleInformationBody({
             <SuppliedFacts value={value} />
           </details>
         ))}
+      {fileLayout && <HistoryLinks vehicleId={car.id} />}
       {published && (
         <a
           href={vehicleDetailPath(car)}

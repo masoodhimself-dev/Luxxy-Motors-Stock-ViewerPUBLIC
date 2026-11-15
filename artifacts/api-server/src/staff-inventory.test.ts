@@ -28,6 +28,14 @@ test('core retains tenant-protected historical photo reads and removes every sta
     });
   }
   try {
+    const list = `/api/staff/inventory/${cars.a}/photos`;
+    const metadata = await call(list);
+    assert.equal(metadata.status, 200);
+    assert.equal(metadata.headers['cache-control'], 'no-store');
+    assert.deepEqual(JSON.parse(metadata.body.toString()), { photos: [{ id: photos.a, category: 'service_book' }] });
+    assert.equal((await call(list, { user: '' })).status, 401);
+    assert.equal((await call(list, { host: 'b', user: 'user_b' })).status, 404);
+    assert.equal((await call('/api/staff/inventory/bad-id/photos')).status, 404);
     const own = `/api/staff/inventory/${cars.a}/photos/${photos.a}`;
     const read = await call(own); assert.equal(read.status, 200); assert.equal(read.body.toString('hex'), 'ffd8ffd9'); assert.equal(read.headers['cache-control'], 'no-store');
     assert.equal((await call(own, { user: '' })).status, 401);
