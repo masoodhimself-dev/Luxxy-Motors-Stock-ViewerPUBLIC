@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { z } from "zod/v4";
-import { formatVehicleMileage, formatVehiclePrice, pickVehicleImage } from "@workspace/vehicle-meta";
+import { formatVehicleMileage, formatVehiclePrice, pickVehicleImage, vehiclePublicCode, vehicleSharePath } from "@workspace/vehicle-meta";
 import { findPublicVehicle } from "../routes/stock";
 import { cazooEmailText } from "./cazoo-lead-parser";
 import { renderCazooForwardEmail, type CazooForwardVehicle } from "./cazoo-forward-email";
@@ -27,15 +27,21 @@ type Forward = {
 type Dealer = { canonical_origin: string; retailer_id: string; source_url: string; mailbox: string; enquiry_id: string | null; vehicle_id: string | null };
 type EndStatus = "sent" | "failed" | "unknown" | "cancelled";
 const vehicleText = z.string().max(200).nullable();
-const frozenVehiclePayload = z.object({
-  version: z.literal("vehicle-v1"),
-  vehicle: z.object({
-    name: vehicleText, trim: vehicleText, year: vehicleText, mileage: vehicleText,
-    fuel: vehicleText, gearbox: vehicleText, websitePrice: vehicleText,
-    photoUrl: z.string().max(2048).nullable(),
-  }),
-  email: z.string(),
+const vehicleSnapshot = z.object({
+  name: vehicleText, trim: vehicleText, year: vehicleText, mileage: vehicleText,
+  fuel: vehicleText, gearbox: vehicleText, websitePrice: vehicleText,
+  photoUrl: z.string().max(2048).nullable(),
 });
+const whatsappVehicleSnapshot = vehicleSnapshot.extend({
+  mileageValue: z.number().nullable(),
+  websitePriceValue: z.number().nullable(),
+  shortPath: z.string().regex(/^\/s\/[a-z0-9]{8}$/).nullable(),
+});
+const frozenForwardPayload = z.discriminatedUnion("version", [
+  z.object({ version: z.literal("vehicle-v1"), vehicle: vehicleSnapshot, email: z.string() }),
+  z.object({ version: z.literal("whatsapp-v1"), vehicle: vehicleSnapshot.nullable(), email: z.string() }),
+  z.object({ version: z.literal("whatsapp-v2"), vehicle: whatsappVehicleSnapshot.nullable(), email: z.string() }),
+]);
 const stockText = (value: string | null | undefined) =>
   value?.replace(/[\p{Cc}\p{Cf}]+/gu, " ").trim().slice(0, 200) || null;
 const cazooSender = "dealerleads@info.cazoo.co.uk";
@@ -115,13 +121,14 @@ async function reschedule(row: Forward, lease: string, seconds: number, reason: 
 }
 
 /** Keep the current stock lookup out of retries for an already attempted send. */
-async function stockSnapshot(id: string | null): Promise<CazooForwardVehicle | undefined> {
+async function stockSnapshot(id: string | null): Promise<z.infer<typeof whatsappVehicleSnapshot> | undefined> {
   if (!id) return undefined;
   const car = await findPublicVehicle(id);
   if (!car) return undefined;
   const name = [stockText(car.make), stockText(car.model)].filter(Boolean).join(" ").slice(0, 200) || stockText(car.title);
   const trim = stockText(car.trim) ?? stockText(car.variant);
   const photoUrl = [pickVehicleImage(car), ...car.images.map(image => image.url)].find(permittedVehicleSheetImage);
+  const websitePrice = car.currency === "GBP" ? formatVehiclePrice(car.price) : null;
   return {
     name,
     trim: trim && !name?.toLocaleLowerCase("en-GB").includes(trim.toLocaleLowerCase("en-GB")) ? trim : null,
@@ -129,13 +136,16 @@ async function stockSnapshot(id: string | null): Promise<CazooForwardVehicle | u
     mileage: formatVehicleMileage({ mileage: car.mileage }),
     fuel: stockText(car.fuel),
     gearbox: stockText(car.transmission),
-    websitePrice: car.currency === "GBP" ? formatVehiclePrice(car.price) : null,
+    websitePrice,
     photoUrl: photoUrl ?? null,
+    mileageValue: car.mileage ?? null,
+    websitePriceValue: websitePrice ? car.price ?? null : null,
+    shortPath: vehiclePublicCode(car) ? vehicleSharePath(car) : null,
   };
 }
 
-function readFrozenVehiclePayload(payload: string) {
-  try { return frozenVehiclePayload.safeParse(JSON.parse(payload)).data; }
+function readFrozenForwardPayload(payload: string) {
+  try { return frozenForwardPayload.safeParse(JSON.parse(payload)).data; }
   catch { return undefined; }
 }
 
@@ -167,13 +177,15 @@ async function deliver(row: Forward, dealer: Dealer, lease: string, options: For
   const key = sendKey(row.receipt_id);
   const blockedAddresses = [recipient, ...Object.values(mailboxes), mailbox(resend.from),
     mailbox(configuredResend.replyTo)];
-  const frozen = row.payload === null ? undefined : readFrozenVehiclePayload(row.payload);
-  const vehicle = frozen?.vehicle ?? (row.payload === null
+  const frozen = row.payload === null ? undefined : readFrozenForwardPayload(row.payload);
+  const version = row.payload === null ? "whatsapp-v2" : frozen?.version;
+  const whatsapp = version === "whatsapp-v2" ? "direct" : version === "whatsapp-v1" ? "legacy" : undefined;
+  const vehicle: CazooForwardVehicle | undefined = frozen?.vehicle ?? (row.payload === null
     ? await stockSnapshot(dealer.vehicle_id).catch(() => undefined)
     : undefined);
   const content = renderCazooForwardEmail(row.subject, row.body, blockedAddresses, replyDomain, "current", {
     origin: dealer.canonical_origin, enquiryId: dealer.enquiry_id,
-  }, vehicle);
+  }, vehicle, { whatsapp });
   const envelope = { to: row.recipient, idempotencyKey: key };
   const prepared = await prepareEmailWithSettings(resend, { ...envelope, ...content });
   let payload = JSON.stringify(prepared.body);
@@ -192,8 +204,10 @@ async function deliver(row: Forward, dealer: Dealer, lease: string, options: For
     });
     payload = JSON.stringify(legacy.body);
   }
-  // Changing a car must never change the bytes of an attempted send.
-  const storedPayload = vehicle ? JSON.stringify({ version: "vehicle-v1", vehicle, email: payload }) : payload;
+  // Keep the format and vehicle facts of attempted sends across deploys.
+  const storedPayload = whatsapp
+    ? JSON.stringify({ version, vehicle: vehicle ?? null, email: payload })
+    : vehicle ? JSON.stringify({ version: "vehicle-v1", vehicle, email: payload }) : payload;
   const payloadHash = hash(storedPayload), accountHash = emailAccountHash(prepared.config);
   if (row.payload !== null && (row.payload_hash !== payloadHash || row.account_hash !== accountHash || row.payload !== storedPayload)) {
     await finish(row, lease, row.attempts ? "unknown" : "cancelled", "delivery_configuration_changed");

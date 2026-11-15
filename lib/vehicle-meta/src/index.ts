@@ -258,3 +258,5 @@ export * from "./sale-work-queue.ts";
 
 export * from "./sale-customer-update.ts";
 export * from "./sale-invoice-vehicle-review.ts";
+
+export * from "./customer-whatsapp.ts";

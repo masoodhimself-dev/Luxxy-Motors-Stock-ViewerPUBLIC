@@ -319,6 +319,8 @@ function EnquiryEmailEditor({
     } | null>(null);
   const cache = useQueryClient();
   const savedVersion = useRef(0);
+  const hasOtherEdits = useRef(false);
+  const [addressNotice, setAddressNotice] = useState("");
   const [suggestionApplied, setSuggestionApplied] = useState(false);
   const [dirty, setDirty] = useState(false),
     [saveNotice, setSaveNotice] = useState("");
@@ -339,7 +341,7 @@ function EnquiryEmailEditor({
     [reviewedDraft, setReviewedDraft] = useState<EmailDraft | null>(null),
     [delivery, setDelivery] = useState<Delivery | null>(null);
   const [busyAction, setBusyAction] = useState<
-    "save" | "review" | "ai-review" | "send" | "status" | null
+    "save" | "address" | "review" | "ai-review" | "send" | "status" | null
   >(null);
   const busy = busyAction !== null;
   const [messageDetailsOpen, setMessageDetailsOpen] = useState(Boolean(editRecipientRequest));
@@ -425,6 +427,8 @@ function EnquiryEmailEditor({
     replySubject,
   ]);
   function change(value: Partial<EmailDraft>) {
+    if (Object.keys(value).some((key) => key !== "to")) hasOtherEdits.current = true;
+    if ("to" in value) setAddressNotice("");
     setDraft((d) => ({ ...d, ...value }));
     setDirty(true);
     setSaveNotice("Unsaved changes");
@@ -441,6 +445,7 @@ function EnquiryEmailEditor({
     )
       return;
     appliedInsertion.current = insertion.id;
+    hasOtherEdits.current = true;
     setDraft((current) => ({
       ...current,
       message: `${current.message.trim()}\n\n${insertion.text}`.trim(),
@@ -494,6 +499,7 @@ function EnquiryEmailEditor({
         },
       };
     });
+    hasOtherEdits.current = false;
     setDirty(false);
     setSaveNotice("Draft saved · not sent");
     await Promise.all([
@@ -516,6 +522,40 @@ function EnquiryEmailEditor({
       setBusyAction(null);
     }
   }
+  async function saveEmailAddress() {
+    if (busyRef.current || !canSaveEmailAddress || !data) return;
+    busyRef.current = true;
+    setBusyAction("address");
+    setError("");
+    setAddressNotice("");
+    try {
+      const saved = await request<{ email: string; revision: number; draftVersion: number }>(
+        `${base}/email-address`,
+        { email: draft.to.trim(), expectedRevision: data.revision, expectedDraftVersion: savedVersion.current },
+      );
+      savedVersion.current = saved.draftVersion;
+      await cache.cancelQueries({ queryKey: contextKey, exact: true });
+      cache.setQueryData<EmailContext>(contextKey, (current) => current && ({
+        ...current, email: saved.email, revision: saved.revision,
+        version: saved.draftVersion,
+      }));
+      setDraft((current) => ({ ...current, to: saved.email, expectedRevision: saved.revision }));
+      setDirty(hasOtherEdits.current);
+      if (!hasOtherEdits.current) setSaveNotice("");
+      setAddressNotice("Email address saved for future replies.");
+      await Promise.all([
+        refresh(),
+        cache.invalidateQueries({ queryKey: ["enquiry-email-context", entry.id] }),
+        cache.invalidateQueries({ queryKey: ["staff-email-drafts"] }),
+      ]);
+    } catch (cause) {
+      setError(workspaceError(cause));
+    } finally {
+      busyRef.current = false;
+      setBusyAction(null);
+    }
+  }
+
   async function review(polish = false) {
     if (busyRef.current || replyRecipientMismatch || fixedRecipientMismatch) return;
     if (missingAttachment) {
@@ -649,6 +689,15 @@ function EnquiryEmailEditor({
   }
   const data = initialized.current ? context.data : undefined;
   const preparingMessage = messageMode || channel === "whatsapp";
+  const showEmailAddressSave =
+    inline && !preparingMessage && !targetedReply && !fixedRecipient &&
+    !saleUpdate && !initialRecipient && !initialContent && !suggestedContent &&
+    !draft.stockChange;
+  const hasNewAddress = draft.to.trim().toLowerCase() !== (data?.email ?? "").trim().toLowerCase();
+  const canSaveEmailAddress =
+    showEmailAddressSave && hasNewAddress &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.to.trim()) &&
+    draft.expectedRevision === data?.revision;
   const whatsappAttachments = Boolean(
     draft.attachVehiclePdf ||
     draft.photoIds.length ||
@@ -1196,6 +1245,18 @@ function EnquiryEmailEditor({
                             }
                           />
                         </label>
+                        {showEmailAddressSave && (
+                          <div className="enquiry-email-address-save">
+                            <Button type="button" variant="outline" size="sm"
+                              disabled={busy || !canSaveEmailAddress}
+                              onClick={() => void saveEmailAddress()}>
+                              {busyAction === "address" ? "Saving address…" : "Save email address"}
+                            </Button>
+                            <small className="enquiry-email-hint" role={addressNotice ? "status" : undefined}>
+                              {addressNotice || "Use this address for future replies on this enquiry."}
+                            </small>
+                          </div>
+                        )}
                         {!compact && !saleUpdate && templateChoice}
 
                         <label>

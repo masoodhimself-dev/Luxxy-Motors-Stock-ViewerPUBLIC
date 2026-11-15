@@ -551,7 +551,7 @@
   font-size: 12px;
 }
 
-.enquiries-premium-workspace .enquiry-case-compact .enquiry-case-reply-action > button {
+.enquiries-premium-workspace .enquiry-case-compact .enquiry-case-reply-action > :is(button, a) {
   min-height: 42px;
   height: auto;
   padding: 8px 12px;
@@ -801,7 +801,7 @@ body[data-dealer-portal=true] .enquiries-premium-workspace .enquiry-case-compact
     margin-top: 0;
   }
 
-  .enquiries-premium-workspace .enquiry-case-compact .enquiry-case-reply-action > button {
+  .enquiries-premium-workspace .enquiry-case-compact .enquiry-case-reply-action > :is(button, a) {
     min-height: 44px;
     padding-inline: 9px;
   }

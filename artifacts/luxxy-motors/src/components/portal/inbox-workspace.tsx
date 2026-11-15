@@ -26,7 +26,7 @@ export function InboxWorkspace({ entries, cars, selectedId, onSelect, onBack, ac
   entries: Enquiry[]; cars: Car[]; selectedId: string|null; onSelect:(id:string)=>void;
   onBack:()=>void|boolean; actions:EnquiryRecordActions; loading?:boolean; error?:boolean;
   refreshing?:boolean; onRefresh:()=>void; tools?:ReactNode; missingRequested?:boolean; currentStaffId?:string;
-  linkedReplyAction?: "reply" | "fix-email";
+  linkedReplyAction?: "reply" | "fix-email" | "whatsapp";
   enquiryReplyId?: string;
 }) {
   const [ownerView,setOwnerView]=useState<'all'|'mine'|'unassigned'>('all');

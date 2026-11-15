@@ -1402,7 +1402,7 @@ export function EnquiriesPanel({
   const requestedDeskView = params.get("deskView");
   const requestedAction = params.get("enquiryAction");
   const linkedReplyAction =
-    canEmail && requestedEnquiry && (requestedAction === "reply" || requestedAction === "fix-email")
+    canEmail && requestedEnquiry && (requestedAction === "reply" || requestedAction === "fix-email" || requestedAction === "whatsapp")
       ? requestedAction
       : undefined;
   const enquiryReplyId = linkedReplyAction === "reply" ? params.get("enquiryReplyId") ?? undefined : undefined;

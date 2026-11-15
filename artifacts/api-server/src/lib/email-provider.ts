@@ -290,6 +290,8 @@ export async function renderDealerEmail(input: {
   templateId: string;
   layoutVersion?: EmailLayoutVersion;
   dealerVehicleNotice?: { photoUrl?: string };
+  actionUrl?: string;
+  actionLabel?: string;
   variables: Record<string, string | number | null | undefined>;
   facts: EmailFacts;
   attachments?: Array<{ filename: string; content: string }>;
@@ -311,6 +313,8 @@ export async function renderDealerEmail(input: {
       templateId: input.templateId,
       layoutVersion: input.layoutVersion,
       dealerVehicleNotice: input.dealerVehicleNotice,
+      actionUrl: input.actionUrl,
+      actionLabel: input.actionLabel,
       attachments: input.attachments?.map((item) => item.filename),
     },
   );

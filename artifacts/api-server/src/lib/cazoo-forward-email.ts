@@ -1,3 +1,4 @@
+import { customerWhatsAppDraft, customerWhatsAppNumber, customerWhatsAppUrl } from "@workspace/vehicle-meta";
 import { CazooLeadError, readCazooLeadDetails } from "./cazoo-lead-parser";
 import { publicSeoOrigin } from "./public-page-seo";
 import { permittedVehicleSheetImage } from "./vehicle-sheet-image";
@@ -5,6 +6,7 @@ import { permittedVehicleSheetImage } from "./vehicle-sheet-image";
 const escape = (value: string) => value.replace(/[&<>]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[char]!));
 const htmlText = (value: string) => escape(value).replace(/\n/g, "<br>");
 type PortalDestination = { origin: string; enquiryId: string | null };
+type ForwardAction = { label: string; href: string; outlined?: boolean };
 
 export type CazooForwardVehicle = {
   name: string | null;
@@ -15,23 +17,41 @@ export type CazooForwardVehicle = {
   gearbox: string | null;
   websitePrice: string | null;
   photoUrl: string | null;
+  mileageValue?: number | null;
+  websitePriceValue?: number | null;
+  shortPath?: string | null;
 };
 
-function portalActions(destination: PortalDestination | undefined, canReply: boolean) {
+function portalActions(
+  destination: PortalDestination | undefined,
+  canReply: boolean,
+  whatsappLink: string | null,
+  legacyWhatsAppNumber: string | null,
+): ForwardAction[] {
   const origin = publicSeoOrigin(destination?.origin);
-  if (!origin) return [];
-  const url = new URL("/portal", origin);
   const enquiryId = destination?.enquiryId;
+  const directWhatsApp: ForwardAction[] = [];
+  if (whatsappLink) directWhatsApp.push({ label: "Reply on WhatsApp", href: whatsappLink, outlined: true });
+  else if (!enquiryId && legacyWhatsAppNumber) {
+    directWhatsApp.push({ label: "Open WhatsApp", href: `https://wa.me/${legacyWhatsAppNumber}`, outlined: true });
+  }
+  if (!origin) return directWhatsApp;
+  const url = new URL("/portal", origin);
   if (!enquiryId) {
     url.search = new URLSearchParams({ section: "settings", settingsTab: "emails" }).toString();
-    return [{ label: "Review Cazoo enquiry in DealerOS", href: url.href }];
+    return [{ label: "Review Cazoo enquiry in DealerOS", href: url.href }, ...directWhatsApp];
   }
   url.search = new URLSearchParams({ section: "notifications", workView: "customers", enquiryId }).toString();
   url.searchParams.set("enquiryAction", "reply");
   const reply = { label: "Reply in DealerOS", href: url.href };
   url.searchParams.set("enquiryAction", "fix-email");
   const fix = { label: canReply ? "Fix email address" : "Add customer email", href: url.href };
-  return canReply ? [reply, fix] : [fix];
+  const actions: ForwardAction[] = canReply ? [reply, ...directWhatsApp] : [...directWhatsApp];
+  if (legacyWhatsAppNumber) {
+    url.searchParams.set("enquiryAction", "whatsapp");
+    actions.push({ label: "Reply on WhatsApp", href: url.href, outlined: true });
+  }
+  return [...actions, fix];
 }
 
 export function renderCazooForwardEmail(
@@ -42,6 +62,7 @@ export function renderCazooForwardEmail(
   format: "current" | "before-part-ex" = "current",
   destination?: PortalDestination,
   vehicle?: CazooForwardVehicle,
+  options: { whatsapp?: "direct" | "legacy" } = {},
 ) {
   let lead: ReturnType<typeof readCazooLeadDetails> | undefined;
   try {
@@ -90,21 +111,46 @@ export function renderCazooForwardEmail(
   const message = lead
     ? lead.message || "No message included."
     : body || "No message included.";
-  const actions = portalActions(destination, Boolean(replyTo));
+  let whatsappLink: string | null = null;
+  if (options.whatsapp === "direct" && lead?.phone) {
+    const origin = publicSeoOrigin(destination?.origin);
+    const shortPath = linkedVehicle?.shortPath;
+    const vehicleUrl = origin && shortPath && /^\/s\/[a-z0-9]{8}$/.test(shortPath) ? new URL(shortPath, origin).href : null;
+    const carName = linkedVehicle?.name ?? lead.vehicleTitle;
+    const year = linkedVehicle?.year;
+    const vehicleTitle = [year && !carName.startsWith(`${year} `) ? year : null, carName, linkedVehicle?.trim].filter(Boolean).join(" ");
+    whatsappLink = customerWhatsAppUrl(lead.phone, customerWhatsAppDraft({
+      customerName: lead.customerName === "Customer" ? null : lead.customerName,
+      vehicleTitle,
+      registration: lead.registration,
+      mileage: linkedVehicle?.mileageValue,
+      price: linkedVehicle?.websitePriceValue,
+      vehicleUrl,
+    }));
+  }
+  const legacyWhatsAppNumber = options.whatsapp === "legacy" && lead?.phone ? customerWhatsAppNumber(lead.phone) : null;
+  const hasWhatsApp = Boolean(whatsappLink || legacyWhatsAppNumber);
+  const actions = portalActions(destination, Boolean(replyTo), whatsappLink, legacyWhatsAppNumber);
   const note = actions.length && destination?.enquiryId
     ? replyTo
       ? "Use Reply in DealerOS to keep the customer's response with this enquiry."
-      : "Add the customer's confirmed email in DealerOS before replying."
+      : hasWhatsApp
+        ? "Reply on WhatsApp or add the customer's confirmed email in DealerOS."
+        : "Add the customer's confirmed email in DealerOS before replying."
     : replyTo
       ? "Reply to this email to contact the customer."
-      : "Check the enquiry in DealerOS or use the phone number if supplied.";
+      : hasWhatsApp
+        ? "Check the enquiry in DealerOS or contact the customer on WhatsApp."
+        : "Check the enquiry in DealerOS or use the phone number if supplied.";
   const messageLabel = lead ? "Customer message" : "Original enquiry for review";
   const text = [title, ...facts.map(([label, value]) => `${label}: ${value}`), "", "Customer", customer, "", messageLabel, message, "", note,
     ...actions.flatMap(({ label, href }) => ["", label, href])].join("\n");
-  const links = actions.map(({ label, href }, index) => {
+  const links = actions.map(({ label, href, outlined }, index) => {
     const style = index === 0
       ? "display:inline-block;padding:10px 15px;border-radius:6px;background:#172740;color:#fff;font-weight:700;text-decoration:none"
-      : "display:inline-block;padding:10px 0;color:#172740;font-weight:700;text-decoration:underline";
+      : outlined
+        ? "display:inline-block;padding:9px 14px;border:1px solid #172740;border-radius:6px;color:#172740;font-weight:700;text-decoration:none"
+        : "display:inline-block;padding:10px 0;color:#172740;font-weight:700;text-decoration:underline";
     return `<p style="margin:0 0 6px"><a href="${escape(href).replace(/"/g, "&quot;")}" style="${style}">${label}</a></p>`;
   }).join("");
   const section = (label: string, value: string) => `<h2 style="margin:0 0 6px;color:#172740;font-size:16px;line-height:1.4">${label}</h2><p style="margin:0 0 20px">${htmlText(value)}</p>`;

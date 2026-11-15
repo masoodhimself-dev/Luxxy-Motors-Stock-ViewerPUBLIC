@@ -1,6 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
+import { customerWhatsAppDraft, vehiclePublicCode } from "@workspace/vehicle-meta";
 import {
   useGetStaffDirectory,
   useUpdateEnquiryWorkspace,
@@ -13,6 +14,7 @@ import {
   CalendarDays,
   FilePenLine,
   Mail,
+  MessageCircle,
   UserRound,
   MoreHorizontal,
   Clock3,
@@ -28,7 +30,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { formatMileage, getThumbnailUrl, formatPrice } from "@/lib/utils";
+import { formatMileage, getThumbnailUrl, formatPrice, vehicleRegistration } from "@/lib/utils";
+import { customerWhatsAppNumber, customerWhatsAppUrl } from "@/lib/customer-whatsapp";
+import { getVehicleShareUrl } from "@/lib/cta-helpers";
 import { appointmentLabel } from "@/lib/test-drive-dates";
 import { inboxRelativeTime, inboxState } from "@/lib/inbox-model";
 import { enquiryPresentation } from "@/lib/enquiry-presentation";
@@ -119,7 +123,7 @@ export function EnquiryCustomerCase({
   cars?: readonly Car[];
   actions: EnquiryRecordActions;
   compact?: boolean;
-  linkedReplyAction?: "reply" | "fix-email";
+  linkedReplyAction?: "reply" | "fix-email" | "whatsapp";
   enquiryReplyId?: string;
 }) {
   const access = useStaffAccess();
@@ -128,6 +132,19 @@ export function EnquiryCustomerCase({
     !access.isError;
   const archived=Boolean(entry.archivedAt);
   const canReply = canManage && Boolean(actions.onEmail) && !archived;
+  const hasWhatsAppNumber = Boolean(customerWhatsAppNumber(entry.phone ?? ""));
+  const publicCar = car?.inventoryStatus === "available" || car?.inventoryStatus === "reserved" ? car : undefined;
+  const whatsappReplyUrl = compact && canReply && hasWhatsAppNumber
+    ? customerWhatsAppUrl(entry.phone ?? "", customerWhatsAppDraft({
+        customerName: entry.customerName,
+        vehicleTitle: publicCar?.title || entry.vehicleTitle,
+        registration: (publicCar && vehicleRegistration(publicCar)) || entry.vehicleRegistration,
+        mileage: publicCar?.mileage,
+        price: publicCar?.price,
+        vehicleUrl: publicCar && vehiclePublicCode(publicCar) ? getVehicleShareUrl(publicCar) : undefined,
+      }))
+    : null;
+  const whatsappNumberUnavailable = linkedReplyAction === "whatsapp" && !hasWhatsAppNumber;
   const presentation = enquiryPresentation(entry);
   const state = inboxState(entry);
   const pendingReply = ((entry as InboxEnquiry).pendingEmailReplies ?? 0) > 0;
@@ -136,12 +153,13 @@ export function EnquiryCustomerCase({
   const [editRecipientRequest, setEditRecipientRequest] = useState(0);
   useEffect(() => {
     if (!linkedReplyAction || !canReply) return;
-    setRequestedChannel("email");
+    const useWhatsApp = linkedReplyAction === "whatsapp" && hasWhatsAppNumber;
+    setRequestedChannel(useWhatsApp ? "whatsapp" : "email");
     setFocusRequest((value) => value + 1);
-    if (linkedReplyAction === "fix-email" || !entry.email?.trim()) {
+    if (!useWhatsApp && (linkedReplyAction === "fix-email" || !entry.email?.trim())) {
       setEditRecipientRequest((value) => value + 1);
     }
-  }, [linkedReplyAction, enquiryReplyId, canReply]);
+  }, [linkedReplyAction, enquiryReplyId, canReply, hasWhatsAppNumber, entry.email]);
   const [requestedChannel, setRequestedChannel] = useState<
     "email" | "whatsapp" | "note"
   >("email");
@@ -181,7 +199,8 @@ export function EnquiryCustomerCase({
       : null;
   const replyOpen = canReply && (!compact || focusRequest > 0);
   const hasAiDraft = entry.aiDraftStatus === "ready";
-  const preferredReplyChannel = entry.preferredContact === "whatsapp" && entry.phone &&
+  const preferredReplyChannel = hasWhatsAppNumber &&
+    (entry.preferredContact === "whatsapp" || !entry.email?.trim()) &&
     !hasAiDraft && !pendingReply ? "whatsapp" : "email";
   const tradeInMileage = entry.partExchangeMileage;
   const hasTradeIn = Boolean(
@@ -233,7 +252,7 @@ export function EnquiryCustomerCase({
     setTradeInOpen(false);
     setInsertion({ id: ++insertionId.current, text });
     setFocusRequest((value) => value + 1);
-    setRequestedChannel("email");
+    if (requestedChannel === "note") setRequestedChannel("email");
   }
   function reply(channel: typeof requestedChannel = "email") {
     setRequestedChannel(channel);
@@ -287,6 +306,10 @@ export function EnquiryCustomerCase({
     />
   );
   const editor = replyOpen ? (
+    <>
+    {whatsappNumberUnavailable && (
+      <p className="enquiry-email-hint" role="status">This enquiry has no usable WhatsApp number.</p>
+    )}
     <EnquiryReplyDesk
       compact={compact}
       key={entry.id}
@@ -300,6 +323,7 @@ export function EnquiryCustomerCase({
       onBusyChange={setReplyBusy}
       onSaved={saveCase}
     />
+    </>
   ) : null;
   return (
     <article
@@ -399,16 +423,28 @@ export function EnquiryCustomerCase({
         </>}
         {compact && ((canReply && !replyOpen) || canOpenTradeIn) && (
           <div className="enquiry-case-reply-action">
-            {canReply && !replyOpen && (
+            {canReply && !replyOpen && preferredReplyChannel === "email" && (
               <Button
                 type="button"
                 size="sm"
                 className="enquiry-case-reply-button"
                 aria-describedby={hasAiDraft ? replyId : undefined}
-                onClick={() => reply(preferredReplyChannel)}
+                onClick={() => reply("email")}
               >
-                <Mail size={16} aria-hidden />
-                Reply
+                <Mail size={16} aria-hidden /> Reply
+              </Button>
+            )}
+            {whatsappReplyUrl && !replyOpen && (
+              <Button
+                asChild
+                size="sm"
+                variant={preferredReplyChannel === "whatsapp" ? "default" : "outline"}
+                className={preferredReplyChannel === "whatsapp" ? "enquiry-case-reply-button" : undefined}
+              >
+                <a href={whatsappReplyUrl} target="_blank" rel="noopener noreferrer">
+                  <MessageCircle size={16} aria-hidden />
+                  Reply on WhatsApp
+                </a>
               </Button>
             )}
             {canOpenTradeIn && (
@@ -491,6 +527,11 @@ export function EnquiryCustomerCase({
                   <Phone size={16} aria-hidden />
                   Log call
                 </DropdownMenuItem>
+                {whatsappReplyUrl && !replyOpen && (
+                  <DropdownMenuItem onSelect={() => reply("whatsapp")}>
+                    <MessageCircle size={16} aria-hidden /> Prepare a WhatsApp reply
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onSelect={() => actions.onFollowUp(entry)}>
                   <Clock3 size={16} aria-hidden />
                   {outstanding ? "Manage follow-up" : "Set follow-up"}

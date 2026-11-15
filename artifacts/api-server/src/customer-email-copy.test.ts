@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { defaultEmailTemplates, renderEmailTemplate, defaultEmailAppearance } from '@workspace/vehicle-meta';
-import { captureNotificationStock, notificationVehicleFacts } from './lib/notification-email-copy';
+import { approvedNotificationWhatsApp, captureNotificationStock, captureNotificationWhatsApp, notificationVehicleFacts } from './lib/notification-email-copy';
 import { sampleEmailVariables, previewEmailTemplate } from './lib/email-template-preview';
 const template = (id: string) => defaultEmailTemplates.find(item => item.id === id)!;
 
@@ -33,6 +33,25 @@ test('team enquiry notices show the customer details once and keep the message a
   }
   assert.match(rendered.text, /Preferred contact: Phone call/);
   assert.match(rendered.text, /Phone: 07700 900456/);
+});
+
+test('website WhatsApp drafts open the customer chat and retain number-only links for approved retries', () => {
+  const general = { customerName: "Alex Taylor" };
+  const link = new URL(captureNotificationWhatsApp("07700 900456", general)!);
+  assert.equal(link.origin + link.pathname, "https://wa.me/447700900456");
+  assert.equal(link.searchParams.get("text"), "Hi Alex,\n\n");
+  assert.equal(
+    new URL(captureNotificationWhatsApp("+33 6 12 34 56 78", {})!).searchParams.get("text"),
+    "Hi there,\n\n",
+  );
+  for (const phone of [null, "", "0770", "7700900456", "07700 900456 ext 9", "07700 900456?text=hello"])
+    assert.equal(captureNotificationWhatsApp(phone, general), undefined);
+  assert.equal(approvedNotificationWhatsApp(undefined), undefined);
+  assert.equal(approvedNotificationWhatsApp(link.href), link.href);
+  const oldLink = "https://wa.me/447700900456";
+  assert.equal(approvedNotificationWhatsApp(oldLink), oldLink);
+  for (const invalid of [oldLink + "?draft=message", oldLink + "?text=message&extra=1", oldLink + "?text=%0", "https://other.example/447700900456"])
+    assert.throws(() => approvedNotificationWhatsApp(invalid));
 });
 
 test('dealer vehicle notifications show a public stock photo without exposing it to customer acknowledgements', () => {

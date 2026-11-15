@@ -32,6 +32,7 @@ const partExchangeSubject = "Cazoo lead: Part-Ex - Audi A5 MW62VLP - Buyer";
 const partExchangeLead = (emailLine: string, message = "I have a part exchange") => structuredLead(emailLine, message)
   .replace("Customer message", "Part-exchange vehicle details\n\nAB12 CDE\n\n140000 miles 0001-01-01\n\nCustomer message")
   .replace("Urgent   Test drive   Reserve", "Part-ex  Urgent          Availability");
+const whatsappLink = (text: string) => new URL(/(?:^|\n)Reply on WhatsApp\n([^\n]+)/.exec(text)![1]!);
 
 test("Cazoo forward presents the clean lead and only uses an unambiguous customer reply address", () => {
   const buyerEmail = "buyer@example.test";
@@ -52,6 +53,28 @@ test("Cazoo forward presents the clean lead and only uses an unambiguous custome
   const injected = renderCazooForwardEmail(structuredSubject, structuredLead("", `Hello\nCustomer details\n${buyerEmail}`));
   assert.equal(injected.replyTo, undefined);
   assert.match(injected.text, /Original enquiry for review/);
+});
+
+test("WhatsApp opens a direct editable draft for a usable Cazoo phone", () => {
+  const phoneOnly = structuredLead("Email: not supplied");
+  const origin = "https://dealer.example.test";
+  const enquiryId = randomUUID();
+  const linked = renderCazooForwardEmail(structuredSubject, phoneOnly, [], undefined, "current", { origin, enquiryId }, undefined, { whatsapp: "direct" });
+  assert.equal(linked.replyTo, undefined);
+  const linkedWhatsApp = whatsappLink(linked.text);
+  assert.equal(linkedWhatsApp.origin, "https://wa.me");
+  assert.equal(linkedWhatsApp.pathname, "/447700900123");
+  assert.equal(linkedWhatsApp.searchParams.get("text"), "Audi A5\nMW62 VLP\n\nHi Fictional,\n\n");
+  assert.ok(linked.text.indexOf("Reply on WhatsApp\n") < linked.text.indexOf("Add customer email"));
+  assert.doesNotMatch(linked.html, /enquiryAction=(?:reply|whatsapp)/);
+  const unlinked = renderCazooForwardEmail(structuredSubject, phoneOnly, [], undefined, "current", { origin, enquiryId: null }, undefined, { whatsapp: "direct" });
+  assert.equal(whatsappLink(unlinked.text).href, linkedWhatsApp.href);
+  const invalidPhone = phoneOnly.replace("tel:07700900123", "tel:07700900124");
+  const noPhone = renderCazooForwardEmail(structuredSubject, invalidPhone, [], undefined, "current", { origin, enquiryId }, undefined, { whatsapp: "direct" });
+  assert.doesNotMatch(noPhone.html, /WhatsApp|wa\.me|enquiryAction=whatsapp/);
+  assert.match(noPhone.text, /Add customer email/);
+  const unchanged = renderCazooForwardEmail(structuredSubject, phoneOnly, [], undefined, "current", { origin, enquiryId });
+  assert.doesNotMatch(unchanged.html, /WhatsApp|enquiryAction=whatsapp/);
 });
 
 test("Cazoo forwarding is scoped, verified and restart-safe for imported and review leads", async (t) => {
@@ -165,6 +188,7 @@ test("Cazoo forwarding is scoped, verified and restart-safe for imported and rev
     VALUES($1,$2,'cazoo','fixture-audi','Audi','A5','S line',2013,5990,76000,'Diesel','Automatic')`,
   [picturedVehicle, tenant.dealerId]);
   await engine.query("INSERT INTO vehicle_images(vehicle_id,source_url,is_hero) VALUES($1,$2,true)", [picturedVehicle, photo]);
+  const publicLink = (await engine.query<{ code: string }>("SELECT code FROM vehicle_public_links WHERE vehicle_id=$1", [picturedVehicle])).rows[0]!;
   await engine.query("UPDATE enquiries SET vehicle_id=$2 WHERE id=$1", [clean.enquiryId, picturedVehicle]);
   assert.equal(await queueCazooLeadForward(clean.row, clean.email), "queued");
   let picturedPayload: string | undefined;
@@ -183,6 +207,12 @@ test("Cazoo forwarding is scoped, verified and restart-safe for imported and rev
     const route = `${tenantOrigin}/portal?section=notifications&workView=customers&enquiryId=${clean.enquiryId}`;
     assert.ok(email.text.includes(`Reply in DealerOS\n${route}&enquiryAction=reply`));
     assert.ok(email.text.includes(`Fix email address\n${route}&enquiryAction=fix-email`));
+    const whatsapp = whatsappLink(email.text);
+    assert.equal(whatsapp.href.split("?")[0], "https://wa.me/447700900123");
+    assert.equal(whatsapp.searchParams.get("text"), `2013 Audi A5 S line\nMW62 VLP · 76,000 miles · £5,990\n${tenantOrigin}/s/${publicLink.code}\n\nHi Fictional,\n\n`);
+    assert.ok(email.html.includes(`href="${whatsapp.href}"`));
+    assert.match(email.html, /https:\/\/wa\.me\/[^\"]+" style="[^"]*border:1px solid #172740[^"]*">Reply on WhatsApp/);
+    assert.match(email.html, /enquiryAction=fix-email" style="[^"]*text-decoration:underline">Fix email address/);
     for (const action of ["reply", "fix-email"]) {
       assert.ok(email.html.includes(`href="${`${route}&enquiryAction=${action}`.replace(/&/g, "&amp;")}"`));
     }
@@ -199,6 +229,58 @@ test("Cazoo forwarding is scoped, verified and restart-safe for imported and rev
     return "fixture-clean-delivery";
   } });
   assert.equal((await delivery(clean.row.id))?.status, "sent");
+
+  const beforeWhatsApp = await receipt({ status: "imported", error: null });
+  beforeWhatsApp.email.subject = structuredSubject.replace(/^Cazoo lead: /, "");
+  beforeWhatsApp.email.text = structuredLead("buyer@example.test").replace(/22222222222222222222222222222222/, beforeWhatsApp.correlation);
+  assert.equal(await queueCazooLeadForward(beforeWhatsApp.row, beforeWhatsApp.email), "queued");
+  const previousVehicle = {
+    name: "Audi A5", trim: "S line", year: "2013", mileage: "76,000 miles", fuel: "Diesel",
+    gearbox: "Automatic", websitePrice: "£5,990", photoUrl: photo,
+  };
+  const previousVehicleContent = renderCazooForwardEmail(
+    structuredSubject, beforeWhatsApp.email.text, [], undefined, "current",
+    { origin: tenantOrigin, enquiryId: beforeWhatsApp.enquiryId }, previousVehicle,
+  );
+  const oldVehicleRequest = await runWithTenant(tenant, () => prepareEmailWithSettings(
+    { enabled: true, apiKey: "re_fictional_only", from: "Fictional Motors <sales@example.test>", replyTo: "" },
+    { ...previousVehicleContent, to: recipient, idempotencyKey: `cazoo-lead-forward-${beforeWhatsApp.row.id}` },
+  ));
+  const oldVehicleEmail = JSON.stringify(oldVehicleRequest.body);
+  const oldVehiclePayload = JSON.stringify({ version: "vehicle-v1", vehicle: previousVehicle, email: oldVehicleEmail });
+  await engine.query("UPDATE cazoo_lead_forwards SET attempts=1,payload=$2,payload_hash=$3,account_hash=$4 WHERE receipt_id=$1", [
+    beforeWhatsApp.row.id, oldVehiclePayload, createHash("sha256").update(oldVehiclePayload).digest("hex"), emailAccountHash(oldVehicleRequest.config),
+  ]);
+  await processCazooLeadForwards({ send: async (_settings, payload) => {
+    assert.equal(payload, oldVehicleEmail);
+    assert.doesNotMatch(payload, /WhatsApp|enquiryAction=whatsapp/);
+    return "fixture-before-whatsapp-retry";
+  } });
+  assert.equal((await delivery(beforeWhatsApp.row.id))?.status, "sent");
+
+  const beforeDirect = await receipt({ status: "imported", error: null });
+  beforeDirect.email.subject = structuredSubject.replace(/^Cazoo lead: /, "");
+  beforeDirect.email.text = structuredLead("buyer@example.test").replace(/22222222222222222222222222222222/, beforeDirect.correlation);
+  assert.equal(await queueCazooLeadForward(beforeDirect.row, beforeDirect.email), "queued");
+  const previousWhatsApp = renderCazooForwardEmail(
+    structuredSubject, beforeDirect.email.text, [], undefined, "current",
+    { origin: tenantOrigin, enquiryId: beforeDirect.enquiryId }, previousVehicle, { whatsapp: "legacy" },
+  );
+  const oldWhatsAppRequest = await runWithTenant(tenant, () => prepareEmailWithSettings(
+    { enabled: true, apiKey: "re_fictional_only", from: "Fictional Motors <sales@example.test>", replyTo: "" },
+    { ...previousWhatsApp, to: recipient, idempotencyKey: `cazoo-lead-forward-${beforeDirect.row.id}` },
+  ));
+  const oldWhatsAppEmail = JSON.stringify(oldWhatsAppRequest.body);
+  const oldWhatsAppPayload = JSON.stringify({ version: "whatsapp-v1", vehicle: previousVehicle, email: oldWhatsAppEmail });
+  await engine.query("UPDATE cazoo_lead_forwards SET attempts=1,payload=$2,payload_hash=$3,account_hash=$4 WHERE receipt_id=$1", [
+    beforeDirect.row.id, oldWhatsAppPayload, createHash("sha256").update(oldWhatsAppPayload).digest("hex"), emailAccountHash(oldWhatsAppRequest.config),
+  ]);
+  await processCazooLeadForwards({ send: async (_settings, payload) => {
+    assert.equal(payload, oldWhatsAppEmail);
+    assert.match(payload, /enquiryAction=whatsapp/);
+    return "fixture-before-direct-whatsapp-retry";
+  } });
+  assert.equal((await delivery(beforeDirect.row.id))?.status, "sent");
 
   const unrelatedStock = await receipt({ status: "imported", error: null });
   unrelatedStock.email.subject = structuredSubject.replace(/^Cazoo lead: /, "");
@@ -228,6 +310,7 @@ test("Cazoo forwarding is scoped, verified and restart-safe for imported and rev
     assert.equal(email.reply_to, undefined);
     assert.match(email.text, /Customer email unavailable/);
     assert.ok(email.text.includes(`Add customer email\n${tenantOrigin}/portal?section=notifications&workView=customers&enquiryId=${noEmail.enquiryId}&enquiryAction=fix-email`));
+    assert.equal(whatsappLink(email.text).searchParams.get("text"), "Audi A5\nMW62 VLP\n\nHi Fictional,\n\n");
     assert.doesNotMatch(email.html, /enquiryAction=reply|buyer@example\.test|different@example\.test/);
     return "fixture-add-email";
   } });

@@ -368,6 +368,60 @@ test("notification home and saved drafts: dealer isolation, permissions, version
         .drafts.length,
       0,
     );
+
+    const correctionId = randomUUID();
+    const addressRoute = `/api/staff/enquiries/${correctionId}/email-address`;
+    const correctionBase = `/api/staff/enquiries/${correctionId}`;
+    await db.insert(enquiriesTable).values({
+      id: correctionId, dealerId: "a", type: "general", source: "cazoo",
+      customerName: "Email correction example", email: "original@example.test", message: "Is this available?",
+    });
+    const oldDraft = { ...draft, to: "original@example.test" };
+    assert.equal((await call(correctionBase + "/email-draft", { expectedVersion: 0, content: oldDraft })).status, 200);
+    const beforeCorrection = await call(correctionBase + "/email-preview", oldDraft);
+    assert.equal(beforeCorrection.status, 200);
+    const change = { email: " Corrected+Sales@Example.TEST ", expectedRevision: 0, expectedDraftVersion: 1 };
+    assert.equal((await call(addressRoute, change, "")).status, 401);
+    assert.equal((await call(addressRoute, change, "accounts")).status, 403);
+    assert.equal((await call(addressRoute, change, "user_a", "a", "https://b.example.test")).status, 403);
+    assert.equal((await call(addressRoute, change, "user_b", "b")).status, 404);
+    assert.equal((await call(addressRoute, { ...change, email: "not-an-email" })).status, 400);
+    assert.equal((await call(addressRoute, { ...change, expectedRevision: 1 })).status, 409);
+    assert.equal((await call(addressRoute, { ...change, expectedDraftVersion: 0 })).status, 409);
+    assert.equal((await call(`/api/staff/enquiries/${ids[0]}/email-address`, change)).status, 409, "an unresolved customer delivery blocks a contact change");
+    assert.equal((await call(`/api/staff/enquiries/${original}/email-address`, change)).status, 409, "a merged enquiry keeps its historical contact");
+    const historicalRouteId = randomUUID();
+    const historicalReplyId = randomUUID();
+    await db.execute(sql`INSERT INTO enquiry_email_reply_routes(id,dealer_id,enquiry_id,send_key,reply_address,recipient)
+      VALUES(${historicalRouteId}::uuid,'a',${correctionId}::uuid,'fixture-address','historical-reply@example.test','original@example.test')`);
+    await db.execute(sql`INSERT INTO enquiry_email_replies(id,provider_id,route_id,dealer_id,enquiry_id,status,sender,message)
+      VALUES(${historicalReplyId}::uuid,${randomUUID()}::uuid,${historicalRouteId}::uuid,'a',${correctionId}::uuid,'received','historical-sender@example.test','Thanks')`);
+    const result = await call(addressRoute, change);
+    assert.deepEqual(result, { status: 200, data: { email: "corrected+sales@example.test", revision: 1, draftVersion: 2 } });
+    const current = (await call(correctionBase + "/email-context")).data;
+    assert.equal(current.email, result.data.email);
+    assert.equal(current.revision, 1);
+    assert.equal(current.version, 2);
+    assert.deepEqual(current.savedDraft.content, { ...oldDraft, to: result.data.email, expectedRevision: 1, attachVehiclePdf: false, vehiclePhotoIndices: [] });
+    assert.equal((await db.execute(sql`SELECT sender FROM enquiry_email_replies WHERE id=${historicalReplyId}::uuid`)).rows[0]?.sender, "historical-sender@example.test");
+    assert.equal((await db.execute(sql`SELECT recipient FROM enquiry_email_reply_routes WHERE id=${historicalRouteId}::uuid`)).rows[0]?.recipient, "original@example.test");
+    assert.equal((await call(correctionBase + "/email", { ...oldDraft, savedDraftVersion: 1, requestId: randomUUID(), previewHash: beforeCorrection.data.previewHash })).status, 409);
+    assert.equal(sends, 2, "Fixing a contact does not send and invalidates an older preview");
+    const same = await call(addressRoute, { email: result.data.email, expectedRevision: 1, expectedDraftVersion: 2 });
+    assert.deepEqual(same, result, "An unchanged address does not increment revisions");
+    const separateDraft = { ...oldDraft, to: "chosen-recipient@example.test", expectedRevision: 1 };
+    assert.equal((await call(correctionBase + "/email-draft", { expectedVersion: 2, content: separateDraft })).status, 200);
+    const later = await call(addressRoute, { email: "replacement@example.test", expectedRevision: 1, expectedDraftVersion: 3 });
+    assert.deepEqual(later.data, { email: "replacement@example.test", revision: 2, draftVersion: 3 });
+    const preserved = (await call(correctionBase + "/email-context")).data.savedDraft.content;
+    assert.equal(preserved.to, separateDraft.to);
+    assert.equal(preserved.expectedRevision, 1, "A draft for a deliberately chosen recipient is left for staff to review");
+    assert.equal((await call(correctionBase + "/email-draft", { expectedVersion: 3, content: { ...separateDraft, expectedRevision: 2 } })).status, 200);
+    const adoptRecipient = await call(addressRoute, { email: separateDraft.to, expectedRevision: 2, expectedDraftVersion: 4 });
+    assert.deepEqual(adoptRecipient.data, { email: separateDraft.to, revision: 3, draftVersion: 5 });
+    assert.equal((await call(correctionBase + "/email-context")).data.savedDraft.content.expectedRevision, 3);
+    await db.execute(sql`UPDATE enquiries SET archived_at=now(),archive_delete_at=now()+interval '30 days' WHERE id=${correctionId}::uuid`);
+    assert.equal((await call(addressRoute, { email: "must-not-save@example.test", expectedRevision: 3 })).status, 409);
   } finally {
     await new Promise<void>((r) => server.close(() => r()));
     await engine.close();

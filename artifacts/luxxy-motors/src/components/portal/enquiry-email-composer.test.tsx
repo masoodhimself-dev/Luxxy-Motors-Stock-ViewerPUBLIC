@@ -1167,3 +1167,63 @@ it("keeps the typed text when the AI check fails and still offers a manual revie
   expect(calls("/email-draft")).toHaveLength(0);
   expect(calls("/email")).toHaveLength(0);
 });
+
+it("saves the corrected enquiry address from the reply editor and keeps the typed message", async () => {
+  const oldAddress = "alex@exampel.test";
+  const corrected = "alex@example.test";
+  let savedEmail = oldAddress;
+  let revision = 2;
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options: { body?: string }) => {
+    if (url.endsWith("/email-context")) return { ...context(), email: savedEmail, revision };
+    if (url.endsWith("/email-address")) {
+      expect(JSON.parse(options.body!)).toEqual({ email: corrected, expectedRevision: 2, expectedDraftVersion: 4 });
+      savedEmail = corrected;
+      revision = 3;
+      return { email: savedEmail, revision, draftVersion: 4 };
+    }
+    return original(url, options);
+  });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const editor = (fix: boolean) => (
+    <QueryClientProvider client={client}>
+      <EnquiryEmailComposer inline compact linkedReply={fix} editRecipientRequest={fix ? 1 : 0}
+        entry={entry} onClose={state.close} />
+    </QueryClientProvider>
+  );
+  const view = render(editor(true));
+  const address = await screen.findByRole("textbox", { name: "Customer email" });
+  expect(address).toHaveValue(oldAddress);
+  fireEvent.change(screen.getByRole("textbox", { name: "Your reply" }), { target: { value: "Can you come in on Monday?" } });
+  fireEvent.change(address, { target: { value: corrected } });
+  fireEvent.click(screen.getByRole("button", { name: "Save email address" }));
+  await screen.findByText("Email address saved for future replies.");
+  expect(screen.getByRole("textbox", { name: "Your reply" })).toHaveValue("Can you come in on Monday?");
+  await waitFor(() => expect(screen.getByRole("button", { name: "Review & send" })).toBeEnabled());
+  expect(calls("/email-draft")).toHaveLength(0);
+  expect(calls("/email")).toHaveLength(0);
+
+  view.unmount();
+  render(editor(false));
+  expect(await screen.findByText(`To: ${corrected}`)).toBeVisible();
+  expect(calls("/email-address")).toHaveLength(1);
+});
+
+it("keeps a typed address when someone else has changed the enquiry", async () => {
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options: unknown) => {
+    if (url.endsWith("/email-address")) throw { data: { error: "The enquiry changed. Refresh before saving the address." } };
+    return original(url, options);
+  });
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <EnquiryEmailComposer inline compact linkedReply editRecipientRequest={1} entry={entry} onClose={state.close} />
+    </QueryClientProvider>,
+  );
+  const address = await screen.findByRole("textbox", { name: "Customer email" });
+  fireEvent.change(address, { target: { value: "new@example.test" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save email address" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("The enquiry changed.");
+  expect(address).toHaveValue("new@example.test");
+  expect(calls("/email")).toHaveLength(0);
+});

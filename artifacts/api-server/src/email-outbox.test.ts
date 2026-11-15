@@ -15,6 +15,7 @@ import {
   dealerDemosTable,
   vehiclesTable,
   vehicleImagesTable,
+  vehiclePublicLinksTable,
 } from "./test/tenant-test-db";
 import { runWithTenant, type TenantContext } from "./lib/tenant-context";
 import {
@@ -734,6 +735,10 @@ test("durable immutable email outbox: retry, restart, ownership, freshness, boun
           title: "2015 Lexus RX", variant: "450h F Sport", year: 2015,
           sourcePrice: 10_500, mileage: 132_000, fuel: "Petrol hybrid", transmission: "Automatic",
         }).returning();
+        const [publicLink] = await db.select({ code: vehiclePublicLinksTable.code })
+          .from(vehiclePublicLinksTable)
+          .where(eq(vehiclePublicLinksTable.vehicleId, car!.id));
+        assert.ok(publicLink?.code);
         const [photo] = await db.insert(vehicleImagesTable).values({
           vehicleId: car!.id, sourceUrl: photoUrl, isHero: true,
         }).returning();
@@ -741,7 +746,7 @@ test("durable immutable email outbox: retry, restart, ownership, freshness, boun
           dealerId: "a", source: "website", type: "general",
           vehicleId: car!.id, vehicleTitle: car!.title, vehicleRegistration: "SK15 NVJ",
           vehiclePrice: 9_990, customerName: "Fictional website enquiry",
-          email: "website-buyer@example.test", message: "Is a viewing available?",
+          email: "website-buyer@example.test", phone: "07700 900123", message: "Is a viewing available?",
           customerNotificationStatus: "not_sent", dealerNotificationStatus: "pending",
         }).returning();
         sub.mock.method(globalThis, "fetch", async () => new Response(null, { status: 429 }));
@@ -756,6 +761,19 @@ test("durable immutable email outbox: retry, restart, ownership, freshness, boun
         assert.match(original.text, /Price at enquiry: £9,990/);
         assert.match(original.text, /Mileage: 132,000 miles/);
         assert.doesNotMatch(original.text, /£10,500|Reply in DealerOS/);
+        const reply = new URL(String(row.validation.notificationWhatsApp));
+        assert.equal(reply.origin + reply.pathname, "https://wa.me/447700900123");
+        assert.equal(reply.searchParams.get("text"), [
+          "2015 Lexus RX 450h F Sport",
+          "SK15 NVJ · 132,000 miles · £10,500",
+          `https://a.example.test/s/${publicLink.code}`,
+          "",
+          "Hi Fictional,",
+          "",
+          "",
+        ].join("\n"));
+        assert.ok(original.html.includes(`href="${reply.href}"`));
+        assert.ok(original.text.includes(`Reply on WhatsApp: ${reply.href}`));
 
         await db.update(vehiclesTable).set({ mileage: 140_000, inventoryStatus: "sold" }).where(eq(vehiclesTable.id, car!.id));
         await db.update(vehicleImagesTable).set({ isActive: false }).where(eq(vehicleImagesTable.id, photo!.id));
@@ -763,10 +781,17 @@ test("durable immutable email outbox: retry, restart, ownership, freshness, boun
         assert.equal(retry.html, original.html);
         assert.equal(retry.text, original.text);
 
-        const { notificationStock: _, ...legacyValidation } = row.validation;
+        const numberOnly = await rebuildAutomaticOutboxEmail({
+          ...row,
+          validation: { ...row.validation, notificationWhatsApp: "https://wa.me/447700900123" },
+        });
+        assert.match(numberOnly.html, /href="https:\/\/wa\.me\/447700900123"/);
+        assert.doesNotMatch(numberOnly.html, /wa\.me\/447700900123\?text/);
+
+        const { notificationStock: _, notificationWhatsApp: _whatsapp, ...legacyValidation } = row.validation;
         const oldNotice = await rebuildAutomaticOutboxEmail({ ...row, validation: legacyValidation });
         assert.doesNotMatch(oldNotice.html, /blue-suv\.jpg/);
-        assert.doesNotMatch(oldNotice.text!, /Price at enquiry|132,000 miles/);
+        assert.doesNotMatch(oldNotice.text!, /Price at enquiry|132,000 miles|Reply on WhatsApp/);
         await assert.rejects(runWithTenant(b, () => rebuildAutomaticOutboxEmail(row)), /approved email details changed/i);
       });
       await t.test(

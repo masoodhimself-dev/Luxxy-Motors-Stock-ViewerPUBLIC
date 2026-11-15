@@ -161,7 +161,7 @@ function show(
     canBook?: boolean;
     onEmail?: boolean;
     compact?: boolean;
-    linkedReplyAction?: "reply" | "fix-email";
+    linkedReplyAction?: "reply" | "fix-email" | "whatsapp";
   } = {},
 ) {
   const actions: EnquiryRecordActions = {
@@ -699,4 +699,72 @@ it("keeps compact Mark done in the case scope and blocks it while a reply or pri
   fireEvent.click(screen.getByRole("button", { name: "Mark done" }));
   expect(screen.getByRole("alert")).toHaveTextContent("Save or discard your reply and private note");
   expect(state.fetch).not.toHaveBeenCalled();
+});
+
+it("opens the WhatsApp composer from an enquiry email link even when the customer has no email address", () => {
+  show({
+    compact: true,
+    current: { ...entry, phone: "07700 900123", email: null },
+    linkedReplyAction: "whatsapp",
+  });
+  expect(screen.getByTestId("requested-channel")).toHaveTextContent("whatsapp");
+  expect(state.reply.mock.calls.at(-1)?.[0]).toMatchObject({
+    requestedChannel: "whatsapp", editRecipientRequest: 0,
+  });
+  expect(state.fetch).not.toHaveBeenCalled();
+});
+
+it("offers a direct WhatsApp draft alongside Reply with current details and the short advert link", () => {
+  const canonical = document.createElement("meta");
+  canonical.name = "luxxy-canonical-origin";
+  canonical.content = "https://multichoicemotors.co.uk";
+  canonical.setAttribute("data-page-meta", "");
+  document.head.append(canonical);
+  try {
+    show({
+      compact: true,
+      current: { ...entry, phone: "07700 900123" },
+      car: {
+        ...car,
+        title: "2018 Volkswagen Golf",
+        mileage: 56000,
+        price: 7195,
+        sourceExtras: { publicVehicleCode: "8f0c1a2b" },
+      },
+    });
+    expect(screen.getByRole("button", { name: "Reply" })).toBeVisible();
+    const shortcut = screen.getByRole("link", { name: "Reply on WhatsApp" });
+    const url = new URL(shortcut.getAttribute("href")!);
+    expect(url.origin + url.pathname).toBe("https://wa.me/447700900123");
+    expect(url.searchParams.get("text")).toBe(
+      "2018 Volkswagen Golf\nAB12 CDE · 56,000 miles · £7,195\nhttps://multichoicemotors.co.uk/s/8f0c1a2b\n\nHi Alex,\n\n",
+    );
+    expect(state.reply).not.toHaveBeenCalled();
+  } finally {
+    canonical.remove();
+  }
+});
+
+it("offers a direct draft without a stale price or private advert link and keeps the tracked reply available", () => {
+  show({
+    compact: true,
+    current: { ...entry, phone: "07700 900123", email: null },
+    car: {
+      ...car,
+      inventoryStatus: "sold",
+      sourceExtras: { publicVehicleCode: "8f0c1a2b" },
+    },
+  });
+  const shortcut = screen.getByRole("link", { name: "Reply on WhatsApp" });
+  expect(new URL(shortcut.getAttribute("href")!).searchParams.get("text")).toBe(
+    "Volkswagen Golf\nAB12 CDE\n\nHi Alex,\n\n",
+  );
+  openMoreActions();
+  fireEvent.click(screen.getByRole("menuitem", { name: "Prepare a WhatsApp reply" }));
+  expect(screen.getByTestId("requested-channel")).toHaveTextContent("whatsapp");
+});
+
+it("does not offer the WhatsApp shortcut when the customer number is unusable", () => {
+  show({ compact: true, current: { ...entry, phone: "123" } });
+  expect(screen.queryByRole("link", { name: "Reply on WhatsApp" })).not.toBeInTheDocument();
 });

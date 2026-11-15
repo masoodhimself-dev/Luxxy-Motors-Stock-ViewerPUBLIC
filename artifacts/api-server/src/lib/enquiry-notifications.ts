@@ -1,5 +1,8 @@
 import {
   approvedEmailLayoutVersion,
+  formatVehicleName,
+  vehiclePublicCode,
+  vehicleSharePath,
   type EmailLayoutVersion,
 } from "@workspace/vehicle-meta";
 import { forEachActiveDealer } from "./tenant-jobs";
@@ -20,7 +23,9 @@ import {
 import { serviceLifecycle } from "./service-lifecycle";
 import {
   approvedNotificationStock,
+  approvedNotificationWhatsApp,
   captureNotificationStock,
+  captureNotificationWhatsApp,
   notificationVehicleFacts,
   type NotificationStock,
 } from "./notification-email-copy";
@@ -166,6 +171,7 @@ async function attemptEmail({
   enquiry,
   kind,
   notificationStock,
+  notificationWhatsApp,
 }: {
   to: string | null;
   subject: string;
@@ -181,6 +187,7 @@ async function attemptEmail({
   enquiry: Enquiry;
   kind: OutboxKind;
   notificationStock?: NotificationStock;
+  notificationWhatsApp?: string;
 }): Promise<DeliveryResult> {
   if (!to) {
     return {
@@ -206,6 +213,7 @@ async function attemptEmail({
         workspaceRevision: enquiry.workspaceRevision,
         version: notificationVersion(enquiry),
         ...(notificationStock ? { notificationStock } : {}),
+        ...(notificationWhatsApp ? { notificationWhatsApp } : {}),
       },
     });
     const outcome = await attemptQueuedEmail(outbox.id);
@@ -294,8 +302,9 @@ async function enquiryEmail(
   audience: "customer" | "dealer",
   reminder = false,
   layoutVersion: EmailLayoutVersion = "correspondence-v1",
-  stock?: NotificationStock,
+  notice?: { stock?: NotificationStock; whatsappUrl?: string },
 ) {
+  const { stock, whatsappUrl } = notice ?? {};
   const isViewing = enquiry.type === "viewing" && enquiry.appointmentAt != null;
   let moved = false;
   if (
@@ -407,6 +416,10 @@ async function enquiryEmail(
     },
     facts,
     dealerVehicleNotice: stock ? { photoUrl: stock.photoUrl } : undefined,
+    ...(audience === "dealer" && whatsappUrl ? {
+      actionUrl: whatsappUrl,
+      actionLabel: "Reply on WhatsApp",
+    } : {}),
   });
 }
 
@@ -505,22 +518,36 @@ async function processCustomerConfirmation(
     );
 }
 
-async function notificationStockForEnquiry(enquiry: Enquiry, log: Logger) {
+const isWebsiteEnquiry = (enquiry: Enquiry) =>
+  enquiry.source === "website" || enquiry.source === "website_callback";
+
+async function notificationVehicleForEnquiry(enquiry: Enquiry, log: Logger) {
   if (
     !enquiry.vehicleId ||
     !enquiry.vehicleTitle ||
     enquiry.dealerId !== currentDealerId() ||
-    !["website", "website_callback"].includes(enquiry.source)
+    !isWebsiteEnquiry(enquiry)
   ) return undefined;
   try {
     const { findPublicVehicle } = await import("../routes/stock");
     const car = await findPublicVehicle(enquiry.vehicleId);
     if (!car) return undefined;
-    const origin = publicSeoOrigin(currentTenant()?.canonicalOrigin ?? process.env.PUBLIC_SITE_URL);
-    return captureNotificationStock(car, {
+    const tenant = currentTenant();
+    const origin = publicSeoOrigin(tenant?.canonicalOrigin ?? process.env.PUBLIC_SITE_URL);
+    const publicOrigin = tenant?.demo || tenant?.kind === "import" ? null : origin;
+    const stock = captureNotificationStock(car, {
       registration: enquiry.vehicleRegistration,
       price: enquiry.vehiclePrice,
     }, origin);
+    const currency = car.currency?.trim().toUpperCase();
+    return {
+      stock,
+      title: formatVehicleName(car, { includeVariant: true }),
+      price: !currency || currency === "GBP" ? car.price : undefined,
+      vehicleUrl: publicOrigin && vehiclePublicCode(car)
+        ? new URL(vehicleSharePath(car), publicOrigin).href
+        : undefined,
+    };
   } catch {
     log.warn(
       { stage: "dealer_notification", code: "notification_stock_unavailable" },
@@ -559,11 +586,28 @@ async function processDealerNotification(
     .returning();
   if (!claimed) return;
 
-  const notificationStock = await notificationStockForEnquiry(claimed, log);
+  const vehicle = await notificationVehicleForEnquiry(claimed, log);
+  const notificationStock = vehicle?.stock;
+  const notificationWhatsApp = isWebsiteEnquiry(claimed)
+    ? captureNotificationWhatsApp(claimed.phone, {
+        customerName: claimed.customerName,
+        vehicleTitle: vehicle?.title ?? claimed.vehicleTitle,
+        registration: claimed.vehicleTitle
+          ? notificationStock?.registration ?? claimed.vehicleRegistration
+          : undefined,
+        mileage: notificationStock?.mileage,
+        price: vehicle?.price,
+        vehicleUrl: vehicle?.vehicleUrl,
+      })
+    : undefined;
   const result = await attemptEmail({
     to: dealerNotificationRecipient(dealer.contact.email),
-    ...(await enquiryEmail(claimed, dealer, "dealer", false, "correspondence-v1", notificationStock)),
+    ...(await enquiryEmail(claimed, dealer, "dealer", false, "correspondence-v1", {
+      stock: notificationStock,
+      whatsappUrl: notificationWhatsApp,
+    })),
     notificationStock,
+    notificationWhatsApp,
     idempotencyKey: `enquiry-${claimed.id}-dealer-${notificationVersion(claimed)}`,
     dealerName: dealer.identity.name,
     missingRecipientMessage: "Dealer notification email is not configured.",
@@ -724,7 +768,10 @@ export async function rebuildAutomaticOutboxEmail(
     audience,
     row.kind === "reminder",
     approvedEmailLayoutVersion(row.validation.layoutVersion),
-    audience === "dealer" ? approvedNotificationStock(row.validation.notificationStock) : undefined,
+    audience === "dealer" ? {
+      stock: approvedNotificationStock(row.validation.notificationStock),
+      whatsappUrl: approvedNotificationWhatsApp(row.validation.notificationWhatsApp),
+    } : undefined,
   );
   const to =
     audience === "dealer"

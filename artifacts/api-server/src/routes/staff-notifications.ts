@@ -36,6 +36,11 @@ const saveSchema = z
 const versionSchema = z
   .object({ expectedVersion: z.number().int().positive() })
   .strict();
+const emailAddressSchema = z.object({
+  email: z.string().trim().toLowerCase().max(254).email(),
+  expectedRevision: z.number().int().nonnegative(),
+  expectedDraftVersion: z.number().int().nonnegative().optional(),
+}).strict();
 
 export function createStaffNotificationsRouter() {
   const router = Router();
@@ -44,6 +49,7 @@ export function createStaffNotificationsRouter() {
       "/staff/notifications",
       "/staff/email-drafts",
       "/staff/enquiries/:id/email-draft",
+      "/staff/enquiries/:id/email-address",
     ],
     requireStaff,
     (req, res, next) => {
@@ -74,7 +80,7 @@ export function createStaffNotificationsRouter() {
     },
   );
   router.use(
-    ["/staff/email-drafts", "/staff/enquiries/:id/email-draft"],
+    ["/staff/email-drafts", "/staff/enquiries/:id/email-draft", "/staff/enquiries/:id/email-address"],
     requirePermission("sales.manage"),
   );
 
@@ -153,6 +159,74 @@ export function createStaffNotificationsRouter() {
       });
     } catch {
       res.status(503).json({ error: "Saved drafts could not be loaded." });
+    }
+  });
+  router.post("/staff/enquiries/:id/email-address", async (req, res) => {
+    const id = String(req.params.id);
+    const input = emailAddressSchema.safeParse(req.body);
+    if (!z.string().uuid().safeParse(id).success || !input.success) {
+      res.status(400).json({ error: "Enter a valid customer email address." });
+      return;
+    }
+    const { email, expectedRevision, expectedDraftVersion } = input.data;
+    const dealer = currentDealerId();
+    try {
+      const result = await db.transaction(async (tx) => {
+        // Use the same lock order as the staff email send before touching its draft.
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`enquiry-email:${dealer}:${id}`}))`);
+        const [entry] = (await tx.execute(sql`
+          SELECT email,workspace_revision,archived_at,merged_into_id,customer_notification_status,reminder_status
+          FROM enquiries WHERE dealer_id=${dealer} AND id=${id}::uuid FOR UPDATE
+        `)).rows;
+        if (!entry) return { status: 404, error: "Enquiry not found." };
+        if (entry.merged_into_id) return { status: 409, error: "Open the current enquiry before changing its email address." };
+        if (entry.archived_at) return { status: 409, error: "Restore this enquiry before changing its email address." };
+        if (Number(entry.workspace_revision) !== expectedRevision)
+          return { status: 409, error: "This enquiry changed. Reopen it before saving the address." };
+        const saved = await readEmailDraft(dealer, id, tx as unknown as typeof db);
+        if (expectedDraftVersion !== undefined && saved.version !== expectedDraftVersion)
+          return { status: 409, error: "This draft changed. Reopen the enquiry before saving the address." };
+        if (entry.email === email) return { status: 200, email, revision: expectedRevision, draftVersion: saved.version };
+        const [delivery] = (await tx.execute(sql`
+          SELECT EXISTS (
+            SELECT 1 FROM email_outbox
+            WHERE dealer_id=${dealer} AND enquiry_id=${id}::uuid AND kind IN ('staff','customer','reminder')
+              AND status IN ('queued','sending','unknown')
+            UNION ALL
+            SELECT 1 FROM enquiry_emails
+            WHERE dealer_id=${dealer} AND enquiry_id=${id}::uuid AND status IN ('sending','unknown')
+          ) AS unresolved
+        `)).rows;
+        const unresolved = ["sending", "unknown"];
+        if (delivery?.unresolved || [entry.customer_notification_status, entry.reminder_status, saved.savedDraft?.status].some(status => unresolved.includes(String(status))))
+          return { status: 409, error: "Check Email history. A customer email is still queued, sending or unconfirmed." };
+
+        const revision = expectedRevision + 1;
+        await tx.execute(sql`
+          UPDATE enquiries SET email=${email},workspace_revision=${revision},updated_at=now()
+          WHERE dealer_id=${dealer} AND id=${id}::uuid
+        `);
+
+        let draftVersion = saved.version;
+        const draft = saveSchema.shape.content.safeParse(saved.savedDraft?.content);
+        const previousAddress = typeof entry.email === "string" ? entry.email.trim().toLowerCase() : "";
+        // Rebase blank drafts and drafts addressed to the enquiry's old or new contact.
+        if (saved.savedDraft?.status === "draft" && draft.success && draft.data.expectedRevision === expectedRevision &&
+            (draft.data.to === "" || draft.data.to === previousAddress || draft.data.to === email)) {
+          draftVersion++;
+          await tx.execute(sql`
+            UPDATE enquiry_email_drafts
+            SET version=${draftVersion},updated_at=now(),updated_by=${req.staff!.authUserId},
+              content=content||${JSON.stringify({ to: email, expectedRevision: revision })}::jsonb
+            WHERE dealer_id=${dealer} AND enquiry_id=${id}::uuid AND version=${saved.version} AND status='draft'
+          `);
+        }
+        return { status: 200, email, revision, draftVersion };
+      });
+      if (result.status !== 200) { res.status(result.status).json({ error: result.error }); return; }
+      res.json({ email: result.email, revision: result.revision, draftVersion: result.draftVersion });
+    } catch {
+      res.status(503).json({ error: "The email address couldn’t be saved. Try again." });
     }
   });
   router.post("/staff/enquiries/:id/email-draft", async (req, res) => {

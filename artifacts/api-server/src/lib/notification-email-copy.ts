@@ -1,4 +1,6 @@
 import {
+  customerWhatsAppDraft,
+  customerWhatsAppUrl,
   formatVehiclePrice,
   pickVehicleImage,
   vehicleRegistrationLabel,
@@ -69,6 +71,22 @@ export function captureNotificationStock(
 /** The previous renderer still applies to any notification approved before this option existed. */
 export function approvedNotificationStock(raw: unknown): NotificationStock | undefined {
   return raw === undefined ? undefined : notificationStockSchema.parse(raw);
+}
+
+export function captureNotificationWhatsApp(
+  phone: string | null,
+  details: Parameters<typeof customerWhatsAppDraft>[0],
+): string | undefined {
+  return customerWhatsAppUrl(phone ?? "", customerWhatsAppDraft(details)) ?? undefined;
+}
+
+// Approved outboxes can contain the old number-only link or the current encoded draft.
+const notificationWhatsAppSchema = z.string().max(8192).regex(
+  /^https:\/\/wa\.me\/[1-9]\d{7,14}(?:\?text=(?:[A-Za-z0-9_.!~*'()-]|%[0-9A-F]{2})+)?$/,
+);
+
+export function approvedNotificationWhatsApp(raw: unknown): string | undefined {
+  return raw === undefined ? undefined : notificationWhatsAppSchema.parse(raw);
 }
 
 /** A general enquiry is not a vehicle: only label a recorded car as one. */
