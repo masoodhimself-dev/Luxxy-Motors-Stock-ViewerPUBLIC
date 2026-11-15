@@ -3,6 +3,7 @@ import { startStripeReservationWorker } from './lib/stripe-reservation-worker';
 import { publicReservationStripeSettings } from './lib/public-reservation-config';
 import { startStockTaxWorker } from './lib/stock-tax-checks';
 import { startStockMotWorker } from "./lib/mot-stock-checks";
+import { startStockMotRenewalMailWorker } from "./lib/mot-stock-renewal-mail";
 import { applyCollectedOfficialCazoo, type FeedSqlPool } from './lib/cazoo-feed-apply';
 import { startCustomerReplyWorker } from './lib/customer-email-replies';
 import { startStaffPushWorker } from './lib/staff-push';
@@ -59,6 +60,7 @@ const server = app.listen(port, (err) => {
     startCazooLeadWorker(logger),
     startStaffPushWorker(logger),
     startStockMotWorker(logger),
+    startStockMotRenewalMailWorker(logger),
     startStockTaxWorker(logger),
   );
   // Keep recovery running with the keys present, even when new checkouts are paused.

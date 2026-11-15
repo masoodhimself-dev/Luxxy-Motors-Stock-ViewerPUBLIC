@@ -7,8 +7,12 @@ import {
 } from "@workspace/vehicle-meta";
 import type { Logger } from "pino";
 import { MotError, normaliseMotRegistration } from "./mot-history";
+import {
+  observeStockMotRenewal,
+  resetStockMotRenewalObservations,
+} from "./mot-stock-renewals";
 import { motService } from "./mot-storage";
-import { currentDealerId, multiTenantEnabled } from "./tenant-context";
+import { currentDealerId, currentTenant, multiTenantEnabled } from "./tenant-context";
 import { forEachActiveDealer } from "./tenant-jobs";
 import { serviceLifecycle, startLifecycleWorker } from "./service-lifecycle";
 
@@ -19,6 +23,7 @@ type CurrentCar = {
   plate: string | null;
   vrm: string | null;
   registration: string | null;
+  missing_count: number;
 };
 export type StockMotJob = {
   dealerId: string;
@@ -63,7 +68,7 @@ function freshHistory(
   );
 }
 
-/** No customer/stock write methods: only the shared public MOT cache and queue metadata. */
+/** Updates the public MOT cache, check metadata, and internal renewal notices. */
 export function createStockMotRepository(
   database: SqlPool = pool,
   configured = stockMotConfigured,
@@ -85,7 +90,7 @@ export function createStockMotRepository(
   async function current(client: Sql, dealerId: string) {
     const rows = (
       await client.query(
-        `SELECT id,plate,vrm,registration FROM vehicles WHERE dealer_id=$1 AND ${CURRENT}`,
+        `SELECT id,plate,vrm,registration,missing_count FROM vehicles WHERE dealer_id=$1 AND ${CURRENT}`,
         [dealerId],
       )
     ).rows as CurrentCar[];
@@ -135,7 +140,7 @@ export function createStockMotRepository(
       [dealerId],
     );
   }
-  async function reconcile(client: Sql, dealerId: string) {
+  async function reconcile(client: Sql, dealerId: string, trackRenewals: boolean) {
     const { cars, cached } = await current(client, dealerId);
     const jobs = new Map(
       (
@@ -146,6 +151,15 @@ export function createStockMotRepository(
       ).rows.map((j) => [String(j.vehicle_id), j]),
     );
     const validIds: string[] = [];
+    const renewalIds: string[] = [];
+    const observations = new Map(
+      trackRenewals && cached.size
+        ? (await client.query(
+            "SELECT vehicle_id,registration,checked_at FROM mot_stock_renewal_observations WHERE dealer_id=$1",
+            [dealerId],
+          )).rows.map((row) => [String(row.vehicle_id), row] as const)
+        : [],
+    );
     const changes: Record<string, unknown>[] = [];
     for (const car of cars) {
       const registration = car.normalisedRegistration;
@@ -153,6 +167,15 @@ export function createStockMotRepository(
       validIds.push(car.id);
       const old = jobs.get(car.id),
         history = cached.get(registration);
+      if (trackRenewals && car.missing_count === 0) {
+        renewalIds.push(car.id);
+        const observation = observations.get(car.id);
+        if (history &&
+            (observation?.registration !== registration ||
+              new Date(history.checkedAt) > new Date(observation.checked_at))) {
+          await observeStockMotRenewal(client, dealerId, car.id, history);
+        }
+      }
       const same = old?.registration === registration;
       if (
         same &&
@@ -187,15 +210,16 @@ export function createStockMotRepository(
       "UPDATE mot_stock_checks SET status='skipped',lease_token=NULL,lease_until=NULL,updated_at=now() WHERE dealer_id=$1 AND status IN ('queued','running') AND NOT(vehicle_id=ANY($2::uuid[]))",
       [dealerId, validIds],
     );
+    if (trackRenewals) await resetStockMotRenewalObservations(client, dealerId, renewalIds);
     await refreshRuns(client, dealerId);
     return { cars, cached };
   }
-  async function discover(dealerId: string) {
+  async function discover(dealerId: string, trackRenewals = true) {
     await transaction(async (client) => {
       await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
         `stock-mot-dealer:${dealerId}`,
       ]);
-      await reconcile(client, dealerId);
+      await reconcile(client, dealerId, trackRenewals);
     });
   }
   async function status(dealerId: string): Promise<StaffMotCheckStatus> {
@@ -274,7 +298,7 @@ export function createStockMotRepository(
       await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
         `stock-mot-dealer:${dealerId}`,
       ]);
-      const { cars } = await reconcile(client, dealerId);
+      const { cars } = await reconcile(client, dealerId, !currentTenant()?.demo);
       const active = (
         await client.query(
           "SELECT id FROM mot_stock_check_runs WHERE dealer_id=$1 AND status IN ('queued','running')",
@@ -363,6 +387,7 @@ export function createStockMotRepository(
   async function finish(
     job: StockMotJob,
     outcome: { history: MotHistory } | { code: MotError["code"] },
+    trackRenewals = true,
   ) {
     await transaction(async (client) => {
       // The dealer lock prevents discovery/start from reassigning an accepted item's lease.
@@ -371,7 +396,7 @@ export function createStockMotRepository(
       ]);
       const car = (
         await client.query(
-          `SELECT id,plate,vrm,registration,(${CURRENT}) AS eligible FROM vehicles WHERE dealer_id=$1 AND id=$2 FOR UPDATE`,
+          `SELECT id,plate,vrm,registration,missing_count,(${CURRENT}) AS eligible FROM vehicles WHERE dealer_id=$1 AND id=$2 FOR UPDATE`,
           [job.dealerId, job.vehicleId],
         )
       ).rows[0];
@@ -407,6 +432,9 @@ export function createStockMotRepository(
               new Date(Date.parse(checkedAt) + 86_400_000),
             ],
           );
+          if (trackRenewals && car.missing_count === 0) {
+            await observeStockMotRenewal(client, job.dealerId, job.vehicleId, outcome.history);
+          }
           retrySeconds = Math.max(
             1,
             Math.ceil((Date.parse(checkedAt) + 86_400_000 - Date.now()) / 1000),
@@ -471,6 +499,7 @@ export const stockMotRepository = createStockMotRepository();
 /** A fixed two-item tick shares the existing DVSA cache, request coalescing and durable quota. */
 export async function processStockMotChecks(options: {
   dealerIds: readonly string[];
+  liveDealerIds?: ReadonlySet<string>;
   repository?: Pick<
     ReturnType<typeof createStockMotRepository>,
     "claim" | "finish"
@@ -487,7 +516,7 @@ export async function processStockMotChecks(options: {
     try {
       await repository.finish(job, {
         history: await service.lookup(job.registration),
-      });
+      }, options.liveDealerIds?.has(job.dealerId) ?? true);
     } catch (error) {
       const code = error instanceof MotError ? error.code : "unavailable";
       await repository.finish(job, { code });
@@ -518,11 +547,12 @@ export function startStockMotWorker(log: Pick<Logger, "warn" | "info">) {
       for (const dealerId of manualDealerIds)
         if (!dealerIds.includes(dealerId)) {
           // Manual demo runs must also notice a car removed or changed while queued.
-          await stockMotRepository.discover(dealerId);
+          await stockMotRepository.discover(dealerId, false);
         }
       if (!serviceLifecycle.isDraining())
         await processStockMotChecks({
           dealerIds: [...new Set([...dealerIds, ...manualDealerIds])],
+          liveDealerIds: new Set(dealerIds),
           shouldStop: () => serviceLifecycle.isDraining(),
         });
     },

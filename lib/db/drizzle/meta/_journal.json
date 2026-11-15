@@ -638,6 +638,13 @@
       "when": 1794647113129,
       "tag": "0090_stock_tax_checks",
       "breakpoints": true
+    },
+    {
+      "idx": 91,
+      "version": "7",
+      "when": 1794739115369,
+      "tag": "0091_mot_stock_renewal_notices",
+      "breakpoints": true
     }
   ]
 }

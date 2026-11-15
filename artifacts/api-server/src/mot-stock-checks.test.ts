@@ -38,13 +38,16 @@ const history = (registration = "AB12CDE"): MotHistory => ({
 async function fixture() {
   const engine = new PGlite();
   await engine.exec(
-    `CREATE TABLE vehicles(id uuid PRIMARY KEY,dealer_id text NOT NULL,plate text,vrm text,registration text,inventory_status text NOT NULL DEFAULT 'available',source_status text NOT NULL DEFAULT 'live',archived_at timestamptz,first_seen_at timestamptz NOT NULL DEFAULT now(),UNIQUE(id,dealer_id));CREATE TABLE protected_records(id text PRIMARY KEY,data jsonb);INSERT INTO protected_records VALUES('invoice','{"price":10000,"paid":true}');`,
+    `CREATE TABLE vehicles(id uuid PRIMARY KEY,dealer_id text NOT NULL,plate text,vrm text,registration text,inventory_status text NOT NULL DEFAULT 'available',source_status text NOT NULL DEFAULT 'live',missing_count integer NOT NULL DEFAULT 0,archived_at timestamptz,first_seen_at timestamptz NOT NULL DEFAULT now(),UNIQUE(id,dealer_id));CREATE TABLE protected_records(id text PRIMARY KEY,data jsonb);INSERT INTO protected_records VALUES('invoice','{"price":10000,"paid":true}');`,
   );
   await engine.exec(
     await readFile("../../lib/db/drizzle/0074_mot_history.sql", "utf8"),
   );
   await engine.exec(
     await readFile("../../lib/db/drizzle/0078_mot_stock_checks.sql", "utf8"),
+  );
+  await engine.exec(
+    await readFile("../../lib/db/drizzle/0091_mot_stock_renewal_notices.sql", "utf8"),
   );
   const query = (sql: string, values?: any[]) => engine.query<any>(sql, values);
   let lane = Promise.resolve();
@@ -481,6 +484,168 @@ test("mismatched results and future cache stamps cannot make a car appear checke
     await f.engine.close();
   }
 });
+function renewalHistories() {
+  const now = Date.now();
+  const hour = 3_600_000;
+  const day = 24 * hour;
+  const iso = (time: number) => new Date(time).toISOString();
+  const initial: MotHistory = {
+    ...history(),
+    checkedAt: iso(now - 4 * hour),
+    tests: [
+      {
+        ...history().tests[0]!,
+        completedDate: iso(now - 370 * day),
+        expiryDate: iso(now - 5 * day).slice(0, 10),
+      },
+    ],
+  };
+  const renewed: MotHistory = {
+    ...initial,
+    checkedAt: iso(now - hour),
+    tests: [
+      {
+        ...initial.tests[0]!,
+        completedDate: iso(now - 2 * hour),
+        expiryDate: iso(now + 364 * day).slice(0, 10),
+      },
+      ...initial.tests,
+    ],
+  };
+  return { initial, renewed };
+}
+
+async function setSharedMotCache(
+  f: Awaited<ReturnType<typeof fixture>>,
+  record: MotHistory,
+) {
+  await f.query(
+    `INSERT INTO mot_history_cache(registration,data,expires_at) VALUES($1,$2,now()+interval '1 hour')
+    ON CONFLICT(registration) DO UPDATE SET data=excluded.data,expires_at=excluded.expires_at`,
+    [record.registration, record],
+  );
+}
+
+async function renewalNotices(f: Awaited<ReturnType<typeof fixture>>) {
+  return (
+    await f.query(
+      `SELECT dealer_id,vehicle_id::text,registration,expiry_date::text,status
+    FROM mot_stock_renewal_notices ORDER BY dealer_id,vehicle_id`,
+    )
+  ).rows;
+}
+
+test("MOT notices quietly learn the first pass and queue the later renewal once for each dealer’s current listing", async () => {
+  const f = await fixture();
+  try {
+    const { initial, renewed } = renewalHistories();
+    const correctedVehicleId = "33333333-3333-4333-8333-333333333333";
+    await insert(f);
+    await insert(f, second, "two", initial.registration, "reserved");
+    await insert(f, correctedVehicleId, "three", initial.registration);
+    await f.repository.discover("one");
+    const firstCheck = await f.repository.claim(["one"]);
+    assert.ok(firstCheck);
+    await f.repository.finish(firstCheck, { history: initial });
+    await f.repository.discover("one");
+    await f.repository.discover("two");
+    assert.deepEqual(await renewalNotices(f), []);
+
+    const laterCheck = new Date(
+      Date.parse(initial.checkedAt) + 60_000,
+    ).toISOString();
+    await setSharedMotCache(f, {
+      ...initial,
+      checkedAt: laterCheck,
+      tests: [
+        {
+          ...initial.tests[0]!,
+          completedDate: initial.checkedAt,
+          result: "FAILED",
+          expiryDate: null,
+        },
+        ...initial.tests,
+      ],
+    });
+    await f.repository.discover("one");
+    await f.repository.discover("two");
+    await f.repository.discover("three");
+    await f.query("UPDATE vehicles SET registration='AA11AAA' WHERE id=$1", [
+      correctedVehicleId,
+    ]);
+    await setSharedMotCache(f, { ...renewed, registration: "AA11AAA" });
+    await f.repository.discover("three");
+    assert.deepEqual(await renewalNotices(f), []);
+
+    // The next scheduled check gets a new pass. Dealer two sees it in the shared cache.
+    await f.engine.exec(
+      "UPDATE mot_history_cache SET expires_at=now()-interval '1 hour'; UPDATE mot_stock_checks SET next_attempt_at=now()-interval '1 hour'",
+    );
+    await f.repository.discover("one");
+    const renewalCheck = await f.repository.claim(["one"]);
+    assert.ok(renewalCheck);
+    await f.repository.finish(renewalCheck, { history: renewed });
+    await f.repository.finish(renewalCheck, { history: renewed });
+    await f.repository.discover("one");
+    await f.repository.discover("two");
+    await f.repository.discover("two");
+
+    // A freshly added dealership listing must also learn the current MOT silently.
+    await insert(
+      f,
+      "44444444-4444-4444-8444-444444444444",
+      "four",
+      initial.registration,
+    );
+    await f.repository.discover("four");
+    const expected = (dealer: string, vehicleId: string) => ({
+      dealer_id: dealer,
+      vehicle_id: vehicleId,
+      registration: initial.registration,
+      expiry_date: renewed.tests[0]!.expiryDate,
+      status: "queued",
+    });
+    assert.deepEqual(await renewalNotices(f), [
+      expected("one", first),
+      expected("two", second),
+    ]);
+  } finally {
+    await f.engine.close();
+  }
+});
+
+test("MOT renewals are ignored when stock leaves the feed during a check or is within its feed removal grace period", async () => {
+  const f = await fixture();
+  try {
+    const { initial, renewed } = renewalHistories();
+    await insert(f);
+    await insert(f, second, "two", initial.registration);
+    await setSharedMotCache(f, initial);
+    await f.repository.discover("one");
+    await f.repository.discover("two");
+    await f.engine.exec(
+      "UPDATE mot_history_cache SET expires_at=now()-interval '1 hour'; UPDATE mot_stock_checks SET next_attempt_at=now()-interval '1 hour'",
+    );
+    await f.repository.discover("one");
+    const inFlight = await f.repository.claim(["one"]);
+    assert.ok(inFlight);
+    await f.query("UPDATE vehicles SET source_status='missing' WHERE id=$1", [
+      first,
+    ]);
+    await f.repository.finish(inFlight, { history: renewed });
+    assert.deepEqual(await renewalNotices(f), []);
+
+    // Still marked live until import grace expires, but absent in the latest feed.
+    await f.query("UPDATE vehicles SET missing_count=1 WHERE id=$1", [second]);
+    await setSharedMotCache(f, renewed);
+    await f.repository.discover("one");
+    await f.repository.discover("two");
+    assert.deepEqual(await renewalNotices(f), []);
+  } finally {
+    await f.engine.close();
+  }
+});
+
 test("all invalid registrations finish skipped without a provider request", async () => {
   const f = await fixture();
   try {
