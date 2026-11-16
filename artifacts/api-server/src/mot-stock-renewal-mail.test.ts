@@ -40,7 +40,7 @@ test("renewals are sent to the scoped dealer with stable retries and only while 
   };
   const second: TenantContext = {
     ...first, dealerId: "mot-notice-dealer-b", canonicalOrigin: "https://dealer-b.example.test",
-    retailerId: "dealer-b", sourceUrl: "https://www.autotrader.co.uk/retailer/dealer-b",
+    platform: "cazoo", retailerId: "dealer-b", sourceUrl: "https://www.cazoo.co.uk/dealers/dealer-b",
   };
   const sends: { payload: string; key: string | null }[] = [];
   let failNext = false;
@@ -125,6 +125,43 @@ test("renewals are sent to the scoped dealer with stable retries and only while 
     assert.equal(sends.length, 3);
     assert.equal(await status(removedBeforeRetry), "skipped");
     assert.equal(await status(other), "queued");
+
+    const setLegacyCazooEnabled = (enabled: boolean) => runWithTenant(second, async () => {
+      const { revision } = await dealerIntegrationsStore.readStockConnection();
+      await dealerIntegrationsStore.updateStockConnection({
+        expectedRevision: revision,
+        connection: { platform: second.platform, retailerId: second.retailerId, sourceUrl: second.sourceUrl, enabled },
+      });
+    });
+    await setLegacyCazooEnabled(false);
+    const legacyPaused = await addNotice(second, "Legacy importer paused");
+    await send(second);
+    assert.equal(await status(other), "skipped");
+    assert.equal(await status(legacyPaused), "skipped");
+    assert.equal(sends.length, 3);
+
+    await engine.query(
+      "INSERT INTO cazoo_feed_authority(dealer_id,retailer_id,feed_id,enabled) VALUES($1,$2,'AETA123',true)",
+      [second.dealerId, second.retailerId],
+    );
+    const activeCazoo = await addNotice(second, "Active official Cazoo");
+    const missingCazoo = await addNotice(second, "Missing from official Cazoo", { missingCount: 1 });
+    await send(second);
+    assert.equal(await status(activeCazoo), "sent");
+    assert.equal(await status(missingCazoo), "skipped");
+    assert.equal(sends.length, 4);
+    assert.deepEqual(JSON.parse(sends[3]!.payload).to, ["dealer-b@example.test"]);
+
+    await setLegacyCazooEnabled(true);
+    await engine.query("UPDATE cazoo_feed_authority SET enabled=false WHERE dealer_id=$1", [second.dealerId]);
+    const pausedCazoo = await addNotice(second, "Official Cazoo paused");
+    await send(second);
+    assert.equal(await status(pausedCazoo), "skipped");
+    await engine.query("UPDATE cazoo_feed_authority SET enabled=true,retailer_id='different-dealer' WHERE dealer_id=$1", [second.dealerId]);
+    const mismatchedCazoo = await addNotice(second, "Official Cazoo retailer changed");
+    await send(second);
+    assert.equal(await status(mismatchedCazoo), "skipped");
+    assert.equal(sends.length, 4);
   } finally {
     globalThis.fetch = realFetch;
     await engine.close();

@@ -44,6 +44,7 @@ type Notice = {
   account_hash: string | null;
 };
 type ClaimedNotice = Notice & { dealerId: string; claimToken: string };
+type ActiveFeed = { platform: string; retailerId: string; officialCazooFeedId: string | null };
 type Registration = { plate: string | null; vrm: string | null; registration: string | null };
 type FeedCar = Registration & Pick<VehicleMetaSource, "title" | "make" | "model" | "year"> & {
   hero_image: string | null;
@@ -123,6 +124,25 @@ function sameRegistration(notice: Notice, car: Registration | undefined) {
   }
 }
 
+async function readActiveFeed(): Promise<ActiveFeed | null> {
+  const tenant = currentTenant();
+  if (tenant?.platform === "cazoo") {
+    const { rows: [official] } = await pool.query<{ retailer_id: string; feed_id: string; enabled: boolean }>(
+      "SELECT retailer_id,feed_id,enabled FROM cazoo_feed_authority WHERE dealer_id=$1",
+      [tenant.dealerId],
+    );
+    if (official) {
+      return official.enabled && official.retailer_id === tenant.retailerId
+        ? { platform: "cazoo", retailerId: official.retailer_id, officialCazooFeedId: official.feed_id }
+        : null;
+    }
+  }
+  const { connection } = await dealerIntegrationsStore.readStockConnection();
+  return connection.enabled
+    ? { platform: connection.platform, retailerId: connection.retailerId, officialCazooFeedId: null }
+    : null;
+}
+
 async function findFeedCar(notice: ClaimedNotice, platform: string) {
   const { rows } = await pool.query<FeedCar>(
     `SELECT v.plate,v.vrm,v.registration,coalesce(v.website_title_override,v.title) AS title,v.make,v.model,v.year,
@@ -151,9 +171,10 @@ async function sendNotice(notice: ClaimedNotice, transport: typeof fetch, log: P
   let guardStopped = false;
   try {
     const tenant = currentTenant();
-    const { connection } = await dealerIntegrationsStore.readStockConnection();
-    const { enabled, platform } = connection;
-    const car = enabled ? await findFeedCar(notice, platform) : null;
+    const feed = await readActiveFeed();
+    if (!feed) return finishNotice(notice, "skipped");
+    const { platform, retailerId, officialCazooFeedId } = feed;
+    const car = await findFeedCar(notice, platform);
     if (!car) return finishNotice(notice, "skipped");
 
     const [profile, settings] = await Promise.all([dealerProfile(), dealerIntegrationsStore.readPrivate()]);
@@ -195,8 +216,9 @@ async function sendNotice(notice: ClaimedNotice, transport: typeof fetch, log: P
       if (serviceLifecycle.isDraining() || Date.now() >= retryDeadline) {
         return new Response(null, { status: 503, headers: { "Retry-After": "15" } });
       }
-      const current = (await dealerIntegrationsStore.readStockConnection()).connection;
-      if (!current.enabled || current.platform !== platform || current.retailerId !== connection.retailerId) {
+      const current = await readActiveFeed();
+      if (!current || current.platform !== platform || current.retailerId !== retailerId ||
+        current.officialCazooFeedId !== officialCazooFeedId) {
         guardStopped = true;
         return new Response(null, { status: 412 });
       }
@@ -207,8 +229,13 @@ async function sendNotice(notice: ClaimedNotice, transport: typeof fetch, log: P
         AND (NOT $10::boolean OR EXISTS (SELECT 1 FROM dealerships d
           WHERE d.id=n.dealer_id AND d.status='active' AND d.stock_platform=$6 AND d.retailer_id=$11
           AND NOT EXISTS (SELECT 1 FROM dealer_demos demos WHERE demos.dealer_id=d.id AND demos.converted_at IS NULL)))
+        AND (NOT $10::boolean OR $6<>'cazoo' OR CASE WHEN $12::text IS NULL
+          THEN NOT EXISTS (SELECT 1 FROM cazoo_feed_authority a WHERE a.dealer_id=n.dealer_id)
+          ELSE EXISTS (SELECT 1 FROM cazoo_feed_authority a
+            WHERE a.dealer_id=n.dealer_id AND a.enabled AND a.retailer_id=$11 AND a.feed_id=$12)
+        END)
         RETURNING v.plate,v.vrm,v.registration`,
-        [...noticeKey(notice), platform, approvedPayload, accountHash, MAX_ATTEMPTS, multiTenantEnabled(), connection.retailerId],
+        [...noticeKey(notice), platform, approvedPayload, accountHash, MAX_ATTEMPTS, multiTenantEnabled(), retailerId, officialCazooFeedId],
       );
       attemptRecorded = Boolean(rows[0]);
       if (!sameRegistration(notice, rows[0])) {
