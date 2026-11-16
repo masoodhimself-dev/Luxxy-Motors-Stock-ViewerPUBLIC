@@ -24,6 +24,8 @@ import {
   vehicleRegistrationLabel,
   saleDocumentEmailRecipientProblem,
   canonicalCustomerEmail,
+  isRestrictedAppleRelayEmail,
+  APPLE_RELAY_EMAIL_UNAVAILABLE,
   saleCustomerUpdates,
   type EmailFacts,
   type SaleWorkspaceDocument,
@@ -317,6 +319,8 @@ async function preview(
   const input = {...rawInput, vehiclePhotoIndices: rawInput.vehiclePhotoIndices ?? []};
   return withEmailPreparation(async () => {
     const enquiry = await entry(id, executor);
+    if (!input.saleUpdate && isRestrictedAppleRelayEmail(input.to))
+      throw new EmailError(APPLE_RELAY_EMAIL_UNAVAILABLE, 422);
     const saved = await readEmailDraft(enquiry.dealerId, enquiry.id, executor);
     if (!input.saleUpdate && saved.savedDraft?.content && typeof saved.savedDraft.content === 'object' && 'stockChange' in saved.savedDraft.content) throw new EmailError('This retired stock-update draft must be discarded before composing a fresh email.',409);
     if (enquiry.workspaceRevision !== input.expectedRevision)
@@ -578,7 +582,7 @@ async function cazooFirstReplyCandidate(
   if (
     enquiry.source !== "cazoo" || enquiry.type !== "general" ||
     enquiry.status !== "new" || enquiry.archivedAt || enquiry.mergedIntoId ||
-    enquiry.preferredContact !== "email" || !enquiry.email || !enquiry.vehicleId ||
+    enquiry.preferredContact !== "email" || !enquiry.email || isRestrictedAppleRelayEmail(enquiry.email) || !enquiry.vehicleId ||
     enquiry.customerNotificationStatus !== "not_sent" ||
     enquiry.workspaceRevision !== (ownDeliveryId ? 1 : 0) ||
     !isUKNumberPlate(enquiry.vehicleRegistration)

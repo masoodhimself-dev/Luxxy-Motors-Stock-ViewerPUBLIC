@@ -1,5 +1,6 @@
 import { renderLegacyEmailTemplate } from "./email-layout/legacy-email-templates.ts";
 import { renderCompatibleEmailLayout } from "./email-layout/compatible-layout.ts";
+import type { EmailAction } from "./email-layout/types.ts";
 /** Plain-text email copy shared by the editor and the server. Facts are supplied by the server. */
 export const emailTemplateVariables = [
   "dealer_name",
@@ -396,6 +397,7 @@ export type EmailRenderOptions = {
   layoutVersion?: EmailLayoutVersion;
   /** Public stock context for an internal dealership enquiry notification. */
   dealerVehicleNotice?: { photoUrl?: string };
+  dealerContactActions?: readonly EmailAction[];
   templateId?: string;
   attachments?: readonly string[];
 };
@@ -629,19 +631,24 @@ export function renderEmailTemplate(
   );
   const dealer = String(variables.dealer_name ?? "").trim();
   const attachments = (options.attachments ?? []).filter((name) => name.trim());
-  const actionUrl = options.actionUrl
+  const dealerActions = options.templateId === "dealer_notification"
+    ? (options.dealerContactActions ?? []).filter(({ url }) => secureEmailLink(url) || /^tel:\+[1-9]\d{6,14}$/.test(url))
+    : [];
+  const [firstDealerAction, ...secondaryActions] = dealerActions;
+  const actionUrl = firstDealerAction?.url ?? (options.actionUrl
     ? secureEmailLink(options.actionUrl)
     : options.templateId?.startsWith("booking_") &&
         options.templateId !== "booking_cancellation"
       ? secureEmailLink(variables.manage_url)
-      : undefined;
+      : undefined);
   // A management link already has its labelled action in both alternatives.
   // Use the same fact list for HTML, text and the protected approval content.
   const displayedDetails = details.filter((fact) => !actionUrl || String(fact.value).trim() !== actionUrl);
   const factText = displayedDetails
     .map((fact) => `${fact.label}: ${fact.value}`)
     .join("\n");
-  const actionLabel = options.actionLabel?.trim() || "Manage your test drive";
+  const actionLabel = firstDealerAction?.label ?? (options.actionLabel?.trim() || "Manage your test drive");
+  const actionText = [actionUrl ? `${actionLabel}: ${actionUrl}` : "", ...secondaryActions.map(({ label, url }) => `${label}: ${url}`)].filter(Boolean).join("\n");
   const contactEmail =
     typeof variables.dealer_email === "string" &&
     /^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(variables.dealer_email)
@@ -698,6 +705,7 @@ export function renderEmailTemplate(
     attachments,
     actionUrl,
     actionLabel,
+    secondaryActions,
     contactEmail,
     phone,
     address,
@@ -706,7 +714,7 @@ export function renderEmailTemplate(
   const protectedParts = [
     heading,
     options.templateId ? title : "",
-    actionUrl ? `${actionLabel}: ${actionUrl}` : "",
+    actionText,
     factText ? `${detailsHeading}\n${factText}` : "",
     attachments.length ? "Attachments\n" + attachments.join("\n") : "",
     ...publishedContact,
@@ -719,7 +727,7 @@ export function renderEmailTemplate(
       heading,
       options.templateId ? title : "",
       prose,
-      actionUrl ? `${actionLabel}: ${actionUrl}` : "",
+      actionText,
       factText ? `${detailsHeading}\n${factText}` : "",
       attachments.length ? "Attachments\n" + attachments.join("\n") : "",
       ...publishedContact,

@@ -41,6 +41,7 @@ const frozenForwardPayload = z.discriminatedUnion("version", [
   z.object({ version: z.literal("vehicle-v1"), vehicle: vehicleSnapshot, email: z.string() }),
   z.object({ version: z.literal("whatsapp-v1"), vehicle: vehicleSnapshot.nullable(), email: z.string() }),
   z.object({ version: z.literal("whatsapp-v2"), vehicle: whatsappVehicleSnapshot.nullable(), email: z.string() }),
+  z.object({ version: z.literal("whatsapp-v3"), vehicle: whatsappVehicleSnapshot.nullable(), email: z.string() }),
 ]);
 const stockText = (value: string | null | undefined) =>
   value?.replace(/[\p{Cc}\p{Cf}]+/gu, " ").trim().slice(0, 200) || null;
@@ -178,21 +179,22 @@ async function deliver(row: Forward, dealer: Dealer, lease: string, options: For
   const blockedAddresses = [recipient, ...Object.values(mailboxes), mailbox(resend.from),
     mailbox(configuredResend.replyTo)];
   const frozen = row.payload === null ? undefined : readFrozenForwardPayload(row.payload);
-  const version = row.payload === null ? "whatsapp-v2" : frozen?.version;
-  const whatsapp = version === "whatsapp-v2" ? "direct" : version === "whatsapp-v1" ? "legacy" : undefined;
+  const version = row.payload === null ? "whatsapp-v3" : frozen?.version;
+  const whatsapp = version === "whatsapp-v3" || version === "whatsapp-v2"
+    ? "direct" : version === "whatsapp-v1" ? "legacy" : undefined;
   const vehicle: CazooForwardVehicle | undefined = frozen?.vehicle ?? (row.payload === null
     ? await stockSnapshot(dealer.vehicle_id).catch(() => undefined)
     : undefined);
   const content = renderCazooForwardEmail(row.subject, row.body, blockedAddresses, replyDomain, "current", {
     origin: dealer.canonical_origin, enquiryId: dealer.enquiry_id,
-  }, vehicle, { whatsapp });
+  }, vehicle, { whatsapp, allowLegacyAppleReply: version !== "whatsapp-v3" });
   const envelope = { to: row.recipient, idempotencyKey: key };
   const prepared = await prepareEmailWithSettings(resend, { ...envelope, ...content });
   let payload = JSON.stringify(prepared.body);
   // An attempted send must keep its original payload across format changes.
   for (const format of ["current", "before-part-ex"] as const) {
     if (row.payload === null || frozen || row.payload_hash === hash(payload)) break;
-    const previousContent = renderCazooForwardEmail(row.subject, row.body, blockedAddresses, replyDomain, format);
+    const previousContent = renderCazooForwardEmail(row.subject, row.body, blockedAddresses, replyDomain, format, undefined, undefined, { allowLegacyAppleReply: true });
     const previous = await prepareEmailWithSettings(resend, { ...envelope, ...previousContent });
     payload = JSON.stringify(previous.body);
   }

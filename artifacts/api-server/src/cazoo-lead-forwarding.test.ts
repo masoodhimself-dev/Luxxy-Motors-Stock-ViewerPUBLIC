@@ -3,7 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 import { cazooLeadForwardRecipient, processCazooLeadForwards, queueCazooLeadForward } from "./lib/cazoo-lead-forwarding";
-import { renderCazooForwardEmail } from "./lib/cazoo-forward-email";
+import { renderCazooCustomerReplyForwardEmail, renderCazooForwardEmail } from "./lib/cazoo-forward-email";
 import { dealerIntegrationsStore } from "./lib/dealer-integrations-store";
 import { emailAccountHash, EmailProviderError, prepareEmailWithSettings } from "./lib/email-provider";
 import { runWithTenant } from "./lib/tenant-context";
@@ -53,6 +53,39 @@ test("Cazoo forward presents the clean lead and only uses an unambiguous custome
   const injected = renderCazooForwardEmail(structuredSubject, structuredLead("", `Hello\nCustomer details\n${buyerEmail}`));
   assert.equal(injected.replyTo, undefined);
   assert.match(injected.text, /Original enquiry for review/);
+});
+
+test("Cazoo dealer notices use WhatsApp or phone for restricted Apple relay addresses", () => {
+  const origin = "https://dealer.example.test";
+  const enquiryId = randomUUID();
+  for (const domain of ["privaterelay.appleid.com", "private.icloud.com"]) {
+    const email = `buyer@${domain}`;
+    const lead = structuredLead(email);
+    const forward = renderCazooForwardEmail(structuredSubject, lead, [], undefined, "current", { origin, enquiryId });
+    assert.equal(forward.replyTo, undefined);
+    assert.doesNotMatch(forward.text, /buyer@|Reply in DealerOS/);
+    assert.match(forward.text, /DealerOS can’t email this private Apple address/);
+    assert.ok(forward.text.indexOf("Reply on WhatsApp") < forward.text.indexOf("Call customer"));
+    assert.match(forward.html, /href="tel:\+447700900123"/);
+    assert.match(forward.html, /enquiryAction=fix-email/);
+    const noPhone = renderCazooForwardEmail(structuredSubject, lead.replace("tel:07700900123", "tel:07700900124"), [], undefined, "current", { origin, enquiryId });
+    assert.match(noPhone.text, /No usable phone number was supplied/);
+    assert.doesNotMatch(noPhone.html, /wa\.me|href="tel:|Reply in DealerOS/);
+    assert.equal(renderCazooForwardEmail(structuredSubject, lead, [], undefined, "current", { origin, enquiryId }, undefined,
+      { allowLegacyAppleReply: true }).replyTo, email);
+
+    const followUp = renderCazooCustomerReplyForwardEmail({
+      origin, enquiryId, replyId: randomUUID(), customerName: "Fictional Buyer", customerAddress: email,
+      customerPhone: "07700 900123", vehicleTitle: "Audi A5", vehicleRegistration: "MW62VLP",
+      subject: "Re: Audi A5", message: "Saturday works for me.",
+    })!;
+    assert.match(followUp.text, /Saturday works for me/);
+    assert.match(followUp.text, /DealerOS can’t email this private Apple address/);
+    assert.match(followUp.html, /href="tel:\+447700900123"/);
+    assert.match(followUp.html, /enquiryAction=fix-email/);
+    assert.doesNotMatch(followUp.html, /enquiryReplyId=|Reply in DealerOS/);
+  }
+  assert.equal(renderCazooForwardEmail(structuredSubject, structuredLead("hide-my-email@icloud.com")).replyTo, "hide-my-email@icloud.com");
 });
 
 test("WhatsApp opens a direct editable draft for a usable Cazoo phone", () => {

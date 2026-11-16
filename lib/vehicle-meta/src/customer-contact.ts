@@ -20,6 +20,13 @@ export function canonicalCustomerEmail(value: unknown): string {
   return email.length <= 320 && /^[^\s@\u0000-\u001f]+@[^\s@\u0000-\u001f]+\.[^\s@\u0000-\u001f]+$/.test(email) ? email : '';
 }
 
+export const APPLE_RELAY_EMAIL_UNAVAILABLE = "DealerOS can’t email this private Apple address.";
+
+export function isRestrictedAppleRelayEmail(value: string | null | undefined): boolean {
+  const domain = canonicalCustomerEmail(value).split("@")[1];
+  return domain === "privaterelay.appleid.com" || domain === "private.icloud.com";
+}
+
 export function canonicalCustomerPhone(value: unknown): string {
   let phone = text(value);
   // A written optional UK trunk prefix is unambiguous; arbitrary leading zeroes are not.

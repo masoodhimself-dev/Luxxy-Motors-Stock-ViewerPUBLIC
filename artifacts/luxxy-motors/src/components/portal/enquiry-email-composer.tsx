@@ -4,7 +4,11 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, FilePenLine, Paperclip, Send } from "@/components/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { customFetch, type Enquiry } from "@workspace/api-client-react";
-import type { SaleCustomerUpdateBinding } from "@workspace/vehicle-meta";
+import {
+  APPLE_RELAY_EMAIL_UNAVAILABLE,
+  isRestrictedAppleRelayEmail,
+  type SaleCustomerUpdateBinding,
+} from "@workspace/vehicle-meta";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -264,6 +268,7 @@ function EnquiryEmailEditor({
   insertion,
   onBusyChange,
   onChooseEmail,
+  onCancelAddressEdit,
 }: {
   entry: Pick<Enquiry, "id" | "customerName" | "reference">;
   onClose: (result?: "sent" | "draft") => void;
@@ -286,6 +291,7 @@ function EnquiryEmailEditor({
   insertion?: ReplyInsertion;
   onBusyChange?: (busy: boolean) => void;
   onChooseEmail?: () => void;
+  onCancelAddressEdit?: () => void;
 }) {
   const base = `/api/staff/enquiries/${entry.id}`;
   const features = useDealerFeatures();
@@ -557,7 +563,7 @@ function EnquiryEmailEditor({
   }
 
   async function review(polish = false) {
-    if (busyRef.current || replyRecipientMismatch || fixedRecipientMismatch) return;
+    if (busyRef.current || restrictedRecipient || replyRecipientMismatch || fixedRecipientMismatch) return;
     if (missingAttachment) {
       setError(missingAttachment);
       return;
@@ -601,6 +607,7 @@ function EnquiryEmailEditor({
       !preview ||
       !reviewedDraft ||
       reviewedDraft.stockChange ||
+      isRestrictedAppleRelayEmail(reviewedDraft.to) ||
       busyRef.current ||
       !features.enabled("customerEmails") ||
       sendBlockedReason ||
@@ -689,13 +696,14 @@ function EnquiryEmailEditor({
   }
   const data = initialized.current ? context.data : undefined;
   const preparingMessage = messageMode || channel === "whatsapp";
-  const showEmailAddressSave =
-    inline && !preparingMessage && !targetedReply && !fixedRecipient &&
-    !saleUpdate && !initialRecipient && !initialContent && !suggestedContent &&
-    !draft.stockChange;
+  const restrictedRecipient = isRestrictedAppleRelayEmail(draft.to);
+  const canCorrectAddress = inline && !preparingMessage && !targetedReply && !fixedRecipient &&
+    !saleUpdate && !initialRecipient && !initialContent && !suggestedContent;
+  const showRelayAddressEditor = canCorrectAddress && isRestrictedAppleRelayEmail(data?.email);
+  const showEmailAddressSave = canCorrectAddress && !draft.stockChange;
   const hasNewAddress = draft.to.trim().toLowerCase() !== (data?.email ?? "").trim().toLowerCase();
   const canSaveEmailAddress =
-    showEmailAddressSave && hasNewAddress &&
+    (showEmailAddressSave || showRelayAddressEditor) && hasNewAddress && !restrictedRecipient &&
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.to.trim()) &&
     draft.expectedRevision === data?.revision;
   const whatsappAttachments = Boolean(
@@ -749,7 +757,7 @@ function EnquiryEmailEditor({
   const reviewDisabled =
     busy || Boolean(draft.stockChange) ||
     draft.expectedRevision !== data?.revision ||
-    !draft.to.trim() || replyRecipientMismatch || fixedRecipientMismatch ||
+    !draft.to.trim() || restrictedRecipient || replyRecipientMismatch || fixedRecipientMismatch ||
     Boolean(missingAttachment);
   const showAiReview = ai.enabled && compact && channel === "email" && !fixedRecipient && !saleUpdate;
   const canPolish =
@@ -937,8 +945,43 @@ function EnquiryEmailEditor({
             )}
           </div>
         ) : (
-          data && (
+          data && (showRelayAddressEditor ? (
+            <form className="enquiry-email-form enquiry-email-form--compact"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void saveEmailAddress();
+              }}
+            >
+              <label>
+                Confirmed email address
+                <Input
+                  type="email"
+                  autoComplete="off"
+                  required
+                  maxLength={254}
+                  value={restrictedRecipient ? "" : draft.to}
+                  disabled={busy}
+                  onChange={(event) => change({ to: event.target.value })}
+                />
+              </label>
+              <div className="enquiry-email-actions">
+                {onCancelAddressEdit && (
+                  <Button type="button" size="sm" variant="outline" disabled={busy} onClick={onCancelAddressEdit}>
+                    Cancel
+                  </Button>
+                )}
+                <Button type="submit" size="sm" disabled={busy || !canSaveEmailAddress}>
+                  {busyAction === "address" ? "Saving address…" : "Save email address"}
+                </Button>
+              </div>
+            </form>
+          ) : (
             <>
+              {restrictedRecipient && !preparingMessage && (
+                <p className="enquiry-email-readiness" role="status">
+                  {APPLE_RELAY_EMAIL_UNAVAILABLE} Use WhatsApp or call the customer.
+                </p>
+              )}
               {!features.enabled("customerEmails") && (
                 <p className="enquiry-email-readiness" role="status">
                   {features.isLoading
@@ -1082,6 +1125,7 @@ function EnquiryEmailEditor({
                             !data.ready ||
                             !features.enabled("customerEmails") ||
                             !!sendBlockedReason ||
+                            restrictedRecipient ||
                             fixedRecipientMismatch ||
                             Boolean(saleUpdate && !preview.saleUpdateRequestId) ||
                             (linkedReply && !preview.repliesInInbox)
@@ -1605,7 +1649,7 @@ function EnquiryEmailEditor({
                 </details>
               )}
             </>
-          )
+          ))
         )}
         {error && (
           <p ref={errorNotice} tabIndex={-1} role="alert" className="enquiry-email-error">
@@ -1652,6 +1696,7 @@ export function EnquiryEmailComposer(props: {
   insertion?: ReplyInsertion;
   onBusyChange?: (busy: boolean) => void;
   onChooseEmail?: () => void;
+  onCancelAddressEdit?: () => void;
 }) {
   return <EnquiryEmailEditor key={JSON.stringify([props.entry.id, props.enquiryReplyId])} {...props} />;
 }

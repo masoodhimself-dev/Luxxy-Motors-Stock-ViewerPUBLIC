@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { db } from "@workspace/db";
+import { isRestrictedAppleRelayEmail } from "@workspace/vehicle-meta";
 import { sql } from "drizzle-orm";
 import { cazooCustomerReplyLeadJoins } from "./cazoo-customer-reply-lineage";
 import { renderCazooCustomerReplyForwardEmail } from "./cazoo-forward-email";
@@ -18,7 +19,7 @@ type Forward = {
 type Source = {
   canonical_origin: string; retailer_id: string; source_url: string; lead_mailbox: string; reply_address: string;
   enquiry_id: string; customer_name: string; vehicle_title: string | null; vehicle_registration: string | null;
-  subject: string; message: string; sender: string;
+  subject: string; message: string; sender: string; phone: string | null;
 };
 type EndStatus = "sent" | "failed" | "unknown" | "cancelled";
 type Options = { send?: typeof sendPreparedEmail };
@@ -84,18 +85,27 @@ async function deliver(row: Forward, source: Source, lease: string, send: typeof
     await reschedule(row, lease, 300, "delivery_not_ready");
     return;
   }
-  const content = renderCazooCustomerReplyForwardEmail({
+  const input = {
     origin: source.canonical_origin, enquiryId: source.enquiry_id, replyId: row.reply_id,
     customerName: source.customer_name, vehicleTitle: source.vehicle_title, vehicleRegistration: source.vehicle_registration,
-    subject: source.subject, message: source.message,
-  });
+    subject: source.subject, message: source.message, customerAddress: source.sender, customerPhone: source.phone,
+  };
+  const content = renderCazooCustomerReplyForwardEmail(input);
   if (!content) {
     await finish(row, lease, row.attempts ? "unknown" : "cancelled", "portal_unavailable");
     return;
   }
   const key = `cazoo-customer-reply-forward-${row.reply_id}`;
   const prepared = await prepareEmailWithSettings(resend, { ...content, to: recipient, idempotencyKey: key });
-  const rendered = JSON.stringify(prepared.body);
+  let rendered = JSON.stringify(prepared.body);
+  // Rebuild any approved pre-change notice for the exact original retry payload.
+  if (row.payload !== null && row.payload_hash !== hash(rendered) && isRestrictedAppleRelayEmail(source.sender)) {
+    const previousContent = renderCazooCustomerReplyForwardEmail({ ...input, allowLegacyAppleReply: true });
+    if (previousContent) {
+      const previous = await prepareEmailWithSettings(resend, { ...previousContent, to: recipient, idempotencyKey: key });
+      rendered = JSON.stringify(previous.body);
+    }
+  }
   const payloadHash = hash(rendered), accountHash = emailAccountHash(prepared.config);
   if (row.payload !== null && (row.payload_hash !== payloadHash || row.account_hash !== accountHash || hash(row.payload) !== payloadHash)) {
     await finish(row, lease, row.attempts ? "unknown" : "cancelled", "delivery_configuration_changed");
@@ -109,6 +119,7 @@ async function deliver(row: Forward, source: Source, lease: string, send: typeof
       AND f.lease_until>now() AND f.retry_deadline>now() AND d.canonical_origin=${source.canonical_origin}
       AND r.mailbox=${source.lead_mailbox} AND route.reply_address=${source.reply_address} AND e.id=${source.enquiry_id}::uuid
       AND m.subject=${source.subject} AND m.message=${source.message}
+      AND (${!isRestrictedAppleRelayEmail(source.sender)} OR e.phone IS NOT DISTINCT FROM ${source.phone})
     RETURNING f.attempts`)).rows[0];
   if (!attempt) {
     await finish(row, lease, row.attempts ? "unknown" : "cancelled", "forwarding_changed");
@@ -151,7 +162,7 @@ export async function processCazooCustomerReplyForwards({ send = sendPreparedEma
     const attempts = row.attempts;
     try {
       const source = (await db.execute(sql`SELECT d.canonical_origin,d.retailer_id,d.source_url,r.mailbox AS lead_mailbox,
-        route.reply_address,e.id AS enquiry_id,e.customer_name,e.vehicle_title,e.vehicle_registration,m.subject,m.message,m.sender
+        route.reply_address,e.id AS enquiry_id,e.customer_name,e.vehicle_title,e.vehicle_registration,m.subject,m.message,m.sender,e.phone
         FROM ${sources},cazoo_customer_reply_forwards f
         WHERE ${eligible} AND f.reply_id=${row.reply_id}::uuid AND f.dealer_id=${row.dealer_id} AND f.lease_token=${lease}::uuid`)).rows[0] as unknown as Source | undefined;
       if (!source) {

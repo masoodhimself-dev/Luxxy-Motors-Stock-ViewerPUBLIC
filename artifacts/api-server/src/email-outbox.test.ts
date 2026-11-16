@@ -180,6 +180,7 @@ test("durable immutable email outbox: retry, restart, ownership, freshness, boun
       label: string,
       kind: "customer" | "staff" = "customer",
       validation: Record<string, unknown> = {},
+      email = "buyer@example.test",
     ) {
       const id = randomUUID(),
         requestId = randomUUID(),
@@ -190,7 +191,7 @@ test("durable immutable email outbox: retry, restart, ownership, freshness, boun
         dealerId: "a",
         type: "general",
         customerName: "Fictional customer",
-        email: "buyer@example.test",
+        email,
         message: "Fixture only",
         customerNotificationStatus:
           kind === "customer" ? "sending" : "not_sent",
@@ -204,13 +205,13 @@ test("durable immutable email outbox: retry, restart, ownership, freshness, boun
           requestId,
           requestHash: "fixture-hash",
           status: "sending",
-          recipient: "buyer@example.test",
+          recipient: email,
           subject: "Approved subject",
           message: "Approved message",
           createdBy: "fixture",
         });
       const request: EmailRequest = {
-        to: "buyer@example.test",
+        to: email,
         subject: "Approved subject",
         html: "<p>Approved message</p>",
         text: "Approved message",
@@ -243,6 +244,17 @@ test("durable immutable email outbox: retry, restart, ownership, freshness, boun
       };
     }
     await runWithTenant(a, async () => {
+      await t.test("previously queued private Apple relay messages stop before reaching the provider", async () => {
+        const f = await fixture("apple-relay", "customer", {}, "buyer@private.icloud.com");
+        const result = await deliverEmailOutbox(f.row.id, {
+          ...f.options,
+          now: f.now,
+          send: async () => assert.fail("A private Apple relay address must not be sent an enquiry email"),
+        });
+        assert.equal(result?.status, "failed");
+        assert.equal(result?.error_code, "apple_relay_recipient");
+        assert.equal(result?.attempts, 0);
+      });
       await t.test('archived enquiries cancel queued delivery without a provider call even if they were archived after preparation', async () => {
         const f = await fixture('archived-cancel');
         await db.update(enquiriesTable).set({ archivedAt: f.now, archiveDeleteAt: new Date(f.now.getTime() + 30 * 86400000) }).where(eq(enquiriesTable.id, f.id));
@@ -793,6 +805,39 @@ test("durable immutable email outbox: retry, restart, ownership, freshness, boun
         assert.doesNotMatch(oldNotice.html, /blue-suv\.jpg/);
         assert.doesNotMatch(oldNotice.text!, /Price at enquiry|132,000 miles|Reply on WhatsApp/);
         await assert.rejects(runWithTenant(b, () => rebuildAutomaticOutboxEmail(row)), /approved email details changed/i);
+      });
+      await t.test("restricted Apple relay website enquiry tells the dealer how to contact the customer", async (sub) => {
+        const [enquiry] = await db.insert(enquiriesTable).values({
+          dealerId: "a", source: "website", type: "general", customerName: "Private relay customer",
+          email: "buyer@private.icloud.com", phone: "07700 900123", preferredContact: "email",
+          message: "Can someone call me about a car?", customerNotificationStatus: "pending", dealerNotificationStatus: "pending",
+        }).returning();
+        sub.after(async () => {
+          await db.delete(enquiriesTable).where(eq(enquiriesTable.id, enquiry!.id));
+        });
+        sub.mock.method(globalThis, "fetch", async () => new Response(null, { status: 429 }));
+        await deliverEnquiryNotifications(enquiry!, quiet);
+        const [saved] = await db.select().from(enquiriesTable).where(eq(enquiriesTable.id, enquiry!.id));
+        assert.equal(saved!.customerNotificationStatus, "failed");
+        assert.match(saved!.customerNotificationError!, /DealerOS can’t email this private Apple address/);
+        const customerAttempt = (await db.execute(
+          sql`SELECT id FROM email_outbox WHERE dealer_id='a' AND enquiry_id=${enquiry!.id}::uuid AND kind='customer'`,
+        )).rows[0];
+        assert.equal(customerAttempt, undefined);
+        const row = (await db.execute(
+          sql`SELECT * FROM email_outbox WHERE dealer_id='a' AND enquiry_id=${enquiry!.id}::uuid AND kind='dealer'`,
+        )).rows[0] as unknown as EmailOutbox;
+        assert.ok(row?.payload, "dealer notice was queued");
+        const original = JSON.parse(row.payload);
+        assert.deepEqual(original.to, ["sales@example.test"]);
+        assert.match(original.text, /DealerOS can’t email this private Apple address/);
+        assert.ok(original.text.indexOf("Reply on WhatsApp") < original.text.indexOf("Call customer"));
+        assert.match(original.html, /href="tel:\+447700900123"/);
+        assert.match(original.html, /enquiryAction=fix-email/);
+        assert.doesNotMatch(original.html + original.text, /buyer@private\.icloud\.com/);
+        const retry = await rebuildAutomaticOutboxEmail(row);
+        assert.equal(retry.html, original.html);
+        assert.equal(retry.text, original.text);
       });
       await t.test(
         "old and new queued layouts validate and transport the exact approved bytes across the upgrade",

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Enquiry } from "@workspace/api-client-react";
+import { isRestrictedAppleRelayEmail } from "@workspace/vehicle-meta";
 import { Mail, MessageCircle, Phone } from "@/components/icons";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ type ReplyDeskProps = {
   compact?: boolean;
   allowMissingRecipient?: boolean;
   editRecipientRequest?: number;
+  onCancelAddressEdit?: () => void;
   enquiryReplyId?: string;
 };
 export function EnquiryReplyDesk(props: ReplyDeskProps) {
@@ -35,6 +37,7 @@ function ReplyDesk({
   compact = false,
   allowMissingRecipient = false,
   editRecipientRequest = 0,
+  onCancelAddressEdit,
   enquiryReplyId,
 }: ReplyDeskProps) {
   const defaultChannel = (requested: "email" | "whatsapp" | "note") =>
@@ -50,6 +53,7 @@ function ReplyDesk({
   const container = useRef<HTMLElement>(null);
   const handledFocus = useRef(0);
   const handledInsertion = useRef<number | undefined>(undefined);
+  const editingRelayAddress = channel === "email" && isRestrictedAppleRelayEmail(entry.email);
   useEffect(() => {
     onBusyChange?.(busy);
   }, [busy, onBusyChange]);
@@ -76,8 +80,8 @@ function ReplyDesk({
       className={`enquiry-reply-desk${compact ? " enquiry-reply-compact" : ""}`}
       aria-label="Reply and staff notes"
     >
-      {!compact && <header><h4>Reply</h4></header>}
-      {compact ? <label className="enquiry-reply-channel-select"><span className="sr-only">Reply channel</span><NativeSelect aria-label="Reply channel" disabled={busy} value={channel} onChange={event=>{setChannel(event.target.value as typeof channel);setNotice("");}}><option value="email">Email</option><option value="whatsapp">WhatsApp</option><option value="note">Private note</option></NativeSelect></label> : <div
+      {!compact && <header><h4>{editingRelayAddress ? "Update email address" : "Reply"}</h4></header>}
+      {!editingRelayAddress && (compact ? <label className="enquiry-reply-channel-select"><span className="sr-only">Reply channel</span><NativeSelect aria-label="Reply channel" disabled={busy} value={channel} onChange={event=>{setChannel(event.target.value as typeof channel);setNotice("");}}><option value="email">Email</option><option value="whatsapp">WhatsApp</option><option value="note">Private note</option></NativeSelect></label> : <div
         className="enquiry-reply-channels"
         role="group"
         aria-label="Reply channel"
@@ -104,7 +108,7 @@ function ReplyDesk({
             {item.label}
           </Button>
         ))}
-      </div>}
+      </div>)}
       <div className="enquiry-reply-editor">
         <div hidden={channel === "note"}>
           <EnquiryEmailComposer
@@ -122,6 +126,7 @@ function ReplyDesk({
             }
             onBusyChange={setBusy}
             onChooseEmail={() => setChannel("email")}
+            onCancelAddressEdit={onCancelAddressEdit}
             onClose={(result) => {
               setNotice(
                 result === "sent"

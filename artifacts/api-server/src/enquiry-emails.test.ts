@@ -233,6 +233,18 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
     expectedRevision: 0,
   };
   try {
+    for (const to of ["buyer@privaterelay.appleid.com", "buyer@PRIVATE.ICLOUD.COM"]) {
+      const preview = await call(base + "/email-preview", { ...draft, to });
+      assert.equal(preview.status, 422);
+      assert.match(preview.data.error, /can’t email this private Apple address/);
+      const send = await call(base + "/email", {
+        ...draft, to, requestId: randomUUID(), previewHash: "0".repeat(64),
+      });
+      assert.equal(send.status, 422);
+    }
+    assert.equal((await call(base + "/email-preview", { ...draft, to: "hidden@icloud.com" })).status, 200);
+    assert.equal(sends.length, 0);
+
     assert.equal(
       (await call(base + "/email-context", undefined, "")).status,
       401,

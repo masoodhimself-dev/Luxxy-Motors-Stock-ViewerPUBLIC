@@ -2,6 +2,7 @@ import { routeCustomerReply } from './customer-email-replies';
 import { createHash, randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
+import { APPLE_RELAY_EMAIL_UNAVAILABLE, isRestrictedAppleRelayEmail } from "@workspace/vehicle-meta";
 import type { Logger } from "pino";
 import { currentDealerId, multiTenantEnabled } from "./tenant-context";
 import { runBoundedDealerJob } from "./tenant-jobs";
@@ -135,6 +136,10 @@ export async function enqueueEmailOutbox(
 }
 
 function message(row: EmailOutbox) {
+  if (row.error_code === "apple_relay_recipient")
+    return row.status === "unknown"
+      ? "Email retry stopped for a private Apple address. The earlier delivery could not be confirmed."
+      : APPLE_RELAY_EMAIL_UNAVAILABLE;
   if (row.error_code === "cazoo_first_reply_no_longer_eligible") return "The automatic reply stopped because the enquiry or stock changed. Review the enquiry before replying.";
   if (row.error_code === "sale_update_not_sent") return "This sale update was not sent. Review the current sale before trying again.";
   if (row.error_code === 'price_update_already_approved') return 'This customer already has a price update approved, sent or awaiting a delivery check. This additional email was not sent. Review their conversation before preparing another update.';
@@ -396,6 +401,11 @@ export function deliverEmailOutbox(
             throw new Error(
               "The saved email payload failed its integrity check.",
             );
+          if (claimed.kind !== "dealer" && !saleUpdate && !claimed.validation.saleDocument) {
+            const envelope: EmailEnvelope = JSON.parse(claimed.payload);
+            if (envelope.to.some(isRestrictedAppleRelayEmail))
+              throw new EmailProviderError(422, null, "apple_relay_recipient", false);
+          }
           const config = await (
             options.settings ??
             (async () =>
@@ -446,7 +456,10 @@ export function deliverEmailOutbox(
               receivedAt.getTime() +
                 Math.max(failure.retryAfterSeconds ?? 60, 1) * 1000,
             );
-          if (saleUpdate && !providerCalled && !acceptancePossible) {
+          if (error instanceof EmailProviderError && error.providerCode === "apple_relay_recipient") {
+            status = claimed.attempts === 1 ? "failed" : "unknown";
+            code = error.providerCode;
+          } else if (saleUpdate && !providerCalled && !acceptancePossible) {
             status = "failed";
             code = "sale_update_not_sent";
             countAttempt = false;

@@ -15,7 +15,7 @@ import {
 } from "./ai-assistance";
 import { AiAssistanceStore } from "./ai-assistance-store";
 import { buildEnquiryAiContext, enquiryAiContextHash, enquiryIsArchived } from "./enquiry-ai-context";
-import type { MotHistory } from "@workspace/vehicle-meta";
+import { isRestrictedAppleRelayEmail, type MotHistory } from "@workspace/vehicle-meta";
 import { runBoundedDealerJob } from "./tenant-jobs";
 import { serviceLifecycle, startLifecycleWorker } from "./service-lifecycle";
 import { platformStockConnection } from "./platform-stock-connection";
@@ -285,7 +285,8 @@ export async function draftCazooReply(
     enquiry.mergedIntoId ||
     enquiryIsArchived(enquiry) ||
     enquiry.status !== "new" ||
-    !enquiry.email
+    !enquiry.email ||
+    isRestrictedAppleRelayEmail(enquiry.email)
   )
     return "skipped";
   if (!(await cazooDraftAutomationEligibility(dealer, row.mailbox)).automaticDraftsEnabled)

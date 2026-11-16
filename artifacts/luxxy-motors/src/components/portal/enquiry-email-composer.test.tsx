@@ -1227,3 +1227,37 @@ it("keeps a typed address when someone else has changed the enquiry", async () =
   expect(address).toHaveValue("new@example.test");
   expect(calls("/email")).toHaveLength(0);
 });
+
+it("only offers address correction until a confirmed replacement for an Apple relay is saved", async () => {
+  const original = state.fetch.getMockImplementation()!;
+  let savedEmail = "relay@privaterelay.appleid.com";
+  let revision = 2;
+  state.fetch.mockImplementation(async (url: string, options: { body?: string }) => {
+    if (url.endsWith("/email-context")) return { ...context(), email: savedEmail, revision };
+    if (url.endsWith("/email-address")) {
+      expect(JSON.parse(options.body!)).toEqual({
+        email: "customer@icloud.com", expectedRevision: 2, expectedDraftVersion: 4,
+      });
+      savedEmail = "customer@icloud.com";
+      revision = 3;
+      return { email: savedEmail, revision, draftVersion: 4 };
+    }
+    return original(url, options);
+  });
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <EnquiryEmailComposer inline compact editRecipientRequest={1} entry={entry} onClose={state.close} />
+    </QueryClientProvider>,
+  );
+  const address = await screen.findByRole("textbox", { name: "Confirmed email address" });
+  const save = screen.getByRole("button", { name: "Save email address" });
+  expect(address).toHaveValue("");
+  expect(save).toBeDisabled();
+  expect(screen.queryByRole("textbox", { name: "Your reply" })).not.toBeInTheDocument();
+  fireEvent.change(address, { target: { value: "customer@icloud.com" } });
+  fireEvent.click(save);
+  await screen.findByRole("textbox", { name: "Your reply" });
+  expect(calls("/email-address")).toHaveLength(1);
+  expect(calls("/email-preview")).toHaveLength(0);
+  expect(calls("/email")).toHaveLength(0);
+});

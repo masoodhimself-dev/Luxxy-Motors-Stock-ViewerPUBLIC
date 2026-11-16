@@ -1,7 +1,13 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { customerWhatsAppDraft, vehiclePublicCode } from "@workspace/vehicle-meta";
+import {
+  APPLE_RELAY_EMAIL_UNAVAILABLE,
+  canonicalCustomerPhone,
+  customerWhatsAppDraft,
+  isRestrictedAppleRelayEmail,
+  vehiclePublicCode,
+} from "@workspace/vehicle-meta";
 import {
   useGetStaffDirectory,
   useUpdateEnquiryWorkspace,
@@ -131,10 +137,13 @@ export function EnquiryCustomerCase({
     access.data?.permissions.includes("sales.manage") === true &&
     !access.isError;
   const archived=Boolean(entry.archivedAt);
-  const canReply = canManage && Boolean(actions.onEmail) && !archived;
+  const canContact = canManage && !archived;
+  const canReply = canContact && Boolean(actions.onEmail);
+  const restrictedEmail = isRestrictedAppleRelayEmail(entry.email);
+  const contactPhone = restrictedEmail ? canonicalCustomerPhone(entry.phone) : "";
   const hasWhatsAppNumber = Boolean(customerWhatsAppNumber(entry.phone ?? ""));
   const publicCar = car?.inventoryStatus === "available" || car?.inventoryStatus === "reserved" ? car : undefined;
-  const whatsappReplyUrl = compact && canReply && hasWhatsAppNumber
+  const whatsappReplyUrl = hasWhatsAppNumber && ((compact && canReply) || (restrictedEmail && canContact))
     ? customerWhatsAppUrl(entry.phone ?? "", customerWhatsAppDraft({
         customerName: entry.customerName,
         vehicleTitle: publicCar?.title || entry.vehicleTitle,
@@ -152,14 +161,14 @@ export function EnquiryCustomerCase({
   const [focusRequest, setFocusRequest] = useState(0);
   const [editRecipientRequest, setEditRecipientRequest] = useState(0);
   useEffect(() => {
-    if (!linkedReplyAction || !canReply) return;
+    if (!linkedReplyAction || !canReply || (restrictedEmail && linkedReplyAction === "reply")) return;
     const useWhatsApp = linkedReplyAction === "whatsapp" && hasWhatsAppNumber;
     setRequestedChannel(useWhatsApp ? "whatsapp" : "email");
     setFocusRequest((value) => value + 1);
     if (!useWhatsApp && (linkedReplyAction === "fix-email" || !entry.email?.trim())) {
       setEditRecipientRequest((value) => value + 1);
     }
-  }, [linkedReplyAction, enquiryReplyId, canReply, hasWhatsAppNumber, entry.email]);
+  }, [linkedReplyAction, enquiryReplyId, canReply, hasWhatsAppNumber, entry.email, restrictedEmail]);
   const [requestedChannel, setRequestedChannel] = useState<
     "email" | "whatsapp" | "note"
   >("email");
@@ -175,6 +184,7 @@ export function EnquiryCustomerCase({
   const replyId = useId();
   const tradeInId = useId();
   const replySurface = useRef<HTMLDivElement>(null);
+  const relayAddressAction = useRef<HTMLButtonElement>(null);
   const insertionId = useRef(0);
   const cache = useQueryClient();
   const refresh = useRefreshDesk();
@@ -197,7 +207,8 @@ export function EnquiryCustomerCase({
     entry.createdAt && Number.isFinite(Date.parse(entry.createdAt))
       ? entry.createdAt
       : null;
-  const replyOpen = canReply && (!compact || focusRequest > 0);
+  const replyOpen = canReply && ((!compact && !restrictedEmail) || focusRequest > 0);
+  const canInsertIntoReply = canReply && !replyBusy && (!restrictedEmail || hasWhatsAppNumber);
   const hasAiDraft = entry.aiDraftStatus === "ready";
   const preferredReplyChannel = hasWhatsAppNumber &&
     (entry.preferredContact === "whatsapp" || !entry.email?.trim()) &&
@@ -250,15 +261,27 @@ export function EnquiryCustomerCase({
   }
   function insertIntoReply(text: string) {
     setTradeInOpen(false);
+    if (restrictedEmail) setRequestedChannel("whatsapp");
     setInsertion({ id: ++insertionId.current, text });
     setFocusRequest((value) => value + 1);
-    if (requestedChannel === "note") setRequestedChannel("email");
+    if (!restrictedEmail && requestedChannel === "note") setRequestedChannel("email");
   }
   function reply(channel: typeof requestedChannel = "email") {
     setRequestedChannel(channel);
     setFocusRequest((value) => value + 1);
   }
+  function useAnotherEmail() {
+    setEditRecipientRequest((value) => value + 1);
+    reply("email");
+  }
+  function cancelEmailChange() {
+    setFocusRequest(0);
+    relayAddressAction.current?.focus();
+  }
   function nextAction() {
+    if (restrictedEmail && canReply && (pendingReply || presentation.action === "respond")) {
+      return reply(hasWhatsAppNumber ? "whatsapp" : "note");
+    }
     if (pendingReply || presentation.action === "respond")
       return canReply
         ? reply(
@@ -302,7 +325,7 @@ export function EnquiryCustomerCase({
       entries={entries}
       canEmail={canReply}
       cars={cars}
-      onInsertText={canReply && !replyBusy ? insertIntoReply : undefined}
+      onInsertText={canInsertIntoReply ? insertIntoReply : undefined}
     />
   );
   const editor = replyOpen ? (
@@ -318,8 +341,9 @@ export function EnquiryCustomerCase({
       focusRequest={focusRequest}
       requestedChannel={requestedChannel}
       allowMissingRecipient={Boolean(linkedReplyAction)}
-      enquiryReplyId={enquiryReplyId}
+      enquiryReplyId={restrictedEmail ? undefined : enquiryReplyId}
       editRecipientRequest={editRecipientRequest}
+      onCancelAddressEdit={cancelEmailChange}
       onBusyChange={setReplyBusy}
       onSaved={saveCase}
     />
@@ -395,7 +419,7 @@ export function EnquiryCustomerCase({
             </a>
           )}
           {entry.email &&
-            (canReply ? (
+            (canReply && !restrictedEmail ? (
               <button type="button" onClick={() => reply("email")}>
                 <Mail size={15} aria-hidden />
                 {entry.email}
@@ -421,9 +445,52 @@ export function EnquiryCustomerCase({
           )}
         </div>
         </>}
-        {compact && ((canReply && !replyOpen) || canOpenTradeIn) && (
+        {restrictedEmail && !archived && (
+          <section className="enquiry-case-next-action enquiry-case-relay-contact" data-tone="warning" aria-label="Private Apple email">
+            <div>
+              <h4>{APPLE_RELAY_EMAIL_UNAVAILABLE}</h4>
+              <p>{contactPhone || whatsappReplyUrl
+                ? "Contact the customer by WhatsApp or phone first."
+                : "No usable phone number is recorded. Add another email if the customer has confirmed one."}</p>
+            </div>
+            {canContact && (
+              <div className="enquiry-case-relay-controls">
+                {(whatsappReplyUrl || contactPhone) && (
+                  <div className="enquiry-case-relay-actions">
+                    {whatsappReplyUrl && (
+                      <Button asChild size="sm">
+                        <a href={whatsappReplyUrl} aria-label="Reply on WhatsApp" target="_blank" rel="noopener noreferrer">
+                          <MessageCircle size={16} aria-hidden /> WhatsApp
+                        </a>
+                      </Button>
+                    )}
+                    {contactPhone && (
+                      <Button asChild size="sm" variant={whatsappReplyUrl ? "outline" : "default"}>
+                        <a href={`tel:${contactPhone}`} aria-label="Call customer">
+                          <Phone size={16} aria-hidden /> Call
+                        </a>
+                      </Button>
+                    )}
+                  </div>
+                )}
+                {canReply && (
+                  <Button
+                    ref={relayAddressAction}
+                    type="button"
+                    variant={contactPhone || whatsappReplyUrl ? "ghost" : "default"}
+                    size="sm"
+                    onClick={useAnotherEmail}
+                  >
+                    Use another email
+                  </Button>
+                )}
+              </div>
+            )}
+          </section>
+        )}
+        {compact && ((!restrictedEmail && canReply && !replyOpen) || canOpenTradeIn) && (
           <div className="enquiry-case-reply-action">
-            {canReply && !replyOpen && preferredReplyChannel === "email" && (
+            {!restrictedEmail && canReply && !replyOpen && preferredReplyChannel === "email" && (
               <Button
                 type="button"
                 size="sm"
@@ -434,7 +501,7 @@ export function EnquiryCustomerCase({
                 <Mail size={16} aria-hidden /> Reply
               </Button>
             )}
-            {whatsappReplyUrl && !replyOpen && (
+            {!restrictedEmail && whatsappReplyUrl && !replyOpen && (
               <Button
                 asChild
                 size="sm"
@@ -461,7 +528,7 @@ export function EnquiryCustomerCase({
                 Part exchange
               </Button>
             )}
-            {hasAiDraft && canReply && !replyOpen && <span id={replyId}>AI draft ready to review</span>}
+            {!restrictedEmail && hasAiDraft && canReply && !replyOpen && <span id={replyId}>AI draft ready to review</span>}
           </div>
         )}
         <div className="enquiry-case-toolbar" aria-label="Enquiry tools">
@@ -664,7 +731,7 @@ export function EnquiryCustomerCase({
                   car={car}
                   canManage={canManage}
                   onInsertText={
-                    canReply && !replyBusy ? insertIntoReply : undefined
+                    canInsertIntoReply ? insertIntoReply : undefined
                   }
                 />
                 <HistoryLinks
@@ -677,7 +744,7 @@ export function EnquiryCustomerCase({
                 id={`${contextId}-customer`}
                 className="enquiry-case-panel-body"
               >
-                {compact && <div className="enquiry-case-contact" aria-label="Customer contact details">{entry.phone && <a href={`tel:${entry.phone.replace(/[^+\d]/g, "")}`}><Phone size={15} aria-hidden/>{entry.phone}</a>}{entry.email && (canReply ? <button type="button" onClick={()=>{setContext(null);reply("email");}}><Mail size={15} aria-hidden/>{entry.email}</button> : <span><Mail size={15} aria-hidden/>{entry.email}</span>)}<span>{presentation.source} · {presentation.purpose}</span>{!entry.phone&&!entry.email&&<span>No contact details recorded</span>}</div>}
+                {compact && <div className="enquiry-case-contact" aria-label="Customer contact details">{entry.phone && <a href={`tel:${entry.phone.replace(/[^+\d]/g, "")}`}><Phone size={15} aria-hidden/>{entry.phone}</a>}{entry.email && (canReply && !restrictedEmail ? <button type="button" onClick={()=>{setContext(null);reply("email");}}><Mail size={15} aria-hidden/>{entry.email}</button> : <span><Mail size={15} aria-hidden/>{entry.email}</span>)}<span>{presentation.source} · {presentation.purpose}</span>{!entry.phone&&!entry.email&&<span>No contact details recorded</span>}</div>}
                 <dl className="enquiry-case-customer-facts">
                   <div>
                     <dt>Assigned to</dt>
@@ -770,7 +837,7 @@ export function EnquiryCustomerCase({
                 key={`${entry.id}:${entry.partExchangeRegistration ?? ""}`}
                 registration={entry.partExchangeRegistration ?? ""}
                 mileage={tradeInMileage}
-                onInsertText={canReply && !replyBusy ? insertIntoReply : undefined}
+                onInsertText={canInsertIntoReply ? insertIntoReply : undefined}
               />
             </div>
           )}

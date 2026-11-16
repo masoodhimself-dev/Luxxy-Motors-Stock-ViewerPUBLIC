@@ -501,6 +501,13 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
       } finally { process.env.AI_ENQUIRY_AUTOMATION = optedIn; }
       assert.equal((await cazooDraftAutomationEligibility("cazoo-a", second)).automaticDraftsEnabled, false);
       assert.equal((await cazooDraftAutomationEligibility("cazoo-b")).automaticDraftsEnabled, false);
+      await engine.query("UPDATE enquiries SET email='buyer@private.icloud.com' WHERE id=$1", [r.enquiry_id]);
+      try {
+        assert.equal(await runWithTenant(tenant(), () => draftCazooReply(r, generated, getCar)), "skipped");
+        assert.equal(calls, 0, "Private relay enquiries do not start an automated email draft");
+      } finally {
+        await engine.query("UPDATE enquiries SET email='sam@example.test' WHERE id=$1", [r.enquiry_id]);
+      }
       assert.equal(
         await runWithTenant(tenant(), () =>
           draftCazooReply(r, generated, getCar),

@@ -85,6 +85,10 @@ test("only a new, eligible Cazoo receipt gets one routed automatic reply", async
     const partExchange = await imported();
     await engine.query("UPDATE enquiries SET type='part_exchange' WHERE id=$1", [partExchange.enquiry_id]);
     assert.equal(await queueCazooAutomaticFirstReply(partExchange), false);
+    const privateRelay = await imported();
+    await engine.query("UPDATE enquiries SET email='buyer@privaterelay.appleid.com' WHERE id=$1", [privateRelay.enquiry_id]);
+    assert.equal(await queueCazooAutomaticFirstReply(privateRelay), false);
+    assert.equal((await engine.query("SELECT id FROM email_outbox WHERE enquiry_id=$1", [privateRelay.enquiry_id])).rows.length, 0);
     const receipt = await imported();
     const outcomes = await Promise.all([queueCazooAutomaticFirstReply(receipt), queueCazooAutomaticFirstReply(receipt)]);
     assert.deepEqual(outcomes, [true, true]);

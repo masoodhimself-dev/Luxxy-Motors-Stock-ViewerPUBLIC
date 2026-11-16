@@ -195,6 +195,28 @@
   flex: none;
   font-size: 11px;
 }
+.enquiries-premium-workspace .enquiry-case-relay-contact {
+  flex-direction: column;
+  align-items: flex-start;
+}
+.enquiries-premium-workspace .enquiry-case-relay-contact h4 {
+  font-size: 13px;
+}
+.enquiries-premium-workspace .enquiry-case-relay-contact p {
+  font-size: 12px;
+}
+.enquiries-premium-workspace .enquiry-case-relay-controls,
+.enquiries-premium-workspace .enquiry-case-relay-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.enquiries-premium-workspace .enquiry-case-relay-controls {
+  flex-wrap: wrap;
+}
+.enquiries-premium-workspace .enquiry-case-relay-controls :is(a, button) {
+  min-height: 44px;
+}
 .enquiries-premium-workspace .enquiry-case-action-preview {
   display: -webkit-box;
   -webkit-line-clamp: 2;

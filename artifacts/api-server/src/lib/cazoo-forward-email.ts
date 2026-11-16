@@ -1,10 +1,12 @@
-import { customerWhatsAppDraft, customerWhatsAppNumber, customerWhatsAppUrl } from "@workspace/vehicle-meta";
+import { customerWhatsAppDraft, customerWhatsAppNumber, customerWhatsAppUrl, isRestrictedAppleRelayEmail } from "@workspace/vehicle-meta";
 import { CazooLeadError, readCazooLeadDetails } from "./cazoo-lead-parser";
+import { appleRelayDealerContact } from "./notification-email-copy";
 import { publicSeoOrigin } from "./public-page-seo";
 import { permittedVehicleSheetImage } from "./vehicle-sheet-image";
 
 const escape = (value: string) => value.replace(/[&<>]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[char]!));
 const htmlText = (value: string) => escape(value).replace(/\n/g, "<br>");
+const escapeAttribute = (value: string) => escape(value).replace(/"/g, "&quot;");
 type PortalDestination = { origin: string; enquiryId: string | null };
 type ForwardAction = { label: string; href: string; outlined?: boolean };
 
@@ -62,7 +64,7 @@ export function renderCazooForwardEmail(
   format: "current" | "before-part-ex" = "current",
   destination?: PortalDestination,
   vehicle?: CazooForwardVehicle,
-  options: { whatsapp?: "direct" | "legacy" } = {},
+  options: { whatsapp?: "direct" | "legacy"; allowLegacyAppleReply?: boolean } = {},
 ) {
   let lead: ReturnType<typeof readCazooLeadDetails> | undefined;
   try {
@@ -72,7 +74,8 @@ export function renderCazooForwardEmail(
     if (!(error instanceof CazooLeadError)) throw error;
   }
   const candidate = lead?.email;
-  const replyTo = candidate && !blockedAddresses.includes(candidate) &&
+  const appleRelay = !options.allowLegacyAppleReply && isRestrictedAppleRelayEmail(candidate);
+  const replyTo = !appleRelay && candidate && !blockedAddresses.includes(candidate) &&
     !(replyDomain && candidate.endsWith(`@${replyDomain}`)) ? candidate : undefined;
   const linkedVehicle = lead && vehicle ? vehicle : null;
   const title = linkedVehicle
@@ -107,12 +110,12 @@ export function renderCazooForwardEmail(
     if (tradeIn) facts.push(["Trade-in", tradeIn]);
   } else if (type) facts.push(["Enquiry", type]);
   const phone = lead?.phone?.replace(/^(07\d{3})(\d{6})$/, "$1 $2");
-  const customer = [lead?.customerName === "Customer" ? undefined : lead?.customerName, phone, replyTo ?? "Customer email unavailable"].filter(Boolean).join("\n");
+  const customer = [lead?.customerName === "Customer" ? undefined : lead?.customerName, phone, appleRelay ? "Private Apple email" : replyTo ?? "Customer email unavailable"].filter(Boolean).join("\n");
   const message = lead
     ? lead.message || "No message included."
     : body || "No message included.";
   let whatsappLink: string | null = null;
-  if (options.whatsapp === "direct" && lead?.phone) {
+  if ((options.whatsapp === "direct" || appleRelay) && lead?.phone) {
     const origin = publicSeoOrigin(destination?.origin);
     const shortPath = linkedVehicle?.shortPath;
     const vehicleUrl = origin && shortPath && /^\/s\/[a-z0-9]{8}$/.test(shortPath) ? new URL(shortPath, origin).href : null;
@@ -130,8 +133,14 @@ export function renderCazooForwardEmail(
   }
   const legacyWhatsAppNumber = options.whatsapp === "legacy" && lead?.phone ? customerWhatsAppNumber(lead.phone) : null;
   const hasWhatsApp = Boolean(whatsappLink || legacyWhatsAppNumber);
-  const actions = portalActions(destination, Boolean(replyTo), whatsappLink, legacyWhatsAppNumber);
-  const note = actions.length && destination?.enquiryId
+  const relayContact = appleRelay ? appleRelayDealerContact(lead?.phone, whatsappLink) : null;
+  const actions = relayContact
+    ? [
+        ...relayContact.actions.map(({ label, url }) => ({ label, href: url, outlined: true })),
+        ...portalActions(destination, false, null, null),
+      ]
+    : portalActions(destination, Boolean(replyTo), whatsappLink, legacyWhatsAppNumber);
+  const note = relayContact?.notice ?? (actions.length && destination?.enquiryId
     ? replyTo
       ? "Use Reply in DealerOS to keep the customer's response with this enquiry."
       : hasWhatsApp
@@ -141,7 +150,7 @@ export function renderCazooForwardEmail(
       ? "Reply to this email to contact the customer."
       : hasWhatsApp
         ? "Check the enquiry in DealerOS or contact the customer on WhatsApp."
-        : "Check the enquiry in DealerOS or use the phone number if supplied.";
+        : "Check the enquiry in DealerOS or use the phone number if supplied.");
   const messageLabel = lead ? "Customer message" : "Original enquiry for review";
   const text = [title, ...facts.map(([label, value]) => `${label}: ${value}`), "", "Customer", customer, "", messageLabel, message, "", note,
     ...actions.flatMap(({ label, href }) => ["", label, href])].join("\n");
@@ -151,7 +160,7 @@ export function renderCazooForwardEmail(
       : outlined
         ? "display:inline-block;padding:9px 14px;border:1px solid #172740;border-radius:6px;color:#172740;font-weight:700;text-decoration:none"
         : "display:inline-block;padding:10px 0;color:#172740;font-weight:700;text-decoration:underline";
-    return `<p style="margin:0 0 6px"><a href="${escape(href).replace(/"/g, "&quot;")}" style="${style}">${label}</a></p>`;
+    return `<p style="margin:0 0 6px"><a href="${escapeAttribute(href)}" style="${style}">${label}</a></p>`;
   }).join("");
   const section = (label: string, value: string) => `<h2 style="margin:0 0 6px;color:#172740;font-size:16px;line-height:1.4">${label}</h2><p style="margin:0 0 20px">${htmlText(value)}</p>`;
   const photoUrl = linkedVehicle?.photoUrl;
@@ -191,6 +200,9 @@ export function renderCazooCustomerReplyForwardEmail(input: {
   vehicleRegistration: string | null;
   subject: string;
   message: string;
+  customerAddress?: string;
+  customerPhone?: string | null;
+  allowLegacyAppleReply?: boolean;
 }) {
   const origin = publicSeoOrigin(input.origin);
   if (!origin) return null;
@@ -208,18 +220,39 @@ export function renderCazooCustomerReplyForwardEmail(input: {
   const customer = headerText(input.customerName) || "Customer";
   const vehicle = [input.vehicleTitle, input.vehicleRegistration].filter(Boolean).join(" · ");
   const message = input.message || "This email contained no readable text.";
+  const appleRelay = !input.allowLegacyAppleReply && isRestrictedAppleRelayEmail(input.customerAddress);
   const title = "New reply to your Cazoo enquiry";
   const footer = "This reply is saved in DealerOS. Staff sign-in required.";
+  let notice = "";
+  let actions = [{ label: "Reply in DealerOS", url: url.href }];
+  if (appleRelay) {
+    url.searchParams.delete("enquiryReplyId");
+    url.searchParams.set("enquiryAction", "fix-email");
+    const whatsapp = customerWhatsAppUrl(input.customerPhone ?? "", customerWhatsAppDraft({
+      customerName: input.customerName,
+      vehicleTitle: input.vehicleTitle,
+      registration: input.vehicleRegistration,
+    }));
+    const contact = appleRelayDealerContact(input.customerPhone, whatsapp);
+    notice = contact.notice;
+    actions = [...contact.actions, { label: "Add customer email", url: url.href }];
+  }
   const text = [
-    title, customer, vehicle, "", message, "",
-    "Reply in DealerOS", url.href, "", footer,
+    title, customer, vehicle, "", message, "", ...(notice ? [notice, ""] : []),
+    ...actions.flatMap(({ label, url }) => [label, url, ""]), footer,
   ].join("\n");
+  const links = actions.map(({ label, url }, index) => {
+    const style = index === 0
+      ? "display:inline-block;padding:10px 15px;border-radius:6px;background:#172740;color:#fff;font-weight:700;text-decoration:none"
+      : "display:inline-block;padding:8px 0;color:#172740;font-weight:700;text-decoration:underline";
+    return `<p style="margin:0 0 10px"><a href="${escapeAttribute(url)}" style="${style}">${label}</a></p>`;
+  }).join("");
   const html = `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;font:16px/1.5 Arial,sans-serif;color:#172740;overflow-wrap:anywhere">
     <tr><td style="padding:12px 16px 20px">
       <h1 style="font-size:24px;line-height:1.3;margin:0 0 10px">${title}</h1>
       <p style="margin:0 0 16px"><strong>${escape(customer)}</strong>${vehicle ? `<br>${escape(vehicle)}` : ""}</p>
       <div style="border-top:1px solid #d7dde7;padding-top:14px;margin-bottom:18px">${htmlText(message)}</div>
-      <p style="margin:0 0 10px"><a href="${escape(url.href)}" style="display:inline-block;padding:10px 15px;border-radius:6px;background:#172740;color:#fff;font-weight:700;text-decoration:none">Reply in DealerOS</a></p>
+      ${notice ? `<p style="margin:0 0 14px;color:#475569;font-size:14px">${notice}</p>` : ""}${links}
       <p style="margin:0;color:#475569;font-size:14px">${footer}</p>
     </td></tr>
   </table>`;

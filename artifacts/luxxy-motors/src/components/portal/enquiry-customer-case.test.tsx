@@ -768,3 +768,37 @@ it("does not offer the WhatsApp shortcut when the customer number is unusable", 
   show({ compact: true, current: { ...entry, phone: "123" } });
   expect(screen.queryByRole("link", { name: "Reply on WhatsApp" })).not.toBeInTheDocument();
 });
+
+it("prioritises calling or WhatsApp for Apple relay enquiries opened from a dealer email", () => {
+  show({
+    compact: true,
+    linkedReplyAction: "reply",
+    current: { ...entry, email: "relay@privaterelay.appleid.com", phone: "07700 900123" },
+  });
+  const guidance = within(screen.getByRole("region", { name: "Private Apple email" }));
+  expect(guidance.getByText(/can.t email this private Apple address/i)).toBeVisible();
+  expect(guidance.getByRole("link", { name: "Reply on WhatsApp" })).toHaveAttribute("href", expect.stringMatching(/^https:\/\/wa.me\/447700900123\?/));
+  expect(guidance.getByRole("link", { name: "Call customer" })).toHaveAttribute("href", "tel:+447700900123");
+  expect(screen.queryByRole("button", { name: "Reply" })).not.toBeInTheDocument();
+  expect(state.reply).not.toHaveBeenCalled();
+
+  fireEvent.click(guidance.getByRole("button", { name: "Use another email" }));
+  expect(state.reply).toHaveBeenLastCalledWith(expect.objectContaining({
+    requestedChannel: "email",
+    editRecipientRequest: 1,
+  }));
+});
+
+it("offers an address correction when a newer Apple relay enquiry has no usable phone", () => {
+  show({ compact: true, current: { ...entry, email: "relay@private.icloud.com", phone: "123" } });
+  const guidance = within(screen.getByRole("region", { name: "Private Apple email" }));
+  expect(guidance.getByText(/no usable phone number/i)).toBeVisible();
+  expect(guidance.queryByRole("link")).not.toBeInTheDocument();
+  expect(guidance.getByRole("button", { name: "Use another email" })).toBeVisible();
+});
+
+it("continues offering email replies to regular iCloud addresses", () => {
+  show({ compact: true, current: { ...entry, email: "customer@icloud.com" } });
+  expect(screen.queryByRole("region", { name: "Private Apple email" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Reply" })).toBeVisible();
+});

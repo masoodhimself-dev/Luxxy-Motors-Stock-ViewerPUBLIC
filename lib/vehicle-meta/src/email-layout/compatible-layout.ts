@@ -1,6 +1,6 @@
 import { renderHtml, type Section, type View } from "./components.ts";
 import { palette } from "./safety.ts";
-import type { TemplateId } from "./types.ts";
+import type { EmailAction, TemplateId } from "./types.ts";
 
 /** Presentation adapter only. Inputs have already passed the existing email contract.
  * In particular, never infer payments, attachments, booking state or add editable copy. */
@@ -19,6 +19,7 @@ export function renderCompatibleEmailLayout(input: {
   attachments: string[];
   actionUrl?: string;
   actionLabel: string;
+  secondaryActions?: EmailAction[];
   contactEmail: string;
   phone: string;
   address: string;
@@ -72,7 +73,7 @@ export function renderCompatibleEmailLayout(input: {
     primary: input.actionUrl
       ? { label: input.actionLabel, url: input.actionUrl }
       : undefined,
-    secondary: [],
+    secondary: input.secondaryActions ?? [],
     email: input.contactEmail || undefined,
     phone: input.phone || undefined,
     address: input.address || undefined,

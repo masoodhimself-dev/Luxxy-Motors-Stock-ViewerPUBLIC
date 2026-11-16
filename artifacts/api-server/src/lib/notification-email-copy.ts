@@ -1,4 +1,6 @@
 import {
+  APPLE_RELAY_EMAIL_UNAVAILABLE,
+  canonicalCustomerPhone,
   customerWhatsAppDraft,
   customerWhatsAppUrl,
   formatVehiclePrice,
@@ -111,4 +113,23 @@ export function notificationVehicleFacts(vehicleTitle: string | null | undefined
     if (value) facts.push({ label, value });
   }
   return facts;
+}
+
+/** Shared dealer-facing copy and contact actions for a restricted Apple address. */
+export function appleRelayDealerContact(phone?: string | null, whatsappUrl?: string | null) {
+  const phoneNumber = canonicalCustomerPhone(phone);
+  const actions = [];
+  if (whatsappUrl) actions.push({ label: "Reply on WhatsApp", url: whatsappUrl });
+  if (phoneNumber) actions.push({ label: "Call customer", url: `tel:${phoneNumber}` });
+  const next = whatsappUrl && phoneNumber
+    ? "Use WhatsApp or call the customer first."
+    : whatsappUrl
+      ? "Contact the customer on WhatsApp first."
+      : phoneNumber
+        ? "Call the customer first."
+        : "No usable phone number was supplied.";
+  return {
+    actions,
+    notice: `${APPLE_RELAY_EMAIL_UNAVAILABLE} ${next} Save another email address once the customer confirms it.`,
+  };
 }

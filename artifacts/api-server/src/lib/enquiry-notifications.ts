@@ -1,5 +1,7 @@
 import {
+  APPLE_RELAY_EMAIL_UNAVAILABLE,
   approvedEmailLayoutVersion,
+  isRestrictedAppleRelayEmail,
   formatVehicleName,
   vehiclePublicCode,
   vehicleSharePath,
@@ -22,6 +24,7 @@ import {
 } from "./dealer-integrations-store";
 import { serviceLifecycle } from "./service-lifecycle";
 import {
+  appleRelayDealerContact,
   approvedNotificationStock,
   approvedNotificationWhatsApp,
   captureNotificationStock,
@@ -172,6 +175,7 @@ async function attemptEmail({
   kind,
   notificationStock,
   notificationWhatsApp,
+  notificationAppleRelay,
 }: {
   to: string | null;
   subject: string;
@@ -188,11 +192,20 @@ async function attemptEmail({
   kind: OutboxKind;
   notificationStock?: NotificationStock;
   notificationWhatsApp?: string;
+  notificationAppleRelay?: boolean;
 }): Promise<DeliveryResult> {
   if (!to) {
     return {
       status: "failed",
       error: missingRecipientMessage,
+      sentAt: null,
+      providerId: null,
+    };
+  }
+  if (kind !== "dealer" && isRestrictedAppleRelayEmail(to)) {
+    return {
+      status: "failed",
+      error: APPLE_RELAY_EMAIL_UNAVAILABLE,
       sentAt: null,
       providerId: null,
     };
@@ -214,6 +227,7 @@ async function attemptEmail({
         version: notificationVersion(enquiry),
         ...(notificationStock ? { notificationStock } : {}),
         ...(notificationWhatsApp ? { notificationWhatsApp } : {}),
+        ...(notificationAppleRelay ? { notificationAppleRelay } : {}),
       },
     });
     const outcome = await attemptQueuedEmail(outbox.id);
@@ -302,9 +316,22 @@ async function enquiryEmail(
   audience: "customer" | "dealer",
   reminder = false,
   layoutVersion: EmailLayoutVersion = "correspondence-v1",
-  notice?: { stock?: NotificationStock; whatsappUrl?: string },
+  notice?: { stock?: NotificationStock; whatsappUrl?: string; appleRelay?: boolean },
 ) {
   const { stock, whatsappUrl } = notice ?? {};
+  const relayContact = audience === "dealer" && notice?.appleRelay
+    ? appleRelayDealerContact(enquiry.phone, whatsappUrl)
+    : null;
+  if (relayContact) {
+    const origin = publicSeoOrigin(currentTenant()?.canonicalOrigin ?? process.env.PUBLIC_SITE_URL);
+    if (origin) {
+      const url = new URL("/portal", origin);
+      url.search = new URLSearchParams({
+        section: "notifications", workView: "customers", enquiryId: enquiry.id, enquiryAction: "fix-email",
+      }).toString();
+      relayContact.actions.push({ label: "Add customer email", url: url.href });
+    }
+  }
   const isViewing = enquiry.type === "viewing" && enquiry.appointmentAt != null;
   let moved = false;
   if (
@@ -367,7 +394,9 @@ async function enquiryEmail(
       ? [
           { label: "Customer", value: enquiry.customerName },
           { label: "Phone", value: enquiry.phone ?? "Not provided" },
-          ...(enquiry.email ? [{ label: "Email", value: enquiry.email }] : []),
+          ...(relayContact
+            ? [{ label: "Email replies", value: relayContact.notice }]
+            : enquiry.email ? [{ label: "Email", value: enquiry.email }] : []),
           ...(enquiry.partExchangeRegistration
             ? [
                 {
@@ -396,7 +425,7 @@ async function enquiryEmail(
       dealer_phone: dealer.contact.phone,
       dealer_address: dealer.contact.address,
       customer_name: enquiry.customerName,
-      customer_email: enquiry.email ?? "",
+      customer_email: relayContact ? "Private Apple email" : enquiry.email ?? "",
       reference: enquiry.reference,
       vehicle_title: vehicleLabel(enquiry, dealer.identity.name),
       appointment_time: formatAppointment(enquiry.appointmentAt) ?? "",
@@ -409,14 +438,14 @@ async function enquiryEmail(
           ? (viewingManageUrl(enquiry.id) ?? "")
           : "",
       message: enquiry.message,
-      preferred_contact: enquiry.preferredContact
-        ? (contactMethodLabels[enquiry.preferredContact] ??
-          enquiry.preferredContact)
-        : "",
+      preferred_contact: relayContact && enquiry.preferredContact === "email"
+        ? "Apple private email is unavailable"
+        : enquiry.preferredContact ? (contactMethodLabels[enquiry.preferredContact] ?? enquiry.preferredContact) : "",
     },
     facts,
     dealerVehicleNotice: stock ? { photoUrl: stock.photoUrl } : undefined,
-    ...(audience === "dealer" && whatsappUrl ? {
+    ...(relayContact ? { dealerContactActions: relayContact.actions } : {}),
+    ...(audience === "dealer" && whatsappUrl && !relayContact ? {
       actionUrl: whatsappUrl,
       actionLabel: "Reply on WhatsApp",
     } : {}),
@@ -588,7 +617,8 @@ async function processDealerNotification(
 
   const vehicle = await notificationVehicleForEnquiry(claimed, log);
   const notificationStock = vehicle?.stock;
-  const notificationWhatsApp = isWebsiteEnquiry(claimed)
+  const notificationAppleRelay = isRestrictedAppleRelayEmail(claimed.email);
+  const notificationWhatsApp = isWebsiteEnquiry(claimed) || notificationAppleRelay
     ? captureNotificationWhatsApp(claimed.phone, {
         customerName: claimed.customerName,
         vehicleTitle: vehicle?.title ?? claimed.vehicleTitle,
@@ -605,9 +635,11 @@ async function processDealerNotification(
     ...(await enquiryEmail(claimed, dealer, "dealer", false, "correspondence-v1", {
       stock: notificationStock,
       whatsappUrl: notificationWhatsApp,
+      appleRelay: notificationAppleRelay,
     })),
     notificationStock,
     notificationWhatsApp,
+    notificationAppleRelay,
     idempotencyKey: `enquiry-${claimed.id}-dealer-${notificationVersion(claimed)}`,
     dealerName: dealer.identity.name,
     missingRecipientMessage: "Dealer notification email is not configured.",
@@ -771,6 +803,7 @@ export async function rebuildAutomaticOutboxEmail(
     audience === "dealer" ? {
       stock: approvedNotificationStock(row.validation.notificationStock),
       whatsappUrl: approvedNotificationWhatsApp(row.validation.notificationWhatsApp),
+      appleRelay: row.validation.notificationAppleRelay === true,
     } : undefined,
   );
   const to =
