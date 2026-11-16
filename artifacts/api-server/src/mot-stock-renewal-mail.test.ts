@@ -48,6 +48,10 @@ test("renewals are sent to the scoped dealer with stable retries and only while 
     ...first, dealerId: "mot-notice-dealer-b", canonicalOrigin: "https://dealer-b.example.test",
     platform: "cazoo", retailerId: "dealer-b", sourceUrl: "https://www.cazoo.co.uk/dealers/dealer-b",
   };
+  const previousRecipients = process.env.MOT_RENEWAL_EMAIL_RECIPIENTS;
+  process.env.MOT_RENEWAL_EMAIL_RECIPIENTS = JSON.stringify({
+    [second.dealerId]: "mot-alerts@example.test",
+  });
   const sends: { payload: string; key: string | null }[] = [];
   let failNext = false;
   const transport: typeof fetch = async (url, init) => {
@@ -131,6 +135,9 @@ test("renewals are sent to the scoped dealer with stable retries and only while 
     failNext = true;
     await send();
     assert.equal(sends.length, 3);
+    const noAdvisoryEmail = JSON.parse(sends[2]!.payload);
+    assert.doesNotMatch(noAdvisoryEmail.html, /Advisories from this test/);
+    assert.doesNotMatch(noAdvisoryEmail.text, /Advisories from this test/);
     await engine.query("UPDATE vehicles SET missing_count=1 WHERE id=$1", [removedBeforeRetry]);
     await engine.query("UPDATE mot_stock_renewal_notices SET next_attempt_at=now() WHERE vehicle_id=$1", [removedBeforeRetry]);
     await send();
@@ -157,15 +164,18 @@ test("renewals are sent to the scoped dealer with stable retries and only while 
       [second.dealerId, second.retailerId],
     );
     const activeCazoo = await addNotice(second, "Active official Cazoo");
+    await engine.query("UPDATE mot_stock_renewal_notices SET advisories=$2 WHERE vehicle_id=$1", [
+      activeCazoo, ["Rear tyre worn"],
+    ]);
     const missingCazoo = await addNotice(second, "Missing from official Cazoo", { missingCount: 1 });
     await send(second);
     assert.equal(await status(activeCazoo), "sent");
     assert.equal(await status(missingCazoo), "skipped");
     assert.equal(sends.length, 4);
     const cazooEmail = JSON.parse(sends[3]!.payload);
-    assert.deepEqual(cazooEmail.to, ["dealer-b@example.test"]);
-    assert.doesNotMatch(cazooEmail.html, /Advisories from this test/);
-    assert.doesNotMatch(cazooEmail.text, /Advisories from this test/);
+    assert.deepEqual(cazooEmail.to, ["mot-alerts@example.test"]);
+    assert.match(cazooEmail.html, /Rear tyre worn/);
+    assert.match(cazooEmail.text, /- Rear tyre worn/);
 
     await setLegacyCazooEnabled(true);
     await engine.query("UPDATE cazoo_feed_authority SET enabled=false WHERE dealer_id=$1", [second.dealerId]);
@@ -179,6 +189,8 @@ test("renewals are sent to the scoped dealer with stable retries and only while 
     assert.equal(sends.length, 4);
   } finally {
     globalThis.fetch = realFetch;
+    if (previousRecipients === undefined) delete process.env.MOT_RENEWAL_EMAIL_RECIPIENTS;
+    else process.env.MOT_RENEWAL_EMAIL_RECIPIENTS = previousRecipients;
     await engine.close();
   }
 });

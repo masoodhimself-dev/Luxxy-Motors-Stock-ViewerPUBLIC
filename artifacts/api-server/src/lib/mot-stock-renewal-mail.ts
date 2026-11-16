@@ -10,6 +10,7 @@ import {
 } from "@workspace/vehicle-meta";
 import type { Logger } from "pino";
 import { findPublicVehicle } from "../routes/stock";
+import { mailbox } from "./customer-email-replies";
 import { dealerIntegrationsStore, effectiveResendSettings } from "./dealer-integrations-store";
 import { dealerNotificationRecipient, dealerProfile } from "./enquiry-notifications";
 import { emailRetryWindowMs } from "./email-outbox";
@@ -109,6 +110,24 @@ export function renderStockMotRenewalEmail(input: {
   };
 }
 
+export function stockMotRenewalRecipient(dealerId: string, contactEmail: string): string | null {
+  // The override applies only to MOT notices and only to an exact dealer ID.
+  try {
+    const configured: unknown = JSON.parse(process.env.MOT_RENEWAL_EMAIL_RECIPIENTS || "{}");
+    if (configured && typeof configured === "object" && !Array.isArray(configured) &&
+      Object.hasOwn(configured, dealerId)) {
+      const value = (configured as Record<string, unknown>)[dealerId];
+      const address = mailbox(value);
+      if (typeof value === "string" && address && value.trim().toLowerCase() === address) {
+        return address;
+      }
+    }
+  } catch {
+    // An unreadable override leaves the existing notification address in use.
+  }
+  return dealerNotificationRecipient(contactEmail);
+}
+
 function noticeKey(notice: ClaimedNotice) {
   return [notice.dealerId, notice.vehicle_id, notice.registration, notice.expiry_date, notice.claimToken];
 }
@@ -193,7 +212,7 @@ async function sendNotice(notice: ClaimedNotice, transport: typeof fetch, log: P
 
     const [profile, settings] = await Promise.all([dealerProfile(), dealerIntegrationsStore.readPrivate()]);
     const config = effectiveResendSettings(settings);
-    const recipient = dealerNotificationRecipient(profile.contact.email);
+    const recipient = stockMotRenewalRecipient(notice.dealerId, profile.contact.email);
     if (!recipient || !config.enabled || !config.apiKey || !config.from) {
       return finishNotice(notice, notice.attempts ? "unknown" : "skipped");
     }
