@@ -15,6 +15,7 @@ test("the MOT email includes the official car photo, new expiry and staff car li
   const email = renderStockMotRenewalEmail({
     to: "dealer@example.test", dealerName: "Kirk & Co", vehicleId,
     registration: "AB12CDE", expiryDate: "2027-05-01",
+    advisories: ["Tyre wear <near legal limit>", "Slight play in a ball joint"],
     vehicle: { make: "Ford", model: "Focus", year: 2012, heroImage: "javascript:bad()", images: [photo] },
     origin: "https://dealer.example.test", idempotencyKey: "mot-renewal-fixture",
   });
@@ -24,6 +25,11 @@ test("the MOT email includes the official car photo, new expiry and staff car li
   assert.doesNotMatch(email.html, /javascript:/);
   assert.match(email.html, /New MOT expiry: <strong>1 May 2027<\/strong>/);
   assert.match(email.text!, /New MOT expiry: 1 May 2027/);
+  assert.match(email.html, /Advisories from this test/);
+  assert.match(email.html, /Tyre wear &lt;near legal limit&gt;/);
+  assert.doesNotMatch(email.html, /<near legal limit>/);
+  assert.match(email.text!, /- Tyre wear <near legal limit>/);
+  assert.match(email.text!, /- Slight play in a ball joint/);
   assert.ok(email.text!.includes(`https://dealer.example.test/portal?section=cars&carId=${vehicleId}`));
 });
 
@@ -94,6 +100,9 @@ test("renewals are sent to the scoped dealer with stable retries and only while 
     const gone = await addNotice(first, "Removed from feed", { sourceStatus: "missing" });
     const changed = await addNotice(first, "Registration changed", { plate: "CD34EFG" });
     const live = await addNotice(first, "Focus", { inventoryStatus: "reserved" });
+    await engine.query("UPDATE mot_stock_renewal_notices SET advisories=$2 WHERE vehicle_id=$1", [
+      live, ["Slight play in a ball joint"],
+    ]);
     const other = await addNotice(second, "Other dealership");
 
     failNext = true;
@@ -104,6 +113,9 @@ test("renewals are sent to the scoped dealer with stable retries and only while 
     assert.match(firstEmail.subject, /Ford Focus/);
     assert.ok(firstEmail.html.includes(photo));
     assert.match(firstEmail.html, /1 May 2027/);
+    assert.match(firstEmail.html, /Advisories from this test/);
+    assert.match(firstEmail.html, /Slight play in a ball joint/);
+    assert.match(firstEmail.text, /- Slight play in a ball joint/);
     for (const ineligible of [grace, gone, changed]) assert.equal(await status(ineligible), "skipped");
     assert.equal(await status(other), "queued");
 
@@ -150,7 +162,10 @@ test("renewals are sent to the scoped dealer with stable retries and only while 
     assert.equal(await status(activeCazoo), "sent");
     assert.equal(await status(missingCazoo), "skipped");
     assert.equal(sends.length, 4);
-    assert.deepEqual(JSON.parse(sends[3]!.payload).to, ["dealer-b@example.test"]);
+    const cazooEmail = JSON.parse(sends[3]!.payload);
+    assert.deepEqual(cazooEmail.to, ["dealer-b@example.test"]);
+    assert.doesNotMatch(cazooEmail.html, /Advisories from this test/);
+    assert.doesNotMatch(cazooEmail.text, /Advisories from this test/);
 
     await setLegacyCazooEnabled(true);
     await engine.query("UPDATE cazoo_feed_authority SET enabled=false WHERE dealer_id=$1", [second.dealerId]);

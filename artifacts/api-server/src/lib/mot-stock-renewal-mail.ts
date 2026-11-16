@@ -38,6 +38,7 @@ type Notice = {
   vehicle_id: string;
   registration: string;
   expiry_date: string;
+  advisories: string[] | null;
   created_at: Date | string;
   attempts: number;
   payload: string | null;
@@ -57,6 +58,7 @@ export function renderStockMotRenewalEmail(input: {
   vehicleId: string;
   registration: string;
   expiryDate: string;
+  advisories?: readonly string[] | null;
   vehicle: VehicleMetaSource;
   origin: string | null;
   idempotencyKey: string;
@@ -74,6 +76,16 @@ export function renderStockMotRenewalEmail(input: {
   }
   const view = portal?.href;
   const escape = escapeEmailHtml;
+  const advisories = input.advisories ?? [];
+  const advisoryHeading = "Advisories from this test";
+  const advisoryHtml = advisories.length
+    ? `<h2 style="margin:0 0 8px;font-size:18px">${advisoryHeading}</h2>
+          <ul style="margin:0 0 16px;padding-left:22px">${advisories.map(advisory =>
+            `<li style="margin:0 0 6px">${escape(advisory)}</li>`).join("")}</ul>`
+    : "";
+  const advisoryText = advisories.length
+    ? [advisoryHeading, ...advisories.map(advisory => `- ${advisory}`)].join("\n")
+    : "";
   return {
     to: input.to,
     subject: `MOT renewed: ${name} (${registration})`,
@@ -86,11 +98,13 @@ export function renderStockMotRenewalEmail(input: {
           ${photo ? `<img src="${escape(photo)}" alt="${escape(name)}" width="512" style="display:block;width:100%;max-width:512px;height:auto;margin:0 0 16px;border-radius:6px">` : ""}
           <p style="margin:0 0 6px"><strong>${escape(name)}</strong> · ${escape(registration)}</p>
           <p style="margin:0 0 16px">New MOT expiry: <strong>${escape(expiry)}</strong></p>
+          ${advisoryHtml}
           ${view ? `<p style="margin:0"><a href="${escape(view)}" style="color:#182957">View car in DealerOS</a></p>` : ""}
         </td></tr>
       </table>
     </body></html>`,
-    text: [input.dealerName, "MOT renewed", `${name} · ${registration}`, `New MOT expiry: ${expiry}`, view && `View car in DealerOS: ${view}`].filter(Boolean).join("\n\n"),
+    text: [input.dealerName, "MOT renewed", `${name} · ${registration}`, `New MOT expiry: ${expiry}`,
+      advisoryText, view && `View car in DealerOS: ${view}`].filter(Boolean).join("\n\n"),
     idempotencyKey: input.idempotencyKey,
   };
 }
@@ -110,7 +124,7 @@ async function claimNotice(dealerId: string): Promise<ClaimedNotice | null> {
       SET status='sending',claim_token=$2,lease_until=now()+interval '2 minutes'
       FROM candidate c WHERE n.dealer_id=$1 AND n.vehicle_id=c.vehicle_id
       AND n.registration=c.registration AND n.expiry_date=c.expiry_date
-      RETURNING n.vehicle_id,n.registration,n.expiry_date::text AS expiry_date,n.created_at,n.attempts,n.payload,n.account_hash`,
+      RETURNING n.vehicle_id,n.registration,n.expiry_date::text AS expiry_date,n.advisories,n.created_at,n.attempts,n.payload,n.account_hash`,
     [dealerId, claimToken],
   );
   return rows[0] ? { ...rows[0], dealerId, claimToken } : null;
@@ -203,7 +217,7 @@ async function sendNotice(notice: ClaimedNotice, transport: typeof fetch, log: P
       };
       const prepared = await prepareEmailWithSettings(config, renderStockMotRenewalEmail({
         to: recipient, dealerName: profile.identity.name, registration: notice.registration,
-        vehicleId: notice.vehicle_id, expiryDate: notice.expiry_date, vehicle, idempotencyKey,
+        vehicleId: notice.vehicle_id, expiryDate: notice.expiry_date, advisories: notice.advisories, vehicle, idempotencyKey,
         origin: tenant?.canonicalOrigin ?? process.env.PUBLIC_SITE_URL ?? null,
       }));
       payload = JSON.stringify(prepared.body);

@@ -49,6 +49,9 @@ async function fixture() {
   await engine.exec(
     await readFile("../../lib/db/drizzle/0091_mot_stock_renewal_notices.sql", "utf8"),
   );
+  await engine.exec(
+    await readFile("../../lib/db/drizzle/0092_mot_renewal_advisories.sql", "utf8"),
+  );
   const query = (sql: string, values?: any[]) => engine.query<any>(sql, values);
   let lane = Promise.resolve();
   const database = {
@@ -529,7 +532,7 @@ async function setSharedMotCache(
 async function renewalNotices(f: Awaited<ReturnType<typeof fixture>>) {
   return (
     await f.query(
-      `SELECT dealer_id,vehicle_id::text,registration,expiry_date::text,status
+      `SELECT dealer_id,vehicle_id::text,registration,expiry_date::text,status,advisories
     FROM mot_stock_renewal_notices ORDER BY dealer_id,vehicle_id`,
     )
   ).rows;
@@ -539,6 +542,17 @@ test("MOT notices quietly learn the first pass and queue the later renewal once 
   const f = await fixture();
   try {
     const { initial, renewed } = renewalHistories();
+    const advisory = { text: "Left rear tyre worn", type: "ADVISORY", dangerous: false };
+    initial.tests[0]!.defects = [{ ...advisory, text: "Advisory from the previous pass" }];
+    const latestPass = renewed.tests[0]!;
+    latestPass.defects = [advisory, { ...advisory, type: "MINOR", text: "Minor defect" }];
+    renewed.tests.unshift({
+      ...latestPass,
+      completedDate: new Date(Date.parse(latestPass.completedDate) + 60_000).toISOString(),
+      result: "FAILED",
+      expiryDate: null,
+      defects: [{ ...advisory, text: "Advisory from a failed test" }],
+    });
     const correctedVehicleId = "33333333-3333-4333-8333-333333333333";
     await insert(f);
     await insert(f, second, "two", initial.registration, "reserved");
@@ -602,8 +616,9 @@ test("MOT notices quietly learn the first pass and queue the later renewal once 
       dealer_id: dealer,
       vehicle_id: vehicleId,
       registration: initial.registration,
-      expiry_date: renewed.tests[0]!.expiryDate,
+      expiry_date: latestPass.expiryDate,
       status: "queued",
+      advisories: [advisory.text],
     });
     assert.deepEqual(await renewalNotices(f), [
       expected("one", first),

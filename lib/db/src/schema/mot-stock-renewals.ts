@@ -56,6 +56,7 @@ export const motStockRenewalNoticesTable = pgTable(
     payload: text("payload"),
     accountHash: text("account_hash"),
     providerId: text("provider_id"),
+    advisories: text("advisories").array(),
   },
   (t) => [
     primaryKey({

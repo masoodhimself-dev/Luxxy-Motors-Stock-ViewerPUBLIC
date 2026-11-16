@@ -1,9 +1,9 @@
-import type { MotHistory } from "@workspace/vehicle-meta";
+import type { MotHistory, MotTest } from "@workspace/vehicle-meta";
 
 type ObservationSql = {
   query(text: string, values?: any[]): Promise<{ rows: any[] }>;
 };
-type PassingTest = { testDate: string; expiryDate: string };
+type PassingTest = { testDate: string; expiryDate: string; test: MotTest };
 type Observation = {
   registration: string;
   checked_at: Date | string;
@@ -37,10 +37,17 @@ function latestPassingTest(history: MotHistory, checkedDay: string): PassingTest
     if (!testDate || !expiryDate || testDate > checkedDay || expiryDate < testDate) continue;
     if (!latest || testDate > latest.testDate ||
         (testDate === latest.testDate && expiryDate > latest.expiryDate)) {
-      latest = { testDate, expiryDate };
+      latest = { testDate, expiryDate, test };
     }
   }
   return latest;
+}
+
+export function motTestAdvisories(test: MotTest): string[] {
+  return (test.defects ?? [])
+    .filter(defect => defect.type.trim().toUpperCase() === "ADVISORY")
+    .map(defect => defect.text.trim())
+    .filter(Boolean);
 }
 
 /** Record successful DVSA history inside the stock worker's dealer transaction. */
@@ -72,9 +79,9 @@ export async function observeStockMotRenewal(
       passing.testDate >= londonDate.format(new Date(previous.checked_at));
     if (previous && passing.expiryDate >= checkedDay && (extendsExistingMot || firstObservedPass)) {
       await client.query(
-        `INSERT INTO mot_stock_renewal_notices(dealer_id,vehicle_id,registration,expiry_date)
-         VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING`,
-        [dealerId, vehicleId, history.registration, passing.expiryDate],
+        `INSERT INTO mot_stock_renewal_notices(dealer_id,vehicle_id,registration,expiry_date,advisories)
+         VALUES($1,$2,$3,$4,$5::text[]) ON CONFLICT DO NOTHING`,
+        [dealerId, vehicleId, history.registration, passing.expiryDate, motTestAdvisories(passing.test)],
       );
     }
     testDate = passing.testDate;

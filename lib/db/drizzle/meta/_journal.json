@@ -645,6 +645,13 @@
       "when": 1794739115369,
       "tag": "0091_mot_stock_renewal_notices",
       "breakpoints": true
+    },
+    {
+      "idx": 92,
+      "version": "7",
+      "when": 1794865195416,
+      "tag": "0092_mot_renewal_advisories",
+      "breakpoints": true
     }
   ]
 }
