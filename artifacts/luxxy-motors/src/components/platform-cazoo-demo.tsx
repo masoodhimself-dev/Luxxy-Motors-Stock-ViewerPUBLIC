@@ -3,6 +3,8 @@ import { customFetch, HttpApiError } from '@workspace/api-client-react';
 import { CheckCircle2, Copy, ExternalLink } from '@/components/icons';
 import { Button, buttonVariants } from './ui/button';
 import { Textarea } from './ui/textarea';
+import { Input } from './ui/input';
+import { NativeSelect } from './ui/native-select';
 import './platform-cazoo-demo.css';
 
 type CazooDemoResult = {
@@ -25,6 +27,17 @@ const uploadLimit = 5 * 1024 * 1024;
 const stockFileLimit = 8 * 1024 * 1024;
 const logoDataLimit = Math.ceil(250_000 / 3) * 4 + 'data:image/jpeg;base64,'.length;
 const logoTypes = ['image/png', 'image/jpeg', 'image/webp'];
+
+type PublicTextField = 'phone' | 'email' | 'websiteUrl' | 'about' | 'visitInstructions' | 'warrantyDescription' | 'deliveryDescription' | 'partExchangeDescription';
+type SourceEvidence = { sourceUrl: string; checkedAt: string };
+type OpeningDay = { day: number; status: 'open' | 'closed' | 'appointment_only' | 'unknown'; open?: string; close?: string };
+type DealerPublicDetails = SourceEvidence & Partial<Record<PublicTextField, string>> & {
+  showroomAddress?: SourceEvidence & { street: string; city: string; region?: string; postcode: string; mapsUrl?: string };
+  openingHours?: SourceEvidence & { timezone: 'Europe/London'; days: OpeningDay[] };
+  includedItems?: string[];
+};
+const publicTextFields: PublicTextField[] = ['phone', 'email', 'websiteUrl', 'about', 'visitInstructions', 'warrantyDescription', 'deliveryDescription', 'partExchangeDescription'];
+const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -51,7 +64,122 @@ function parseStockJson(input: string, retailerId: string) {
   if (logoData != null && typeof logoData !== 'string') {
     throw new Error('The logo in the JSON should be an image data URL. You can also choose the dealership’s logo below.');
   }
-  return { stock, logoData: logoData || undefined };
+  const details = record(data) && data !== stock ? data.dealershipDetails : undefined;
+  if (details != null) {
+    const invalid = () => new Error('The dealership details are incomplete. Use the prompt above to export them in the correct format.');
+    if (!record(details) || typeof details.sourceUrl !== 'string' || typeof details.checkedAt !== 'string'
+      || publicTextFields.some(key => details[key] != null && typeof details[key] !== 'string')
+      || (details.includedItems != null && (!Array.isArray(details.includedItems) || details.includedItems.some(item => typeof item !== 'string')))) throw invalid();
+    if (details.showroomAddress != null) {
+      const address = details.showroomAddress;
+      if (!record(address) || ['street', 'city', 'postcode', 'sourceUrl', 'checkedAt'].some(key => typeof address[key] !== 'string')
+        || ['region', 'mapsUrl'].some(key => address[key] != null && typeof address[key] !== 'string')) throw invalid();
+    }
+    if (details.openingHours != null) {
+      const hours = details.openingHours;
+      if (!record(hours) || hours.timezone !== 'Europe/London' || typeof hours.sourceUrl !== 'string' || typeof hours.checkedAt !== 'string'
+        || !Array.isArray(hours.days) || hours.days.length !== 7 || hours.days.some(day => !record(day) || !Number.isInteger(day.day)
+          || Number(day.day) < 0 || Number(day.day) > 6
+          || !['open', 'closed', 'appointment_only', 'unknown'].includes(String(day.status))
+          || (day.status === 'open' && (typeof day.open !== 'string' || typeof day.close !== 'string')))) throw invalid();
+      if (new Set(hours.days.map(day => day.day)).size !== 7) throw invalid();
+    }
+  }
+  return { stock, logoData: logoData || undefined, dealershipDetails: details == null ? undefined : details as DealerPublicDetails };
+}
+
+function PublicDetailsReview({ value, sourceUrl, disabled, onChange }: {
+  value: DealerPublicDetails | undefined;
+  sourceUrl: string;
+  disabled: boolean;
+  onChange: (value: DealerPublicDetails) => void;
+}) {
+  const evidence = { sourceUrl, checkedAt: new Date().toISOString() };
+  const current: DealerPublicDetails = value ?? evidence;
+  const update = (patch: Partial<DealerPublicDetails>) => onChange({ ...current, ...patch });
+  function updateText(key: PublicTextField, text: string) {
+    update({ [key]: text });
+  }
+  const present = [value?.phone, value?.email, value?.showroomAddress, value?.openingHours].filter(Boolean).length;
+  return <details className="platform-cazoo-public-details" onInvalidCapture={event => {
+    if (!(event.target instanceof HTMLElement)) return;
+    for (let parent = event.target.parentElement; parent; parent = parent.parentElement) {
+      if (parent instanceof HTMLDetailsElement) parent.open = true;
+      if (parent === event.currentTarget) break;
+    }
+  }}>
+    <summary>Public dealership details <span>{present ? `${present} contact details supplied` : 'Add contact details'}</span></summary>
+    <div className="platform-cazoo-details-fields">
+      <p>{value ? 'Check these details before opening the demo.' : 'This export has no dealership details. Add the public information you want shown in the demo.'}</p>
+      <div className="platform-cazoo-contact-fields">
+        {([
+          ['phone', 'Showroom phone', 'tel', 40],
+          ['email', 'Public email', 'email', 160],
+          ['websiteUrl', 'Dealership website', 'url', 2048],
+        ] as const).map(([field, label, type, maxLength]) => <label key={field} className="platform-field">
+          <span>{label}</span><Input type={type} value={current[field] ?? ''} maxLength={maxLength} disabled={disabled}
+            onChange={event => updateText(field, event.target.value)}/>
+        </label>)}
+      </div>
+      {(['about', 'visitInstructions'] as const).map(field => <label className="platform-field" key={field}>
+        <span>{field === 'about' ? 'About the dealership' : 'Visiting instructions'}</span>
+        <Textarea rows={2} maxLength={1000} disabled={disabled} value={current[field] ?? ''}
+          onChange={event => updateText(field, event.target.value)}/>
+      </label>)}
+      <details className="platform-cazoo-details-section">
+        <summary>Showroom address{current.showroomAddress ? '' : ' · not supplied'}</summary>
+        {current.showroomAddress ? <div className="platform-cazoo-address-fields">
+          {(['street', 'city', 'region', 'postcode', 'mapsUrl'] as const).map(field => <label className="platform-field" key={field}>
+            <span>{{ street: 'Street address', city: 'Town or city', region: 'Region', postcode: 'Postcode', mapsUrl: 'Map link' }[field]}</span>
+            <Input value={current.showroomAddress?.[field] ?? ''} disabled={disabled} type={field === 'mapsUrl' ? 'url' : 'text'}
+              maxLength={field === 'mapsUrl' ? 2048 : field === 'street' ? 160 : field === 'postcode' ? 20 : 80}
+              required={field === 'street' || field === 'city' || field === 'postcode'}
+              onChange={event => update({ showroomAddress: { ...current.showroomAddress!, [field]: event.target.value } })}/>
+          </label>)}
+          <Button type="button" variant="ghost" size="sm" disabled={disabled}
+            onClick={() => update({ showroomAddress: undefined })}>Remove showroom address</Button>
+        </div> : <Button type="button" variant="outline" size="sm" disabled={disabled}
+          onClick={() => update({ showroomAddress: { ...evidence, street: '', city: '', postcode: '' } })}>Add showroom address</Button>}
+      </details>
+      <details className="platform-cazoo-details-section">
+        <summary>Opening hours{current.openingHours ? '' : ' · not supplied'}</summary>
+        {current.openingHours ? <div className="platform-cazoo-hours-fields">
+          {[...current.openingHours.days].sort((a, b) => (a.day + 6) % 7 - (b.day + 6) % 7).map(day => <div className="platform-cazoo-opening-day" key={day.day}>
+            <label className="platform-field"><span>{weekdayNames[day.day]}</span>
+              <NativeSelect aria-label={`${weekdayNames[day.day]} opening status`} value={day.status} disabled={disabled}
+                onChange={event => {
+                  const status = event.target.value as OpeningDay['status'];
+                  const next: OpeningDay = status === 'open' ? { day: day.day, status, open: '', close: '' } : { day: day.day, status };
+                  update({ openingHours: { ...current.openingHours!, days: current.openingHours!.days.map(row => row.day === day.day ? next : row) } });
+                }}>
+                <option value="unknown">Not confirmed</option><option value="open">Open</option><option value="closed">Closed</option><option value="appointment_only">By appointment</option>
+              </NativeSelect>
+            </label>
+            {day.status === 'open' && (['open', 'close'] as const).map(field => <label key={field} className="platform-field">
+              <span>{field === 'open' ? 'Opens' : 'Closes'}</span><Input type="time" required value={day[field] ?? ''} disabled={disabled}
+                aria-label={`${weekdayNames[day.day]} ${field === 'open' ? 'opening' : 'closing'} time`}
+                onChange={event => update({ openingHours: { ...current.openingHours!, days: current.openingHours!.days.map(row => row.day === day.day ? { ...row, [field]: event.target.value } : row) } })}/>
+            </label>)}
+          </div>)}
+          <Button type="button" variant="ghost" size="sm" disabled={disabled}
+            onClick={() => update({ openingHours: undefined })}>Remove opening hours</Button>
+        </div> : <Button type="button" variant="outline" size="sm" disabled={disabled}
+          onClick={() => update({ openingHours: { ...evidence, timezone: 'Europe/London', days: weekdayNames.map((_, day) => ({ day, status: 'unknown' })) } })}>Add opening hours</Button>}
+      </details>
+      <details className="platform-cazoo-details-section">
+        <summary>What the dealership offers</summary>
+        <p>Use only the dealership’s confirmed public wording.</p>
+        <label className="platform-field"><span>What’s included with every car</span>
+          <Textarea rows={3} disabled={disabled} value={current.includedItems?.join('\n') ?? ''} placeholder="One item per line"
+            onChange={event => update({ includedItems: event.target.value.split('\n') })}/>
+        </label>
+        {(['warrantyDescription', 'deliveryDescription', 'partExchangeDescription'] as const).map(field => <label className="platform-field" key={field}>
+          <span>{{ warrantyDescription: 'Warranty', deliveryDescription: 'Delivery', partExchangeDescription: 'Part exchange' }[field]}</span>
+          <Textarea rows={2} maxLength={300} disabled={disabled} value={current[field] ?? ''} onChange={event => updateText(field, event.target.value)}/>
+        </label>)}
+      </details>
+    </div>
+  </details>;
 }
 
 async function prepareLogo(file: File) {
@@ -95,6 +223,8 @@ export function PlatformCazooDemo({ dealer, prompt, busy, onBusyChange, onManage
   const id = useId();
   const [json, setJson] = useState('');
   const [stockFile, setStockFile] = useState('');
+  const [publicDetails, setPublicDetails] = useState<DealerPublicDetails>();
+  const [stockParsed, setStockParsed] = useState(false);
   const [logo, setLogo] = useState<{ data: string; name: string }>();
   const [copyMessage, setCopyMessage] = useState('');
   const [error, setError] = useState<{ field: 'submit' | 'stock' | 'logo'; message: string }>();
@@ -133,9 +263,11 @@ export function PlatformCazooDemo({ dealer, prompt, busy, onBusyChange, onManage
       if (kind === 'stock') {
         if (file.size > stockFileLimit) throw new Error('Choose a JSON file under 8 MB. The stock itself can be up to 5 MB.');
         const content = await file.text();
-        parseStockJson(content, dealer.retailerId);
+        const payload = parseStockJson(content, dealer.retailerId);
         setJson(content);
         setStockFile(file.name);
+        setPublicDetails(payload.dealershipDetails);
+        setStockParsed(true);
       } else {
         setLogo({ data: await prepareLogo(file), name: file.name });
       }
@@ -161,10 +293,16 @@ export function PlatformCazooDemo({ dealer, prompt, busy, onBusyChange, onManage
       if (logoData && logoData.length > logoDataLimit) {
         throw new Error('The logo in the JSON is too large. Choose a smaller image below.');
       }
+      const details = publicDetails ?? payload.dealershipDetails;
       body = JSON.stringify({
         sourceUrl: dealer.sourceUrl,
         stock: payload.stock,
         logoData,
+        dealershipDetails: details && {
+          ...details,
+          includedItems: details.includedItems?.map(text => text.trim()).filter(Boolean),
+          showroomAddress: details.showroomAddress && { ...details.showroomAddress, mapsUrl: details.showroomAddress.mapsUrl?.trim() || undefined },
+        },
       });
     } catch (cause) {
       setError({ field: 'stock', message: cause instanceof Error ? cause.message : 'Check the stock JSON and try again.' });
@@ -244,6 +382,15 @@ export function PlatformCazooDemo({ dealer, prompt, busy, onBusyChange, onManage
             setJson(event.target.value);
             setStockFile('');
             setError(undefined);
+            setPublicDetails(undefined);
+            setStockParsed(false);
+            try {
+              const payload = parseStockJson(event.target.value, dealer.retailerId);
+              setPublicDetails(payload.dealershipDetails);
+              setStockParsed(true);
+            } catch {
+              // Keep the draft editable while JSON is incomplete.
+            }
           }}/>
       </label>
       <div className="platform-cazoo-files">
@@ -279,6 +426,7 @@ export function PlatformCazooDemo({ dealer, prompt, busy, onBusyChange, onManage
           </div>}
         </div>
       </div>
+      {stockParsed && <PublicDetailsReview value={publicDetails} sourceUrl={dealer.sourceUrl} disabled={disabled} onChange={setPublicDetails}/>}
       {working && <p className="platform-demo-link-progress" role="status">{
         working === 'create' ? 'Importing the Cazoo stock and preparing the private demo…' : 'Reading the selected file…'
       }</p>}

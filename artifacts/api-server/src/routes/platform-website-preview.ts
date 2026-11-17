@@ -9,6 +9,7 @@ import publicRoutes from './index';
 const router = Router({ mergeParams: true });
 const websitePages = /^(?:\/|\/(?:stock|contact|warranty|saved|enquire)\/?|\/(?:vehicle|cars|s)\/[a-z0-9-]+\/?)$/i;
 const websiteReads = /^\/(?:stock|dealer-settings|features|vehicles\/(?:short\/)?[a-z0-9-]+|website-assets\/[a-f0-9-]{36})\/?$/i;
+const cachedMotRead = /^\/vehicles\/[a-f0-9-]{36}\/mot-history\/?$/i;
 
 router.use(async (req, res, next) => {
   res.set({
@@ -67,7 +68,12 @@ router.use('/api', async (req, res, next) => {
     res.json({ enabled: false, mode: null, prepared: false });
     return;
   }
-  if (!websiteReads.test(req.path)) {
+  if (cachedMotRead.test(req.path)) {
+    // Browsing a private demo can reuse public records without initiating a provider lookup.
+    const url = new URL(req.url, 'https://preview.invalid');
+    url.searchParams.set('cacheOnly', 'true');
+    req.url = url.pathname + url.search;
+  } else if (!websiteReads.test(req.path)) {
     res.status(404).json({ error: 'This action is unavailable in the private preview.' });
     return;
   }

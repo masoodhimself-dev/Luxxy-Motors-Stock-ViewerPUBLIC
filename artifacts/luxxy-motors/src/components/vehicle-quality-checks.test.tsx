@@ -21,6 +21,15 @@ it('keeps a working contact fallback when website enquiries are disabled', () =>
   expect(screen.queryByRole('button', { name: 'Ask about these checks' })).not.toBeInTheDocument();
 });
 
+it('omits unrecorded checks from a compact private preview without inventing passes', () => {
+  const view = render(<VehicleQualityChecks car={car} hideUnknown />);
+  expect(screen.queryByRole('region', { name: 'Pre-sale checks' })).not.toBeInTheDocument();
+  view.rerender(<VehicleQualityChecks car={{ ...car, writeOffCategory: 'S' }} hideUnknown />);
+  expect(screen.getAllByRole('listitem')).toHaveLength(1);
+  expect(screen.getByText('Category S recorded. Please read the insurance history.')).toBeVisible();
+  expect(screen.queryByText('Passed')).not.toBeInTheDocument();
+});
+
 it('shows the dealership-confirmed completed checklist without an unnecessary enquiry prompt', () => {
   render(<VehicleQualityChecks car={car} dealerConfirmed />);
   expect(screen.getAllByText('Passed')).toHaveLength(10);

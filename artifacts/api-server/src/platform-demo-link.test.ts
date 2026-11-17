@@ -419,7 +419,20 @@ test('platform administrators can create private demos from marketplace stock li
       const cazooStock = {
         ...exampleStock, retailerId: cazooId, scrapedAt: new Date().toISOString(), cars: [car],
       };
-      const payload = { sourceUrl: submittedCazooLink, stock: cazooStock, logoData: `data:image/png;base64,${logo}` };
+      const checkedAt = new Date().toISOString();
+      const dealershipDetails = {
+        sourceUrl: cazooSource, checkedAt,
+        phone: '020 7946 0123', email: 'showroom@example.test', websiteUrl: 'https://example.test/',
+        about: 'A family-run dealership in Hayes.',
+        visitInstructions: 'Please arrange an appointment before visiting.',
+        showroomAddress: { street: '1 Example Road', city: 'Hayes', region: 'London', postcode: 'UB3 1AA', sourceUrl: 'https://example.test/contact', checkedAt },
+        openingHours: { timezone: 'Europe/London', sourceUrl: cazooSource, checkedAt, days: Array.from({ length: 7 }, (_, day) => ({ day, status: 'appointment_only' })) },
+        includedItems: ['6-month warranty', '6-month warranty', 'Vehicle inspection'],
+        warrantyDescription: 'A six-month warranty is included with every vehicle.',
+        deliveryDescription: 'Ask the team about delivery to your address.',
+        partExchangeDescription: 'Part exchange is welcome.',
+      };
+      const payload = { sourceUrl: submittedCazooLink, stock: cazooStock, logoData: `data:image/png;base64,${logo}`, dealershipDetails };
       const collectorCalls = collect.mock.callCount();
       await engine.query(`INSERT INTO dealerships (id, name, status, canonical_origin, stock_platform, retailer_id, source_url)
         VALUES ('existing-cazoo', 'Existing showroom', 'active', 'https://existing-cazoo.example.test', 'cazoo', $1, $2)`, [cazooId, cazooSource]);
@@ -445,6 +458,10 @@ test('platform administrators can create private demos from marketplace stock li
         { ...payload, sourceUrl: car.advertUrl },
         { ...payload, sourceUrl: 'https://cazoo.co.uk.example.test/dealers/example-cars-42656/' },
         { ...payload, logoData: 'data:image/png;base64,dGVzdA==' },
+        { ...payload, dealershipDetails: { ...dealershipDetails, sourceUrl: 'https://www.cazoo.co.uk/dealers/other-cars-99999/' } },
+        { ...payload, dealershipDetails: { ...dealershipDetails, settings: { publicOnlineReservations: true } } },
+        { ...payload, dealershipDetails: { ...dealershipDetails, email: 'not-an-email' } },
+        { ...payload, dealershipDetails: { ...dealershipDetails, includedItems: [''] } },
       ]) {
         assert.equal((await call(cazooPath, { snapshot: invalid })).status, 400);
       }
@@ -477,9 +494,40 @@ test('platform administrators can create private demos from marketplace stock li
       assert.equal(demo.hasLogo, true);
       assert.equal(demo.received, 1);
       assert.equal(demo.dealerName, cazooStock.dealerName);
+      const settingsPath = `${demo.previewPath}/api/dealer-settings`;
+      const publicSettings = await (await call(settingsPath)).json() as Record<string, any>;
+      assert.deepEqual(publicSettings.contact, { phone: dealershipDetails.phone, email: dealershipDetails.email, whatsapp: '' });
+      assert.equal(publicSettings.address.street, dealershipDetails.showroomAddress.street);
+      assert.equal(publicSettings.address.mapsUrl, '');
+      assert.equal(publicSettings.hours.length, 7);
+      assert.ok(publicSettings.hours.every((row: { times: string }) => row.times === 'By appointment'));
+      assert.equal(publicSettings.presentation.teamIntroduction, dealershipDetails.about);
+      assert.equal(publicSettings.presentation.visitInstructions, dealershipDetails.visitInstructions);
+      assert.deepEqual(publicSettings.presentation.includedItems, ['6-month warranty', 'Vehicle inspection']);
+      assert.equal(publicSettings.warranty.enabled, true);
+      assert.equal(publicSettings.warranty.description, dealershipDetails.warrantyDescription);
+      assert.equal(publicSettings.delivery.enabled, true);
+      assert.equal(publicSettings.partExchange.enabled, true);
+      assert.equal(publicSettings.testDriveBooking.enabled, false);
+      const savedSettings = () => engine.query('SELECT config, revision FROM dealer_settings WHERE dealer_id = $1', [demo.dealerId]);
+      const firstSettings = (await savedSettings()).rows;
       const retry = await call(cazooPath, { snapshot: { sourceUrl: cazooSource, stock: cazooStock } });
       assert.equal(retry.status, 200, await retry.clone().text());
       assert.deepEqual(await retry.json(), demo);
+      assert.deepEqual((await savedSettings()).rows, firstSettings, 'Legacy exports preserve previously supplied public details');
+      assert.equal((await call(cazooPath, { snapshot: payload })).status, 200);
+      assert.deepEqual((await savedSettings()).rows, firstSettings, 'Identical exports do not create another settings revision');
+      const partialDetails = { sourceUrl: cazooSource, checkedAt, phone: '020 7946 0321' };
+      assert.equal((await call(cazooPath, { snapshot: { sourceUrl: cazooSource, stock: cazooStock, dealershipDetails: partialDetails } })).status, 200);
+      const partialSettings = await (await call(settingsPath)).json() as Record<string, any>;
+      assert.equal(partialSettings.contact.phone, partialDetails.phone);
+      assert.equal(partialSettings.contact.email, dealershipDetails.email);
+      assert.deepEqual(partialSettings.presentation, publicSettings.presentation);
+      assert.deepEqual(partialSettings.address, publicSettings.address);
+      assert.deepEqual(partialSettings.hours, publicSettings.hours);
+      const metadata = (await engine.query<{ business_details: Record<string, any> }>('SELECT business_details FROM dealer_demos WHERE dealer_id=$1', [demo.dealerId])).rows[0].business_details;
+      assert.equal(metadata.dealershipDetails.websiteUrl, dealershipDetails.websiteUrl);
+      assert.equal(metadata.dealershipDetails.phone, partialDetails.phone);
       assert.equal(collect.mock.callCount(), collectorCalls);
 
       const { rows } = await engine.query<{ canonical_origin: string }>('SELECT canonical_origin, source_url, status FROM dealerships WHERE id = $1', [demo.dealerId]);

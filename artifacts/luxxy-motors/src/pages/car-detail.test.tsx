@@ -227,6 +227,26 @@ it('puts one identity above the gallery and groups the price and key facts in th
   expect(facts).toHaveTextContent('Manual');
 });
 
+it('keeps a sparse price panel compact and omits placeholder specifications', () => {
+  const car = stockFixture.cars[1];
+  const original = { ...car };
+  Object.assign(car, {
+    year: null, registrationBand: null, registration: null,
+    mileage: null, mileageText: 'Unknown', fuel: 'N/A', transmission: 'Not specified',
+    bodyType: null, engineSize: 'unknown', engineCC: null, variant: 'N/A', trim: null,
+  });
+  try {
+    renderVehicle('with-plate', dealerConfig);
+    const summary = document.querySelector<HTMLElement>('.vehicle-summary')!;
+    expect(summary).toHaveClass('vehicle-summary-sparse');
+    expect(summary).toHaveTextContent('£4,995');
+    expect(summary.querySelector('.vehicle-key-facts')).toBeNull();
+    expect(summary).not.toHaveTextContent(/Unknown|Not specified|N\/A/);
+    expect(screen.getByTestId('vehicle-identity')).not.toHaveTextContent('N/A');
+    expect(within(summary).getByRole('link', { name: 'Showroom details' })).toHaveAttribute('href', '#vehicle-visit-delivery');
+  } finally { Object.assign(car, original); }
+});
+
 describe('vehicle detail link preview', () => {
   const tag = (selector: string) => document.head.querySelector(selector)?.getAttribute('content') ?? null;
 

@@ -1,4 +1,5 @@
-import { demoShowroomAddress,demoOpeningHours,publishedDemoHours } from './demo-business-details';
+import { applyDemoDealershipDetails,demoDealershipDetails,demoShowroomAddress,demoOpeningHours,publishedDemoHours } from './demo-business-details';
+import { cazooDealershipLink } from '@workspace/vehicle-meta';
 import { randomBytes } from 'node:crypto';
 import { z } from 'zod/v4';
 import type { db } from '@workspace/db';
@@ -9,7 +10,7 @@ import { isReservedDealerHost } from './tenant-context';
 import { newDealerSettings } from '../routes/dealer-settings';
 import type { SaleWorkspaceReadClient } from './sale-workspace-store';
 export class DemoSetupError extends Error { constructor(message:string, readonly status=400){super(message);} }
-export const demoCreationInput=z.object({slug:z.string().regex(/^[a-z0-9][a-z0-9-]{1,40}$/), name:z.string().trim().min(1).max(100),platform:z.enum(['autotrader','cazoo']),retailerId:z.string().trim().min(1).max(128),sourceUrl:z.string().url(),recipient:z.string().email(),days:z.number().int().min(1).max(90).default(14),logoData:z.string().max(400000).optional(),footerLogoData:z.string().max(400000).optional(),showroomAddress:demoShowroomAddress.optional(),openingHours:demoOpeningHours.optional()}).strict();
+export const demoCreationInput=z.object({slug:z.string().regex(/^[a-z0-9][a-z0-9-]{1,40}$/), name:z.string().trim().min(1).max(100),platform:z.enum(['autotrader','cazoo']),retailerId:z.string().trim().min(1).max(128),sourceUrl:z.string().url(),recipient:z.string().email(),days:z.number().int().min(1).max(90).default(14),logoData:z.string().max(400000).optional(),footerLogoData:z.string().max(400000).optional(),showroomAddress:demoShowroomAddress.optional(),openingHours:demoOpeningHours.optional(),dealershipDetails:demoDealershipDetails.optional()}).strict();
 
 export function validatedDemoInput(raw:unknown, privatePreview = false) {
  const schema = privatePreview ? demoCreationInput.extend({ recipient: z.email().optional() }) : demoCreationInput;
@@ -24,6 +25,15 @@ export function validatedDemoInput(raw:unknown, privatePreview = false) {
   if(!privatePreview && !p.recipients.includes(recipient)){throw new DemoSetupError('Choose an operator-approved demo email recipient.');}
   const allowed=d.platform==='cazoo'?['cazoo.co.uk','www.cazoo.co.uk']:['autotrader.co.uk','www.autotrader.co.uk'];
   if(source.protocol!=='https:' || source.username || source.password || source.port || !allowed.includes(source.hostname)){throw new DemoSetupError('Stock source must be an authorised HTTPS URL from the selected marketplace.');}
+  if (d.dealershipDetails) {
+    const detailsSource = new URL(d.dealershipDetails.sourceUrl);
+    const sameSource = detailsSource.hostname.replace(/^www\./, '') === source.hostname.replace(/^www\./, '') &&
+      detailsSource.pathname.replace(/\/$/, '') === source.pathname.replace(/\/$/, '');
+    const detailsRetailer = d.platform === 'cazoo' ? cazooDealershipLink(d.dealershipDetails.sourceUrl)?.retailerId : undefined;
+    if (!sameSource || (d.platform === 'cazoo' && detailsRetailer !== `cazoo-${d.retailerId.replace(/^cazoo-/, '')}`)) {
+      throw new DemoSetupError('The dealership details must come from the same dealership stock page.');
+    }
+  }
   if((d.logoData?.length??0)+(d.footerLogoData?.length??0)>400000)throw new DemoSetupError('Keep the combined encoded header and footer logos under 400,000 characters.');
   const readLogo=(value?:string):string|null=>{
   if(value){
@@ -64,6 +74,7 @@ export async function insertDemo(
   const businessDetails = {
     ...(d.showroomAddress ? { showroomAddress: d.showroomAddress } : {}),
     ...(d.openingHours ? { openingHours: d.openingHours } : {}),
+    ...(d.dealershipDetails ? { dealershipDetails: d.dealershipDetails } : {}),
   };
 
   await execute(sql`
@@ -77,7 +88,7 @@ export async function insertDemo(
     `);
   }
   await execute(sql`INSERT INTO portal_users (dealer_id, auth_user_id, role) VALUES (${id}, ${ownerAuthUserId}, 'owner')`);
-  await execute(sql`INSERT INTO dealer_settings (dealer_id, config) VALUES (${id}, ${JSON.stringify(config)}::jsonb)`);
+  await execute(sql`INSERT INTO dealer_settings (dealer_id, config) VALUES (${id}, ${JSON.stringify(applyDemoDealershipDetails(config, d.dealershipDetails))}::jsonb)`);
   await execute(sql`
     INSERT INTO dealer_demos (dealer_id, recipient, expires_at, updated_by, logo_data, footer_logo_data, business_details)
     VALUES (${id}, ${recipient}, ${new Date(Date.now() + d.days * 86400000).toISOString()}, ${ownerAuthUserId}, ${logo}, ${footerLogo}, ${JSON.stringify(businessDetails)}::jsonb)

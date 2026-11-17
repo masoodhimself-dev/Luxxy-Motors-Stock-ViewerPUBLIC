@@ -4,13 +4,16 @@ import type { Car } from '@/lib/stock-context';
 import { vehicleQualityChecks } from '@/lib/vehicle-quality-checks';
 import './vehicle-quality-checks.css';
 
-export function VehicleQualityChecks({ car, motHistory, onAskTeam, dealerConfirmed = false }: {
+export function VehicleQualityChecks({ car, motHistory, onAskTeam, dealerConfirmed = false, hideUnknown = false }: {
   car: Car;
   motHistory?: MotHistory | null;
   onAskTeam?: (message: string) => void;
   dealerConfirmed?: boolean;
+  hideUnknown?: boolean;
 }) {
-  const checks = vehicleQualityChecks(car, motHistory, new Date(), dealerConfirmed);
+  const checks = vehicleQualityChecks(car, motHistory, new Date(), dealerConfirmed)
+    .filter(check => !hideUnknown || check.status !== 'unknown');
+  if (!checks.length) return null;
   const labels = { passed: 'Passed', unknown: 'Ask us', attention: 'See history', not_due: 'Not due yet' };
   return <section id="vehicle-quality-checks" className="vehicle-quality" aria-labelledby="vehicle-quality-heading">
     <header className="vehicle-quality__heading">

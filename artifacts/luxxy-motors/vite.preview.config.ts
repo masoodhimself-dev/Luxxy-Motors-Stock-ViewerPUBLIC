@@ -6,6 +6,7 @@ import { communicationsPreview } from "./preview/communications";
 import { declarationQa } from './preview/declaration-qa';
 import { plateEntryQa } from './preview/plate-entry-qa';
 import { platformPreview } from "./preview/platform";
+import { privateDemoReview } from './preview/private-demo-review';
 import { exampleStaffDealerships } from './preview/shared-staff-fixture';
 import { resolveDealerFeatures } from '@workspace/vehicle-meta';
 import { brochureDealer } from '../api-server/src/lib/vehicle-brochure';
@@ -56,6 +57,7 @@ export default mergeConfig(
         configureServer(server) {
           server.middlewares.use(async (req, res, next) => {
             const url = new URL(req.url ?? '/', 'http://localhost');
+            if (await privateDemoReview(req, res, url)) return;
             if (url.pathname === '/join' || url.pathname.startsWith('/verify-invoice/') || url.pathname.startsWith('/stock-alerts/')) { res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('X-Robots-Tag', 'noindex, nofollow'); res.setHeader('Cache-Control', 'no-store'); }
             if (req.method === 'GET' && url.pathname === '/api/staff-portal/memberships') {
               res.setHeader('Content-Type', 'application/json');

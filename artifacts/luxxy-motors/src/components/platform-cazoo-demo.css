@@ -70,6 +70,65 @@
 .platform-cazoo-logo img { display: block; width: 52px; height: 36px; object-fit: contain; }
 .platform-cazoo-create { justify-self: start; }
 
+.platform-cazoo-public-details,
+.platform-cazoo-details-section {
+  min-width: 0;
+  border-top: 1px solid #dce3eb;
+}
+.platform-cazoo-public-details > summary,
+.platform-cazoo-details-section > summary {
+  min-height: 44px;
+  padding-block: 12px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+}
+.platform-cazoo-public-details > summary span {
+  margin-left: 6px;
+  color: #526076;
+  font-size: 12px;
+  font-weight: 400;
+}
+.platform-cazoo-public-details > summary:focus-visible,
+.platform-cazoo-details-section > summary:focus-visible {
+  outline: 2px solid #42657c;
+  outline-offset: 2px;
+}
+.platform-cazoo-details-fields,
+.platform-cazoo-hours-fields,
+.platform-cazoo-address-fields,
+.platform-cazoo-contact-fields {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+}
+.platform-cazoo-details-fields { padding-bottom: 4px; }
+.platform-cazoo-contact-fields,
+.platform-cazoo-address-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.platform-cazoo-contact-fields > :last-child,
+.platform-cazoo-address-fields > :first-child,
+.platform-cazoo-address-fields > :last-child { grid-column: 1 / -1; }
+.platform-cazoo-details-fields .platform-field { margin: 0; min-width: 0; }
+.platform-cazoo-details-fields input,
+.platform-cazoo-details-fields select { min-height: 44px; font-size: 14px; }
+.platform-cazoo-details-section > :last-child { margin-bottom: 12px; }
+.platform-cazoo-details-section > .platform-field + .platform-field { margin-top: 12px; }
+.platform-cazoo-opening-day {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 105px 105px;
+  align-items: end;
+  gap: 8px;
+}
+.platform-cazoo-opening-day:has(label:only-child) { grid-template-columns: minmax(0, 1fr); }
+
 @media (max-width: 540px) {
   .platform-cazoo-create { justify-self: stretch; }
+  .platform-cazoo-public-details > summary span { display: block; margin: 4px 0 0 16px; }
+  .platform-cazoo-contact-fields,
+  .platform-cazoo-address-fields { grid-template-columns: minmax(0, 1fr); }
+  .platform-cazoo-opening-day { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .platform-cazoo-opening-day > label:first-child { grid-column: 1 / -1; }
+  .platform-cazoo-details-fields input,
+  .platform-cazoo-details-fields select,
+  .platform-cazoo-details-fields textarea { font-size: 16px; }
 }

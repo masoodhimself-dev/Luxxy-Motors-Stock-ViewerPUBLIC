@@ -97,6 +97,16 @@
     align-content: space-evenly;
   }
 
+  .customer-site.showroom-navy-site .vehicle-detail-gallery + .vehicle-summary-column > .vehicle-summary.vehicle-summary-sparse {
+    min-block-size: auto;
+    grid-template-rows: auto;
+    align-content: start;
+  }
+  .customer-site.showroom-navy-site .vehicle-page.vehicle-page-streamlined .vehicle-summary-sparse > .vehicle-key-facts {
+    align-content: start;
+    padding-block: 14px;
+  }
+
   .customer-site.showroom-navy-site .vehicle-page.vehicle-redesigned.vehicle-page-streamlined .vehicle-summary > .vehicle-registration + .vehicle-key-facts {
     margin-top: 14px;
     padding-top: 14px;

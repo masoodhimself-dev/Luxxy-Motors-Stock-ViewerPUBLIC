@@ -11,8 +11,9 @@ import { serveFrontend } from './lib/serve-frontend';
 import { newDealerSettings } from './routes/dealer-settings';
 import platformDealersRouter from './routes/platform-dealers';
 import previewRouter from './routes/platform-website-preview';
+import { motService } from './lib/mot-storage';
 
-test('draft website preview keeps real stock private, scoped to its dealer, and read only', async () => {
+test('draft website preview keeps real stock private, scoped to its dealer, and read only', async context => {
   process.env.MULTI_TENANT_ENABLED = 'true';
   process.env.PLATFORM_ADMIN_HOST = 'admin.example.test';
   process.env.PLATFORM_ADMIN_USER_IDS = 'user_admin';
@@ -32,7 +33,7 @@ test('draft website preview keeps real stock private, scoped to its dealer, and 
     await db.insert(dealershipsTable).values({ ...dealer, status: 'draft', stockPlatform: 'autotrader', retailerId: dealer.id, sourceUrl: 'https://www.autotrader.co.uk/example' });
     await db.insert(dealerDomainsTable).values({ dealerId: dealer.id, hostname: new URL(dealer.canonicalOrigin).hostname, verificationToken: 'test-only', verified: true });
     await db.insert(dealerSettingsTable).values({ dealerId: dealer.id, config: newDealerSettings(dealer.name) });
-    await db.insert(vehiclesTable).values({ id: vehicleIds[index], dealerId: dealer.id, source: 'autotrader', advertId: dealer.id, title: `Vehicle ${index + 1}`, sourcePrice: 10000 });
+    await db.insert(vehiclesTable).values({ id: vehicleIds[index], dealerId: dealer.id, source: 'autotrader', advertId: dealer.id, title: `Vehicle ${index + 1}`, sourcePrice: 10000, registration: index === 0 ? 'AB12CDE' : 'CD34EFG' });
   }
   const app = express();
   app.use(express.json());
@@ -81,6 +82,28 @@ test('draft website preview keeps real stock private, scoped to its dealer, and 
     assert.deepEqual((await stock.json() as { cars: { id: string }[] }).cars.map(car => car.id), [vehicleIds[0]]);
     assert.equal((await read(base + '/api/vehicles/' + vehicleIds[0])).status, 200);
     assert.equal((await read(base + '/api/vehicles/' + vehicleIds[1])).status, 404);
+    const lookup = context.mock.method(motService, 'lookup', async () => {
+      throw new Error('A private preview must not contact the MOT provider.');
+    });
+    const motPath = base + '/api/vehicles/' + vehicleIds[0] + '/mot-history';
+    assert.equal((await read(motPath, { user: '' })).status, 403);
+    const uncached = await read(motPath + '?cacheOnly=false');
+    assert.equal(uncached.status, 200);
+    assert.deepEqual(await uncached.json(), { status: 'uncached' });
+    assert.equal(lookup.mock.callCount(), 0);
+    const motHistory = {
+      registration: 'AB12CDE', make: 'Test', model: 'Vehicle', checkedAt: new Date().toISOString(), recall: 'Unknown',
+      tests: [{ completedDate: '2026-10-10', result: 'PASSED', expiryDate: '2027-10-09', mileage: '50000', mileageUnit: 'MI', defects: [] }],
+    };
+    await engine.query("INSERT INTO mot_history_cache(registration,data,expires_at) VALUES ($1,$2::jsonb,now()+interval '1 hour')", ['AB12CDE', JSON.stringify(motHistory)]);
+    const cached = await read(motPath);
+    assert.equal(cached.status, 200);
+    assert.deepEqual(await cached.json(), { status: 'available', history: motHistory });
+    assert.match(cached.headers.get('cache-control') ?? '', /no-store/);
+    assert.equal((await read(base + '/api/vehicles/' + vehicleIds[1] + '/mot-history')).status, 404);
+    assert.equal((await read(base + '/api/staff/vehicles/' + vehicleIds[0] + '/mot-history')).status, 404);
+    assert.equal((await read(motPath, { method: 'POST' })).status, 405);
+    assert.equal(lookup.mock.callCount(), 0);
     assert.equal((await read(base + '/api/staff/enquiries')).status, 404);
     assert.equal((await read(base + '/api/enquiries', { method: 'POST' })).status, 405);
     const settings = await read(base + '/api/dealer-settings');

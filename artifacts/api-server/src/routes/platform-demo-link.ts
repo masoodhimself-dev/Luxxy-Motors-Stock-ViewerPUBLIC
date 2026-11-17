@@ -10,10 +10,11 @@ import { createStockImportAdmission, importAdmission } from '../lib/stock-import
 import { serviceLifecycle } from '../lib/service-lifecycle';
 import { checkAutoTraderDemoSnapshot, checkCazooDemoSnapshot } from './stock';
 import { platformStockUploadLimit } from '../lib/platform-stock-upload';
+import { demoDealershipDetails } from '../lib/demo-business-details';
 
 const router = Router();
 const input = z.object({ sourceUrl: z.string().trim().min(1).max(2048) }).strict();
-const cazooInput = input.extend({ stock: z.record(z.string(), z.unknown()), logoData: z.string().min(1).max(400000).optional() });
+const cazooInput = input.extend({ stock: z.record(z.string(), z.unknown()), logoData: z.string().min(1).max(400000).optional(), dealershipDetails: demoDealershipDetails.optional() });
 const demoLinkAdmission = createStockImportAdmission(1, Date.now, serviceLifecycle, () => true);
 
 router.get('/demos/collection/:jobId', async (req, res) => {
@@ -80,7 +81,7 @@ router.post('/demos/from-cazoo', async (req, res) => {
       res.status(400).json({ error: 'Paste a Cazoo dealership link and its stock JSON. Upload a PNG or JPEG if you have a logo.' });
       return;
     }
-    const { sourceUrl, stock, logoData } = parsed.data;
+    const { sourceUrl, stock, logoData, dealershipDetails } = parsed.data;
     const dealer = cazooDealershipLink(sourceUrl);
     if (!dealer) {
       res.status(400).json({ error: 'Paste a Cazoo dealership page link that ends with the retailer number.' });
@@ -96,7 +97,7 @@ router.post('/demos/from-cazoo', async (req, res) => {
       return;
     }
     try {
-      const result = await importDemoLinkStock(req, res, dealer, checked.body, checked.snapshot, getAuth(req).userId!, { platform: 'cazoo', logoData });
+      const result = await importDemoLinkStock(req, res, dealer, checked.body, checked.snapshot, getAuth(req).userId!, { platform: 'cazoo', logoData, dealershipDetails });
       if (!result) return;
       res.status(result.created ? 201 : 200).json({
         dealerId: result.dealerId,

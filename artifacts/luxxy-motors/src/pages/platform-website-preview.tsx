@@ -32,6 +32,11 @@ function PreviewWebsite({ base }: { base: string }) {
       setLocation('/enquire');
       return;
     }
+    if (/^\/(?:[?#].*)?$/.test(href)) {
+      event.preventDefault();
+      setLocation(href);
+      return;
+    }
     if (!/^\/(?:(?:stock|contact|warranty|saved|enquire)(?:[/?#]|$)|(?:vehicle|cars|s)\/)/i.test(href)) return;
     event.preventDefault();
     setLocation(href);

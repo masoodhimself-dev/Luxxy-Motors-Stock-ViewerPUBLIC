@@ -1,6 +1,7 @@
 import { VehicleAnswers } from '@/components/vehicle-answers';
 import { VehicleQualityChecks } from '@/components/vehicle-quality-checks';
 import { isMultiChoiceWebsite } from '@/lib/multi-home-scope';
+import { privateWebsitePreviewBase } from '@/lib/private-website-preview';
 import { vehicleEnquiryMot } from '@/lib/vehicle-enquiry-information';
 import { VehiclePhotoRequest } from '@/components/vehicle-photo-request';
 import {VehicleQuickChecks} from '@/components/vehicle-quick-checks';
@@ -85,6 +86,11 @@ function LedgerRow({ label, value, testId }: { label: string; value: string; tes
       </dd>
     </div>
   );
+}
+
+function suppliedVehicleDetail(value: string | null | undefined) {
+  const text = value?.trim();
+  return text && !/^(?:[-–—]+|unknown|not specified|not available|n\/?a|ask us|null|undefined)$/i.test(text) ? text : '';
 }
 
 function UnavailableAlternatives({ car, cars }: { car?: Car | null; cars: Car[] }) {
@@ -198,7 +204,7 @@ export default function CarDetail() {
   const registrationYear = stockRegistrationYear({ ...car, registrationBand: registrationBand ?? null }) || registrationBand || 'Unknown';
   const bookingHref = getVehicleBookingHref(car);
   const vehicleLabel = vehicleDisplayTitle(car);
-  const vehicleTrim = car.variant?.trim() || car.trim?.trim();
+  const vehicleTrim = suppliedVehicleDetail(car.variant) || suppliedVehicleDetail(car.trim);
   const stockStatus = vehicleAvailability(car.inventoryStatus);
   const showMakeLogo = Boolean(getMakeLogoSrc(car.make));
   const vehicleRunningCostFacts = getVehicleRunningCosts(car);
@@ -215,7 +221,7 @@ export default function CarDetail() {
     { label: 'Colour', value: car.colour || '-' },
     { label: 'Drivetrain', value: car.drivetrain || '-' },
     { label: 'Emissions', value: car.emissionClass || '-' },
-  ].filter(fact => !['-', 'Ask us', 'Unknown', ''].includes(fact.value));
+  ].map(fact => ({ ...fact, value: suppliedVehicleDetail(fact.value) })).filter(fact => fact.value);
 
   const hasSpecifications = overviewSpecs.length > 0 || vehicleSpecificationGroups(car).length > 0;
   const handoverFacts = buyerInformation(car).filter(item => item.value && !['Service history', 'Keys', 'Owners', 'Previous keepers'].includes(item.label));
@@ -236,7 +242,10 @@ export default function CarDetail() {
     { label: 'Transmission', value: car.transmission?.trim() || 'Not specified' },
     { label: 'Engine', value: car.engineSize || (car.engineCC ? String(car.engineCC) + ' cc' : 'Ask us') },
     { label: 'Body', value: car.bodyType || 'Ask us' },
-  ].filter(fact => !['-', 'Ask us', 'Unknown', ''].includes(fact.value));
+  ].map(fact => ({ ...fact, value: suppliedVehicleDetail(fact.value) })).filter(fact => fact.value);
+  const sparseSummary = keyFacts.length < 4;
+  const privatePreview = Boolean(privateWebsitePreviewBase());
+  const dealerLocation = [dealerConfig.address?.city?.trim(), dealerConfig.address?.region?.trim()].filter(Boolean).join(', ');
 
   const damageDisclosure = vehicleInsuranceDisclosure(car, vehicleContent(car).description);
 
@@ -295,6 +304,7 @@ export default function CarDetail() {
   return <VehicleQuickChecks key={car.id} vehicleId={car.id} vehiclePrice={car.price} currency={car.currency} priceType={car.priceType} onEnquire={enquiriesEnabled ? openVehicleEnquiry : undefined}>
     {({ motAction, deliveryAction, motHistory, requestMotHistory, openMotHistory }) => {
   const motSummary = vehicleEnquiryMot(car, motHistory);
+  const showQualityChecks = !privatePreview || Boolean(motSummary || sourceReport?.history?.checks?.length);
   const coveredAnswerTopics = [
     'history', 'price', 'mileage', 'specification', 'dealer-hours', 'dealer-location', 'dealer-contact',
     ...summaryFacts.map(fact => fact.id),
@@ -331,7 +341,7 @@ export default function CarDetail() {
             }} />
           </div>
           <div className="vehicle-summary-column min-w-0">
-          <div className="vehicle-summary min-w-0">
+          <div className={`vehicle-summary min-w-0${sparseSummary ? ' vehicle-summary-sparse' : ''}`}>
             <div className="vehicle-price-block">
               {stockStatus !== 'Available' && (
                 <p className="vehicle-stock-status">{stockStatus}</p>
@@ -376,6 +386,11 @@ export default function CarDetail() {
                 {deliveryAction}
               </div>
             </details>}
+            {dealerConfig.identity.name?.trim() && <div className="vehicle-seller">
+              <strong>{dealerConfig.identity.name}</strong>
+              {dealerLocation && <span>{dealerLocation}</span>}
+              <a href="#vehicle-visit-delivery">Showroom details <ArrowRight size={15} aria-hidden="true" /></a>
+            </div>}
           </div>
           </div>
           <ReserveCar key={car.id} car={car} />
@@ -386,7 +401,7 @@ export default function CarDetail() {
           <nav aria-label="Vehicle information sections" className="vehicle-section-nav">
             {hasOverview && <a href="#vehicle-overview-section">Overview</a>}
             {features.length > 0 && <a href="#features-heading">Equipment</a>}
-            <a href="#vehicle-quality-checks">Checks</a>
+            {showQualityChecks && <a href="#vehicle-quality-checks">Checks</a>}
             <a href="#vehicle-history-section">History</a>
             <a href="#vehicle-visit-delivery">Visit &amp; delivery</a>
           </nav>
@@ -449,7 +464,7 @@ export default function CarDetail() {
             )}
 
           </div>
-          <VehicleQualityChecks car={car} motHistory={motHistory} dealerConfirmed={isMultiChoiceWebsite()} onAskTeam={enquiriesEnabled ? openVehicleEnquiry : undefined} />
+          {showQualityChecks && <VehicleQualityChecks car={car} motHistory={motHistory} dealerConfirmed={isMultiChoiceWebsite()} hideUnknown={privatePreview} onAskTeam={enquiriesEnabled ? openVehicleEnquiry : undefined} />}
           <div id="vehicle-history-section" className="vehicle-page-chapter vehicle-history-chapter">
             <div className="vehicle-information-row vehicle-records-row">
             <VehicleHistorySummary car={car} motAction={motAction} />
