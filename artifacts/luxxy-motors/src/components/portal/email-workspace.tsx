@@ -1,3 +1,4 @@
+import { publicDealershipPath } from '@/lib/public-dealership-url';
 import { ConversationMessage } from "./conversation-message";
 import { enquiryGroup, primaryEnquiry } from "@/lib/enquiry-groups";
 import { useEnquirySummaries as useGetEnquiries } from "@/lib/enquiry-summary-query";
@@ -818,13 +819,13 @@ export function EmailWorkspace({
                           </Link>
                         )}
                         {conversation.vehicleId && (
-                          <Link
-                            href={`/vehicle/${encodeURIComponent(conversation.vehicleId)}`}
+                          <a
+                            href={publicDealershipPath(`/vehicle/${encodeURIComponent(conversation.vehicleId)}`)}
                             target="_blank"
                             rel="noopener noreferrer"
                           >
                             Open car
-                          </Link>
+                          </a>
                         )}
                         <Link
                           href={customerHistoryHref(

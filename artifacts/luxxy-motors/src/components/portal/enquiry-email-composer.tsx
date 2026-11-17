@@ -1,3 +1,5 @@
+import { sharedStaffPortalPath } from '@/lib/shared-staff-portal';
+import { publicDealershipOrigin, publicDealershipPath } from '@/lib/public-dealership-url';
 import { AiReplyDraft } from './ai-reply-draft';
 import { DirectWhatsApp } from "@/components/direct-whatsapp";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
@@ -764,7 +766,7 @@ function EnquiryEmailEditor({
     draft.vehiclePhotoIndices?.length,
   );
   const vehicleLink = data?.vehicleUrl || (data?.vehicleId
-    ? `${window.location.origin}/vehicle/${encodeURIComponent(data.vehicleId)}`
+    ? `${publicDealershipOrigin()}/vehicle/${encodeURIComponent(data.vehicleId)}`
     : "");
   const whatsappText = [
     draft.message.trim(),
@@ -1078,7 +1080,7 @@ function EnquiryEmailEditor({
                 <p role="status" className="enquiry-email-readiness">
                   Email is not enabled for this dealership. Ask the platform
                   administrator to connect the sender. Review wording in{" "}
-                  <a href="/portal?section=settings&settingsTab=emails">
+                  <a href={sharedStaffPortalPath('/portal?section=settings&settingsTab=emails')}>
                     Message settings
                   </a>
                   . You can prepare and review the message here.
@@ -1571,7 +1573,7 @@ function EnquiryEmailEditor({
                               <p>
                                 No private vehicle photos uploaded yet.{" "}
                                 <a
-                                  href={data.vehicleUrl || `/vehicle/${data.vehicleId}`}
+                                  href={data.vehicleUrl || publicDealershipPath(`/vehicle/${data.vehicleId}`)}
                                   target="_blank"
                                   rel="noreferrer"
                                 >

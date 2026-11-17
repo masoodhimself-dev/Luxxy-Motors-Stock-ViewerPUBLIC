@@ -1,5 +1,5 @@
 import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
-import { currentDealerId, multiTenantEnabled } from "../lib/tenant-context";
+import { currentDealerId, currentTenant, multiTenantEnabled } from "../lib/tenant-context";
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { getAuth, clerkClient } from "@clerk/express";
 import { and, eq, sql } from "drizzle-orm";
@@ -150,6 +150,8 @@ export type PortalAccess =
   | { state: "allowed"; identity: StaffIdentity; user: PortalUser | null };
 
 export async function portalAccess(req: Request): Promise<PortalAccess> {
+  if (currentTenant()?.plan === 'website_only') return { state: 'signed_out' };
+  if (req.staff) return { state: "allowed", identity: req.staff, user: null };
   const machine = machineToken(req);
   if (machine) return { state: "allowed", identity: machine, user: null };
 
@@ -177,6 +179,10 @@ export const requireStaff: RequestHandler<any> = (
   next: NextFunction,
 ) => {
   if (!enforceStaffWriteOrigin(req, res)) return;
+  if (currentTenant()?.plan === 'website_only') {
+    res.status(403).json({ error: 'The staff portal is unavailable on this website plan.' });
+    return;
+  }
   if (req.staff) { next(); return; }
   void portalAccess(req)
     .then((access) => {

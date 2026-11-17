@@ -1,5 +1,6 @@
 const storageKey = 'luxxy-account-invitation';
 let memoryToken = '';
+const validToken = /^(?:shared_)?[a-f0-9]{64}$/;
 
 export function clearInvitationToken() {
   memoryToken = '';
@@ -12,7 +13,7 @@ export function captureInvitationToken() {
   const fragment = window.location.hash.slice(1);
   if (!fragment) return;
   clearInvitationToken();
-  if (/^[a-f0-9]{64}$/.test(fragment)) {
+  if (validToken.test(fragment)) {
     memoryToken = fragment;
     try { sessionStorage.setItem(storageKey, fragment); } catch { /* Keep it in memory. */ }
   }
@@ -23,6 +24,6 @@ export function invitationTokenFromBrowser() {
   captureInvitationToken();
   try {
     const saved = sessionStorage.getItem(storageKey) ?? '';
-    return /^[a-f0-9]{64}$/.test(saved) ? saved : memoryToken;
+    return validToken.test(saved) ? saved : memoryToken;
   } catch { return memoryToken; }
 }

@@ -1,4 +1,4 @@
-import { check, index, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, check, index, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { sql } from 'drizzle-orm';
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -17,6 +17,7 @@ export const portalUsersTable = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     dealerId: text("dealer_id").notNull(),
     authUserId: text("auth_user_id").notNull(),
+    sharedStaffIdentity: boolean("shared_staff_identity").notNull().default(false),
     email: text("email"),
     name: text("name"),
     role: text("role").$type<'owner' | 'salesperson' | 'accounts'>().notNull().default('salesperson'),

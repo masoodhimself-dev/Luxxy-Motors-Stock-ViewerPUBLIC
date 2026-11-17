@@ -27,6 +27,14 @@ export function serveFrontend(app: Express, directory: string, options: Frontend
   const sendPage:express.RequestHandler=async(req,res,next)=>{
     try{
       const tenant = currentTenant();
+      const shared = res.locals.sharedStaffPortal as { publishableKey: string } | undefined;
+      if (shared) {
+        const seo = buildPublicPageSeo({ pathname: '/portal', canonicalOrigin: tenant?.canonicalOrigin ?? process.env.PUBLIC_SITE_URL, demo: true });
+        const markup = renderPublicPageSeo(html, seo).replace('</head>',
+          `<meta name="dealeros-staff-portal" content="${shared.publishableKey}"></head>`);
+        res.set({ 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow' }).type('html').send(markup);
+        return;
+      }
       if (res.locals.privateWebsitePreview === true) {
         const seo = buildPublicPageSeo({ pathname: '/platform', canonicalOrigin: tenant?.canonicalOrigin, demo: true });
         res.type('html').send(renderPublicPageSeo(html, seo));

@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { customFetch } from '@workspace/api-client-react';
 import { Bell, BellRing, Check, ChevronDown, Smartphone, X } from '@/components/icons';
 import { Button } from '@/components/ui/button';
+import { sharedStaffPortalPage } from '@/lib/shared-staff-portal';
 import {
   clearPushOwner, decodePushKey, defaultDeviceLabel, onPortalPush, portalPushRegistration,
   PORTAL_PUSH_SCOPE, PORTAL_PUSH_SCRIPT, pushAvailability, readPushOwner, savePushOwner,
@@ -22,6 +23,7 @@ const json = (body: unknown) => ({ headers: { 'Content-Type': 'application/json'
 /** Installation is offered only in the staff portal, never to public car shoppers. */
 export function PortalInstallMetadata() {
   useEffect(() => {
+    if (sharedStaffPortalPage()) return;
     const tags = [
       Object.assign(document.createElement('link'), { rel: 'manifest', href: '/portal.webmanifest' }),
       Object.assign(document.createElement('link'), { rel: 'apple-touch-icon', href: '/portal-icons/apple-touch-icon.png' }),
@@ -38,6 +40,7 @@ export function PortalInstallMetadata() {
 export function DeviceNotifications({ canEmail }: { canEmail: boolean }) {
   const [open, setOpen] = useState(false);
   const [visited, setVisited] = useState(false);
+  if (sharedStaffPortalPage()) return null;
   return <section className="device-alerts" aria-label="Device notifications">
     <button type="button" className="device-alerts-toggle" aria-expanded={open} aria-controls="device-alerts-settings" onClick={() => { setVisited(true); setOpen(value => !value); }}>
       <BellRing size={17} aria-hidden="true" /><span>Device alerts</span><ChevronDown size={15} className={open ? 'is-open' : ''} aria-hidden="true" />
@@ -46,7 +49,12 @@ export function DeviceNotifications({ canEmail }: { canEmail: boolean }) {
   </section>;
 }
 
-export function DeviceNotificationSettings({ canEmail, visible = true }: { canEmail: boolean; visible?: boolean }) {
+export function DeviceNotificationSettings(props: { canEmail: boolean; visible?: boolean }) {
+  if (sharedStaffPortalPage()) return <p>Open your dealership’s own portal to manage device alerts.</p>;
+  return <DealerDeviceNotificationSettings {...props} />;
+}
+
+function DealerDeviceNotificationSettings({ canEmail, visible = true }: { canEmail: boolean; visible?: boolean }) {
   const client = useQueryClient();
   const [settings, setSettings] = useState<StaffPushSettings | null>(null);
   const [preferences, setPreferences] = useState<PushPreferences | null>(null);

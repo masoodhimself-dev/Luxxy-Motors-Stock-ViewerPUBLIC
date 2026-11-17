@@ -4,7 +4,7 @@ import { motVehicleDetails } from "../lib/mot-vehicle-details";
 import { publicVehicleDetailPath } from '../lib/public-vehicle-links';
 import { dealerFeatureEnabled } from '../lib/dealer-features';
 import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
-import { currentDealerId } from "../lib/tenant-context";
+import { currentDealerId, currentTenant } from "../lib/tenant-context";
 import { dealerIntegrationsStore } from "../lib/dealer-integrations-store";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { showroomAvailability, vehicleRegistrationLabel } from "@workspace/vehicle-meta";
@@ -268,7 +268,9 @@ async function insertEnquiryWithReference(
           .values({ ...values, ...exception, reference })
           .returning();
         // The enquiry and its lead timeline must either both persist or roll back.
-        await openLeadForEnquiry(tx, created);
+        if (currentTenant()?.plan !== 'website_only' && created.source !== 'onboarding_test') {
+          await openLeadForEnquiry(tx, created);
+        }
         return created;
       });
     } catch (error) {
@@ -412,6 +414,7 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
   }
 
   const input = parsed.data as ReturnType<typeof CreateStaffEnquiryBody.parse>;
+  const websiteOnly = currentTenant()?.plan === 'website_only';
   if(!['general','viewing','part_exchange'].includes(input.type)){res.status(400).json(errorResponse('Choose a general enquiry, part exchange or test drive.'));return;}
   const capture = quickEnquiryCapture(req.get('x-enquiry-capture'), staff, input);
   if (capture.error) { res.status(400).json(errorResponse(capture.error)); return; }
@@ -581,9 +584,9 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
       appointmentDurationMinutes: isViewing ? policy.durationMinutes : null,
       appointmentBufferMinutes: isViewing ? policy.bufferMinutes : null,
       visitorId: input.visitorId?.trim() || null,
-      customerNotificationStatus: !capture.quick && input.email ? "pending" : "not_sent",
+      customerNotificationStatus: !websiteOnly && !capture.quick && input.email ? "pending" : "not_sent",
       dealerNotificationStatus: capture.quick ? "not_sent" : "pending",
-      reminderStatus: Boolean(input.email) && isViewing && policy.confirmationMode === "instant" ? "pending" : "not_scheduled",
+      reminderStatus: !websiteOnly && Boolean(input.email) && isViewing && policy.confirmationMode === "instant" ? "pending" : "not_scheduled",
       source: staff ? adHoc ? "phone_ad_hoc" : "phone" : requestCallback ? "website_callback" : "website",
       status: staff && !capture.quick ? "contacted" : "new",
     }, policy, staffOptions);
@@ -662,6 +665,24 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
     res.status(500).json(errorResponse("Unable to save your enquiry. Please try again."));
   }
  }
+// The Platform Admin test uses the same persistence and reference generation as
+// public enquiries, with no external address, notifications or lead activity.
+export function createOnboardingInboxEnquiry(dealerId: string) {
+  return insertEnquiryWithReference({
+    dealerId,
+    customerName: 'DealerOS test customer',
+    email: null,
+    phone: null,
+    type: 'general',
+    preferredContact: 'email',
+    message: 'This is a test website enquiry. No customer action is needed.',
+    source: 'onboarding_test',
+    status: 'new',
+    customerNotificationStatus: 'not_sent',
+    dealerNotificationStatus: 'not_sent',
+    reminderStatus: 'not_scheduled',
+  });
+}
 router.post("/enquiries", (req, res) => createEnquiry(req, res));
 router.post("/staff/enquiries", requireStaff, (req, res) => createEnquiry(req, res, true));
 

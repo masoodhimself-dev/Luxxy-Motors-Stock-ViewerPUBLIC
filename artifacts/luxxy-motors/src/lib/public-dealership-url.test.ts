@@ -6,9 +6,11 @@ import type { Car } from './stock-context';
 
 const live = 'https://multichoicemotors.co.uk';
 const demo = 'https://multi-choice-motors-cazoo-test.demo.luxxyexmaplenumber2.uk';
-const documentAt = (current: string, configured?: string) => ({
-  querySelector: () => configured ? { content: configured } : null,
-  location: { origin: current },
+const documentAt = (current: string, configured?: string, staff = false) => ({
+  querySelector: (selector: string) => selector.includes('dealeros-staff-portal')
+    ? (staff ? { content: 'test-publishable-key' } : null)
+    : (configured ? { content: configured } : null),
+  location: { origin: current, pathname: staff ? '/dealers/sample-dealer/portal' : '/' },
 }) as unknown as Document;
 
 afterEach(() => document.querySelectorAll('[data-origin-test]').forEach(element => element.remove()));
@@ -36,4 +38,8 @@ it('uses the same configured public domain for vehicle and shortlist sharing', (
   meta.setAttribute('data-page-meta', ''); meta.setAttribute('data-origin-test', ''); document.head.append(meta);
   expect(getVehicleShareUrl({ id: 'actual-vehicle' } as Car)).toBe(`${live}/share/vehicle/actual-vehicle`);
   expect(shortlistUrl(['actual-vehicle'])).toBe(`${live}/saved?cars=actual-vehicle`);
+});
+
+it('uses the selected dealership’s verified domain for customer links on the shared staff portal', () => {
+  expect(publicDealershipOrigin(documentAt('https://staff.dealeros.uk', demo, true))).toBe(demo);
 });

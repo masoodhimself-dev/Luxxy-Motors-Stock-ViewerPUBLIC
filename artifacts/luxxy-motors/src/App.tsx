@@ -21,6 +21,8 @@ import { clerkAppearance } from '@/lib/clerk-appearance';
 import { Layout } from '@/components/layout';
 import { RouteScrollReset } from '@/components/route-scroll-reset';
 import { clearPortalPushSubscription } from '@/lib/portal-push';
+import { sharedStaffPortalPage } from '@/lib/shared-staff-portal';
+import { SharedStaffPortal } from '@/components/portal/shared-staff-portal';
 import Home from '@/pages/home';
 const JoinDealership = lazy(() => import('@/pages/join'));
 const Platform = lazy(() => import('@/pages/platform'));
@@ -158,6 +160,7 @@ function SignedInWebsitePreview({ base }: { base: string }) {
 function ClerkProviderWithRoutes({ previewBase }: { previewBase?: string }) {
   const [, setLocation] = useLocation();
   const [location] = useLocation();
+  const shared = sharedStaffPortalPage();
 
 
 
@@ -168,8 +171,9 @@ function ClerkProviderWithRoutes({ previewBase }: { previewBase?: string }) {
 
   return (
     <ClerkProvider
-      publishableKey={clerkPubKey}
-      proxyUrl={clerkProxyUrl}
+      publishableKey={shared?.publishableKey ?? clerkPubKey}
+      proxyUrl={shared ? undefined : clerkProxyUrl}
+      afterSignOutUrl={shared ? '/portal' : undefined}
       appearance={clerkAppearance}
       signInUrl={`${basePath}/sign-in`}
       signUpUrl={`${basePath}/sign-up`}
@@ -187,13 +191,23 @@ function ClerkProviderWithRoutes({ previewBase }: { previewBase?: string }) {
           },
         },
       }}
-      routerPush={(to) => setLocation(stripBase(to))}
-      routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
+      routerPush={(to) => {
+        if (shared?.base) window.location.assign(to);
+        else setLocation(stripBase(to));
+      }}
+      routerReplace={(to) => {
+        if (shared?.base) window.location.replace(to);
+        else setLocation(stripBase(to), { replace: true });
+      }}
     >
       {previewBase ? <SignedInWebsitePreview base={previewBase} /> : <QueryClientProvider client={queryClient}>
         <ClerkQueryClientCacheInvalidator />
         <TooltipProvider>
-          <DealerProviders><Router /></DealerProviders>
+          {shared && /^\/portal(?:\/|$)/.test(location)
+            ? <SharedStaffPortal dealerId={shared.dealerId}>
+                <DealerProviders><Router /></DealerProviders>
+              </SharedStaffPortal>
+            : <DealerProviders><Router /></DealerProviders>}
           <Toaster />
         </TooltipProvider>
       </QueryClientProvider>}
@@ -203,7 +217,7 @@ function ClerkProviderWithRoutes({ previewBase }: { previewBase?: string }) {
 
 function App({ previewBase }: { previewBase?: string }) {
   return (
-    <WouterRouter base={basePath}>
+    <WouterRouter base={sharedStaffPortalPage()?.base || basePath}>
       <RouteScrollReset />
       <ClerkProviderWithRoutes previewBase={previewBase} />
     </WouterRouter>

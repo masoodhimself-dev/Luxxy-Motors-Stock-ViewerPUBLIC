@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { formatDateTime } from "./portal-ui";
+import { sharedStaffPortalPath } from "@/lib/shared-staff-portal";
 
 type ForwardingInput = { enabled: boolean; recipient: string | null; forwardReplies: boolean };
 type ForwardingSettings = Omit<ForwardingInput, "forwardReplies"> & { forwardReplies?: boolean; canManage: boolean };
@@ -271,7 +272,7 @@ export function CazooLeadsSettings() {
                   )}
                   {receipt.enquiryId && (
                     <a
-                      href={`/portal?section=notifications&workView=customers&enquiryId=${receipt.enquiryId}`}
+                      href={sharedStaffPortalPath(`/portal?section=notifications&workView=customers&enquiryId=${receipt.enquiryId}`)}
                     >
                       Open enquiry
                     </a>

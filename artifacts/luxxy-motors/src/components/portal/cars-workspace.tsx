@@ -1,3 +1,5 @@
+import { sharedStaffPortalPath } from '@/lib/shared-staff-portal';
+import { publicDealershipPath } from '@/lib/public-dealership-url';
 import { focusStockMot, type MotFocus } from "./stock-workspace-options";
 import "./workspace-tools.css";
 import {
@@ -629,7 +631,7 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
             <>
               <DropdownMenuItem asChild>
                 <a
-                  href={`/vehicle/${car.id}`}
+                  href={publicDealershipPath(`/vehicle/${car.id}`)}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -638,7 +640,7 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <a
-                  href={`/api/vehicles/${car.id}/brochure.pdf`}
+                  href={sharedStaffPortalPath(`/api/vehicles/${car.id}/brochure.pdf`)}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -883,7 +885,7 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
                     </Button>
                   )}
                   {selected.staff.published && (
-                    <a className="vehicle-file-link vehicle-file-advert" href={`/vehicle/${selected.id}`} target="_blank" rel="noopener noreferrer">
+                    <a className="vehicle-file-link vehicle-file-advert" href={publicDealershipPath(`/vehicle/${selected.id}`)} target="_blank" rel="noopener noreferrer">
                       View customer advert <ExternalLink size={15} aria-hidden="true" />
                     </a>
                   )}

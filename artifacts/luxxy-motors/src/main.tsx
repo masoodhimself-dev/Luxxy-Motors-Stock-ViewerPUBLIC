@@ -6,12 +6,13 @@ import { setBaseUrl } from '@workspace/api-client-react';
 import App from './App';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { privateWebsitePreviewBase } from '@/lib/private-website-preview';
+import { sharedStaffPortalPage } from '@/lib/shared-staff-portal';
 
 import './index.css';
 
 const previewBase = privateWebsitePreviewBase();
-if (previewBase) setBaseUrl(previewBase);
-else {
+setBaseUrl(previewBase || sharedStaffPortalPage()?.base || null);
+if (!previewBase) {
   captureInvitationToken();
   captureStockAlertToken();
 }

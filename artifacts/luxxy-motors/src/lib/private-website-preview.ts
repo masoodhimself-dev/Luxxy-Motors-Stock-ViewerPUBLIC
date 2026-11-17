@@ -1,13 +1,15 @@
+import { sharedStaffPortalPage } from './shared-staff-portal';
+
 export function privateWebsitePreviewBase(pathname = typeof window === 'undefined' ? '' : window.location.pathname) {
   return /^\/platform\/preview\/[a-z0-9][a-z0-9-]{1,62}(?=\/|$)/.exec(pathname)?.[0] ?? '';
 }
 
 export function previewPublicRequestPath(path: string) {
-  return privateWebsitePreviewBase() + path;
+  return (privateWebsitePreviewBase() || sharedStaffPortalPage()?.base || '') + path;
 }
 
 export function previewWebsiteAssetUrl(value: string, dealerOrigin: string | undefined) {
-  const base = privateWebsitePreviewBase();
+  const base = privateWebsitePreviewBase() || sharedStaffPortalPage()?.base;
   if (!base) return value;
   try {
     const url = new URL(value, dealerOrigin || window.location.origin);

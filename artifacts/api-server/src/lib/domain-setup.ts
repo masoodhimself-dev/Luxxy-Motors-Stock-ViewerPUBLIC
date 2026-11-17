@@ -1,14 +1,13 @@
 import { randomBytes } from 'node:crypto';
 import { isIP } from 'node:net';
 import { pool } from '@workspace/db';
-import { normaliseTenantHost } from './tenant-context';
+import { isReservedDealerHost, normaliseTenantHost } from './tenant-context';
 import { isDemoHost } from './demo-conversion';
 
 export function domainSetupHostname(value: string): string | null {
   const host = normaliseTenantHost(value);
   if (!host || /[:/*]/.test(value) || isIP(host) || !host.includes('.') || host.length > 253 || host.split('.').some(p => p.length > 63 || !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(p))) return null;
-  const reserved = [normaliseTenantHost(process.env.PLATFORM_ADMIN_HOST ?? ''), normaliseTenantHost(process.env.STOCK_IMPORT_API_HOST ?? '')];
-  return reserved.includes(host) || isDemoHost(host) || /\.(?:local|internal|localhost)$/.test(host) || host.endsWith('.onrender.com') || host === 'onrender.com' ? null : host;
+  return isReservedDealerHost(host) || isDemoHost(host) || /\.(?:local|internal|localhost)$/.test(host) || host.endsWith('.onrender.com') || host === 'onrender.com' ? null : host;
 }
 
 export const newDomainVerificationToken = () => `dealer-verification=${randomBytes(24).toString('hex')}`;

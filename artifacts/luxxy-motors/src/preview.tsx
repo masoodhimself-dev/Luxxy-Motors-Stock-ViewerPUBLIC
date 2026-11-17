@@ -15,6 +15,8 @@ import { Toaster } from '@/components/ui/toaster';
 import { StockProvider } from '@/lib/stock-context';
 import { SavedCarsProvider } from '@/lib/saved-cars-context';
 import { privateWebsitePreviewBase } from '@/lib/private-website-preview';
+import { SharedStaffPortal } from '@/components/portal/shared-staff-portal';
+import { exampleStaffDealerships } from '../preview/shared-staff-fixture';
 const SalesDemo = lazy(() => import("@/pages/sales-demo"));
 const JoinDealership = lazy(() => import('@/pages/join'));
 const Platform = lazy(() => import("@/pages/platform"));
@@ -42,11 +44,19 @@ const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false 
 
 function PreviewLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  return location === '/join' || location === '/platform' || location === '/verify-invoice' || location.startsWith('/verify-invoice/') || location.startsWith('/test-drive-declaration/') || location.startsWith('/delivery-evidence/') || location.startsWith('/payment-request/') || location === '/reservation-test-checkout' ? <>{children}</> : <Layout>{children}</Layout>;
+  return location === '/__preview/staff-login' || location === '/join' || location === '/platform' || location === '/verify-invoice' || location.startsWith('/verify-invoice/') || location.startsWith('/test-drive-declaration/') || location.startsWith('/delivery-evidence/') || location.startsWith('/payment-request/') || location === '/reservation-test-checkout' ? <>{children}</> : <Layout>{children}</Layout>;
 }
 
 const previewBase = privateWebsitePreviewBase();
-if (previewBase) setBaseUrl(previewBase);
+const staffExample = exampleStaffDealerships.find(dealer => window.location.pathname.startsWith(`/dealers/${dealer.dealerId}/portal`));
+const staffPreviewBase = staffExample ? `/dealers/${staffExample.dealerId}` : undefined;
+if (staffPreviewBase) {
+  const marker = document.createElement('meta');
+  marker.name = 'dealeros-staff-portal';
+  marker.content = 'local-preview';
+  document.head.append(marker);
+  setBaseUrl(staffPreviewBase);
+} else if (previewBase) setBaseUrl(previewBase);
 else {
   captureInvitationToken();
   captureStockAlertToken();
@@ -54,7 +64,7 @@ else {
 
 createRoot(document.getElementById('root')!).render(
   <ErrorBoundary>
-    {previewBase ? <Suspense fallback={<RouteLoading />}><PlatformWebsitePreview base={previewBase} /></Suspense> : <Router>
+    {previewBase ? <Suspense fallback={<RouteLoading />}><PlatformWebsitePreview base={previewBase} /></Suspense> : <Router base={staffPreviewBase}>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <StockProvider>
@@ -63,11 +73,14 @@ createRoot(document.getElementById('root')!).render(
               <PreviewLayout>
                 <Suspense fallback={<RouteLoading />}>
                   <Switch>
+                  <Route path="/__preview/staff-login"><div role="note" className="bg-secondary px-6 py-3 text-sm">Local preview. This uses an example staff account.</div><SharedStaffPortal dealerId={null}>{null}</SharedStaffPortal></Route>
                   <Route path="/__preview/vehicle-checks" component={CustomerChecksPage} />
                   <Route path="/portal/sales-demo" component={SalesDemo} />
-                  <Route path="/platform"><div role="note" className="mx-6 mt-5 rounded-lg bg-secondary p-4 text-sm">Example dealerships · Domain activation and import credentials require the real backend.</div><Platform /></Route>
+                  <Route path="/platform"><div role="note" className="mx-6 mt-5 rounded-lg bg-secondary p-4 text-sm">Local preview. Launch actions use example data.</div><Platform /></Route>
                   <Route path="/join" component={JoinDealership} />
-                  <Route path="/portal" component={Portal} />
+                  <Route path="/portal">{staffExample
+                    ? <SharedStaffPortal dealerId={staffExample.dealerId}><Portal /></SharedStaffPortal>
+                    : <Portal />}</Route>
                   <Route path="/portal/leads/:id" component={Portal} />
                   <Route path="/"><Home key="home" /></Route>
                   <Route path="/stock"><Home key="stock" browseStock /></Route>

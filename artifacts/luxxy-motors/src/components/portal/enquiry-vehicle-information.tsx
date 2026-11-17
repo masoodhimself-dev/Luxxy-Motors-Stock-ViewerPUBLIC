@@ -1,3 +1,4 @@
+import { publicDealershipPath } from '@/lib/public-dealership-url';
 import { vehicleDetailPath } from '@workspace/vehicle-meta';
 import type { MotHistory } from "@workspace/vehicle-meta";
 import { MotHistoryPanel } from "../mot-history";
@@ -397,7 +398,7 @@ export function VehicleInformationBody({
       {fileLayout && <HistoryLinks vehicleId={car.id} />}
       {published && (
         <a
-          href={vehicleDetailPath(car)}
+          href={publicDealershipPath(vehicleDetailPath(car))}
           target="_blank"
           rel="noreferrer"
           className="w-fit py-3 text-sm font-medium underline underline-offset-4"

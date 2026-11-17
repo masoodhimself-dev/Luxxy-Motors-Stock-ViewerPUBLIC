@@ -7,6 +7,7 @@ import platformDomainAutomationRouter from './platform-domain-automation';
 import platformOnboardingKeysRouter from './platform-onboarding-keys';
 import platformDemosRouter from './platform-demos';
 import platformDemoLinkRouter from './platform-demo-link';
+import platformDealerOnboardingRouter from './platform-dealer-onboarding';
 import { sql } from 'drizzle-orm';
 import { onboardingItems } from '@workspace/vehicle-meta';
 import { Router } from 'express';
@@ -21,7 +22,8 @@ import { importCapacitySql, importCapacitySummary } from '../lib/platform-capaci
 import { processJobStatus } from '../lib/tenant-jobs';
 import { importAdmission } from '../lib/stock-import-admission';
 import { isPlatformAdmin } from '../lib/platform-admin';
-import { normaliseTenantHost, multiTenantEnabled } from '../lib/tenant-context';
+import { sharedStaffPortalConfig, sharedStaffWorkspaceUrl } from '../lib/shared-staff-portal';
+import { isReservedDealerHost, normaliseTenantHost, multiTenantEnabled } from '../lib/tenant-context';
 import { importSecretDigest } from '../middlewares/tenant';
 import { importActivityDetails } from '../lib/platform-import-activity';
 import { newDealerSettings } from './dealer-settings';
@@ -42,6 +44,7 @@ router.use(platformDemosRouter);
 router.use(platformDemoLinkRouter);
 router.use(platformConversionRouter);
 router.use(platformDomainAutomationRouter);
+router.use(platformDealerOnboardingRouter);
 router.get('/capacity', async (req, res) => {
   let ready = await databaseReady();
   let imports: ReturnType<typeof importCapacitySummary> | { available: false } = { available: false };
@@ -66,7 +69,8 @@ router.patch('/dealers/:id/checklist', async (req, res) => {
   if (!dealer) { res.status(404).json({ error: 'Dealer not found.' }); return; }
   res.json(dealer);
 });
-router.get('/dealers', async (_req, res) => { const dealers = await db.select().from(dealershipsTable); res.json({ dealers }); });
+const publicDealer = ({ onboardingProof: _proof, ...dealer }: typeof dealershipsTable.$inferSelect) => dealer;
+router.get('/dealers', async (_req, res) => { const dealers = await db.select().from(dealershipsTable); res.json({ dealers: dealers.map(publicDealer) }); });
 router.get('/dealers/:id/imports/:runId', async (req, res) => {
   const details = await importActivityDetails(db, req.params.id, req.params.runId);
   if (!details) { res.status(404).json({ error: 'Import not found for this dealership.' }); return; }
@@ -83,7 +87,8 @@ router.get('/overview', async (_req, res) => {
     db.select({ dealerId: stockImportRunsTable.dealerId, runId: stockImportRunsTable.runId, status: stockImportRunsTable.status, receivedAt: stockImportRunsTable.receivedAt, scrapedAt: stockImportRunsTable.scrapedAt, receivedCount: stockImportRunsTable.receivedCount, updatedAt: stockImportRunsTable.updatedAt, expectedCount: stockImportRunsTable.expectedCount, addedCount: stockImportRunsTable.addedCount, changedCount: stockImportRunsTable.changedCount, missingCount: stockImportRunsTable.missingCount, errors: stockImportRunsTable.errors, source: stockImportRunsTable.source, retailerId: stockImportRunsTable.retailerId }).from(stockImportRunsTable).orderBy(desc(stockImportRunsTable.receivedAt)).limit(30),
     pool.query('SELECT dealer_id,expires_at FROM dealer_demos WHERE converted_at IS NULL'),
   ]);
-  res.json({ dealers: dealers.map(dealer => ({ ...dealer,
+  const sharedStaff = sharedStaffPortalConfig();
+  res.json({ sharedStaffPilotDealerId: sharedStaff?.pilotDealerId ?? null, dealers: dealers.map(dealer => ({ ...publicDealer(dealer),
     isDemo: demos.rows.some(demo => demo.dealer_id === dealer.id),
     demoExpiresAt: demos.rows.find(demo => demo.dealer_id === dealer.id)?.expires_at ?? null,
     domains: domains.filter(d => d.dealerId === dealer.id),
@@ -104,23 +109,28 @@ router.get('/dealers/:id/workspace', async (req, res) => {
     readPlatformStockUploadTarget(dealer.id),
   ]);
   const isDemo = Boolean(uploadTarget?.demoExpiresAt && !uploadTarget.demoConvertedAt);
-  res.json({ dealer: { ...dealer, isDemo, demoExpiresAt: isDemo ? uploadTarget?.demoExpiresAt : null }, domains, members, imports, keys,
-    effectiveStockConnection, stockUploadAllowed: Boolean(uploadTarget && !platformStockUploadBlock(uploadTarget)) });
+  const staffWorkspaceUrl = dealer.status === 'active' && dealer.plan === 'full_portal' && !isDemo ? sharedStaffWorkspaceUrl(dealer.id) : null;
+  res.json({ dealer: { ...publicDealer(dealer), isDemo, demoExpiresAt: isDemo ? uploadTarget?.demoExpiresAt : null }, domains, members, imports, keys,
+    effectiveStockConnection, stockUploadAllowed: Boolean(uploadTarget && !platformStockUploadBlock(uploadTarget)),
+    ...(staffWorkspaceUrl ? { sharedStaffWorkspaceUrl: staffWorkspaceUrl } : {}) });
 });
 const origin = z.string().url().refine(v => { const u = new URL(v); return u.protocol === 'https:' && (!u.port || u.port === '443') && !u.username && !u.password && u.pathname === '/' && !u.search && !u.hash && Boolean(normaliseTenantHost(u.host)); });
-const creation = z.object({ id: z.string().regex(/^[a-z0-9][a-z0-9-]{1,62}$/), name: z.string().trim().min(1).max(120), canonicalOrigin: origin, platform: z.enum(['autotrader','cazoo']), retailerId: z.string().trim().min(1).max(128), sourceUrl: z.string().url(), ownerAuthUserId: z.string().regex(/^user_[A-Za-z0-9]+$/).optional(), ownerEmail: z.string().email().optional(), useMyAccount: z.boolean().optional(), inviteOwnerEmail: z.string().trim().toLowerCase().email().max(254).optional() }).strict().refine(v => Number(Boolean(v.ownerAuthUserId)) + Number(Boolean(v.ownerEmail)) + Number(v.useMyAccount === true) + Number(Boolean(v.inviteOwnerEmail)) === 1);
+const creation = z.object({ id: z.string().regex(/^[a-z0-9][a-z0-9-]{1,62}$/), name: z.string().trim().min(1).max(120), canonicalOrigin: origin, platform: z.enum(['autotrader','cazoo']), retailerId: z.string().trim().min(1).max(128), sourceUrl: z.string().url(), plan: z.enum(['full_portal','website_only']).optional(), enquiryEmail: z.string().trim().toLowerCase().email().max(254).nullable().optional(), ownerAuthUserId: z.string().regex(/^user_[A-Za-z0-9]+$/).optional(), ownerEmail: z.string().email().optional(), useMyAccount: z.boolean().optional(), inviteOwnerEmail: z.string().trim().toLowerCase().email().max(254).optional() }).strict().refine(v => {
+  const ownerChoices = [v.ownerAuthUserId, v.ownerEmail, v.useMyAccount, v.inviteOwnerEmail].filter(Boolean).length;
+  return v.plan === 'website_only' ? Boolean(v.enquiryEmail) && ownerChoices <= 1 : ownerChoices === 1;
+});
 router.post('/dealers', async (req, res) => {
-  const input = creation.safeParse(req.body); if (!input.success) { res.status(400).json({ error: 'Supply a valid dealership, HTTPS website, stock source and exactly one owner account option.' }); return; }
+  const input = creation.safeParse(req.body); if (!input.success) { res.status(400).json({ error: 'Enter the dealership, website and stock source. Choose an owner for Full Portal or enter an enquiry email for Website Only.' }); return; }
   const d = input.data, source = new URL(d.sourceUrl); const host = normaliseTenantHost(new URL(d.canonicalOrigin).host)!;
-  if ([normaliseTenantHost(process.env.PLATFORM_ADMIN_HOST ?? ''), normaliseTenantHost(process.env.STOCK_IMPORT_API_HOST ?? '')].includes(host)) { res.status(400).json({ error: 'Use a separate dealer domain. Administration and import hosts are reserved.' }); return; }
+  if (isReservedDealerHost(host)) { res.status(400).json({ error: 'Use a separate dealer domain. Administration, staff portal and import hosts are reserved.' }); return; }
   const allowed = d.platform === 'cazoo' ? ['cazoo.co.uk','www.cazoo.co.uk'] : ['autotrader.co.uk','www.autotrader.co.uk'];
   if (source.protocol !== 'https:' || source.username || source.password || (source.port && source.port !== '443') || !allowed.includes(source.hostname)) { res.status(400).json({ error: 'Source URL does not match the stock platform.' }); return; }
   let ownerAuthUserId = d.ownerAuthUserId;
   let ownerEmail: string | null = null;
   let ownerName: string | null = null;
-  if (d.inviteOwnerEmail && !invitationEmailReadiness().ready) { res.status(503).json({ error: invitationEmailReadiness().message }); return; }
-  if (d.useMyAccount || d.inviteOwnerEmail) ownerAuthUserId = getAuth(req).userId!;
-  if (d.ownerEmail) {
+  if (d.plan !== 'website_only' && d.inviteOwnerEmail && !invitationEmailReadiness().ready) { res.status(503).json({ error: invitationEmailReadiness().message }); return; }
+  if (d.plan !== 'website_only' && (d.useMyAccount || d.inviteOwnerEmail)) ownerAuthUserId = getAuth(req).userId!;
+  if (d.plan !== 'website_only' && d.ownerEmail) {
     try {
       const profiles = (await clerkClient.users.getUserList({ emailAddress: [d.ownerEmail.trim().toLowerCase()], limit: 2 })).data;
       if (profiles.length !== 1) { res.status(400).json({ error: 'Use the email of one existing Clerk account. New-account invitations are not enabled yet.' }); return; }
@@ -132,21 +142,21 @@ router.post('/dealers', async (req, res) => {
   const token = `dealer-verification=${randomBytes(24).toString('hex')}`;
   try {
     await db.transaction(async tx => {
-      await tx.insert(dealershipsTable).values({ id: d.id, name: d.name, canonicalOrigin: new URL(d.canonicalOrigin).origin, stockPlatform: d.platform, retailerId: d.retailerId, sourceUrl: d.sourceUrl });
+      await tx.insert(dealershipsTable).values({ id: d.id, name: d.name, canonicalOrigin: new URL(d.canonicalOrigin).origin, stockPlatform: d.platform, retailerId: d.retailerId, sourceUrl: d.sourceUrl, plan: d.plan ?? 'full_portal', enquiryEmail: d.plan === 'website_only' ? d.enquiryEmail : null, onboardingRequired: Boolean(d.plan) });
       await tx.insert(dealerDomainsTable).values({ hostname: host, dealerId: d.id, verificationToken: token });
-      await tx.insert(portalUsersTable).values({ dealerId: d.id, authUserId: ownerAuthUserId!, email: ownerEmail, name: ownerName, role: 'owner' });
+      if (d.plan !== 'website_only' && ownerAuthUserId) await tx.insert(portalUsersTable).values({ dealerId: d.id, authUserId: ownerAuthUserId, email: ownerEmail, name: ownerName, role: 'owner' });
       const config = newDealerSettings(d.name);
       await tx.insert(dealerSettingsTable).values({ dealerId: d.id, config });
     });
     let ownerInvitation;
-    if (d.inviteOwnerEmail) { try { ownerInvitation = await issueAccountInvitation(d.id,d.inviteOwnerEmail,'owner',{id:getAuth(req).userId!,kind:'platform'}); } catch { ownerInvitation = {deliveryStatus:'failed',error:'Dealership created. Open Staff to send the owner invitation; no owner access has been granted to the recipient.'}; } }
+    if (d.plan !== 'website_only' && d.inviteOwnerEmail) { try { ownerInvitation = await issueAccountInvitation(d.id,d.inviteOwnerEmail,'owner',{id:getAuth(req).userId!,kind:'platform'}); } catch { ownerInvitation = {deliveryStatus:'failed',error:'Dealership created. Open Staff to send the owner invitation; no owner access has been granted to the recipient.'}; } }
     res.status(201).json({ ...(ownerInvitation ? {ownerInvitation} : {}), dealerId: d.id, status: 'draft', dns: { type: 'TXT', name: `_dealer-verification.${host}`, value: token }, next: 'Verify DNS ownership and connect the domain in Render before activation.' });
   } catch { res.status(409).json({ error: 'Dealer ID or domain already exists. No dealer created.' }); }
 });
 router.get('/dealers/:id/domains', async (req, res) => { res.json({ domains: await db.select().from(dealerDomainsTable).where(eq(dealerDomainsTable.dealerId, req.params.id)) }); });
 router.post('/dealers/:id/domains', async (req, res) => {
   const hostname = normaliseTenantHost(String(req.body?.hostname ?? ''));
-  if (hostname && [normaliseTenantHost(process.env.PLATFORM_ADMIN_HOST ?? ''), normaliseTenantHost(process.env.STOCK_IMPORT_API_HOST ?? '')].includes(hostname)) { res.status(400).json({ error: 'Administration and import hosts are reserved.' }); return; }
+  if (hostname && isReservedDealerHost(hostname)) { res.status(400).json({ error: 'Administration, staff portal and import hosts are reserved.' }); return; }
   const [dealer] = await db.select().from(dealershipsTable).where(eq(dealershipsTable.id, req.params.id));
   if (!dealer || !hostname) { res.status(400).json({ error: 'Choose a registered dealer and valid domain hostname.' }); return; }
   const token = `dealer-verification=${randomBytes(24).toString('hex')}`;
@@ -156,7 +166,7 @@ router.post('/dealers/:id/domains', async (req, res) => {
 router.post('/dealers/:id/verify-domain', async (req, res) => {
   const hostname = normaliseTenantHost(String(req.body?.hostname ?? ''));
   const [domain] = hostname ? await db.select().from(dealerDomainsTable).where(and(eq(dealerDomainsTable.hostname, hostname), eq(dealerDomainsTable.dealerId, req.params.id))) : [];
-  if (!domain) { res.status(404).json({ error: 'Domain not found.' }); return; }
+  if (!domain || isReservedDealerHost(domain.hostname)) { res.status(404).json({ error: 'Domain not found.' }); return; }
   try { const records = await resolveTxt(`_dealer-verification.${domain.hostname}`); if (!records.some(parts => parts.join('') === domain.verificationToken)) throw new Error(); }
   catch { res.status(409).json({ error: 'DNS ownership record not found. Domain remains inactive.' }); return; }
   await db.update(dealerDomainsTable).set({ verified: true }).where(eq(dealerDomainsTable.hostname, domain.hostname)); res.json({ hostname, verified: true, renderDomainSetupStillRequired: true });
@@ -169,9 +179,14 @@ router.post('/dealers/:id/import-key', async (req, res) => {
 router.delete('/dealers/:id/import-key/:keyId', async (req, res) => { await db.update(dealerImportKeysTable).set({ disabledAt: new Date() }).where(and(eq(dealerImportKeysTable.id, req.params.keyId), eq(dealerImportKeysTable.dealerId, req.params.id))); res.json({ revoked: true }); });
 router.put('/dealers/:id/status', async (req, res) => {
   if (!['active','suspended','draft'].includes(req.body?.status)) { res.status(400).json({ error: 'Choose active, suspended or draft.' }); return; }
-  const [dealer] = await db.select().from(dealershipsTable).where(eq(dealershipsTable.id, req.params.id)); if (!dealer) { res.status(404).json({ error: 'Dealer not found.' }); return; }
-  const [domain] = await db.select().from(dealerDomainsTable).where(and(eq(dealerDomainsTable.hostname, normaliseTenantHost(new URL(dealer.canonicalOrigin).host)!), eq(dealerDomainsTable.dealerId, dealer.id), eq(dealerDomainsTable.verified, true)));
-  if (req.body.status === 'active' && !domain) { res.status(409).json({ error: 'Verify the canonical domain first.' }); return; }
-  await db.update(dealershipsTable).set({ status: req.body.status }).where(eq(dealershipsTable.id, dealer.id)); res.json({ dealerId: dealer.id, status: req.body.status });
+  await db.transaction(async tx => {
+    const [dealer] = await tx.select().from(dealershipsTable).where(eq(dealershipsTable.id, req.params.id)).for('update');
+    if (!dealer) { res.status(404).json({ error: 'Dealer not found.' }); return; }
+    if (dealer.onboardingRequired && req.body.status !== 'draft') { res.status(409).json({ error: 'Complete onboarding and use Go live for this dealership.' }); return; }
+    const [domain] = await tx.select().from(dealerDomainsTable).where(and(eq(dealerDomainsTable.hostname, normaliseTenantHost(new URL(dealer.canonicalOrigin).host)!), eq(dealerDomainsTable.dealerId, dealer.id), eq(dealerDomainsTable.verified, true)));
+    if (req.body.status === 'active' && (!domain || isReservedDealerHost(domain.hostname))) { res.status(409).json({ error: 'Verify the canonical domain first.' }); return; }
+    await tx.update(dealershipsTable).set({ status: req.body.status }).where(eq(dealershipsTable.id, dealer.id));
+    res.json({ dealerId: dealer.id, status: req.body.status });
+  });
 });
 export default router;

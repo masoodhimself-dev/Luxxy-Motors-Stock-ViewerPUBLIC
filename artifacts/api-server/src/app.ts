@@ -15,6 +15,8 @@ import router from "./routes";
 import shareRouter from "./routes/share";
 import { logger } from "./lib/logger";
 import { clerkMiddleware } from "@clerk/express";
+import { sharedStaffClerk, sharedStaffPortalForHost } from './lib/shared-staff-portal';
+import { createSharedStaffPortal } from './routes/shared-staff-portal';
 import { importAdmission, platformStockUploadPath } from './lib/stock-import-admission';
 import { platformStockUploadLimit, platformStockUploadTooLarge } from './lib/platform-stock-upload';
 import { serviceLifecycle } from './lib/service-lifecycle';
@@ -60,7 +62,11 @@ app.use('/api', (req, res, next) => {
   next();
 });
 // Mounted before the body parsers: the Clerk proxy streams raw bytes.
-app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
+const legacyClerkProxy = clerkProxyMiddleware();
+app.use(CLERK_PROXY_PATH, (req, res, next) => {
+  if (sharedStaffPortalForHost(req.get('host'))) { res.sendStatus(404); return; }
+  legacyClerkProxy(req, res, next);
+});
 
 app.use('/api/webhooks/customer-email', createCustomerEmailWebhook());
 app.use('/api/webhooks/cazoo-leads', createCazooLeadWebhook());
@@ -85,14 +91,20 @@ app.use(['/api/reservations/checkout', '/api/reservations/payment-status'], expr
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-app.use(clerkMiddleware({ publishableKey: process.env.CLERK_PUBLISHABLE_KEY }));
+app.use(clerkMiddleware(req => {
+  const shared = sharedStaffPortalForHost(req.get('host'));
+  return shared
+    ? { clerkClient: sharedStaffClerk(shared), publishableKey: shared.publishableKey, secretKey: shared.secretKey, authorizedParties: [shared.origin] }
+    : { publishableKey: process.env.CLERK_PUBLISHABLE_KEY };
+}));
 
+app.use(createSharedStaffPortal(router, accountInvitationsRouter));
 app.use("/api/demo-onboarding", demoOnboardingRouter);
 app.use("/api/platform", platformDealersRouter);
 app.use('/api/account-invitations', accountInvitationsRouter);
 app.use('/platform/preview/:dealerId', platformWebsitePreviewRouter);
 app.use((req, res, next) => {
-  if (res.locals.privateWebsitePreview === true) next();
+  if (res.locals.privateWebsitePreview === true || res.locals.sharedStaffPortal) next();
   else resolveTenant(req, res, next);
 });
 app.use(seoRouter);

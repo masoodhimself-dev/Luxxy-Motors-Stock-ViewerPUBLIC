@@ -1,3 +1,5 @@
+import { sharedStaffPortalPage } from './shared-staff-portal';
+
 /** Keep staff deep links through sign-in without allowing a different website. */
 export function staffReturnUrl(
   value: string | null | undefined,
@@ -12,7 +14,8 @@ export function staffReturnUrl(
       !["http:", "https:"].includes(url.protocol) ||
       url.origin !== origin ||
       url.username || url.password ||
-      (url.pathname !== fallback && url.pathname !== `${basePath}/join`)
+      (url.pathname !== fallback && url.pathname !== `${basePath}/join` &&
+        !(sharedStaffPortalPage() && /^\/dealers\/[a-z0-9][a-z0-9-]{1,62}\/portal(?:\/leads\/[a-f0-9-]{36})?\/?$/.test(url.pathname)))
     ) return fallback;
     return `${url.pathname}${url.search}${url.hash}`;
   } catch {

@@ -1,3 +1,4 @@
+import { publicDealershipOrigin, publicDealershipPath } from '@/lib/public-dealership-url';
 import { useState } from 'react';
 import type { Car } from '@/lib/stock-context';
 import type { CaseActivity } from './enquiry-activity-model';
@@ -18,7 +19,7 @@ function Assistance({text,cars,onInsertText}:{text:string;cars:readonly Car[];on
   {questions.length>0&&<fieldset><legend>Questions to cover</legend><p>Tick as you cover each topic. This checklist is only for this view.</p><div className="enquiry-question-checks">{questions.map(question=><label key={question}><input type="checkbox" checked={covered.includes(question)} onChange={event=>setCovered(current=>event.target.checked?[...current,question]:current.filter(x=>x!==question))}/>{question}</label>)}</div></fieldset>}
   {matches&&<details className="enquiry-stock-matches"><summary>Matching available cars <span>({matches.count})</span></summary><p>Based on {matches.transmission??'any transmission'}{matches.budget?` up to ${formatPrice(matches.budget)}`:''}. Check the customer’s other requirements before offering a car.</p>
    {!matches.cars.length&&<p>No available cars match these preferences.</p>}
-   {matches.cars.map(car=><div className="enquiry-stock-match" key={car.id}><div><a href={`/vehicle/${encodeURIComponent(car.id)}`} target="_blank" rel="noopener noreferrer">{car.title||[car.make,car.model].filter(Boolean).join(' ')}</a><span>{formatPrice(car.price!)} · {car.transmission}</span></div>{onInsertText&&<Button type="button" variant="outline" size="sm" onClick={()=>onInsertText(`${car.title||[car.make,car.model].filter(Boolean).join(' ')} — ${formatPrice(car.price!)}\n${window.location.origin}/vehicle/${encodeURIComponent(car.id)}`)}>Add to reply</Button>}</div>)}
+   {matches.cars.map(car=><div className="enquiry-stock-match" key={car.id}><div><a href={publicDealershipPath(`/vehicle/${encodeURIComponent(car.id)}`)} target="_blank" rel="noopener noreferrer">{car.title||[car.make,car.model].filter(Boolean).join(' ')}</a><span>{formatPrice(car.price!)} · {car.transmission}</span></div>{onInsertText&&<Button type="button" variant="outline" size="sm" onClick={()=>onInsertText(`${car.title||[car.make,car.model].filter(Boolean).join(' ')} — ${formatPrice(car.price!)}\n${publicDealershipOrigin()}/vehicle/${encodeURIComponent(car.id)}`)}>Add to reply</Button>}</div>)}
   </details>}
  </section>;
 }

@@ -2,7 +2,7 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import type { RequestHandler } from 'express';
 import { and, eq, isNull } from 'drizzle-orm';
 import { db, dealerDomainsTable, dealershipsTable, dealerImportKeysTable, dealerDemosTable } from '@workspace/db';
-import { multiTenantEnabled, normaliseTenantHost, runWithTenant, type TenantContext } from '../lib/tenant-context';
+import { isReservedDealerHost, multiTenantEnabled, normaliseTenantHost, runWithTenant, type TenantContext } from '../lib/tenant-context';
 import { demoProvisioning } from '../lib/demo-policy';
 export function importSecretDigest(secret: string): string { return createHash('sha256').update(secret).digest('hex'); }
 export function matchesImportSecret(secret: string, digest: string): boolean {
@@ -53,7 +53,7 @@ export const resolveTenant: RequestHandler = (req, res, next) => {
           let canonical: URL | undefined;
           try { canonical = new URL(row.dealer.canonicalOrigin); } catch { /* fail closed */ }
           const canonicalHost = canonical && normaliseTenantHost(canonical.host);
-          const safeOrigin = canonical && canonical.protocol === 'https:' && !canonical.username && !canonical.password && !canonical.port && canonical.pathname === '/' && !canonical.search && !canonical.hash && canonicalHost && canonicalHost !== hostname && canonicalHost !== demoBase && !canonicalHost.endsWith(`.${demoBase}`) && canonicalHost !== administratorHost && canonicalHost !== normaliseTenantHost(process.env.STOCK_IMPORT_API_HOST ?? '');
+          const safeOrigin = canonical && canonical.protocol === 'https:' && !canonical.username && !canonical.password && !canonical.port && canonical.pathname === '/' && !canonical.search && !canonical.hash && canonicalHost && canonicalHost !== hostname && canonicalHost !== demoBase && !canonicalHost.endsWith(`.${demoBase}`) && !isReservedDealerHost(canonicalHost);
           const [destination] = safeOrigin ? await db.select({ hostname: dealerDomainsTable.hostname }).from(dealerDomainsTable).where(and(eq(dealerDomainsTable.hostname, canonicalHost), eq(dealerDomainsTable.dealerId, row.dealer.id), eq(dealerDomainsTable.verified, true))) : [];
           const path = req.originalUrl;
           if ((req.method === 'GET' || req.method === 'HEAD') && canonical && destination && /^\/(?!\/)/.test(path) && !/[\\\u0000-\u0020\u007f]/.test(path)) {
@@ -64,7 +64,10 @@ export const resolveTenant: RequestHandler = (req, res, next) => {
         }
       }
       if (!row.domain.verified) { res.status(421).json({ error: 'Unrecognised dealership domain.' }); return; }
-      tenant = { dealerId: row.dealer.id, canonicalOrigin: row.dealer.canonicalOrigin, platform: row.dealer.stockPlatform, retailerId: row.dealer.retailerId, sourceUrl: row.dealer.sourceUrl, kind: 'website' };
+      if (row.dealer.plan === 'website_only' && /^\/(?:portal|sales|reply)(?:\/|$)/i.test(req.path)) {
+        res.status(404).set('Cache-Control', 'no-store').json({ error: 'The staff portal is unavailable on this website plan.' }); return;
+      }
+      tenant = { dealerId: row.dealer.id, canonicalOrigin: row.dealer.canonicalOrigin, platform: row.dealer.stockPlatform, retailerId: row.dealer.retailerId, sourceUrl: row.dealer.sourceUrl, kind: 'website', plan: row.dealer.plan, enquiryEmail: row.dealer.enquiryEmail };
     }
     const [demo] = await db.select().from(dealerDemosTable).where(eq(dealerDemosTable.dealerId, tenant.dealerId));
     // Conversion retains the row and its uploaded logo assets for continuity.

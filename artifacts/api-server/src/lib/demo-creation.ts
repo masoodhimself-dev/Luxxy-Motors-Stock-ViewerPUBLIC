@@ -2,6 +2,7 @@ import { demoShowroomAddress,demoOpeningHours,publishedDemoHours } from './demo-
 import { randomBytes } from 'node:crypto';
 import { z } from 'zod/v4';
 import { demoProvisioning } from './demo-policy';
+import { isReservedDealerHost } from './tenant-context';
 import { newDealerSettings } from '../routes/dealer-settings';
 import type { SaleWorkspaceReadClient } from './sale-workspace-store';
 export class DemoSetupError extends Error { constructor(message:string, readonly status=400){super(message);} }
@@ -16,6 +17,7 @@ export function validatedDemoInput(raw:unknown, privatePreview = false) {
   const d=parsed.data, id=`demo-${d.slug}`,host=`${d.slug}.${privatePreview ? 'demo.invalid' : p.domain}`, source=new URL(d.sourceUrl);
   const recipient = privatePreview ? '' : d.recipient?.toLowerCase() ?? '';
   if(!privatePreview && (!p.domain || !p.domainsReady)){throw new DemoSetupError('Demo domains are not ready. Complete wildcard DNS/TLS and Clerk setup first.',409);}
+  if(!privatePreview && isReservedDealerHost(host)){throw new DemoSetupError('Choose a different demo hostname. This one is reserved.',409);}
   if(!privatePreview && !p.recipients.includes(recipient)){throw new DemoSetupError('Choose an operator-approved demo email recipient.');}
   const allowed=d.platform==='cazoo'?['cazoo.co.uk','www.cazoo.co.uk']:['autotrader.co.uk','www.autotrader.co.uk'];
   if(source.protocol!=='https:' || source.username || source.password || source.port || !allowed.includes(source.hostname)){throw new DemoSetupError('Stock source must be an authorised HTTPS URL from the selected marketplace.');}

@@ -6,6 +6,7 @@ import { communicationsPreview } from "./preview/communications";
 import { declarationQa } from './preview/declaration-qa';
 import { plateEntryQa } from './preview/plate-entry-qa';
 import { platformPreview } from "./preview/platform";
+import { exampleStaffDealerships } from './preview/shared-staff-fixture';
 import { resolveDealerFeatures } from '@workspace/vehicle-meta';
 import { brochureDealer } from '../api-server/src/lib/vehicle-brochure';
 import { reservationPreview, readPreviewSettings, readPreviewEnquiries, writePreviewSettings } from './preview/reservations';
@@ -56,9 +57,32 @@ export default mergeConfig(
           server.middlewares.use(async (req, res, next) => {
             const url = new URL(req.url ?? '/', 'http://localhost');
             if (url.pathname === '/join' || url.pathname.startsWith('/verify-invoice/') || url.pathname.startsWith('/stock-alerts/')) { res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('X-Robots-Tag', 'noindex, nofollow'); res.setHeader('Cache-Control', 'no-store'); }
-            if (!url.pathname.startsWith('/api/')) return next();
+            if (req.method === 'GET' && url.pathname === '/api/staff-portal/memberships') {
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ dealerships: exampleStaffDealerships }));
+              return;
+            }
+            const scopedStaffPath = /^\/dealers\/([^/]+)(\/api\/.*)$/.exec(url.pathname);
+            const staffExample = scopedStaffPath && exampleStaffDealerships.find(dealer => dealer.dealerId === scopedStaffPath[1]);
+            if (scopedStaffPath && staffExample) url.pathname = scopedStaffPath[2];
+            if (!url.pathname.startsWith('/api/')) {
+              if (await platformPreview(req, res, url)) return;
+              return next();
+            }
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Cache-Control', 'no-store');
+            if (staffExample && req.method === 'GET' && url.pathname === '/api/dealer-settings') {
+              res.end(JSON.stringify({
+                ...previewSettings,
+                identity: { ...previewSettings.identity, name: staffExample.dealerName, logoText: staffExample.dealerName, logoAsset: '' },
+                contact: { phone: '', email: '', whatsapp: '' },
+              }));
+              return;
+            }
+            if (staffExample && req.method === 'GET' && url.pathname === '/api/portal/session') {
+              res.end(JSON.stringify({ state: 'allowed', name: 'Alex', email: 'alex@example.com', role: staffExample.role }));
+              return;
+            }
             if (await stockAlertsPreview(req, res, url)) return;
             if (customerChecksPreview(req,res,url)) return;
             if (url.pathname === '/api/staff/cazoo-leads' && req.method === 'GET') {

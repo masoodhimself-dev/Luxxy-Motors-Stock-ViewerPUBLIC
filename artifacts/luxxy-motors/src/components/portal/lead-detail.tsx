@@ -1,3 +1,4 @@
+import { publicDealershipPath } from '@/lib/public-dealership-url';
 import { DirectWhatsApp } from "@/components/direct-whatsapp";
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -578,7 +579,7 @@ export function LeadDetail({ id, onBack }: { id: string; onBack: () => void }) {
               )}
               {lead.vehicleId && (
                 <Link
-                  href={`/vehicle/${lead.vehicleId}`}
+                  href={publicDealershipPath(`/vehicle/${lead.vehicleId}`)}
                   className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-semibold text-primary underline-offset-4 hover:text-accent hover:underline"
                   data-testid="link-vehicle"
                 >

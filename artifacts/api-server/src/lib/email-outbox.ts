@@ -1,10 +1,11 @@
 import { routeCustomerReply } from './customer-email-replies';
 import { createHash, randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
-import { db } from "@workspace/db";
+import { db, type DealerPlan } from "@workspace/db";
 import { APPLE_RELAY_EMAIL_UNAVAILABLE, isRestrictedAppleRelayEmail } from "@workspace/vehicle-meta";
 import type { Logger } from "pino";
-import { currentDealerId, multiTenantEnabled } from "./tenant-context";
+import { currentDealerId, currentTenant, multiTenantEnabled } from "./tenant-context";
+import { websiteEnquirySender } from './website-only-enquiry-email';
 import { runBoundedDealerJob } from "./tenant-jobs";
 import { serviceLifecycle, startLifecycleWorker } from "./service-lifecycle";
 import {
@@ -423,7 +424,7 @@ export function deliverEmailOutbox(
           const config = await (
             options.settings ??
             (async () =>
-              effectiveResendSettings(
+              claimed.kind === 'dealer' && currentTenant()?.plan === 'website_only' ? websiteEnquirySender() : effectiveResendSettings(
                 await dealerIntegrationsStore.readPrivate(),
               ))
           )();
@@ -607,11 +608,11 @@ export async function processDealerEmailOutbox(
 /** Read-only discovery; no customer/provider work starts here. */
 export async function findDueEmailDealers() {
   return (
-    await db.execute(sql`SELECT d.id,d.canonical_origin,d.stock_platform,d.retailer_id,d.source_url,min(p.due) AS due FROM (
+    await db.execute(sql`SELECT d.id,d.canonical_origin,d.stock_platform,d.retailer_id,d.source_url,d.plan,d.enquiry_email,min(p.due) AS due FROM (
         SELECT dealer_id,next_attempt_at AS due FROM email_outbox WHERE status='queued' AND next_attempt_at<=now()
         UNION ALL SELECT dealer_id,lease_until FROM email_outbox WHERE status='sending' AND lease_until<=now()
         UNION ALL SELECT m.dealer_id,m.created_at FROM enquiry_emails m WHERE m.status='sending' AND m.created_at<now()-interval '5 minutes' AND NOT EXISTS(SELECT 1 FROM email_outbox q WHERE q.dealer_id=m.dealer_id AND q.delivery_id=m.id)
-      ) p JOIN dealerships d ON d.id=p.dealer_id LEFT JOIN dealer_demos demo ON demo.dealer_id=d.id AND demo.converted_at IS NULL WHERE d.status='active' AND demo.dealer_id IS NULL GROUP BY d.id,d.canonical_origin,d.stock_platform,d.retailer_id,d.source_url ORDER BY min(p.due) LIMIT 10`)
+      ) p JOIN dealerships d ON d.id=p.dealer_id LEFT JOIN dealer_demos demo ON demo.dealer_id=d.id AND demo.converted_at IS NULL WHERE d.status='active' AND demo.dealer_id IS NULL GROUP BY d.id ORDER BY min(p.due) LIMIT 10`)
   ).rows;
 }
 
@@ -639,6 +640,8 @@ export function startEmailOutboxWorker(log: Pick<Logger, "info" | "warn">) {
             platform: dealer.stock_platform as "autotrader" | "cazoo",
             retailerId: String(dealer.retailer_id),
             sourceUrl: String(dealer.source_url),
+            plan: dealer.plan as DealerPlan,
+            enquiryEmail: typeof dealer.enquiry_email === 'string' ? dealer.enquiry_email : null,
           },
           () => processDealerEmailOutbox(log),
         ).catch(() =>

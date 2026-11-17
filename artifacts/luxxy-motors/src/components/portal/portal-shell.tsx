@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { DealerWordmark } from "@/components/brand/wordmark";
 import {
+  Building2,
   CalendarDays,
   CarFront,
   CustomerEnquiry,
@@ -18,6 +19,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useDealerSettings } from "@/lib/dealer-settings-context";
 import { isMultiChoiceWebsite } from "@/lib/multi-home-scope";
+import { publicDealershipOrigin } from "@/lib/public-dealership-url";
+import { sharedStaffPortalPage } from "@/lib/shared-staff-portal";
 import { WorkspaceSearch } from "./workspace-tools";
 import "./portal-shell.css";
 
@@ -77,6 +80,8 @@ export function PortalShell({
     ? "/brand/multi-choice-motors/multi-choice-wordmark.svg"
     : settings.identity.logoAsset;
   const moreIsCurrent = section === "calendar" || section === "settings";
+  const shared = sharedStaffPortalPage();
+  const showroomHref = shared ? publicDealershipOrigin() : "/";
 
   function sectionButton(key: PortalSection) {
     const { label, icon: Icon } = portalSections[key];
@@ -148,8 +153,13 @@ export function PortalShell({
                     <Settings2 size={18} aria-hidden="true" /> Settings
                   </DropdownMenuItem>
                 )}
+                {shared && (
+                  <DropdownMenuItem asChild>
+                    <a href="/portal"><Building2 size={17} aria-hidden="true" /> Switch dealership</a>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem asChild>
-                  <a href="/" target="_blank" rel="noopener noreferrer">
+                  <a href={showroomHref} target="_blank" rel="noopener noreferrer">
                     <ExternalLink size={17} aria-hidden="true" /> View showroom
                     <span className="sr-only"> (opens in a new tab)</span>
                   </a>
@@ -181,7 +191,7 @@ export function PortalShell({
           <div className="portal-toolbar-actions portal-desk-actions">
             {actions}
             <a
-              href="/"
+              href={showroomHref}
               target="_blank"
               rel="noopener noreferrer"
               className="portal-desk-showroom"
@@ -190,6 +200,7 @@ export function PortalShell({
             >
               <ExternalLink size={17} aria-hidden="true" />
             </a>
+            {shared && <a className="portal-switch-dealership" href="/portal">Switch dealership</a>}
             {account && <div className="portal-account" aria-label="Staff account">{account}</div>}
           </div>
         </header>

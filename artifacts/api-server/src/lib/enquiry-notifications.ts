@@ -11,6 +11,7 @@ import { forEachActiveDealer } from "./tenant-jobs";
 import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
 import { currentDealerId, currentTenant, multiTenantEnabled } from "./tenant-context";
 import { renderDealerEmail, type EmailRequest } from "./email-provider";
+import { websiteEnquirySender, websiteOnlyEnquiryEmail } from './website-only-enquiry-email';
 import {
   enqueueEmailOutbox,
   attemptQueuedEmail,
@@ -176,6 +177,7 @@ async function attemptEmail({
   notificationStock,
   notificationWhatsApp,
   notificationAppleRelay,
+  replyTo,
 }: {
   to: string | null;
   subject: string;
@@ -193,6 +195,7 @@ async function attemptEmail({
   notificationStock?: NotificationStock;
   notificationWhatsApp?: string;
   notificationAppleRelay?: boolean;
+  replyTo?: string;
 }): Promise<DeliveryResult> {
   if (!to) {
     return {
@@ -212,14 +215,14 @@ async function attemptEmail({
   }
 
   try {
-    const config = effectiveResendSettings(
+    const config = kind === 'dealer' && currentTenant()?.plan === 'website_only' ? websiteEnquirySender() : effectiveResendSettings(
       await dealerIntegrationsStore.readPrivate(),
     );
     const outbox = await enqueueEmailOutbox({
       enquiryId: enquiry.id,
       kind,
       config,
-      request: { to, subject, html, text, idempotencyKey, attachments },
+      request: { to, subject, html, text, idempotencyKey, attachments, replyTo },
       validation: {
         layoutVersion: "correspondence-v1",
         appointmentRevision: enquiry.appointmentRevision,
@@ -630,9 +633,10 @@ async function processDealerNotification(
         vehicleUrl: vehicle?.vehicleUrl,
       })
     : undefined;
+  const websiteOnly = currentTenant()?.plan === 'website_only';
   const result = await attemptEmail({
-    to: dealerNotificationRecipient(dealer.contact.email),
-    ...(await enquiryEmail(claimed, dealer, "dealer", false, "correspondence-v1", {
+    to: websiteOnly ? currentTenant()?.enquiryEmail ?? null : dealerNotificationRecipient(dealer.contact.email),
+    ...(websiteOnly ? websiteOnlyEnquiryEmail({ ...claimed, dealerName: dealer.identity.name, type: claimed.source === 'website_callback' ? 'website_callback' : claimed.type }) : await enquiryEmail(claimed, dealer, "dealer", false, "correspondence-v1", {
       stock: notificationStock,
       whatsappUrl: notificationWhatsApp,
       appleRelay: notificationAppleRelay,
@@ -677,7 +681,7 @@ export async function deliverEnquiryNotifications(
   if (enquiry.archivedAt) return enquiry;
   const dealer = await getDealerProfile();
   await Promise.all([
-    processCustomerConfirmation(enquiry, log, dealer),
+    ...(currentTenant()?.plan === 'website_only' ? [] : [processCustomerConfirmation(enquiry, log, dealer)]),
     processDealerNotification(enquiry, log, dealer),
   ]);
   const [updated] = await db
@@ -794,7 +798,8 @@ export async function rebuildAutomaticOutboxEmail(
     throw new Error("The reminder is no longer applicable.");
   const dealer = await getDealerProfile(),
     audience = row.kind === "dealer" ? "dealer" : "customer";
-  const rendered = await enquiryEmail(
+  const websiteOnly = audience === 'dealer' && currentTenant()?.plan === 'website_only';
+  const rendered = websiteOnly ? websiteOnlyEnquiryEmail({ ...enquiry, dealerName: dealer.identity.name, type: enquiry.source === 'website_callback' ? 'website_callback' : enquiry.type }) : await enquiryEmail(
     enquiry,
     dealer,
     audience,
@@ -808,7 +813,7 @@ export async function rebuildAutomaticOutboxEmail(
   );
   const to =
     audience === "dealer"
-      ? dealerNotificationRecipient(dealer.contact.email)
+      ? websiteOnly ? currentTenant()?.enquiryEmail ?? null : dealerNotificationRecipient(dealer.contact.email)
       : enquiry.email;
   if (!to)
     throw new Error("The approved email recipient is no longer available.");

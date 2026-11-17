@@ -52,12 +52,12 @@ export function forEachActiveDealer(job: () => Promise<unknown>, options: Tenant
         return;
       }
       const [dealers, demoRows] = await Promise.all([
-        db.select({ id: dealershipsTable.id, canonicalOrigin: dealershipsTable.canonicalOrigin, stockPlatform: dealershipsTable.stockPlatform, retailerId: dealershipsTable.retailerId, sourceUrl: dealershipsTable.sourceUrl }).from(dealershipsTable).where(eq(dealershipsTable.status, 'active')),
+        db.select({ id: dealershipsTable.id, canonicalOrigin: dealershipsTable.canonicalOrigin, stockPlatform: dealershipsTable.stockPlatform, retailerId: dealershipsTable.retailerId, sourceUrl: dealershipsTable.sourceUrl, plan: dealershipsTable.plan, enquiryEmail: dealershipsTable.enquiryEmail }).from(dealershipsTable).where(eq(dealershipsTable.status, 'active')),
         db.select({ id: dealerDemosTable.dealerId }).from(dealerDemosTable).where(isNull(dealerDemosTable.convertedAt)),
       ]);
       // Unconverted demonstrations require deliberate staff tests, never scheduled customer sends.
       const demos = new Set(demoRows.map(row => row.id));
-      await runDealerJobBatch(dealers.map(dealer => ({ dealerId: dealer.id, canonicalOrigin: dealer.canonicalOrigin, platform: dealer.stockPlatform, retailerId: dealer.retailerId, sourceUrl: dealer.sourceUrl, demo: demos.has(dealer.id) })), job, { concurrency: tenantJobConcurrency(), execute, onComplete: report });
+      await runDealerJobBatch(dealers.map(dealer => ({ dealerId: dealer.id, canonicalOrigin: dealer.canonicalOrigin, platform: dealer.stockPlatform, retailerId: dealer.retailerId, sourceUrl: dealer.sourceUrl, plan: dealer.plan, enquiryEmail: dealer.enquiryEmail, demo: demos.has(dealer.id) })), job, { concurrency: tenantJobConcurrency(), execute, onComplete: report });
     } catch (error) {
       status.state = 'failed';
       throw error;

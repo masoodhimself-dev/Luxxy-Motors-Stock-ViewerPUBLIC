@@ -7,6 +7,7 @@ import type { SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 import { requirePermission, requireStaff } from '../middlewares/staff-auth';
 import { isStaffRole } from '../lib/staff-permissions';
 import { paymentLedgerCsv } from '../lib/dealer-operations';
+import { sharedStaffPortalForDealer, sharedStaffPortalForHost } from '../lib/shared-staff-portal';
 const router = Router();
 const dealerId = () => currentDealerId();
 const uuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
@@ -44,6 +45,7 @@ router.get('/staff/team', requireStaff, requirePermission('team.manage'), async 
 });
 router.post('/staff/team', requireStaff, requirePermission('team.manage'), async (req,res) => {
   try {
+    if(sharedStaffPortalForHost(req.get('host')))throw new OperationError('Send a staff invitation to add someone to the shared portal.',409);
     if(currentTenant()?.demo)throw new OperationError('Add other staff after live conversion. The platform can arrange the dealership owner’s setup invitation.',409);
     const role = req.body?.role;
     if (!isStaffRole(role)) throw new OperationError('Choose owner, salesperson or accounts.');
@@ -69,8 +71,11 @@ router.patch('/staff/team/:id', requireStaff, requirePermission('team.manage'), 
     const role = req.body.role ?? current.role;
     const active = req.body.active ?? !current.disabled_at;
     if (current.role === 'owner' && !current.disabled_at && (role !== 'owner' || !active)) {
-      const owners = await client.query("SELECT count(*)::int AS count FROM portal_users WHERE dealer_id=$1 AND role='owner' AND disabled_at IS NULL",[dealerId()]);
-      if (owners.rows[0].count <= 1) throw new OperationError('Keep at least one active owner. Add another owner before changing this account.',409);
+      const realm = sharedStaffPortalForDealer(dealerId()) ? Boolean(current.shared_staff_identity) : null;
+      const owners = await client.query("SELECT count(*)::int AS count FROM portal_users WHERE dealer_id=$1 AND role='owner' AND disabled_at IS NULL AND ($2::boolean IS NULL OR shared_staff_identity=$2)",[dealerId(),realm]);
+      if (owners.rows[0].count <= 1) throw new OperationError(realm === null
+        ? 'Keep at least one active owner. Add another owner before changing this account.'
+        : 'Keep at least one active owner for this sign-in. Invite another owner before changing this account.',409);
     }
     const result = await client.query('UPDATE portal_users SET role=$3,disabled_at=$4 WHERE dealer_id=$1 AND id=$2::uuid RETURNING *',[dealerId(),req.params.id,role,active ? null : new Date()]);
     await client.query('COMMIT'); res.json({ member: member(result.rows[0]) });

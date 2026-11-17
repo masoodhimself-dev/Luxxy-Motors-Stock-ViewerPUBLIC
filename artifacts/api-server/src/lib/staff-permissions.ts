@@ -40,6 +40,8 @@ export function operationPermission(
   method: string,
   path: string,
 ): StaffPermission | null {
+  // Express route matching is case-insensitive by default.
+  path = path.toLowerCase();
   const write = !["GET", "HEAD", "OPTIONS"].includes(method);
   if (/^\/(dealer-integrations|email-templates)(\/|$)/.test(path))
     return "integrations.manage";

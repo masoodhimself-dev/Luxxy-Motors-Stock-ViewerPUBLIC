@@ -1,5 +1,13 @@
 import { pgTable, text, timestamp, boolean, jsonb, uuid, integer, uniqueIndex } from 'drizzle-orm/pg-core';
+export type DealerPlan = 'full_portal' | 'website_only';
+export type DealerOnboardingProof =
+  | { channel: 'inbox'; acceptedAt: string; enquiryId: string; reference: string }
+  | { channel: 'email'; acceptedAt: string; recipient: string; providerId: string; senderHash: string };
 export const dealershipsTable = pgTable('dealerships', {
+  plan: text('plan').$type<DealerPlan>().notNull().default('full_portal'),
+  enquiryEmail: text('enquiry_email'),
+  onboardingRequired: boolean('onboarding_required').notNull().default(false),
+  onboardingProof: jsonb('onboarding_proof').$type<DealerOnboardingProof>(),
   onboardingChecklist: jsonb('onboarding_checklist').$type<Record<string, { status: 'pending' | 'done' | 'skipped'; note: string; updatedAt: string; updatedBy: string }>>().notNull().default({}),
   id: text('id').primaryKey(), name: text('name').notNull(), status: text('status').$type<'draft' | 'active' | 'suspended'>().notNull().default('draft'), canonicalOrigin: text('canonical_origin').notNull(), stockPlatform: text('stock_platform').$type<'autotrader' | 'cazoo'>().notNull(), retailerId: text('retailer_id').notNull(), sourceUrl: text('source_url').notNull(), createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

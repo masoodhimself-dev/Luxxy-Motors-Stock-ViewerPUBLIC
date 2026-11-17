@@ -1,6 +1,14 @@
 // Aliased only by vite.preview.config.ts. Never imported by the production entry.
 import type { ReactNode } from 'react';
-export const useAuth = () => ({ isLoaded: true, isSignedIn: true });
+function signedOutStaffPreview() {
+  return typeof window !== 'undefined' && window.location.pathname === '/__preview/staff-login' &&
+    new URLSearchParams(window.location.search).get('state') === 'signed-out';
+}
+export const useAuth = () => ({
+  isLoaded: true,
+  isSignedIn: !signedOutStaffPreview(),
+  userId: signedOutStaffPreview() ? null : 'user_exampleStaff',
+});
 export const useUser = () => ({
   user: { firstName: 'Alex', primaryEmailAddress: { emailAddress: 'alex@example.com' } },
 });
@@ -12,6 +20,8 @@ export const UserButton = () => (
     AL
   </span>
 );
-export const SignInButton = ({ children }: { children: ReactNode }) => <>{children}</>;
+export const SignInButton = ({ children }: { children: ReactNode }) => signedOutStaffPreview()
+  ? <span onClick={() => window.location.assign('/__preview/staff-login')}>{children}</span>
+  : <>{children}</>;
 
 export const useClerk = () => ({signOut:async()=>{},addListener:()=>()=>{}});

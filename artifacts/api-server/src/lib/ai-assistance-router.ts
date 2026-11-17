@@ -56,7 +56,7 @@ export function aiAssistanceRouter(deps: Dependencies) {
       httpOnly: true,
       sameSite: "strict",
       secure: aiCookieSecure(req.secure),
-      path: "/api/ai",
+      path: `${req.baseUrl}/ai`,
     });
     return createHash("sha256").update(token).digest("hex");
   }
