@@ -23,6 +23,8 @@ export default function Contact() {
   const appointmentOnly = isMultiChoiceWebsite();
   const parkingInstructions = content?.parkingInstructions?.trim();
   const email = settings.contact.email?.trim();
+  const emailAt = email?.lastIndexOf("@") ?? -1;
+  const canBook = Boolean(settings.testDriveBooking?.enabled);
   const hours = customerOpeningHours(settings.hours);
   usePageMeta({
     title: `Contact us & directions | ${settings.identity.name}`,
@@ -43,7 +45,20 @@ export default function Contact() {
       <header className="friendly-banner mt-4 max-w-3xl pb-7 sm:pb-10">
         <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{websiteText(settings, "contactTitle")}</h1>
         <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground">{websiteText(settings, "contactIntroduction")}</p>
-
+        {(publicEnquiriesEnabled || canBook) && (
+          <div className="contact-primary-actions mt-5 flex flex-wrap gap-3">
+            {publicEnquiriesEnabled && (
+              <Button asChild className="min-h-12">
+                <Link href="/enquire?type=general">Send an enquiry<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+              </Button>
+            )}
+            {canBook && (
+              <Button asChild variant={publicEnquiriesEnabled ? "outline" : "default"} className="min-h-12">
+                <Link href="/enquire?type=viewing">Book a test drive<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+              </Button>
+            )}
+          </div>
+        )}
       </header>
 
       {isLoading ? <div role="status" aria-busy="true" className="mb-8 border-y border-border py-8 text-sm text-muted-foreground">Loading contact and visiting details…</div> : isError ? <div role="alert" className="mb-8 flex flex-wrap items-center justify-between gap-4 border-y border-border py-5"><p className="max-w-xl text-sm leading-6">We couldn’t load our latest contact and visiting details. Please confirm the address and opening hours before travelling.</p><Button variant="outline" onClick={() => window.location.reload()}>Try again</Button></div> : null}
@@ -72,11 +87,18 @@ export default function Contact() {
           <div className="mt-5 divide-y divide-border border-y border-border">
             {phoneHref && <a href={phoneHref} className="group flex min-h-24 items-center gap-4 py-5" data-testid="contact-phone"><Phone className="h-5 w-5 shrink-0 text-accent" aria-hidden="true" /><span className="min-w-0 flex-1"><span className="block text-xs text-muted-foreground">Call</span><span className="contact-phone-number mt-1 block font-display text-xl font-semibold group-hover:text-accent">{formatPhoneDisplay(settings.contact.phone!)}</span></span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" /></a>}
             {whatsAppHref && <a href={whatsAppHref} target="_blank" rel="noopener noreferrer" className="group flex min-h-24 items-center gap-4 py-5" data-testid="contact-whatsapp"><MessageCircle className="h-5 w-5 shrink-0 text-accent" aria-hidden="true" /><span className="min-w-0 flex-1"><span className="mt-1 block font-display text-lg font-semibold group-hover:text-accent">WhatsApp</span></span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" /></a>}
-            {email && <a href={`mailto:${email}`} className="group flex min-h-24 items-center gap-4 py-5" data-testid="contact-email"><Mail className="h-5 w-5 shrink-0 text-accent" aria-hidden="true" /><span className="min-w-0 flex-1"><span className="block text-xs text-muted-foreground">Email us</span><span className="mt-1 block break-all font-semibold group-hover:text-accent">{email}</span></span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" /></a>}
-          </div>
-          <div className="mt-5 flex flex-wrap items-center gap-3">
-            {publicEnquiriesEnabled && <Button asChild className="min-h-12"><Link href="/enquire?type=general">Send an enquiry<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>}
-            {settings.testDriveBooking?.enabled && <Button asChild variant="outline" className="min-h-12"><Link href="/enquire?type=viewing">Book a test drive<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>}
+            {email && (
+              <a href={`mailto:${email}`} className="group flex min-h-24 items-center gap-4 py-5" data-testid="contact-email">
+                <Mail className="h-5 w-5 shrink-0 text-accent" aria-hidden="true" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs text-muted-foreground">Email us</span>
+                  <span className="contact-email-address mt-1 block [overflow-wrap:anywhere] font-semibold group-hover:text-accent">
+                    {emailAt > 0 ? <>{email.slice(0, emailAt)}<wbr />{email.slice(emailAt)}</> : email}
+                  </span>
+                </span>
+                <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+              </a>
+            )}
           </div>
         </section>
         {!isLoading && !isError && <section className="contact-hours" aria-labelledby="contact-hours-heading">

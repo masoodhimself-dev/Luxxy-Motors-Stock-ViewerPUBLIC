@@ -156,6 +156,9 @@ const { stockFixture, dealerConfigFixture, recentHandoversState, scrollToHomeTar
 });
 
 let stockIsLoading = false;
+let stockAvailable = true;
+let stockError: string | null = null;
+const retryStock = vi.fn();
 let demoSiteMode = false;
 vi.mock('@/lib/demo-status',()=>({useDemoStatus:()=>demoSiteMode}));
 vi.mock('@/lib/dealer-features', () => ({ useDealerFeatures: () => ({ enabled: () => true }) }));
@@ -169,7 +172,7 @@ vi.mock('@/lib/dealer-settings-context', () => ({
 }));
 
 vi.mock('@/lib/stock-context', () => ({
-  useStock: () => ({ stock: stockFixture, isLoading: stockIsLoading, error: null }),
+  useStock: () => ({ stock: stockAvailable ? stockFixture : null, isLoading: stockIsLoading, error: stockError, retryStock }),
 }));
 
 vi.mock('@/lib/home-navigation', () => ({
@@ -219,6 +222,9 @@ afterEach(() => {
 
 beforeEach(() => {
   stockIsLoading=false;
+  stockAvailable = true;
+  stockError = null;
+  retryStock.mockReset();
   demoSiteMode=false;
   // Most filter journeys exercise the compact mobile drawer. Desktop keeps the
   // same controls directly in the sidebar and is covered explicitly below.
@@ -250,6 +256,30 @@ function searchStock(value: string) {
 function featuredTitles() {
   return within(screen.getByRole('region', { name: 'Explore our cars' })).queryAllByRole('article').map(card => card.getAttribute('aria-label'));
 }
+
+describe('stock availability display', () => {
+  it('shows a retry without a vehicle count when the catalogue request fails', () => {
+    stockAvailable = false;
+    stockError = 'Unable to load current stock.';
+    renderHome();
+
+    expect(screen.getByRole('heading', { name: 'Stock is temporarily unavailable' })).toBeVisible();
+    expect(screen.queryByText('0 cars', { exact: true })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'View options' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(retryStock).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the last loaded listings visible when a refresh fails', () => {
+    stockError = 'Unable to load current stock.';
+    renderHome();
+
+    expect(screen.getByText(/viewing the last loaded stock/)).toBeVisible();
+    expect(screen.getByTestId('card-vehicle-bmw-1-series')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh stock' }));
+    expect(retryStock).toHaveBeenCalledOnce();
+  });
+});
 
 describe('shared showroom data and controls', () => {
   it('matches automatic URL filters when supplied labels vary', () => {

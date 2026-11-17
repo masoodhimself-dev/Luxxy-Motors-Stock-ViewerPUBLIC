@@ -142,18 +142,23 @@ it('carries the full current enquiry and manual part exchange only after an expl
   fireEvent.change(screen.getByRole('combobox', { name: 'How should we reply?' }), { target: { value: 'whatsapp' } });
   fireEvent.change(screen.getByRole('textbox', { name: 'Mobile number' }), { target: { value: '07700900123' } });
   fireEvent.click(screen.getByRole('button', { name: 'Add a part exchange (optional)' }));
+  expect(screen.getByRole('combobox', { name: 'How should we reply?' })).toHaveValue('email');
+  fireEvent.change(screen.getByRole('textbox', { name: 'Email address' }), { target: { value: 'buyer@example.test' } });
   fireEvent.change(screen.getByRole('textbox', { name: 'Your car’s UK registration number' }), { target: { value: 'AB12 CDE' } });
   fireEvent.click(screen.getByRole('button', { name: 'Enter details manually' }));
   fireEvent.change(screen.getByRole('spinbutton', { name: 'Current mileage (miles)' }), { target: { value: '20000' } });
   view.rerender(<EnquiryForm vehicle={second} carryDraftToVehicleId={second.id} />);
   expect(screen.getByTestId('textarea-enquiry-message')).toHaveValue('Can I visit on Saturday?');
   expect(screen.getByTestId('input-customer-name')).toHaveValue('Fictional Buyer');
-  expect(screen.getByRole('textbox', { name: 'Mobile number' })).toHaveValue('07700900123');
+  const savedPhone = screen.getByRole('textbox', { name: /^Phone number/ });
+  expect(savedPhone).toHaveValue('07700900123');
+  expect(savedPhone).not.toBeRequired();
+  expect(screen.getByRole('textbox', { name: 'Email address' })).toHaveValue('buyer@example.test');
   expect(screen.getByRole('spinbutton', { name: 'Current mileage (miles)' })).toHaveValue(20000);
   expect(readEnquiryDraft(enquiryDraftKey(car.id, 'general'))?.message).toBe('Can I visit on Saturday?');
   expect(readEnquiryDraft(enquiryDraftKey(second.id, 'general'))?.message).toBe('Can I visit on Saturday?');
   fireEvent.submit(screen.getByTestId('form-enquiry'));
-  expect(state.mutate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ vehicleId: second.id, customerName: 'Fictional Buyer', preferredContact: 'whatsapp', partExchange: { registration: 'AB12 CDE', mileage: 20000, condition: null } }) }), expect.anything());
+  expect(state.mutate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ vehicleId: second.id, customerName: 'Fictional Buyer', preferredContact: 'email', partExchange: { registration: 'AB12 CDE', mileage: 20000, condition: null } }) }), expect.anything());
 });
 
 it('opens an existing car draft when a switch deliberately restores it instead of carrying current fields', () => {

@@ -3,7 +3,7 @@ import { bookingDateLabel } from '@/lib/test-drive-dates';
 import { saleMoney } from './sales-controls';
 import './sale-quick-flow.css';
 
-export function SaleHandoverSummary({ sale }: { sale: SaleWorkspaceRecord }) {
+export function SaleHandoverSummary({ sale, compact = false }: { sale: SaleWorkspaceRecord; compact?: boolean }) {
   const totals = saleWorkspaceTotals(sale.draft, sale.payments);
   const transferred = (sale.draft.creditEntries ?? []).reduce((sum, credit) => sum + credit.signedAmountPence, 0);
   const cash = totals.confirmedPaid - transferred;
@@ -41,6 +41,10 @@ export function SaleHandoverSummary({ sale }: { sale: SaleWorkspaceRecord }) {
     : status === 'Booked' && date ? `${method} booked for ${date}${fulfilment?.timeWindow ? `, ${fulfilment.timeWindow}` : ''}.`
     : `${method} to arrange.`;
 
+  if (compact) {
+    const status = [receiptNote, handover].filter(Boolean).join(' ');
+    return status && <p className="sale-overview-deposit-status">{status}</p>;
+  }
   const summary = [...money, receiptNote, handover].filter(Boolean).join(' ');
   if (!summary) return null;
   return <section className="sale-handover-summary" aria-label="Sale at a glance">

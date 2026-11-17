@@ -869,7 +869,7 @@ function EnquiryEmailEditor({
       <div data-message-dirty={dirty ? "true" : undefined}>
         {discardPrompt}
         {!initialized.current && !context.isError && (
-          <p role="status">Loading latest email details…</p>
+          <p role="status" data-reply-loading={compact || undefined}>Loading latest email details…</p>
         )}
         {context.isError && !delivery && (
           <div>

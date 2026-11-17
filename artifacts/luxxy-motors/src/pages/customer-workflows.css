@@ -36,8 +36,19 @@
   .friendly-enquire .enquiry-form-panel,
   .friendly-contact #contact-message > div:last-child { padding: 20px 16px; }
   .friendly-contact .contact-phone-number { font-size: clamp(16px, 4.4vw, 20px); }
+  .friendly-contact [data-testid="contact-email"] { gap: 10px; }
   .friendly-saved .friendly-shortlist-intro .page-heading { gap: 20px; }
   .friendly-saved .saved-car-list details dl > div { min-width: 0; }
+}
+
+@media (max-width: 1023px) {
+  .friendly-contact .contact-email-address { font-size: 14px; }
+}
+@media (max-width: 479px) {
+  .friendly-contact .contact-primary-actions > a { width: 100%; }
+}
+@media (max-width: 359px) {
+  .friendly-contact [data-testid="contact-email"] > svg:last-child { display: none; }
 }
 
 /* Saved cars show enough detail to compare without the full-width photo dictating height. */

@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { changeSaleWorkspace, createSaleWorkspace, type SaleWorkspaceRecord, type SaleWorkspaceCommand } from '@workspace/vehicle-meta';
+import { changeSaleWorkspace, createSaleWorkspace, markDepositConfirmationShared, type SaleWorkspaceRecord, type SaleWorkspaceCommand } from '@workspace/vehicle-meta';
 
 const state = vi.hoisted(() => ({
   api: vi.fn(), pdf: vi.fn(), permissions: ['sales.manage', 'payments.record'], search: '',
@@ -149,5 +149,30 @@ it('shows transferred credit separately from cash received and the delivery char
   expect(within(summary).getByText('Delivery').parentElement).toHaveTextContent('£200.00');
   expect(within(summary).getByText('Extras and discounts').parentElement).toHaveTextContent('£50.00');
   expect(within(summary).getByText('Left to pay').parentElement).toHaveTextContent('£9,250.00');
+  expect(writes()).toHaveLength(0);
+});
+
+it('opens a reserved sale at the deposit received, remaining balance and next payment', async () => {
+  const draft = savedSale();
+  state.sale = changeSaleWorkspace(draft, {
+    action: 'invoice-payment',
+    payment: { kind: 'deposit', status: 'confirmed', method: 'Bank transfer', amount: '400', date: context().now.slice(0, 10), reference: '', reserveConfirmed: true },
+  }, { expectedRevision: draft.revision, requestId: 'reserve-fixture' }, context()).sale;
+  markDepositConfirmationShared(state.sale, { documentId: state.sale.documents[0].id, acknowledge: true }, context());
+  mount(); await screen.findByRole('heading', { name: 'Sale overview' });
+
+  const next = within(screen.getByRole('region', { name: 'Next step' }));
+  expect(next.getByText('Deposit received').parentElement).toHaveTextContent('£400.00');
+  expect(next.getByText('Left to pay').parentElement).toHaveTextContent('£9,600.00');
+  expect(screen.queryByRole('button', { name: /^(Take|Request) a deposit$/ })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Payments and documents' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Correct something' })).toBeEnabled();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Request a payment' }));
+  expect(screen.getByLabelText('Request type')).toHaveValue('balance');
+  expect(screen.getByLabelText('Amount (£)')).toHaveValue('9600.00');
+  back();
+  fireEvent.click(screen.getByRole('button', { name: 'Take the next payment' }));
+  expect(screen.getByLabelText('Payment amount (£)')).toBeEnabled();
   expect(writes()).toHaveLength(0);
 });

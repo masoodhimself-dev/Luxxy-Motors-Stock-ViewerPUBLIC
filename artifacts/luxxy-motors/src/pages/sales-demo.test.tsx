@@ -818,9 +818,10 @@ it('shows received money, the remaining balance and collection timing from saved
    scheduledDate: '2026-11-14', timeWindow: '11am to noon', instructions: '', stage: 'booked',
  } }), '400');
  await mountSaved(sale);
- const summary = screen.getByRole('region', { name: 'Sale at a glance' });
- expect(summary).toHaveTextContent('£400.00 received. £9,600.00 left to pay.');
- expect(summary).toHaveTextContent('Collection booked for Saturday 14 November, 11am to noon.');
+ const next = within(screen.getByRole('region', { name: 'Next step' }));
+ expect(next.getByText('Deposit received').parentElement).toHaveTextContent('£400.00');
+ expect(next.getByText('Left to pay').parentElement).toHaveTextContent('£9,600.00');
+ expect(next.getByText('Collection booked for Saturday 14 November, 11am to noon.', { exact: false })).toBeVisible();
  expect(screen.queryByRole('button', { name: 'Start quick sale' })).not.toBeInTheDocument();
 });
 
@@ -1344,7 +1345,7 @@ it('keeps a linked balance request attached when returning to an unfinished paym
  fireEvent.click(screen.getByRole('button',{name:'Record the requested payment'}));
  fireEvent.change(screen.getByLabelText('Payment amount (£)'),{target:{value:'500'}});
  fireEvent.click(screen.getAllByRole('button',{name:'All actions'})[0]);
- openDepositRequest();
+ fireEvent.click(screen.getByRole('button',{name:'Request a payment'}));
  fireEvent.click(screen.getByRole('button',{name:'Return to unfinished payment'}));
  fireEvent.click(screen.getByRole('checkbox',{name:/I have checked that this money/}));
  fireEvent.click(screen.getByRole('button',{name:'Save £500.00 payment'}));

@@ -11,13 +11,14 @@ export const saleActions = [
   { id: 'return', title: 'Return or change a car', description: 'Find the original sale to get started.', icon: RotateCcw },
 ] as const;
 
-export function SalesActionMenu({ onChoose, disabled = false, unavailable = {}, requestTitle, handoverCompleted = false, canAddDelivery = false, includeReturn = true, includeRequest = true }: {
-  onChoose: (action: SaleAction) => void; disabled?: boolean; unavailable?: Partial<Record<SaleAction, string>>; requestTitle?: string; handoverCompleted?: boolean; canAddDelivery?: boolean; includeReturn?: boolean; includeRequest?: boolean;
+export function SalesActionMenu({ onChoose, disabled = false, unavailable = {}, requestTitle, handoverCompleted = false, canAddDelivery = false, includeReturn = true, includeRequest = true, includeDeposit = true }: {
+  onChoose: (action: SaleAction) => void; disabled?: boolean; unavailable?: Partial<Record<SaleAction, string>>; requestTitle?: string; handoverCompleted?: boolean; canAddDelivery?: boolean; includeReturn?: boolean; includeRequest?: boolean; includeDeposit?: boolean;
 }) {
   const menuId = useId();
   return <div className="sales-flow-menu" aria-label="Choose what to do">
-    {saleActions.filter(({ id }) => (includeReturn || id !== 'return') && (includeRequest || id !== 'request')).map(({ id, title, description, icon: Icon }) => {
+    {saleActions.filter(({ id }) => (includeReturn || id !== 'return') && (includeRequest || id !== 'request') && (includeDeposit || id !== 'deposit')).map(({ id, title, description, icon: Icon }) => {
       const reason = unavailable[id];
+      const requestingPayment = id === 'request' && Boolean(requestTitle);
       const viewingHandover = id === 'handover' && handoverCompleted;
       const addingDelivery = id === 'handover' && canAddDelivery && !viewingHandover;
       const isDisabled = disabled || Boolean(reason);
@@ -25,7 +26,7 @@ export function SalesActionMenu({ onChoose, disabled = false, unavailable = {}, 
       const helpId = `${menuId}-${id}-help`;
       return <button key={id} type="button" disabled={isDisabled} onClick={() => onChoose(id)} aria-labelledby={titleId} aria-describedby={helpId}>
         <Icon className="sales-flow-menu-icon" size={30} aria-hidden="true" />
-        <span><strong id={titleId}>{id === 'request' && requestTitle ? requestTitle : viewingHandover ? 'View handover' : addingDelivery ? 'Add delivery' : title}</strong><small id={helpId}>{reason || (viewingHandover ? 'See the recorded collection or delivery.' : description)}</small></span>
+        <span><strong id={titleId}>{requestingPayment ? requestTitle : viewingHandover ? 'View handover' : addingDelivery ? 'Add delivery' : title}</strong><small id={helpId}>{reason || (viewingHandover ? 'See the recorded collection or delivery.' : requestingPayment ? 'Ask the customer for the balance or an agreed amount.' : description)}</small></span>
         {!isDisabled && <ChevronRight size={22} aria-hidden="true" />}
       </button>;
     })}

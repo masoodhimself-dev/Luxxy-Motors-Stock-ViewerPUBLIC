@@ -325,7 +325,8 @@
 }
 @container portal-cars (max-width: 340px) {
   .vehicle-file-header h2 { font-size: 21px; }
-  .vehicle-file-tabs button { font-size: 11.5px; padding-inline: 5px; }
+  .vehicle-file-tabs { flex-wrap: wrap; overflow-x: visible; }
+  .vehicle-file-tabs button { flex: 1 1 30%; min-width: 0; padding-inline: 5px; white-space: normal; }
   .vehicle-file-header h2 img { width: 20px; height: 20px; }
   .vehicle-file-identity-line { gap: 4px 8px; }
 }

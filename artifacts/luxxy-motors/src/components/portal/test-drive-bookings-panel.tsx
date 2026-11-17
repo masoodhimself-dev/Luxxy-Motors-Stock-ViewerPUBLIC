@@ -73,24 +73,24 @@ function BookingRow({ booking, now, onDecision, onMerge, canEmail, canBook, chec
   return (
     <li className="portal-record-row booking-selected-detail p-4 sm:p-5" data-testid={`staff-test-drive-${booking.id}`}>
       <div className="booking-detail-header grid gap-4">
-        <div className="min-w-0">
+        <div className="booking-detail-contact min-w-0 text-sm">
+          <p className="font-medium text-primary">{booking.customerName}</p>
+          {booking.phone && <a href={`tel:${booking.phone}`} className="mt-1 block w-fit text-muted-foreground underline underline-offset-4">{booking.phone}</a>}
+          {booking.email && (canEmail ? <Link href={`/portal?section=notifications&workView=email&compose=${encodeURIComponent(booking.id)}`} className="mt-1 block text-muted-foreground underline underline-offset-4">{booking.email}</Link> : <p className="mt-1 text-muted-foreground">{booking.email}</p>)}
+        </div>
+        <div className="booking-detail-decision">
+          <Chip tone={status === 'confirmed' ? 'info' : status === 'pending' && !timePassed ? 'warning' : 'muted'}>{status === 'pending' && timePassed ? 'Time passed' : statusLabels[status]}</Chip>
+          {canDeclare && status === 'pending' && upcoming && <div className="booking-decision-actions mt-3 flex flex-wrap gap-2">
+            <Button type="button" size="sm" disabled={mutation.isPending || !canBook} onClick={() => openDecision('confirm')}>Confirm appointment</Button>
+            <Button type="button" size="sm" variant="outline" disabled={mutation.isPending} onClick={() => openDecision('decline')}>Decline</Button>
+          </div>}
+        </div>
+        <div className="booking-detail-vehicle min-w-0">
           <p className="font-semibold text-primary">{booking.vehicleTitle || 'Vehicle to be arranged'}</p>
           <p className="mt-1 text-sm font-medium">{booking.appointmentAt ? formatDateTime(booking.appointmentAt) : 'Time to be arranged'} <span className="font-normal text-muted-foreground">(UK time)</span></p>
           <AppointmentExceptionLabels booking={booking} />
           {canDeclare && <div className="mt-2"><AttendanceControls entry={booking} /></div>}
           <p className="mt-1 text-xs text-muted-foreground">{booking.appointmentDurationMinutes ?? 30} minutes</p>
-        </div>
-        <div className="min-w-0 text-sm">
-          <p className="font-medium text-primary">{booking.customerName}</p>
-          {booking.phone && <a href={`tel:${booking.phone}`} className="mt-1 block w-fit text-muted-foreground underline underline-offset-4">{booking.phone}</a>}
-          {booking.email && (canEmail ? <Link href={`/portal?section=notifications&workView=email&compose=${encodeURIComponent(booking.id)}`} className="mt-1 block break-all text-muted-foreground underline underline-offset-4">{booking.email}</Link> : <p className="mt-1 break-all text-muted-foreground">{booking.email}</p>)}
-        </div>
-        <div>
-          <Chip tone={status === 'confirmed' ? 'info' : status === 'pending' && !timePassed ? 'warning' : 'muted'}>{status === 'pending' && timePassed ? 'Time passed' : statusLabels[status]}</Chip>
-          {canDeclare && status === 'pending' && upcoming && <div className="mt-3 flex flex-wrap gap-2">
-            <Button type="button" size="sm" disabled={mutation.isPending || !canBook} onClick={() => openDecision('confirm')}>Confirm appointment</Button>
-            <Button type="button" size="sm" variant="outline" disabled={mutation.isPending} onClick={() => openDecision('decline')}>Decline</Button>
-          </div>}
         </div>
       </div>
       <BookingReadiness booking={booking} autoLoad={checkPreparation} />

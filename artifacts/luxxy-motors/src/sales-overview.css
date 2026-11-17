@@ -78,6 +78,53 @@
   line-height: 1.5;
 }
 
+.sales-flow.is-editing .sales-flow-next .sale-overview-deposit-status {
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.sale-overview-deposit-money {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 0 0 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--invoice-line);
+}
+
+.sale-overview-deposit-money > div {
+  min-width: 100px;
+}
+
+.sale-overview-deposit-money dt {
+  color: var(--invoice-muted);
+  font-size: 12px;
+  font-weight: 550;
+}
+
+.sale-overview-deposit-money dd {
+  margin: 3px 0 0;
+  font-size: clamp(20px, 3vw, 26px);
+  font-weight: 700;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.sale-overview-deposit-money [data-balance='due'] dd {
+  color: #88570c;
+}
+
+@media (min-width: 761px) and (max-width: 1100px) {
+  .sales-flow.is-editing .sales-flow-next:has(.sale-overview-deposit-money) {
+    align-items: stretch;
+  }
+
+  .sales-flow.is-editing .sales-flow-next:has(.sale-overview-deposit-money) > .db-btn {
+    align-self: flex-start;
+  }
+}
+
 .sales-flow.is-editing .sales-flow-next .sales-receipt-reference {
   margin-top: 10px;
   font-size: 12px;

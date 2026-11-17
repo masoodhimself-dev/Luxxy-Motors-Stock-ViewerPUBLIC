@@ -1256,6 +1256,17 @@ export function SalesWorkspace({
   const customerUpdate = record && <SaleCustomerUpdate key={record.id} sale={record} canEmail={canManageSales && canEmailCustomer} disabled={busy || dirty} />;
   const depositConfirmation = ['deposit', 'payment', 'menu'].includes(flowScreen) ? confirmationDocument : null;
   const showSummaryAtTop = showBreakdown && (isOverview || Boolean(depositConfirmation));
+  const confirmedDeposit = rows.filter(row => row.kind === 'deposit' && row.status === 'confirmed' && row.signedAmountPence > 0 &&
+    !rows.some(reversal => reversal.status === 'confirmed' && reversal.reversesPaymentId === row.id)
+  ).reduce((amount, row) => amount + row.signedAmountPence, 0);
+  const depositRecorded = confirmedDeposit > 0 && !sold && !released && !returned;
+  const requestPayment = sold || depositRecorded;
+  const showDepositAmounts = isOverview && depositRecorded && Boolean(nextStep || depositConfirmation) &&
+    total && total.balance >= 0 && !needsCorrectionReview && stockRefundDue === 0;
+  const depositAmounts = showDepositAmounts && <dl className="sale-overview-deposit-money" aria-label="Deposit and balance">
+    <div><dt>Deposit received</dt><dd>{saleMoney(confirmedDeposit)}</dd></div>
+    <div data-balance={total.balance === 0 ? 'settled' : 'due'}><dt>{total.balance === 0 ? 'Balance settled' : 'Left to pay'}</dt><dd>{saleMoney(total.balance)}</dd></div>
+  </dl>;
   const showNextStep = nextStep && !depositConfirmation && (isOverview || (['deposit', 'payment'].includes(flowScreen) && !paymentFormOpen));
   const requestIsNextStep = showNextStep && nextStep.action === 'request' && nextStep.label === 'Request a deposit';
   const screenHeadings: Partial<Record<typeof flowScreen, string>> = {
@@ -1267,7 +1278,7 @@ export function SalesWorkspace({
   };
   const actionHeading = flowScreen === 'handover' && handoverCompleted
     ? 'View handover'
-    : flowScreen === 'request' && sold ? 'Request a payment' : saleActions.find(action => action.id === flowScreen)?.title;
+    : flowScreen === 'request' && requestPayment ? 'Request a payment' : saleActions.find(action => action.id === flowScreen)?.title;
   const screenHeading = depositConfirmation ? 'Deposit recorded' : screenHeadings[flowScreen] ?? actionHeading;
   const nextStepDocument = showNextStep && nextStep.documentId
     ? record?.documents.find(document => document.id === nextStep.documentId)
@@ -1477,7 +1488,7 @@ export function SalesWorkspace({
           <div className="sale-overview-car">{vehicle && <SaleVehiclePhoto car={vehicle} />}<span><strong>{draft.vehicle}</strong><small>{[draft.registration, saleMoney(pence(draft.price))].filter(Boolean).join(' · ')}</small></span><Button variant="ghost" aria-label="Change car" disabled={busy} onClick={() => editSetup('car')}>Change</Button></div>
           <div className="sale-overview-customer"><UserRound size={21} aria-hidden="true"/><span><strong>{draft.customer || 'Choose customer'}</strong><small>{record?.reference || 'New sale'}</small></span><Button variant="ghost" aria-label="Change customer" disabled={busy} onClick={() => editSetup('customer')}>Change</Button></div>
           <SaleProgress sale={record} showDetail={!showSummaryAtTop || (!nextStep && !depositConfirmation)} />
-          {compactFooter && showSummaryAtTop && <dl className="sale-overview-totals" aria-label="Sale amounts">
+          {compactFooter && showSummaryAtTop && !showDepositAmounts && <dl className="sale-overview-totals" aria-label="Sale amounts">
             <div><dt>Received</dt><dd>{saleMoney(actualPaymentsReceived)}</dd></div>
             <div data-balance={displayedBalance === 0 ? 'settled' : 'due'}><dt>{mobileBalanceLabel}</dt><dd>{saleMoney(displayedBalance)}</dd></div>
           </dl>}
@@ -1489,7 +1500,7 @@ export function SalesWorkspace({
           </div>
           {problem && <div ref={setupError} tabIndex={-1} role="alert" className="invoice-error">{problem}{/another device|reload/i.test(problem) && record && <Button variant="outline" disabled={busy} onClick={() => run(async () => {const latest = await customFetch<{sale: SaleWorkspaceRecord}>(`/api/sale-workspace/${record.id}`);accept({sale: latest.sale}, true);setMessage('Latest sale loaded.');})}>Reload latest sale</Button>}</div>}
           {message && <p role="status" className="invoice-message">{message}</p>}
-          {isOverview && record && <SaleHandoverSummary sale={record} />}
+          {isOverview && record && !showDepositAmounts && <SaleHandoverSummary sale={record} />}
           {quickSale && <ol className="sale-quick-progress" aria-label="Quick sale progress">
             <li aria-current={flowScreen === 'payment' ? 'step' : undefined}><span>Step 1 of 4</span>Record payment</li>
             <li aria-current={flowScreen === 'invoice' && !issued ? 'step' : undefined}><span>Step 2 of 4</span>Review invoice</li>
@@ -1502,13 +1513,16 @@ export function SalesWorkspace({
           {stockRefundDue > 0 && flowScreen === 'history' && <p className="invoice-message" data-tone="warning">This car belongs to another sale. Record the {saleMoney(stockRefundDue)} refund here once it has been paid.</p>}
           {showNextStep && <section className="sales-flow-next" aria-label="Next step">
             <div>
+              {depositAmounts}
               <h2>Next step</h2>
               <p>{nextStepBlock || nextStep.note}</p>
               {nextStepDocument && <p className="sales-receipt-reference"><Invoice size={16} aria-hidden="true" /> {nextStepDocument.type === 'receipt' ? 'Deposit receipt' : 'Sales invoice'} <strong>{nextStepDocument.number}</strong></p>}
+              {showDepositAmounts && record && <SaleHandoverSummary sale={record} compact/>}
             </div>
             {mobileAction !== nextStepAction && nextStepAction}
           </section>}
           {depositConfirmation && <section className="sales-flow-confirmation" aria-label="Deposit confirmation">
+            {depositAmounts}
             <h2><Check size={22}/>Let the customer know</h2>
             <p>{saleMoney(depositConfirmation.paymentAmountPence ?? 0)} received for {depositConfirmation.snapshot.draft.vehicle}. {record?.lifecycle?.status === 'reserved' ? 'The car is reserved.' : 'The payment has been recorded.'}</p>
             <p className="sales-receipt-reference"><Invoice size={17} aria-hidden="true" /> Deposit receipt <strong>{depositConfirmation.number}</strong></p>
@@ -1531,7 +1545,7 @@ export function SalesWorkspace({
             <div><h3>Quick sale</h3><p>For a car paid in full and collected from the showroom.</p></div>
             <Button variant="outline" onClick={startQuickSale}>Start quick sale<ArrowRight size={16} aria-hidden="true" /></Button>
           </div>}
-          <SalesActionMenu canAddDelivery={Boolean(latestInvoice && record?.draft.fulfilment?.method !== 'delivery')} handoverCompleted={handoverCompleted} includeReturn={false} includeRequest={!requestIsNextStep} onChoose={chooseAction} disabled={busy} requestTitle={sold ? 'Request a payment' : undefined} unavailable={unavailable} />
+          <SalesActionMenu canAddDelivery={Boolean(latestInvoice && record?.draft.fulfilment?.method !== 'delivery')} handoverCompleted={handoverCompleted} includeReturn={false} includeRequest={!requestIsNextStep} includeDeposit={!depositRecorded} onChoose={chooseAction} disabled={busy} requestTitle={requestPayment ? 'Request a payment' : undefined} unavailable={unavailable} />
           <div className="sale-overview-links">
             <Button variant="outline" disabled={busy} onClick={openPaymentHistory}><History size={16} aria-hidden="true" />Payments and documents</Button>
             {customerUpdate}
@@ -1539,9 +1553,10 @@ export function SalesWorkspace({
             {record?.stockActionBlock && record.draft.vehicleId === draft.vehicleId && !released && !returned &&
               <Button variant="ghost" disabled={busy || Boolean(openingId)} onClick={() => void open(record)}>Check car availability</Button>}
           </div>
-          {(canCorrect || (canManageSales && canRefundPayments)) && <details className="sale-overview-more">
+          {(canCorrect || (canManageSales && canRefundPayments) || (depositRecorded && !unavailable.deposit)) && <details className="sale-overview-more">
             <summary>More actions <ChevronDown size={16} aria-hidden="true" /></summary>
             <div>
+              {depositRecorded && !unavailable.deposit && <Button variant="outline" disabled={busy} onClick={() => chooseAction('deposit')}>Record another deposit</Button>}
               {canCorrect && <Button variant="outline" disabled={busy || dirty} onClick={() => openCorrection()}>Correct something</Button>}
               {canManageSales && canRefundPayments && <>
                 <Button variant="outline" disabled={busy || Boolean(unavailable.return)} aria-describedby={unavailable.return ? returnHelpId : undefined} onClick={() => chooseAction('return')}>{returned ? 'View return details' : 'Return or change a car'}</Button>
@@ -1906,7 +1921,7 @@ export function SalesWorkspace({
             {returnChoice === 'replace' && <SaleReturnReplace key={`return:${record.id}`} initialExpanded sale={record} cars={stock?.cars ?? []} onSaved={sale => accept({sale})} onOpenSale={id => void open({id})} disabled={operationBusy || detailsDirty || Boolean(payment.amount.trim())} canReturn={canManageSales && canRefundPayments} canInspect={canManageSales} onDirtyChange={setReturnDraftDirty} onBusyChange={setChildBusy}/>}
             </>}
           </>}
-          {flowScreen === 'request' && canRecordPayments && (payment.amount.trim() ? <section className="sale-desk-sheet"><p>You have an unfinished payment. Save it if the money was received, or clear its amount before requesting a deposit.</p><Button disabled={busy} onClick={() => chooseAction(payment.kind === 'deposit' ? 'deposit' : 'payment')}>Return to unfinished payment</Button></section> : record && !detailsDirty ? <SalePaymentRequests sale={record} onSaved={sale=>accept({sale})} onDirtyChange={setRequestDraftDirty} onBusyChange={setChildBusy} onRecordDeposit={recordRequestedDeposit} showMoneySummary={false} canReserve={canManageSales} defaults={paymentDefaults.data} canEditPaymentInstructions={access.data?.permissions.includes('integrations.manage') === true} actionOnly /> : <section className="sale-desk-sheet"><p>Save the car and customer details to prepare the request.</p><Button disabled={busy} onClick={save}>Save and continue</Button></section>)}
+          {flowScreen === 'request' && canRecordPayments && (payment.amount.trim() ? <section className="sale-desk-sheet"><p>You have an unfinished payment. Save it if the money was received, or clear its amount before creating a payment request.</p><Button disabled={busy} onClick={() => chooseAction(payment.kind === 'deposit' ? 'deposit' : 'payment')}>Return to unfinished payment</Button></section> : record && !detailsDirty ? <SalePaymentRequests sale={record} onSaved={sale=>accept({sale})} onDirtyChange={setRequestDraftDirty} onBusyChange={setChildBusy} onRecordDeposit={recordRequestedDeposit} showMoneySummary={false} preferBalance={depositRecorded} canReserve={canManageSales} defaults={paymentDefaults.data} canEditPaymentInstructions={access.data?.permissions.includes('integrations.manage') === true} actionOnly /> : <section className="sale-desk-sheet"><p>Save the car and customer details to prepare the request.</p><Button disabled={busy} onClick={save}>Save and continue</Button></section>)}
           {record && canRefundPayments && flowScreen === 'history' && <SaleReplacementRefund key={`refund-credit:${record.id}`} sale={record} onSaved={sale => accept({sale})} disabled={operationBusy || detailsDirty || Boolean(payment.amount.trim())} onDirtyChange={setRefundDraftDirty} onBusyChange={setChildBusy}/>}
           {['payment', 'deposit', 'history'].includes(flowScreen) && <section className="sale-desk-sheet sale-desk-payments">
             {flowScreen === 'history' && <div className="sale-desk-inline-heading"><div><h2>Money received</h2></div>{returnToInvoice}{!unavailable.payment && <Button onClick={() => chooseAction('payment')} disabled={busy}><Plus size={16}/>Take a payment</Button>}</div>}

@@ -85,7 +85,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     window.addEventListener('hashchange', redirectStock);
     return () => window.removeEventListener('hashchange', redirectStock);
   }, [browseStock, setLocation]);
-  const { stock, isLoading, error } = useStock();
+  const { stock, isLoading, error, retryStock } = useStock();
   useEffect(() => {
     if (browseStock && stock && !isLoading && !error) trackJourneyStage('search');
   }, [browseStock, stock, isLoading, error]);
@@ -296,6 +296,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   const showStockPromise = browseStock && stockView === 'cards'
     && isMultiChoiceWebsite() && dealerConfig.warranty?.enabled === true;
   const stockCount = publicCars.length;
+  const showCatalogue = Boolean(stock && (!error || stockCount > 0));
 
   useEffect(() => {
     if (selectedStockView === null) return;
@@ -472,14 +473,14 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
             </div>
             <div className="stock-heading-actions">
             <Link className="stock-saved-link" href="/saved"><Heart size={17} aria-hidden="true" />Saved <span>({savedCount})</span></Link>
-            <Collapsible open={stockOptionsOpen} onOpenChange={setStockOptionsOpen} className="stock-options" data-testid="stock-secondary-actions">
+            {showCatalogue && <Collapsible open={stockOptionsOpen} onOpenChange={setStockOptionsOpen} className="stock-options" data-testid="stock-secondary-actions">
               <CollapsibleTrigger className="stock-options-trigger"><SlidersHorizontal size={16} aria-hidden="true" />View options<ChevronDown size={15} aria-hidden="true" /></CollapsibleTrigger>
               <CollapsibleContent className="stock-options-panel">
                 <div className="flex items-center justify-between gap-4"><span className="text-sm text-muted-foreground">Vehicle display</span>{stockViewControls}</div>
                 <button type="button" className="stock-option-action" onClick={async () => {try {await navigator.clipboard.writeText(window.location.href); setCopyNotice('Search link copied');} catch {setCopyNotice('Copy the address from your browser to share this search.');}}}><Link2 size={17} aria-hidden="true" />Copy search link</button>
                 {copyNotice && <p className="text-sm leading-5 text-muted-foreground" role="status">{copyNotice}</p>}
               </CollapsibleContent>
-            </Collapsible>
+            </Collapsible>}
             </div>
           </div>
 
@@ -487,8 +488,8 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
       </section>}
 
       {browseStock && <section id="stock" data-home-section className="browse-stock py-8 md:py-10">
-        <div className="container stock-catalogue-layout mx-auto px-4 sm:px-6 lg:px-8">
-          {multiStock ? <MultiStockFilters
+        <div className={cn("container mx-auto px-4 sm:px-6 lg:px-8", showCatalogue && "stock-catalogue-layout")}>
+          {showCatalogue && (multiStock ? <MultiStockFilters
             cars={publicCars}
             filters={stockSearch.filters}
             onChange={stockSearch.onChange}
@@ -546,16 +547,27 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
               });
               revealResults('filter_panel');
             }}
-          />}
+          />)}
 
           <div id="vehicle-results" tabIndex={-1} aria-label="Vehicle results" data-home-section className="mt-2 md:mt-4">
-            {error ? (
-              <div className="stock-error surface p-8" role="alert">
-                <h3 className="section-heading">Stock is temporarily unavailable</h3>
-                <p className="mt-3 text-muted-foreground">
-                  Please try again or ask us about current availability.
+            {showCatalogue && error && (
+              <div className="stock-error surface mb-5 flex flex-wrap items-center justify-between gap-3" role="status">
+                <p className="max-w-prose text-sm text-muted-foreground">
+                  We couldn’t refresh availability. You’re viewing the last loaded stock.
                 </p>
-                <div className="mt-5 flex flex-wrap gap-3"><Button onClick={() => window.location.reload()}>Try again</Button><Button asChild variant="outline"><Link href="/contact">Contact us</Link></Button></div>
+                <Button onClick={retryStock} variant="outline">Refresh stock</Button>
+              </div>
+            )}
+            {!showCatalogue ? (
+              <div className="stock-error surface max-w-2xl" role="alert">
+                <h2 className="section-heading">Stock is temporarily unavailable</h2>
+                <p className="mt-3 text-muted-foreground">
+                  Try loading the stock again, or contact us to check what’s available.
+                </p>
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <Button onClick={retryStock}>Try again</Button>
+                  <Button asChild variant="outline"><Link href="/contact">Contact us</Link></Button>
+                </div>
               </div>
             ) : filteredCars.length ? (
               <>

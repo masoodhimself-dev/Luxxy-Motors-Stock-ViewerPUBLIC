@@ -15,7 +15,7 @@ import { responsiveVehicleImage, retryOriginalImage } from '@/lib/responsive-veh
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import { PartExchangeForm } from '@/components/part-exchange-form';
 import { PrivacyNoticeLink } from '@/components/privacy-notice-link';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { Link, Redirect, useLocation } from 'wouter';
 import { useCreateEnquiry, type EnquiryInput } from '@workspace/api-client-react';
 import { ArrowRight, CheckCircle2, CircleAlert, MessageSquare } from '@/components/icons';
@@ -86,6 +86,7 @@ export function EnquiryForm({
   onBusyChange?: (busy: boolean) => void;
 }) {
   const { settings: dealerConfig } = useDealerSettings();
+  const privacyNoticeId = useId();
   const features = useDealerFeatures();
   const mutation = useCreateEnquiry();
   useEffect(() => { onBusyChange?.(mutation.isPending || mutation.isSuccess); }, [mutation.isPending, mutation.isSuccess, onBusyChange]);
@@ -531,8 +532,6 @@ export function EnquiryForm({
               {phoneError && <span id="customer-phone-help" className="mt-2 block text-[13px] leading-5 text-[#8d3e34]" role="alert">{phoneError}</span>}
             </label>}
           </fieldset>
-          <PrivacyNoticeLink url={dealerConfig.legal?.privacyUrl} />
-
           <div className="customer-enquiry-extras" role="group" aria-label="Optional details">
             {!additionalContact && !(preferredContact === 'email' ? phone : email) && <button type="button" className="text-link" aria-label={preferredContact === 'email' ? 'Add a phone number (optional)' : 'Add an email address (optional)'} onClick={() => setAdditionalContact(true)}>{preferredContact === 'email' ? 'Add a phone number' : 'Add an email address'}</button>}
             {(additionalContact || Boolean(preferredContact === 'email' ? phone : email)) && <button type="button" className="text-link" onClick={() => {
@@ -585,11 +584,15 @@ export function EnquiryForm({
         </div>
       )}
       <div className="space-y-4">
-        <Button key="submit-enquiry" type="submit" size="lg" disabled={mutation.isPending || pendingRequests.length > 0} className="group min-h-12 w-full rounded-md font-display text-[13px] font-semibold tracking-normal shadow-none transition-all" data-testid="button-submit-enquiry">
+        <Button key="submit-enquiry" type="submit" size="lg" disabled={mutation.isPending || pendingRequests.length > 0} className="group min-h-12 w-full rounded-md font-display text-[13px] font-semibold tracking-normal shadow-none transition-all" aria-describedby={privacyNoticeId} data-testid="button-submit-enquiry">
           {mutation.isPending ? 'Sending enquiry…' : 'Send enquiry'}
           {!mutation.isPending && <ArrowRight className="ml-3 h-4 w-4 transition-transform group-hover:translate-x-1" />}
         </Button>
-        <p className="text-sm leading-6 text-muted-foreground">We’ll reply during opening hours.</p>
+        <div className="text-sm leading-6 text-muted-foreground">
+          <p id={privacyNoticeId}>We’ll use your contact details to respond to this enquiry.</p>
+          <p>We’ll reply during opening hours.</p>
+          <PrivacyNoticeLink url={dealerConfig.legal?.privacyUrl} className="text-link inline-flex min-h-11 items-center font-medium underline underline-offset-4" />
+        </div>
       </div>
       {!embedded && <nav className="customer-enquiry-topic flex flex-wrap gap-x-5 gap-y-1" aria-label="Other enquiries">
           {(Object.entries(typeLabels) as Array<[EnquiryType, string]>).filter(([value]) => value !== type

@@ -13,6 +13,7 @@ import {
   type SaleWorkspaceRecord,
 } from "../../../lib/vehicle-meta/src/sale-workspace";
 import { confirmInvoiceVehicle, fixtureInvoiceVehicleReview } from "./sales-pdf-fixture";
+import { markDepositConfirmationShared } from "../../../lib/vehicle-meta/src/sale-operations";
 import { saleDocumentPdfBytes } from "../../../lib/vehicle-meta/src/sale-document-pdf";
 
 test.skip(process.env.LUXXY_LOCAL_PREVIEW !== "1", "Fictional sales only; all writes are intercepted.");
@@ -225,6 +226,53 @@ for (const [viewport, width] of [['phone', 390], ['tablet', 820], ['desktop', 14
     expect(api.current().documents.at(-1)?.snapshot.vehicle?.invoiceReview).toMatchObject({
       motExpiry: '2026-11-11', motAcknowledgedAt: now,
     });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    expect(api.blockedWrites).toEqual([]);
+  });
+}
+
+for (const [viewport, width] of [['phone', 390], ['tablet', 820], ['desktop', 1440]] as const) {
+  test(`a saved deposit leads to the balance and next payment on ${viewport}`, async ({ page, context }) => {
+    const api = new PracticalSalesApi();
+    await api.attach(context);
+    await page.setViewportSize({ width, height: 900 });
+    await startDeal(page);
+    await receivedPayment(page, '400', 'Bank transfer', true);
+    const sale = api.current();
+    const overviewUrl = `/portal?section=sales&saleId=${sale.id}`;
+    await page.goto(overviewUrl, { waitUntil: 'domcontentloaded' });
+
+    let next = page.getByRole('region', { name: 'Next step' });
+    await expect(next.getByText('Deposit received', { exact: true }).locator('..')).toContainText('£400.00');
+    await expect(next.getByText('Left to pay', { exact: true }).locator('..')).toContainText('£11,600.00');
+    await expect(page.getByRole('button', { name: 'Send deposit confirmation', exact: true })).toBeVisible();
+
+    const depositReceipt = sale.documents.find(document => document.type === 'receipt')!;
+    markDepositConfirmationShared(sale, { documentId: depositReceipt.id, acknowledge: true }, api.context());
+    await page.goto(overviewUrl, { waitUntil: 'domcontentloaded' });
+    next = page.getByRole('region', { name: 'Next step' });
+    await expect(next.getByText('Deposit received', { exact: true }).locator('..')).toContainText('£400.00');
+    await expect(next.getByText('Left to pay', { exact: true }).locator('..')).toContainText('£11,600.00');
+    const nextPayment = page.getByRole('button', { name: 'Take the next payment', exact: true });
+    await expect(nextPayment).toBeVisible();
+    await expect(actions(page).getByRole('button', { name: /^(Request|Take) a deposit$/ })).toHaveCount(0);
+    const screenshots = process.env.SALE_DEPOSIT_OVERVIEW_SCREENSHOTS;
+    if (screenshots) {
+      await mkdir(screenshots, { recursive: true });
+      await page.screenshot({ path: join(screenshots, `deposit-overview-${viewport}.png`), animations: 'disabled' });
+    }
+    await page.getByText('More actions', { exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Record another deposit' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Correct something' })).toBeEnabled();
+
+    await actions(page).getByRole('button', { name: 'Request a payment', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Request a payment', level: 1 })).toBeVisible();
+    await expect(page.getByLabel('Request type')).toHaveValue('balance');
+    await expect(page.getByLabel('Amount (£)', { exact: true })).toHaveValue('11600.00');
+    await menu(page);
+    await nextPayment.click();
+    await expect(page.getByRole('textbox', { name: /Payment amount/ })).toBeEnabled();
+    expect(saleWorkspaceTotals(api.current().draft, api.current().payments).balance).toBe(1160000);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     expect(api.blockedWrites).toEqual([]);
   });

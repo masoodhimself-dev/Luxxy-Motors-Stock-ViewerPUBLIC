@@ -19,6 +19,7 @@ type SalePaymentRequestsProps = {
   onDirtyChange?: (dirty: boolean) => void; onBusyChange?: (busy: boolean) => void;
   onRecordDeposit?: (request: SalePaymentRequest) => void; canReserve?: boolean;
   showMoneySummary?: boolean;
+  preferBalance?: boolean;
   defaults?: SalePaymentDefaultsView;
   canEditPaymentInstructions?: boolean;
 };
@@ -31,11 +32,11 @@ function dateLabel(value: string) {
 }
 
 /** A request is an invitation to pay. Sharing it never records money or reserves stock. */
-export function SalePaymentRequests({ sale, onSaved, actionOnly = false, onDirtyChange, onBusyChange, onRecordDeposit, showMoneySummary = true, canReserve = true, defaults, canEditPaymentInstructions = false }: SalePaymentRequestsProps) {
+export function SalePaymentRequests({ sale, onSaved, actionOnly = false, onDirtyChange, onBusyChange, onRecordDeposit, showMoneySummary = true, preferBalance = false, canReserve = true, defaults, canEditPaymentInstructions = false }: SalePaymentRequestsProps) {
   const features = useDealerFeatures();
   const instructionsHint = useId();
   const canRequestDeposit = saleCanRequestDeposit(sale);
-  const defaultKind = canRequestDeposit ? 'deposit' : 'balance';
+  const defaultKind = canRequestDeposit && !preferBalance ? 'deposit' : 'balance';
   const initialDate = useRef(todayLondon());
   const [formOpen, setFormOpen] = useState(actionOnly && !sale.paymentRequests?.length);
   const [kind, setKind] = useState<SalePaymentRequest['kind']>(defaultKind);
@@ -54,7 +55,9 @@ export function SalePaymentRequests({ sale, onSaved, actionOnly = false, onDirty
   const totals = saleWorkspaceTotals(sale.draft, sale.payments);
   const paymentDefaults = defaults?.paymentDefaults ?? defaultSalePaymentDefaults;
   const suggestedDeposit = paymentDefaults.suggestedDepositPence;
-  const amount = enteredAmount ?? (requestKind === 'deposit' && suggestedDeposit && suggestedDeposit <= totals.balance ? (suggestedDeposit / 100).toFixed(2) : '');
+  const defaultAmount = preferBalance && requestKind === 'balance' && totals.balance > 0 ? totals.balance
+    : requestKind === 'deposit' && suggestedDeposit && suggestedDeposit <= totals.balance ? suggestedDeposit : null;
+  const amount = enteredAmount ?? (defaultAmount === null ? '' : (defaultAmount / 100).toFixed(2));
   const now = new Date().toISOString();
   const requests = [...(sale.paymentRequests ?? [])].reverse();
   const active = requests.find(request => salePaymentRequestAvailable(sale, request, now) && salePaymentRequestRemaining(sale, request) > 0);
@@ -189,7 +192,10 @@ export function SalePaymentRequests({ sale, onSaved, actionOnly = false, onDirty
       {formOpen && !closed && !active && totals.balance > 0 && <form onSubmit={event => { event.preventDefault(); void run(async task => { await operation('request-payment', { kind: requestKind, amount, dueDate, note, ...(canEditPaymentInstructions && instructions !== null ? { paymentInstructions: instructions } : {}) }, task); setFormOpen(false); setKind(defaultKind); setAmount(null); setInstructions(null); setNote(''); setDueDate(initialDate.current); setNotice('Payment request saved. Choose how to send it.'); }); }}>
         <fieldset disabled={busy}><div className="sale-request-fields">
           <label>Request type<select value={requestKind} onChange={event => { const next = event.target.value as typeof kind; setKind(next); if (next === 'balance') setAmount((totals.balance / 100).toFixed(2)); else if (requestKind === 'balance') setAmount(null); }}>{canRequestDeposit && <option value="deposit">Deposit</option>}<option value="balance">Remaining balance</option><option value="other">Other agreed amount</option></select></label>
-          <label>Amount (£)<Input required inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} placeholder="For example, 500.00"/><div className="sales-flow-amounts">{[10000,25000,50000].filter(value => value <= totals.balance).map(value => <button type="button" key={value} onClick={() => setAmount((value/100).toFixed(2))}>{saleMoney(value)}</button>)}</div></label>
+          <div className="min-w-0">
+            <label>Amount (£)<Input required inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} placeholder="For example, 500.00"/></label>
+            <div className="sales-flow-amounts">{[10000,25000,50000].filter(value => value <= totals.balance).map(value => <button type="button" key={value} onClick={() => setAmount((value/100).toFixed(2))}>{saleMoney(value)}</button>)}</div>
+          </div>
           <label>Pay by<Input required type="date" value={dueDate} onChange={event => setDueDate(event.target.value)}/></label>
         </div><details className="sales-flow-optional"><summary>Add a note (optional)</summary><label>For the customer<Textarea rows={2} value={note} maxLength={1200} onChange={event => setNote(event.target.value)} placeholder="Only include what you have agreed with the customer."/></label></details>
           {(canEditPaymentInstructions || defaults?.paymentInstructions) && <details className="sales-flow-optional"><summary>Payment instructions</summary>

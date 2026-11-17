@@ -59,15 +59,18 @@ function ReplyDesk({
   }, [busy, onBusyChange]);
   useEffect(() => {
     if (!focusRequest || busy || handledFocus.current === focusRequest) return;
-    handledFocus.current = focusRequest;
     setChannel(defaultChannel(requestedChannel));
-    requestAnimationFrame(() =>
+    const singlePane = compact && window.matchMedia("(max-width: 899px)").matches;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const frame = requestAnimationFrame(() => {
+      handledFocus.current = focusRequest;
       container.current?.scrollIntoView({
-        block: "nearest",
-        behavior: "smooth",
-      }),
-    );
-  }, [focusRequest, requestedChannel, allowMissingRecipient, busy]);
+        block: singlePane ? "start" : "nearest",
+        behavior: singlePane || reducedMotion ? "instant" : "smooth",
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focusRequest, requestedChannel, allowMissingRecipient, busy, compact]);
   useEffect(() => {
     if (insertion && !busy && handledInsertion.current !== insertion.id) {
       handledInsertion.current = insertion.id;

@@ -5,12 +5,21 @@
 .booking-desktop-list > button > span { color: hsl(var(--muted-foreground)); }
 .booking-desktop-list > button[aria-pressed=true] { background: hsl(var(--secondary)); border-left-color: hsl(var(--primary)); }
 .booking-desktop-list > button:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: -3px; }
-.booking-detail-header { grid-template-columns: minmax(0,1fr) auto; }
-.booking-detail-header > div:first-child { grid-column: 1 / -1; }
-.booking-detail-header > div:nth-child(2) { grid-row: 1; }
-.booking-detail-header > div:nth-child(3) { grid-row: 1; grid-column: 2; }
-.booking-detail-header > div:nth-child(2) > p { font-size: 22px; }
-.booking-detail-header > div:first-child { grid-row: 2; border-top: 1px solid hsl(var(--border)); padding-top: 16px; }
+.booking-selected-detail { container: booking-detail / inline-size; }
+.booking-detail-header { grid-template-columns: minmax(0, 1fr) auto; }
+.booking-detail-contact { overflow-wrap: anywhere; }
+.booking-detail-contact > p:first-child { font-size: 22px; }
+.booking-detail-decision { min-width: 0; }
+.booking-detail-vehicle {
+  grid-column: 1 / -1;
+  border-top: 1px solid hsl(var(--border));
+  padding-top: 16px;
+}
+.booking-decision-actions button { min-height: 44px; }
+@container booking-detail (max-width: 430px) {
+  .booking-detail-header { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .booking-decision-actions { margin-top: 8px; }
+}
 .booking-mobile-picker { display: none; }
 @media(max-width:767px) {
  .booking-workspace { display: block; }
@@ -18,5 +27,4 @@
  .booking-desktop-list { display: none; }
  .booking-mobile-picker { display: grid; gap: 6px; font-size: 12px; font-weight: 600; }
  .booking-mobile-picker select { width: 100%; font-size: 16px; }
- .booking-detail-header { gap: 10px; }
 }

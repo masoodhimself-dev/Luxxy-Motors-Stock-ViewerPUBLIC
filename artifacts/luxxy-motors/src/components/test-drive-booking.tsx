@@ -624,7 +624,7 @@ export function TestDriveBooking({
                   <span className="field-label">Find a car</span>
                   <Input
                     type="search"
-                    placeholder="Search make, model or registration"
+                    placeholder="Make, model or reg"
                     value={carSearch}
                     onChange={(event) => {
                       setCarSearch(event.target.value);

@@ -66,6 +66,7 @@ interface StockContextType {
   stock: StockData | null;
   isLoading: boolean;
   error: string | null;
+  retryStock: () => void;
   vehicle: Car | null;
   isVehicleLoading: boolean;
   vehicleError: string | null;
@@ -140,7 +141,7 @@ export function StockProvider({ children }: { children: ReactNode }) {
   // individual lookup so it cannot hold up the photo, price, or test drive.
   const loadStockForRoute = !isVehiclePagePath(location) || endpoint === null || vehicleQuery.data !== undefined;
   const [loadStock] = useState(() => createStockLoader());
-  const { data: apiStock, isLoading, error } = useGetStock({ query: {
+  const { data: apiStock, isLoading, error, refetch } = useGetStock({ query: {
     queryKey: getGetStockQueryKey(), queryFn: ({ signal }) => loadStock(signal),
     enabled: active && loadStockForRoute, staleTime: portal ? 30_000 : 5 * 60_000,
     refetchInterval: portal ? 5 * 60_000 : false,
@@ -165,6 +166,7 @@ export function StockProvider({ children }: { children: ReactNode }) {
   return (
     <StockContext.Provider value={{
       stock, isLoading, error: errorMessage,
+      retryStock: () => { void refetch({ cancelRefetch: false }); },
       vehicle: vehicleQuery.data ?? null,
       isVehicleLoading: vehicleQuery.isPending && endpoint !== null,
       vehicleError: vehicleQuery.error?.message ?? null,
