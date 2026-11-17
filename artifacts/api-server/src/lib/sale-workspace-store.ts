@@ -306,7 +306,7 @@ export class PostgresSaleWorkspaceStore {
     if (!isSaleHandoffTaskKind(kind)) throw new SaleWorkspaceError('Choose a handoff task.');
     const found = await this.database.query('SELECT id FROM sale_workspace WHERE dealer_id=$1 AND id=$2::uuid', [this.dealerId, id]);
     if (!found.rows.length) throw new SaleWorkspaceError('Sale not found.', 404);
-    const result = await this.database.query('SELECT auth_user_id, name, email, role FROM portal_users WHERE dealer_id=$1 AND disabled_at IS NULL ORDER BY coalesce(name,email,auth_user_id), auth_user_id', [this.dealerId]);
+    const result = await this.database.query('SELECT auth_user_id, name, email, role FROM portal_users WHERE dealer_id=$1 AND legacy_portal_user_id IS NULL AND disabled_at IS NULL ORDER BY coalesce(name,email,auth_user_id), auth_user_id', [this.dealerId]);
     const permission = saleHandoffTaskPermission(kind);
     return { members: result.rows.filter(member => isStaffRole(member.role) && roleHasPermission(member.role, permission))
       .map(member => ({ id: String(member.auth_user_id), name: String(member.name || member.email || 'Staff member') })) };
@@ -329,7 +329,7 @@ export class PostgresSaleWorkspaceStore {
         canManage: actor.canManage && roleHasPermission(actorRole, 'sales.manage'),
         canRecordPayments: actor.canRecordPayments && roleHasPermission(actorRole, 'payments.record'),
         resolveAssignee: async (assigneeId, kind) => {
-          const row = (await client.query('SELECT name, email, role FROM portal_users WHERE dealer_id=$1 AND auth_user_id=$2 AND disabled_at IS NULL FOR SHARE', [this.dealerId, assigneeId])).rows[0];
+          const row = (await client.query('SELECT name, email, role FROM portal_users WHERE dealer_id=$1 AND auth_user_id=$2 AND legacy_portal_user_id IS NULL AND disabled_at IS NULL FOR SHARE', [this.dealerId, assigneeId])).rows[0];
           if (!row || !isStaffRole(row.role) || !roleHasPermission(row.role, saleHandoffTaskPermission(kind))) throw new SaleWorkspaceError('Choose an active staff member who can handle this task.');
           return row.name || row.email || 'Staff member';
         },
@@ -502,7 +502,7 @@ export class PostgresSaleWorkspaceStore {
           if (ownerId === current.team?.ownerId) ownerName = current.team.ownerName;
           else if (ownerId === input.actorId) ownerName = input.actor;
           else {
-            const member = (await client.query('SELECT name, email FROM portal_users WHERE dealer_id=$1 AND auth_user_id=$2 AND disabled_at IS NULL FOR SHARE', [this.dealerId, ownerId])).rows[0];
+            const member = (await client.query('SELECT name, email FROM portal_users WHERE dealer_id=$1 AND auth_user_id=$2 AND legacy_portal_user_id IS NULL AND disabled_at IS NULL FOR SHARE', [this.dealerId, ownerId])).rows[0];
             if (!member) throw new SaleWorkspaceError('Choose a staff member from this dealership.');
             ownerName = member.name || member.email || 'Staff member';
           }
