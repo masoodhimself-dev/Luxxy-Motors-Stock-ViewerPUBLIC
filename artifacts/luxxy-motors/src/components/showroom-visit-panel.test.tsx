@@ -6,11 +6,11 @@ const state = vi.hoisted(() => ({
   hours: [] as { days: string; times: string }[],
   address: {} as { street?: string; city?: string; postcode?: string; mapsUrl?: string },
   presentation: {} as { visitInstructions?: string; parkingInstructions?: string },
-  loading: false, error: false, booking: true, dealerBooking: true,
+  loading: false, error: false, hasLoadedSettings: false, booking: true, dealerBooking: true,
 }));
 vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({
   settings: { ...dealerConfig, identity: { name: 'Test Motors' }, contact: { phone: '07388831790' }, address: state.address, hours: state.hours, presentation: state.presentation, testDriveBooking: { enabled: state.dealerBooking } },
-  isLoading: state.loading, isError: state.error,
+  hasLoadedSettings: state.hasLoadedSettings, isLoading: state.loading, isError: state.error,
 }) }));
 vi.mock('@/lib/dealer-features', () => ({ useDealerFeatures: () => ({ enabled: () => state.booking }) }));
 import { ShowroomVisitPanel } from './showroom-visit-panel';
@@ -21,7 +21,7 @@ beforeEach(() => {
   vi.setSystemTime(new Date('2026-10-19T09:00:00Z'));
   state.hours = [{ days: 'Monday – Saturday', times: '08:00 – 18:00' }, { days: 'Sunday', times: 'Closed' }];
   state.address = { street: 'Rear of 176 Rayners Lane', city: 'London', postcode: 'HA2 8LY' };
-  state.presentation = {}; state.loading = false; state.error = false; state.booking = true; state.dealerBooking = true;
+  state.presentation = {}; state.loading = false; state.error = false; state.hasLoadedSettings = false; state.booking = true; state.dealerBooking = true;
 });
 afterEach(() => vi.useRealTimers());
 
@@ -73,6 +73,21 @@ it.each(['loading', 'error'] as const)('keeps fallback details out of the panel 
   expect(screen.getByRole('status')).not.toHaveTextContent('Open now');
   expect(screen.queryByRole('link', { name: 'Get directions' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: /Call Us/ })).not.toBeInTheDocument();
+});
+it.each(['loading', 'error'] as const)('keeps published showroom details during a background %s state without offering bookings', kind => {
+  state.hasLoadedSettings = true;
+  state[kind] = true;
+  state.presentation = { visitInstructions: 'Visits are by appointment only.' };
+  render(<ShowroomVisitPanel />);
+  expect(screen.getByTestId('showroom-visit-panel')).toHaveTextContent('Rear of 176 Rayners Lane');
+  expect(screen.getByRole('status')).toHaveTextContent('Open now');
+  expect(screen.getByRole('status')).toHaveTextContent('Closes at 18:00 today');
+  expect(screen.getByRole('status')).not.toHaveTextContent('Hours unavailable');
+  expect(screen.getByRole('status')).not.toHaveTextContent('Checking opening hours');
+  expect(screen.getByRole('link', { name: 'Get directions' })).toBeVisible();
+  expect(screen.getByRole('link', { name: /Call Us/ })).toHaveAttribute('href', 'tel:07388831790');
+  expect(screen.getByText('Visits are by appointment only.')).toBeVisible();
+  expect(screen.queryByRole('link', { name: /Book a Test Drive/ })).not.toBeInTheDocument();
 });
 it('omits sample locations and unsafe maps links while keeping published arrival instructions', () => {
   state.address = { street: 'Sample Street', mapsUrl: 'javascript:alert(1)' };

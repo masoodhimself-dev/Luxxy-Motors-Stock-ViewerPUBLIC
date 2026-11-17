@@ -28,7 +28,7 @@ export function ShowroomVisitPanel({
   showBooking?: boolean;
   showPhone?: boolean;
 }) {
-  const { settings, isLoading, isError } = useDealerSettings();
+  const { settings, hasLoadedSettings, isLoading, isError } = useDealerSettings();
   const features = useDealerFeatures();
   const headingId = useId();
   const DetailHeading = heading ? 'h4' : 'h3';
@@ -44,7 +44,8 @@ export function ShowroomVisitPanel({
       document.removeEventListener('visibilitychange', refresh);
     };
   }, []);
-  const ready = !isLoading && !isError;
+  // A failed background refresh must not hide previously loaded showroom details.
+  const ready = hasLoadedSettings || (!isLoading && !isError);
   const opening = showroomHours(ready ? settings.hours ?? [] : [], now);
   const location = dealershipLocation(settings.address);
   const hasAddress = ready && !location.isSample && Boolean(settings.address?.street?.trim());
@@ -53,7 +54,7 @@ export function ShowroomVisitPanel({
     : '';
   const directions = hasAddress ? location.directions : null;
   const phone = ready && showPhone ? settings.contact.phone?.trim() : '';
-  const canBook = ready && showBooking && features.enabled('testDriveBookings') && settings.testDriveBooking?.enabled !== false;
+  const canBook = ready && !isLoading && !isError && showBooking && features.enabled('testDriveBookings') && settings.testDriveBooking?.enabled !== false;
   const instructions = ready ? publishedInstructions(settings.presentation?.visitInstructions) : '';
   const parking = ready ? publishedInstructions(settings.presentation?.parkingInstructions) : '';
 
@@ -65,18 +66,18 @@ export function ShowroomVisitPanel({
         <div>
           {ready && settings.identity.name && <DetailHeading>{settings.identity.name}</DetailHeading>}
           {hasAddress ? <address>{location.lines.map((line, index) => <span key={`${line}-${index}`}>{line}</span>)}</address>
-            : <div>{area && <p className="showroom-visit-panel-note">Showroom area: {area}</p>}<p className="showroom-visit-panel-note">{isLoading ? 'Loading showroom address…' : 'Contact us to confirm the showroom address before travelling.'}</p></div>}
+            : <div>{area && <p className="showroom-visit-panel-note">Showroom area: {area}</p>}<p className="showroom-visit-panel-note">{!ready && isLoading ? 'Loading showroom address…' : 'Contact us to confirm the showroom address before travelling.'}</p></div>}
           {directions && <a className="showroom-visit-panel-directions" href={directions} target="_blank" rel="noopener noreferrer">Get directions<ArrowUpRight size={15} /></a>}
         </div>
       </div>
       <div className="showroom-visit-panel-hours" data-status={ready ? opening.state : 'unknown'}>
         <div className="showroom-visit-panel-today" role="status" aria-live="polite">
-          <span className="showroom-visit-panel-status"><Clock3 size={17} />{isLoading ? 'Checking opening hours…' : isError ? 'Hours unavailable' : opening.statusLabel}</span>
+          <span className="showroom-visit-panel-status"><Clock3 size={17} />{!ready && isLoading ? 'Checking opening hours…' : !ready && isError ? 'Hours unavailable' : opening.statusLabel}</span>
           {ready && opening.todayText && <strong>{opening.todayText}</strong>}
           {ready && opening.state === 'closed' && opening.next && <p>Opens {opening.next}</p>}
           {ready && opening.state === 'unknown' && <p>Today’s hours aren’t confirmed. Please check before travelling.</p>}
           {ready && opening.state === 'closed' && !opening.next && <p>Contact us to arrange your next visit.</p>}
-          {isError && <p>Please confirm our hours before travelling.</p>}
+          {!ready && isError && <p>Please confirm our hours before travelling.</p>}
         </div>
         {ready && Boolean(settings.hours?.length) && <details className="showroom-visit-panel-week">
           <summary>Opening hours<ChevronDown size={16} /></summary>

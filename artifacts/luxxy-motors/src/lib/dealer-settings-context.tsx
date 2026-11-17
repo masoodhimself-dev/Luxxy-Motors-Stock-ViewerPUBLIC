@@ -42,6 +42,7 @@ export function useDealerSettings() {
   }, [query.data, features.data, features.isError]);
   return {
     settings,
+    hasLoadedSettings: query.data != null,
     publicEnquiriesEnabled: features.enabled('publicEnquiries'),
     isLoading: query.isLoading || features.isLoading,
     isError: query.isError || features.isError,
