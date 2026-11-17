@@ -2,7 +2,8 @@ import type { NextFunction, Request, Response } from 'express';
 import { serviceLifecycle } from './service-lifecycle';
 
 export const platformStockUploadPath = /^\/api\/platform\/dealers\/[^/]+\/stock-upload\/?$/i;
-const stockImportPath = (path: string) => /^\/api\/stock\/imports(?:\/|$)/i.test(path) || platformStockUploadPath.test(path);
+export const cazooDemoImportPath = /^\/api\/platform\/demos\/from-cazoo\/?$/i;
+const stockImportPath = (path: string) => /^\/api\/stock\/imports(?:\/|$)/i.test(path) || platformStockUploadPath.test(path) || cazooDemoImportPath.test(path);
 
 type Lease = { startedAt: number; processing: boolean; released: boolean; release: () => void };
 

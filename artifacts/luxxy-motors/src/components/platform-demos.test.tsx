@@ -11,9 +11,14 @@ function fillDemoBasics() {
  fireEvent.change(screen.getByLabelText('Authorised demo stock source URL'), { target: { value: 'https://www.autotrader.co.uk/fictional' } });
 }
 
+function openManualSetup() {
+ fireEvent.click(screen.getByText('Set up manually and upload stock JSON'));
+}
+
 it('shows missing infrastructure and keeps shareable demo creation disabled', async () => {
  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ domain: '', emailDomain: '', recipients: [], configured: false, emailReady: false })));
  render(<PlatformDemos onCreated={() => {}}/>);
+ openManualSetup();
  fillDemoBasics();
  fireEvent.click(screen.getByRole('radio', { name: /Shareable demo/ }));
  await screen.findByText('One-time platform setup required');
@@ -25,6 +30,7 @@ it('defaults to a private demo and creates it without public domain or email set
  const fetcher = vi.fn(async (_path, init) => init?.method === 'POST' ? Response.json({ dealerId: 'demo-example', privatePreview: true }) : Response.json({ error: 'No shareable setup' }, { status: 503 }));
  vi.stubGlobal('fetch', fetcher);
  render(<PlatformDemos onCreated={created}/>);
+ openManualSetup();
  expect(screen.getByRole('radio', { name: /Private preview/ })).toBeChecked();
  expect(screen.queryByLabelText('Approved test email recipient')).not.toBeInTheDocument();
  fillDemoBasics();
@@ -47,7 +53,7 @@ it('creates a private demo from one Auto Trader link and only offers a preview a
   return new Promise<Response>(resolve => { finish = resolve; });
  }));
  render(<PlatformDemos onCreated={created}/>);
- const link = await screen.findByLabelText('Auto Trader stock link');
+ const link = screen.getByLabelText('Dealership stock link');
  const create = screen.getByRole('button', { name: 'Create private demo' });
  expect(create).toBeDisabled();
  fireEvent.change(link, { target: { value: 'https://www.autotrader.co.uk.example.com/dealers/oakwood-cars' } });
@@ -57,6 +63,7 @@ it('creates a private demo from one Auto Trader link and only offers a preview a
 
  const sourceUrl = 'https://www.autotrader.co.uk/dealers/oakwood-cars-123456';
  fireEvent.change(link, { target: { value: sourceUrl } });
+ await waitFor(() => expect(create).toBeEnabled());
  fireEvent.click(create);
  expect(screen.getByRole('status')).toHaveTextContent('Collecting and importing');
  expect(screen.getByRole('button', { name: 'Creating private demo…' })).toBeDisabled();
@@ -72,7 +79,7 @@ it('creates a private demo from one Auto Trader link and only offers a preview a
  const preview = await screen.findByRole('link', { name: /Open private preview/ });
  expect(preview).toHaveAttribute('href', '/platform/preview/demo-oakwood-cars');
  await waitFor(() => expect(preview).toHaveFocus());
- expect(screen.queryByLabelText('Auto Trader stock link')).not.toBeInTheDocument();
+ expect(screen.queryByLabelText('Dealership stock link')).not.toBeInTheDocument();
  expect(screen.getByRole('status')).toHaveTextContent('8 vehicles imported into the private demo.');
  expect(writes).toEqual([
   { path: '/api/platform/demos/from-autotrader', body: { sourceUrl } },
@@ -81,6 +88,22 @@ it('creates a private demo from one Auto Trader link and only offers a preview a
  expect(created).not.toHaveBeenCalled();
  fireEvent.click(screen.getByRole('button', { name: 'Manage demo' }));
  expect(created).toHaveBeenCalledWith('demo-oakwood-cars');
+});
+
+it('builds the Grok prompt for a Cazoo dealership without needing the Auto Trader collector', async () => {
+ const fetcher = vi.fn(async () => Response.json({ linkImportReady: false }));
+ vi.stubGlobal('fetch', fetcher);
+ render(<PlatformDemos onCreated={() => {}}/>);
+ fireEvent.change(screen.getByLabelText('Dealership stock link'), {
+  target: { value: 'https://cazoo.co.uk/dealers/shop-for-cars-52363/?utm_source=test' },
+ });
+ fireEvent.click(screen.getByText('View prompt'));
+ const prompt = (screen.getByRole('textbox', { name: 'Grok Bot prompt' }) as HTMLTextAreaElement).value;
+ expect(prompt).toContain('https://www.cazoo.co.uk/dealers/shop-for-cars-52363/');
+ expect(prompt).toContain('cazoo-52363');
+ expect(prompt).not.toContain('utm_source');
+ expect(screen.queryByRole('link', { name: /Open private preview/ })).not.toBeInTheDocument();
+ await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
 });
 
 it('resumes an accepted stock collection after navigation and retries a failed status check without resubmitting', async () => {
@@ -104,10 +127,12 @@ it('resumes an accepted stock collection after navigation and retries a failed s
   });
  }));
  const first = render(<PlatformDemos onCreated={() => {}}/>);
- fireEvent.change(await screen.findByLabelText('Auto Trader stock link'), {
+ fireEvent.change(screen.getByLabelText('Dealership stock link'), {
   target: { value: 'https://www.autotrader.co.uk/dealers/oakwood-cars-123456' },
  });
- fireEvent.click(screen.getByRole('button', { name: 'Create private demo' }));
+ const create = screen.getByRole('button', { name: 'Create private demo' });
+ await waitFor(() => expect(create).toBeEnabled());
+ fireEvent.click(create);
  await waitFor(() => expect(reads).toHaveBeenCalledTimes(1));
  expect(screen.queryByRole('link', { name: /Open private preview/ })).not.toBeInTheDocument();
  first.unmount();
@@ -128,6 +153,7 @@ it('creates a shareable demo using only operator-approved destinations and does 
   return Response.json({ domain: 'demo.example.test', emailDomain: 'mail.example.test', recipients: ['operator@example.test'], configured: true, emailReady: false });
  }));
  render(<PlatformDemos onCreated={created}/>);
+ openManualSetup();
  fireEvent.click(screen.getByRole('radio', { name: /Shareable demo/ }));
  await screen.findByRole('option', { name: 'operator@example.test' });
  fillDemoBasics();

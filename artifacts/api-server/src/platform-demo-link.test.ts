@@ -19,7 +19,7 @@ const retailerId = '123456';
 const canonicalSource = 'https://www.autotrader.co.uk/dealers/greater-london/hayes/fictional-motors-123456';
 const submittedSource = 'https://autotrader.co.uk/dealers/greater-london/hayes/fictional-motors-123456/?tracking=example';
 
-test('an authorised Auto Trader link creates one private demo in either collector mode', async context => {
+test('platform administrators can create private demos from marketplace stock links', async context => {
   process.env.MULTI_TENANT_ENABLED = 'true';
   process.env.PLATFORM_ADMIN_HOST = adminHost;
   process.env.PLATFORM_ADMIN_USER_IDS = 'user_admin';
@@ -402,6 +402,109 @@ test('an authorised Auto Trader link creates one private demo in either collecto
     assert.equal((await call(onboardingPath, { ...expiredKeyRequest, snapshot: asyncSnapshot })).status, 404);
     process.env.DEMO_STOCK_CALLBACK_KEY_VALID_UNTIL = new Date(Date.now() - 1).toISOString();
     assert.equal((await call(onboardingPath, { ...expiredKeyRequest, snapshot: asyncSnapshot })).status, 404);
+
+    await context.test('a pasted Cazoo snapshot creates and reopens a private demo with photos and logo', async () => {
+      const cazooPath = '/api/platform/demos/from-cazoo';
+      const cazooId = 'cazoo-42656';
+      const cazooSource = 'https://www.cazoo.co.uk/dealers/example-cars-42656/';
+      const submittedCazooLink = 'https://cazoo.co.uk/dealers/example-cars-42656?campaign=example';
+      const logo = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+p1LkAAAAASUVORK5CYII=';
+      const originalPhoto = exampleStock.cars[0].images[0];
+      const car = {
+        ...exampleStock.cars[0],
+        advertId: '80087729',
+        advertUrl: 'https://www.cazoo.co.uk/cars-for-sale/80087729/',
+        sourceExtras: { ...exampleStock.cars[0].sourceExtras, cazooDealerId: '42656', stockListUrl: cazooSource },
+      };
+      const cazooStock = {
+        ...exampleStock, retailerId: cazooId, scrapedAt: new Date().toISOString(), cars: [car],
+      };
+      const payload = { sourceUrl: submittedCazooLink, stock: cazooStock, logoData: `data:image/png;base64,${logo}` };
+      const collectorCalls = collect.mock.callCount();
+      await engine.query(`INSERT INTO dealerships (id, name, status, canonical_origin, stock_platform, retailer_id, source_url)
+        VALUES ('existing-cazoo', 'Existing showroom', 'active', 'https://existing-cazoo.example.test', 'cazoo', $1, $2)`, [cazooId, cazooSource]);
+      await engine.query(`INSERT INTO vehicles (dealer_id, source, advert_id, title, source_price)
+        VALUES ('existing-cazoo', 'cazoo', $1, 'Live stock', 7995)`, [car.advertId]);
+
+      const databaseCounts = () => engine.query(`SELECT
+        (SELECT count(*)::int FROM dealerships) AS dealers,
+        (SELECT count(*)::int FROM dealer_demos) AS demos,
+        (SELECT count(*)::int FROM dealer_settings) AS settings,
+        (SELECT count(*)::int FROM portal_users) AS users,
+        (SELECT count(*)::int FROM stock_import_runs) AS runs,
+        (SELECT count(*)::int FROM vehicles) AS vehicles,
+        (SELECT count(*)::int FROM vehicle_images) AS images`);
+      const before = (await databaseCounts()).rows;
+      for (const access of [
+        { user: '' }, { user: 'user_dealer' }, { origin: 'https://other.example.test' },
+        { host: 'existing-cazoo.example.test' },
+      ]) {
+        assert.equal((await call(cazooPath, { ...access, snapshot: payload })).status, 403);
+      }
+      for (const invalid of [
+        { ...payload, sourceUrl: car.advertUrl },
+        { ...payload, sourceUrl: 'https://cazoo.co.uk.example.test/dealers/example-cars-42656/' },
+        { ...payload, logoData: 'data:image/png;base64,dGVzdA==' },
+      ]) {
+        assert.equal((await call(cazooPath, { snapshot: invalid })).status, 400);
+      }
+      for (const stock of [
+        { ...cazooStock, retailerId: 'cazoo-99999' },
+        { ...cazooStock, complete: false },
+        { ...cazooStock, expectedAdvertCount: 2 },
+        { ...cazooStock, scrapedAt: new Date(Date.now() - 25 * 3_600_000).toISOString() },
+        { ...cazooStock, cars: [{ ...car, sourceExtras: { ...car.sourceExtras, sourcePlatform: 'autotrader' } }] },
+        { ...cazooStock, cars: [{ ...car, sourceExtras: { ...car.sourceExtras, cazooDealerId: '99999' } }] },
+      ]) {
+        assert.equal((await call(cazooPath, { snapshot: { ...payload, stock } })).status, 422);
+      }
+      assert.deepEqual((await databaseCounts()).rows, before);
+
+      // Force a persistence error after the demo and import run have already been inserted.
+      await engine.exec('ALTER TABLE vehicles ADD CONSTRAINT test_demo_import_rollback CHECK (dealer_id = \'existing-cazoo\' OR advert_id <> \'80087729\')');
+      try {
+        const failure = await call(cazooPath, { snapshot: payload });
+        assert.equal(failure.status, 500, await failure.text());
+        assert.deepEqual((await databaseCounts()).rows, before);
+      } finally {
+        await engine.exec('ALTER TABLE vehicles DROP CONSTRAINT test_demo_import_rollback');
+      }
+
+      const response = await call(cazooPath, { snapshot: payload });
+      assert.equal(response.status, 201, await response.clone().text());
+      const demo = await response.json() as { dealerId: string; previewPath: string; hasLogo: boolean; received: number; dealerName: string };
+      assert.equal(demo.previewPath, `/platform/preview/${demo.dealerId}`);
+      assert.equal(demo.hasLogo, true);
+      assert.equal(demo.received, 1);
+      assert.equal(demo.dealerName, cazooStock.dealerName);
+      const retry = await call(cazooPath, { snapshot: { sourceUrl: cazooSource, stock: cazooStock } });
+      assert.equal(retry.status, 200, await retry.clone().text());
+      assert.deepEqual(await retry.json(), demo);
+      assert.equal(collect.mock.callCount(), collectorCalls);
+
+      const { rows } = await engine.query<{ canonical_origin: string }>('SELECT canonical_origin, source_url, status FROM dealerships WHERE id = $1', [demo.dealerId]);
+      assert.deepEqual(rows, [{ canonical_origin: `https://${demo.dealerId.slice(5)}.demo.invalid`, source_url: cazooSource, status: 'draft' }]);
+      assert.deepEqual((await engine.query('SELECT status FROM stock_import_runs WHERE dealer_id = $1', [demo.dealerId])).rows, [{ status: 'completed' }]);
+      assert.equal((await engine.query('SELECT 1 FROM dealer_domains WHERE dealer_id = $1', [demo.dealerId])).rows.length, 0);
+      assert.deepEqual((await engine.query("SELECT title, source_price FROM vehicles WHERE dealer_id = 'existing-cazoo'")).rows, [{ title: 'Live stock', source_price: 7995 }]);
+      assert.equal((await call('/api/stock', { host: new URL(rows[0].canonical_origin).hostname })).status, 421);
+
+      const stockPath = `${demo.previewPath}/api/stock`;
+      assert.equal((await call(stockPath, { user: '' })).status, 403);
+      const preview = await call(stockPath);
+      assert.equal(preview.status, 200, await preview.clone().text());
+      assert.match(preview.headers.get('x-robots-tag') ?? '', /noindex/);
+      const { cars } = await preview.json() as { cars: { advertId: string; heroImage: string; images: typeof car.images }[] };
+      assert.deepEqual(cars.map(({ advertId, heroImage, images }) => ({ advertId, heroImage, images })), [
+        { advertId: car.advertId, heroImage: originalPhoto.url, images: [originalPhoto] },
+      ]);
+      const logoPath = `${demo.previewPath}/api/demo-logo`;
+      assert.equal((await call(logoPath, { user: 'user_dealer' })).status, 403);
+      const artwork = await call(logoPath);
+      assert.equal(artwork.status, 200);
+      assert.equal(artwork.headers.get('content-type'), 'image/png');
+      assert.equal(Buffer.from(await artwork.arrayBuffer()).toString('base64'), logo);
+    });
   } finally {
     server.closeAllConnections();
     await new Promise<void>(resolve => server.close(() => resolve()));

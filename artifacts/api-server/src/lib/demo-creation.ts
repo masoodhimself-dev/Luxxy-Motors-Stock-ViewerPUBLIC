@@ -1,6 +1,9 @@
 import { demoShowroomAddress,demoOpeningHours,publishedDemoHours } from './demo-business-details';
 import { randomBytes } from 'node:crypto';
 import { z } from 'zod/v4';
+import type { db } from '@workspace/db';
+import { sql, type SQL } from 'drizzle-orm';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { demoProvisioning } from './demo-policy';
 import { isReservedDealerHost } from './tenant-context';
 import { newDealerSettings } from '../routes/dealer-settings';
@@ -32,16 +35,52 @@ export function validatedDemoInput(raw:unknown, privatePreview = false) {
  return {d,id,host,logo,footerLogo,p,privatePreview,recipient};
 }
 export const demoBrandingPatch=demoCreationInput.pick({logoData:true,footerLogoData:true,showroomAddress:true,openingHours:true}).partial().strict().refine(v=>Object.keys(v).length>0,'Supply at least one supported change.');
-export async function insertDemo(client:SaleWorkspaceReadClient, prepared:ReturnType<typeof validatedDemoInput>, ownerAuthUserId:string){
- const {d,id,host,logo,footerLogo,p,privatePreview,recipient}=prepared;
-    const config={...newDealerSettings(d.name),hours:d.openingHours?publishedDemoHours(d.openingHours):[],...(footerLogo?{presentation:{footerLogoUrl:`https://${host}/api/demo-logo?variant=footer`}}:{})};config.identity.logoAsset=logo?'/api/demo-logo':'';config.hero.announcement='';
-    if(d.showroomAddress){const {sourceUrl,checkedAt,...address}=d.showroomAddress;config.address={...address,mapsUrl:address.mapsUrl??''};}
-    config.contact.email=!privatePreview && p.emailDomain?`${id}@${p.emailDomain}`:'';
-    await client.query("INSERT INTO dealerships (id,name,status,canonical_origin,stock_platform,retailer_id,source_url) VALUES ($1,$2,$3,$4,$5,$6,$7)",[id,d.name,privatePreview?'draft':'active',`https://${host}`,d.platform,d.retailerId,d.sourceUrl]);
-    if (!privatePreview) await client.query('INSERT INTO dealer_domains (hostname,dealer_id,verified,verification_token) VALUES ($1,$2,true,$3)',[host,id,`platform-owned-demo=${randomBytes(24).toString('hex')}`]);
-    await client.query("INSERT INTO portal_users (dealer_id,auth_user_id,role) VALUES ($1,$2,'owner')",[id,ownerAuthUserId]);
-    await client.query('INSERT INTO dealer_settings (dealer_id,config) VALUES ($1,$2::jsonb)',[id,JSON.stringify(config)]);
-    await client.query('INSERT INTO dealer_demos (dealer_id,recipient,expires_at,updated_by,logo_data,footer_logo_data,business_details) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb)',[id,recipient,new Date(Date.now()+d.days*86400000),ownerAuthUserId,logo,footerLogo,JSON.stringify({...(d.showroomAddress?{showroomAddress:d.showroomAddress}:{}),...(d.openingHours?{openingHours:d.openingHours}:{})})]);
+const demoDialect = new PgDialect();
 
- return {dealerId:id,origin:`https://${host}`};
+export async function insertDemo(
+  client: SaleWorkspaceReadClient | Pick<typeof db, 'execute'>,
+  prepared: ReturnType<typeof validatedDemoInput>,
+  ownerAuthUserId: string,
+) {
+  const execute = (statement: SQL) => {
+    if ('execute' in client) return client.execute(statement);
+    const query = demoDialect.sqlToQuery(statement);
+    return client.query(query.sql, query.params);
+  };
+  const { d, id, host, logo, footerLogo, p, privatePreview, recipient } = prepared;
+  const origin = `https://${host}`;
+  const config = {
+    ...newDealerSettings(d.name),
+    hours: d.openingHours ? publishedDemoHours(d.openingHours) : [],
+    ...(footerLogo ? { presentation: { footerLogoUrl: `${origin}/api/demo-logo?variant=footer` } } : {}),
+  };
+  config.identity.logoAsset = logo ? '/api/demo-logo' : '';
+  config.hero.announcement = '';
+  if (d.showroomAddress) {
+    const { sourceUrl, checkedAt, ...address } = d.showroomAddress;
+    config.address = { ...address, mapsUrl: address.mapsUrl ?? '' };
+  }
+  config.contact.email = !privatePreview && p.emailDomain ? `${id}@${p.emailDomain}` : '';
+  const businessDetails = {
+    ...(d.showroomAddress ? { showroomAddress: d.showroomAddress } : {}),
+    ...(d.openingHours ? { openingHours: d.openingHours } : {}),
+  };
+
+  await execute(sql`
+    INSERT INTO dealerships (id, name, status, canonical_origin, stock_platform, retailer_id, source_url)
+    VALUES (${id}, ${d.name}, ${privatePreview ? 'draft' : 'active'}, ${origin}, ${d.platform}, ${d.retailerId}, ${d.sourceUrl})
+  `);
+  if (!privatePreview) {
+    await execute(sql`
+      INSERT INTO dealer_domains (hostname, dealer_id, verified, verification_token)
+      VALUES (${host}, ${id}, true, ${`platform-owned-demo=${randomBytes(24).toString('hex')}`})
+    `);
+  }
+  await execute(sql`INSERT INTO portal_users (dealer_id, auth_user_id, role) VALUES (${id}, ${ownerAuthUserId}, 'owner')`);
+  await execute(sql`INSERT INTO dealer_settings (dealer_id, config) VALUES (${id}, ${JSON.stringify(config)}::jsonb)`);
+  await execute(sql`
+    INSERT INTO dealer_demos (dealer_id, recipient, expires_at, updated_by, logo_data, footer_logo_data, business_details)
+    VALUES (${id}, ${recipient}, ${new Date(Date.now() + d.days * 86400000).toISOString()}, ${ownerAuthUserId}, ${logo}, ${footerLogo}, ${JSON.stringify(businessDetails)}::jsonb)
+  `);
+  return { dealerId: id, origin };
 }

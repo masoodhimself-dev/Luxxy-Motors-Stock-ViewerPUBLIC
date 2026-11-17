@@ -18,7 +18,7 @@ import { clerkMiddleware } from "@clerk/express";
 import { sharedStaffClerk, sharedStaffPortalForHost } from './lib/shared-staff-portal';
 import { createSharedStaffPortal } from './routes/shared-staff-portal';
 import { sharedStaffInfo } from './routes/shared-staff-info';
-import { importAdmission, platformStockUploadPath } from './lib/stock-import-admission';
+import { cazooDemoImportPath, importAdmission, platformStockUploadPath } from './lib/stock-import-admission';
 import { platformStockUploadLimit, platformStockUploadTooLarge } from './lib/platform-stock-upload';
 import { serviceLifecycle } from './lib/service-lifecycle';
 import seoRouter from './routes/seo';
@@ -80,6 +80,8 @@ app.post(platformStockUploadPath, express.json({ limit: platformStockUploadLimit
   verify: (_req, res, body) => { (res as express.Response).locals.platformStockUploadBytes = body.length; },
 }));
 app.post('/api/platform/demos/from-autotrader', express.json({ limit: '8kb' }));
+// Allow the existing 5 MB stock limit plus a logo and the request envelope.
+app.post(cazooDemoImportPath, express.json({ limit: platformStockUploadLimit + 410000 }));
 app.use("/api/demo-onboarding", express.json({ limit: "450kb" }));
 app.use('/api/staff/website-assets', express.json({ limit: '3mb' }));
 app.use('/api/website-journey', express.json({ limit: '128b', strict: true }));
@@ -122,7 +124,7 @@ app.use((error: unknown, req: express.Request, res: express.Response, _next: exp
   if(isPrivateTestDriveDeclarationPath(req.path)) req.log.warn('Private test-drive declaration request failed');
   else if(/^\/api\/reservations\/(?:checkout|payment-status|stripe)(?:\/|$)/i.test(req.path)) req.log.warn('Reservation payment request failed');
   else if(req.path.startsWith('/api/demo-onboarding')) req.log.warn('Demo onboarding request failed');
-  else if(platformStockUploadPath.test(req.path) || req.path.toLowerCase().startsWith(`${demoStockCollectorCallbackPath}/`)) req.log.warn('Platform stock upload request failed');
+  else if(cazooDemoImportPath.test(req.path) || platformStockUploadPath.test(req.path) || req.path.toLowerCase().startsWith(`${demoStockCollectorCallbackPath}/`)) req.log.warn('Platform stock upload request failed');
   else req.log.error({ err: error }, "Unhandled API error");
   if (res.headersSent) return;
 
@@ -136,6 +138,7 @@ app.use((error: unknown, req: express.Request, res: express.Response, _next: exp
       return;
     }
     if(req.path.startsWith('/api/demo-onboarding')){res.status(413).json({error:'Onboarding request exceeds the 450 KB limit.'});return;}
+    if(cazooDemoImportPath.test(req.path)){res.status(413).json({error:'Use stock JSON of 5 MB or less and a PNG or JPEG logo smaller than 250 KB.'});return;}
     if(platformStockUploadPath.test(req.path) || req.path.toLowerCase().startsWith(`${demoStockCollectorCallbackPath}/`)){res.status(413).json({error:platformStockUploadTooLarge});return;}
     if(req.path === '/api/staff/website-assets'){res.status(413).json({error:'Image upload exceeds the 3 MB request limit. Choose a smaller image.'});return;}
     res.status(413).json({ ...identity, status: "rejected", errors: [{ code: "payload_too_large", message: "Request exceeds the 25 MB limit", path: null, advertId: null }] });

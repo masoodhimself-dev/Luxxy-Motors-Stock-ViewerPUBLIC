@@ -1,0 +1,75 @@
+.platform-cazoo-demo {
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #dce3eb;
+}
+
+.platform-cazoo-prompt,
+.platform-cazoo-form {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.platform-cazoo-prompt-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 14px;
+}
+
+.platform-cazoo-prompt-heading h4 { font-size: 14px; font-weight: 650; }
+.platform-cazoo-demo p { font-size: 13px; overflow-wrap: anywhere; }
+.platform-cazoo-prompt summary {
+  width: fit-content;
+  padding: 8px 0;
+  cursor: pointer;
+  font-size: 13px;
+  text-underline-offset: 3px;
+}
+.platform-cazoo-prompt summary:hover { text-decoration: underline; }
+.platform-cazoo-prompt summary:focus-visible,
+.platform-cazoo-files input:focus-visible + label {
+  outline: 2px solid #42657c;
+  outline-offset: 2px;
+}
+.platform-cazoo-prompt > .platform-cazoo-feedback:empty { margin-top: -10px; }
+
+.platform-cazoo-demo textarea {
+  min-width: 0;
+  background: #fff;
+  font-size: 14px;
+}
+.platform-cazoo-demo textarea.platform-cazoo-code {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.platform-cazoo-form > .platform-field { margin: 0; }
+.platform-cazoo-files {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: 8px;
+}
+.platform-cazoo-files > div { max-width: 100%; }
+.platform-cazoo-files label { cursor: pointer; }
+.platform-cazoo-files input:disabled + label { opacity: .5; pointer-events: none; }
+.platform-cazoo-logo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.platform-cazoo-logo img { display: block; width: 52px; height: 36px; object-fit: contain; }
+.platform-cazoo-create { justify-self: start; }
+
+@media (max-width: 540px) {
+  .platform-cazoo-create { justify-self: stretch; }
+}

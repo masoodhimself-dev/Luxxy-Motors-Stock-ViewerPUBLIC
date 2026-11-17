@@ -1,3 +1,4 @@
+import { cazooDealershipLink } from '@workspace/vehicle-meta';
 import { getAuth } from '@clerk/express';
 import { Router } from 'express';
 import { z } from 'zod/v4';
@@ -5,12 +6,14 @@ import { DemoSetupError } from '../lib/demo-creation';
 import { importDemoLinkStock, invalidDemoStockMessage } from '../lib/demo-link-stock';
 import { autoTraderDealerLink, collectDemoStock, demoStockCollectorConfig, DemoStockCollectorError, requestGrokDemoStock } from '../lib/demo-stock-collector';
 import { publicCollectionJob, readDemoStockCollection, rejectDemoStockCollection, startDemoStockCollection } from '../lib/demo-stock-collection-jobs';
-import { createStockImportAdmission } from '../lib/stock-import-admission';
+import { createStockImportAdmission, importAdmission } from '../lib/stock-import-admission';
 import { serviceLifecycle } from '../lib/service-lifecycle';
-import { checkAutoTraderDemoSnapshot } from './stock';
+import { checkAutoTraderDemoSnapshot, checkCazooDemoSnapshot } from './stock';
+import { platformStockUploadLimit } from '../lib/platform-stock-upload';
 
 const router = Router();
 const input = z.object({ sourceUrl: z.string().trim().min(1).max(2048) }).strict();
+const cazooInput = input.extend({ stock: z.record(z.string(), z.unknown()), logoData: z.string().min(1).max(400000).optional() });
 const demoLinkAdmission = createStockImportAdmission(1, Date.now, serviceLifecycle, () => true);
 
 router.get('/demos/collection/:jobId', async (req, res) => {
@@ -65,6 +68,50 @@ router.post('/demos/from-autotrader', demoLinkAdmission.middleware, async (req, 
       }
       req.log?.error('Private demo stock link import failed');
       res.status(500).json({ error: 'The private demo could not be prepared. Retry the same link or use a stock JSON export.' });
+    }
+  });
+});
+
+// Grok's export arrives in the request. This workflow never calls a stock provider.
+router.post('/demos/from-cazoo', async (req, res) => {
+  await importAdmission.run(req, res, async () => {
+    const parsed = cazooInput.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Paste a Cazoo dealership link and its stock JSON. Upload a PNG or JPEG if you have a logo.' });
+      return;
+    }
+    const { sourceUrl, stock, logoData } = parsed.data;
+    const dealer = cazooDealershipLink(sourceUrl);
+    if (!dealer) {
+      res.status(400).json({ error: 'Paste a Cazoo dealership page link that ends with the retailer number.' });
+      return;
+    }
+    if (Buffer.byteLength(JSON.stringify(stock)) > platformStockUploadLimit) {
+      res.status(413).json({ error: 'Use a stock JSON export of 5 MB or less.' });
+      return;
+    }
+    const checked = checkCazooDemoSnapshot(stock, dealer.retailerId);
+    if (!checked) {
+      res.status(422).json({ error: 'Use a complete, current Grok Bot stock export for this Cazoo dealership. Check the retailer and make sure all adverts are included.' });
+      return;
+    }
+    try {
+      const result = await importDemoLinkStock(req, res, dealer, checked.body, checked.snapshot, getAuth(req).userId!, { platform: 'cazoo', logoData });
+      if (!result) return;
+      res.status(result.created ? 201 : 200).json({
+        dealerId: result.dealerId,
+        dealerName: result.dealerName,
+        previewPath: `/platform/preview/${result.dealerId}`,
+        received: result.received,
+        hasLogo: result.hasLogo,
+      });
+    } catch (error) {
+      if (error instanceof DemoSetupError) {
+        res.status(error.status).json({ error: error.message });
+        return;
+      }
+      req.log?.error('Private Cazoo demo import failed');
+      res.status(500).json({ error: 'Could not prepare the private demo. Try again with the same JSON.' });
     }
   });
 });

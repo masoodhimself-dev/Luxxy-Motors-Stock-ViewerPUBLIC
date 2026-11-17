@@ -1,6 +1,9 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { customFetch, HttpApiError } from '@workspace/api-client-react';
+import { cazooDealershipLink } from '@workspace/vehicle-meta';
 import { CheckCircle2, ExternalLink, Link2 } from '@/components/icons';
+import { buildCazooDemoPrompt } from '@/lib/cazoo-demo-prompt';
+import { PlatformCazooDemo } from './platform-cazoo-demo';
 import { Button, buttonVariants } from './ui/button';
 import { Input } from './ui/input';
 import './platform-demo-from-link.css';
@@ -65,7 +68,8 @@ function isAutoTraderLink(value: string) {
   }
 }
 
-export function PlatformDemoFromLink({ busy, onBusyChange, onManage }: {
+export function PlatformDemoFromLink({ autoTraderReady, busy, onBusyChange, onManage }: {
+  autoTraderReady: boolean;
   busy: boolean;
   onBusyChange: (busy: boolean) => void;
   onManage: (dealerId: string) => void;
@@ -81,6 +85,8 @@ export function PlatformDemoFromLink({ busy, onBusyChange, onManage }: {
   const [result, setResult] = useState<PrivateDemoResult>();
   const previewLink = useRef<HTMLAnchorElement>(null);
   const collecting = creating || Boolean(jobId);
+  const cazooDealer = cazooDealershipLink(link);
+  const autoTraderUnavailable = !autoTraderReady && isAutoTraderLink(link.trim());
 
   useEffect(() => {
     if (result) previewLink.current?.focus();
@@ -156,11 +162,11 @@ export function PlatformDemoFromLink({ busy, onBusyChange, onManage }: {
 
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy || collecting) return;
+    if (busy || collecting || cazooDealer || autoTraderUnavailable) return;
     const sourceUrl = link.trim();
     if (!isAutoTraderLink(sourceUrl)) {
       setInvalidLink(true);
-      setError('Paste an HTTPS stock link from autotrader.co.uk.');
+      setError('Paste an HTTPS stock link from Auto Trader or a Cazoo dealership link ending in its retailer number.');
       return;
     }
     setInvalidLink(false);
@@ -215,16 +221,16 @@ export function PlatformDemoFromLink({ busy, onBusyChange, onManage }: {
     <div className="platform-demo-link-intro">
       <span className="platform-demo-link-icon"><Link2 size={18} aria-hidden="true"/></span>
       <div>
-        <h3 id={`${id}-heading`}>Start with an Auto Trader link</h3>
-        <p id={`${id}-help`}>Paste the dealer’s stock page. Only signed-in platform admins can open the preview.</p>
+        <h3 id={`${id}-heading`}>Start with a stock link</h3>
+        <p id={`${id}-help`}>Paste the dealer’s Auto Trader or Cazoo stock page. Only signed-in platform admins can open the preview.</p>
       </div>
     </div>
     <form className="platform-demo-link-form" onSubmit={event => void create(event)} aria-busy={collecting && !paused}>
       <label className="platform-field">
-        <span>Auto Trader stock link</span>
+        <span>Dealership stock link</span>
         <Input type="text" inputMode="url" autoComplete="off" spellCheck={false} maxLength={2048}
-          value={link} placeholder="https://www.autotrader.co.uk/dealers/…"
-          aria-describedby={invalidLink ? `${id}-help ${id}-error` : `${id}-help`}
+          value={link} placeholder="https://www.cazoo.co.uk/dealers/…"
+          aria-describedby={invalidLink ? `${id}-help ${id}-error` : autoTraderUnavailable ? `${id}-help ${id}-manual` : `${id}-help`}
           aria-invalid={invalidLink || undefined} disabled={busy || collecting}
           onChange={event => {
             setLink(event.target.value);
@@ -232,10 +238,15 @@ export function PlatformDemoFromLink({ busy, onBusyChange, onManage }: {
             setError('');
           }}/>
       </label>
-      <Button type="submit" disabled={busy || collecting || !link.trim()}>
+      {(!cazooDealer || collecting) && <Button type="submit" disabled={busy || collecting || autoTraderUnavailable || !link.trim()}>
         {collecting ? 'Creating private demo…' : 'Create private demo'}
-      </Button>
+      </Button>}
     </form>
+    {autoTraderUnavailable && <p id={`${id}-manual`} className="platform-demo-link-progress" role="status">
+      Auto Trader link import is unavailable. You can still set up the demo and upload stock JSON below.
+    </p>}
+    {cazooDealer && !collecting && <PlatformCazooDemo key={cazooDealer.sourceUrl} dealer={cazooDealer}
+      prompt={buildCazooDemoPrompt(cazooDealer)} busy={busy} onBusyChange={onBusyChange} onManage={onManage}/>}
     {collecting && <p className="platform-demo-link-progress" role="status">
       {paused ? 'The stock collection is taking longer than usual.'
         : connectionLost ? 'Waiting to reconnect and check the stock collection…'

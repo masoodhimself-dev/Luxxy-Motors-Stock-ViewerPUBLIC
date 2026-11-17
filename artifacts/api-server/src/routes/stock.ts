@@ -7,7 +7,7 @@ import { currentDealerId, currentTenant, multiTenantEnabled } from "../lib/tenan
 import { stockPlatformIssues } from "../lib/stock-platform";
 import { importAdmission } from '../lib/stock-import-admission';
 import { platformStockUploadBlock, readPlatformStockUploadTarget } from '../lib/platform-stock-upload';
-import { PUBLIC_VEHICLE_CODE_PATTERN, stockDescriptionExtras, vehicleCodeFromPath } from "@workspace/vehicle-meta";
+import { cazooDealershipLink, PUBLIC_VEHICLE_CODE_PATTERN, stockDescriptionExtras, vehicleCodeFromPath } from "@workspace/vehicle-meta";
 import { dealerIntegrationsStore } from "../lib/dealer-integrations-store";
 import { stockSourceData, projectedStockSourceData } from "../lib/stock-source-data";
 import { timingSafeEqual } from "node:crypto";
@@ -92,15 +92,36 @@ function semanticIssues(data: Import, settings: Pick<Awaited<ReturnType<typeof c
   return problems;
 }
 
-export function checkAutoTraderDemoSnapshot(body: unknown, retailerId: string) {
+function checkPrivateDemoSnapshot(body: unknown, retailerId: string, platform: 'autotrader' | 'cazoo') {
   const parsed = ImportGrokStockBody.safeParse(body);
   if (!parsed.success || parsed.data.source !== 'grok') return null;
   const snapshot = parsed.data;
   if (!snapshot.complete || !snapshot.cars.length || snapshot.failedAdvertIds.length || snapshot.errors.length ||
-      snapshot.cars.some(car => car.sourceExtras?.sourcePlatform !== 'autotrader') ||
-      stockPlatformIssues(snapshot.cars, 'autotrader').length ||
+      snapshot.cars.some(car => car.sourceExtras?.sourcePlatform !== platform) ||
+      stockPlatformIssues(snapshot.cars, platform).length ||
       semanticIssues(snapshot, { retailerId, maxAgeHours: envNumber('STOCK_MAX_AGE_HOURS', 24) }).length) return null;
   return snapshot;
+}
+
+export function checkAutoTraderDemoSnapshot(body: unknown, retailerId: string) {
+  return checkPrivateDemoSnapshot(body, retailerId, 'autotrader');
+}
+
+export function checkCazooDemoSnapshot(stock: Record<string, unknown>, retailerId: string) {
+  const retailerNumber = retailerId.slice('cazoo-'.length);
+  if (stock.retailerId !== retailerId && stock.retailerId !== retailerNumber) return null;
+  const body = { ...stock, retailerId };
+  const snapshot = checkPrivateDemoSnapshot(body, retailerId, 'cazoo');
+  if (!snapshot || !snapshot.dealerName.trim() || snapshot.dealerName.trim().length > 100) return null;
+  for (const car of snapshot.cars) {
+    const carDealerId = car.sourceExtras?.cazooDealerId;
+    const stockListUrl = car.sourceExtras?.stockListUrl;
+    if (carDealerId != null &&
+        ((typeof carDealerId !== 'string' && typeof carDealerId !== 'number') ||
+          ![retailerId, retailerNumber].includes(String(carDealerId)))) return null;
+    if (stockListUrl != null && (typeof stockListUrl !== 'string' || cazooDealershipLink(stockListUrl)?.retailerId !== retailerId)) return null;
+  }
+  return { body, snapshot };
 }
 
 async function recordRejected(body: unknown, status: "failed" | "quarantined", problems: Issue[]): Promise<"stored" | "existing" | "conflict"> {
@@ -194,7 +215,8 @@ async function syncImages(tx: any, vehicleId: string, car: Import["cars"][number
   return { before, after };
 }
 
-type PrivateDemoImport = { body: unknown; onImported: (received: number) => void };
+export type StockImportTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type PrivateDemoImport = { body: unknown; transaction?: StockImportTransaction; onImported: (received: number) => void };
 
 async function importStock(req: Request, res: Response, source: ImportSource, platformUpload = false, privateDemo?: PrivateDemoImport): Promise<void> {
   const body: unknown = privateDemo ? privateDemo.body : req.body;
@@ -207,9 +229,9 @@ async function importStock(req: Request, res: Response, source: ImportSource, pl
     req.log.warn("Rejected unauthorized stock import");
     res.status(401).json({ ...identity, status: "rejected", errors: [issue("unauthorized", "Invalid import secret")] }); return;
   }
-  const settings = await config();
+  const settings = await config(privateDemo?.transaction);
   const officialFeedIssue = issue('official_feed_active', 'This dealership uses the official Cazoo CSV connection. Browser-worker imports are disabled.');
-  if (settings.platform === 'cazoo' && await officialCazooEnabled(settings.dealerId, pool)) {
+  if (!privateDemo?.transaction && settings.platform === 'cazoo' && await officialCazooEnabled(settings.dealerId, pool)) {
     res.status(409).json({ ...identity, status: 'rejected', errors: [officialFeedIssue] }); return;
   }
   if (!settings.retailerId) {
@@ -249,7 +271,7 @@ async function importStock(req: Request, res: Response, source: ImportSource, pl
   }
   const payloadHash = hash(body);
   try {
-    const result = await db.transaction(async (tx) => {
+    const applyStock = async (tx: StockImportTransaction) => {
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`stock-import:${settings.dealerId}`}))`);
       if (platformUpload) {
         const target = await readPlatformStockUploadTarget(settings.dealerId, tx, true);
@@ -350,7 +372,8 @@ async function importStock(req: Request, res: Response, source: ImportSource, pl
       }
       await tx.update(stockImportRunsTable).set({ status: "completed", addedCount: created, changedCount: updated, missingCount: missing }).where(tenantAnd(eq(stockImportRunsTable.id, run.id), tenantEq(stockImportRunsTable.dealerId, currentDealerId())));
       return { created, updated, unchanged, missing };
-    });
+    };
+    const result = privateDemo?.transaction ? await applyStock(privateDemo.transaction) : await db.transaction(applyStock);
     if ("uploadBlocked" in result) { res.status(409).json({ error: result.uploadBlocked }); return; }
     if ("freshnessQuarantine" in result) { res.status(422).json({ ...identity, status: "quarantined", errors: result.errors }); return; }
     if ("superseded" in result) { res.status(409).json({ ...identity, status: "rejected", errors: [issue("superseded_snapshot", "A newer snapshot has already been applied", "scrapedAt")] }); return; }

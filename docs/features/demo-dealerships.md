@@ -23,6 +23,12 @@ Grok Bot's routine webhook acknowledges that a run started. In `grok-webhook` mo
 
 See the [Grok Bot webhook reference](https://docs.x.ai/grok-bot/skills-routines-and-automations#webhooks) and [secure secrets reference](https://docs.x.ai/grok-bot/vault#api-keys-and-other-secrets).
 
+## Private demo from a Cazoo link
+
+In **Demo dealerships**, paste a Cazoo dealer stock link ending in its numeric retailer ID, such as `/dealers/dealership-name-12345/`. Copy the prepared prompt into Grok Bot, then paste its JSON reply or upload the JSON file. If the export doesn’t include the dealer’s logo, you can add the image yourself before creating the demo. Select **Open private preview** once the import is complete.
+
+The link and stock export must identify the same retailer. The import uses the real listing photos and requires a fresh, complete snapshot. The preview is only available to signed-in platform administrators. Copying a prompt does not run the collector, create a schedule, or publish a site.
+
 ## One-time setup
 
 The operator selected the existing test domain **luxxyexmaplenumber2.uk**. Proposed demo namespace: **demo.luxxyexmaplenumber2.uk**, so a fictional example is `smith.demo.luxxyexmaplenumber2.uk`. Do not replace the existing apex domain's dealer mapping.

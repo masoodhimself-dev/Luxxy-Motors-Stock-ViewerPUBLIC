@@ -121,7 +121,7 @@ export function PlatformDemos({ dealerId, onCreated, onOpenStock }: { dealerId?:
  return <section className="platform-demo" aria-label={dealerId ? 'Demo controls' : 'Create demo dealership'}>
   <header>
    <h2>{dealerId ? (demo?.converted ? 'Live dealership' : demo?.demo === false ? 'Dealership status' : 'Demo controls') : 'Create a dealer demo'}</h2>
-   <p>{dealerId && demo?.demo === false ? 'Website and integration settings are managed in the dealer portal.' : dealerId ? 'Manage access and expiry for this dealership’s demonstration.' : provision?.linkImportReady ? 'Bring a dealer’s own stock into a private website you can show on a visit.' : 'Set up the dealership’s branding, then import its stock and open the website preview.'}</p>
+   <p>{dealerId && demo?.demo === false ? 'Website and integration settings are managed in the dealer portal.' : dealerId ? 'Manage access and expiry for this dealership’s demonstration.' : 'Bring a dealer’s own stock into a private website you can show on a visit.'}</p>
   </header>
   {error && <p role="alert" className="platform-alert">{error}</p>}
   {notice && <p role="status" className="platform-notice">{notice}</p>}
@@ -148,9 +148,9 @@ export function PlatformDemos({ dealerId, onCreated, onOpenStock }: { dealerId?:
    </>}
    <div className="platform-demo-actions"><article><h3>Extend demo</h3><p>Keep this demonstration available for another 14 days.</p><Button variant="outline" disabled={busy || confirmation !== dealerId} onClick={() => void action('extend')}>Extend for 14 days</Button></article></div>
   </> : <>
-   {provision?.linkImportReady && <PlatformDemoFromLink busy={busy} onBusyChange={setBusy} onManage={onCreated}/>}
-   <details className={provision?.linkImportReady ? 'platform-demo-manual' : undefined} open={provision?.linkImportReady ? undefined : true}>
-   <summary hidden={!provision?.linkImportReady}>Set up manually and upload stock JSON</summary>
+   <PlatformDemoFromLink autoTraderReady={Boolean(provision?.linkImportReady)} busy={busy} onBusyChange={setBusy} onManage={onCreated}/>
+   <details className="platform-demo-manual">
+   <summary>Set up manually and upload stock JSON</summary>
    <form onSubmit={event => { event.preventDefault(); if (canCreate && !busy) void create(); }}>
    <fieldset className="platform-demo-access" disabled={busy}>
     <legend>Demo access</legend>
