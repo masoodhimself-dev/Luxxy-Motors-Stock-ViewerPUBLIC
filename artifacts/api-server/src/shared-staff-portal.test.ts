@@ -57,6 +57,7 @@ test("shared staff portal scopes every workspace to the pilot and a current Full
   const app = express();
   app.use(express.json());
   app.use(createSharedStaffPortal(api, Router()));
+  app.get(["/api/healthz", "/api/readyz"], (_req, res) => { res.json({ healthy: true }); });
   app.use((_req, res) => { res.json({ legacy: !res.locals.sharedStaffPortal, canonical: currentTenant()?.canonicalOrigin }); });
   const server = createServer(app);
   await new Promise<void>((resolve, reject) => server.once("error", reject).listen(0, "127.0.0.1", resolve));
@@ -85,6 +86,9 @@ test("shared staff portal scopes every workspace to the pilot and a current Full
   });
   const staff = { user: "user_fixture" };
   try {
+    assert.deepEqual(await (await call("/api/healthz")).json(), { healthy: true });
+    assert.equal((await call("/api/readyz", { method: "HEAD" })).status, 200);
+    assert.equal((await call("/api/healthz", { method: "POST" })).status, 404);
     assert.equal((await call("/api/staff-portal/memberships")).status, 401);
     assert.deepEqual(await (await call("/api/staff-portal/memberships", { user: "user_legacy" })).json(), { dealerships: [] });
     const memberships = await call("/api/staff-portal/memberships", staff);

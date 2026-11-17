@@ -112,5 +112,13 @@ export function createSharedStaffPortal(
     if (member?.dealerId === page[1]) runWithTenant(tenantForMember(member), next);
     else next();
   });
-  return (req, res, next) => sharedStaffPortalForHost(req.get("host")) ? router(req, res, next) : next();
+  return (req, res, next) => {
+    // Render can send its readiness probes on any verified custom hostname.
+    if ((req.method === "GET" || req.method === "HEAD") && /^\/api\/(healthz|readyz)\/?$/.test(req.path)) {
+      next();
+      return;
+    }
+    if (sharedStaffPortalForHost(req.get("host"))) router(req, res, next);
+    else next();
+  };
 }
