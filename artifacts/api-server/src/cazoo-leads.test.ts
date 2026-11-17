@@ -9,13 +9,10 @@ import { engine } from "./test/tenant-test-db";
 import { runWithTenant } from "./lib/tenant-context";
 import { cazooTestSender, parseCazooDelivery } from "./lib/cazoo-owner-test";
 import { parseCazooLead } from "./lib/cazoo-lead-parser";
-import { cazooAutomaticReplyOptedIn, enquiryAiAutomationEligibility, enquiryAiAutomationOptIns } from "./lib/enquiry-ai-automation";
 import {
   acceptCazooLeadEvent,
   cazooLeadMailboxes,
-  cazooDraftAutomationEligibility,
   processCazooLeads,
-  draftCazooReply,
 } from "./lib/cazoo-leads";
 import { createCazooLeadWebhook } from "./routes/cazoo-lead-webhook";
 import { createCazooLeadRouter } from "./routes/cazoo-leads";
@@ -65,10 +62,12 @@ process.env.CAZOO_LEAD_MAILBOXES = JSON.stringify({
 process.env.RESEND_RECEIVING_API_KEY = "re_fictional_receiver";
 process.env.CAZOO_LEADS_WEBHOOK_SECRET =
   "whsec_" + randomBytes(32).toString("base64");
+process.env.AI_ASSISTANCE_ENABLED = "true";
+process.env.OPENAI_API_KEY = "fictional-only";
+process.env.AI_CAZOO_AUTOMATIC_REPLY_DEALERS = JSON.stringify({"cazoo-a": "2026-01-01T00:00:00.000Z"});
 process.env.AI_ENQUIRY_AUTOMATION = JSON.stringify({
   "cazoo-a": { provider: "cazoo", enabled: true },
 });
-const draftSkip = async () => "skipped" as const;
 function transportFor(payloads: Record<string, any>): typeof fetch {
   return async (url, options) => {
     assert.equal(options?.redirect, "error");
@@ -81,93 +80,6 @@ function transportFor(payloads: Record<string, any>): typeof fetch {
   };
 }
 test.after(() => engine.close());
-const automationEvidence = () => ({
-  dealerActive: true,
-  demo: false,
-  provider: "cazoo" as const,
-  optIn: { provider: "cazoo" as const, enabled: true },
-  aiAvailable: true,
-  stock: { provider: "cazoo", enabled: true, verified: true },
-  dedicatedMailbox: { provider: "cazoo" as const, connected: true },
-});
-test("background AI opt-ins are explicit, exact and fail closed", () => {
-  const valid = { "cazoo-a": { provider: "cazoo", enabled: true } };
-  assert.deepEqual(enquiryAiAutomationOptIns({ AI_ENQUIRY_AUTOMATION: JSON.stringify(valid) }), valid);
-  assert.equal(enquiryAiAutomationOptIns({ AI_ENQUIRY_AUTOMATION: JSON.stringify(valid) })["cazoo-b"], undefined);
-  for (const input of ["", "no json", "[]", "null", JSON.stringify({ "*": valid["cazoo-a"] }), JSON.stringify({ "cazoo-a": { provider: "cazoo", enabled: "true" } }), JSON.stringify({ "cazoo-a": { provider: "other", enabled: true } }), JSON.stringify({ "cazoo-a": { provider: "cazoo", enabled: true, autoSend: true } }), "x".repeat(65537)])
-    assert.deepEqual(enquiryAiAutomationOptIns({ AI_ENQUIRY_AUTOMATION: input }), {});
-});
-test("automatic replies require the exact dealer and only apply from activation", () => {
-  const activation = "2026-01-01T00:00:00.000Z";
-  const valid = JSON.stringify({ "cazoo-a": activation, "cazoo-b": activation });
-  const optIn = (value: string | undefined, dealer = "cazoo-a", receivedAt?: Date) =>
-    cazooAutomaticReplyOptedIn(dealer, { AI_CAZOO_AUTOMATIC_REPLY_DEALERS: value }, receivedAt);
-  assert.equal(optIn(valid), true);
-  assert.equal(optIn(valid, "cazoo-aa"), false);
-  assert.equal(optIn(valid, "Cazoo-a"), false);
-  assert.equal(optIn(valid, "cazoo-a", new Date(activation)), true);
-  assert.equal(optIn(valid, "cazoo-a", new Date(Date.parse(activation) - 1)), false);
-  assert.equal(optIn(valid, "cazoo-a", new Date("invalid")), false);
-  for (const value of [undefined, "", "no json", "null", "true", '["cazoo-a"]', '{"*":"2026-01-01T00:00:00.000Z"}', '{"cazoo-a":true}', '{"cazoo-a":"2026-01-01"}', '{"cazoo-a":"invalid"}', '{"cazoo-a":"2999-01-01T00:00:00.000Z"}', "x".repeat(65537)])
-    assert.equal(optIn(value), false);
-});
-test("automatic first replies need draft eligibility, a separate send opt-in and outbound readiness", () => {
-  const evidence = { ...automationEvidence(), automaticReplyOptIn: true, automaticReplyDeliveryAvailable: true };
-  const result = enquiryAiAutomationEligibility(evidence);
-  assert.equal(result.automaticDraftsEnabled, true);
-  assert.equal(result.automaticRepliesEnabled, true);
-  assert.equal(result.mode, "automatic_reply");
-  assert.deepEqual(result.replyBlockers, []);
-  const noOptIn = enquiryAiAutomationEligibility({ ...evidence, automaticReplyOptIn: false });
-  assert.equal(noOptIn.automaticRepliesEnabled, false);
-  assert.equal(noOptIn.mode, "draft_only");
-  assert.deepEqual(noOptIn.replyBlockers, ["automatic_reply_not_enabled"]);
-  const noDelivery = enquiryAiAutomationEligibility({ ...evidence, automaticReplyDeliveryAvailable: false });
-  assert.equal(noDelivery.automaticRepliesEnabled, false);
-  assert.equal(noDelivery.mode, "draft_only");
-  assert.deepEqual(noDelivery.replyBlockers, ["automatic_reply_delivery_unavailable"]);
-});
-test("Cazoo stock alone never enables background AI and every gate is required", () => {
-  const evidence = automationEvidence();
-  const eligible = enquiryAiAutomationEligibility(evidence);
-  assert.equal(eligible.automaticDraftsEnabled, true);
-  assert.equal(eligible.mode, "draft_only");
-  assert.equal(eligible.automaticRepliesEnabled, false);
-  const denied = [
-    { ...evidence, optIn: undefined },
-    { ...evidence, optIn: { provider: "cazoo" as const, enabled: false } },
-    { ...evidence, optIn: { provider: "autotrader" as const, enabled: true } },
-    { ...evidence, aiAvailable: false },
-    { ...evidence, dealerActive: false },
-    { ...evidence, demo: true },
-    { ...evidence, stock: { ...evidence.stock, enabled: false } },
-    { ...evidence, stock: { ...evidence.stock, verified: false } },
-    { ...evidence, stock: { ...evidence.stock, provider: "autotrader" } },
-    { ...evidence, dedicatedMailbox: { ...evidence.dedicatedMailbox, connected: false } },
-    { ...evidence, dedicatedMailbox: { provider: "autotrader" as const, connected: true } },
-  ];
-  for (const input of denied) {
-    const result = enquiryAiAutomationEligibility({ ...input, automaticReplyOptIn: true, automaticReplyDeliveryAvailable: true });
-    assert.equal(result.automaticDraftsEnabled, false);
-    assert.equal(result.mode, "manual");
-    assert.equal(result.automaticRepliesEnabled, false);
-    assert.ok(result.blockers.length);
-  }
-});
-test("future Auto Trader opt-ins cannot claim an implemented adapter or send loop", () => {
-  const result = enquiryAiAutomationEligibility({
-    ...automationEvidence(),
-    provider: "autotrader",
-    optIn: { provider: "autotrader", enabled: true },
-    stock: { provider: "autotrader", enabled: true, verified: true },
-    dedicatedMailbox: { provider: "autotrader", connected: true },
-    automaticReplyOptIn: true,
-    automaticReplyDeliveryAvailable: true,
-  });
-  assert.equal(result.automaticDraftsEnabled, false);
-  assert.equal(result.automaticRepliesEnabled, false);
-  assert.deepEqual(result.blockers, ["provider_unavailable"]);
-});
 test("parser extracts the customer section from text and HTML", () => {
   const parsed = parseCazooLead(email());
   assert.equal(parsed.email, "sam@example.test");
@@ -337,8 +249,7 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
     "valid lead becomes an enquiry and marketplace sales lead",
     async () => {
       await processCazooLeads(
-        transportFor({ [first]: email(first) }),
-        draftSkip,
+        transportFor({ [first]: email(first) })
       );
       const r = await receipt(first);
       assert.equal(r.status, "imported");
@@ -368,8 +279,7 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
       await queue(first);
       const duplicate = await queue();
       await processCazooLeads(
-        transportFor({ [duplicate]: email(duplicate) }),
-        draftSkip,
+        transportFor({ [duplicate]: email(duplicate) })
       );
       assert.equal((await receipt(duplicate)).status, "duplicate");
       assert.equal(
@@ -388,9 +298,7 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
       .replace("Do you accept px for a Lexus GS450h 2008?", "Is it still available?\nCustomer details\nunrelated@example.test")
       .replace("sam@example.test\n", "");
     assert.throws(() => parseCazooLead(email(provider, { text: planted })), { code: "unrecognised_message_layout" });
-    await processCazooLeads(transportFor({ [provider]: email(provider, { text: planted }) }), async () => {
-      assert.fail("A message with an ambiguous contact block must not produce a customer draft");
-    });
+    await processCazooLeads(transportFor({ [provider]: email(provider, { text: planted }) }));
     const result = await receipt(provider);
     assert.equal(result.status, "review");
     assert.equal(result.error_code, "unrecognised_message_layout");
@@ -419,7 +327,7 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
         .replace("07400000000", "07400 000000 ( tel:07400000000 )") }),
       [phoneOnly]: email(phoneOnly, { text: bodyWithoutEmail("5".repeat(32)) }),
       [contactMissing]: email(contactMissing, { text: blankAvailability(bodyWithoutEmail("6".repeat(32)).replace("07400000000\n", "")) }),
-    }), draftSkip);
+    }));
     for (const [id, expectedEmail, expectedPhone, expectedContact] of [
       [repeated, "sam@example.test", "07400000000", "email"],
       [phoneOnly, null, "07400000000", "phone"],
@@ -448,7 +356,7 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
       const invalidPhone = "07400";
       await processCazooLeads(transportFor({
         [provider]: email(provider, {text: text("e".repeat(32)).replace("07400000000", invalidPhone).replace("Sam Example\n", "")}),
-      }), draftSkip);
+      }));
       const r = await receipt(provider);
       assert.equal(r.status, "imported");
       assert.equal(r.review_text, null);
@@ -464,125 +372,50 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
       assert.equal((await engine.query<any>("SELECT count(*)::int AS n FROM email_outbox")).rows[0].n, 0);
     },
   );
-  await t.test(
-    "AI draft is budgeted, targets customer and never replaces an existing draft",
-    async () => {
-      process.env.AI_ASSISTANCE_ENABLED = "true";
-      process.env.OPENAI_API_KEY = "fictional-test-only";
-      const r = await receipt(first);
-      let calls = 0;
-      const generated = async (_task: any, _question: string, facts: any) => {
-        calls++;
-        assert.equal(facts.dealer.identity.name, "Fictional A");
-        assert.ok(!JSON.stringify(facts).includes("sam@example.test"));
-        return {
-          result: {
-            answer:
-              "Hi, please send your registration and mileage so we can discuss part exchange.",
-            vehicleIds: [],
-            questions: [],
-            evidence: [carId],
-          },
-          cost: 1,
-        };
-      };
-      const getCar = async () => ({
-        id: carId,
-        make: "Lexus",
-        model: "RX",
-        inventoryStatus: "available",
-      });
-      const optedIn = process.env.AI_ENQUIRY_AUTOMATION;
-      delete process.env.AI_ENQUIRY_AUTOMATION;
-      try {
-        assert.equal(await runWithTenant(tenant(), () => draftCazooReply(r, generated, getCar)), "skipped");
-        assert.equal(calls, 0, "No paid AI request without this dealer's explicit opt-in");
-        assert.ok((await cazooDraftAutomationEligibility("cazoo-a")).blockers.includes("not_enabled"));
-      } finally { process.env.AI_ENQUIRY_AUTOMATION = optedIn; }
-      assert.equal((await cazooDraftAutomationEligibility("cazoo-a", second)).automaticDraftsEnabled, false);
-      assert.equal((await cazooDraftAutomationEligibility("cazoo-b")).automaticDraftsEnabled, false);
-      await engine.query("UPDATE enquiries SET email='buyer@private.icloud.com' WHERE id=$1", [r.enquiry_id]);
-      try {
-        assert.equal(await runWithTenant(tenant(), () => draftCazooReply(r, generated, getCar)), "skipped");
-        assert.equal(calls, 0, "Private relay enquiries do not start an automated email draft");
-      } finally {
-        await engine.query("UPDATE enquiries SET email='sam@example.test' WHERE id=$1", [r.enquiry_id]);
-      }
-      assert.equal(
-        await runWithTenant(tenant(), () =>
-          draftCazooReply(r, generated, getCar),
-        ),
-        "ready",
-      );
-      assert.equal(
-        await runWithTenant(tenant(), () =>
-          draftCazooReply(r, generated, getCar),
-        ),
-        "skipped",
-      );
-      assert.equal(calls, 1);
-      const draft = (
-        await engine.query<any>(
-          "SELECT * FROM enquiry_email_drafts WHERE enquiry_id=$1",
-          [r.enquiry_id],
-        )
-      ).rows[0];
-      assert.equal(draft.content.to, "sam@example.test");
-      assert.equal(draft.status, "draft");
-      assert.equal(draft.source, "ai");
-      assert.equal(
-        (await engine.query<any>("SELECT count(*)::int AS n FROM email_outbox"))
-          .rows[0].n,
-        0,
-      );
-    },
-  );
-  await t.test("official Cazoo stock takes precedence and requires a matching applied import", async () => {
-    const runId = "cazoo-csv:cazoo-a:fixture";
-    await engine.exec("INSERT INTO cazoo_feed_authority(dealer_id,retailer_id,feed_id,enabled) VALUES('cazoo-a','fake','AETA1',true)");
-    try {
-      assert.equal((await cazooDraftAutomationEligibility("cazoo-a")).automaticDraftsEnabled, false);
-      await engine.query(
-        "INSERT INTO stock_import_runs(run_id,dealer_id,source,retailer_id,schema_version,scraped_at,expected_count,received_count,complete,status,raw_snapshot) VALUES($1,'cazoo-a','cazoo','fake','1',now(),1,1,true,'completed','{}'::jsonb)",
-        [runId],
-      );
-      assert.equal((await cazooDraftAutomationEligibility("cazoo-a")).automaticDraftsEnabled, true);
-      await engine.exec("UPDATE cazoo_feed_authority SET enabled=false WHERE dealer_id='cazoo-a'");
-      assert.equal((await cazooDraftAutomationEligibility("cazoo-a")).automaticDraftsEnabled, false);
-      await engine.exec("UPDATE cazoo_feed_authority SET enabled=true,retailer_id='other' WHERE dealer_id='cazoo-a'");
-      assert.equal((await cazooDraftAutomationEligibility("cazoo-a")).automaticDraftsEnabled, false);
-    } finally {
-      await engine.query("DELETE FROM stock_import_runs WHERE run_id=$1", [runId]);
-      await engine.exec("DELETE FROM cazoo_feed_authority WHERE dealer_id='cazoo-a'");
-    }
+  await t.test("new Cazoo leads and earlier pending receipts stay manual even with old opt-ins", async () => {
+    const incoming = await queue();
+    assert.equal((await receipt(incoming)).draft_status, "skipped");
+    const original = await receipt(first);
+    await engine.query("UPDATE cazoo_lead_receipts SET draft_status='pending' WHERE id=$1", [original.id]);
+
+    await processCazooLeads(transportFor({
+      [incoming]: email(incoming, {
+        text: text("f".repeat(32)).replace("Do you accept px for a Lexus GS450h 2008?", "Is it still available?"),
+      }),
+    }));
+
+    const imported = await receipt(incoming);
+    assert.equal(imported.status, "imported");
+    assert.equal(imported.draft_status, "skipped");
+    assert.equal((await engine.query("SELECT 1 FROM enquiry_email_drafts")).rows.length, 0);
+    assert.equal((await engine.query("SELECT 1 FROM ai_assistance_requests")).rows.length, 0);
+    assert.equal((await engine.query("SELECT 1 FROM email_outbox")).rows.length, 0);
   });
-  await t.test("background drafts share verified MOT context/audit and archived cases make no calls", async () => {
-    const provider = await queue();
-    await processCazooLeads(transportFor({ [provider]: email(provider, { text: text("f".repeat(32)).replace("Do you accept px for a Lexus GS450h 2008?", "What is the MOT expiry and any advisories? Does it have pqrking sensors, what is reg?") }) }), draftSkip);
-    const row = await receipt(provider);
-    let generated = 0, lookedUp = 0;
-    const getCar = async () => ({ id: carId, registration: "AB15CDE", make: "Lexus", model: "RX", inventoryStatus: "available", features: [], specifications: { features: ["Rear parking sensors"] } });
-    const lookup = async (registration: string) => { lookedUp++; assert.equal(registration, "AB15CDE"); return { registration, make: "Lexus", model: "RX", checkedAt: new Date().toISOString(), recall: "Unknown" as const, tests: [{ completedDate: "2026-01-01", result: "PASSED" as const, expiryDate: "2027-01-01", mileage: "50000", mileageUnit: "MI" as const, defects: [{ text: "Tyre worn", type: "ADVISORY", dangerous: false }] }] }; };
-    const generate = async (_task: any, _question: string, facts: any) => {
-      generated++;
-      assert.equal(facts.cars[0].mot.latest.result, "PASSED");
-      assert.deepEqual(facts.cars[0].features, ["Rear parking sensors"]);
-      assert.ok(facts.verification.questions.some((check: any) => check.topic === "registration"));
-      return { result: { answer: "The recorded MOT expiry is 1 January 2027 and it lists a tyre advisory. Rear parking sensors are listed. The registration is AB15CDE.", vehicleIds: [], questions: [], evidence: [carId] }, cost: 1 };
-    };
-    await engine.query("UPDATE enquiries SET archived_at=now(),archive_delete_at=now()+interval '30 days' WHERE id=$1", [row.enquiry_id]);
-    assert.equal(await runWithTenant(tenant(), () => draftCazooReply(row, generate, getCar, lookup)), "skipped");
-    assert.equal(lookedUp, 0);
-    assert.equal(generated, 0);
-    await engine.query("UPDATE enquiries SET archived_at=NULL,archive_delete_at=NULL WHERE id=$1", [row.enquiry_id]);
-    assert.equal(await runWithTenant(tenant(), () => draftCazooReply(row, generate, getCar, lookup)), "ready");
-    assert.equal(lookedUp, 1);
-    assert.equal(generated, 1);
-    const audit = (await engine.query<any>("SELECT context_audit FROM ai_assistance_requests WHERE dealer_id='cazoo-a' AND request_id=$1", [row.id])).rows[0].context_audit;
-    assert.equal(audit.enquiryId, row.enquiry_id);
-    assert.equal(audit.lookups[0].status, "verified");
-    assert.ok(!JSON.stringify(audit).includes("sam@example.test"));
-    assert.equal((await engine.query<any>("SELECT count(*)::int AS n FROM email_outbox")).rows[0].n, 0);
+  await t.test("rollout retires original worker drafts while preserving staff edits and uncertain sends", async () => {
+    const untouched = (await receipt(first)).enquiry_id;
+    const staffEdited = randomUUID(), uncertain = randomUUID();
+    await engine.query(
+      "INSERT INTO enquiries(id,dealer_id,source,type,customer_name,message) VALUES($1,'cazoo-a','cazoo','general','Staff draft fixture','New lead'),($2,'cazoo-a','cazoo','general','Uncertain fixture','New lead')",
+      [staffEdited, uncertain],
+    );
+    const draftContent = JSON.stringify({message: "Existing text"});
+    await engine.query(
+      `INSERT INTO enquiry_email_drafts(dealer_id,enquiry_id,status,source,content,updated_by) VALUES
+        ('cazoo-a',$1,'draft','ai',$4::jsonb,'cazoo-draft-worker'),
+        ('cazoo-a',$2,'draft','ai',$4::jsonb,'fixture-staff'),
+        ('cazoo-a',$3,'unknown','ai',$4::jsonb,'cazoo-draft-worker')`,
+      [untouched, staffEdited, uncertain, draftContent],
+    );
+    await engine.exec(await readFile("../../lib/db/drizzle/0093_retire_cazoo_automatic_replies.sql", "utf8"));
+
+    const draft = async (id: string) => (await engine.query<{status: string; version: number; content: unknown}>(
+      "SELECT status,version,content FROM enquiry_email_drafts WHERE dealer_id='cazoo-a' AND enquiry_id=$1",
+      [id],
+    )).rows[0];
+    assert.deepEqual(await draft(untouched), {status: "discarded", version: 2, content: {message: "Existing text"}});
+    assert.equal((await draft(staffEdited))?.status, "draft");
+    assert.equal((await draft(uncertain))?.status, "unknown");
+    assert.equal((await receipt(first)).draft_status, "skipped");
   });
   await t.test(
     "bad layouts stay visible and missing vehicles never match another dealer",
@@ -596,8 +429,7 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
             subject: "Enquiry - Ford Focus ZZ99ZZZ - sam",
             text: text("c".repeat(32)),
           }),
-        }),
-        draftSkip,
+        })
       );
       assert.equal((await receipt(bad)).status, "review");
       assert.equal((await receipt(bad)).review_text, "A changed email layout");
@@ -620,8 +452,7 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
     async () => {
       const provider = await queue();
       await processCazooLeads(
-        async () => new Response("unavailable", { status: 503 }),
-        draftSkip,
+        async () => new Response("unavailable", { status: 503 })
       );
       assert.equal((await receipt(provider)).status, "pending");
       await engine.query(
@@ -631,8 +462,7 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
       await processCazooLeads(
         transportFor({
           [provider]: email(provider, { text: text("d".repeat(32)) }),
-        }),
-        draftSkip,
+        })
       );
       assert.equal((await receipt(provider)).status, "imported");
       const exhausted = await queue();
@@ -640,7 +470,7 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
         "UPDATE cazoo_lead_receipts SET status='processing',attempts=8,lease_until=now()-interval '1 minute' WHERE provider_id=$1",
         [exhausted],
       );
-      await processCazooLeads(transportFor({}), draftSkip);
+      await processCazooLeads(transportFor({}));
       assert.equal((await receipt(exhausted)).status, "review");
     },
   );
@@ -692,6 +522,11 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
         assert.equal(data.automation.automaticDraftsEnabled, false);
         assert.equal(data.automation.automaticRepliesEnabled, false);
         assert.deepEqual(data.receipts, []);
+        const optedInResponse = await fetch(url, {headers: {"x-fixture-role": "owner"}});
+        const optedIn = await optedInResponse.json() as any;
+        assert.equal(optedIn.automation.mode, "manual");
+        assert.equal(optedIn.automation.automaticDraftsEnabled, false);
+        assert.equal(optedIn.automation.automaticRepliesEnabled, false);
         assert.equal(
           (
             await fetch(url + `/${row.id}/retry`, {
@@ -738,7 +573,7 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
   await t.test("owners can configure forwarding and recover a verified receipt without reimporting", async () => {
     const review = await queue();
     const original = email(review, { text: text("1".repeat(32)).replace("sam@example.test", "sam@example.test ( another@example.test )") });
-    await processCazooLeads(transportFor({ [review]: original }), draftSkip);
+    await processCazooLeads(transportFor({ [review]: original }));
     const before = await receipt(review);
     assert.equal(before.error_code, "missing_or_ambiguous_customer_email");
 
@@ -816,7 +651,7 @@ test("durable receiving imports once, scopes dealers and never sends", async (t)
       await processCazooLeads(transportFor({
         [direct]: partExchange,
         [reviewAgain]: email(reviewAgain, { text: text("3".repeat(32)).replace("sam@example.test", "sam@example.test ( another@example.test )") }),
-      }), draftSkip);
+      }));
       const importedPartExchange = await receipt(direct);
       assert.equal(importedPartExchange.status, "imported");
       const entry = (await engine.query(
@@ -942,7 +777,7 @@ test("owner testing is exact, temporary, authenticated and cannot consume a genu
     assert.throws(() => parseCazooDelivery("cazoo-a", {...forwarded, subject:"Hello", text:"A plain test with no car reference"}, now));
 
     await queue(id);
-    await processCazooLeads(transportFor({[id]:forwarded}), draftSkip);
+    await processCazooLeads(transportFor({[id]:forwarded}));
     const receiptRow = await receipt(id);
     assert.equal(receiptRow.status,"imported");
     assert.equal(receiptRow.error_code,"owner_test");
@@ -952,11 +787,8 @@ test("owner testing is exact, temporary, authenticated and cannot consume a genu
     assert.equal(enquiry.phone,null);
     assert.match(enquiry.staff_note,/Owner test/);
     assert.notEqual(receiptRow.correlation_id,"a".repeat(32));
-    const generated = async () => ({result:{answer:"Hi, we accept part exchange. Please share your registration and current mileage.",vehicleIds:[],questions:[],evidence:[carId]},cost:1});
-    assert.equal(await runWithTenant(tenant(),()=>draftCazooReply(receiptRow,generated,async()=>({id:carId,make:"Lexus",model:"RX",inventoryStatus:"available"}))),"ready");
-    const draft = (await engine.query<any>("SELECT content FROM enquiry_email_drafts WHERE enquiry_id=$1",[receiptRow.enquiry_id])).rows[0];
-    assert.equal(draft.content.to,owner);
-    assert.ok(!JSON.stringify(draft.content).includes("sam@example.test"));
+    assert.equal(receiptRow.draft_status, "skipped");
+    assert.equal((await engine.query("SELECT 1 FROM enquiry_email_drafts WHERE enquiry_id=$1",[receiptRow.enquiry_id])).rows.length, 0);
     assert.equal((await engine.query<any>("SELECT count(*)::int AS n FROM email_outbox")).rows[0].n,0);
   } finally { delete process.env.CAZOO_OWNER_TEST_SENDERS; }
 });

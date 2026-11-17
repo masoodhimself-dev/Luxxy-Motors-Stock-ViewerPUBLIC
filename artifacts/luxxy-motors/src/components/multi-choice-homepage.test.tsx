@@ -34,7 +34,7 @@ it('uses the shared homepage with only another dealership’s published content 
   expect(screen.getByRole('img', { name: 'Shore Drive showroom' })).toHaveAttribute('src', '/shore-showroom.jpg');
   expect(screen.getByRole('region', { name: 'Buying from Shore Drive' })).toHaveAttribute('id', 'about');
   expect(screen.getByText('Ask about the vehicle records before your visit.')).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: /Email us\s*hello@shoredrive.uk/ })).toHaveAttribute('href', 'mailto:hello@shoredrive.uk');
+  expect(screen.getByRole('link', { name: /Email\s*hello@shoredrive.uk/ })).toHaveAttribute('href', 'mailto:hello@shoredrive.uk');
   expect(view.container.textContent).not.toMatch(/6.month warranty|36 months|price.checked daily|triple.check|same day drive away|hayes|coldharbour/i);
   expect(view.container.innerHTML).not.toContain('multichoicemotors.co.uk');
   expect(JSON.stringify(config)).toBe(before);
@@ -47,7 +47,7 @@ it('uses the dealership’s own stock photograph when no hero is configured and 
   expect(screen.getByRole('img', { name: 'New Dealership cars' })).toHaveAttribute('src', 'https://photos.example.test/toyota.jpg');
   view.rerender(<Harness config={config} stock={[]} />);
   expect(document.querySelector('.mh-hero-photo')).toBeNull();
-  expect(screen.getByRole('heading', { level: 1, name: 'Find your next car' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { level: 1, name: 'Used cars for sale' })).toBeInTheDocument();
   expect(screen.queryByText(/6.month warranty/i)).not.toBeInTheDocument();
 });
 

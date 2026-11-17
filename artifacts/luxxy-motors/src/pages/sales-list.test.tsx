@@ -100,7 +100,7 @@ it('flags funds or pending payments on a released reservation without claiming t
 it('waits for the latest full sale before allowing edits',async()=>{
  let finish!:(v:unknown)=>void;const saved=full('a','Current Customer');saved.revision=9;
  state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace?queue=attention'?{sales:[summary('a','Old summary')],hasMore:false}:new Promise(r=>{finish=r}));
- mount();fireEvent.click(await screen.findByRole('button',{name:/Old summary/}));await screen.findByText('Opening the complete sale…');
+ mount();fireEvent.click(await screen.findByRole('button',{name:/Old summary/}));await screen.findByText('Opening sale…');
  expect(screen.queryByRole('heading',{name:'Choose a car'})).not.toBeInTheDocument();expect(writes()).toHaveLength(0);
  await act(async()=>{finish({sale:saved});});expect(await openCarScreen()).toBeVisible();expect(document.body).toHaveTextContent('Current Customer');expect(reads()).toContain('/api/sale-workspace/a');expect(writes()).toHaveLength(0);
 });
@@ -171,7 +171,7 @@ it('waits for slow stock before prefilling a new enquiry-linked sale and keeps t
  state.search='?section=sales&enquiryId=new-enquiry';state.stock=null;state.stockLoading=true;
  state.enquiries=[{id:'new-enquiry',customerName:'Linked Buyer',email:'linked@example.test',phone:'07700900123',vehicleId:'car-one',vehicleTitle:'Earlier title',vehicleRegistration:'AB12CDE'}];
  state.api.mockResolvedValue({sales:[],hasMore:false});const view=mount();
- expect(await screen.findByText('Opening the complete sale…')).toBeVisible();
+ expect(await screen.findByText('Opening sale…')).toBeVisible();
  expect(screen.queryByRole('heading',{name:'Choose a car'})).not.toBeInTheDocument();
  expect(reads()).not.toContain('/api/sale-workspace?enquiryId=new-enquiry');
  state.stock={cars:[{id:'car-one',make:'Ford',model:'Focus',title:'Ford Focus',price:6789,registration:'AB12CDE',inventoryStatus:'available'}]};state.stockLoading=false;view.refresh();
@@ -186,7 +186,7 @@ it('waits for slow stock before prefilling a new enquiry-linked sale and keeps t
 it('keeps a manual invoice started while linked stock is loading',async()=>{
  state.search='?section=sales&enquiryId=new-enquiry';state.stock=null;state.stockLoading=true;
  state.enquiries=[{id:'new-enquiry',customerName:'Linked Buyer',vehicleId:'car-one',vehicleTitle:'Ford Focus'}];
- state.api.mockResolvedValue({sales:[],hasMore:false});const view=mount();await screen.findByText('Opening the complete sale…');
+ state.api.mockResolvedValue({sales:[],hasMore:false});const view=mount();await screen.findByText('Opening sale…');
  fireEvent.click(screen.getByRole('button',{name:'New sale'}));fireEvent.change(screen.getByLabelText('Agreed vehicle price (£)'),{target:{value:'4321'}});
  state.stock={cars:[{id:'car-one',title:'Ford Focus',price:6789,inventoryStatus:'available'}]};state.stockLoading=false;view.refresh();
  expect(screen.getByLabelText('Agreed vehicle price (£)')).toHaveValue('4321');
@@ -213,8 +213,8 @@ it.each(['refund','note'])('does not claim the calculated balance is owed after 
  const row={...summary('completed-corrected','Corrected Buyer'),completedAt:saved.completedAt,listTotalDue:600000,listPaid:kind==='refund'?550000:600000,listPending:0,listBalance:kind==='refund'?50000:0,listHasRefunds:kind==='refund',listHasCorrectionNotes:kind==='note'};
  state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace?queue=attention'?{sales:[row],hasMore:false}:p==='/api/sale-workspace/paperwork'?{correctionSettings:{handling:'accountant',instructions:''}}:{sale:saved});mount();
  const listRow=await screen.findByRole('button',{name:/Corrected Buyer/});expect(listRow).toHaveTextContent('Review correction with accountant');expect(listRow).toHaveTextContent('Calculated balance (review)');expect(listRow).not.toHaveTextContent('Balance due');
- fireEvent.click(listRow);const detail=(await openCarScreen()).closest('.sale-desk') as HTMLElement;expect(detail).toHaveTextContent('Balance to review');expect(detail).not.toHaveTextContent('Balance due');expect(detail).toHaveTextContent('refunds or external corrections');expect(detail).toHaveTextContent('before relying on the calculated balance');
- navigateSection('Payments');expect(screen.getAllByText('Balance to review').some(element=>element.closest('.sale-desk'))).toBe(true);expect(screen.queryByText('Balance due')).not.toBeInTheDocument();expect(screen.getByRole('alert')).toHaveTextContent('before relying on the calculated balance');expect(writes()).toHaveLength(0);
+ fireEvent.click(listRow);const detail=(await openCarScreen()).closest('.sale-desk') as HTMLElement;expect(detail).toHaveTextContent('Balance to review');expect(detail).not.toHaveTextContent('Balance due');expect(detail).toHaveTextContent('The sale has refunds or corrections.');expect(detail).toHaveTextContent('Check the original paperwork and payments before using this balance.');
+ navigateSection('Payments');expect(screen.getAllByText('Balance to review').some(element=>element.closest('.sale-desk'))).toBe(true);expect(screen.queryByText('Balance due')).not.toBeInTheDocument();expect(screen.getByRole('alert')).toHaveTextContent('Check the original paperwork and payments before using this balance.');expect(writes()).toHaveLength(0);
 });
 
 it('flags an externally corrected deposit invoice even before a sale is completed',async()=>{
@@ -222,7 +222,7 @@ it('flags an externally corrected deposit invoice even before a sale is complete
  const row={...summary('deposit-note','Deposit Buyer'),listTotalDue:600000,listPaid:100000,listPending:0,listBalance:500000,listHasCorrectionNotes:true};
  state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace?queue=attention'?{sales:[row],hasMore:false}:{sale:saved});mount();
  const listRow=await screen.findByRole('button',{name:/Deposit Buyer/});expect(listRow).toHaveTextContent('Review correction with accountant');expect(listRow).toHaveTextContent('Calculated balance (review): £5,000.00');expect(listRow).not.toHaveTextContent('Balance due');
- fireEvent.click(listRow);const detail=(await openCarScreen()).closest('.sale-desk') as HTMLElement;expect(detail).toHaveTextContent('refunds or external corrections');expect(detail).toHaveTextContent('Balance to review');expect(detail).not.toHaveTextContent('Balance due');expect(writes()).toHaveLength(0);
+ fireEvent.click(listRow);const detail=(await openCarScreen()).closest('.sale-desk') as HTMLElement;expect(detail).toHaveTextContent('The sale has refunds or corrections.');expect(detail).toHaveTextContent('Balance to review');expect(detail).not.toHaveTextContent('Balance due');expect(writes()).toHaveLength(0);
 });
 
 it('flags an external correction on a released reservation without displaying a balance due',async()=>{
@@ -230,7 +230,7 @@ it('flags an external correction on a released reservation without displaying a 
  const row={...summary('released-note','Released Buyer'),lifecycle:saved.lifecycle,listTotalDue:600000,listPaid:0,listPending:0,listBalance:600000,listHasCorrectionNotes:true};
  state.api.mockImplementation(async(p:string)=>p==='/api/sale-workspace?queue=attention'?{sales:[row],hasMore:false}:{sale:saved});mount();
  const listRow=await screen.findByRole('button',{name:/Released Buyer/});expect(listRow).toHaveTextContent('Review correction with accountant');expect(listRow).not.toHaveTextContent('Balance due');
- fireEvent.click(listRow);const detail=(await openCarScreen()).closest('.sale-desk') as HTMLElement;expect(detail).toHaveTextContent('refunds or external corrections');expect(detail).not.toHaveTextContent('Balance due');expect(writes()).toHaveLength(0);
+ fireEvent.click(listRow);const detail=(await openCarScreen()).closest('.sale-desk') as HTMLElement;expect(detail).toHaveTextContent('The sale has refunds or corrections.');expect(detail).not.toHaveTextContent('Balance due');expect(writes()).toHaveLength(0);
 });
 
 it('keeps Accounts payment and invoice access on existing sales without offering new sales or detail edits',async()=>{

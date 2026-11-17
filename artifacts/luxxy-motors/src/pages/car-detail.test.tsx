@@ -139,7 +139,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 it.each(['band-only', 'with-plate'])('includes the quality section on every vehicle page, even without public enquiry access (%s)', id => {
   renderVehicle(id);
-  const quality = screen.getByRole('region', { name: 'Quality is assured' });
+  const quality = screen.getByRole('region', { name: 'Pre-sale checks' });
   expect(within(quality).getAllByRole('listitem')).toHaveLength(10);
   expect(within(quality).getByRole('link', { name: 'Contact the showroom' })).toHaveAttribute('href', '/contact');
 });
@@ -147,7 +147,7 @@ it.each(['band-only', 'with-plate'])('includes the quality section on every vehi
 it('reports a temporary vehicle error instead of calling the car missing', () => {
   stockStatus.vehicleError = 'Network unavailable';
   renderVehicle('with-plate');
-  expect(screen.getByRole('heading', { name: 'Vehicle details could not be loaded' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Couldn’t load this car' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   expect(screen.queryByRole('heading', { name: /not found/i })).not.toBeInTheDocument();
   expect(document.querySelector('meta[name="robots"]')?.getAttribute('content')).toMatch(/^noindex/);

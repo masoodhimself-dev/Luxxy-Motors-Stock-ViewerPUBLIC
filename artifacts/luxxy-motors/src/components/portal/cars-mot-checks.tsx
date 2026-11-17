@@ -82,7 +82,6 @@ export function CarsMotCheckStatus({ checks }: { checks: ReturnType<typeof useCa
         {data.current.missingRegistration > 0 && ` · ${data.current.missingRegistration} without a usable registration`}
         {"preview" in data && data.preview === true && " · Preview check"}
       </p>
-      <p className="cars-mot-check-note">New arrivals are checked automatically. Available and reserved cars only.</p>
     </div>
     {active && total > 0 && <progress aria-label="MOT check progress" value={Math.min(done, total)} max={total} />}
   </div>;

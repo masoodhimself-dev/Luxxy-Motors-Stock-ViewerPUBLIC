@@ -443,7 +443,7 @@ export function OwnerOperationsReport() {
       onToggle={(e) => setOpen(e.currentTarget.open)}
     >
       <summary>
-        Owner report <span>Enquiries, sales and money received</span>
+        Owner report
       </summary>
       {open && (
         <>

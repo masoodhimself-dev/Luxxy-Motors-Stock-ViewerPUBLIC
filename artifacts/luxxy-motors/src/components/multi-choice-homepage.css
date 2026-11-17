@@ -109,10 +109,10 @@
 .multi-home .mh-ai-search .ai-car-finder { max-width: 850px; margin: 0 auto 24px; padding: 20px; background: white; border: 1px solid var(--mh-border); border-radius: 8px; }
 .multi-home .mh-trust-items { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px 28px; padding: 0; margin: 24px 0 0; list-style: none; font-size: 13px; }
 .multi-home .mh-trust-items li { display: flex; gap: 8px; align-items: center; }
-.multi-home .mh-px-strip { padding-block: 48px; background: var(--mh-tint, #eef9fc); text-align: center; scroll-margin-top: 120px; }
-.multi-home .mh-px-strip h2 { margin-bottom: 12px; }
-.multi-home .mh-px-strip .mh-px-form { text-align: left; max-width: 448px; margin: 24px auto 0; }
-.multi-home .mh-px-strip .mh-px-form .mh-button { border-radius: 999px; }
+.multi-home .mh-px-strip { padding-block: clamp(24px, 4vw, 48px); background: var(--mh-tint); scroll-margin-top: 120px; }
+.multi-home .mh-px-strip-layout { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,448px); align-items: center; gap: 24px 48px; }
+.multi-home .mh-px-strip h2 { margin-bottom: 6px; }
+@media (max-width: 767px) { .multi-home .mh-px-strip-layout { grid-template-columns: minmax(0,1fr); } }
 .multi-home .mh-body-types,.multi-home .mh-makes { text-align: center; }
 .multi-home .mh-body-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px; margin-top: 26px; }
 .multi-home .mh-body-grid a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; min-height: 132px; background: white; border: 1px solid var(--mh-border); border-radius: 8px; padding: 16px; box-shadow: var(--mh-shadow-sm); }
@@ -170,10 +170,12 @@
 .multi-home .mh-visit-notes p { white-space: pre-line; margin-top: 8px; font-size: 14px; overflow-wrap: anywhere; }
 .multi-home .mh-arrival { display: grid; gap: 20px; }
 .multi-home .mh-contact h2 { text-align: left; }
-.multi-home .mh-contact-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 20px; margin-top: 26px; }
-.multi-home .mh-contact-grid a { display: flex; min-height: 170px; padding: 24px; align-items: center; justify-content: center; flex-direction: column; gap: 8px; background: white; border: 1px solid var(--mh-border); border-radius: 8px; box-shadow: var(--mh-shadow-sm); text-align: center; overflow-wrap: anywhere; }
+.multi-home .mh-contact-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 0 24px; margin-top: 18px; }
+.multi-home .mh-contact-grid a { display: flex; min-height: 72px; padding-block: 12px; align-items: center; gap: 12px; border-top: 1px solid var(--mh-border-strong); overflow-wrap: anywhere; }
+.multi-home .mh-contact-grid a > svg { flex: none; }
 .multi-home .mh-contact-grid a > span { color: var(--mh-muted); font-size: 13px; }
-.multi-home .mh-contact-grid strong { font-size: 15px; text-decoration: underline; text-underline-offset: 4px; }
+.multi-home .mh-contact-grid strong { display: block; color: var(--mh-primary); font-size: 15px; }
+.multi-home .mh-contact-grid a:hover strong { text-decoration: underline; text-underline-offset: 3px; }
 @media (max-width: 1279px) {
  .multi-home .mh-stock-rail { grid-auto-columns: calc((100% - 16px)/2); }
 }
@@ -184,8 +186,7 @@
  .multi-home .mh-hero-grid { grid-template-columns: minmax(0,1fr) minmax(295px,.85fr); gap: 24px; }
  .multi-home .mh-search-card { padding: 18px; }
  .multi-home .mh-body-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
- .multi-home .mh-contact-grid { gap: 12px; }
- .multi-home .mh-contact-grid a { padding: 20px 12px; }
+ .multi-home .mh-contact-grid { column-gap: 16px; }
 }
 @media (max-width: 767px) {
  .multi-home .mh-hero-grid { grid-template-columns: minmax(0,1fr); gap: 18px; }
@@ -216,7 +217,7 @@
  .multi-home .mh-makes > div { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 4px 12px; }
  .multi-home .mh-map-panel { height: 300px; }
  .multi-home .mh-contact-grid { grid-template-columns: minmax(0,1fr); }
- .multi-home .mh-contact-grid a { min-height: 140px; }
+ .multi-home .mh-contact-grid a { min-height: 64px; }
 }
 @media (prefers-reduced-motion: reduce) { .multi-home * { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }
 .multi-home-shell .multi-home #contact { background: transparent; color: var(--mh-primary, #192a36); }

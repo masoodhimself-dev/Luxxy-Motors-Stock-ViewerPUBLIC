@@ -571,8 +571,7 @@ function ShowroomHoursEditor({
         Showroom opening hours
       </legend>
       <p className="mb-4 text-sm text-muted-foreground">
-        UK time. Unknown stays unconfirmed, never closed. Editing the timetable
-        updates your draft; booking hours are separate.
+        These hours appear on your website. Set test-drive hours in Bookings.
       </p>
       <div className="divide-y divide-border">
         {[1, 2, 3, 4, 5, 6, 0].map((day) => {
@@ -648,8 +647,7 @@ function ShowroomHoursEditor({
         })}
       </div>
       <p className="mt-3 text-xs text-muted-foreground">
-        For each open day, closing must be after opening. Adjust the later time
-        first when moving both times past the current closing time.
+        If the new opening time is after the current closing time, change the closing time first.
       </p>
       {(error || timeError) && (
         <p role="alert" className="mt-3 text-sm text-destructive">
@@ -910,9 +908,6 @@ export function DealerSettingsPanel({
             <>
               <section className="admin-card space-y-5">
                 <h3>Business and contact details</h3>
-                <p className="text-sm text-muted-foreground">
-                  Used throughout your website, messages and new documents.
-                </p>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="Dealership name">
                     <Input
@@ -952,32 +947,6 @@ export function DealerSettingsPanel({
                       }
                     />
                   </Field>
-                  <Field label="Street address">
-                    <Input
-                      value={form.address.street}
-                      onChange={(e) =>
-                        nested("address", "street", e.target.value)
-                      }
-                    />
-                  </Field>
-                  <Field label="Town or city">
-                    <Input
-                      value={form.address.city}
-                      onChange={(e) =>
-                        nested("address", "city", e.target.value)
-                      }
-                    />
-                  </Field>
-                  <PostcodeField value={form.address.postcode} onChange={value => nested('address', 'postcode', value)} />
-                  <Field label="Google Maps link">
-                    <Input
-                      type="url"
-                      value={form.address.mapsUrl}
-                      onChange={(e) =>
-                        nested("address", "mapsUrl", e.target.value)
-                      }
-                    />
-                  </Field>
                   <Field label="Google review link">
                     <Input
                       type="url"
@@ -988,6 +957,37 @@ export function DealerSettingsPanel({
                     />
                   </Field>
                 </div>
+                <section className="space-y-4 border-t border-border pt-5">
+                  <h3>Showroom address</h3>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Street address">
+                      <Input
+                        value={form.address.street}
+                        onChange={(e) =>
+                          nested("address", "street", e.target.value)
+                        }
+                      />
+                    </Field>
+                    <Field label="Town or city">
+                      <Input
+                        value={form.address.city}
+                        onChange={(e) =>
+                          nested("address", "city", e.target.value)
+                        }
+                      />
+                    </Field>
+                    <PostcodeField value={form.address.postcode} onChange={value => nested('address', 'postcode', value)} />
+                    <Field label="Google Maps link">
+                      <Input
+                        type="url"
+                        value={form.address.mapsUrl}
+                        onChange={(e) =>
+                          nested("address", "mapsUrl", e.target.value)
+                        }
+                      />
+                    </Field>
+                  </div>
+                </section>
                 <ShowroomHoursEditor
                   value={form.hours}
                   onChange={(value) => field("hours", value)}
@@ -996,11 +996,7 @@ export function DealerSettingsPanel({
               <DeliveryPricingSettings value={form.deliveryPricing} deliveryEnabled={form.delivery.enabled} onDeliveryEnabled={enabled => field('delivery', {...form.delivery, enabled})} onChange={value => field('deliveryPricing', value)} />
               <section className="admin-card space-y-4" aria-labelledby="settings-included-heading">
                 <h3 id="settings-included-heading">What’s included with every car</h3>
-                <p className="text-sm text-muted-foreground">
-                  Choose what your dealership provides with every car. This list replaces
-                  the “What’s included” section on all your vehicle pages.
-                </p>
-                <Field label="Included items" hint="One item per line · up to 12">
+                <Field label="Included items" hint="Up to 12 items, one per line">
                   <Textarea
                     rows={5}
                     value={(form.presentation?.includedItems ?? []).join("\n")}
@@ -1014,7 +1010,7 @@ export function DealerSettingsPanel({
                   />
                 </Field>
                 <p id="settings-included-help" className="text-sm text-muted-foreground">
-                  Only list items included with every car. Clear a saved list to hide the section.
+                  This list appears on every vehicle page. Clear a saved list to hide it.
                 </p>
                 {form.presentation?.includedItems === undefined && (
                   <div className="flex flex-wrap items-center justify-between gap-3 text-sm">

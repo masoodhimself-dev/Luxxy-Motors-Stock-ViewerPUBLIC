@@ -133,7 +133,7 @@ test('failed decisions preserve the request, and a retry can decline it', async 
   failing = false;
   await page.getByRole('button', { name: 'Decline and release time', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('has been declined');
-  await expect(page.getByText('No appointments to show', { exact: true })).toBeVisible();
+  await expect(page.getByText('No upcoming appointments', { exact: true })).toBeVisible();
   await page.getByRole('combobox', { name: 'Test-drive status', exact: true }).selectOption('cancelled');
   await expect(page.getByTestId('staff-test-drive-fixture-test-drive')).toContainText('Cancelled');
   expect(decisions).toEqual([{ decision: 'decline', expectedRevision: 0 }, { decision: 'decline', expectedRevision: 0 }]);

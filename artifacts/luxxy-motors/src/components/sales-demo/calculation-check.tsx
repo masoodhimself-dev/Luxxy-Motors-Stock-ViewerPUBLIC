@@ -4,6 +4,12 @@ import { saleCalculationFigures, saleCalculationSnapshot, type SaleCalculationCh
 import { AlertCircle, CheckCircle2, LoaderCircle } from '@/components/icons';
 import './calculation-check.css';
 
+const balanceCheckMessage: Record<SaleCalculationCheckResult['status'], string> = {
+  checked: 'The total and balance add up.',
+  attention: 'Check the total and balance. The figures may differ.',
+  unavailable: 'Could not double-check the balance. You can still continue.',
+};
+
 /** Call check only from Preview/confirm, never from an effect while the dealer types. */
 export function useSaleCalculationCheck() {
   const [result, setResult] = useState<SaleCalculationCheckResult | null>(null);
@@ -24,7 +30,7 @@ export function useSaleCalculationCheck() {
     if (previous && previous.until > Date.now()) { const value = { ...previous.result, cached: true }; setBusy(false); setResult(value); return value; }
     // A test preview never calls a live sale endpoint or spends AI allowance.
     if (options.testOnly) {
-      const value: SaleCalculationCheckResult = { status: 'checked', message: 'The total and balance add up.', financialKey: localKey, totals: snapshot.totals, checkedAt: new Date().toISOString(), cached: false };
+      const value: SaleCalculationCheckResult = { status: 'checked', message: balanceCheckMessage.checked, financialKey: localKey, totals: snapshot.totals, checkedAt: new Date().toISOString(), cached: false };
       setBusy(false); setResult(value); return value;
     }
     const request = new AbortController(); controller.current = request; setBusy(true);
@@ -38,7 +44,7 @@ export function useSaleCalculationCheck() {
       setResult(value); return value;
     } catch {
       if (attempt !== generation.current || request.signal.aborted) return null;
-      const value: SaleCalculationCheckResult = { status: 'unavailable', message: 'The amounts have been calculated. AI could not double-check them. You can continue.', financialKey: localKey, totals: snapshot.totals, checkedAt: new Date().toISOString(), cached: false };
+      const value: SaleCalculationCheckResult = { status: 'unavailable', message: balanceCheckMessage.unavailable, financialKey: localKey, totals: snapshot.totals, checkedAt: new Date().toISOString(), cached: false };
       setResult(value); return value;
     } finally { if (attempt === generation.current) setBusy(false); }
   }, []);
@@ -49,5 +55,8 @@ export function useSaleCalculationCheck() {
 export function CalculationCheck({ result, busy = false, error = '' }: { result?: SaleCalculationCheckResult | null; busy?: boolean; error?: string }) {
   if (!busy && !result && !error) return null;
   const Icon = busy ? LoaderCircle : error || result?.status !== 'checked' ? AlertCircle : CheckCircle2;
-  return <p className={`sale-calculation-check${busy ? ' is-checking' : ''}`} role="status" aria-live="polite"><Icon aria-hidden="true" /><span>{busy ? 'Double-checking the amounts…' : error || result?.message}</span></p>;
+  const message = busy ? 'Checking the balance…' : error || (result && balanceCheckMessage[result.status]);
+  return <p className={`sale-calculation-check${busy ? ' is-checking' : ''}`}
+    data-attention={!busy && (Boolean(error) || result?.status === 'attention')}
+    role="status" aria-live="polite"><Icon aria-hidden="true" /><span>{message}</span></p>;
 }

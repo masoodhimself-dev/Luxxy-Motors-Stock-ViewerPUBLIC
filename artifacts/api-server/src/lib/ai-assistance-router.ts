@@ -5,10 +5,10 @@ import { randomBytes, createHash, createHmac } from "node:crypto";
 import { z } from "zod";
 import { currentDealerId } from "./tenant-context";
 import { enforceStaffWriteOrigin } from "../middlewares/staff-write-origin";
-import { AiError, aiConfigured, aiHash, generateAi } from "./ai-assistance";
+import { AI_MODEL, AiError, aiConfigured, aiHash, generateAi } from "./ai-assistance";
 import { AiAssistanceStore } from "./ai-assistance-store";
-import { buildEnquiryAiContext, enquiryAiContextHash, enquiryIsArchived } from "./enquiry-ai-context";
-import { prepareStaffReplyDraft } from "./enquiry-ai-reply-draft";
+import { buildEnquiryAiContext, enquiryAiContextHash, enquiryIsArchived, type EnquiryAiAudit } from "./enquiry-ai-context";
+import { prepareStaffReplyDraft, prepareStaffReplyProofread } from "./enquiry-ai-reply-draft";
 import type { MotHistory } from "@workspace/vehicle-meta";
 import {
   publicAiCar,
@@ -146,24 +146,31 @@ export function aiAssistanceRouter(deps: Dependencies) {
       let replyContext: Awaited<ReturnType<typeof buildEnquiryAiContext>> | undefined;
       let staffDraft: ReturnType<typeof prepareStaffReplyDraft> | undefined;
       let expectedWorkspaceRevision: number | undefined;
+      let proofreadOnly = false;
       let cars: any[] = [],
-        question = redactAiText(body.text ?? ""),
-        enquiry: any = null;
+        question = redactAiText(body.text ?? "");
       if (staff) {
         if (!body.enquiryId)
           throw new AiError("enquiry_required", "Choose an enquiry.", 400);
-        enquiry = await deps.getEnquiry(dealer, body.enquiryId);
+        const enquiry = await deps.getEnquiry(dealer, body.enquiryId);
         if (!enquiry) throw new AiError("not_found", "Enquiry not found.", 404);
         if (enquiryIsArchived(enquiry)) throw new AiError("enquiry_archived", "Restore this enquiry before preparing an AI reply.", 409);
-        if (body.draft) staffDraft = prepareStaffReplyDraft(body.draft, enquiry);
         expectedWorkspaceRevision = enquiry.workspaceRevision;
-        const car = enquiry.vehicleId ? await deps.getCar(enquiry.vehicleId) : null;
-        replyContext = await buildEnquiryAiContext({ enquiry: { ...enquiry, id: body.enquiryId }, car, config, lookupMot: deps.replyMotLookup });
-        const current = await deps.getEnquiry(dealer, body.enquiryId);
-        if (!current) throw new AiError("not_found", "Enquiry not found.", 404);
-        if (enquiryIsArchived(current)) throw new AiError("enquiry_archived", "Restore this enquiry before preparing an AI reply.", 409);
-        question = replyContext.question;
-        cars = replyContext.facts.cars;
+        proofreadOnly = enquiry.source === "cazoo";
+        if (proofreadOnly) {
+          if (!body.draft) throw new AiError("draft_required", "Write a reply before asking AI to check it.", 400);
+          staffDraft = prepareStaffReplyProofread(body.draft, enquiry);
+          question = "";
+        } else {
+          if (body.draft) staffDraft = prepareStaffReplyDraft(body.draft, enquiry);
+          const car = enquiry.vehicleId ? await deps.getCar(enquiry.vehicleId) : null;
+          replyContext = await buildEnquiryAiContext({ enquiry: { ...enquiry, id: body.enquiryId }, car, config, lookupMot: deps.replyMotLookup });
+          const current = await deps.getEnquiry(dealer, body.enquiryId);
+          if (!current) throw new AiError("not_found", "Enquiry not found.", 404);
+          if (enquiryIsArchived(current)) throw new AiError("enquiry_archived", "Restore this enquiry before preparing an AI reply.", 409);
+          question = replyContext.question;
+          cars = replyContext.facts.cars;
+        }
       } else if (body.kind === "finder") {
         cars = (await deps.getCars())
           .filter((c) => c.inventoryStatus === "available")
@@ -187,16 +194,24 @@ export function aiAssistanceRouter(deps: Dependencies) {
         );
       if (!staff && deps.motFact && cars.length === 1 && body.kind !== "finder")
         cars[0].mot = await deps.motFact(cars[0]);
-      const factContext = replyContext?.facts ?? {
-        dealer: publicAiDealer(config),
-        cars,
-        ...(staff
-          ? { enquiry: { type: enquiry.type, message: question } }
-          : {}),
-      };
+      const factContext = proofreadOnly
+        ? { replyMode: "proofread_only" }
+        : replyContext?.facts ?? { dealer: publicAiDealer(config), cars };
       const facts = staffDraft ? { ...factContext, staffDraft: staffDraft.text } : factContext;
-      const contextHash = replyContext ? enquiryAiContextHash(replyContext) : aiHash({ version: 1, task: body.kind, question, facts });
+      const contextHash = replyContext
+        ? enquiryAiContextHash(replyContext)
+        : aiHash({ version: 1, task: body.kind, question, facts, ...(proofreadOnly ? { enquiryId: body.enquiryId, expectedWorkspaceRevision } : {}) });
       const hash = staffDraft ? aiHash({ contextHash, draft: body.draft }) : contextHash;
+      const contextAudit: EnquiryAiAudit | undefined = proofreadOnly ? {
+        version: 1,
+        enquiryId: body.enquiryId!,
+        vehicleId: null,
+        model: AI_MODEL,
+        checkedAt: new Date().toISOString(),
+        questions: [],
+        lookups: [],
+        vehicleFacts: null,
+      } : replyContext?.contextAudit;
       const ip = createHmac("sha256", process.env.OPENAI_API_KEY!)
         .update(connection)
         .digest("hex");
@@ -209,7 +224,7 @@ export function aiAssistanceRouter(deps: Dependencies) {
         hash,
         cacheKey,
         staff,
-        ...(replyContext ? { contextAudit: replyContext.contextAudit } : {}),
+        contextAudit,
       });
       if (reservation.cached) {
         const result = staffDraft
@@ -297,7 +312,9 @@ export function aiAssistanceRouter(deps: Dependencies) {
     if (!/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(id)) { res.sendStatus(404); return; }
     try {
       const dealer = currentDealerId();
-      if (!await deps.getEnquiry(dealer, id)) { res.sendStatus(404); return; }
+      const enquiry = await deps.getEnquiry(dealer, id);
+      if (!enquiry) { res.sendStatus(404); return; }
+      if (enquiry.source === "cazoo") { res.status(404).json({ error: "Cazoo replies support proofreading only." }); return; }
       const checks = await store.latestEnquiryChecks(dealer, id);
       if (!checks) { res.status(404).json({ error: "No saved AI checks for this enquiry yet." }); return; }
       res.json(checks);

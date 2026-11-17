@@ -319,6 +319,7 @@
 .inbox-desk .enquiry-email-inclusions label { font-size:12px; }
 .enquiry-email-inline .enquiry-email-form .enquiry-vehicle-pdf-choice { display:flex; align-items:center; gap:10px; }
 .enquiry-email-save-state[data-dirty=true] { color:var(--portal-muted); background:#f5f6f9; padding:5px 9px; font-size:11px; }
+[data-cazoo-reply] .enquiry-email-save-state { color: var(--portal-muted, #596979); background: transparent; padding: 4px 0; font-size: 12px; }
 
 .enquiry-email-content-options { display: grid; gap: 17px; min-width: 0; }
 .enquiry-email-content-tray:not([hidden]) { display: grid; gap: 14px; min-width: 0; padding: 14px; border: 1px solid var(--portal-border, #dbe2e8); border-radius: 8px; background: #f8fafb; }

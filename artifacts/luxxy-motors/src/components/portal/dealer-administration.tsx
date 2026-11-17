@@ -4,7 +4,7 @@ import { StockAlertSettings } from "./stock-alerts";
 import { OnlineReservationSettings } from "./online-reservation-settings";
 import { AccountInvitations } from "@/components/account-invitations";
 import {
-  Store,
+  MapPin,
   Globe2,
   CalendarDays,
   FileText,
@@ -241,7 +241,7 @@ export function DealerSettingsHub() {
     [, navigate] = useLocation();
   const canTeam = access.data?.permissions.includes("team.manage") ?? false;
   const tabs = [
-    { id: "dealership", label: "Business", icon: Store },
+    { id: "dealership", label: "Business", icon: MapPin },
     { id: "website", label: "Brand", icon: Globe2 },
     { id: "bookings", label: "Bookings", icon: CalendarDays },
     { id: "paperwork", label: "Invoices & terms", icon: FileText },
@@ -266,10 +266,6 @@ export function DealerSettingsHub() {
       <header className="settings-tabs-heading">
         <h2>Settings</h2>
       </header>
-      <div className="settings-owner-tools">
-        <OwnerSetup />
-        <OwnerOperationsReport />
-      </div>
       <SettingsTabs
         orientation={verticalNavigation ? "vertical" : "horizontal"}
         idPrefix="dealer-settings"
@@ -281,6 +277,10 @@ export function DealerSettingsHub() {
             navigate(`/portal?section=settings&settingsTab=${id}`);
         }}
       />
+      <div className="settings-owner-tools">
+        <OwnerSetup />
+        <OwnerOperationsReport />
+      </div>
       <div
         className="settings-hub-content"
         role="tabpanel"

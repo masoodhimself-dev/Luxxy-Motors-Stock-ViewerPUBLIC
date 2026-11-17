@@ -1168,6 +1168,79 @@ it("keeps the typed text when the AI check fails and still offers a manual revie
   expect(calls("/email")).toHaveLength(0);
 });
 
+it.each([false, true])("sends only the proofread dealer reply from Cazoo (forwarded link: %s)", async (linkedReply) => {
+  state.aiEnabled = true;
+  state.polish.mockResolvedValue({ answer: "I can arrange a viewing on Monday." });
+  const original = state.fetch.getMockImplementation()!;
+  const enquiryReplyId = "5be0318c-88c5-4895-b8cd-5a37c0def4d4";
+  const to = linkedReply ? "reply@example.test" : "alex@example.test";
+  state.fetch.mockImplementation(async (url: string, options: { body?: string }) => {
+    if (url.includes("/email-context")) return {
+      ...context(), source: "cazoo", replyRecipient: { id: enquiryReplyId, from: to, subject: "Re: Fiesta" },
+      savedDraft: { source: "ai", status: "draft", content: { ...context().defaults, message: "Old generated reply" } },
+    };
+    if (url.endsWith("/email")) return { delivery: { id: "sent-1", status: "sent", to, subject: "Re: Fiesta" } };
+    if (url.endsWith("/email-preview")) return { to, subject: "Re: Fiesta", text: "Text", previewHash: "b".repeat(64), attachments: [], repliesInInbox: true };
+    return original(url, options);
+  });
+  render(<QueryClientProvider client={new QueryClient()}>
+    <EnquiryEmailComposer inline compact entry={entry} onClose={state.close} linkedReply={linkedReply} enquiryReplyId={linkedReply ? enquiryReplyId : undefined} />
+  </QueryClientProvider>);
+  const message = await screen.findByRole("textbox", { name: "Your reply" });
+  const send = screen.getByRole("button", { name: "Fix and send" });
+  expect(message).toHaveValue("");
+  expect(send).toBeDisabled();
+  fireEvent.change(message, { target: { value: "I can arange a viewing on Monday." } });
+  fireEvent.click(send);
+  expect(await screen.findByText("Email sent. You can find it in this conversation.")).toBeVisible();
+  expect(state.polish).toHaveBeenCalledExactlyOnceWith("reply", { enquiryId: entry.id, draft: "I can arange a viewing on Monday." });
+  expect(calls("/email")).toHaveLength(1);
+  expect(JSON.parse(calls("/email")[0][1].body)).toMatchObject({
+    to, message: "I can arrange a viewing on Monday.", previewHash: "b".repeat(64),
+    savedDraftVersion: 5, includeVehicle: false, includeAppointment: false,
+    ...(linkedReply ? { enquiryReplyId } : {}),
+  });
+});
+
+it("keeps a Cazoo staff draft if spelling and grammar cannot be checked", async () => {
+  state.aiEnabled = true;
+  state.polish.mockResolvedValue(null);
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options: unknown) => url.endsWith("/email-context") ? { ...context(), source: "cazoo" } : original(url, options));
+  render(<QueryClientProvider client={new QueryClient()}><EnquiryEmailComposer inline compact entry={entry} onClose={state.close} /></QueryClientProvider>);
+  const message = await screen.findByRole("textbox", { name: "Your reply" });
+  fireEvent.change(message, { target: { value: "I can arange a viewing." } });
+  fireEvent.click(screen.getByRole("button", { name: "Fix and send" }));
+  await screen.findByText("Couldn’t check the spelling and grammar. Your reply wasn’t sent.");
+  expect(message).toHaveValue("I can arange a viewing.");
+  expect(calls("/email")).toHaveLength(0);
+  expect(screen.getByRole("button", { name: "Review & send" })).toBeEnabled();
+});
+
+it("retries an uncertain Cazoo send with the same proofread content and send ID", async () => {
+  state.aiEnabled = true;
+  state.polish.mockResolvedValue({ answer: "See you on Monday." });
+  const original = state.fetch.getMockImplementation()!;
+  let attempts = 0;
+  state.fetch.mockImplementation(async (url: string, options: unknown) => {
+    if (url.endsWith("/email-context")) return { ...context(), source: "cazoo" };
+    if (url.endsWith("/email")) {
+      if (++attempts === 1) throw new Error("Response lost");
+      return { delivery: { id: "sent-1", status: "sent", to: "alex@example.test", subject: "Original subject" } };
+    }
+    return original(url, options);
+  });
+  render(<QueryClientProvider client={new QueryClient()}><EnquiryEmailComposer inline compact entry={entry} onClose={state.close} /></QueryClientProvider>);
+  const message = await screen.findByRole("textbox", { name: "Your reply" });
+  fireEvent.change(message, { target: { value: "See you on monday." } });
+  fireEvent.click(screen.getByRole("button", { name: "Fix and send" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Check or retry same email" }));
+  await screen.findByText("Email sent. You can find it in this conversation.");
+  expect(state.polish).toHaveBeenCalledTimes(1);
+  expect(calls("/email")).toHaveLength(2);
+  expect(calls("/email")[0][1].body).toBe(calls("/email")[1][1].body);
+});
+
 it("saves the corrected enquiry address from the reply editor and keeps the typed message", async () => {
   const oldAddress = "alex@exampel.test";
   const corrected = "alex@example.test";

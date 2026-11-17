@@ -293,7 +293,9 @@ export function TodayWorkspace({ notifications, canManage, canRecordPayments, ca
   const moreAssigned = (filter === "all" || filter === "sales") && assignmentPages.length > 0;
   const loadingMore = moreAssigned && assignmentPages.some(query => query.isFetching);
   const loadMoreError = moreAssigned && assignmentPages.some(query => query.isFetchNextPageError);
-  const partial = moreSales || moreCustomerWork || assignmentPages.length > 0;
+  const moreSalesInView = (filter === "all" || filter === "sales") && moreSales;
+  const moreCustomersInView = (filter === "all" || filter === "customers") && moreCustomerWork;
+  const partial = moreAssigned || moreSalesInView || moreCustomersInView;
   function revealMoreJobs() {
     setVisibleLimits(limits => ({ ...limits, [filter]: (limits[filter] ?? taskLimit) + taskLimit }));
   }
@@ -310,13 +312,8 @@ export function TodayWorkspace({ notifications, canManage, canRecordPayments, ca
   return (
     <div className="today-workspace">
       <header className="today-page-heading">
-        <p className="today-date"><time dateTime={today}>{bookingDateLabel(today)}</time></p>
         <h2>Today</h2>
-        {!loading && !failures.length && <p className="today-summary">
-          {tasks.length ? `${tasks.length}${partial ? "+" : ""} ${tasks.length === 1 && !partial ? "job needs" : "jobs need"} attention.` : "You’re up to date."}
-          {" "}{appointments.length} {appointments.length === 1 ? "appointment" : "appointments"}
-          {(notifications.data?.counts?.appointments ?? 0) > 8 ? " shown." : " today."}
-        </p>}
+        <p className="today-date"><time dateTime={today}>{bookingDateLabel(today)}</time></p>
         <Button asChild variant="outline" size="sm" className="today-stock-shortcut">
           <Link href={`${carsHref}&carsTax=untaxed`}>
             Untaxed vehicles <ChevronRight size={16} aria-hidden="true" />
@@ -333,9 +330,9 @@ export function TodayWorkspace({ notifications, canManage, canRecordPayments, ca
         <section className="today-surface" aria-labelledby="today-attention-heading">
           <div className="today-section-heading">
             <h3 id="today-attention-heading">Needs attention</h3>
-            {!loading && <span className="today-count">
-              {filtered.length > visibleLimit ? `${visibleLimit} of ${filtered.length}${moreAssigned ? "+" : ""}`
-                : `${filtered.length}${moreAssigned ? "+" : ""} ${filtered.length === 1 && !moreAssigned ? "job" : "jobs"}`}
+            {!loading && filtered.length > 0 && <span className="today-count">
+              {filtered.length > visibleLimit ? `${visibleLimit} of ${filtered.length}${partial ? "+" : ""}`
+                : `${filtered.length}${partial ? "+" : ""} ${filtered.length === 1 && !partial ? "job" : "jobs"}`}
             </span>}
           </div>
           <div className="today-filters" aria-label="Filter jobs">
@@ -351,16 +348,15 @@ export function TodayWorkspace({ notifications, canManage, canRecordPayments, ca
           {filtered.length > 0
             ? <ul id={listId} className="today-tasks">{filtered.slice(0, visibleLimit).map(task => <TaskRow task={task} key={task.key} />)}</ul>
             : <p className="today-empty" role="status">{loading ? "Loading today’s work…" : failures.length ? "No jobs loaded for this view." : filter === "all" ? "Nothing needs attention right now." : "No jobs in this view."}</p>}
-          {(filtered.length > visibleLimit || moreAssigned || ((filter === "all" || filter === "sales") && moreSales)
-            || ((filter === "all" || filter === "customers") && moreCustomerWork)) && (
+          {(filtered.length > visibleLimit || partial) && (
             <div className="today-overflow">
               {(filtered.length > visibleLimit || moreAssigned) && <Button type="button" variant="outline" size="sm"
                 aria-controls={filtered.length ? listId : undefined} disabled={loadingMore} onClick={showMoreJobs}>
                 {loadingMore ? "Loading jobs…" : loadMoreError && filtered.length <= visibleLimit ? "Retry loading jobs" : "Show more jobs"}
               </Button>}
               {loadMoreError && <span role="status">More staff tasks could not be loaded.</span>}
-              {(filter === "all" || filter === "customers") && moreCustomerWork && <Link href={enquiryHref}>View all enquiries</Link>}
-              {(filter === "all" || filter === "sales") && moreSales && <Link href={salesHref}>View all sales</Link>}
+              {moreCustomersInView && <Link href={enquiryHref}>View all enquiries</Link>}
+              {moreSalesInView && <Link href={salesHref}>View all sales</Link>}
             </div>
           )}
         </section>
@@ -376,21 +372,25 @@ export function TodayWorkspace({ notifications, canManage, canRecordPayments, ca
                   </Link></li>
                 ))}
               </ul>
-            ) : <p className="today-empty">{notifications.isLoading || (canHandover && sales.isLoading) ? "Loading appointments…" : notifications.isError || (canHandover && sales.isError) ? "Open Calendar to check appointments." : "No appointments are booked for today."}</p>}
+            ) : <p className="today-empty">{notifications.isLoading || (canHandover && sales.isLoading) ? "Loading appointments…" : notifications.isError || (canHandover && sales.isError) ? "Open Calendar to check appointments." : "No appointments today."}</p>}
+            {(notifications.data?.counts?.appointments ?? 0) > 8 && (
+              <p className="today-empty">Open Calendar to see all appointments.</p>
+            )}
           </section>
           {nextHandover && (
             <section className="today-surface today-handover" aria-labelledby="today-handover-heading">
-              {handoverCar?.heroImage && <img src={handoverCar.heroImage} alt={vehicleDisplayTitle(handoverCar)} loading="lazy" />}
               <div className="today-section-heading">
-                <div>
-                  <h3 id="today-handover-heading">{nextHandover.schedule.method === "delivery" ? "Upcoming delivery" : "Upcoming collection"}</h3>
-                  <p>{[
-                    nextHandover.sale.draft.vehicle,
-                    bookingDateLabel(nextHandover.day),
-                    nextHandover.schedule.timeWindow,
-                  ].filter(Boolean).join(" · ")}</p>
-                </div>
+                <h3 id="today-handover-heading">{nextHandover.schedule.method === "delivery" ? "Upcoming delivery" : "Upcoming collection"}</h3>
                 <Link href={saleHref(nextHandover.sale, "handover")}>View sale</Link>
+              </div>
+              <div className="today-handover-vehicle">
+                {handoverCar?.heroImage && <img src={handoverCar.heroImage} alt="" width={64} height={48} loading="lazy" />}
+                <div>
+                  <strong>{nextHandover.sale.draft.vehicle}</strong>
+                  <p><time dateTime={nextHandover.day}>{bookingDateLabel(nextHandover.day)}</time>
+                    {nextHandover.schedule.timeWindow && `, ${nextHandover.schedule.timeWindow}`}
+                  </p>
+                </div>
               </div>
             </section>
           )}

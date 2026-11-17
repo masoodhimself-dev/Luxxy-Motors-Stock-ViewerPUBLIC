@@ -16,7 +16,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { generateAi, aiPrompt, redactAiText } from "./lib/ai-assistance";
 import { AiAssistanceStore } from "./lib/ai-assistance-store";
 import { buildEnquiryAiContext } from "./lib/enquiry-ai-context";
-import { prepareStaffReplyDraft } from "./lib/enquiry-ai-reply-draft";
+import { prepareStaffReplyDraft, prepareStaffReplyProofread } from "./lib/enquiry-ai-reply-draft";
 import {
   publicAiCar,
   publicAiDealer,
@@ -88,6 +88,49 @@ test("staff-written replies keep sensitive details out of the model and require 
   assert.match(request.instructions, /preserving the staff member's intent/);
   assert.match(request.instructions, /one short, relevant extra detail from the linked vehicle facts/);
   assert.ok(request.input.includes("staffDraft"));
+});
+test("Cazoo proofreading corrects copy while preserving amounts, caveats and questions", async () => {
+  const original = "hi Jane\n\ni cant accept £4,000. Is £4,500 possible?\n\nKind regards\nLee";
+  const draft = prepareStaffReplyProofread(original, { customerName: "Jane Smith" });
+  const polished = draft.text.replace("hi ", "Hi ").replace("]]\n", "]],\n").replace("i cant", "I can't").replace("regards\n", "regards,\n");
+  assert.equal(draft.restore(polished), "Hi Jane,\n\nI can't accept £4,000. Is £4,500 possible?\n\nKind regards,\nLee");
+  for (const invalid of [
+    polished.replace("can't", "can"),
+    polished.replace("£4,500", "£4,000"),
+    polished.replace("£4,500", "€4,500"),
+    polished.replace("£4,500", "£45.00"),
+    polished.replace("possible?", "possible."),
+    polished.replace("accept", "consider"),
+    polished.replace("possible?", "possible? It comes with a warranty."),
+    polished.replace("Hi [[DEALEROS_PRIVATE_1]],", "Hi Tom,"),
+  ]) assert.throws(() => draft.restore(invalid), { code: "invalid_ai_draft" });
+  const proofreadingFacts = { replyMode: "proofread_only", staffDraft: draft.text };
+  const prompt = aiPrompt("reply", "", proofreadingFacts);
+  assert.match(prompt.instructions, /Do not add, remove, rephrase or fact-check any claim/);
+  assert.doesNotMatch(prompt.instructions, /extra detail|Read the supplied car description/);
+  const modelResult = { answer: polished, evidence: [], questions: [], vehicleIds: [] };
+  assert.deepEqual((await generateAi("reply", "", proofreadingFacts, provider(response(modelResult)))).result, modelResult);
+  await assert.rejects(generateAi("reply", "", proofreadingFacts, provider(response({ ...modelResult, evidence: ["dealer"] }))), { code: "unsupported_answer" });
+});
+test("Cazoo proofreading fixes common typos, agreement and simple clause commas", () => {
+  const original = "hi Jane\n\nit’s avaliable and I can arange a viewing. it have two keys\n\nThanks";
+  const draft = prepareStaffReplyProofread(original, { customerName: "Jane Smith" });
+  const polished = "Hi [[DEALEROS_PRIVATE_1]],\n\nIt’s available, and I can arrange a viewing. It has two keys.\n\nThanks,";
+  assert.equal(draft.restore(polished), "Hi Jane,\n\nIt’s available, and I can arrange a viewing. It has two keys.\n\nThanks,");
+  for (const invalid of [
+    polished.replace("can arrange", "will arrange"),
+    polished.replace("can arrange", "can't arrange"),
+    polished.replace("has two keys", "had two keys"),
+    polished.replace("has two keys", "has one key"),
+    polished.replace("a viewing", "your appointment"),
+  ]) assert.throws(() => draft.restore(invalid), { code: "invalid_ai_draft" });
+  const qualifying = prepareStaffReplyProofread("I can confirm only if it has passed its 2nd MOT and I have the certificate", {});
+  for (const invalid of [
+    "I can confirm only if it has passed its 2nd MOT, and I have the certificate.",
+    "I can confirm only if it has passed its 3rd MOT and I have the certificate.",
+    "I can confirm only if it has passed its 2 nd MOT and I have the certificate.",
+    "I can confirm if it has passed its 2nd MOT and I have the certificate.",
+  ]) assert.throws(() => qualifying.restore(invalid), { code: "invalid_ai_draft" });
 });
 test("all website and Inbox tasks use Luna with Luna usage rates", async () => {
   for (const task of ["question", "finder", "faqs", "explain", "reply"] as const) {
@@ -432,6 +475,7 @@ test("HTTP routes enforce staff access, dealer ownership, origin, feature eviden
   let sentFacts: any = null,
     question = "";
   let enquiryMessage = "Jane Smith jane@example.com 07912345678 asks about heated seats", archivedAt: Date | null = null, motCalls = 0, generatedCalls = 0;
+  let enquirySource = "website", carReads = 0;
   const carId = randomUUID(),
     enquiryId = randomUUID();
   await db.query("INSERT INTO enquiries(id,dealer_id,type,customer_name,message) VALUES($1,'http-dealer','general','Fictional customer','Seats?')", [enquiryId]);
@@ -472,12 +516,13 @@ test("HTTP routes enforce staff access, dealer ownership, origin, feature eviden
         privateKey: "PRIVATE KEY",
       }),
       getCars: async () => [car],
-      getCar: async (id) => (id === carId ? car : null),
+      getCar: async (id) => { carReads++; return id === carId ? car : null; },
       getEnquiry: async (dealer, id) =>
         dealer === "http-dealer" && id === enquiryId
           ? {
               vehicleId: carId,
               customerName: "Jane Smith",
+              source: enquirySource,
               message: enquiryMessage,
               archivedAt,
               workspaceRevision: 0,
@@ -507,7 +552,7 @@ test("HTTP routes enforce staff access, dealer ownership, origin, feature eviden
         const answer = typeof sentFacts.staffDraft === "string"
           ? polishedAnswerOverride ?? sentFacts.staffDraft.replace("i can", "I can")
           : result.answer;
-        return { result: { ...result, answer, evidence: [carId] }, cost: 100 };
+        return { result: { ...result, answer, evidence: sentFacts.replyMode === "proofread_only" ? [] : [carId] }, cost: 100 };
       },
     }),
   );
@@ -648,11 +693,39 @@ test("HTTP routes enforce staff access, dealer ownership, origin, feature eviden
     assert.equal(motCalls, 1);
     assert.equal(sentFacts.cars[0].mot.latest.result, "PASSED");
     assert.ok(sentFacts.verification.questions.some((check: any) => check.topic === "registration"));
+
+    enquirySource = "cazoo";
+    const generationCount = generatedCalls, carReadCount = carReads;
+    const noDraft = await post("/api/staff/ai/reply", { kind: "reply", enquiryId }, headers);
+    assert.equal(noDraft.status, 400);
+    assert.equal(((await noDraft.json()) as any).code, "draft_required");
+    assert.equal(generatedCalls, generationCount);
+    const cazooBody = { ...polishBody, requestId: randomUUID(), text: "Never share this enquiry context" };
+    const proofread = await post("/api/staff/ai/reply", cazooBody, headers);
+    assert.equal(proofread.status, 200);
+    assert.equal(((await proofread.json()) as any).answer, staffDraft.replace("i can", "I can"));
+    assert.equal(question, "");
+    assert.deepEqual(Object.keys(sentFacts).sort(), ["replyMode", "staffDraft"]);
+    assert.equal(sentFacts.replyMode, "proofread_only");
+    assert.doesNotMatch(sentFacts.staffDraft, /Jane|07700/);
+    const repeatCazoo = await post("/api/staff/ai/reply", cazooBody, headers);
+    assert.equal(repeatCazoo.status, 200);
+    assert.equal(((await repeatCazoo.json()) as any).cached, true);
+    assert.equal(generatedCalls, generationCount + 1);
+    polishedAnswerOverride = "I can let you know. It comes with a warranty.";
+    const addedWarranty = await post("/api/staff/ai/reply", { kind: "reply", enquiryId, draft: "i can let you know" }, headers);
+    assert.equal(addedWarranty.status, 422);
+    assert.equal(((await addedWarranty.json()) as any).code, "invalid_ai_draft");
+    polishedAnswerOverride = undefined;
+    assert.equal(motCalls, 1, "Cazoo proofreading must not make a MOT lookup");
+    assert.equal(carReads, carReadCount, "Cazoo proofreading must not load car facts");
+    assert.equal((await fetch(auditUrl, { headers })).status, 404);
+
     // All mocked reads still return the original active snapshot. The backing
     // row changes after generation starts; only locked completion sees it.
     const raceRequestId = randomUUID();
     duringGeneration = async () => { await db.query("UPDATE enquiries SET archived_at=now(),archive_delete_at=now()+interval '30 days',workspace_revision=workspace_revision+1 WHERE id=$1", [enquiryId]); };
-    const raced = await post("/api/staff/ai/reply", { kind: "reply", enquiryId, requestId: raceRequestId }, { "x-test-staff": "yes" });
+    const raced = await post("/api/staff/ai/reply", { kind: "reply", enquiryId, requestId: raceRequestId, draft: staffDraft }, headers);
     assert.equal(raced.status, 409);
     assert.equal(((await raced.json()) as any).code, "enquiry_archived");
     const failedRace = (await db.query<any>("SELECT status,result FROM ai_assistance_requests WHERE request_id=$1", [raceRequestId])).rows[0];

@@ -41,6 +41,7 @@ type Delivery = {
   attempts?: number;
 };
 type EmailContext = {
+  source?: string;
   replyRecipient?: { id: string; from: string; subject?: string | null } | null;
   reviewRequest?: boolean;
   version?: number;
@@ -295,9 +296,6 @@ function EnquiryEmailEditor({
 }) {
   const base = `/api/staff/enquiries/${entry.id}`;
   const features = useDealerFeatures();
-  const ai = useAiAssistance("staff", {
-    enabled: compact && channel === "email" && !fixedRecipient && !saleUpdate,
-  });
   const [originalMessage, setOriginalMessage] = useState<string | null>(null);
   const targetedReply = enquiryReplyId !== undefined;
   const contextUrl = `${base}/email-context${targetedReply ? `?enquiryReplyId=${encodeURIComponent(enquiryReplyId)}` : ""}`;
@@ -308,6 +306,11 @@ function EnquiryEmailEditor({
     staleTime: 0,
     retry: false,
     refetchOnMount: "always",
+  });
+  const isCazooEnquiry = context.data?.source === "cazoo";
+  const cazooReply = isCazooEnquiry && !initialContent && !suggestedContent && !fixedRecipient && !saleUpdate;
+  const ai = useAiAssistance("staff", {
+    enabled: (cazooReply || (compact && !isCazooEnquiry)) && channel === "email" && !fixedRecipient && !saleUpdate,
   });
   const acceptedReply = targetedReply && context.data?.replyRecipient?.id === enquiryReplyId.toLowerCase()
     ? context.data.replyRecipient
@@ -347,7 +350,7 @@ function EnquiryEmailEditor({
     [reviewedDraft, setReviewedDraft] = useState<EmailDraft | null>(null),
     [delivery, setDelivery] = useState<Delivery | null>(null);
   const [busyAction, setBusyAction] = useState<
-    "save" | "address" | "review" | "ai-review" | "send" | "status" | null
+    "save" | "address" | "review" | "ai-review" | "fix-and-send" | "send" | "status" | null
   >(null);
   const busy = busyAction !== null;
   const [messageDetailsOpen, setMessageDetailsOpen] = useState(Boolean(editRecipientRequest));
@@ -356,6 +359,7 @@ function EnquiryEmailEditor({
   }, [editRecipientRequest]);
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   const attachmentsId = useId();
+  const proofreadHintId = useId();
   const [showPrivatePhotos, setShowPrivatePhotos] = useState(false);
   const { requestClose: close, discardPrompt } = usePopupDraftGuard({
     dirty,
@@ -383,7 +387,7 @@ function EnquiryEmailEditor({
     const data = context.data;
     initialized.current = true;
     savedVersion.current = data.version ?? 0;
-    if (data.savedDraft && !saleUpdate) {
+    if (data.savedDraft && !saleUpdate && !(cazooReply && data.savedDraft.source === "ai")) {
       setDraft({ ...data.savedDraft.content, attachVehiclePdf: data.savedDraft.content.attachVehiclePdf ?? false });
       setSaveNotice(data.savedDraft.source === "ai" ? "AI draft ready · check the details before sending" : "Saved draft restored · not sent");
       return;
@@ -405,13 +409,13 @@ function EnquiryEmailEditor({
               subject: suggestedContent.subject,
               message: suggestedContent.message,
             }
-          : { ...data.defaults, ...(replySubject ? { subject: replySubject } : {}) }),
+          : { subject: replySubject || data.defaults.subject, message: cazooReply ? "" : data.defaults.message }),
       includeVehicle:
-        data.reviewRequest || suggestedContent?.includeVehicle === false
+        cazooReply || data.reviewRequest || suggestedContent?.includeVehicle === false
           ? false
           : data.vehicleAvailable,
       includeAppointment:
-        suggestedContent || data.reviewRequest
+        cazooReply || suggestedContent || data.reviewRequest
           ? false
           : data.appointmentAvailable,
       attachVehiclePdf: false,
@@ -425,6 +429,7 @@ function EnquiryEmailEditor({
     context.isFetching,
     context.isError,
     initialContent,
+    cazooReply,
     suggestedContent,
     initialRecipient,
     saleUpdate,
@@ -602,6 +607,86 @@ function EnquiryEmailEditor({
       setBusyAction(null);
     }
   }
+  async function sendReviewedEmail(approved: EmailPreview, content: EmailDraft) {
+    sendingRequest.current ??= {
+      requestId: approved.saleUpdateRequestId || sendRequestId || requestUuid(),
+      draft: content,
+      previewHash: approved.previewHash,
+      savedDraftVersion: saleUpdate ? undefined : savedVersion.current,
+    };
+    const input = sendingRequest.current;
+    const result = await request<{ delivery: Delivery }>(`${base}/email`, {
+      ...input.draft,
+      requestId: input.requestId,
+      previewHash: input.previewHash,
+      savedDraftVersion: input.savedDraftVersion,
+      ...(targetedReply ? { enquiryReplyId } : {}),
+      ...(saleUpdate ? { saleUpdate } : {}),
+    });
+    setDelivery(result.delivery);
+    setDirty(false);
+    await Promise.all([
+      refresh(),
+      cache.invalidateQueries({ queryKey: ["staff-email-drafts"] }),
+      cache.invalidateQueries({ queryKey: ["staff-notifications"] }),
+      cache.invalidateQueries({ queryKey: ["reply-attention"] }),
+      cache.invalidateQueries({ queryKey: ["staff-email"] }),
+      cache.invalidateQueries({ queryKey: ["staff-email-conversation"] }),
+    ]);
+  }
+  function handleSendError(cause: unknown) {
+    if (
+      typeof cause === "object" &&
+      cause &&
+      "status" in cause &&
+      [400, 409].includes(Number(cause.status))
+    ) {
+      sendingRequest.current = null;
+      setPreview(null);
+      setReviewedDraft(null);
+    }
+    setError(workspaceError(cause));
+  }
+  async function fixAndSend() {
+    if (busyRef.current || !cazooReply || !canPolish || sendingRequest.current) return;
+    busyRef.current = true;
+    setBusyAction("fix-and-send");
+    setError("");
+    let retry: { preview: EmailPreview; draft: EmailDraft } | undefined;
+    try {
+      await verifyContext?.();
+      const edited = await ai.run("reply", { enquiryId: entry.id, draft: draft.message.trim() });
+      const message = edited?.answer.trim();
+      if (!message) {
+        setError("Couldn’t check the spelling and grammar. Your reply wasn’t sent.");
+        return;
+      }
+      const content = { ...draft, message };
+      const approved = await request<EmailPreview>(`${base}/email-preview`, {
+        ...content,
+        ...(targetedReply ? { enquiryReplyId } : {}),
+      });
+      if (linkedReply && !approved.repliesInInbox) {
+        setError("This link can’t receive replies in the Inbox yet. Your reply wasn’t sent.");
+        return;
+      }
+      await persistDraft(content);
+      setDraft(content);
+      // Keep the same approval and send ID if a network error leaves delivery uncertain.
+      retry = { preview: approved, draft: content };
+      setBusyAction("send");
+      await sendReviewedEmail(approved, content);
+    } catch (cause) {
+      handleSendError(cause);
+      if (sendingRequest.current && retry) {
+        setPreview(retry.preview);
+        setReviewedDraft(retry.draft);
+      }
+    } finally {
+      busyRef.current = false;
+      setBusyAction(null);
+    }
+  }
   async function send() {
     if (
       !preview ||
@@ -623,43 +708,9 @@ function EnquiryEmailEditor({
     // A lost response retries the exact request; changing the draft creates a new review.
     try {
       await verifyContext?.();
-      sendingRequest.current ??= {
-        requestId: preview.saleUpdateRequestId || sendRequestId || requestUuid(),
-        draft: reviewedDraft,
-        previewHash: preview.previewHash,
-        savedDraftVersion: saleUpdate ? undefined : savedVersion.current,
-      };
-      const input = sendingRequest.current;
-      const result = await request<{ delivery: Delivery }>(`${base}/email`, {
-        ...input.draft,
-        requestId: input.requestId,
-        previewHash: input.previewHash,
-        savedDraftVersion: input.savedDraftVersion,
-        ...(targetedReply ? { enquiryReplyId } : {}),
-        ...(saleUpdate ? { saleUpdate } : {}),
-      });
-      setDelivery(result.delivery);
-      setDirty(false);
-      await Promise.all([
-        refresh(),
-        cache.invalidateQueries({ queryKey: ["staff-email-drafts"] }),
-        cache.invalidateQueries({ queryKey: ["staff-notifications"] }),
-        cache.invalidateQueries({ queryKey: ["reply-attention"] }),
-        cache.invalidateQueries({ queryKey: ["staff-email"] }),
-        cache.invalidateQueries({ queryKey: ["staff-email-conversation"] }),
-      ]);
+      await sendReviewedEmail(preview, reviewedDraft);
     } catch (cause) {
-      if (
-        typeof cause === "object" &&
-        cause &&
-        "status" in cause &&
-        [400, 409].includes(Number(cause.status))
-      ) {
-        sendingRequest.current = null;
-        setPreview(null);
-        setReviewedDraft(null);
-      }
-      setError(workspaceError(cause));
+      handleSendError(cause);
     } finally {
       busyRef.current = false;
       setBusyAction(null);
@@ -758,12 +809,13 @@ function EnquiryEmailEditor({
     busy || Boolean(draft.stockChange) ||
     draft.expectedRevision !== data?.revision ||
     !draft.to.trim() || restrictedRecipient || replyRecipientMismatch || fixedRecipientMismatch ||
-    Boolean(missingAttachment);
-  const showAiReview = ai.enabled && compact && channel === "email" && !fixedRecipient && !saleUpdate;
+    Boolean(missingAttachment) || (cazooReply && !draft.message.trim());
+  const showAiReview = ai.enabled && (cazooReply || (compact && !isCazooEnquiry)) && channel === "email" && !fixedRecipient && !saleUpdate;
   const canPolish =
     showAiReview && ai.remaining > 0 && !reviewDisabled &&
     features.enabled("customerEmails") && Boolean(data?.ready) && !sendBlockedReason &&
-    Boolean(draft.subject.trim()) && draft.message.trim().length > 0 && draft.message.trim().length <= 5000;
+    Boolean(draft.subject.trim()) && draft.message.trim().length > 0 && draft.message.trim().length <= 5000 &&
+    (!cazooReply || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.to.trim()));
   const additions = [
     draft.attachVehiclePdf ? "Vehicle PDF" : "",
     draft.photoIds.length ? `${draft.photoIds.length} history photo${draft.photoIds.length === 1 ? "" : "s"}` : "",
@@ -866,7 +918,7 @@ function EnquiryEmailEditor({
                 : "Prepare customer email"
       }
     >
-      <div data-message-dirty={dirty ? "true" : undefined}>
+      <div data-message-dirty={dirty ? "true" : undefined} data-cazoo-reply={cazooReply || undefined}>
         {discardPrompt}
         {!initialized.current && !context.isError && (
           <p role="status" data-reply-loading={compact || undefined}>Loading latest email details…</p>
@@ -901,17 +953,15 @@ function EnquiryEmailEditor({
               )}
             <p>
               {delivery.status === "sent"
-                ? "Resend accepted this email for delivery. This does not confirm that it was delivered or read."
+                ? "Email sent. You can find it in this conversation."
                 : delivery.error ||
                   "This request is still recorded as sending. Check the email history and Resend before sending another copy."}
             </p>
-            {saleUpdate ? <p>Recorded in enquiry history</p> : (
-              <p>
-                {delivery.photoCount} vehicle photo
-                {delivery.photoCount === 1 ? "" : "s"} ·{" "}
-                {delivery.documentCount ?? 0} document(s) · recorded in enquiry
-                history
-              </p>
+            {!saleUpdate && (delivery.photoCount > 0 || (delivery.documentCount ?? 0) > 0) && (
+              <p>{[
+                delivery.photoCount > 0 ? `${delivery.photoCount} vehicle photo${delivery.photoCount === 1 ? "" : "s"}` : "",
+                (delivery.documentCount ?? 0) > 0 ? `${delivery.documentCount} document${delivery.documentCount === 1 ? "" : "s"}` : "",
+              ].filter(Boolean).join(" · ")}</p>
             )}
             {saleUpdate && delivery.status === "failed" ? (
               <div className="flex flex-wrap items-center gap-2">
@@ -1015,7 +1065,7 @@ function EnquiryEmailEditor({
                         stockChange: undefined,
                         templateId: undefined,
                         subject: data.defaults.subject,
-                        message: data.defaults.message,
+                        message: cazooReply ? "" : data.defaults.message,
                         expectedRevision: data.revision,
                       })
                     }
@@ -1233,7 +1283,7 @@ function EnquiryEmailEditor({
                             </Button>
                           </div>
                         )}
-                      {!compact && !fixedRecipient && <AiReplyDraft key={entry.id} enquiryId={entry.id} disabled={busy} onApply={text=>change({message:text})} />}
+                      {!compact && !fixedRecipient && !isCazooEnquiry && <AiReplyDraft key={entry.id} enquiryId={entry.id} disabled={busy} onApply={text=>change({message:text})} />}
                       <fieldset disabled={busy}>
                         {targetedReply && !replyRecipient && (
                           <p role="status" className="enquiry-email-readiness">
@@ -1301,7 +1351,7 @@ function EnquiryEmailEditor({
                             </small>
                           </div>
                         )}
-                        {!compact && !saleUpdate && templateChoice}
+                        {!compact && !saleUpdate && !cazooReply && templateChoice}
 
                         <label>
                           Subject
@@ -1323,7 +1373,7 @@ function EnquiryEmailEditor({
                             required
                             className={compact ? "enquiry-reply-message" : undefined}
                             rows={compact ? 8 : 5}
-                            placeholder={compact ? "Write your reply to the customer…" : undefined}
+                            placeholder={compact || cazooReply ? "Write your reply…" : undefined}
                             maxLength={12000}
                             value={draft.message}
                             readOnly={Boolean(saleUpdate)}
@@ -1346,7 +1396,7 @@ function EnquiryEmailEditor({
                           </button>
                         )}
                         {!saleUpdate && <div id={attachmentsId} hidden={compact && !attachmentsOpen} className={compact ? "enquiry-email-content-tray" : "enquiry-email-content-options"}>
-                          {compact && <><h5>Add to this reply</h5>{templateChoice}</>}
+                          {compact && <><h5>Attachments and details</h5>{!cazooReply && templateChoice}</>}
                         {Boolean(data.vehiclePhotos?.length) && (
                           <details className="enquiry-email-service-book">
                             <summary>Car photographs · optional links</summary>
@@ -1570,9 +1620,12 @@ function EnquiryEmailEditor({
                         )}
                         {showAiReview && (
                           <Button className="enquiry-ai-check-send" type="button" disabled={!canPolish}
-                            onClick={() => void review(true)}>
+                            aria-describedby={cazooReply ? proofreadHintId : undefined}
+                            onClick={() => void (cazooReply ? fixAndSend() : review(true))}>
                             <FilePenLine size={16} aria-hidden />
-                            {busyAction === "ai-review" ? "Checking your reply…" : "AI check & send"}
+                            {cazooReply
+                              ? busyAction === "fix-and-send" ? "Checking spelling and grammar…" : busyAction === "send" ? "Sending…" : "Fix and send"
+                              : busyAction === "ai-review" ? "Checking your reply…" : "AI check & send"}
                           </Button>
                         )}
                         {!saleUpdate && channel !== "whatsapp" && (
@@ -1614,7 +1667,10 @@ function EnquiryEmailEditor({
                           </Button>
                         )}
                       </div>
-                      {showAiReview && ai.error && <p role="alert" className="enquiry-email-error">{ai.error}</p>}
+                      {showAiReview && cazooReply && <p className="enquiry-email-hint" id={proofreadHintId}>
+                        {ai.remaining > 0 ? "Checks spelling and grammar, then sends." : "Spelling and grammar checks are used up. You can still review and send your reply."}
+                      </p>}
+                      {showAiReview && !cazooReply && ai.error && <p role="alert" className="enquiry-email-error">{ai.error}</p>}
                       {showAiReview && draft.message.trim().length > 5000 && (
                         <p className="enquiry-email-hint">AI can check up to 5,000 characters. You can still review and send this reply.</p>
                       )}

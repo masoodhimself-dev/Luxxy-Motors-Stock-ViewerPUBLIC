@@ -27,10 +27,10 @@ export function CustomerFooter({ settings, testDriveHref, enquiriesEnabled = fal
           {socialLinks.length > 0 && <nav className="footer-social" aria-label="Follow us">{socialLinks.map(({ label, href, Icon }) => <a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={label}><Icon size={18} aria-hidden="true" /></a>)}</nav>}
         </div>
 
-        <nav className="footer-column" aria-label="Explore our dealership">
-          <h3>Our cars & services</h3>
+        <nav className="footer-column" aria-label="Cars and services">
+          <h3>Cars and services</h3>
           <Link href="/stock">Browse our cars</Link>
-          <Link href="/saved">Your saved cars</Link>
+          <Link href="/saved">Saved cars</Link>
           {settings.testDriveBooking?.enabled && <Link href={testDriveHref}>{settings.bookViewing.ctaLabel}</Link>}
           {settings.partExchange?.enabled && <Link href="/enquire?type=part_exchange">Part exchange</Link>}
           {settings.warranty?.enabled && <Link href="/warranty">Warranty options</Link>}
@@ -38,7 +38,7 @@ export function CustomerFooter({ settings, testDriveHref, enquiriesEnabled = fal
         </nav>
 
         <section className="footer-column footer-contact" aria-labelledby="footer-contact-heading">
-          <h3 id="footer-contact-heading">Talk to us</h3>
+          <h3 id="footer-contact-heading">Contact</h3>
           {settings.contact.phone && <a href={`tel:${settings.contact.phone.replace(/[^0-9+]/g, '')}`}><Phone size={16} aria-hidden="true" /><span>{formatPhoneDisplay(settings.contact.phone)}</span></a>}
           {settings.contact.email && <a href={`mailto:${settings.contact.email}`}><Mail size={16} aria-hidden="true" /><span>{settings.contact.email}</span></a>}
           {enquiriesEnabled && <Link href="/enquire?type=general">Send an enquiry <ArrowUpRight size={14} aria-hidden="true" /></Link>}
@@ -49,7 +49,7 @@ export function CustomerFooter({ settings, testDriveHref, enquiriesEnabled = fal
         {dates.length > 0 && <section className="footer-column footer-hours" aria-labelledby="footer-hours-heading">
           <h3 id="footer-hours-heading">Opening hours</h3>
           <dl>{dates.slice(0, 3).map(visit => <div key={visit.date}><dt><span>{visit.relativeLabel}</span><span>{['Today', 'Tomorrow'].includes(visit.relativeLabel) ? visit.dateLabel : visit.dateLabel.replace(/^\S+\s/, '')}</span></dt><dd>{visit.times}</dd></div>)}</dl>
-          <Link href="/contact" className="footer-text-link">All hours & visiting details <ArrowUpRight size={14} aria-hidden="true" /></Link>
+          <Link href="/contact" className="footer-text-link">All opening hours <ArrowUpRight size={14} aria-hidden="true" /></Link>
         </section>}
       </div>
 

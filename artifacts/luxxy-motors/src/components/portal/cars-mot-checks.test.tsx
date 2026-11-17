@@ -29,7 +29,6 @@ beforeEach(() => { state.fetch.mockReset(); state.fetch.mockResolvedValue(status
 it("reads saved status without requesting a provider check on page open", async () => {
   mount();
   expect(await screen.findByText("1 of 3 current cars checked")).toBeVisible();
-  expect(screen.getByText(/New arrivals are checked automatically/)).toBeVisible();
   expect(state.fetch).toHaveBeenCalledTimes(1);
   expect(state.fetch).toHaveBeenCalledWith("/api/staff/vehicles/mot-checks", { signal: expect.any(AbortSignal) });
   expect(screen.getByRole("button", { name: "Check all MOTs" })).toBeEnabled();

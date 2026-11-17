@@ -3,6 +3,7 @@ import "./workspace-tools.css";
 import {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -252,7 +253,7 @@ export function CustomerActivity({
         <span data-tone={presentation.tone}>
           {presentation.state}
           {presentation.dueAt && (
-            <> · {formatDateTime(presentation.dueAt)} (UK)</>
+            <> · {formatDateTime(presentation.dueAt)}</>
           )}
         </span>{" "}
         {(task.pendingEmailReplies ?? 0) > 1 && (
@@ -304,8 +305,7 @@ export function CustomerActivity({
         >
           <span>Follow-up · {activity.nextFollowUp.customerName}</span>
           <strong>
-            {formatDateTime(activity.nextFollowUp.followUpAt!)}{" "}
-            <small>(UK)</small>
+            {formatDateTime(activity.nextFollowUp.followUpAt!)}
           </strong>
         </Link>
       )}
@@ -317,8 +317,7 @@ export function CustomerActivity({
         >
           <span>Next test drive · {activity.nextAppointment.customerName}</span>
           <strong>
-            {formatDateTime(activity.nextAppointment.appointmentAt!)}{" "}
-            <small>(UK)</small>
+            {formatDateTime(activity.nextAppointment.appointmentAt!)}
           </strong>
         </Link>
       ) : (
@@ -373,6 +372,7 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
   ) as StaffCarsAttention;
   const motFocus = (["all","expired","due30","unknown","earliest"].includes(params.get("carsMot") ?? "") ? params.get("carsMot") : "all") as MotFocus;
   const taxFocus = taxFilters.find(([value]) => value === params.get("carsTax"))?.[0] ?? "all";
+  const motScopeId = useId();
   const filtersApplied =
     Boolean(search) ||
     tab !== "all" ||
@@ -655,7 +655,7 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
     return (
       <div className="cars-change-list">
         {car.staff.changes.map((change, i) => (
-          <span key={i} title={`Changed ${formatDateTime(change.at)} (UK)`}>
+          <span key={i} title={`Changed ${formatDateTime(change.at)}`}>
             {change.label}
             {change.kind === "price" &&
               change.before != null &&
@@ -712,7 +712,7 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
         )}
         {a?.nextAppointment && (
           <Link href={inboxHref(a.nextAppointment)}>
-            Test drive · {formatDateTime(a.nextAppointment.appointmentAt!)} (UK)
+            Test drive · {formatDateTime(a.nextAppointment.appointmentAt!)}
           </Link>
         )}
         {replies.isError && <small>Reply status unavailable</small>}
@@ -749,12 +749,14 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
                 size="sm"
                 variant="outline"
                 className="cars-mot-button"
+                aria-describedby={motScopeId}
                 onClick={() => void motChecks.start()}
                 disabled={motChecks.disabled}
               >
                 {motChecks.starting || motChecks.active ? "Checking MOTs…" : "Check all MOTs"}
               </Button>
             )}
+            {canManage && <span id={motScopeId} className="sr-only">Checks available and reserved cars. New arrivals are checked automatically.</span>}
             <Button
               type="button"
               size="icon"
@@ -776,7 +778,7 @@ export function CarsWorkspace(props: CarsWorkspaceProps) {
           <strong>Cars could not be refreshed</strong>
           <p>
             {query.data
-              ? "Showing saved information. Refresh before arranging a booking or sale."
+              ? "Showing saved stock. Refresh before arranging a booking or sale."
               : "Please try again to load your dealership’s cars."}
           </p>
           <Button variant="outline" onClick={() => void refresh()}>

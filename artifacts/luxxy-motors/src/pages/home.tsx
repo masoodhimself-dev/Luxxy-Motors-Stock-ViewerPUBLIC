@@ -684,7 +684,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                       {service.title?.trim() || (id === 'part-exchange' ? 'Part exchange' : id === 'delivery' ? 'Delivery' : 'Warranty')}
                     </h3>
                     <p className="mt-3 flex-1 text-sm leading-relaxed text-muted-foreground">
-                      {id === 'delivery' ? customerDefaultCopy(service.description, 'Ask us about delivery options for your next car.', ['Customers may be able to have their vehicle delivered.']) : id === 'warranty' ? customerDefaultCopy(service.description, 'Ask us about warranty options for your chosen car.', ['Warranty options are available on eligible vehicles.']) : service.description}
+                      {id === 'delivery' ? customerDefaultCopy(service.description, 'Ask for a delivery quote to your postcode.', ['Customers may be able to have their vehicle delivered.']) : id === 'warranty' ? customerDefaultCopy(service.description, 'Ask what warranty comes with the car.', ['Warranty options are available on eligible vehicles.']) : service.description}
                     </p>
                     {id === 'delivery' && <DeliveryEstimator />}
                     <a
@@ -705,7 +705,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
       {dealerConfig.presentation?.visitEnabled !== false && <DealershipVisit>
         {hasMultiChoicePhotography(dealerConfig.identity.name) && <div>
           <DealerServicePhoto dealerName={dealerConfig.identity.name} service="customer-service" />
-          <h3 className="mt-4 text-base font-semibold">Help choosing your next car</h3>
+          <h3 className="mt-4 text-base font-semibold">Visit the showroom</h3>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Ask us about a vehicle or arrange a visit.</p>
         </div>}
       </DealershipVisit>}

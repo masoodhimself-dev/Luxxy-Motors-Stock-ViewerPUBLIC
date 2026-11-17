@@ -425,7 +425,7 @@ describe('shared homepage and dealer content', () => {
 
   it('shows the dealership introduction while stock loads', () => {
     stockIsLoading = true; renderHome(false);
-    expect(screen.getByRole('heading', { name: 'Find your next car' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Used cars for sale' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Loading cars…' })).toBeDisabled();
     expect(screen.getByRole('status')).toHaveTextContent('Loading featured cars…');
   });

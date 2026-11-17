@@ -17,7 +17,7 @@ const filters: {id: InboxFilter; label: string}[] = [
   {id: "part-exchange", label: "PX enquiries"},
   {id:'needs-you',label:'Needs you'}, {id:'all',label:'All'}, {id:'done',label:'Done'},
 ];
-const folders: {id:InboxFolder;label:string}[] = [{id:'enquiries',label:'Enquiries'},{id:'ai',label:'AI enquiries'},{id:'archive',label:'Archive'}];
+const availableFolders: {id:InboxFolder;label:string}[] = [{id:'enquiries',label:'Enquiries'},{id:'ai',label:'AI enquiries'},{id:'archive',label:'Archive'}];
 
 /** The conversation is the workspace. Bookings, email delivery and car tools stay within reach. */
 export function InboxWorkspace({ entries, cars, selectedId, onSelect, onBack, actions, loading=false,
@@ -40,6 +40,8 @@ export function InboxWorkspace({ entries, cars, selectedId, onSelect, onBack, ac
   const searchInput = useRef<HTMLInputElement>(null);
   const folderId=useId(), openedId=useRef<string|null>(null);
   useEffect(()=>{const timer=window.setInterval(()=>setNow(Date.now()),60_000);return()=>window.clearInterval(timer);},[]);
+  const hasAiFolder = entries.some(entry => !entry.archivedAt && isAiEnquiry(entry));
+  const folders = availableFolders.filter(item => item.id !== 'ai' || hasAiFolder || folder === 'ai');
   const folderEntries=inboxFolderEntries(entries,folder);
   const visible=inboxFilter(folderEntries,folder==='archive'?'archive':filter,search,now).filter(entry=>{const members=enquiryGroup(entry,entries).filter(e=>folder==='archive'||!e.archivedAt);return ownerView==='all'||ownerView==='mine'&&Boolean(currentStaffId)&&members.some(e=>e.assignedToId===currentStaffId)||ownerView==='unassigned'&&members.every(e=>!e.assignedToId);});
   const explicit=entries.find(entry=>entry.id===selectedId);
@@ -97,7 +99,7 @@ export function InboxWorkspace({ entries, cars, selectedId, onSelect, onBack, ac
     <div className="inbox-desk-columns">
       <div className="inbox-desk-queue">
         <label className="inbox-desk-search"><Search size={17} aria-hidden/><span className="sr-only">Search enquiries</span>
-          <Input ref={searchInput} value={search} onChange={event=>resetSelection(()=>setSearch(event.target.value))} placeholder="Name, car or registration"/>
+          <Input ref={searchInput} value={search} onChange={event=>resetSelection(()=>setSearch(event.target.value))} placeholder="Name, car, reg or email"/>
         </label>
         <div className="inbox-folder-tabs" role="tablist" aria-label="Inbox folders">
           {folders.map((item,index)=><button key={item.id} id={`${folderId}-${item.id}`} type="button" role="tab" aria-selected={folder===item.id}
@@ -122,7 +124,7 @@ export function InboxWorkspace({ entries, cars, selectedId, onSelect, onBack, ac
           : error && !entries.length ? <div className="inbox-desk-empty" role="alert"><h3>Enquiries couldn’t be loaded</h3><p>Your saved conversations are unchanged.</p><Button variant="outline" onClick={onRefresh}>Retry enquiries</Button></div>
           : <><p className="inbox-desk-count" aria-live="polite">{visible.length} {visible.length===1?'conversation':'conversations'}{folder!=='archive'&&filter==='test-drives'?' · Test drives':''}{ownerView==='mine'?' · My enquiries':ownerView==='unassigned'?' · Unassigned':''}</p>
           {!visible.length ? <div className="inbox-desk-empty" role="status">
-            {folder==='archive'&&!search ? <><Inbox size={28} aria-hidden/><h3>No archived enquiries</h3><p>Archived conversations stay recoverable here for 30 days.</p></> : folder==='ai'&&!folderEntries.length&&!search ? <><Inbox size={28} aria-hidden/><h3>No AI enquiries yet</h3><p>Enquiries appear here when connected provider automation prepares a reply. Website enquiries and manual AI drafts stay in Enquiries.</p></> : filter==='needs-you'&&!search ? <><CheckCircle2 size={28} aria-hidden/><h3>You’re up to date</h3><p>Nothing needs your attention right now.</p></> : <><Inbox size={28} aria-hidden/><h3>{search?'No matching conversations':entries.length?'Nothing here yet':'Your Inbox is ready'}</h3><p>{search?'Try a name, registration or email address.':entries.length?'Try All to see your other enquiries.':'Website enquiries and test-drive requests will appear here.'}</p></>}
+            {folder==='archive'&&!search ? <><Inbox size={28} aria-hidden/><h3>No archived enquiries</h3><p>Archived conversations stay recoverable here for 30 days.</p></> : folder==='ai'&&!folderEntries.length&&!search ? <><Inbox size={28} aria-hidden/><h3>No AI enquiries yet</h3><p>Enquiries appear here when connected provider automation prepares a reply. Website enquiries and manual AI drafts stay in Enquiries.</p></> : filter==='needs-you'&&!search ? <><CheckCircle2 size={28} aria-hidden/><h3>Nothing needs attention</h3></> : <><Inbox size={28} aria-hidden/><h3>{search?'No matching conversations':entries.length?'Nothing here yet':'No enquiries yet'}</h3><p>{search?'Try a name, registration or email address.':entries.length?'Try All to see your other enquiries.':'New enquiries and test-drive requests will appear here.'}</p></>}
             {(search||ownerView!=='all'||folder!=='archive'&&filter!=='all')&&<Button variant="outline" size="sm" onClick={()=>resetSelection(()=>{setSearch('');setFilter('all');setOwnerView('all');})}>{folder==='archive'?'Clear filters':'Show all enquiries'}</Button>}
           </div> : <ul>{visible.map(entry=>{
             const state=inboxCaseState(entry,entries,now);
@@ -139,7 +141,7 @@ export function InboxWorkspace({ entries, cars, selectedId, onSelect, onBack, ac
                 <span className="inbox-desk-row-top"><strong>{entry.customerName}</strong><time dateTime={at??undefined} title={at?new Date(at).toLocaleString('en-GB'):undefined}>{inboxRelativeTime(at,now)}</time></span>
                 <span className="inbox-desk-row-car">{entry.vehicleTitle||'General enquiry'}{entry.vehicleRegistration&&` · ${entry.vehicleRegistration}`}</span>
                 <span className="inbox-desk-row-preview">{latest.latestReplyText||enquiryRequestText(latest)||state.nextAction}</span>
-                <span className="inbox-desk-row-tags"><span className="inbox-status" data-tone={state.tone}>{state.label}</span><span className="inbox-source">{presentation.source}{isPartExchange?' · Part exchange':''}</span>{members.some(member=>member.aiProvider&&member.aiDraftStatus==='ready')&&<span className="inbox-ai-status">Draft ready</span>}</span>
+                <span className="inbox-desk-row-tags"><span className="inbox-status" data-tone={state.tone}>{state.label}</span><span className="inbox-source">{presentation.source}{isPartExchange?' · Part exchange':''}</span>{members.some(member=>isAiEnquiry(member)&&member.aiDraftStatus==='ready')&&<span className="inbox-ai-status">Draft ready</span>}</span>
               </span>
             </button></li>;
           })}</ul>}</>}

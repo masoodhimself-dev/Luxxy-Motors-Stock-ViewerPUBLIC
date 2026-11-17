@@ -11,7 +11,7 @@ import {
   useGetTestDriveBookings,
   type Enquiry,
 } from '@workspace/api-client-react';
-import { CalendarClock, Check, FileCheck2, LoaderCircle, RefreshCw } from '@/components/icons';
+import { Check, FileCheck2, LoaderCircle, RefreshCw } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { NativeSelect } from '@/components/ui/native-select';
 import { enquiryGroup, primaryEnquiry } from '@/lib/enquiry-groups';
@@ -25,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Chip, EmptyState, Panel, PanelHeader, formatDateTime } from './portal-ui';
+import { Chip, Panel, PanelHeader, formatDateTime } from './portal-ui';
 import { AppointmentExceptionLabels } from './enquiry-calendar';
 import { AttendanceControls } from './enquiry-workspace-tools';
 import { HistoryLinks } from './history-links';
@@ -87,7 +87,7 @@ function BookingRow({ booking, now, onDecision, onMerge, canEmail, canBook, chec
         </div>
         <div className="booking-detail-vehicle min-w-0">
           <p className="font-semibold text-primary">{booking.vehicleTitle || 'Vehicle to be arranged'}</p>
-          <p className="mt-1 text-sm font-medium">{booking.appointmentAt ? formatDateTime(booking.appointmentAt) : 'Time to be arranged'} <span className="font-normal text-muted-foreground">(UK time)</span></p>
+          <p className="mt-1 text-sm font-medium">{booking.appointmentAt ? formatDateTime(booking.appointmentAt) : 'Time to be arranged'}</p>
           <AppointmentExceptionLabels booking={booking} />
           {canDeclare && <div className="mt-2"><AttendanceControls entry={booking} /></div>}
           <p className="mt-1 text-xs text-muted-foreground">{booking.appointmentDurationMinutes ?? 30} minutes</p>
@@ -112,7 +112,7 @@ function BookingRow({ booking, now, onDecision, onMerge, canEmail, canBook, chec
             <AlertDialogTitle>{decision === 'confirm' ? 'Confirm this test drive?' : 'Decline this request?'}</AlertDialogTitle>
             <AlertDialogDescription>
               {decision === 'confirm'
-                ? `Confirm ${reviewedBooking.customerName}’s appointment for ${reviewedBooking.vehicleTitle || 'their chosen vehicle'}${reviewedBooking.appointmentAt ? ` on ${formatDateTime(reviewedBooking.appointmentAt)} (UK time)` : ''}.`
+                ? `Confirm ${reviewedBooking.customerName}’s appointment for ${reviewedBooking.vehicleTitle || 'their chosen vehicle'}${reviewedBooking.appointmentAt ? ` on ${formatDateTime(reviewedBooking.appointmentAt)}` : ''}.`
                 : `Decline ${reviewedBooking.customerName}’s test-drive request and release this appointment time. Contact the customer if you would like to offer an alternative.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -161,7 +161,7 @@ export function TestDriveBookingsPanel({ canEmail = false, enquiryId }: { canEma
 
   return (
     <Panel>
-      <PanelHeader title="Test-drive appointments" meta="Review requests and prepare for customer visits. Times are shown in UK time." action={
+      <PanelHeader title="Test-drive appointments" action={
         <Button type="button" variant="outline" size="icon" aria-label="Refresh test drives" onClick={() => query.refetch()} disabled={query.isFetching}>
           <RefreshCw className={`h-4 w-4 ${query.isFetching ? 'animate-spin' : ''}`} />
         </Button>
@@ -194,7 +194,11 @@ export function TestDriveBookingsPanel({ canEmail = false, enquiryId }: { canEma
           </nav>
           <ul className="min-w-0" aria-label="Selected appointment details"><BookingRow key={selectedBooking.id} booking={selectedBooking} now={now} onDecision={setNotice} onMerge={setMergeEntry} canEmail={canEmail} canBook={features.enabled('testDriveBookings')} checkPreparation={preparationIds.has(selectedBooking.id)} canDeclare={canDeclare} /></ul>
         </div>
-        : <div className="p-4"><EmptyState icon={CalendarClock} title={enquiryId ? 'No matching appointment for this customer' : status === 'pending' ? 'No requests awaiting approval' : 'No appointments to show'} body={enquiryId ? 'Open the customer record to arrange a test drive or check their enquiry.' : status === 'active' ? 'New test-drive bookings will appear here with the car, time and customer details.' : 'Choose another status to see other appointments.'} />{enquiryId && <Button variant="outline" asChild><Link href={`/portal?section=notifications&workView=customers&enquiryId=${encodeURIComponent(enquiryId)}`}>Open customer</Link></Button>}</div>}
+        : <div className="space-y-3 px-4 py-6 text-sm text-muted-foreground">
+          <p>{enquiryId ? 'No matching appointment for this customer' : status === 'pending' ? 'No requests awaiting approval' : status === 'active' ? 'No upcoming appointments' : 'No appointments to show'}</p>
+          {status === 'active' && !enquiryId && <p>Choose All appointments to see past bookings.</p>}
+          {enquiryId && <Button variant="outline" asChild><Link href={`/portal?section=notifications&workView=customers&enquiryId=${encodeURIComponent(enquiryId)}`}>Open customer</Link></Button>}
+        </div>}
       {mergeEntry && enquiries.isLoading && <p role="status" className="p-4 text-sm">Loading records to merge…</p>}
       {mergeEntry && enquiries.isError && !enquiries.data && <div role="alert" className="p-4 text-sm"><p>Records could not be loaded for merging.</p><Button variant="outline" onClick={() => enquiries.refetch()}>Retry records</Button><Button variant="ghost" onClick={() => setMergeEntry(null)}>Cancel</Button></div>}
       {mergeEntry && enquiries.data && <EnquiryMergeDialog entry={enquiries.data.find(item => item.id === mergeEntry.id) ?? mergeEntry} entries={enquiries.data} onClose={() => setMergeEntry(null)} onRefresh={async () => { const fresh = await enquiries.refetch(); if (fresh.error || !fresh.data) throw fresh.error ?? new Error('Enquiries unavailable'); return fresh.data; }} onSaved={async result => { setMergeEntry(null); setNotice(`${result.recordIds.length} records merged into one case. ${result.cancelledAppointmentIds.length} appointments cancelled.`); await Promise.all([client.invalidateQueries({ queryKey: getGetEnquiriesQueryKey() }), client.invalidateQueries({ queryKey: getGetTestDriveBookingsQueryKey() }), client.invalidateQueries({ predicate: item => String(item.queryKey[0]).endsWith('/availability') })]); }} />}

@@ -182,7 +182,7 @@ export default function CarDetail() {
 
   if (error) {
     return <div className="vehicle-page vehicle-redesigned luxxy-shell min-h-[70vh] px-5 py-16"><div className="mx-auto max-w-xl" role="alert">
-      <PageHeading eyebrow="Vehicle details" title="Vehicle details could not be loaded" description="We couldn’t load this car’s details. Please try again, or browse our current cars." />
+      <PageHeading title="Couldn’t load this car" description="Try again or browse the cars we have in stock." />
       <div className="flex flex-wrap gap-3"><Button onClick={retryVehicle}>Try again</Button><Button asChild variant="outline"><Link href="/stock">Browse stock</Link></Button></div>
     </div></div>;
   }
@@ -514,7 +514,7 @@ export default function CarDetail() {
             <VehicleVisit car={car} />
             {deliveryAction && <section aria-labelledby="vehicle-delivery-heading" className="vehicle-delivery-information">
               <h2 id="vehicle-delivery-heading" tabIndex={-1} className="section-heading scroll-mt-28">Delivery to your door</h2>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">Enter your postcode to estimate delivery and the combined cost of this car.</p>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">Enter your postcode to see the delivery cost and total price.</p>
               {deliveryAction}
             </section>}
           </div>

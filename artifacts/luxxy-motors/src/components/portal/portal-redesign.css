@@ -94,13 +94,14 @@
 .portal-workspace.portal-redesign .invoice-car-context { border-radius:9px; border-color:var(--portal-border); background:#fff; }
 .portal-workspace.portal-redesign .invoice-empty { border-radius:9px; padding:36px 24px; background:#f6f9fb; }
 .portal-workspace.portal-redesign .settings-owner-tools {
-  grid-column: 1 / -1;
+  grid-column: 2;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   gap: 10px;
   align-items: start;
 }
 .portal-workspace.portal-redesign .settings-owner-tools > * { margin: 0; }
+.portal-workspace.portal-redesign .settings-owner-tools .workspace-setup-checklist { margin: 0; }
 
 /* Settings are grouped, with navigation separated from the editor on wide screens. */
 .portal-workspace.portal-redesign .settings-tabs-heading { margin:0 0 24px; padding:0; border:0; }
@@ -116,8 +117,11 @@
 @media(min-width:1200px) {
   .portal-workspace.portal-redesign .dealer-settings-hub { display:grid; grid-template-columns:180px minmax(0,1fr); gap:20px; align-items:start; }
   .portal-workspace.portal-redesign .dealer-settings-hub > .settings-tabs-heading { grid-column:1/-1; margin-bottom:0; }
-  .portal-workspace.portal-redesign .dealer-settings-hub > .settings-tabs { display:grid; grid-template-columns:minmax(0,1fr); position:sticky; top:96px; }
+  .portal-workspace.portal-redesign .dealer-settings-hub > .settings-tabs { display:grid; grid-template-columns:minmax(0,1fr); grid-row:2 / span 2; position:sticky; top:96px; }
   .portal-workspace.portal-redesign .dealer-settings-hub > .settings-tabs > button { justify-content:flex-start; text-align:left; }
+}
+@media(max-width:1199px) {
+  .portal-workspace.portal-redesign .settings-owner-tools { margin-top: 12px; }
 }
 @media(min-width:1000px) {
   .portal-workspace.portal-redesign .enquiry-record-browser { grid-template-columns:minmax(270px,310px) minmax(0,1fr); }
@@ -165,6 +169,10 @@
   .portal-workspace.portal-redesign .dealer-settings-hub > .settings-tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); overflow:visible; gap:4px; }
   .portal-workspace.portal-redesign .dealer-settings-hub > .settings-tabs > button { min-width:0; padding:8px 3px; flex-direction:column; justify-content:center; gap:4px; font-size:11px; white-space:normal; text-align:center; }
   .portal-workspace.portal-redesign .settings-hub-content { padding:18px 14px; margin-top:16px; }
+  .portal-workspace.portal-redesign .settings-owner-tools { gap: 0; border: 1px solid var(--portal-border); border-radius: 8px; background: #fff; }
+  .portal-workspace.portal-redesign .settings-owner-tools :is(.workspace-setup-checklist, .workspace-operations-report) { border: 0; border-radius: 0; background: transparent; }
+  .portal-workspace.portal-redesign .settings-owner-tools > :nth-child(2) { border-top: 1px solid var(--portal-border); }
+  .portal-workspace.portal-redesign .settings-owner-tools summary { min-height: 44px; padding-block: 11px; }
   .portal-workspace.portal-redesign :is(.settings-save-bar,.settings-panel-footer) { bottom:calc(68px + env(safe-area-inset-bottom)); }
 }
 @media(prefers-reduced-motion:reduce) { .portal-workspace.portal-redesign *, .portal-workspace.portal-redesign *::before, .portal-workspace.portal-redesign *::after { scroll-behavior:auto!important; transition:none!important; } }

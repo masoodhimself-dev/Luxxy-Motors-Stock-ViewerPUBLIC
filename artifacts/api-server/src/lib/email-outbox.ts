@@ -56,6 +56,7 @@ const digest = (text: string) =>
 const instant = (value: Date | string) => new Date(value).getTime();
 export const emailRetryWindowMs = 23 * 3600000; // Resend retains keys for24h; leave a one-hour safety margin.
 const leaseMs = 2 * 60000;
+const retiredCazooReplyCode = "cazoo_automatic_reply_retired";
 
 /** DTSTAMP is volatile metadata; transport retries still use the original bytes. */
 export function emailValidationHash(body: EmailEnvelope) {
@@ -140,6 +141,10 @@ function message(row: EmailOutbox) {
     return row.status === "unknown"
       ? "Email retry stopped for a private Apple address. The earlier delivery could not be confirmed."
       : APPLE_RELAY_EMAIL_UNAVAILABLE;
+  if (row.error_code === retiredCazooReplyCode)
+    return row.status === "unknown"
+      ? "An earlier automatic Cazoo reply may have been sent. Check the conversation and Resend before replying."
+      : "This automatic Cazoo reply was stopped. Reply from the enquiry.";
   if (row.error_code === "cazoo_first_reply_no_longer_eligible") return "The automatic reply stopped because the enquiry or stock changed. Review the enquiry before replying.";
   if (row.error_code === "sale_update_not_sent") return "This sale update was not sent. Review the current sale before trying again.";
   if (row.error_code === 'price_update_already_approved') return 'This customer already has a price update approved, sent or awaiting a delivery check. This additional email was not sent. Review their conversation before preparing another update.';
@@ -327,6 +332,15 @@ export function deliverEmailOutbox(
             )
           ).rows[0] as unknown as EmailOutbox | undefined;
           if (!row) return undefined;
+          if (row.kind === "staff" && Object.hasOwn(row.validation, "cazooFirstReply")) {
+            const stopped = (await tx.execute(sql`
+              UPDATE email_outbox SET status=${row.attempts === 0 ? "failed" : "unknown"},
+                error_code=${retiredCazooReplyCode},finished_at=${now},updated_at=${now}
+              WHERE id=${id}::uuid AND dealer_id=${dealer} RETURNING *
+            `)).rows[0] as unknown as EmailOutbox;
+            await syncTarget(stopped, tx);
+            return stopped;
+          }
           if (!enquiry || enquiry.archived_at) {
             const cancelled = (await tx.execute(sql`UPDATE email_outbox SET status='cancelled',error_code='enquiry_archived',finished_at=${now},updated_at=${now} WHERE id=${id}::uuid AND dealer_id=${dealer} RETURNING *`)).rows[0] as unknown as EmailOutbox;
             await syncTarget(cancelled, tx);
@@ -465,9 +479,7 @@ export function deliverEmailOutbox(
             countAttempt = false;
           } else if (failure.kind === "permanent") {
             status = "failed";
-            code = error instanceof EmailProviderError && error.providerCode === "cazoo_first_reply_no_longer_eligible"
-              ? error.providerCode
-              : "provider_rejected";
+            code = "provider_rejected";
           } else if (
             failure.kind === "retryable" &&
             (claimed.attempts < 3 || !countAttempt)

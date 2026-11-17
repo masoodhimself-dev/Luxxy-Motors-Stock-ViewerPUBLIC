@@ -209,7 +209,8 @@ export function EnquiryCustomerCase({
       : null;
   const replyOpen = canReply && ((!compact && !restrictedEmail) || focusRequest > 0);
   const canInsertIntoReply = canReply && !replyBusy && (!restrictedEmail || hasWhatsAppNumber);
-  const hasAiDraft = entry.aiDraftStatus === "ready";
+  const isCazoo = entry.source === "cazoo";
+  const hasAiDraft = !isCazoo && entry.aiDraftStatus === "ready";
   const preferredReplyChannel = hasWhatsAppNumber &&
     (entry.preferredContact === "whatsapp" || !entry.email?.trim()) &&
     !hasAiDraft && !pendingReply ? "whatsapp" : "email";
@@ -490,11 +491,12 @@ export function EnquiryCustomerCase({
         )}
         {compact && ((!restrictedEmail && canReply && !replyOpen) || canOpenTradeIn) && (
           <div className="enquiry-case-reply-action">
-            {!restrictedEmail && canReply && !replyOpen && preferredReplyChannel === "email" && (
+            {!restrictedEmail && canReply && !replyOpen && (preferredReplyChannel === "email" || (isCazoo && Boolean(entry.email?.trim()))) && (
               <Button
                 type="button"
                 size="sm"
-                className="enquiry-case-reply-button"
+                variant={preferredReplyChannel === "whatsapp" ? "outline" : "default"}
+                className={preferredReplyChannel === "email" ? "enquiry-case-reply-button" : undefined}
                 aria-describedby={hasAiDraft ? replyId : undefined}
                 onClick={() => reply("email")}
               >
@@ -665,7 +667,7 @@ export function EnquiryCustomerCase({
               </Button>
             </div>
             {compact && <nav className="enquiry-case-detail-tabs" aria-label="Enquiry details sections">{([{id:"vehicle",label:"Car & MOT"},{id:"customer",label:"Customer"},{id:"activity",label:"Activity"}] as const).map(item=><Button key={item.id} size="sm" variant={context===item.id?"default":"ghost"} aria-pressed={context===item.id} onClick={()=>{setContext(item.id);setActivityOpen(false);}}>{item.label}</Button>)}</nav>}
-            {compact && context === "activity" ? <div className="enquiry-case-panel-body"><CustomerActivityTimeline compact backgroundOnly entry={entry} entries={entries} canEmail={canReply} cars={cars}/>{canManage && <EnquiryAiChecks id={entry.id}/>}</div> : context === "vehicle" ? (
+            {compact && context === "activity" ? <div className="enquiry-case-panel-body"><CustomerActivityTimeline compact backgroundOnly entry={entry} entries={entries} canEmail={canReply} cars={cars}/>{canManage && !isCazoo && <EnquiryAiChecks id={entry.id}/>}</div> : context === "vehicle" ? (
               <div
                 id={`${contextId}-vehicle`}
                 className="enquiry-case-panel-body"
@@ -953,7 +955,7 @@ export function EnquiryCustomerCase({
             </section>
           )}
           {!compact && conversation}
-          {!compact && canManage && <EnquiryAiChecks id={entry.id}/>}
+          {!compact && canManage && !isCazoo && <EnquiryAiChecks id={entry.id}/>}
           {compact && <ReplyPresence enquiryId={entry.id} scope={workspace} enabled={canManage && !archived} />}
           {compact && editor ? (
             <div ref={replySurface} tabIndex={-1} className="enquiry-case-reply-surface">

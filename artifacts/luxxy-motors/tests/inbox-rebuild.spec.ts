@@ -138,7 +138,7 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
       const replyId = url.searchParams.get('enquiryReplyId');
       await route.fulfill({ json: { version: entry.id === ids.cazoo ? 1 : 0, savedDraft: entry.id === ids.cazoo ? { version: 1, status: 'draft', source: 'ai', content, updatedAt: at(4) } : null,
         ...(replyId === ids.reply ? { replyRecipient: { id: ids.reply, from: 'ellie.corrected@example.test', subject: 'Re: Your Audi A5 enquiry' } } : {}),
-        email: entry.email, customerName: entry.customerName, vehicleId: car.id, vehicleTitle: car.title, reference: entry.reference, revision: 1,
+        source: entry.source, email: entry.email, customerName: entry.customerName, vehicleId: car.id, vehicleTitle: car.title, reference: entry.reference, revision: 1,
         vehicleAvailable: true, vehiclePdfAvailable: true, appointmentAvailable: !!entry.appointmentAt, defaults: { subject: 'Your enquiry', message: '' }, ready: linkedReply, photos: [], vehiclePhotos: [], invoices: [], deliveries: [], templates: [] } }); return;
     }
     if (p === '/api/staff/ai/status') { await route.fulfill({ json: { enabled: false, remaining: 0, limit: 10 } }); return; }
@@ -150,7 +150,7 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
   await expect(desk).toBeVisible();
   if (info.project.use.viewport!.width >= 900) {
     const pinned = page.getByRole('article', { name: 'Customer workspace for Alex Morgan', exact: true });
-    const pinnedMessage = pinned.getByRole('textbox', { name: 'Message', exact: true });
+    const pinnedMessage = pinned.getByRole('textbox', { name: 'Your reply', exact: true });
     await expect(pinnedMessage).toHaveCount(0);
     await pinned.getByRole('button', { name: 'Reply', exact: true }).click();
     await expect(pinnedMessage).toBeVisible();
@@ -169,7 +169,7 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
   await expect(desk.getByRole('button', { name: 'Open enquiry for Ellie Carter, Audi A5', exact: true })).toBeVisible();
   await mkdir(output, { recursive: true });
   await page.screenshot({ path: path.join(output, `${info.project.name}-queue.png`), fullPage: true });
-  await desk.getByRole('tab',{name:'AI enquiries',exact:true}).click();
+  await expect(desk.getByRole('tab',{name:'AI enquiries',exact:true})).toHaveCount(0);
   await expect(desk.getByRole('button', { name: 'Open enquiry for Ellie Carter, Audi A5', exact: true })).toBeVisible();
   await expect(desk.locator('.inbox-source').filter({ hasText: 'Cazoo' })).toBeVisible();
   await expect(desk.locator('.inbox-status').filter({ hasText: 'Needs you' }).first()).toBeVisible();
@@ -187,11 +187,11 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
   const customer = page.getByRole('article', { name: 'Customer workspace for Ellie Carter', exact: true });
   await expect(customer).toBeVisible();
   await expect(customer.getByRole('complementary', { name: 'Vehicle and checks', exact: true })).toHaveCount(0);
-  const message = customer.getByRole('textbox', { name: 'Message', exact: true });
+  const message = customer.getByRole('textbox', { name: 'Your reply', exact: true });
   await expect(message).toHaveCount(0);
   await page.screenshot({ path: path.join(output, `${info.project.name}-case.png`), fullPage: true });
   await customer.getByRole('button', { name: /^(?:Review draft|Reply)$/ }).click();
-  await expect(message).toHaveValue(/thank you for your offer/);
+  await expect(message).toHaveValue('');
   await message.fill('Unsaved message that must not disappear without confirmation.');
   await expect(message).toHaveValue('Unsaved message that must not disappear without confirmation.');
   const mobile = info.project.use.viewport!.width < 900;
@@ -204,10 +204,10 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
   await leaveMessage(page, leaveAction, true);
   await expect(page.locator('[aria-label="Customer workspace for Ellie Carter"]')).toHaveCount(0);
   await expect(page.locator('textarea').filter({ hasText: 'Unsaved message that must not disappear without confirmation.' })).toHaveCount(0);
-  await desk.getByRole('tab',{name:'AI enquiries',exact:true}).click();
+  await desk.locator('[data-filter="all"]').click();
   await desk.getByRole('button', { name: 'Open enquiry for Ellie Carter, Audi A5', exact: true }).click();
   await customer.getByRole('button', { name: /^(?:Review draft|Reply)$/ }).click();
-  await expect(message).toHaveValue(/thank you for your offer/);
+  await expect(message).toHaveValue('');
   await expect(message).not.toHaveValue(/Unsaved message that must not disappear/);
   await message.fill('Hi Ellie, thank you for your offer. I can help with the Audi.');
   await expect(message).toHaveValue('Hi Ellie, thank you for your offer. I can help with the Audi.');
@@ -220,7 +220,7 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
   await tools.getByRole('button', { name: 'Close details', exact: true }).click();
   await expect(message).toHaveValue('Hi Ellie, thank you for your offer. I can help with the Audi.');
   if (mobile) {
-    expect((await message.boundingBox())!.height, 'Compact phone message field').toBeLessThanOrEqual(125);
+    expect((await message.boundingBox())!.height, 'Room to write a reply on a phone').toBeGreaterThanOrEqual(160);
   }
   if (!mobile) {
     const sendBounds=await customer.getByRole('button',{name:'Review & send',exact:true}).boundingBox();
@@ -244,8 +244,8 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
     await page.goBack();
     await expect(page).not.toHaveURL(/enquiryId=/);
     await expect(desk.locator('.inbox-desk-list')).toBeVisible();
-    await expect(desk.getByRole('tab',{name:'AI enquiries',exact:true})).toHaveAttribute('aria-selected','true');
-    await expect(desk.locator('[data-filter="needs-you"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(desk.getByRole('tab',{name:'Enquiries',exact:true})).toHaveAttribute('aria-selected','true');
+    await expect(desk.locator('[data-filter="all"]')).toHaveAttribute('aria-pressed', 'true');
   }
   await page.goto('/portal?section=notifications&workView=customers');
   await desk.getByRole('tab',{name:/^Enquiries/}).click();
@@ -284,15 +284,13 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
   await finalCase.getByRole('button',{name:'Details',exact:true}).click();
   const finalDetails = page.getByRole('dialog',{name:'Enquiry details',exact:true});
   await finalDetails.getByRole('button',{name:'Activity',exact:true}).click();
-  await finalDetails.getByText('What AI checked',{exact:true}).click();
-  await expect(finalDetails.getByText('Could not verify',{exact:true})).toBeVisible();
-  await page.screenshot({path:path.join(output,`${info.project.name}-ai-checks.png`),fullPage:true});
+  await expect(finalDetails.getByText('What AI checked',{exact:true})).toHaveCount(0);
   await finalDetails.getByRole('button',{name:'Close details',exact:true}).click();
   await finalCase.getByRole('button',{name:'More enquiry actions',exact:true}).click();
   await page.getByRole('menuitem',{name:'Archive enquiry',exact:true}).click();
   await page.getByRole('alertdialog').getByRole('button',{name:'Archive enquiry',exact:true}).click();
   await expect(finalCase.getByRole('region',{name:'Archived enquiry',exact:true})).toBeVisible();
-  await expect(finalCase.getByRole('textbox',{name:'Message',exact:true})).toHaveCount(0);
+  await expect(finalCase.getByRole('textbox',{name:'Your reply',exact:true})).toHaveCount(0);
   await page.screenshot({path:path.join(output,`${info.project.name}-archived.png`),fullPage:true});
   await finalCase.getByRole('button',{name:'Restore enquiry',exact:true}).click();
   await expect(finalCase.getByRole('button',{name:/^(?:Review draft|Reply)$/})).toBeVisible();
@@ -330,6 +328,7 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
   await fits(page);
   await page.screenshot({ path: path.join(output, `${info.project.name}-linked-reply.png`), fullPage: true });
   await recipient.fill('ellie@example.test');
+  await finalCase.getByRole('textbox', { name: 'Your reply', exact: true }).fill('Hi Ellie, would Saturday work?');
   await finalCase.getByRole('button', { name: 'Review & send', exact: true }).click();
   const review = finalCase.getByRole('region', { name: 'Email preview' });
   await expect(review.getByText(/Sending from this link is paused/)).toBeVisible();
@@ -344,14 +343,14 @@ test('one Inbox handles website, Cazoo and bookings with direct reply and on-dem
   await page.screenshot({ path: path.join(output, `${info.project.name}-linked-review.png`), fullPage: true });
   Object.assign(original, { email: 'ellie@example.test' });
   await page.goto(`${replyLink}&enquiryAction=reply`);
-  await expect(finalCase.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible();
+  await expect(finalCase.getByRole('textbox', { name: 'Your reply', exact: true })).toBeVisible();
   await expect(finalCase.getByText('Fix email address', { exact: true })).toBeVisible();
   await expect(finalCase.getByRole('textbox', { name: 'Customer email', exact: true })).not.toBeVisible();
   await page.goto(`${replyLink}&enquiryAction=reply&enquiryReplyId=${ids.reply}`);
-  await expect(finalCase.getByText(/This reply came from ellie.corrected@example.test/)).toBeVisible();
+  await expect(finalCase.locator('.enquiry-message-details summary')).toContainText('To: ellie.corrected@example.test');
   await expect(finalCase.getByText('Could I bring my part exchange on Saturday?', { exact: true })).toBeVisible();
   await expect(finalCase.getByRole('button', { name: 'Review & send', exact: true })).toBeDisabled();
-  await finalCase.getByRole('button', { name: 'Use reply address', exact: true }).click();
+  await finalCase.getByRole('textbox', { name: 'Your reply', exact: true }).fill('Hi Ellie, you can bring it on Saturday.');
   await finalCase.getByRole('button', { name: 'Review & send', exact: true }).click();
   await expect(review.getByText('ellie.corrected@example.test', { exact: true })).toBeVisible();
   expect(previews.at(-1)).toMatchObject({ enquiryReplyId: ids.reply, to: 'ellie.corrected@example.test' });

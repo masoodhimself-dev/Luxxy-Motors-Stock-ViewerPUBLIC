@@ -485,7 +485,7 @@ test('Today picks up a task assigned from another device while the page remains 
   const initial = fixtureSale();
   const fixture = await installFixture(page, 'owner', initial, true);
   await page.goto('/portal');
-  await expect(page.locator('.today-summary')).toBeVisible();
+  await expect(page.locator('.today-date')).toBeVisible();
   const attention = page.getByRole('region', { name: 'Needs attention' });
   await expect(attention.getByRole('link', { name: 'Open payments', exact: true })).toHaveCount(0);
   fixture.replaceSale({

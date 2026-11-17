@@ -71,9 +71,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px;
-  border: 1px solid #35425a;
-  border-radius: 8px;
+  padding: 4px 10px;
 }
 
 .portal-desk-dealer-logo {

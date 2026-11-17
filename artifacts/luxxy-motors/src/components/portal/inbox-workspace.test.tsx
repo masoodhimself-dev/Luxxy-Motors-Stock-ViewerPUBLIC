@@ -71,7 +71,7 @@ afterEach(() => vi.useRealTimers());
 
 describe('the rebuilt Inbox queue', () => {
   it('keeps automated cases in Enquiries and offers focused AI and Archive views',()=>{
-    const manual=record('Manual',{source:'cazoo'}), automated=record('AI customer',{source:'cazoo',aiProvider:'cazoo',aiDraftStatus:'ready'});
+    const manual=record('Manual',{source:'cazoo'}), automated=record('AI customer',{source:'autotrader',aiProvider:'cazoo',aiDraftStatus:'ready'});
     const archived=record('Archived customer',{archivedAt:'2026-11-01T10:00:00Z',archiveDeleteAt:'2026-12-01T10:00:00Z'});
     show({entries:[manual,automated,archived]});
     expect(screen.getByRole('tab',{name:'Enquiries'})).toHaveAttribute('aria-selected','true');
@@ -269,17 +269,17 @@ describe('Inbox loading and empty states', () => {
   it('shows a recoverable query error rather than a misleading empty Inbox', () => {
     const api = show({ error: true });
     expect(screen.getByRole('alert')).toHaveTextContent('Enquiries couldn’t be loaded');
-    expect(screen.queryByText('You’re up to date')).not.toBeInTheDocument();
+    expect(screen.queryByText('Nothing needs attention')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry enquiries' }));
     expect(api.onRefresh).toHaveBeenCalledOnce();
   });
 
   it('offers All when no work needs attention, with clear guidance for a completely empty Inbox', () => {
     show();
-    expect(screen.getByRole('heading', { name: 'You’re up to date' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Nothing needs attention' })).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Show all enquiries' }));
-    expect(screen.getByRole('heading', { name: 'Your Inbox is ready' })).toBeVisible();
-    expect(screen.getByText('Website enquiries and test-drive requests will appear here.')).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'No enquiries yet' })).toBeVisible();
+    expect(screen.getByText('New enquiries and test-drive requests will appear here.')).toBeVisible();
   });
 });
 

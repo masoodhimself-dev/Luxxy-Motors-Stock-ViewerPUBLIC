@@ -1,9 +1,9 @@
 .booking-workspace { display: grid; grid-template-columns: minmax(220px,30%) minmax(0,1fr); }
 .booking-appointment-list { border-right: 1px solid hsl(var(--border)); min-width: 0; }
 .booking-desktop-list { display: grid; gap: 0; }
-.booking-desktop-list > button { display: grid; gap: 7px; width: 100%; text-align: left; padding: 18px; border-bottom: 1px solid hsl(var(--border)); border-left: 3px solid transparent; font-size: 13px; }
+.booking-desktop-list > button { display: grid; gap: 7px; width: 100%; text-align: left; padding: 18px; border-bottom: 1px solid hsl(var(--border)); font-size: 13px; }
 .booking-desktop-list > button > span { color: hsl(var(--muted-foreground)); }
-.booking-desktop-list > button[aria-pressed=true] { background: hsl(var(--secondary)); border-left-color: hsl(var(--primary)); }
+.booking-desktop-list > button[aria-pressed=true] { background: var(--desk-active, #e7ebf0); }
 .booking-desktop-list > button:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: -3px; }
 .booking-selected-detail { container: booking-detail / inline-size; }
 .booking-detail-header { grid-template-columns: minmax(0, 1fr) auto; }

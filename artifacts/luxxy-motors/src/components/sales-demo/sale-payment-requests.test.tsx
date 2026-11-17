@@ -54,7 +54,7 @@ it('opens WhatsApp without a payment link, and marks sharing only after staff co
   const message=new URL(whatsapp.getAttribute('href')!).searchParams.get('text');
   expect(message).toContain('vehicle price is £10,000.00');expect(message).toContain('request is £500.00');expect(message).not.toContain('payment-request/');
   fireEvent.click(whatsapp);expect(state.api).not.toHaveBeenCalled();
-  expect(screen.getByText('Attach the downloaded PDF in WhatsApp.')).toBeInTheDocument();
+  expect(screen.getByText('Send the message with the PDF in WhatsApp, then confirm here.')).toBeInTheDocument();
   expect(screen.queryByRole('button',{name:'Record deposit'})).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button',{name:'Mark WhatsApp as sent'}));
   const dialog=screen.getByRole('dialog',{name:'Have you sent the request?'});expect(state.api).not.toHaveBeenCalled();
@@ -198,7 +198,7 @@ it('shows an accepted short deposit and keeps the shortfall in the balance',()=>
 it('keeps an overdue request open and only offers reminder or cancel, never automatic release',()=>{
   const mutation=withRequest(),sale=structuredClone(mutation.sale);sale.paymentRequests![0].dueDate='2020-01-01';sale.paymentRequests![0].deliveryMode='document';
   render(<SalePaymentRequests sale={sale} onSaved={vi.fn()} onRecordDeposit={vi.fn()}/>);
-  expect(screen.getByText(/will not be released automatically/)).toBeInTheDocument();
+  expect(screen.getByText(/Any reservation stays in place/)).toBeInTheDocument();
   expect(screen.getByRole('button',{name:'Email reminder'})).toBeEnabled();
   expect(screen.queryByRole('button',{name:'New request'})).not.toBeInTheDocument();expect(state.api).not.toHaveBeenCalled();
 });

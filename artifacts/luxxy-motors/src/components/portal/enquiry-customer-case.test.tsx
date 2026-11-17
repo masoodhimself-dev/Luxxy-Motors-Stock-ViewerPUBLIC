@@ -616,7 +616,7 @@ it("opens the compact reply on demand and keeps it mounted while viewing details
   expect(screen.getByRole("region", { name: "Mock inline reply" })).toBe(editor);
 });
 
-it("summarises a part exchange and opens a ready AI draft through the same Reply button", () => {
+it("summarises a Cazoo part exchange without offering a legacy AI draft", () => {
   show({
     compact: true,
     current: {
@@ -632,7 +632,8 @@ it("summarises a part exchange and opens a ready AI draft through the same Reply
   expect(screen.getByText("Cazoo · Part exchange")).toBeVisible();
   expect(screen.getByText("LM67 XYZ · 67,500 miles")).toBeVisible();
   const reply = screen.getByRole("button", { name: "Reply" });
-  expect(reply).toHaveAccessibleDescription("AI draft ready to review");
+  expect(screen.getByRole("link", { name: "Reply on WhatsApp" })).toBeVisible();
+  expect(reply).not.toHaveAccessibleDescription();
   expect(state.reply).not.toHaveBeenCalled();
   fireEvent.click(reply);
   expect(screen.getByTestId("requested-channel")).toHaveTextContent("email");

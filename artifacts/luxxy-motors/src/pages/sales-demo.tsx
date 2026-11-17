@@ -1320,7 +1320,7 @@ export function SalesWorkspace({
       {total.pending > 0 && <div><dt>Still to confirm</dt><dd>{saleMoney(total.pending)}</dd></div>}
       <div className="sales-flow-breakdown-balance" data-tone={displayedBalance === 0 ? 'paid' : 'due'}><dt>{balanceLabel}</dt><dd>{saleMoney(displayedBalance)}</dd></div>
     </dl>
-    {total.pending > 0 && <p>Unconfirmed payments are not included in money received.</p>}
+    {total.pending > 0 && <p>Only confirmed payments count towards this balance.</p>}
     <CalculationCheck result={calculation.result} busy={calculation.busy} error={calculation.error}/>
   </>;
   if (practice) return <SalesPracticeWorkspace cars={stock?.cars ?? []} dealer={settings} onExit={() => setPractice(false)} quickActions={quickActions} />;
@@ -1380,7 +1380,7 @@ export function SalesWorkspace({
           </div>
           {sales.isLoading && <p role="status">Loading sales…</p>}
           {(sales.isFetching && !sales.isFetchingNextPage) && !sales.isLoading && <p role="status">Refreshing sales…</p>}
-          {openingId && <p role="status">Opening the complete sale…</p>}
+          {openingId && <p role="status">Opening sale…</p>}
           {problem && <p role="alert">{problem}</p>}
           {sales.isError && (
             <p role="alert">
@@ -1509,7 +1509,7 @@ export function SalesWorkspace({
           </ol>}
           {released && <p className="invoice-message" data-tone="warning">This reservation was released. Its documents and payment history are kept. Start a new sale to sell this car.</p>}
           {released && total && (total.confirmedPaid !== 0 || total.pending > 0) && <p role="alert" className="invoice-error">Review this released reservation’s payments. {total.confirmedPaid !== 0 && `Net received: ${saleMoney(total.confirmedPaid)}. `}{total.pending > 0 && `Pending: ${saleMoney(total.pending)}. `}These amounts do not mean the purchase price is due.</p>}
-          {needsCorrectionReview && <p role="alert" className="invoice-error">This sale has refunds or external corrections. Review the original paperwork before relying on the calculated balance.</p>}
+          {needsCorrectionReview && <p role="alert" className="invoice-error">Check the original paperwork and payments before using this balance. The sale has refunds or corrections.</p>}
           {stockRefundDue > 0 && flowScreen === 'history' && <p className="invoice-message" data-tone="warning">This car belongs to another sale. Record the {saleMoney(stockRefundDue)} refund here once it has been paid.</p>}
           {showNextStep && <section className="sales-flow-next" aria-label="Next step">
             <div>

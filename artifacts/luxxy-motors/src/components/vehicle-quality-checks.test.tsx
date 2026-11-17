@@ -8,11 +8,11 @@ const car = { id: 'car-a', advertId: 'car-a', sourceExtras: null, specifications
 it('offers all ten checks without inventing passed results and prefills a question for the current car', () => {
   const ask = vi.fn();
   render(<VehicleQualityChecks car={car} onAskTeam={ask} />);
-  const section = screen.getByRole('region', { name: 'Quality is assured' });
+  const section = screen.getByRole('region', { name: 'Pre-sale checks' });
   expect(within(section).getAllByRole('listitem')).toHaveLength(10);
   expect(within(section).queryByText('Passed')).not.toBeInTheDocument();
   fireEvent.click(within(section).getByRole('button', { name: 'Ask about these checks' }));
-  expect(ask).toHaveBeenCalledWith('Could you confirm the vehicle checks and preparation completed on this car?');
+  expect(ask).toHaveBeenCalledWith('Which checks have been completed on this car?');
 });
 
 it('keeps a working contact fallback when website enquiries are disabled', () => {

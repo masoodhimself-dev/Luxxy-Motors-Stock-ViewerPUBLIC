@@ -53,7 +53,7 @@ export default function Enquire() {
     title: isPartExchange
       ? customerDefaultCopy(title, 'Trade in your car', ['Part-exchange your car', 'Get a part-exchange quote'])
       : customerDefaultCopy(title, isCarMessage ? 'Ask about this car' : 'Message the showroom', ['How can we help?']),
-    description: customerDefaultCopy(description, isPartExchange ? 'Start with your reg and mileage. We’ll be in touch to talk through what your car could be worth.' : '', [
+    description: customerDefaultCopy(description, isPartExchange ? 'Tell us your registration and mileage. We’ll be in touch about a valuation.' : '', [
       'Tell us what you’d like to know. We’ll get back to you.',
       'Tell us about your car and ask about your part-exchange options.',
     ]),

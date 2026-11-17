@@ -229,6 +229,11 @@
   border-top: 1px solid #e5e7eb;
   font-family: "Multi Montserrat", Arial, sans-serif;
 }
+@media (max-width: 639px) {
+  .dealer-site-theme #main-content:has(.mh-whatsapp-float) + .multi-home-footer {
+    padding-bottom: calc(64px + max(16px, env(safe-area-inset-bottom)));
+  }
+}
 .multi-home-footer__links {
   display: flex;
   flex-wrap: wrap;

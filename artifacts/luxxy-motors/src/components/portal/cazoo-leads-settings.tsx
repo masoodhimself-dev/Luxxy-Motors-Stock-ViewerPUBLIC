@@ -14,7 +14,6 @@ type Receipt = {
   errorCode: string | null;
   subject: string | null;
   enquiryId: string | null;
-  draftStatus: string;
   automaticReplyStatus?: "sending" | "sent" | "failed" | "unknown" | null;
   forwardStatus?: "pending" | "sending" | "sent" | "failed" | "unknown" | "cancelled" | null;
   canForward?: boolean;
@@ -26,7 +25,6 @@ type Connection = {
   mailbox: string | null;
   receipts: Receipt[];
   ownerTest?: { email: string; expiresAt: string } | null;
-  automation?: { automaticDraftsEnabled: boolean; automaticRepliesEnabled: boolean };
   forwarding?: ForwardingSettings;
 };
 const cazooLeadsKey = ["cazoo-leads"] as const;
@@ -54,8 +52,8 @@ const reasons: Record<string, string> = {
   mailbox_not_connected: "The mailbox connection has changed.",
 };
 const automaticReplyLabels = {
-  sending: "Automatic availability reply queued.",
-  sent: "Automatic availability reply sent.",
+  sending: "Earlier automatic reply pending. Check the conversation.",
+  sent: "Earlier automatic reply sent.",
   failed: "Automatic reply stopped. Open the enquiry to reply.",
   unknown: "Automatic delivery is unconfirmed. Check the enquiry before replying.",
 };
@@ -202,7 +200,7 @@ export function CazooLeadsSettings() {
               <p>
                 <strong>
                   {query.data.enabled && query.data.mailbox
-                    ? "Receiving connected"
+                    ? "Receiving Cazoo emails"
                     : "Not connected yet"}
                 </strong>
               </p>
@@ -220,15 +218,7 @@ export function CazooLeadsSettings() {
                 </p>
               )}
               {query.data.ownerTest && <p role="status">Owner testing is enabled for <strong>{query.data.ownerTest.email}</strong> until {formatDateTime(query.data.ownerTest.expiresAt)}. Test replies are addressed to this email only.</p>}
-              {query.data.automation?.automaticDraftsEnabled === true ? (
-                <p>
-                  {query.data.automation.automaticRepliesEnabled === true
-                    ? "Automatic first replies are on for eligible Cazoo enquiries. Staff handle any follow-up."
-                    : "AI prepares drafts for you to check and send."}
-                </p>
-              ) : query.data.automation ? (
-                <p>Automatic drafting is off. You can reply in the Inbox.</p>
-              ) : null}
+              {query.data.enabled && query.data.mailbox && <p>Write your reply in the Inbox. Fix and send checks spelling and grammar before emailing it.</p>}
               {query.data.forwarding?.canManage === true && (
                 <CazooForwardingSettings settings={query.data.forwarding} />
               )}
@@ -260,17 +250,8 @@ export function CazooLeadsSettings() {
                         "This email needs checking."}
                     </p>
                   )}
-                  {receipt.status === "imported" && (
-                    <p>
-                      {receipt.automaticReplyStatus
-                        ? automaticReplyLabels[receipt.automaticReplyStatus]
-                        : receipt.draftStatus === "ready"
-                        ? "AI draft ready — review before sending."
-                        : receipt.draftStatus === "pending" ||
-                            receipt.draftStatus === "generating"
-                          ? "Preparing AI draft…"
-                          : "No saved draft. Open the enquiry to see the conversation."}
-                    </p>
+                  {receipt.status === "imported" && receipt.automaticReplyStatus && (
+                    <p>{automaticReplyLabels[receipt.automaticReplyStatus]}</p>
                   )}
                   {receipt.forwardStatus && <p>{forwardingLabels[receipt.forwardStatus]}</p>}
                   {query.data.forwarding?.canManage === true && receipt.canForward === true && (

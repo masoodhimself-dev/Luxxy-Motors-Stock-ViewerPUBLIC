@@ -13,12 +13,14 @@ const record = (id = 'enquiry', changes: Partial<InboxEnquiry> = {}): InboxEnqui
 
 describe('AI and archived Inbox folders',()=>{
   it('uses actual automated provider metadata, never source alone or an ordinary AI draft',()=>{
-    const connected=record('automated',{source:'cazoo',aiProvider:'cazoo',aiDraftStatus:'ready'});
+    const connected=record('automated',{source:'autotrader',aiProvider:'cazoo',aiDraftStatus:'ready'});
     const sourceOnly=record('source-only',{source:'cazoo'});
+    const legacyCazoo=record('legacy-cazoo',{source:'cazoo',aiProvider:'cazoo',aiDraftStatus:'ready'});
     const manual=record('manual',{source:'website'});
-    const all=[connected,sourceOnly,manual];
+    const all=[connected,sourceOnly,manual,legacyCazoo];
     expect(isAiEnquiry(connected)).toBe(true);
     expect(isAiEnquiry(sourceOnly)).toBe(false);
+    expect(isAiEnquiry(legacyCazoo)).toBe(false);
     expect(inboxFolderEntries(all,'ai')).toEqual([connected]);
     expect(inboxFolderEntries(all,'enquiries')).toEqual(all);
   });
@@ -32,7 +34,7 @@ describe('AI and archived Inbox folders',()=>{
   });
   it('keeps explicitly linked automatic and manual records in one case and folder',()=>{
     const parent=record('parent');
-    const child=record('child',{mergedIntoId:parent.id,source:'cazoo',aiProvider:'cazoo',aiDraftStatus:'failed'});
+    const child=record('child',{mergedIntoId:parent.id,source:'autotrader',aiProvider:'cazoo',aiDraftStatus:'failed'});
     expect(inboxFolderEntries([parent,child],'ai')).toEqual([parent,child]);
     expect(inboxFilter(inboxFolderEntries([parent,child],'ai'),'all','',now)).toEqual([parent]);
     expect(inboxFolderEntries([parent,child],'enquiries')).toEqual([parent,child]);

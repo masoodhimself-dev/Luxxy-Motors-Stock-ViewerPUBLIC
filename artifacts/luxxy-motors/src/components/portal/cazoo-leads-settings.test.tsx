@@ -88,7 +88,7 @@ it("lets an owner forward an existing receipt without retrying import or replaci
   fireEvent.click(await screen.findByRole("button", { name: "Forward to owner" }));
   expect(await screen.findByText("Forwarding queued.")).toBeVisible();
   expect(screen.queryByRole("button", { name: "Forward to owner" })).not.toBeInTheDocument();
-  expect(screen.getByText("AI draft ready — review before sending.")).toBeVisible();
+  expect(screen.queryByText(/AI draft ready/)).not.toBeInTheDocument();
   expect(transport.mock.calls.filter(([, init]) => init?.method === "POST").map(([url]) => url))
     .toEqual([endpoint + "/" + receiptId + "/forward"]);
 });

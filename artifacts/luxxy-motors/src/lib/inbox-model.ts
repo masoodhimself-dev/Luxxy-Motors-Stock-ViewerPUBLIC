@@ -63,7 +63,7 @@ export function inboxState(entry: InboxEnquiry, now = Date.now()): InboxState {
 
 /** Only recorded provider automation belongs here; a Cazoo source or a manual AI draft is not enough. */
 export function isAiEnquiry(entry: InboxEnquiry): boolean {
-  return Boolean(entry.aiProvider && entry.aiDraftStatus && ['pending','generating','ready','failed'].includes(entry.aiDraftStatus));
+  return Boolean(entry.source !== "cazoo" && entry.aiProvider && entry.aiDraftStatus && ['pending','generating','ready','failed'].includes(entry.aiDraftStatus));
 }
 
 /** Keep AI-assisted cases in the main queue and make them available as a focused view. */

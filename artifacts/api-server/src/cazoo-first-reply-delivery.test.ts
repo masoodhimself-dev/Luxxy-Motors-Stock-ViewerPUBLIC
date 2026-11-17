@@ -2,161 +2,102 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
-import { dealerIntegrationsStore } from "./lib/dealer-integrations-store";
+import { cazooFirstReplyActor } from "./lib/cazoo-automatic-first-reply";
 import { deliverEmailOutbox } from "./lib/email-outbox";
 import { runWithTenant } from "./lib/tenant-context";
-import { queueCazooAutomaticFirstReply } from "./routes/enquiry-emails";
 import { engine } from "./test/tenant-test-db";
 
 const tenant = {
   dealerId: "cazoo-fixture",
   canonicalOrigin: "https://dealer.example.test",
   platform: "cazoo" as const,
-  retailerId: "fictional-retailer",
-  sourceUrl: "https://www.cazoo.co.uk/fictional-retailer",
+  retailerId: "fixture-retailer",
+  sourceUrl: "https://www.cazoo.co.uk/fixture-retailer",
 };
-const mailbox = "cazoo@leads.example.test";
-const domain = "replies.example.test";
 const buyer = "buyer@example.test";
-const vehicle = randomUUID();
-const stockRun = randomUUID();
+const retirementMigration = "0093_retire_cazoo_automatic_replies.sql";
 
-test("only a new, eligible Cazoo receipt gets one routed automatic reply", async (t) => {
-  const originalFetch = globalThis.fetch;
-  let externalRequests = 0;
-  globalThis.fetch = async () => {
-    externalRequests++;
-    throw new Error("This test only allows its recording email transport.");
-  };
-  t.after(async () => {
-    globalThis.fetch = originalFetch;
-    await engine.close();
-    assert.equal(externalRequests, 0);
-  });
-  Object.assign(process.env, {
-    NODE_ENV: "test",
-    MULTI_TENANT_ENABLED: "true",
-    INTEGRATIONS_ENCRYPTION_KEY: Buffer.alloc(32, 18).toString("base64"),
-    CAZOO_LEADS_ENABLED: "true",
-    CAZOO_LEAD_MAILBOXES: JSON.stringify({ [tenant.dealerId]: mailbox }),
-    AI_ASSISTANCE_ENABLED: "true",
-    OPENAI_API_KEY: "fictional-only",
-    AI_ENQUIRY_AUTOMATION: JSON.stringify({ [tenant.dealerId]: { provider: "cazoo", enabled: true } }),
-    AI_CAZOO_AUTOMATIC_REPLY_DEALERS: JSON.stringify({ [tenant.dealerId]: new Date(Date.now() - 300_000).toISOString() }),
-    EMAIL_REPLIES_ENABLED: "true",
-    EMAIL_REPLY_DOMAINS: JSON.stringify({ [tenant.dealerId]: domain }),
-    RESEND_RECEIVING_API_KEY: "re_fictional_receiver",
-    RESEND_RECEIVING_WEBHOOK_SECRET: "fictional-reply-verification",
-  });
-  for (const file of (await readdir("../../lib/db/drizzle")).filter((f) => /^\d+.*\.sql$/.test(f)).sort())
+test("queued automatic Cazoo replies stop before contacting the provider", async (t) => {
+  t.after(() => engine.close());
+  process.env.MULTI_TENANT_ENABLED = "true";
+  for (const file of (await readdir("../../lib/db/drizzle")).filter(
+    (name) => /^\d+.*\.sql$/.test(name) && name !== retirementMigration,
+  ).sort()) {
     await engine.exec(await readFile(`../../lib/db/drizzle/${file}`, "utf8"));
+  }
   await engine.query(
     "INSERT INTO dealerships(id,name,status,canonical_origin,stock_platform,retailer_id,source_url) VALUES($1,'Fictional Motors','active',$2,'cazoo',$3,$4)",
     [tenant.dealerId, tenant.canonicalOrigin, tenant.retailerId, tenant.sourceUrl],
   );
-  await engine.query("INSERT INTO dealer_settings(dealer_id,config) VALUES($1,$2::jsonb)", [tenant.dealerId, JSON.stringify({ identity: { name: "Fictional Motors" } })]);
-  await engine.query(
-    "INSERT INTO stock_import_runs(id,run_id,dealer_id,source,retailer_id,schema_version,scraped_at,expected_count,received_count,complete,status,raw_snapshot) VALUES($1,$2,$3,'cazoo',$4,'1',now(),1,1,true,'completed','{}'::jsonb)",
-    [stockRun, randomUUID(), tenant.dealerId, tenant.retailerId],
-  );
-  await engine.query(
-    "INSERT INTO vehicles(id,dealer_id,source,advert_id,title,registration,import_run_id) VALUES($1,$2,'cazoo','fixture-advert','Lexus RX','AB15 CDE',$3)",
-    [vehicle, tenant.dealerId, stockRun],
-  );
 
-  async function imported({ message = "Is this still available?", error = null, age = 0 }: { message?: string; error?: string | null; age?: number } = {}) {
-    const enquiry = randomUUID(), id = randomUUID();
+  async function fixture(status: "queued" | "sent", attempts: number, automatic = true, scheduled = false) {
+    const enquiryId = randomUUID(), deliveryId = randomUUID(), id = randomUUID(), requestId = randomUUID();
     await engine.query(
-      "INSERT INTO enquiries(id,dealer_id,source,type,customer_name,email,preferred_contact,message,vehicle_id,vehicle_registration) VALUES($1,$2,'cazoo','general','Fictional Buyer',$3,'email',$4,$5,'AB15CDE')",
-      [enquiry, tenant.dealerId, buyer, message, vehicle],
+      "INSERT INTO enquiries(id,dealer_id,source,type,customer_name,email,preferred_contact,message) VALUES($1,$2,'cazoo','general','Fictional Buyer',$3,'email','Is this still available?')",
+      [enquiryId, tenant.dealerId, buyer],
     );
     await engine.query(
-      "INSERT INTO cazoo_lead_receipts(id,dealer_id,provider_id,mailbox,status,enquiry_id,correlation_id,error_code,received_at) VALUES($1,$2,$3,$4,'imported',$5,$6,$7,now()-($8::int*interval '1 minute'))",
-      [id, tenant.dealerId, randomUUID(), mailbox, enquiry, randomUUID().replace(/-/g, ""), error, age],
+      `INSERT INTO enquiry_emails(id,dealer_id,enquiry_id,request_id,request_hash,status,recipient,subject,message,created_by,provider_id)
+       VALUES($1,$2,$3,$4,'fixture-hash',$5,$6,'Availability','Fictional reply',$7,$8)`,
+      [deliveryId, tenant.dealerId, enquiryId, requestId, status === "sent" ? "sent" : "sending", buyer,
+        automatic ? cazooFirstReplyActor : "fixture-staff", status === "sent" ? "old-provider" : null],
     );
-    return { id, dealer_id: tenant.dealerId, enquiry_id: enquiry, mailbox, error_code: error };
+    await engine.query(
+      `INSERT INTO email_outbox(id,dealer_id,enquiry_id,delivery_id,kind,send_key,payload_hash,validation_hash,validation,account_hash,status,attempts,next_attempt_at,retry_deadline,provider_id)
+       VALUES($1,$2,$3,$4,'staff',$5,'fixture-hash','fixture-hash',$6::jsonb,'fixture-account',$7,$8,$9,now()+interval '1 hour',$10)`,
+      [id, tenant.dealerId, enquiryId, deliveryId, automatic ? `cazoo-first-reply-${requestId}` : `staff-${requestId}`,
+        JSON.stringify(automatic ? { cazooFirstReply: { receiptId: requestId } } : {}),
+        status, attempts, new Date(Date.now() + (scheduled ? 300_000 : -5_000)), status === "sent" ? "old-provider" : null],
+    );
+    return { id, deliveryId };
   }
 
-  await runWithTenant(tenant, async () => {
-    await dealerIntegrationsStore.update({
-      expectedRevision: 0,
-      resend: { enabled: true, apiKey: "re_fictional_only", from: "Fictional Motors <sales@example.test>", replyTo: "sales@example.test" },
-    });
-    const partExchange = await imported();
-    await engine.query("UPDATE enquiries SET type='part_exchange' WHERE id=$1", [partExchange.enquiry_id]);
-    assert.equal(await queueCazooAutomaticFirstReply(partExchange), false);
-    const privateRelay = await imported();
-    await engine.query("UPDATE enquiries SET email='buyer@privaterelay.appleid.com' WHERE id=$1", [privateRelay.enquiry_id]);
-    assert.equal(await queueCazooAutomaticFirstReply(privateRelay), false);
-    assert.equal((await engine.query("SELECT id FROM email_outbox WHERE enquiry_id=$1", [privateRelay.enquiry_id])).rows.length, 0);
-    const receipt = await imported();
-    const outcomes = await Promise.all([queueCazooAutomaticFirstReply(receipt), queueCazooAutomaticFirstReply(receipt)]);
-    assert.deepEqual(outcomes, [true, true]);
-    const queued = (await engine.query<{ id: string; send_key: string; payload: string }>(
-      "SELECT id,send_key,payload FROM email_outbox WHERE enquiry_id=$1", [receipt.enquiry_id],
-    )).rows;
-    assert.equal(queued.length, 1);
-    const [{ id, send_key: sendKey, payload }] = queued;
-    let attempts = 0;
-    const sent = await deliverEmailOutbox(id, {
-      send: async (_settings, body, key) => {
-        attempts++;
-        assert.equal(body, payload);
-        assert.equal(key, sendKey);
-        const envelope = JSON.parse(body);
-        assert.deepEqual(envelope.to, [buyer]);
-        assert.match(envelope.text, /the Lexus RX \(AB15CDE\) is currently available/);
-        assert.ok(envelope.reply_to.endsWith(`@${domain}`));
-        return "fictional-provider-id";
-      },
-    });
-    assert.equal(sent?.status, "sent");
-    assert.equal(attempts, 1);
-    assert.equal(await queueCazooAutomaticFirstReply(receipt), true);
+  const oldPending = await fixture("queued", 0, true, true);
+  const oldRetry = await fixture("queued", 1, true, true);
+  const sent = await fixture("sent", 1);
+  const manual = await fixture("queued", 0, false);
+  await engine.exec(await readFile(`../../lib/db/drizzle/${retirementMigration}`, "utf8"));
 
-    const unsafe = [
-      await imported({ message: "Is this available and would you take £5,000?" }),
-      await imported({ error: "owner_test" }),
-      await imported({ age: 8 }),
-      await imported({ age: 17 }),
-    ];
-    for (const lead of unsafe) assert.equal(await queueCazooAutomaticFirstReply(lead), false);
-
-    const changedStock = await imported();
-    assert.equal(await queueCazooAutomaticFirstReply(changedStock), true);
-    await engine.query("UPDATE vehicles SET inventory_status='reserved' WHERE id=$1", [vehicle]);
-    const changedId = (await engine.query<{ id: string }>("SELECT id FROM email_outbox WHERE enquiry_id=$1", [changedStock.enquiry_id])).rows[0]!.id;
-    const stopped = await deliverEmailOutbox(changedId, {
-      now: new Date(Date.now() + 2_000),
-      send: async () => { attempts++; return "unexpected-send"; },
-    });
-    assert.equal(stopped?.status, "failed");
-    assert.equal(attempts, 1);
-
-    // A current unchanged check can verify the last applied official stock file.
-    const officialHash = "a".repeat(64), previousCheck = randomUUID();
-    await engine.query("INSERT INTO cazoo_feed_authority(dealer_id,retailer_id,feed_id,enabled) VALUES($1,$2,'AETA123',true)", [tenant.dealerId, tenant.retailerId]);
-    await engine.query("UPDATE stock_import_runs SET scraped_at=now()-interval '2 days',run_id=$2 WHERE id=$1", [stockRun, `cazoo-csv:${tenant.dealerId}:fixture:${officialHash}`]);
-    await engine.query("UPDATE vehicles SET inventory_status='available' WHERE id=$1", [vehicle]);
-    await engine.query(`INSERT INTO cazoo_feed_checks(id,dealer_id,slot_key,status,received_at,completed_at,file_hash,vehicle_count,candidate)
-      VALUES($1,$2,'previous','ready',now()-interval '2 days',now()-interval '2 days',$3,1,$4::jsonb)`,
-      [previousCheck, tenant.dealerId, officialHash, JSON.stringify({ metadata: { feedId: "AETA123", retailerId: tenant.retailerId } })]);
-    assert.equal(await queueCazooAutomaticFirstReply(await imported()), false);
-    await engine.query(`INSERT INTO cazoo_feed_checks(dealer_id,slot_key,status,received_at,completed_at,file_hash,vehicle_count,based_on_check_id)
-      VALUES($1,'current','unchanged',now(),now(),$2,1,$3)`, [tenant.dealerId, officialHash, previousCheck]);
-    const officialLead = await imported();
-    assert.equal(await queueCazooAutomaticFirstReply(officialLead), true);
-    // A more recent unverified check blocks both a fresh queue and an already approved delivery.
-    await engine.query(`INSERT INTO cazoo_feed_checks(dealer_id,slot_key,status,received_at,completed_at,file_hash,vehicle_count,candidate)
-      VALUES($1,'newer','ready',now(),now(),$2,1,$3::jsonb)`,
-      [tenant.dealerId, "b".repeat(64), JSON.stringify({ metadata: { feedId: "AETA123", retailerId: tenant.retailerId } })]);
-    assert.equal(await queueCazooAutomaticFirstReply(await imported()), false);
-    const officialId = (await engine.query<{ id: string }>("SELECT id FROM email_outbox WHERE enquiry_id=$1", [officialLead.enquiry_id])).rows[0]!.id;
-    const unapplied = await deliverEmailOutbox(officialId, {
-      now: new Date(Date.now() + 4_000),
-      send: async () => { attempts++; return "unexpected-send"; },
-    });
-    assert.equal(unapplied?.status, "failed");
-    assert.equal(attempts, 1);
+  const results = (await engine.query<{ id: string; status: string; error_code: string | null; provider_id: string | null }>(
+    "SELECT id,status,error_code,provider_id FROM email_outbox",
+  )).rows;
+  const message = async (delivery: string) => (await engine.query<{status: string; error: string | null}>(
+    "SELECT status,error FROM enquiry_emails WHERE id=$1", [delivery],
+  )).rows[0]!;
+  assert.equal(results.find((row) => row.id === oldPending.id)?.status, "failed");
+  assert.equal(results.find((row) => row.id === oldRetry.id)?.status, "unknown");
+  for (const fixture of [oldPending, oldRetry]) {
+    assert.equal(results.find((row) => row.id === fixture.id)?.error_code, "cazoo_automatic_reply_retired");
+  }
+  assert.deepEqual(results.find((row) => row.id === sent.id), {
+    id: sent.id, status: "sent", error_code: null, provider_id: "old-provider",
   });
+  assert.equal(results.find((row) => row.id === manual.id)?.status, "queued");
+  assert.equal((await message(manual.deliveryId)).status, "sending");
+  assert.equal((await message(oldPending.deliveryId)).status, "failed");
+  assert.match((await message(oldPending.deliveryId)).error!, /automatic Cazoo reply was stopped/);
+  assert.equal((await message(oldRetry.deliveryId)).status, "unknown");
+  assert.match((await message(oldRetry.deliveryId)).error!, /may have been sent/);
+
+  // A worker from the previous version could enqueue a row during a rolling deploy.
+  // The runtime guard stops it even after the migration has already finished.
+  const latePending = await fixture("queued", 0);
+  const lateRetry = await fixture("queued", 1);
+  let providerCalls = 0;
+  const unexpectedProviderCall = async () => {
+    providerCalls++;
+    throw new Error("The old automatic reply should stop before contacting the provider.");
+  };
+  const expectNoProviderOrPreparation = {
+    settings: unexpectedProviderCall,
+    rebuild: unexpectedProviderCall,
+    send: unexpectedProviderCall,
+  };
+  await runWithTenant(tenant, async () => {
+    assert.equal((await deliverEmailOutbox(latePending.id, expectNoProviderOrPreparation))?.status, "failed");
+    assert.equal((await deliverEmailOutbox(lateRetry.id, expectNoProviderOrPreparation))?.status, "unknown");
+  });
+  assert.equal((await message(latePending.deliveryId)).status, "failed");
+  assert.equal((await message(lateRetry.deliveryId)).status, "unknown");
+  assert.equal(providerCalls, 0);
 });

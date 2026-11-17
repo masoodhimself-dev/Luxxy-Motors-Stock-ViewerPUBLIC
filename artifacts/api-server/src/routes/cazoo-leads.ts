@@ -7,7 +7,7 @@ import { enforceStaffWriteOrigin } from "../middlewares/staff-write-origin";
 import { currentDealerId, currentTenant } from "../lib/tenant-context";
 import { roleHasPermission } from "../lib/staff-permissions";
 import { replyConfiguration, retrieveReply } from "../lib/customer-email-replies";
-import { cazooDraftAutomationEligibility, cazooLeadMailboxes, cazooLeadsEnabled } from "../lib/cazoo-leads";
+import { cazooLeadMailboxes, cazooLeadsEnabled } from "../lib/cazoo-leads";
 import { cazooTestSender } from "../lib/cazoo-owner-test";
 import { cazooFirstReplyActor } from "../lib/cazoo-automatic-first-reply";
 import { cazooLeadForwardRecipient, queueCazooLeadForward } from "../lib/cazoo-lead-forwarding";
@@ -66,7 +66,14 @@ export function createCazooLeadRouter(retrieve = retrieveReply) {
           Boolean(process.env.CAZOO_LEADS_WEBHOOK_SECRET || process.env.RESEND_RECEIVING_WEBHOOK_SECRET),
         mailbox: cazooLeadMailboxes()[dealer] ?? null,
         ownerTest: cazooTestSender(dealer),
-        automation: await cazooDraftAutomationEligibility(dealer),
+        automation: {
+          provider: "cazoo",
+          mode: "manual",
+          automaticDraftsEnabled: false,
+          automaticRepliesEnabled: false,
+          blockers: ["not_enabled"],
+          replyBlockers: ["automatic_reply_not_enabled"],
+        },
         forwarding,
         receipts: rows.rows.map((r) => ({
           ...r,

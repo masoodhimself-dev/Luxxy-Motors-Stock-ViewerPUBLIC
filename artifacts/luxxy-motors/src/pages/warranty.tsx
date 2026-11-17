@@ -90,7 +90,7 @@ export default function Warranty() {
                 {(stock?.cars || []).map(car => <option key={car.id} value={car.id}>{[customerRegistrationDetails(car), vehicleDisplayTitle(car), car.price != null ? formatPrice(car.price, car.currency) : null].filter(Boolean).join(' · ')}</option>)}
               </NativeSelect>
               <p id="warranty-vehicle-help" className="mt-3 text-xs leading-6 text-muted-foreground" role={stockLoading ? 'status' : stockError || unavailableVehicle ? 'alert' : undefined}>
-                {stockLoading ? 'Loading current stock. You can still send a warranty enquiry.' : stockError ? 'We couldn’t load the vehicle list. You can still ask a warranty question.' : unavailableVehicle ? 'That car is no longer listed. Tell us which vehicle you mean in your enquiry.' : 'We’ll explain what’s covered, any exclusions and the options for extending cover.'}
+                {stockLoading ? 'Loading current stock. You can still send a warranty enquiry.' : stockError ? 'We couldn’t load the vehicle list. You can still ask a warranty question.' : unavailableVehicle ? 'That car is no longer listed. Tell us which vehicle you mean in your enquiry.' : 'Ask us what’s covered for this car.'}
               </p>
               <Button asChild className="mt-5 w-full"><Link href={publicEnquiriesEnabled ? warrantyEnquiry : '/contact'} data-testid="warranty-enquiry-link">{vehicle ? 'Ask about this car’s warranty' : enquiryActionLabel}<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>
               <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1">

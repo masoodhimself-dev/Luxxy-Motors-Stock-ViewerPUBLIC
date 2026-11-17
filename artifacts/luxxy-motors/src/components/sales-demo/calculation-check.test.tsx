@@ -33,7 +33,7 @@ it('an unavailable model leaves an informational message and no approval or over
   const hook = renderHook(() => useSaleCalculationCheck());
   await act(async () => { await hook.result.current.check(sale()); });
   render(<CalculationCheck result={hook.result.current.result} busy={hook.result.current.busy} />);
-  expect(screen.getByRole('status')).toHaveTextContent('You can continue.');
+  expect(screen.getByRole('status')).toHaveTextContent('Could not double-check the balance. You can still continue.');
   expect(screen.queryByRole('button')).not.toBeInTheDocument(); expect(hook.result.current.result?.status).toBe('unavailable');
 });
 it('reset discards a late result and does not trigger another call', async () => {

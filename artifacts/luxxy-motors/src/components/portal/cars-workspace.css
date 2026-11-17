@@ -76,10 +76,6 @@ body[data-dealer-portal=true] .portal-workspace.portal-redesign .cars-heading-ac
 .cars-mot-check-status p {
   margin: 0;
 }
-.cars-mot-check-status .cars-mot-check-note {
-  font-size: 11px;
-  margin-top: 2px;
-}
 .cars-mot-check-status progress {
   width: min(100%, 160px);
   height: 6px;

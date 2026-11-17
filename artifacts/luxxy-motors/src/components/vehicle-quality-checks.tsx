@@ -14,8 +14,7 @@ export function VehicleQualityChecks({ car, motHistory, onAskTeam, dealerConfirm
   const labels = { passed: 'Passed', unknown: 'Ask us', attention: 'See history', not_due: 'Not due yet' };
   return <section id="vehicle-quality-checks" className="vehicle-quality" aria-labelledby="vehicle-quality-heading">
     <header className="vehicle-quality__heading">
-      <h2 id="vehicle-quality-heading">Quality is assured</h2>
-      <p>{dealerConfirmed ? 'Carefully checked, inside and out, so you can choose with confidence.' : 'View the checks and preparation for this car.'}</p>
+      <h2 id="vehicle-quality-heading">Pre-sale checks</h2>
     </header>
     <ul className="vehicle-quality__list" aria-label="Vehicle quality checks">
       {checks.map(check => {
@@ -26,6 +25,6 @@ export function VehicleQualityChecks({ car, motHistory, onAskTeam, dealerConfirm
         </li>;
       })}
     </ul>
-    {checks.some(check => check.status === 'unknown') && <div className="vehicle-quality__footer"><p>Ask our team for the available checks and preparation details.</p>{onAskTeam ? <button type="button" onClick={() => onAskTeam('Could you confirm the vehicle checks and preparation completed on this car?')}>Ask about these checks</button> : <a href="/contact">Contact the showroom</a>}</div>}
+    {checks.some(check => check.status === 'unknown') && <div className="vehicle-quality__footer">{onAskTeam ? <button type="button" onClick={() => onAskTeam('Which checks have been completed on this car?')}>Ask about these checks</button> : <a href="/contact">Contact the showroom</a>}</div>}
   </section>;
 }

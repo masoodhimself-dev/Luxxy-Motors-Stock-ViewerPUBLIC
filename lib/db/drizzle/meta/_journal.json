@@ -652,6 +652,13 @@
       "when": 1794865195416,
       "tag": "0092_mot_renewal_advisories",
       "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1794902400000,
+      "tag": "0093_retire_cazoo_automatic_replies",
+      "breakpoints": true
     }
   ]
 }

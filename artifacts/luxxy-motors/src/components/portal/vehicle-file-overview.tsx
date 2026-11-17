@@ -87,8 +87,10 @@ export function VehicleFileFacts({ car, mot, tax, onChecks }: {
   const age = inStock ? vehicleFileStockAge(car.staff.firstSeenAt) : null;
   return (
     <>
-      <div className="vehicle-file-sheet-heading"><h3>At a glance</h3></div>
+      <div className="vehicle-file-sheet-heading"><h3>Vehicle details</h3></div>
       <FactsList entries={[
+        ["MOT (DVSA)", mot],
+        ["Tax (DVLA)", tax],
         ["Mileage", car.mileage != null ? formatMileage(car.mileage) : car.mileageText],
         ["Year", car.year],
         ["Fuel", car.fuel],
@@ -100,10 +102,6 @@ export function VehicleFileFacts({ car, mot, tax, onChecks }: {
           ? <>{timestamp(car.staff.lastRecordedChange.at, timestampLabel)}<small>{car.staff.lastRecordedChange.label}</small></>
           : null],
       ]} />
-      <div className="vehicle-file-check-strip">
-        <span><small>MOT · DVSA</small>{mot}</span>
-        <span><small>Tax · DVLA</small>{tax}</span>
-      </div>
       <button className="vehicle-file-link vehicle-file-check-link" type="button" onClick={onChecks}>
         View DVLA &amp; MOT <ChevronRight size={16} aria-hidden="true" />
       </button>
