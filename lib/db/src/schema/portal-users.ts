@@ -1,4 +1,4 @@
-import { boolean, check, index, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, check, foreignKey, index, pgTable, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { sql } from 'drizzle-orm';
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -18,6 +18,7 @@ export const portalUsersTable = pgTable(
     dealerId: text("dealer_id").notNull(),
     authUserId: text("auth_user_id").notNull(),
     sharedStaffIdentity: boolean("shared_staff_identity").notNull().default(false),
+    legacyPortalUserId: uuid("legacy_portal_user_id"),
     email: text("email"),
     name: text("name"),
     role: text("role").$type<'owner' | 'salesperson' | 'accounts'>().notNull().default('salesperson'),
@@ -31,6 +32,10 @@ export const portalUsersTable = pgTable(
   },
   (table) => [
     check('portal_users_role_check', sql`${table.role} in ('owner','salesperson','accounts')`),
+    unique('portal_users_dealer_member_key').on(table.dealerId, table.id),
+    foreignKey({ columns: [table.dealerId, table.legacyPortalUserId], foreignColumns: [table.dealerId, table.id], name: 'portal_users_legacy_member_fk' }),
+    check('portal_users_legacy_shared_check', sql`${table.legacyPortalUserId} IS NULL OR (${table.sharedStaffIdentity} AND ${table.legacyPortalUserId} <> ${table.id})`),
+    uniqueIndex('portal_users_legacy_member_uidx').on(table.dealerId, table.legacyPortalUserId).where(sql`${table.legacyPortalUserId} IS NOT NULL`),
     uniqueIndex("portal_users_dealer_auth_user_uidx").on(table.dealerId, table.authUserId),
     index("portal_users_dealer_idx").on(table.dealerId),
   ],

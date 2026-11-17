@@ -5,7 +5,7 @@ import {createServer,request as httpRequest} from 'node:http';
 import express from 'express';
 import {engine} from './test/tenant-test-db';
 import {invitationProfiles} from './test/invitation-clerk';
-import {invitationTokenHash} from './lib/account-invitations';
+import {acceptAccountInvitation,invitationTokenHash,readAccountInvitation} from './lib/account-invitations';
 import {demoEmailEnvelope} from './lib/demo-policy';
 import {runWithTenant} from './lib/tenant-context';
 process.env.MULTI_TENANT_ENABLED='true';process.env.PLATFORM_ADMIN_HOST='admin.example.test';process.env.PLATFORM_ADMIN_USER_IDS='user_admin';
@@ -101,7 +101,8 @@ test('owner and staff invitations use verified identity, isolated memberships an
     assert.equal((await accept(token,user,'admin.example.test')).status,410);
    } else if(suffix==='staff') {
     await engine.query("UPDATE account_invitations SET issuer_kind='staff' WHERE id=$1",[invitation.id]);
-    assert.equal((await accept(token,user,demoHost)).status,409);
+    assert.equal((await accept(token,user,demoHost)).status,403);
+    assert.equal((await accept(token,user,'admin.example.test')).status,409);
    } else if(suffix==='role') {
     await engine.query("UPDATE account_invitations SET role='accounts' WHERE id=$1",[invitation.id]);
     assert.equal((await accept(token,user,'admin.example.test')).status,409);
@@ -133,7 +134,7 @@ test('owner and staff invitations use verified identity, isolated memberships an
   assert.equal((await call('/api/staff/team/invitations',{method:'POST',body:{email:'bad',role:'admin'}})).status,400);
   alice=await invite('ALICE@example.test');assert.equal(alice.data.email,'alice@example.test');assert.equal(alice.data.deliveryStatus,'sent');
   assert.equal((await engine.query<any>("SELECT * FROM portal_users WHERE dealer_id='invite-a' AND auth_user_id='user_alice'")).rows.length,0);
-  const stored=(await engine.query<any>('SELECT * FROM account_invitations WHERE id=$1',[alice.data.id])).rows[0];assert.equal(stored.token_hash,invitationTokenHash(alice.token));assert.ok(!JSON.stringify(stored).includes(alice.token));
+  const stored=(await engine.query<any>('SELECT * FROM account_invitations WHERE id=$1',[alice.data.id])).rows[0];assert.equal(stored.token_hash,`dealer:${invitationTokenHash(alice.token)}`);assert.ok(!JSON.stringify(stored).includes(alice.token));
   assert.equal((await call('/api/staff/team/invitations',{method:'POST',body:{email:'alice@example.test',role:'owner'}})).status,409);
  });
  await t.test('preview is private and masked; sign-in must use the matching verified email',async()=>{
@@ -169,6 +170,68 @@ test('owner and staff invitations use verified identity, isolated memberships an
  await t.test('delivery failure is visible, never reported as sent and grants no access',async()=>{
   providerStatus=500;const item=await invite('delivery-failed@example.test');assert.equal(item.data.deliveryStatus,'unknown');const listing=await (await call('/api/staff/team/invitations')).json() as any;assert.equal(listing.invitations.find((row:any)=>row.id===item.data.id).deliveryStatus,'unknown');assert.ok(!JSON.stringify(listing).includes(item.token));providerStatus=200;
   delete process.env.RESEND_API_KEY;assert.equal((await call('/api/staff/team/invitations',{method:'POST',body:{email:'not-sent@example.test',role:'salesperson'}})).status,503);process.env.RESEND_API_KEY='re_fictional_invites_only';
+ });
+ await t.test('rolling out shared sign-in preserves legacy destinations during resends', async () => {
+  profile('user_before_rollout', 'before-rollout@example.test');
+  const item = await invite('before-rollout@example.test');
+  await engine.query("UPDATE account_invitations SET token_hash=$2,last_sent_at=now()-interval '2 minutes' WHERE id=$1", [item.data.id, invitationTokenHash(item.token)]);
+  process.env.STAFF_PORTAL_HOST='staff.example.test';
+  process.env.STAFF_PORTAL_CLERK_PUBLISHABLE_KEY='pk_live_ZmljdGlvbmFs';
+  process.env.STAFF_PORTAL_CLERK_SECRET_KEY='sk_live_fictional';
+  process.env.STAFF_PORTAL_PILOT_DEALER_ID='invite-a';
+  const listing = await (await call('/api/staff/team/invitations')).json() as { sharedAvailable: boolean; defaultLogin: string };
+  assert.deepEqual([listing.sharedAvailable, listing.defaultLogin], [true, 'legacy']);
+  assert.equal((await call('/api/account-invitations/preview',{token:item.token})).status,200);
+  const path = `/api/platform/dealers/invite-a/invitations/${item.data.id}/resend`;
+  assert.equal((await call(path, {method:'POST',host:'admin.example.test',user:'user_admin',body:{login:'shared'}})).status,200);
+  const token = tokenFromLastMail();
+  assert.match(messages.at(-1).text, /https:\/\/a\.example\.test\/join#/);
+  assert.equal((await call('/api/account-invitations/preview',{token,host:'admin.example.test'})).status,403);
+  assert.equal((await call('/api/account-invitations/preview',{token:item.token})).status,404);
+  assert.equal((await accept(token,'user_before_rollout')).status,200);
+ });
+ await t.test('an explicit shared invitation can link the same verified role to one same-dealer legacy staff row', async () => {
+  const owner = (await engine.query<{ id:string }>("SELECT id FROM portal_users WHERE dealer_id='invite-a' AND auth_user_id='user_owner'")).rows[0];
+  const other = (await engine.query<{ id:string }>("SELECT id FROM portal_users WHERE dealer_id='invite-b' AND auth_user_id='user_owner'")).rows[0];
+  await engine.exec("INSERT INTO portal_users(dealer_id,auth_user_id,email,role,shared_staff_identity) VALUES ('invite-a','user_owner_central','owner@example.test','owner',true)");
+  const body = { email:'owner@example.test', role:'owner', login:'shared', legacyStaffId:owner.id };
+  const path = '/api/staff/team/invitations';
+  for (const invalid of [{ legacyStaffId:other.id }, { legacyStaffId:undefined }, { email:'other@example.test' }, { role:'accounts' }, { login:'legacy' }]) {
+    assert.equal((await call(path,{method:'POST',body:{...body,...invalid}})).status,409);
+  }
+  const issued = await call(path,{method:'POST',body});
+  assert.equal(issued.status,201,await issued.clone().text());
+  const id = (await issued.json() as { invitation:{ id:string; login:string } }).invitation.id;
+  const central='staff.example.test';
+  const oldToken=messages.at(-1).text.match(/\/join#(shared_[a-f0-9]{64})/)?.[1] ?? '';
+  await engine.query("UPDATE account_invitations SET last_sent_at=now()-interval '2 minutes' WHERE id=$1",[id]);
+  assert.equal((await call(`${path}/${id}/resend`,{method:'POST',body:{login:'legacy',legacyStaffId:other.id}})).status,200);
+  const token=messages.at(-1).text.match(/\/join#(shared_[a-f0-9]{64})/)?.[1] ?? '';
+  assert.notEqual(token,oldToken);
+  await assert.rejects(readAccountInvitation(oldToken,central),{status:404});
+  await assert.rejects(readAccountInvitation(token,'a.example.test'),{status:403});
+  await assert.rejects(acceptAccountInvitation(token,central,{id:'user_owner_central',emails:['other@example.test'],name:'Wrong Email'}),{status:403});
+  await assert.rejects(acceptAccountInvitation(token,central,{id:'user_owner',emails:['owner@example.test'],name:'Existing Legacy Owner'}),{status:409});
+  await engine.exec("UPDATE portal_users SET role='accounts' WHERE dealer_id='invite-a' AND auth_user_id='user_owner_central'");
+  const identity={id:'user_owner_central',emails:['owner@example.test'],name:'Fictional Owner'};
+  await assert.rejects(acceptAccountInvitation(token,central,identity),{status:409});
+  await engine.exec("UPDATE portal_users SET role='owner' WHERE dealer_id='invite-a' AND auth_user_id='user_owner_central'");
+  assert.equal((await acceptAccountInvitation(token,central,identity)).portalUrl,'https://staff.example.test/dealers/invite-a/portal');
+  const owners = (await engine.query("SELECT auth_user_id,role,legacy_portal_user_id FROM portal_users WHERE dealer_id='invite-a' AND email='owner@example.test' ORDER BY auth_user_id")).rows;
+  assert.deepEqual(owners,[{auth_user_id:'user_owner',role:'owner',legacy_portal_user_id:null},{auth_user_id:'user_owner_central',role:'owner',legacy_portal_user_id:owner.id}]);
+  await assert.rejects(engine.query("UPDATE portal_users SET legacy_portal_user_id=$1 WHERE dealer_id='invite-a' AND auth_user_id='user_owner_central'",[other.id]),/portal_users_legacy_member_fk/);
+  await engine.query('UPDATE portal_users SET disabled_at=now() WHERE id=$1',[owner.id]);
+  await assert.rejects(acceptAccountInvitation(token,central,identity),{status:409});
+  await engine.query('UPDATE portal_users SET disabled_at=NULL WHERE id=$1',[owner.id]);
+ });
+ await t.test('a standalone shared invitation cannot bypass a newly assigned legacy membership', async () => {
+  const email='guard-race@example.test';
+  const response=await call('/api/staff/team/invitations',{method:'POST',body:{email,role:'salesperson',login:'shared'}});
+  assert.equal(response.status,201,await response.clone().text());
+  const token=messages.at(-1).text.match(/\/join#(shared_[a-f0-9]{64})/)?.[1] ?? '';
+  await engine.query("INSERT INTO portal_users(dealer_id,auth_user_id,email,role) VALUES('invite-a','user_guard_legacy',$1,'salesperson')",[email]);
+  await assert.rejects(acceptAccountInvitation(token,'staff.example.test',{id:'user_guard_central',emails:[email],name:'Fictional Salesperson'}),{status:409});
+  assert.equal((await engine.query("SELECT 1 FROM portal_users WHERE dealer_id='invite-a' AND auth_user_id='user_guard_central'")).rows.length,0);
  });
  }finally{globalThis.fetch=originalFetch;await new Promise<void>(resolve=>server.close(()=>resolve()));}
 });

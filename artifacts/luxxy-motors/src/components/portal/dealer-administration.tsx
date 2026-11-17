@@ -2,7 +2,7 @@ import { CazooLeadsSettings } from "./cazoo-leads-settings";
 import { StockFeedSettings } from "./stock-feed-settings";
 import { StockAlertSettings } from "./stock-alerts";
 import { OnlineReservationSettings } from "./online-reservation-settings";
-import { AccountInvitations } from "@/components/account-invitations";
+import { AccountInvitations, type ExistingStaff } from "@/components/account-invitations";
 import {
   MapPin,
   Globe2,
@@ -68,12 +68,15 @@ type Member = {
   name: string | null;
   role: Role;
   active: boolean;
+  sharedSignIn?: boolean;
+  sharedLinked?: boolean;
 };
 function TeamSettings() {
   const query = useQuery({
     queryKey: ["staff-team"],
-    queryFn: () => request<{ members: Member[] }>("/api/staff/team"),
+    queryFn: () => request<{ members: Member[]; sharedAvailable?: boolean }>("/api/staff/team"),
   });
+  const [existingStaff, setExistingStaff] = useState<ExistingStaff | null>(null);
   const [roles, setRoles] = useState<Record<string, Role>>({});
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
@@ -145,7 +148,7 @@ function TeamSettings() {
           </li>
         </ul>
       </details>
-      <AccountInvitations />
+      <div id="team-invitations"><AccountInvitations existingStaff={existingStaff} onClearStaff={() => setExistingStaff(null)}/></div>
       <p className="admin-muted">
         Staff sign in with their own account. The last active owner cannot be
         removed.
@@ -171,6 +174,7 @@ function TeamSettings() {
                 {member.name && <p>{member.email}</p>}
                 <p className="admin-muted">
                   {member.active ? "Access enabled" : "Access disabled"}
+                  {query.data?.sharedAvailable && (member.sharedLinked ? " · Both sign-ins" : member.sharedSignIn ? " · Shared sign-in" : " · Dealership sign-in")}
                 </p>
               </div>
               <div className="admin-team-role">
@@ -203,6 +207,13 @@ function TeamSettings() {
                   Apply role
                 </Button>
               </div>
+              {query.data?.sharedAvailable && member.email && member.active && !member.sharedSignIn && !member.sharedLinked && (
+                <Button variant="outline" disabled={busy} onClick={() => {
+                  if (!member.email) return;
+                  setExistingStaff({ id: member.id, email: member.email, role: member.role });
+                  document.getElementById("team-invitations")?.querySelector("input")?.focus();
+                }}>Add shared sign-in</Button>
+              )}
               <Button
                 disabled={busy}
                 variant="outline"

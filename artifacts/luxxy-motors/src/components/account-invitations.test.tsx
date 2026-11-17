@@ -36,3 +36,22 @@ it('blocks sends when mail is unavailable and preserves typed email on failure',
  let ready=false;vi.stubGlobal('fetch',vi.fn(async(_url,init)=>init?.method==='POST'?Response.json({error:'Already invited. Use Resend.'},{status:409}):Response.json({invitations:[],email:{ready,message:'Ask the platform administrator to configure account email.'}})));
  const client=show();await screen.findByText(/configure account email/);fireEvent.change(screen.getByRole('textbox',{name:'Email address'}),{target:{value:'new@example.test'}});expect(screen.getByRole('button',{name:'Send invitation'})).toBeDisabled();ready=true;await act(async()=>client.invalidateQueries());await waitFor(()=>expect(screen.getByRole('button',{name:'Send invitation'})).toBeEnabled());fireEvent.click(screen.getByRole('button',{name:'Send invitation'}));await screen.findByRole('alert');expect(screen.getByRole('textbox',{name:'Email address'})).toHaveValue('new@example.test');
 });
+it('links the existing staff record only after staff sends the shared invitation', async () => {
+  const writes: unknown[] = [];
+  vi.stubGlobal('fetch',vi.fn(async (_url,init)=>{
+    if(init?.method==='POST'){
+      writes.push(JSON.parse(init.body));
+      return Response.json({invitation:{...pending,login:'shared'}});
+    }
+    return Response.json({invitations:[],email:{ready:true,message:'Ready'},sharedAvailable:true,defaultLogin:'legacy'});
+  }));
+  const client = new QueryClient();
+  clients.push(client);
+  render(<QueryClientProvider client={client}><AccountInvitations existingStaff={{id:'staff-one',email:'colleague@example.test',role:'accounts'}}/></QueryClientProvider>);
+  const send = await screen.findByRole('button',{name:'Send shared sign-in link'});
+  expect(screen.getByRole('textbox',{name:'Email address'})).toHaveAttribute('readonly');
+  expect(writes).toEqual([]);
+  fireEvent.click(send);
+  await screen.findByText('Invitation email sent. Access starts when they accept.');
+  expect(writes).toEqual([{email:'colleague@example.test',role:'accounts',login:'shared',legacyStaffId:'staff-one'}]);
+});

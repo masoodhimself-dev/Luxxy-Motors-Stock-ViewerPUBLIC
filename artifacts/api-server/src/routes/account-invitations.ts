@@ -4,14 +4,15 @@ import { z } from 'zod/v4';
 import { currentDealerId, normaliseTenantHost } from '../lib/tenant-context';
 import { sharedStaffClerk, sharedStaffPortalForHost } from '../lib/shared-staff-portal';
 import { acceptAccountInvitation,cancelAccountInvitation,InvitationError,issueAccountInvitation,listAccountInvitations,readAccountInvitation } from '../lib/account-invitations';
-const emailInput=z.object({email:z.string().trim().toLowerCase().email().max(254),role:z.enum(['owner','salesperson','accounts'])}).strict();
+const emailInput=z.object({email:z.string().trim().toLowerCase().email().max(254),role:z.enum(['owner','salesperson','accounts']),login:z.enum(['legacy','shared']).optional(),legacyStaffId:z.string().uuid().optional()}).strict();
 function failure(req:Request,res:Response,error:unknown) {if(!(error instanceof InvitationError))req.log?.warn('Account invitation operation failed');res.status(error instanceof InvitationError?error.status:503).json({error:error instanceof InvitationError?error.message:'The invitation could not be completed. Refresh its status before trying again.'});}
 export function accountInvitationManagementRouter(kind:'platform'|'staff') {
   const router=Router({mergeParams:true});
   const dealer=(req:Request)=>kind==='platform'?String(req.params.id):currentDealerId();
   const issuer=(req:Request)=>({id:kind==='platform'?getAuth(req).userId!:req.staff!.authUserId,kind});
-  router.get('/',async(req,res)=>{res.set('Cache-Control','no-store');try{res.json(await listAccountInvitations(dealer(req)));}catch(error){failure(req,res,error);}});
-  router.post('/',async(req,res)=>{try{const input=emailInput.safeParse(req.body);if(!input.success)throw new InvitationError('Enter a valid email and choose a staff role.');if(kind==='platform'&&input.data.role!=='owner')throw new InvitationError('The platform sends dealership owner invitations only.');res.status(201).json({invitation:await issueAccountInvitation(dealer(req),input.data.email,input.data.role,issuer(req))});}catch(error){failure(req,res,error);}});
+  const defaultLogin=(req:Request)=>sharedStaffPortalForHost(req.get('host'))?'shared' as const:'legacy' as const;
+  router.get('/',async(req,res)=>{res.set('Cache-Control','no-store');try{res.json({...await listAccountInvitations(dealer(req),kind),defaultLogin:defaultLogin(req)});}catch(error){failure(req,res,error);}});
+  router.post('/',async(req,res)=>{try{const input=emailInput.safeParse(req.body);if(!input.success)throw new InvitationError('Enter a valid email and choose a staff role.');if(kind==='platform'&&input.data.role!=='owner')throw new InvitationError('The platform sends dealership owner invitations only.');const login=input.data.login??defaultLogin(req);res.status(201).json({invitation:await issueAccountInvitation(dealer(req),input.data.email,input.data.role,issuer(req),{login,legacyStaffId:input.data.legacyStaffId})});}catch(error){failure(req,res,error);}});
   router.post('/:invitationId/resend',async(req,res)=>{try{if(!z.string().uuid().safeParse(req.params.invitationId).success)throw new InvitationError('Invalid invitation.');res.json({invitation:await issueAccountInvitation(dealer(req),'','salesperson',issuer(req),{resendId:String(req.params.invitationId)})});}catch(error){failure(req,res,error);}});
   router.post('/:invitationId/cancel',async(req,res)=>{try{if(!z.string().uuid().safeParse(req.params.invitationId).success)throw new InvitationError('Invalid invitation.');res.json({invitation:await cancelAccountInvitation(dealer(req),String(req.params.invitationId),issuer(req))});}catch(error){failure(req,res,error);}});
   return router;

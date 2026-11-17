@@ -1,4 +1,4 @@
-import { AccountInvitations } from '@/components/account-invitations';
+import { AccountInvitations, type ExistingStaff } from '@/components/account-invitations';
 import { dealerHealthLabel } from "@/lib/dealer-health-label";
 import { PlatformFeatureControls } from '@/components/platform-feature-controls';
 import { DemoOnboardingAccess } from '@/components/demo-onboarding-access';
@@ -21,7 +21,7 @@ type Run = { dealerId?: string; runId: string; status: string; receivedAt: strin
 type ImportDetails = { duration_ms: number | null; change_count: number; previous_run_id: string | null; changes: { id: string; advert_id: string; title: string; added: boolean; fields: string[]; old_price: string | null; new_price: string | null }[]; newly_missing: { advert_id: string; title: string }[] | null; snapshot_details_available?: boolean };
 type Domain = { hostname: string; verified: boolean; verificationToken?: string };
 type Dealer = { plan?: DealerPlan; enquiryEmail?: string | null; onboardingRequired?: boolean; isDemo?: boolean; demoExpiresAt?: string | null; onboardingChecklist?: Record<string, ChecklistEntry>; id: string; name: string; status: string; canonicalOrigin: string; stockPlatform: string; retailerId: string; sourceUrl: string; domains: Domain[]; activeKeyCount: number; latestImport: Run | null; lastSuccessfulImport: Run | null };
-type Workspace = { dealer: Dealer; sharedStaffWorkspaceUrl?: string | null; domains: Domain[]; stockUploadAllowed?: boolean; members: { id: string; name: string | null; email: string | null; role: string; disabledAt: string | null }[]; imports: Run[]; keys: { id: string; createdAt: string; disabledAt: string | null }[]; effectiveStockConnection?: {status:'known'|'unknown';platform:'autotrader'|'cazoo'|null;retailerId:string|null;sourceUrl:string|null;enabled:boolean|null;usesOverride:boolean|null} };
+type Workspace = { dealer: Dealer; sharedStaffWorkspaceUrl?: string | null; domains: Domain[]; stockUploadAllowed?: boolean; members: { id: string; name: string | null; email: string | null; role: string; disabledAt: string | null; sharedSignIn?: boolean; sharedLinked?: boolean }[]; imports: Run[]; keys: { id: string; createdAt: string; disabledAt: string | null }[]; effectiveStockConnection?: {status:'known'|'unknown';platform:'autotrader'|'cazoo'|null;retailerId:string|null;sourceUrl:string|null;enabled:boolean|null;usesOverride:boolean|null} };
 const call = <T,>(path: string, method = 'GET', body?: unknown) => customFetch<T>('/api/platform' + path, { method, ...(body ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}) });
 const date = (v?: string | null) => v ? new Date(v).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/London' }) : 'Not yet';
 const platform = (v: string) => v === 'cazoo' ? 'Cazoo' : 'Auto Trader';
@@ -61,7 +61,7 @@ function revealItem(container: HTMLElement | null, selector: string) {
   if (target.left < bounds.left) container.scrollLeft += target.left - bounds.left - 4;
   else if (target.right > bounds.right) container.scrollLeft += target.right - bounds.right + 4;
 }
-const emptyForm = { id: '', name: '', canonicalOrigin: '', platform: 'autotrader', retailerId: '', sourceUrl: '', ownerEmail: '', ownerAuthUserId: '', ownerMode: 'invite', plan: 'full_portal' as DealerPlan, enquiryEmail: '' };
+const emptyForm = { id: '', name: '', canonicalOrigin: '', platform: 'autotrader', retailerId: '', sourceUrl: '', ownerEmail: '', ownerAuthUserId: '', ownerMode: 'invite', ownerLogin: 'legacy' as 'legacy' | 'shared', plan: 'full_portal' as DealerPlan, enquiryEmail: '' };
 function Badge({ value }: { value: string }) { return <span className={`platform-badge platform-badge--${value}`}>{value}</span>; }
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) { return <label className="platform-field"><span>{label}</span>{children}{hint && <small>{hint}</small>}</label>; }
 function LaunchChecklist({ dealer, busy, save }: { dealer: Dealer; busy: boolean; save: (id: string, status: ChecklistEntry['status'], note: string) => Promise<void> }) {
@@ -97,13 +97,14 @@ export default function Platform() {
     finally { setDetailLoading(false); }
   }
   const [view, setView] = useState<'overview' | 'dealers' | 'new' | 'activity' | 'workspace' | 'demos' | 'features'>('overview');
-  const [data, setData] = useState<{ dealers: Dealer[]; activity: Run[]; sharedStaffPilotDealerId?: string | null }>({ dealers: [], activity: [] });
+  const [data, setData] = useState<{ dealers: Dealer[]; activity: Run[]; sharedStaffDealerIds?: string[] | "*" | null }>({ dealers: [], activity: [] });
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const openedDealerFromLink = useRef(false);
   const workspaceId = useRef<string | null>(null);
   workspaceId.current = workspace?.dealer.id ?? null;
   const [refreshingWorkspace, setRefreshingWorkspace] = useState(false);
   const [tab, setTab] = useState('Setup');
+  const [existingOwner,setExistingOwner] = useState<ExistingStaff | null>(null);
   const [launchChecksVersion, setLaunchChecksVersion] = useState(0);
   const navigationRef = useRef<HTMLElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -126,7 +127,7 @@ export default function Platform() {
     for (const element of [navigationRef.current, tabsRef.current, stepsRef.current]) if (element) observer?.observe(element);
     return () => observer?.disconnect();
   }, [view, tab, step, workspace?.dealer.id, allowed]);
-  function changeWorkspaceTab(next: string) { setIssuedKey(null); setTab(next); }
+  function changeWorkspaceTab(next: string) { setIssuedKey(null); setExistingOwner(null); setTab(next); }
   function openWorkspaceTab(next: string) {
     changeWorkspaceTab(next);
     tabsRef.current?.querySelector<HTMLButtonElement>(`#${tabId(next)}-tab`)?.focus();
@@ -153,13 +154,14 @@ export default function Platform() {
     if (dealerId && /^[a-z0-9][a-z0-9-]{1,62}$/.test(dealerId)) void openDealer(dealerId);
   }, [allowed]);
   useEffect(() => { const old = document.title; document.title = 'Dealer Platform · Administration'; return () => { document.title = old; }; }, []);
-  const useSharedLogin = data.sharedStaffPilotDealerId === form.id.trim();
-  const ownerMode = useSharedLogin ? 'invite' : form.ownerMode;
+  const sharedAvailable = data.sharedStaffDealerIds === '*' || Boolean(data.sharedStaffDealerIds?.includes(form.id.trim()));
+  const ownerLogin = sharedAvailable ? form.ownerLogin : 'legacy';
+  const ownerMode = form.ownerMode;
   function navigate(next: typeof view) { setIssuedKey(null); setView(next); setError(''); setNotice(''); }
   async function openDealer(id: string, initialTab = 'Setup') {
     setIssuedKey(null);
     setBusy(true); setError(''); setNotice('');
-    try { const result = await call<Workspace>(`/dealers/${encodeURIComponent(id)}/workspace`); setWorkspace(result); setTab(initialTab); setAlias(''); setView('workspace'); }
+    try { const result = await call<Workspace>(`/dealers/${encodeURIComponent(id)}/workspace`); setWorkspace(result); setExistingOwner(null); setTab(initialTab); setAlias(''); setView('workspace'); }
     catch { setError('Could not load this dealership. Please try again.'); }
     finally { setBusy(false); }
   }
@@ -216,7 +218,7 @@ export default function Platform() {
   }
   async function create() {
     setBusy(true); setError('');
-    const owner = ownerMode === 'invite' ? { inviteOwnerEmail: form.ownerEmail }
+    const owner = ownerMode === 'invite' ? { inviteOwnerEmail: form.ownerEmail, ...(ownerLogin === 'shared' ? { inviteOwnerLogin: 'shared' } : {}) }
       : ownerMode === 'self' ? { useMyAccount: true }
       : ownerMode === 'email' ? { ownerEmail: form.ownerEmail }
       : { ownerAuthUserId: form.ownerAuthUserId };
@@ -328,7 +330,7 @@ export default function Platform() {
           {step === 0 && <><Field label="Dealership name"><Input value={form.name} onChange={e => setForm({...form,name:e.target.value,id:slug(e.target.value) || ''})} placeholder="e.g. Paramount Motors" /></Field><DealerPlanOptions value={form.plan} onChange={plan => setForm({ ...form, plan })} disabled={busy} /><details><summary>Advanced: internal dealer ID</summary><Field label="Internal dealer ID" hint="Generated from the name. Must be unique; it cannot be changed after creation."><Input value={form.id} onChange={e => setForm({...form,id:e.target.value})}/></Field></details></>}
           {step === 1 && <><Field label="Website origin (https://…)" hint="A domain or subdomain you control. No /stock or /portal suffix."><Input value={form.canonicalOrigin} onChange={e => setForm({...form,canonicalOrigin:e.target.value})} placeholder="https://dealer.your-domain.co.uk"/></Field><p className="platform-help">After creation, we’ll show the DNS ownership record. In Domains, use automatic setup with connected Cloudflare and Render accounts, or follow the manual DNS steps. The platform admin address stays separate.</p></>}
           {step === 2 && form.plan === 'website_only' && <Field label="Enquiry email" hint="Customers’ website enquiries and the launch test will go to this address."><Input type="email" autoComplete="email" value={form.enquiryEmail} onChange={e => setForm({ ...form, enquiryEmail: e.target.value })} placeholder="enquiries@your-dealership.co.uk" /></Field>}
-          {step === 2 && form.plan === 'full_portal' && <>{!useSharedLogin && <Field label="Owner account"><NativeSelect value={ownerMode} onChange={e => setForm({...form,ownerMode:e.target.value})}><option value="invite">Invite owner by email</option><option value="self">Set up with my account first</option><option value="email">Find an existing account by email</option><option value="id">Use a Clerk user ID (advanced)</option></NativeSelect></Field>}{['email','invite'].includes(ownerMode) && <Field label="Owner email" hint={ownerMode==='invite'?'We’ll email an invitation. The owner signs in with this address and accepts it before launch.':'Use an existing registered account.'}><Input type="email" value={form.ownerEmail} onChange={e => setForm({...form,ownerEmail:e.target.value})}/></Field>}{ownerMode === 'id' && <Field label="Owner Clerk user ID"><Input value={form.ownerAuthUserId} onChange={e => setForm({...form,ownerAuthUserId:e.target.value})} placeholder="user_…"/></Field>}<p className="platform-help">Owner access is limited to this dealership. It does not grant platform administrator access.</p></>}
+          {step === 2 && form.plan === 'full_portal' && <><Field label="Owner account"><NativeSelect value={ownerMode} onChange={e => setForm({...form,ownerMode:e.target.value})}><option value="invite">Invite owner by email</option><option value="self">Set up with my account first</option><option value="email">Find an existing account by email</option><option value="id">Use a Clerk user ID (advanced)</option></NativeSelect></Field>{['email','invite'].includes(ownerMode) && <Field label="Owner email" hint={ownerMode==='invite'?'We’ll email an invitation. The owner signs in with this address and accepts it before launch.':'Use an existing registered account.'}><Input type="email" value={form.ownerEmail} onChange={e => setForm({...form,ownerEmail:e.target.value})}/></Field>}{ownerMode === 'invite' && sharedAvailable && <Field label="Sign-in link"><NativeSelect value={ownerLogin} onChange={e => setForm({...form,ownerLogin:e.target.value === 'shared' ? 'shared' : 'legacy'})}><option value="legacy">Existing dealership sign-in</option><option value="shared">Shared DealerOS sign-in</option></NativeSelect></Field>}{ownerMode === 'id' && <Field label="Owner Clerk user ID"><Input value={form.ownerAuthUserId} onChange={e => setForm({...form,ownerAuthUserId:e.target.value})} placeholder="user_…"/></Field>}<p className="platform-help">Owner access is limited to this dealership. It does not grant platform administrator access.</p></>}
           {step === 3 && <><Field label="Marketplace"><NativeSelect value={form.platform} onChange={e => setForm({...form,platform:e.target.value})}><option value="autotrader">Auto Trader</option><option value="cazoo">Cazoo</option></NativeSelect></Field><Field label="Grok retailer reference" hint="Must exactly match the retailerId in this dealer’s stock snapshot."><Input value={form.retailerId} onChange={e => setForm({...form,retailerId:e.target.value})}/></Field><Field label="Authorised stock source URL"><Input type="url" value={form.sourceUrl} onChange={e => setForm({...form,sourceUrl:e.target.value})} placeholder={form.platform === 'cazoo' ? 'https://www.cazoo.co.uk/…' : 'https://www.autotrader.co.uk/…'}/></Field></>}
           {step === 4 && <><dl className="platform-facts">{[
             ['Dealership', form.name], ['Plan', dealerPlans[form.plan].label], ['Website', form.canonicalOrigin],
@@ -358,7 +360,7 @@ export default function Platform() {
 
             <div className="platform-controls">
               {workspace.dealer.status === 'active' && <Button asChild variant="outline"><a href={workspace.dealer.canonicalOrigin} target="_blank" rel="noopener noreferrer">Open website <ArrowRight size={15}/></a></Button>}
-              {workspace.dealer.status === 'active' && workspace.dealer.plan !== 'website_only' && <Button asChild variant="outline"><a href={workspace.sharedStaffWorkspaceUrl ?? `${workspace.dealer.canonicalOrigin}/portal`} target="_blank" rel="noopener noreferrer">Open staff workspace <ArrowRight size={15}/></a></Button>}
+              {workspace.dealer.status === 'active' && workspace.dealer.plan !== 'website_only' && <><Button asChild variant="outline"><a href={`${workspace.dealer.canonicalOrigin}/portal`} target="_blank" rel="noopener noreferrer">Open dealership portal <ArrowRight size={15}/></a></Button>{workspace.sharedStaffWorkspaceUrl && <Button asChild variant="outline"><a href={workspace.sharedStaffWorkspaceUrl} target="_blank" rel="noopener noreferrer">Open shared staff portal <ArrowRight size={15}/></a></Button>}</>}
               {workspace.dealer.status === 'active' ? <Button variant="outline" disabled={busy} onClick={() => { if (window.confirm('Suspend this dealership? Its website and stock imports will stop being accessible.')) void mutate(`/dealers/${workspace.dealer.id}/status`, 'PUT', { status: 'suspended' }); }}>Suspend dealership</Button>
                 : <Button disabled={busy} onClick={() => { if (window.confirm('Reactivate this dealership?')) void mutate(`/dealers/${workspace.dealer.id}/status`, 'PUT', { status: 'active' }); }}>Reactivate dealership</Button>}
             </div>
@@ -386,7 +388,13 @@ export default function Platform() {
             }}>Confirm HTTPS is working</Button>
           )}</details></>}
           {tab === 'Stock connection' && <><h2>Stock connection</h2>{workspace.stockUploadAllowed && <PlatformStockUpload key={workspace.dealer.id} dealerId={workspace.dealer.id} disabled={busy || refreshingWorkspace} onImported={() => void refreshDealerWorkspace()} onOpenImports={() => openWorkspaceTab('Imports')}/>}<StockSourceSummary workspace={workspace}/><StockWorkerSetup collapsible={workspace.stockUploadAllowed} issued={Boolean(issuedKey)}><dl className="platform-facts"><div><dt>Import path</dt><dd><code>/api/stock/imports/{workspace.dealer.id}/grok</code></dd></div><div><dt>Active credentials</dt><dd>{workspace.keys.filter(k => !k.disabledAt).length}</dd></div></dl><p className="platform-help">Create a dedicated credential for this dealership and enter it directly into Grok’s secure secret card. Stored secrets cannot be retrieved later.</p><Button disabled={busy || !!issuedKey} onClick={() => void createImportKey()}>Create import credential</Button>{issuedKey && <section className="platform-notice" aria-label="New import credential"><h3>Save this secret now</h3><p>Shown only during this session. Never paste it into chat or logs.</p><label className="platform-field"><span>Import secret</span><Input type="password" readOnly value={issuedKey.secret} autoComplete="off" /></label><Button variant="outline" onClick={() => { void navigator.clipboard.writeText(issuedKey.secret).then(() => setNotice('Secret copied. Paste directly into Grok’s secure card.'), () => setError('Clipboard access failed. Select and copy the secret manually.')); }}>Copy secret</Button><Button variant="ghost" onClick={() => setIssuedKey(null)}>I have saved it — dismiss</Button></section>}<p className="platform-help">Creating a credential does not activate the dealership or start its worker. No schedule is changed here.</p></StockWorkerSetup></>}
-          {tab === 'Staff' && (workspace.dealer.plan === 'website_only' ? <><h2>Staff access</h2><p>This dealership receives enquiries by email on Website Only.</p></> : <><AccountInvitations dealerId={workspace.dealer.id} ownerOnly demoSetup={workspace.dealer.isDemo} onUpdated={refreshDealerWorkspace}/><h2>Dealer staff access</h2>{workspace.members.map(m => <article className="platform-member" key={m.id}><Users size={20}/><div><strong>{m.name || m.email || 'Registered owner account'}</strong><small>{m.email || 'Email not recorded'} · {m.role}</small></div><Badge value={m.disabledAt ? 'disabled' : 'active'}/></article>)}<p className="platform-help">Only these memberships grant access to this dealer. {workspace.dealer.isDemo?'After conversion, the owner can invite their team from Settings → Team & access.':'The owner can invite their team from Settings → Team & access in the dealer portal.'} Pending invitations grant no access until accepted.</p></>)}
+          {tab === 'Staff' && (workspace.dealer.plan === 'website_only' ? <><h2>Staff access</h2><p>This dealership receives enquiries by email on Website Only.</p></> : <><div id="platform-owner-invitations"><AccountInvitations dealerId={workspace.dealer.id} ownerOnly demoSetup={workspace.dealer.isDemo} onUpdated={refreshDealerWorkspace} existingStaff={existingOwner} onClearStaff={() => setExistingOwner(null)}/></div><h2>Dealer staff access</h2>{workspace.members.map(m => <article className="platform-member" key={m.id}><Users size={20}/><div><strong>{m.name || m.email || 'Registered owner account'}</strong><small>{m.email || 'Email not recorded'} · {m.role}{workspace.sharedStaffWorkspaceUrl ? (m.sharedLinked ? ' · Both sign-ins' : m.sharedSignIn ? ' · Shared sign-in' : ' · Dealership sign-in') : ''}</small></div>{workspace.sharedStaffWorkspaceUrl && m.role === 'owner' && m.email && !m.disabledAt && !m.sharedSignIn && !m.sharedLinked &&
+            <Button variant="outline" onClick={() => {
+              if (!m.email) return;
+              setExistingOwner({id:m.id,email:m.email,role:'owner'});
+              document.getElementById('platform-owner-invitations')?.querySelector('input')?.focus();
+            }}>Add shared sign-in</Button>}
+            <Badge value={m.disabledAt ? 'disabled' : 'active'}/></article>)}<p className="platform-help">Only these memberships grant access to this dealer. {workspace.dealer.isDemo?'After conversion, the owner can invite their team from Settings → Team & access.':'The owner can invite their team from Settings → Team & access in the dealer portal.'} Pending invitations grant no access until accepted.</p></>)}
           {tab === 'Demo' && <PlatformDemos dealerId={workspace.dealer.id} onCreated={id=>void openDealer(id)} onOpenStock={workspace.stockUploadAllowed ? () => openWorkspaceTab('Stock connection') : undefined}/>}
           {tab === 'Imports' && <><h2>Latest 30 stock submissions</h2>{runs(workspace.imports.map(r => ({ ...r, dealerId: workspace.dealer.id })))}</>}
         </div></section>}

@@ -7,7 +7,7 @@ import { engine } from "./test/tenant-test-db";
 import { createSharedStaffPortal } from "./routes/shared-staff-portal";
 import dealerOperations from "./routes/dealer-operations";
 import { currentTenant } from "./lib/tenant-context";
-import { sharedStaffWorkspaceUrl } from "./lib/shared-staff-portal";
+import { sharedStaffPortalConfig, sharedStaffWorkspaceUrl } from "./lib/shared-staff-portal";
 import { acceptAccountInvitation, issueAccountInvitation, readAccountInvitation } from "./lib/account-invitations";
 
 const central = "staff.example.test";
@@ -20,7 +20,7 @@ process.env.PLATFORM_ADMIN_USER_IDS = "user_platform_fixture";
 process.env.RESEND_API_KEY = "re_fictional_no_network";
 process.env.RESEND_FROM_EMAIL = "accounts@example.test";
 
-test("shared staff portal scopes every workspace to the pilot and a current Full Portal membership", async (t) => {
+test("shared staff portal scopes every workspace to rollout and a current Full Portal membership", async (t) => {
   const migrations = "../../lib/db/drizzle";
   for (const file of (await readdir(migrations)).filter((name) => /^\d+.*\.sql$/.test(name)).sort()) {
     await engine.exec(await readFile(`${migrations}/${file}`, "utf8"));
@@ -32,19 +32,26 @@ test("shared staff portal scopes every workspace to the pilot and a current Full
     ["website-only", "Website Only", "website_only", "active"],
     ["archived-dealer", "Suspended Dealer", "full_portal", "suspended"],
     ["planned-dealer", "Planned Dealer", "full_portal", "draft"],
+    ["dealer-demo", "Unconverted Demo", "full_portal", "active"],
+    ["dealer-converted", "Converted Dealer", "full_portal", "active"],
   ]) {
     await engine.query(`INSERT INTO dealerships(id,name,status,canonical_origin,stock_platform,retailer_id,source_url,plan,enquiry_email)
       VALUES($1,$2,$3,$4,'cazoo','fixture-retailer','https://example.test/feed',$5,'enquiries@example.test')`,
     [id, label, status, `https://${id}.example.test`, plan]);
   }
   await engine.exec("UPDATE dealerships SET onboarding_required=true WHERE id='planned-dealer'");
+  await engine.exec(`INSERT INTO dealer_demos(dealer_id,recipient,expires_at,updated_by,converted_at) VALUES
+    ('dealer-demo','staff@example.test',now()+interval '1 day','user_fixture',NULL),
+    ('dealer-converted','staff@example.test',now()+interval '1 day','user_fixture',now())`);
   await engine.exec(`INSERT INTO portal_users(dealer_id,auth_user_id,role,email,name,shared_staff_identity) VALUES
     ('dealer-one','user_fixture','owner','owner@example.test','Fictional Owner',true),
     ('dealer-one','user_legacy','owner','owner@example.test','Fictional Owner',false),
     ('dealer-two','user_fixture','accounts','owner@example.test','Fictional Owner',true),
     ('dealer-other','user_other','owner','other@example.test','Other Owner',true),
     ('website-only','user_fixture','owner','owner@example.test','Fictional Owner',true),
-    ('archived-dealer','user_fixture','owner','owner@example.test','Fictional Owner',true)`);
+    ('archived-dealer','user_fixture','owner','owner@example.test','Fictional Owner',true),
+    ('dealer-demo','user_fixture','owner','owner@example.test','Fictional Owner',true),
+    ('dealer-converted','user_fixture','salesperson','owner@example.test','Fictional Owner',true)`);
   const api = Router();
   api.all("/staff/test-scope", (req, res) => {
     res.json({ dealer: currentTenant()?.dealerId, role: req.staff?.role, origin: req.get("origin") });
@@ -125,6 +132,113 @@ test("shared staff portal scopes every workspace to the pilot and a current Full
     assert.equal((await call("/dealers/dealer-one/api/staff/test-scope", staff)).status, 403);
     await engine.exec("UPDATE portal_users SET disabled_at=NULL WHERE dealer_id='dealer-one' AND auth_user_id='user_fixture'");
 
+    await t.test("a rollout list admits only named dealerships and keeps each role scoped to its workspace", async () => {
+      process.env.STAFF_PORTAL_DEALER_IDS = "dealer-two, dealer-one, dealer-two";
+      try {
+        assert.deepEqual(sharedStaffPortalConfig()?.dealerIds, ["dealer-two", "dealer-one"]);
+        const scopedMemberships = await call("/api/staff-portal/memberships", staff);
+        assert.deepEqual(await scopedMemberships.json(), { dealerships: [
+          { dealerId: "dealer-one", dealerName: "Dealer One", role: "owner" },
+          { dealerId: "dealer-two", dealerName: "Dealer Two", role: "accounts" },
+        ] });
+        assert.equal(sharedStaffWorkspaceUrl("dealer-two"), `https://${central}/dealers/dealer-two/portal`);
+        assert.equal(sharedStaffWorkspaceUrl("dealer-converted"), null);
+        assert.equal((await call("/dealers/dealer-converted/portal", staff)).status, 404);
+        assert.equal((await call("/dealers/dealer-one/api/staff/team", staff)).status, 200);
+        assert.equal((await call("/dealers/dealer-two/api/staff/team", staff)).status, 403);
+        const requests = await Promise.all(["dealer-one", "dealer-two", "dealer-one"].map((id) => call(`/dealers/${id}/api/staff/test-scope`, staff)));
+        assert.deepEqual(await Promise.all(requests.map((response) => response.json())), [
+          { dealer: "dealer-one", role: "owner" }, { dealer: "dealer-two", role: "accounts" }, { dealer: "dealer-one", role: "owner" },
+        ]);
+        assert.equal((await call("/dealers/dealer-two/api/staff/test-scope", { user: "user_other" })).status, 403);
+      } finally {
+        delete process.env.STAFF_PORTAL_DEALER_IDS;
+      }
+    });
+    await t.test("all-dealer rollout still requires a current membership at an active eligible dealer", async () => {
+      process.env.STAFF_PORTAL_DEALER_IDS = "*";
+      try {
+        const result = await call("/api/staff-portal/memberships", staff);
+        assert.deepEqual(await result.json(), { dealerships: [
+          { dealerId: "dealer-converted", dealerName: "Converted Dealer", role: "salesperson" },
+          { dealerId: "dealer-one", dealerName: "Dealer One", role: "owner" },
+          { dealerId: "dealer-two", dealerName: "Dealer Two", role: "accounts" },
+        ] });
+        for (const id of ["dealer-other", "website-only", "archived-dealer", "planned-dealer", "dealer-demo", "unregistered-dealer"]) {
+          assert.equal((await call(`/dealers/${id}/api/staff/test-scope`, staff)).status, 403);
+        }
+        const converted = await call("/dealers/dealer-converted/api/staff/test-scope", staff);
+        assert.deepEqual(await converted.json(), { dealer: "dealer-converted", role: "salesperson" });
+        assert.equal(sharedStaffWorkspaceUrl("invalid/id"), null);
+        await engine.exec("UPDATE portal_users SET disabled_at=now() WHERE dealer_id='dealer-two' AND auth_user_id='user_fixture'");
+        assert.equal((await call("/dealers/dealer-two/api/staff/test-scope", staff)).status, 403);
+        await engine.exec("UPDATE portal_users SET disabled_at=NULL WHERE dealer_id='dealer-two' AND auth_user_id='user_fixture'");
+      } finally {
+        delete process.env.STAFF_PORTAL_DEALER_IDS;
+      }
+    });
+    await t.test("an explicit staff link preserves the legacy action identity and checks both memberships", async () => {
+      process.env.STAFF_PORTAL_DEALER_IDS = "dealer-one,dealer-two";
+      await engine.exec(`INSERT INTO portal_users(dealer_id,auth_user_id,role,email,name,shared_staff_identity) VALUES
+        ('dealer-one','user_linked_legacy','salesperson','linked@example.test','Original staff member',false),
+        ('dealer-one','user_linked_shared','salesperson','linked@example.test','Shared account',true),
+        ('dealer-two','user_linked_shared','accounts','linked@example.test','Shared account',true)`);
+      await engine.exec(`UPDATE portal_users s SET legacy_portal_user_id=legacy.id FROM portal_users legacy
+        WHERE s.dealer_id='dealer-one' AND s.auth_user_id='user_linked_shared'
+          AND legacy.dealer_id=s.dealer_id AND legacy.auth_user_id='user_linked_legacy'`);
+      const linked = { user: "user_linked_shared" };
+      const access = "/api/staff/access";
+      try {
+        const first = await call(`/dealers/dealer-one${access}`, linked);
+        assert.equal(first.status, 200);
+        assert.deepEqual(await first.json(), {
+          role: "salesperson", permissions: ["sales.manage", "sales.handover", "payments.record"],
+          user: { authUserId: "user_linked_legacy", name: "Original staff member", email: "linked@example.test" },
+        });
+        const second = await call(`/dealers/dealer-two${access}`, linked);
+        const otherWorkspace = await second.json() as { role: string; user: { authUserId: string } };
+        assert.equal(otherWorkspace.role, "accounts");
+        assert.equal(otherWorkspace.user.authUserId, "user_linked_shared");
+        assert.equal((await call(`/dealers/dealer-one${access}`, { user: "user_linked_legacy" })).status, 403);
+
+        await engine.exec("UPDATE portal_users SET role='owner' WHERE dealer_id='dealer-one' AND auth_user_id='user_linked_legacy'");
+        assert.equal((await call("/dealers/dealer-one/api/staff/team", linked)).status, 200);
+        await engine.exec("UPDATE portal_users SET role='salesperson' WHERE dealer_id='dealer-one' AND auth_user_id='user_linked_legacy'");
+        assert.equal((await call("/dealers/dealer-one/api/staff/team", linked)).status, 403);
+        await engine.exec("UPDATE portal_users SET disabled_at=now() WHERE dealer_id='dealer-one' AND auth_user_id='user_linked_legacy'");
+        assert.equal((await call(`/dealers/dealer-one${access}`, linked)).status, 403);
+        assert.deepEqual(await (await call("/api/staff-portal/memberships", linked)).json(), { dealerships: [
+          { dealerId: "dealer-two", dealerName: "Dealer Two", role: "accounts" },
+        ] });
+        await engine.exec("UPDATE portal_users SET disabled_at=NULL WHERE dealer_id='dealer-one' AND auth_user_id='user_linked_legacy'");
+        await engine.exec("UPDATE portal_users SET disabled_at=now() WHERE dealer_id='dealer-one' AND auth_user_id='user_linked_shared'");
+        assert.equal((await call(`/dealers/dealer-one${access}`, linked)).status, 403);
+        await engine.exec("UPDATE portal_users SET disabled_at=NULL WHERE dealer_id='dealer-one' AND auth_user_id='user_linked_shared'");
+        await engine.exec("UPDATE portal_users SET shared_staff_identity=true WHERE dealer_id='dealer-one' AND auth_user_id='user_linked_legacy'");
+        assert.equal((await call(`/dealers/dealer-one${access}`, linked)).status, 403);
+      } finally {
+        delete process.env.STAFF_PORTAL_DEALER_IDS;
+      }
+    });
+    await t.test("ambiguous rollout settings fail closed and a blank list preserves the legacy pilot", async () => {
+      try {
+        for (const invalid of ["dealer-one,*", ",dealer-one", "dealer-one,", "dealer-one,dealer/two", "Dealer-One"]) {
+          process.env.STAFF_PORTAL_DEALER_IDS = invalid;
+          assert.equal(sharedStaffPortalConfig(), null);
+          assert.equal(sharedStaffWorkspaceUrl("dealer-one"), null);
+        }
+        process.env.STAFF_PORTAL_DEALER_IDS = " ";
+        assert.deepEqual(sharedStaffPortalConfig()?.dealerIds, ["dealer-one"]);
+        delete process.env.STAFF_PORTAL_DEALER_IDS;
+        process.env.STAFF_PORTAL_PILOT_DEALER_ID = "dealer-one,dealer-two";
+        assert.equal(sharedStaffPortalConfig(), null);
+        process.env.STAFF_PORTAL_PILOT_DEALER_ID = "*";
+        assert.equal(sharedStaffPortalConfig(), null);
+      } finally {
+        delete process.env.STAFF_PORTAL_DEALER_IDS;
+        process.env.STAFF_PORTAL_PILOT_DEALER_ID = "dealer-one";
+      }
+    });
     await t.test("a fresh host-bound invitation can add the new verified identity with the existing role", async () => {
       let sentText = "";
       const transport = (async (_url, init) => {
@@ -132,8 +246,8 @@ test("shared staff portal scopes every workspace to the pilot and a current Full
         return Response.json({ id: "fixture-mail" });
       }) as typeof fetch;
       const issuer = { id: "user_fixture", kind: "staff" as const };
-      await assert.rejects(issueAccountInvitation("dealer-one", "owner@example.test", "salesperson", issuer, { transport }), { status: 409 });
-      await issueAccountInvitation("dealer-one", "owner@example.test", "owner", issuer, { transport });
+      await assert.rejects(issueAccountInvitation("dealer-one", "owner@example.test", "salesperson", issuer, { login: "shared", legacyStaffId: legacyOwnerId, transport }), { status: 409 });
+      await issueAccountInvitation("dealer-one", "owner@example.test", "owner", issuer, { login: "shared", legacyStaffId: legacyOwnerId, transport });
       const token = sentText.match(/join#(shared_[a-f0-9]{64})/)?.[1] ?? "";
       assert.match(sentText, /https:\/\/staff\.example\.test\/join#/);
       await assert.rejects(readAccountInvitation(token, "dealer-one.example.test"), { status: 403 });
@@ -141,6 +255,9 @@ test("shared staff portal scopes every workspace to the pilot and a current Full
       const accepted = await acceptAccountInvitation(token, central, { id: "user_central", name: "Fictional Owner", emails: ["owner@example.test"] });
       assert.equal(accepted.portalUrl, `https://${central}/dealers/dealer-one/portal`);
       assert.equal((await call("/dealers/dealer-one/api/staff/test-scope", { user: "user_central" })).status, 200);
+      const access = await (await call("/dealers/dealer-one/api/staff/access", { user: "user_central" })).json() as { role: string; user: { authUserId: string } };
+      assert.equal(access.role, "owner");
+      assert.equal(access.user.authUserId, "user_legacy");
       assert.equal((await call("/dealers/dealer-two/api/staff/test-scope", { user: "user_central" })).status, 404);
       process.env.STAFF_PORTAL_PILOT_DEALER_ID = "dealer-two";
       await assert.rejects(readAccountInvitation(token, central), { status: 403 });
@@ -155,6 +272,8 @@ test("shared staff portal scopes every workspace to the pilot and a current Full
         sentText = JSON.parse(String(init?.body)).text;
         return Response.json({ id: "fixture-legacy-mail" });
       }) as typeof fetch;
+      await assert.rejects(issueAccountInvitation("dealer-other", "legacy@example.test", "salesperson",
+        { id: "user_other", kind: "staff" }, { login: "shared", transport }), { status: 409 });
       await issueAccountInvitation("dealer-other", "legacy@example.test", "salesperson",
         { id: "user_other", kind: "staff" }, { transport });
       const token = sentText.match(/join#([a-f0-9]{64})/)?.[1] ?? "";
@@ -172,7 +291,7 @@ test("shared staff portal scopes every workspace to the pilot and a current Full
         return Response.json({ id: "fixture-planned-mail" });
       }) as typeof fetch;
       await issueAccountInvitation("planned-dealer", "planned@example.test", "owner",
-        { id: "user_platform_fixture", kind: "platform" }, { transport });
+        { id: "user_platform_fixture", kind: "platform" }, { login: "shared", transport });
       const token = sentText.match(/join#(shared_[a-f0-9]{64})/)?.[1] ?? "";
       const result = await acceptAccountInvitation(token, central,
         { id: "user_planned_owner", name: "Planned Owner", emails: ["planned@example.test"] });

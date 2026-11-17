@@ -21,6 +21,11 @@ function AccessFrame({ children }: { children: React.ReactNode }) {
       <div className="rounded-lg border border-primary/10 bg-card shadow-none">
         {children}
       </div>
+      {document.querySelector('meta[name="dealeros-staff-privacy"]') && (
+        <a className="inline-flex min-h-11 items-center text-sm text-primary underline underline-offset-4" href="/privacy">
+          Staff sign-in privacy
+        </a>
+      )}
     </div>
   );
 }

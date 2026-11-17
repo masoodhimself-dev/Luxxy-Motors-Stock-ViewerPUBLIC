@@ -38,10 +38,17 @@ router.get('/dealer-operations/payments.csv', requireStaff, requirePermission('f
 router.get('/staff/access', requireStaff, (req, res) => {
   res.setHeader('Cache-Control', 'no-store'); res.json({ role: req.staff!.role, permissions: req.staff!.permissions, user: { authUserId: req.staff!.authUserId, name: req.staff!.name, email: req.staff!.email } });
 });
-function member(row: Record<string, any>) { return { id: row.id, authUserId: row.auth_user_id, name: row.name, email: row.email, role: row.role, active: !row.disabled_at, createdAt: row.created_at, lastSeenAt: row.last_seen_at }; }
+function member(row: Record<string, any>) { return { id: row.id, authUserId: row.auth_user_id, name: row.name, email: row.email, role: row.role, active: !row.disabled_at, createdAt: row.created_at, lastSeenAt: row.last_seen_at, sharedSignIn: Boolean(row.shared_staff_identity), sharedLinked: Boolean(row.shared_linked) }; }
 router.use('/staff/team/invitations', requireStaff, requirePermission('team.manage'), accountInvitationManagementRouter('staff'));
 router.get('/staff/team', requireStaff, requirePermission('team.manage'), async (req, res) => {
-  try { const result = await pool.query('SELECT * FROM portal_users WHERE dealer_id=$1 ORDER BY created_at', [dealerId()]); res.setHeader('Cache-Control','no-store'); res.json({ members: result.rows.map(member) }); } catch (error) { fail(req,res,error); }
+  try {
+    const sharedAvailable = Boolean(sharedStaffPortalForDealer(dealerId()) && currentTenant()?.plan === 'full_portal' && !currentTenant()?.demo);
+    const result = await pool.query(`SELECT u.*, EXISTS (
+      SELECT 1 FROM portal_users s WHERE s.dealer_id=u.dealer_id AND s.legacy_portal_user_id=u.id
+      AND s.shared_staff_identity AND s.disabled_at IS NULL
+    ) AS shared_linked FROM portal_users u WHERE u.dealer_id=$1 AND u.legacy_portal_user_id IS NULL ORDER BY u.created_at`, [dealerId()]);
+    res.setHeader('Cache-Control','no-store'); res.json({ members: result.rows.map(member), sharedAvailable });
+  } catch (error) { fail(req,res,error); }
 });
 router.post('/staff/team', requireStaff, requirePermission('team.manage'), async (req,res) => {
   try {
@@ -67,12 +74,16 @@ router.patch('/staff/team/:id', requireStaff, requirePermission('team.manage'), 
     if (!uuid(req.params.id) || (req.body?.role !== undefined && !isStaffRole(req.body.role)) || (req.body?.active !== undefined && typeof req.body.active !== 'boolean') || (req.body?.role === undefined && req.body?.active === undefined)) throw new OperationError('Check the staff role and access settings.');
     await client.query('BEGIN'); await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[`portal-staff:${dealerId()}`]);
     const selected = await client.query('SELECT * FROM portal_users WHERE dealer_id=$1 AND id=$2::uuid FOR UPDATE',[dealerId(),req.params.id]);
-    const current = selected.rows[0]; if (!current) throw new OperationError('Staff member not found.',404);
+    const current = selected.rows[0]; if (!current || current.legacy_portal_user_id) throw new OperationError('Staff member not found. Manage access on the original staff record.',404);
     const role = req.body.role ?? current.role;
     const active = req.body.active ?? !current.disabled_at;
     if (current.role === 'owner' && !current.disabled_at && (role !== 'owner' || !active)) {
       const realm = sharedStaffPortalForDealer(dealerId()) ? Boolean(current.shared_staff_identity) : null;
-      const owners = await client.query("SELECT count(*)::int AS count FROM portal_users WHERE dealer_id=$1 AND role='owner' AND disabled_at IS NULL AND ($2::boolean IS NULL OR shared_staff_identity=$2)",[dealerId(),realm]);
+      const owners = await client.query(`SELECT count(*)::int AS count FROM portal_users s
+        LEFT JOIN portal_users legacy ON legacy.id=s.legacy_portal_user_id AND legacy.dealer_id=s.dealer_id
+        WHERE s.dealer_id=$1 AND s.disabled_at IS NULL AND ($2::boolean IS NULL OR s.shared_staff_identity=$2)
+          AND (s.legacy_portal_user_id IS NULL OR (legacy.id IS NOT NULL AND legacy.disabled_at IS NULL AND NOT legacy.shared_staff_identity))
+          AND COALESCE(legacy.role,s.role)='owner'`,[dealerId(),realm]);
       if (owners.rows[0].count <= 1) throw new OperationError(realm === null
         ? 'Keep at least one active owner. Add another owner before changing this account.'
         : 'Keep at least one active owner for this sign-in. Invite another owner before changing this account.',409);

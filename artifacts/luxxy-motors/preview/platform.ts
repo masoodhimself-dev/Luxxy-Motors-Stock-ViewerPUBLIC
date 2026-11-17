@@ -159,7 +159,7 @@ export async function platformPreview(req: IncomingMessage, res: ServerResponse,
       else send(res,200,{scope:dealerId?'dealer':'platform',dealerId,readOnly:true,evaluatedAt:new Date().toISOString(),features:resolveDealerFeatures({},{}),audit:[]});
     }
     else if(req.method==='GET'&&url.pathname==='/api/platform/capacity') send(res,200,previewCapacitySnapshot());
-    else if(req.method==='GET'&&url.pathname==='/api/platform/overview') send(res,200,{dealers:(await dealers()).map(d=>({...d,...changed.get(d.id),sourceUrl:d.stockPlatform==='cazoo'?'https://www.cazoo.co.uk/fictional':'https://www.autotrader.co.uk/fictional',domains:[],activeKeyCount:0,latestImport:null,lastSuccessfulImport:null})),activity:[],sharedStaffPilotDealerId:'example-motor-group'});
+    else if(req.method==='GET'&&url.pathname==='/api/platform/overview') send(res,200,{dealers:(await dealers()).map(d=>({...d,...changed.get(d.id),sourceUrl:d.stockPlatform==='cazoo'?'https://www.cazoo.co.uk/fictional':'https://www.autotrader.co.uk/fictional',domains:[],activeKeyCount:0,latestImport:null,lastSuccessfulImport:null})),activity:[],sharedStaffDealerIds:['example-motor-group']});
     else if(req.method==='GET'&&/^\/api\/platform\/dealers\/[^/]+\/workspace$/.test(url.pathname)) {
       const dealer=(await dealers()).find(d=>d.id===decodeURIComponent(url.pathname.split('/')[4]));
       if(!dealer) send(res,404,{error:'Example dealer not found.'});

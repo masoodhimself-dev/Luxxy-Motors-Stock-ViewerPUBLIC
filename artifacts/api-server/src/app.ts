@@ -17,6 +17,7 @@ import { logger } from "./lib/logger";
 import { clerkMiddleware } from "@clerk/express";
 import { sharedStaffClerk, sharedStaffPortalForHost } from './lib/shared-staff-portal';
 import { createSharedStaffPortal } from './routes/shared-staff-portal';
+import { sharedStaffInfo } from './routes/shared-staff-info';
 import { importAdmission, platformStockUploadPath } from './lib/stock-import-admission';
 import { platformStockUploadLimit, platformStockUploadTooLarge } from './lib/platform-stock-upload';
 import { serviceLifecycle } from './lib/service-lifecycle';
@@ -53,6 +54,7 @@ app.use(
   }),
 );
 protectPrivateCapabilityPages(app);
+app.use(sharedStaffInfo);
 // Tabs opened before practice mode was removed cannot submit live changes.
 app.use('/api', (req, res, next) => {
   if (req.get('x-luxxy-test-session') !== undefined) {

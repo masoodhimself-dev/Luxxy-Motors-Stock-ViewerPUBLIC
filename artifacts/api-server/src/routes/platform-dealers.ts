@@ -22,7 +22,7 @@ import { importCapacitySql, importCapacitySummary } from '../lib/platform-capaci
 import { processJobStatus } from '../lib/tenant-jobs';
 import { importAdmission } from '../lib/stock-import-admission';
 import { isPlatformAdmin } from '../lib/platform-admin';
-import { sharedStaffPortalConfig, sharedStaffWorkspaceUrl } from '../lib/shared-staff-portal';
+import { sharedStaffPortalConfig, sharedStaffPortalForDealer, sharedStaffWorkspaceUrl } from '../lib/shared-staff-portal';
 import { isReservedDealerHost, normaliseTenantHost, multiTenantEnabled } from '../lib/tenant-context';
 import { importSecretDigest } from '../middlewares/tenant';
 import { importActivityDetails } from '../lib/platform-import-activity';
@@ -88,7 +88,7 @@ router.get('/overview', async (_req, res) => {
     pool.query('SELECT dealer_id,expires_at FROM dealer_demos WHERE converted_at IS NULL'),
   ]);
   const sharedStaff = sharedStaffPortalConfig();
-  res.json({ sharedStaffPilotDealerId: sharedStaff?.pilotDealerId ?? null, dealers: dealers.map(dealer => ({ ...publicDealer(dealer),
+  res.json({ sharedStaffDealerIds: sharedStaff?.dealerIds ?? null, dealers: dealers.map(dealer => ({ ...publicDealer(dealer),
     isDemo: demos.rows.some(demo => demo.dealer_id === dealer.id),
     demoExpiresAt: demos.rows.find(demo => demo.dealer_id === dealer.id)?.expires_at ?? null,
     domains: domains.filter(d => d.dealerId === dealer.id),
@@ -102,7 +102,9 @@ router.get('/dealers/:id/workspace', async (req, res) => {
   if (!dealer) { res.status(404).json({ error: 'Dealer not found.' }); return; }
   const [domains, members, imports, keys, effectiveStockConnection, uploadTarget] = await Promise.all([
     db.select().from(dealerDomainsTable).where(eq(dealerDomainsTable.dealerId, dealer.id)),
-    db.select({ id: portalUsersTable.id, name: portalUsersTable.name, email: portalUsersTable.email, role: portalUsersTable.role, disabledAt: portalUsersTable.disabledAt }).from(portalUsersTable).where(eq(portalUsersTable.dealerId, dealer.id)),
+    db.select({ id: portalUsersTable.id, name: portalUsersTable.name, email: portalUsersTable.email, role: portalUsersTable.role, disabledAt: portalUsersTable.disabledAt, sharedSignIn: portalUsersTable.sharedStaffIdentity,
+      sharedLinked: sql<boolean>`exists (select 1 from portal_users linked where linked.dealer_id=${portalUsersTable.dealerId} and linked.legacy_portal_user_id=${portalUsersTable.id} and linked.shared_staff_identity and linked.disabled_at is null)`,
+    }).from(portalUsersTable).where(and(eq(portalUsersTable.dealerId, dealer.id), isNull(portalUsersTable.legacyPortalUserId))),
     db.select({ runId: stockImportRunsTable.runId, status: stockImportRunsTable.status, receivedAt: stockImportRunsTable.receivedAt, scrapedAt: stockImportRunsTable.scrapedAt, receivedCount: stockImportRunsTable.receivedCount, updatedAt: stockImportRunsTable.updatedAt, expectedCount: stockImportRunsTable.expectedCount, addedCount: stockImportRunsTable.addedCount, changedCount: stockImportRunsTable.changedCount, missingCount: stockImportRunsTable.missingCount, errors: stockImportRunsTable.errors, source: stockImportRunsTable.source, retailerId: stockImportRunsTable.retailerId }).from(stockImportRunsTable).where(eq(stockImportRunsTable.dealerId, dealer.id)).orderBy(desc(stockImportRunsTable.receivedAt)).limit(30),
     db.select({ id: dealerImportKeysTable.id, createdAt: dealerImportKeysTable.createdAt, disabledAt: dealerImportKeysTable.disabledAt }).from(dealerImportKeysTable).where(eq(dealerImportKeysTable.dealerId, dealer.id)),
     platformStockConnection(dealer),
@@ -115,8 +117,9 @@ router.get('/dealers/:id/workspace', async (req, res) => {
     ...(staffWorkspaceUrl ? { sharedStaffWorkspaceUrl: staffWorkspaceUrl } : {}) });
 });
 const origin = z.string().url().refine(v => { const u = new URL(v); return u.protocol === 'https:' && (!u.port || u.port === '443') && !u.username && !u.password && u.pathname === '/' && !u.search && !u.hash && Boolean(normaliseTenantHost(u.host)); });
-const creation = z.object({ id: z.string().regex(/^[a-z0-9][a-z0-9-]{1,62}$/), name: z.string().trim().min(1).max(120), canonicalOrigin: origin, platform: z.enum(['autotrader','cazoo']), retailerId: z.string().trim().min(1).max(128), sourceUrl: z.string().url(), plan: z.enum(['full_portal','website_only']).optional(), enquiryEmail: z.string().trim().toLowerCase().email().max(254).nullable().optional(), ownerAuthUserId: z.string().regex(/^user_[A-Za-z0-9]+$/).optional(), ownerEmail: z.string().email().optional(), useMyAccount: z.boolean().optional(), inviteOwnerEmail: z.string().trim().toLowerCase().email().max(254).optional() }).strict().refine(v => {
+const creation = z.object({ id: z.string().regex(/^[a-z0-9][a-z0-9-]{1,62}$/), name: z.string().trim().min(1).max(120), canonicalOrigin: origin, platform: z.enum(['autotrader','cazoo']), retailerId: z.string().trim().min(1).max(128), sourceUrl: z.string().url(), plan: z.enum(['full_portal','website_only']).optional(), enquiryEmail: z.string().trim().toLowerCase().email().max(254).nullable().optional(), ownerAuthUserId: z.string().regex(/^user_[A-Za-z0-9]+$/).optional(), ownerEmail: z.string().email().optional(), useMyAccount: z.boolean().optional(), inviteOwnerEmail: z.string().trim().toLowerCase().email().max(254).optional(), inviteOwnerLogin: z.enum(['legacy','shared']).optional() }).strict().refine(v => {
   const ownerChoices = [v.ownerAuthUserId, v.ownerEmail, v.useMyAccount, v.inviteOwnerEmail].filter(Boolean).length;
+  if (v.inviteOwnerLogin && (!v.inviteOwnerEmail || v.plan === 'website_only')) return false;
   return v.plan === 'website_only' ? Boolean(v.enquiryEmail) && ownerChoices <= 1 : ownerChoices === 1;
 });
 router.post('/dealers', async (req, res) => {
@@ -125,6 +128,9 @@ router.post('/dealers', async (req, res) => {
   if (isReservedDealerHost(host)) { res.status(400).json({ error: 'Use a separate dealer domain. Administration, staff portal and import hosts are reserved.' }); return; }
   const allowed = d.platform === 'cazoo' ? ['cazoo.co.uk','www.cazoo.co.uk'] : ['autotrader.co.uk','www.autotrader.co.uk'];
   if (source.protocol !== 'https:' || source.username || source.password || (source.port && source.port !== '443') || !allowed.includes(source.hostname)) { res.status(400).json({ error: 'Source URL does not match the stock platform.' }); return; }
+  if (d.inviteOwnerLogin === 'shared' && (d.plan !== 'full_portal' || !sharedStaffPortalForDealer(d.id))) {
+    res.status(409).json({ error: 'Shared staff sign-in is not available for this dealership. Choose the existing portal sign-in for the owner invitation.' }); return;
+  }
   let ownerAuthUserId = d.ownerAuthUserId;
   let ownerEmail: string | null = null;
   let ownerName: string | null = null;
@@ -149,7 +155,7 @@ router.post('/dealers', async (req, res) => {
       await tx.insert(dealerSettingsTable).values({ dealerId: d.id, config });
     });
     let ownerInvitation;
-    if (d.plan !== 'website_only' && d.inviteOwnerEmail) { try { ownerInvitation = await issueAccountInvitation(d.id,d.inviteOwnerEmail,'owner',{id:getAuth(req).userId!,kind:'platform'}); } catch { ownerInvitation = {deliveryStatus:'failed',error:'Dealership created. Open Staff to send the owner invitation; no owner access has been granted to the recipient.'}; } }
+    if (d.plan !== 'website_only' && d.inviteOwnerEmail) { try { ownerInvitation = await issueAccountInvitation(d.id,d.inviteOwnerEmail,'owner',{id:getAuth(req).userId!,kind:'platform'},{login:d.inviteOwnerLogin}); } catch { ownerInvitation = {deliveryStatus:'failed',error:'Dealership created. Open Staff to send the owner invitation; no owner access has been granted to the recipient.'}; } }
     res.status(201).json({ ...(ownerInvitation ? {ownerInvitation} : {}), dealerId: d.id, status: 'draft', dns: { type: 'TXT', name: `_dealer-verification.${host}`, value: token }, next: 'Verify DNS ownership and connect the domain in Render before activation.' });
   } catch { res.status(409).json({ error: 'Dealer ID or domain already exists. No dealer created.' }); }
 });

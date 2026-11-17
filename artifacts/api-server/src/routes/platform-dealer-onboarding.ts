@@ -61,7 +61,14 @@ async function readiness(client: Client, dealer: Dealer) {
   const candidate = dealer.onboarding_proof;
   const websiteOnly = dealer.plan === 'website_only';
   const sharedAuth = sharedStaffPortalForDealer(dealer.id);
-  const owner = websiteOnly || (await client.query("SELECT auth_user_id, shared_staff_identity FROM portal_users WHERE dealer_id=$1 AND role='owner' AND disabled_at IS NULL", [dealer.id])).rows.some(row => !isPlatformAdmin(row.auth_user_id) && row.shared_staff_identity === Boolean(sharedAuth));
+  const owners = websiteOnly ? [] : (await client.query(`SELECT staff.auth_user_id, staff.shared_staff_identity
+    FROM portal_users staff LEFT JOIN portal_users legacy ON legacy.dealer_id=staff.dealer_id AND legacy.id=staff.legacy_portal_user_id
+    WHERE staff.dealer_id=$1 AND staff.disabled_at IS NULL AND (
+      staff.legacy_portal_user_id IS NULL AND staff.role='owner'
+      OR legacy.disabled_at IS NULL AND NOT legacy.shared_staff_identity AND legacy.role='owner'
+    )`, [dealer.id])).rows.filter(row => !isPlatformAdmin(row.auth_user_id));
+  const legacyOwner = owners.some(row => !row.shared_staff_identity);
+  const sharedOwner = Boolean(sharedAuth) && owners.some(row => row.shared_staff_identity);
   const featureRules = await readFeatureRules(dealer.id, client);
   const enquiriesEnabled = resolveDealerFeatures(featureRules.defaults, featureRules.overrides, new Date(now)).find(feature => feature.key === 'publicEnquiries')?.enabled === true;
   const testEnquiry = websiteOnly && candidate?.channel === 'email' && candidate.recipient === dealer.enquiry_email &&
@@ -74,7 +81,7 @@ async function readiness(client: Client, dealer: Dealer) {
     { id: 'domain', label: 'Website domain', ready: Boolean(domainReady), detail: domainReady ? `Ownership and HTTPS confirmed for ${host}.` : domain?.verified ? 'Confirm Render HTTPS in the checklist once the domain is connected.' : 'Verify the website domain in Domains first.' },
     { id: 'stock', label: 'Stock', ready: stockReady, detail: stockReady ? `${stock.received_count} cars received in a complete, recent import.` : 'Import a complete, non-empty stock snapshot from the authorised retailer. It must be less than 24 hours old and contain cars listed for sale.' },
     { id: 'enquiry', label: websiteOnly ? 'Test email' : 'Test enquiry in Inbox', ready: enquiriesEnabled && Boolean(testEnquiry), detail: !enquiriesEnabled ? 'Enable website enquiries in Features.' : testEnquiry?.channel === 'email' ? 'The email provider accepted the test to the saved dealership address.' : testEnquiry?.channel === 'inbox' ? 'The test enquiry is available in the dealership’s private Inbox preview.' : websiteOnly ? 'Send a test to the saved dealership email address.' : 'Create a private test enquiry and check it in the Inbox preview.' },
-    ...(!websiteOnly ? [{ id: 'owner', label: 'Dealership owner', ready: owner, detail: sharedAuth ? owner ? 'The dealer’s owner has accepted their shared staff portal invitation.' : 'Invite the owner from Staff and ask them to accept on the shared staff portal.' : owner ? 'A dealership owner account is assigned.' : 'Assign the dealership’s owner or ask them to accept their invitation.' }] : []),
+    ...(!websiteOnly ? [{ id: 'owner', label: 'Dealership owner', ready: legacyOwner || sharedOwner, detail: sharedOwner ? 'The dealership owner has accepted a shared staff portal invitation.' : legacyOwner ? 'A dealership owner is assigned to the existing portal sign-in.' : sharedAuth ? 'Assign an existing owner or send a new owner invitation from Staff.' : 'Assign the dealership’s owner or ask them to accept their invitation.' }] : []),
   ];
   return { plan: dealer.plan, enquiryEmail: dealer.enquiry_email, onboardingRequired: dealer.onboarding_required, checks, testEnquiry, ready: !dealer.demo && dealer.status === 'draft' && dealer.onboarding_required && checks.every(check => check.ready) };
 }

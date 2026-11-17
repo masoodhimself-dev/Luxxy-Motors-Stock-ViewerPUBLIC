@@ -6,12 +6,20 @@ import { sharedStaffPortalForDealer, sharedStaffWorkspaceUrl } from './shared-st
 import { InvitationDeliveryError, invitationEmailReadiness, sendAccountInvitation } from './account-invitation-email';
 export type InvitationRole='owner'|'salesperson'|'accounts';
 export type InvitationIssuer={id:string;kind:'platform'|'staff'};
+export type InvitationLogin = 'legacy' | 'shared';
+type InvitationDestination = 'platform' | 'dealer' | 'shared';
 export class InvitationError extends Error { readonly status:number; constructor(message:string,status=400){super(message);this.status=status;} }
 export const invitationTokenHash=(token:string)=>createHash('sha256').update(token).digest('hex');
 export const validInvitationToken=(value:unknown):value is string=>typeof value==='string'&&/^(?:shared_)?[a-f0-9]{64}$/.test(value);
 const interval=7*86400000;
 type Row=Record<string,any>;
-export function invitationSummary(row:Row) {return {id:row.id,email:row.email,role:row.role,createdAt:row.created_at,expiresAt:row.expires_at,acceptedAt:row.accepted_at,deliveryStatus:row.delivery_status==='sending'&&row.last_sent_at&&Date.now()-Date.parse(row.last_sent_at)>60000?'unknown':row.delivery_status,managedBy:row.issuer_kind,status:row.accepted_at?'accepted':row.revoked_at?'cancelled':Date.parse(row.expires_at)<=Date.now()?'expired':'pending'};}
+function storedDestination(row: Row): InvitationDestination | null {
+  const prefix = String(row.token_hash ?? '').split(':', 1)[0];
+  return prefix === 'platform' || prefix === 'dealer' || prefix === 'shared' ? prefix : null;
+}
+const legacyDestination = (kind: InvitationIssuer['kind']): InvitationDestination => kind === 'platform' ? 'platform' : 'dealer';
+
+export function invitationSummary(row:Row) {return {id:row.id,email:row.email,role:row.role,login:storedDestination(row)==='shared'?'shared':'legacy',createdAt:row.created_at,expiresAt:row.expires_at,acceptedAt:row.accepted_at,deliveryStatus:row.delivery_status==='sending'&&row.last_sent_at&&Date.now()-Date.parse(row.last_sent_at)>60000?'unknown':row.delivery_status,managedBy:row.issuer_kind,status:row.accepted_at?'accepted':row.revoked_at?'cancelled':Date.parse(row.expires_at)<=Date.now()?'expired':'pending'};}
 type InvitationScope={kind:InvitationIssuer['kind'];role:InvitationRole};
 function sharedInvitationConfig(dealerId: string, row: Row, scope: InvitationScope) {
   const allowed = !row.demo && row.plan === 'full_portal' &&
@@ -23,7 +31,16 @@ function invitationPortalUrl(dealer: Row, token: string) {
   return token.startsWith('shared_') ? sharedStaffWorkspaceUrl(dealer.id) : `${dealer.canonical_origin}/portal`;
 }
 async function matchingMembers(query: typeof pool.query, dealerId: string, email: string) {
-  return (await query('SELECT role,disabled_at FROM portal_users WHERE dealer_id=$1 AND lower(email)=$2', [dealerId, email])).rows;
+  return (await query('SELECT role,disabled_at,shared_staff_identity FROM portal_users WHERE dealer_id=$1 AND lower(email)=$2', [dealerId, email])).rows;
+}
+
+async function verifyLegacyTarget(query: typeof pool.query, dealerId: string, staffId: string, email: string, role: InvitationRole) {
+  const [member] = (await query(`SELECT id, lower(email) AS email, role, disabled_at, shared_staff_identity, auth_user_id
+    FROM portal_users WHERE dealer_id=$1 AND id=$2 FOR UPDATE`, [dealerId, staffId])).rows;
+  if (!member || member.disabled_at || member.shared_staff_identity || member.email !== email || member.role !== role) {
+    throw new InvitationError('Use the active dealership staff member’s recorded email and role to add shared sign-in.', 409);
+  }
+  return member;
 }
 function checkInvitationDealer(row:Row,scope:InvitationScope) {
   if(!['draft','active'].includes(row.status))throw new InvitationError('This dealership is not available for invitations.',409);
@@ -37,17 +54,23 @@ function checkInvitationDealer(row:Row,scope:InvitationScope) {
     if(!Number.isFinite(expiry)||expiry<=Date.now())throw new InvitationError('This demonstration has expired. Extend it before setting up owner access.',410);
   }
 }
+const dealerInvitationRow = async (id: string, query = pool.query.bind(pool)) =>
+  (await query('SELECT d.id,d.name,d.status,d.plan,d.onboarding_required,d.canonical_origin,m.dealer_id IS NOT NULL AS demo,m.expires_at AS demo_expires_at FROM dealerships d LEFT JOIN dealer_demos m ON m.dealer_id=d.id AND m.converted_at IS NULL WHERE d.id=$1', [id])).rows[0];
+
 async function dealerForInvite(dealerId:string,scope:InvitationScope,query=pool.query.bind(pool)) {
-  const row=(await query('SELECT d.id,d.name,d.status,d.plan,d.onboarding_required,d.canonical_origin,m.dealer_id IS NOT NULL AS demo,m.expires_at AS demo_expires_at FROM dealerships d LEFT JOIN dealer_demos m ON m.dealer_id=d.id AND m.converted_at IS NULL WHERE d.id=$1',[dealerId])).rows[0];
+  const row=await dealerInvitationRow(dealerId, query);
   if(!row)throw new InvitationError('Dealership not found.',404);
   checkInvitationDealer(row,scope);
   return row;
 }
-export async function listAccountInvitations(dealerId:string) {
-  const result=await pool.query('SELECT * FROM account_invitations WHERE dealer_id=$1 ORDER BY (accepted_at IS NULL AND revoked_at IS NULL) DESC,created_at DESC LIMIT 100',[dealerId]);
-  return {invitations:result.rows.map(invitationSummary),email:invitationEmailReadiness()};
+export async function listAccountInvitations(dealerId:string, kind: InvitationIssuer['kind']) {
+  const [result, dealer] = await Promise.all([
+    pool.query('SELECT * FROM account_invitations WHERE dealer_id=$1 ORDER BY (accepted_at IS NULL AND revoked_at IS NULL) DESC,created_at DESC LIMIT 100', [dealerId]),
+    dealerInvitationRow(dealerId),
+  ]);
+  return {invitations:result.rows.map(invitationSummary),email:invitationEmailReadiness(),sharedAvailable:Boolean(dealer&&sharedInvitationConfig(dealerId,dealer,{kind,role:'owner'}))};
 }
-export async function issueAccountInvitation(dealerId:string,email:string,role:InvitationRole,issuer:InvitationIssuer,options:{resendId?:string;transport?:typeof fetch}={}) {
+export async function issueAccountInvitation(dealerId:string,email:string,role:InvitationRole,issuer:InvitationIssuer,options:{resendId?:string;login?:InvitationLogin;legacyStaffId?:string;transport?:typeof fetch}={}) {
   if(!invitationEmailReadiness().ready)throw new InvitationError(invitationEmailReadiness().message,503);
   const platformHost=normaliseTenantHost(process.env.PLATFORM_ADMIN_HOST??'');
   const id=randomUUID(),attempt=randomUUID(),expiresAt=new Date(Date.now()+interval);
@@ -56,6 +79,8 @@ export async function issueAccountInvitation(dealerId:string,email:string,role:I
     await client.query('BEGIN');await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[`portal-staff:${dealerId}`]);
     if(issuer.kind==='staff') {const actor=(await client.query("SELECT id FROM portal_users WHERE dealer_id=$1 AND auth_user_id=$2 AND role='owner' AND disabled_at IS NULL",[dealerId,issuer.id])).rows[0];if(!actor)throw new InvitationError('Owner access is required.',403);}
     else if(!isPlatformAdmin(issuer.id))throw new InvitationError('Platform administrator access required.',403);
+    let destination = options.login === 'shared' ? 'shared' : legacyDestination(issuer.kind);
+    let legacyStaffId = options.legacyStaffId ?? null;
     if(options.resendId) {
       const old=(await client.query('SELECT * FROM account_invitations WHERE dealer_id=$1 AND id=$2 FOR UPDATE',[dealerId,options.resendId])).rows[0];
       if(!old)throw new InvitationError('Invitation not found.',404);
@@ -64,17 +89,29 @@ export async function issueAccountInvitation(dealerId:string,email:string,role:I
       if(old.send_count>=5)throw new InvitationError('This invitation has been sent five times. Cancel it and create a new invitation if needed.',429);
       if(old.last_sent_at&&Date.now()-Date.parse(old.last_sent_at)<60000)throw new InvitationError('Wait one minute before resending this invitation.',429);
       email=old.email;role=old.role;
+      // An invitation's destination is fixed even if the rollout or person
+      // resending it changes. Older untagged hashes used the issuer's host.
+      destination = storedDestination(old) ?? legacyDestination(old.issuer_kind);
+      legacyStaffId = old.legacy_portal_user_id;
     }
     // Resends must use the locked invitation's role, not the route's placeholder.
     dealer=await dealerForInvite(dealerId,{kind:issuer.kind,role},client.query.bind(client));
-    const shared = sharedInvitationConfig(dealerId,dealer,{kind:issuer.kind,role});
-    token = `${shared ? 'shared_' : ''}${randomBytes(32).toString('hex')}`;
-    origin=shared?.origin ?? (issuer.kind==='platform'?platformHost?`https://${platformHost}`:'':new URL(dealer.canonical_origin).origin);
+    const shared = destination === 'shared' ? sharedInvitationConfig(dealerId,dealer,{kind:issuer.kind,role}) : null;
+    if (destination === 'shared' && !shared) throw new InvitationError('Shared staff sign-in is not available for this dealership invitation.',409);
+    if (legacyStaffId) {
+      if (!shared) throw new InvitationError('Choose shared staff sign-in to link an existing staff member.',409);
+      await verifyLegacyTarget(client.query.bind(client), dealerId, legacyStaffId, email, role);
+    }
+    token = `${destination === 'shared' ? 'shared_' : ''}${randomBytes(32).toString('hex')}`;
+    const tokenHash = `${destination}:${invitationTokenHash(token)}`;
+    origin=shared?.origin ?? (destination==='platform'?platformHost?`https://${platformHost}`:'':new URL(dealer.canonical_origin).origin);
     if(!origin)throw new InvitationError('The platform sign-in domain must be configured before sending an owner invitation.',503);
     const members=await matchingMembers(client.query.bind(client),dealerId,email);
     // Moving a legacy member to the new identity provider requires a fresh
     // invitation and the same recorded role. Disabled access cannot be renewed here.
-    if(members.length&&(!shared||members.some(member=>member.disabled_at||member.role!==role)))
+    if (shared && !legacyStaffId && members.some(member => !member.shared_staff_identity && !member.disabled_at))
+      throw new InvitationError('Use Add shared sign-in on the existing staff member to keep their access and assignments together.',409);
+    if(members.length&&(!shared||!legacyStaffId||members.some(member=>member.disabled_at||member.role!==role)))
       throw new InvitationError('This person is already on the team. Manage their access in the staff list instead.',409);
     if(!options.resendId) {
       const existing=(await client.query('SELECT * FROM account_invitations WHERE dealer_id=$1 AND email=$2 AND accepted_at IS NULL AND revoked_at IS NULL',[dealerId,email])).rows[0];
@@ -84,7 +121,7 @@ export async function issueAccountInvitation(dealerId:string,email:string,role:I
     }
     saved=(await client.query(options.resendId
       ? "UPDATE account_invitations SET token_hash=$3,delivery_attempt=$4,expires_at=$5,last_sent_at=now(),delivery_status='sending',provider_id=NULL,send_count=send_count+1,created_by=$6,issuer_kind=$7 WHERE dealer_id=$1 AND id=$2 RETURNING *"
-      : "INSERT INTO account_invitations(dealer_id,id,email,role,token_hash,delivery_attempt,expires_at,created_by,issuer_kind,last_sent_at,delivery_status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,now(),'sending') RETURNING *",options.resendId?[dealerId,options.resendId,invitationTokenHash(token),attempt,expiresAt,issuer.id,issuer.kind]:[dealerId,id,email,role,invitationTokenHash(token),attempt,expiresAt,issuer.id,issuer.kind])).rows[0];
+      : "INSERT INTO account_invitations(dealer_id,id,email,role,token_hash,delivery_attempt,expires_at,created_by,issuer_kind,legacy_portal_user_id,last_sent_at,delivery_status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now(),'sending') RETURNING *",options.resendId?[dealerId,options.resendId,tokenHash,attempt,expiresAt,issuer.id,issuer.kind]:[dealerId,id,email,role,tokenHash,attempt,expiresAt,issuer.id,issuer.kind,legacyStaffId])).rows[0];
     await client.query('COMMIT');
   }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
   let status='sent',providerId:string|null=null;
@@ -100,11 +137,15 @@ export async function cancelAccountInvitation(dealerId:string,id:string,issuer:I
 }
 export async function readAccountInvitation(token:string,host:string) {
   if(!validInvitationToken(token))throw new InvitationError('This invitation link is incomplete. Ask for a fresh invitation.',400);
-  const row=(await pool.query('SELECT i.*,d.name AS dealer_name,d.status AS dealer_status,d.plan,d.onboarding_required,d.canonical_origin,m.dealer_id IS NOT NULL AS demo,m.expires_at AS demo_expires_at FROM account_invitations i JOIN dealerships d ON d.id=i.dealer_id LEFT JOIN dealer_demos m ON m.dealer_id=d.id AND m.converted_at IS NULL WHERE token_hash=$1',[invitationTokenHash(token)])).rows[0];
+  const hash = invitationTokenHash(token);
+  const sharedLink = token.startsWith('shared_');
+  const hashes = sharedLink ? [hash, `shared:${hash}`] : [hash, `platform:${hash}`, `dealer:${hash}`];
+  const row=(await pool.query('SELECT i.*,d.name AS dealer_name,d.status AS dealer_status,d.plan,d.onboarding_required,d.canonical_origin,m.dealer_id IS NOT NULL AS demo,m.expires_at AS demo_expires_at FROM account_invitations i JOIN dealerships d ON d.id=i.dealer_id LEFT JOIN dealer_demos m ON m.dealer_id=d.id AND m.converted_at IS NULL WHERE token_hash=ANY($1::text[])',[hashes])).rows[0];
   if(!row)throw new InvitationError('This invitation is unavailable. Ask for a fresh invitation.',404);
-  const allowedHost=token.startsWith('shared_')
+  const destination = storedDestination(row) ?? (sharedLink ? 'shared' : legacyDestination(row.issuer_kind));
+  const allowedHost=destination === 'shared'
     ? sharedInvitationConfig(row.dealer_id,{ ...row, status: row.dealer_status },{kind:row.issuer_kind,role:row.role})?.host
-    : row.issuer_kind==='platform'?normaliseTenantHost(process.env.PLATFORM_ADMIN_HOST??''):normaliseTenantHost(new URL(row.canonical_origin).host);
+    : destination === 'platform'?normaliseTenantHost(process.env.PLATFORM_ADMIN_HOST??''):normaliseTenantHost(new URL(row.canonical_origin).host);
   if(!allowedHost||normaliseTenantHost(host)!==allowedHost)throw new InvitationError('Open this invitation using the link in your email.',403);
   if(row.revoked_at||Date.parse(row.expires_at)<=Date.now())throw new InvitationError('This invitation has expired or was cancelled. Ask for a new one.',410);
   if(!['draft','active'].includes(row.dealer_status))throw new InvitationError('This dealership is not currently available. Contact the person who invited you.',409);
@@ -118,21 +159,35 @@ export async function acceptAccountInvitation(token:string,host:string,identity:
   try {
     await client.query('BEGIN');await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[`portal-staff:${initial.dealer_id}`]);
     const row=(await client.query('SELECT * FROM account_invitations WHERE id=$1 FOR UPDATE',[initial.id])).rows[0];
-    if(row.token_hash!==invitationTokenHash(token)||row.revoked_at||Date.parse(row.expires_at)<=Date.now())throw new InvitationError('This invitation is no longer available. Ask for a fresh invitation.',410);
+    if(!row||row.token_hash!==initial.token_hash||row.revoked_at||Date.parse(row.expires_at)<=Date.now())throw new InvitationError('This invitation is no longer available. Ask for a fresh invitation.',410);
     const dealer=await dealerForInvite(row.dealer_id,{kind:row.issuer_kind,role:row.role},client.query.bind(client));
     const sharedIdentity = token.startsWith('shared_');
     if(sharedIdentity&&!sharedInvitationConfig(row.dealer_id,dealer,{kind:row.issuer_kind,role:row.role}))throw new InvitationError('This dealership is no longer available on the shared staff portal.',409);
-    if(row.accepted_at){if(row.accepted_by!==identity.id)throw new InvitationError('This invitation has already been accepted.',410);const member=(await client.query('SELECT id FROM portal_users WHERE dealer_id=$1 AND auth_user_id=$2 AND disabled_at IS NULL',[row.dealer_id,identity.id])).rows[0];if(!member)throw new InvitationError('Your access is no longer active. Contact the dealership owner.',409);await client.query('COMMIT');return {accepted:true,dealerName:dealer.name,portalUrl:invitationPortalUrl(dealer,token),demo:Boolean(dealer.demo)};}
+    if(row.accepted_at){if(row.accepted_by!==identity.id)throw new InvitationError('This invitation has already been accepted.',410);const member=(await client.query(`SELECT s.id FROM portal_users s LEFT JOIN portal_users legacy ON legacy.dealer_id=s.dealer_id AND legacy.id=s.legacy_portal_user_id
+      WHERE s.dealer_id=$1 AND s.auth_user_id=$2 AND s.disabled_at IS NULL
+        AND (s.legacy_portal_user_id IS NULL OR (legacy.id IS NOT NULL AND legacy.disabled_at IS NULL AND NOT legacy.shared_staff_identity))`,[row.dealer_id,identity.id])).rows[0];if(!member)throw new InvitationError('Your access is no longer active. Contact the dealership owner.',409);await client.query('COMMIT');return {accepted:true,dealerName:dealer.name,portalUrl:invitationPortalUrl(dealer,token),demo:Boolean(dealer.demo)};}
     if(row.issuer_kind==='platform'){if(!isPlatformAdmin(row.created_by))throw new InvitationError('The person who invited you no longer has permission. Ask for a new invitation.',410);}
     else {const actor=(await client.query("SELECT id FROM portal_users WHERE dealer_id=$1 AND auth_user_id=$2 AND role='owner' AND disabled_at IS NULL",[row.dealer_id,row.created_by])).rows[0];if(!actor)throw new InvitationError('The person who invited you no longer has owner access. Ask for a new invitation.',410);}
     const existing=(await client.query('SELECT * FROM portal_users WHERE dealer_id=$1 AND auth_user_id=$2',[row.dealer_id,identity.id])).rows[0];
     if(existing?.disabled_at)throw new InvitationError('Your access is disabled. Ask the dealership owner to review it.',409);
-    if(sharedIdentity&&(await matchingMembers(client.query.bind(client),row.dealer_id,row.email)).some(member=>member.disabled_at||member.role!==row.role))
+    if (existing && existing.shared_staff_identity !== sharedIdentity) throw new InvitationError('This account is already assigned to the other sign-in. Ask the dealership owner to check which account you should use.',409);
+    const legacyStaffId = row.legacy_portal_user_id;
+    if (legacyStaffId) {
+      if (!sharedIdentity) throw new InvitationError('Open the shared staff sign-in invitation for this staff member.',409);
+      const target = await verifyLegacyTarget(client.query.bind(client), row.dealer_id, legacyStaffId, row.email, row.role);
+      if (target.auth_user_id === identity.id || (existing?.legacy_portal_user_id && existing.legacy_portal_user_id !== legacyStaffId)) {
+        throw new InvitationError('This sign-in cannot be linked to the selected staff member.',409);
+      }
+      const [linked] = (await client.query('SELECT auth_user_id FROM portal_users WHERE dealer_id=$1 AND legacy_portal_user_id=$2', [row.dealer_id, legacyStaffId])).rows;
+      if (linked && linked.auth_user_id !== identity.id) throw new InvitationError('This staff member already has a linked shared sign-in.',409);
+    }
+    if(sharedIdentity&&((existing&&existing.role!==row.role)||(await matchingMembers(client.query.bind(client),row.dealer_id,row.email)).some(member=>member.disabled_at||member.role!==row.role||(!legacyStaffId&&!member.shared_staff_identity))))
       throw new InvitationError('The team access for this email changed. Ask for a fresh invitation.',409);
     // Acceptance never changes the role of an existing member or reactivates access.
-    await client.query(`INSERT INTO portal_users(dealer_id,auth_user_id,email,name,role,shared_staff_identity) VALUES($1,$2,$3,$4,$5,$6)
-      ON CONFLICT(dealer_id,auth_user_id) DO UPDATE SET shared_staff_identity=true WHERE EXCLUDED.shared_staff_identity AND NOT portal_users.shared_staff_identity`,
-    [row.dealer_id,identity.id,row.email,identity.name,row.role,sharedIdentity]);
+    await client.query(`INSERT INTO portal_users(dealer_id,auth_user_id,email,name,role,shared_staff_identity,legacy_portal_user_id) VALUES($1,$2,$3,$4,$5,$6,$7)
+      ON CONFLICT(dealer_id,auth_user_id) DO UPDATE SET legacy_portal_user_id=EXCLUDED.legacy_portal_user_id
+      WHERE portal_users.shared_staff_identity AND EXCLUDED.shared_staff_identity AND portal_users.legacy_portal_user_id IS NULL AND EXCLUDED.legacy_portal_user_id IS NOT NULL`,
+    [row.dealer_id,identity.id,row.email,identity.name,row.role,sharedIdentity,legacyStaffId]);
     await client.query('UPDATE account_invitations SET accepted_at=now(),accepted_by=$2 WHERE id=$1',[row.id,identity.id]);await client.query('COMMIT');
     return {accepted:true,dealerName:dealer.name,portalUrl:invitationPortalUrl(dealer,token),demo:Boolean(dealer.demo)};
   }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}

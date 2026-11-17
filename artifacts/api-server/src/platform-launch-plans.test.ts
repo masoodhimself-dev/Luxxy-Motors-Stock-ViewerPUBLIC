@@ -134,10 +134,9 @@ test('Website Only and Full Portal prove separate launch destinations and preser
     assert.equal((await onboardingResponse(await request(`${full}/onboarding`))).checks.find(check => check.id === 'owner')?.ready, true);
     process.env.STAFF_PORTAL_PILOT_DEALER_ID = 'full-test';
     assert.equal((await request(`${full}/domains`, 'POST', { hostname: 'staff.example.test' })).status, 400);
-    assert.equal((await request(`${full}/onboarding/launch`, 'POST')).status, 409);
+    assert.equal((await onboardingResponse(await request(`${full}/onboarding`))).checks.find(check => check.id === 'owner')?.ready, true);
     const draftWorkspace = await (await request(`${full}/workspace`)).json() as { sharedStaffWorkspaceUrl?: string };
     assert.equal(draftWorkspace.sharedStaffWorkspaceUrl, undefined);
-    await engine.query("UPDATE portal_users SET shared_staff_identity=true WHERE dealer_id='full-test' AND auth_user_id='user_owner'");
     assert.equal((await request(`${full}/onboarding/launch`, 'POST')).status, 200);
     assert.equal((await request(`${full}/onboarding/test-enquiry`)).status, 404);
     const liveWorkspace = await (await request(`${full}/workspace`)).json() as { sharedStaffWorkspaceUrl?: string };

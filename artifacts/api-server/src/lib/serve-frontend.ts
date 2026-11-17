@@ -30,8 +30,10 @@ export function serveFrontend(app: Express, directory: string, options: Frontend
       const shared = res.locals.sharedStaffPortal as { publishableKey: string } | undefined;
       if (shared) {
         const seo = buildPublicPageSeo({ pathname: '/portal', canonicalOrigin: tenant?.canonicalOrigin ?? process.env.PUBLIC_SITE_URL, demo: true });
+        const publicInfo = process.env.STAFF_PORTAL_PUBLIC_INFO_ENABLED === 'true'
+          ? '<meta name="dealeros-staff-privacy" content="/privacy">' : '';
         const markup = renderPublicPageSeo(html, seo).replace('</head>',
-          `<meta name="dealeros-staff-portal" content="${shared.publishableKey}"></head>`);
+          `<meta name="dealeros-staff-portal" content="${shared.publishableKey}">${publicInfo}</head>`);
         res.set({ 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow' }).type('html').send(markup);
         return;
       }
