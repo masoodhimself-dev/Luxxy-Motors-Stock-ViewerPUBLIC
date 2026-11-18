@@ -68,7 +68,7 @@ it('creates a private demo from one Auto Trader link and only offers a preview a
  fireEvent.click(screen.getByRole('button', { name: 'Collect stock automatically' }));
  expect(screen.getByRole('status')).toHaveTextContent('Collecting and importing');
  expect(screen.getByRole('button', { name: 'Creating private demo…' })).toBeDisabled();
- expect(screen.queryByRole('link', { name: /Open private preview/ })).not.toBeInTheDocument();
+ expect(screen.queryByRole('link', { name: /Review demo/ })).not.toBeInTheDocument();
  finish(Response.json({ error: 'The collector could not confirm the complete stock.' }, { status: 502 }));
  await screen.findByText('The collector could not confirm the complete stock.');
 
@@ -78,8 +78,8 @@ it('creates a private demo from one Auto Trader link and only offers a preview a
   dealerId: 'demo-oakwood-cars', dealerName: 'Oakwood Cars',
   previewPath: '/platform/preview/demo-oakwood-cars', received: 8,
  }));
- const preview = await screen.findByRole('link', { name: /Open private preview/ });
- expect(preview).toHaveAttribute('href', '/platform/preview/demo-oakwood-cars');
+ const preview = await screen.findByRole('link', { name: /Review demo/ });
+ expect(preview).toHaveAttribute('href', '/platform?dealer=demo-oakwood-cars&tab=Demo%20review');
  await waitFor(() => expect(preview).toHaveFocus());
  expect(screen.queryByLabelText('Dealership stock link')).not.toBeInTheDocument();
  expect(screen.getByRole('status')).toHaveTextContent('8 vehicles imported into the private demo.');
@@ -104,7 +104,7 @@ it('builds the Grok prompt for a Cazoo dealership without needing the Auto Trade
  expect(prompt).toContain('https://www.cazoo.co.uk/dealers/shop-for-cars-52363/');
  expect(prompt).toContain('cazoo-52363');
  expect(prompt).not.toContain('utm_source');
- expect(screen.queryByRole('link', { name: /Open private preview/ })).not.toBeInTheDocument();
+ expect(screen.queryByRole('link', { name: /Review demo/ })).not.toBeInTheDocument();
  await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
 });
 
@@ -137,14 +137,14 @@ it('resumes an accepted stock collection after navigation and retries a failed s
  await waitFor(() => expect(create).toBeEnabled());
  fireEvent.click(create);
  await waitFor(() => expect(reads).toHaveBeenCalledTimes(1));
- expect(screen.queryByRole('link', { name: /Open private preview/ })).not.toBeInTheDocument();
+ expect(screen.queryByRole('link', { name: /Review demo/ })).not.toBeInTheDocument();
  first.unmount();
  allowImport = true;
  render(<PlatformDemos onCreated={() => {}}/>);
  await screen.findByText('Waiting to reconnect and check the stock collection…');
  expect(screen.getByRole('button', { name: 'Creating private demo…' })).toBeDisabled();
- const preview = await screen.findByRole('link', { name: /Open private preview/ }, { timeout: 3_000 });
- expect(preview).toHaveAttribute('href', '/platform/preview/demo-oakwood-cars');
+ const preview = await screen.findByRole('link', { name: /Review demo/ }, { timeout: 3_000 });
+ expect(preview).toHaveAttribute('href', '/platform?dealer=demo-oakwood-cars&tab=Demo%20review');
  expect(reads.mock.calls).toEqual(Array.from({ length: 3 }, () => [`/api/platform/demos/collection/${jobId}`]));
  expect(writes).toHaveBeenCalledTimes(1);
 });
@@ -289,7 +289,7 @@ it('offers the Auto Trader JSON workflow with public details when automatic coll
  const stock = { schemaVersion: 1, source: 'grok', retailerId: '123456', cars: [{ advertId: '202611180123456' }] };
  fireEvent.change(screen.getByLabelText('Stock JSON from Grok Bot'), { target: { value: JSON.stringify(stock) } });
  fireEvent.click(screen.getByRole('button', { name: 'Create private demo' }));
- await screen.findByRole('link', { name: /Open private preview/ });
+ await screen.findByRole('link', { name: /Review demo/ });
  const writes = fetcher.mock.calls.filter(([, init]) => init?.method === 'POST');
  expect(writes).toHaveLength(1);
  expect(writes[0][0]).toBe('/api/platform/demos/from-autotrader');

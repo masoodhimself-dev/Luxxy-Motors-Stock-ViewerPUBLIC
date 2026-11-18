@@ -1,9 +1,10 @@
+import { platformDemoReviewHref } from '@/lib/platform-demo-review';
 import { useEffect, useId, useState } from 'react';
 import { customFetch } from '@workspace/api-client-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { NativeSelect } from './ui/native-select';
-import { ArrowRight, CheckCircle2, Circle, Demo as DemoIcon, ExternalLink, RefreshCw, StockImport } from '@/components/icons';
+import { ArrowRight, CheckCircle2, Circle, Demo as DemoIcon, RefreshCw, StockImport } from '@/components/icons';
 import { PlatformDemoFromLink } from './platform-demo-from-link';
 import './platform-demo-conversion.css';
 const api=<T,>(path:string,body?:unknown)=>customFetch<T>('/api/platform'+path,{method:body?'POST':'GET',...(body?{headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{})});
@@ -137,7 +138,7 @@ export function PlatformDemos({ dealerId, onCreated, onOpenStock }: { dealerId?:
    </dl>
    <div className="platform-controls platform-demo-stock-actions">
     {onOpenStock && <Button variant="outline" disabled={busy} onClick={onOpenStock}><StockImport size={16} aria-hidden="true"/>Upload stock JSON</Button>}
-    {demo.expiresAt && Date.parse(demo.expiresAt) > Date.now() && <Button asChild variant="outline"><a href={`/platform/preview/${encodeURIComponent(dealerId)}`} target="_blank" rel="noopener noreferrer">Open private preview <ExternalLink size={15} aria-hidden="true"/></a></Button>}
+    <Button asChild variant="outline"><a href={platformDemoReviewHref(dealerId)}>Review demo</a></Button>
    </div>
    <DemoConversion key={`${dealerId}:${demo.revision}`} dealerId={dealerId} busy={busy} onBusyChange={setBusy} onConverted={result => { setDemo({ demo: false, converted: true }); setNotice(result.notice || 'Dealership converted to live. Fictional activity has been removed.'); onCreated(result.dealerId); }}/>
    <label className="platform-field"><span>Type {dealerId} to confirm changes</span><Input autoComplete="off" value={confirmation} onChange={e => setConfirmation(e.target.value)}/></label>

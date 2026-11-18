@@ -2,6 +2,7 @@ import { AccountInvitations, type ExistingStaff } from '@/components/account-inv
 import { dealerHealthLabel } from "@/lib/dealer-health-label";
 import { PlatformFeatureControls } from '@/components/platform-feature-controls';
 import { DemoOnboardingAccess } from '@/components/demo-onboarding-access';
+import { PlatformDemoReview } from '@/components/platform-demo-review';
 import { PlatformDemos } from '@/components/platform-demos';
 import { PlatformStockUpload } from '@/components/platform-stock-upload';
 import { PlatformDomainAutomation } from '@/components/platform-domain-automation';
@@ -127,7 +128,13 @@ export default function Platform() {
     for (const element of [navigationRef.current, tabsRef.current, stepsRef.current]) if (element) observer?.observe(element);
     return () => observer?.disconnect();
   }, [view, tab, step, workspace?.dealer.id, allowed]);
-  function changeWorkspaceTab(next: string) { setIssuedKey(null); setExistingOwner(null); setTab(next); }
+  const availableWorkspaceTabs = workspace?.dealer.isDemo ? [...workspaceTabs.slice(0, 1), 'Demo review', ...workspaceTabs.slice(1)] : workspaceTabs;
+  function saveWorkspaceLocation(dealerId: string, next: string) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('dealer', dealerId); url.searchParams.set('tab', next);
+    window.history.replaceState(null, '', url);
+  }
+  function changeWorkspaceTab(next: string) { setIssuedKey(null); setExistingOwner(null); setTab(next); if (workspace) saveWorkspaceLocation(workspace.dealer.id, next); }
   function openWorkspaceTab(next: string) {
     changeWorkspaceTab(next);
     tabsRef.current?.querySelector<HTMLButtonElement>(`#${tabId(next)}-tab`)?.focus();
@@ -135,10 +142,10 @@ export default function Platform() {
   function navigateWorkspaceTabs(event: React.KeyboardEvent<HTMLDivElement>) {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     event.preventDefault();
-    const current = workspaceTabs.indexOf(tab);
-    const index = event.key === 'Home' ? 0 : event.key === 'End' ? workspaceTabs.length - 1 : (current + (event.key === 'ArrowRight' ? 1 : -1) + workspaceTabs.length) % workspaceTabs.length;
-    changeWorkspaceTab(workspaceTabs[index]);
-    tabsRef.current?.querySelector<HTMLButtonElement>(`#${tabId(workspaceTabs[index])}-tab`)?.focus();
+    const current = availableWorkspaceTabs.indexOf(tab);
+    const index = event.key === 'Home' ? 0 : event.key === 'End' ? availableWorkspaceTabs.length - 1 : (current + (event.key === 'ArrowRight' ? 1 : -1) + availableWorkspaceTabs.length) % availableWorkspaceTabs.length;
+    changeWorkspaceTab(availableWorkspaceTabs[index]);
+    tabsRef.current?.querySelector<HTMLButtonElement>(`#${tabId(availableWorkspaceTabs[index])}-tab`)?.focus();
   }
   async function load() {
     setLoading(true); setNow(Date.now());
@@ -150,18 +157,21 @@ export default function Platform() {
   useEffect(() => {
     if (!allowed || openedDealerFromLink.current) return;
     openedDealerFromLink.current = true;
-    const dealerId = new URLSearchParams(window.location.search).get('dealer');
-    if (dealerId && /^[a-z0-9][a-z0-9-]{1,62}$/.test(dealerId)) void openDealer(dealerId);
+    const params = new URLSearchParams(window.location.search);
+    const dealerId = params.get('dealer');
+    const requestedTab = params.get('tab') ?? 'Setup';
+    const initialTab = [...workspaceTabs, 'Demo review'].includes(requestedTab) ? requestedTab : 'Setup';
+    if (dealerId && /^[a-z0-9][a-z0-9-]{1,62}$/.test(dealerId)) void openDealer(dealerId, initialTab);
   }, [allowed]);
   useEffect(() => { const old = document.title; document.title = 'Dealer Platform · Administration'; return () => { document.title = old; }; }, []);
   const sharedAvailable = data.sharedStaffDealerIds === '*' || Boolean(data.sharedStaffDealerIds?.includes(form.id.trim()));
   const ownerLogin = sharedAvailable ? form.ownerLogin : 'legacy';
   const ownerMode = form.ownerMode;
-  function navigate(next: typeof view) { setIssuedKey(null); setView(next); setError(''); setNotice(''); }
+  function navigate(next: typeof view) { setIssuedKey(null); setView(next); setError(''); setNotice(''); if (next !== 'workspace') { const url = new URL(window.location.href); url.searchParams.delete('dealer'); url.searchParams.delete('tab'); window.history.replaceState(null, '', url); } }
   async function openDealer(id: string, initialTab = 'Setup') {
     setIssuedKey(null);
     setBusy(true); setError(''); setNotice('');
-    try { const result = await call<Workspace>(`/dealers/${encodeURIComponent(id)}/workspace`); setWorkspace(result); setExistingOwner(null); setTab(initialTab); setAlias(''); setView('workspace'); }
+    try { const result = await call<Workspace>(`/dealers/${encodeURIComponent(id)}/workspace`); setWorkspace(result); setExistingOwner(null); const nextTab = initialTab === 'Demo review' && !result.dealer.isDemo ? 'Setup' : initialTab; setTab(nextTab); saveWorkspaceLocation(id, nextTab); setAlias(''); setView('workspace'); }
     catch { setError('Could not load this dealership. Please try again.'); }
     finally { setBusy(false); }
   }
@@ -343,7 +353,7 @@ export default function Platform() {
             ? 'We’ll create a private draft and send the owner an invitation.'
             : 'We’ll create a private draft for you to review in the launch checklist.'}</p></>}
         </div><footer className="platform-step-footer"><Button variant="outline" disabled={busy} onClick={() => { setError(''); if (step) setStep(step-1); else navigate('dealers'); }}><ArrowLeft size={16}/>{step ? 'Back' : 'Cancel'}</Button>{step < 4 ? <Button onClick={nextStep}>Continue <ArrowRight size={16}/></Button> : <Button disabled={busy} onClick={() => void create()}>{busy ? 'Creating…' : form.plan === 'full_portal' && ownerMode==='invite'?'Create & invite owner':'Create draft dealership'}</Button>}</footer></section>}
-        {allowed && view === 'workspace' && workspace && <section className="platform-panel"><div className="platform-section-heading"><Button variant="ghost" disabled={busy} onClick={() => navigate('dealers')}><ArrowLeft size={16}/>All dealerships</Button><Badge value={workspace.dealer.status}/></div><div ref={tabsRef} className="platform-tabs" role="tablist" aria-label="Dealer workspace" onKeyDown={navigateWorkspaceTabs}>{workspaceTabs.map(t => <button type="button" role="tab" id={`${tabId(t)}-tab`} aria-controls="platform-workspace-panel" aria-selected={tab === t} tabIndex={tab === t ? 0 : -1} key={t} onClick={() => changeWorkspaceTab(t)}>{t}</button>)}</div><div className="platform-workspace-body" role="tabpanel" id="platform-workspace-panel" aria-labelledby={`${tabId(tab)}-tab`}>
+        {allowed && view === 'workspace' && workspace && <section className="platform-panel"><div className="platform-section-heading"><Button variant="ghost" disabled={busy} onClick={() => navigate('dealers')}><ArrowLeft size={16}/>All dealerships</Button><Badge value={workspace.dealer.status}/></div><div ref={tabsRef} className="platform-tabs" role="tablist" aria-label="Dealer workspace" onKeyDown={navigateWorkspaceTabs}>{availableWorkspaceTabs.map(t => <button type="button" role="tab" id={`${tabId(t)}-tab`} aria-controls="platform-workspace-panel" aria-selected={tab === t} tabIndex={tab === t ? 0 : -1} key={t} onClick={() => changeWorkspaceTab(t)}>{t}</button>)}</div><div className={`platform-workspace-body${tab === 'Demo review' ? ' platform-workspace-body--demo-review' : ''}`} role="tabpanel" id="platform-workspace-panel" aria-labelledby={`${tabId(tab)}-tab`}>
           {tab === 'Setup' && (workspace.dealer.onboardingRequired || (workspace.dealer.plan && !workspace.dealer.isDemo && workspace.dealer.status === 'draft')) ? <PlatformLaunchSetup
             key={workspace.dealer.id}
             dealerId={workspace.dealer.id}
@@ -370,7 +380,7 @@ export default function Platform() {
               <p>Upload the dealership’s stock and review the site in a private preview.</p>
               <div className="platform-controls">
                 {workspace.stockUploadAllowed && <Button onClick={() => openWorkspaceTab('Stock connection')}>Upload stock JSON</Button>}
-                {(!workspace.dealer.demoExpiresAt || Date.parse(workspace.dealer.demoExpiresAt) > now) && <Button asChild variant="outline"><a href={`/platform/preview/${encodeURIComponent(workspace.dealer.id)}`} target="_blank" rel="noopener noreferrer">Open private preview <ArrowRight size={15} aria-hidden="true"/></a></Button>}
+                <Button variant="outline" onClick={() => openWorkspaceTab('Demo review')}>Review demo</Button>
                 <Button variant="outline" onClick={() => openWorkspaceTab('Demo')}>Manage demo</Button>
               </div>
             </section>
@@ -387,7 +397,7 @@ export default function Platform() {
               }
             }}>Confirm HTTPS is working</Button>
           )}</details></>}
-          {tab === 'Stock connection' && <><h2>Stock connection</h2>{workspace.stockUploadAllowed && <PlatformStockUpload key={workspace.dealer.id} dealerId={workspace.dealer.id} disabled={busy || refreshingWorkspace} onImported={() => void refreshDealerWorkspace()} onOpenImports={() => openWorkspaceTab('Imports')}/>}<StockSourceSummary workspace={workspace}/><StockWorkerSetup collapsible={workspace.stockUploadAllowed} issued={Boolean(issuedKey)}><dl className="platform-facts"><div><dt>Import path</dt><dd><code>/api/stock/imports/{workspace.dealer.id}/grok</code></dd></div><div><dt>Active credentials</dt><dd>{workspace.keys.filter(k => !k.disabledAt).length}</dd></div></dl><p className="platform-help">Create a dedicated credential for this dealership and enter it directly into Grok’s secure secret card. Stored secrets cannot be retrieved later.</p><Button disabled={busy || !!issuedKey} onClick={() => void createImportKey()}>Create import credential</Button>{issuedKey && <section className="platform-notice" aria-label="New import credential"><h3>Save this secret now</h3><p>Shown only during this session. Never paste it into chat or logs.</p><label className="platform-field"><span>Import secret</span><Input type="password" readOnly value={issuedKey.secret} autoComplete="off" /></label><Button variant="outline" onClick={() => { void navigator.clipboard.writeText(issuedKey.secret).then(() => setNotice('Secret copied. Paste directly into Grok’s secure card.'), () => setError('Clipboard access failed. Select and copy the secret manually.')); }}>Copy secret</Button><Button variant="ghost" onClick={() => setIssuedKey(null)}>I have saved it — dismiss</Button></section>}<p className="platform-help">Creating a credential does not activate the dealership or start its worker. No schedule is changed here.</p></StockWorkerSetup></>}
+          {tab === 'Stock connection' && <><h2>Stock connection</h2>{workspace.stockUploadAllowed && <PlatformStockUpload key={workspace.dealer.id} dealerId={workspace.dealer.id} disabled={busy || refreshingWorkspace} onImported={() => void refreshDealerWorkspace()} onOpenImports={() => openWorkspaceTab('Imports')} onReviewDemo={workspace.dealer.isDemo ? () => openWorkspaceTab('Demo review') : undefined}/>}<StockSourceSummary workspace={workspace}/><StockWorkerSetup collapsible={workspace.stockUploadAllowed} issued={Boolean(issuedKey)}><dl className="platform-facts"><div><dt>Import path</dt><dd><code>/api/stock/imports/{workspace.dealer.id}/grok</code></dd></div><div><dt>Active credentials</dt><dd>{workspace.keys.filter(k => !k.disabledAt).length}</dd></div></dl><p className="platform-help">Create a dedicated credential for this dealership and enter it directly into Grok’s secure secret card. Stored secrets cannot be retrieved later.</p><Button disabled={busy || !!issuedKey} onClick={() => void createImportKey()}>Create import credential</Button>{issuedKey && <section className="platform-notice" aria-label="New import credential"><h3>Save this secret now</h3><p>Shown only during this session. Never paste it into chat or logs.</p><label className="platform-field"><span>Import secret</span><Input type="password" readOnly value={issuedKey.secret} autoComplete="off" /></label><Button variant="outline" onClick={() => { void navigator.clipboard.writeText(issuedKey.secret).then(() => setNotice('Secret copied. Paste directly into Grok’s secure card.'), () => setError('Clipboard access failed. Select and copy the secret manually.')); }}>Copy secret</Button><Button variant="ghost" onClick={() => setIssuedKey(null)}>I have saved it — dismiss</Button></section>}<p className="platform-help">Creating a credential does not activate the dealership or start its worker. No schedule is changed here.</p></StockWorkerSetup></>}
           {tab === 'Staff' && (workspace.dealer.plan === 'website_only' ? <><h2>Staff access</h2><p>This dealership receives enquiries by email on Website Only.</p></> : <><div id="platform-owner-invitations"><AccountInvitations dealerId={workspace.dealer.id} ownerOnly demoSetup={workspace.dealer.isDemo} onUpdated={refreshDealerWorkspace} existingStaff={existingOwner} onClearStaff={() => setExistingOwner(null)}/></div><h2>Dealer staff access</h2>{workspace.members.map(m => <article className="platform-member" key={m.id}><Users size={20}/><div><strong>{m.name || m.email || 'Registered owner account'}</strong><small>{m.email || 'Email not recorded'} · {m.role}{workspace.sharedStaffWorkspaceUrl ? (m.sharedLinked ? ' · Both sign-ins' : m.sharedSignIn ? ' · Shared sign-in' : ' · Dealership sign-in') : ''}</small></div>{workspace.sharedStaffWorkspaceUrl && m.role === 'owner' && m.email && !m.disabledAt && !m.sharedSignIn && !m.sharedLinked &&
             <Button variant="outline" onClick={() => {
               if (!m.email) return;
@@ -395,6 +405,7 @@ export default function Platform() {
               document.getElementById('platform-owner-invitations')?.querySelector('input')?.focus();
             }}>Add shared sign-in</Button>}
             <Badge value={m.disabledAt ? 'disabled' : 'active'}/></article>)}<p className="platform-help">Only these memberships grant access to this dealer. {workspace.dealer.isDemo?'After conversion, the owner can invite their team from Settings → Team & access.':'The owner can invite their team from Settings → Team & access in the dealer portal.'} Pending invitations grant no access until accepted.</p></>)}
+          {tab === 'Demo review' && workspace.dealer.isDemo && <PlatformDemoReview key={workspace.dealer.id} dealerId={workspace.dealer.id} onUploadStock={() => openWorkspaceTab('Stock connection')} onManageDemo={() => openWorkspaceTab('Demo')}/>}
           {tab === 'Demo' && <PlatformDemos dealerId={workspace.dealer.id} onCreated={id=>void openDealer(id)} onOpenStock={workspace.stockUploadAllowed ? () => openWorkspaceTab('Stock connection') : undefined}/>}
           {tab === 'Imports' && <><h2>Latest 30 stock submissions</h2>{runs(workspace.imports.map(r => ({ ...r, dealerId: workspace.dealer.id })))}</>}
         </div></section>}

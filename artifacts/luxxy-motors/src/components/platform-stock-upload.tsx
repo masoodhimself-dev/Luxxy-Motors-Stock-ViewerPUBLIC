@@ -35,11 +35,12 @@ function stockUploadError(cause: unknown): UploadError {
   return { message: 'The upload could not be confirmed. Check Imports or retry with the same file.' };
 }
 
-export function PlatformStockUpload({ dealerId, disabled, onImported, onOpenImports }: {
+export function PlatformStockUpload({ dealerId, disabled, onImported, onOpenImports, onReviewDemo }: {
   dealerId: string;
   disabled?: boolean;
   onImported: () => void;
   onOpenImports: () => void;
+  onReviewDemo?: () => void;
 }) {
   const id = useId();
   const input = useRef<HTMLInputElement>(null);
@@ -104,7 +105,7 @@ export function PlatformStockUpload({ dealerId, disabled, onImported, onOpenImpo
       ] as const).map(([label, count]) => <div key={label}><dt>{label}</dt><dd>{number.format(count)}</dd></div>)}</dl>
     </div>}
     <div className="platform-stock-upload-actions">
-      <Button asChild variant="outline"><a href={`/platform/preview/${dealerPath}/stock`} target="_blank" rel="noopener noreferrer">Open private stock preview <ExternalLink size={15} aria-hidden="true"/><span className="sr-only"> in a new tab</span></a></Button>
+      {onReviewDemo ? <Button type="button" variant={result ? 'default' : 'outline'} onClick={onReviewDemo}>Review demo</Button> : <Button asChild variant="outline"><a href={`/platform/preview/${dealerPath}/stock`} target="_blank" rel="noopener noreferrer">Open private stock preview <ExternalLink size={15} aria-hidden="true"/><span className="sr-only"> in a new tab</span></a></Button>}
       {result && <Button type="button" variant="ghost" onClick={onOpenImports}>View imports</Button>}
     </div>
   </section>;

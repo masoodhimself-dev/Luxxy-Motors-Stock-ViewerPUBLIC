@@ -4,10 +4,11 @@ import { afterEach, expect, it, vi } from 'vitest';
 const auth = vi.hoisted(() => ({ signedIn: true }));
 vi.mock('@clerk/react', () => ({ useAuth: () => ({ isSignedIn: auth.signedIn }), SignInButton: ({ children, mode, forceRedirectUrl, signUpForceRedirectUrl }: { children: React.ReactNode; mode: string; forceRedirectUrl: string; signUpForceRedirectUrl: string }) => <div data-testid="platform-sign-in" data-mode={mode} data-return={forceRedirectUrl} data-sign-up-return={signUpForceRedirectUrl}>{children}</div> }));
 import Platform from './platform';
+import { buildDemoReview } from '@workspace/vehicle-meta';
 const clients: QueryClient[]=[];
 function render(node:React.ReactNode){const client=new QueryClient({defaultOptions:{queries:{retry:false}}});clients.push(client);return baseRender(<QueryClientProvider client={client}>{node}</QueryClientProvider>);}
 afterEach(()=>clients.splice(0).forEach(client=>client.clear()));
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); auth.signedIn = true; });
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); auth.signedIn = true; window.history.replaceState(null, '', '/'); });
 const dealer = { id:'example-dealer', name:'Example Dealer', canonicalOrigin:'https://dealer.example.test', status:'draft', stockPlatform:'autotrader', retailerId:'example', sourceUrl:'https://www.autotrader.co.uk/example', domains:[], activeKeyCount:0, latestImport:null,lastSuccessfulImport:null };
 const workspace = { dealer, domains:[{hostname:'dealer.example.test',verified:false,verificationToken:'fixture-token'}],members:[],imports:[],keys:[] };
 
@@ -399,7 +400,8 @@ it('opens Stock connection for a new private demo and uploads the selected JSON 
   fireEvent.change(screen.getByLabelText('Authorised demo stock source URL'), { target: { value: entry.sourceUrl } });
   fireEvent.click(screen.getByRole('button', { name: 'Create demo dealership' }));
   const connection = await screen.findByRole('tabpanel', { name: 'Stock connection' });
-  expect(within(connection).getByRole('link', { name: /Open private stock preview/ })).toHaveAttribute('href', `/platform/preview/${entry.id}/stock`);
+  expect(within(connection).getByRole('button', { name: 'Review demo' })).toBeEnabled();
+  expect(within(connection).queryByRole('link', { name: /Open private stock preview/ })).not.toBeInTheDocument();
   expect(within(connection).getByText('Connect a stock worker').closest('details')).not.toHaveAttribute('open');
   const importButton = within(connection).getByRole('button', { name: 'Import stock' });
   expect(importButton).toBeDisabled();
@@ -413,4 +415,34 @@ it('opens Stock connection for a new private demo and uploads the selected JSON 
   expect(importedMessage.parentElement).toHaveTextContent('Received4Added3Updated1Unchanged0');
   fireEvent.click(within(connection).getByRole('button', { name: 'View imports' }));
   expect(await within(screen.getByRole('tabpanel', { name: 'Imports' })).findByText('completed')).toBeInTheDocument();
+});
+
+
+it('reloads a private demo review from its link and clears the workspace link when leaving', async () => {
+  const entry = { ...dealer, id: 'demo-example-dealer', isDemo: true };
+  const review = buildDemoReview({ dealer: { ...entry, platform: 'autotrader', expiresAt: '2027-01-01T00:00:00Z', revision: 3, settingsRevision: 2 }, config: {}, vehicles: [], now: '2026-11-18T12:00:00Z' });
+  window.history.replaceState(null, '', `/platform?dealer=${entry.id}&tab=Demo%20review`);
+  vi.stubGlobal('fetch', vi.fn(async path => {
+    if (String(path).endsWith('/workspace')) return Response.json({ ...workspace, dealer: entry, stockUploadAllowed: true });
+    if (String(path).endsWith('/demo-review')) return Response.json(review);
+    return Response.json({ dealers: [entry], activity: [] });
+  }));
+  render(<Platform/>);
+  expect(await screen.findByRole('tab', { name: 'Demo review', selected: true })).toBeInTheDocument();
+  expect(await screen.findByText('No stock has been saved yet')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: /Open private preview/ })).toHaveAttribute('href', `/platform/preview/${entry.id}`);
+  fireEvent.click(screen.getByRole('button', { name: 'Upload stock JSON' }));
+  expect(screen.getByRole('tab', { name: 'Stock connection', selected: true })).toBeInTheDocument();
+  expect(new URLSearchParams(window.location.search).get('tab')).toBe('Stock connection');
+  fireEvent.click(screen.getByRole('button', { name: 'All dealerships' }));
+  expect(new URLSearchParams(window.location.search).has('dealer')).toBe(false);
+  expect(new URLSearchParams(window.location.search).has('tab')).toBe(false);
+});
+
+it('keeps the demo-only review tab out of a regular dealership workspace', async () => {
+  vi.stubGlobal('fetch', vi.fn(async path => String(path).endsWith('/workspace') ? Response.json(workspace) : Response.json({ dealers: [dealer], activity: [] })));
+  render(<Platform/>);
+  fireEvent.click(await screen.findByRole('button', { name: /Example Dealer/ }));
+  await screen.findByRole('tab', { name: 'Setup', selected: true });
+  expect(screen.queryByRole('tab', { name: 'Demo review' })).not.toBeInTheDocument();
 });

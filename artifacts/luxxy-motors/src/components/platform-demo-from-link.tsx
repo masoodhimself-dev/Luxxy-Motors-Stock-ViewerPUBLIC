@@ -1,7 +1,8 @@
+import { platformDemoReviewHref } from '@/lib/platform-demo-review';
 import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
 import { customFetch, HttpApiError } from '@workspace/api-client-react';
 import { autoTraderDealerLink, cazooDealershipLink } from '@workspace/vehicle-meta';
-import { CheckCircle2, ExternalLink, Link2 } from '@/components/icons';
+import { ArrowRight, CheckCircle2, Link2 } from '@/components/icons';
 import { buildCazooDemoPrompt } from '@/lib/cazoo-demo-prompt';
 import { buildAutoTraderDemoPrompt } from '@/lib/autotrader-demo-prompt';
 import { PlatformCazooDemo, PlatformStockJsonDemo } from './platform-cazoo-demo';
@@ -194,13 +195,13 @@ export function PlatformDemoFromLink({ autoTraderReady, busy, onBusyChange, onMa
     <div role="status" className="platform-demo-link-intro">
       <span className="platform-demo-link-icon"><CheckCircle2 size={18} aria-hidden="true"/></span>
       <div>
-        <h3 id={`${id}-heading`}>{result.dealerName} is ready to show</h3>
+        <h3 id={`${id}-heading`}>{result.dealerName} stock imported</h3>
         <p>{result.received.toLocaleString('en-GB')} {result.received === 1 ? 'vehicle' : 'vehicles'} imported into the private demo.</p>
       </div>
     </div>
     <div className="platform-demo-link-actions">
-      <a className={buttonVariants()} ref={previewLink} href={result.previewPath} target="_blank" rel="noopener noreferrer">
-        Open private preview <ExternalLink size={16} aria-hidden="true"/><span className="sr-only"> in a new tab</span>
+      <a className={buttonVariants()} ref={previewLink} href={platformDemoReviewHref(result.dealerId)}>
+        Review demo <ArrowRight size={16} aria-hidden="true"/>
       </a>
       <Button type="button" variant="outline" onClick={() => onManage(result.dealerId)}>Manage demo</Button>
       <Button type="button" variant="ghost" onClick={() => {

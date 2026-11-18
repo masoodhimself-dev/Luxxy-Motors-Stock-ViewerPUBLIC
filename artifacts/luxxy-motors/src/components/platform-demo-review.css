@@ -1,0 +1,66 @@
+.platform-workspace-body.platform-workspace-body--demo-review{max-width:none}
+.platform-demo-review{--review-ink:#192331;--review-muted:#596272;--review-border:#d9dde3;--review-paper:#f6f7f9;--review-navy:#1b2c59;--review-amber:#8a5c17;color:var(--review-ink);min-width:0}
+.platform-demo-review h2,.platform-demo-review h3,.platform-demo-review h4,.platform-demo-review p{margin:0}
+.platform-demo-review button,.platform-demo-review a{min-height:44px}
+.platform-demo-review button{cursor:pointer}
+.platform-demo-review a:focus-visible,.platform-demo-review button:focus-visible{outline:3px solid #7b87a4;outline-offset:3px}
+.platform-demo-review .platform-demo-review-header{display:flex;justify-content:space-between;align-items:center;gap:24px}
+.platform-demo-review-identity{display:flex;align-items:center;gap:18px;min-width:0}
+.platform-demo-review .platform-demo-review-identity h2{font-size:25px;line-height:1.2;letter-spacing:-.025em;overflow-wrap:anywhere}
+.platform-demo-review .platform-demo-review-identity p{color:var(--review-muted);font-size:14px;margin-top:6px}
+.platform-demo-review-identity a{display:inline-flex;align-items:center;gap:6px;color:var(--review-navy);font-size:12px;text-decoration:underline;text-underline-offset:3px;margin-top:2px}
+.platform-demo-review-logo{flex:0 0 100px;width:100px;height:70px;display:flex;align-items:center;justify-content:center;border:1px solid var(--review-border);border-radius:5px;background:#fff;padding:9px}
+.platform-demo-review-logo img{max-height:100%;max-width:100%;object-fit:contain}
+.platform-demo-review-logo span{font-size:11px;color:var(--review-muted);text-align:center;line-height:1.4}
+.platform-demo-review-header-actions{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.platform-demo-review-header-actions a,.platform-demo-review-edit-actions>button:first-child,.platform-demo-review-empty>button:not([data-variant]){background:var(--review-navy);color:#fff}
+.platform-demo-review .platform-demo-review-intro{font-size:14px;color:var(--review-muted);margin-top:12px;line-height:1.6}
+.platform-demo-review-counts{display:flex;margin:24px 0 0;border-block:1px solid var(--review-border);padding:20px 0;gap:0}
+.platform-demo-review-counts>div{display:flex;flex-direction:column-reverse;gap:4px;flex:1;padding:0 24px;border-right:1px solid var(--review-border)}
+.platform-demo-review-counts>div:first-child{padding-left:0}.platform-demo-review-counts>div:last-child{border-right:0}
+.platform-demo-review-counts dt{font-size:13px;color:var(--review-muted)}.platform-demo-review-counts dd{font-size:30px;font-weight:650;letter-spacing:-.035em;line-height:1.1;margin:0}
+.platform-demo-review-counts .has-missing dd,.platform-demo-review .platform-demo-review-missing{color:var(--review-amber)}
+.platform-demo-review .platform-demo-review-import-note{padding:12px 0 24px;display:grid;gap:5px}.platform-demo-review .platform-demo-review-import-note p{font-size:12px;color:var(--review-muted);line-height:1.6}
+.platform-demo-review .platform-demo-review-import-note .platform-demo-review-missing{color:var(--review-amber)}
+.platform-demo-review-business{border:1px solid var(--review-border);border-radius:8px;padding:22px 24px;background:var(--review-paper)}
+.platform-demo-review-section-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:20px}
+.platform-demo-review-section-heading>button{flex-shrink:0}
+.platform-demo-review .platform-demo-review-section-heading h3{font-size:18px;font-weight:650;letter-spacing:-.02em}
+.platform-demo-review .platform-demo-review-section-heading p{font-size:12px;line-height:1.6;color:var(--review-muted);margin-top:5px;max-width:70ch}
+.platform-demo-review-business-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px}
+.platform-demo-review-contact{display:grid;align-content:start;gap:15px;margin:0}
+.platform-demo-review-contact>div{display:grid;grid-template-columns:82px minmax(0,1fr);gap:12px}
+.platform-demo-review-contact dt{font-size:12px;color:var(--review-muted);line-height:1.6}
+.platform-demo-review-contact dd{font-size:13px;line-height:1.6;margin:0;overflow-wrap:anywhere}
+.platform-demo-review-contact dd>span:not(.platform-demo-review-missing){display:block}
+.platform-demo-review .platform-demo-review-hours h4{font-size:13px;font-weight:650;margin-bottom:12px}
+.platform-demo-review-hours dl{display:grid;gap:7px;margin:0}.platform-demo-review-hours dl>div{display:grid;grid-template-columns:minmax(100px,1fr) minmax(0,1fr);gap:15px}
+.platform-demo-review-hours dt,.platform-demo-review-hours dd{font-size:12px;line-height:1.6;margin:0}
+.platform-demo-review .platform-demo-review-visits{font-size:12px;margin-top:16px;color:var(--review-muted);line-height:1.7;max-width:55ch}
+.platform-demo-review .platform-demo-review-business-missing{font-size:12px;line-height:1.7;color:var(--review-amber);border-top:1px solid var(--review-border);margin-top:20px;padding-top:14px}
+.platform-demo-review .platform-demo-review-business-missing strong{font-weight:600}
+.platform-demo-review-edit{margin-top:20px;padding-top:20px;border-top:1px solid var(--review-border)}
+.platform-demo-review-edit .platform-cazoo-public-details{margin-top:0;background:#fff}.platform-demo-review-edit-actions{display:flex;gap:10px;margin-top:14px}
+.platform-demo-review-warning{padding:14px 16px;border:1px solid #dac69f;border-radius:5px;background:#fffaf0;margin:16px 0;color:#684713;font-size:13px;line-height:1.7}
+.platform-demo-review-warning button{margin-top:10px}.platform-demo-review .platform-demo-review-warning p{color:inherit}
+.platform-demo-review .platform-demo-review-notice{font-size:13px;padding:12px 0;color:var(--review-navy)}
+.platform-demo-review-stock{margin-top:32px}
+.platform-demo-review-stock-controls{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:0 0 15px}
+.platform-demo-review-filters{display:flex;gap:6px;flex-wrap:wrap}.platform-demo-review-filters button{display:flex;gap:8px;align-items:center;justify-content:center;min-height:44px;padding:8px 13px;border:1px solid var(--review-border);border-radius:5px;font-size:12px;font-weight:550;background:#fff;color:var(--review-ink)}
+.platform-demo-review-filters button:hover{border-color:#8c96a5}.platform-demo-review-filters button[aria-pressed=true]{background:var(--review-navy);border-color:var(--review-navy);color:#fff}
+.platform-demo-review-filters span{font-weight:400;opacity:.85}.platform-demo-review-search{position:relative;width:240px;max-width:100%;flex-shrink:0}.platform-demo-review-search>svg{position:absolute;left:12px;top:14px;color:var(--review-muted)}.platform-demo-review-search input{padding-left:37px;min-height:44px;font-size:13px;background:#fff}
+.platform-demo-review-vehicles{list-style:none;padding:0;margin:0;border-top:1px solid var(--review-border)}
+.platform-demo-review-vehicles>li{display:grid;grid-template-columns:104px minmax(0,1fr) 100px;gap:20px;align-items:center;padding:18px 0;border-bottom:1px solid var(--review-border)}
+.platform-demo-review-photo{width:104px;aspect-ratio:4/3;background:#edf0f3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--review-muted);border-radius:4px;overflow:hidden}
+.platform-demo-review-photo img{width:100%;height:100%;object-fit:cover}.platform-demo-review-photo span{font-size:11px}
+.platform-demo-review .platform-demo-review-car h4{font-size:14px;line-height:1.4;font-weight:650;overflow-wrap:anywhere}
+.platform-demo-review .platform-demo-review-car>p{display:flex;align-items:center;gap:12px;margin-top:6px;font-size:12px;line-height:1.6}
+.platform-demo-review-reg{font-weight:550;letter-spacing:.025em}.platform-demo-review-car strong{font-weight:550}
+.platform-demo-review .platform-demo-review-car .platform-demo-review-car-issues{color:var(--review-amber);font-size:12px;display:block}.platform-demo-review .platform-demo-review-car .platform-demo-review-car-complete{color:var(--review-muted);font-size:12px}
+.platform-demo-review-car-actions{display:flex;flex-direction:column;align-items:flex-end;gap:0;white-space:nowrap}.platform-demo-review-car-actions>span{font-size:11px;color:var(--review-muted)}
+.platform-demo-review-car-actions a{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--review-navy);text-decoration:underline;text-underline-offset:3px}
+.platform-demo-review-empty{padding:34px 20px;text-align:center;background:var(--review-paper);border:1px solid var(--review-border);border-radius:6px}.platform-demo-review-empty>svg{margin:0 auto 12px}.platform-demo-review .platform-demo-review-empty h4{font-size:16px;font-weight:600}.platform-demo-review .platform-demo-review-empty p{font-size:13px;color:var(--review-muted);margin:8px auto 18px;line-height:1.7;max-width:55ch}
+.platform-demo-review-footer{display:flex;justify-content:space-between;gap:16px;padding:24px 0 0;line-height:1.7}.platform-demo-review .platform-demo-review-footer p,.platform-demo-review-footer>span{font-size:11px;color:var(--review-muted)}
+@media(max-width:1100px){.platform-demo-review .platform-demo-review-header{align-items:flex-start;flex-direction:column;gap:14px}.platform-demo-review-business-grid{gap:24px}.platform-demo-review-stock-controls{align-items:flex-start;flex-direction:column;gap:12px}.platform-demo-review-search{width:100%}}
+@media(max-width:900px){.platform-demo-review-business-grid{grid-template-columns:1fr}}
+@media(max-width:600px){.platform-demo-review .platform-demo-review-identity h2{font-size:21px}.platform-demo-review-identity{gap:12px}.platform-demo-review-logo{width:72px;height:58px;flex-basis:72px;padding:6px}.platform-demo-review-header-actions{width:100%;gap:8px;flex-wrap:wrap}.platform-demo-review-header-actions>a{flex:1;min-width:180px}.platform-demo-review-counts{margin-top:20px;padding:17px 0}.platform-demo-review-counts>div{padding:0 11px}.platform-demo-review-counts dd{font-size:26px}.platform-demo-review-counts dt{font-size:11px;line-height:1.5;max-width:95px}.platform-demo-review-business{padding:18px 16px}.platform-demo-review-business-grid{grid-template-columns:1fr;gap:25px}.platform-demo-review-section-heading{flex-wrap:wrap;gap:12px}.platform-demo-review-contact>div{grid-template-columns:62px minmax(0,1fr);gap:9px}.platform-demo-review .platform-demo-review-section-heading h3{font-size:17px}.platform-demo-review-filters{width:100%;gap:5px}.platform-demo-review-filters button{padding:7px 8px;font-size:11px;flex:1;gap:5px}.platform-demo-review-vehicles>li{grid-template-columns:78px minmax(0,1fr);column-gap:12px;row-gap:3px;padding:16px 0;align-items:start}.platform-demo-review-photo{width:78px;grid-row:1 / span 2;margin-top:2px}.platform-demo-review .platform-demo-review-car h4{font-size:14px}.platform-demo-review-car-actions{grid-column:2;flex-direction:row;align-items:center;justify-content:space-between;gap:8px}.platform-demo-review .platform-demo-review-car>p{flex-wrap:wrap;gap:5px 10px;font-size:12px}.platform-demo-review-car-actions>span{font-size:11px}.platform-demo-review .platform-demo-review-car .platform-demo-review-car-issues{font-size:12px}.platform-demo-review-footer{flex-direction:column;gap:4px}.platform-demo-review-edit-actions{flex-wrap:wrap}}

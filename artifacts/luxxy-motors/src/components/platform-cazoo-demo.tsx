@@ -1,11 +1,12 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { customFetch, HttpApiError } from '@workspace/api-client-react';
-import { CheckCircle2, Copy, ExternalLink } from '@/components/icons';
+import { CheckCircle2, Copy, ArrowRight } from '@/components/icons';
 import { Button, buttonVariants } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { Input } from './ui/input';
 import { NativeSelect } from './ui/native-select';
 import './platform-cazoo-demo.css';
+import { platformDemoReviewHref } from '@/lib/platform-demo-review';
 
 type CazooDemoResult = {
   dealerId: string;
@@ -32,7 +33,7 @@ const logoTypes = ['image/png', 'image/jpeg', 'image/webp'];
 type PublicTextField = 'phone' | 'email' | 'websiteUrl' | 'about' | 'visitInstructions' | 'warrantyDescription' | 'deliveryDescription' | 'partExchangeDescription';
 type SourceEvidence = { sourceUrl: string; checkedAt: string };
 type OpeningDay = { day: number; status: 'open' | 'closed' | 'appointment_only' | 'unknown'; open?: string; close?: string };
-type DealerPublicDetails = SourceEvidence & Partial<Record<PublicTextField, string>> & {
+export type DealerPublicDetails = SourceEvidence & Partial<Record<PublicTextField, string>> & {
   showroomAddress?: SourceEvidence & { street: string; city: string; region?: string; postcode: string; mapsUrl?: string };
   openingHours?: SourceEvidence & { timezone: 'Europe/London'; days: OpeningDay[] };
   includedItems?: string[];
@@ -90,8 +91,10 @@ function parseStockJson(input: string, retailerId: string, platform: StockJsonDe
   return { stock, logoData: logoData || undefined, dealershipDetails: details == null ? undefined : details as DealerPublicDetails };
 }
 
-function PublicDetailsReview({ value, sourceUrl, disabled, onChange }: {
+export function PublicDetailsReview({ value, sourceUrl, disabled, onChange, expanded = false, allowRemoval = true }: {
   value: DealerPublicDetails | undefined;
+  expanded?: boolean;
+  allowRemoval?: boolean;
   sourceUrl: string;
   disabled: boolean;
   onChange: (value: DealerPublicDetails) => void;
@@ -103,7 +106,7 @@ function PublicDetailsReview({ value, sourceUrl, disabled, onChange }: {
     update({ [key]: text });
   }
   const present = [value?.phone, value?.email, value?.showroomAddress, value?.openingHours].filter(Boolean).length;
-  return <details className="platform-cazoo-public-details" onInvalidCapture={event => {
+  return <details className="platform-cazoo-public-details" open={expanded || undefined} onInvalidCapture={event => {
     if (!(event.target instanceof HTMLElement)) return;
     for (let parent = event.target.parentElement; parent; parent = parent.parentElement) {
       if (parent instanceof HTMLDetailsElement) parent.open = true;
@@ -138,8 +141,8 @@ function PublicDetailsReview({ value, sourceUrl, disabled, onChange }: {
               required={field === 'street' || field === 'city' || field === 'postcode'}
               onChange={event => update({ showroomAddress: { ...current.showroomAddress!, [field]: event.target.value } })}/>
           </label>)}
-          <Button type="button" variant="ghost" size="sm" disabled={disabled}
-            onClick={() => update({ showroomAddress: undefined })}>Remove showroom address</Button>
+          {allowRemoval && <Button type="button" variant="ghost" size="sm" disabled={disabled}
+            onClick={() => update({ showroomAddress: undefined })}>Remove showroom address</Button>}
         </div> : <Button type="button" variant="outline" size="sm" disabled={disabled}
           onClick={() => update({ showroomAddress: { ...evidence, street: '', city: '', postcode: '' } })}>Add showroom address</Button>}
       </details>
@@ -163,8 +166,8 @@ function PublicDetailsReview({ value, sourceUrl, disabled, onChange }: {
                 onChange={event => update({ openingHours: { ...current.openingHours!, days: current.openingHours!.days.map(row => row.day === day.day ? { ...row, [field]: event.target.value } : row) } })}/>
             </label>)}
           </div>)}
-          <Button type="button" variant="ghost" size="sm" disabled={disabled}
-            onClick={() => update({ openingHours: undefined })}>Remove opening hours</Button>
+          {allowRemoval && <Button type="button" variant="ghost" size="sm" disabled={disabled}
+            onClick={() => update({ openingHours: undefined })}>Remove opening hours</Button>}
         </div> : <Button type="button" variant="outline" size="sm" disabled={disabled}
           onClick={() => update({ openingHours: { ...evidence, timezone: 'Europe/London', days: weekdayNames.map((_, day) => ({ day, status: 'unknown' })) } })}>Add opening hours</Button>}
       </details>
@@ -343,14 +346,14 @@ export function PlatformStockJsonDemo({ platform, dealer, prompt, busy, onBusyCh
     <div role="status" className="platform-demo-link-intro">
       <span className="platform-demo-link-icon"><CheckCircle2 size={18} aria-hidden="true"/></span>
       <div>
-        <h3>{result.dealerName} is ready to show</h3>
+        <h3>{result.dealerName} stock imported</h3>
         <p>{result.received.toLocaleString('en-GB')} {result.received === 1 ? 'vehicle' : 'vehicles'} imported into the private demo.</p>
         <p>{result.hasLogo ? 'The dealership logo is included.' : 'The preview uses the dealership name as its logo.'}</p>
       </div>
     </div>
     <div className="platform-demo-link-actions">
-      <a className={buttonVariants()} ref={previewLink} href={result.previewPath} target="_blank" rel="noopener noreferrer">
-        Open private preview <ExternalLink size={16} aria-hidden="true"/><span className="sr-only"> in a new tab</span>
+      <a className={buttonVariants()} ref={previewLink} href={platformDemoReviewHref(result.dealerId)}>
+        Review demo <ArrowRight size={16} aria-hidden="true"/>
       </a>
       <Button type="button" variant="outline" disabled={busy} onClick={() => onManage(result.dealerId)}>Manage demo</Button>
     </div>

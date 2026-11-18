@@ -262,3 +262,4 @@ export * from "./sale-customer-update.ts";
 export * from "./sale-invoice-vehicle-review.ts";
 
 export * from "./customer-whatsapp.ts";
+export * from './demo-review.ts';

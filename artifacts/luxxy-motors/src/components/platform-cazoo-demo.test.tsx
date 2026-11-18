@@ -42,8 +42,9 @@ it('copies the prompt and creates a branded private demo from a fenced JSON resp
     fireEvent.change(json, { target: { value: `\`\`\`json\n${JSON.stringify({ stock, logoData })}\n\`\`\`` } });
     fireEvent.click(screen.getByRole('button', { name: 'Create private demo' }));
 
-    const link = await screen.findByRole('link', { name: /Open private preview/ });
-    expect(link).toHaveAttribute('href', preview.previewPath);
+    const link = await screen.findByRole('link', { name: /Review demo/ });
+    expect(link).toHaveAttribute('href', `/platform?dealer=${preview.dealerId}&tab=Demo%20review`);
+    expect(screen.queryByRole('link', { name: /Open private preview/ })).not.toBeInTheDocument();
     expect(link).toHaveFocus();
     expect(screen.getByRole('status')).toHaveTextContent('1 vehicle imported into the private demo.');
     expect(screen.getByText('The dealership logo is included.')).toBeInTheDocument();
@@ -96,7 +97,7 @@ it('uses a local dealership logo in place of the logo in the JSON', async () => 
     target: { value: JSON.stringify({ stock, logoData: 'data:image/png;base64,ZXhwb3J0ZWQ=' }) },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Create private demo' }));
-  await screen.findByRole('link', { name: /Open private preview/ });
+  await screen.findByRole('link', { name: /Review demo/ });
   expect(JSON.parse(String(fetcher.mock.calls[0][1].body))).toEqual({ sourceUrl: dealer.sourceUrl, stock, logoData });
 });
 
@@ -128,7 +129,7 @@ it('keeps the pasted JSON available after errors and only accepts a local previe
 
   fireEvent.click(submit);
   await screen.findByText('Could not confirm the private demo. Check your connection and try again.');
-  expect(screen.queryByRole('link', { name: /Open private preview/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: /Review demo/ })).not.toBeInTheDocument();
   expect(json).toHaveValue(contents);
 });
 
@@ -161,7 +162,7 @@ it('reviews and edits public dealership details before creating the demo', async
   fireEvent.change(screen.getByLabelText('What’s included with every car'), { target: { value: '6-month warranty\nVehicle history check\n' } });
   expect(screen.getByLabelText('What’s included with every car')).toHaveValue('6-month warranty\nVehicle history check\n');
   fireEvent.click(screen.getByRole('button', { name: 'Create private demo' }));
-  await screen.findByRole('link', { name: /Open private preview/ });
+  await screen.findByRole('link', { name: /Review demo/ });
   expect(JSON.parse(String(fetcher.mock.calls[0][1].body))).toMatchObject({
     sourceUrl: dealer.sourceUrl,
     stock,
@@ -184,7 +185,7 @@ it('lets staff add public contact details to older stock files without inventing
   expect(screen.getByText(/This export has no dealership details/)).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Showroom phone'), { target: { value: '020 1234 5678' } });
   fireEvent.click(screen.getByRole('button', { name: 'Create private demo' }));
-  await screen.findByRole('link', { name: /Open private preview/ });
+  await screen.findByRole('link', { name: /Review demo/ });
   const submitted = JSON.parse(String(fetcher.mock.calls[0][1].body)).dealershipDetails;
   expect(submitted).toEqual({ sourceUrl: dealer.sourceUrl, checkedAt: expect.any(String), phone: '020 1234 5678' });
   expect(Number.isNaN(Date.parse(submitted.checkedAt))).toBe(false);
@@ -232,7 +233,7 @@ it('opens required fields for correction and lets staff cancel optional address 
   fireEvent.click(screen.getByRole('button', { name: 'Remove opening hours' }));
   expect(screen.queryByLabelText('Monday opening time')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Create private demo' }));
-  await screen.findByRole('link', { name: /Open private preview/ });
+  await screen.findByRole('link', { name: /Review demo/ });
   const submitted = JSON.parse(String(fetcher.mock.calls[0][1].body)).dealershipDetails;
   expect(submitted.showroomAddress).toBeUndefined();
   expect(submitted.openingHours).toBeUndefined();
