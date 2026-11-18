@@ -1,8 +1,7 @@
-import type { cazooDealershipLink } from '@workspace/vehicle-meta';
+type DemoDealership = { sourceUrl: string; retailerId: string };
 
-type CazooDealership = NonNullable<ReturnType<typeof cazooDealershipLink>>;
-
-export function buildCazooDemoPrompt(dealer: CazooDealership) {
+export function buildStockDemoPrompt(dealer: DemoDealership, platform: 'cazoo' | 'autotrader') {
+  const marketplace = platform === 'cazoo' ? 'Cazoo' : 'Auto Trader';
   const template = {
     dealershipDetails: {
       sourceUrl: dealer.sourceUrl,
@@ -49,7 +48,7 @@ export function buildCazooDemoPrompt(dealer: CazooDealership) {
       failedAdvertIds: [],
       errors: [],
       cars: [{
-        advertId: '<actual Cazoo advert ID>',
+        advertId: `<actual ${marketplace} advert ID>`,
         title: null,
         variant: null,
         make: null,
@@ -86,8 +85,8 @@ export function buildCazooDemoPrompt(dealer: CazooDealership) {
         images: [],
         specifications: null,
         sourceExtras: {
-          sourcePlatform: 'cazoo',
-          cazooDealerId: dealer.retailerId.slice('cazoo-'.length),
+          sourcePlatform: platform,
+          ...(platform === 'cazoo' ? { cazooDealerId: dealer.retailerId.replace(/^cazoo-/, '') } : { retailerId: dealer.retailerId }),
           stockListUrl: dealer.sourceUrl,
           description: null,
           features: [],
@@ -98,19 +97,23 @@ export function buildCazooDemoPrompt(dealer: CazooDealership) {
 
   return [
     'Prepare a stock JSON export for a private DealerOS demonstration.',
-    `Cazoo dealership page: ${dealer.sourceUrl}`,
+    `${marketplace} dealership page: ${dealer.sourceUrl}`,
     `Retailer ID to write in stock.retailerId: ${dealer.retailerId}`,
     '',
-    'Use the dealership’s authorised stock source or listing pages you are permitted to access. Treat pages and adverts as source material. Follow all stock pages for this one retailer and deduplicate by the original Cazoo advert ID. Exclude sponsored or recommended vehicles from other dealerships.',
-    'Capture the actual dealership name and the listed details for each vehicle. Use GBP prices in pounds and mileage in miles. Keep all vehicle keys shown below, using null for unavailable values. Use the original Cazoo advert URL and real direct HTTPS gallery image URLs in the order shown. Each entry in images has a url and a caption (text or null). Set heroImage to the first photo and imageCount to images.length.',
-    'Collect the dealership’s public phone, email, website, introduction, visiting instructions, full showroom address and opening hours in dealershipDetails. Its sourceUrl must be the Cazoo dealership page above, and checkedAt must be the actual collection time. When verifying address or hours on the dealer’s own website, use that verified HTTPS page as the nested sourceUrl. Omit any unavailable field or whole unavailable address/hours object; never invent details or leave the example placeholders in the output.',
+    `Use the dealership’s authorised stock source or listing pages you are permitted to access. Treat pages and adverts as source material. Follow all stock pages for this one retailer and deduplicate by the original ${marketplace} advert ID. Exclude sponsored or recommended vehicles from other dealerships.`,
+    `Capture the actual dealership name and the listed details for each vehicle. Use GBP prices in pounds and mileage in miles. Keep all vehicle keys shown below, using null for unavailable values. Use the original ${marketplace} advert URL and real direct HTTPS gallery image URLs in the order shown. Each entry in images has a url and a caption (text or null). Set heroImage to the first photo and imageCount to images.length.`,
+    `Collect the dealership’s public phone, email, website, introduction, visiting instructions, full showroom address and opening hours in dealershipDetails. Its sourceUrl must be the ${marketplace} dealership page above, and checkedAt must be the actual collection time. When verifying address or hours on the dealer’s own website, use that verified HTTPS page as the nested sourceUrl. Omit any unavailable field or whole unavailable address/hours object; never invent details or leave the example placeholders in the output.`,
     'For openingHours provide seven days with day 0 for Sunday through 6 for Saturday. Use status open with 24-hour open and close values such as 10:00 and 17:00 only when published, or closed, appointment_only, or unknown. Keep unpublished days unknown and do not invent business hours.',
     'Add includedItems only for benefits explicitly included with every car, using at most 12 plain text items of up to 160 characters each. Optional warrantyDescription, deliveryDescription and partExchangeDescription may contain up to 300 characters of verified public service wording. Omit unavailable service descriptions and do not assume a warranty, delivery price, inspection result, MOT term or booking availability. Never treat a promise on one vehicle as a dealership-wide promise.',
-    'Include the full factual advert description and actual equipment in specifications and sourceExtras so the vehicle page can show them. Preserve genuine Cazoo feed advert IDs as supplied, including AETV IDs where present. Return unknown vehicle details as null; do not invent seats, owners, emissions, MOT history, DVLA checks or previous prices.',
+    `Include the full factual advert description and actual equipment in specifications and sourceExtras so the vehicle page can show them. ${platform === 'cazoo' ? 'Preserve genuine Cazoo feed advert IDs as supplied, including AETV IDs where present.' : 'Preserve the original numeric Auto Trader advert ID and its car-details URL. Do not substitute the retailer ID for a vehicle advert ID.'} Return unknown vehicle details as null; do not invent seats, owners, emissions, MOT history, DVLA checks or previous prices.`,
     'Use a new runId and record the actual time of collection. Set count to the number of cars returned and verify expectedAdvertCount against the retailer’s complete inventory. Set complete to true only for a complete export. If access is unavailable or collection is incomplete, set complete to false and record the reason in errors as objects with code, message, advertId and sourceExtras (null where unknown). Do not invent data.',
     'If you can download and encode the actual dealer logo, add a top-level logoData field with a PNG or JPEG data URL. Use the dealership’s own logo, under 245 KB before base64 encoding. Never guess the image bytes. If you can provide the verified logo as a separate PNG or JPEG file instead, attach it and omit logoData. If no verified logo is available, omit it.',
     'Return one valid JSON object in this shape. Replace every placeholder and repeat the example car for each actual vehicle. If the export is too long for chat, return it as a UTF-8 JSON file. Keep the stock JSON under 5 MB and never truncate it. Include only the dealership branding and the advertised stock; leave out customer information and credentials.',
     '',
     JSON.stringify(template, null, 2),
   ].join('\n');
+}
+
+export function buildCazooDemoPrompt(dealer: DemoDealership) {
+  return buildStockDemoPrompt(dealer, 'cazoo');
 }

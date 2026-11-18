@@ -3,7 +3,8 @@ import { serviceLifecycle } from './service-lifecycle';
 
 export const platformStockUploadPath = /^\/api\/platform\/dealers\/[^/]+\/stock-upload\/?$/i;
 export const cazooDemoImportPath = /^\/api\/platform\/demos\/from-cazoo\/?$/i;
-const stockImportPath = (path: string) => /^\/api\/stock\/imports(?:\/|$)/i.test(path) || platformStockUploadPath.test(path) || cazooDemoImportPath.test(path);
+export const privateDemoImportPath = /^\/api\/platform\/demos\/from-(?:cazoo|autotrader)\/?$/i;
+const stockImportPath = (path: string) => /^\/api\/stock\/imports(?:\/|$)/i.test(path) || platformStockUploadPath.test(path) || privateDemoImportPath.test(path);
 
 type Lease = { startedAt: number; processing: boolean; released: boolean; release: () => void };
 

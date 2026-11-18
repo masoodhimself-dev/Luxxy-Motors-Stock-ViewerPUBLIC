@@ -69,6 +69,20 @@ test('import path matching follows Express case-insensitive routing', () => {
   first.res.emit('finish');
 });
 
+test('marketplace demo JSON uploads share the stock import limit before their bodies are parsed', () => {
+  const gate = createStockImportAdmission(1);
+  const first = exchange('/api/platform/demos/from-autotrader');
+  gate.middleware(first.req, first.res, () => {});
+  for (const path of ['/API/PLATFORM/DEMOS/FROM-AUTOTRADER/', '/api/platform/demos/from-cazoo']) {
+    const waiting = exchange(path);
+    gate.middleware(waiting.req, waiting.res, () => assert.fail('A second demo must wait for capacity'));
+    assert.equal(waiting.res.code, 503);
+    assert.equal(waiting.res.headers['Retry-After'], '15');
+  }
+  first.res.emit('finish');
+  assert.equal(gate.status().active, 0);
+});
+
 test('concurrency configuration stays bounded and oldest active age is safe operational metadata', () => {
   let clock=100;const gate=createStockImportAdmission(4,()=>clock),call=exchange();
   gate.middleware(call.req,call.res,()=>{});clock=600;

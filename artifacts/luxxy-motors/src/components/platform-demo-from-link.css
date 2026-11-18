@@ -77,3 +77,8 @@
   .platform-demo-from-link { padding: 13px; }
   .platform-demo-link-form > button { flex: 1 1 100%; }
 }
+
+.platform-demo-automatic { border-top: 1px solid #dce3eb; padding-top: 8px; }
+.platform-demo-automatic > summary { min-height: 44px; display: list-item; padding-block: 10px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.platform-demo-automatic > summary:focus-visible { outline: 2px solid #42657c; outline-offset: 2px; }
+.platform-demo-automatic > p { margin: 0 0 12px; max-width: 65ch; color: #475569; }

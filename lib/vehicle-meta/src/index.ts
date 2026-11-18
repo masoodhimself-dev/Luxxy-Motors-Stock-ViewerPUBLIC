@@ -255,6 +255,7 @@ export * from "./sale-calculation-check.ts";
 
 export * from './vehicle-links.ts';
 export * from './cazoo-dealership-link.ts';
+export * from './autotrader-dealership-link.ts';
 export * from "./sale-work-queue.ts";
 
 export * from "./sale-customer-update.ts";

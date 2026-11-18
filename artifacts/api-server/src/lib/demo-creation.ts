@@ -1,5 +1,5 @@
 import { applyDemoDealershipDetails,demoDealershipDetails,demoShowroomAddress,demoOpeningHours,publishedDemoHours } from './demo-business-details';
-import { cazooDealershipLink } from '@workspace/vehicle-meta';
+import { autoTraderDealerLink, cazooDealershipLink } from '@workspace/vehicle-meta';
 import { randomBytes } from 'node:crypto';
 import { z } from 'zod/v4';
 import type { db } from '@workspace/db';
@@ -26,11 +26,10 @@ export function validatedDemoInput(raw:unknown, privatePreview = false) {
   const allowed=d.platform==='cazoo'?['cazoo.co.uk','www.cazoo.co.uk']:['autotrader.co.uk','www.autotrader.co.uk'];
   if(source.protocol!=='https:' || source.username || source.password || source.port || !allowed.includes(source.hostname)){throw new DemoSetupError('Stock source must be an authorised HTTPS URL from the selected marketplace.');}
   if (d.dealershipDetails) {
-    const detailsSource = new URL(d.dealershipDetails.sourceUrl);
-    const sameSource = detailsSource.hostname.replace(/^www\./, '') === source.hostname.replace(/^www\./, '') &&
-      detailsSource.pathname.replace(/\/$/, '') === source.pathname.replace(/\/$/, '');
-    const detailsRetailer = d.platform === 'cazoo' ? cazooDealershipLink(d.dealershipDetails.sourceUrl)?.retailerId : undefined;
-    if (!sameSource || (d.platform === 'cazoo' && detailsRetailer !== `cazoo-${d.retailerId.replace(/^cazoo-/, '')}`)) {
+    const stockLink = d.platform === 'cazoo' ? cazooDealershipLink(d.sourceUrl) : autoTraderDealerLink(d.sourceUrl);
+    const detailsLink = d.platform === 'cazoo' ? cazooDealershipLink(d.dealershipDetails.sourceUrl) : autoTraderDealerLink(d.dealershipDetails.sourceUrl);
+    const expectedRetailer = d.platform === 'cazoo' ? `cazoo-${d.retailerId.replace(/^cazoo-/, '')}` : d.retailerId;
+    if (!stockLink || !detailsLink || stockLink.retailerId !== expectedRetailer || detailsLink.retailerId !== expectedRetailer) {
       throw new DemoSetupError('The dealership details must come from the same dealership stock page.');
     }
   }

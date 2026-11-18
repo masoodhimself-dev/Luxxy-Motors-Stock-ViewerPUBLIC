@@ -63,15 +63,17 @@ it('creates a private demo from one Auto Trader link and only offers a preview a
 
  const sourceUrl = 'https://www.autotrader.co.uk/dealers/oakwood-cars-123456';
  fireEvent.change(link, { target: { value: sourceUrl } });
- await waitFor(() => expect(create).toBeEnabled());
- fireEvent.click(create);
+ fireEvent.click(await screen.findByText('Collect stock automatically', { selector: 'summary' }));
+ await waitFor(() => expect(screen.getByRole('button', { name: 'Collect stock automatically' })).toBeEnabled());
+ fireEvent.click(screen.getByRole('button', { name: 'Collect stock automatically' }));
  expect(screen.getByRole('status')).toHaveTextContent('Collecting and importing');
  expect(screen.getByRole('button', { name: 'Creating private demo…' })).toBeDisabled();
  expect(screen.queryByRole('link', { name: /Open private preview/ })).not.toBeInTheDocument();
  finish(Response.json({ error: 'The collector could not confirm the complete stock.' }, { status: 502 }));
  await screen.findByText('The collector could not confirm the complete stock.');
 
- fireEvent.click(create);
+ fireEvent.click(await screen.findByText('Collect stock automatically', { selector: 'summary' }));
+ fireEvent.click(screen.getByRole('button', { name: 'Collect stock automatically' }));
  finish(Response.json({
   dealerId: 'demo-oakwood-cars', dealerName: 'Oakwood Cars',
   previewPath: '/platform/preview/demo-oakwood-cars', received: 8,
@@ -130,7 +132,8 @@ it('resumes an accepted stock collection after navigation and retries a failed s
  fireEvent.change(screen.getByLabelText('Dealership stock link'), {
   target: { value: 'https://www.autotrader.co.uk/dealers/oakwood-cars-123456' },
  });
- const create = screen.getByRole('button', { name: 'Create private demo' });
+ fireEvent.click(await screen.findByText('Collect stock automatically', { selector: 'summary' }));
+ const create = screen.getByRole('button', { name: 'Collect stock automatically' });
  await waitFor(() => expect(create).toBeEnabled());
  fireEvent.click(create);
  await waitFor(() => expect(reads).toHaveBeenCalledTimes(1));
@@ -267,4 +270,28 @@ it('does not expose conversion or request its checks for a regular dealership',a
  await screen.findByText('This is a regular dealership.');
  expect(screen.queryByRole('button',{name:'Review live conversion'})).not.toBeInTheDocument();
  expect(fetcher.mock.calls.some(([path])=>String(path).endsWith('/conversion'))).toBe(false);
+});
+
+
+it('offers the Auto Trader JSON workflow with public details when automatic collection is unavailable', async () => {
+ const fetcher = vi.fn(async (_path, init) => init?.method === 'POST'
+  ? Response.json({ dealerId: 'demo-auto-json', dealerName: 'Auto JSON Motors', previewPath: '/platform/preview/demo-auto-json', received: 1, hasLogo: false })
+  : Response.json({ linkImportReady: false }));
+ vi.stubGlobal('fetch', fetcher);
+ render(<PlatformDemos onCreated={() => {}}/>);
+ const sourceUrl = 'https://www.autotrader.co.uk/dealers/auto-json-motors-123456';
+ fireEvent.change(screen.getByLabelText('Dealership stock link'), { target: { value: sourceUrl + '?utm_source=test' } });
+ await screen.findByText('Automatic collection is unavailable. Use the prompt and stock JSON upload below to prepare the private demo.');
+ fireEvent.click(screen.getByText('View prompt'));
+ const prompt = (screen.getByRole('textbox', { name: 'Grok Bot prompt' }) as HTMLTextAreaElement).value;
+ expect(prompt).toContain(`Auto Trader dealership page: ${sourceUrl}`);
+ expect(prompt).not.toContain('utm_source');
+ const stock = { schemaVersion: 1, source: 'grok', retailerId: '123456', cars: [{ advertId: '202611180123456' }] };
+ fireEvent.change(screen.getByLabelText('Stock JSON from Grok Bot'), { target: { value: JSON.stringify(stock) } });
+ fireEvent.click(screen.getByRole('button', { name: 'Create private demo' }));
+ await screen.findByRole('link', { name: /Open private preview/ });
+ const writes = fetcher.mock.calls.filter(([, init]) => init?.method === 'POST');
+ expect(writes).toHaveLength(1);
+ expect(writes[0][0]).toBe('/api/platform/demos/from-autotrader');
+ expect(JSON.parse(String(writes[0][1]?.body))).toEqual({ sourceUrl, stock });
 });

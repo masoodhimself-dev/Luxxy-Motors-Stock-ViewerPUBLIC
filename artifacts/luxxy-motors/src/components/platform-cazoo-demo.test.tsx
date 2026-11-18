@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { PlatformCazooDemo } from './platform-cazoo-demo';
+import { PlatformCazooDemo, PlatformStockJsonDemo } from './platform-cazoo-demo';
 import { buildCazooDemoPrompt } from '@/lib/cazoo-demo-prompt';
+import { buildAutoTraderDemoPrompt } from '@/lib/autotrader-demo-prompt';
 
 const dealer = {
   sourceUrl: 'https://www.cazoo.co.uk/dealers/example-motors-1234/',
@@ -251,4 +252,66 @@ it.each([0, 7])('rejects repeated or out-of-range weekday %i without rendering i
   expect(screen.getByRole('alert')).toHaveTextContent('The dealership details are incomplete.');
   expect(fetcher).not.toHaveBeenCalled();
   expect(screen.queryByLabelText('undefined opening status')).not.toBeInTheDocument();
+});
+
+
+it('imports an Auto Trader logo and dealership details, preserving staff corrections and unknown hours', async () => {
+  const autoDealer = { sourceUrl: 'https://www.autotrader.co.uk/dealers/example-motors-1234', retailerId: '1234' };
+  const autoStock = { ...stock, retailerId: '1234' };
+  const evidence = { sourceUrl: autoDealer.sourceUrl, checkedAt: '2026-11-18T10:00:00Z' };
+  const dealershipDetails = {
+    ...evidence,
+    phone: '020 7946 0123', email: '', websiteUrl: '',
+    showroomAddress: { ...evidence, street: '10 High Street', city: 'Hayes', region: '', postcode: 'UB3 1AA' },
+    openingHours: { ...evidence, timezone: 'Europe/London', days: Array.from({ length: 7 }, (_, day) => ({ day, status: 'unknown' })) },
+  };
+  const logoData = 'data:image/png;base64,iVBORw0KGgo=';
+  const fetcher = vi.fn().mockResolvedValue(Response.json({ ...preview, hasLogo: true }));
+  vi.stubGlobal('fetch', fetcher);
+  render(<PlatformStockJsonDemo platform="autotrader" dealer={autoDealer} prompt={buildAutoTraderDemoPrompt(autoDealer)} busy={false} onBusyChange={() => {}} onManage={() => {}}/>);
+  fireEvent.change(screen.getByLabelText('Stock JSON from Grok Bot'), { target: { value: JSON.stringify({ stock: autoStock, logoData, dealershipDetails }) } });
+  fireEvent.click(screen.getByText('Public dealership details'));
+  expect(screen.getByLabelText('Public email')).toHaveValue('');
+  expect(screen.getByLabelText('Dealership website')).toHaveValue('');
+  fireEvent.change(screen.getByLabelText('Showroom phone'), { target: { value: '020 7946 0456' } });
+  fireEvent.click(screen.getByText('Showroom address'));
+  fireEvent.change(screen.getByLabelText('Street address'), { target: { value: '12 High Street' } });
+  fireEvent.click(screen.getByText('Opening hours'));
+  expect(screen.getByLabelText('Sunday opening status')).toHaveValue('unknown');
+  fireEvent.change(screen.getByLabelText('Monday opening status'), { target: { value: 'open' } });
+  fireEvent.change(screen.getByLabelText('Monday opening time'), { target: { value: '09:00' } });
+  fireEvent.change(screen.getByLabelText('Monday closing time'), { target: { value: '17:00' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Create private demo' }));
+  await screen.findByText('The dealership logo is included.');
+  expect(fetcher.mock.calls[0][0]).toBe('/api/platform/demos/from-autotrader');
+  const submitted = JSON.parse(String(fetcher.mock.calls[0][1].body));
+  expect(submitted).toMatchObject({ sourceUrl: autoDealer.sourceUrl, stock: autoStock, logoData,
+    dealershipDetails: { phone: '020 7946 0456', email: '', websiteUrl: '', showroomAddress: { street: '12 High Street' } },
+  });
+  expect(submitted.dealershipDetails.openingHours.days).toEqual(dealershipDetails.openingHours.days.map(day => day.day === 1 ? { day: 1, status: 'open', open: '09:00', close: '17:00' } : day));
+});
+
+it.each(['9000', 'cazoo-1234'])('rejects Auto Trader JSON from retailer %s before posting', async retailerId => {
+  const autoDealer = { sourceUrl: 'https://www.autotrader.co.uk/dealers/example-motors-1234', retailerId: '1234' };
+  const fetcher = vi.fn();
+  vi.stubGlobal('fetch', fetcher);
+  render(<PlatformStockJsonDemo platform="autotrader" dealer={autoDealer} prompt="Collect the verified public stock." busy={false} onBusyChange={() => {}} onManage={() => {}}/>);
+  fireEvent.change(screen.getByLabelText('Stock JSON from Grok Bot'), { target: { value: JSON.stringify({ ...stock, retailerId }) } });
+  fireEvent.click(screen.getByRole('button', { name: 'Create private demo' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('This stock JSON is for a different Auto Trader dealership.');
+  expect(fetcher).not.toHaveBeenCalled();
+});
+
+it('uses Auto Trader identifiers while requesting verified logo and public details in the prompt', () => {
+  const autoDealer = { sourceUrl: 'https://www.autotrader.co.uk/dealers/example-motors-1234', retailerId: '1234' };
+  const prompt = buildAutoTraderDemoPrompt(autoDealer);
+  const example = JSON.parse(prompt.slice(prompt.indexOf('{\n')));
+  expect(example.stock.retailerId).toBe('1234');
+  expect(example.stock.cars[0].sourceExtras).toMatchObject({ sourcePlatform: 'autotrader', retailerId: '1234', stockListUrl: autoDealer.sourceUrl });
+  expect(example.stock.cars[0].sourceExtras.cazooDealerId).toBeUndefined();
+  expect(example.dealershipDetails.sourceUrl).toBe(autoDealer.sourceUrl);
+  expect(example.dealershipDetails.openingHours.days.every((day: { status: string }) => day.status === 'unknown')).toBe(true);
+  expect(prompt).toContain('top-level logoData field');
+  expect(prompt).toContain('Preserve the original numeric Auto Trader advert ID');
+  expect(prompt).not.toContain('Cazoo');
 });

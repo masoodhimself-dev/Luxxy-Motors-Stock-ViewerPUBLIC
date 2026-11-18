@@ -7,7 +7,7 @@ import { currentDealerId, currentTenant, multiTenantEnabled } from "../lib/tenan
 import { stockPlatformIssues } from "../lib/stock-platform";
 import { importAdmission } from '../lib/stock-import-admission';
 import { platformStockUploadBlock, readPlatformStockUploadTarget } from '../lib/platform-stock-upload';
-import { cazooDealershipLink, PUBLIC_VEHICLE_CODE_PATTERN, stockDescriptionExtras, vehicleCodeFromPath } from "@workspace/vehicle-meta";
+import { autoTraderDealerLink, cazooDealershipLink, PUBLIC_VEHICLE_CODE_PATTERN, stockDescriptionExtras, vehicleCodeFromPath } from "@workspace/vehicle-meta";
 import { dealerIntegrationsStore } from "../lib/dealer-integrations-store";
 import { stockSourceData, projectedStockSourceData } from "../lib/stock-source-data";
 import { timingSafeEqual } from "node:crypto";
@@ -104,7 +104,13 @@ function checkPrivateDemoSnapshot(body: unknown, retailerId: string, platform: '
 }
 
 export function checkAutoTraderDemoSnapshot(body: unknown, retailerId: string) {
-  return checkPrivateDemoSnapshot(body, retailerId, 'autotrader');
+  const snapshot = checkPrivateDemoSnapshot(body, retailerId, 'autotrader');
+  if (!snapshot || !snapshot.dealerName.trim() || snapshot.dealerName.trim().length > 100) return null;
+  for (const car of snapshot.cars) {
+    const stockListUrl = car.sourceExtras?.stockListUrl;
+    if (stockListUrl != null && (typeof stockListUrl !== 'string' || autoTraderDealerLink(stockListUrl)?.retailerId !== retailerId)) return null;
+  }
+  return snapshot;
 }
 
 export function checkCazooDemoSnapshot(stock: Record<string, unknown>, retailerId: string) {

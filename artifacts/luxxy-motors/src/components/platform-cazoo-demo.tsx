@@ -15,7 +15,8 @@ type CazooDemoResult = {
   hasLogo: boolean;
 };
 
-type CazooDemoProps = {
+type StockJsonDemoProps = {
+  platform: 'autotrader' | 'cazoo';
   dealer: { sourceUrl: string; retailerId: string };
   prompt: string;
   busy: boolean;
@@ -43,7 +44,7 @@ function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-function parseStockJson(input: string, retailerId: string) {
+function parseStockJson(input: string, retailerId: string, platform: StockJsonDemoProps['platform']) {
   const trimmed = input.trim();
   const fenced = /^```(?:json)?[^\S\r\n]*\r?\n([\s\S]*?)\r?\n```$/i.exec(trimmed);
   let data: unknown;
@@ -56,8 +57,9 @@ function parseStockJson(input: string, retailerId: string) {
   if (!record(stock) || stock.schemaVersion !== 1 || stock.source !== 'grok' || !Array.isArray(stock.cars)) {
     throw new Error('This JSON doesn’t contain a version 1 stock list. Use the prompt above to get the right format.');
   }
-  if (stock.retailerId !== retailerId && stock.retailerId !== retailerId.slice('cazoo-'.length)) {
-    throw new Error('This stock JSON is for a different Cazoo dealership. Use the prompt above to export the right stock.');
+  const retailerMatches = stock.retailerId === retailerId || (platform === 'cazoo' && stock.retailerId === retailerId.replace(/^cazoo-/, ''));
+  if (!retailerMatches) {
+    throw new Error(`This stock JSON is for a different ${platform === 'cazoo' ? 'Cazoo' : 'Auto Trader'} dealership. Use the prompt above to export the right stock.`);
   }
 
   const logoData = record(data) && data !== stock ? data.logoData : undefined;
@@ -219,7 +221,8 @@ function checkedResult(demo: CazooDemoResult) {
   return demo;
 }
 
-export function PlatformCazooDemo({ dealer, prompt, busy, onBusyChange, onManage }: CazooDemoProps) {
+/** Shared stock upload and public-details review for both marketplaces. */
+export function PlatformStockJsonDemo({ platform, dealer, prompt, busy, onBusyChange, onManage }: StockJsonDemoProps) {
   const id = useId();
   const [json, setJson] = useState('');
   const [stockFile, setStockFile] = useState('');
@@ -263,7 +266,7 @@ export function PlatformCazooDemo({ dealer, prompt, busy, onBusyChange, onManage
       if (kind === 'stock') {
         if (file.size > stockFileLimit) throw new Error('Choose a JSON file under 8 MB. The stock itself can be up to 5 MB.');
         const content = await file.text();
-        const payload = parseStockJson(content, dealer.retailerId);
+        const payload = parseStockJson(content, dealer.retailerId, platform);
         setJson(content);
         setStockFile(file.name);
         setPublicDetails(payload.dealershipDetails);
@@ -286,7 +289,7 @@ export function PlatformCazooDemo({ dealer, prompt, busy, onBusyChange, onManage
 
     let body: string;
     try {
-      const payload = parseStockJson(json, dealer.retailerId);
+      const payload = parseStockJson(json, dealer.retailerId, platform);
       const stock = JSON.stringify(payload.stock);
       if (new Blob([stock]).size > uploadLimit) throw new Error('The stock JSON is larger than 5 MB.');
       const logoData = logo?.data ?? payload.logoData;
@@ -315,7 +318,7 @@ export function PlatformCazooDemo({ dealer, prompt, busy, onBusyChange, onManage
     setWorking('create');
     onBusyChange(true);
     try {
-      const demo = await customFetch<CazooDemoResult>('/api/platform/demos/from-cazoo', {
+      const demo = await customFetch<CazooDemoResult>(`/api/platform/demos/from-${platform}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body,
@@ -385,7 +388,7 @@ export function PlatformCazooDemo({ dealer, prompt, busy, onBusyChange, onManage
             setPublicDetails(undefined);
             setStockParsed(false);
             try {
-              const payload = parseStockJson(event.target.value, dealer.retailerId);
+              const payload = parseStockJson(event.target.value, dealer.retailerId, platform);
               setPublicDetails(payload.dealershipDetails);
               setStockParsed(true);
             } catch {
@@ -428,7 +431,7 @@ export function PlatformCazooDemo({ dealer, prompt, busy, onBusyChange, onManage
       </div>
       {stockParsed && <PublicDetailsReview value={publicDetails} sourceUrl={dealer.sourceUrl} disabled={disabled} onChange={setPublicDetails}/>}
       {working && <p className="platform-demo-link-progress" role="status">{
-        working === 'create' ? 'Importing the Cazoo stock and preparing the private demo…' : 'Reading the selected file…'
+        working === 'create' ? `Importing the ${platform === 'cazoo' ? 'Cazoo' : 'Auto Trader'} stock and preparing the private demo…` : 'Reading the selected file…'
       }</p>}
       {error && <p className="platform-demo-link-error" id={`${id}-error`} role="alert">{error.message}</p>}
       <Button type="submit" className="platform-cazoo-create" disabled={disabled || !json.trim()}>
@@ -436,4 +439,9 @@ export function PlatformCazooDemo({ dealer, prompt, busy, onBusyChange, onManage
       </Button>
     </form>
   </div>;
+}
+
+/** Existing Cazoo callers keep the same props and behavior. */
+export function PlatformCazooDemo(props: Omit<StockJsonDemoProps, 'platform'>) {
+  return <PlatformStockJsonDemo {...props} platform="cazoo"/>;
 }

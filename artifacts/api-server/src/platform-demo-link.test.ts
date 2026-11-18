@@ -11,6 +11,7 @@ import collectorCallback, { demoStockCollectorCallbackPath } from './routes/demo
 import demoOnboardingRouter from './routes/demo-onboarding';
 import { engine } from './test/tenant-test-db';
 import exampleStock from './test/fixtures/cazoo-stock.json';
+import { autoTraderDealerLink } from '@workspace/vehicle-meta';
 
 const adminHost = 'admin.example.test';
 const createPath = '/api/platform/demos/from-autotrader';
@@ -18,6 +19,22 @@ const collectorUrl = 'https://collector.example.test/v1/collect';
 const retailerId = '123456';
 const canonicalSource = 'https://www.autotrader.co.uk/dealers/greater-london/hayes/fictional-motors-123456';
 const submittedSource = 'https://autotrader.co.uk/dealers/greater-london/hayes/fictional-motors-123456/?tracking=example';
+
+test('Auto Trader dealership links share one strict parser for dealer pages and retailer stock pages', () => {
+  assert.deepEqual(autoTraderDealerLink(` ${submittedSource} `), { sourceUrl: canonicalSource, retailerId });
+  assert.deepEqual(autoTraderDealerLink('https://autotrader.co.uk/cars/retailer/stock?retailerId=123456&sort=price-asc#top'), {
+    sourceUrl: 'https://www.autotrader.co.uk/cars/retailer/stock?retailerId=123456', retailerId,
+  });
+  for (const invalid of [
+    'https://www.autotrader.co.uk/car-details/202611081234567',
+    'https://www.autotrader.co.uk.evil.test/dealers/fictional-123456',
+    'https://user@www.autotrader.co.uk/dealers/fictional-123456',
+    'http://www.autotrader.co.uk/dealers/fictional-123456',
+    'https://www.autotrader.co.uk/cars/retailer/stock?retailerId=123456&retailerId=999999',
+    'https://www.autotrader.co.uk/cars/retailer/stock?retailerId=no-number',
+    'https://www.autotrader.co.uk\\@evil.test/dealers/fictional-123456',
+  ]) assert.equal(autoTraderDealerLink(invalid), null, invalid);
+});
 
 test('platform administrators can create private demos from marketplace stock links', async context => {
   process.env.MULTI_TENANT_ENABLED = 'true';
@@ -552,6 +569,112 @@ test('platform administrators can create private demos from marketplace stock li
       assert.equal(artwork.status, 200);
       assert.equal(artwork.headers.get('content-type'), 'image/png');
       assert.equal(Buffer.from(await artwork.arrayBuffer()).toString('base64'), logo);
+    });
+
+    await context.test('an Auto Trader JSON upload includes verified business details without a collector or live-stock writes', async () => {
+      delete process.env.DEMO_STOCK_COLLECTOR_URL;
+      delete process.env.DEMO_STOCK_COLLECTOR_TOKEN;
+      const sourceUrl = 'https://www.autotrader.co.uk/dealers/greater-london/hayes/example-motors-654321';
+      const stockSource = 'https://autotrader.co.uk/cars/retailer/stock?retailerId=654321&sort=price-asc';
+      const logo = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+p1LkAAAAASUVORK5CYII=';
+      const checkedAt = new Date().toISOString();
+      const car = {
+        ...snapshot.cars[0], advertId: '202611181234567',
+        advertUrl: 'https://www.autotrader.co.uk/car-details/202611181234567',
+        sourceExtras: { sourcePlatform: 'autotrader', stockListUrl: stockSource },
+      };
+      const stock = {
+        ...snapshot, retailerId: '654321', runId: '131246ce-84c8-4ce0-8b19-8a47198a1ca0',
+        scrapedAt: checkedAt, cars: [car],
+      };
+      const dealershipDetails = {
+        sourceUrl: stockSource, checkedAt,
+        phone: '020 7946 0456', email: 'showroom@example.test', websiteUrl: 'https://example.test/',
+        showroomAddress: { street: '7 Example Road', city: 'Hayes', region: 'London', postcode: 'UB3 1AA', mapsUrl: '', sourceUrl: 'https://example.test/contact', checkedAt },
+        openingHours: { timezone: 'Europe/London', sourceUrl: stockSource, checkedAt,
+          days: Array.from({ length: 7 }, (_, day) => day === 0 ? { day, status: 'closed' } : { day, status: 'open', open: '10:00', close: '18:00' }) },
+        visitInstructions: 'Please book an appointment before visiting.',
+      };
+      const payload = { sourceUrl, stock, logoData: `data:image/png;base64,${logo}`, dealershipDetails };
+      const collectorCalls = collect.mock.callCount();
+      await engine.query(`INSERT INTO dealerships (id, name, status, canonical_origin, stock_platform, retailer_id, source_url)
+        VALUES ('existing-at-upload', 'Existing Auto Trader showroom', 'active', 'https://existing-at.example.test', 'autotrader', '654321', $1)`, [sourceUrl]);
+      await engine.query(`INSERT INTO vehicles (dealer_id, source, advert_id, title, source_price, inventory_status)
+        VALUES ('existing-at-upload', 'grok', $1, 'Live Auto Trader stock', 10995, 'reserved')`, [car.advertId]);
+      const liveBefore = (await engine.query("SELECT * FROM vehicles WHERE dealer_id = 'existing-at-upload'")).rows;
+      const databaseCounts = async () => (await engine.query(`SELECT
+        (SELECT count(*)::int FROM dealerships) AS dealers,
+        (SELECT count(*)::int FROM dealer_demos) AS demos,
+        (SELECT count(*)::int FROM dealer_settings) AS settings,
+        (SELECT count(*)::int FROM stock_import_runs) AS runs,
+        (SELECT count(*)::int FROM vehicles) AS vehicles,
+        (SELECT count(*)::int FROM vehicle_images) AS images`)).rows;
+      const before = await databaseCounts();
+      for (const access of [{ user: '' }, { user: 'user_dealer' }, { host: 'existing-at.example.test' }, { origin: 'https://other.example.test' }]) {
+        assert.equal((await call(createPath, { ...access, snapshot: payload })).status, 403);
+      }
+      for (const invalid of [
+        { ...payload, logoData: 'data:image/png;base64,dGVzdA==' },
+        { ...payload, dealershipDetails: { ...dealershipDetails, sourceUrl: stockSource.replace('654321', '999999') } },
+        { ...payload, dealershipDetails: { ...dealershipDetails, sourceUrl: 'https://www.cazoo.co.uk/dealers/example-motors-654321/' } },
+        { ...payload, dealershipDetails: { ...dealershipDetails, email: 'invalid' } },
+        { ...payload, dealershipDetails: { ...dealershipDetails, websiteUrl: 'not-a-url' } },
+        { ...payload, dealershipDetails: { ...dealershipDetails, showroomAddress: { ...dealershipDetails.showroomAddress, mapsUrl: 'not-a-url' } } },
+        { sourceUrl, dealershipDetails },
+      ]) assert.equal((await call(createPath, { snapshot: invalid })).status, 400);
+      for (const invalid of [
+        { ...stock, retailerId: '999999' }, { ...stock, complete: false },
+        { ...stock, expectedAdvertCount: 2 },
+        { ...stock, scrapedAt: new Date(Date.now() - 25 * 3_600_000).toISOString() },
+        { ...stock, cars: [{ ...car, sourceExtras: { sourcePlatform: 'cazoo' } }] },
+        { ...stock, cars: [{ ...car, sourceExtras: { ...car.sourceExtras, stockListUrl: stockSource.replace('654321', '999999') } }] },
+      ]) assert.equal((await call(createPath, { snapshot: { ...payload, stock: invalid } })).status, 422);
+      assert.deepEqual(await databaseCounts(), before);
+
+      await engine.exec("ALTER TABLE vehicles ADD CONSTRAINT test_at_demo_rollback CHECK (dealer_id = 'existing-at-upload' OR advert_id <> '202611181234567')");
+      try {
+        assert.equal((await call(createPath, { snapshot: payload })).status, 500);
+        assert.deepEqual(await databaseCounts(), before);
+      } finally {
+        await engine.exec('ALTER TABLE vehicles DROP CONSTRAINT test_at_demo_rollback');
+      }
+      const created = await call(createPath, { snapshot: payload });
+      assert.equal(created.status, 201, await created.clone().text());
+      const demo = await created.json() as { dealerId: string; previewPath: string; hasLogo: boolean; received: number };
+      assert.equal(demo.hasLogo, true);
+      assert.equal(demo.received, 1);
+      const settingsPath = `${demo.previewPath}/api/dealer-settings`;
+      const settings = await (await call(settingsPath)).json() as Record<string, any>;
+      assert.deepEqual(settings.contact, { phone: dealershipDetails.phone, email: dealershipDetails.email, whatsapp: '' });
+      assert.equal(settings.address.street, dealershipDetails.showroomAddress.street);
+      assert.equal(settings.hours.length, 7);
+      assert.equal(settings.hours[6].times, 'Closed');
+      assert.equal(settings.presentation.visitInstructions, dealershipDetails.visitInstructions);
+      const savedSettings = async () => (await engine.query('SELECT config, revision FROM dealer_settings WHERE dealer_id = $1', [demo.dealerId])).rows;
+      const firstSettings = await savedSettings();
+      assert.equal((await call(createPath, { snapshot: payload })).status, 200);
+      assert.deepEqual(await savedSettings(), firstSettings, 'Replays do not add another settings revision');
+      assert.equal((await call(createPath, { snapshot: { sourceUrl: stockSource, stock } })).status, 200);
+      assert.deepEqual(await savedSettings(), firstSettings, 'Old stock-only JSON preserves supplied business details');
+      assert.equal((await call(createPath, { snapshot: { ...payload, dealershipDetails: { sourceUrl, checkedAt, phone: '020 7946 0654' } } })).status, 200);
+      const updated = await (await call(settingsPath)).json() as Record<string, any>;
+      assert.equal(updated.contact.phone, '020 7946 0654');
+      assert.equal(updated.contact.email, dealershipDetails.email);
+      assert.deepEqual(updated.address, settings.address);
+      assert.deepEqual(updated.hours, settings.hours);
+      const preview = await call(`${demo.previewPath}/api/stock`);
+      const cars = (await preview.json() as { cars: { advertId: string; images: typeof car.images }[] }).cars;
+      assert.deepEqual(cars.map(({ advertId, images }) => ({ advertId, images })), [{ advertId: car.advertId, images: car.images }]);
+      assert.equal((await call(`${demo.previewPath}/api/dealer-settings`, { user: '' })).status, 403);
+      const artwork = await call(`${demo.previewPath}/api/demo-logo`);
+      assert.equal(artwork.headers.get('content-type'), 'image/png');
+      assert.equal(Buffer.from(await artwork.arrayBuffer()).toString('base64'), logo);
+      const row = (await engine.query<{ status: string; canonical_origin: string }>('SELECT status, canonical_origin FROM dealerships WHERE id=$1', [demo.dealerId])).rows[0];
+      assert.equal(row.status, 'draft');
+      assert.equal((await engine.query('SELECT 1 FROM dealer_domains WHERE dealer_id=$1', [demo.dealerId])).rows.length, 0);
+      assert.equal((await call('/api/stock', { host: new URL(row.canonical_origin).hostname })).status, 421);
+      assert.deepEqual((await engine.query("SELECT * FROM vehicles WHERE dealer_id = 'existing-at-upload'")).rows, liveBefore);
+      assert.equal(collect.mock.callCount(), collectorCalls, 'The upload never calls the stock collector');
     });
   } finally {
     server.closeAllConnections();

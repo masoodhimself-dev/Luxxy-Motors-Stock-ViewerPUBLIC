@@ -2,20 +2,8 @@ import { createHmac } from 'node:crypto';
 import { z } from 'zod/v4';
 import { platformStockUploadLimit } from './platform-stock-upload';
 import { normaliseTenantHost } from './tenant-context';
-
-const dealerPath = /^\/dealers\/(?:[a-z0-9-]+\/)*[a-z0-9-]+-(\d{1,24})\/?$/i;
-
-export function autoTraderDealerLink(value: string) {
-  try {
-    const url = new URL(value);
-    const match = dealerPath.exec(url.pathname);
-    if (!match || url.protocol !== 'https:' || url.port || url.username || url.password ||
-        !['autotrader.co.uk', 'www.autotrader.co.uk'].includes(url.hostname)) return null;
-    return { sourceUrl: `https://www.autotrader.co.uk${url.pathname.replace(/\/$/, '')}`, retailerId: match[1] };
-  } catch {
-    return null;
-  }
-}
+import { autoTraderDealerLink } from '@workspace/vehicle-meta';
+export { autoTraderDealerLink } from '@workspace/vehicle-meta';
 
 type DemoStockCollector = { url: URL; token: string };
 type CallbackKey = { id: string; validUntil: number };

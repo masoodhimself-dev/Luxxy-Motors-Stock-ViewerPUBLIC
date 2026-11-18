@@ -15,6 +15,8 @@ import { demoDealershipDetails } from '../lib/demo-business-details';
 const router = Router();
 const input = z.object({ sourceUrl: z.string().trim().min(1).max(2048) }).strict();
 const cazooInput = input.extend({ stock: z.record(z.string(), z.unknown()), logoData: z.string().min(1).max(400000).optional(), dealershipDetails: demoDealershipDetails.optional() });
+const autoTraderInput = cazooInput.partial({ stock: true }).refine(value => value.stock !== undefined ||
+  (value.logoData === undefined && value.dealershipDetails === undefined));
 const demoLinkAdmission = createStockImportAdmission(1, Date.now, serviceLifecycle, () => true);
 
 router.get('/demos/collection/:jobId', async (req, res) => {
@@ -26,10 +28,39 @@ router.get('/demos/collection/:jobId', async (req, res) => {
 
 // Mounted behind the Platform Admin host, administrator and origin checks.
 router.post('/demos/from-autotrader', demoLinkAdmission.middleware, async (req, res) => {
-  const parsed = input.safeParse(req.body);
+  const parsed = autoTraderInput.safeParse(req.body);
   const dealer = parsed.success ? autoTraderDealerLink(parsed.data.sourceUrl) : null;
   if (!dealer) {
-    res.status(400).json({ error: 'Paste the dealership’s Auto Trader stock page link. The link ends with the retailer number.' });
+    res.status(400).json({ error: 'Paste the dealership’s Auto Trader stock page link and a complete stock JSON export if uploading.' });
+    return;
+  }
+  if (parsed.success && parsed.data.stock !== undefined) {
+    await importAdmission.run(req, res, async () => {
+      const { stock, logoData, dealershipDetails } = parsed.data;
+      if (Buffer.byteLength(JSON.stringify(stock)) > platformStockUploadLimit) {
+        res.status(413).json({ error: 'Use a stock JSON export of 5 MB or less.' });
+        return;
+      }
+      const snapshot = checkAutoTraderDemoSnapshot(stock, dealer.retailerId);
+      if (!snapshot) {
+        res.status(422).json({ error: invalidDemoStockMessage });
+        return;
+      }
+      try {
+        const result = await importDemoLinkStock(req, res, dealer, stock, snapshot, getAuth(req).userId!, {
+          platform: 'autotrader', logoData, dealershipDetails,
+        });
+        if (!result) return;
+        res.status(result.created ? 201 : 200).json({
+          dealerId: result.dealerId, dealerName: result.dealerName,
+          previewPath: `/platform/preview/${result.dealerId}`, received: result.received, hasLogo: result.hasLogo,
+        });
+      } catch (error) {
+        if (error instanceof DemoSetupError) { res.status(error.status).json({ error: error.message }); return; }
+        req.log?.error('Private Auto Trader demo import failed');
+        res.status(500).json({ error: 'Could not prepare the private demo. Try again with the same JSON.' });
+      }
+    });
     return;
   }
   const collector = demoStockCollectorConfig();
