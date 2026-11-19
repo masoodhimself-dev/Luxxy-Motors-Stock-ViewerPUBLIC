@@ -7,6 +7,29 @@ vi.mock('@/components/vehicle-call', () => ({ VehicleCall: () => <button type="b
 
 beforeAll(() => { HTMLElement.prototype.scrollIntoView = vi.fn(); });
 
+it('starts at a requested photograph while preserving the original hero, order and count', async () => {
+  const hero = 'https://example.com/external-hero.jpg', dash = 'https://example.com/dashboard.jpg', wheel = 'https://example.com/wheel.jpg';
+  render(<Gallery customerView hideInlineThumbnails heroImage={hero} initialImageUrl={dash} images={[{ url: wheel, caption: 'Alloy wheel' }, { url: dash, caption: 'Dashboard' }, { url: wheel, caption: 'Alloy wheel' }]}/>);
+  expect(screen.getByText('2 / 3')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'View all 3 photos' })).toBeInTheDocument();
+  await waitFor(() => expect(document.querySelector('.gallery-photo')).toHaveAttribute('src', dash));
+  fireEvent.click(screen.getByRole('button', { name: 'Previous photograph' }));
+  await waitFor(() => expect(document.querySelector('.gallery-photo')).toHaveAttribute('src', hero));
+  expect(screen.getByText('1 / 3')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Next photograph' }));
+  fireEvent.click(screen.getByRole('button', { name: 'View gallery fullscreen' }));
+  const dialog = await screen.findByRole('dialog');
+  expect(within(dialog).getByText('2 / 3')).toBeInTheDocument();
+  fireEvent.keyDown(dialog, { key: 'ArrowRight' });
+  expect(within(dialog).getByText('3 / 3')).toBeInTheDocument();
+});
+
+it('falls back to the original hero if the requested initial photo no longer exists', () => {
+  render(<Gallery customerView hideInlineThumbnails heroImage="https://example.com/original.jpg" initialImageUrl="https://example.com/missing.jpg" images={['https://example.com/second.jpg']}/>);
+  expect(screen.getByText('1 / 2')).toBeInTheDocument();
+  expect(document.querySelector('.gallery-photo')).toHaveAttribute('src', 'https://example.com/original.jpg');
+});
+
 it.each([true, false])('browses using arrows on the inline photo without opening fullscreen (customer: %s)', async (customerView) => {
   const images = ['one', 'two', 'three'].map(name => `https://example.com/inline-${name}.jpg`);
   const { container } = render(<Gallery customerView={customerView} images={images} />);

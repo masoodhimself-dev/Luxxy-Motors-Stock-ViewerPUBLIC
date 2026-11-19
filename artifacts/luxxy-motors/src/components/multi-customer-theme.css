@@ -5,7 +5,7 @@
    Route-specific grids, photography and stock-card geometry remain authoritative. */
 .customer-site.dealer-site-theme,
 .dealer-site-theme.dealer-document-theme {
-  --app-font-sans: 'Multi Montserrat', Arial, sans-serif;
+  --app-font-sans: var(--ct-font-ui, 'Multi Montserrat', Arial, sans-serif);
   --font-display: var(--app-font-sans);
   --font-body: var(--app-font-sans);
   --customer-radius: 8px;
@@ -24,7 +24,7 @@
 }
 .dealer-site-theme :is(h1, h2, h3, h4, .font-display, .font-sans, button, select, textarea),
 .dealer-site-theme input:not(.uk-number-plate-input):not(.ukrp-text) {
-  font-family: 'Multi Montserrat', Arial, sans-serif;
+  font-family: var(--ct-font-ui, 'Multi Montserrat', Arial, sans-serif);
 }
 .customer-site.dealer-site-theme main :is(h1, h2) { font-weight: 700; }
 .customer-site.dealer-site-theme main h3 { font-weight: 600; }
@@ -99,13 +99,13 @@
    The route marker is restored on departure, so account/platform surfaces keep
    their independent appearance. Every dealership uses these customer rules. A photo lightbox keeps its dark viewing surface. */
 body[data-dealer-customer='true'] :is([role='dialog'], [role='alertdialog'], [role='tooltip'], [role='listbox'], [role='menu'], [data-radix-popper-content-wrapper], [data-radix-toast-viewport]) {
-  --app-font-sans: 'Multi Montserrat', Arial, sans-serif;
+  --app-font-sans: var(--ct-font-ui, 'Multi Montserrat', Arial, sans-serif);
   --font-display: var(--app-font-sans);
   font-family: var(--app-font-sans);
 }
 body[data-dealer-customer='true'] :is([role='dialog'], [role='alertdialog'], [role='tooltip'], [role='listbox'], [role='menu']) :is(h1, h2, h3, h4, button, select, textarea, .font-display, .font-sans),
 body[data-dealer-customer='true'] :is([role='dialog'], [role='alertdialog']) input:not(.uk-number-plate-input):not(.ukrp-text) {
-  font-family: 'Multi Montserrat', Arial, sans-serif;
+  font-family: var(--ct-font-ui, 'Multi Montserrat', Arial, sans-serif);
 }
 body[data-dealer-customer='true'] :is([role='dialog'], [role='alertdialog']):not(.customer-vehicle-lightbox):not(.vehicle-photo-lightbox) {
   --foreground: var(--dealer-panel-ink-hsl);

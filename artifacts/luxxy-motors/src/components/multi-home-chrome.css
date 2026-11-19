@@ -18,7 +18,7 @@
   color: var(--mh-primary);
   box-shadow: var(--mh-shadow-md);
   border-bottom: 1px solid #e5e7eb;
-  font-family: "Multi Montserrat", Arial, sans-serif;
+  font-family: var(--app-font-sans, "Multi Montserrat", Arial, sans-serif);
 }
 .multi-home-header__inner {
   width: 100%;
@@ -155,7 +155,7 @@
   border: 1px solid #e5e7eb;
   box-shadow: 0 8px 28px #192a361a;
   border-radius: 8px;
-  font-family: "Multi Montserrat", Arial, sans-serif;
+  font-family: var(--app-font-sans, "Multi Montserrat", Arial, sans-serif);
 }
 .multi-home-popover nav {
   display: grid;
@@ -186,7 +186,7 @@
   padding: 28px 24px;
   background: var(--mh-surface);
   color: var(--mh-primary);
-  font-family: "Multi Montserrat", Arial, sans-serif;
+  font-family: var(--app-font-sans, "Multi Montserrat", Arial, sans-serif);
 }
 .multi-home-drawer nav {
   display: grid;
@@ -227,7 +227,7 @@
   color: var(--mh-primary);
   padding: 28px 24px 22px;
   border-top: 1px solid #e5e7eb;
-  font-family: "Multi Montserrat", Arial, sans-serif;
+  font-family: var(--app-font-sans, "Multi Montserrat", Arial, sans-serif);
 }
 @media (max-width: 639px) {
   .dealer-site-theme #main-content:has(.mh-whatsapp-float) + .multi-home-footer {

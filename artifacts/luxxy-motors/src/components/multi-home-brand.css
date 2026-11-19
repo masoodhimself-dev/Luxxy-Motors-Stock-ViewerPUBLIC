@@ -6,7 +6,7 @@
 @font-face { font-family: 'Multi Montserrat'; src: url('/brand/multi-choice-motors/fonts/montserrat-latin-700.woff2') format('woff2'); font-style: normal; font-weight: 700; font-display: swap; }
 @font-face { font-family: 'Multi Montserrat'; src: url('/brand/multi-choice-motors/fonts/montserrat-latin-800.woff2') format('woff2'); font-style: normal; font-weight: 800; font-display: swap; }
 .customer-site.multi-home-shell, .multi-home-popover, .multi-home-drawer {
-  --app-font-sans: 'Multi Montserrat', Arial, sans-serif;
+  --app-font-sans: var(--ct-font-ui, 'Multi Montserrat', Arial, sans-serif);
   --mh-primary: #192a36;
   --mh-accent: #a47a2b;
   --mh-accent-dark: #7c591a;
@@ -27,12 +27,12 @@
   --site-header-height: 80px;
   background: var(--mh-bg);
   color: var(--mh-text);
-  font-family: 'Multi Montserrat', Arial, sans-serif;
+  font-family: var(--ct-font-ui, 'Multi Montserrat', Arial, sans-serif);
   font-size: 16px;
   line-height: 1.5;
 }
-.customer-site.multi-home-shell :is(button,input,select,textarea) { font-family: 'Multi Montserrat', Arial, sans-serif; }
-.customer-site.multi-home-shell :is(h1,h2,h3) { font-family: 'Multi Montserrat', Arial, sans-serif; color: var(--mh-primary); }
+.customer-site.multi-home-shell :is(button,input,select,textarea) { font-family: var(--ct-font-ui, 'Multi Montserrat', Arial, sans-serif); }
+.customer-site.multi-home-shell :is(h1,h2,h3) { font-family: var(--ct-font-ui, 'Multi Montserrat', Arial, sans-serif); color: var(--mh-primary); }
 .multi-home-shell :is(a,button,input,select,textarea,summary):focus-visible { outline: 3px solid var(--mh-accent); outline-offset: 4px; }
 .multi-home-shell :is(h1,h2,h3,section)[id] { scroll-margin-top: calc(var(--site-header-height) + 16px); }
 @media (min-width: 1100px) { .customer-site.multi-home-shell { --site-header-height: 100px; } }

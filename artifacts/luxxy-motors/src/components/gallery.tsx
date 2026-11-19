@@ -18,6 +18,8 @@ export interface GalleryProps {
   vehicleLabel?: string;
   customerView?: boolean;
   hideInlineThumbnails?: boolean;
+  /** Select a starting photograph without changing the shared gallery order. */
+  initialImageUrl?: string;
   customerActions?: { enquiryHref?: string; onEnquiry?: () => void };
 }
 function imageCaption(image: CarImage | string | undefined) {
@@ -26,7 +28,7 @@ function imageCaption(image: CarImage | string | undefined) {
 
 export function Gallery({
   car, images, heroImage, vehicleLabel = 'Vehicle', customerView = false,
-  hideInlineThumbnails = false, customerActions,
+  hideInlineThumbnails = false, customerActions, initialImageUrl,
 }: GalleryProps) {
   const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
@@ -45,7 +47,7 @@ export function Gallery({
   const overviewRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const overviewToggleRef = useRef<HTMLButtonElement | null>(null);
   const failedUrls = useRef(new Set<string>());
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(() => initialImageUrl ? Math.max(0, orderVehiclePhotos(images, heroImage).findIndex(image => getSafeImageUrl(image) === initialImageUrl)) : 0);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
   const [selectedGroup, setSelectedGroup] = useState<PhotoGroup | 'All'>('All');
   const touchStart = useRef<{ x: number; y: number } | null>(null);

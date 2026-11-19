@@ -8,6 +8,7 @@ const state = vi.hoisted(() => ({
   publicEnquiriesEnabled: false,
   isLoading: false,
   isError: false,
+  hasLoadedSettings: true,
 }));
 vi.mock("wouter", () => ({
   useLocation: () => [state.path, vi.fn()],
@@ -24,6 +25,7 @@ vi.mock("@/lib/dealer-settings-context", () => ({
     publicEnquiriesEnabled: state.publicEnquiriesEnabled,
     isLoading: state.isLoading,
     isError: state.isError,
+    hasLoadedSettings: state.hasLoadedSettings,
   }),
 }));
 vi.mock("@/lib/saved-cars-context", () => ({
@@ -60,6 +62,7 @@ vi.mock("./customer-footer", () => ({
   ),
 }));
 import { Layout } from "./layout";
+import { websiteTemplatePalettes } from '@/lib/website-template-theme';
 function canonical(value: string) {
   document.querySelector('meta[name="luxxy-canonical-origin"]')?.remove();
   const meta = document.createElement("meta");
@@ -73,6 +76,7 @@ beforeEach(() => {
   state.publicEnquiriesEnabled = false;
   state.isLoading = false;
   state.isError = false;
+  state.hasLoadedSettings = true;
   state.settings = {
     ...dealerConfig,
     identity: { ...dealerConfig.identity, name: "Multi-Choice Motors" },
@@ -191,7 +195,28 @@ it("uses the shared public chrome without changing a previously saved light bran
   expect(screen.getByTestId("new-home-header")).toBeInTheDocument();
   expect(screen.getByTestId("new-home-footer")).toBeInTheDocument();
   expect(state.settings.identity.brandColors?.primaryHsl).toBe("0 0% 100%");
-  expect(document.querySelector<HTMLElement>(".dealer-site-theme")?.style.getPropertyValue("--mh-primary")).toBe("#192a36");
+  expect(document.querySelector<HTMLElement>(".dealer-site-theme")?.style.getPropertyValue("--mh-primary")).toBe("#182235");
+});
+it.each(Object.keys(websiteTemplatePalettes) as (keyof typeof websiteTemplatePalettes)[])('applies %s consistently to customer forms without changing saved dealership branding', template => {
+  state.path = '/contact';
+  state.settings = { ...state.settings, identity: { ...state.settings.identity, logoAsset: '/dealer-original.svg', brandColors: { primaryHsl: '0 0% 100%' } }, presentation: { ...state.settings.presentation, websiteTemplate: template } };
+  const original = structuredClone(state.settings);
+  const view = render(<Layout><p>Customer form</p></Layout>);
+  const shell = view.container.querySelector<HTMLElement>('.website-template');
+  expect(shell).toHaveAttribute('data-website-template', template);
+  expect(shell?.style.getPropertyValue('--mh-primary')).toBe(websiteTemplatePalettes[template].ink);
+  expect(shell?.style.getPropertyValue('--app-font-sans')).toContain('Inter');
+  expect(document.body.style.getPropertyValue('--mh-accent')).toBe(websiteTemplatePalettes[template].action);
+  expect(state.settings).toEqual(original);
+  view.unmount();
+  expect(document.body.style.getPropertyValue('--ct-ink')).toBe('');
+});
+it('does not carry an opted-in website palette into staff pages', () => {
+  state.path = '/portal';
+  state.settings = { ...state.settings, presentation: { ...state.settings.presentation, websiteTemplate: 'forecourt' } };
+  const view = render(<Layout><p>Staff portal</p></Layout>);
+  expect(view.container.querySelector('.website-template')).toBeNull();
+  expect(document.body.style.getPropertyValue('--ct-ink')).toBe('');
 });
 it.each(["https://shoredrive.uk", "https://multichoicemotors.co.uk.other.example"])("preserves configured public artwork on %s even with the Multi-Choice display name", origin => {
   canonical(origin);
@@ -259,6 +284,7 @@ it.each(["isLoading", "isError"] as const)(
   "withholds build-time contact defaults while tenant settings are %s",
   (status) => {
     state.settings = dealerConfig;
+    state.hasLoadedSettings = false;
     state[status] = true;
     render(
       <Layout>
@@ -283,3 +309,56 @@ it.each(["isLoading", "isError"] as const)(
       );
   },
 );
+
+it.each(['/stock', '/contact', '/warranty', '/saved', '/enquire', '/cars/ford-focus-a1b2c3d4'].flatMap(path => ['isLoading', 'isError'].map(status => ({ path, status: status as 'isLoading' | 'isError' }))))('withholds fallback dealership details on an initial $path request while settings are $status', ({ path, status }) => {
+  state.path = path;
+  state.hasLoadedSettings = false;
+  state[status] = true;
+  canonical('https://harbourcars.example');
+  render(<Layout><p>Unready route content</p></Layout>);
+  expect(screen.queryByText('Unready route content')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('new-home-header')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('new-home-footer')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('existing-footer')).not.toBeInTheDocument();
+  expect(document.querySelector('a[href^="tel:"],a[href^="mailto:"]')).toBeNull();
+  if (status === 'isError') expect(screen.getByRole('button', { name: 'Reload page' })).toBeInTheDocument();
+  else expect(screen.getByRole('status')).toHaveTextContent('Getting the dealership');
+});
+
+it.each(['/', '/contact'].flatMap(path => ['isLoading', 'isError'].map(status => ({ path, status: status as 'isLoading' | 'isError' }))))('keeps cached tenant branding and closed enquiry permissions on $path during background $status', ({ path, status }) => {
+  state.path = path;
+  state.hasLoadedSettings = true;
+  state[status] = true;
+  state.publicEnquiriesEnabled = false;
+  state.settings = { ...dealerConfig, identity: { ...dealerConfig.identity, name: 'Harbour Cars', logoAsset: '/harbour.svg' } };
+  canonical('https://harbourcars.example');
+  render(<Layout><p>Loaded tenant content</p></Layout>);
+  expect(screen.getByText('Loaded tenant content')).toBeInTheDocument();
+  expect(screen.getByTestId('new-home-header')).toHaveAttribute('data-name', 'Harbour Cars');
+  expect(screen.getByTestId('new-home-header')).toHaveAttribute('data-logo', '/harbour.svg');
+  expect(screen.getByTestId('new-home-footer')).toHaveAttribute('data-name', 'Harbour Cars');
+  expect(screen.getByTestId('new-home-footer')).toHaveAttribute('data-enquiries-enabled', 'false');
+  expect(screen.queryByRole('button', { name: 'Reload page' })).not.toBeInTheDocument();
+});
+
+it('does not block staff portal content while public settings are loading', () => {
+  state.path = '/portal'; state.hasLoadedSettings = false; state.isLoading = true;
+  render(<Layout><p>Staff workspace</p></Layout>);
+  expect(screen.getByText('Staff workspace')).toBeInTheDocument();
+  expect(screen.queryByText('Loading the dealership…')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('new-home-header')).not.toBeInTheDocument();
+});
+
+it('opens an initially loading customer route once its own settings arrive', () => {
+  state.path = '/stock'; state.hasLoadedSettings = false; state.isLoading = true;
+  canonical('https://harbourcars.example');
+  const view = render(<Layout><p>Current stock</p></Layout>);
+  expect(screen.queryByText('Current stock')).not.toBeInTheDocument();
+  state.settings = { ...dealerConfig, identity: { ...dealerConfig.identity, name: 'Harbour Cars', logoAsset: '/harbour.svg' } };
+  state.hasLoadedSettings = true; state.isLoading = false;
+  view.rerender(<Layout><p>Current stock</p></Layout>);
+  expect(screen.getByText('Current stock')).toBeInTheDocument();
+  expect(screen.getByTestId('new-home-header')).toHaveAttribute('data-name', 'Harbour Cars');
+  expect(screen.getByTestId('new-home-footer')).toHaveAttribute('data-name', 'Harbour Cars');
+  expect(screen.queryByRole('status')).not.toBeInTheDocument();
+});

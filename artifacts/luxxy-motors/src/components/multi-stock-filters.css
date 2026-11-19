@@ -34,7 +34,7 @@
 .multi-stock-filters,
 .multi-stock-controls,
 .multi-stock-drawer {
-  --app-font-sans: "Multi Stock Montserrat", Arial, sans-serif;
+  --app-font-sans: var(--ct-font-ui, "Multi Stock Montserrat", Arial, sans-serif);
   --font-display: var(--app-font-sans);
   --ms-navy: var(--mh-primary, #00034d);
   --ms-gold: var(--mh-accent, #9c690a);
@@ -47,7 +47,7 @@
 /* The shared customer portal rule assigns Inter directly to dialogs. Keep this
    override on this sheet, so phone filters match the desktop reference. */
 body [data-popup-surface].multi-stock-drawer[role="dialog"] {
-  --app-font-sans: "Multi Stock Montserrat", Arial, sans-serif;
+  --app-font-sans: var(--ct-font-ui, "Multi Stock Montserrat", Arial, sans-serif);
   --font-display: var(--app-font-sans);
   font-family: var(--app-font-sans);
 }

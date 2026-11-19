@@ -28,6 +28,7 @@ import { isCustomerWebsiteRoute, multiCustomerThemeVariables, multiPortalThemeVa
 import { useCustomerBodyTheme, usePortalBodyTheme } from '@/components/multi-customer-theme';
 import './portal/dealer-portal-theme.css';
 import { selectedWebsiteTemplate } from '@/lib/website-template';
+import { websiteTemplateThemeVariables } from '@/lib/website-template-theme';
 import './website-templates/customer-templates.css';
 export { readableForegroundForHsl } from '@/lib/brand-colour';
 
@@ -49,7 +50,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isPremiumShowroom = location === '/' || location === '/stock' || isVehiclePagePath(location);
   const isVehiclePage = isVehiclePagePath(location);
   const isBrowsingPage = location === '/stock' || isVehiclePagePath(location);
-  const { settings: dealerConfig, publicEnquiriesEnabled, isLoading: settingsLoading, isError: settingsError } = useDealerSettings();
+  const { settings: dealerConfig, hasLoadedSettings, publicEnquiriesEnabled, isLoading: settingsLoading, isError: settingsError } = useDealerSettings();
   const websiteTemplate = isCustomerWebsite ? selectedWebsiteTemplate(dealerConfig.presentation) : null;
   const whatsAppHref = getWhatsAppHref(undefined, dealerConfig);
   const { savedCount } = useSavedCars();
@@ -104,8 +105,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
       : {}),
     ...(!isStaff ? customerThemeVariables({ ...dealerConfig.presentation, primaryHsl: brandPrimary, accentHsl: customerAccent }) : {}),
     ...(isCustomerWebsite ? multiCustomerThemeVariables('showroom-navy') : {}),
+    ...websiteTemplateThemeVariables(websiteTemplate),
     ...(isSharedPortal ? multiPortalThemeVariables() : {}),
-  }) as CSSProperties, [brandPrimary, accent, customerAccent, dealerConfig.presentation, isStaff, isCustomerWebsite, isSharedPortal]);
+  }) as CSSProperties, [brandPrimary, accent, customerAccent, dealerConfig.presentation, isStaff, isCustomerWebsite, isSharedPortal, websiteTemplate]);
 
   useCustomerBodyTheme(brandStyle, isCustomerWebsite);
   usePortalBodyTheme(brandStyle, isSharedPortal);
@@ -184,7 +186,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       observer.disconnect();
       document.documentElement.style.removeProperty('--site-header-height');
     };
-  }, [isStaff, isHomePage, isCustomerWebsite]);
+  }, [isStaff, isHomePage, isCustomerWebsite, hasLoadedSettings]);
 
   const handleNav = (target: string) => {
     setMobileMenuOpen(false);
@@ -207,8 +209,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
     handleNav('top');
   };
 
-  // Never show another dealer's build-time defaults while this tenant loads.
-  if (isHomePage && (settingsLoading || settingsError)) return <div style={brandStyle} className="luxxy-shell customer-site dealer-site-theme showroom-navy-site multi-home-shell min-h-[100dvh]">
+  // Wait for this tenant's first real settings on every customer route. A
+  // background error must not replace already loaded dealership details.
+  if (isCustomerWebsite && !hasLoadedSettings && (settingsLoading || settingsError)) return <div style={brandStyle} className="luxxy-shell customer-site dealer-site-theme showroom-navy-site multi-home-shell min-h-[100dvh]">
     <header ref={headerRef} data-site-header className="multi-home-header"><div className="multi-home-header__inner"><a href="#main-content" className="multi-home-header__brand" aria-label="Skip to website content">{isMultiChoiceBrand ? <img src="/brand/multi-choice-motors/multi-choice-wordmark.svg" alt="Multi-Choice Motors" width="205" height="43" /> : <span>Car showroom</span>}</a></div></header>
     <main id="main-content" className="multi-home-loading" aria-busy={settingsLoading || undefined}>
       <h1>{settingsError ? 'Website details are temporarily unavailable' : 'Loading the dealership…'}</h1>
