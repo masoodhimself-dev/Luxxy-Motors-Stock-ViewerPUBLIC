@@ -1,7 +1,7 @@
 .gr-stock-page{color:var(--gr-ink,#25282d);background:var(--gr-paper,#fff);font-family:inherit}
 .gr-stock-search-band{padding-block:32px;background:var(--gr-silver,#f3f4f5)}
 .gr-stock-heading{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:16px}
-.graphite-site .gr-stock-heading h1{flex:1;min-width:0;margin:0;color:var(--gr-ink,#25282d);font-family:inherit;font-size:44px;font-weight:600;line-height:50px;letter-spacing:0}
+.graphite-site .gr-stock-heading h1{flex:1;min-width:0;margin:0;color:var(--gr-ink,#25282d);font-family:var(--gr-display,inherit);font-size:44px;font-weight:500;line-height:50px;letter-spacing:0}
 .gr-stock-count{flex:1;margin:0;color:var(--gr-muted,#565c64);font-size:17px;line-height:26px;text-align:center}
 .gr-stock-heading-actions{display:flex;align-items:center;justify-content:flex-end;gap:16px}
 .gr-stock-saved{display:flex;align-items:center;justify-content:center;width:44px;min-height:44px;color:var(--gr-ink,#25282d);text-decoration:none}

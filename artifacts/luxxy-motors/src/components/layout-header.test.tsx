@@ -26,7 +26,7 @@ beforeEach(() => {
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
 });
 afterEach(() => vi.unstubAllGlobals());
-const logo = () => screen.getByRole('img', { name: 'Maxi Autos', hidden: true });
+const logo = () => within(screen.getByRole('banner', { hidden: true })).getByRole('img', { name: 'Maxi Autos', hidden: true });
 
 describe('approved graphite customer header', () => {
 
@@ -86,8 +86,8 @@ describe('approved graphite customer header', () => {
     state.settings.identity.brandColors = { primaryHsl: '161.538 16.883% 15.098%', accentHsl };
     const { container } = render(<Layout><p>Showroom</p></Layout>);
     const shell = container.querySelector<HTMLElement>('.luxxy-shell')!;
-    expect(hslColourToHex(shell.style.getPropertyValue('--accent'))).toBe('#25282d');
-    expect(shell.style.getPropertyValue('--customer-footer-background')).toBe('#25282d');
+    expect(hslColourToHex(shell.style.getPropertyValue('--accent'))).toBe('#173f8a');
+    expect(shell.style.getPropertyValue('--customer-footer-background')).toBe('#eef3f8');
     expect(state.settings.identity.brandColors).toEqual({ primaryHsl: '161.538 16.883% 15.098%', accentHsl });
   });
 

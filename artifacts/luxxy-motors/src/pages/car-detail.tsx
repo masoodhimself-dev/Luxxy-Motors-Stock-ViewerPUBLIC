@@ -37,7 +37,7 @@ import { VehicleHistorySummary, VehicleRunningCosts, VehicleSpecificationDetails
 import { vehicleSpecificationGroups, vehicleRunningCosts as getVehicleRunningCosts } from '@/lib/vehicle-extra-facts';
 import { getSimilarCars } from "@/lib/similar-cars";
 import { buyerInformation } from "@/lib/buyer-information";
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
 import {
   ArrowLeft,
@@ -47,6 +47,8 @@ import {
   ChevronDown,
 } from '@/components/icons';
 import { CarCard } from '@/components/car-card';
+import { CarComparison } from '@/components/car-comparison';
+import { useComparisonSelection, useShortlistShare } from '@/components/car-comparison-tray';
 import { useStock, type Car } from '@/lib/stock-context';
 import { SaveCarButton } from '@/components/saved-car-controls';
 import { Gallery } from '@/components/gallery';
@@ -67,6 +69,7 @@ import { GraphiteVehicle, GraphiteVehicleContent, GraphiteVehicleHistory } from 
 import { GraphiteIcon } from '@/components/graphite/graphite-icon';
 import { useDealerFeatures } from '@/lib/dealer-features';
 import { usePageMeta } from '@/hooks/use-page-meta';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { vehiclePageMeta } from '@/lib/page-meta';
 import {
   getVehicleBookingHref,
@@ -98,6 +101,12 @@ function suppliedVehicleDetail(value: string | null | undefined) {
   return text && !/^(?:[-–—]+|unknown|not specified|not available|n\/?a|ask us|null|undefined)$/i.test(text) ? text : '';
 }
 
+function VehicleSectionDisclosure({ folded, title, id, className, children }: { folded: boolean; title: string; id?: string; className: string; children: ReactNode }) {
+  return folded
+    ? <details id={id} className={`${className} gr-vehicle-disclosure`}><summary>{title}<ChevronDown size={20} aria-hidden="true" /></summary><div className="gr-vehicle-disclosure-body">{children}</div></details>
+    : <div id={id} className={className}>{children}</div>;
+}
+
 function UnavailableAlternatives({ car, cars }: { car?: Car | null; cars: Car[] }) {
   const alternatives = car ? getSimilarCars(car, cars) : cars.filter(item =>
     (!item.inventoryStatus || item.inventoryStatus === 'available') && (!item.sourceStatus || item.sourceStatus === 'live'),
@@ -122,7 +131,12 @@ export default function CarDetail() {
   const customerFeatures = useDealerFeatures();
   const websiteTemplate = selectedWebsiteTemplate(dealerConfig.presentation);
   const isGraphite = websiteTemplate === null;
+  const vehiclePhoneLayout = useIsMobile(761);
   const quietVehicle = isGraphite || websiteTemplate === 'grand-touring';
+  const comparisonEnabled = isGraphite && dealerConfig.presentation?.comparisonEnabled === true;
+  const comparison = useComparisonSelection(stock?.cars ?? (car ? [car] : []), comparisonEnabled);
+  const comparisonShare = useShortlistShare();
+  const [comparisonNotice, setComparisonNotice] = useState('');
   const browseSource = new URLSearchParams(window.location.search).get('from');
   const fromStock = browseSource === 'stock';
   const fromSaved = browseSource === 'saved';
@@ -141,6 +155,7 @@ export default function CarDetail() {
 
   useEffect(() => {
     setEnquiryExpanded(false); setMessageRequest(undefined);
+    setComparisonNotice('');
     return () => { cancelAnimationFrame(enquiryFocusFrame.current ?? 0); };
   }, [car?.id]);
 
@@ -151,6 +166,7 @@ export default function CarDetail() {
       if (['vehicle-description-heading', 'features-heading', 'vehicle-overview-heading', 'vehicle-running-costs-heading', 'vehicle-records-heading', 'buyer-information-heading', 'vehicle-history', 'vehicle-overview-section', 'vehicle-questions', 'vehicle-history-section', 'vehicle-visit-delivery', 'vehicle-delivery-heading', 'vehicle-enquiry', 'vehicle-source-report-heading', 'vehicle-quality-checks'].includes(id)) {
         if (id === 'vehicle-enquiry') setEnquiryExpanded(true);
         const target = document.getElementById(id);
+        if (target instanceof HTMLDetailsElement) target.open = true;
         for (let parent = target?.parentElement; parent; parent = parent.parentElement) {
           if (parent instanceof HTMLDetailsElement) parent.open = true;
         }
@@ -361,15 +377,27 @@ export default function CarDetail() {
   const templateMot = motSummary && <button type="button" className="vehicle-mot-expiry vehicle-mot-fact" onClick={event => openMotHistory(event.currentTarget)} aria-label={`${motSummary.label} ${motSummary.value}. View MOT history`}>
               <VehicleFactIcon label="MOT" /><span>{motSummary.label} <strong>{motSummary.value}</strong></span>
             </button>;
+  const graphiteTools = <div className="vehicle-action-tools" aria-label="Save, share and compare">
+    <SaveCarButton car={car} variant="inline" className="vehicle-save-control border-transparent bg-transparent" />
+    <VehicleShare key={car.id} car={car} />
+    {comparisonEnabled && <button type="button" aria-pressed={comparison.selectedIds.includes(car.id)} onClick={() => {
+      if (comparison.selectedIds.includes(car.id) && comparison.comparedCars.length >= 2) { comparisonShare.reset(); comparison.setOpen(true); return; }
+      const selected = comparison.selectedIds.includes(car.id);
+      comparison.toggle(car.id);
+      setComparisonNotice(selected ? 'Removed from comparison.' : comparison.selectedIds.length >= 3 ? 'You can compare up to 3 cars. Change your selection on the stock page.' : 'Added to comparison. Choose another car from our stock.');
+    }}>Compare</button>}
+    {comparisonNotice && <p className="gr-vehicle-comparison-notice" role="status">{comparisonNotice} <Link href="/stock">View stock</Link></p>}
+  </div>;
   const templateActions = <div className="vehicle-action-area" data-testid="desktop-purchase-panel">
             {!quietVehicle && bookingAction}
-            {enquiryAction && <div className="vehicle-primary-actions vehicle-summary-main-actions">{enquiryAction}</div>}
-            {quietVehicle && bookingAction}
+            {isGraphite && <><h2>Interested in this car?</h2><p>Ask a question or arrange a time to see it.</p>{enquiriesEnabled && <button type="button" className="gr-button gr-vehicle-contact-enquire" onClick={() => openVehicleEnquiry()}>Enquire about this car</button>}</>}
+            {!isGraphite && enquiryAction && <div className="vehicle-primary-actions vehicle-summary-main-actions">{enquiryAction}</div>}
+            {quietVehicle && !isGraphite && bookingAction}
+            {isGraphite && !vehiclePhoneLayout && bookingAction}
             <div className="vehicle-action-tools" aria-label="Contact and share">
               <VehicleCall car={car} buttonLabel="Call" />
               <VehicleWhatsApp car={car} />
-              <VehicleShare key={car.id} car={car} />
-              <SaveCarButton car={car} variant="inline" className="vehicle-save-control border-transparent bg-transparent" />
+              {!isGraphite && <><VehicleShare key={car.id} car={car} /><SaveCarButton car={car} variant="inline" className="vehicle-save-control border-transparent bg-transparent" /></>}
             </div>
             {(dealerConfig.partExchange?.enabled || deliveryAction) && <details className="vehicle-buying-options">
               <summary>{dealerConfig.partExchange?.enabled ? deliveryAction ? 'Part exchange & delivery' : 'Part exchange' : 'Delivery'}<ChevronDown size={17} /></summary>
@@ -443,7 +471,7 @@ export default function CarDetail() {
 
             </details>}
           </div>}
-          <div className="vehicle-page-chapter vehicle-equipment-chapter">
+          <VehicleSectionDisclosure folded={isGraphite} title="Features and equipment" className="vehicle-page-chapter vehicle-equipment-chapter">
             {features.length > 0 && (
               <section
                 className="vehicle-features-section mt-8 border-t border-border pt-7 lg:col-span-2"
@@ -456,9 +484,9 @@ export default function CarDetail() {
               </section>
             )}
 
-          </div>
-          {showQualityChecks && <VehicleQualityChecks car={car} motHistory={motHistory} dealerConfirmed={isMultiChoiceWebsite()} hideUnknown={privatePreview} onAskTeam={enquiriesEnabled ? openVehicleEnquiry : undefined} />}
-          <div id="vehicle-history-section" className="vehicle-page-chapter vehicle-history-chapter">
+          </VehicleSectionDisclosure>
+          {showQualityChecks && !isGraphite && <VehicleQualityChecks car={car} motHistory={motHistory} dealerConfirmed={isMultiChoiceWebsite()} hideUnknown={privatePreview} onAskTeam={enquiriesEnabled ? openVehicleEnquiry : undefined} />}
+          <VehicleSectionDisclosure folded={isGraphite} title="Service and vehicle history" id="vehicle-history-section" className="vehicle-page-chapter vehicle-history-chapter">
             <div className="vehicle-information-row vehicle-records-row">
             {isGraphite ? <GraphiteVehicleHistory car={car} mot={motSummary} motAction={motAction} /> : <VehicleHistorySummary car={car} motAction={motAction} />}
             {hasHandoverInformation && <section
@@ -517,8 +545,9 @@ export default function CarDetail() {
           {sourceReport && <details className="vehicle-full-records"><summary>Vehicle checks</summary><VehicleSourceReport car={car} /></details>}
           {originalAdvertDescriptions.length > 0 && <details className="vehicle-original-advert border-t border-border pt-4 text-sm"><summary className="min-h-11 cursor-pointer py-2 font-semibold">Original advert information</summary>{originalAdvertDescriptions.map((value, index) => <p key={index} className="whitespace-pre-line py-2">{value}</p>)}</details>}
 
-          </div>
-          <div id="vehicle-visit-delivery" className="vehicle-page-chapter vehicle-visit-delivery-chapter" aria-label="Visit and delivery">
+            {showQualityChecks && isGraphite && <VehicleQualityChecks car={car} motHistory={motHistory} dealerConfirmed={isMultiChoiceWebsite()} hideUnknown={privatePreview} onAskTeam={enquiriesEnabled ? openVehicleEnquiry : undefined} />}
+          </VehicleSectionDisclosure>
+          <VehicleSectionDisclosure folded={isGraphite} title="Delivery and visiting" id="vehicle-visit-delivery" className="vehicle-page-chapter vehicle-visit-delivery-chapter">
             {isGraphite && <h2 className="gr-vehicle-visit-title">Visit &amp; delivery</h2>}
             {isGraphite ? <div className="gr-vehicle-visit-card"><GraphiteIcon name="map-pin" className="gr-vehicle-visit-icon" /><VehicleVisit car={car} /></div> : <VehicleVisit car={car} />}
             {deliveryAction && <section aria-labelledby="vehicle-delivery-heading" className="vehicle-delivery-information">
@@ -526,7 +555,7 @@ export default function CarDetail() {
               <p className="mt-3 text-sm leading-6 text-muted-foreground">Enter your postcode to see the delivery cost and total price.</p>
               {deliveryAction}
             </section>}
-          </div>
+          </VehicleSectionDisclosure>
           {enquiriesEnabled && <VehicleAnswers key={car.id} car={car} motHistory={motHistory} coveredTopics={coveredAnswerTopics} onAskTeam={openVehicleEnquiry} />}
 
   </>;
@@ -542,16 +571,17 @@ export default function CarDetail() {
             {fromStock ? 'Back to your results' : fromSaved ? 'Back to saved cars' : 'Back to stock'}
           </Link>
         </div>
-        {websiteTemplate ? <CustomerTemplateVehicle template={websiteTemplate} car={car} identity={templateIdentity} gallery={templateGallery} price={templatePrice} registration={registrationDetails} facts={templateFacts} mot={templateMot} actions={templateActions} highlights={templateHighlights} reservation={<ReserveCar key={car.id} car={car}/>} photoRequest={enquiriesEnabled && <VehiclePhotoRequest key={`photos-${car.id}`} onRequest={openVehicleEnquiry}/>} onEnquiry={enquiriesEnabled ? openVehicleEnquiry : undefined}/> : <GraphiteVehicle identity={templateIdentity} gallery={templateGallery} price={templatePrice} registration={registrationDetails} facts={templateFacts} mot={templateMot} actions={templateActions} highlights={templateHighlights} sparse={sparseSummary} reservation={<ReserveCar key={car.id} car={car}/>} photoRequest={enquiriesEnabled && <VehiclePhotoRequest key={`photos-${car.id}`} onRequest={openVehicleEnquiry}/>}/> }
-        {isGraphite ? <GraphiteVehicleContent navigation={informationNavigation}>{informationSections}</GraphiteVehicleContent> : websiteTemplate === 'grand-touring' ? <GrandTouringVehicleContent navigation={informationNavigation}>{informationSections}</GrandTouringVehicleContent> : <div className="vehicle-details-content min-w-0">{informationNavigation}{informationSections}</div>}
+        {websiteTemplate ? <CustomerTemplateVehicle template={websiteTemplate} car={car} identity={templateIdentity} gallery={templateGallery} price={templatePrice} registration={registrationDetails} facts={templateFacts} mot={templateMot} actions={templateActions} highlights={templateHighlights} reservation={<ReserveCar key={car.id} car={car}/>} photoRequest={enquiriesEnabled && <VehiclePhotoRequest key={`photos-${car.id}`} onRequest={openVehicleEnquiry}/>} onEnquiry={enquiriesEnabled ? openVehicleEnquiry : undefined}/> : <GraphiteVehicle identity={templateIdentity} gallery={templateGallery} price={templatePrice} tools={graphiteTools} primaryAction={enquiryAction} bookingAction={vehiclePhoneLayout ? bookingAction : null} registration={registrationDetails} facts={templateFacts} mot={templateMot} actions={templateActions} highlights={templateHighlights} sparse={sparseSummary} reservation={<ReserveCar key={car.id} car={car}/>} photoRequest={enquiriesEnabled && <VehiclePhotoRequest key={`photos-${car.id}`} onRequest={openVehicleEnquiry}/>}/> }
+        {isGraphite ? <GraphiteVehicleContent navigation={informationNavigation} contact={templateActions}>{informationSections}</GraphiteVehicleContent> : websiteTemplate === 'grand-touring' ? <GrandTouringVehicleContent navigation={informationNavigation}>{informationSections}</GrandTouringVehicleContent> : <div className="vehicle-details-content min-w-0">{informationNavigation}{informationSections}</div>}
         {enquiriesEnabled && <details id="vehicle-enquiry" className="vehicle-inline-enquiry vehicle-message-disclosure" open={enquiryExpanded} onToggle={event => setEnquiryExpanded(event.currentTarget.open)}>
-          <summary><h2 id="vehicle-enquiry-heading" tabIndex={-1} className="section-heading">{quietVehicle ? 'Ask about this car' : 'Message the showroom'}</h2><span>Ask a question about this {vehicleLabel}</span></summary>
+          <summary><h2 id="vehicle-enquiry-heading" tabIndex={-1} className="section-heading">{quietVehicle ? 'Ask about this car' : 'Message the showroom'}</h2><span className="vehicle-enquiry-intro">Ask a question about this {vehicleLabel}</span>{isGraphite && <span className="gr-vehicle-enquiry-toggle">{enquiryExpanded ? 'Close message' : 'Write a message'}<GraphiteIcon name="chevron-down" /></span>}</summary>
           <div className="vehicle-message-body">
             <EnquiryForm key={car.id} vehicle={car} initialType="general" embedded messageRequest={messageRequest?.vehicleId === car.id ? messageRequest : undefined} />
             {enquiryExpanded && <VehicleEnquiryInformation key={`information-${car.id}`} car={car} motHistory={motHistory} requestMotHistory={requestMotHistory} dealer={settingsLoading || settingsError ? undefined : dealerConfig} includedItems={includedItems} />}
           </div>
         </details>}
       </div>
+      {comparisonEnabled && <CarComparison cars={comparison.comparedCars} open={comparison.open && comparison.comparedCars.length >= 2} onOpenChange={comparison.setOpen} onShare={ids => void comparisonShare.share(ids)} shareStatus={comparisonShare.shareStatus} copyLink={comparisonShare.copyLink} returnSource="stock" />}
       {similarCars.length > 0 && (
         <section
           className="vehicle-similar-stock section-space border-t border-border bg-secondary/40"

@@ -500,8 +500,8 @@ describe('shared homepage and dealer content', () => {
   it('keeps search and stock links available when no cars have photographs', () => {
     stockFixture.cars = originalCars.map(car => ({ ...car, heroImage: null, images: [] })); renderHome(false);
     expect(document.querySelector('.mh-hero-photo')).toBeNull();
-    expect(screen.getByRole('link', { name: 'View all cars' })).toHaveAttribute('href', '/stock');
-    expect(screen.getByRole('button', { name: 'See 5 cars' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View all 5 cars' })).toHaveAttribute('href', '/stock');
+    expect(screen.getByRole('button', { name: 'Browse 5 cars' })).toBeInTheDocument();
     cleanup(); renderHome(); expect(resultTitles()).toHaveLength(5);
   });
 
@@ -531,7 +531,7 @@ describe('shared homepage and dealer content', () => {
 
   it('shows the dealership introduction while stock loads', () => {
     stockIsLoading = true; renderHome(false);
-    expect(screen.getByRole('heading', { level: 1, name: 'Used cars in Test City' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Find your next car.' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Loading cars…' })).toBeDisabled();
     expect(screen.getByRole('status')).toHaveTextContent('Loading cars…');
   });
@@ -676,7 +676,7 @@ describe('shared stock filter integration', () => {
     expect(within(homepage).getByRole('combobox', { name: 'Make' })).toHaveValue('');
     expect(within(homepage).getByRole('combobox', { name: 'Model' })).toHaveValue('');
     expect(within(homepage).getByRole('combobox', { name: 'Maximum price' })).toHaveValue('10000');
-    expect(within(homepage).getByRole('button', { name: 'See 5 cars' })).toBeEnabled();
+    expect(within(homepage).getByRole('button', { name: 'Browse 5 cars' })).toBeEnabled();
     expect(within(homepage).queryByText(/BMW,Volkswagen/)).not.toBeInTheDocument();
   });
 

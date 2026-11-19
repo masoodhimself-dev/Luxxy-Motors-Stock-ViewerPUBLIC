@@ -16,31 +16,41 @@ type GraphiteVehicleProps = {
   highlights: ReactNode;
   reservation: ReactNode;
   photoRequest: ReactNode;
+  tools?: ReactNode;
+  primaryAction?: ReactNode;
+  bookingAction?: ReactNode;
   sparse?: boolean;
 };
 
 /** Live CarDetail slots own the facts, gallery, contact actions and eligibility. */
-export function GraphiteVehicle({ identity, price, gallery, facts, registration, mot, actions, reservation, highlights, photoRequest, sparse = false }: GraphiteVehicleProps) {
+export function GraphiteVehicle({ identity, price, gallery, facts, registration, mot, tools, primaryAction, bookingAction, reservation, highlights, photoRequest, sparse = false }: GraphiteVehicleProps) {
   return <section className="gr-vehicle" data-vehicle-composition="graphite" aria-label="Vehicle photographs and purchase details">
     <div className={`gr-vehicle-layout vehicle-detail-grid${sparse ? ' gr-vehicle-layout--sparse' : ''}`}>
-      <div className="gr-vehicle-identity">{identity}{price}</div>
+      <div className="gr-vehicle-identity">{identity}</div>
+      <div className="gr-vehicle-price">{price}</div>
+      <div className="gr-vehicle-registration">{registration}</div>
       <div className="gr-vehicle-gallery">{gallery}</div>
+      <div className="gr-vehicle-primary vehicle-primary-actions vehicle-summary-main-actions">{primaryAction}</div>
+      <div className="gr-vehicle-booking">{bookingAction}</div>
+      <div className="gr-vehicle-tools">{tools}</div>
       <div className="gr-vehicle-facts">{facts}</div>
-      <div className="gr-vehicle-records">{registration}{mot}</div>
-      <aside className="gr-vehicle-contact" aria-label="Contact the dealership about this car">{actions}</aside>
+
     </div>
     {reservation}
     <div className="gr-vehicle-extras">
+      <div className="gr-vehicle-records">{mot}</div>
       {highlights && <details className="gr-vehicle-highlights"><summary>More about this car</summary>{highlights}</details>}
       {photoRequest}
     </div>
   </section>;
 }
 
-export function GraphiteVehicleContent({ navigation, children }: { navigation: ReactNode; children: ReactNode }) {
+export function GraphiteVehicleContent({ navigation, children, contact }: { navigation: ReactNode; children: ReactNode; contact?: ReactNode }) {
   return <div className="gr-vehicle-information">
     <div className="gr-vehicle-contents">{navigation}</div>
-    <div className="gr-vehicle-sections">{children}</div>
+    <div className="gr-vehicle-information-layout"><div className="gr-vehicle-sections">{children}</div>
+      {contact && <aside className="gr-vehicle-contact" aria-label="Contact the dealership about this car">{contact}</aside>}
+    </div>
   </div>;
 }
 

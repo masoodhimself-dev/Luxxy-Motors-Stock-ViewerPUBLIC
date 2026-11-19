@@ -129,6 +129,11 @@ function renderVehicle(id: string, settings?: typeof dealerConfig & { testDriveB
   );
 }
 
+function openVehicleSection(title: string) {
+  const summary = screen.queryByText(title, { selector: 'summary' });
+  if (summary && !summary.closest('details')?.open) fireEvent.click(summary);
+}
+
 beforeEach(() => {
   stockStatus.error = null;
   stockStatus.vehicleError = null;
@@ -183,8 +188,8 @@ describe('default graphite vehicle page', () => {
       const gallery = composition.querySelector('.vehicle-detail-gallery')!;
       const facts = composition.querySelector('.vehicle-key-facts')!;
       const ask = within(composition as HTMLElement).getByRole('link', { name: 'Ask about this car' });
-      const booking = composition.querySelector('[data-vehicle-contact="booking"]')!;
-      for (const [first, next] of [[identity, price], [price, gallery], [gallery, facts], [facts, ask], [ask, booking]]) {
+      const booking = document.querySelector('.gr-vehicle-contact [data-vehicle-contact="booking"]')!;
+      for (const [first, next] of [[identity, price], [price, gallery], [gallery, ask], [ask, facts], [facts, booking]]) {
         expect(first.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       }
       expect(facts.querySelector('button')).toBeNull();
@@ -209,6 +214,7 @@ describe('default graphite vehicle page', () => {
     expect(records.closest('.gr-vehicle-records')).not.toBeNull();
     const expectedDate = new Date(`${expiry}T12:00:00Z`).toLocaleDateString('en-GB', { timeZone: 'Europe/London', day: 'numeric', month: 'long', year: 'numeric' });
     expect(records).toHaveTextContent(expectedDate);
+    openVehicleSection('Service and vehicle history');
     const section = screen.getByRole('region', { name: 'MOT and vehicle records' });
     expect(section).toHaveTextContent(expectedDate);
     expect(screen.getByRole('navigation', { name: 'Vehicle information sections' })).toHaveTextContent('MOT & history');
@@ -219,6 +225,7 @@ describe('default graphite vehicle page', () => {
 
 it.each(['band-only', 'with-plate'])('includes the quality section on every vehicle page, even without public enquiry access (%s)', id => {
   renderVehicle(id);
+  openVehicleSection('Service and vehicle history');
   const quality = screen.getByRole('region', { name: 'Pre-sale checks' });
   expect(within(quality).getAllByRole('listitem')).toHaveLength(10);
   expect(within(quality).getByRole('link', { name: 'Contact the showroom' })).toHaveAttribute('href', '/contact');
@@ -323,7 +330,7 @@ it('keeps a sparse price panel compact and omits placeholder specifications', ()
     expect(summary.querySelector('.vehicle-key-facts')).toBeNull();
     expect(summary).not.toHaveTextContent(/Unknown|Not specified|N\/A/);
     expect(screen.getByTestId('vehicle-identity')).not.toHaveTextContent('N/A');
-    expect(within(summary).getByRole('link', { name: 'Showroom details' })).toHaveAttribute('href', '#vehicle-visit-delivery');
+    expect(within(document.querySelector('.gr-vehicle-contact') as HTMLElement).getByRole('link', { name: 'Showroom details' })).toHaveAttribute('href', '#vehicle-visit-delivery');
   } finally { Object.assign(car, original); }
 });
 
@@ -422,6 +429,7 @@ it('prepares a service-record request in the same-page message form without send
   const disclosure = document.getElementById('vehicle-enquiry') as HTMLDetailsElement;
   expect(disclosure.open).toBe(false);
   expect(screen.queryByRole('link', { name: /Download service/ })).not.toBeInTheDocument();
+  openVehicleSection('Service and vehicle history');
   const request = screen.getByRole('button', { name: /Request service records/ });
   expect(request.parentElement).toHaveClass('vehicle-records-row');
   fireEvent.click(request);
@@ -504,6 +512,7 @@ it('adds a service-record request to the message form without losing an existing
   const message = screen.getByTestId('textarea-enquiry-message');
   await waitFor(() => expect(disclosure.open).toBe(true));
   fireEvent.change(message, { target: { value: 'I would like to visit on Saturday.' } });
+  openVehicleSection('Service and vehicle history');
   fireEvent.click(screen.getByRole('button', { name: /Request service records/ }));
   await waitFor(() => expect(message).toHaveValue('I would like to visit on Saturday.\n\nPlease send the available service-book photos and service records for this car.'));
   // The destination page also schedules a focus/scroll frame. Check the final
@@ -703,6 +712,7 @@ it('groups the vehicle information into clear chapters and keeps technical detai
   renderVehicle('with-plate');
   const navigation = screen.getByRole('navigation', { name: 'Vehicle information sections' });
   expect(within(navigation).getByRole('link', { name: 'Overview' })).toHaveAttribute('href', '#vehicle-overview-section');
+  openVehicleSection('Service and vehicle history');
   expect(screen.getByRole('region', { name: 'Pre-sale checks' })).toHaveAttribute('id', 'vehicle-quality-checks');
   expect(within(navigation).getByRole('link', { name: 'MOT & history' })).toHaveAttribute('href', '#vehicle-history-section');
   expect(within(navigation).getByRole('link', { name: 'Visit & delivery' })).toHaveAttribute('href', '#vehicle-visit-delivery');
@@ -739,6 +749,7 @@ it('keeps nonempty original advert text available in a collapsed disclosure', ()
   Object.assign(car, { sourceExtras: { originalAdvertDescriptions: ['  First advert details. \n', '', null, '   ', ' Second advert details. '] } });
   try {
     renderVehicle(car.id, dealerConfig);
+    openVehicleSection('Service and vehicle history');
     const summary = screen.getByText('Original advert information');
     const disclosure = summary.closest('details')!;
     expect(disclosure).toHaveClass('vehicle-original-advert');
@@ -856,9 +867,11 @@ it('keeps MOT in History and makes both delivery entries open the same estimate 
   const header = screen.getByTestId('vehicle-identity');
   expect(within(header).queryByRole('button', { name: 'MOT history' })).toBeNull();
   expect(within(header).queryByRole('button', { name: 'Delivery estimate' })).toBeNull();
+  openVehicleSection('Service and vehicle history');
   expect(screen.getByRole('button', { name: 'MOT history' }).closest('section')).toHaveAttribute('aria-labelledby', 'vehicle-records-heading');
   fireEvent.click(document.querySelector('.vehicle-buying-options summary') as HTMLElement);
   const early = within(document.querySelector('.vehicle-buying-options') as HTMLElement).getByRole('button', { name: 'Delivery estimate' });
+  openVehicleSection('Delivery and visiting');
   const later = within(screen.getByRole('region', { name: 'Delivery to your door' })).getByRole('button', { name: 'Delivery estimate' });
   expect(screen.getAllByRole('button', { name: 'Delivery estimate' })).toHaveLength(2);
   for (const action of [early, later]) {
@@ -1002,4 +1015,64 @@ it('hides the reserve action when the live payment service is unavailable', asyn
   renderVehicle('with-plate');
   await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/reservations/payment-readiness', expect.anything()));
   expect(screen.queryByRole('button', { name: /Reserve this car/ })).not.toBeInTheDocument();
+});
+
+
+describe('Modern Showroom vehicle review controls', () => {
+  it('starts with the detailed chapters folded and opens a chapter for an existing anchor', () => {
+    renderVehicle('with-plate', dealerConfig);
+    const history = document.getElementById('vehicle-history-section') as HTMLDetailsElement;
+    const delivery = document.getElementById('vehicle-visit-delivery') as HTMLDetailsElement;
+    expect(history.tagName).toBe('DETAILS');
+    expect(history.open).toBe(false);
+    expect(delivery.open).toBe(false);
+    window.history.replaceState({}, '', `${window.location.pathname}#vehicle-records-heading`);
+    fireEvent(window, new Event('hashchange'));
+    expect(history.open).toBe(true);
+    expect(delivery.open).toBe(false);
+  });
+
+  it('keeps comparison off when the dealership has not enabled it', () => {
+    renderVehicle('with-plate', { ...dealerConfig, presentation: { ...dealerConfig.presentation, comparisonEnabled: false } });
+    expect(screen.queryByRole('button', { name: 'Compare' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Share this vehicle' })).toBeInTheDocument();
+  });
+
+  it('remembers a selected vehicle for the stock comparison and can remove it', async () => {
+    renderVehicle('with-plate', { ...dealerConfig, presentation: { ...dealerConfig.presentation, comparisonEnabled: true } });
+    const compare = screen.getByRole('button', { name: 'Compare' });
+    fireEvent.click(compare);
+    expect(compare).toHaveAttribute('aria-pressed', 'true');
+    await waitFor(() => expect(JSON.parse(sessionStorage.getItem('luxxy.stock-comparison.v1')!)).toEqual(['with-plate']));
+    expect(screen.getByText(/Added to comparison\. Choose another car/)).toBeInTheDocument();
+    fireEvent.click(compare);
+    expect(compare).toHaveAttribute('aria-pressed', 'false');
+    await waitFor(() => expect(JSON.parse(sessionStorage.getItem('luxxy.stock-comparison.v1')!)).toEqual([]));
+  });
+
+  it('opens the existing comparison when two stock cars have been selected', async () => {
+    sessionStorage.setItem('luxxy.stock-comparison.v1', JSON.stringify(['band-only']));
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ status: 'unavailable' })));
+    renderVehicle('with-plate', { ...dealerConfig, presentation: { ...dealerConfig.presentation, comparisonEnabled: true } });
+    const compare = screen.getByRole('button', { name: 'Compare' });
+    fireEvent.click(compare);
+    fireEvent.click(compare);
+    expect(await screen.findByRole('dialog', { name: 'Compare your cars' })).toBeVisible();
+  });
+});
+
+
+it('shows an explicit write-message action for the collapsed inline enquiry and restores its closed state', async () => {
+  featureState.data.features.publicEnquiries = true;
+  Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: vi.fn() });
+  renderVehicle('with-plate', dealerConfig);
+  const disclosure = document.getElementById('vehicle-enquiry') as HTMLDetailsElement;
+  expect(disclosure.open).toBe(false);
+  fireEvent.click(within(disclosure).getByText('Write a message'));
+  await waitFor(() => expect(disclosure.open).toBe(true));
+  expect(within(disclosure).getByTestId('form-enquiry')).toBeVisible();
+  expect(within(disclosure).queryByText('Write a message')).not.toBeInTheDocument();
+  fireEvent.click(within(disclosure).getByText('Close message'));
+  await waitFor(() => expect(disclosure.open).toBe(false));
+  expect(within(disclosure).getByText('Write a message')).toBeVisible();
 });

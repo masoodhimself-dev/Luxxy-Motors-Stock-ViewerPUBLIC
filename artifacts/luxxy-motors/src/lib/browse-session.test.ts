@@ -35,12 +35,12 @@ describe('stock return state', () => {
     expect(browseReturnHref()).toBe(href);
   });
 
-  it('keeps another dealership on its own legacy filter return contract', () => {
+  it('retains the complete saved stock URL for another dealership too', () => {
     tenant('https://shoredrive.uk');
     sessionStorage.setItem('luxxy.browse.v1', JSON.stringify({ stockHref: '/stock?colour=Blue&page=3', filters: { make: 'Ford', model: 'Fiesta', maxPrice: '6000' } }));
     const url = new URL(browseReturnHref(), window.location.origin);
     expect(url.pathname).toBe('/stock');
-    expect(Object.fromEntries(url.searchParams)).toEqual({ make: 'Ford', model: 'Fiesta', maxPrice: '6000' });
+    expect(Object.fromEntries(url.searchParams)).toEqual({ colour: 'Blue', page: '3' });
   });
 
   it.each(['https://other.example/stock?make=BMW', '//other.example/stock', '/portal?section=sales', '/stock/../portal', '/stock#external'])('never turns an invalid saved return path into a navigation destination: %s', stockHref => {

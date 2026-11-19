@@ -14,11 +14,11 @@
 .gr-card-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:12px;padding:16px 16px 8px}
 .gr-card-identity{display:flex;min-width:0;flex-direction:column;align-items:flex-start;gap:12px}
 .gr-card-lead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;width:100%;min-width:0}
-.graphite-site .gr-car-card h3{flex:1;min-width:0;margin:0;color:var(--gr-ink,#25282d);font-family:inherit;font-size:24px;font-weight:600;line-height:30px;letter-spacing:0;overflow-wrap:anywhere;text-wrap:initial}
+.graphite-site .gr-car-card h3{flex:1;min-width:0;margin:0;color:var(--gr-ink,#25282d);font-family:var(--gr-display,inherit);font-size:24px;font-weight:500;line-height:30px;letter-spacing:0;overflow-wrap:anywhere;text-wrap:initial}
 .gr-car-card h3>a{color:inherit;text-decoration:none}
 .gr-car-card h3>a:hover{text-decoration:underline;text-underline-offset:4px}
 .gr-card-price{display:flex;flex:none;max-width:47%;flex-direction:column;align-items:flex-end;gap:4px;text-align:right}
-.gr-card-price>p{max-width:100%;margin:0;color:var(--gr-ink,#25282d);font-size:28px;font-weight:600;line-height:39px;letter-spacing:0;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.gr-card-price>p{max-width:100%;margin:0;color:var(--gr-accent,#173f8a);font-size:28px;font-weight:500;line-height:39px;letter-spacing:0;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .gr-card-price>span{max-width:170px;color:var(--gr-muted,#565c64);font-size:13px;line-height:1.4}
 .gr-card-price--enquiry>p{font-size:18px;line-height:1.4}
 .gr-card-variant{width:100%;margin:0;color:var(--gr-muted,#565c64);font-size:14px;font-weight:400;line-height:20px;overflow-wrap:anywhere}

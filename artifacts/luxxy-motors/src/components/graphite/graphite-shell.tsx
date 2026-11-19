@@ -94,15 +94,20 @@ export function GraphiteFooter({ settings, enquiriesEnabled, testDriveHref }: { 
   const phone = getPhoneHref(settings);
   const sections = multiChoiceHomeSections(settings);
   const showAbout = hasAboutContent(settings);
+  const logo = isMultiChoiceWebsite() ? '/brand/graphite/brand-wordmark.svg' : settings.presentation?.footerLogoUrl || getFittedShoreDriveLogo(settings.identity.logoAsset, 'header') || settings.identity.logoAsset;
   return <footer id="contact" data-home-section className="gr-footer" aria-label={`${settings.identity.name} information`}>
     <div className="gr-container">
       <div className="gr-footer__columns">
-        <section className="gr-footer__identity"><h2>{settings.identity.name}</h2>
-          {!address.isSample && address.lines.length > 0 && <address>{address.lines.map((line, i) => <span key={i}>{line}</span>)}</address>}
+        <section className="gr-footer__identity">
+          {settings.identity.name?.trim() && <Link href="/" className="gr-footer__brand" aria-label={`${settings.identity.name} home`}><DealerWordmark {...settings.identity} logoAsset={logo} /></Link>}
+          {!address.isSample && address.lines.length > 0 && <address><span>{address.lines[0]}</span>{address.lines.length > 1 && <span>{address.lines.slice(1).join(', ')}</span>}</address>}
+          {address.directions && <a href={address.directions} target="_blank" rel="noopener noreferrer">Get directions</a>}
+        </section>
+        <section className="gr-footer__contact" aria-label="Contact details">
           {phone && <a href={phone} className="gr-footer__phone">{formatPhoneDisplay(settings.contact.phone!)}</a>}
           {settings.contact.email && <a className="gr-footer__email" href={`mailto:${settings.contact.email}`}>{settings.contact.email}</a>}
           {isMultiChoiceWebsite() && <p>{appointmentVisitNote}</p>}
-          {address.directions && <a href={address.directions} target="_blank" rel="noopener noreferrer">Get directions</a>}
+          {hours.length > 0 && <details className="gr-footer__opening"><summary>Opening hours<GraphiteIcon name="chevron-down" /></summary><dl>{hours.map((h, i) => <div key={i}><dt>{h.days}</dt><dd>{h.times}</dd></div>)}</dl></details>}
         </section>
         <nav className="gr-footer__links" aria-label="Cars and services"><Link href="/stock">Used cars</Link><Link href="/saved">Saved cars</Link>
           {settings.partExchange?.enabled && <Link href={enquiriesEnabled ? '/enquire?type=part_exchange' : '/contact'}>Part exchange</Link>}
@@ -111,7 +116,6 @@ export function GraphiteFooter({ settings, enquiriesEnabled, testDriveHref }: { 
           {sections.delivery && <Link href={enquiriesEnabled ? '/enquire?type=general' : '/contact'}>Delivery options</Link>}
           {showAbout && <a href="/#about">About us</a>}<Link href="/contact">Contact</Link><PrivacyNoticeLink url={settings.legal.privacyUrl} />
         </nav>
-        {hours.length > 0 && <section className="gr-footer__hours"><h3>Opening hours</h3><dl>{hours.map((h, i) => <div key={i}><dt>{h.days}</dt><dd>{h.times}</dd></div>)}</dl></section>}
       </div>
       <div className="gr-footer__bottom"><div><p>© {new Date().getFullYear()} {settings.legal.companyName?.trim() || settings.identity.name}</p>{(settings.legal.companyNumber || settings.legal.vatNumber) && <p>{settings.legal.companyNumber && <span>Company no. {settings.legal.companyNumber}</span>}{settings.legal.vatNumber && <span>VAT no. {settings.legal.vatNumber}</span>}</p>}</div>
         <nav aria-label="Legal information"><PrivacyNoticeLink url={settings.legal.privacyUrl} />{settings.legal.termsUrl && <a href={settings.legal.termsUrl}>Terms & conditions</a>}{settings.legal.cookieUrl && <a href={settings.legal.cookieUrl}>Cookies</a>}
