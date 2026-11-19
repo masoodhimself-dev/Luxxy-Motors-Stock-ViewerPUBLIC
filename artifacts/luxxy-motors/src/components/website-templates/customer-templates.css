@@ -149,7 +149,7 @@
 .website-template.customer-site .ct-vehicle-collection .vehicle-detail-heading h1{font-family:Georgia,'Times New Roman',serif;font-size:48px;font-weight:400;color:#fff;justify-content:center}
 .website-template.customer-site .ct-vehicle-collection .vehicle-detail-heading>p{color:#c4c7c4;font-size:16px}
 .website-template.customer-site .ct-vehicle-collection .make-logo-vehicle-heading>img{width:34px;height:34px;padding:0;background:transparent;border:0;border-radius:0;margin:0;object-fit:contain;filter:brightness(0) invert(1)}
-.website-template.customer-site .ct-vehicle-framed-gallery{max-width:780px;margin:auto;padding:10px;border:1px solid #676b66}
+.website-template.customer-site .ct-vehicle-framed-gallery{max-width:780px;margin:auto;padding:10px;border:1px solid #676b66;background:var(--ct-paper);color:var(--ct-ink)}
 .website-template.customer-site .ct-vehicle-purchase-band{display:grid;grid-template-columns:.9fr 1.35fr 1fr;gap:35px;padding:31px 0;border-bottom:1px solid var(--ct-line);align-items:start}
 .website-template.customer-site .ct-vehicle-purchase-band>div{min-width:0}
 .website-template.customer-site .ct-vehicle-band-facts{padding:20px 25px;border-left:1px solid var(--ct-line);border-right:1px solid var(--ct-line)}
