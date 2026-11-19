@@ -347,7 +347,7 @@ export default function CarDetail() {
             {vehicleTrim && <p>{vehicleTrim}</p>}
           </header>;
   const templateGallery = <div className="vehicle-detail-gallery min-w-0">
-            <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} customerView hideInlineThumbnails inlinePresentation={quietVehicle ? 'showroom' : 'standard'} customerActions={{
+            <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} customerView hideInlineThumbnails inlinePresentation={isGraphite ? 'showroom-rail' : quietVehicle ? 'showroom' : 'standard'} customerActions={{
               enquiryHref: customerFeatures.enabled('publicEnquiries') ? '#vehicle-enquiry' : undefined,
               onEnquiry: customerFeatures.enabled('publicEnquiries') ? () => openVehicleEnquiry() : undefined,
             }} />

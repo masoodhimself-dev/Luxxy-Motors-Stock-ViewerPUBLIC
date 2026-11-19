@@ -50,6 +50,21 @@ it('resets a dependent model and searches make/model/budget without hidden old f
   expect(within(form).getByRole('button', { name: 'Browse 1 car' })).toBeInTheDocument();
 });
 
+it('links to real stock matches without promoting filters supported only by reserved cars', () => {
+  const stock = [
+    { ...car('auto', 'Toyota', 'Yaris', 7500), transmission: 'Automatic CVT' },
+    { ...car('seven', 'Ford', 'Galaxy', 12000), seats: 7 },
+    car('reserved', 'Audi', 'A1', 4000, 'reserved'),
+  ];
+  show({ stock, initialFilters: { make: 'Ford' } });
+  const shortcuts = within(screen.getByRole('navigation', { name: 'Browse stock by common filters' }));
+  expect(shortcuts.queryByRole('link', { name: 'Up to £5,000' })).not.toBeInTheDocument();
+  expect(shortcuts.getByRole('link', { name: 'Up to £10,000' })).toHaveAttribute('href', '/stock?maxPrice=10000');
+  expect(shortcuts.getByRole('link', { name: '7 seats' })).toHaveAttribute('href', '/stock?seats=7');
+  fireEvent.click(shortcuts.getByRole('link', { name: 'Automatic' }));
+  expect(window.location.pathname + window.location.search).toBe('/stock?transmission=Automatic');
+});
+
 it('preserves custom dealer wording and keeps feature-disabled routes out of the page', () => {
   const settings = config();
   settings.hero = { ...settings.hero, copy: 'Chosen cars at Harbour', announcement: 'Please arrange your visit', subcopy: 'Our published welcome.' };
@@ -72,6 +87,7 @@ it('does not show stale featured stock on error and leaves a stock recovery rout
   expect(within(stock).queryByRole('article')).not.toBeInTheDocument();
   expect(within(stock).getByRole('link', { name: 'Browse stock' })).toHaveAttribute('href', '/stock');
   expect(screen.getByRole('button', { name: 'Browse stock' })).toBeEnabled();
+  expect(screen.queryByRole('navigation', { name: 'Browse stock by common filters' })).not.toBeInTheDocument();
 });
 
 it('offers manual entry when the part-exchange lookup fails', async () => {

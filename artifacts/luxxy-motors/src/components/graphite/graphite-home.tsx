@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
 import { Link, useLocation } from 'wouter';
 import { vehicleDetailPath } from '@workspace/vehicle-meta';
+import { createStockMatcher } from '@workspace/vehicle-meta/stock-filters';
 import type { DealerSettings } from '@workspace/api-client-react';
 import type { DealerConfig } from '@/config/dealer';
 import type { Car as StockCar } from '@/lib/stock-context';
@@ -72,6 +73,29 @@ function GraphiteHomeSearch({ cars, isLoading, error, filters, setFilters, onSea
     {!filters.make && <p id={helpId} className={orphanModel ? 'gr-home-feedback' : 'sr-only'} role={orphanModel ? 'status' : undefined}>{orphanModel ? 'Choose a make or clear the saved model before searching.' : 'Choose a make to select a model.'}</p>}
     {error && <p className="gr-home-feedback" role="status">Stock couldn’t load. Open our stock page to try again.</p>}
   </form>;
+}
+
+function StockShortcuts({ cars }: { cars: StockCar[] }) {
+  const available = cars.filter(car => {
+    const status = String(car.inventoryStatus ?? '').trim().toLowerCase();
+    return !status || status === 'available';
+  });
+  const budget = ['5000', '10000'].find(maxPrice => {
+    const { matches } = createStockMatcher({ maxPrice });
+    return available.some(car => matches(car));
+  });
+  const automatic = createStockMatcher({ transmission: 'Automatic' });
+  const sevenSeats = createStockMatcher({ seats: '7' });
+  const links = [
+    ...(budget ? [{ href: `/stock?maxPrice=${budget}`, label: `Up to ${formatPrice(Number(budget))}` }] : []),
+    ...(available.some(car => automatic.matches(car)) ? [{ href: '/stock?transmission=Automatic', label: 'Automatic' }] : []),
+    ...(available.some(car => sevenSeats.matches(car)) ? [{ href: '/stock?seats=7', label: '7 seats' }] : []),
+  ];
+
+  if (links.length === 0) return null;
+  return <nav className="gr-home-stock-shortcuts" aria-label="Browse stock by common filters">
+    {links.map(link => <Link key={link.href} href={link.href}>{link.label}</Link>)}
+  </nav>;
 }
 
 /** A shared stock record in the feature or compact slot of the showroom composition. */
@@ -208,6 +232,7 @@ export function GraphiteHomepage({ settings, cars: suppliedCars, isLoading, erro
       <p className="gr-home-welcome">{settings.presentation?.showHeroDescription && settings.hero.subcopy ? settings.hero.subcopy : `${cars.length} ${cars.length === 1 ? 'car' : 'cars'} in stock. Clear prices. A team you can talk to.`}</p>
       {settings.hero.announcement?.trim() && <p className="gr-home-announcement">{settings.hero.announcement.trim()}</p>}
       <GraphiteHomeSearch cars={cars} isLoading={isLoading} error={error} filters={filters} setFilters={setFilters} onSearch={onSearch} />
+      {!isLoading && !error && <StockShortcuts cars={cars} />}
     </div></section>
 
     {settings.presentation?.featuredEnabled !== false && <section className="gr-home-stock gr-container" aria-labelledby="gr-home-stock-heading">
@@ -218,7 +243,7 @@ export function GraphiteHomepage({ settings, cars: suppliedCars, isLoading, erro
           <h2 className="gr-home-secondary-heading">Ready for your next drive.</h2>
           {featured.slice(1).map(car => <ShowroomHomeCar key={car.id} car={car} />)}
         </div>}
-        <div className="gr-home-stock-bottom"><p>Find something that suits you.</p><Link className="gr-button gr-button--secondary" href="/stock">View all {cars.length} {cars.length === 1 ? 'car' : 'cars'}</Link></div>
+        <div className="gr-home-stock-bottom"><Link className="gr-button gr-button--secondary" href="/stock">View all {cars.length} {cars.length === 1 ? 'car' : 'cars'}</Link></div>
         <div className="gr-home-essentials" aria-label="Buying information">
           {sections.warranty && <div><HomeIcon name="shield-check" /><div><h3>{standardWarranty ? '6 months’ warranty' : 'Warranty information'}</h3><p>{standardWarranty ? 'Included in the price' : 'See the cover available for your car'}</p></div></div>}
           <div><HomeIcon name="check" /><div><h3>MOT information</h3><p>View the recorded expiry for each car</p></div></div>

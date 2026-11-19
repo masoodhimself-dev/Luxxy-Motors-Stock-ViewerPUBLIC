@@ -147,6 +147,9 @@
 .graphite-site .gr-home-search-fields { grid-template-columns: repeat(3,minmax(0,1fr)) 1.08fr; align-items: center; }
 .graphite-site .gr-home select { height: 54px; min-height: 54px; border-color: var(--gr-line,#ced9e7); }
 .graphite-site .gr-home-search .gr-button { height: 54px; }
+.graphite-site .gr-home-stock-shortcuts { display: flex; flex-wrap: wrap; gap: 0 24px; margin-block: -16px -12px; }
+.graphite-site .gr-home .gr-home-stock-shortcuts a { display: inline-flex; align-items: center; min-height: 44px; color: var(--gr-accent, #173f8a); font-size: 15px; font-weight: 500; text-decoration: underline; text-underline-offset: 4px; }
+.graphite-site .gr-home-stock-shortcuts a:hover { text-decoration-thickness: 2px; }
 .graphite-site .gr-home-selection { display: grid; grid-template-columns: minmax(0,2.25fr) minmax(0,1fr); align-items: start; gap: 32px; }
 .graphite-site .gr-home-car { min-width: 0; color: var(--gr-ink,#14233b); }
 .graphite-site .gr-home-selection--single { grid-template-columns: minmax(0,1fr); }
@@ -176,7 +179,7 @@
 .graphite-site .gr-home-car-view { display: none; }
 .graphite-site .gr-home-secondary-stock { display: grid; gap: 32px; min-width: 0; }
 .graphite-site .gr-home-secondary-heading { display: none; }
-.graphite-site .gr-home-stock-bottom { grid-column: 1/-1; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-bottom: 16px; color: var(--gr-muted,#57667b); }
+.graphite-site .gr-home-stock-bottom { grid-column: 1/-1; display: flex; justify-content: flex-end; padding-bottom: 16px; }
 .graphite-site .gr-home-stock-bottom .gr-button { min-width: 240px; }
 .graphite-site .gr-home-essentials { grid-column: 1/-1; display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 32px; margin-inline: calc(-1 * var(--gr-home-gutter)); padding: 32px var(--gr-home-gutter); background: var(--gr-silver,#eef3f8); }
 .graphite-site .gr-home-essentials > div { display: flex; align-items: center; gap: 16px; min-width: 0; }
@@ -232,6 +235,7 @@
   .graphite-site .gr-home-search-fields > .gr-home-model-field { display: none; }
   .graphite-site .gr-home-search-fields > .gr-home-model-field--active { display: flex; grid-column: 1/-1; order: 3; }
   .graphite-site .gr-home-search-fields > .gr-button { grid-column: 1/-1; order: 4; margin-top: 8px; }
+  .graphite-site .gr-home-stock-shortcuts { column-gap: 20px; }
   .graphite-site .gr-home-selection { gap: 0; }
   .graphite-site .gr-home-car--featured { margin-inline: calc(-1 * var(--gr-home-gutter)); }
   .graphite-site .gr-home-car--featured .gr-home-car-caption { padding: 24px var(--gr-home-gutter); gap: 12px; }
@@ -246,7 +250,6 @@
   .graphite-site .gr-home-car-variant { display: block; margin-top: 12px; }
   .graphite-site .gr-home-car-view { display: flex; justify-content: space-between; align-items: center; grid-column: 1/-1; min-height: 44px; color: var(--gr-accent,#173f8a); text-decoration: none; font-size: 16px; }
   .graphite-site .gr-home-stock-bottom { padding-bottom: 48px; }
-  .graphite-site .gr-home-stock-bottom > p { display: none; }
   .graphite-site .gr-home-stock-bottom .gr-button { width: 100%; }
   .graphite-site .gr-home-px-inner { grid-template-columns: minmax(0,1fr); gap: 24px; padding-block: 40px; }
   .graphite-site .gr-home-px h2 { font-size: 32px; line-height: 1.35; }
