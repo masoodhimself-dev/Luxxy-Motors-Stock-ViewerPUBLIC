@@ -1,0 +1,864 @@
+/* Four catalogue compositions over the same vehicle records and shared actions.
+   Default layout is deliberately distinct; explicit Grid and List remain real overrides.
+   Keep this stylesheet after the existing stock and customer template foundations. */
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page {
+  --st-ink: var(--ct-ink, #252d37); --st-muted: var(--ct-muted, #626970); --st-line: var(--ct-line, #d8dde2); color: var(--st-ink);
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .stock-page-intro {
+  padding-block: 24px 22px; background: var(--ct-paper, #f3f5f7); border-bottom: 1px solid var(--st-line);
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .stock-page-intro h1 {
+  font-family: var(--ct-font-heading, Inter, Arial, sans-serif); font-size: 40px; line-height: 1.1; font-weight: 600; letter-spacing: -.035em; margin: 0; color: var(--st-ink);
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page #stock {
+  padding-block: 24px 64px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page #stock > .stock-catalogue-layout {
+  max-width: 1480px; align-items: start;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .multi-stock-controls {
+  position: static; background: transparent; min-width: 0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .multi-stock-search {
+  border-radius: 3px; min-height: 48px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .multi-stock-search input {
+  font-size: 15px; min-height: 46px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .multi-stock-sort {
+  border-radius: 3px; min-height: 48px; background: #fff; color: var(--st-ink);
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .multi-stock-sort select {
+  font-size: 14px; min-height: 46px; color: var(--st-ink);
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .multi-stock-count {
+  font-size: 14px; line-height: 1.5; min-height: 24px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .multi-stock-controls--toolbar .multi-stock-mobile-trigger {
+  display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 48px; border: 1px solid var(--st-line); border-radius: 2px; background: #fff; color: var(--st-ink); padding: 10px 18px; font-size: 14px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .stock-filter-sidebar {
+  border-radius: 3px; box-shadow: none; background: #fff; border-color: var(--st-line);
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .multi-stock-sidebar-heading h2 {
+  font-size: 15px; line-height: 1.4; letter-spacing: -.015em;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .multi-stock-filters .multi-stock-section__toggle {
+  font-size: 14px; min-height: 52px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .stock-options-panel {
+  background: #fff; color: #252d37; --foreground: 215 20% 18%; --primary: 215 20% 18%; --muted-foreground: 215 9% 40%; border: 1px solid #d8dde2; box-shadow: 0 8px 24px #17202a16;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .stock-options-panel :is(button,span,a) {
+  color: #252d37;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .stock-options-panel button[aria-pressed="true"] {
+  background: #e9edf1; color: #1c2c42; border-color: #b7c0cb;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card {
+  box-shadow: none; color: var(--st-ink);
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card h3 {
+  font-size: 22px; line-height: 1.25; min-height: 0; max-height: none; letter-spacing: -.03em; overflow: visible; -webkit-line-clamp: unset;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card h3.make-logo-card-heading {
+  display: flex; align-items: flex-start; gap: 8px; overflow: visible; -webkit-line-clamp: unset;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card h3.make-logo-card-heading > a {
+  display: block; min-width: 0; overflow: visible; white-space: normal; -webkit-line-clamp: unset; overflow-wrap: break-word;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card .vehicle-card-heading {
+  min-height: 0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card .vehicle-card-variant {
+  display: block; min-height: 0; max-height: none; overflow: visible; -webkit-line-clamp: unset; font-size: 14px; line-height: 1.55; margin-top: 7px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card .vehicle-card-price {
+  margin-block: 12px 0; gap: 5px 9px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card .luxxy-price {
+  font-size: 28px; line-height: 1.2; font-weight: 600; color: var(--st-ink);
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card .vehicle-specs {
+  display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px 16px; margin-block: 16px 12px; font-size: 14px; line-height: 1.5;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card .stock-card-equipment {
+  font-size: 13px; line-height: 1.55; margin-bottom: 14px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card .vehicle-benefit-summary {
+  font-size: 13px; line-height: 1.6; margin-block: 5px 12px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card .stock-card-status > :is(span,button) {
+  background: transparent; border: 0; border-radius: 0; padding: 0; font-size: 13px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card .vehicle-card-actions {
+  margin-top: 17px; padding-top: 12px; gap: 8px 12px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card .vehicle-card-view {
+  min-height: 46px; border: 1px solid var(--st-line); border-radius: 2px; padding: 10px 15px; background: transparent; color: var(--st-ink); font-size: 14px; font-weight: 600; text-decoration: none;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card .vehicle-card-view:hover {
+  background: var(--ct-paper, #f2f4f6); color: var(--st-ink); border-color: var(--st-ink);
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card .vehicle-card-shortlist {
+  gap: 3px 6px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card .vehicle-card-shortlist button {
+  min-height: 44px; padding-inline: 7px; font-size: 13px; border-radius: 2px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .stock-photo-badge {
+  border-radius: 2px; background: #252d37; color: #fff; padding: 7px 10px; font-size: 12px; font-weight: 500; line-height: 1.3;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .stock-photo-badge strong {
+  font-size: 17px; font-weight: 650;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .stock-photo-count {
+  border-radius: 2px; font-size: 12px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"] .template-stock-results {
+  display: grid; min-width: 0; align-items: start;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"] .template-stock-results > article.vehicle-card {
+  height: auto; min-height: 0; min-width: 0; border: 1px solid var(--st-line); border-radius: 3px; overflow: hidden; background: #fff; grid-column: auto;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"] .vehicle-card > .vehicle-card-photo {
+  width: 100%; min-width: 0; min-height: 0; height: auto; padding: 0; border: 0; border-radius: 0; align-self: start; background: #edf0f2;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"] .vehicle-card > .vehicle-card-photo > [data-stock-link] {
+  display: block; width: 100%; height: auto; min-height: 0; aspect-ratio: 4/3; border: 0; border-radius: 0; background: #edf0f2;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"] .vehicle-card > .vehicle-card-photo img {
+  object-fit: contain; width: 100%; height: 100%; background: #edf0f2; border-radius: 0; transform: none;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"] .vehicle-card > .vehicle-card-details {
+  min-width: 0; min-height: 0; border-top: 0; background: #fff; padding: 24px;
+}
+
+/* Showroom — two generous retail cards beside a useful filter rail. */
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="showroom"] .template-stock-results {
+  grid-template-columns: repeat(2,minmax(0,1fr)); gap: 28px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="showroom"] .template-stock-results > article.vehicle-card {
+  display: flex; flex-direction: column;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="showroom"] .vehicle-card > .vehicle-card-details {
+  padding: 24px 23px 17px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="showroom"] .vehicle-card h3 {
+  font-size: 24px; font-weight: 600;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="showroom"] .vehicle-card .luxxy-price {
+  font-size: 29px;
+}
+
+/* Grand Touring — a collection of broad photographic/editorial spreads. */
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template="grand-touring"] .stock-page-intro {
+  background: #262525; color: #fff; border-bottom: 1px solid #4a4c4f; padding-block: 30px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template="grand-touring"] .stock-page-intro h1 {
+  font-family: Georgia,'Times New Roman',serif; font-size: 51px; line-height: 1.05; font-weight: 400; color: #fff;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template="grand-touring"] .stock-page-intro :is(.stock-saved-link,.stock-options-trigger) {
+  color: #fff;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .template-stock-results {
+  grid-template-columns: minmax(0,1fr); gap: 32px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .template-stock-results > article.vehicle-card {
+  display: grid; grid-template-columns: minmax(0,55%) minmax(0,1fr); align-items: stretch; border-radius: 0; border-color: #d8dadd;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .vehicle-card > .vehicle-card-photo {
+  align-self: center;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .vehicle-card > .vehicle-card-details {
+  display: flex; flex-direction: column; justify-content: center; padding: 31px 36px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .vehicle-card h3 {
+  font-family: Georgia,'Times New Roman',serif; font-size: 34px; line-height: 1.12; font-weight: 400; letter-spacing: -.035em;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .vehicle-card .vehicle-card-variant {
+  font-size: 15px; line-height: 1.6; margin-top: 11px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .vehicle-card .vehicle-card-price {
+  margin-top: 19px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .vehicle-card .luxxy-price {
+  font-size: 32px; font-weight: 450;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .vehicle-card .vehicle-specs {
+  gap: 10px 22px; padding-block: 16px; margin-block: 18px 12px; border-block: 1px solid #e2e3e5;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .vehicle-card .vehicle-card-actions {
+  margin-top: 17px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .vehicle-card .vehicle-card-view {
+  border-color: #b5a185; background: #262525; color: #fff; border-radius: 0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .vehicle-card .vehicle-card-view:hover {
+  background: #373839; color: #fff;
+}
+
+/* Forecourt — a compact practical catalogue, with no fixed text voids. */
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template="forecourt"] .stock-page-intro {
+  background: #f4f4f5; border-bottom: 2px solid #853e46;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template="forecourt"] .stock-page-intro h1 {
+  font-size: 36px; font-weight: 650;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .template-stock-results {
+  grid-template-columns: minmax(0,1fr); gap: 19px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .template-stock-results > article.vehicle-card {
+  display: grid; grid-template-columns: minmax(0,33%) minmax(0,1fr); align-items: stretch; border-radius: 3px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card > .vehicle-card-photo {
+  align-self: stretch; height: 100%;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card > .vehicle-card-photo > [data-stock-link] {
+  height: 100%; min-height: 255px; aspect-ratio: auto;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card > .vehicle-card-details {
+  display: grid; grid-template-columns: minmax(0,1fr) auto; align-content: center; gap: 0 22px; padding: 23px 25px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card-details > div:first-child {
+  grid-column: 1; grid-row: 1; min-width: 0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card-details > .vehicle-card-price {
+  grid-column: 2; grid-row: 1; align-self: start; margin: 0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card-details > :is(.stock-card-status,.vehicle-specs,.vehicle-benefit-summary,.stock-card-equipment,.vehicle-card-actions) {
+  grid-column: 1/-1;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card h3 {
+  font-size: 24px; line-height: 1.2; font-weight: 650;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card .luxxy-price {
+  font-size: 28px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card .vehicle-specs {
+  grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px 16px; margin-block: 15px 10px; font-size: 13px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card .vehicle-card-variant {
+  font-size: 13px; margin-top: 7px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card .stock-card-equipment {
+  grid-template-columns: 1fr 1fr; gap: 5px 16px; margin-bottom: 11px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card .vehicle-card-actions {
+  margin-top: 9px; padding-top: 11px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card .vehicle-card-view {
+  border-color: #aeb3b9; color: #6d3038; background: transparent;
+}
+
+/* Panorama — a photographic wall with a dark information foundation.
+   Only the first vehicle spans the wall; the eighth-slot advert remains an advert. */
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template="panorama"] .stock-page-intro {
+  background: #fff; padding-block: 27px; border-bottom: 1px solid #d8dbde;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template="panorama"] .stock-page-intro h1 {
+  font-size: 48px; line-height: 1.05; font-weight: 450; letter-spacing: -.045em;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .template-stock-results {
+  grid-template-columns: repeat(2,minmax(0,1fr)); gap: 34px 30px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .template-stock-results > article.vehicle-card {
+  display: flex; flex-direction: column; border: 0; border-radius: 0; background: #24272b;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card > .vehicle-card-details {
+  --primary: 0 0% 100%; --foreground: 0 0% 100%; --muted-foreground: 216 9% 79%; --secondary: 216 7% 22%; --border: 216 7% 36%; --premium-ink: #fff; --premium-muted: #c6cbd0; --premium-panel: #24272b; --dealer-link: #fff; --dealer-heading: #fff; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 0 22px; padding: 26px 27px 21px; background: #24272b; color: #fff;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card-details > div:first-child {
+  grid-column: 1; grid-row: 1; min-width: 0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card-details > .vehicle-card-price {
+  grid-column: 2; grid-row: 1; align-self: start; margin: 0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card-details > :is(.stock-card-status,.vehicle-specs,.vehicle-benefit-summary,.stock-card-equipment,.vehicle-card-actions) {
+  grid-column: 1/-1;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card :is(h3,.luxxy-price,.vehicle-card-view,.vehicle-card-shortlist button) {
+  color: #fff;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card h3 {
+  font-size: 26px; font-weight: 500;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card .make-logo-card-heading > img {
+  filter: grayscale(1) invert(1); mix-blend-mode: screen; background: transparent;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card .luxxy-price {
+  font-size: 28px; font-weight: 500;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card :is(.vehicle-card-variant,.vehicle-specs,.vehicle-benefit-summary,.stock-card-equipment) {
+  color: #c6cbd0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card .stock-card-equipment li::before {
+  color: #c6cbd0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card .vehicle-card-actions {
+  border-color: #53585e; margin-top: 15px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card .vehicle-card-view {
+  background: transparent; border-color: #8b929a; color: #fff; border-radius: 0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card .vehicle-card-view:hover {
+  background: #fff; color: #24272b; border-color: #fff;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card .vehicle-card-shortlist button:hover:not(:disabled) {
+  background: #3a3e43; color: #fff; border-color: #717780;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card .vehicle-card-details :is(a,button):focus-visible {
+  outline: 2px solid #fff; outline-offset: 3px; box-shadow: 0 0 0 1px #24272b;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .template-stock-results > article.vehicle-card:first-child {
+  grid-column: 1/-1; display: grid; grid-template-columns: minmax(0,62%) minmax(0,1fr); align-items: stretch;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .template-stock-results > article.vehicle-card:first-child > .vehicle-card-photo {
+  height: 100%; align-self: stretch;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .template-stock-results > article.vehicle-card:first-child > .vehicle-card-photo > [data-stock-link] {
+  height: 100%; min-height: 410px; aspect-ratio: auto;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .template-stock-results > article.vehicle-card:first-child > .vehicle-card-details {
+  display: flex; flex-direction: column; justify-content: center; padding: 32px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .template-stock-results > article.vehicle-card:first-child h3 {
+  font-size: 34px; font-weight: 500;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .template-stock-results > article.vehicle-card:first-child .vehicle-card-price {
+  margin-top: 19px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .template-stock-results > article.vehicle-card:first-child .luxxy-price {
+  font-size: 33px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .template-stock-results > article.vehicle-card:first-child .vehicle-card-actions {
+  margin-top: 24px;
+}
+
+/* Preserve the real eighth-slot insertion and its existing reassurance content. */
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"] .template-stock-results > .stock-promise-ad {
+  min-height: 0; height: auto; border-radius: 3px; box-shadow: none;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .template-stock-results > .stock-promise-ad {
+  display: grid; grid-template-columns: 45% minmax(0,1fr);
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .stock-promise-ad__heading {
+  background: #262525; padding: 28px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .stock-promise-ad__heading h2 {
+  font-family: Georgia,'Times New Roman',serif; font-size: 33px; font-weight: 400;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .template-stock-results > .stock-promise-ad {
+  display: grid; grid-template-columns: 33% minmax(0,1fr);
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .stock-promise-ad__heading {
+  background: #252d37; padding: 22px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .stock-promise-ad__heading h2 {
+  font-size: 27px; font-weight: 650;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .stock-promise-ad__car {
+  width: 70px; margin-bottom: 14px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .stock-promise-ad__brand {
+  font-size: 12px; margin-bottom: 15px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .template-stock-results > .stock-promise-ad {
+  grid-column: 1/-1; display: grid; grid-template-columns: 36% minmax(0,1fr); border-radius: 0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .stock-promise-ad__heading {
+  background: #24272b; padding: 26px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .stock-promise-ad__heading h2 {
+  font-size: 32px; font-weight: 500;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .stock-promise-ad__benefits {
+  display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 20px; padding: 26px; align-items: start;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .stock-promise-ad__benefits li {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 16px; padding: 0; border: 0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .stock-promise-ad__benefits svg {
+  width: 38px; height: 52px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .stock-promise-ad__benefits p {
+  font-size: 16px; line-height: 1.55;
+}
+
+/* Explicit Grid/List are uniform, working customer choices, not aliases for Default. */
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="override"] .template-stock-results {
+  display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; align-items: start;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="override"] .template-stock-results > article.vehicle-card {
+  grid-column: auto; display: flex; flex-direction: column; min-height: 0; height: auto; border: 1px solid var(--st-line); border-radius: 3px; background: #fff;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="override"] .vehicle-card > .vehicle-card-photo {
+  width: 100%; min-height: 0; height: auto; padding: 0; border: 0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="override"] .vehicle-card > .vehicle-card-photo > [data-stock-link] {
+  aspect-ratio: 4/3; width: 100%; height: auto; min-height: 0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="override"] .vehicle-card > .vehicle-card-details {
+  display: flex; flex-direction: column; background: #fff; color: var(--st-ink); padding: 21px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="override"] .vehicle-card h3 {
+  font-size: 22px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .template-stock-results {
+  display: grid; grid-template-columns: minmax(0,1fr); gap: 20px; align-items: start;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .template-stock-results > article.vehicle-card {
+  display: grid; grid-template-columns: minmax(0,32%) minmax(0,1fr); height: auto; min-height: 0; border: 1px solid var(--st-line); border-radius: 3px; overflow: hidden; background: #fff;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card > .vehicle-card-photo {
+  width: 100%; height: 100%; min-width: 0; padding: 0; border: 0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card > .vehicle-card-photo > [data-stock-link] {
+  width: 100%; height: 100%; min-height: 250px; aspect-ratio: auto;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card > .vehicle-card-photo img {
+  object-fit: contain;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card > .vehicle-card-details {
+  display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 23px 25px; background: #fff;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card h3 {
+  font-size: 24px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card .vehicle-specs {
+  grid-template-columns: repeat(3,minmax(0,1fr));
+}
+@media (min-width: 1024px) {
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template="showroom"] #stock > .stock-catalogue-layout {
+  display: grid; grid-template-columns: 250px minmax(0,1fr); grid-template-rows: auto 1fr; gap: 17px 28px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template="showroom"] .stock-filter-sidebar {
+  display: flex; grid-column: 1; grid-row: 1/span 2;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template="showroom"] .stock-catalogue-controls {
+  grid-column: 2; grid-row: 1;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template="showroom"] #vehicle-results {
+  grid-column: 2; grid-row: 2;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template="forecourt"] #stock > .stock-catalogue-layout {
+  display: grid; grid-template-columns: 232px minmax(0,1fr); grid-template-rows: auto 1fr; gap: 17px 28px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template="forecourt"] .stock-filter-sidebar {
+  display: flex; grid-column: 1; grid-row: 1/span 2;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template="forecourt"] .stock-catalogue-controls {
+  grid-column: 2; grid-row: 1;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template="forecourt"] #vehicle-results {
+  grid-column: 2; grid-row: 2;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template="grand-touring"] #stock > .stock-catalogue-layout {
+  display: grid; grid-template-columns: minmax(0,1fr); grid-template-rows: auto auto; gap: 19px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template="grand-touring"] :is(.stock-catalogue-controls,#vehicle-results) {
+  grid-column: 1; grid-row: auto;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template="panorama"] #stock > .stock-catalogue-layout {
+  display: grid; grid-template-columns: minmax(0,1fr); grid-template-rows: auto auto; gap: 19px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template="panorama"] :is(.stock-catalogue-controls,#vehicle-results) {
+  grid-column: 1; grid-row: auto;
+}
+}
+@media (max-width: 1200px) and (min-width: 701px) {
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="showroom"] .template-stock-results {
+  gap: 22px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="showroom"] .vehicle-card > .vehicle-card-details {
+  padding: 21px 19px 15px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="showroom"] .vehicle-card h3 {
+  font-size: 22px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .vehicle-card > .vehicle-card-details {
+  padding: 26px 27px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .vehicle-card h3 {
+  font-size: 30px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card > .vehicle-card-details {
+  padding: 20px; gap: 0 15px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card h3 {
+  font-size: 22px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card .luxxy-price {
+  font-size: 26px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card > .vehicle-card-details {
+  padding: 23px; gap: 0 18px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card h3 {
+  font-size: 24px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card-details > .vehicle-card-price {
+  grid-column: 1/-1; grid-row: auto; margin-top: 13px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .template-stock-results > article.vehicle-card:first-child {
+  grid-template-columns: minmax(0,58%) minmax(0,1fr);
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .template-stock-results > article.vehicle-card:first-child > .vehicle-card-details {
+  padding: 28px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .template-stock-results > article.vehicle-card:first-child h3 {
+  font-size: 30px;
+}
+}
+@media (max-width: 1023px) {
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page #stock > .stock-catalogue-layout {
+  display: grid; grid-template-columns: minmax(0,1fr); gap: 13px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page :is(.stock-catalogue-controls,#vehicle-results) {
+  grid-column: 1; grid-row: auto;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .stock-filter-sidebar {
+  display: none;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="showroom"] .template-stock-results {
+  grid-template-columns: repeat(2,minmax(0,1fr));
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .template-stock-results {
+  grid-template-columns: minmax(0,1fr);
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .template-stock-results > article.vehicle-card {
+  grid-template-columns: minmax(0,35%) minmax(0,1fr);
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card .vehicle-specs {
+  grid-template-columns: repeat(3,minmax(0,1fr)); font-size: 13px;
+}
+}
+@media (max-width: 700px) {
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template] .stock-page-intro {
+  padding-block: 14px 13px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template] .stock-page-intro h1 {
+  font-size: 28px; line-height: 1.12;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .stock-heading-row {
+  flex-wrap: nowrap; gap: 10px; align-items: center;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .stock-title-group {
+  flex: 1 1 auto; min-width: 0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .stock-heading-actions {
+  flex: 0 0 auto; flex-wrap: nowrap; gap: 5px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .stock-saved-link {
+  min-height: 44px; gap: 4px; font-size: 13px; white-space: nowrap;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .stock-options-trigger {
+  width: 44px; min-width: 44px; min-height: 44px; padding: 0; gap: 0; font-size: 0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .stock-options-trigger > svg:first-child {
+  width: 18px; height: 18px; flex: 0 0 18px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .stock-options-trigger > svg:last-child {
+  display: none;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page #stock {
+  padding-block: 16px 42px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .multi-stock-controls {
+  position: static;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .multi-stock-controls--toolbar .multi-stock-mobile-trigger {
+  min-height: 46px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card h3 {
+  font-size: 22px; line-height: 1.25;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card .vehicle-card-variant {
+  font-size: 14px; line-height: 1.55;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card .vehicle-specs {
+  font-size: 14px; gap: 9px 15px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card .vehicle-card-actions {
+  gap: 9px; margin-top: 15px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card .vehicle-card-shortlist button {
+  font-size: 13px; padding-inline: 6px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="showroom"] .template-stock-results {
+  grid-template-columns: minmax(0,1fr); gap: 25px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="showroom"] .vehicle-card > .vehicle-card-details {
+  padding: 22px 21px 17px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="showroom"] .vehicle-card h3 {
+  font-size: 24px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="showroom"] .vehicle-card .luxxy-price {
+  font-size: 29px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template="grand-touring"] .stock-page-intro {
+  padding-block: 14px 13px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template="grand-touring"] .stock-page-intro h1 {
+  font-size: 32px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .template-stock-results {
+  gap: 26px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .template-stock-results > article.vehicle-card {
+  display: flex; flex-direction: column;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .vehicle-card > .vehicle-card-photo {
+  width: 100%; height: auto;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .vehicle-card > .vehicle-card-details {
+  padding: 25px 24px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .vehicle-card h3 {
+  font-size: 31px; line-height: 1.12;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .vehicle-card .vehicle-card-variant {
+  font-size: 14px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .vehicle-card .luxxy-price {
+  font-size: 30px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .vehicle-card .vehicle-specs {
+  gap: 11px 20px; margin-block: 19px 12px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="grand-touring"] .template-stock-results > .stock-promise-ad {
+  display: flex; flex-direction: column;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template="panorama"] .stock-page-intro {
+  padding-block: 14px 13px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-template="panorama"] .stock-page-intro h1 {
+  font-size: 28px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .template-stock-results {
+  grid-template-columns: minmax(0,1fr); gap: 30px; margin-inline: -16px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .template-stock-results > article.vehicle-card {
+  display: flex; flex-direction: column; width: 100%; grid-column: auto;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card > .vehicle-card-details {
+  padding: 24px 22px 20px; display: flex; flex-direction: column; gap: 0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card h3 {
+  font-size: 25px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card .vehicle-card-price {
+  margin-top: 16px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card .luxxy-price {
+  font-size: 30px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card .vehicle-specs {
+  grid-template-columns: repeat(2,minmax(0,1fr));
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .template-stock-results > article.vehicle-card:first-child {
+  display: flex; flex-direction: column; grid-template-columns: none;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .template-stock-results > article.vehicle-card:first-child > .vehicle-card-photo {
+  height: auto;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .template-stock-results > article.vehicle-card:first-child > .vehicle-card-photo > [data-stock-link] {
+  height: auto; min-height: 0; aspect-ratio: 4/3;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .template-stock-results > article.vehicle-card:first-child > .vehicle-card-details {
+  padding: 24px 22px 20px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .template-stock-results > article.vehicle-card:first-child h3 {
+  font-size: 27px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .template-stock-results > article.vehicle-card:first-child .luxxy-price {
+  font-size: 30px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .template-stock-results > .stock-promise-ad {
+  display: flex; flex-direction: column; grid-column: auto; margin-inline: 16px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .stock-promise-ad__benefits {
+  display: flex; flex-direction: column; padding: 0 22px; gap: 0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .stock-promise-ad__benefits li {
+  display: grid; grid-template-columns: 38px minmax(0,1fr); gap: 17px; padding-block: 22px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .stock-promise-ad__benefits li + li {
+  border-top: 1px solid var(--st-line);
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="override"] .template-stock-results {
+  grid-template-columns: minmax(0,1fr); gap: 24px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="override"] .vehicle-card > .vehicle-card-details {
+  padding: 21px;
+}
+}
+
+/* Small-screen compact catalogue: photo and identity first, all facts/actions below.
+   display:contents changes layout only; the original accessible DOM order is preserved. */
+@media (max-width: 700px) {
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .template-stock-results > article.vehicle-card {
+  display: grid; grid-template-columns: minmax(0,39%) minmax(0,1fr); grid-template-rows: auto auto; gap: 0; align-items: start; border-radius: 2px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card > .vehicle-card-photo {
+  grid-column: 1; grid-row: 1/span 2; width: 100%; height: auto; min-height: 0; align-self: start;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card > .vehicle-card-photo > [data-stock-link] {
+  width: 100%; height: auto; min-height: 0; aspect-ratio: 1/1;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card > .vehicle-card-details {
+  display: contents; padding: 0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card-details > div:first-child {
+  grid-column: 2; grid-row: 1; padding: 17px 15px 0; min-width: 0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card-details > .vehicle-card-price {
+  grid-column: 2; grid-row: 2; padding: 8px 15px 14px; margin: 0; align-self: start;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card h3 {
+  font-size: 20px; line-height: 1.2; letter-spacing: -.025em;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card .make-logo-card-heading {
+  gap: 6px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card .make-logo-card-heading > img {
+  width: 20px; height: 20px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card .vehicle-card-variant {
+  font-size: 13px; line-height: 1.45; margin-top: 7px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card .luxxy-price {
+  font-size: 25px; line-height: 1.2;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card-details > :is(.stock-card-status,.vehicle-specs,.vehicle-benefit-summary,.stock-card-equipment,.vehicle-card-actions) {
+  grid-column: 1/-1; margin-inline: 16px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card-details > .stock-card-status {
+  margin-block: 10px 0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card .vehicle-specs {
+  grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px 12px; font-size: 13px; line-height: 1.5; margin-block: 13px 10px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card .vehicle-benefit-summary {
+  margin-block: 2px 9px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card .stock-card-equipment {
+  grid-template-columns: 1fr 1fr; gap: 5px 14px; margin-bottom: 11px; font-size: 13px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card .vehicle-card-actions {
+  margin-top: 4px; margin-bottom: 13px; padding-top: 10px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card .vehicle-card-view {
+  min-height: 44px; padding: 9px 12px; font-size: 14px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card .vehicle-card-shortlist {
+  gap: 3px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card .vehicle-card-shortlist button {
+  padding-inline: 5px; font-size: 12px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .stock-photo-badge {
+  position: static; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 5px; width: 100%; max-width: none; min-height: 27px; border-radius: 0; padding: 5px 6px; font-size: 11px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .stock-photo-badge strong {
+  font-size: 13px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .template-stock-results > article.vehicle-card {
+  display: grid; grid-template-columns: minmax(0,39%) minmax(0,1fr); grid-template-rows: auto auto; gap: 0; align-items: start; border-radius: 2px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card > .vehicle-card-photo {
+  grid-column: 1; grid-row: 1/span 2; width: 100%; height: auto; min-height: 0; align-self: start;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card > .vehicle-card-photo > [data-stock-link] {
+  width: 100%; height: auto; min-height: 0; aspect-ratio: 1/1;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card > .vehicle-card-details {
+  display: contents; padding: 0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card-details > div:first-child {
+  grid-column: 2; grid-row: 1; padding: 17px 15px 0; min-width: 0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card-details > .vehicle-card-price {
+  grid-column: 2; grid-row: 2; padding: 8px 15px 14px; margin: 0; align-self: start;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card h3 {
+  font-size: 20px; line-height: 1.2; letter-spacing: -.025em;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card .make-logo-card-heading {
+  gap: 6px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card .make-logo-card-heading > img {
+  width: 20px; height: 20px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card .vehicle-card-variant {
+  font-size: 13px; line-height: 1.45; margin-top: 7px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card .luxxy-price {
+  font-size: 25px; line-height: 1.2;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card-details > :is(.stock-card-status,.vehicle-specs,.vehicle-benefit-summary,.stock-card-equipment,.vehicle-card-actions) {
+  grid-column: 1/-1; margin-inline: 16px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card-details > .stock-card-status {
+  margin-block: 10px 0;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card .vehicle-specs {
+  grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px 12px; font-size: 13px; line-height: 1.5; margin-block: 13px 10px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card .vehicle-benefit-summary {
+  margin-block: 2px 9px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card .stock-card-equipment {
+  grid-template-columns: 1fr 1fr; gap: 5px 14px; margin-bottom: 11px; font-size: 13px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card .vehicle-card-actions {
+  margin-top: 4px; margin-bottom: 13px; padding-top: 10px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card .vehicle-card-view {
+  min-height: 44px; padding: 9px 12px; font-size: 14px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card .vehicle-card-shortlist {
+  gap: 3px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card .vehicle-card-shortlist button {
+  padding-inline: 5px; font-size: 12px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .stock-photo-badge {
+  position: static; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 5px; width: 100%; max-width: none; min-height: 27px; border-radius: 0; padding: 5px 6px; font-size: 11px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .stock-photo-badge strong {
+  font-size: 13px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .template-stock-results > .stock-promise-ad {
+  display: flex; flex-direction: column;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .stock-promise-ad__heading {
+  padding: 23px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .stock-promise-ad__heading h2 {
+  font-size: 29px;
+}
+}
+@media (max-width: 360px) {
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card .vehicle-card-actions {
+  flex-direction: column; align-items: stretch; gap: 5px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card .vehicle-card-shortlist {
+  justify-content: space-between;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page .vehicle-card .vehicle-card-view {
+  width: 100%;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="forecourt"] .vehicle-card h3 {
+  font-size: 18px;
+}
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="compact"][data-stock-mode="override"] .vehicle-card h3 {
+  font-size: 18px;
+}
+}
+@media (prefers-reduced-motion: reduce) {
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page :is(.vehicle-card,.vehicle-card img,.vehicle-card-view) {
+  animation: none; transition: none;
+}
+}

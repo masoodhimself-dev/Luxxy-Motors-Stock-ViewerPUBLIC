@@ -16,6 +16,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import './stock-redesign.css';
 import './home-redesign.css';
 import './stock-sidebar.css';
+import '@/components/website-templates/stock-templates.css';
 import { customerDefaultCopy, websiteText } from "@/lib/website-content";
 import { useSavedCars } from '@/lib/saved-cars-context';
 import { arrivalTime } from '@/lib/stock-presentation';
@@ -46,6 +47,10 @@ import { cn, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
 import { getContactHref } from '@/lib/cta-helpers';
 import { vehicleBenefits } from '@/lib/vehicle-benefits';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
+import { selectedWebsiteTemplate } from '@/lib/website-template';
+import { clearStockView, readStockView, stockTemplatePresentation, stockViewStorageKey, writeStockView, type StockView } from '@/lib/stock-template-presentation';
+import { publicDealershipOrigin } from '@/lib/public-dealership-url';
+import { privateWebsitePreviewDetails } from '@/lib/private-website-preview';
 import {
   focusHomeTarget,
   flushPendingHomeTarget,
@@ -71,7 +76,6 @@ const defaultFilters: FilterState = {
   sort: '',
 };
 const benefitChoices = [{ key: 'ulez', label: 'ULEZ compliant', note: 'Check the supplied emissions information and confirm the vehicle before travelling.' }] as const;
-const STOCK_VIEW_KEY = 'luxxy.stock-view.v1';
 const STOCK_PROMISE_AFTER_CARS = 7;
 
 export default function Home({ browseStock = false }: { browseStock?: boolean }) {
@@ -91,6 +95,8 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   }, [browseStock, stock, isLoading, error]);
   const publicCars = useMemo(() => (stock?.cars ?? []).filter(car => !['sold', 'archived', 'hidden'].includes(String(car.inventoryStatus).toLowerCase())), [stock?.cars]);
   const { settings: dealerConfig, publicEnquiriesEnabled } = useDealerSettings();
+  const stockTemplate = browseStock ? selectedWebsiteTemplate(dealerConfig.presentation) : null;
+  const stockViewKey = stockViewStorageKey(stockTemplate, publicDealershipOrigin(), privateWebsitePreviewDetails()?.dealerId);
   const recommendedCars = useMemo(() => {
     const order = new Map((dealerConfig.featuredVehicleIds ?? []).map((id, index) => [id, index]));
     return [...publicCars].sort((a, b) =>
@@ -101,17 +107,20 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   const [showAll, setShowAll] = useState(
     () => browseStock || readBrowseSession().showAll === true,
   );
-  const [selectedStockView, setStockView] = useState<'cards' | 'compact' | null>(() => {
-    try {
-      const savedView = window.localStorage.getItem(STOCK_VIEW_KEY);
-      return savedView === 'compact' || savedView === 'cards' ? savedView : null;
-    } catch {
-      return null;
-    }
-  });
+  const [stockViewChoice, setStockViewChoice] = useState(() => ({ key: stockViewKey, view: readStockView(stockViewKey) }));
+  const selectedStockView = stockViewChoice.key === stockViewKey ? stockViewChoice.view : readStockView(stockViewKey);
+  const setStockView = (view: StockView) => {
+    setStockViewChoice({ key: stockViewKey, view });
+    // New templates persist only an explicit choice, never their default.
+    if (stockTemplate) writeStockView(stockViewKey, view);
+  };
+  useEffect(() => {
+    setStockViewChoice(current => current.key === stockViewKey ? current : { key: stockViewKey, view: readStockView(stockViewKey) });
+  }, [stockViewKey]);
   // Resolve the default after settings arrive, without overwriting a customer's
   // own view choice while the dealership configuration is still loading.
   const stockView = selectedStockView ?? 'cards';
+  const stockPresentation = stockTemplatePresentation(stockTemplate, selectedStockView);
 
   usePageMeta(showroomPageMeta(dealerConfig, { page: browseStock ? 'stock' : 'home' }));
 
@@ -299,13 +308,9 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   const showCatalogue = Boolean(stock && (!error || stockCount > 0));
 
   useEffect(() => {
-    if (selectedStockView === null) return;
-    try {
-      window.localStorage.setItem(STOCK_VIEW_KEY, stockView);
-    } catch {
-      // Keep the selected view usable when storage is unavailable or full.
-    }
-  }, [stockView, selectedStockView]);
+    if (stockTemplate || selectedStockView === null) return;
+    writeStockView(stockViewKey, stockView);
+  }, [stockView, selectedStockView, stockTemplate, stockViewKey]);
 
   const revealResults = (source: 'quick_filter' | 'filter_panel' | 'view_all') => {
     trackEvent('stock_results_opened', { source, result_count: filteredCars.length });
@@ -387,7 +392,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
 
   if (isLoading && browseStock)
     return (
-      <div className="luxxy-shell stock-refined stock-redesign stock-sidebar-layout min-h-screen" aria-label="Loading stock" aria-busy="true">
+      <div data-stock-template={stockTemplate ?? undefined} data-stock-view={stockTemplate ? stockView : undefined} data-stock-mode={stockTemplate ? selectedStockView === null ? 'default' : 'override' : undefined} data-stock-composition={stockTemplate ?? undefined} className={cn("luxxy-shell stock-refined stock-redesign stock-sidebar-layout min-h-screen", stockTemplate && `template-stock-page template-stock--${stockTemplate}`)} aria-label="Loading stock" aria-busy="true">
         <span className="sr-only" role="status">Loading used cars</span>
         <div className="container stock-loading stock-sidebar-loading mx-auto px-4 sm:px-6 lg:px-8" aria-hidden="true">
           <div className="stock-loading-title stock-skeleton animate-pulse" />
@@ -402,6 +407,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
 
   const stockViewControls = (
     <div className="flex justify-end gap-1" aria-label="Vehicle display">
+      {stockTemplate && <button type="button" aria-label="Default layout" aria-pressed={selectedStockView === null} data-testid="button-stock-view-default" className={cn('min-h-11 rounded-md border px-3 text-sm', selectedStockView === null ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground')} onClick={() => { setStockViewChoice({ key: stockViewKey, view: null }); clearStockView(stockViewKey); trackEvent('stock_view_changed', { view: 'default' }); }}>Default</button>}
       {(['cards', 'compact'] as const).map((view) => {
         const Icon = view === 'cards' ? Grid2X2 : List;
         return (
@@ -409,7 +415,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
             key={view}
             type="button"
             aria-label={view === 'cards' ? 'Grid' : 'List'}
-            aria-pressed={stockView === view}
+            aria-pressed={stockTemplate ? selectedStockView === view : stockView === view}
             data-testid={`button-stock-view-${view}`}
             onClick={() => {
               setStockView(view);
@@ -417,7 +423,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
             }}
             className={cn(
               'grid h-11 w-11 place-items-center rounded-md border',
-              stockView === view
+              (stockTemplate ? selectedStockView === view : stockView === view)
                 ? 'border-primary bg-primary text-primary-foreground'
                 : 'border-border text-muted-foreground hover:bg-secondary',
             )}
@@ -430,7 +436,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   );
 
   return (
-    <div className={cn(browseStock ? "luxxy-shell homepage-refined stock-refined stock-redesign stock-sidebar-layout min-h-screen" : "luxxy-shell homepage-refined homepage-art-directed homepage-premium min-h-screen")}>
+    <div data-stock-template={stockTemplate ?? undefined} data-stock-view={stockTemplate ? stockView : undefined} data-stock-mode={stockTemplate ? selectedStockView === null ? 'default' : 'override' : undefined} data-stock-composition={stockTemplate ?? undefined} className={cn(browseStock ? "luxxy-shell homepage-refined stock-refined stock-redesign stock-sidebar-layout min-h-screen" : "luxxy-shell homepage-refined homepage-art-directed homepage-premium min-h-screen", stockTemplate && `template-stock-page template-stock--${stockTemplate}`)}>
       {!browseStock && <section className="stock-search-hero" aria-labelledby="home-heading">
         {heroPhotoSource && <div className="stock-search-backdrop" data-testid="showroom-hero-photo"><ShowroomPhoto src={heroPhotoSource} position={demoSite && !configuredHeroImage ? 'bottom' : dealerConfig.presentation?.heroImagePosition} alt={heroAlt} priority fit="cover" className="h-full" /></div>}
         <div className="stock-search-shade" aria-hidden="true" />
@@ -490,6 +496,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
       {browseStock && <section id="stock" data-home-section className="browse-stock py-8 md:py-10">
         <div className={cn("container mx-auto px-4 sm:px-6 lg:px-8", showCatalogue && "stock-catalogue-layout")}>
           {showCatalogue && (multiStock ? <MultiStockFilters
+            presentation={stockPresentation.filters}
             cars={publicCars}
             filters={stockSearch.filters}
             onChange={stockSearch.onChange}
@@ -573,7 +580,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
               <>
                 <div
                   className={cn(
-                    'stock-results-grid grid gap-5',
+                    'stock-results-grid grid gap-5', stockTemplate && 'template-stock-results',
                     stockView === 'compact' ? 'xl:grid-cols-2' : 'stock-card-results sm:grid-cols-2 xl:grid-cols-3',
                   )}
                 >
@@ -586,7 +593,8 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                         stockDetails
                         photoControls={stockPhotoControlsEnabled()}
                         priority={index < 2}
-                        layout={stockView === 'compact' ? 'compact' : 'card'}
+                        layout={stockPresentation.cardLayout}
+                        imageSizes={stockPresentation.imageSizes}
                         stretchedLink
                         compareAction={publicCars.length >= 2 ? {
                           selected: comparison.selectedIds.includes(car.id),

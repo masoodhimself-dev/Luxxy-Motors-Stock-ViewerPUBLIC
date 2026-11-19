@@ -123,6 +123,7 @@ type HarnessProps = {
   patch?: (value: Partial<StockFilters>) => void;
   clear?: () => void;
   showResults?: () => void;
+  presentation?: 'sidebar' | 'toolbar';
 };
 function Harness({
   initial = {},
@@ -130,6 +131,7 @@ function Harness({
   patch,
   clear,
   showResults,
+  presentation,
 }: HarnessProps) {
   const [filters, setFilters] = useState<StockFilters>({
     ...createStockFilters(),
@@ -157,6 +159,7 @@ function Harness({
         Navigate to saved search
       </button>
       <MultiStockFilters
+        presentation={presentation}
         cars={cars}
         filters={filters}
         onChange={(value) => {
@@ -196,6 +199,32 @@ afterEach(() => {
 });
 
 describe("Multi-Choice stock controls", () => {
+  it('keeps toolbar filters usable on desktop and through resizing without duplicating the sidebar', async () => {
+    setWidth(1200); const patch = vi.fn();
+    render(<Harness presentation="toolbar" patch={patch}/>);
+    expect(screen.queryByRole('complementary', { name: 'Filter cars' })).not.toBeInTheDocument();
+    const trigger = screen.getByRole('button', { name: 'Filters' });
+    fireEvent.click(trigger);
+    const drawer = screen.getByRole('dialog', { name: 'Filter cars' });
+    expand('Make', drawer); fireEvent.click(within(drawer).getByRole('checkbox', { name: 'Ford' }));
+    expect(state().make).toBe('Ford'); expect(patch).toHaveBeenCalled();
+    setWidth(1440); fireEvent(window, new Event('resize'));
+    expect(screen.getByRole('dialog', { name: 'Filter cars' })).toBeInTheDocument();
+    fireEvent.click(within(drawer).getByRole('button', { name: /Show.*cars/ }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    trigger.focus(); fireEvent.click(trigger);
+    fireEvent.keyDown(screen.getByRole('dialog', { name: 'Filter cars' }), { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+  it('still closes the sidebar-mode phone drawer when the desktop sidebar becomes available', async () => {
+    setWidth(600); render(<Harness/>);
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    expect(screen.getByRole('dialog', { name: 'Filter cars' })).toBeInTheDocument();
+    setWidth(1200); fireEvent(window, new Event('resize'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('complementary', { name: 'Filter cars' })).toBeInTheDocument();
+  });
   it("puts common filters first with the supplied SVGs and every section initially collapsed", () => {
     const { container } = render(<Harness />);
     expect(within(sidebar()).getByRole("heading", { name: "Search Filters" })).toBeVisible();
@@ -226,7 +255,7 @@ describe("Multi-Choice stock controls", () => {
       expect(row.querySelector('img[data-filter-icon="chevron"]')).toHaveAttribute("src", "/brand/multi-choice-motors/filters/03-chevron-down.svg");
     });
     const css = readFileSync("src/components/multi-stock-filters.css", "utf8");
-    expect(css).toMatch(/--app-font-sans:\s*["']Multi Stock Montserrat["']/);
+    expect(css).toMatch(/--app-font-sans:\s*(?:var\(--ct-font-ui,\s*)?["']Multi Stock Montserrat["']/);
     for (const weight of [400, 500, 700]) {
       const path = `/brand/multi-choice-motors/fonts/montserrat-latin-${weight}.woff2`;
       expect(css).toContain(path);

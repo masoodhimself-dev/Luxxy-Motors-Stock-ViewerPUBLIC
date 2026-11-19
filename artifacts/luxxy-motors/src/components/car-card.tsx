@@ -52,6 +52,7 @@ export function CarCard({
   recommendationInclusions,
   compareAction,
   analyticsSource = 'showroom',
+  imageSizes,
 }: {
   car: Car;
   priority?: boolean;
@@ -67,6 +68,7 @@ export function CarCard({
   recommendationInclusions?: string[];
   compareAction?: { selected: boolean; disabled: boolean; onToggle: () => void };
   analyticsSource?: 'showroom' | 'similar_cars' | 'saved_cars';
+  imageSizes?: string;
 }) {
   const displayBadges = [...new Set([vehicleAvailability(car.inventoryStatus), ...badges])];
   const isRow = layout === 'row';
@@ -201,7 +203,7 @@ export function CarCard({
                 <img
                   key={url}
                   src={url}
-                  {...responsiveVehicleImage(url, catalogue ? "(max-width: 767px) 100vw, (pointer: coarse) and (max-width: 1366px) 50vw, (max-width: 1199px) 50vw, (max-width: 1599px) 33vw, 500px" : "(max-width: 639px) 100vw, (pointer: coarse) and (min-width: 1100px) 33vw, (max-width: 1279px) 50vw, 440px")}
+                  {...responsiveVehicleImage(url, imageSizes ?? (catalogue ? "(max-width: 767px) 100vw, (pointer: coarse) and (max-width: 1366px) 50vw, (max-width: 1199px) 50vw, (max-width: 1599px) 33vw, 500px" : "(max-width: 639px) 100vw, (pointer: coarse) and (min-width: 1100px) 33vw, (max-width: 1279px) 50vw, 440px"))}
                   alt={url === galleryUrls[activeIndex] ? vehicleLabel : ""}
                   decoding="async"
                   width={800}

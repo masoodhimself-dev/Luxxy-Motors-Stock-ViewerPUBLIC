@@ -39,6 +39,7 @@ type Props = {
   onClear: () => void;
   matchCount: number;
   onShowResults?: () => void;
+  presentation?: 'sidebar' | 'toolbar';
 };
 const iconFiles = {
   make: "02-filter-make-car.svg",
@@ -532,6 +533,7 @@ export function MultiStockFilters({
   onClear,
   matchCount,
   onShowResults,
+  presentation = 'sidebar',
 }: Props) {
   const [open, setOpen] = useState(false),
     [query, setQuery] = useState(filters.search);
@@ -558,11 +560,11 @@ export function MultiStockFilters({
   }, [query, filters.search]);
   useEffect(() => {
     const resize = () => {
-      if (window.innerWidth >= 1024) setOpen(false);
+      if (presentation === 'sidebar' && window.innerWidth >= 1024) setOpen(false);
     };
     window.addEventListener("resize", resize);
     return () => window.removeEventListener("resize", resize);
-  }, []);
+  }, [presentation]);
   const { facets } = useMemo(
     () => applyStockFilters(cars, filters),
     [cars, filters],
@@ -600,7 +602,7 @@ export function MultiStockFilters({
   );
   return (
     <>
-      <aside
+      {presentation === 'sidebar' && <aside
         className="stock-filter-sidebar multi-stock-filters"
         aria-label="Filter cars"
       >
@@ -614,9 +616,10 @@ export function MultiStockFilters({
           )}
         </div>
         <div className="multi-stock-sidebar-scroll">{panel}</div>
-      </aside>
+      </aside>}
       <div
-        className="stock-catalogue-controls multi-stock-controls"
+        className={`stock-catalogue-controls multi-stock-controls${presentation === 'toolbar' ? ' multi-stock-controls--toolbar' : ''}`}
+        data-filter-presentation={presentation}
         data-testid="multi-stock-toolbar"
       >
         <div className="multi-stock-toolbar-row">
@@ -705,7 +708,7 @@ export function MultiStockFilters({
                     event.preventDefault();
                     onShowResults();
                   }
-                } else if (window.innerWidth >= 1024) {
+                } else if (presentation === 'sidebar' && window.innerWidth >= 1024) {
                   event.preventDefault();
                   search.current?.focus({ preventScroll: true });
                 }
