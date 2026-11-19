@@ -18,6 +18,8 @@ export interface GalleryProps {
   vehicleLabel?: string;
   customerView?: boolean;
   hideInlineThumbnails?: boolean;
+  /** A quiet inline frame; full photo tools remain in the shared viewer. */
+  inlinePresentation?: 'standard' | 'showroom';
   /** Select a starting photograph without changing the shared gallery order. */
   initialImageUrl?: string;
   customerActions?: { enquiryHref?: string; onEnquiry?: () => void };
@@ -28,7 +30,7 @@ function imageCaption(image: CarImage | string | undefined) {
 
 export function Gallery({
   car, images, heroImage, vehicleLabel = 'Vehicle', customerView = false,
-  hideInlineThumbnails = false, customerActions, initialImageUrl,
+  hideInlineThumbnails = false, inlinePresentation = 'standard', customerActions, initialImageUrl,
 }: GalleryProps) {
   const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
@@ -267,12 +269,21 @@ export function Gallery({
         {failedImages.size > 0 ? <><p className="text-sm" role="status">Photos couldn’t be loaded</p><button type="button" onClick={retryPhotos} className="inline-flex min-h-11 items-center gap-2 px-4 text-sm font-medium underline underline-offset-4"><RotateCw className="h-4 w-4" aria-hidden="true" />Try photos again</button></> : <p className="text-sm">Photographs to follow</p>}
       </div>
     );
+  const inlineControls = <div className="vehicle-gallery-controls">
+    <div className="vehicle-gallery-caption">
+      {(!open || !customerView) && <span id={counterId} className="vehicle-gallery-position" aria-live="polite" aria-atomic="true">{index + 1} / {allImages.length}</span>}
+      {inlinePresentation !== 'showroom' && imageCaption(allImages[index]) && <span className="vehicle-photo-caption">{imageCaption(allImages[index])}</span>}
+    </div>
+    <button type="button" className="vehicle-gallery-view-all" onClick={() => { setOpen(true); if (customerView) showOverview(); }}>
+      <LayoutGrid className="h-4 w-4" aria-hidden="true" />{allImages.length === 1 ? 'View photo' : `View all ${allImages.length} photos`}
+    </button>
+  </div>;
   return (
     <Dialog open={open} onOpenChange={value => {
       setOpen(value);
       if (!value) { setZoomed(false); setOverview(false); swiped.current = false; touchStart.current = null; pinch.current = null; pan.current = null; }
     }}>
-      <div className={cn("vehicle-photo-gallery min-w-0", customerView && "is-customer-gallery")}>
+      <div className={cn("vehicle-photo-gallery min-w-0", customerView && "is-customer-gallery", inlinePresentation === 'showroom' && "showroom-inline-gallery")}>
         <div className="vehicle-gallery-frame">
         <div
           className="vehicle-gallery-image-stage relative aspect-[4/3] overflow-hidden rounded-sm bg-muted touch-pan-y touch-pinch-zoom"
@@ -305,20 +316,13 @@ export function Gallery({
               <span className="vehicle-gallery-arrow-face" aria-hidden="true"><ChevronRight className="h-5 w-5" /></span>
             </button>
           </div>}
+          {inlinePresentation === 'showroom' && inlineControls}
         </div>
         </div>
-        <div className="vehicle-gallery-controls">
-          <div className="vehicle-gallery-caption">
-            {(!open || !customerView) && <span id={counterId} className="vehicle-gallery-position" aria-live="polite" aria-atomic="true">{index + 1} / {allImages.length}</span>}
-            {imageCaption(allImages[index]) && <span className="vehicle-photo-caption">{imageCaption(allImages[index])}</span>}
-          </div>
-          <button type="button" className="vehicle-gallery-view-all" onClick={() => { setOpen(true); if (customerView) showOverview(); }}>
-            <LayoutGrid className="h-4 w-4" aria-hidden="true" />{allImages.length === 1 ? 'View photo' : `View all ${allImages.length} photos`}
-          </button>
-        </div>
-        {imageCaption(allImages[index]) && <details className="vehicle-mobile-photo-details" key={activeUrl}><summary>Photo details</summary><p>{imageCaption(allImages[index])}</p></details>}
+        {inlinePresentation !== 'showroom' && inlineControls}
+        {inlinePresentation !== 'showroom' && imageCaption(allImages[index]) && <details className="vehicle-mobile-photo-details" key={activeUrl}><summary>Photo details</summary><p>{imageCaption(allImages[index])}</p></details>}
         {failedImages.size > 0 && <p className="mt-2 text-xs text-muted-foreground">{failedImages.size} {failedImages.size === 1 ? 'photo couldn’t' : 'photos couldn’t'} be loaded. <button type="button" onClick={retryPhotos} className="min-h-11 px-2 font-medium underline underline-offset-4">Retry photos</button></p>}
-        {!hideInlineThumbnails && allImages.length > 1 && (
+        {inlinePresentation !== 'showroom' && !hideInlineThumbnails && allImages.length > 1 && (
           <div
             className="vehicle-thumbnail-grid mt-3 flex gap-2"
             aria-label="Choose photograph"
@@ -355,8 +359,8 @@ export function Gallery({
             ); })}
           </div>
         )}
-        {groupNavigation()}
-        {shortcuts.length > 0 && <div className="vehicle-photo-shortcuts" aria-label="Photo shortcuts">
+        {inlinePresentation !== 'showroom' && groupNavigation()}
+        {inlinePresentation !== 'showroom' && shortcuts.length > 0 && <div className="vehicle-photo-shortcuts" aria-label="Photo shortcuts">
           <span>Show me</span>
           {shortcuts.map(shortcut => <button key={shortcut.label} type="button" onClick={() => {
             setSelectedGroup('All');
@@ -367,7 +371,7 @@ export function Gallery({
         </div>}
       </div>
       <DialogContent
-        className={cn('vehicle-lightbox', customerView && 'customer-vehicle-lightbox', overview && 'is-gallery-overview', zoomed && 'is-gallery-zoomed')}
+        className={cn('vehicle-lightbox', customerView && 'customer-vehicle-lightbox', inlinePresentation === 'showroom' && 'showroom-inline-lightbox', overview && 'is-gallery-overview', zoomed && 'is-gallery-zoomed')}
         overlayClassName={customerView ? 'vehicle-gallery-backdrop' : undefined}
         onCloseAutoFocus={event => {
           if (!messageRequested.current) return;
@@ -420,6 +424,14 @@ export function Gallery({
           </div>
         </div>}
         {groupNavigation()}
+        {inlinePresentation === 'showroom' && shortcuts.length > 0 && <div className="vehicle-photo-shortcuts" aria-label="Photo shortcuts">
+          <span>Show me</span>
+          {shortcuts.map(shortcut => <button key={shortcut.label} type="button" onClick={() => {
+            setSelectedGroup('All');
+            selectPhoto(shortcut.index);
+            setOverview(false);
+          }}>{shortcut.label}</button>)}
+        </div>}
         {overview ? <div className="vehicle-gallery-overview" role="region" aria-label={`All ${allImages.length} photographs`}>
           <div className="vehicle-gallery-overview-grid" aria-label="Choose a photo to view fullscreen">
             {allImages.map((image, i) => <button key={getSafeImageUrl(image)} type="button"

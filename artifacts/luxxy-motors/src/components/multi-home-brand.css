@@ -32,7 +32,7 @@
   line-height: 1.5;
 }
 .customer-site.multi-home-shell :is(button,input,select,textarea) { font-family: var(--ct-font-ui, 'Multi Montserrat', Arial, sans-serif); }
-.customer-site.multi-home-shell :is(h1,h2,h3) { font-family: var(--ct-font-ui, 'Multi Montserrat', Arial, sans-serif); color: var(--mh-primary); }
+.customer-site.multi-home-shell:where(:not(.gt-design)) :is(h1,h2,h3) { font-family: var(--ct-font-ui, 'Multi Montserrat', Arial, sans-serif); color: var(--mh-primary); }
 .multi-home-shell :is(a,button,input,select,textarea,summary):focus-visible { outline: 3px solid var(--mh-accent); outline-offset: 4px; }
 .multi-home-shell :is(h1,h2,h3,section)[id] { scroll-margin-top: calc(var(--site-header-height) + 16px); }
 @media (min-width: 1100px) { .customer-site.multi-home-shell { --site-header-height: 100px; } }

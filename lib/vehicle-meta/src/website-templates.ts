@@ -5,7 +5,7 @@ export const WEBSITE_TEMPLATES = [
   { id: 'premium', name: 'Premium', description: 'The previously available premium layout.', legacy: true },
   { id: 'focused', name: 'Focused', description: 'The previously available focused layout.', legacy: true },
   { id: 'showroom', name: 'Showroom', description: 'A clear showroom with large photographs and straightforward car details.', legacy: false },
-  { id: 'grand-touring', name: 'Grand Touring', description: 'A charcoal collection with framed photography and generous space.', legacy: false },
+  { id: 'grand-touring', name: 'Grand Touring', description: 'A navy and silver catalogue with large photographs and clear car details.', legacy: false },
   { id: 'forecourt', name: 'Forecourt', description: 'A practical stock catalogue with clear prices, facts and next steps.', legacy: false },
   { id: 'panorama', name: 'Panorama', description: 'An open, photographic layout that gives each car room.', legacy: false },
 ] as const;

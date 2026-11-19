@@ -21,9 +21,9 @@ describe('customer template presentation tokens', () => {
       expect(variables['--mh-accent']).toBe(palette.action);
       expect(variables['--ring']).toBe(variables['--primary']);
       expect(variables['--dealer-panel-primary-hsl']).toBe(variables['--primary']);
-      expect(variables['--app-font-sans']).toContain('Inter');
-      expect(variables['--font-display']).toBe(variables['--app-font-sans']);
-      expect(variables['--ct-font-heading'].includes('Georgia')).toBe(id === 'grand-touring');
+      expect(variables['--app-font-sans']).toContain(id === 'grand-touring' ? 'Manrope' : 'Inter');
+      expect(variables['--font-display']).toBe(id === 'grand-touring' ? variables['--ct-font-heading'] : variables['--app-font-sans']);
+      expect(variables['--ct-font-heading'].includes('Manrope')).toBe(id === 'grand-touring');
     });
   }
 });

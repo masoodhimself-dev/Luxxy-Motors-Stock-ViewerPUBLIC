@@ -38,6 +38,7 @@ import { isShoreDriveWebsite } from '@/lib/shore-drive-wordmark';
 import './multi-choice-homepage.css';
 import { selectedWebsiteTemplate } from '@/lib/website-template';
 import { CustomerTemplateHomeHero } from './website-templates/home-hero';
+import { GrandTouringHomepage } from './website-templates/grand-touring-home';
 
 type HomeSettings = DealerConfig & Partial<Pick<DealerSettings, 'testDriveBooking'>>;
 type Props = { settings: HomeSettings; cars: StockCar[]; isLoading: boolean; error: string | null; publicEnquiriesEnabled: boolean; filters: FilterState; setFilters: Dispatch<SetStateAction<FilterState>>; onSearch: (filters: FilterState) => void };
@@ -302,6 +303,20 @@ export function DealershipHomepage({ settings, cars: suppliedCars, isLoading, er
         <button type="button" ref={element => { tabs.current[0] = element; }} id={`${tabId}-buy-tab`} role="tab" aria-selected={tab === 'buy'} aria-controls={`${tabId}-buy`} tabIndex={tab === 'buy' ? 0 : -1} onClick={() => setTab('buy')}><Car size={17} aria-hidden="true" />Buy a car</button>
         {sections.partExchange && <button type="button" ref={element => { tabs.current[1] = element; }} id={`${tabId}-px-tab`} role="tab" aria-selected={tab === 'px'} aria-controls={`${tabId}-px`} tabIndex={tab === 'px' ? 0 : -1} onClick={() => setTab('px')}><ArrowLeftRight size={16} aria-hidden="true" />Part exchange</button>}
       </div><div role="tabpanel" id={`${tabId}-buy`} aria-labelledby={`${tabId}-buy-tab`} hidden={tab !== 'buy'}><StockSearch cars={cars} isLoading={isLoading} error={error} filters={filters} setFilters={setFilters} onSearch={onSearch} /></div>{sections.partExchange && <div role="tabpanel" id={`${tabId}-px`} aria-labelledby={`${tabId}-px-tab`} hidden={tab !== 'px'}><PartExchangeStart id="hero" /></div>}</div>;
+  if (template === 'grand-touring') return <GrandTouringHomepage
+    settings={settings} cars={cars} featured={featured} headline={headline}
+    location={heroLocation || 'Browse our current cars and arrange a visit.'} photo={photo}
+    search={<div className="mh-search-card"><StockSearch cars={cars} isLoading={isLoading} error={error} filters={filters} setFilters={setFilters} onSearch={onSearch} /></div>} isLoading={isLoading} error={error}
+    makes={makes.length > 0 ? <FindByMake makes={makes} /> : null}
+    reasons={showReassurance ? <><ul className="sr-home-reasons">{reasons.map(({ title, text, Icon }) => <li key={title}><Icon size={24} aria-hidden="true"/><div><h3>{title}</h3><p>{text}</p></div></li>)}</ul>{trustItems.length > 0 && <ul className="sr-home-trust">{trustItems.map(item => <li key={item}><CircleCheck size={18} aria-hidden="true"/>{item}</li>)}</ul>}</> : null}
+    reviews={sections.reviews ? <MultiHomeReviews reviews={reviews} reviewsUrl={reviewsUrl} heading={settings.presentation?.websiteCopy?.reviewsHeading?.trim() || 'What our customers say'}/> : null}
+    partExchange={sections.partExchange ? <PartExchangeStart id="strip"/> : null}
+    bodyTypes={types.length > 0 ? <section aria-labelledby="sr-body-heading"><h2 id="sr-body-heading">Browse by body type</h2><div className="mh-body-grid">{types.map(type => <Link key={type.label} href={`/stock?bodyType=${encodeURIComponent(type.label)}`} aria-label={type.label}><MultiBodyShape type={type.label}/><span>{type.label}</span></Link>)}</div></section> : null}
+    faqs={faqs.map(faq => ({ ...faq, extra: faq.id === 'delivery' && settings.deliveryPricing?.enabled ? <DeliveryEstimator expanded customerEnquiries={publicEnquiriesEnabled}/> : null }))}
+    finder={<AiCarFinder cars={cars} collapsible/>}
+    visit={sections.visit ? <MultiHomeVisit settings={settings}/> : null}
+    contact={<div className="sr-home-contact-links">{phone && <a href={phone} onClick={() => recordContactIntent({ channel: 'call', source: 'homepage' })}><Phone size={22} aria-hidden="true"/><span>Call the showroom<strong>{formatPhoneDisplay(settings.contact.phone!)}</strong></span></a>}{settings.contact.email && <a href={`mailto:${settings.contact.email}`}><Mail size={22} aria-hidden="true"/><span>Email the team<strong>{settings.contact.email}</strong></span></a>}{whatsapp && <a href={whatsapp} target="_blank" rel="noopener noreferrer" onClick={() => recordContactIntent({ channel: 'whatsapp', source: 'homepage' })}><SiWhatsapp size={22} aria-hidden="true"/><span>Message us<strong>WhatsApp</strong></span></a>}{!phone && !settings.contact.email && !whatsapp && <Link href="/contact" className="sr-button">Contact the showroom</Link>}</div>}
+  />;
   return <div className="multi-home" data-testid="multi-choice-homepage" data-dealership-homepage>
     {template ? <CustomerTemplateHomeHero template={template} settings={settings} cars={[...featured, ...cars.filter(car => !featured.some(item => item.id === car.id))]} search={searchCard} headline={headline} loading={isLoading} error={error} publicEnquiriesEnabled={publicEnquiriesEnabled}/> : <section className="mh-hero" aria-labelledby="home-heading"><div className="mh-container mh-hero-grid"><div className="mh-hero-introduction">{settings.hero.announcement?.trim() && <p className="mh-announcement">{settings.hero.announcement}</p>}<h1 id="home-heading" tabIndex={-1}>{headline}</h1>{heroLocation && <p className="mh-hero-location">{heroLocation}</p>}{settings.presentation?.showHeroDescription && settings.hero.subcopy && <p>{settings.hero.subcopy}</p>}{photo && (shoreDrivePhoto ? <ShoreDriveHeroPhoto src={photo} /> : <ShowroomPhoto src={photo} alt={settings.presentation?.heroImageAlt || `${settings.identity.name} cars`} priority fit={cutout ? 'contain' : 'cover'} position={settings.presentation?.heroImagePosition} className={`mh-hero-photo${cutout ? ' mh-hero-photo--cutout' : ''}`} />)}</div>
       {searchCard}

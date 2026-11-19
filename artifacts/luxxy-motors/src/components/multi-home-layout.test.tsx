@@ -205,7 +205,7 @@ it.each(Object.keys(websiteTemplatePalettes) as (keyof typeof websiteTemplatePal
   const shell = view.container.querySelector<HTMLElement>('.website-template');
   expect(shell).toHaveAttribute('data-website-template', template);
   expect(shell?.style.getPropertyValue('--mh-primary')).toBe(websiteTemplatePalettes[template].ink);
-  expect(shell?.style.getPropertyValue('--app-font-sans')).toContain('Inter');
+  expect(shell?.style.getPropertyValue('--app-font-sans')).toContain(template === 'grand-touring' ? 'Manrope' : 'Inter');
   expect(document.body.style.getPropertyValue('--mh-accent')).toBe(websiteTemplatePalettes[template].action);
   expect(state.settings).toEqual(original);
   view.unmount();

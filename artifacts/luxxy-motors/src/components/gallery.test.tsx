@@ -569,3 +569,33 @@ it('resets zoom when changing a category or closing and reopening the gallery', 
   expect(within(dialog).getByRole('button', { name: 'Zoom in' })).toHaveAttribute('aria-pressed', 'false');
   expect(dialog.querySelector('.vehicle-lightbox-photo img')).toHaveAttribute('src', labelledPhotos[1].url);
 });
+
+
+it('keeps the opted-in inline frame quiet while retaining categories, shortcuts and captions in fullscreen', async () => {
+  const photos = [
+    { url: 'https://example.com/showroom-front.jpg', caption: 'Front three-quarter view' },
+    { url: 'https://example.com/showroom-boot.jpg', caption: 'Boot space' },
+    { url: 'https://example.com/showroom-seats.jpg', caption: 'Rear seats' },
+  ];
+  const { container } = render(<Gallery customerView inlinePresentation="showroom" images={photos} heroImage={photos[0].url}/>);
+  expect(container.querySelectorAll('.vehicle-gallery-controls')).toHaveLength(1);
+  expect(screen.getByText('1 / 3')).toBeInTheDocument();
+  expect(screen.queryByLabelText('Photograph sections')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Boot space' })).not.toBeInTheDocument();
+  expect(screen.queryByText('Photo details')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Show photograph/ })).not.toBeInTheDocument();
+  const viewAll = screen.getByRole('button', { name: 'View all 3 photos' });
+  viewAll.focus();
+  fireEvent.click(viewAll);
+  const dialog = await screen.findByRole('dialog');
+  expect(within(dialog).getByLabelText('Photograph sections')).toBeInTheDocument();
+  expect(within(dialog).getByRole('button', { name: 'Boot space' })).toBeInTheDocument();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Boot space' }));
+  expect(dialog.querySelector('.vehicle-lightbox-photo img')).toHaveAttribute('src', photos[1].url);
+  expect(within(dialog).getByText('Boot space', { selector: '.vehicle-lightbox-caption' })).toBeInTheDocument();
+  fireEvent.keyDown(dialog, { key: 'Escape' });
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(viewAll).toHaveFocus();
+  expect(screen.queryByLabelText('Photograph sections')).not.toBeInTheDocument();
+  expect(container.querySelectorAll('.vehicle-gallery-controls')).toHaveLength(1);
+});

@@ -22,12 +22,12 @@
   line-height: 1.6;
   font-synthesis: none;
 }
-.dealer-site-theme :is(h1, h2, h3, h4, .font-display, .font-sans, button, select, textarea),
-.dealer-site-theme input:not(.uk-number-plate-input):not(.ukrp-text) {
+.dealer-site-theme:where(:not(.gt-design)) :is(h1, h2, h3, h4, .font-display, .font-sans, button, select, textarea),
+.dealer-site-theme:where(:not(.gt-design)) input:not(.uk-number-plate-input):not(.ukrp-text) {
   font-family: var(--ct-font-ui, 'Multi Montserrat', Arial, sans-serif);
 }
-.customer-site.dealer-site-theme main :is(h1, h2) { font-weight: 700; }
-.customer-site.dealer-site-theme main h3 { font-weight: 600; }
+.customer-site.dealer-site-theme:where(:not(.gt-design)) main :is(h1, h2) { font-weight: 700; }
+.customer-site.dealer-site-theme:where(:not(.gt-design)) main h3 { font-weight: 600; }
 .customer-site.dealer-site-theme :is(main .container, .site-header-inner) { max-width: var(--customer-content-width); padding-inline: clamp(16px, 3vw, 40px); }
 .customer-site.dealer-site-theme :is(.page-heading, .home-dealer-information, .vehicle-records-section) { gap: var(--customer-space-3); }
 .customer-site.dealer-site-theme main .page-heading h1 { font-size: clamp(28px, 3.2vw, 38px); line-height: 1.25; }

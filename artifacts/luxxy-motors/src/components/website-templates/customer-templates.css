@@ -294,7 +294,7 @@
  .website-template.customer-site .ct-vehicle .vehicle-key-facts dd{font-size:15px}
  .website-template.customer-site .ct-vehicle .vehicle-action-tools{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
-.website-template--grand-touring.customer-site main :is(h1,h2,h3){font-family:var(--ct-font-heading);font-weight:400}
+.website-template--grand-touring.customer-site:not(.gt-design) main :is(h1,h2,h3){font-family:var(--ct-font-heading);font-weight:400}
 .website-template.customer-site :is(.ct-home,.ct-vehicle) :is(a,button,summary):focus-visible{outline:2px solid var(--ct-accent);outline-offset:3px;box-shadow:0 0 0 3px #fff}
 /* Inline specification help needs a finger-sized target without oversized rows. */
 .website-template.customer-site .vehicle-key-facts dt>button,

@@ -30,6 +30,8 @@ import './portal/dealer-portal-theme.css';
 import { selectedWebsiteTemplate } from '@/lib/website-template';
 import { websiteTemplateThemeVariables } from '@/lib/website-template-theme';
 import './website-templates/customer-templates.css';
+import { ShowroomHeader, ShowroomFooter } from './website-templates/showroom-shell';
+import './website-templates/grand-touring-system.css';
 export { readableForegroundForHsl } from '@/lib/brand-colour';
 
 const navLinkClass =
@@ -186,7 +188,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       observer.disconnect();
       document.documentElement.style.removeProperty('--site-header-height');
     };
-  }, [isStaff, isHomePage, isCustomerWebsite, hasLoadedSettings]);
+  }, [isStaff, isHomePage, isCustomerWebsite, hasLoadedSettings, websiteTemplate]);
 
   const handleNav = (target: string) => {
     setMobileMenuOpen(false);
@@ -220,9 +222,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   </div>;
 
   return (
-    <div id={isHomePage ? 'top' : undefined} style={brandStyle} data-dealer-brand={isMultiChoiceBrand ? "multi-choice" : undefined} data-website-template={websiteTemplate ?? undefined} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}${isCustomerWebsite ? ' dealer-site-theme showroom-navy-site' : ''}${isSharedPortal ? ' dealer-portal-theme' : ''}${isHomePage ? ' multi-home-shell' : ''}${websiteTemplate ? ` website-template website-template--${websiteTemplate}` : ''}`}>
+    <div id={isHomePage ? 'top' : undefined} style={brandStyle} data-dealer-brand={isMultiChoiceBrand ? "multi-choice" : undefined} data-website-template={websiteTemplate ?? undefined} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}${isCustomerWebsite ? ' dealer-site-theme showroom-navy-site' : ''}${isSharedPortal ? ' dealer-portal-theme' : ''}${isHomePage ? ' multi-home-shell' : ''}${websiteTemplate ? ` website-template website-template--${websiteTemplate}` : ''}${websiteTemplate === 'grand-touring' ? ` gt-design${isVehiclePage ? ' gt-vehicle-shell' : ''}` : ''}`}>
       <a href="#main-content" className="fixed left-4 top-3 z-[100] -translate-y-24 rounded-md bg-primary px-5 py-3 text-primary-foreground focus:translate-y-0">Skip to content</a>
-      {isCustomerWebsite && <MultiHomeHeader ref={headerRef} settings={dealerConfig} savedCount={savedCount} testDriveHref={testDriveHref} isHomepage={isHomePage} enquiriesEnabled={publicEnquiriesEnabled} onLogoClick={isHomePage ? undefined : handleLogoClick} />}
+      {isCustomerWebsite && (websiteTemplate === 'grand-touring' ? <ShowroomHeader ref={headerRef} settings={dealerConfig} savedCount={savedCount} testDriveHref={testDriveHref} isHomepage={isHomePage} enquiriesEnabled={publicEnquiriesEnabled} onLogoClick={isHomePage ? undefined : handleLogoClick} /> : <MultiHomeHeader ref={headerRef} settings={dealerConfig} savedCount={savedCount} testDriveHref={testDriveHref} isHomepage={isHomePage} enquiriesEnabled={publicEnquiriesEnabled} onLogoClick={isHomePage ? undefined : handleLogoClick} />)}
       {!isStaff && !isCustomerWebsite && <header
         ref={headerRef}
         data-site-header
@@ -400,7 +402,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </footer>
       )}
-      {isCustomerWebsite && !isCustomerTask ? <MultiHomeFooter settings={dealerConfig} enquiriesEnabled={publicEnquiriesEnabled} isHomepage={isHomePage} /> : !isStaff && !isCustomerTask && <CustomerFooter settings={footerSettings} testDriveHref={testDriveHref} enquiriesEnabled={publicEnquiriesEnabled} />}
+      {isCustomerWebsite && !isCustomerTask ? websiteTemplate === 'grand-touring' ? <ShowroomFooter settings={dealerConfig} enquiriesEnabled={publicEnquiriesEnabled} /> : <MultiHomeFooter settings={dealerConfig} enquiriesEnabled={publicEnquiriesEnabled} isHomepage={isHomePage} /> : !isStaff && !isCustomerTask && <CustomerFooter settings={footerSettings} testDriveHref={testDriveHref} enquiriesEnabled={publicEnquiriesEnabled} />}
       <div data-home-scroll-spacer aria-hidden="true" className="bg-primary" />
 
     </div>
