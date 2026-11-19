@@ -560,6 +560,16 @@ export default function CarDetail() {
 
   </>;
 
+  const enquiryInformation = enquiryExpanded && <VehicleEnquiryInformation
+    key={`information-${car.id}`}
+    car={car}
+    motHistory={motHistory}
+    requestMotHistory={requestMotHistory}
+    dealer={settingsLoading || settingsError ? undefined : dealerConfig}
+    includedItems={includedItems}
+    compact={isGraphite}
+  />;
+
   return (
     <div className={isGraphite ? 'vehicle-page gr-vehicle-page min-h-screen' : websiteTemplate === 'grand-touring' ? 'vehicle-page gt-vehicle-page min-h-screen' : 'vehicle-page vehicle-redesigned vehicle-page-streamlined vehicle-page-enter luxxy-shell min-h-screen'}>
       <div className={isGraphite ? 'gr-container' : websiteTemplate === 'grand-touring' ? 'gt-vehicle-container' : 'container mx-auto px-4 sm:px-6 lg:px-8'}>
@@ -574,10 +584,11 @@ export default function CarDetail() {
         {websiteTemplate ? <CustomerTemplateVehicle template={websiteTemplate} car={car} identity={templateIdentity} gallery={templateGallery} price={templatePrice} registration={registrationDetails} facts={templateFacts} mot={templateMot} actions={templateActions} highlights={templateHighlights} reservation={<ReserveCar key={car.id} car={car}/>} photoRequest={enquiriesEnabled && <VehiclePhotoRequest key={`photos-${car.id}`} onRequest={openVehicleEnquiry}/>} onEnquiry={enquiriesEnabled ? openVehicleEnquiry : undefined}/> : <GraphiteVehicle identity={templateIdentity} gallery={templateGallery} price={templatePrice} tools={graphiteTools} primaryAction={enquiryAction} bookingAction={vehiclePhoneLayout ? bookingAction : null} registration={registrationDetails} facts={templateFacts} mot={templateMot} actions={templateActions} highlights={templateHighlights} sparse={sparseSummary} reservation={<ReserveCar key={car.id} car={car}/>} photoRequest={enquiriesEnabled && <VehiclePhotoRequest key={`photos-${car.id}`} onRequest={openVehicleEnquiry}/>}/> }
         {isGraphite ? <GraphiteVehicleContent navigation={informationNavigation} contact={templateActions}>{informationSections}</GraphiteVehicleContent> : websiteTemplate === 'grand-touring' ? <GrandTouringVehicleContent navigation={informationNavigation}>{informationSections}</GrandTouringVehicleContent> : <div className="vehicle-details-content min-w-0">{informationNavigation}{informationSections}</div>}
         {enquiriesEnabled && <details id="vehicle-enquiry" className="vehicle-inline-enquiry vehicle-message-disclosure" open={enquiryExpanded} onToggle={event => setEnquiryExpanded(event.currentTarget.open)}>
-          <summary><h2 id="vehicle-enquiry-heading" tabIndex={-1} className="section-heading">{quietVehicle ? 'Ask about this car' : 'Message the showroom'}</h2><span className="vehicle-enquiry-intro">Ask a question about this {vehicleLabel}</span>{isGraphite && <span className="gr-vehicle-enquiry-toggle">{enquiryExpanded ? 'Close message' : 'Write a message'}<GraphiteIcon name="chevron-down" /></span>}</summary>
+          <summary><h2 id="vehicle-enquiry-heading" tabIndex={-1} className="section-heading">{quietVehicle ? 'Ask about this car' : 'Message the showroom'}</h2>{!isGraphite && <span className="vehicle-enquiry-intro">Ask a question about this {vehicleLabel}</span>}{isGraphite && <span className="gr-vehicle-enquiry-toggle">{enquiryExpanded ? 'Close message' : 'Write a message'}<GraphiteIcon name="chevron-down" /></span>}</summary>
           <div className="vehicle-message-body">
-            <EnquiryForm key={car.id} vehicle={car} initialType="general" embedded messageRequest={messageRequest?.vehicleId === car.id ? messageRequest : undefined} />
-            {enquiryExpanded && <VehicleEnquiryInformation key={`information-${car.id}`} car={car} motHistory={motHistory} requestMotHistory={requestMotHistory} dealer={settingsLoading || settingsError ? undefined : dealerConfig} includedItems={includedItems} />}
+            {isGraphite && enquiryInformation}
+            <EnquiryForm key={car.id} vehicle={car} initialType="general" embedded compact={isGraphite} messageRequest={messageRequest?.vehicleId === car.id ? messageRequest : undefined} />
+            {!isGraphite && enquiryInformation}
           </div>
         </details>}
       </div>

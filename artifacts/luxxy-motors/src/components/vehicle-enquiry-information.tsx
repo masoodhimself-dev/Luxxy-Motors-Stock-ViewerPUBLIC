@@ -1,12 +1,13 @@
-import { useEffect } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Link } from 'wouter';
 import type { MotHistory } from '@workspace/vehicle-meta';
 import type { DealerConfig } from '@/config/dealer';
 import type { Car } from '@/lib/stock-context';
-import { formatPrice, vehicleDisplayTitle, vehicleRegistration } from '@/lib/utils';
+import { formatPrice, getThumbnailUrl, vehicleDisplayTitle, vehicleRegistration } from '@/lib/utils';
+import { responsiveVehicleImage, retryOriginalImage } from '@/lib/responsive-vehicle-image';
 import { usableVehicleMotHistory } from '@/lib/vehicle-answer-summary';
 import { vehicleEnquiryFacts, vehicleEnquiryMot } from '@/lib/vehicle-enquiry-information';
-import { CircleCheck, Shield, Truck, Handshake, BadgePoundSterling } from './icons';
+import { BadgePoundSterling, ChevronDown, CircleCheck, Handshake, Shield, Truck } from './icons';
 import { MakeLogo } from './make-logo';
 import { UKNumberPlate } from './uk-number-plate';
 import { VehicleFactIcon } from './vehicle-fact-icon';
@@ -22,13 +23,16 @@ function BenefitIcon({ text }: { text: string }) {
 }
 
 /** Context for the open message form, using this car and this dealer's saved promises. */
-export function VehicleEnquiryInformation({ car, motHistory, requestMotHistory, dealer, includedItems }: {
+export function VehicleEnquiryInformation({ car, motHistory, requestMotHistory, dealer, includedItems, compact = false }: {
   car: Car;
   motHistory: MotHistory | null;
   requestMotHistory: () => void;
   dealer?: DealerConfig;
   includedItems: readonly string[];
+  compact?: boolean;
 }) {
+  const titleId = useId();
+  const [failedPhoto, setFailedPhoto] = useState('');
   const registration = vehicleRegistration(car);
   const mot = vehicleEnquiryMot(car, motHistory);
   const facts = vehicleEnquiryFacts(car);
@@ -54,6 +58,58 @@ export function VehicleEnquiryInformation({ car, motHistory, requestMotHistory, 
     // cache instead of starting an independent request for the sidebar.
     if (registration && !usableVehicleMotHistory(car, motHistory)) requestMotHistory();
   }, [car, motHistory, registration, requestMotHistory]);
+
+  if (compact) {
+    const photo = getThumbnailUrl(car);
+    const headlineLabels = ['Year', 'Mileage', 'Transmission'];
+    const headlineFacts = headlineLabels.flatMap(label => facts.filter(fact => fact.label === label));
+    const detailFacts = facts.filter(fact => !headlineLabels.includes(fact.label));
+    const warranty = includes.find(item => /warranty/i.test(item));
+    const otherInclusions = includes.filter(item => item !== warranty);
+    const hasDetails = Boolean(detailFacts.length || registration || mot);
+    const hasBuyingOptions = Boolean(otherInclusions.length || uniqueReasons.length || dealer?.warranty?.enabled);
+    return <aside className="gr-enquiry-car" data-testid="vehicle-enquiry-information" aria-labelledby={titleId}>
+      <div className="gr-enquiry-car__top">
+        {photo && photo !== failedPhoto && <img
+          className="gr-enquiry-car__photo"
+          src={photo}
+          {...responsiveVehicleImage(photo, '(max-width: 760px) 80px, 96px')}
+          width={96} height={72} alt="" decoding="async" referrerPolicy="no-referrer"
+          onError={event => { if (!retryOriginalImage(event.currentTarget)) setFailedPhoto(photo); }}
+        />}
+        <div className="gr-enquiry-car__identity">
+          <h3 id={titleId}>{vehicleDisplayTitle(car)}</h3>
+          {(car.variant || car.trim) && <p>{car.variant || car.trim}</p>}
+          <strong>{car.price ? formatPrice(car.price, car.currency) : 'Price on application'}</strong>
+        </div>
+      </div>
+      {headlineFacts.length > 0 && <dl className="gr-enquiry-car__key-facts">
+        {headlineFacts.map(fact => <div key={fact.label}><dt className="sr-only">{fact.label}</dt><dd>{fact.value}</dd></div>)}
+      </dl>}
+      {warranty && <p className="gr-enquiry-car__warranty"><Shield aria-hidden="true" size={16} />{warranty}</p>}
+      {hasDetails && <details className="gr-enquiry-car__details">
+        <summary>Car details <ChevronDown aria-hidden="true" size={16} /></summary>
+        <dl className="gr-enquiry-car__facts">
+          {registration && <div><dt>Registration</dt><dd>{registration}</dd></div>}
+          {mot && <div data-testid="enquiry-vehicle-mot"><dt>{mot.label}</dt><dd>{mot.value}</dd></div>}
+          {detailFacts.map(fact => <div key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>)}
+        </dl>
+      </details>}
+      {hasBuyingOptions && <details className="gr-enquiry-car__details">
+        <summary>Buying options <ChevronDown aria-hidden="true" size={16} /></summary>
+        {otherInclusions.length > 0 && <ul className="gr-enquiry-car__benefits">
+          {otherInclusions.map(item => <li key={item}><BenefitIcon text={item} /><span>{item}</span></li>)}
+        </ul>}
+        {uniqueReasons.length > 0 && <ul className="gr-enquiry-car__benefits">
+          {uniqueReasons.map(reason => <li key={reason.title}>
+            <BenefitIcon text={reason.title} />
+            <div><strong>{reason.title}</strong>{reason.description?.trim() && <p>{reason.description}</p>}</div>
+          </li>)}
+        </ul>}
+        {dealer?.warranty?.enabled && <Link className="vehicle-enquiry-warranty-link" href="/warranty">Warranty details</Link>}
+      </details>}
+    </aside>;
+  }
 
   return <aside className="vehicle-enquiry-information" data-testid="vehicle-enquiry-information" aria-label="Vehicle information and buying benefits">
     <section className="vehicle-enquiry-car" aria-labelledby="enquiry-car-heading">

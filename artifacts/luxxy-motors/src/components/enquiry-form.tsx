@@ -6,6 +6,7 @@ import { partExchangeMotSummary, partExchangeValuationQuestion } from '@/lib/par
 import { FeatureUnavailable } from './feature-unavailable';
 import { useDealerFeatures } from '@/lib/dealer-features';
 import './enquiry-form.css';
+import './graphite/graphite-enquiry.css';
 import { removeEnquiryShortcut } from '@/lib/enquiry-shortcuts';
 import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
 import { enquiryDraftKey, readEnquiryDraft, saveEnquiryDraft, discardEnquiryDraft } from '@/lib/enquiry-draft';
@@ -64,6 +65,7 @@ function apiErrorMessage(error: unknown) {
 export function EnquiryForm({
   initialType = 'general',
   embedded = false,
+  compact = false,
   presentation,
   vehicle,
   stockCars = [],
@@ -76,6 +78,7 @@ export function EnquiryForm({
 }: {
   initialType?: EnquiryType;
   embedded?: boolean;
+  compact?: boolean;
   presentation?: 'contact';
   initialMessage?: string;
   messageRequest?: EnquiryMessageRequest;
@@ -465,7 +468,7 @@ export function EnquiryForm({
   );
 
   return (
-    <form onSubmit={submit} aria-busy={mutation.isPending} className={`customer-enquiry-form${embedded ? ' customer-enquiry-form-embedded' : ''}${presentation === 'contact' ? ' gr-contact-message-form' : ''}`} data-testid="form-enquiry">
+    <form onSubmit={submit} aria-busy={mutation.isPending} className={`customer-enquiry-form${embedded ? ' customer-enquiry-form-embedded' : ''}${compact ? ' gr-compact-enquiry-form' : ''}${presentation === 'contact' ? ' gr-contact-message-form' : ''}`} data-testid="form-enquiry">
       <fieldset disabled={mutation.isPending} className="customer-enquiry-fields space-y-4 sm:space-y-6">
       <legend className="sr-only">Your enquiry</legend>
       {draftSaved && draftRestored && <div className="flex flex-wrap items-center justify-between gap-2 border-y border-border py-3 text-xs text-muted-foreground" data-testid="enquiry-draft-notice"><p>Your unfinished enquiry was restored.</p><button type="button" onClick={discardDraft} className="text-link min-h-11 shrink-0">Discard draft</button></div>}
@@ -595,14 +598,14 @@ export function EnquiryForm({
           <span>{apiErrorMessage(mutation.error)}</span>
         </div>
       )}
-      <div className="space-y-4">
+      <div className="customer-enquiry-submit space-y-4">
         <Button key="submit-enquiry" type="submit" size="lg" disabled={mutation.isPending || pendingRequests.length > 0} className="group min-h-12 w-full rounded-md font-display text-[13px] font-semibold tracking-normal shadow-none transition-all" aria-describedby={privacyNoticeId} data-testid="button-submit-enquiry">
           {mutation.isPending ? 'Sending enquiry…' : presentation === 'contact' ? 'Send message' : 'Send enquiry'}
-          {!mutation.isPending && presentation !== 'contact' && <ArrowRight className="ml-3 h-4 w-4 transition-transform group-hover:translate-x-1" />}
+          {!mutation.isPending && presentation !== 'contact' && !compact && <ArrowRight className="ml-3 h-4 w-4 transition-transform group-hover:translate-x-1" />}
         </Button>
         <div className="text-sm leading-6 text-muted-foreground">
-          <p id={privacyNoticeId}>We’ll use your contact details to respond to this enquiry.</p>
-          <p>We’ll reply during opening hours.</p>
+          <p id={privacyNoticeId}>{compact ? 'We’ll use your details to reply during opening hours.' : 'We’ll use your contact details to respond to this enquiry.'}</p>
+          {!compact && <p>We’ll reply during opening hours.</p>}
           <PrivacyNoticeLink url={dealerConfig.legal?.privacyUrl} className="text-link inline-flex min-h-11 items-center font-medium underline underline-offset-4" />
         </div>
       </div>

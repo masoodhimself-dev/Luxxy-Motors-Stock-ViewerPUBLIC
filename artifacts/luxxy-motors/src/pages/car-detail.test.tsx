@@ -452,7 +452,11 @@ it('shows vehicle context only with the expanded message form and retains the un
   const sidebar = await screen.findByTestId('vehicle-enquiry-information');
   expect(within(sidebar).getByRole('heading', { name: 'BMW 3 Series' })).toBeInTheDocument();
   expect(sidebar).toHaveTextContent('6 months warranty');
-  expect(sidebar).toHaveTextContent('Why choose This Dealer');
+  const buyingOptions = within(sidebar).getByText('Buying options', { selector: 'summary' });
+  expect(buyingOptions.closest('details')).not.toHaveAttribute('open');
+  fireEvent.click(buyingOptions);
+  expect(buyingOptions.closest('details')).toHaveAttribute('open');
+  expect(within(sidebar).getByRole('link', { name: 'Warranty details' })).toBeVisible();
   const message = screen.getByTestId('textarea-enquiry-message');
   fireEvent.change(message, { target: { value: 'Can I see this car on Saturday?' } });
   await act(async () => { disclosure.open = false; fireEvent(disclosure, new Event('toggle')); });

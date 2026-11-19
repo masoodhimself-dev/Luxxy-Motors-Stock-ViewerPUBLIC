@@ -1,0 +1,308 @@
+/* The vehicle recap and message share one quiet surface system. */
+.graphite-site.customer-site .gr-vehicle-page .vehicle-inline-enquiry {
+  padding-block: 24px 32px;
+}
+
+.graphite-site .gr-vehicle-page .vehicle-inline-enquiry > summary > h2 {
+  font-size: clamp(24px, 3vw, 34px);
+}
+
+.graphite-site .gr-vehicle-page .vehicle-message-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
+  grid-template-areas: "message car";
+  align-items: start;
+  gap: 32px;
+  margin-top: 24px;
+}
+
+.graphite-site .gr-vehicle-page .vehicle-message-body > :not(.gr-enquiry-car) {
+  grid-area: message;
+  min-width: 0;
+}
+
+.gr-enquiry-car {
+  grid-area: car;
+  min-width: 0;
+  padding: 18px;
+  border-radius: 6px;
+  background: var(--gr-silver);
+  color: var(--gr-ink);
+  overflow-wrap: anywhere;
+}
+
+.gr-enquiry-car__top {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.gr-enquiry-car__photo {
+  display: block;
+  flex: 0 0 96px;
+  width: 96px;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 3px;
+}
+
+.gr-enquiry-car__identity { min-width: 0; }
+
+.graphite-site .gr-vehicle-page .gr-enquiry-car__identity h3 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.15;
+}
+
+.gr-enquiry-car__identity p {
+  margin: 4px 0 0;
+  color: var(--gr-muted);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.gr-enquiry-car__identity strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--gr-accent);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.gr-enquiry-car__key-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 12px 0 0;
+  font-size: 14px;
+}
+
+.gr-enquiry-car__key-facts dd { margin: 0; }
+
+.gr-enquiry-car__warranty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 12px;
+  color: var(--gr-accent);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.gr-enquiry-car__warranty svg,
+.gr-enquiry-car__details svg { flex-shrink: 0; }
+
+.gr-enquiry-car__details {
+  border-top: 1px solid var(--gr-line);
+  font-size: 14px;
+}
+
+.gr-enquiry-car__key-facts + .gr-enquiry-car__details,
+.gr-enquiry-car__top + .gr-enquiry-car__details { margin-top: 12px; }
+
+.gr-enquiry-car__details > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  list-style: none;
+  color: var(--gr-ink);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.gr-enquiry-car__details > summary::-webkit-details-marker { display: none; }
+.gr-enquiry-car__details[open] > summary > svg { transform: rotate(180deg); }
+.gr-enquiry-car__details > summary:hover { color: var(--gr-accent); }
+
+.gr-enquiry-car__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  margin: 0 0 12px;
+}
+
+.gr-enquiry-car__facts dt { color: var(--gr-muted); }
+.gr-enquiry-car__facts dd { margin: 2px 0 0; font-weight: 500; }
+
+.gr-enquiry-car__benefits {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.gr-enquiry-car__benefits li { display: flex; align-items: flex-start; gap: 8px; }
+.gr-enquiry-car__benefits li svg { width: 16px; height: 16px; margin-top: 3px; color: var(--gr-accent); }
+.gr-enquiry-car__benefits p { margin: 2px 0 0; color: var(--gr-muted); }
+
+.gr-enquiry-car .vehicle-enquiry-warranty-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--gr-accent);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.graphite-site .gr-compact-enquiry-form .customer-enquiry-fields {
+  display: grid;
+  gap: 14px;
+}
+
+.graphite-site .gr-compact-enquiry-form .customer-enquiry-fields > * { margin-block: 0; }
+.graphite-site .gr-compact-enquiry-form .customer-enquiry-contact { gap: 12px 16px; }
+.graphite-site .gr-compact-enquiry-form .field-label { margin-bottom: 5px; color: var(--gr-ink); }
+.graphite-site .gr-compact-enquiry-form .customer-enquiry-question .field-label > svg { display: none; }
+
+.graphite-site .gr-compact-enquiry-form :is(input:not(.uk-number-plate-input), select, textarea) {
+  border-color: var(--gr-control);
+  border-radius: 5px;
+  background: var(--gr-paper);
+  color: var(--gr-ink);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.graphite-site .gr-compact-enquiry-form :is(input, select, textarea)[aria-invalid="true"] {
+  border-color: hsl(var(--destructive));
+}
+
+.graphite-site .gr-compact-enquiry-form .enquiry-question-shortcuts button {
+  min-height: 44px;
+  padding-inline: 12px;
+  border: 1px solid var(--gr-control);
+  border-radius: 5px;
+  background: var(--gr-paper);
+  color: var(--gr-ink);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.graphite-site .gr-compact-enquiry-form .enquiry-question-shortcuts button:is(:hover, [aria-pressed="true"]) {
+  border-color: var(--gr-accent);
+  background: var(--gr-silver);
+  color: var(--gr-accent);
+}
+
+.graphite-site .gr-compact-enquiry-form .customer-enquiry-extras { gap: 0 16px; }
+.graphite-site .gr-compact-enquiry-form .customer-enquiry-extras .text-link { color: var(--gr-accent); }
+.graphite-site .gr-compact-enquiry-form .customer-enquiry-submit {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+}
+.graphite-site .gr-compact-enquiry-form .customer-enquiry-submit > div { margin-block: 0; color: var(--gr-muted); }
+
+.graphite-site .gr-enquire:not(.gr-part-exchange) {
+  padding-block: 12px 40px;
+}
+
+.graphite-site.customer-site .gr-enquire:not(.gr-part-exchange) .enquiry-page-container {
+  max-width: 1240px;
+}
+
+.graphite-site .gr-compact-enquiry-form .customer-enquiry-vehicle {
+  padding: 12px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--gr-silver);
+}
+
+.graphite-site .gr-compact-enquiry-form [data-testid="button-submit-enquiry"] {
+  width: auto;
+  min-width: 172px;
+  min-height: 48px;
+  padding-inline: 22px;
+  border-radius: 5px;
+  background: var(--gr-accent);
+  color: #fff;
+  font: 500 16px/1.4 var(--gr-font);
+}
+
+.graphite-site .gr-compact-enquiry-form [data-testid="button-submit-enquiry"]:hover { background: #12346f; }
+.graphite-site .gr-compact-enquiry-form :is(input, textarea, select, a, button):focus-visible,
+.graphite-site .gr-enquiry-car :is(summary, a):focus-visible {
+  outline: 2px solid var(--gr-accent);
+  outline-offset: 3px;
+}
+
+@media (min-width: 761px) {
+  .graphite-site .gr-compact-enquiry-form .customer-enquiry-contact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .graphite-site .gr-compact-enquiry-form .customer-enquiry-reply { max-width: 230px; }
+  .graphite-site .gr-vehicle-page .vehicle-inline-enquiry > summary > .gr-vehicle-enquiry-toggle {
+    grid-row: 1;
+  }
+}
+
+@media (min-width: 1024px) {
+  .graphite-site .gr-enquire:not(.gr-part-exchange) [data-testid="enquiry-vehicle-summary"] {
+    display: grid;
+    grid-template-columns: 84px minmax(0, 1fr);
+    column-gap: 12px;
+    row-gap: 8px;
+    padding: 14px;
+    border-radius: 6px;
+    background: var(--gr-silver);
+  }
+  .graphite-site .gr-enquire [data-testid="enquiry-vehicle-summary"] > :is(:first-child, .enquiry-summary-details) {
+    grid-column: 1 / -1;
+  }
+  .graphite-site .gr-enquire .enquiry-summary-identity p { margin-top: 4px; }
+  .graphite-site .gr-enquire .enquiry-summary-details summary:focus-visible {
+    outline: 2px solid var(--gr-accent);
+    outline-offset: 3px;
+  }
+}
+
+@media (max-width: 760px) {
+  .graphite-site .gr-vehicle-page .vehicle-inline-enquiry > summary {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .graphite-site .gr-vehicle-page .vehicle-inline-enquiry > summary > .gr-vehicle-enquiry-toggle {
+    grid-row: 2;
+    margin: 0;
+  }
+  .graphite-site .gr-vehicle-page .vehicle-inline-enquiry[open] > summary {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .graphite-site .gr-vehicle-page .vehicle-inline-enquiry[open] > summary > .gr-vehicle-enquiry-toggle {
+    grid-column: 2;
+    grid-row: 1;
+    width: auto;
+    min-height: 44px;
+    gap: 4px;
+    padding-inline: 8px;
+    font-size: 13px;
+  }
+  .graphite-site .gr-vehicle-page .vehicle-message-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "car" "message";
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .gr-enquiry-car { padding: 14px; }
+  .gr-enquiry-car__photo { width: 80px; flex-basis: 80px; }
+  .graphite-site .gr-vehicle-page .gr-enquiry-car__identity h3 { font-size: 21px; }
+  .graphite-site .gr-compact-enquiry-form .customer-enquiry-contact { grid-template-columns: minmax(0, 1fr); }
+  .graphite-site .gr-compact-enquiry-form [data-testid="button-submit-enquiry"] { width: 100%; }
+}
+
+@media (max-width: 359px) {
+  .graphite-site .gr-compact-enquiry-form .enquiry-question-shortcuts button { padding-inline: 8px; }
+}
+
+@media (max-width: 639px) {
+  .graphite-site.customer-site .gr-enquire:not(.gr-part-exchange) .enquiry-page-container { padding-inline: 24px; }
+}
+
+@media (max-width: 359px) {
+  .graphite-site.customer-site .gr-enquire:not(.gr-part-exchange) .enquiry-page-container { padding-inline: 20px; }
+}

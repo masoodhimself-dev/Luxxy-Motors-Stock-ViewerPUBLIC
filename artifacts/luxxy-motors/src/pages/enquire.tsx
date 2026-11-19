@@ -3,7 +3,7 @@ import { vehicleDetailPath } from '@workspace/vehicle-meta';
 import './customer-workflows.css';
 import { questionMessage } from "@/lib/vehicle-questions";
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Camera, CircleAlert } from '@/components/icons';
+import { ArrowLeft, Camera, ChevronDown, CircleAlert } from '@/components/icons';
 import { Link, useLocation, useSearch } from 'wouter';
 import { EnquiryForm } from '@/components/enquiry-form';
 import { EnquiryCarPicker } from '@/components/enquiry-car-picker';
@@ -82,6 +82,14 @@ export default function Enquire() {
         { label: 'Gearbox', value: vehicle.transmission },
       ].filter((highlight): highlight is { label: string; value: string } => Boolean(highlight.value))
     : [];
+  const highlightList = vehicleHighlights.length > 0 && <dl className="grid grid-cols-2 gap-x-6">
+    {vehicleHighlights.map(({ label, value }) => (
+      <div key={label} className="border-t border-border py-3" data-testid={`highlight-${label.toLowerCase()}`}>
+        <dt className="text-xs text-muted-foreground">{label}</dt>
+        <dd className="mt-1 text-sm font-semibold text-primary">{value}</dd>
+      </div>
+    ))}
+  </dl>;
   const changeCar = () => { if (!formBusy) setCarPickerOpen(true); };
   const selectCar = (car: Car, carryCurrent: boolean) => {
     if (formBusy) return;
@@ -123,7 +131,7 @@ export default function Enquire() {
                     Change car
                   </button>
                 </div>
-                <div className="relative hidden aspect-[4/3] w-full overflow-hidden rounded-md bg-muted lg:block">
+                <div className="enquiry-summary-photo relative hidden aspect-[4/3] w-full overflow-hidden rounded-md bg-muted lg:block">
                   {vehicleImage ? (
                     <img src={vehicleImage} alt="" className="absolute inset-0 h-full w-full object-cover" />
                   ) : (
@@ -132,7 +140,7 @@ export default function Enquire() {
                     </div>
                   )}
                 </div>
-                <div>
+                <div className="enquiry-summary-identity">
                   <h2 className="font-display text-xl font-semibold tracking-tight text-primary">{selectedVehicleName}</h2>
                   <p className="mt-2 text-xs font-normal text-primary/70">{vehicle.variant || vehicle.trim}</p>
                   {vehicle.price != null && (
@@ -141,16 +149,10 @@ export default function Enquire() {
                     </p>
                   )}
                 </div>
-                {vehicleHighlights.length > 0 && (
-                  <dl className="grid grid-cols-2 gap-x-6">
-                    {vehicleHighlights.map(({ label, value }) => (
-                      <div key={label} className="border-t border-border py-3" data-testid={`highlight-${label.toLowerCase()}`}>
-                        <dt className="text-xs text-muted-foreground">{label}</dt>
-                        <dd className="mt-1 text-sm font-semibold text-primary">{value}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                )}
+                {highlightList && (graphite ? <details className="gr-enquiry-car__details enquiry-summary-details">
+                  <summary>Car details <ChevronDown size={16} aria-hidden="true" /></summary>
+                  {highlightList}
+                </details> : highlightList)}
               </div>
             ) : (
               <div className="mt-5 hidden flex-col gap-3 border-t border-border pt-5 lg:flex" data-testid="enquiry-no-vehicle-summary">
@@ -196,6 +198,7 @@ export default function Enquire() {
 
               {!waitingForSelectedCar && <EnquiryForm
                 key={type === 'general' ? type : `${type}:${vehicle?.id ?? 'general'}`}
+                compact={graphite && !isPartExchange}
                 initialMessage={!requestedMessage && vehicle && type === 'general' ? questionMessage(params.get('question')) : ''}
                 messageRequest={requestedMessage ? { id: `link:${requestedMessage}`, text: requestedMessage } : undefined}
                 onTypeChange={setType}

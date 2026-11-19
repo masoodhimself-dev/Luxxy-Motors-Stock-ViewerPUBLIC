@@ -1,21 +1,21 @@
 /* Modern Showroom. Existing controls, eligibility and source facts remain shared. */
 .graphite-site .gr-vehicle-page { --vehicle-ink:var(--gr-ink); --vehicle-link:var(--gr-accent); color:var(--gr-ink); background:var(--gr-paper); font-family:var(--gr-font,'DM Sans',sans-serif); font-size:17px; line-height:1.5; }
-.graphite-site .gr-vehicle-page .vehicle-browse-tools { min-height:56px; padding-block:8px; margin:0; border:0; background:none; }
+.graphite-site .gr-vehicle-page .vehicle-browse-tools { min-height:44px; padding-block:0; margin:0; border:0; background:none; }
 .graphite-site .gr-vehicle-page .vehicle-return-link { display:inline-flex; align-items:center; gap:12px; min-height:44px; color:var(--gr-muted); font-size:15px; font-weight:400; text-decoration:none; }
 .graphite-site .gr-vehicle-page .vehicle-return-link svg { width:20px; height:20px; }
-.graphite-site .gr-vehicle { min-width:0; padding-block:16px 0; }
+.graphite-site .gr-vehicle { min-width:0; padding-block:12px 0; }
 .graphite-site .gr-vehicle-layout { display:grid; grid-template-columns:minmax(0,1fr) 300px; grid-template-rows:auto auto auto auto auto auto; gap:0 80px; min-width:0; }
 .graphite-site .gr-vehicle-layout > div { min-width:0; }
 .graphite-site .gr-vehicle-layout > div:empty { display:none; }
 .graphite-site .gr-vehicle-identity { grid-column:1; grid-row:1 / 3; align-self:center; }
 .graphite-site .gr-vehicle-identity .vehicle-detail-heading { display:block; padding:0; margin:0; }
-.graphite-site .gr-vehicle-identity .vehicle-detail-heading h1 { display:block; margin:0; color:var(--gr-ink); font-family:var(--gr-display,'Outfit',sans-serif); font-size:56px; font-weight:500; line-height:1.18; letter-spacing:-.02em; overflow-wrap:anywhere; }
+.graphite-site .gr-vehicle-identity .vehicle-detail-heading h1 { display:block; margin:0; color:var(--gr-ink); font-family:var(--gr-display,'Outfit',sans-serif); font-size:52px; font-weight:500; line-height:1.12; letter-spacing:-.02em; overflow-wrap:anywhere; }
 .graphite-site .gr-vehicle-identity .vehicle-detail-heading h1 img { display:none; }
-.graphite-site .gr-vehicle-identity .vehicle-detail-heading p { margin:12px 0 0; color:var(--gr-muted); font-size:23px; font-weight:400; line-height:1.4; }
+.graphite-site .gr-vehicle-identity .vehicle-detail-heading p { margin:8px 0 0; color:var(--gr-muted); font-size:21px; font-weight:400; line-height:1.4; }
 .graphite-site .gr-vehicle-price { grid-column:2; grid-row:1; }
 .graphite-site .gr-vehicle-price .vehicle-price-block { padding:0; margin:0; border:0; background:none; }
 .graphite-site .gr-vehicle-price .vehicle-price-caption { display:none; }
-.graphite-site .gr-vehicle-price .luxxy-price { margin:0; color:var(--gr-accent); font-family:var(--gr-display,'Outfit',sans-serif); font-size:50px; font-weight:500; line-height:1.25; letter-spacing:-.02em; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.graphite-site .gr-vehicle-price .luxxy-price { margin:0; color:var(--gr-accent); font-family:var(--gr-display,'Outfit',sans-serif); font-size:46px; font-weight:500; line-height:1.18; letter-spacing:-.02em; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
 .graphite-site .gr-vehicle-price .luxxy-price.is-price-on-application { font-size:32px; }
 .graphite-site .gr-vehicle-price .vehicle-stock-status { margin:0 0 6px; font-size:15px; font-weight:500; }
 .graphite-site .gr-vehicle-price .price-reduction { display:flex; flex-wrap:wrap; gap:4px 8px; margin-top:8px; color:var(--gr-muted); font-size:14px; line-height:1.5; }
@@ -23,16 +23,16 @@
 .graphite-site .gr-vehicle-price .price-reduction-date { display:block; flex-basis:100%; font-size:13px; }
 .graphite-site .gr-vehicle-price .vehicle-insurance-disclosure { display:inline-flex; align-items:center; gap:8px; min-height:36px; margin-top:8px; color:var(--gr-ink); font-size:14px; text-decoration:underline; text-underline-offset:4px; }
 .graphite-site .gr-vehicle-price .vehicle-insurance-disclosure svg { width:18px; height:18px; flex-shrink:0; }
-.graphite-site .gr-vehicle-registration { grid-column:1; grid-row:3; align-self:start; padding-top:8px; padding-bottom:32px; }
+.graphite-site .gr-vehicle-registration { grid-column:1; grid-row:3; align-self:center; padding-bottom:20px; }
 .graphite-site .gr-vehicle-registration .vehicle-registration { padding:0; margin:0; border:0; }
 .graphite-site .gr-vehicle-registration .vehicle-registration dd { margin:0; }
 .graphite-site .gr-vehicle-registration .vehicle-registration dt { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 .graphite-site .gr-vehicle-registration .ukrp-plate { display:inline-flex; inline-size:auto; aspect-ratio:auto; min-height:24px; max-width:100%; container-type:normal; border:0; border-radius:0; padding:0; background:none; color:var(--gr-ink); box-shadow:none; }
 .graphite-site .gr-vehicle-registration .ukrp-lettering { justify-content:flex-start; padding:0; font-size:16px; }
 .graphite-site .gr-vehicle-registration .ukrp-text { font-family:var(--gr-font,'DM Sans',sans-serif); font-size:16px; font-weight:500; letter-spacing:0; }
-.graphite-site .gr-vehicle-primary { grid-column:2; grid-row:3; padding-bottom:32px; }
-.graphite-site .gr-vehicle-primary > a,.graphite-site .gr-vehicle-booking > a { display:flex; align-items:center; justify-content:center; width:100%; min-height:52px; padding:12px 20px; text-decoration:none; font-family:inherit; font-size:16px; line-height:1.4; font-weight:500; }
-.graphite-site .gr-vehicle-tools { grid-column:2; grid-row:2; margin-block:4px 8px; }
+.graphite-site .gr-vehicle-primary { grid-column:2; grid-row:3; padding-bottom:20px; }
+.graphite-site .gr-vehicle-primary > a,.graphite-site .gr-vehicle-booking > a { display:flex; align-items:center; justify-content:center; width:100%; min-height:48px; padding:10px 20px; text-decoration:none; font-family:inherit; font-size:16px; line-height:1.4; font-weight:500; }
+.graphite-site .gr-vehicle-tools { grid-column:2; grid-row:2; margin-block:2px 4px; }
 .graphite-site .gr-vehicle-tools .vehicle-action-tools { display:flex; align-items:center; flex-wrap:wrap; gap:4px 20px; }
 .graphite-site .gr-vehicle-tools .vehicle-action-tools > :is(button,a) { display:inline-flex; align-items:center; justify-content:center; gap:8px; width:auto; height:auto; min-height:44px; padding:0; border:0; border-radius:0; color:var(--gr-ink); background:none; box-shadow:none; font-family:inherit; font-size:15px; font-weight:500; text-decoration:none; }
 .graphite-site .gr-vehicle-tools .vehicle-action-tools > :is(button,a):hover { text-decoration:underline; text-underline-offset:4px; }
@@ -56,12 +56,12 @@
 .graphite-site .gr-vehicle-gallery .vehicle-gallery-inline-arrows { position:static; display:flex; gap:8px; padding:0; }
 .graphite-site .gr-vehicle-gallery .vehicle-gallery-inline-arrows button { width:44px; height:44px; min-width:44px; padding:0; opacity:1; pointer-events:auto; }
 .graphite-site .gr-vehicle-gallery .vehicle-gallery-arrow-face { display:grid; place-items:center; width:44px; height:44px; border:0; border-radius:0; color:var(--gr-ink); background:var(--gr-paper); box-shadow:none; }
-.graphite-site .gr-vehicle-facts { grid-column:1 / -1; grid-row:6; padding-block:32px; background:var(--gr-silver); box-shadow:0 0 0 100vmax var(--gr-silver); clip-path:inset(0 -100vmax); }
+.graphite-site .gr-vehicle-facts { grid-column:1 / -1; grid-row:6; padding-block:24px; background:var(--gr-silver); box-shadow:0 0 0 100vmax var(--gr-silver); clip-path:inset(0 -100vmax); }
 .graphite-site .gr-vehicle-facts .vehicle-key-facts { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:24px 32px; padding:0; margin:0; border:0; background:none; }
 .graphite-site .gr-vehicle-facts .vehicle-key-facts > div { min-width:0; padding:0; border:0; }
-.graphite-site .gr-vehicle-facts .vehicle-key-facts dt { position:static; width:auto; height:auto; padding:0; margin:0 0 8px; color:var(--gr-muted); font-size:14px; font-weight:400; line-height:1.4; overflow:visible; clip:auto; white-space:normal; }
-.graphite-site .gr-vehicle-facts .vehicle-key-facts dd { margin:0; color:var(--gr-ink); font-size:22px; font-weight:500; line-height:1.35; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
-.graphite-site .gr-vehicle-extras { display:flex; align-items:center; flex-wrap:wrap; gap:8px 32px; padding-block:24px; }
+.graphite-site .gr-vehicle-facts .vehicle-key-facts dt { position:static; width:auto; height:auto; padding:0; margin:0 0 4px; color:var(--gr-muted); font-size:14px; font-weight:400; line-height:1.4; overflow:visible; clip:auto; white-space:normal; }
+.graphite-site .gr-vehicle-facts .vehicle-key-facts dd { margin:0; color:var(--gr-ink); font-size:20px; font-weight:500; line-height:1.35; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.graphite-site .gr-vehicle-extras { display:flex; align-items:center; flex-wrap:wrap; gap:8px 32px; padding-block:16px; }
 .graphite-site .gr-vehicle-records .vehicle-mot-expiry { display:inline-flex; align-items:center; gap:12px; min-height:44px; width:auto; padding:0; margin:0; border:0; color:var(--gr-ink); background:none; font-family:inherit; font-size:16px; font-weight:400; text-align:left; }
 .graphite-site .gr-vehicle-records .vehicle-mot-expiry svg { width:24px; height:24px; }
 .graphite-site .gr-vehicle-records .vehicle-mot-expiry strong { font-weight:500; }
@@ -171,15 +171,14 @@
  .graphite-site .gr-vehicle-facts .vehicle-key-facts { grid-template-columns:repeat(3,minmax(0,1fr)); }
 }
 @media (max-width:760px) {
- .graphite-site .gr-vehicle-page .vehicle-browse-tools { min-height:44px; padding-block:4px; }
  .graphite-site .gr-vehicle-page .vehicle-return-link { font-size:14px; }
- .graphite-site .gr-vehicle { padding-top:12px; }
+ .graphite-site .gr-vehicle { padding-top:8px; }
  .graphite-site .gr-vehicle-layout { grid-template-columns:minmax(0,1fr) auto; grid-template-rows:auto auto auto auto auto auto auto auto; column-gap:16px; }
- .graphite-site .gr-vehicle-identity { grid-column:1 / -1; grid-row:1; margin-bottom:16px; }
- .graphite-site .gr-vehicle-identity .vehicle-detail-heading h1 { font-size:40px; line-height:1.2; }
- .graphite-site .gr-vehicle-identity .vehicle-detail-heading p { font-size:19px; line-height:1.4; }
- .graphite-site .gr-vehicle-price { grid-column:1; grid-row:2; margin-bottom:24px; }
- .graphite-site .gr-vehicle-price .luxxy-price { font-size:35px; }
+ .graphite-site .gr-vehicle-identity { grid-column:1 / -1; grid-row:1; margin-bottom:12px; }
+ .graphite-site .gr-vehicle-identity .vehicle-detail-heading h1 { font-size:36px; line-height:1.14; }
+ .graphite-site .gr-vehicle-identity .vehicle-detail-heading p { font-size:17px; line-height:1.4; }
+ .graphite-site .gr-vehicle-price { grid-column:1; grid-row:2; margin-bottom:16px; }
+ .graphite-site .gr-vehicle-price .luxxy-price { font-size:33px; }
  .graphite-site .gr-vehicle-price .luxxy-price.is-price-on-application { font-size:27px; }
  .graphite-site .gr-vehicle-price .price-reduction { font-size:14px; gap:4px 8px; }
  .graphite-site .gr-vehicle-registration { grid-column:2; grid-row:2; padding:0; align-self:start; margin-top:10px; }
@@ -187,15 +186,15 @@
  .graphite-site .gr-vehicle-gallery .vehicle-gallery-position { font-size:14px; }
  .graphite-site .gr-vehicle-gallery .vehicle-gallery-position::after { display:none; }
  .graphite-site .gr-vehicle-gallery .vehicle-gallery-view-all { inset:12px 12px auto auto; font-size:14px; }
- .graphite-site .gr-vehicle-primary { grid-column:1 / -1; grid-row:4; padding-bottom:16px; }
- .graphite-site .gr-vehicle-booking { grid-column:1 / -1; grid-row:5; padding-bottom:16px; }
- .graphite-site .gr-vehicle-tools { grid-column:1 / -1; grid-row:6; margin:0; padding-bottom:24px; }
+ .graphite-site .gr-vehicle-primary { grid-column:1 / -1; grid-row:4; padding-bottom:10px; }
+ .graphite-site .gr-vehicle-booking { grid-column:1 / -1; grid-row:5; padding-bottom:10px; }
+ .graphite-site .gr-vehicle-tools { grid-column:1 / -1; grid-row:6; margin:0; padding-bottom:16px; }
  .graphite-site .gr-vehicle-tools .vehicle-action-tools { justify-content:space-between; gap:4px 12px; }
  .graphite-site .gr-vehicle-tools .vehicle-action-tools > :is(button,a) { font-size:15px; }
- .graphite-site .gr-vehicle-facts { grid-column:1 / -1; grid-row:7; padding-block:32px; }
- .graphite-site .gr-vehicle-facts .vehicle-key-facts { grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px 16px; }
- .graphite-site .gr-vehicle-facts .vehicle-key-facts dd { font-size:21px; line-height:1.4; }
- .graphite-site .gr-vehicle-extras { padding-block:24px; gap:8px 24px; }
+ .graphite-site .gr-vehicle-facts { grid-column:1 / -1; grid-row:7; padding-block:20px; }
+ .graphite-site .gr-vehicle-facts .vehicle-key-facts { grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+ .graphite-site .gr-vehicle-facts .vehicle-key-facts dd { font-size:18px; line-height:1.4; }
+ .graphite-site .gr-vehicle-extras { gap:8px 24px; }
  .graphite-site .gr-vehicle-records .vehicle-mot-expiry { font-size:16px; }
  .graphite-site .gr-vehicle-information { padding-bottom:32px; }
  .graphite-site .gr-vehicle-information-layout { display:flex; flex-direction:column; gap:32px; }
@@ -221,8 +220,8 @@
 .graphite-site.customer-site .gr-vehicle-page :is(h2,h3),
 .graphite-site.customer-site .gr-vehicle-page .gr-vehicle-contact h2,
 .graphite-site.customer-site .gr-vehicle-page .vehicle-questions-list h3 button { font-family:var(--gr-display,'Outfit',sans-serif); font-weight:500; }
-.graphite-site .gr-vehicle-page .gr-vehicle-sections > .gr-vehicle-disclosure { padding:0; margin-block:0 24px; }
-.graphite-site .gr-vehicle-page .gr-vehicle-sections > .gr-vehicle-disclosure > summary { min-height:68px; padding:20px 24px; margin:0; line-height:1.5; }
+.graphite-site .gr-vehicle-page .gr-vehicle-sections > .gr-vehicle-disclosure { padding:0; margin-block:0 16px; }
+.graphite-site .gr-vehicle-page .gr-vehicle-sections > .gr-vehicle-disclosure > summary { min-height:54px; padding:12px 24px; margin:0; line-height:1.5; }
 .graphite-site .gr-vehicle-page .gr-vehicle-disclosure > summary :is(h2,h3,p) { padding:0; margin:0; font:inherit; }
 .graphite-site .gr-vehicle-contact .vehicle-booking-action { display:flex; align-items:center; justify-content:center; width:100%; min-height:52px; padding:12px 20px; text-align:center; text-decoration:none; font-family:inherit; font-size:16px; font-weight:500; }
 .graphite-site .gr-vehicle-contact .vehicle-booking-action svg { display:none; }
