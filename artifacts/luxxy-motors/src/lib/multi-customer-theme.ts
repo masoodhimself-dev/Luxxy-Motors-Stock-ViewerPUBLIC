@@ -31,12 +31,22 @@ const showroomNavyPalette = {
   hero: '#e9edf4',
 } as const;
 
+/** Approved Figma default. Dealer identities and staff branding remain saved separately. */
+export const graphitePalette = {
+  primary: '#25282d', accent: '#25282d', accentDark: '#3b4047',
+  tint: '#f3f4f5', background: '#ffffff', surface: '#ffffff',
+  border: '#ced2d7', muted: '#565c64', controlBorder: '#858c96',
+  photoBackground: '#f3f4f5', chip: '#f3f4f5', hero: '#f3f4f5',
+} as const;
+
 /** Presentation only: no saved brand, permissions, invoice or tenant changes. */
-export function multiCustomerThemeVariables(theme?: 'showroom-navy'): Record<string, string> {
+export function multiCustomerThemeVariables(theme?: 'showroom-navy' | 'graphite'): Record<string, string> {
+  const graphite = theme === 'graphite';
   const showroomNavy = theme === 'showroom-navy';
-  const p = showroomNavy ? showroomNavyPalette : multiCustomerPalette;
-  const action = showroomNavy ? p.accent : p.primary;
-  const accent = showroomNavy ? p.accent : p.accentDark;
+  const refined = showroomNavy || graphite;
+  const p = graphite ? graphitePalette : showroomNavy ? showroomNavyPalette : multiCustomerPalette;
+  const action = refined ? p.accent : p.primary;
+  const accent = refined ? p.accent : p.accentDark;
   const variables = customerThemeVariables({
     primaryHsl: hexColourToHsl(action),
     accentHsl: hexColourToHsl(accent),
@@ -53,23 +63,24 @@ export function multiCustomerThemeVariables(theme?: 'showroom-navy'): Record<str
     variables[`--dealer-${name}-subtle`] = p.tint;
     variables[`--dealer-${name}-subtle-hsl`] = hexColourToHsl(p.tint);
   }
-  if (showroomNavy) {
+  if (refined) {
     const input = hexColourToHsl(p.controlBorder);
     variables['--dealer-page-input-hsl'] = input;
     variables['--dealer-panel-input-hsl'] = input;
     variables['--input'] = input;
-    variables['--mh-hero-bg'] = showroomNavyPalette.hero;
+    variables['--mh-hero-bg'] = graphite ? graphitePalette.hero : showroomNavyPalette.hero;
     variables['--dealer-whatsapp-icon'] = '#111b21';
     variables['--contact'] = hexColourToHsl(action);
-    variables['--customer-positive'] = showroomNavyPalette.accent;
-    variables['--customer-positive-soft'] = showroomNavyPalette.tint;
-    variables['--customer-positive-border'] = showroomNavyPalette.border;
+    variables['--customer-positive'] = p.accent;
+    variables['--customer-positive-soft'] = p.tint;
+    variables['--customer-positive-border'] = p.border;
   }
   return {
     ...variables,
-    '--app-font-sans': "'Multi Montserrat', Arial, sans-serif",
-    '--font-display': "'Multi Montserrat', Arial, sans-serif",
-    '--font-body': "'Multi Montserrat', Arial, sans-serif",
+    ...(graphite ? { '--ct-font-ui': "'Manrope', Arial, sans-serif", '--ct-font-heading': "'Manrope', Arial, sans-serif" } : {}),
+    '--app-font-sans': graphite ? "'Manrope', Arial, sans-serif" : "'Multi Montserrat', Arial, sans-serif",
+    '--font-display': graphite ? "'Manrope', Arial, sans-serif" : "'Multi Montserrat', Arial, sans-serif",
+    '--font-body': graphite ? "'Manrope', Arial, sans-serif" : "'Multi Montserrat', Arial, sans-serif",
     '--dealer-primary': hexColourToHsl(action),
     '--dealer-primary-foreground': '0 0% 100%',
     '--dealer-accent': hexColourToHsl(accent),
@@ -97,9 +108,9 @@ export function multiCustomerThemeVariables(theme?: 'showroom-navy'): Record<str
     '--mh-radius': '8px',
     '--mh-radius-panel': '8px',
     '--mh-radius-control': '4px',
-    '--mh-weight-heading': '700',
+    '--mh-weight-heading': graphite ? '600' : '700',
     '--mh-weight-label': '600',
-    '--mh-weight-price': '800',
+    '--mh-weight-price': graphite ? '600' : '800',
     '--mh-overlay': 'rgb(25 42 54 / .3)',
     '--mh-shadow-sm': '0 1px 2px rgb(0 0 0 / 5%)',
     '--mh-shadow-md': '0 4px 6px -1px rgb(0 0 0 / 10%), 0 2px 4px -2px rgb(0 0 0 / 10%)',

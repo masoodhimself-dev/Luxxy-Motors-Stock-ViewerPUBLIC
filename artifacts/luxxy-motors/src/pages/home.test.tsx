@@ -223,8 +223,8 @@ beforeEach(() => {
   stockError = null;
   retryStock.mockReset();
   demoSiteMode=false;
-  // Most filter journeys exercise the compact mobile drawer. Desktop keeps the
-  // same controls directly in the sidebar and is covered explicitly below.
+  // Graphite reveals shared facets inline. Explicit alternate templates retain
+  // their phone drawer, whose results/focus handoff is covered below.
   window.matchMedia = vi.fn().mockReturnValue({ matches: true });
   window.history.replaceState({}, '', '/');
   window.sessionStorage.clear();
@@ -270,7 +270,9 @@ describe('opt-in stock template compositions', () => {
     expect(screen.getByTestId(`${layout}-vehicle-bmw-1-series`)).toBeInTheDocument();
     expect(view.container.querySelector('.template-stock-results')).not.toBeNull();
     if (filters === 'inline') {
-      expect(screen.getByRole('button', { name: 'Show filters' })).toHaveAttribute('aria-expanded', 'false');
+      const toggle = screen.getByRole('button', { name: 'Show filters', expanded: false });
+      fireEvent.click(toggle);
+      expect(toggle).toHaveAttribute('aria-expanded', 'true');
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     } else {
       expect(screen.queryByRole('complementary', { name: 'Filter cars' }) !== null).toBe(filters === 'sidebar');
@@ -346,7 +348,7 @@ describe('opt-in stock template compositions', () => {
 });
 
 function featuredTitles() {
-  return within(screen.getByRole('region', { name: 'Explore our cars' })).queryAllByRole('article').map(card => card.getAttribute('aria-label'));
+  return within(screen.getByRole('region', { name: 'On the forecourt' })).queryAllByRole('article').map(card => card.getAttribute('aria-label'));
 }
 
 describe('stock availability display', () => {
@@ -406,7 +408,7 @@ describe('shared showroom data and controls', () => {
   it('ignores removed history and benefit parameters without offering those filters', () => {
     window.history.replaceState({}, '', '/stock?catS=true&catN=true&noWriteOff=true&lowMileage=true&lowAnnualTax=true&lowInsuranceGroup=true');
     renderHome(); expect(resultTitles()).toHaveLength(5); expect(window.location.search).toBe('');
-    fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show filters', expanded: false }));
     expect(screen.queryByText('Insurance history')).not.toBeInTheDocument();
     expect(screen.queryByRole('checkbox', { name: 'No recorded write-off' })).not.toBeInTheDocument();
     expect(screen.queryByText('Affordable Insurance')).not.toBeInTheDocument();
@@ -416,6 +418,7 @@ describe('shared showroom data and controls', () => {
   it('uses the desktop checkbox make/model facets across all dealerships', () => {
     window.matchMedia = vi.fn().mockReturnValue({ matches: false });
     stockPhotoTenant('https://shoredrive.uk'); renderHome();
+    fireEvent.click(screen.getByRole('button', { name: 'Show filters', expanded: false }));
     const sidebar = within(screen.getByRole('complementary', { name: 'Filter cars' }));
     fireEvent.click(sidebar.getByRole('button', { name: /^Make/ }));
     fireEvent.click(sidebar.getByRole('checkbox', { name: 'BMW' }));
@@ -470,7 +473,7 @@ describe('shared showroom data and controls', () => {
 describe('shared homepage and dealer content', () => {
   it.each(['https://multichoicemotors.co.uk', 'https://shoredrive.uk', 'https://new-dealer.example'])('uses the approved homepage and search on %s', origin => {
     stockPhotoTenant(origin); renderHome(false);
-    expect(screen.getByTestId('multi-choice-homepage')).toBeInTheDocument();
+    expect(screen.getByTestId('graphite-homepage')).toBeInTheDocument();
     const search = screen.getByRole('form', { name: 'Search used cars' });
     fireEvent.change(within(search).getByRole('combobox', { name: 'Make' }), { target: { value: 'BMW' } });
     fireEvent.change(within(search).getByRole('combobox', { name: 'Model' }), { target: { value: '1 Series' } });
@@ -490,41 +493,57 @@ describe('shared homepage and dealer content', () => {
 
   it('defaults featured cars to photographed stock while retaining stock-page order', () => {
     stockFixture.cars = originalCars.map((car, index) => ({ ...car, heroImage: `https://cdn.example.com/car-${index}.jpg` }));
-    renderHome(false); expect(featuredTitles()).toEqual(['BMW 3 Series', 'VW Golf', 'Ford Fiesta', 'BMW 1 Series', 'Audi A3']);
+    renderHome(false); expect(featuredTitles()).toEqual(['BMW 3 Series', 'VW Golf', 'Ford Fiesta']);
     cleanup(); renderHome(); expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series', 'Ford Fiesta', 'Audi A3', 'VW Golf']);
   });
 
   it('keeps search and stock links available when no cars have photographs', () => {
     stockFixture.cars = originalCars.map(car => ({ ...car, heroImage: null, images: [] })); renderHome(false);
     expect(document.querySelector('.mh-hero-photo')).toBeNull();
-    expect(screen.getByRole('link', { name: 'More search options' })).toHaveAttribute('href', '/stock');
-    expect(screen.getByRole('button', { name: 'Search 5 cars' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View all cars' })).toHaveAttribute('href', '/stock');
+    expect(screen.getByRole('button', { name: 'See 5 cars' })).toBeInTheDocument();
     cleanup(); renderHome(); expect(resultTitles()).toHaveLength(5);
   });
 
-  it('keeps each dealership’s configured hero, introduction and service visibility', () => {
+  it('keeps each dealership’s published introduction and service visibility in the photo-first Graphite layout', () => {
     stockPhotoTenant('https://shoredrive.uk');
-    overrideSettings = { ...dealerConfigFixture, presentation: { heroImageUrl: 'https://shoredrive.uk/showroom.jpg', heroImageAlt: 'Our dealership exterior' }, partExchange: { ...dealerConfigFixture.partExchange, enabled: false } };
+    overrideSettings = { ...dealerConfigFixture, hero: { ...dealerConfigFixture.hero, copy: 'Chosen cars from Shore Drive', subcopy: 'Please arrange a time before travelling.' }, presentation: { heroImageUrl: 'https://shoredrive.uk/showroom.jpg', heroImageAlt: 'Our dealership exterior', showHeroDescription: true }, partExchange: { ...dealerConfigFixture.partExchange, enabled: false } };
+    const published = structuredClone(overrideSettings);
     renderHome(false);
-    expect(screen.getByRole('img', { name: 'Our dealership exterior' })).toHaveAttribute('src', 'https://shoredrive.uk/showroom.jpg');
+    expect(screen.getByRole('heading', { level: 1, name: 'Chosen cars from Shore Drive' })).toBeInTheDocument();
+    expect(screen.getByText('Please arrange a time before travelling.')).toBeInTheDocument();
+    expect(overrideSettings.presentation?.heroImageUrl).toBe('https://shoredrive.uk/showroom.jpg');
+    expect(screen.queryByRole('img', { name: 'Our dealership exterior' })).not.toBeInTheDocument();
     expect(screen.getByText('A clear buying process.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Warranty information' })).toHaveAttribute('href', '/warranty');
-    expect(screen.getByRole('link', { name: 'Ask about delivery' })).toBeInTheDocument();
+    const warranty = screen.getByText('What warranty is available?').closest('details')!;
+    fireEvent.click(within(warranty).getByText('What warranty is available?'));
+    expect(within(warranty).getByRole('link', { name: 'Warranty information' })).toHaveAttribute('href', '/warranty');
+    const delivery = document.getElementById('delivery')!;
+    fireEvent.click(within(delivery).getByText('Can you deliver my car?'));
+    expect(within(delivery).getByRole('link', { name: 'Ask about delivery' })).toHaveAttribute('href', '/contact');
     expect(screen.queryByRole('tab', { name: 'Part exchange' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('form', { name: 'Start part exchange' })).not.toBeInTheDocument();
+    expect(document.getElementById('part-exchange')).toBeNull();
+    expect(overrideSettings).toEqual(published);
     expect(screen.queryByText(/6.month warranty|36 months|price.checked daily/i)).not.toBeInTheDocument();
     expect(document.querySelector('img[src*="luxxy-hero"], img[src*="hero-cars-1200"], .dealer-service-photo')).toBeNull();
   });
 
   it('shows the dealership introduction while stock loads', () => {
     stockIsLoading = true; renderHome(false);
-    expect(screen.getByRole('heading', { name: 'Used cars for sale' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Used cars in Test City' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Loading cars…' })).toBeDisabled();
-    expect(screen.getByRole('status')).toHaveTextContent('Loading featured cars…');
+    expect(screen.getByRole('status')).toHaveTextContent('Loading cars…');
   });
 
   it('shows public body types and links each to shared stock filters', () => {
     stockFixture.cars = [{...originalCars[0],bodyType:'SUV'}, {...originalCars[1],bodyType:' suv '}, {...originalCars[2],bodyType:'Hatchback'}, {...originalCars[3],bodyType:'Estate',inventoryStatus:'hidden'}];
-    renderHome(false); const section = within(screen.getByRole('region', { name: 'Browse by body type' }));
+    renderHome(false);
+    const bodyTypes = screen.getByText('Browse by body type').closest('details')!;
+    expect(bodyTypes).not.toHaveAttribute('open');
+    fireEvent.click(within(bodyTypes).getByText('Browse by body type'));
+    expect(bodyTypes).toHaveAttribute('open');
+    const section = within(bodyTypes);
     expect(section.getByRole('link',{name:'SUV'})).toHaveAttribute('href','/stock?bodyType=SUV');
     expect(section.getByRole('link',{name:'Hatchback'})).toHaveAttribute('href','/stock?bodyType=Hatchback');
     expect(section.queryByRole('link',{name:/Estate/})).not.toBeInTheDocument();
@@ -532,7 +551,8 @@ describe('shared homepage and dealer content', () => {
 
   it('omits the body type section when no types are supplied', () => {
     stockFixture.cars = originalCars.map(car=>({...car,bodyType:null})); renderHome(false);
-    expect(screen.queryByRole('region', { name: 'Browse by body type' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Browse by body type')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /SUV|Hatchback|Estate/ })).not.toBeInTheDocument();
   });
 
   it('applies a linked body type and budget then clears the shared filters', () => {
@@ -568,8 +588,10 @@ describe('shared stock cards', () => {
     expect(within(card).queryByRole('button', { name: `Next photo of ${car.title}` })).not.toBeInTheDocument();
     expect(card.querySelector('.vehicle-card-photo button')).toBeNull(); expect(card.querySelector('.stock-photo-count')).toBeNull();
     expect(within(card).getByTestId(`button-save-${car.id}`)).toBeInTheDocument();
-    const logo = within(card).getByRole('heading', { name: 'BMW 1 Series' }).querySelector('img');
-    expect(logo).toHaveAttribute('src', '/brand/car-makes/bmw.svg'); expect(logo).toHaveAttribute('alt', ''); expect(logo).toHaveAttribute('aria-hidden', 'true');
+    const identity = within(card).getByRole('heading', { name: 'BMW 1 Series' });
+    expect(identity.querySelector('img')).toBeNull();
+    expect(identity).not.toHaveClass('make-logo-card-heading');
+    expect(identity).toHaveTextContent('BMW 1 Series');
     expect(card.querySelector('.vehicle-card-photo img[src*="car-makes"]')).toBeNull();
     const photograph = within(card).getByRole('link', { name: `View full details for ${car.title}` });
     expect(photograph).toHaveAttribute('href', `/vehicle/${car.id}?from=stock`);
@@ -587,7 +609,7 @@ describe('shared stock cards', () => {
     const view = renderHome();
     const first = within(screen.getByTestId('card-vehicle-bmw-1-series'));
     fireEvent.click(first.getByRole('button', { name: 'Save BMW 1 Series to your saved cars' }));
-    expect(screen.getByRole('link', { name: 'Saved (1)' })).toHaveAttribute('href', '/saved');
+    expect(screen.getByRole('link', { name: 'Saved cars (1)' })).toHaveAttribute('href', '/saved');
     expect(window.location.pathname).toBe('/stock');
     fireEvent.click(first.getByRole('button', { name: 'Compare BMW 1 Series' }));
     const selection = screen.getByRole('region', { name: 'Car comparison selection' });
@@ -654,7 +676,7 @@ describe('shared stock filter integration', () => {
     expect(within(homepage).getByRole('combobox', { name: 'Make' })).toHaveValue('');
     expect(within(homepage).getByRole('combobox', { name: 'Model' })).toHaveValue('');
     expect(within(homepage).getByRole('combobox', { name: 'Maximum price' })).toHaveValue('10000');
-    expect(within(homepage).getByRole('button', { name: 'Search 5 cars' })).toBeEnabled();
+    expect(within(homepage).getByRole('button', { name: 'See 5 cars' })).toBeEnabled();
     expect(within(homepage).queryByText(/BMW,Volkswagen/)).not.toBeInTheDocument();
   });
 
@@ -671,6 +693,9 @@ describe('shared stock filter integration', () => {
 
   it('uses supplied SVG filter controls and combines multiple makes with a real advanced facet', () => {
     multiStock();
+    const toggle = screen.getByRole('button', { name: 'Show filters', expanded: false });
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByTestId('multi-stock-toolbar')).toBeInTheDocument();
     expect(screen.queryByRole('combobox', { name: 'Make' })).not.toBeInTheDocument();
     const sidebar = screen.getByRole('complementary', { name: 'Filter cars' });
@@ -689,7 +714,7 @@ describe('shared stock filter integration', () => {
     expect(makeIcon).toHaveAttribute('src', '/brand/multi-choice-motors/filters/02-filter-make-car.svg');
   });
 
-  it('returns from the phone filter drawer with the stock controls in view and focus on results', async () => {
+  it('retains the explicit Forecourt phone drawer results and focus handoff', async () => {
     // Earlier legacy journeys can leave a scheduled scroll behind after cleanup.
     // Settle it before observing the explicit action in this separate journey.
     await act(async () => {
@@ -700,6 +725,7 @@ describe('shared stock filter integration', () => {
     const previousWidth = window.innerWidth;
     Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 390 });
     try {
+      overrideSettings = { ...dealerConfigFixture, presentation: { websiteTemplate: 'forecourt' } };
       multiStock('/stock?make=BMW');
       fireEvent.click(screen.getByRole('button', { name: 'Filters, 1 active' }));
       const drawer = screen.getByRole('dialog', { name: 'Filter cars' });

@@ -64,6 +64,7 @@ function apiErrorMessage(error: unknown) {
 export function EnquiryForm({
   initialType = 'general',
   embedded = false,
+  presentation,
   vehicle,
   stockCars = [],
   initialMessage = '',
@@ -75,6 +76,7 @@ export function EnquiryForm({
 }: {
   initialType?: EnquiryType;
   embedded?: boolean;
+  presentation?: 'contact';
   initialMessage?: string;
   messageRequest?: EnquiryMessageRequest;
   vehicle?: Car;
@@ -139,7 +141,7 @@ export function EnquiryForm({
   useEffect(() => {
     if (includePartExchange && preferredContact === 'whatsapp') setPreferredContact('email');
   }, [includePartExchange, preferredContact]);
-  const [additionalContact, setAdditionalContact] = useState(false);
+  const [additionalContact, setAdditionalContact] = useState(presentation === 'contact');
   const [message, setMessage] = useState(initialMessage);
   const [submittedContact, setSubmittedContact] = useState<{ customerName: string; email: string; preferredContact: PreferredContact; vehicleLabel: string; hasVehicle: boolean } | null>(null);
   const messageRef = useRef(initialMessage);
@@ -196,7 +198,7 @@ export function EnquiryForm({
       exchangeMileageEdited.current=Boolean(exchangeDraft?.mileage);
       setDraftSaved(false);setDraftRestored(false);
     }
-    setAdditionalContact(false);setPhoneError('');setNameError('');setEmailError('');setMessageError('');
+    setAdditionalContact(presentation === 'contact');setPhoneError('');setNameError('');setEmailError('');setMessageError('');
     setSubmittedContact(null);handledRequests.current.clear();
     setPendingRequests([]);
     setRestoredDraftKey(draftKey);
@@ -417,8 +419,53 @@ export function EnquiryForm({
   if (!features.enabled('publicEnquiries')) return <FeatureUnavailable title="Online enquiries are currently unavailable" loading={features.isLoading} error={features.isError} retry={() => void features.refetch()} />;
 
 
+  const replyPreference = (
+    <label className="block customer-enquiry-reply">
+      <span className={labelClass}>How should we reply?</span>
+      <NativeSelect value={preferredContact} onChange={(event) => { setPreferredContact(event.target.value as PreferredContact); setPhoneError(''); setEmailError(''); }} className="h-11" data-testid="select-preferred-contact">
+        {contactOptions.filter(option => !includePartExchange || option.value !== 'whatsapp').map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+      </NativeSelect>
+    </label>
+  );
+  const contactFields = (
+    <fieldset className="customer-enquiry-contact">
+      <legend className="sr-only">Contact details</legend>
+      {presentation !== 'contact' && replyPreference}
+
+      <label className="block">
+        <span className={labelClass}>Your name</span>
+        <Input ref={nameInputRef} required minLength={2} maxLength={120} value={customerName} onChange={(event) => {setCustomerName(event.target.value);setNameError('');}} onInvalid={()=>{setNameError("Please enter your name (at least two characters).");}} aria-invalid={Boolean(nameError)} aria-describedby={nameError ? "customer-name-help" : undefined} autoComplete="name" placeholder="Your full name" className="h-11" data-testid="input-customer-name" />
+        {nameError && <span id="customer-name-help" role="alert" className="mt-2 block text-sm text-destructive">{nameError}</span>}
+      </label>
+      {(presentation === 'contact' || preferredContact === 'email' || additionalContact || Boolean(email)) && <label className="block">
+        <span className={labelClass}>Email address{preferredContact !== 'email' && <span className="text-muted-foreground">(optional)</span>}</span>
+        <Input ref={emailInputRef} required={preferredContact === 'email'} type="email" value={email} onChange={(event) => {setEmail(event.target.value);setEmailError('');}} onInvalid={()=>setEmailError("Enter an email address such as name@example.com.")} aria-invalid={Boolean(emailError)} aria-describedby={emailError ? "customer-email-help" : undefined} autoComplete="email" placeholder="you@example.com" className="h-11" data-testid="input-customer-email" />
+        {emailError && <span id="customer-email-help" role="alert" className="mt-2 block text-sm text-destructive">{emailError}</span>}
+      </label>}
+      {(presentation === 'contact' || phoneRequired || additionalContact || Boolean(phone)) && <label className="block">
+        <span className={labelClass}>{preferredContact === 'whatsapp' ? 'Mobile number' : 'Phone number'}{!phoneRequired && <span className="text-muted-foreground">(optional)</span>}</span>
+        <Input
+          ref={phoneInputRef}
+          required={phoneRequired}
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          value={phone}
+          onChange={(event) => { setPhone(event.target.value); setPhoneError(''); }}
+          onInvalid={() => { setPhoneError('Enter a valid phone number, including at least 7 digits.'); }}
+          placeholder="07700 900 123"
+          aria-invalid={Boolean(phoneError)}
+          aria-describedby={phoneError ? 'customer-phone-help' : undefined}
+          className="h-11"
+          data-testid="input-customer-phone"
+        />
+        {phoneError && <span id="customer-phone-help" className="mt-2 block text-[13px] leading-5 text-[#8d3e34]" role="alert">{phoneError}</span>}
+      </label>}
+    </fieldset>
+  );
+
   return (
-    <form onSubmit={submit} aria-busy={mutation.isPending} className={`customer-enquiry-form${embedded ? ' customer-enquiry-form-embedded' : ''}`} data-testid="form-enquiry">
+    <form onSubmit={submit} aria-busy={mutation.isPending} className={`customer-enquiry-form${embedded ? ' customer-enquiry-form-embedded' : ''}${presentation === 'contact' ? ' gr-contact-message-form' : ''}`} data-testid="form-enquiry">
       <fieldset disabled={mutation.isPending} className="customer-enquiry-fields space-y-4 sm:space-y-6">
       <legend className="sr-only">Your enquiry</legend>
       {draftSaved && draftRestored && <div className="flex flex-wrap items-center justify-between gap-2 border-y border-border py-3 text-xs text-muted-foreground" data-testid="enquiry-draft-notice"><p>Your unfinished enquiry was restored.</p><button type="button" onClick={discardDraft} className="text-link min-h-11 shrink-0">Discard draft</button></div>}
@@ -469,14 +516,16 @@ export function EnquiryForm({
           questionRef.current?.focus();
         }}>{question.label}{message.includes(question.text) && <span> · Added{insertedShortcuts.current.has(question.text) && removeEnquiryShortcut(message, question.text) !== message ? ' (undo)' : ''}</span>}</button>)}
       </div>}
+      {presentation === 'contact' && contactFields}
       <label className="block customer-enquiry-question">
-        <span className={labelClass}><MessageSquare className="h-4 w-4 text-accent" aria-hidden="true" />Your question{!embedded && includePartExchange && <span className="text-muted-foreground">(optional)</span>}</span>
+        <span className={labelClass}>{presentation !== 'contact' && <MessageSquare className="h-4 w-4 text-accent" aria-hidden="true" />}{presentation === 'contact' ? 'Your message' : 'Your question'}{!embedded && includePartExchange && <span className="text-muted-foreground">(optional)</span>}</span>
         <Textarea ref={questionRef} id="enquiry-question" required={embedded || !includePartExchange} minLength={1} maxLength={messageLimit} rows={3}
           value={message} onChange={event => { messageTouched.current = true; generatedExchangeQuestion.current=null; writeMessage(event.target.value); }}
           onInvalid={() => setMessageError('Enter your question so we can help.')} aria-invalid={Boolean(messageError)} aria-describedby={messageError ? 'customer-question-help' : undefined}
-          placeholder="What would you like to know?" data-testid="textarea-enquiry-message" />
+          placeholder={presentation === 'contact' ? 'How can we help?' : 'What would you like to know?'} data-testid="textarea-enquiry-message" />
         {messageError && <span id="customer-question-help" role="alert" className="mt-2 block text-sm text-destructive">{messageError}</span>}
       </label>
+      {presentation === 'contact' && <details className="customer-enquiry-reply-preference"><summary>Reply preference</summary>{replyPreference}</details>}
       {pendingRequests.length > 0 && <section aria-label="Requests to add to your enquiry" className="space-y-3 border-y border-border py-3">
         <p role="alert" className="text-sm leading-6">This request would exceed your message limit. Your draft has not changed. Shorten your message, then add the request, or remove it to continue.</p>
         {pendingRequests.map(request => <div key={request.id} className="space-y-2">
@@ -494,53 +543,16 @@ export function EnquiryForm({
         </div>)}
       </section>}
 
-          <fieldset className="customer-enquiry-contact">
-            <legend className="sr-only">Contact details</legend>
-            <label className="block customer-enquiry-reply">
-              <span className={labelClass}>How should we reply?</span>
-              <NativeSelect value={preferredContact} onChange={(event) => { setPreferredContact(event.target.value as PreferredContact); setPhoneError(''); setEmailError(''); }} className="h-11" data-testid="select-preferred-contact">
-                {contactOptions.filter(option => !includePartExchange || option.value !== 'whatsapp').map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </NativeSelect>
-            </label>
-            <label className="block">
-              <span className={labelClass}>Your name</span>
-              <Input ref={nameInputRef} required minLength={2} maxLength={120} value={customerName} onChange={(event) => {setCustomerName(event.target.value);setNameError('');}} onInvalid={()=>{setNameError("Please enter your name (at least two characters).");}} aria-invalid={Boolean(nameError)} aria-describedby={nameError ? "customer-name-help" : undefined} autoComplete="name" placeholder="Your full name" className="h-11" data-testid="input-customer-name" />
-              {nameError && <span id="customer-name-help" role="alert" className="mt-2 block text-sm text-destructive">{nameError}</span>}
-            </label>
-            {(preferredContact === 'email' || additionalContact || Boolean(email)) && <label className="block">
-              <span className={labelClass}>Email address{preferredContact !== 'email' && <span className="text-muted-foreground">(optional)</span>}</span>
-              <Input ref={emailInputRef} required={preferredContact === 'email'} type="email" value={email} onChange={(event) => {setEmail(event.target.value);setEmailError('');}} onInvalid={()=>setEmailError("Enter an email address such as name@example.com.")} aria-invalid={Boolean(emailError)} aria-describedby={emailError ? "customer-email-help" : undefined} autoComplete="email" placeholder="you@example.com" className="h-11" data-testid="input-customer-email" />
-              {emailError && <span id="customer-email-help" role="alert" className="mt-2 block text-sm text-destructive">{emailError}</span>}
-            </label>}
-            {(phoneRequired || additionalContact || Boolean(phone)) && <label className="block">
-              <span className={labelClass}>{preferredContact === 'whatsapp' ? 'Mobile number' : 'Phone number'}{!phoneRequired && <span className="text-muted-foreground">(optional)</span>}</span>
-              <Input
-                ref={phoneInputRef}
-                required={phoneRequired}
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                value={phone}
-                onChange={(event) => { setPhone(event.target.value); setPhoneError(''); }}
-                onInvalid={() => { setPhoneError('Enter a valid phone number, including at least 7 digits.'); }}
-                placeholder="07700 900 123"
-                aria-invalid={Boolean(phoneError)}
-                aria-describedby={phoneError ? 'customer-phone-help' : undefined}
-                className="h-11"
-                data-testid="input-customer-phone"
-              />
-              {phoneError && <span id="customer-phone-help" className="mt-2 block text-[13px] leading-5 text-[#8d3e34]" role="alert">{phoneError}</span>}
-            </label>}
-          </fieldset>
-          <div className="customer-enquiry-extras" role="group" aria-label="Optional details">
-            {!additionalContact && !(preferredContact === 'email' ? phone : email) && <button type="button" className="text-link" aria-label={preferredContact === 'email' ? 'Add a phone number (optional)' : 'Add an email address (optional)'} onClick={() => setAdditionalContact(true)}>{preferredContact === 'email' ? 'Add a phone number' : 'Add an email address'}</button>}
-            {(additionalContact || Boolean(preferredContact === 'email' ? phone : email)) && <button type="button" className="text-link" onClick={() => {
+          {presentation !== 'contact' && contactFields}
+          {(presentation !== 'contact' || (selectedVehicle && features.enabled('partExchange') && dealerConfig.partExchange?.enabled && !hasPartExchange)) && <div className="customer-enquiry-extras" role="group" aria-label="Optional details">
+            {presentation !== 'contact' && !additionalContact && !(preferredContact === 'email' ? phone : email) && <button type="button" className="text-link" aria-label={preferredContact === 'email' ? 'Add a phone number (optional)' : 'Add an email address (optional)'} onClick={() => setAdditionalContact(true)}>{preferredContact === 'email' ? 'Add a phone number' : 'Add an email address'}</button>}
+            {presentation !== 'contact' && (additionalContact || Boolean(preferredContact === 'email' ? phone : email)) && <button type="button" className="text-link" onClick={() => {
               if (preferredContact === 'email') { setPhone('');setPhoneError(''); }
               else { setEmail('');setEmailError(''); }
               setAdditionalContact(false);
             }}>{preferredContact === 'email' ? 'Remove optional phone number' : 'Remove optional email address'}</button>}
             {selectedVehicle && features.enabled('partExchange') && dealerConfig.partExchange?.enabled && !hasPartExchange && <button type="button" className="text-link" aria-label="Add a part exchange (optional)" onClick={() => setHasPartExchange(true)}>Add a part exchange</button>}
-          </div>
+          </div>}
 
         {selectedVehicle && features.enabled('partExchange') && dealerConfig.partExchange?.enabled && hasPartExchange && <div className="customer-enquiry-exchange">
           <fieldset className="space-y-4 border-t border-border pt-4">
@@ -585,8 +597,8 @@ export function EnquiryForm({
       )}
       <div className="space-y-4">
         <Button key="submit-enquiry" type="submit" size="lg" disabled={mutation.isPending || pendingRequests.length > 0} className="group min-h-12 w-full rounded-md font-display text-[13px] font-semibold tracking-normal shadow-none transition-all" aria-describedby={privacyNoticeId} data-testid="button-submit-enquiry">
-          {mutation.isPending ? 'Sending enquiry…' : 'Send enquiry'}
-          {!mutation.isPending && <ArrowRight className="ml-3 h-4 w-4 transition-transform group-hover:translate-x-1" />}
+          {mutation.isPending ? 'Sending enquiry…' : presentation === 'contact' ? 'Send message' : 'Send enquiry'}
+          {!mutation.isPending && presentation !== 'contact' && <ArrowRight className="ml-3 h-4 w-4 transition-transform group-hover:translate-x-1" />}
         </Button>
         <div className="text-sm leading-6 text-muted-foreground">
           <p id={privacyNoticeId}>We’ll use your contact details to respond to this enquiry.</p>

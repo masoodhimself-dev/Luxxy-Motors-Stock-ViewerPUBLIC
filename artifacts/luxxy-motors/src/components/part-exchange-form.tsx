@@ -25,6 +25,9 @@ import { applyPartExchangeMotDetails, exchangeMileageIsEstimated, normaliseExcha
 import { partExchangeDraftKey, readPartExchangeDraft, savePartExchangeDraft, discardPartExchangeDraft } from '@/lib/part-exchange-draft';
 import { clearHomepagePartExchangeLookup, readHomepagePartExchangeLookup, readHomepagePartExchangeRegistration } from '@/lib/homepage-part-exchange';
 import './part-exchange-form.css';
+import { selectedWebsiteTemplate } from '@/lib/website-template';
+import { Link } from 'wouter';
+import { GraphiteIcon } from './graphite/graphite-icon';
 
 const steps = ['Your car', 'Contact & review'];
 const emptyDetails: PartExchangeDetails = { registration: '', makeModel: '', mileage: '', condition: '', conditionNotes: '', keys: '', v5: '', serviceHistory: '', name: '', phone: '', email: '' };
@@ -35,6 +38,7 @@ const phoneValid = (value: string) => /^\+?\d{7,15}$/.test(value.replace(/[\s().
 
 export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockCars: Car[] }) {
   const { settings } = useDealerSettings();
+  const graphite = selectedWebsiteTemplate(settings.presentation) === null;
   const features = useDealerFeatures();
   const mutation = useCreateEnquiry();
   const submitting = useRef(false);
@@ -174,8 +178,8 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
   return <form onSubmit={submit} className="part-exchange-form space-y-6" data-testid="form-part-exchange">
     {draftRestored && <div className="part-exchange-draft-notice" role="status"><p>{hasCurrentCar ? 'Your unfinished part-exchange answers were restored.' : 'Your unfinished part-exchange enquiry was restored. Find your car again to check its details, or choose manual entry.'}</p><button type="button" className="text-link min-h-11" onClick={discardDraft}>Discard draft</button></div>}
     <fieldset disabled={mutation.isPending} className="min-w-0 space-y-6"><legend className="sr-only">Part-exchange enquiry</legend>
-      {hasCurrentCar && <nav className="part-exchange-steps" aria-label="Part-exchange steps">{steps.map((label, index) => <button key={label} type="button" disabled={!canVisitStep(index)} aria-current={step === index ? 'step' : undefined} onClick={event => { if (index <= step || event.currentTarget.form?.reportValidity()) setStep(index); }}><span>{index + 1}</span>{label}</button>)}</nav>}
-      <div><h2 ref={heading} tabIndex={-1} id="enquiry-form-heading" className="font-display text-2xl font-semibold outline-none">{!hasCurrentCar ? 'What’s your reg?' : steps[step]}</h2>{hasCurrentCar && <p className="mt-2 text-sm leading-6 text-muted-foreground">{['Check we’ve got the right car, then add the mileage from your dashboard.', 'Leave your number and we’ll give you a call.'][step]}</p>}</div>
+      {graphite ? <ol className="gr-px-steps" aria-label="Part-exchange steps">{['Your car', 'A few details', 'About you'].map((label, index) => <li key={label} aria-current={index === (!hasCurrentCar ? 0 : step === 0 ? 1 : 2) ? 'step' : undefined}>{index + 1} {label}</li>)}</ol> : hasCurrentCar && <nav className="part-exchange-steps" aria-label="Part-exchange steps">{steps.map((label, index) => <button key={label} type="button" disabled={!canVisitStep(index)} aria-current={step === index ? 'step' : undefined} onClick={event => { if (index <= step || event.currentTarget.form?.reportValidity()) setStep(index); }}><span>{index + 1}</span>{label}</button>)}</nav>}
+      <div><h2 ref={heading} tabIndex={-1} id="enquiry-form-heading" className="font-display text-2xl font-semibold outline-none">{graphite ? !hasCurrentCar ? 'Let’s find your car.' : step === 0 ? 'A little more about your car.' : 'How can we reach you?' : !hasCurrentCar ? 'What’s your reg?' : steps[step]}</h2>{!hasCurrentCar && graphite && <p className="mt-6 text-base leading-6 text-muted-foreground">Enter the registration. We’ll find the details for you.</p>}{hasCurrentCar && <p className="mt-2 text-sm leading-6 text-muted-foreground">{['Check we’ve got the right car, then add the mileage from your dashboard.', 'Leave your number and we’ll give you a call.'][step]}</p>}</div>
       {step === 0 && <div className="part-exchange-current-car space-y-5">
         <div className="part-exchange-registration"><label className="block"><span className="field-label">Your registration</span><UKNumberPlate value={details.registration} editable onChange={value => update('registration', value)} testId="visual-uk-number-plate" inputTestId="input-part-exchange-registration" /></label></div>
         <PartExchangeMotDetails registration={details.registration} mileage={details.mileage} mileageEstimated={exchangeMileageIsEstimated(answers)} lookupButtonRef={lookupButton} initialResult={hasCurrentCar && gate?.mode === 'lookup' ? gate.result : undefined} onDetails={foundCar} onManualEntry={manualEntry} />
@@ -194,6 +198,7 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
           </div></details>
         </div>}
       </div>}
+      {graphite && !hasCurrentCar && <div className="gr-px-next-car"><p>We’ll ask for the current mileage next.</p><h3>Have you picked your next car?</h3><p>{selectedVehicle ? `Your enquiry will include ${vehicleDisplayTitle(selectedVehicle)}. You can change it or choose later.` : 'You can choose one later. You don’t need to decide before telling us about your part exchange.'}</p><Link href="/stock">Browse our cars<GraphiteIcon name="arrow-right" /></Link></div>}
       {hasCurrentCar && step === 1 && <div className="space-y-5">
         <div className="part-exchange-review-vehicles">
         <div className="part-exchange-review-car"><strong>{details.makeModel} ({details.registration.toUpperCase()})</strong><p>{exchangeMileageIsEstimated(answers) ? 'Estimated mileage' : 'Current mileage'}: {Number(details.mileage).toLocaleString('en-GB')} miles</p>{partExchangeMotSummary(lookupMot) && <p>{partExchangeMotSummary(lookupMot)}</p>}</div>

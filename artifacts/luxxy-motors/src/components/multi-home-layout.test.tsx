@@ -50,6 +50,13 @@ vi.mock("./multi-home-footer", () => ({
     />
   ),
 }));
+vi.mock("./graphite/graphite-shell", async () => {
+  const React = await import("react");
+  return {
+    GraphiteHeader: React.forwardRef<HTMLElement, any>(({ settings }, ref) => <header ref={ref} data-testid="graphite-header" data-logo={settings.identity.logoAsset} data-name={settings.identity.name} />),
+    GraphiteFooter: ({ settings, enquiriesEnabled }: any) => <footer data-testid="graphite-footer" data-enquiries-enabled={String(enquiriesEnabled)} data-logo={settings.presentation?.footerLogoUrl || settings.identity.logoAsset} data-identity-logo={settings.identity.logoAsset} data-name={settings.identity.name} />,
+  };
+});
 vi.mock("./customer-footer", () => ({
   CustomerFooter: ({ settings }: { settings: typeof dealerConfig }) => (
     <footer
@@ -102,8 +109,8 @@ it("uses the verified dealership homepage chrome and preserves skip/main landmar
   );
   expect(container.querySelector(".multi-home-shell")).not.toBeNull();
   expect(container.querySelector(".dealer-site-theme")).not.toBeNull();
-  expect(screen.getByTestId("new-home-header")).toBeInTheDocument();
-  expect(screen.getByTestId("new-home-footer")).toBeInTheDocument();
+  expect(screen.getByTestId("graphite-header")).toBeInTheDocument();
+  expect(screen.getByTestId("graphite-footer")).toBeInTheDocument();
   expect(screen.queryByTestId("existing-footer")).not.toBeInTheDocument();
   expect(screen.getByRole("main")).toHaveAttribute("id", "main-content");
   expect(screen.getByRole("link", { name: "Skip to content" })).toHaveAttribute(
@@ -122,8 +129,8 @@ it.each(["/stock", "/vehicle/car", "/cars/ford-focus-a1b2c3d4", "/s/a1b2c3d4", "
     );
     expect(container.querySelector(".multi-home-shell")).toBeNull();
     expect(container.querySelector(".dealer-site-theme")).not.toBeNull();
-    expect(screen.getByTestId("new-home-header")).toBeInTheDocument();
-    expect(screen.getByTestId("new-home-footer")).toBeInTheDocument();
+    expect(screen.getByTestId("graphite-header")).toBeInTheDocument();
+    expect(screen.getByTestId("graphite-footer")).toBeInTheDocument();
     expect(screen.queryByTestId("existing-footer")).not.toBeInTheDocument();
   },
 );
@@ -141,9 +148,9 @@ it("applies the shared homepage design to another dealer while preserving its ed
     </Layout>,
   );
   expect(container.querySelector(".multi-home-shell.dealer-site-theme")).not.toBeNull();
-  expect(screen.getByTestId("new-home-header")).toHaveAttribute("data-logo", "/shore-home.svg");
-  expect(screen.getByTestId("new-home-footer")).toHaveAttribute("data-logo", "/shore-home-footer.svg");
-  expect(screen.getByTestId("new-home-header")).toHaveAttribute("data-name", "Multi-Choice Motors");
+  expect(screen.getByTestId("graphite-header")).toHaveAttribute("data-logo", "/shore-home.svg");
+  expect(screen.getByTestId("graphite-footer")).toHaveAttribute("data-logo", "/shore-home-footer.svg");
+  expect(screen.getByTestId("graphite-header")).toHaveAttribute("data-name", "Multi-Choice Motors");
   expect(screen.queryByTestId("existing-footer")).not.toBeInTheDocument();
   expect(JSON.stringify(state.settings)).toBe(before);
 });
@@ -168,8 +175,8 @@ it.each(["/stock", "/vehicle/car", "/cars/ford-focus-a1b2c3d4", "/s/a1b2c3d4", "
         <p>Public page</p>
       </Layout>,
     );
-    expect(screen.getByTestId("new-home-header")).toBeInTheDocument();
-    expect(screen.getByTestId("new-home-footer")).toBeInTheDocument();
+    expect(screen.getByTestId("graphite-header")).toBeInTheDocument();
+    expect(screen.getByTestId("graphite-footer")).toBeInTheDocument();
     expect(screen.queryByTestId("existing-footer")).not.toBeInTheDocument();
     expect(document.querySelector(".multi-home-shell")).toBeNull();
     expect(state.settings.identity.logoAsset).toBe("/configured-old-logo.svg");
@@ -192,10 +199,10 @@ it("uses the shared public chrome without changing a previously saved light bran
       <p>Stock</p>
     </Layout>,
   );
-  expect(screen.getByTestId("new-home-header")).toBeInTheDocument();
-  expect(screen.getByTestId("new-home-footer")).toBeInTheDocument();
+  expect(screen.getByTestId("graphite-header")).toBeInTheDocument();
+  expect(screen.getByTestId("graphite-footer")).toBeInTheDocument();
   expect(state.settings.identity.brandColors?.primaryHsl).toBe("0 0% 100%");
-  expect(document.querySelector<HTMLElement>(".dealer-site-theme")?.style.getPropertyValue("--mh-primary")).toBe("#182235");
+  expect(document.querySelector<HTMLElement>(".dealer-site-theme")?.style.getPropertyValue("--mh-primary")).toBe("#25282d");
 });
 it.each(Object.keys(websiteTemplatePalettes) as (keyof typeof websiteTemplatePalettes)[])('applies %s consistently to customer forms without changing saved dealership branding', template => {
   state.path = '/contact';
@@ -204,6 +211,8 @@ it.each(Object.keys(websiteTemplatePalettes) as (keyof typeof websiteTemplatePal
   const view = render(<Layout><p>Customer form</p></Layout>);
   const shell = view.container.querySelector<HTMLElement>('.website-template');
   expect(shell).toHaveAttribute('data-website-template', template);
+  expect(shell).not.toHaveClass('graphite-site');
+  expect(document.body).not.toHaveAttribute('data-customer-graphite');
   expect(shell?.style.getPropertyValue('--mh-primary')).toBe(websiteTemplatePalettes[template].ink);
   expect(shell?.style.getPropertyValue('--app-font-sans')).toContain(template === 'grand-touring' ? 'Manrope' : 'Inter');
   expect(document.body.style.getPropertyValue('--mh-accent')).toBe(websiteTemplatePalettes[template].action);
@@ -234,15 +243,15 @@ it.each(["https://shoredrive.uk", "https://multichoicemotors.co.uk.other.example
       <p>Other dealership</p>
     </Layout>,
   );
-  expect(screen.getByTestId("new-home-header")).toHaveAttribute(
+  expect(screen.getByTestId("graphite-header")).toHaveAttribute(
     "data-logo",
     "/shore-logo.svg",
   );
-  expect(screen.getByTestId("new-home-footer")).toHaveAttribute(
+  expect(screen.getByTestId("graphite-footer")).toHaveAttribute(
     "data-logo",
     "/shore-footer.svg",
   );
-  expect(screen.getByTestId("new-home-footer")).toHaveAttribute("data-identity-logo", "/shore-logo.svg");
+  expect(screen.getByTestId("graphite-footer")).toHaveAttribute("data-identity-logo", "/shore-logo.svg");
   expect(document.querySelector('[data-logo*="/brand/multi-choice-motors/"]')).toBeNull();
   expect(screen.queryByTestId("existing-footer")).not.toBeInTheDocument();
 });
@@ -253,7 +262,7 @@ it("passes the feature-controlled public enquiry gate to the homepage footer", (
       <p>Homepage</p>
     </Layout>,
   );
-  expect(screen.getByTestId("new-home-footer")).toHaveAttribute(
+  expect(screen.getByTestId("graphite-footer")).toHaveAttribute(
     "data-enquiries-enabled",
     "true",
   );
@@ -263,7 +272,7 @@ it("passes the feature-controlled public enquiry gate to the homepage footer", (
       <p>Homepage</p>
     </Layout>,
   );
-  expect(screen.getByTestId("new-home-footer")).toHaveAttribute(
+  expect(screen.getByTestId("graphite-footer")).toHaveAttribute(
     "data-enquiries-enabled",
     "false",
   );
@@ -275,7 +284,7 @@ it("keeps staff portal chrome owned by the portal", () => {
       <p>Portal</p>
     </Layout>,
   );
-  expect(screen.queryByTestId("new-home-header")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("graphite-header")).not.toBeInTheDocument();
   expect(screen.queryByTestId("existing-footer")).not.toBeInTheDocument();
   expect(document.querySelector("[data-site-header]")).toBeNull();
 });
@@ -286,17 +295,19 @@ it.each(["isLoading", "isError"] as const)(
     state.settings = dealerConfig;
     state.hasLoadedSettings = false;
     state[status] = true;
-    render(
+    const { container } = render(
       <Layout>
         <p>Unready page content</p>
       </Layout>,
     );
+    expect(container.querySelector('.graphite-site')).toHaveAttribute('data-default-website-design', 'graphite');
+    expect(container.querySelector('[data-site-header]')).toHaveClass('gr-header');
     expect(
       screen.getByRole("img", { name: "Multi-Choice Motors" }),
-    ).toBeInTheDocument();
+    ).toHaveAttribute('src', '/brand/graphite/brand-wordmark.svg');
     expect(screen.queryByText("Unready page content")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("new-home-header")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("new-home-footer")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("graphite-header")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("graphite-footer")).not.toBeInTheDocument();
     expect(document.querySelector('a[href^="tel:"]')).toBeNull();
     expect(document.querySelector('a[href^="mailto:"]')).toBeNull();
     if (status === "isError")
@@ -315,10 +326,13 @@ it.each(['/stock', '/contact', '/warranty', '/saved', '/enquire', '/cars/ford-fo
   state.hasLoadedSettings = false;
   state[status] = true;
   canonical('https://harbourcars.example');
-  render(<Layout><p>Unready route content</p></Layout>);
+  const { container } = render(<Layout><p>Unready route content</p></Layout>);
+  expect(container.querySelector('.graphite-site')).toHaveAttribute('data-default-website-design', 'graphite');
+  expect(screen.getByText('Car showroom')).toBeInTheDocument();
+  expect(screen.queryByRole('img', { name: /Multi.Choice Motors/ })).not.toBeInTheDocument();
   expect(screen.queryByText('Unready route content')).not.toBeInTheDocument();
-  expect(screen.queryByTestId('new-home-header')).not.toBeInTheDocument();
-  expect(screen.queryByTestId('new-home-footer')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('graphite-header')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('graphite-footer')).not.toBeInTheDocument();
   expect(screen.queryByTestId('existing-footer')).not.toBeInTheDocument();
   expect(document.querySelector('a[href^="tel:"],a[href^="mailto:"]')).toBeNull();
   if (status === 'isError') expect(screen.getByRole('button', { name: 'Reload page' })).toBeInTheDocument();
@@ -334,10 +348,10 @@ it.each(['/', '/contact'].flatMap(path => ['isLoading', 'isError'].map(status =>
   canonical('https://harbourcars.example');
   render(<Layout><p>Loaded tenant content</p></Layout>);
   expect(screen.getByText('Loaded tenant content')).toBeInTheDocument();
-  expect(screen.getByTestId('new-home-header')).toHaveAttribute('data-name', 'Harbour Cars');
-  expect(screen.getByTestId('new-home-header')).toHaveAttribute('data-logo', '/harbour.svg');
-  expect(screen.getByTestId('new-home-footer')).toHaveAttribute('data-name', 'Harbour Cars');
-  expect(screen.getByTestId('new-home-footer')).toHaveAttribute('data-enquiries-enabled', 'false');
+  expect(screen.getByTestId('graphite-header')).toHaveAttribute('data-name', 'Harbour Cars');
+  expect(screen.getByTestId('graphite-header')).toHaveAttribute('data-logo', '/harbour.svg');
+  expect(screen.getByTestId('graphite-footer')).toHaveAttribute('data-name', 'Harbour Cars');
+  expect(screen.getByTestId('graphite-footer')).toHaveAttribute('data-enquiries-enabled', 'false');
   expect(screen.queryByRole('button', { name: 'Reload page' })).not.toBeInTheDocument();
 });
 
@@ -346,7 +360,7 @@ it('does not block staff portal content while public settings are loading', () =
   render(<Layout><p>Staff workspace</p></Layout>);
   expect(screen.getByText('Staff workspace')).toBeInTheDocument();
   expect(screen.queryByText('Loading the dealership…')).not.toBeInTheDocument();
-  expect(screen.queryByTestId('new-home-header')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('graphite-header')).not.toBeInTheDocument();
 });
 
 it('opens an initially loading customer route once its own settings arrive', () => {
@@ -358,7 +372,7 @@ it('opens an initially loading customer route once its own settings arrive', () 
   state.hasLoadedSettings = true; state.isLoading = false;
   view.rerender(<Layout><p>Current stock</p></Layout>);
   expect(screen.getByText('Current stock')).toBeInTheDocument();
-  expect(screen.getByTestId('new-home-header')).toHaveAttribute('data-name', 'Harbour Cars');
-  expect(screen.getByTestId('new-home-footer')).toHaveAttribute('data-name', 'Harbour Cars');
+  expect(screen.getByTestId('graphite-header')).toHaveAttribute('data-name', 'Harbour Cars');
+  expect(screen.getByTestId('graphite-footer')).toHaveAttribute('data-name', 'Harbour Cars');
   expect(screen.queryByRole('status')).not.toBeInTheDocument();
 });

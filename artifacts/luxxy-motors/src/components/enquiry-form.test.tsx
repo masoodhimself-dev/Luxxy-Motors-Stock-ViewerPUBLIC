@@ -46,6 +46,54 @@ it.each([false, true])('uses the same question-first enquiry and contact choices
   expect(state.mutate).not.toHaveBeenCalled();
 });
 
+it('uses real contact-page DOM order and keeps reply preference after the message in a disclosure', () => {
+  render(<EnquiryForm embedded presentation="contact" />);
+  const form = screen.getByTestId('form-enquiry');
+  const fields = [...form.querySelectorAll('input,textarea,select')].map(field => field.getAttribute('data-testid')).filter(Boolean);
+  expect(fields).toEqual(['input-customer-name', 'input-customer-email', 'input-customer-phone', 'textarea-enquiry-message', 'select-preferred-contact']);
+  const reply = screen.getByTestId('select-preferred-contact');
+  const disclosure = reply.closest('details')!;
+  expect(disclosure).not.toHaveAttribute('open');
+  expect(disclosure.querySelector('summary')).toHaveTextContent('Reply preference');
+  expect(screen.getByTestId('input-customer-phone')).not.toBeRequired();
+  expect(screen.queryByRole('button', { name: /Add a (phone number|email address)|Remove optional (phone number|email address)/ })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByText('Reply preference'));
+  fireEvent.change(reply, { target: { value: 'phone' } });
+  expect(screen.getByTestId('input-customer-email')).toBeVisible();
+  expect(screen.getByTestId('input-customer-email')).not.toBeRequired();
+  expect(screen.getByTestId('input-customer-phone')).toBeRequired();
+});
+
+it('validates a contact-page phone reply and submits the existing normalized payload without requiring email', () => {
+  render(<EnquiryForm embedded presentation="contact" />);
+  fireEvent.change(screen.getByTestId('input-customer-name'), { target: { value: 'Example Buyer' } });
+  fireEvent.change(screen.getByTestId('textarea-enquiry-message'), { target: { value: 'Please call me about your cars.' } });
+  fireEvent.click(screen.getByText('Reply preference'));
+  fireEvent.change(screen.getByTestId('select-preferred-contact'), { target: { value: 'phone' } });
+  fireEvent.submit(screen.getByTestId('form-enquiry'));
+  const phone = screen.getByTestId('input-customer-phone');
+  expect(phone).toHaveFocus();
+  expect(phone).toHaveAttribute('aria-invalid', 'true');
+  expect(state.mutate).not.toHaveBeenCalled();
+  fireEvent.change(phone, { target: { value: 'not-a-number' } });
+  fireEvent.submit(screen.getByTestId('form-enquiry'));
+  expect(phone).toHaveAccessibleDescription('Enter a valid UK or international phone number, including at least 7 digits.');
+  expect(state.mutate).not.toHaveBeenCalled();
+  fireEvent.change(phone, { target: { value: '+44 7700 900123' } });
+  fireEvent.submit(screen.getByTestId('form-enquiry'));
+  expect(state.mutate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ type: 'general', vehicleId: null, customerName: 'Example Buyer', phone: '+447700900123', email: null, preferredContact: 'phone', message: 'Please call me about your cars.' }) }), expect.anything());
+});
+
+it('submits a contact-page email enquiry while leaving its always-visible optional phone blank', () => {
+  render(<EnquiryForm embedded presentation="contact" />);
+  fireEvent.change(screen.getByTestId('input-customer-name'), { target: { value: 'Example Buyer' } });
+  fireEvent.change(screen.getByTestId('input-customer-email'), { target: { value: 'buyer@example.test' } });
+  fireEvent.change(screen.getByTestId('textarea-enquiry-message'), { target: { value: 'When can I arrange a visit?' } });
+  expect(screen.getByRole('button', { name: 'Send message' })).toBeInTheDocument();
+  fireEvent.submit(screen.getByTestId('form-enquiry'));
+  expect(state.mutate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ email: 'buyer@example.test', phone: null, preferredContact: 'email', message: 'When can I arrange a visit?' }) }), expect.anything());
+});
+
 it('adds a part exchange in one action, removes it from submission, and retains answers for adding it again', () => {
   render(<EnquiryForm vehicle={car} />);
   fireEvent.click(screen.getByRole('button', { name: 'Add a part exchange (optional)' }));

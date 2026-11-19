@@ -63,6 +63,8 @@ import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { selectedWebsiteTemplate } from '@/lib/website-template';
 import { CustomerTemplateVehicle } from '@/components/website-templates/vehicle-template';
 import { GrandTouringVehicleContent } from '@/components/website-templates/grand-touring-vehicle';
+import { GraphiteVehicle, GraphiteVehicleContent, GraphiteVehicleHistory } from '@/components/graphite/graphite-vehicle';
+import { GraphiteIcon } from '@/components/graphite/graphite-icon';
 import { useDealerFeatures } from '@/lib/dealer-features';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { vehiclePageMeta } from '@/lib/page-meta';
@@ -119,6 +121,8 @@ export default function CarDetail() {
   const { settings: dealerConfig, isLoading: settingsLoading, isError: settingsError } = useDealerSettings();
   const customerFeatures = useDealerFeatures();
   const websiteTemplate = selectedWebsiteTemplate(dealerConfig.presentation);
+  const isGraphite = websiteTemplate === null;
+  const quietVehicle = isGraphite || websiteTemplate === 'grand-touring';
   const browseSource = new URLSearchParams(window.location.search).get('from');
   const fromStock = browseSource === 'stock';
   const fromSaved = browseSource === 'saved';
@@ -282,7 +286,7 @@ export default function CarDetail() {
   const bookingAction = !settingsLoading && !settingsError && customerFeatures.enabled('testDriveBookings') && dealerConfig.testDriveBooking?.enabled !== false && (!car.inventoryStatus || car.inventoryStatus === 'available') ? (
       <a
         key="booking"
-        className="vehicle-booking-action"
+        className={`vehicle-booking-action${isGraphite ? ' gr-button gr-button--secondary' : ''}`}
         href={bookingHref}
         onClick={() => recordBookingIntent({ source: 'car_detail', vehicleContext: true })}
         data-vehicle-contact="booking"
@@ -293,10 +297,10 @@ export default function CarDetail() {
   ) : null;
   const enquiriesEnabled = customerFeatures.enabled('publicEnquiries');
   const enquiryAction = enquiriesEnabled && (
-    <a key="enquiry" className="vehicle-enquiry-action" href="#vehicle-enquiry" onClick={event => {
+    <a key="enquiry" className={`vehicle-enquiry-action${isGraphite ? ' gr-button' : ''}`} href="#vehicle-enquiry" onClick={event => {
       if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       event.preventDefault(); openVehicleEnquiry();
-    }}>{websiteTemplate === 'grand-touring' ? 'Ask about this car' : 'Message'}</a>
+    }}>{quietVehicle ? 'Ask about this car' : 'Message'}</a>
   );
 
   const registrationDetails = registration && (
@@ -327,7 +331,7 @@ export default function CarDetail() {
             {vehicleTrim && <p>{vehicleTrim}</p>}
           </header>;
   const templateGallery = <div className="vehicle-detail-gallery min-w-0">
-            <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} customerView hideInlineThumbnails inlinePresentation={websiteTemplate === 'grand-touring' ? 'showroom' : 'standard'} customerActions={{
+            <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} customerView hideInlineThumbnails inlinePresentation={quietVehicle ? 'showroom' : 'standard'} customerActions={{
               enquiryHref: customerFeatures.enabled('publicEnquiries') ? '#vehicle-enquiry' : undefined,
               onEnquiry: customerFeatures.enabled('publicEnquiries') ? () => openVehicleEnquiry() : undefined,
             }} />
@@ -346,7 +350,7 @@ export default function CarDetail() {
               {keyFacts.map((fact) => (
                 <div key={fact.label}>
                   <dt className="flex items-center gap-2 text-xs text-muted-foreground">
-                    {websiteTemplate === 'grand-touring' ? fact.label : <VehicleTerm label={fact.label} value={fact.value}><VehicleFactIcon label={fact.label} value={fact.value} />{fact.label}</VehicleTerm>}
+                    {isGraphite || websiteTemplate === 'grand-touring' ? fact.label : <VehicleTerm label={fact.label} value={fact.value}><VehicleFactIcon label={fact.label} value={fact.value} />{fact.label}</VehicleTerm>}
                   </dt>
                   <dd className="mt-1 text-sm font-medium" data-testid={fact.testId}>
                     {fact.value}
@@ -358,9 +362,9 @@ export default function CarDetail() {
               <VehicleFactIcon label="MOT" /><span>{motSummary.label} <strong>{motSummary.value}</strong></span>
             </button>;
   const templateActions = <div className="vehicle-action-area" data-testid="desktop-purchase-panel">
-            {websiteTemplate !== 'grand-touring' && bookingAction}
+            {!quietVehicle && bookingAction}
             {enquiryAction && <div className="vehicle-primary-actions vehicle-summary-main-actions">{enquiryAction}</div>}
-            {websiteTemplate === 'grand-touring' && bookingAction}
+            {quietVehicle && bookingAction}
             <div className="vehicle-action-tools" aria-label="Contact and share">
               <VehicleCall car={car} buttonLabel="Call" />
               <VehicleWhatsApp car={car} />
@@ -386,9 +390,10 @@ export default function CarDetail() {
           <nav aria-label="Vehicle information sections" className="vehicle-section-nav">
             {hasOverview && <a href="#vehicle-overview-section">Overview</a>}
             {features.length > 0 && <a href="#features-heading">Equipment</a>}
-            {showQualityChecks && <a href="#vehicle-quality-checks">Checks</a>}
-            <a href="#vehicle-history-section">History</a>
+            {showQualityChecks && !isGraphite && <a href="#vehicle-quality-checks">Checks</a>}
+            <a href="#vehicle-history-section">{isGraphite ? 'MOT & history' : 'History'}</a>
             <a href="#vehicle-visit-delivery">Visit &amp; delivery</a>
+            {isGraphite && enquiriesEnabled && <a href="#vehicle-enquiry" onClick={event => { event.preventDefault(); openVehicleEnquiry(); }}>Enquiry</a>}
           </nav>
   );
   const informationSections = <>
@@ -455,7 +460,7 @@ export default function CarDetail() {
           {showQualityChecks && <VehicleQualityChecks car={car} motHistory={motHistory} dealerConfirmed={isMultiChoiceWebsite()} hideUnknown={privatePreview} onAskTeam={enquiriesEnabled ? openVehicleEnquiry : undefined} />}
           <div id="vehicle-history-section" className="vehicle-page-chapter vehicle-history-chapter">
             <div className="vehicle-information-row vehicle-records-row">
-            <VehicleHistorySummary car={car} motAction={motAction} />
+            {isGraphite ? <GraphiteVehicleHistory car={car} mot={motSummary} motAction={motAction} /> : <VehicleHistorySummary car={car} motAction={motAction} />}
             {hasHandoverInformation && <section
               className="mt-8 border-t border-border pt-7"
               aria-labelledby="buyer-information-heading"
@@ -514,9 +519,10 @@ export default function CarDetail() {
 
           </div>
           <div id="vehicle-visit-delivery" className="vehicle-page-chapter vehicle-visit-delivery-chapter" aria-label="Visit and delivery">
-            <VehicleVisit car={car} />
+            {isGraphite && <h2 className="gr-vehicle-visit-title">Visit &amp; delivery</h2>}
+            {isGraphite ? <div className="gr-vehicle-visit-card"><GraphiteIcon name="map-pin" className="gr-vehicle-visit-icon" /><VehicleVisit car={car} /></div> : <VehicleVisit car={car} />}
             {deliveryAction && <section aria-labelledby="vehicle-delivery-heading" className="vehicle-delivery-information">
-              <h2 id="vehicle-delivery-heading" tabIndex={-1} className="section-heading scroll-mt-28">Delivery to your door</h2>
+              <h2 id="vehicle-delivery-heading" tabIndex={-1} className="section-heading scroll-mt-28">{isGraphite && <GraphiteIcon name="car" />}Delivery to your door</h2>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">Enter your postcode to see the delivery cost and total price.</p>
               {deliveryAction}
             </section>}
@@ -526,89 +532,20 @@ export default function CarDetail() {
   </>;
 
   return (
-    <div className={websiteTemplate === 'grand-touring' ? 'vehicle-page gt-vehicle-page min-h-screen' : 'vehicle-page vehicle-redesigned vehicle-page-streamlined vehicle-page-enter luxxy-shell min-h-screen'}>
-      <div className={websiteTemplate === 'grand-touring' ? 'gt-vehicle-container' : 'container mx-auto px-4 sm:px-6 lg:px-8'}>
+    <div className={isGraphite ? 'vehicle-page gr-vehicle-page min-h-screen' : websiteTemplate === 'grand-touring' ? 'vehicle-page gt-vehicle-page min-h-screen' : 'vehicle-page vehicle-redesigned vehicle-page-streamlined vehicle-page-enter luxxy-shell min-h-screen'}>
+      <div className={isGraphite ? 'gr-container' : websiteTemplate === 'grand-touring' ? 'gt-vehicle-container' : 'container mx-auto px-4 sm:px-6 lg:px-8'}>
         <div className="vehicle-browse-tools flex items-center">
           <Link href={fromStock ? browseReturnHref() : fromSaved ? '/saved' : '/stock'} onClick={event => {
             if (fromStock && event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) requestBrowseRestore();
           }} className="vehicle-return-link text-link min-h-11 text-muted-foreground">
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            {isGraphite ? <GraphiteIcon name="arrow-left" /> : <ArrowLeft className="h-4 w-4" aria-hidden="true" />}
             {fromStock ? 'Back to your results' : fromSaved ? 'Back to saved cars' : 'Back to stock'}
           </Link>
         </div>
-        {websiteTemplate ? <CustomerTemplateVehicle template={websiteTemplate} car={car} identity={templateIdentity} gallery={templateGallery} price={templatePrice} registration={registrationDetails} facts={templateFacts} mot={templateMot} actions={templateActions} highlights={templateHighlights} reservation={<ReserveCar key={car.id} car={car}/>} photoRequest={enquiriesEnabled && <VehiclePhotoRequest key={`photos-${car.id}`} onRequest={openVehicleEnquiry}/>} onEnquiry={enquiriesEnabled ? openVehicleEnquiry : undefined}/> : <div className="vehicle-detail-grid min-w-0">
-          <header className="vehicle-detail-heading" data-testid="vehicle-identity">
-            <h1 className={showMakeLogo ? 'make-logo-vehicle-heading' : undefined}>
-              {showMakeLogo ? <><MakeLogo make={car.make} size={28} /><span>{vehicleLabel}</span></> : vehicleLabel}
-            </h1>
-            {vehicleTrim && <p>{vehicleTrim}</p>}
-          </header>
-          <div className="vehicle-detail-gallery min-w-0">
-            <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} customerView hideInlineThumbnails customerActions={{
-              enquiryHref: customerFeatures.enabled('publicEnquiries') ? '#vehicle-enquiry' : undefined,
-              onEnquiry: customerFeatures.enabled('publicEnquiries') ? () => openVehicleEnquiry() : undefined,
-            }} />
-          </div>
-          <div className="vehicle-summary-column min-w-0">
-          <div className={`vehicle-summary min-w-0${sparseSummary ? ' vehicle-summary-sparse' : ''}`}>
-            <div className="vehicle-price-block">
-              {stockStatus !== 'Available' && (
-                <p className="vehicle-stock-status">{stockStatus}</p>
-              )}
-              <p className="vehicle-price-caption">Vehicle price</p>
-              <p className={`luxxy-price${car.price ? '' : ' is-price-on-application'}`}>{car.price ? formatPrice(car.price, car.currency) : 'Price on application'}</p>
-              {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <p className="text-sm text-muted-foreground">{car.priceType}</p>}
-              <PriceReduction car={car} showRecordedDate />
-              {damageDisclosure && <a href="#vehicle-history" className="vehicle-insurance-disclosure"><VehicleFactIcon label="Insurance history" /><span>{damageDisclosure.summary}</span><ArrowRight className="h-4 w-4" /></a>}
-              {bookingAction}
-            </div>
-            {registrationDetails}
-            {keyFacts.length > 0 && <dl className="vehicle-key-facts grid grid-cols-2 gap-x-4 gap-y-4" aria-label="Vehicle details">
-              {keyFacts.map((fact) => (
-                <div key={fact.label}>
-                  <dt className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <VehicleTerm label={fact.label} value={fact.value}><VehicleFactIcon label={fact.label} value={fact.value} />{fact.label}</VehicleTerm>
-                  </dt>
-                  <dd className="mt-1 text-sm font-medium" data-testid={fact.testId}>
-                    {fact.value}
-                  </dd>
-                </div>
-              ))}
-            </dl>}
-          {summaryFacts.length > 0 && <ul className="vehicle-specific-facts" aria-label="About this car">{summaryFacts.map(fact => <li key={fact.id}>{fact.text}</li>)}</ul>}
-          <VehicleSellingPoints car={car} omitMileage omitLabels={repeatedBadgeLabels} />
-          <div className="vehicle-action-area" data-testid="desktop-purchase-panel">
-            {motSummary && <button type="button" className="vehicle-mot-expiry vehicle-mot-fact" onClick={event => openMotHistory(event.currentTarget)} aria-label={`${motSummary.label} ${motSummary.value}. View MOT history`}>
-              <VehicleFactIcon label="MOT" /><span>{motSummary.label} <strong>{motSummary.value}</strong></span>
-            </button>}
-            {enquiryAction && <div className="vehicle-primary-actions vehicle-summary-main-actions">{enquiryAction}</div>}
-            <div className="vehicle-action-tools" aria-label="Contact and share">
-              <VehicleCall car={car} buttonLabel="Call" />
-              <VehicleWhatsApp car={car} />
-              <VehicleShare key={car.id} car={car} />
-              <SaveCarButton car={car} variant="inline" className="vehicle-save-control border-transparent bg-transparent" />
-            </div>
-            {(dealerConfig.partExchange?.enabled || deliveryAction) && <details className="vehicle-buying-options">
-              <summary>{dealerConfig.partExchange?.enabled ? deliveryAction ? 'Part exchange & delivery' : 'Part exchange' : 'Delivery'}<ChevronDown size={17} /></summary>
-              <div>
-                {dealerConfig.partExchange?.enabled && <a href={customerFeatures.enabled('publicEnquiries') ? `/enquire?type=part_exchange&vehicleId=${encodeURIComponent(car.id)}` : '/contact'} className="vehicle-part-exchange-link">Part exchange your car <ArrowRight className="h-4 w-4" aria-hidden="true" /></a>}
-                {deliveryAction}
-              </div>
-            </details>}
-            {dealerConfig.identity.name?.trim() && <div className="vehicle-seller">
-              <strong>{dealerConfig.identity.name}</strong>
-              {dealerLocation && <span>{dealerLocation}</span>}
-              <a href="#vehicle-visit-delivery">Showroom details <ArrowRight size={15} aria-hidden="true" /></a>
-            </div>}
-          </div>
-          </div>
-          <ReserveCar key={car.id} car={car} />
-          </div>
-          {enquiriesEnabled && <VehiclePhotoRequest key={`photos-${car.id}`} onRequest={openVehicleEnquiry} />}
-        </div>}
-        {websiteTemplate === 'grand-touring' ? <GrandTouringVehicleContent navigation={informationNavigation}>{informationSections}</GrandTouringVehicleContent> : <div className="vehicle-details-content min-w-0">{informationNavigation}{informationSections}</div>}
+        {websiteTemplate ? <CustomerTemplateVehicle template={websiteTemplate} car={car} identity={templateIdentity} gallery={templateGallery} price={templatePrice} registration={registrationDetails} facts={templateFacts} mot={templateMot} actions={templateActions} highlights={templateHighlights} reservation={<ReserveCar key={car.id} car={car}/>} photoRequest={enquiriesEnabled && <VehiclePhotoRequest key={`photos-${car.id}`} onRequest={openVehicleEnquiry}/>} onEnquiry={enquiriesEnabled ? openVehicleEnquiry : undefined}/> : <GraphiteVehicle identity={templateIdentity} gallery={templateGallery} price={templatePrice} registration={registrationDetails} facts={templateFacts} mot={templateMot} actions={templateActions} highlights={templateHighlights} sparse={sparseSummary} reservation={<ReserveCar key={car.id} car={car}/>} photoRequest={enquiriesEnabled && <VehiclePhotoRequest key={`photos-${car.id}`} onRequest={openVehicleEnquiry}/>}/> }
+        {isGraphite ? <GraphiteVehicleContent navigation={informationNavigation}>{informationSections}</GraphiteVehicleContent> : websiteTemplate === 'grand-touring' ? <GrandTouringVehicleContent navigation={informationNavigation}>{informationSections}</GrandTouringVehicleContent> : <div className="vehicle-details-content min-w-0">{informationNavigation}{informationSections}</div>}
         {enquiriesEnabled && <details id="vehicle-enquiry" className="vehicle-inline-enquiry vehicle-message-disclosure" open={enquiryExpanded} onToggle={event => setEnquiryExpanded(event.currentTarget.open)}>
-          <summary><h2 id="vehicle-enquiry-heading" tabIndex={-1} className="section-heading">{websiteTemplate === 'grand-touring' ? 'Ask about this car' : 'Message the showroom'}</h2><span>Ask a question about this {vehicleLabel}</span></summary>
+          <summary><h2 id="vehicle-enquiry-heading" tabIndex={-1} className="section-heading">{quietVehicle ? 'Ask about this car' : 'Message the showroom'}</h2><span>Ask a question about this {vehicleLabel}</span></summary>
           <div className="vehicle-message-body">
             <EnquiryForm key={car.id} vehicle={car} initialType="general" embedded messageRequest={messageRequest?.vehicleId === car.id ? messageRequest : undefined} />
             {enquiryExpanded && <VehicleEnquiryInformation key={`information-${car.id}`} car={car} motHistory={motHistory} requestMotHistory={requestMotHistory} dealer={settingsLoading || settingsError ? undefined : dealerConfig} includedItems={includedItems} />}
@@ -620,7 +557,7 @@ export default function CarDetail() {
           className="vehicle-similar-stock section-space border-t border-border bg-secondary/40"
           aria-labelledby="similar-cars-heading"
         >
-          <div className={websiteTemplate === 'grand-touring' ? 'gt-vehicle-container' : 'container mx-auto px-4 sm:px-6 lg:px-8'}>
+          <div className={isGraphite ? 'gr-container' : websiteTemplate === 'grand-touring' ? 'gt-vehicle-container' : 'container mx-auto px-4 sm:px-6 lg:px-8'}>
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
               <h2 id="similar-cars-heading" className="section-heading">
                 {websiteText(dealerConfig, "vehicleSimilarHeading")}
@@ -655,7 +592,7 @@ export default function CarDetail() {
       )}
       {(getPhoneHref(dealerConfig) || enquiryAction) && <nav className="vehicle-mobile-actions" aria-label="Contact about this vehicle">
         {getPhoneHref(dealerConfig) && <VehicleCall car={car} buttonLabel="Call" />}
-        {enquiryAction && <a href="#vehicle-enquiry" onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); openVehicleEnquiry(); }}><CustomerEnquiry className="h-4 w-4" aria-hidden="true" />{websiteTemplate === 'grand-touring' ? 'Ask about this car' : 'Message'}</a>}
+        {enquiryAction && <a href="#vehicle-enquiry" onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); openVehicleEnquiry(); }}><CustomerEnquiry className="h-4 w-4" aria-hidden="true" />{quietVehicle ? 'Ask about this car' : 'Message'}</a>}
       </nav>}
     </div>
   );

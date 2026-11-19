@@ -163,6 +163,60 @@ describe('opt-in website template production flows', () => {
   });
 });
 
+
+describe('default graphite vehicle page', () => {
+  it.each([undefined, 'existing'] as const)('uses the live graphite composition for the default selection %s', template => {
+    featureState.data.features.publicEnquiries = true;
+    featureState.data.features.testDriveBookings = true;
+    const car = stockFixture.cars[1];
+    const originalExtras = car.sourceExtras;
+    const extras = { websitePriceReduction: { previousPrice: 5995, currentPrice: 4995, detectedAt: new Date(Date.now() - 60000).toISOString() } };
+    Object.assign(car, { sourceExtras: extras });
+    const before = JSON.stringify(car);
+    try {
+      const { container } = renderVehicle('with-plate', { ...dealerConfig, presentation: { ...dealerConfig.presentation, websiteTemplate: template }, testDriveBooking: { ...defaultBookingSettings, enabled: true } });
+      const composition = container.querySelector('[data-vehicle-composition="graphite"]')!;
+      expect(composition).not.toBeNull();
+      expect(container.querySelector('[data-template-composition]')).toBeNull();
+      const identity = screen.getByTestId('vehicle-identity');
+      const price = composition.querySelector('.luxxy-price')!;
+      const gallery = composition.querySelector('.vehicle-detail-gallery')!;
+      const facts = composition.querySelector('.vehicle-key-facts')!;
+      const ask = within(composition as HTMLElement).getByRole('link', { name: 'Ask about this car' });
+      const booking = composition.querySelector('[data-vehicle-contact="booking"]')!;
+      for (const [first, next] of [[identity, price], [price, gallery], [gallery, facts], [facts, ask], [ask, booking]]) {
+        expect(first.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      }
+      expect(facts.querySelector('button')).toBeNull();
+      expect(facts).toHaveTextContent('90,000 miles');
+      expect(booking).toHaveAttribute('href', '/enquire?type=viewing&vehicleId=with-plate');
+      expect(within(composition as HTMLElement).getByTestId('price-reduction')).toHaveTextContent('£5,995');
+      expect(composition.querySelector('.showroom-inline-gallery')).not.toBeNull();
+      expect(composition.querySelector('.vehicle-thumbnail-grid')).toBeNull();
+      expect(JSON.stringify(car)).toBe(before);
+    } finally { Object.assign(car, { sourceExtras: originalExtras }); }
+  });
+
+  it('uses the current cached MOT expiry beside the plate and opens the shared history dialog', async () => {
+    const now = new Date();
+    const expiry = new Date(now.getTime() + 180 * 86400000).toISOString().slice(0, 10);
+    const history = { registration: 'NV24 LNZ', make: 'BMW', model: '3 Series', checkedAt: now.toISOString(), recall: 'Unknown', tests: [{ completedDate: new Date(now.getTime() - 86400000).toISOString(), result: 'PASSED', expiryDate: expiry, mileage: '90000', mileageUnit: 'MI', defects: [] }] };
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => url.includes('/mot-history')
+      ? Response.json({ status: 'available', history })
+      : Response.json({ enabled: false })));
+    renderVehicle('with-plate', dealerConfig);
+    const records = await screen.findByRole('button', { name: /MOT expires.*View MOT history/ });
+    expect(records.closest('.gr-vehicle-records')).not.toBeNull();
+    const expectedDate = new Date(`${expiry}T12:00:00Z`).toLocaleDateString('en-GB', { timeZone: 'Europe/London', day: 'numeric', month: 'long', year: 'numeric' });
+    expect(records).toHaveTextContent(expectedDate);
+    const section = screen.getByRole('region', { name: 'MOT and vehicle records' });
+    expect(section).toHaveTextContent(expectedDate);
+    expect(screen.getByRole('navigation', { name: 'Vehicle information sections' })).toHaveTextContent('MOT & history');
+    fireEvent.click(within(section).getByRole('button', { name: 'MOT history' }));
+    expect(await screen.findByRole('dialog', { name: 'MOT history' })).toBeVisible();
+  });
+});
+
 it.each(['band-only', 'with-plate'])('includes the quality section on every vehicle page, even without public enquiry access (%s)', id => {
   renderVehicle(id);
   const quality = screen.getByRole('region', { name: 'Pre-sale checks' });
@@ -233,7 +287,7 @@ describe('vehicle detail registration', () => {
 
     const plate = screen.getByTestId('plate-vehicle-with-plate');
     expect(plate).toHaveTextContent('NV24 LNZ');
-    expect(plate.closest('.vehicle-summary')).not.toBeNull();
+    expect(plate.closest('.gr-vehicle-layout')).not.toBeNull();
     expect(screen.getByTestId('text-registration-year')).toHaveTextContent('2024 (24 reg)');
   });
 });
@@ -242,7 +296,7 @@ it('puts one identity above the gallery and groups the price and key facts in th
   renderVehicle('with-plate');
   const identity = screen.getByTestId('vehicle-identity');
   const gallery = document.querySelector('.vehicle-detail-gallery')!;
-  const summary = document.querySelector<HTMLElement>('.vehicle-summary')!;
+  const summary = document.querySelector<HTMLElement>('.gr-vehicle-layout')!;
   expect(identity.compareDocumentPosition(gallery) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(document.querySelectorAll('.vehicle-detail-grid h1')).toHaveLength(1);
   expect(identity).toHaveTextContent('BMW 3 Series');
@@ -263,8 +317,8 @@ it('keeps a sparse price panel compact and omits placeholder specifications', ()
   });
   try {
     renderVehicle('with-plate', dealerConfig);
-    const summary = document.querySelector<HTMLElement>('.vehicle-summary')!;
-    expect(summary).toHaveClass('vehicle-summary-sparse');
+    const summary = document.querySelector<HTMLElement>('.gr-vehicle-layout')!;
+    expect(summary).toHaveClass('gr-vehicle-layout--sparse');
     expect(summary).toHaveTextContent('£4,995');
     expect(summary.querySelector('.vehicle-key-facts')).toBeNull();
     expect(summary).not.toHaveTextContent(/Unknown|Not specified|N\/A/);
@@ -386,7 +440,7 @@ it('shows vehicle context only with the expanded message form and retains the un
   renderVehicle('with-plate', { ...dealerConfig, identity: { ...dealerConfig.identity, name: 'This Dealer' }, presentation: { includedItems: ['6 months warranty'] } });
   const disclosure = document.getElementById('vehicle-enquiry') as HTMLDetailsElement;
   expect(screen.queryByTestId('vehicle-enquiry-information')).not.toBeInTheDocument();
-  fireEvent.click(within(document.querySelector('.vehicle-summary-main-actions') as HTMLElement).getByRole('link', { name: 'Message' }));
+  fireEvent.click(within(document.querySelector('.vehicle-summary-main-actions') as HTMLElement).getByRole('link', { name: 'Ask about this car' }));
   const sidebar = await screen.findByTestId('vehicle-enquiry-information');
   expect(within(sidebar).getByRole('heading', { name: 'BMW 3 Series' })).toBeInTheDocument();
   expect(sidebar).toHaveTextContent('6 months warranty');
@@ -395,7 +449,7 @@ it('shows vehicle context only with the expanded message form and retains the un
   fireEvent.change(message, { target: { value: 'Can I see this car on Saturday?' } });
   await act(async () => { disclosure.open = false; fireEvent(disclosure, new Event('toggle')); });
   await waitFor(() => expect(screen.queryByTestId('vehicle-enquiry-information')).not.toBeInTheDocument());
-  fireEvent.click(within(document.querySelector('.vehicle-summary-main-actions') as HTMLElement).getByRole('link', { name: 'Message' }));
+  fireEvent.click(within(document.querySelector('.vehicle-summary-main-actions') as HTMLElement).getByRole('link', { name: 'Ask about this car' }));
   await screen.findByTestId('vehicle-enquiry-information');
   expect(screen.getByTestId('textarea-enquiry-message')).toBe(message);
   expect(message).toHaveValue('Can I see this car on Saturday?');
@@ -446,7 +500,7 @@ it('adds a service-record request to the message form without losing an existing
   renderVehicle('with-plate');
   const disclosure = document.getElementById('vehicle-enquiry') as HTMLDetailsElement;
   expect(disclosure.open).toBe(false);
-  fireEvent.click(within(document.querySelector('.vehicle-summary-main-actions') as HTMLElement).getByRole('link', { name: 'Message' }));
+  fireEvent.click(within(document.querySelector('.vehicle-summary-main-actions') as HTMLElement).getByRole('link', { name: 'Ask about this car' }));
   const message = screen.getByTestId('textarea-enquiry-message');
   await waitFor(() => expect(disclosure.open).toBe(true));
   fireEvent.change(message, { target: { value: 'I would like to visit on Saturday.' } });
@@ -521,12 +575,12 @@ describe('vehicle gallery contact policy', () => {
     featureState.data.features.testDriveBookings = true;
     featureState.data.features.publicEnquiries = true;
     renderVehicle('with-plate', settings());
-    expect(document.querySelector('.vehicle-price-block [data-vehicle-contact="booking"]')).toHaveAttribute('href', '/enquire?type=viewing&vehicleId=with-plate');
-    expect(within(primaryActions()).getByRole('link', { name: 'Message' })).toHaveAttribute('href', '#vehicle-enquiry');
+    expect(document.querySelector('.gr-vehicle-contact [data-vehicle-contact="booking"]')).toHaveAttribute('href', '/enquire?type=viewing&vehicleId=with-plate');
+    expect(within(primaryActions()).getByRole('link', { name: 'Ask about this car' })).toHaveAttribute('href', '#vehicle-enquiry');
     selectTenthPhoto();
     expectUninterruptedGallery();
     expect((document.getElementById('vehicle-enquiry') as HTMLDetailsElement).open).toBe(false);
-    fireEvent.click(within(primaryActions()).getByRole('link', { name: 'Message' }));
+    fireEvent.click(within(primaryActions()).getByRole('link', { name: 'Ask about this car' }));
     await waitFor(() => expect((document.getElementById('vehicle-enquiry') as HTMLDetailsElement).open).toBe(true));
     expect(screen.getByTestId('form-enquiry')).toBeVisible();
     expect(screen.queryByTestId('status-enquiry-success')).not.toBeInTheDocument();
@@ -556,11 +610,11 @@ describe('vehicle gallery contact policy', () => {
     featureState.data.features.publicEnquiries = true;
     Object.assign(stockFixture.cars[1], { inventoryStatus: 'reserved' });
     renderVehicle('with-plate', settings());
-    expect(document.querySelector('.vehicle-price-block [data-vehicle-contact="booking"]')).toBeNull();
+    expect(document.querySelector('.gr-vehicle-contact [data-vehicle-contact="booking"]')).toBeNull();
     expect(document.querySelector('.vehicle-stock-status')).toHaveTextContent('Reserved');
     selectTenthPhoto();
     expectUninterruptedGallery();
-    fireEvent.click(within(primaryActions()).getByRole('link', { name: 'Message' }));
+    fireEvent.click(within(primaryActions()).getByRole('link', { name: 'Ask about this car' }));
     await waitFor(() => expect(screen.getByTestId('form-enquiry')).toBeVisible());
   });
 
@@ -568,7 +622,7 @@ describe('vehicle gallery contact policy', () => {
     renderVehicle('with-plate', settings(''));
     selectTenthPhoto();
     expectUninterruptedGallery();
-    expect(document.querySelector('.vehicle-price-block [data-vehicle-contact="booking"]')).toBeNull();
+    expect(document.querySelector('.gr-vehicle-contact [data-vehicle-contact="booking"]')).toBeNull();
     expect(screen.queryByTestId('form-enquiry')).not.toBeInTheDocument();
     expect(document.querySelector('.vehicle-photo-request')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Quick answers' })).not.toBeInTheDocument();
@@ -586,12 +640,12 @@ describe('vehicle gallery contact policy', () => {
     selectTenthPhoto();
     expectUninterruptedGallery();
     expect(document.querySelector('.vehicle-action-tools a')).toHaveAttribute('href', 'tel:07388831790');
-    expect(document.querySelector('.vehicle-price-block [data-vehicle-contact="booking"]')).toBeNull();
+    expect(document.querySelector('.gr-vehicle-contact [data-vehicle-contact="booking"]')).toBeNull();
     expect(screen.queryByRole('link', { name: 'Message' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Quick answers' })).not.toBeInTheDocument();
     const sticky = screen.getByRole('navigation', { name: 'Contact about this vehicle' });
     expect(within(sticky).getByRole('link', { name: /Call/ })).toBeInTheDocument();
-    expect(within(sticky).queryByRole('link', { name: 'Message' })).not.toBeInTheDocument();
+    expect(within(sticky).queryByRole('link', { name: 'Ask about this car' })).not.toBeInTheDocument();
   });
 
   it('honours the dealer booking switch independently from manual messages', () => {
@@ -600,8 +654,8 @@ describe('vehicle gallery contact policy', () => {
     renderVehicle('with-plate', settings('07388831790', false));
     selectTenthPhoto();
     expectUninterruptedGallery();
-    expect(document.querySelector('.vehicle-price-block [data-vehicle-contact="booking"]')).toBeNull();
-    expect(within(primaryActions()).getByRole('link', { name: 'Message' })).toBeInTheDocument();
+    expect(document.querySelector('.gr-vehicle-contact [data-vehicle-contact="booking"]')).toBeNull();
+    expect(within(primaryActions()).getByRole('link', { name: 'Ask about this car' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Questions about this car' })).toBeInTheDocument();
   });
 });
@@ -649,8 +703,8 @@ it('groups the vehicle information into clear chapters and keeps technical detai
   renderVehicle('with-plate');
   const navigation = screen.getByRole('navigation', { name: 'Vehicle information sections' });
   expect(within(navigation).getByRole('link', { name: 'Overview' })).toHaveAttribute('href', '#vehicle-overview-section');
-  expect(within(navigation).getByRole('link', { name: 'Checks' })).toHaveAttribute('href', '#vehicle-quality-checks');
-  expect(within(navigation).getByRole('link', { name: 'History' })).toHaveAttribute('href', '#vehicle-history-section');
+  expect(screen.getByRole('region', { name: 'Pre-sale checks' })).toHaveAttribute('id', 'vehicle-quality-checks');
+  expect(within(navigation).getByRole('link', { name: 'MOT & history' })).toHaveAttribute('href', '#vehicle-history-section');
   expect(within(navigation).getByRole('link', { name: 'Visit & delivery' })).toHaveAttribute('href', '#vehicle-visit-delivery');
   expect(within(navigation).queryByRole('link', { name: 'Equipment' })).not.toBeInTheDocument();
   for (const link of within(navigation).getAllByRole('link')) expect(document.querySelector(link.getAttribute('href')!)).not.toBeNull();
@@ -771,7 +825,7 @@ it('omits the Overview link and chapter when the feed has no overview content', 
     const navigation = screen.getByRole('navigation', { name: 'Vehicle information sections' });
     expect(within(navigation).queryByRole('link', { name: 'Overview' })).not.toBeInTheDocument();
     expect(document.getElementById('vehicle-overview-section')).toBeNull();
-    expect(within(navigation).getByRole('link', { name: 'History' })).toHaveAttribute('href', '#vehicle-history-section');
+    expect(within(navigation).getByRole('link', { name: 'MOT & history' })).toHaveAttribute('href', '#vehicle-history-section');
     for (const link of within(navigation).getAllByRole('link')) expect(document.querySelector(link.getAttribute('href')!)).not.toBeNull();
   } finally {
     Object.assign(car, original);
@@ -817,18 +871,18 @@ it('keeps MOT in History and makes both delivery entries open the same estimate 
   }
 });
 
-it('keeps mobile contact to Call and Message while respecting enquiry permissions', () => {
+it('keeps mobile contact to Call and Ask about this car while respecting enquiry permissions', () => {
   featureState.data.features.publicEnquiries = true;
   featureState.data.features.testDriveBookings = true;
   const view = renderVehicle('with-plate', { ...dealerConfig, testDriveBooking: { ...defaultBookingSettings, enabled: true } });
   const actions = screen.getByRole('navigation', { name: 'Contact about this vehicle' });
-  expect(within(actions).getByRole('link', { name: 'Message' })).toHaveAttribute('href', '#vehicle-enquiry');
+  expect(within(actions).getByRole('link', { name: 'Ask about this car' })).toHaveAttribute('href', '#vehicle-enquiry');
   expect(within(actions).getByRole('link', { name: /Call for/ })).toBeInTheDocument();
   expect(within(actions).queryByRole('link', { name: /Book/ })).not.toBeInTheDocument();
   view.unmount();
   featureState.data.features.publicEnquiries = false;
   renderVehicle('with-plate', { ...dealerConfig, testDriveBooking: { ...defaultBookingSettings, enabled: false } });
-  expect(within(screen.getByRole('navigation', { name: 'Contact about this vehicle' })).queryByRole('link', { name: 'Message' })).not.toBeInTheDocument();
+  expect(within(screen.getByRole('navigation', { name: 'Contact about this vehicle' })).queryByRole('link', { name: 'Ask about this car' })).not.toBeInTheDocument();
 });
 
 
@@ -913,7 +967,7 @@ it('puts the live £99 action below the price box and requires acceptance before
   }));
   renderVehicle('with-plate');
   const opener = await screen.findByRole('button', { name: 'Reserve this car for £99' });
-  expect(opener.closest('.vehicle-reserve')?.previousElementSibling).toHaveClass('vehicle-summary');
+  expect(opener.closest('.vehicle-reserve')?.previousElementSibling).toHaveClass('gr-vehicle-layout');
   expect(opener).toHaveAccessibleDescription('£99 deposit · Fully refundable');
   fireEvent.click(opener);
   const dialog = within(screen.getByRole('dialog'));

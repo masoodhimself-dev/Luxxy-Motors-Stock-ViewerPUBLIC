@@ -1,6 +1,7 @@
 import { AiCarFinder } from '@/components/ai-car-finder';
 import { DealershipHomepage } from '@/components/multi-choice-homepage';
 import { GrandTouringStockPage } from '@/components/website-templates/grand-touring-stock';
+import { GraphiteStockPage } from '@/components/graphite/graphite-stock';
 import { MultiStockFilters } from '@/components/multi-stock-filters';
 import { StockSearchRecovery } from '@/components/stock-search-recovery';
 import { StockAlertOffer } from '@/components/stock-alert-signup';
@@ -38,6 +39,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useStock } from '@/lib/stock-context';
 import { CarCard } from '@/components/car-card';
+import { GraphiteHomepage } from '@/components/graphite/graphite-home';
 import { CarComparison } from '@/components/car-comparison';
 import { CarComparisonTray, useComparisonSelection, useShortlistShare } from '@/components/car-comparison-tray';
 import { MAX_COMPARISON_CARS } from '@/lib/car-comparison';
@@ -380,7 +382,8 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     </ul>
   ) : dealerConfig.trustItems?.length ? <ul className="divide-y divide-border">{dealerConfig.trustItems.map(item => <li key={item} className="py-3 text-sm">{item}</li>)}</ul> : null;
 
-  if (!browseStock && location === '/') return <DealershipHomepage settings={dealerConfig} cars={publicCars} isLoading={isLoading} error={error} publicEnquiriesEnabled={publicEnquiriesEnabled} filters={filters} setFilters={setFilters} onSearch={next => {
+  const Homepage = selectedWebsiteTemplate(dealerConfig.presentation) === null ? GraphiteHomepage : DealershipHomepage;
+  if (!browseStock && location === '/') return <Homepage settings={dealerConfig} cars={publicCars} isLoading={isLoading} error={error} publicEnquiriesEnabled={publicEnquiriesEnabled} filters={filters} setFilters={setFilters} onSearch={next => {
     const count = publicCars.filter(car => (!next.make || car.make === next.make) && (!next.model || car.model === next.model) && (!next.maxPrice || (car.price != null && car.price > 0 && car.price <= Number(next.maxPrice)))).length;
     setFilters(next);
     saveBrowseSession({ filters: next, showAll: true, scrollY: 0 });
@@ -391,7 +394,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     setLocation('/stock' + (query.size ? '?' + query.toString() : ''));
   }} />;
 
-  if (isLoading && browseStock && stockTemplate !== 'grand-touring')
+  if (isLoading && browseStock && stockTemplate !== null && stockTemplate !== 'grand-touring')
     return (
       <div data-stock-template={stockTemplate ?? undefined} data-stock-view={stockTemplate ? stockView : undefined} data-stock-mode={stockTemplate ? selectedStockView === null ? 'default' : 'override' : undefined} data-stock-composition={stockTemplate ?? undefined} className={cn("luxxy-shell stock-refined stock-redesign stock-sidebar-layout min-h-screen", stockTemplate && `template-stock-page template-stock--${stockTemplate}`)} aria-label="Loading stock" aria-busy="true">
         <span className="sr-only" role="status">Loading used cars</span>
@@ -436,7 +439,8 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     </div>
   );
 
-  if (browseStock && stockTemplate === 'grand-touring') return <GrandTouringStockPage
+  const FullTemplateStock = stockTemplate === null ? GraphiteStockPage : GrandTouringStockPage;
+  if (browseStock && (stockTemplate === null || stockTemplate === 'grand-touring')) return <FullTemplateStock
     title={websiteText(dealerConfig, 'stockTitle')}
     introduction={customerDefaultCopy(websiteText(dealerConfig, 'stockIntroduction'), '', ['Find your next used car.']) ? websiteText(dealerConfig, 'stockIntroduction') : undefined}
     cars={publicCars}
@@ -487,7 +491,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   >
     {!error && <CarComparisonTray cars={comparison.comparedCars} onRemove={comparison.toggle} onClear={comparison.clear} onCompare={() => { comparisonShare.reset(); comparison.setOpen(true); }} />}
     <CarComparison cars={comparison.comparedCars} open={comparison.open && comparison.comparedCars.length >= 2 && !error} onOpenChange={comparison.setOpen} onShare={ids => void comparisonShare.share(ids)} shareStatus={comparisonShare.shareStatus} copyLink={comparisonShare.copyLink} returnSource="stock" />
-  </GrandTouringStockPage>;
+  </FullTemplateStock>;
 
   return (
     <div data-stock-template={stockTemplate ?? undefined} data-stock-view={stockTemplate ? stockView : undefined} data-stock-mode={stockTemplate ? selectedStockView === null ? 'default' : 'override' : undefined} data-stock-composition={stockTemplate ?? undefined} className={cn(browseStock ? "luxxy-shell homepage-refined stock-refined stock-redesign stock-sidebar-layout min-h-screen" : "luxxy-shell homepage-refined homepage-art-directed homepage-premium min-h-screen", stockTemplate && `template-stock-page template-stock--${stockTemplate}`)}>

@@ -1,6 +1,6 @@
 vi.mock('@/lib/stock-context', () => ({ useStock: () => ({ stock: null, isLoading: false, error: null }) }));
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { dealerConfig } from '@/config/dealer';
 import { Layout } from './layout';
 import { hslColourToHex } from '@/lib/brand-colour';
@@ -26,24 +26,24 @@ beforeEach(() => {
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
 });
 afterEach(() => vi.unstubAllGlobals());
-const logo = () => screen.getByRole('img', { name: 'Maxi Autos' });
+const logo = () => screen.getByRole('img', { name: 'Maxi Autos', hidden: true });
 
-describe('header artwork follows the background', () => {
+describe('approved graphite customer header', () => {
 
-  it('uses footer artwork on the dark homepage, regular artwork on scroll, and switches back at the top', () => {
+  it('keeps the configured regular artwork on the white homepage header at every scroll position', () => {
     render(<Layout><p>Showroom</p></Layout>);
-    expect(logo()).toHaveAttribute('src', '/footer-logo.png');
+    expect(logo()).toHaveAttribute('src', '/header-logo.png');
     Object.defineProperty(window, 'scrollY', { value: 180 }); fireEvent.scroll(window);
     expect(logo()).toHaveAttribute('src', '/header-logo.png');
     Object.defineProperty(window, 'scrollY', { value: 0 }); fireEvent.scroll(window);
-    expect(logo()).toHaveAttribute('src', '/footer-logo.png');
+    expect(logo()).toHaveAttribute('src', '/header-logo.png');
   });
-  it('uses the regular artwork when the mobile menu makes the header light', () => {
+  it('keeps regular artwork while the mobile menu is open and after it closes', () => {
     render(<Layout><p>Showroom</p></Layout>);
     fireEvent.click(screen.getByRole('button', { name: 'Open navigation menu' }));
     expect(logo()).toHaveAttribute('src', '/header-logo.png');
-    fireEvent.click(screen.getByRole('button', { name: 'Close navigation menu' }));
-    expect(logo()).toHaveAttribute('src', '/footer-logo.png');
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }));
+    expect(logo()).toHaveAttribute('src', '/header-logo.png');
   });
   it.each(['/stock'])('keeps the regular artwork on %s', path => {
     state.path = path; render(<Layout><p>Page</p></Layout>);
@@ -82,22 +82,21 @@ describe('header artwork follows the background', () => {
     expect(screen.queryByRole('link', { name: 'WhatsApp' })).toBeNull();
   });
 
-  it.each(['190 86% 44%', '42 82% 49%', '30.000 40.659% 35.686%'])('retains the dealer-selected accent hue for %s', accentHsl => {
+  it.each(['190 86% 44%', '42 82% 49%', '30.000 40.659% 35.686%'])('uses approved graphite while retaining the saved dealer accent %s', accentHsl => {
     state.settings.identity.brandColors = { primaryHsl: '161.538 16.883% 15.098%', accentHsl };
     const { container } = render(<Layout><p>Showroom</p></Layout>);
     const shell = container.querySelector<HTMLElement>('.luxxy-shell')!;
-    const [expectedHue] = accentHsl.match(/[\d.]+/g)!.map(Number);
-    const [actualHue] = shell.style.getPropertyValue('--accent').match(/[\d.]+/g)!.map(Number);
-    expect(Math.abs(actualHue - expectedHue)).toBeLessThan(2);
-    expect(shell.style.getPropertyValue('--customer-footer-background')).toBe(hslColourToHex('161.538 16.883% 15.098%'));
+    expect(hslColourToHex(shell.style.getPropertyValue('--accent'))).toBe('#25282d');
+    expect(shell.style.getPropertyValue('--customer-footer-background')).toBe('#25282d');
+    expect(state.settings.identity.brandColors).toEqual({ primaryHsl: '161.538 16.883% 15.098%', accentHsl });
   });
 
-  it('keeps dealer colours on body-rendered popups and restores the prior values on exit', () => {
+  it('keeps graphite colours on body-rendered popups and restores the prior values on exit', () => {
     document.body.style.setProperty('--dealer-page', '#010203');
     state.settings.presentation = { ...state.settings.presentation, pageColour: '#e8f4f5', panelColour: '#fff4e6' };
     const { unmount } = render(<Layout><p>Showroom</p></Layout>);
-    expect(document.body.style.getPropertyValue('--dealer-page')).toBe('#e8f4f5');
-    expect(document.body.style.getPropertyValue('--dealer-panel')).toBe('#fff4e6');
+    expect(document.body.style.getPropertyValue('--dealer-page')).toBe('#ffffff');
+    expect(document.body.style.getPropertyValue('--dealer-panel')).toBe('#ffffff');
     unmount();
     expect(document.body.style.getPropertyValue('--dealer-page')).toBe('#010203');
     expect(document.body.style.getPropertyValue('--dealer-panel')).toBe('');
@@ -105,13 +104,15 @@ describe('header artwork follows the background', () => {
   });
 });
 
-it.each([true, false])('mobile delivery uses the retained general enquiry only when enabled (%s)', enabled => {
+it.each([true, false])('mobile delivery opens its enabled information without bypassing enquiry permissions (%s)', async enabled => {
   state.enquiriesEnabled = enabled;
   state.settings.delivery = { ...state.settings.delivery!, enabled: true };
   render(<Layout><p>Showroom</p></Layout>);
   fireEvent.click(screen.getByRole('button', { name: 'Open navigation menu' }));
-  fireEvent.click(within(screen.getByRole('navigation', { name: 'Mobile navigation' })).getByRole('button', { name: /^Delivery$/ }));
-  expect(state.navigate).toHaveBeenCalledWith(enabled ? '/enquire?type=general' : '/contact');
+  const delivery = within(screen.getByRole('navigation', { name: 'Other services' })).getByRole('link', { name: 'Delivery' });
+  expect(delivery).toHaveAttribute('href', '#delivery');
+  fireEvent.click(delivery);
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 });
 
 it('keeps the mobile header compact and the phone number available in navigation', () => {
@@ -121,7 +122,6 @@ it('keeps the mobile header compact and the phone number available in navigation
   expect(view.container.querySelector('.header-phone-row')).toBeNull();
   expect(view.container.querySelector('.vehicle-header-call')).toBeNull();
   fireEvent.click(screen.getByRole('button', {name: 'Open navigation menu'}));
-  const navigation = screen.getByRole('navigation', {name: 'Mobile navigation'});
-  expect(within(navigation).getByRole('link', {name: 'Call Us'})).toHaveAttribute('href', 'tel:02046286488');
-  expect(within(navigation).getByRole('link', {name: 'Call Us'})).toHaveTextContent('020 4628 6488');
+  const menu = screen.getByRole('dialog');
+  expect(within(menu).getByRole('link', {name: '020 4628 6488'})).toHaveAttribute('href', 'tel:02046286488');
 });

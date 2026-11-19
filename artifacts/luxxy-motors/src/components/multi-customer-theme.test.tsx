@@ -14,6 +14,7 @@ const state = vi.hoisted(() => ({
   settings: {} as typeof dealerConfig,
   loading: false,
   error: false,
+  hasLoadedSettings: true,
 }));
 vi.mock('wouter', () => ({
   useLocation: () => [state.path, vi.fn()],
@@ -21,7 +22,7 @@ vi.mock('wouter', () => ({
   Link: ({ href, children, ...props }: any) => <a href={href} {...props}>{children}</a>,
 }));
 vi.mock('@/lib/dealer-settings-context', () => ({
-  useDealerSettings: () => ({ settings: state.settings, publicEnquiriesEnabled: true, isLoading: state.loading, isError: state.error }),
+  useDealerSettings: () => ({ settings: state.settings, publicEnquiriesEnabled: true, isLoading: state.loading, isError: state.error, hasLoadedSettings: state.hasLoadedSettings }),
 }));
 vi.mock('@/lib/saved-cars-context', () => ({ useSavedCars: () => ({ savedCount: 0 }) }));
 vi.mock('@/hooks/use-stock-header', () => ({ useStockHeader: () => ({ hidden: false, reveal: vi.fn() }) }));
@@ -30,6 +31,13 @@ vi.mock('./multi-home-header', async () => {
   return { MultiHomeHeader: React.forwardRef<HTMLElement, any>(({ settings }, ref) => <header ref={ref} data-testid="multi-theme-header" data-logo={settings.identity.logoAsset} data-name={settings.identity.name} />) };
 });
 vi.mock('./multi-home-footer', () => ({ MultiHomeFooter: ({ settings }: any) => <footer data-testid="multi-theme-footer" data-logo={settings.presentation?.footerLogoUrl || settings.identity.logoAsset} data-name={settings.identity.name} /> }));
+vi.mock('./graphite/graphite-shell', async () => {
+  const React = await import('react');
+  return {
+    GraphiteHeader: React.forwardRef<HTMLElement, any>(({ settings }, ref) => <header ref={ref} data-testid="multi-theme-header" data-logo={settings.identity.logoAsset} data-name={settings.identity.name} />),
+    GraphiteFooter: ({ settings }: any) => <footer data-testid="multi-theme-footer" data-logo={settings.presentation?.footerLogoUrl || settings.identity.logoAsset} data-name={settings.identity.name} />,
+  };
+});
 vi.mock('./customer-footer', () => ({ CustomerFooter: () => <footer data-testid="other-dealer-footer" /> }));
 
 function canonical(origin: string) {
@@ -58,6 +66,7 @@ beforeEach(() => {
   state.path = '/stock';
   state.loading = false;
   state.error = false;
+  state.hasLoadedSettings = true;
   state.settings = {
     ...dealerConfig,
     identity: { ...dealerConfig.identity, name: 'Multi-Choice Motors', logoAsset: '/configured-dealer.svg', brandColors: { primaryHsl: '220 50% 20%', accentHsl: '210 60% 40%' } },
@@ -83,33 +92,45 @@ afterEach(() => {
 describe('Shared dealership customer theme scope', () => {
   it('provides the approved homepage palette and shared font without changing saved dealer settings', () => {
     const before = JSON.stringify(state.settings);
-    const variables = multiCustomerThemeVariables();
+    const variables = multiCustomerThemeVariables('graphite');
     expect(variables).toMatchObject({
+      '--mh-primary': '#25282d', '--mh-accent': '#25282d', '--mh-accent-dark': '#3b4047',
+      '--mh-bg': '#ffffff', '--mh-surface': '#ffffff', '--mh-tint': '#f3f4f5',
+      '--mh-muted': '#565c64', '--mh-border': '#ced2d7',
+      '--dealer-page': '#ffffff', '--dealer-panel': '#ffffff',
+      '--app-font-sans': "'Manrope', Arial, sans-serif",
+    });
+    expect(variables['--font-display']).toContain('Manrope');
+    expect(variables['--font-body']).toContain('Manrope');
+    // The default public presentation does not replace the existing staff/document foundation.
+    const foundation = multiCustomerThemeVariables();
+    expect(foundation).toMatchObject({
       '--mh-primary': '#192a36', '--mh-accent': '#a47a2b', '--mh-accent-dark': '#7c591a',
       '--mh-bg': '#f9fafb', '--mh-surface': '#ffffff', '--mh-tint': '#eef9fc',
       '--mh-muted': '#59656e', '--mh-border': '#e1e5e8',
       '--dealer-page': '#f9fafb', '--dealer-panel': '#ffffff',
       '--app-font-sans': "'Multi Montserrat', Arial, sans-serif",
     });
-    expect(variables['--font-display']).toContain('Multi Montserrat');
-    expect(variables['--font-body']).toContain('Multi Montserrat');
+    expect(foundation['--font-display']).toContain('Multi Montserrat');
+    expect(foundation['--font-body']).toContain('Multi Montserrat');
     expect(JSON.stringify(state.settings)).toBe(before);
   });
 
   it.each(['/', '/stock', '/vehicle/current-car', '/saved', '/enquire', '/contact', '/warranty', '/viewing/booking-token'])(
-    'applies navy to the Multi-Choice %s shell and its body-rendered pop-ups', path => {
+    'applies graphite to the Multi-Choice %s shell and its body-rendered pop-ups', path => {
       state.path = path;
       const { container } = render(page());
       const shell = container.querySelector<HTMLElement>('.customer-site.dealer-site-theme');
       expect(shell).not.toBeNull();
-      expect(shell).toHaveClass('showroom-navy-site');
-      expect(shell?.style.getPropertyValue('--dealer-page')).toBe('#f6f7f9');
-      expect(shell?.style.getPropertyValue('--mh-accent')).toBe('#182957');
-      expect(shell?.style.getPropertyValue('--app-font-sans')).toContain('Multi Montserrat');
+      expect(shell).toHaveClass('graphite-site');
+      expect(document.body).toHaveAttribute('data-customer-graphite', 'true');
+      expect(shell?.style.getPropertyValue('--dealer-page')).toBe('#ffffff');
+      expect(shell?.style.getPropertyValue('--mh-accent')).toBe('#25282d');
+      expect(shell?.style.getPropertyValue('--app-font-sans')).toContain('Manrope');
       expect(document.body).toHaveAttribute('data-dealer-customer', 'true');
-      expect(document.body.style.getPropertyValue('--mh-primary')).toBe('#182235');
-      expect(document.body.style.getPropertyValue('--dialog-accent')).toBe('#182957');
-      expect(document.body.style.getPropertyValue('--app-font-sans')).toContain('Multi Montserrat');
+      expect(document.body.style.getPropertyValue('--mh-primary')).toBe('#25282d');
+      expect(document.body.style.getPropertyValue('--dialog-accent')).toBe('#25282d');
+      expect(document.body.style.getPropertyValue('--app-font-sans')).toContain('Manrope');
       const popup = screen.getByRole('dialog', { name: 'Customer pop-up' });
       expect(document.body).toContainElement(popup);
       expect(shell).not.toContainElement(popup);
@@ -135,26 +156,26 @@ describe('Shared dealership customer theme scope', () => {
     const { container } = render(page());
     const shell = container.querySelector<HTMLElement>('.customer-site')!;
     expect(shell).toHaveClass('dealer-site-theme');
-    expect(shell).toHaveClass('showroom-navy-site');
-    expect(shell.style.getPropertyValue('--dealer-page')).toBe('#f6f7f9');
+    expect(shell).toHaveClass('graphite-site');
+    expect(shell.style.getPropertyValue('--dealer-page')).toBe('#ffffff');
     expect(shell.style.getPropertyValue('--dealer-panel')).toBe('#ffffff');
-    expect(shell.style.getPropertyValue('--app-font-sans')).toContain('Multi Montserrat');
+    expect(shell.style.getPropertyValue('--app-font-sans')).toContain('Manrope');
     expect(document.body).toHaveAttribute('data-dealer-customer', 'true');
     expect(screen.getByTestId('multi-theme-header')).toHaveAttribute('data-logo', '/configured-dealer.svg');
     expect(screen.getByTestId('multi-theme-footer')).toHaveAttribute('data-logo', '/configured-footer.svg');
     expect(JSON.stringify(state.settings)).toBe(before);
   });
 
-  it('shares the navy style while keeping the Multi-Choice identity scoped to its verified website', () => {
+  it('shares the graphite style while keeping the Multi-Choice identity scoped to its verified website', () => {
     canonical('https://www.multichoicemotors.co.uk');
     const view = render(page());
     expect(view.container.querySelector('.dealer-site-theme')).toHaveAttribute('data-dealer-brand', 'multi-choice');
     canonical('https://multichoicemotors.co.uk.other.example');
     const before = JSON.stringify(state.settings);
     view.rerender(page());
-    expect(view.container.querySelector('.dealer-site-theme')).toHaveClass('showroom-navy-site');
+    expect(view.container.querySelector('.dealer-site-theme')).toHaveClass('graphite-site');
     expect(view.container.querySelector('.dealer-site-theme')).not.toHaveAttribute('data-dealer-brand');
-    expect(document.body.style.getPropertyValue('--dealer-page')).toBe('#f6f7f9');
+    expect(document.body.style.getPropertyValue('--dealer-page')).toBe('#ffffff');
     expect(document.body).toHaveAttribute('data-dealer-customer', 'true');
     expect(screen.getByTestId('multi-theme-header')).toHaveAttribute('data-logo', '/configured-dealer.svg');
     expect(screen.getByTestId('multi-theme-footer')).toHaveAttribute('data-logo', '/configured-footer.svg');
@@ -169,7 +190,7 @@ describe('Shared dealership customer theme scope', () => {
     document.body.style.setProperty('--unrelated-token', 'keep-me');
     const { unmount } = render(page());
     expect(document.body).toHaveAttribute('data-dealer-customer', 'true');
-    expect(document.body.style.getPropertyValue('--mh-primary')).toBe('#182235');
+    expect(document.body.style.getPropertyValue('--mh-primary')).toBe('#25282d');
     unmount();
     expect(document.body).toHaveAttribute('data-dealer-customer', 'previous-owner');
     expect(document.body.style.getPropertyValue('--app-font-sans')).toBe('Existing interface font');
@@ -190,6 +211,7 @@ describe('Shared dealership customer theme scope', () => {
     expect(view.container.querySelector('.dealer-site-theme')).toBeNull();
     expect(document.body).not.toHaveAttribute('data-dealer-customer');
     expect(document.body).toHaveAttribute('data-dealer-portal', 'true');
+    expect(document.body).not.toHaveAttribute('data-customer-graphite');
     expect(document.body.style.getPropertyValue('--app-font-sans')).toContain('Multi Montserrat');
     state.path = '/saved';
     view.rerender(page());
@@ -199,8 +221,8 @@ describe('Shared dealership customer theme scope', () => {
     view.rerender(page());
     expect(view.container.querySelector('.dealer-site-theme')).not.toBeNull();
     expect(document.body).toHaveAttribute('data-dealer-customer', 'true');
-    expect(document.body.style.getPropertyValue('--app-font-sans')).toContain('Multi Montserrat');
-    expect(document.body.style.getPropertyValue('--dealer-page')).toBe('#f6f7f9');
+    expect(document.body.style.getPropertyValue('--app-font-sans')).toContain('Manrope');
+    expect(document.body.style.getPropertyValue('--dealer-page')).toBe('#ffffff');
     state.path = '/platform';
     view.rerender(page());
     expect(document.body).not.toHaveAttribute('data-dealer-customer');
@@ -214,7 +236,9 @@ describe('Shared dealership customer theme scope', () => {
     const { container } = render(page());
     const shell = container.querySelector<HTMLElement>('.premium-portal.dealer-portal-theme');
     expect(shell).not.toBeNull();
+    expect(shell).not.toHaveClass('graphite-site');
     expect(shell).not.toHaveClass('showroom-navy-site');
+    expect(document.body).not.toHaveAttribute('data-customer-graphite');
     expect(shell?.style.getPropertyValue('--portal-ink')).toBe('#192a36');
     expect(shell?.style.getPropertyValue('--portal-canvas')).toBe('#f9fafb');
     expect(document.body).toHaveAttribute('data-dealer-portal', 'true');
@@ -278,13 +302,13 @@ describe('Shared dealership customer theme scope', () => {
     }
   });
 
-  it.each(['loading', 'error'] as const)('retains the shared visual theme while settings are %s', status => {
+  it.each(['loading', 'error'] as const)('retains graphite while cached dealership settings have background %s', status => {
     state.path = '/';
     state[status] = true;
     const { container } = render(page());
-    expect(container.querySelector('.customer-site.dealer-site-theme')).toHaveClass('showroom-navy-site');
+    expect(container.querySelector('.customer-site.dealer-site-theme')).toHaveClass('graphite-site');
     expect(document.body).toHaveAttribute('data-dealer-customer', 'true');
-    expect(document.body.style.getPropertyValue('--app-font-sans')).toContain('Multi Montserrat');
+    expect(document.body.style.getPropertyValue('--app-font-sans')).toContain('Manrope');
   });
 
   it('themes a minimal public document without adding navigation or changing its contents', () => {
@@ -299,7 +323,7 @@ describe('Shared dealership customer theme scope', () => {
     expect(document.body).not.toHaveAttribute('data-dealer-customer');
   });
 
-  it('keeps specialist plate lettering on the page and inside body pop-ups while ordinary controls use Montserrat', () => {
+  it('keeps specialist plate lettering on the page and inside body pop-ups while ordinary controls use the graphite UI font', () => {
     const sheet = document.createElement('style');
     sheet.setAttribute('data-multi-theme-test', '');
     // The shared theme loads last to exercise the actual cascade risk.
@@ -323,7 +347,8 @@ describe('Shared dealership customer theme scope', () => {
     const popupPlate = screen.getByRole('textbox', { name: 'Pop-up registration' });
     expect(getComputedStyle(popupPlate).fontFamily).toMatch(/Forecourt Plate UK|--app-registration-font/);
     expect(getComputedStyle(popupPlate).fontWeight).toBe('400');
-    expect(getComputedStyle(screen.getByRole('textbox', { name: 'Customer name' })).fontFamily).toContain('Multi Montserrat');
-    expect(getComputedStyle(screen.getByRole('button', { name: 'Continue' })).fontFamily).toContain('Multi Montserrat');
+    expect(document.body.style.getPropertyValue('--ct-font-ui')).toContain('Manrope');
+    expect(getComputedStyle(screen.getByRole('textbox', { name: 'Customer name' })).fontFamily).toContain('--ct-font-ui');
+    expect(getComputedStyle(screen.getByRole('button', { name: 'Continue' })).fontFamily).toContain('--ct-font-ui');
   });
 });

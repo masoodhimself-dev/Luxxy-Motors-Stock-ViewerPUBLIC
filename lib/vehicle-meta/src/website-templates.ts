@@ -1,6 +1,6 @@
 /** Shared identifiers for published customer websites and private template previews. */
 export const WEBSITE_TEMPLATES = [
-  { id: 'existing', name: 'Original website', description: 'Keep the original website layout.', legacy: true },
+  { id: 'existing', name: 'Graphite & white', description: 'The default website with large car photographs, clear details and a graphite and white finish.', legacy: true },
   { id: 'classic', name: 'Classic', description: 'The previously available classic layout.', legacy: true },
   { id: 'premium', name: 'Premium', description: 'The previously available premium layout.', legacy: true },
   { id: 'focused', name: 'Focused', description: 'The previously available focused layout.', legacy: true },
@@ -17,7 +17,7 @@ export function isWebsiteTemplateId(value: unknown): value is WebsiteTemplateId 
   return typeof value === 'string' && WEBSITE_TEMPLATES.some(template => template.id === value);
 }
 
-/** Missing or unrecognised historical values keep the original website. Never writes settings. */
+/** Missing or unrecognised historical values use the shared default. Never writes settings. */
 export function resolveWebsiteTemplateId(value: unknown): WebsiteTemplateId {
   return isWebsiteTemplateId(value) ? value : 'existing';
 }
