@@ -2,6 +2,7 @@ import { useState } from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, afterEach, it, expect, vi } from "vitest";
+import type { SaleHandoffTaskPage } from "@workspace/vehicle-meta";
 const state = vi.hoisted(() => ({
   permissions: ["sales.manage", "settings.publish", "team.manage"],
   signedIn: true,
@@ -131,7 +132,7 @@ function renderPortal() {
   return render(<QueryClientProvider client={queryClient}><Portal /></QueryClientProvider>);
 }
 async function openQuickActions() {
-  const trigger = screen.getByRole("button", { name: "Quick actions" });
+  const trigger = screen.getByRole("button", { name: state.permissions.includes("sales.manage") ? "New" : "Tools" });
   trigger.focus();
   fireEvent.keyDown(trigger, { key: "Enter", code: "Enter" });
   return screen.findByRole("menu");
@@ -148,7 +149,14 @@ beforeEach(() => {
   state.bookingSettingsEnabled = true;
   state.cars = [];
   state.staffCarsOptions.mockClear();
-  state.draftFetch.mockReset().mockResolvedValue({ drafts: [], hasMore: false });
+  state.draftFetch.mockReset().mockImplementation(async (url: string) => {
+    if (url.startsWith('/api/sale-workspace/handoff-tasks')) return { tasks: [], hasMore: false } satisfies SaleHandoffTaskPage;
+    if (url === '/api/sale-workspace?queue=attention') return { sales: [], hasMore: false };
+    if (url === '/api/staff/notifications') return { generatedAt: '2026-11-19T10:00:00.000Z', counts: {}, items: [] };
+    if (url === '/api/staff/email-drafts') return { drafts: [], hasMore: false };
+    throw new Error(`Missing portal fixture for ${url}`);
+  });
+  window.innerWidth = 1024;
   window.history.replaceState({}, "", "/portal");
   global.ResizeObserver = class {
     observe() {}
@@ -160,29 +168,35 @@ beforeEach(() => {
   Element.prototype.setPointerCapture ??= () => {};
   Element.prototype.releasePointerCapture ??= () => {};
 });
-it.each([true, false])('uses the approved Multi-Choice logo on portal headers when signedIn=%s', signedIn => {
+it.each([true, false])('uses the approved Multi-Choice logo in workspace branding when signedIn=%s', signedIn => {
   state.multiChoice = true;
   state.signedIn = signedIn;
   renderPortal();
-  expect(screen.getByRole('img', { name: 'Dealer' })).toHaveAttribute('src', '/brand/multi-choice-motors/multi-choice-wordmark.svg');
+  // The signed-in rail repeats the visible dealer name, so its logo is decorative.
+  expect(screen.getByRole('img', { name: 'Dealer', hidden: signedIn })).toHaveAttribute('src', '/brand/multi-choice-motors/multi-choice-wordmark.svg');
 });
 it('keeps another dealership’s configured portal logo', () => {
   renderPortal();
-  expect(screen.getByRole('img', { name: 'Dealer' })).toHaveAttribute('src', '/configured-dealer-logo.svg');
+  expect(screen.getByRole('img', { name: 'Dealer', hidden: true })).toHaveAttribute('src', '/configured-dealer-logo.svg');
+  expect(screen.getByText('Dealer', { selector: '.portal-desk-dealer strong' })).toBeVisible();
 });
 afterEach(() => {
   vi.restoreAllMocks();
   window.history.replaceState({}, "", "/");
 });
-it("defaults to Inbox with the focused Cars workspace beside Sales and Settings", () => {
+it("defaults to Today with the five main workspaces and owner Settings available", async () => {
   renderPortal();
-  expect(screen.getByText("Inbox workspace")).toBeVisible();
+  expect(screen.getByRole("region", { name: "Today" })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Needs attention" })).toBeVisible();
+  expect(screen.queryByText("Inbox workspace")).not.toBeInTheDocument();
   const nav = screen.getByRole("navigation", { name: "Portal sections" });
   expect(
     within(nav)
       .getAllByRole("button")
       .map((button) => button.textContent),
-  ).toEqual(["Inbox", "Cars", "Sales", "Settings"]);
+  ).toEqual(["Today", "Inbox", "Stock", "Sales", "Calendar", "More"]);
+  expect(screen.getByTestId("tab-today")).toHaveAttribute("aria-current", "page");
+  expect(screen.getByRole("button", { name: "Settings" })).toBeVisible();
   expect(
     screen.queryByRole("button", { name: "Home" }),
   ).not.toBeInTheDocument();
@@ -192,6 +206,12 @@ it("defaults to Inbox with the focused Cars workspace beside Sales and Settings"
   expect(
     screen.queryByText(/test inbox|practice website/i),
   ).not.toBeInTheDocument();
+  expect(await screen.findByText("Nothing needs attention right now.")).toBeVisible();
+  expect(state.draftFetch.mock.calls.map(([url]) => url)).toEqual(expect.arrayContaining([
+    "/api/staff/notifications", "/api/sale-workspace?queue=attention",
+    "/api/sale-workspace/handoff-tasks", "/api/sale-workspace/handoff-tasks?view=needs-reassignment",
+  ]));
+  expect(state.draftFetch.mock.calls.some(([url]) => url === "/api/staff/email-drafts")).toBe(false);
 });
 it("old Cars bookmarks open the read-only finder without retired video actions", () => {
   window.history.replaceState(
@@ -200,20 +220,25 @@ it("old Cars bookmarks open the read-only finder without retired video actions",
     "/portal?section=inventory&recordVideo=1",
   );
   renderPortal();
-  expect(screen.getByRole("region", { name: "Cars" })).toBeVisible();
+  expect(screen.getByRole("region", { name: "Stock" })).toBeVisible();
   expect(screen.getByText("Current stock")).toBeVisible();
   expect(
     screen.queryByRole("button", { name: /video/i }),
   ).not.toBeInTheDocument();
 });
-it("keeps Settings in the four-item phone navigation", () => {
+it("keeps Settings and Calendar reachable from More on the phone", async () => {
   window.innerWidth = 390;
   renderPortal();
-  const buttons = within(
-    screen.getByRole("navigation", { name: "Portal sections" }),
-  ).getAllByRole("button");
-  expect(buttons).toHaveLength(4);
-  expect(buttons[3]).toHaveTextContent("Settings");
+  const nav = screen.getByRole("navigation", { name: "Portal sections" });
+  expect(within(nav).getAllByRole("button").map(button => button.textContent)).toEqual(["Today", "Inbox", "Stock", "Sales", "Calendar", "More"]);
+  const trigger = within(nav).getByRole("button", { name: "More" });
+  trigger.focus();
+  fireEvent.keyDown(trigger, { key: "Enter", code: "Enter" });
+  const menu = await screen.findByRole("menu");
+  expect(within(menu).getByRole("menuitem", { name: "Calendar" })).toBeVisible();
+  fireEvent.click(within(menu).getByRole("menuitem", { name: "Settings" }));
+  expect(await screen.findByLabelText("Private wording")).toBeVisible();
+  expect(window.location.search).toBe("?section=settings");
 });
 it("requires deliberate discard before leaving unsaved private Settings", () => {
   window.history.replaceState(
@@ -226,24 +251,31 @@ it("requires deliberate discard before leaving unsaved private Settings", () => 
     target: { value: "Unsaved wording" },
   });
   const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-  fireEvent.click(screen.getByRole("button", { name: "Sales" }));
+  fireEvent.click(screen.getByTestId("tab-sales"));
   expect(confirm).toHaveBeenCalledOnce();
   expect(screen.getByLabelText("Private wording")).toHaveValue(
     "Unsaved wording",
   );
   expect(screen.queryByText("Sales workspace")).not.toBeInTheDocument();
   confirm.mockReturnValue(true);
-  fireEvent.click(screen.getByRole("button", { name: "Sales" }));
+  fireEvent.click(screen.getByTestId("tab-sales"));
   expect(screen.getByText("Sales workspace")).toBeVisible();
 });
-it("does not offer owner settings to an accounts role", () => {
+it("does not offer owner settings in the rail or More menu to an accounts role", async () => {
   state.permissions = ["payments.record"];
   renderPortal();
   expect(
     within(screen.getByRole("navigation", { name: "Portal sections" }))
       .getAllByRole("button")
       .map((button) => button.textContent),
-  ).toEqual(["Inbox", "Cars", "Sales"]);
+  ).toEqual(["Today", "Inbox", "Stock", "Sales", "Calendar", "More"]);
+  expect(screen.queryByRole("button", { name: "Settings" })).not.toBeInTheDocument();
+  const trigger = screen.getByRole("button", { name: "More" });
+  trigger.focus();
+  fireEvent.keyDown(trigger, { key: "Enter", code: "Enter" });
+  const menu = await screen.findByRole("menu");
+  expect(within(menu).queryByRole("menuitem", { name: "Settings" })).not.toBeInTheDocument();
+  expect(within(menu).getByRole("menuitem", { name: "Calendar" })).toBeVisible();
 });
 
 it("opens a prefilled enquiry or booking from the focused Cars finder", () => {
@@ -285,15 +317,15 @@ it("protects unsaved settings when using the workspace logo", () => {
     target: { value: "Keep my private wording" },
   });
   const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-  fireEvent.click(screen.getByRole("link", { name: "Dealer workspace" }));
+  fireEvent.click(screen.getByRole("button", { name: "DealerOS home" }));
   expect(confirm).toHaveBeenCalledOnce();
   expect(screen.getByLabelText("Private wording")).toHaveValue(
     "Keep my private wording",
   );
   confirm.mockReturnValue(true);
-  fireEvent.click(screen.getByRole("link", { name: "Dealer workspace" }));
+  fireEvent.click(screen.getByRole("button", { name: "DealerOS home" }));
   expect(confirm).toHaveBeenCalledTimes(2);
-  expect(screen.getByText("Inbox workspace")).toBeVisible();
+  expect(screen.getByRole("region", { name: "Today" })).toBeVisible();
 });
 
 it("retired Reports bookmarks return to Inbox", () => {
@@ -305,14 +337,15 @@ it("retired Reports bookmarks return to Inbox", () => {
   ).not.toBeInTheDocument();
 });
 
-it("groups Quick actions into creation and tools, using plain action labels", async () => {
+it("groups the New menu into current creation actions and tools, loading drafts only on demand", async () => {
+  window.history.replaceState({}, "", "/portal?section=cars");
   renderPortal();
   expect(state.draftFetch).not.toHaveBeenCalled();
   const menu = await openQuickActions();
   expect(within(menu).getByText("Create")).toBeVisible();
   expect(within(menu).getByText("Tools")).toBeVisible();
   expect(within(menu).getAllByRole("menuitem").map(item => item.textContent?.trim())).toEqual([
-    "New enquiry", "Book test drive", "Start sale", "Check MOT", "Calendar", "Email drafts",
+    "New enquiry", "Book test drive", "Start sale", "Write a letter", "Write an email", "Check MOT", "Try with a real car", "Calendar", "Email drafts",
   ]);
   await waitFor(() => expect(state.draftFetch).toHaveBeenCalledOnce());
   expect(state.draftFetch.mock.calls[0][0]).toBe("/api/staff/email-drafts");
@@ -330,7 +363,7 @@ it.each([
   expect(screen.queryByRole("menu")).not.toBeInTheDocument();
 });
 
-it("opens an unsaved sale directly from Quick actions", async () => {
+it("opens an unsaved sale directly from the New menu", async () => {
   renderPortal();
   const menu = await openQuickActions();
   fireEvent.click(within(menu).getByRole("menuitem", { name: "Start sale" }));
@@ -378,8 +411,9 @@ it.each([
   expect(confirm).toHaveBeenCalledTimes(2);
 });
 
-it("keeps Calendar available to read-only staff without offering managing actions or fetching drafts", async () => {
+it("keeps Calendar available in Tools to read-only staff without fetching drafts", async () => {
   state.permissions = ["payments.record"];
+  window.history.replaceState({}, "", "/portal?section=cars");
   renderPortal();
   const menu = await openQuickActions();
   expect(within(menu).getAllByRole("menuitem").map(item => item.textContent?.trim())).toEqual(["Calendar"]);
@@ -470,9 +504,9 @@ it("supports keyboard opening, arrow navigation and Enter selection", async () =
   expect(await screen.findByText("Quick enquiry: general · test drive")).toBeVisible();
 });
 
-it("returns focus to Quick actions when the menu is dismissed with Escape", async () => {
+it("returns focus to New when the menu is dismissed with Escape", async () => {
   renderPortal();
-  const trigger = screen.getByRole("button", { name: "Quick actions" });
+  const trigger = screen.getByRole("button", { name: "New" });
   const menu = await openQuickActions();
   fireEvent.keyDown(menu, { key: "Escape", code: "Escape" });
   await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());

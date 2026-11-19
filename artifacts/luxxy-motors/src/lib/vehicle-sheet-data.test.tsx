@@ -10,6 +10,14 @@ import type { MotHistory } from '@workspace/vehicle-meta';
 import autoFixture from './__fixtures__/vehicle-sheet-autotrader.json';
 import cazooFixture from './__fixtures__/vehicle-sheet-cazoo.json';
 const url = 'https://luxxymotors.uk/vehicle/actual-id';
+const vehiclePageDocument = (current: string, canonical?: string, pathname = '/', staff = false) => ({
+  querySelector: (selector: string) => {
+    if (selector === 'meta[name="luxxy-canonical-origin"][data-page-meta]') return canonical ? { content: canonical } : null;
+    if (selector === 'meta[name="dealeros-staff-portal"]') return staff ? { content: 'test-staff-publishable-key' } : null;
+    return null;
+  },
+  location: { origin: current, pathname },
+}) as unknown as Document;
 it.each([['Auto Trader', autoFixture as unknown as Car], ['Cazoo', cazooFixture as unknown as Car]])('maps real %s data without guessing absent plates', (_source, car) => {
   const data = buildVehicleSheetData(car, dealerConfig, [], undefined, url);
   expect(data.vehicle.title).toBeTruthy(); expect(data.vehicle.photos?.length).toBeGreaterThan(0);
@@ -35,21 +43,31 @@ it('chooses the actual gearbox glyph and shows ellipses for omitted highlights',
 });
 it('rejects local, marketplace, different dealer and temporary QR destinations', () => {
   for (const destination of ['http://localhost:4212/vehicle/x','https://cazoo.co.uk/vehicle/x','https://otherdealer.uk/vehicle/x','https://luxxymotors.uk/vehicle/x?token=secret']) expect(() => validateVehiclePageUrl(destination,{dealerWebsiteOrigin:'https://luxxymotors.uk',vehiclePathPrefix:'/vehicle/'})).toThrow();
-  expect(vehicleSheetLocation('actual-id', {querySelector:()=>({content:'https://luxxymotors.uk'}),location:{origin:'http://localhost:4212'}} as unknown as Document).url).toBe(url);
+  expect(vehicleSheetLocation('actual-id', vehiclePageDocument('http://localhost:4212', 'https://luxxymotors.uk')).url).toBe(url);
 });
 it.each([
   ['https://multichoicemotors.co.uk','https://multi-choice-motors-cazoo-test.demo.luxxyexmaplenumber2.uk'],
   ['https://luxxymotors.uk','https://luxxy-shared-staging.onrender.com'],
 ])('uses the actual public dealership origin %s ahead of stale canonical metadata', (current, configured) => {
-  const location=vehicleSheetLocation('actual-id',{querySelector:()=>({content:configured}),location:{origin:current}} as unknown as Document);
+  const location=vehicleSheetLocation('actual-id',vehiclePageDocument(current,configured));
   expect(location).toEqual({origin:current,url:`${current}/vehicle/actual-id`});
 });
 it.each([
   'http://localhost:4285','https://localhost:4285','http://192.168.1.24:4286','https://192.168.1.24','http://127.0.0.1:4285','https://[::1]','https://showroom.local',
   'https://luxxy-shared-staging.onrender.com','https://luxxy-shared-staging.onrender.com.','https://preview.replit.app','https://preview.replit.dev','https://preview.repl.co','https://preview.vercel.app','https://preview.pages.dev',
 ])('retains configured public QR origin when viewing local or hosted preview %s', current => {
-  expect(vehicleSheetLocation('actual-id',{querySelector:()=>({content:'https://multichoicemotors.co.uk'}),location:{origin:current}} as unknown as Document))
+  expect(vehicleSheetLocation('actual-id',vehiclePageDocument(current,'https://multichoicemotors.co.uk')))
     .toEqual({origin:'https://multichoicemotors.co.uk',url:'https://multichoicemotors.co.uk/vehicle/actual-id'});
+});
+it('prints the selected dealership QR from the shared staff portal, never the staff domain', () => {
+  const configured='https://shoredrive.uk';
+  const page=vehiclePageDocument('https://staff.dealeros.uk',configured,'/dealers/shore-drive/portal',true);
+  expect(vehicleSheetLocation('actual-id',page)).toEqual({origin:configured,url:`${configured}/vehicle/actual-id`});
+});
+it('retains the verified private-demo target rather than rewriting it to the platform domain', () => {
+  const configured='https://shore-drive.demo.dealeros.uk';
+  const page=vehiclePageDocument('https://dealeros.uk',configured,'/platform/preview/shore-drive');
+  expect(vehicleSheetLocation('actual-id',page)).toEqual({origin:configured,url:`${configured}/vehicle/actual-id`});
 });
 it('normalises only the known tenant-bound website logo asset path to the current origin', () => {
   const asset='/api/website-assets/51bf16cb-0000-4000-8000-000000000001?version=2';

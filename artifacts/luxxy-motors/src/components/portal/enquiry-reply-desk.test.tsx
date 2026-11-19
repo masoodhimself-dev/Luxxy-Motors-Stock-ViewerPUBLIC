@@ -137,18 +137,50 @@ const props = () => ({ entry, onSaved: vi.fn() });
 const channel = (name: string) => screen.getByRole("button", { name });
 const message = () => screen.getByLabelText("Customer reply text");
 const note = () => screen.getByLabelText("Private note text");
+const media = { narrow: false, reducedMotion: false };
+const scrollIntoView = vi.fn();
+const originalScrollIntoView = Object.getOwnPropertyDescriptor(
+  HTMLElement.prototype,
+  "scrollIntoView",
+);
 
 beforeEach(() => {
   state.emailMounts.mockClear();
   state.noteMounts.mockClear();
   state.send.mockClear();
-  HTMLElement.prototype.scrollIntoView = vi.fn();
+  media.narrow = false;
+  media.reducedMotion = false;
+  scrollIntoView.mockClear();
+  Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+    configurable: true,
+    writable: true,
+    value: scrollIntoView,
+  });
+  vi.stubGlobal("matchMedia", vi.fn((query: string): MediaQueryList => ({
+    matches: query === "(max-width: 899px)" ? media.narrow
+      : query === "(prefers-reduced-motion: reduce)" ? media.reducedMotion : false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(() => true),
+  })));
   vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
     callback(0);
     return 1;
   });
+  vi.stubGlobal("cancelAnimationFrame", vi.fn());
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  if (originalScrollIntoView) {
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", originalScrollIntoView);
+  } else {
+    Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
+  }
+});
 
 it("opens the inline reply immediately while preserving the private-note editor and never sending implicitly", () => {
   render(<EnquiryReplyDesk {...props()} />);
@@ -244,6 +276,7 @@ it("prevents channel switching during submission and does not rewind a consumed 
     <EnquiryReplyDesk {...input} focusRequest={1} requestedChannel="email" />,
   );
   expect(message()).toBeVisible();
+  expect(scrollIntoView).toHaveBeenCalledTimes(1);
   fireEvent.click(
     screen.getByRole("button", { name: "Begin email submission" }),
   );
@@ -260,6 +293,48 @@ it("prevents channel switching during submission and does not rewind a consumed 
   );
   expect(channel("Note")).toHaveAttribute("aria-pressed", "true");
   expect(note()).toBeVisible();
+  expect(scrollIntoView).toHaveBeenCalledTimes(1);
+  expect(state.send).not.toHaveBeenCalled();
+});
+
+it.each([
+  { compact: false, narrow: false, reducedMotion: false, block: "nearest", behavior: "smooth" },
+  { compact: false, narrow: false, reducedMotion: true, block: "nearest", behavior: "instant" },
+  { compact: true, narrow: true, reducedMotion: false, block: "start", behavior: "instant" },
+  { compact: true, narrow: false, reducedMotion: false, block: "nearest", behavior: "smooth" },
+  { compact: true, narrow: false, reducedMotion: true, block: "nearest", behavior: "instant" },
+])("scrolls an explicit request with compact=$compact, narrow=$narrow and reducedMotion=$reducedMotion", ({ compact, narrow, reducedMotion, block, behavior }) => {
+  media.narrow = narrow;
+  media.reducedMotion = reducedMotion;
+  const input = props();
+  const { rerender } = render(
+    <EnquiryReplyDesk {...input} compact={compact} focusRequest={1} requestedChannel="note" />,
+  );
+  expect(note()).toBeVisible();
+  expect(scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block, behavior });
+  rerender(<EnquiryReplyDesk {...input} compact={compact} focusRequest={1} requestedChannel="note" />);
+  expect(scrollIntoView).toHaveBeenCalledTimes(1);
+  expect(state.send).not.toHaveBeenCalled();
+});
+
+it("waits until submission finishes before handling a new focus request, preserving the reply draft", () => {
+  const input = props();
+  const { rerender } = render(
+    <EnquiryReplyDesk {...input} focusRequest={1} requestedChannel="email" />,
+  );
+  fireEvent.change(message(), { target: { value: "The prepared customer reply." } });
+  fireEvent.click(screen.getByRole("button", { name: "Begin email submission" }));
+  rerender(<EnquiryReplyDesk {...input} focusRequest={2} requestedChannel="note" />);
+  expect(channel("Email")).toHaveAttribute("aria-pressed", "true");
+  expect(channel("Note")).toBeDisabled();
+  expect(scrollIntoView).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole("button", { name: "Finish email operation" }));
+  expect(channel("Note")).toHaveAttribute("aria-pressed", "true");
+  expect(note()).toBeVisible();
+  expect(message()).toHaveValue("The prepared customer reply.");
+  expect(scrollIntoView).toHaveBeenCalledTimes(2);
+  expect(state.emailMounts).toHaveBeenCalledTimes(1);
+  expect(state.noteMounts).toHaveBeenCalledTimes(1);
   expect(state.send).not.toHaveBeenCalled();
 });
 
