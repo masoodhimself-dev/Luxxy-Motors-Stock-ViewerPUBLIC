@@ -17,4 +17,8 @@ export const DealerPresentationWebsiteTemplate = {
   classic: 'classic',
   premium: 'premium',
   focused: 'focused',
+  showroom: 'showroom',
+  'grand-touring': 'grand-touring',
+  forecourt: 'forecourt',
+  panorama: 'panorama',
 } as const;

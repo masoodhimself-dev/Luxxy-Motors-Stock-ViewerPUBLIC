@@ -30,6 +30,7 @@ import { importActivityDetails } from '../lib/platform-import-activity';
 import { newDealerSettings } from './dealer-settings';
 import { platformStockConnection } from '../lib/platform-stock-connection';
 import platformStockUploadRouter from './platform-stock-upload';
+import platformWebsiteTemplatesRouter from './platform-website-templates';
 import { platformStockUploadBlock, readPlatformStockUploadTarget } from '../lib/platform-stock-upload';
 const router = Router();
 router.use((req, res, next) => {
@@ -40,6 +41,7 @@ router.use((req, res, next) => {
 router.use('/dealers/:id/invitations', accountInvitationManagementRouter('platform'));
 router.use(platformFeaturesRouter);
 router.use(platformStockUploadRouter);
+router.use(platformWebsiteTemplatesRouter);
 router.use(platformOnboardingKeysRouter);
 router.use(platformDemosRouter);
 router.use(platformDemoReviewRouter);

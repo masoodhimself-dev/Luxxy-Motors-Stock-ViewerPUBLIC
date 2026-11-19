@@ -1,0 +1,235 @@
+/* Opt-in customer templates only. Legacy websites and staff pages have no
+   website-template class and never match these selectors. */
+.website-template{--ct-ink:#202b39;--ct-muted:#626b77;--ct-accent:#1c2c42;--ct-paper:#f2f4f6;--ct-line:#d8dde3;--ct-width:1360px}
+.website-template--grand-touring{--ct-ink:#262525;--ct-muted:#646767;--ct-accent:#262525;--ct-paper:#f2f2f0;--ct-line:#d6d8d5}
+.website-template--forecourt{--ct-ink:#252d37;--ct-muted:#606874;--ct-accent:#853e46;--ct-paper:#f4f5f6;--ct-line:#d8dbe0}
+.website-template--panorama{--ct-ink:#222626;--ct-muted:#626764;--ct-accent:#242727;--ct-paper:#f2f3f0;--ct-line:#d6d9d6;--ct-width:1480px}
+.website-template :is(.ct-home,.ct-vehicle){color:var(--ct-ink);font-family:Inter,Arial,sans-serif}
+.website-template :is(.ct-home,.ct-vehicle) :is(button,a,summary):focus-visible{outline:3px solid #bd964f;outline-offset:4px}
+.website-template :is(.ct-home,.ct-vehicle) :is(h1,h2,h3,p,figure){margin:0}
+.website-template :is(.ct-home,.ct-vehicle) a{text-decoration:none;color:inherit}
+.website-template .multi-home-header{box-shadow:none;border-bottom:1px solid var(--ct-line)}
+.website-template .multi-home-header__inner{max-width:var(--ct-width);padding-inline:36px}
+.website-template .multi-home-header :is(.multi-home-header__desktop>a,.multi-home-header__disclosure){letter-spacing:0;font-weight:500}
+.website-template--grand-touring .multi-home-header{border-bottom:1px solid #d6d8d5}
+.website-template--grand-touring .multi-home-header__inner{grid-template-columns:225px minmax(0,1fr) auto}
+.website-template--forecourt .multi-home-header__inner{max-width:1500px}
+.website-template--panorama .multi-home-header__inner{max-width:1600px}
+.website-template .ct-home{background:#fff}
+.website-template .ct-home-copy h1{font-size:clamp(38px,4.1vw,65px);line-height:1.06;letter-spacing:-.055em;font-weight:500;max-width:12ch;color:var(--ct-ink)}
+.website-template .ct-home-description{font-size:17px;line-height:1.8;max-width:38ch;color:var(--ct-muted);margin-top:23px}
+.website-template .ct-home-location,.website-template .ct-home-announcement{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--ct-muted);margin-bottom:23px}
+.website-template .ct-home-announcement{font-weight:500}
+.website-template .ct-home-link{display:inline-flex;align-items:center;gap:24px;min-height:50px;padding:13px 0;font-size:15px;font-weight:600;margin-top:25px}
+.website-template .ct-home-car-photo{display:block;position:relative;overflow:hidden;background:#e5e7e6}
+.website-template .ct-home-car-photo>div{aspect-ratio:4/3;width:100%}
+.website-template .ct-home-car-photo img{width:100%;height:100%;object-fit:contain}
+.website-template .ct-home-car-photo>span{position:absolute;left:18px;bottom:18px;display:flex;align-items:center;gap:8px;padding:9px 11px;background:rgba(255,255,255,.92);font-size:12px;color:#252d37}
+.website-template .ct-home figcaption{display:flex;justify-content:space-between;align-items:start;gap:23px;padding:22px 0}
+.website-template .ct-home figcaption h2{font-size:22px;line-height:1.3;letter-spacing:-.035em;font-weight:600}
+.website-template .ct-home figcaption p{font-size:13px;color:var(--ct-muted);margin-top:6px}
+.website-template .ct-home figcaption span{display:block;font-size:12px;color:var(--ct-muted);letter-spacing:.05em;margin-top:9px}
+.website-template .ct-home figcaption>a{display:flex;align-items:center;gap:19px;white-space:nowrap;font-size:26px;font-weight:500;letter-spacing:-.045em;min-height:44px}
+.website-template .ct-home-search{max-width:var(--ct-width);width:calc(100% - 72px);margin:0 auto;display:grid;grid-template-columns:230px 1fr;gap:38px;align-items:center;padding:32px 0}
+.website-template .ct-home-search>div>h2{font-size:25px;letter-spacing:-.035em;font-weight:500;line-height:1.3}
+.website-template .ct-home-search>div>p{font-size:13px;line-height:1.7;color:var(--ct-muted);margin-top:7px}
+.website-template .ct-home .mh-search-card{border:0;border-radius:0;box-shadow:none;padding:0;background:transparent}
+.website-template .ct-home .mh-search-tabs{justify-content:flex-start;gap:25px;margin-bottom:18px;border-bottom:1px solid var(--ct-line)}
+.website-template .ct-home .mh-search-tabs button{font-size:13px;padding:8px 0 11px;min-height:44px;flex:0 0 auto}
+.website-template .ct-home .mh-search-fields{display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px}
+.website-template .ct-home .mh-search-fields label:last-child{grid-column:auto}
+.website-template .ct-home .mh-buy-form{display:grid;grid-template-columns:1fr auto;gap:15px;align-items:end}
+.website-template .ct-home .mh-buy-form>p,.website-template .ct-home .mh-more-options{grid-column:1/-1}
+.website-template .ct-home :is(.mh-search-select select,.mh-button){min-height:49px;border-radius:2px;font-size:14px}
+.website-template .ct-home .mh-button{background:var(--ct-accent);color:#fff;padding-inline:21px}
+.website-template .ct-home-stock-state{padding:50px 28px;min-height:300px;display:flex;flex-direction:column;justify-content:center;gap:20px;background:var(--ct-paper);font-size:16px;line-height:1.7}
+.website-template .ct-home-stock-state>a{display:flex;align-items:center;gap:15px;min-height:44px}
+.website-template .ct-home-retail{display:grid;grid-template-columns:.85fr 1.5fr;gap:7%;align-items:center;width:calc(100% - 72px);max-width:var(--ct-width);margin:0 auto;padding:42px 0 22px}
+.website-template .ct-home-showroom .ct-home-search{border-top:1px solid var(--ct-line)}
+.website-template .ct-home-collection{background:#262525;color:#fff;padding-top:35px}
+.website-template .ct-home-collection-heading{display:grid;grid-template-columns:1.55fr 1fr;gap:65px;align-items:end;width:calc(100% - 96px);max-width:1280px;margin:0 auto 32px}
+.website-template .ct-home-collection .ct-home-copy h1{color:#fff;font-family:Georgia,'Times New Roman',serif;font-size:clamp(46px,4.7vw,72px);font-weight:400;max-width:15ch}
+.website-template .ct-home-collection .ct-home-copy :is(.ct-home-location,.ct-home-announcement){color:#c0c4c2}
+.website-template .ct-home-collection .ct-home-description{color:#c4c7c4}
+.website-template .ct-home-collection-heading>p{font-size:15px;line-height:1.8;color:#c4c7c4;padding-bottom:15px}
+.website-template .ct-home-collection .ct-home-link{color:#fff;margin-top:14px}
+.website-template .ct-home-spread{max-width:1360px;width:calc(100% - 96px);margin:0 auto;display:grid;grid-template-columns:1.8fr 1fr;align-items:end;gap:32px}
+.website-template .ct-home-collection figcaption{color:#fff;border-top:1px solid #535550}
+.website-template .ct-home-collection figcaption h2{font-family:Georgia,'Times New Roman',serif;font-size:27px;font-weight:400;color:#fff}
+.website-template .ct-home-collection figcaption :is(p,span){color:#b9beba}
+.website-template .ct-home-collection figcaption>a{font-size:24px;color:#fff}
+.website-template .ct-home-collection .ct-home-stock-state,.website-template .ct-home-collection .ct-home-stock-state>a{color:var(--ct-ink)}
+.website-template .ct-home-spread>figure:last-child figcaption{display:block;padding-top:17px}
+.website-template .ct-home-spread>figure:last-child figcaption>a{margin-top:11px}
+.website-template .ct-home-collection .ct-home-search{max-width:none;width:100%;padding:34px max(36px,calc((100% - 1288px)/2));background:#fff;color:var(--ct-ink);margin-top:32px}
+.website-template .ct-home-desk-heading{width:calc(100% - 72px);max-width:var(--ct-width);margin:0 auto;padding:35px 0 26px;display:flex;justify-content:space-between;align-items:end;gap:30px}
+.website-template .ct-home-desk-heading .ct-home-copy h1{font-size:43px;font-weight:600;max-width:none}
+.website-template .ct-home-desk-heading .ct-home-copy :is(.ct-home-location,.ct-home-link){display:none}
+.website-template .ct-home-desk-heading>a{display:flex;align-items:center;gap:20px;min-height:44px;white-space:nowrap;font-size:14px;font-weight:600}
+.website-template .ct-home-desk-grid{display:grid;grid-template-columns:390px minmax(0,1fr);gap:28px;max-width:var(--ct-width);width:calc(100% - 72px);margin:0 auto}
+.website-template .ct-home-desk-search{background:var(--ct-paper);border:1px solid var(--ct-line);padding:28px}
+.website-template .ct-home-desk-search>h2{font-size:26px;line-height:1.25;letter-spacing:-.04em;font-weight:600}
+.website-template .ct-home-desk-search>p{font-size:14px;color:var(--ct-muted);margin:10px 0 23px}
+.website-template .ct-home-desk-search .mh-buy-form{display:block}
+.website-template .ct-home-desk-search .mh-search-fields{grid-template-columns:1fr}
+.website-template .ct-home-desk-search .mh-search-fields label:last-child{grid-column:auto}
+.website-template .ct-home-desk-search .mh-button{width:100%;margin-top:18px}
+.website-template .ct-home-desk-call{display:flex;align-items:center;gap:10px;min-height:44px;border-top:1px solid var(--ct-line);margin-top:20px;padding-top:15px;font-size:16px;font-weight:600}
+.website-template .ct-home-forecourt figcaption{padding:21px 24px;background:var(--ct-paper)}
+.website-template .ct-home-shortcuts{display:flex;align-items:center;flex-wrap:wrap;gap:30px;max-width:var(--ct-width);width:calc(100% - 72px);margin:0 auto;padding:22px 0;font-size:13px;border-bottom:1px solid var(--ct-line)}
+.website-template .ct-home-shortcuts>span{color:var(--ct-muted)}
+.website-template .ct-home-shortcuts>a{min-height:44px;display:flex;align-items:center;font-weight:500}
+.website-template .ct-home-panorama-gallery{position:relative}
+.website-template .ct-home-panorama-track{display:flex;gap:18px;overflow:auto;scroll-snap-type:x mandatory;scrollbar-width:none;position:relative;padding:22px 6vw 0}
+.website-template .ct-home-panorama-track>div{flex:0 0 69%;min-width:0;scroll-snap-align:start}
+.website-template .ct-home-panorama-track .ct-home-car-photo>div{aspect-ratio:1.6}
+.website-template .ct-home-panorama-controls{display:flex;justify-content:center;align-items:center;gap:23px;padding:13px 0;font-size:13px;font-variant-numeric:tabular-nums}
+.website-template .ct-home-panorama-controls button{width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:1px solid var(--ct-line);border-radius:50%}
+.website-template .ct-home-panorama-controls button:disabled{opacity:.4}
+.website-template .ct-home-panorama-caption{display:grid;grid-template-columns:.85fr 1.6fr;gap:7%;max-width:var(--ct-width);width:calc(100% - 72px);margin:0 auto;padding:22px 0 28px;border-bottom:1px solid var(--ct-line)}
+.website-template .ct-home-panorama-caption .ct-home-copy h1{font-size:45px;max-width:13ch}
+.website-template .ct-home-panorama-caption .ct-home-copy :is(.ct-home-location,.ct-home-link){display:none}
+.website-template .ct-home-panorama-caption figcaption{padding:0;align-items:center}
+.website-template .ct-home-panorama-caption figcaption h2{font-size:26px}
+.website-template .ct-home-panorama-caption figcaption>a{font-size:32px}
+
+/* These are the real vehicle controls, composed differently for each design. */
+.website-template.customer-site .ct-vehicle{margin:8px 0 35px;min-width:0}
+.website-template.customer-site .ct-vehicle .vehicle-detail-heading{grid-area:auto;display:block;padding:0;margin:0;min-width:0;text-align:left}
+.website-template.customer-site .ct-vehicle .vehicle-detail-heading h1{font-family:Inter,Arial,sans-serif;font-size:43px;font-weight:500;line-height:1.12;letter-spacing:-.05em;color:var(--ct-ink);display:flex;align-items:center;gap:12px}
+.website-template.customer-site .ct-vehicle .vehicle-detail-heading>p{font-size:17px;line-height:1.5;color:var(--ct-muted);margin:8px 0 0}
+.website-template.customer-site .ct-vehicle .vehicle-detail-gallery{grid-area:auto;width:100%;min-width:0;margin:0;padding:0}
+.website-template.customer-site .ct-vehicle .vehicle-gallery-image-stage{aspect-ratio:4/3;height:auto;min-height:0;max-height:none;border-radius:0;background:#e6e7e5}
+.website-template.customer-site .ct-vehicle .gallery-photo{object-fit:contain}
+.website-template.customer-site .ct-vehicle .vehicle-photo-gallery{margin:0;width:100%;min-width:0}
+.website-template.customer-site .ct-vehicle .vehicle-gallery-frame{padding:0;border:0;border-radius:0;overflow:hidden}
+.website-template.customer-site .ct-vehicle .vehicle-gallery-controls{display:flex;position:static;justify-content:space-between;gap:15px;min-height:50px;padding:4px 12px;background:#f2f3f3;border:0;color:var(--ct-ink)}
+.website-template.customer-site .ct-vehicle .vehicle-gallery-inline-arrows button{width:44px;height:48px;opacity:.83}
+.website-template.customer-site .ct-vehicle .vehicle-gallery-inline-arrows .vehicle-gallery-arrow-face{width:33px;height:38px;border-radius:2px;background:rgba(255,255,255,.82);color:#252d37;border:0}
+.website-template.customer-site .ct-vehicle .vehicle-price-block{padding:0;margin:0;border:0;background:transparent}
+.website-template.customer-site .ct-vehicle .vehicle-price-caption{font-size:12px;font-weight:400;letter-spacing:0;color:var(--ct-muted);text-transform:none;margin:0 0 7px}
+.website-template.customer-site .ct-vehicle .luxxy-price{font-size:43px;line-height:1.1;letter-spacing:-.06em;font-weight:600;margin:0;color:var(--ct-ink)}
+.website-template.customer-site .ct-vehicle .vehicle-stock-status{font-size:13px;letter-spacing:0;font-weight:500;color:#685744;background:transparent;border:0;padding:0;margin:0 0 12px}
+.website-template.customer-site .ct-vehicle .vehicle-registration{padding:0;margin:20px 0;display:block;border:0}
+.website-template.customer-site .ct-vehicle .vehicle-registration>dt{font-size:12px;color:var(--ct-muted);margin:0 0 7px}
+.website-template.customer-site .ct-vehicle .vehicle-registration>dd{margin:0}
+.website-template.customer-site .ct-vehicle .vehicle-action-area{margin:0;padding:0;border:0;gap:14px;display:grid;background:transparent}
+.website-template.customer-site .ct-vehicle .vehicle-summary-booking,.website-template.customer-site .ct-vehicle .vehicle-enquiry-action{min-height:49px;border-radius:2px;font-size:14px;font-weight:600;justify-content:center;display:flex;align-items:center;padding:13px 16px;gap:10px;text-decoration:none;width:100%;margin:0}
+.website-template.customer-site .ct-vehicle .vehicle-summary-booking{background:#fff;color:var(--ct-ink);border:1px solid #9ca5b1;box-shadow:none}
+.website-template.customer-site .ct-vehicle .vehicle-booking-action{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:49px;margin:0;padding:13px 16px;border:1px solid #9ca5b1;border-radius:2px;background:#fff;color:var(--ct-ink);font-size:14px;line-height:1.3;font-weight:600;box-shadow:none}
+.website-template.customer-site .ct-vehicle .vehicle-booking-action:hover{background:var(--ct-paper);color:var(--ct-ink);border-color:var(--ct-ink)}
+.website-template.customer-site .ct-vehicle .vehicle-enquiry-action{background:var(--ct-accent);color:#fff;border:1px solid var(--ct-accent);box-shadow:none}
+.website-template.customer-site .ct-vehicle .vehicle-primary-actions{margin:0;padding:0;display:block}
+.website-template.customer-site .ct-vehicle .vehicle-action-tools{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;padding:0;margin:0;border:0}
+.website-template.customer-site .ct-vehicle .vehicle-action-tools>*{min-width:0;min-height:44px;font-size:12px;padding:6px 2px;justify-content:center;background:#fff;color:var(--ct-ink);border:0}
+.website-template.customer-site .ct-vehicle .vehicle-action-tools .vehicle-contact-action-whatsapp{background:#fff;color:var(--ct-ink);border:1px solid transparent;box-shadow:none}
+.website-template.customer-site .ct-vehicle .vehicle-action-tools .vehicle-contact-action-whatsapp:hover{background:var(--ct-paper);color:var(--ct-ink);border-color:var(--ct-line)}
+.website-template.customer-site .ct-vehicle :is(.vehicle-booking-action,.vehicle-contact-action-whatsapp):focus-visible{outline:3px solid #bd964f;outline-offset:3px}
+.website-template.customer-site .ct-vehicle .vehicle-mot-expiry{display:flex;width:100%;align-items:center;gap:10px;text-align:left;border:0;border-top:1px solid var(--ct-line);border-bottom:1px solid var(--ct-line);border-radius:0;padding:15px 0;margin:20px 0;min-height:60px;background:transparent;color:var(--ct-muted);font-size:12px}
+.website-template.customer-site .ct-vehicle .vehicle-mot-expiry strong{display:block;font-size:15px;font-weight:500;margin-top:3px;color:var(--ct-ink)}
+.website-template.customer-site .ct-vehicle .vehicle-key-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px 25px;margin:0;padding:0;background:transparent;border:0}
+.website-template.customer-site .ct-vehicle .vehicle-key-facts>div{padding:0;border:0;min-width:0}
+.website-template.customer-site .ct-vehicle .vehicle-key-facts dt{font-size:12px;color:var(--ct-muted)}
+.website-template.customer-site .ct-vehicle .vehicle-key-facts dd{font-size:15px;line-height:1.4;color:var(--ct-ink);font-weight:500;margin:6px 0 0}
+.website-template.customer-site .ct-vehicle .vehicle-key-facts dt svg{display:none}
+.website-template.customer-site .ct-vehicle .vehicle-seller{border-top:1px solid var(--ct-line);margin-top:4px;padding-top:16px;font-size:12px;color:var(--ct-muted)}
+.website-template.customer-site .ct-vehicle .vehicle-buying-options{border-top:1px solid var(--ct-line);border-bottom:1px solid var(--ct-line);padding:0;background:transparent}
+.website-template.customer-site .ct-vehicle .vehicle-buying-options summary{min-height:44px;padding:10px 0;font-size:13px}
+.website-template.customer-site .ct-vehicle-highlights{border-top:1px solid var(--ct-line);margin-top:18px;padding:0}
+.website-template.customer-site .ct-vehicle-highlights>summary{min-height:44px;cursor:pointer;display:flex;align-items:center;padding:10px 0;font-size:13px;font-weight:500}
+.website-template.customer-site .ct-vehicle .ct-vehicle-strip{padding:23px 0;border-bottom:1px solid var(--ct-line)}
+.website-template.customer-site .ct-vehicle .ct-vehicle-price-panel{padding:26px;border:1px solid var(--ct-line);background:#fff}
+.website-template.customer-site .ct-vehicle-showroom>.ct-vehicle-identity{margin-bottom:29px}
+.website-template.customer-site .ct-vehicle-retail-grid{display:grid;grid-template-columns:minmax(0,2.32fr) minmax(320px,1fr);gap:35px;align-items:start}
+.website-template.customer-site .ct-vehicle-retail-grid>.ct-vehicle-photo-column>.ct-vehicle-strip .vehicle-key-facts{grid-template-columns:repeat(6,minmax(0,1fr));gap:16px}
+.website-template.customer-site .ct-vehicle-retail-grid>aside{min-width:0;position:sticky;top:calc(var(--site-header-height,100px) + 20px)}
+.website-template.customer-site .ct-vehicle-collection-hero{padding:25px 20px 28px;background:#262525;margin:0 -20px}
+.website-template.customer-site .ct-vehicle-collection .ct-vehicle-identity{margin-bottom:24px}
+.website-template.customer-site .ct-vehicle-collection .vehicle-detail-heading{text-align:center}
+.website-template.customer-site .ct-vehicle-collection .vehicle-detail-heading h1{font-family:Georgia,'Times New Roman',serif;font-size:48px;font-weight:400;color:#fff;justify-content:center}
+.website-template.customer-site .ct-vehicle-collection .vehicle-detail-heading>p{color:#c4c7c4;font-size:16px}
+.website-template.customer-site .ct-vehicle-collection .make-logo-vehicle-heading>img{width:38px;height:38px;padding:6px;background:#fff;border:1px solid #fff;border-radius:2px;margin:0;object-fit:contain}
+.website-template.customer-site .ct-vehicle-framed-gallery{max-width:780px;margin:auto;padding:10px;border:1px solid #676b66}
+.website-template.customer-site .ct-vehicle-purchase-band{display:grid;grid-template-columns:.9fr 1.35fr 1fr;gap:35px;padding:31px 0;border-bottom:1px solid var(--ct-line);align-items:start}
+.website-template.customer-site .ct-vehicle-purchase-band>div{min-width:0}
+.website-template.customer-site .ct-vehicle-band-facts{padding:20px 25px;border-left:1px solid var(--ct-line);border-right:1px solid var(--ct-line)}
+.website-template.customer-site .ct-vehicle-purchase-band .ct-vehicle-band-facts .vehicle-key-facts{grid-template-columns:repeat(3,1fr);gap:23px}
+.website-template.customer-site .ct-vehicle-purchase-band .vehicle-mot-expiry{margin-bottom:0}
+.website-template.customer-site .ct-vehicle-purchase-band .vehicle-seller{padding-top:13px}
+.website-template.customer-site .ct-vehicle-sales-grid{display:grid;grid-template-columns:320px minmax(0,1fr);gap:28px;padding:20px;background:var(--ct-paper);margin:0 -20px;align-items:start}
+.website-template.customer-site .ct-vehicle-sales-grid>aside{background:#fff;border:1px solid var(--ct-line);padding:26px 23px;min-width:0;position:sticky;top:calc(var(--site-header-height,100px) + 20px)}
+.website-template.customer-site .ct-vehicle-sales-grid>aside .vehicle-detail-heading h1{font-size:30px;font-weight:600}
+.website-template.customer-site .ct-vehicle-sales-grid>aside .vehicle-detail-heading p{font-size:15px}
+.website-template.customer-site .ct-vehicle-sales-grid .ct-vehicle-price-panel{border:0;padding:23px 0 0}
+.website-template.customer-site .ct-vehicle-sales-grid .luxxy-price{font-size:40px}
+.website-template.customer-site .ct-vehicle-table{background:#fff;padding:25px 28px;margin-top:22px;border:1px solid var(--ct-line)}
+.website-template.customer-site .ct-vehicle-table>h2{font-size:23px;font-weight:600;margin:0 0 20px}
+.website-template.customer-site .ct-vehicle-table .vehicle-key-facts{grid-template-columns:1fr 1fr;gap:0 30px}
+.website-template.customer-site .ct-vehicle-table .vehicle-key-facts>div{display:flex;justify-content:space-between;gap:20px;align-items:baseline;padding:12px 0;border-bottom:1px solid var(--ct-line)}
+.website-template.customer-site .ct-vehicle-table .vehicle-key-facts dd{margin:0;text-align:right}
+.website-template.customer-site .ct-vehicle-panoramic-gallery{margin:0 -20px;min-width:0}
+.website-template.customer-site .ct-vehicle-panoramic-gallery.has-companion{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.website-template.customer-site .ct-vehicle-panoramic-gallery .vehicle-gallery-controls{min-height:48px}
+.website-template.customer-site .ct-vehicle-panorama .ct-vehicle-purchase-band{grid-template-columns:1.3fr .85fr 1fr;gap:35px;padding-top:31px}
+.website-template.customer-site .ct-vehicle-panorama .vehicle-detail-heading h1{font-size:38px;font-weight:500}
+.website-template.customer-site .ct-vehicle-panorama .vehicle-detail-heading p{font-size:16px}
+.website-template.customer-site .ct-vehicle-panorama>.ct-vehicle-strip .vehicle-key-facts{grid-template-columns:repeat(6,minmax(0,1fr))}
+
+/* All four catalogue layouts keep the same search, facets, sorting, cards,
+   comparison tray, empty states and pagination. Only their placement changes. */
+@media(min-width:1024px){
+ .website-template--showroom .stock-redesign.stock-refined.stock-sidebar-layout .stock-card-results{grid-template-columns:repeat(2,minmax(0,1fr));gap:25px}
+ .website-template--showroom .stock-redesign.stock-refined.stock-sidebar-layout #stock>.stock-catalogue-layout{grid-template-columns:250px minmax(0,1fr);gap:20px 30px}
+ .website-template--grand-touring .stock-redesign.stock-refined.stock-sidebar-layout #stock>.stock-catalogue-layout,.website-template--panorama .stock-redesign.stock-refined.stock-sidebar-layout #stock>.stock-catalogue-layout{grid-template-columns:minmax(0,1fr);gap:22px}
+ .website-template--grand-touring .stock-redesign.stock-refined.stock-sidebar-layout .multi-stock-filters,.website-template--panorama .stock-redesign.stock-refined.stock-sidebar-layout .multi-stock-filters{display:none}
+ .website-template--grand-touring .stock-redesign.stock-refined.stock-sidebar-layout :is(.multi-stock-controls,#vehicle-results),.website-template--panorama .stock-redesign.stock-refined.stock-sidebar-layout :is(.multi-stock-controls,#vehicle-results){grid-column:1;grid-row:auto}
+ .website-template--grand-touring .multi-stock-controls .multi-stock-mobile-trigger,.website-template--panorama .multi-stock-controls .multi-stock-mobile-trigger{display:flex;align-items:center;justify-content:center;min-height:48px;gap:10px;border:1px solid var(--ct-line);padding:10px 18px;background:#fff}
+ .website-template--grand-touring .stock-redesign.stock-refined.stock-sidebar-layout .stock-card-results,.website-template--panorama .stock-redesign.stock-refined.stock-sidebar-layout .stock-card-results{grid-template-columns:repeat(2,minmax(0,1fr));gap:36px}
+ .website-template--grand-touring .stock-page-intro{background:#262525;color:#fff;padding-top:30px;padding-bottom:30px}
+ .website-template--grand-touring .stock-redesign.stock-refined.stock-sidebar-layout .stock-page-intro h1{font-family:Georgia,'Times New Roman',serif;font-size:47px;font-weight:400;color:#fff}
+ .website-template--grand-touring .stock-page-intro :is(a,button){color:#fff}
+ .website-template--grand-touring .stock-page-intro .stock-options-panel :is(a,button){color:var(--ct-ink)}
+ .website-template--grand-touring .stock-redesign.stock-refined.stock-sidebar-layout .vehicle-card{border-radius:0;box-shadow:none;border:0;border-bottom:1px solid var(--ct-line);background:#fff}
+ .website-template--grand-touring .vehicle-card h3{font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:27px}
+ .website-template--forecourt .stock-redesign.stock-refined.stock-sidebar-layout .stock-card-results{grid-template-columns:minmax(0,1fr);gap:23px}
+ .website-template--forecourt .stock-card-results>.vehicle-card{display:grid;grid-template-columns:1.35fr 1fr;border-radius:0;background:#fff}
+ .website-template--forecourt .stock-card-results>.vehicle-card>.vehicle-card-photo{width:100%;height:100%;min-width:0}
+ .website-template--forecourt .stock-card-results>.vehicle-card>.vehicle-card-details{padding:24px}
+ .website-template--forecourt .stock-card-results>.vehicle-card .vehicle-card-price{font-size:29px;color:var(--ct-accent)}
+ .website-template--panorama .stock-card-results>.vehicle-card:first-child{grid-column:1/-1;display:grid;grid-template-columns:1.65fr 1fr;border-radius:0}
+ .website-template--panorama .stock-card-results>.vehicle-card:first-child>.vehicle-card-photo{width:100%;height:100%}
+ .website-template--panorama .stock-card-results>.vehicle-card:first-child>.vehicle-card-details{padding:32px}
+ .website-template--panorama .stock-card-results>.vehicle-card:first-child h3{font-size:31px;font-weight:500}
+}
+.website-template .stock-redesign.stock-refined.stock-sidebar-layout .stock-filter-sidebar{border-radius:3px;background:#fff}
+.website-template .stock-redesign.stock-refined.stock-sidebar-layout .stock-page-intro h1{letter-spacing:-.045em}
+.website-template .stock-redesign.stock-refined.stock-sidebar-layout .stock-page-intro h1{color:var(--ct-ink)}
+.website-template--grand-touring .stock-redesign.stock-refined.stock-sidebar-layout .stock-page-intro{background:var(--ct-paper);color:var(--ct-ink)}
+.website-template--grand-touring .stock-redesign.stock-refined.stock-sidebar-layout .stock-page-intro :is(a,button){color:var(--ct-ink)}
+.website-template .stock-redesign :is(.stock-empty,.stock-error) :is(h2,h3){color:var(--ct-ink)}
+.website-template .stock-redesign.stock-refined.stock-sidebar-layout .vehicle-card-photo{border-radius:0}
+.website-template .multi-stock-controls{position:static}
+
+@media(max-width:1050px){
+ .website-template .ct-home-retail{grid-template-columns:.8fr 1.3fr;gap:5%}.website-template .ct-home-copy h1{font-size:43px}.website-template .ct-home-search{grid-template-columns:1fr;gap:20px}.website-template .ct-home-search>div:first-child{display:flex;align-items:baseline;gap:20px}.website-template .ct-home .mh-buy-form{grid-template-columns:1fr auto}.website-template .ct-home-desk-grid{grid-template-columns:320px 1fr;gap:24px}.website-template .ct-home-desk-search{padding:23px}.website-template .ct-home-desk-heading .ct-home-copy h1{font-size:36px}.website-template .ct-home figcaption{display:block}.website-template .ct-home figcaption>a{margin-top:12px}.website-template .ct-home-spread{gap:25px}.website-template .ct-home-panorama-caption{grid-template-columns:.8fr 1.3fr}.website-template .ct-home-panorama-caption .ct-home-copy h1{font-size:38px}.website-template .ct-home-panorama-caption figcaption{display:flex}.website-template .ct-home-panorama-caption figcaption>a{font-size:25px}
+ .website-template.customer-site .ct-vehicle-retail-grid{grid-template-columns:minmax(0,1.6fr) 310px;gap:23px}.website-template.customer-site .ct-vehicle-retail-grid>.ct-vehicle-photo-column>.ct-vehicle-strip .vehicle-key-facts{grid-template-columns:repeat(3,1fr)}.website-template.customer-site .ct-vehicle-sales-grid{grid-template-columns:285px minmax(0,1fr);gap:22px}.website-template.customer-site .ct-vehicle-purchase-band{gap:24px;grid-template-columns:.8fr 1fr 1.1fr}.website-template.customer-site .ct-vehicle-band-facts{padding:20px 18px}.website-template.customer-site .ct-vehicle-purchase-band .ct-vehicle-band-facts .vehicle-key-facts{grid-template-columns:1fr 1fr;gap:18px}.website-template.customer-site .ct-vehicle-table .vehicle-key-facts{grid-template-columns:1fr}.website-template.customer-site .ct-vehicle-panorama .ct-vehicle-purchase-band{grid-template-columns:1fr .8fr 1.1fr;gap:23px}.website-template.customer-site .ct-vehicle-panorama .vehicle-detail-heading h1{font-size:32px}
+}
+@media(max-width:800px){
+ .website-template .ct-home-retail{grid-template-columns:1fr;gap:27px;padding-top:27px}.website-template .ct-home-copy h1{font-size:43px;max-width:18ch}.website-template .ct-home-location{margin-bottom:15px}.website-template .ct-home-link{margin-top:12px}.website-template .ct-home figcaption{display:flex}.website-template .ct-home figcaption>a{margin-top:0}.website-template .ct-home-search{padding:26px 0}.website-template .ct-home-collection-heading{gap:25px;grid-template-columns:1.5fr 1fr}.website-template .ct-home-collection .ct-home-copy h1{font-size:45px}.website-template .ct-home-spread{grid-template-columns:1.5fr 1fr;gap:22px}.website-template .ct-home-collection figcaption{display:block}.website-template .ct-home-collection figcaption h2{font-size:23px}.website-template .ct-home-collection figcaption>a{font-size:22px;margin-top:10px}.website-template .ct-home-desk-grid{grid-template-columns:1fr 1.1fr;gap:20px}.website-template .ct-home-desk-search{padding:23px 20px}.website-template .ct-home-desk-search>h2{font-size:24px}.website-template .ct-home-forecourt figcaption{display:block}.website-template .ct-home-forecourt figcaption>a{margin-top:12px}.website-template .ct-home-desk-heading{align-items:start}.website-template .ct-home-desk-heading .ct-home-copy h1{font-size:33px}.website-template .ct-home-desk-heading>a{font-size:13px;gap:10px}.website-template .ct-home-panorama-caption{grid-template-columns:.8fr 1.2fr;gap:5%}.website-template .ct-home-panorama-caption .ct-home-copy h1{font-size:35px}.website-template .ct-home-panorama-caption figcaption{display:block}
+ .website-template.customer-site .ct-vehicle-retail-grid{grid-template-columns:1fr}.website-template.customer-site .ct-vehicle-retail-grid>aside{position:static}.website-template.customer-site .ct-vehicle-purchase-band{grid-template-columns:1fr 1fr}.website-template.customer-site .ct-vehicle-band-facts{grid-column:1/-1;grid-row:2;border:0;border-top:1px solid var(--ct-line);padding:22px 0 0}.website-template.customer-site .ct-vehicle-purchase-band .ct-vehicle-band-facts .vehicle-key-facts{grid-template-columns:repeat(6,1fr)}.website-template.customer-site .ct-vehicle-sales-grid{grid-template-columns:250px 1fr;gap:20px}.website-template.customer-site .ct-vehicle-sales-grid>aside{padding:22px 18px}.website-template.customer-site .ct-vehicle-sales-grid>aside .vehicle-detail-heading h1{font-size:27px}.website-template.customer-site .ct-vehicle-panorama .ct-vehicle-purchase-band{grid-template-columns:1fr 1fr}.website-template.customer-site .ct-vehicle-panorama .ct-vehicle-purchase-band>div:last-child{grid-column:1/-1}.website-template.customer-site .ct-vehicle-panorama .ct-vehicle-purchase-band>div:last-child .vehicle-action-area{grid-template-columns:1fr 1fr}.website-template.customer-site .ct-vehicle-panorama .vehicle-action-tools,.website-template.customer-site .ct-vehicle-panorama .vehicle-buying-options,.website-template.customer-site .ct-vehicle-panorama .vehicle-seller{grid-column:1/-1}
+}
+@media(max-width:600px){
+ .website-template .multi-home-header__inner{padding-inline:18px}.website-template .ct-home-retail,.website-template .ct-home-search,.website-template .ct-home-desk-heading,.website-template .ct-home-desk-grid,.website-template .ct-home-shortcuts,.website-template .ct-home-panorama-caption{width:calc(100% - 36px)}.website-template .ct-home-retail{padding-top:25px;gap:24px}.website-template .ct-home-copy h1{font-size:39px;max-width:13ch}.website-template .ct-home-description{font-size:15px;margin-top:17px}.website-template .ct-home-location,.website-template .ct-home-announcement{font-size:13px;margin-bottom:16px}.website-template .ct-home-link{font-size:14px;min-height:44px;margin-top:13px;gap:20px}.website-template .ct-home figcaption{padding:17px 0;gap:14px}.website-template .ct-home figcaption h2{font-size:20px}.website-template .ct-home figcaption p{font-size:13px;line-height:1.6}.website-template .ct-home figcaption>a{font-size:23px;gap:10px}.website-template .ct-home figcaption>a svg{width:17px}.website-template .ct-home-car-photo>span{left:12px;bottom:12px;font-size:12px;padding:8px 10px}.website-template .ct-home-search>div:first-child{display:block}.website-template .ct-home-search>div>h2{font-size:25px}.website-template .ct-home .mh-buy-form{display:block}.website-template .ct-home .mh-search-fields{grid-template-columns:1fr 1fr;gap:15px 12px}.website-template .ct-home .mh-search-fields label:last-child{grid-column:1/-1}.website-template .ct-home .mh-button{width:100%;font-size:15px;margin-top:17px}.website-template .ct-home .mh-search-select select{font-size:16px;min-height:49px}.website-template .ct-home .mh-search-tabs{gap:25px;margin-bottom:18px}.website-template .ct-home .mh-search-tabs button{font-size:14px}.website-template .ct-home-collection{padding-top:27px}.website-template .ct-home-collection-heading{width:calc(100% - 36px);display:block;margin-bottom:25px}.website-template .ct-home-collection .ct-home-copy h1{font-size:45px;line-height:1.1}.website-template .ct-home-collection-heading>p{font-size:13px;padding:0;margin-top:15px}.website-template .ct-home-spread{width:calc(100% - 36px);display:block}.website-template .ct-home-spread>figure:last-child{display:none}.website-template .ct-home-collection figcaption{display:flex}.website-template .ct-home-collection figcaption h2{font-size:25px}.website-template .ct-home-collection figcaption>a{font-size:23px;margin-top:0}.website-template .ct-home-collection .ct-home-search{padding:27px 18px;width:100%;margin-top:22px}.website-template .ct-home-desk-heading{padding-top:26px;padding-bottom:22px;display:block}.website-template .ct-home-desk-heading .ct-home-copy h1{font-size:34px}.website-template .ct-home-desk-heading>a{font-size:14px;margin-top:12px;justify-content:space-between}.website-template .ct-home-desk-grid{display:flex;flex-direction:column;gap:22px}.website-template .ct-home-desk-search{padding:24px 21px;width:100%}.website-template .ct-home-desk-search .mh-search-fields{grid-template-columns:1fr 1fr}.website-template .ct-home-desk-search .mh-search-fields label:last-child{grid-column:1/-1}.website-template .ct-home-desk-search>p{font-size:15px}.website-template .ct-home-desk-grid>figure{width:100%}.website-template .ct-home-forecourt figcaption{display:flex;padding:20px 18px}.website-template .ct-home-forecourt figcaption>a{margin-top:0}.website-template .ct-home-shortcuts{gap:7px 23px;padding:18px 0}.website-template .ct-home-shortcuts>span{width:100%;font-size:13px}.website-template .ct-home-shortcuts>a{font-size:14px}.website-template .ct-home-panorama-track{padding:0 18px;gap:12px}.website-template .ct-home-panorama-track>div{flex-basis:92%}.website-template .ct-home-panorama-track .ct-home-car-photo>div{aspect-ratio:4/3}.website-template .ct-home-panorama-controls{padding:10px 0;font-size:13px}.website-template .ct-home-panorama-caption{display:block;padding:18px 0 24px}.website-template .ct-home-panorama-caption .ct-home-copy h1{font-size:35px;max-width:18ch}.website-template .ct-home-panorama-caption>figure{margin-top:22px}.website-template .ct-home-panorama-caption figcaption{display:flex}.website-template .ct-home-panorama-caption figcaption h2{font-size:22px}.website-template .ct-home-panorama-caption figcaption>a{font-size:26px}
+ .website-template.customer-site .ct-vehicle{margin-top:0}.website-template.customer-site .ct-vehicle .vehicle-detail-heading h1{font-size:29px;line-height:1.15;gap:8px}.website-template.customer-site .ct-vehicle .vehicle-detail-heading h1>svg,.website-template.customer-site .ct-vehicle .vehicle-detail-heading h1>img{width:23px}.website-template.customer-site .ct-vehicle .vehicle-detail-heading>p{font-size:15px}.website-template.customer-site .ct-vehicle .luxxy-price{font-size:38px}.website-template.customer-site .ct-vehicle .vehicle-registration{margin:17px 0}.website-template.customer-site .ct-vehicle .vehicle-action-tools>*{font-size:12px;min-height:44px}.website-template.customer-site .ct-vehicle .vehicle-mot-expiry strong{font-size:14px}.website-template.customer-site .ct-vehicle .vehicle-key-facts{grid-template-columns:repeat(3,minmax(0,1fr));gap:20px 14px}.website-template.customer-site .ct-vehicle .vehicle-key-facts dd{font-size:14px}.website-template.customer-site .ct-vehicle .vehicle-key-facts dt{font-size:12px}.website-template.customer-site .ct-vehicle .vehicle-summary-booking,.website-template.customer-site .ct-vehicle .vehicle-enquiry-action{font-size:14px;min-height:50px}.website-template.customer-site .ct-vehicle .vehicle-gallery-controls{font-size:12px;min-height:48px;padding:3px 9px}.website-template.customer-site .ct-vehicle .vehicle-gallery-view-all{font-size:12px;min-height:44px}.website-template.customer-site .ct-vehicle .ct-vehicle-price-panel{padding:23px 0;border:0}.website-template.customer-site .ct-vehicle .ct-vehicle-retail-grid{display:flex;flex-direction:column;gap:0}.website-template.customer-site .ct-vehicle .ct-vehicle-retail-grid>aside{width:100%}.website-template.customer-site .ct-vehicle .ct-vehicle-retail-grid>.ct-vehicle-photo-column>.ct-vehicle-strip .vehicle-key-facts{grid-template-columns:repeat(3,1fr)}.website-template.customer-site .ct-vehicle-showroom>.ct-vehicle-identity{margin-bottom:21px}.website-template.customer-site .ct-vehicle .ct-vehicle-strip{padding:20px 0}.website-template.customer-site .ct-vehicle-collection-hero{display:flex;flex-direction:column;padding:0;margin:0 -16px}.website-template.customer-site .ct-vehicle-collection-hero>.ct-vehicle-identity{order:1;padding:24px 18px;margin:0}.website-template.customer-site .ct-vehicle-collection .vehicle-detail-heading{text-align:left}.website-template.customer-site .ct-vehicle-collection .vehicle-detail-heading h1{font-size:36px;justify-content:flex-start}.website-template.customer-site .ct-vehicle-framed-gallery{width:100%;padding:0;border:0;max-width:none}.website-template.customer-site .ct-vehicle .ct-vehicle-purchase-band{display:flex;flex-direction:column;padding:24px 0;gap:25px}.website-template.customer-site .ct-vehicle .ct-vehicle-purchase-band>div{width:100%}.website-template.customer-site .ct-vehicle .ct-vehicle-band-facts{order:2;border:0;border-top:1px solid var(--ct-line);padding:21px 0 0}.website-template.customer-site .ct-vehicle .ct-vehicle-purchase-band .ct-vehicle-band-facts .vehicle-key-facts{grid-template-columns:repeat(3,1fr);gap:19px 14px}.website-template.customer-site .ct-vehicle-sales-grid{display:flex;flex-direction:column;padding:0 0 20px;margin:0 -16px;gap:15px}.website-template.customer-site .ct-vehicle-sales-grid>aside{position:static;margin:0 14px;width:calc(100% - 28px);padding:23px 21px;order:1}.website-template.customer-site .ct-vehicle-sales-grid>.ct-vehicle-photo-column{display:contents}.website-template.customer-site .ct-vehicle-sales-grid>.ct-vehicle-photo-column>.vehicle-detail-gallery{order:0}.website-template.customer-site .ct-vehicle-sales-grid .ct-vehicle-table{order:2;margin:0 14px;width:calc(100% - 28px);padding:23px 21px}.website-template.customer-site .ct-vehicle-sales-grid .ct-vehicle-price-panel{padding-top:22px;padding-bottom:0}.website-template.customer-site .ct-vehicle-table .vehicle-key-facts{grid-template-columns:1fr}.website-template.customer-site .ct-vehicle-table .vehicle-key-facts>div{padding:11px 0}.website-template.customer-site .ct-vehicle-panoramic-gallery.has-companion{display:block}.website-template.customer-site .ct-vehicle-panoramic-gallery{margin:0 -16px}.website-template.customer-site .ct-vehicle-companion{display:none}.website-template.customer-site .ct-vehicle-panorama .ct-vehicle-purchase-band>div:last-child .vehicle-action-area{grid-template-columns:1fr}.website-template.customer-site .ct-vehicle-panorama>.ct-vehicle-strip .vehicle-key-facts{grid-template-columns:repeat(3,1fr)}
+ .website-template .stock-redesign.stock-refined.stock-sidebar-layout .stock-card-results{grid-template-columns:1fr;gap:22px}.website-template .stock-redesign.stock-refined.stock-sidebar-layout .vehicle-card{border-radius:3px}.website-template .multi-stock-controls{position:static}.website-template--grand-touring .stock-page-intro h1{font-family:Georgia,'Times New Roman',serif}.website-template--forecourt .stock-page-intro{border-bottom:2px solid var(--ct-accent)}.website-template--panorama .stock-redesign.stock-refined.stock-sidebar-layout .stock-card-results{gap:30px}
+}
+@media(prefers-reduced-motion:reduce){.website-template :is(.ct-home,.ct-vehicle) *{scroll-behavior:auto;transition:none}}
+@media(max-width:600px){.website-template.customer-site .ct-vehicle-collection .make-logo-vehicle-heading>img{width:32px;height:32px;padding:5px}}
+.website-template.customer-site .ct-vehicle-forecourt .vehicle-action-tools{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.website-template.customer-site .ct-vehicle-forecourt .vehicle-action-tools>*{font-size:13px;min-height:44px;padding:8px 6px}
+@media(max-width:600px){.website-template.customer-site .ct-vehicle .vehicle-action-tools{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.website-template.customer-site .ct-vehicle .vehicle-action-tools>*{font-size:14px;min-height:44px;padding:8px 6px}}
+/* The mobile flex stack must fill the same width as the price panel. */
+@media(max-width:600px){.website-template.customer-site .ct-vehicle-retail-grid>.ct-vehicle-photo-column{width:100%}}
+/* Match the Vehicle File's 12px phone gutter for full-width photography. */
+@media(max-width:600px){.website-template.customer-site .ct-vehicle-collection-hero,.website-template.customer-site .ct-vehicle-sales-grid,.website-template.customer-site .ct-vehicle-panoramic-gallery{margin-left:-12px;margin-right:-12px}}
+@media(min-width:601px) and (max-width:1023px){.website-template.customer-site .ct-vehicle-collection-hero,.website-template.customer-site .ct-vehicle-sales-grid,.website-template.customer-site .ct-vehicle-panoramic-gallery{margin-left:-12px;margin-right:-12px}}

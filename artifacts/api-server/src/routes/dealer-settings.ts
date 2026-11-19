@@ -114,7 +114,7 @@ async function cleanFeaturedVehicles(settings: Settings, client?: SettingsQueryC
     : { ...settings, featuredVehicleIds };
 }
 
-async function settingsSnapshot(): Promise<{ config: Settings; revision: number }> {
+export async function settingsSnapshot(): Promise<{ config: Settings; revision: number }> {
   const id = dealerId();
   const [existing] = await db.select().from(dealerSettingsTable).where(eq(dealerSettingsTable.dealerId, id));
   if (existing) {

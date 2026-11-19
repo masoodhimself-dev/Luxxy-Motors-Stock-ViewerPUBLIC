@@ -3,6 +3,7 @@ import { dealerHealthLabel } from "@/lib/dealer-health-label";
 import { PlatformFeatureControls } from '@/components/platform-feature-controls';
 import { DemoOnboardingAccess } from '@/components/demo-onboarding-access';
 import { PlatformDemoReview } from '@/components/platform-demo-review';
+import { PlatformWebsiteTemplates } from '@/components/platform-website-templates';
 import { PlatformDemos } from '@/components/platform-demos';
 import { PlatformStockUpload } from '@/components/platform-stock-upload';
 import { PlatformDomainAutomation } from '@/components/platform-domain-automation';
@@ -28,7 +29,7 @@ const date = (v?: string | null) => v ? new Date(v).toLocaleString('en-GB', { da
 const platform = (v: string) => v === 'cazoo' ? 'Cazoo' : 'Auto Trader';
 const slug = (v: string) => v.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48);
 const steps = ['Business', 'Website', 'Enquiries', 'Stock source', 'Review'];
-const workspaceTabs = ['Setup', 'Features', 'Domains', 'Stock connection', 'Staff', 'Imports', 'Demo'];
+const workspaceTabs = ['Setup', 'Website', 'Features', 'Domains', 'Stock connection', 'Staff', 'Imports', 'Demo'];
 function StockSourceSummary({workspace}: {workspace: Workspace}) {
   const source = workspace.effectiveStockConnection;
   const known = source?.status === 'known';
@@ -354,6 +355,7 @@ export default function Platform() {
             : 'We’ll create a private draft for you to review in the launch checklist.'}</p></>}
         </div><footer className="platform-step-footer"><Button variant="outline" disabled={busy} onClick={() => { setError(''); if (step) setStep(step-1); else navigate('dealers'); }}><ArrowLeft size={16}/>{step ? 'Back' : 'Cancel'}</Button>{step < 4 ? <Button onClick={nextStep}>Continue <ArrowRight size={16}/></Button> : <Button disabled={busy} onClick={() => void create()}>{busy ? 'Creating…' : form.plan === 'full_portal' && ownerMode==='invite'?'Create & invite owner':'Create draft dealership'}</Button>}</footer></section>}
         {allowed && view === 'workspace' && workspace && <section className="platform-panel"><div className="platform-section-heading"><Button variant="ghost" disabled={busy} onClick={() => navigate('dealers')}><ArrowLeft size={16}/>All dealerships</Button><Badge value={workspace.dealer.status}/></div><div ref={tabsRef} className="platform-tabs" role="tablist" aria-label="Dealer workspace" onKeyDown={navigateWorkspaceTabs}>{availableWorkspaceTabs.map(t => <button type="button" role="tab" id={`${tabId(t)}-tab`} aria-controls="platform-workspace-panel" aria-selected={tab === t} tabIndex={tab === t ? 0 : -1} key={t} onClick={() => changeWorkspaceTab(t)}>{t}</button>)}</div><div className={`platform-workspace-body${tab === 'Demo review' ? ' platform-workspace-body--demo-review' : ''}`} role="tabpanel" id="platform-workspace-panel" aria-labelledby={`${tabId(tab)}-tab`}>
+          {tab === 'Website' && <PlatformWebsiteTemplates key={workspace.dealer.id} dealerId={workspace.dealer.id} dealerName={workspace.dealer.name} status={workspace.dealer.status} refreshVersion={launchChecksVersion}/>}
           {tab === 'Setup' && (workspace.dealer.onboardingRequired || (workspace.dealer.plan && !workspace.dealer.isDemo && workspace.dealer.status === 'draft')) ? <PlatformLaunchSetup
             key={workspace.dealer.id}
             dealerId={workspace.dealer.id}

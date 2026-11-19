@@ -60,6 +60,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { PageHeading } from '@/components/page-ui';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
+import { selectedWebsiteTemplate } from '@/lib/website-template';
+import { CustomerTemplateVehicle } from '@/components/website-templates/vehicle-template';
 import { useDealerFeatures } from '@/lib/dealer-features';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { vehiclePageMeta } from '@/lib/page-meta';
@@ -115,6 +117,7 @@ export default function CarDetail() {
   const { stock, vehicle: car, isVehicleLoading: isLoading, vehicleError: error, retryVehicle } = useStock();
   const { settings: dealerConfig, isLoading: settingsLoading, isError: settingsError } = useDealerSettings();
   const customerFeatures = useDealerFeatures();
+  const websiteTemplate = selectedWebsiteTemplate(dealerConfig.presentation);
   const browseSource = new URLSearchParams(window.location.search).get('from');
   const fromStock = browseSource === 'stock';
   const fromSaved = browseSource === 'saved';
@@ -316,6 +319,67 @@ export default function CarDetail() {
     ...(motAction && motSummary ? ['mot'] : []),
   ];
 
+  const templateIdentity = <header className="vehicle-detail-heading" data-testid="vehicle-identity">
+            <h1 className={showMakeLogo ? 'make-logo-vehicle-heading' : undefined}>
+              {showMakeLogo ? <><MakeLogo make={car.make} size={28} /><span>{vehicleLabel}</span></> : vehicleLabel}
+            </h1>
+            {vehicleTrim && <p>{vehicleTrim}</p>}
+          </header>;
+  const templateGallery = <div className="vehicle-detail-gallery min-w-0">
+            <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} customerView hideInlineThumbnails customerActions={{
+              enquiryHref: customerFeatures.enabled('publicEnquiries') ? '#vehicle-enquiry' : undefined,
+              onEnquiry: customerFeatures.enabled('publicEnquiries') ? () => openVehicleEnquiry() : undefined,
+            }} />
+          </div>;
+  const templatePrice = <div className="vehicle-price-block">
+              {stockStatus !== 'Available' && (
+                <p className="vehicle-stock-status">{stockStatus}</p>
+              )}
+              <p className="vehicle-price-caption">Vehicle price</p>
+              <p className={`luxxy-price${car.price ? '' : ' is-price-on-application'}`}>{car.price ? formatPrice(car.price, car.currency) : 'Price on application'}</p>
+              {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <p className="text-sm text-muted-foreground">{car.priceType}</p>}
+              <PriceReduction car={car} showRecordedDate />
+              {damageDisclosure && <a href="#vehicle-history" className="vehicle-insurance-disclosure"><VehicleFactIcon label="Insurance history" /><span>{damageDisclosure.summary}</span><ArrowRight className="h-4 w-4" /></a>}
+            </div>;
+  const templateFacts = keyFacts.length > 0 && <dl className="vehicle-key-facts grid grid-cols-2 gap-x-4 gap-y-4" aria-label="Vehicle details">
+              {keyFacts.map((fact) => (
+                <div key={fact.label}>
+                  <dt className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <VehicleTerm label={fact.label} value={fact.value}><VehicleFactIcon label={fact.label} value={fact.value} />{fact.label}</VehicleTerm>
+                  </dt>
+                  <dd className="mt-1 text-sm font-medium" data-testid={fact.testId}>
+                    {fact.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>;
+  const templateMot = motSummary && <button type="button" className="vehicle-mot-expiry vehicle-mot-fact" onClick={event => openMotHistory(event.currentTarget)} aria-label={`${motSummary.label} ${motSummary.value}. View MOT history`}>
+              <VehicleFactIcon label="MOT" /><span>{motSummary.label} <strong>{motSummary.value}</strong></span>
+            </button>;
+  const templateActions = <div className="vehicle-action-area" data-testid="desktop-purchase-panel">
+            {bookingAction}
+            {enquiryAction && <div className="vehicle-primary-actions vehicle-summary-main-actions">{enquiryAction}</div>}
+            <div className="vehicle-action-tools" aria-label="Contact and share">
+              <VehicleCall car={car} buttonLabel="Call" />
+              <VehicleWhatsApp car={car} />
+              <VehicleShare key={car.id} car={car} />
+              <SaveCarButton car={car} variant="inline" className="vehicle-save-control border-transparent bg-transparent" />
+            </div>
+            {(dealerConfig.partExchange?.enabled || deliveryAction) && <details className="vehicle-buying-options">
+              <summary>{dealerConfig.partExchange?.enabled ? deliveryAction ? 'Part exchange & delivery' : 'Part exchange' : 'Delivery'}<ChevronDown size={17} /></summary>
+              <div>
+                {dealerConfig.partExchange?.enabled && <a href={customerFeatures.enabled('publicEnquiries') ? `/enquire?type=part_exchange&vehicleId=${encodeURIComponent(car.id)}` : '/contact'} className="vehicle-part-exchange-link">Part exchange your car <ArrowRight className="h-4 w-4" aria-hidden="true" /></a>}
+                {deliveryAction}
+              </div>
+            </details>}
+            {dealerConfig.identity.name?.trim() && <div className="vehicle-seller">
+              <strong>{dealerConfig.identity.name}</strong>
+              {dealerLocation && <span>{dealerLocation}</span>}
+              <a href="#vehicle-visit-delivery">Showroom details <ArrowRight size={15} aria-hidden="true" /></a>
+            </div>}
+          </div>;
+  const templateHighlights = <>{summaryFacts.length > 0 && <ul className="vehicle-specific-facts" aria-label="About this car">{summaryFacts.map(fact => <li key={fact.id}>{fact.text}</li>)}</ul>}<VehicleSellingPoints car={car} omitMileage omitLabels={repeatedBadgeLabels}/></>;
+
   return (
     <div className="vehicle-page vehicle-redesigned vehicle-page-streamlined vehicle-page-enter luxxy-shell min-h-screen">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -327,7 +391,7 @@ export default function CarDetail() {
             {fromStock ? 'Back to your results' : fromSaved ? 'Back to saved cars' : 'Back to stock'}
           </Link>
         </div>
-        <div className="vehicle-detail-grid min-w-0">
+        {websiteTemplate ? <CustomerTemplateVehicle template={websiteTemplate} car={car} identity={templateIdentity} gallery={templateGallery} price={templatePrice} registration={registrationDetails} facts={templateFacts} mot={templateMot} actions={templateActions} highlights={templateHighlights} reservation={<ReserveCar key={car.id} car={car}/>} photoRequest={enquiriesEnabled && <VehiclePhotoRequest key={`photos-${car.id}`} onRequest={openVehicleEnquiry}/>} onEnquiry={enquiriesEnabled ? openVehicleEnquiry : undefined}/> : <div className="vehicle-detail-grid min-w-0">
           <header className="vehicle-detail-heading" data-testid="vehicle-identity">
             <h1 className={showMakeLogo ? 'make-logo-vehicle-heading' : undefined}>
               {showMakeLogo ? <><MakeLogo make={car.make} size={28} /><span>{vehicleLabel}</span></> : vehicleLabel}
@@ -396,7 +460,7 @@ export default function CarDetail() {
           <ReserveCar key={car.id} car={car} />
           </div>
           {enquiriesEnabled && <VehiclePhotoRequest key={`photos-${car.id}`} onRequest={openVehicleEnquiry} />}
-        </div>
+        </div>}
         <div className="vehicle-details-content min-w-0">
           <nav aria-label="Vehicle information sections" className="vehicle-section-nav">
             {hasOverview && <a href="#vehicle-overview-section">Overview</a>}

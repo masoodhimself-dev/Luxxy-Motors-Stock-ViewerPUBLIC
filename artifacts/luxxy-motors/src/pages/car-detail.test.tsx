@@ -137,6 +137,32 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
+describe('opt-in website template production flows', () => {
+  it.each(['showroom', 'grand-touring', 'forecourt', 'panorama'] as const)('keeps enquiry, booking, stock facts and MOT controls in %s', async template => {
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: vi.fn() });
+    featureState.data.features.publicEnquiries = true;
+    featureState.data.features.testDriveBookings = true;
+    const { container } = renderVehicle('with-plate', { ...dealerConfig, identity: { ...dealerConfig.identity, name: 'Harbour Cars' }, presentation: { ...dealerConfig.presentation, websiteTemplate: template }, testDriveBooking: { ...defaultBookingSettings, enabled: true } });
+    expect(container.querySelector('[data-template-composition]')).toHaveAttribute('data-template-composition', template);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('BMW 3 Series');
+    expect(screen.getByTestId('plate-vehicle-with-plate')).toHaveTextContent('NV24 LNZ');
+    expect(screen.getByRole('link', { name: /Book a Test Drive/i })).toHaveAttribute('href', expect.stringContaining('vehicleId=with-plate'));
+    const message = container.querySelector('.ct-vehicle .vehicle-enquiry-action')!;
+    expect(message).toHaveTextContent('Message');
+    fireEvent.click(message);
+    await waitFor(() => expect(document.getElementById('vehicle-enquiry')).toHaveAttribute('open'));
+    expect(screen.getByRole('region', { name: 'Pre-sale checks' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Vehicle information sections' })).toBeInTheDocument();
+  });
+  it.each(['showroom', 'grand-touring', 'forecourt', 'panorama'] as const)('keeps disabled enquiry and booking unavailable in %s', template => {
+    const { container } = renderVehicle('with-plate', { ...dealerConfig, presentation: { ...dealerConfig.presentation, websiteTemplate: template }, testDriveBooking: { ...defaultBookingSettings, enabled: false } });
+    expect(container.querySelector('.ct-vehicle .vehicle-enquiry-action')).toBeNull();
+    expect(container.querySelector('.ct-vehicle .vehicle-booking-action')).toBeNull();
+    expect(document.getElementById('vehicle-enquiry')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Reserve.*£99/i })).not.toBeInTheDocument();
+  });
+});
+
 it.each(['band-only', 'with-plate'])('includes the quality section on every vehicle page, even without public enquiry access (%s)', id => {
   renderVehicle(id);
   const quality = screen.getByRole('region', { name: 'Pre-sale checks' });

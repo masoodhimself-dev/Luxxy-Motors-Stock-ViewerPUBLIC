@@ -7,6 +7,8 @@ import { RouteLoading } from '@/components/route-loading';
 import { RouteScrollReset } from '@/components/route-scroll-reset';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
+import { privateWebsitePreviewDetails } from '@/lib/private-website-preview';
+import { websiteTemplateDefinition } from '@workspace/vehicle-meta';
 import { SavedCarsProvider } from '@/lib/saved-cars-context';
 import { StockProvider } from '@/lib/stock-context';
 import Home from '@/pages/home';
@@ -19,9 +21,12 @@ const Saved = lazy(() => import('@/pages/saved'));
 
 function PreviewWebsite({ base }: { base: string }) {
   const [location, setLocation] = useLocation();
-  const { settings } = useDealerSettings();
-  const dealerId = base.slice(base.lastIndexOf('/') + 1);
-  const adminPath = `/platform?dealer=${encodeURIComponent(dealerId)}`;
+  const { settings, isError } = useDealerSettings();
+  const preview = privateWebsitePreviewDetails(base);
+  const dealerId = preview?.dealerId ?? '';
+  const adminPath = `/platform?dealer=${encodeURIComponent(dealerId)}${preview?.template ? `&tab=Website&previewTemplate=${encodeURIComponent(preview.template)}&previewRevision=${preview.revision}` : ''}`;
+
+  if (isError) return <main className="mx-auto max-w-xl px-6 py-16"><h1 className="text-3xl font-bold">This preview could not be opened</h1><p className="my-5 leading-relaxed">The website settings may have changed. Return to Platform Admin and open a fresh preview.</p><a className="inline-flex min-h-11 items-center gap-2 underline" href={adminPath}><ArrowLeft size={16} aria-hidden="true"/> Back to website designs</a></main>;
 
   function keepWebsiteLinksInPreview(event: MouseEvent<HTMLDivElement>) {
     const target = event.target instanceof Element ? event.target.closest('a[href]') : null;
@@ -46,10 +51,10 @@ function PreviewWebsite({ base }: { base: string }) {
     <aside aria-label="Website preview controls" className="relative z-40 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 bg-[#182b36] px-4 py-2 text-white sm:px-6">
       <div className="flex min-w-0 items-center gap-3">
         <LockKeyhole size={17} aria-hidden="true" className="shrink-0" />
-        <p className="text-sm font-semibold">Private website preview{settings.identity.name && ` · ${settings.identity.name}`}</p>
+        <div><p className="text-sm font-semibold">{preview?.template ? `${websiteTemplateDefinition(preview.template).name} preview` : 'Private website preview'}{settings.identity.name && ` · ${settings.identity.name}`}</p>{preview?.template && <p className="text-xs text-white/80">Preview only. No website changes are made here.</p>}</div>
       </div>
       <a href={adminPath} className="inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-white underline underline-offset-4">
-        <ArrowLeft size={16} aria-hidden="true" /> Back to dealership setup
+        <ArrowLeft size={16} aria-hidden="true" /> {preview?.template ? 'Back to website designs' : 'Back to dealership setup'}
       </a>
     </aside>
     <div className="private-website-preview" onClickCapture={keepWebsiteLinksInPreview} onSubmitCapture={event => {

@@ -112,6 +112,7 @@ app.use(createSharedStaffPortal(router, accountInvitationsRouter));
 app.use("/api/demo-onboarding", demoOnboardingRouter);
 app.use("/api/platform", platformDealersRouter);
 app.use('/api/account-invitations', accountInvitationsRouter);
+app.use('/platform/preview/:dealerId/template/:templateId/:templateRevision', platformWebsitePreviewRouter);
 app.use('/platform/preview/:dealerId', platformWebsitePreviewRouter);
 app.use((req, res, next) => {
   if (res.locals.privateWebsitePreview === true || res.locals.sharedStaffPortal) next();

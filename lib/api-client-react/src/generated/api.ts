@@ -62,6 +62,10 @@ import type {
   LeadUpdate,
   OnlineReservation,
   OnlineReservations,
+  PlatformDealerWebsiteTemplateSelection,
+  PlatformDealerWebsiteTemplateState,
+  PlatformDealerWebsiteTemplateUpdate,
+  PlatformWebsiteTemplateError,
   PortalSession,
   PortalWorklist,
   Sale,
@@ -192,6 +196,157 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
 
 
+
+export const getGetPlatformDealerWebsiteTemplateUrl = (id: string,) => {
+
+
+
+
+  return `/api/platform/dealers/${id}/website-template`
+}
+
+/**
+ * Platform Admin only. Reads the published selection without changing settings. The previewPath accepts /template/{templateId}/{revision} followed by the customer page path for a private, read-only candidate preview.
+ * @summary Read one dealership's website template and settings revision
+ */
+export const getPlatformDealerWebsiteTemplate = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<PlatformDealerWebsiteTemplateState> => {
+
+  return customFetch<PlatformDealerWebsiteTemplateState>(getGetPlatformDealerWebsiteTemplateUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPlatformDealerWebsiteTemplateQueryKey = (id: string,) => {
+    return [
+    `/api/platform/dealers/${id}/website-template`
+    ] as const;
+    }
+
+
+export const getGetPlatformDealerWebsiteTemplateQueryOptions = <TData = Awaited<ReturnType<typeof getPlatformDealerWebsiteTemplate>>, TError = ErrorType<PlatformWebsiteTemplateError>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformDealerWebsiteTemplate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPlatformDealerWebsiteTemplateQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlatformDealerWebsiteTemplate>>> = ({ signal }) => getPlatformDealerWebsiteTemplate(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPlatformDealerWebsiteTemplate>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPlatformDealerWebsiteTemplateQueryResult = NonNullable<Awaited<ReturnType<typeof getPlatformDealerWebsiteTemplate>>>
+export type GetPlatformDealerWebsiteTemplateQueryError = ErrorType<PlatformWebsiteTemplateError>
+
+
+/**
+ * @summary Read one dealership's website template and settings revision
+ */
+
+export function useGetPlatformDealerWebsiteTemplate<TData = Awaited<ReturnType<typeof getPlatformDealerWebsiteTemplate>>, TError = ErrorType<PlatformWebsiteTemplateError>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformDealerWebsiteTemplate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPlatformDealerWebsiteTemplateQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdatePlatformDealerWebsiteTemplateUrl = (id: string,) => {
+
+
+
+
+  return `/api/platform/dealers/${id}/website-template`
+}
+
+/**
+ * Requires explicit review confirmation and the current If-Match settings revision. Publishes only presentation.websiteTemplate with normal settings history; unrelated website and private settings remain unchanged.
+ * @summary Apply a reviewed website template to one dealership
+ */
+export const updatePlatformDealerWebsiteTemplate = async (id: string,
+    platformDealerWebsiteTemplateUpdate: PlatformDealerWebsiteTemplateUpdate, options?: Parameters<typeof customFetch>[1]): Promise<PlatformDealerWebsiteTemplateSelection> => {
+
+  return customFetch<PlatformDealerWebsiteTemplateSelection>(getUpdatePlatformDealerWebsiteTemplateUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(platformDealerWebsiteTemplateUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdatePlatformDealerWebsiteTemplateMutationOptions = <TError = ErrorType<PlatformWebsiteTemplateError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlatformDealerWebsiteTemplate>>, TError,{id: string;data: BodyType<PlatformDealerWebsiteTemplateUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePlatformDealerWebsiteTemplate>>, TError,{id: string;data: BodyType<PlatformDealerWebsiteTemplateUpdate>}, TContext> => {
+
+const mutationKey = ['updatePlatformDealerWebsiteTemplate'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePlatformDealerWebsiteTemplate>>, {id: string;data: BodyType<PlatformDealerWebsiteTemplateUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updatePlatformDealerWebsiteTemplate(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePlatformDealerWebsiteTemplateMutationResult = NonNullable<Awaited<ReturnType<typeof updatePlatformDealerWebsiteTemplate>>>
+    export type UpdatePlatformDealerWebsiteTemplateMutationBody = BodyType<PlatformDealerWebsiteTemplateUpdate>
+    export type UpdatePlatformDealerWebsiteTemplateMutationError = ErrorType<PlatformWebsiteTemplateError>
+
+    /**
+ * @summary Apply a reviewed website template to one dealership
+ */
+export const useUpdatePlatformDealerWebsiteTemplate = <TError = ErrorType<PlatformWebsiteTemplateError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlatformDealerWebsiteTemplate>>, TError,{id: string;data: BodyType<PlatformDealerWebsiteTemplateUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePlatformDealerWebsiteTemplate>>,
+        TError,
+        {id: string;data: BodyType<PlatformDealerWebsiteTemplateUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdatePlatformDealerWebsiteTemplateMutationOptions(options));
+    }
 
 export const getGetStockUrl = () => {
 

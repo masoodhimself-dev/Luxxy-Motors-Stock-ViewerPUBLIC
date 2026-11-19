@@ -26,6 +26,8 @@ tags:
     description: Development-only customer signing sessions
   - name: customer-intake
     description: Customer self-entry sessions for starting a dealer sale
+  - name: platform
+    description: Platform administrator dealership controls
 paths:
   /healthz:
     get:
@@ -40,6 +42,92 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /platform/dealers/{id}/website-template:
+    get:
+      operationId: getPlatformDealerWebsiteTemplate
+      tags: [platform]
+      summary: Read one dealership's website template and settings revision
+      description: Platform Admin only. Reads the published selection without changing settings. The previewPath accepts /template/{templateId}/{revision} followed by the customer page path for a private, read-only candidate preview.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: The dealership's current selection and available layouts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformDealerWebsiteTemplateState" }
+        "403":
+          description: Platform administrator access required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformWebsiteTemplateError" }
+        "404":
+          description: Dealership unavailable for template review
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformWebsiteTemplateError" }
+        "428":
+          description: Dealership website settings are not prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformWebsiteTemplateError" }
+    patch:
+      operationId: updatePlatformDealerWebsiteTemplate
+      tags: [platform]
+      summary: Apply a reviewed website template to one dealership
+      description: Requires explicit review confirmation and the current If-Match settings revision. Publishes only presentation.websiteTemplate with normal settings history; unrelated website and private settings remain unchanged.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: If-Match
+          required: true
+          description: The settings revision returned when reviewing this dealership, optionally enclosed in double quotes.
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlatformDealerWebsiteTemplateUpdate" }
+      responses:
+        "200":
+          description: Applied selection and new settings revision
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformDealerWebsiteTemplateSelection" }
+        "400":
+          description: Unsupported template, missing review confirmation or invalid revision
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformWebsiteTemplateError" }
+        "403":
+          description: Platform administrator access required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformWebsiteTemplateError" }
+        "404":
+          description: Dealership unavailable for template review
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformWebsiteTemplateError" }
+        "409":
+          description: Settings changed since the template was reviewed
+          headers:
+            x-settings-revision:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformWebsiteTemplateError" }
+        "428":
+          description: A current settings revision or provisioned settings are required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformWebsiteTemplateError" }
   /stock:
     get:
       operationId: getStock
@@ -2299,6 +2387,51 @@ components:
         vehicleFeaturesHeading: { type: string, maxLength: 1000 }
         vehicleSimilarHeading: { type: string, maxLength: 1000 }
 
+    WebsiteTemplateId:
+      type: string
+      enum: [existing, classic, premium, focused, showroom, grand-touring, forecourt, panorama]
+    WebsiteTemplateDefinition:
+      type: object
+      additionalProperties: false
+      required: [id, name, description, legacy]
+      properties:
+        id: { $ref: "#/components/schemas/WebsiteTemplateId" }
+        name: { type: string }
+        description: { type: string }
+        legacy: { type: boolean }
+    PlatformDealerWebsiteTemplateSelection:
+      type: object
+      additionalProperties: false
+      required: [dealerId, currentTemplate, revision]
+      properties:
+        dealerId: { type: string }
+        currentTemplate: { $ref: "#/components/schemas/WebsiteTemplateId" }
+        revision: { type: integer, minimum: 0 }
+    PlatformDealerWebsiteTemplateState:
+      type: object
+      additionalProperties: false
+      required: [dealerId, currentTemplate, revision, templates, previewPath]
+      properties:
+        dealerId: { type: string }
+        currentTemplate: { $ref: "#/components/schemas/WebsiteTemplateId" }
+        revision: { type: integer, minimum: 0 }
+        templates:
+          type: array
+          items: { $ref: "#/components/schemas/WebsiteTemplateDefinition" }
+        previewPath: { type: string }
+    PlatformDealerWebsiteTemplateUpdate:
+      type: object
+      additionalProperties: false
+      required: [template, reviewed]
+      properties:
+        template: { $ref: "#/components/schemas/WebsiteTemplateId" }
+        reviewed: { type: boolean, enum: [true] }
+    PlatformWebsiteTemplateError:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        revision: { type: integer, minimum: 0 }
     DealerPresentation:
       type: object
       additionalProperties: false
@@ -2306,7 +2439,7 @@ components:
       properties:
         websiteTemplate:
           type: string
-          enum: [existing, classic, premium, focused]
+          enum: [existing, classic, premium, focused, showroom, grand-touring, forecourt, panorama]
           description: Optional customer website layout. Omitted keeps the existing website. Choosing a layout is published with the normal settings draft.
         pageColour: { type: string, pattern: "^(#[0-9a-fA-F]{6})?$" }
         panelColour: { type: string, pattern: "^(#[0-9a-fA-F]{6})?$" }

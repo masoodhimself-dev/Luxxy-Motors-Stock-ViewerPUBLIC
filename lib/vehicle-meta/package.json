@@ -11,7 +11,8 @@
     "./stock-filter-types": "./src/stock-filter-types.ts",
     "./stock-filter-url": "./src/stock-filter-url.ts",
     "./stock-filters": "./src/stock-filters.ts",
-    "./stock-source-ulez": "./src/stock-source-ulez.ts"
+    "./stock-source-ulez": "./src/stock-source-ulez.ts",
+    "./website-templates": "./src/website-templates.ts"
   },
   "dependencies": {
     "jspdf": "4.2.1",

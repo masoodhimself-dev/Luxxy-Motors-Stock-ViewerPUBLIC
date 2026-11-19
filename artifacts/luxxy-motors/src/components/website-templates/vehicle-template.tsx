@@ -1,0 +1,19 @@
+import type { ReactNode } from 'react';
+import type { Car } from '@/lib/stock-context';
+import type { CustomerWebsiteTemplate } from '@/lib/website-template';
+import { Gallery } from '@/components/gallery';
+import { getSafeImageUrl } from '@/lib/utils';
+
+type Props = { template: CustomerWebsiteTemplate; car: Car; identity: ReactNode; gallery: ReactNode; price: ReactNode; registration: ReactNode; facts: ReactNode; mot: ReactNode; actions: ReactNode; highlights: ReactNode; reservation: ReactNode; photoRequest: ReactNode; onEnquiry?: () => void };
+
+/** Every slot comes from CarDetail's existing production components and gates. */
+export function CustomerTemplateVehicle({ template, car, identity, gallery, price, registration, facts, mot, actions, highlights, reservation, photoRequest, onEnquiry }: Props) {
+  const panel = <><div className="ct-vehicle-price-panel">{price}{registration}{mot}{actions}</div>{reservation}</>;
+  const more = highlights && <details className="ct-vehicle-highlights"><summary>More about this car</summary>{highlights}</details>;
+  if (template === 'showroom') return <div className="ct-vehicle ct-vehicle-showroom" data-template-composition="showroom"><div className="ct-vehicle-identity">{identity}</div><div className="ct-vehicle-retail-grid"><div className="ct-vehicle-photo-column">{gallery}<div className="ct-vehicle-strip">{facts}</div></div><aside>{panel}{more}</aside></div>{photoRequest}</div>;
+  if (template === 'grand-touring') return <div className="ct-vehicle ct-vehicle-collection" data-template-composition="grand-touring"><div className="ct-vehicle-collection-hero"><div className="ct-vehicle-identity">{identity}</div><div className="ct-vehicle-framed-gallery">{gallery}</div></div><div className="ct-vehicle-purchase-band"><div>{price}{registration}{mot}</div><div className="ct-vehicle-band-facts">{facts}</div><div>{actions}{reservation}</div></div>{more}{photoRequest}</div>;
+  if (template === 'forecourt') return <div className="ct-vehicle ct-vehicle-forecourt" data-template-composition="forecourt"><div className="ct-vehicle-sales-grid"><aside><div className="ct-vehicle-identity">{identity}</div>{panel}</aside><div className="ct-vehicle-photo-column">{gallery}<div className="ct-vehicle-table"><h2>At a glance</h2>{facts}{more}</div></div></div>{photoRequest}</div>;
+  const mainUrl = getSafeImageUrl(car.heroImage || car.images?.[0]);
+  const companion = car.images?.find(image => getSafeImageUrl(image) && getSafeImageUrl(image) !== mainUrl);
+  return <div className="ct-vehicle ct-vehicle-panorama" data-template-composition="panorama"><div className={`ct-vehicle-panoramic-gallery${companion ? ' has-companion' : ''}`}>{gallery}{companion && <div className="ct-vehicle-companion"><Gallery car={car} images={car.images || []} heroImage={getSafeImageUrl(companion)} vehicleLabel={[car.make, car.model].filter(Boolean).join(' ') || car.title || 'Vehicle'} customerView hideInlineThumbnails customerActions={onEnquiry ? { enquiryHref: '#vehicle-enquiry', onEnquiry } : undefined}/></div>}</div><div className="ct-vehicle-purchase-band"><div className="ct-vehicle-identity">{identity}{registration}</div><div>{price}{mot}</div><div>{actions}{reservation}</div></div><div className="ct-vehicle-strip">{facts}</div>{more}{photoRequest}</div>;
+}

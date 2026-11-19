@@ -27,6 +27,8 @@ import { customerThemeVariables } from '@/lib/customer-theme';
 import { isCustomerWebsiteRoute, multiCustomerThemeVariables, multiPortalThemeVariables } from '@/lib/multi-customer-theme';
 import { useCustomerBodyTheme, usePortalBodyTheme } from '@/components/multi-customer-theme';
 import './portal/dealer-portal-theme.css';
+import { selectedWebsiteTemplate } from '@/lib/website-template';
+import './website-templates/customer-templates.css';
 export { readableForegroundForHsl } from '@/lib/brand-colour';
 
 const navLinkClass =
@@ -48,6 +50,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isVehiclePage = isVehiclePagePath(location);
   const isBrowsingPage = location === '/stock' || isVehiclePagePath(location);
   const { settings: dealerConfig, publicEnquiriesEnabled, isLoading: settingsLoading, isError: settingsError } = useDealerSettings();
+  const websiteTemplate = isCustomerWebsite ? selectedWebsiteTemplate(dealerConfig.presentation) : null;
   const whatsAppHref = getWhatsAppHref(undefined, dealerConfig);
   const { savedCount } = useSavedCars();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -214,7 +217,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   </div>;
 
   return (
-    <div id={isHomePage ? 'top' : undefined} style={brandStyle} data-dealer-brand={isMultiChoiceBrand ? "multi-choice" : undefined} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}${isCustomerWebsite ? ' dealer-site-theme showroom-navy-site' : ''}${isSharedPortal ? ' dealer-portal-theme' : ''}${isHomePage ? ' multi-home-shell' : ''}`}>
+    <div id={isHomePage ? 'top' : undefined} style={brandStyle} data-dealer-brand={isMultiChoiceBrand ? "multi-choice" : undefined} data-website-template={websiteTemplate ?? undefined} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}${isCustomerWebsite ? ' dealer-site-theme showroom-navy-site' : ''}${isSharedPortal ? ' dealer-portal-theme' : ''}${isHomePage ? ' multi-home-shell' : ''}${websiteTemplate ? ` website-template website-template--${websiteTemplate}` : ''}`}>
       <a href="#main-content" className="fixed left-4 top-3 z-[100] -translate-y-24 rounded-md bg-primary px-5 py-3 text-primary-foreground focus:translate-y-0">Skip to content</a>
       {isCustomerWebsite && <MultiHomeHeader ref={headerRef} settings={dealerConfig} savedCount={savedCount} testDriveHref={testDriveHref} isHomepage={isHomePage} enquiriesEnabled={publicEnquiriesEnabled} onLogoClick={isHomePage ? undefined : handleLogoClick} />}
       {!isStaff && !isCustomerWebsite && <header

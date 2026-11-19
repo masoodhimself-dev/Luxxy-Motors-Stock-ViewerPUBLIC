@@ -479,6 +479,54 @@ export interface DealerWebsiteCopy {
   vehicleSimilarHeading?: string;
 }
 
+export type WebsiteTemplateId = typeof WebsiteTemplateId[keyof typeof WebsiteTemplateId];
+
+
+export const WebsiteTemplateId = {
+  existing: 'existing',
+  classic: 'classic',
+  premium: 'premium',
+  focused: 'focused',
+  showroom: 'showroom',
+  'grand-touring': 'grand-touring',
+  forecourt: 'forecourt',
+  panorama: 'panorama',
+} as const;
+
+export interface WebsiteTemplateDefinition {
+  id: WebsiteTemplateId;
+  name: string;
+  description: string;
+  legacy: boolean;
+}
+
+export interface PlatformDealerWebsiteTemplateSelection {
+  dealerId: string;
+  currentTemplate: WebsiteTemplateId;
+  /** @minimum 0 */
+  revision: number;
+}
+
+export interface PlatformDealerWebsiteTemplateState {
+  dealerId: string;
+  currentTemplate: WebsiteTemplateId;
+  /** @minimum 0 */
+  revision: number;
+  templates: WebsiteTemplateDefinition[];
+  previewPath: string;
+}
+
+export interface PlatformDealerWebsiteTemplateUpdate {
+  template: WebsiteTemplateId;
+  reviewed: true;
+}
+
+export interface PlatformWebsiteTemplateError {
+  error: string;
+  /** @minimum 0 */
+  revision?: number;
+}
+
 /**
  * Optional customer website layout. Omitted keeps the existing website. Choosing a layout is published with the normal settings draft.
  */
@@ -490,6 +538,10 @@ export const DealerPresentationWebsiteTemplate = {
   classic: 'classic',
   premium: 'premium',
   focused: 'focused',
+  showroom: 'showroom',
+  'grand-touring': 'grand-touring',
+  forecourt: 'forecourt',
+  panorama: 'panorama',
 } as const;
 
 export type DealerPresentationHeroImagePosition = typeof DealerPresentationHeroImagePosition[keyof typeof DealerPresentationHeroImagePosition];

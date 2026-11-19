@@ -18,6 +18,60 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * Platform Admin only. Reads the published selection without changing settings. The previewPath accepts /template/{templateId}/{revision} followed by the customer page path for a private, read-only candidate preview.
+ * @summary Read one dealership's website template and settings revision
+ */
+export const GetPlatformDealerWebsiteTemplateParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const getPlatformDealerWebsiteTemplateResponseRevisionMin = 0;
+
+
+
+export const GetPlatformDealerWebsiteTemplateResponse = zod.object({
+  "dealerId": zod.string(),
+  "currentTemplate": zod.enum(['existing', 'classic', 'premium', 'focused', 'showroom', 'grand-touring', 'forecourt', 'panorama']),
+  "revision": zod.number().int().min(getPlatformDealerWebsiteTemplateResponseRevisionMin),
+  "templates": zod.array(zod.object({
+  "id": zod.enum(['existing', 'classic', 'premium', 'focused', 'showroom', 'grand-touring', 'forecourt', 'panorama']),
+  "name": zod.string(),
+  "description": zod.string(),
+  "legacy": zod.boolean()
+})),
+  "previewPath": zod.string()
+})
+
+
+/**
+ * Requires explicit review confirmation and the current If-Match settings revision. Publishes only presentation.websiteTemplate with normal settings history; unrelated website and private settings remain unchanged.
+ * @summary Apply a reviewed website template to one dealership
+ */
+export const UpdatePlatformDealerWebsiteTemplateParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdatePlatformDealerWebsiteTemplateHeader = zod.object({
+  "If-Match": zod.string().describe('The settings revision returned when reviewing this dealership, optionally enclosed in double quotes.')
+})
+
+export const UpdatePlatformDealerWebsiteTemplateBody = zod.object({
+  "template": zod.enum(['existing', 'classic', 'premium', 'focused', 'showroom', 'grand-touring', 'forecourt', 'panorama']),
+  "reviewed": zod.literal(true)
+})
+
+export const updatePlatformDealerWebsiteTemplateResponseRevisionMin = 0;
+
+
+
+export const UpdatePlatformDealerWebsiteTemplateResponse = zod.object({
+  "dealerId": zod.string(),
+  "currentTemplate": zod.enum(['existing', 'classic', 'premium', 'focused', 'showroom', 'grand-touring', 'forecourt', 'panorama']),
+  "revision": zod.number().int().min(updatePlatformDealerWebsiteTemplateResponseRevisionMin)
+})
+
+
+/**
  * Returns the current full stock snapshot persisted in the database.
  * @summary Get current showroom stock
  */
@@ -3818,7 +3872,7 @@ export const getDealerSettingsResponseWhyBuyMax = 8;
 
 export const GetDealerSettingsResponse = zod.object({
   "presentation": zod.object({
-  "websiteTemplate": zod.enum(['existing', 'classic', 'premium', 'focused']).optional().describe('Optional customer website layout. Omitted keeps the existing website. Choosing a layout is published with the normal settings draft.'),
+  "websiteTemplate": zod.enum(['existing', 'classic', 'premium', 'focused', 'showroom', 'grand-touring', 'forecourt', 'panorama']).optional().describe('Optional customer website layout. Omitted keeps the existing website. Choosing a layout is published with the normal settings draft.'),
   "pageColour": zod.string().regex(getDealerSettingsResponsePresentationPageColourRegExp).optional(),
   "panelColour": zod.string().regex(getDealerSettingsResponsePresentationPanelColourRegExp).optional(),
   "headingColour": zod.string().regex(getDealerSettingsResponsePresentationHeadingColourRegExp).optional(),
@@ -4343,7 +4397,7 @@ export const updateDealerSettingsBodyOneWhyBuyMax = 8;
 
 export const UpdateDealerSettingsBody = zod.object({
   "presentation": zod.object({
-  "websiteTemplate": zod.enum(['existing', 'classic', 'premium', 'focused']).optional().describe('Optional customer website layout. Omitted keeps the existing website. Choosing a layout is published with the normal settings draft.'),
+  "websiteTemplate": zod.enum(['existing', 'classic', 'premium', 'focused', 'showroom', 'grand-touring', 'forecourt', 'panorama']).optional().describe('Optional customer website layout. Omitted keeps the existing website. Choosing a layout is published with the normal settings draft.'),
   "pageColour": zod.string().regex(updateDealerSettingsBodyOnePresentationPageColourRegExp).optional(),
   "panelColour": zod.string().regex(updateDealerSettingsBodyOnePresentationPanelColourRegExp).optional(),
   "headingColour": zod.string().regex(updateDealerSettingsBodyOnePresentationHeadingColourRegExp).optional(),
@@ -4863,7 +4917,7 @@ export const updateDealerSettingsResponseWhyBuyMax = 8;
 
 export const UpdateDealerSettingsResponse = zod.object({
   "presentation": zod.object({
-  "websiteTemplate": zod.enum(['existing', 'classic', 'premium', 'focused']).optional().describe('Optional customer website layout. Omitted keeps the existing website. Choosing a layout is published with the normal settings draft.'),
+  "websiteTemplate": zod.enum(['existing', 'classic', 'premium', 'focused', 'showroom', 'grand-touring', 'forecourt', 'panorama']).optional().describe('Optional customer website layout. Omitted keeps the existing website. Choosing a layout is published with the normal settings draft.'),
   "pageColour": zod.string().regex(updateDealerSettingsResponsePresentationPageColourRegExp).optional(),
   "panelColour": zod.string().regex(updateDealerSettingsResponsePresentationPanelColourRegExp).optional(),
   "headingColour": zod.string().regex(updateDealerSettingsResponsePresentationHeadingColourRegExp).optional(),

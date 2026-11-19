@@ -1,17 +1,36 @@
 import { getAuth } from '@clerk/express';
-import { db, dealerDemosTable, dealershipsTable } from '@workspace/db';
+import { db, dealerDemosTable, dealerSettingsTable, dealershipsTable } from '@workspace/db';
+import { GetDealerSettingsResponse } from '@workspace/api-zod';
+import { isWebsiteTemplateId } from '@workspace/vehicle-meta/website-templates';
 import { and, eq, isNull } from 'drizzle-orm';
-import { Router } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { isPlatformAdmin } from '../lib/platform-admin';
 import { currentDealerId, multiTenantEnabled, normaliseTenantHost, runWithTenant } from '../lib/tenant-context';
 import publicRoutes from './index';
+import { settingsSnapshot } from './dealer-settings';
+import { withWebsiteTemplate } from '../lib/website-template-settings';
 
 const router = Router({ mergeParams: true });
 const websitePages = /^(?:\/|\/(?:stock|contact|warranty|saved|enquire)\/?|\/(?:vehicle|cars|s)\/[a-z0-9-]+\/?)$/i;
 const websiteReads = /^\/(?:stock|dealer-settings|features|vehicles\/(?:short\/)?[a-z0-9-]+|website-assets\/[a-f0-9-]{36})\/?$/i;
 const cachedMotRead = /^\/vehicles\/[a-f0-9-]{36}\/mot-history\/?$/i;
 
+function settingsChanged(req: Request, res: Response, dealerId: string, revision: number) {
+  res.set('x-settings-revision', String(revision)).status(409);
+  if (websitePages.test(req.path) && req.accepts('html')) {
+    // The ID was checked before this function is called. It is still encoded as
+    // a query value; no dealership name or arbitrary request content is rendered.
+    const back = `/platform?dealer=${encodeURIComponent(dealerId)}&amp;tab=Website`;
+    res.type('html').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow"><title>Settings changed · DealerOS</title><style>body{margin:0;background:#f3f4f5;color:#202b39;font-family:Arial,sans-serif}main{max-width:560px;margin:12vh auto;padding:32px;background:#fff;border:1px solid #d8dde3}h1{font-size:30px;line-height:1.2;margin:0 0 16px}p{font-size:16px;line-height:1.7;margin:0 0 24px}a{display:inline-block;padding:14px 20px;background:#202b39;color:#fff;text-decoration:none;font-size:16px;font-weight:600}a:focus-visible{outline:3px solid #956d20;outline-offset:4px}@media(max-width:640px){main{margin:32px 18px;padding:24px}h1{font-size:27px}}</style></head><body><main><h1>Website settings have changed</h1><p>This preview used an older version of the dealership settings. Return to Platform Admin and open a fresh preview before applying a template.</p><a href="${back}">Reopen preview</a></main></body></html>`);
+    return;
+  }
+  res.json({ error: 'Website settings have changed. Refresh and review the template again.', revision });
+}
+
 router.use(async (req, res, next) => {
+  // A candidate HTML request continues past both mounted preview paths to the SPA.
+  // Do not authorise it a second time as an ordinary draft-only preview.
+  if (res.locals.privateWebsitePreview === true) { next('router'); return; }
   res.set({
     'Cache-Control': 'private, no-store',
     'X-Robots-Tag': 'noindex, nofollow, noarchive',
@@ -29,6 +48,13 @@ router.use(async (req, res, next) => {
     res.status(405).set('Allow', 'GET, HEAD').json({ error: 'The private website preview is read only.' });
     return;
   }
+  const candidate = req.params.templateId;
+  const revisionText = req.params.templateRevision;
+  const candidateRequested = candidate !== undefined || revisionText !== undefined;
+  if (candidateRequested && (!isWebsiteTemplateId(candidate) || typeof revisionText !== 'string' || !/^(?:0|[1-9]\d*)$/.test(revisionText) || !Number.isSafeInteger(Number(revisionText)))) {
+    res.status(400).json({ error: 'Choose a supported website template and a valid settings revision.' });
+    return;
+  }
   const dealerId = req.params.dealerId;
   if (typeof dealerId !== 'string' || !/^[a-z0-9][a-z0-9-]{1,62}$/.test(dealerId)) {
     res.status(404).json({ error: 'This dealership preview could not be found.' });
@@ -37,13 +63,24 @@ router.use(async (req, res, next) => {
   const [row] = await db.select({
     dealer: dealershipsTable,
     demo: { id: dealerDemosTable.dealerId, expiresAt: dealerDemosTable.expiresAt },
+    settings: { revision: dealerSettingsTable.revision },
   }).from(dealershipsTable).leftJoin(dealerDemosTable, and(eq(dealerDemosTable.dealerId, dealershipsTable.id), isNull(dealerDemosTable.convertedAt)))
+    .leftJoin(dealerSettingsTable, eq(dealerSettingsTable.dealerId, dealershipsTable.id))
     .where(eq(dealershipsTable.id, dealerId));
   const dealer = row?.dealer;
   const demo = row?.demo;
-  if (!dealer || (dealer.status !== 'draft' && !(dealer.status === 'active' && demo)) || (demo && demo.expiresAt.getTime() <= Date.now())) {
+  if (!dealer || (dealer.status !== 'draft' && !(dealer.status === 'active' && (demo || candidateRequested))) || (demo && demo.expiresAt.getTime() <= Date.now())) {
     res.status(404).json({ error: 'This preview is available for drafts and current demonstrations.' });
     return;
+  }
+  if (candidateRequested) {
+    if (!row.settings) { res.status(428).json({ error: 'The dealership website settings must be prepared before previewing a template.' }); return; }
+    if (Number(revisionText) !== row.settings.revision) {
+      settingsChanged(req, res, dealer.id, row.settings.revision);
+      return;
+    }
+    res.locals.previewWebsiteTemplate = candidate;
+    res.locals.previewSettingsRevision = row.settings.revision;
   }
   res.locals.privateWebsitePreview = true;
   res.locals.previewDemo = Boolean(demo);
@@ -55,6 +92,16 @@ router.use(async (req, res, next) => {
 });
 
 router.use('/api', async (req, res, next) => {
+  if (req.path === '/dealer-settings' && isWebsiteTemplateId(res.locals.previewWebsiteTemplate)) {
+    const snapshot = await settingsSnapshot();
+    if (snapshot.revision !== res.locals.previewSettingsRevision) {
+      settingsChanged(req, res, currentDealerId(), snapshot.revision);
+      return;
+    }
+    res.set({ 'x-settings-revision': String(snapshot.revision), ETag: `"${snapshot.revision}"` });
+    res.json(GetDealerSettingsResponse.parse(withWebsiteTemplate(snapshot.config, res.locals.previewWebsiteTemplate)));
+    return;
+  }
   if (req.path === '/demo-logo' && res.locals.previewDemo === true) {
     const [artwork] = await db.select({ header: dealerDemosTable.logoData, footer: dealerDemosTable.footerLogoData })
       .from(dealerDemosTable).where(and(eq(dealerDemosTable.dealerId, currentDealerId()), isNull(dealerDemosTable.convertedAt)));
