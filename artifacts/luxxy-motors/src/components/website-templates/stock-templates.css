@@ -292,6 +292,9 @@
 .website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card :is(.vehicle-card-variant,.vehicle-specs,.vehicle-benefit-summary,.stock-card-equipment) {
   color: #c6cbd0;
 }
+.website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card-details :is(button.customer-term-help.vehicle-badge,.vehicle-badges button.customer-term-help) {
+  color: #c6cbd0; text-decoration-color: #89939c;
+}
 .website-template.customer-site .stock-redesign.stock-refined.stock-sidebar-layout.template-stock-page[data-stock-view="cards"][data-stock-mode="default"][data-stock-template="panorama"] .vehicle-card .stock-card-equipment li::before {
   color: #c6cbd0;
 }
