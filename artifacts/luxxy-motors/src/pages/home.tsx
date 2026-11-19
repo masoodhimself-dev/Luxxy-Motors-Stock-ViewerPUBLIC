@@ -2,6 +2,8 @@ import { AiCarFinder } from '@/components/ai-car-finder';
 import { DealershipHomepage } from '@/components/multi-choice-homepage';
 import { GrandTouringStockPage } from '@/components/website-templates/grand-touring-stock';
 import { GraphiteStockPage } from '@/components/graphite/graphite-stock';
+import { ModernShowroomStockPage } from '@/components/modern-showroom/modern-showroom-stock';
+import { ModernShowroomHomepage } from '@/components/modern-showroom/modern-showroom-home';
 import { MultiStockFilters } from '@/components/multi-stock-filters';
 import { StockSearchRecovery } from '@/components/stock-search-recovery';
 import { StockAlertOffer } from '@/components/stock-alert-signup';
@@ -50,7 +52,7 @@ import { cn, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
 import { getContactHref } from '@/lib/cta-helpers';
 import { vehicleBenefits } from '@/lib/vehicle-benefits';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
-import { selectedWebsiteTemplate } from '@/lib/website-template';
+import { isModernShowroom, selectedWebsiteTemplate } from '@/lib/website-template';
 import { clearStockView, readStockView, stockTemplatePresentation, stockViewStorageKey, writeStockView, type StockView } from '@/lib/stock-template-presentation';
 import { publicDealershipOrigin } from '@/lib/public-dealership-url';
 import { privateWebsitePreviewDetails } from '@/lib/private-website-preview';
@@ -98,6 +100,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   }, [browseStock, stock, isLoading, error]);
   const publicCars = useMemo(() => (stock?.cars ?? []).filter(car => !['sold', 'archived', 'hidden'].includes(String(car.inventoryStatus).toLowerCase())), [stock?.cars]);
   const { settings: dealerConfig, publicEnquiriesEnabled } = useDealerSettings();
+  const modernShowroom = isModernShowroom(dealerConfig.presentation);
   const stockTemplate = browseStock ? selectedWebsiteTemplate(dealerConfig.presentation) : null;
   const stockViewKey = stockViewStorageKey(stockTemplate, publicDealershipOrigin(), privateWebsitePreviewDetails()?.dealerId);
   const recommendedCars = useMemo(() => {
@@ -382,7 +385,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     </ul>
   ) : dealerConfig.trustItems?.length ? <ul className="divide-y divide-border">{dealerConfig.trustItems.map(item => <li key={item} className="py-3 text-sm">{item}</li>)}</ul> : null;
 
-  const Homepage = selectedWebsiteTemplate(dealerConfig.presentation) === null ? GraphiteHomepage : DealershipHomepage;
+  const Homepage = modernShowroom ? ModernShowroomHomepage : selectedWebsiteTemplate(dealerConfig.presentation) === null ? GraphiteHomepage : DealershipHomepage;
   if (!browseStock && location === '/') return <Homepage settings={dealerConfig} cars={publicCars} isLoading={isLoading} error={error} publicEnquiriesEnabled={publicEnquiriesEnabled} filters={filters} setFilters={setFilters} onSearch={next => {
     const count = publicCars.filter(car => (!next.make || car.make === next.make) && (!next.model || car.model === next.model) && (!next.maxPrice || (car.price != null && car.price > 0 && car.price <= Number(next.maxPrice)))).length;
     setFilters(next);
@@ -439,7 +442,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     </div>
   );
 
-  const FullTemplateStock = stockTemplate === null ? GraphiteStockPage : GrandTouringStockPage;
+  const FullTemplateStock = modernShowroom ? ModernShowroomStockPage : stockTemplate === null ? GraphiteStockPage : GrandTouringStockPage;
   if (browseStock && (stockTemplate === null || stockTemplate === 'grand-touring')) return <FullTemplateStock
     title={websiteText(dealerConfig, 'stockTitle')}
     introduction={customerDefaultCopy(websiteText(dealerConfig, 'stockIntroduction'), '', ['Find your next used car.']) ? websiteText(dealerConfig, 'stockIntroduction') : undefined}

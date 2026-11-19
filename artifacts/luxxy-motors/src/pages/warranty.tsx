@@ -13,6 +13,7 @@ import { formatPhoneDisplay, formatPrice, vehicleDisplayTitle } from '@/lib/util
 import { customerRegistrationDetails } from '@/lib/customer-vehicle-meta';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { warrantySummary } from '@/lib/dealership-customer-copy';
+import { isModernShowroom } from '@/lib/website-template';
 
 const policyQuestions = [
   ['The cover', 'Which parts and faults are covered, and which exclusions apply?'],
@@ -100,7 +101,7 @@ export default function Warranty() {
             </section>
           </header>
 
-          <details className="warranty-policy-checklist border-y border-border py-3">
+          <details open={isModernShowroom(settings.presentation) || undefined} className="warranty-policy-checklist border-y border-border py-3">
             <summary className="flex min-h-12 cursor-pointer items-center justify-between gap-4 text-sm font-semibold">{websiteText(settings, 'warrantyDetailsHeading')}<span aria-hidden="true">+</span></summary>
             <p className="pb-4 text-sm leading-6 text-muted-foreground">{websiteText(settings, 'warrantyDetailsIntroduction')}</p>
             <dl className="grid min-w-0 gap-x-10 sm:grid-cols-2">{policyQuestions.map(([label, question]) => <div key={label} className="border-t border-border py-4"><dt className="text-sm font-semibold">{label}</dt><dd className="mt-1 text-sm leading-6 text-muted-foreground">{question}</dd></div>)}</dl>

@@ -24,8 +24,8 @@ afterEach(cleanup);
 it('uses the dealership’s own logo/contact in the header and supplied address, hours and legal details in the footer', () => {
   const settings = config();
   render(<><GraphiteHeader settings={settings} savedCount={0} testDriveHref={bookingHref} /><GraphiteFooter settings={settings} enquiriesEnabled testDriveHref={bookingHref} /></>);
-  expect(within(screen.getByRole('banner')).getByRole('img', { name: 'Harbour Cars' })).toHaveAttribute('src', '/harbour-logo.svg');
-  expect(within(screen.getByRole('banner')).getByRole('link', { name: 'Harbour Cars home' })).toHaveAttribute('href', '/');
+  expect(screen.getByRole('img', { name: 'Harbour Cars' })).toHaveAttribute('src', '/harbour-logo.svg');
+  expect(screen.getByRole('link', { name: 'Harbour Cars home' })).toHaveAttribute('href', '/');
   expect(screen.getByRole('link', { name: /Call Harbour Cars on/ })).toHaveAttribute('href', 'tel:02079460123');
   const footer = screen.getByRole('contentinfo', { name: 'Harbour Cars information' });
   expect(within(footer).getByText('10 Harbour Road')).toBeInTheDocument();
@@ -134,8 +134,8 @@ describe('graphite theme isolation', () => {
   it('keeps staff and other template token sets independent of graphite selection', () => {
     const before = multiPortalThemeVariables(), showroom = multiCustomerThemeVariables('showroom-navy'), normal = multiCustomerThemeVariables();
     const graphite = multiCustomerThemeVariables('graphite');
-    expect(graphite['--mh-primary']).toBe('#14233b');
-    expect(graphite['--app-font-sans']).toContain('DM Sans');
+    expect(graphite['--mh-primary']).toBe('#25282d');
+    expect(graphite['--app-font-sans']).toContain('Manrope');
     expect(multiPortalThemeVariables()).toEqual(before);
     expect(before['--portal-ink']).toBe(multiCustomerPalette.primary);
     expect(before['--mh-primary']).toBe(multiCustomerPalette.primary);
@@ -149,7 +149,7 @@ describe('graphite theme isolation', () => {
     document.body.style.setProperty('--dialog-ink', '#010203');
     function Theme() { useCustomerBodyTheme(variables); return null; }
     const view = render(<Theme />);
-    expect(document.body.style.getPropertyValue('--dialog-ink')).toBe('#14233b');
+    expect(document.body.style.getPropertyValue('--dialog-ink')).toBe('#25282d');
     expect(document.body).toHaveAttribute('data-dealer-customer', 'true');
     view.unmount();
     expect(document.body.style.getPropertyValue('--dialog-ink')).toBe('#010203');

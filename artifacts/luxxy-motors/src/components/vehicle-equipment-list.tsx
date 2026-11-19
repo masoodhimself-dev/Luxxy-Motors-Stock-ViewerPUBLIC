@@ -38,11 +38,12 @@ function compactIconForFeature(feature: string) {
   return compactFeatureIcons[details.icon];
 }
 
-export function VehicleEquipmentList({ features }: { features: string[] }) {
-  const [expanded, setExpanded] = useState(false);
+export function VehicleEquipmentList({ features, expandedByDefault = false }: { features: string[]; expandedByDefault?: boolean }) {
+  const [showAll, setShowAll] = useState(expandedByDefault);
   const unique = [...new Set(features)];
   const highlights = prominentVehicleFeatures(unique, 6);
   const more = unique.filter(feature => !highlights.includes(feature));
+  const expanded = more.length > 0 && showAll;
   const groups = groupVehicleEquipment(unique);
   return <div className="vehicle-equipment-groups">
     {!expanded && highlights.length > 0 && <ul className="vehicle-equipment-list vehicle-equipment-highlights" aria-label="Feature highlights">
@@ -52,7 +53,7 @@ export function VehicleEquipmentList({ features }: { features: string[] }) {
       })}
     </ul>}
     {more.length > 0 && <details open={expanded} className="vehicle-equipment-more vehicle-equipment-text-group">
-      <summary onClick={event => { event.preventDefault(); setExpanded(value => !value); }}><span>{expanded ? "Show less equipment" : "View all equipment"}</span><span className="vehicle-equipment-count">{unique.length} {unique.length === 1 ? 'feature' : 'features'}</span><ChevronDown size={16} aria-hidden="true" /></summary>
+      <summary onClick={event => { event.preventDefault(); setShowAll(value => !value); }}><span>{expanded ? "Show less equipment" : "View all equipment"}</span><span className="vehicle-equipment-count">{unique.length} {unique.length === 1 ? 'feature' : 'features'}</span><ChevronDown size={16} aria-hidden="true" /></summary>
       {groups.map(group => <section key={group.label} className="vehicle-equipment-category" aria-label={group.label}>
         <h3 className="text-sm font-semibold">{group.label}</h3>
         <ul className="vehicle-equipment-list vehicle-equipment-text-list" aria-label={group.label}>

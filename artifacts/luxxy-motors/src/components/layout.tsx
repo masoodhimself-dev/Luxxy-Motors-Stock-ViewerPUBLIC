@@ -27,13 +27,17 @@ import { customerThemeVariables } from '@/lib/customer-theme';
 import { isCustomerWebsiteRoute, multiCustomerThemeVariables, multiPortalThemeVariables } from '@/lib/multi-customer-theme';
 import { useCustomerBodyTheme, usePortalBodyTheme } from '@/components/multi-customer-theme';
 import './portal/dealer-portal-theme.css';
-import { selectedWebsiteTemplate } from '@/lib/website-template';
+import { isModernShowroom, selectedWebsiteTemplate } from '@/lib/website-template';
 import { websiteTemplateThemeVariables } from '@/lib/website-template-theme';
 import './website-templates/customer-templates.css';
 import { ShowroomHeader, ShowroomFooter } from './website-templates/showroom-shell';
 import './website-templates/grand-touring-system.css';
 import { GraphiteHeader, GraphiteFooter } from './graphite/graphite-shell';
 import './graphite/graphite-system.css';
+import './modern-showroom/modern-showroom-system.css';
+import './modern-showroom/modern-showroom-car-card.css';
+import './modern-showroom/modern-showroom-workflows.css';
+import { ModernShowroomHeader, ModernShowroomFooter } from './modern-showroom/modern-showroom-shell';
 export { readableForegroundForHsl } from '@/lib/brand-colour';
 
 const navLinkClass =
@@ -57,6 +61,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { settings: dealerConfig, hasLoadedSettings, publicEnquiriesEnabled, isLoading: settingsLoading, isError: settingsError } = useDealerSettings();
   const websiteTemplate = isCustomerWebsite ? selectedWebsiteTemplate(dealerConfig.presentation) : null;
   const graphiteWebsite = isCustomerWebsite && websiteTemplate === null;
+  const modernShowroom = graphiteWebsite && isModernShowroom(dealerConfig.presentation);
+  const graphiteThemeClass = modernShowroom ? ' modern-showroom-site' : ' graphite-site';
+  const DealerHeader = modernShowroom ? ModernShowroomHeader : GraphiteHeader;
+  const DealerFooter = modernShowroom ? ModernShowroomFooter : GraphiteFooter;
   const whatsAppHref = getWhatsAppHref(undefined, dealerConfig);
   const { savedCount } = useSavedCars();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -109,18 +117,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
         }
       : {}),
     ...(!isStaff ? customerThemeVariables({ ...dealerConfig.presentation, primaryHsl: brandPrimary, accentHsl: customerAccent }) : {}),
-    ...(isCustomerWebsite ? multiCustomerThemeVariables(graphiteWebsite ? 'graphite' : 'showroom-navy') : {}),
+    ...(isCustomerWebsite ? multiCustomerThemeVariables(modernShowroom ? 'modern-showroom' : graphiteWebsite ? 'graphite' : 'showroom-navy') : {}),
     ...websiteTemplateThemeVariables(websiteTemplate),
     ...(isSharedPortal ? multiPortalThemeVariables() : {}),
-  }) as CSSProperties, [brandPrimary, accent, customerAccent, dealerConfig.presentation, isStaff, isCustomerWebsite, isSharedPortal, websiteTemplate, graphiteWebsite]);
+  }) as CSSProperties, [brandPrimary, accent, customerAccent, dealerConfig.presentation, isStaff, isCustomerWebsite, isSharedPortal, websiteTemplate, graphiteWebsite, modernShowroom]);
 
   useCustomerBodyTheme(brandStyle, isCustomerWebsite);
   usePortalBodyTheme(brandStyle, isSharedPortal);
   useEffect(() => {
     if (!graphiteWebsite) return;
-    document.body.setAttribute('data-customer-graphite', 'true');
-    return () => document.body.removeAttribute('data-customer-graphite');
-  }, [graphiteWebsite]);
+    const attribute = modernShowroom ? 'data-customer-modern-showroom' : 'data-customer-graphite';
+    document.body.setAttribute(attribute, 'true');
+    return () => document.body.removeAttribute(attribute);
+  }, [graphiteWebsite, modernShowroom]);
 
   useEffect(() => {
     const url = dealerConfig.presentation?.faviconUrl;
@@ -221,7 +230,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   // Wait for this tenant's first real settings on every customer route. A
   // background error must not replace already loaded dealership details.
-  if (isCustomerWebsite && !hasLoadedSettings && (settingsLoading || settingsError)) return <div style={brandStyle} data-default-website-design={graphiteWebsite ? 'graphite' : undefined} className={`luxxy-shell customer-site dealer-site-theme multi-home-shell min-h-[100dvh]${graphiteWebsite ? ' graphite-site' : ' showroom-navy-site'}`}>
+  if (isCustomerWebsite && !hasLoadedSettings && (settingsLoading || settingsError)) return <div style={brandStyle} data-default-website-design={graphiteWebsite ? 'graphite' : undefined} className={`luxxy-shell customer-site dealer-site-theme multi-home-shell min-h-[100dvh]${graphiteWebsite ? graphiteThemeClass : ' showroom-navy-site'}`}>
     <header ref={headerRef} data-site-header className={graphiteWebsite ? 'gr-header' : 'multi-home-header'}><div className={graphiteWebsite ? 'gr-container gr-header__inner' : 'multi-home-header__inner'}><a href="#main-content" className={graphiteWebsite ? 'gr-header__brand' : 'multi-home-header__brand'} aria-label="Skip to website content">{isMultiChoiceBrand ? <img src={graphiteWebsite ? '/brand/graphite/brand-wordmark.svg' : '/brand/multi-choice-motors/multi-choice-wordmark.svg'} alt="Multi-Choice Motors" width={graphiteWebsite ? 250 : 205} height={graphiteWebsite ? 52.8 : 43} /> : <span>Car showroom</span>}</a></div></header>
     <main id="main-content" className={`multi-home-loading${graphiteWebsite ? ' gr-container' : ''}`} aria-busy={settingsLoading || undefined}>
       <h1>{settingsError ? 'Website details are temporarily unavailable' : 'Loading the dealership…'}</h1>
@@ -230,9 +239,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   </div>;
 
   return (
-    <div id={isHomePage ? 'top' : undefined} style={brandStyle} data-dealer-brand={isMultiChoiceBrand ? "multi-choice" : undefined} data-website-template={websiteTemplate ?? undefined} data-default-website-design={graphiteWebsite ? 'graphite' : undefined} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}${isCustomerWebsite ? ' dealer-site-theme showroom-navy-site' : ''}${graphiteWebsite ? ' graphite-site' : ''}${isSharedPortal ? ' dealer-portal-theme' : ''}${isHomePage ? ' multi-home-shell' : ''}${websiteTemplate ? ` website-template website-template--${websiteTemplate}` : ''}${websiteTemplate === 'grand-touring' ? ` gt-design${isVehiclePage ? ' gt-vehicle-shell' : ''}` : ''}`}>
+    <div id={isHomePage ? 'top' : undefined} style={brandStyle} data-dealer-brand={isMultiChoiceBrand ? "multi-choice" : undefined} data-website-template={modernShowroom ? 'modern-showroom' : websiteTemplate ?? undefined} data-default-website-design={graphiteWebsite && !modernShowroom ? 'graphite' : undefined} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}${isCustomerWebsite ? ' dealer-site-theme showroom-navy-site' : ''}${graphiteWebsite ? graphiteThemeClass : ''}${isSharedPortal ? ' dealer-portal-theme' : ''}${isHomePage ? ' multi-home-shell' : ''}${websiteTemplate ? ` website-template website-template--${websiteTemplate}` : ''}${websiteTemplate === 'grand-touring' ? ` gt-design${isVehiclePage ? ' gt-vehicle-shell' : ''}` : ''}`}>
       <a href="#main-content" className="fixed left-4 top-3 z-[100] -translate-y-24 rounded-md bg-primary px-5 py-3 text-primary-foreground focus:translate-y-0">Skip to content</a>
-      {isCustomerWebsite && (graphiteWebsite ? <GraphiteHeader ref={headerRef} settings={dealerConfig} savedCount={savedCount} testDriveHref={testDriveHref} isHomepage={isHomePage} enquiriesEnabled={publicEnquiriesEnabled} onLogoClick={isHomePage ? undefined : handleLogoClick} /> : websiteTemplate === 'grand-touring' ? <ShowroomHeader ref={headerRef} settings={dealerConfig} savedCount={savedCount} testDriveHref={testDriveHref} isHomepage={isHomePage} enquiriesEnabled={publicEnquiriesEnabled} onLogoClick={isHomePage ? undefined : handleLogoClick} /> : <MultiHomeHeader ref={headerRef} settings={dealerConfig} savedCount={savedCount} testDriveHref={testDriveHref} isHomepage={isHomePage} enquiriesEnabled={publicEnquiriesEnabled} onLogoClick={isHomePage ? undefined : handleLogoClick} />)}
+      {isCustomerWebsite && (graphiteWebsite ? <DealerHeader ref={headerRef} settings={dealerConfig} savedCount={savedCount} testDriveHref={testDriveHref} isHomepage={isHomePage} enquiriesEnabled={publicEnquiriesEnabled} onLogoClick={isHomePage ? undefined : handleLogoClick} /> : websiteTemplate === 'grand-touring' ? <ShowroomHeader ref={headerRef} settings={dealerConfig} savedCount={savedCount} testDriveHref={testDriveHref} isHomepage={isHomePage} enquiriesEnabled={publicEnquiriesEnabled} onLogoClick={isHomePage ? undefined : handleLogoClick} /> : <MultiHomeHeader ref={headerRef} settings={dealerConfig} savedCount={savedCount} testDriveHref={testDriveHref} isHomepage={isHomePage} enquiriesEnabled={publicEnquiriesEnabled} onLogoClick={isHomePage ? undefined : handleLogoClick} />)}
       {!isStaff && !isCustomerWebsite && <header
         ref={headerRef}
         data-site-header
@@ -410,7 +419,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </footer>
       )}
-      {isCustomerWebsite && !isCustomerTask ? graphiteWebsite ? <GraphiteFooter settings={dealerConfig} enquiriesEnabled={publicEnquiriesEnabled} testDriveHref={testDriveHref} /> : websiteTemplate === 'grand-touring' ? <ShowroomFooter settings={dealerConfig} enquiriesEnabled={publicEnquiriesEnabled} /> : <MultiHomeFooter settings={dealerConfig} enquiriesEnabled={publicEnquiriesEnabled} isHomepage={isHomePage} /> : !isStaff && !isCustomerTask && <CustomerFooter settings={footerSettings} testDriveHref={testDriveHref} enquiriesEnabled={publicEnquiriesEnabled} />}
+      {isCustomerWebsite && !isCustomerTask ? graphiteWebsite ? <DealerFooter settings={dealerConfig} enquiriesEnabled={publicEnquiriesEnabled} testDriveHref={testDriveHref} /> : websiteTemplate === 'grand-touring' ? <ShowroomFooter settings={dealerConfig} enquiriesEnabled={publicEnquiriesEnabled} /> : <MultiHomeFooter settings={dealerConfig} enquiriesEnabled={publicEnquiriesEnabled} isHomepage={isHomePage} /> : !isStaff && !isCustomerTask && <CustomerFooter settings={footerSettings} testDriveHref={testDriveHref} enquiriesEnabled={publicEnquiriesEnabled} />}
       <div data-home-scroll-spacer aria-hidden="true" className="bg-primary" />
 
     </div>

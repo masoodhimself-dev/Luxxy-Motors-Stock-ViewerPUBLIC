@@ -7,41 +7,41 @@ const fixture = (dealerId = 'dealer-one', currentTemplate = 'existing', revision
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); window.history.replaceState(null, '', '/'); });
 const show = () => render(<PlatformWebsiteTemplates dealerId="dealer-one" dealerName="Harbour Motor Co" status="active"/>);
 async function preview(name = 'Showroom') {
-  fireEvent.click(await screen.findByRole('radio', { name: new RegExp(name) }));
+  fireEvent.click(await screen.findByRole('radio', { name: new RegExp(`^${name}\\b`) }));
   fireEvent.click(screen.getByRole('link', { name: /Open private preview/ }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'I’ve checked this preview' }));
 }
 
-it('shows four designs without changing anything when a design is chosen or previewed', async () => {
+it('shows five designs without changing anything when Modern Showroom is chosen or previewed', async () => {
   const fetcher = vi.fn().mockResolvedValue(Response.json(fixture())); vi.stubGlobal('fetch', fetcher); show();
   const group = await screen.findByRole('group', { name: 'Choose a website design' });
-  expect(within(group).getAllByRole('radio')).toHaveLength(4);
+  expect(within(group).getAllByRole('radio')).toHaveLength(5);
   expect(screen.getByRole('heading', { name: 'Website design' }).parentElement).toHaveTextContent('Harbour Motor Co');
   expect(screen.getByRole('checkbox')).toBeDisabled();
-  fireEvent.click(screen.getByRole('radio', { name: /Panorama/ }));
+  fireEvent.click(screen.getByRole('radio', { name: /^Modern Showroom\b/ }));
   const link = screen.getByRole('link', { name: /Open private preview/ });
-  expect(link).toHaveAttribute('href', '/platform/preview/dealer-one/template/panorama/7');
+  expect(link).toHaveAttribute('href', '/platform/preview/dealer-one/template/modern-showroom/7');
   fireEvent.click(link);
-  expect(screen.getByRole('button', { name: 'Apply Panorama' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Apply Modern Showroom' })).toBeDisabled();
   expect(fetcher).toHaveBeenCalledTimes(1);
   expect(fetcher.mock.calls.every(([, init]) => !init?.method || init.method === 'GET')).toBe(true);
 });
 
 it('requires the selected preview, review checkbox and final confirmation before applying', async () => {
-  const fetcher = vi.fn(async (_url, init) => Response.json(init?.method === 'PATCH' ? { dealerId: 'dealer-one', currentTemplate: 'showroom', revision: 8 } : fixture()));
+  const fetcher = vi.fn(async (_url, init) => Response.json(init?.method === 'PATCH' ? { dealerId: 'dealer-one', currentTemplate: 'modern-showroom', revision: 8 } : fixture()));
   vi.stubGlobal('fetch', fetcher); show();
-  await preview();
-  fireEvent.click(screen.getByRole('button', { name: 'Apply Showroom' }));
+  await preview('Modern Showroom');
+  fireEvent.click(screen.getByRole('button', { name: 'Apply Modern Showroom' }));
   const confirmation = screen.getByRole('alertdialog');
   expect(confirmation).toHaveTextContent('Customers will see this design');
   expect(fetcher).toHaveBeenCalledTimes(1);
   fireEvent.click(within(confirmation).getByRole('button', { name: 'Apply design' }));
-  expect(await screen.findByRole('status')).toHaveTextContent('Showroom applied to Harbour Motor Co.');
+  expect(await screen.findByRole('status')).toHaveTextContent('Modern Showroom applied to Harbour Motor Co.');
   const patch = fetcher.mock.calls.find(([, init]) => init?.method === 'PATCH');
   expect(patch?.[0]).toBe('/api/platform/dealers/dealer-one/website-template');
   expect(new Headers(patch?.[1]?.headers).get('If-Match')).toBe('"7"');
-  expect(JSON.parse(String(patch?.[1]?.body))).toEqual({ template: 'showroom', reviewed: true });
-  expect(screen.getByRole('button', { name: 'Apply Showroom' })).toBeDisabled();
+  expect(JSON.parse(String(patch?.[1]?.body))).toEqual({ template: 'modern-showroom', reviewed: true });
+  expect(screen.getByRole('button', { name: 'Apply Modern Showroom' })).toBeDisabled();
 });
 
 it('cancels an application and resets review when a different design is chosen', async () => {
@@ -61,11 +61,11 @@ it('blocks a stale apply until saved settings are reloaded and previewed again',
   vi.stubGlobal('fetch', fetcher); show(); await preview();
   fireEvent.click(screen.getByRole('button', { name: 'Apply Showroom' })); fireEvent.click(screen.getByRole('button', { name: 'Apply design' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('settings changed');
-  expect(screen.getByRole('radio', { name: /Showroom/ })).toBeDisabled();
+  expect(screen.getByRole('radio', { name: /^Showroom\b/ })).toBeDisabled();
   expect(screen.queryByRole('link', { name: /Open private preview/ })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Reload saved design' }));
-  await waitFor(() => expect(screen.getByRole('radio', { name: /Showroom/ })).not.toBeDisabled());
-  fireEvent.click(screen.getByRole('radio', { name: /Showroom/ }));
+  await waitFor(() => expect(screen.getByRole('radio', { name: /^Showroom\b/ })).not.toBeDisabled());
+  fireEvent.click(screen.getByRole('radio', { name: /^Showroom\b/ }));
   expect(screen.getByRole('link', { name: /Open private preview/ })).toHaveAttribute('href', '/platform/preview/dealer-one/template/showroom/9');
   expect(screen.getByRole('checkbox')).toBeDisabled();
 });
@@ -100,7 +100,7 @@ it('offers a retry without a preview link if loading fails', async () => {
 
 it('recognises opening the selected preview with a middle click', async () => {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(fixture()))); show();
-  fireEvent.click(await screen.findByRole('radio', { name: /Showroom/ }));
+  fireEvent.click(await screen.findByRole('radio', { name: /^Showroom\b/ }));
   fireEvent(screen.getByRole('link', { name: /Open private preview/ }), new MouseEvent('auxclick', { button: 1, bubbles: true }));
   expect(screen.getByRole('checkbox', { name: 'I’ve checked this preview' })).not.toBeDisabled();
 });

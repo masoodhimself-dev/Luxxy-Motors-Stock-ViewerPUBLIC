@@ -1,4 +1,4 @@
-import { useId, useMemo } from 'react';
+import { useId, useMemo, useState } from 'react';
 import type { MotHistory } from '@workspace/vehicle-meta';
 import type { Car } from '@/lib/stock-context';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
@@ -10,14 +10,16 @@ import './vehicle-questions.css';
 const EMPTY_COVERED_TOPICS: readonly string[] = [];
 
 /** Published car and dealership facts, with no generation or provider lookups. */
-export function VehicleAnswers({ car, motHistory, onAskTeam, coveredTopics = EMPTY_COVERED_TOPICS }: {
+export function VehicleAnswers({ car, motHistory, onAskTeam, coveredTopics = EMPTY_COVERED_TOPICS, expandedByDefault = false }: {
   car: Car;
   motHistory?: MotHistory | null;
   onAskTeam: (message?: string) => void;
   coveredTopics?: readonly string[];
+  expandedByDefault?: boolean;
 }) {
   const headingId = useId();
   const { settings, isLoading, isError } = useDealerSettings();
+  const [closedAnswers, setClosedAnswers] = useState<{ carId: string; ids: string[] }>();
   const answers = useMemo(() => {
     const supplied = vehicleAnswers(car, motHistory);
     const all = (isLoading || isError ? supplied : withDealerAnswers(supplied, car, settings))
@@ -28,9 +30,17 @@ export function VehicleAnswers({ car, motHistory, onAskTeam, coveredTopics = EMP
     return featuredVehicleAnswers(all.filter(answer => !includesWarranty || answer.id !== 'warranty'));
   }, [car, motHistory, settings, isLoading, isError, coveredTopics]);
   if (!answers.length) return null;
+  const answerIds = answers.map(answer => answer.id);
+  const accordionSettings = expandedByDefault
+    ? {
+      type: 'multiple' as const,
+      value: closedAnswers?.carId === car.id ? answerIds.filter(id => !closedAnswers.ids.includes(id)) : answerIds,
+      onValueChange: (open: string[]) => setClosedAnswers({ carId: car.id, ids: answerIds.filter(id => !open.includes(id)) }),
+    }
+    : { type: 'single' as const, collapsible: true };
   return <section id="vehicle-questions" className="vehicle-questions" aria-labelledby={headingId}>
     <h2 id={headingId} className="section-heading">Questions about this car</h2>
-    <Accordion key={car.id} type="single" collapsible className="vehicle-questions-list">
+    <Accordion key={`${car.id}:${expandedByDefault}`} {...accordionSettings} className="vehicle-questions-list">
       {answers.map(answer => <AccordionItem key={answer.id} value={answer.id}>
         <AccordionTrigger>{answer.question}</AccordionTrigger>
         <AccordionContent>

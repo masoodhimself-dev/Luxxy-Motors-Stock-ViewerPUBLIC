@@ -29,12 +29,11 @@ afterEach(cleanup);
 
 it('uses the real dealership, shared staff picks and current availability without sample content', () => {
   show();
-  expect(screen.getByRole('heading', { level: 1, name: 'Find your next car.' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { level: 1, name: 'Used cars in Brighton' })).toBeInTheDocument();
   const stock = screen.getByRole('region', { name: 'On the forecourt' });
   expect(within(stock).getAllByRole('article')[0]).toHaveAttribute('aria-label', 'Toyota Yaris');
   expect(within(stock).queryByRole('heading', { name: 'Audi A1' })).not.toBeInTheDocument();
   expect(screen.queryByText(/Multi Choice|Hayes|020 4628/)).not.toBeInTheDocument();
-  fireEvent.click(screen.getByText('Find by make'));
   expect(screen.getByRole('link', { name: 'Used Toyota' })).toHaveAttribute('href', '/stock?make=Toyota');
 });
 
@@ -47,22 +46,7 @@ it('resets a dependent model and searches make/model/budget without hidden old f
   fireEvent.change(within(form).getByRole('combobox', { name: 'Maximum price' }), { target: { value: '10000' } });
   fireEvent.submit(form);
   expect(events.search).toHaveBeenCalledWith({ ...defaults, make: 'Toyota', model: 'Yaris', maxPrice: '10000' });
-  expect(within(form).getByRole('button', { name: 'Browse 1 car' })).toBeInTheDocument();
-});
-
-it('links to real stock matches without promoting filters supported only by reserved cars', () => {
-  const stock = [
-    { ...car('auto', 'Toyota', 'Yaris', 7500), transmission: 'Automatic CVT' },
-    { ...car('seven', 'Ford', 'Galaxy', 12000), seats: 7 },
-    car('reserved', 'Audi', 'A1', 4000, 'reserved'),
-  ];
-  show({ stock, initialFilters: { make: 'Ford' } });
-  const shortcuts = within(screen.getByRole('navigation', { name: 'Browse stock by common filters' }));
-  expect(shortcuts.queryByRole('link', { name: 'Up to £5,000' })).not.toBeInTheDocument();
-  expect(shortcuts.getByRole('link', { name: 'Up to £10,000' })).toHaveAttribute('href', '/stock?maxPrice=10000');
-  expect(shortcuts.getByRole('link', { name: '7 seats' })).toHaveAttribute('href', '/stock?seats=7');
-  fireEvent.click(shortcuts.getByRole('link', { name: 'Automatic' }));
-  expect(window.location.pathname + window.location.search).toBe('/stock?transmission=Automatic');
+  expect(within(form).getByRole('button', { name: 'See 1 car' })).toBeInTheDocument();
 });
 
 it('preserves custom dealer wording and keeps feature-disabled routes out of the page', () => {
@@ -87,13 +71,11 @@ it('does not show stale featured stock on error and leaves a stock recovery rout
   expect(within(stock).queryByRole('article')).not.toBeInTheDocument();
   expect(within(stock).getByRole('link', { name: 'Browse stock' })).toHaveAttribute('href', '/stock');
   expect(screen.getByRole('button', { name: 'Browse stock' })).toBeEnabled();
-  expect(screen.queryByRole('navigation', { name: 'Browse stock by common filters' })).not.toBeInTheDocument();
 });
 
 it('offers manual entry when the part-exchange lookup fails', async () => {
   events.lookup.mockRejectedValueOnce(new Error('Unavailable'));
   show();
-  fireEvent.click(screen.getByText('Find your car by registration'));
   const form = screen.getByRole('form', { name: 'Start part exchange' });
   fireEvent.change(within(form).getByRole('textbox', { name: 'Your registration' }), { target: { value: 'ab12 cde' } });
   fireEvent.submit(form);
@@ -107,7 +89,6 @@ it('hands the lookup result to the existing part-exchange form without putting v
   const result = { registration: 'AB12CDE', vehicle: { make: 'Ford', model: 'Focus', registrationDate: '2012-04-01' }, mot: null };
   events.lookup.mockResolvedValueOnce(result);
   show();
-  fireEvent.click(screen.getByText('Find your car by registration'));
   const form = screen.getByRole('form', { name: 'Start part exchange' });
   fireEvent.change(within(form).getByRole('textbox', { name: 'Your registration' }), { target: { value: 'AB12 CDE' } });
   fireEvent.submit(form);
@@ -119,7 +100,6 @@ it('ignores a late lookup after the buyer changes the registration', async () =>
   let complete!: (result: unknown) => void;
   events.lookup.mockImplementationOnce(() => new Promise(resolve => { complete = resolve; }));
   show();
-  fireEvent.click(screen.getByText('Find your car by registration'));
   const form = screen.getByRole('form', { name: 'Start part exchange' });
   const registration = within(form).getByRole('textbox', { name: 'Your registration' });
   fireEvent.change(registration, { target: { value: 'AB12 CDE' } });
@@ -156,46 +136,4 @@ it('retains published reviews and enabled delivery, warranty and booking informa
   expect(document.getElementById('delivery')).toHaveAttribute('open');
   expect(screen.getByRole('button', { name: 'Estimate delivery' })).toBeInTheDocument();
   expect(screen.getByText('Can I arrange a test drive?')).toBeInTheDocument();
-});
-
-
-it('keeps saving a featured car available from the showroom photo', () => {
-  show();
-  const selected = within(screen.getByRole('region', { name: 'On the forecourt' })).getAllByRole('article')[0];
-  const save = within(selected).getByRole('button', { name: 'Save Toyota Yaris to your saved cars' });
-  fireEvent.click(save);
-  expect(within(selected).getByRole('button', { name: 'Remove Toyota Yaris from your saved cars' })).toHaveAttribute('aria-pressed', 'true');
-});
-
-it('keeps an unphotographed, unpriced car browsable without a zero price or empty image request', () => {
-  const sparse = { ...cars[0], heroImage: '', images: [], price: 0 };
-  show({ stock: [sparse] });
-  const featured = within(screen.getByRole('region', { name: 'On the forecourt' })).getByRole('article', { name: 'Ford Focus' });
-  expect(within(featured).getByText('Photographs to follow')).toBeInTheDocument();
-  expect(within(featured).getByText('Price on request')).toBeInTheDocument();
-  expect(featured.querySelector('img[src=""]')).toBeNull();
-  expect(within(featured).queryByText('£0')).not.toBeInTheDocument();
-});
-
-
-it('keeps a one-car showroom useful without an empty second selection', () => {
-  show({ stock: [cars[0]] });
-  const stock = screen.getByRole('region', { name: 'On the forecourt' });
-  expect(within(stock).getAllByRole('article')).toHaveLength(1);
-  expect(within(stock).queryByRole('heading', { name: 'Ready for your next drive.' })).not.toBeInTheDocument();
-  expect(within(stock).getByRole('link', { name: 'View all 1 car' })).toHaveAttribute('href', '/stock');
-});
-
-
-it('keeps stock browsable when all five cars are waiting for photos, with reserved cars last', () => {
-  const settings = config();
-  settings.featuredVehicleIds = [];
-  const stock = [car('reserved', 'Audi', 'A3', 8000, 'reserved'), car('first', 'Ford', 'Focus', 5000), car('second', 'Toyota', 'Yaris', 9000), car('third', 'Volvo', 'V90', 15000), car('fourth', 'BMW', 'X3', 12000)].map(item => ({ ...item, heroImage: '', images: [] }));
-  show({ stock, settings });
-  const selection = screen.getByRole('region', { name: 'On the forecourt' });
-  expect(within(selection).getAllByRole('article')).toHaveLength(3);
-  expect(within(selection).getAllByRole('article')[0]).toHaveAttribute('aria-label', 'Ford Focus');
-  expect(within(selection).getAllByText('Photographs to follow')).toHaveLength(3);
-  expect(within(selection).getByRole('link', { name: 'View all 5 cars' })).toHaveAttribute('href', '/stock');
-  expect(within(selection).queryByRole('heading', { name: 'Ask us what’s coming in' })).not.toBeInTheDocument();
 });

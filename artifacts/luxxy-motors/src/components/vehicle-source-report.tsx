@@ -13,7 +13,7 @@ const ulezLabels = {
 };
 const genericResult = /^(?:all passed|passed|pass|advisory|advisories|failed|fail|unknown|not (?:available|provided|recorded|confirmed))$/i;
 
-export function VehicleSourceReport({ car }: { car: VehicleSourceReportCar }) {
+export function VehicleSourceReport({ car, expandedByDefault = false }: { car: VehicleSourceReportCar; expandedByDefault?: boolean }) {
   const detailsId = useId();
   const report = readVehicleSourceReport(car);
   if (!report) return null;
@@ -25,7 +25,7 @@ export function VehicleSourceReport({ car }: { car: VehicleSourceReportCar }) {
     </div>}
     {report.history && <div className="vehicle-source-report__history">
       {report.recordedDisclosure && <aside className="vehicle-source-report__disclosure"><AlertTriangle size={20} /><div><strong>{report.recordedDisclosure.label}</strong><p>Please read the insurance history information for this vehicle.</p></div></aside>}
-      <details>
+      <details open={expandedByDefault || undefined}>
         <summary aria-controls={detailsId}><ShieldCheck size={20} /><span>History checks<span className="vehicle-source-report__check-count">{report.history.checks.length} checks</span></span></summary>
         <div id={detailsId}>
           <ul className="vehicle-source-report__checks">{report.history.checks.map((check, index) => {

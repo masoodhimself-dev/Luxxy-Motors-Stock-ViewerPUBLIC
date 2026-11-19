@@ -50,9 +50,11 @@ export function GraphiteStockPage(props: GraphiteStockPageProps) {
       <div className="gr-container">
         <header className="gr-stock-heading">
           <h1 id="vehicle-results-heading" tabIndex={-1}>{title}</h1>
+          {!loading && showCatalogue && <p className="gr-stock-count" aria-hidden="true">{filteredCars.length} {filteredCars.length === 1 ? 'car' : 'cars'}</p>}
           <div className="gr-stock-heading-actions"><Link href="/saved" className="gr-stock-saved" aria-label={`Saved cars (${savedCount})`}><img src="/brand/graphite/icon-heart.svg" width={24} height={24} alt="" aria-hidden="true" /></Link>{!loading && showCatalogue && viewOptions}</div>
         </header>
         {!loading && showCatalogue && <div className="gr-stock-tools" data-filters-expanded={filtersExpanded}>
+          <p className="gr-stock-search-label">Search cars</p>
           <Button type="button" variant="outline" className="gr-stock-filter-toggle" aria-label={filtersExpanded ? 'Hide filters' : 'Show filters'} aria-expanded={filtersExpanded} aria-controls={filterRegionId} onClick={() => setFiltersExpanded(expanded => !expanded)}><SlidersHorizontal size={18} strokeWidth={2} aria-hidden="true" />Filters</Button>
           <div id={filterRegionId} className="gr-stock-filter-controls" role="group" aria-label="Search, sort and filter cars">{filterControls}</div>
         </div>}

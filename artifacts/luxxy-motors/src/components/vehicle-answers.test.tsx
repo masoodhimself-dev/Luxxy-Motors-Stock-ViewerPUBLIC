@@ -49,6 +49,18 @@ it('answers from the supplied car and only opens the enquiry when the customer c
   expect(state.aiHook).not.toHaveBeenCalled();
 });
 
+it('opens all answers in the expanded layout and lets customers close them independently', () => {
+  render(<VehicleAnswers car={vehicle} onAskTeam={askTeam} expandedByDefault />);
+  const region = screen.getByRole('region', { name: 'Questions about this car' });
+  const triggers = [...region.querySelectorAll('[aria-expanded]')];
+  expect(triggers.length).toBeGreaterThan(1);
+  for (const trigger of triggers) expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  fireEvent.click(triggers[0]);
+  expect(triggers[0]).toHaveAttribute('aria-expanded', 'false');
+  for (const trigger of triggers.slice(1)) expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  expect(askTeam).not.toHaveBeenCalled();
+});
+
 it('does not repeat warranty when the configured inclusions already cover it', () => {
   state.dealerAnswers = [{ id: 'included', question: 'What’s included with this car?', answer: '6-month warranty included', source: 'dealer' }];
   render(<VehicleAnswers car={vehicle} onAskTeam={askTeam} />);

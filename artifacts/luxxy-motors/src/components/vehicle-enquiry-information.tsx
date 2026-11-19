@@ -87,7 +87,7 @@ export function VehicleEnquiryInformation({ car, motHistory, requestMotHistory, 
         {headlineFacts.map(fact => <div key={fact.label}><dt className="sr-only">{fact.label}</dt><dd>{fact.value}</dd></div>)}
       </dl>}
       {warranty && <p className="gr-enquiry-car__warranty"><Shield aria-hidden="true" size={16} />{warranty}</p>}
-      {hasDetails && <details className="gr-enquiry-car__details">
+      {hasDetails && <details open className="gr-enquiry-car__details">
         <summary>Car details <ChevronDown aria-hidden="true" size={16} /></summary>
         <dl className="gr-enquiry-car__facts">
           {registration && <div><dt>Registration</dt><dd>{registration}</dd></div>}
@@ -95,7 +95,7 @@ export function VehicleEnquiryInformation({ car, motHistory, requestMotHistory, 
           {detailFacts.map(fact => <div key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>)}
         </dl>
       </details>}
-      {hasBuyingOptions && <details className="gr-enquiry-car__details">
+      {hasBuyingOptions && <details open className="gr-enquiry-car__details">
         <summary>Buying options <ChevronDown aria-hidden="true" size={16} /></summary>
         {otherInclusions.length > 0 && <ul className="gr-enquiry-car__benefits">
           {otherInclusions.map(item => <li key={item}><BenefitIcon text={item} /><span>{item}</span></li>)}

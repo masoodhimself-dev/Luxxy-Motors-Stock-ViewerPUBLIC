@@ -7,6 +7,7 @@ import { useDealerFeatures } from '@/lib/dealer-features';
 import { dealershipLocation } from '@/lib/dealership-location';
 import { showroomHours } from '@/lib/showroom-hours';
 import { cn, formatPhoneDisplay } from '@/lib/utils';
+import { isModernShowroom } from '@/lib/website-template';
 import './showroom-visit-panel.css';
 
 const publishedInstructions = (value?: string) => {
@@ -79,7 +80,7 @@ export function ShowroomVisitPanel({
           {ready && opening.state === 'closed' && !opening.next && <p>Contact us to arrange your next visit.</p>}
           {!ready && isError && <p>Please confirm our hours before travelling.</p>}
         </div>
-        {ready && Boolean(settings.hours?.length) && <details className="showroom-visit-panel-week">
+        {ready && Boolean(settings.hours?.length) && <details open={isModernShowroom(settings.presentation) || undefined} className="showroom-visit-panel-week">
           <summary>Opening hours<ChevronDown size={16} /></summary>
           <dl>{settings.hours!.map((hour, index) => <div key={`${hour.days}-${index}`}><dt>{hour.days}</dt><dd>{hour.times}</dd></div>)}</dl>
         </details>}

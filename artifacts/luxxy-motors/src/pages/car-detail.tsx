@@ -62,10 +62,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { PageHeading } from '@/components/page-ui';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
-import { selectedWebsiteTemplate } from '@/lib/website-template';
+import { isModernShowroom, selectedWebsiteTemplate } from '@/lib/website-template';
 import { CustomerTemplateVehicle } from '@/components/website-templates/vehicle-template';
 import { GrandTouringVehicleContent } from '@/components/website-templates/grand-touring-vehicle';
 import { GraphiteVehicle, GraphiteVehicleContent, GraphiteVehicleHistory } from '@/components/graphite/graphite-vehicle';
+import { ModernShowroomVehicle, ModernShowroomVehicleContent } from '@/components/modern-showroom/modern-showroom-vehicle';
 import { GraphiteIcon } from '@/components/graphite/graphite-icon';
 import { useDealerFeatures } from '@/lib/dealer-features';
 import { usePageMeta } from '@/hooks/use-page-meta';
@@ -101,9 +102,9 @@ function suppliedVehicleDetail(value: string | null | undefined) {
   return text && !/^(?:[-–—]+|unknown|not specified|not available|n\/?a|ask us|null|undefined)$/i.test(text) ? text : '';
 }
 
-function VehicleSectionDisclosure({ folded, title, id, className, children }: { folded: boolean; title: string; id?: string; className: string; children: ReactNode }) {
-  return folded
-    ? <details id={id} className={`${className} gr-vehicle-disclosure`}><summary>{title}<ChevronDown size={20} aria-hidden="true" /></summary><div className="gr-vehicle-disclosure-body">{children}</div></details>
+function VehicleSectionDisclosure({ disclosure, title, id, className, children }: { disclosure: boolean; title: string; id?: string; className: string; children: ReactNode }) {
+  return disclosure
+    ? <details open id={id} className={`${className} gr-vehicle-disclosure`}><summary>{title}<ChevronDown size={20} aria-hidden="true" /></summary><div className="gr-vehicle-disclosure-body">{children}</div></details>
     : <div id={id} className={className}>{children}</div>;
 }
 
@@ -131,9 +132,10 @@ export default function CarDetail() {
   const customerFeatures = useDealerFeatures();
   const websiteTemplate = selectedWebsiteTemplate(dealerConfig.presentation);
   const isGraphite = websiteTemplate === null;
+  const modernShowroom = isModernShowroom(dealerConfig.presentation);
   const vehiclePhoneLayout = useIsMobile(761);
   const quietVehicle = isGraphite || websiteTemplate === 'grand-touring';
-  const comparisonEnabled = isGraphite && dealerConfig.presentation?.comparisonEnabled === true;
+  const comparisonEnabled = modernShowroom && dealerConfig.presentation?.comparisonEnabled === true;
   const comparison = useComparisonSelection(stock?.cars ?? (car ? [car] : []), comparisonEnabled);
   const comparisonShare = useShortlistShare();
   const [comparisonNotice, setComparisonNotice] = useState('');
@@ -347,7 +349,7 @@ export default function CarDetail() {
             {vehicleTrim && <p>{vehicleTrim}</p>}
           </header>;
   const templateGallery = <div className="vehicle-detail-gallery min-w-0">
-            <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} customerView hideInlineThumbnails inlinePresentation={isGraphite ? 'showroom-rail' : quietVehicle ? 'showroom' : 'standard'} customerActions={{
+            <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} customerView hideInlineThumbnails inlinePresentation={modernShowroom ? 'showroom-rail' : quietVehicle ? 'showroom' : 'standard'} customerActions={{
               enquiryHref: customerFeatures.enabled('publicEnquiries') ? '#vehicle-enquiry' : undefined,
               onEnquiry: customerFeatures.enabled('publicEnquiries') ? () => openVehicleEnquiry() : undefined,
             }} />
@@ -390,16 +392,16 @@ export default function CarDetail() {
   </div>;
   const templateActions = <div className="vehicle-action-area" data-testid="desktop-purchase-panel">
             {!quietVehicle && bookingAction}
-            {isGraphite && <><h2>Interested in this car?</h2><p>Ask a question or arrange a time to see it.</p>{enquiriesEnabled && <button type="button" className="gr-button gr-vehicle-contact-enquire" onClick={() => openVehicleEnquiry()}>Enquire about this car</button>}</>}
-            {!isGraphite && enquiryAction && <div className="vehicle-primary-actions vehicle-summary-main-actions">{enquiryAction}</div>}
-            {quietVehicle && !isGraphite && bookingAction}
-            {isGraphite && !vehiclePhoneLayout && bookingAction}
+            {modernShowroom && <><h2>Interested in this car?</h2><p>Ask a question or arrange a time to see it.</p>{enquiriesEnabled && <button type="button" className="gr-button gr-vehicle-contact-enquire" onClick={() => openVehicleEnquiry()}>Enquire about this car</button>}</>}
+            {!modernShowroom && enquiryAction && <div className="vehicle-primary-actions vehicle-summary-main-actions">{enquiryAction}</div>}
+            {quietVehicle && !modernShowroom && bookingAction}
+            {modernShowroom && !vehiclePhoneLayout && bookingAction}
             <div className="vehicle-action-tools" aria-label="Contact and share">
               <VehicleCall car={car} buttonLabel="Call" />
               <VehicleWhatsApp car={car} />
-              {!isGraphite && <><VehicleShare key={car.id} car={car} /><SaveCarButton car={car} variant="inline" className="vehicle-save-control border-transparent bg-transparent" /></>}
+              {!modernShowroom && <><VehicleShare key={car.id} car={car} /><SaveCarButton car={car} variant="inline" className="vehicle-save-control border-transparent bg-transparent" /></>}
             </div>
-            {(dealerConfig.partExchange?.enabled || deliveryAction) && <details className="vehicle-buying-options">
+            {(dealerConfig.partExchange?.enabled || deliveryAction) && <details open={modernShowroom || undefined} className="vehicle-buying-options">
               <summary>{dealerConfig.partExchange?.enabled ? deliveryAction ? 'Part exchange & delivery' : 'Part exchange' : 'Delivery'}<ChevronDown size={17} /></summary>
               <div>
                 {dealerConfig.partExchange?.enabled && <a href={customerFeatures.enabled('publicEnquiries') ? `/enquire?type=part_exchange&vehicleId=${encodeURIComponent(car.id)}` : '/contact'} className="vehicle-part-exchange-link">Part exchange your car <ArrowRight className="h-4 w-4" aria-hidden="true" /></a>}
@@ -418,10 +420,10 @@ export default function CarDetail() {
           <nav aria-label="Vehicle information sections" className="vehicle-section-nav">
             {hasOverview && <a href="#vehicle-overview-section">Overview</a>}
             {features.length > 0 && <a href="#features-heading">Equipment</a>}
-            {showQualityChecks && !isGraphite && <a href="#vehicle-quality-checks">Checks</a>}
+            {showQualityChecks && !modernShowroom && <a href="#vehicle-quality-checks">Checks</a>}
             <a href="#vehicle-history-section">{isGraphite ? 'MOT & history' : 'History'}</a>
             <a href="#vehicle-visit-delivery">Visit &amp; delivery</a>
-            {isGraphite && enquiriesEnabled && <a href="#vehicle-enquiry" onClick={event => { event.preventDefault(); openVehicleEnquiry(); }}>Enquiry</a>}
+            {modernShowroom && enquiriesEnabled && <a href="#vehicle-enquiry" onClick={event => { event.preventDefault(); openVehicleEnquiry(); }}>Enquiry</a>}
           </nav>
   );
   const informationSections = <>
@@ -435,7 +437,7 @@ export default function CarDetail() {
                 {websiteText(dealerConfig, "vehicleDescriptionHeading")}
               </h2>
               <div className="vehicle-description-copy mt-4 space-y-4 text-base leading-7 text-foreground">
-                <VehicleDescription key={car.id} paragraphs={vehicleDescriptionParagraphs(description)} />
+                <VehicleDescription expandedByDefault={modernShowroom} key={car.id} paragraphs={vehicleDescriptionParagraphs(description)} />
                 {separateDescriptionNotes && <aside className="rounded-lg border border-border bg-muted/40 p-4 text-sm leading-6" aria-label="Vehicle history and important information"><h3 className="mb-2 font-semibold text-foreground">Vehicle history & important information</h3>{(car.sourceExtras!.vehicleDescriptionDisclosures as unknown[]).filter((note): note is string => typeof note === 'string').map(note => <p key={note} className="whitespace-pre-line">{note}</p>)}</aside>}
                 {typeof car.sourceExtras?.vehicleDescriptionTax === 'string' && <aside className="rounded-lg border border-border p-4 text-sm leading-6" aria-label="Vehicle tax information"><h3 className="mb-2 font-semibold">Vehicle tax</h3><p>{car.sourceExtras.vehicleDescriptionTax}</p><a href="https://www.gov.uk/vehicle-tax-direct-debit/setting-up" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center underline">About DVLA Direct Debit payments</a></aside>}
 
@@ -447,7 +449,7 @@ export default function CarDetail() {
               <h2 id="vehicle-included-heading" className="section-heading">What’s included</h2>
               <ul>{includedItems.map(item => <li key={item}>{item}</li>)}</ul>
             </section>}
-            {(hasSpecifications || vehicleRunningCostFacts.length > 0) && <details className="vehicle-technical-disclosure">
+            {(hasSpecifications || vehicleRunningCostFacts.length > 0) && <details open={modernShowroom || undefined} className="vehicle-technical-disclosure">
               <summary>Specifications &amp; running costs</summary>
           {(hasSpecifications || vehicleRunningCostFacts.length > 0) && <div className="vehicle-information-row vehicle-technical-row">
             {hasSpecifications && <section
@@ -462,7 +464,7 @@ export default function CarDetail() {
                   <LedgerRow key={spec.label} label={spec.label} value={spec.value} />
                 ))}
               </dl>
-              <VehicleSpecificationDetails car={car} />
+              <VehicleSpecificationDetails expandedByDefault={modernShowroom} car={car} />
             </section>}
             {vehicleRunningCostFacts.length > 0 && <div className="vehicle-costs-panel">
               <VehicleRunningCosts car={car} />
@@ -471,7 +473,7 @@ export default function CarDetail() {
 
             </details>}
           </div>}
-          <VehicleSectionDisclosure folded={isGraphite} title="Features and equipment" className="vehicle-page-chapter vehicle-equipment-chapter">
+          <VehicleSectionDisclosure disclosure={modernShowroom} key={`equipment-${car.id}`} title="Features and equipment" className="vehicle-page-chapter vehicle-equipment-chapter">
             {features.length > 0 && (
               <section
                 className="vehicle-features-section mt-8 border-t border-border pt-7 lg:col-span-2"
@@ -480,13 +482,13 @@ export default function CarDetail() {
                 <h2 id="features-heading" className="section-heading scroll-mt-28">
                   {websiteText(dealerConfig, "vehicleFeaturesHeading")}
                 </h2>
-                <VehicleEquipmentList features={features} />
+                <VehicleEquipmentList key={car.id} expandedByDefault={modernShowroom} features={features} />
               </section>
             )}
 
           </VehicleSectionDisclosure>
-          {showQualityChecks && !isGraphite && <VehicleQualityChecks car={car} motHistory={motHistory} dealerConfirmed={isMultiChoiceWebsite()} hideUnknown={privatePreview} onAskTeam={enquiriesEnabled ? openVehicleEnquiry : undefined} />}
-          <VehicleSectionDisclosure folded={isGraphite} title="Service and vehicle history" id="vehicle-history-section" className="vehicle-page-chapter vehicle-history-chapter">
+          {showQualityChecks && !modernShowroom && <VehicleQualityChecks car={car} motHistory={motHistory} dealerConfirmed={isMultiChoiceWebsite()} hideUnknown={privatePreview} onAskTeam={enquiriesEnabled ? openVehicleEnquiry : undefined} />}
+          <VehicleSectionDisclosure disclosure={modernShowroom} key={`history-${car.id}`} title="Service and vehicle history" id="vehicle-history-section" className="vehicle-page-chapter vehicle-history-chapter">
             <div className="vehicle-information-row vehicle-records-row">
             {isGraphite ? <GraphiteVehicleHistory car={car} mot={motSummary} motAction={motAction} /> : <VehicleHistorySummary car={car} motAction={motAction} />}
             {hasHandoverInformation && <section
@@ -542,12 +544,12 @@ export default function CarDetail() {
             </section>}
             {enquiriesEnabled ? <button type="button" className="vehicle-service-record-request" onClick={() => openVehicleEnquiry('Please send the available service-book photos and service records for this car.')}><span>Request service records<span className="vehicle-service-record-note">Ask for the available service-book photos and records.</span></span><ArrowRight className="h-4 w-4" aria-hidden="true" /></button> : <Link href="/contact" className="vehicle-service-record-request">Contact the showroom about service records</Link>}
           </div>
-          {sourceReport && <details className="vehicle-full-records"><summary>Vehicle checks</summary><VehicleSourceReport car={car} /></details>}
-          {originalAdvertDescriptions.length > 0 && <details className="vehicle-original-advert border-t border-border pt-4 text-sm"><summary className="min-h-11 cursor-pointer py-2 font-semibold">Original advert information</summary>{originalAdvertDescriptions.map((value, index) => <p key={index} className="whitespace-pre-line py-2">{value}</p>)}</details>}
+          {sourceReport && <details open={modernShowroom || undefined} className="vehicle-full-records"><summary>Vehicle checks</summary><VehicleSourceReport expandedByDefault={modernShowroom} car={car} /></details>}
+          {originalAdvertDescriptions.length > 0 && <details open={modernShowroom || undefined} className="vehicle-original-advert border-t border-border pt-4 text-sm"><summary className="min-h-11 cursor-pointer py-2 font-semibold">Original advert information</summary>{originalAdvertDescriptions.map((value, index) => <p key={index} className="whitespace-pre-line py-2">{value}</p>)}</details>}
 
-            {showQualityChecks && isGraphite && <VehicleQualityChecks car={car} motHistory={motHistory} dealerConfirmed={isMultiChoiceWebsite()} hideUnknown={privatePreview} onAskTeam={enquiriesEnabled ? openVehicleEnquiry : undefined} />}
+            {showQualityChecks && modernShowroom && <VehicleQualityChecks car={car} motHistory={motHistory} dealerConfirmed={isMultiChoiceWebsite()} hideUnknown={privatePreview} onAskTeam={enquiriesEnabled ? openVehicleEnquiry : undefined} />}
           </VehicleSectionDisclosure>
-          <VehicleSectionDisclosure folded={isGraphite} title="Delivery and visiting" id="vehicle-visit-delivery" className="vehicle-page-chapter vehicle-visit-delivery-chapter">
+          <VehicleSectionDisclosure disclosure={modernShowroom} key={`visit-${car.id}`} title="Delivery and visiting" id="vehicle-visit-delivery" className="vehicle-page-chapter vehicle-visit-delivery-chapter">
             {isGraphite && <h2 className="gr-vehicle-visit-title">Visit &amp; delivery</h2>}
             {isGraphite ? <div className="gr-vehicle-visit-card"><GraphiteIcon name="map-pin" className="gr-vehicle-visit-icon" /><VehicleVisit car={car} /></div> : <VehicleVisit car={car} />}
             {deliveryAction && <section aria-labelledby="vehicle-delivery-heading" className="vehicle-delivery-information">
@@ -556,7 +558,7 @@ export default function CarDetail() {
               {deliveryAction}
             </section>}
           </VehicleSectionDisclosure>
-          {enquiriesEnabled && <VehicleAnswers key={car.id} car={car} motHistory={motHistory} coveredTopics={coveredAnswerTopics} onAskTeam={openVehicleEnquiry} />}
+          {enquiriesEnabled && <VehicleAnswers expandedByDefault={modernShowroom} key={car.id} car={car} motHistory={motHistory} coveredTopics={coveredAnswerTopics} onAskTeam={openVehicleEnquiry} />}
 
   </>;
 
@@ -567,9 +569,10 @@ export default function CarDetail() {
     requestMotHistory={requestMotHistory}
     dealer={settingsLoading || settingsError ? undefined : dealerConfig}
     includedItems={includedItems}
-    compact={isGraphite}
+    compact={modernShowroom}
   />;
 
+  const GraphiteFamilyVehicle = modernShowroom ? ModernShowroomVehicle : GraphiteVehicle;
   return (
     <div className={isGraphite ? 'vehicle-page gr-vehicle-page min-h-screen' : websiteTemplate === 'grand-touring' ? 'vehicle-page gt-vehicle-page min-h-screen' : 'vehicle-page vehicle-redesigned vehicle-page-streamlined vehicle-page-enter luxxy-shell min-h-screen'}>
       <div className={isGraphite ? 'gr-container' : websiteTemplate === 'grand-touring' ? 'gt-vehicle-container' : 'container mx-auto px-4 sm:px-6 lg:px-8'}>
@@ -581,14 +584,14 @@ export default function CarDetail() {
             {fromStock ? 'Back to your results' : fromSaved ? 'Back to saved cars' : 'Back to stock'}
           </Link>
         </div>
-        {websiteTemplate ? <CustomerTemplateVehicle template={websiteTemplate} car={car} identity={templateIdentity} gallery={templateGallery} price={templatePrice} registration={registrationDetails} facts={templateFacts} mot={templateMot} actions={templateActions} highlights={templateHighlights} reservation={<ReserveCar key={car.id} car={car}/>} photoRequest={enquiriesEnabled && <VehiclePhotoRequest key={`photos-${car.id}`} onRequest={openVehicleEnquiry}/>} onEnquiry={enquiriesEnabled ? openVehicleEnquiry : undefined}/> : <GraphiteVehicle identity={templateIdentity} gallery={templateGallery} price={templatePrice} tools={graphiteTools} primaryAction={enquiryAction} bookingAction={vehiclePhoneLayout ? bookingAction : null} registration={registrationDetails} facts={templateFacts} mot={templateMot} actions={templateActions} highlights={templateHighlights} sparse={sparseSummary} reservation={<ReserveCar key={car.id} car={car}/>} photoRequest={enquiriesEnabled && <VehiclePhotoRequest key={`photos-${car.id}`} onRequest={openVehicleEnquiry}/>}/> }
-        {isGraphite ? <GraphiteVehicleContent navigation={informationNavigation} contact={templateActions}>{informationSections}</GraphiteVehicleContent> : websiteTemplate === 'grand-touring' ? <GrandTouringVehicleContent navigation={informationNavigation}>{informationSections}</GrandTouringVehicleContent> : <div className="vehicle-details-content min-w-0">{informationNavigation}{informationSections}</div>}
+        {websiteTemplate ? <CustomerTemplateVehicle template={websiteTemplate} car={car} identity={templateIdentity} gallery={templateGallery} price={templatePrice} registration={registrationDetails} facts={templateFacts} mot={templateMot} actions={templateActions} highlights={templateHighlights} reservation={<ReserveCar key={car.id} car={car}/>} photoRequest={enquiriesEnabled && <VehiclePhotoRequest key={`photos-${car.id}`} onRequest={openVehicleEnquiry}/>} onEnquiry={enquiriesEnabled ? openVehicleEnquiry : undefined}/> : <GraphiteFamilyVehicle identity={templateIdentity} gallery={templateGallery} price={templatePrice} tools={graphiteTools} primaryAction={enquiryAction} bookingAction={vehiclePhoneLayout ? bookingAction : null} registration={registrationDetails} facts={templateFacts} mot={templateMot} actions={templateActions} highlights={templateHighlights} sparse={sparseSummary} reservation={<ReserveCar key={car.id} car={car}/>} photoRequest={enquiriesEnabled && <VehiclePhotoRequest key={`photos-${car.id}`} onRequest={openVehicleEnquiry}/>}/> }
+        {modernShowroom ? <ModernShowroomVehicleContent navigation={informationNavigation} contact={templateActions}>{informationSections}</ModernShowroomVehicleContent> : isGraphite ? <GraphiteVehicleContent navigation={informationNavigation}>{informationSections}</GraphiteVehicleContent> : websiteTemplate === 'grand-touring' ? <GrandTouringVehicleContent navigation={informationNavigation}>{informationSections}</GrandTouringVehicleContent> : <div className="vehicle-details-content min-w-0">{informationNavigation}{informationSections}</div>}
         {enquiriesEnabled && <details id="vehicle-enquiry" className="vehicle-inline-enquiry vehicle-message-disclosure" open={enquiryExpanded} onToggle={event => setEnquiryExpanded(event.currentTarget.open)}>
-          <summary><h2 id="vehicle-enquiry-heading" tabIndex={-1} className="section-heading">{quietVehicle ? 'Ask about this car' : 'Message the showroom'}</h2>{!isGraphite && <span className="vehicle-enquiry-intro">Ask a question about this {vehicleLabel}</span>}{isGraphite && <span className="gr-vehicle-enquiry-toggle">{enquiryExpanded ? 'Close message' : 'Write a message'}<GraphiteIcon name="chevron-down" /></span>}</summary>
+          <summary><h2 id="vehicle-enquiry-heading" tabIndex={-1} className="section-heading">{quietVehicle ? 'Ask about this car' : 'Message the showroom'}</h2>{!modernShowroom && <span className="vehicle-enquiry-intro">Ask a question about this {vehicleLabel}</span>}{modernShowroom && <span className="gr-vehicle-enquiry-toggle">{enquiryExpanded ? 'Close message' : 'Write a message'}<GraphiteIcon name="chevron-down" /></span>}</summary>
           <div className="vehicle-message-body">
-            {isGraphite && enquiryInformation}
-            <EnquiryForm key={car.id} vehicle={car} initialType="general" embedded compact={isGraphite} messageRequest={messageRequest?.vehicleId === car.id ? messageRequest : undefined} />
-            {!isGraphite && enquiryInformation}
+            {modernShowroom && enquiryInformation}
+            <EnquiryForm key={car.id} vehicle={car} initialType="general" embedded compact={modernShowroom} messageRequest={messageRequest?.vehicleId === car.id ? messageRequest : undefined} />
+            {!modernShowroom && enquiryInformation}
           </div>
         </details>}
       </div>

@@ -202,7 +202,7 @@ it("uses the shared public chrome without changing a previously saved light bran
   expect(screen.getByTestId("graphite-header")).toBeInTheDocument();
   expect(screen.getByTestId("graphite-footer")).toBeInTheDocument();
   expect(state.settings.identity.brandColors?.primaryHsl).toBe("0 0% 100%");
-  expect(document.querySelector<HTMLElement>(".dealer-site-theme")?.style.getPropertyValue("--mh-primary")).toBe("#14233b");
+  expect(document.querySelector<HTMLElement>(".dealer-site-theme")?.style.getPropertyValue("--mh-primary")).toBe("#25282d");
 });
 it.each(Object.keys(websiteTemplatePalettes) as (keyof typeof websiteTemplatePalettes)[])('applies %s consistently to customer forms without changing saved dealership branding', template => {
   state.path = '/contact';

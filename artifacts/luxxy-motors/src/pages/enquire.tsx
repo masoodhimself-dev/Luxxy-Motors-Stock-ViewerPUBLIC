@@ -16,7 +16,7 @@ import { customerRegistrationDetails } from '@/lib/customer-vehicle-meta';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { enquiryPageMeta } from '@/lib/page-meta';
-import { selectedWebsiteTemplate } from '@/lib/website-template';
+import { isModernShowroom, selectedWebsiteTemplate } from '@/lib/website-template';
 import '@/components/graphite/graphite-workflows.css';
 
 const enquiryTypes: EnquiryType[] = ['viewing', 'general', 'part_exchange'];
@@ -51,6 +51,7 @@ export default function Enquire() {
   const title = websiteText(dealerConfig, `${type}Title`);
   const description = websiteText(dealerConfig, `${type}Description`);
   const isPartExchange = type === 'part_exchange';
+  const modernShowroom = isModernShowroom(dealerConfig.presentation);
   const graphite = selectedWebsiteTemplate(dealerConfig.presentation) === null;
   const introCar = vehicle ?? stock?.cars.find(car => car.make === 'Audi' && car.model === 'A1') ?? stock?.cars[0];
   const introPhoto = introCar ? getThumbnailUrl(introCar) : '';
@@ -149,7 +150,7 @@ export default function Enquire() {
                     </p>
                   )}
                 </div>
-                {highlightList && (graphite ? <details className="gr-enquiry-car__details enquiry-summary-details">
+                {highlightList && (modernShowroom ? <details open className="gr-enquiry-car__details enquiry-summary-details">
                   <summary>Car details <ChevronDown size={16} aria-hidden="true" /></summary>
                   {highlightList}
                 </details> : highlightList)}
@@ -198,7 +199,7 @@ export default function Enquire() {
 
               {!waitingForSelectedCar && <EnquiryForm
                 key={type === 'general' ? type : `${type}:${vehicle?.id ?? 'general'}`}
-                compact={graphite && !isPartExchange}
+                compact={modernShowroom && !isPartExchange}
                 initialMessage={!requestedMessage && vehicle && type === 'general' ? questionMessage(params.get('question')) : ''}
                 messageRequest={requestedMessage ? { id: `link:${requestedMessage}`, text: requestedMessage } : undefined}
                 onTypeChange={setType}

@@ -15,6 +15,7 @@ export const WebsiteTemplateId = {
   premium: 'premium',
   focused: 'focused',
   showroom: 'showroom',
+  'modern-showroom': 'modern-showroom',
   'grand-touring': 'grand-touring',
   forecourt: 'forecourt',
   panorama: 'panorama',

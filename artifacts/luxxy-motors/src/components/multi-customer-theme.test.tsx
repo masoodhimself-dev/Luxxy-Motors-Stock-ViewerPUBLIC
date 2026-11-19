@@ -94,14 +94,14 @@ describe('Shared dealership customer theme scope', () => {
     const before = JSON.stringify(state.settings);
     const variables = multiCustomerThemeVariables('graphite');
     expect(variables).toMatchObject({
-      '--mh-primary': '#14233b', '--mh-accent': '#173f8a', '--mh-accent-dark': '#12346f',
-      '--mh-bg': '#ffffff', '--mh-surface': '#ffffff', '--mh-tint': '#eef3f8',
-      '--mh-muted': '#57667b', '--mh-border': '#ced9e7',
+      '--mh-primary': '#25282d', '--mh-accent': '#25282d', '--mh-accent-dark': '#3b4047',
+      '--mh-bg': '#ffffff', '--mh-surface': '#ffffff', '--mh-tint': '#f3f4f5',
+      '--mh-muted': '#565c64', '--mh-border': '#ced2d7',
       '--dealer-page': '#ffffff', '--dealer-panel': '#ffffff',
-      '--app-font-sans': "'DM Sans', Arial, sans-serif",
+      '--app-font-sans': "'Manrope', Arial, sans-serif",
     });
-    expect(variables['--font-display']).toContain('Outfit');
-    expect(variables['--font-body']).toContain('DM Sans');
+    expect(variables['--font-display']).toContain('Manrope');
+    expect(variables['--font-body']).toContain('Manrope');
     // The default public presentation does not replace the existing staff/document foundation.
     const foundation = multiCustomerThemeVariables();
     expect(foundation).toMatchObject({
@@ -125,12 +125,12 @@ describe('Shared dealership customer theme scope', () => {
       expect(shell).toHaveClass('graphite-site');
       expect(document.body).toHaveAttribute('data-customer-graphite', 'true');
       expect(shell?.style.getPropertyValue('--dealer-page')).toBe('#ffffff');
-      expect(shell?.style.getPropertyValue('--mh-accent')).toBe('#173f8a');
-      expect(shell?.style.getPropertyValue('--app-font-sans')).toContain('DM Sans');
+      expect(shell?.style.getPropertyValue('--mh-accent')).toBe('#25282d');
+      expect(shell?.style.getPropertyValue('--app-font-sans')).toContain('Manrope');
       expect(document.body).toHaveAttribute('data-dealer-customer', 'true');
-      expect(document.body.style.getPropertyValue('--mh-primary')).toBe('#14233b');
-      expect(document.body.style.getPropertyValue('--dialog-accent')).toBe('#173f8a');
-      expect(document.body.style.getPropertyValue('--app-font-sans')).toContain('DM Sans');
+      expect(document.body.style.getPropertyValue('--mh-primary')).toBe('#25282d');
+      expect(document.body.style.getPropertyValue('--dialog-accent')).toBe('#25282d');
+      expect(document.body.style.getPropertyValue('--app-font-sans')).toContain('Manrope');
       const popup = screen.getByRole('dialog', { name: 'Customer pop-up' });
       expect(document.body).toContainElement(popup);
       expect(shell).not.toContainElement(popup);
@@ -159,7 +159,7 @@ describe('Shared dealership customer theme scope', () => {
     expect(shell).toHaveClass('graphite-site');
     expect(shell.style.getPropertyValue('--dealer-page')).toBe('#ffffff');
     expect(shell.style.getPropertyValue('--dealer-panel')).toBe('#ffffff');
-    expect(shell.style.getPropertyValue('--app-font-sans')).toContain('DM Sans');
+    expect(shell.style.getPropertyValue('--app-font-sans')).toContain('Manrope');
     expect(document.body).toHaveAttribute('data-dealer-customer', 'true');
     expect(screen.getByTestId('multi-theme-header')).toHaveAttribute('data-logo', '/configured-dealer.svg');
     expect(screen.getByTestId('multi-theme-footer')).toHaveAttribute('data-logo', '/configured-footer.svg');
@@ -190,7 +190,7 @@ describe('Shared dealership customer theme scope', () => {
     document.body.style.setProperty('--unrelated-token', 'keep-me');
     const { unmount } = render(page());
     expect(document.body).toHaveAttribute('data-dealer-customer', 'true');
-    expect(document.body.style.getPropertyValue('--mh-primary')).toBe('#14233b');
+    expect(document.body.style.getPropertyValue('--mh-primary')).toBe('#25282d');
     unmount();
     expect(document.body).toHaveAttribute('data-dealer-customer', 'previous-owner');
     expect(document.body.style.getPropertyValue('--app-font-sans')).toBe('Existing interface font');
@@ -221,7 +221,7 @@ describe('Shared dealership customer theme scope', () => {
     view.rerender(page());
     expect(view.container.querySelector('.dealer-site-theme')).not.toBeNull();
     expect(document.body).toHaveAttribute('data-dealer-customer', 'true');
-    expect(document.body.style.getPropertyValue('--app-font-sans')).toContain('DM Sans');
+    expect(document.body.style.getPropertyValue('--app-font-sans')).toContain('Manrope');
     expect(document.body.style.getPropertyValue('--dealer-page')).toBe('#ffffff');
     state.path = '/platform';
     view.rerender(page());
@@ -308,7 +308,7 @@ describe('Shared dealership customer theme scope', () => {
     const { container } = render(page());
     expect(container.querySelector('.customer-site.dealer-site-theme')).toHaveClass('graphite-site');
     expect(document.body).toHaveAttribute('data-dealer-customer', 'true');
-    expect(document.body.style.getPropertyValue('--app-font-sans')).toContain('DM Sans');
+    expect(document.body.style.getPropertyValue('--app-font-sans')).toContain('Manrope');
   });
 
   it('themes a minimal public document without adding navigation or changing its contents', () => {
@@ -347,8 +347,17 @@ describe('Shared dealership customer theme scope', () => {
     const popupPlate = screen.getByRole('textbox', { name: 'Pop-up registration' });
     expect(getComputedStyle(popupPlate).fontFamily).toMatch(/Forecourt Plate UK|--app-registration-font/);
     expect(getComputedStyle(popupPlate).fontWeight).toBe('400');
-    expect(document.body.style.getPropertyValue('--ct-font-ui')).toContain('DM Sans');
+    expect(document.body.style.getPropertyValue('--ct-font-ui')).toContain('Manrope');
     expect(getComputedStyle(screen.getByRole('textbox', { name: 'Customer name' })).fontFamily).toContain('--ct-font-ui');
     expect(getComputedStyle(screen.getByRole('button', { name: 'Continue' })).fontFamily).toContain('--ct-font-ui');
   });
+});
+
+it('keeps the Modern Showroom palette separate from existing Graphite', () => {
+  const modern = multiCustomerThemeVariables('modern-showroom');
+  const graphite = multiCustomerThemeVariables('graphite');
+  expect(modern['--mh-accent']).toBe('#173f8a');
+  expect(modern['--font-display']).toContain('Outfit');
+  expect(graphite['--mh-accent']).toBe('#25282d');
+  expect(graphite['--font-display']).toContain('Manrope');
 });

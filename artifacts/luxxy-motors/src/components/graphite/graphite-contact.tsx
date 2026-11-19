@@ -10,6 +10,7 @@ import { getPhoneHref, getWhatsAppHref } from '@/lib/cta-helpers';
 import { formatPhoneDisplay } from '@/lib/utils';
 import { isMultiChoiceWebsite } from '@/lib/multi-home-scope';
 import { customerDefaultCopy, websiteText } from '@/lib/website-content';
+import { isModernShowroom } from '@/lib/website-template';
 import './graphite-workflows.css';
 
 export function GraphiteContact() {
@@ -20,6 +21,7 @@ export function GraphiteContact() {
   const phoneHref = getPhoneHref(settings);
   const whatsApp = getWhatsAppHref(`Hello ${settings.identity.name}, I’d like to ask about a car or arrange a visit.`, settings);
   const valid = !isLoading && !isError;
+  const expandContent = isModernShowroom(settings.presentation);
   async function copy() { try { await navigator.clipboard.writeText(address.lines.join(', ')); setCopyStatus('Address copied'); } catch { setCopyStatus('Select and copy the address shown here.'); } }
   return <div className="gr-contact gr-container">
     <section className="gr-contact__details" aria-labelledby="gr-contact-title">
@@ -38,8 +40,8 @@ export function GraphiteContact() {
         </>}
       </section>
       {valid && hours.length > 0 && <section className="gr-contact__hours"><h2>Opening hours</h2><dl>{hours.map((h, i) => <div key={i}><dt>{h.days}</dt><dd>{h.times}</dd></div>)}</dl></section>}
-      {(settings.contact.email || whatsApp) && <details className="gr-contact__other"><summary>Other ways to contact us</summary><div>{settings.contact.email && <a href={`mailto:${settings.contact.email}`} data-testid="contact-email"><Mail size={20} aria-hidden="true" />{settings.contact.email}</a>}{whatsApp && <a href={whatsApp} target="_blank" rel="noopener noreferrer" data-testid="contact-whatsapp"><MessageCircle size={20} aria-hidden="true" />WhatsApp</a>}</div></details>}
-      {valid && (settings.presentation?.visitInstructions || settings.presentation?.parkingInstructions) && <details className="gr-contact__other"><summary>Before your visit</summary><div>{settings.presentation.visitInstructions && <p>{settings.presentation.visitInstructions}</p>}{settings.presentation.parkingInstructions && <p>{settings.presentation.parkingInstructions}</p>}</div></details>}
+      {(settings.contact.email || whatsApp) && <details open={expandContent || undefined} className="gr-contact__other"><summary>Other ways to contact us</summary><div>{settings.contact.email && <a href={`mailto:${settings.contact.email}`} data-testid="contact-email"><Mail size={20} aria-hidden="true" />{settings.contact.email}</a>}{whatsApp && <a href={whatsApp} target="_blank" rel="noopener noreferrer" data-testid="contact-whatsapp"><MessageCircle size={20} aria-hidden="true" />WhatsApp</a>}</div></details>}
+      {valid && (settings.presentation?.visitInstructions || settings.presentation?.parkingInstructions) && <details open={expandContent || undefined} className="gr-contact__other"><summary>Before your visit</summary><div>{settings.presentation.visitInstructions && <p>{settings.presentation.visitInstructions}</p>}{settings.presentation.parkingInstructions && <p>{settings.presentation.parkingInstructions}</p>}</div></details>}
     </section>
     <section className="gr-contact__form" aria-labelledby="gr-contact-message"><h2 id="gr-contact-message">Send us a message.</h2>{publicEnquiriesEnabled ? <EnquiryForm initialType="general" embedded presentation="contact" /> : <div className="gr-contact__unavailable"><p>Online enquiries are currently unavailable. Please call or email us.</p>{phoneHref && <a href={phoneHref} className="gr-button">Call the showroom</a>}</div>}{settings.testDriveBooking?.enabled && <Link href="/enquire?type=viewing" className="gr-contact__booking">Arrange a test drive<GraphiteIcon name="arrow-right" /></Link>}</section>
   </div>;

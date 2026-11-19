@@ -21,7 +21,7 @@ test('website template registry preserves old values and agrees with the public 
   const defaults = newDealerSettings('Fictional dealer');
   assert.equal(resolveWebsiteTemplateId(undefined), 'existing');
   assert.equal(resolveWebsiteTemplateId('unrecognised'), 'existing');
-  assert.deepEqual(WEBSITE_TEMPLATES.filter(template => !template.legacy).map(template => template.id), ['showroom', 'grand-touring', 'forecourt', 'panorama']);
+  assert.deepEqual(WEBSITE_TEMPLATES.filter(template => !template.legacy).map(template => template.id), ['showroom', 'modern-showroom', 'grand-touring', 'forecourt', 'panorama']);
   for (const { id } of WEBSITE_TEMPLATES) {
     assert.equal(isWebsiteTemplateId(id), true);
     assert.equal(resolveWebsiteTemplateId(id), id);
@@ -102,7 +102,7 @@ test('per-dealer template previews and publications are private, scoped and revi
     outgoing.on('error', reject); outgoing.end(body === undefined ? undefined : JSON.stringify(body));
   });
   const statePath = '/api/platform/dealers/template-alpha/website-template';
-  const previewPath = '/platform/preview/template-alpha/template/showroom/7';
+  const previewPath = '/platform/preview/template-alpha/template/modern-showroom/7';
   const stored = async (id = 'template-alpha') => (await engine.query<{ config: Record<string, any>; revision: number }>('SELECT config,revision FROM dealer_settings WHERE dealer_id=$1', [id])).rows[0]!;
   const history = async () => (await engine.query<{ dealer_id: string; revision: number; action: string; config: Record<string, any> }>('SELECT * FROM dealer_settings_versions ORDER BY dealer_id,revision')).rows;
   try {
@@ -135,7 +135,7 @@ test('per-dealer template previews and publications are private, scoped and revi
       const rawConfig = await settings.json();
       const config = GetDealerSettingsResponse.parse(rawConfig);
       assert.equal(config.identity.name, 'Alpha Test Motors');
-      assert.equal(config.presentation?.websiteTemplate, 'showroom');
+      assert.equal(config.presentation?.websiteTemplate, 'modern-showroom');
       assert.equal(config.presentation?.pageColour, '#112233');
       assert.equal(typeof rawConfig === 'object' && rawConfig !== null && 'futurePrivateSetting' in rawConfig, false);
       const html = await request(previewPath + '/stock');
@@ -184,22 +184,22 @@ test('per-dealer template previews and publications are private, scoped and revi
       assert.deepEqual(await history(), []);
     });
     await context.test('Apply changes one dealer and one field while preserving private settings and history', async () => {
-      const response = await request(statePath, { method: 'PATCH', body: { template: 'showroom', reviewed: true }, revision: '"7"' });
+      const response = await request(statePath, { method: 'PATCH', body: { template: 'modern-showroom', reviewed: true }, revision: '"7"' });
       assert.equal(response.status, 200, await response.clone().text());
-      assert.deepEqual(UpdatePlatformDealerWebsiteTemplateResponse.parse(await response.json()), { dealerId: 'template-alpha', currentTemplate: 'showroom', revision: 8 });
+      assert.deepEqual(UpdatePlatformDealerWebsiteTemplateResponse.parse(await response.json()), { dealerId: 'template-alpha', currentTemplate: 'modern-showroom', revision: 8 });
       assert.equal(response.headers.get('x-settings-revision'), '8');
       const after = await stored();
-      assert.equal(after.config.presentation.websiteTemplate, 'showroom');
+      assert.equal(after.config.presentation.websiteTemplate, 'modern-showroom');
       delete after.config.presentation.websiteTemplate;
       assert.deepEqual(after.config, firstConfig);
       assert.deepEqual(await stored('template-bravo'), { config: secondConfig, revision: 2 });
       const versions = await history();
       assert.deepEqual(versions.map(row => [row.dealer_id, row.revision, row.action]), [['template-alpha', 7, 'initial'], ['template-alpha', 8, 'publish']]);
       assert.equal(versions[0]!.config.presentation.websiteTemplate, undefined);
-      assert.equal(versions[1]!.config.presentation.websiteTemplate, 'showroom');
+      assert.equal(versions[1]!.config.presentation.websiteTemplate, 'modern-showroom');
       assert.deepEqual(versions[1]!.config.futurePrivateSetting, firstConfig.futurePrivateSetting);
       const publicSettings = await request('/api/dealer-settings', { host: 'template-alpha.example.test' });
-      assert.equal(GetDealerSettingsResponse.parse(await publicSettings.json()).presentation?.websiteTemplate, 'showroom');
+      assert.equal(GetDealerSettingsResponse.parse(await publicSettings.json()).presentation?.websiteTemplate, 'modern-showroom');
       const oldPreview = await request(previewPath + '/stock');
       assert.equal(oldPreview.status, 409);
       assert.match(oldPreview.headers.get('content-type') ?? '', /text\/html/);

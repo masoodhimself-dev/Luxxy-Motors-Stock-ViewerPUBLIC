@@ -31,8 +31,14 @@ const showroomNavyPalette = {
   hero: '#e9edf4',
 } as const;
 
-/** Modern Showroom Figma default. Internal graphite key preserves existing template selections. */
 export const graphitePalette = {
+  primary: '#25282d', accent: '#25282d', accentDark: '#3b4047',
+  tint: '#f3f4f5', background: '#ffffff', surface: '#ffffff',
+  border: '#ced2d7', muted: '#565c64', controlBorder: '#858c96',
+  photoBackground: '#f3f4f5', chip: '#f3f4f5', hero: '#f3f4f5',
+} as const;
+
+export const modernShowroomPalette = {
   primary: '#14233b', accent: '#173f8a', accentDark: '#12346f',
   tint: '#eef3f8', background: '#ffffff', surface: '#ffffff',
   border: '#ced9e7', muted: '#57667b', controlBorder: '#8291a5',
@@ -40,11 +46,13 @@ export const graphitePalette = {
 } as const;
 
 /** Presentation only: no saved brand, permissions, invoice or tenant changes. */
-export function multiCustomerThemeVariables(theme?: 'showroom-navy' | 'graphite'): Record<string, string> {
+export function multiCustomerThemeVariables(theme?: 'showroom-navy' | 'graphite' | 'modern-showroom'): Record<string, string> {
+  const modern = theme === 'modern-showroom';
   const graphite = theme === 'graphite';
+  const refinedFonts = graphite || modern;
   const showroomNavy = theme === 'showroom-navy';
-  const refined = showroomNavy || graphite;
-  const p = graphite ? graphitePalette : showroomNavy ? showroomNavyPalette : multiCustomerPalette;
+  const refined = showroomNavy || refinedFonts;
+  const p = modern ? modernShowroomPalette : graphite ? graphitePalette : showroomNavy ? showroomNavyPalette : multiCustomerPalette;
   const action = refined ? p.accent : p.primary;
   const accent = refined ? p.accent : p.accentDark;
   const variables = customerThemeVariables({
@@ -68,23 +76,26 @@ export function multiCustomerThemeVariables(theme?: 'showroom-navy' | 'graphite'
     variables['--dealer-page-input-hsl'] = input;
     variables['--dealer-panel-input-hsl'] = input;
     variables['--input'] = input;
-    variables['--mh-hero-bg'] = graphite ? graphitePalette.hero : showroomNavyPalette.hero;
+    variables['--mh-hero-bg'] = modern ? modernShowroomPalette.hero : graphite ? graphitePalette.hero : showroomNavyPalette.hero;
     variables['--dealer-whatsapp-icon'] = '#111b21';
     variables['--contact'] = hexColourToHsl(action);
     variables['--customer-positive'] = p.accent;
     variables['--customer-positive-soft'] = p.tint;
     variables['--customer-positive-border'] = p.border;
   }
+  const uiFont = modern ? "'DM Sans', Arial, sans-serif" : graphite ? "'Manrope', Arial, sans-serif" : "'Multi Montserrat', Arial, sans-serif";
+  const headingFont = modern ? "'Outfit', Arial, sans-serif" : uiFont;
   return {
     ...variables,
-    ...(graphite ? { '--ct-font-ui': "'DM Sans', Arial, sans-serif", '--ct-font-heading': "'Outfit', Arial, sans-serif",
+    ...(refinedFonts ? { '--ct-font-ui': uiFont, '--ct-font-heading': headingFont } : {}),
+    ...(modern ? {
       '--customer-footer-background': p.tint, '--customer-footer-background-hsl': hexColourToHsl(p.tint),
       '--customer-footer-foreground': p.primary, '--customer-footer-foreground-hsl': hexColourToHsl(p.primary),
       '--customer-footer-muted': p.muted, '--customer-footer-muted-hsl': hexColourToHsl(p.muted),
     } : {}),
-    '--app-font-sans': graphite ? "'DM Sans', Arial, sans-serif" : "'Multi Montserrat', Arial, sans-serif",
-    '--font-display': graphite ? "'Outfit', Arial, sans-serif" : "'Multi Montserrat', Arial, sans-serif",
-    '--font-body': graphite ? "'DM Sans', Arial, sans-serif" : "'Multi Montserrat', Arial, sans-serif",
+    '--app-font-sans': uiFont,
+    '--font-display': headingFont,
+    '--font-body': uiFont,
     '--dealer-primary': hexColourToHsl(action),
     '--dealer-primary-foreground': '0 0% 100%',
     '--dealer-accent': hexColourToHsl(accent),
@@ -112,9 +123,9 @@ export function multiCustomerThemeVariables(theme?: 'showroom-navy' | 'graphite'
     '--mh-radius': '8px',
     '--mh-radius-panel': '8px',
     '--mh-radius-control': '4px',
-    '--mh-weight-heading': graphite ? '500' : '700',
+    '--mh-weight-heading': modern ? '500' : graphite ? '600' : '700',
     '--mh-weight-label': '600',
-    '--mh-weight-price': graphite ? '500' : '800',
+    '--mh-weight-price': modern ? '500' : graphite ? '600' : '800',
     '--mh-overlay': 'rgb(25 42 54 / .3)',
     '--mh-shadow-sm': '0 1px 2px rgb(0 0 0 / 5%)',
     '--mh-shadow-md': '0 4px 6px -1px rgb(0 0 0 / 10%), 0 2px 4px -2px rgb(0 0 0 / 10%)',

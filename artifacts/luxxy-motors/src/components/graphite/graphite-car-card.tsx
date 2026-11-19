@@ -23,7 +23,7 @@ import './graphite-car-card.css';
 export type GraphiteCompareAction = { selected: boolean; disabled: boolean; onToggle: () => void };
 
 /** Real vehicle data and shared retail controls in the approved Graphite card. */
-export function GraphiteCarCard({ car, priority = false, layout = 'card', compareAction, source = 'showroom', photoControls = true, imageSizes: suppliedImageSizes }: {
+export function GraphiteCarCard({ car, priority = false, layout = 'card', compareAction, source = 'showroom', photoControls = true, imageSizes: suppliedImageSizes, expandedByDefault = false }: {
   car: Car;
   priority?: boolean;
   layout?: 'card' | 'compact';
@@ -31,6 +31,7 @@ export function GraphiteCarCard({ car, priority = false, layout = 'card', compar
   source?: 'stock' | 'showroom' | 'similar_cars';
   photoControls?: boolean;
   imageSizes?: string;
+  expandedByDefault?: boolean;
 }) {
   const images = useMemo(() => {
     const result: string[] = [];
@@ -118,7 +119,7 @@ export function GraphiteCarCard({ car, priority = false, layout = 'card', compar
       {facts.length > 0 && <dl className="gr-card-facts" aria-label="Vehicle specifications">
         {facts.map(fact => <div key={fact.label}><dt>{fact.label}</dt><dd><VehicleTerm label={fact.label} value={fact.value} ariaLabel={`${fact.label}: ${fact.value}`}>{fact.value}</VehicleTerm></dd></div>)}
       </dl>}
-      {hasChecks && <details className="gr-card-checks"><summary>Checks &amp; details</summary><VehicleSellingPoints car={car} omitMileage />{features.length > 0 && <ul className="gr-card-equipment" aria-label="Key features">{features.map(feature => <li key={feature}>{feature}</li>)}</ul>}</details>}
+      {hasChecks && <details open={expandedByDefault || undefined} className="gr-card-checks"><summary>Checks &amp; details</summary><VehicleSellingPoints car={car} omitMileage />{features.length > 0 && <ul className="gr-card-equipment" aria-label="Key features">{features.map(feature => <li key={feature}>{feature}</li>)}</ul>}</details>}
       <div className="gr-card-actions" data-testid={layout === 'compact' ? `compact-actions-${car.id}` : undefined}>
         <Link href={href} onClick={onOpen} className="gr-card-view">View car <img src="/brand/graphite/icon-arrow-right.svg" width={24} height={24} alt="" aria-hidden="true" /></Link>
         <span className="gr-card-save-wrap"><img src="/brand/graphite/icon-heart.svg" width={24} height={24} alt="" aria-hidden="true" /><SaveCarButton car={car} variant="inline" /></span>

@@ -1,8 +1,8 @@
 import { useId, useState } from "react";
 
 /** Keep the full advert available without a long initial wall of text. */
-export function VehicleDescription({ paragraphs }: { paragraphs: string[] }) {
-  const [expanded, setExpanded] = useState(false);
+export function VehicleDescription({ paragraphs, expandedByDefault = false }: { paragraphs: string[]; expandedByDefault?: boolean }) {
+  const [expanded, setExpanded] = useState(expandedByDefault);
   const id = useId();
   const canCollapse = paragraphs.join(" ").length > 280;
   return <>
