@@ -269,3 +269,77 @@
   .graphite-site .gr-home-car--featured .gr-home-car-caption { grid-template-columns: minmax(0,1fr); }
   .graphite-site .gr-home-car--featured .gr-home-car-price { text-align: left; }
 }
+
+/* Keep the featured car and caption together in the first view. */
+@media (min-width: 1000px) {
+  .graphite-site .gr-home {
+    --gr-opening-photo-width: clamp(264px, calc((100svh - 410px) * 4 / 3), 864px);
+  }
+  .graphite-site .gr-home-intro-inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(200px, 290px);
+    align-items: end;
+    gap: 14px 24px;
+    padding-block: 20px 16px;
+  }
+  .graphite-site .gr-home-welcome { padding-bottom: 4px; }
+  .graphite-site .gr-home-intro-inner > :not(h1, .gr-home-welcome) { grid-column: 1 / -1; }
+  .graphite-site .gr-home-selection {
+    grid-template-columns: minmax(0, min(58%, var(--gr-opening-photo-width))) minmax(0, 1fr);
+    gap: 20px 24px;
+  }
+  .graphite-site .gr-home-selection--single { grid-template-columns: minmax(0, 1fr); }
+  .graphite-site .gr-home-selection--single > .gr-home-car--featured {
+    max-width: min(100%, var(--gr-opening-photo-width));
+    justify-self: start;
+  }
+  .graphite-site .gr-home-secondary-stock {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+  .graphite-site .gr-home-secondary-stock .gr-home-car-caption { gap: 4px 8px; }
+  .graphite-site .gr-home .gr-home-secondary-stock .gr-home-car h3,
+  .graphite-site .gr-home-secondary-stock .gr-home-car-price p { font-size: clamp(16px, 1.45vw, 21px); }
+  .graphite-site .gr-home-car--featured .gr-home-car-caption { gap: 8px 16px; padding: 14px 20px; }
+  .graphite-site .gr-home-car--featured .gr-home-car-variant { margin-top: 4px; }
+}
+
+@media (min-width: 701px) and (max-width: 999px) {
+  .graphite-site .gr-home-selection > .gr-home-car--featured {
+    width: min(100%, clamp(264px, calc((100svh - 420px) * 4 / 3), 864px));
+    justify-self: center;
+  }
+}
+
+@media (min-width: 1200px) and (min-height: 820px) {
+  .graphite-site .gr-home-secondary-stock { grid-template-columns: minmax(0, 1fr); }
+  .graphite-site .gr-home-secondary-stock .gr-home-car {
+    display: grid;
+    grid-template-columns: minmax(0, min(54%, calc((100svh - 350px) * 2 / 3))) minmax(0, 1fr);
+    align-items: center;
+    background: var(--gr-silver);
+  }
+  .graphite-site .gr-home-secondary-stock .gr-home-car-caption {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 16px;
+  }
+  .graphite-site .gr-home-secondary-stock .gr-home-car-price { text-align: left; }
+}
+
+@media (max-width: 700px) {
+  .graphite-site .gr-home-car--featured .gr-home-car-photo-link,
+  .graphite-site .gr-home-car--featured .gr-home-car-photo-link > :is(div, span) {
+    height: min(75vw, clamp(145px, calc(100svh - 450px), 465px));
+    aspect-ratio: auto;
+  }
+  .graphite-site .gr-home-car--featured .gr-home-car-caption {
+    gap: 6px 12px;
+    padding-block: 10px;
+  }
+  .graphite-site .gr-home-car--featured .gr-home-car-variant { margin-top: 4px; }
+}
+
+@media (max-width: 700px) and (max-height: 740px) {
+  .graphite-site .gr-home-intro-inner { gap: 12px; padding-block: 14px; }
+}
