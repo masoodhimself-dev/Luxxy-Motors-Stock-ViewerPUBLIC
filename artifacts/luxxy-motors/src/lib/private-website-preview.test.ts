@@ -18,5 +18,6 @@ it('preserves ordinary private demos and does not interpret public query paramet
   expect(privateWebsitePreviewDetails('/platform/preview/demo-one')).toEqual({ dealerId: 'demo-one', template: null, revision: null });
   expect(privateWebsitePreviewBase('/stock?template=forecourt')).toBe('');
   expect(privateWebsitePreviewBase('/portal')).toBe('');
+  expect(privateWebsitePreviewBase('/platform/preview/demo-one/template/autodeal/3/stock')).toBe('/platform/preview/demo-one/template/autodeal/3');
   expect(privateWebsitePreviewDetails('/stock')).toBeNull();
 });

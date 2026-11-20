@@ -199,6 +199,16 @@ afterEach(() => {
 });
 
 describe("Multi-Choice stock controls", () => {
+  it("shows an exact year as a removable filter", () => {
+    setWidth(1200);
+    render(<Harness initial={{ year: "2020" }} cars={[{ ...stock[0], year: 2020 }]} />);
+    const year = screen.getByRole("button", { name: "Remove year filter" });
+    expect(year).toHaveTextContent("Year: 2020");
+    fireEvent.click(year);
+    expect(state().year).toBe("");
+    expect(screen.queryByRole("button", { name: "Remove year filter" })).not.toBeInTheDocument();
+  });
+
   it('keeps toolbar filters usable on desktop and through resizing without duplicating the sidebar', async () => {
     setWidth(1200); const patch = vi.fn();
     render(<Harness presentation="toolbar" patch={patch}/>);

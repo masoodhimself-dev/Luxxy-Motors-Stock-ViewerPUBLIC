@@ -112,6 +112,29 @@ it('uses photographs to follow only when no photographs were supplied', () => {
   expect(screen.queryByRole('button', { name: /Try photos/ })).not.toBeInTheDocument();
 });
 
+it('keeps Apex photo controls separate from the retry message when a photo fails', async () => {
+  const images = ['one', 'two', 'three'].map(name => `https://example.com/apex-${name}.jpg`);
+  const { container } = render(<Gallery customerView inlinePresentation="autodeal" images={images} />);
+  const next = screen.getByRole('button', { name: 'Next photograph' });
+  next.focus();
+  fireEvent.click(next);
+  const failed = await waitFor(() => {
+    const image = container.querySelector<HTMLImageElement>(`.gallery-photo[src="${images[1]}"]`);
+    expect(image).not.toBeNull();
+    return image!;
+  });
+  fireEvent.error(failed);
+  if (failed.isConnected) fireEvent.error(failed);
+
+  const media = container.querySelector('.vehicle-gallery-media');
+  expect(media).toContainElement(next);
+  expect(media).toContainElement(screen.getByRole('button', { name: 'View all 2 photos' }));
+  expect(media).not.toContainElement(screen.getByRole('button', { name: 'Retry photos' }));
+  expect(next).toHaveFocus();
+  fireEvent.click(screen.getByRole('button', { name: 'Retry photos' }));
+  expect(screen.getByText('1 / 3')).toBeInTheDocument();
+});
+
 const labelledPhotos = [
   { url: 'https://example.com/front.jpg', caption: 'Front right' },
   { url: 'https://example.com/seats.jpg', caption: 'Interior seats' },

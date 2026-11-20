@@ -27,6 +27,19 @@ beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(now); });
 afterEach(() => { vi.useRealTimers(); });
 
 describe('vehicle enquiry context', () => {
+  it('shows the registration in the compact recap and folds secondary car details', () => {
+    render(<VehicleEnquiryInformation car={car()} motHistory={history()} requestMotHistory={vi.fn()} dealer={dealer()}
+      includedItems={['6 months warranty', 'Delivery available at additional cost']} compact detailsOpenByDefault={false} />);
+    const panel = screen.getByRole('complementary', { name: 'Ford Focus' });
+    expect(within(panel).getByText('AB12 CDE')).toBeVisible();
+    expect(within(panel).getByText('£5,490')).toBeVisible();
+    expect(within(panel).getByText('42,000 miles')).toBeVisible();
+    expect(within(panel).getByText('6 months warranty')).toBeVisible();
+    expect(within(panel).getByText('Car details').closest('details')).not.toHaveAttribute('open');
+    expect(within(panel).getByText('Buying options').closest('details')).not.toHaveAttribute('open');
+    expect(within(panel).getByTestId('enquiry-vehicle-mot')).toHaveTextContent('MOT expires2 October 2027');
+  });
+
   it('shows the selected car, readable facts, current MOT and decorative icons', () => {
     const request = vi.fn();
     render(<VehicleEnquiryInformation car={car()} motHistory={history()} requestMotHistory={request} dealer={dealer()} includedItems={[]} />);

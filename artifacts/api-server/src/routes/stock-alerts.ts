@@ -19,7 +19,7 @@ const field = z.string().max(500).optional();
 const criteriaSchema = z.object({
   make: field, model: field, minPrice: field, maxPrice: field, fuel: field,
   transmission: field, bodyType: field, search: z.string().max(200).optional(),
-  ulez: z.boolean().optional(), colour: field, engine: field, seats: field, mileage: field,
+  ulez: z.boolean().optional(), colour: field, engine: field, seats: field, mileage: field, year: field,
 });
 const signupSchema = z.object({ email: z.string().trim().email().max(254), filters: criteriaSchema });
 const tokenSchema = z.object({ token: z.string().max(80) });

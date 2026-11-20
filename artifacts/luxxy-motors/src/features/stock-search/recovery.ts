@@ -30,6 +30,7 @@ export function stockRecoverySuggestions(cars: Car[], filters: StockFilters) {
     ["engine", "Any engine size"],
     ["seats", "Any seats"],
     ["mileage", "Any mileage"],
+    ["year", "Any year"],
   ] as const;
   choices.forEach(([key, label]) => {
     if (filters[key])

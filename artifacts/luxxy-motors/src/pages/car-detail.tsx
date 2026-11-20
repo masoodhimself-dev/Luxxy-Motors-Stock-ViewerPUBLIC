@@ -64,6 +64,7 @@ import { PageHeading } from '@/components/page-ui';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { isModernShowroom, selectedWebsiteTemplate } from '@/lib/website-template';
 import { CustomerTemplateVehicle } from '@/components/website-templates/vehicle-template';
+import { AutoDealVehicle } from '@/components/website-templates/autodeal-vehicle';
 import { GrandTouringVehicleContent } from '@/components/website-templates/grand-touring-vehicle';
 import { GraphiteVehicle, GraphiteVehicleContent, GraphiteVehicleHistory } from '@/components/graphite/graphite-vehicle';
 import { ModernShowroomVehicle, ModernShowroomVehicleContent } from '@/components/modern-showroom/modern-showroom-vehicle';
@@ -81,6 +82,8 @@ import { navigateToHomeTarget } from '@/lib/home-navigation';
 import { vehicleInsuranceDisclosure } from '@/lib/vehicle-history';
 import { MakeLogo } from '@/components/make-logo';
 import { getMakeLogoSrc } from '@/lib/make-logo';
+import { dealershipLocation } from '@/lib/dealership-location';
+import { formatRegistrationPlate } from '@/lib/registration-display';
 import '@/components/public-vehicle-make-logo.css';
 
 
@@ -134,7 +137,9 @@ export default function CarDetail() {
   const isGraphite = websiteTemplate === null;
   const modernShowroom = isModernShowroom(dealerConfig.presentation);
   const vehiclePhoneLayout = useIsMobile(761);
-  const quietVehicle = isGraphite || websiteTemplate === 'grand-touring';
+  const grandTouring = websiteTemplate === 'grand-touring';
+  const autoDeal = websiteTemplate === 'autodeal';
+  const quietVehicle = isGraphite || grandTouring || autoDeal;
   const comparisonEnabled = modernShowroom && dealerConfig.presentation?.comparisonEnabled === true;
   const comparison = useComparisonSelection(stock?.cars ?? (car ? [car] : []), comparisonEnabled);
   const comparisonShare = useShortlistShare();
@@ -232,7 +237,7 @@ export default function CarDetail() {
   const vehicleLabel = vehicleDisplayTitle(car);
   const vehicleTrim = suppliedVehicleDetail(car.variant) || suppliedVehicleDetail(car.trim);
   const stockStatus = vehicleAvailability(car.inventoryStatus);
-  const showMakeLogo = Boolean(getMakeLogoSrc(car.make));
+  const showMakeLogo = !autoDeal && Boolean(getMakeLogoSrc(car.make));
   const vehicleRunningCostFacts = getVehicleRunningCosts(car);
   const sourceReport = readVehicleSourceReport(car);
   const originalAdvertDescriptions = Array.isArray(car.sourceExtras?.originalAdvertDescriptions)
@@ -324,7 +329,7 @@ export default function CarDetail() {
   const registrationDetails = registration && (
     <dl className="vehicle-registration">
       <dt>Registration</dt>
-      <dd><UKNumberPlate value={registration} variant="front" size="sm" testId={`plate-vehicle-${car.id}`} /></dd>
+      <dd>{autoDeal ? formatRegistrationPlate(registration) : <UKNumberPlate value={registration} variant="front" size="sm" testId={`plate-vehicle-${car.id}`} />}</dd>
     </dl>
   );
   return <VehicleQuickChecks key={car.id} vehicleId={car.id} vehiclePrice={car.price} currency={car.currency} priceType={car.priceType} onEnquire={enquiriesEnabled ? openVehicleEnquiry : undefined}>
@@ -349,7 +354,7 @@ export default function CarDetail() {
             {vehicleTrim && <p>{vehicleTrim}</p>}
           </header>;
   const templateGallery = <div className="vehicle-detail-gallery min-w-0">
-            <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} customerView hideInlineThumbnails inlinePresentation={modernShowroom ? 'showroom-rail' : quietVehicle ? 'showroom' : 'standard'} customerActions={{
+            <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} customerView hideInlineThumbnails inlinePresentation={autoDeal ? 'autodeal' : modernShowroom ? 'showroom-rail' : quietVehicle ? 'showroom' : 'standard'} customerActions={{
               enquiryHref: customerFeatures.enabled('publicEnquiries') ? '#vehicle-enquiry' : undefined,
               onEnquiry: customerFeatures.enabled('publicEnquiries') ? () => openVehicleEnquiry() : undefined,
             }} />
@@ -358,7 +363,7 @@ export default function CarDetail() {
               {stockStatus !== 'Available' && (
                 <p className="vehicle-stock-status">{stockStatus}</p>
               )}
-              <p className="vehicle-price-caption">Vehicle price</p>
+              {!autoDeal && <p className="vehicle-price-caption">Vehicle price</p>}
               <p className={`luxxy-price${car.price ? '' : ' is-price-on-application'}`}>{car.price ? formatPrice(car.price, car.currency) : 'Price on application'}</p>
               {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <p className="text-sm text-muted-foreground">{car.priceType}</p>}
               <PriceReduction car={car} showRecordedDate />
@@ -368,7 +373,7 @@ export default function CarDetail() {
               {keyFacts.map((fact) => (
                 <div key={fact.label}>
                   <dt className="flex items-center gap-2 text-xs text-muted-foreground">
-                    {isGraphite || websiteTemplate === 'grand-touring' ? fact.label : <VehicleTerm label={fact.label} value={fact.value}><VehicleFactIcon label={fact.label} value={fact.value} />{fact.label}</VehicleTerm>}
+                    {quietVehicle ? fact.label : <VehicleTerm label={fact.label} value={fact.value}><VehicleFactIcon label={fact.label} value={fact.value} />{fact.label}</VehicleTerm>}
                   </dt>
                   <dd className="mt-1 text-sm font-medium" data-testid={fact.testId}>
                     {fact.value}
@@ -390,16 +395,25 @@ export default function CarDetail() {
     }}>Compare</button>}
     {comparisonNotice && <p className="gr-vehicle-comparison-notice" role="status">{comparisonNotice} <Link href="/stock">View stock</Link></p>}
   </div>;
+  const autoDealAddress = autoDeal ? dealershipLocation(dealerConfig.address) : undefined;
   const templateActions = <div className="vehicle-action-area" data-testid="desktop-purchase-panel">
+            {autoDeal && <div className="ad-vehicle__seller">
+              <h2>{dealerConfig.identity.name}</h2>
+              {autoDealAddress && !autoDealAddress.isSample && autoDealAddress.lines.length > 0 && <p>{autoDealAddress.lines.join(', ')}</p>}
+            </div>}
             {!quietVehicle && bookingAction}
             {modernShowroom && <><h2>Interested in this car?</h2><p>Ask a question or arrange a time to see it.</p>{enquiriesEnabled && <button type="button" className="gr-button gr-vehicle-contact-enquire" onClick={() => openVehicleEnquiry()}>Enquire about this car</button>}</>}
-            {!modernShowroom && enquiryAction && <div className="vehicle-primary-actions vehicle-summary-main-actions">{enquiryAction}</div>}
-            {quietVehicle && !modernShowroom && bookingAction}
+            {autoDeal ? (enquiryAction || bookingAction) && <div className="ad-vehicle__primary-actions">{enquiryAction}{bookingAction}</div> : !modernShowroom && enquiryAction && <div className="vehicle-primary-actions vehicle-summary-main-actions">{enquiryAction}</div>}
+            {quietVehicle && !modernShowroom && !autoDeal && bookingAction}
             {modernShowroom && !vehiclePhoneLayout && bookingAction}
             <div className="vehicle-action-tools" aria-label="Contact and share">
               <VehicleCall car={car} buttonLabel="Call" />
               <VehicleWhatsApp car={car} />
-              {!modernShowroom && <><VehicleShare key={car.id} car={car} /><SaveCarButton car={car} variant="inline" className="vehicle-save-control border-transparent bg-transparent" /></>}
+              {!modernShowroom && <>
+                {!autoDeal && <VehicleShare key={car.id} car={car} />}
+                <SaveCarButton car={car} variant="inline" className="vehicle-save-control border-transparent bg-transparent" />
+                {autoDeal && <VehicleShare key={car.id} car={car} />}
+              </>}
             </div>
             {(dealerConfig.partExchange?.enabled || deliveryAction) && <details open={modernShowroom || undefined} className="vehicle-buying-options">
               <summary>{dealerConfig.partExchange?.enabled ? deliveryAction ? 'Part exchange & delivery' : 'Part exchange' : 'Delivery'}<ChevronDown size={17} /></summary>
@@ -408,7 +422,7 @@ export default function CarDetail() {
                 {deliveryAction}
               </div>
             </details>}
-            {dealerConfig.identity.name?.trim() && <div className="vehicle-seller">
+            {!autoDeal && dealerConfig.identity.name?.trim() && <div className="vehicle-seller">
               <strong>{dealerConfig.identity.name}</strong>
               {dealerLocation && <span>{dealerLocation}</span>}
               <a href="#vehicle-visit-delivery">Showroom details <ArrowRight size={15} aria-hidden="true" /></a>
@@ -419,6 +433,7 @@ export default function CarDetail() {
   const informationNavigation = (
           <nav aria-label="Vehicle information sections" className="vehicle-section-nav">
             {hasOverview && <a href="#vehicle-overview-section">Overview</a>}
+            {autoDeal && hasSpecifications && <a href="#vehicle-overview-heading">Specifications</a>}
             {features.length > 0 && <a href="#features-heading">Equipment</a>}
             {showQualityChecks && !modernShowroom && <a href="#vehicle-quality-checks">Checks</a>}
             <a href="#vehicle-history-section">{isGraphite ? 'MOT & history' : 'History'}</a>
@@ -437,7 +452,7 @@ export default function CarDetail() {
                 {websiteText(dealerConfig, "vehicleDescriptionHeading")}
               </h2>
               <div className="vehicle-description-copy mt-4 space-y-4 text-base leading-7 text-foreground">
-                <VehicleDescription expandedByDefault={modernShowroom} key={car.id} paragraphs={vehicleDescriptionParagraphs(description)} />
+                <VehicleDescription expandedByDefault={modernShowroom || autoDeal} key={car.id} paragraphs={vehicleDescriptionParagraphs(description)} />
                 {separateDescriptionNotes && <aside className="rounded-lg border border-border bg-muted/40 p-4 text-sm leading-6" aria-label="Vehicle history and important information"><h3 className="mb-2 font-semibold text-foreground">Vehicle history & important information</h3>{(car.sourceExtras!.vehicleDescriptionDisclosures as unknown[]).filter((note): note is string => typeof note === 'string').map(note => <p key={note} className="whitespace-pre-line">{note}</p>)}</aside>}
                 {typeof car.sourceExtras?.vehicleDescriptionTax === 'string' && <aside className="rounded-lg border border-border p-4 text-sm leading-6" aria-label="Vehicle tax information"><h3 className="mb-2 font-semibold">Vehicle tax</h3><p>{car.sourceExtras.vehicleDescriptionTax}</p><a href="https://www.gov.uk/vehicle-tax-direct-debit/setting-up" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center underline">About DVLA Direct Debit payments</a></aside>}
 
@@ -449,7 +464,7 @@ export default function CarDetail() {
               <h2 id="vehicle-included-heading" className="section-heading">What’s included</h2>
               <ul>{includedItems.map(item => <li key={item}>{item}</li>)}</ul>
             </section>}
-            {(hasSpecifications || vehicleRunningCostFacts.length > 0) && <details open={modernShowroom || undefined} className="vehicle-technical-disclosure">
+            {(hasSpecifications || vehicleRunningCostFacts.length > 0) && <details open={modernShowroom || autoDeal || undefined} className="vehicle-technical-disclosure">
               <summary>Specifications &amp; running costs</summary>
           {(hasSpecifications || vehicleRunningCostFacts.length > 0) && <div className="vehicle-information-row vehicle-technical-row">
             {hasSpecifications && <section
@@ -569,13 +584,15 @@ export default function CarDetail() {
     requestMotHistory={requestMotHistory}
     dealer={settingsLoading || settingsError ? undefined : dealerConfig}
     includedItems={includedItems}
-    compact={modernShowroom}
+    compact={modernShowroom || autoDeal}
+    detailsOpenByDefault={!autoDeal}
   />;
 
   const GraphiteFamilyVehicle = modernShowroom ? ModernShowroomVehicle : GraphiteVehicle;
+  const vehicleContainer = autoDeal ? 'ad-container' : isGraphite ? 'gr-container' : grandTouring ? 'gt-vehicle-container' : 'container mx-auto px-4 sm:px-6 lg:px-8';
   return (
-    <div className={isGraphite ? 'vehicle-page gr-vehicle-page min-h-screen' : websiteTemplate === 'grand-touring' ? 'vehicle-page gt-vehicle-page min-h-screen' : 'vehicle-page vehicle-redesigned vehicle-page-streamlined vehicle-page-enter luxxy-shell min-h-screen'}>
-      <div className={isGraphite ? 'gr-container' : websiteTemplate === 'grand-touring' ? 'gt-vehicle-container' : 'container mx-auto px-4 sm:px-6 lg:px-8'}>
+    <div className={autoDeal ? 'vehicle-page ad-vehicle-page min-h-screen' : isGraphite ? 'vehicle-page gr-vehicle-page min-h-screen' : grandTouring ? 'vehicle-page gt-vehicle-page min-h-screen' : 'vehicle-page vehicle-redesigned vehicle-page-streamlined vehicle-page-enter luxxy-shell min-h-screen'}>
+      <div className={vehicleContainer}>
         <div className="vehicle-browse-tools flex items-center">
           <Link href={fromStock ? browseReturnHref() : fromSaved ? '/saved' : '/stock'} onClick={event => {
             if (fromStock && event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) requestBrowseRestore();
@@ -584,14 +601,26 @@ export default function CarDetail() {
             {fromStock ? 'Back to your results' : fromSaved ? 'Back to saved cars' : 'Back to stock'}
           </Link>
         </div>
-        {websiteTemplate ? <CustomerTemplateVehicle template={websiteTemplate} car={car} identity={templateIdentity} gallery={templateGallery} price={templatePrice} registration={registrationDetails} facts={templateFacts} mot={templateMot} actions={templateActions} highlights={templateHighlights} reservation={<ReserveCar key={car.id} car={car}/>} photoRequest={enquiriesEnabled && <VehiclePhotoRequest key={`photos-${car.id}`} onRequest={openVehicleEnquiry}/>} onEnquiry={enquiriesEnabled ? openVehicleEnquiry : undefined}/> : <GraphiteFamilyVehicle identity={templateIdentity} gallery={templateGallery} price={templatePrice} tools={graphiteTools} primaryAction={enquiryAction} bookingAction={vehiclePhoneLayout ? bookingAction : null} registration={registrationDetails} facts={templateFacts} mot={templateMot} actions={templateActions} highlights={templateHighlights} sparse={sparseSummary} reservation={<ReserveCar key={car.id} car={car}/>} photoRequest={enquiriesEnabled && <VehiclePhotoRequest key={`photos-${car.id}`} onRequest={openVehicleEnquiry}/>}/> }
-        {modernShowroom ? <ModernShowroomVehicleContent navigation={informationNavigation} contact={templateActions}>{informationSections}</ModernShowroomVehicleContent> : isGraphite ? <GraphiteVehicleContent navigation={informationNavigation}>{informationSections}</GraphiteVehicleContent> : websiteTemplate === 'grand-touring' ? <GrandTouringVehicleContent navigation={informationNavigation}>{informationSections}</GrandTouringVehicleContent> : <div className="vehicle-details-content min-w-0">{informationNavigation}{informationSections}</div>}
+        {autoDeal ? <AutoDealVehicle
+          identity={templateIdentity}
+          keyDetails={keyFacts.filter(fact => ['Year', 'Mileage', 'Fuel', 'Transmission'].includes(fact.label)).map(fact => fact.value)}
+          facts={templateFacts}
+          gallery={templateGallery}
+          price={templatePrice}
+          registration={registrationDetails}
+          mot={templateMot}
+          actions={templateActions}
+          reservation={<ReserveCar key={car.id} car={car} />}
+          navigation={informationNavigation}
+          photoRequest={enquiriesEnabled && <VehiclePhotoRequest key={`photos-${car.id}`} onRequest={openVehicleEnquiry} />}
+        >{informationSections}</AutoDealVehicle> : websiteTemplate ? <CustomerTemplateVehicle template={websiteTemplate} car={car} identity={templateIdentity} gallery={templateGallery} price={templatePrice} registration={registrationDetails} facts={templateFacts} mot={templateMot} actions={templateActions} highlights={templateHighlights} reservation={<ReserveCar key={car.id} car={car}/>} photoRequest={enquiriesEnabled && <VehiclePhotoRequest key={`photos-${car.id}`} onRequest={openVehicleEnquiry}/>} onEnquiry={enquiriesEnabled ? openVehicleEnquiry : undefined}/> : <GraphiteFamilyVehicle identity={templateIdentity} gallery={templateGallery} price={templatePrice} tools={graphiteTools} primaryAction={enquiryAction} bookingAction={vehiclePhoneLayout ? bookingAction : null} registration={registrationDetails} facts={templateFacts} mot={templateMot} actions={templateActions} highlights={templateHighlights} sparse={sparseSummary} reservation={<ReserveCar key={car.id} car={car}/>} photoRequest={enquiriesEnabled && <VehiclePhotoRequest key={`photos-${car.id}`} onRequest={openVehicleEnquiry}/>}/> }
+        {!autoDeal && (modernShowroom ? <ModernShowroomVehicleContent navigation={informationNavigation} contact={templateActions}>{informationSections}</ModernShowroomVehicleContent> : isGraphite ? <GraphiteVehicleContent navigation={informationNavigation}>{informationSections}</GraphiteVehicleContent> : grandTouring ? <GrandTouringVehicleContent navigation={informationNavigation}>{informationSections}</GrandTouringVehicleContent> : <div className="vehicle-details-content min-w-0">{informationNavigation}{informationSections}</div>)}
         {enquiriesEnabled && <details id="vehicle-enquiry" className="vehicle-inline-enquiry vehicle-message-disclosure" open={enquiryExpanded} onToggle={event => setEnquiryExpanded(event.currentTarget.open)}>
-          <summary><h2 id="vehicle-enquiry-heading" tabIndex={-1} className="section-heading">{quietVehicle ? 'Ask about this car' : 'Message the showroom'}</h2>{!modernShowroom && <span className="vehicle-enquiry-intro">Ask a question about this {vehicleLabel}</span>}{modernShowroom && <span className="gr-vehicle-enquiry-toggle">{enquiryExpanded ? 'Close message' : 'Write a message'}<GraphiteIcon name="chevron-down" /></span>}</summary>
+          <summary><h2 id="vehicle-enquiry-heading" tabIndex={-1} className="section-heading">{autoDeal ? 'Message the dealership' : quietVehicle ? 'Ask about this car' : 'Message the showroom'}</h2>{!modernShowroom && !autoDeal && <span className="vehicle-enquiry-intro">Ask a question about this {vehicleLabel}</span>}{(modernShowroom || autoDeal) && <span className="gr-vehicle-enquiry-toggle">{enquiryExpanded ? 'Close message' : 'Write a message'}<GraphiteIcon name="chevron-down" /></span>}</summary>
           <div className="vehicle-message-body">
-            {modernShowroom && enquiryInformation}
-            <EnquiryForm key={car.id} vehicle={car} initialType="general" embedded compact={modernShowroom} messageRequest={messageRequest?.vehicleId === car.id ? messageRequest : undefined} />
-            {!modernShowroom && enquiryInformation}
+            {(modernShowroom || autoDeal) && enquiryInformation}
+            <EnquiryForm key={car.id} vehicle={car} initialType="general" embedded compact={modernShowroom || autoDeal} messageRequest={messageRequest?.vehicleId === car.id ? messageRequest : undefined} />
+            {!modernShowroom && !autoDeal && enquiryInformation}
           </div>
         </details>}
       </div>
@@ -601,7 +630,7 @@ export default function CarDetail() {
           className="vehicle-similar-stock section-space border-t border-border bg-secondary/40"
           aria-labelledby="similar-cars-heading"
         >
-          <div className={isGraphite ? 'gr-container' : websiteTemplate === 'grand-touring' ? 'gt-vehicle-container' : 'container mx-auto px-4 sm:px-6 lg:px-8'}>
+          <div className={vehicleContainer}>
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
               <h2 id="similar-cars-heading" className="section-heading">
                 {websiteText(dealerConfig, "vehicleSimilarHeading")}
@@ -634,7 +663,7 @@ export default function CarDetail() {
           </div>
         </section>
       )}
-      {(getPhoneHref(dealerConfig) || enquiryAction) && <nav className="vehicle-mobile-actions" aria-label="Contact about this vehicle">
+      {!autoDeal && (getPhoneHref(dealerConfig) || enquiryAction) && <nav className="vehicle-mobile-actions" aria-label="Contact about this vehicle">
         {getPhoneHref(dealerConfig) && <VehicleCall car={car} buttonLabel="Call" />}
         {enquiryAction && <a href="#vehicle-enquiry" onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); openVehicleEnquiry(); }}><CustomerEnquiry className="h-4 w-4" aria-hidden="true" />{quietVehicle ? 'Ask about this car' : 'Message'}</a>}
       </nav>}

@@ -6,6 +6,7 @@ export type StockFilterPresentation = 'sidebar' | 'toolbar';
 export const LEGACY_STOCK_VIEW_KEY = 'luxxy.stock-view.v1';
 
 const templates = {
+  autodeal: { cardLayout: 'row', filters: 'sidebar', imageSizes: '(max-width: 699px) calc(100vw - 36px), (max-width: 1023px) 35vw, 300px' },
   showroom: { cardLayout: 'card', filters: 'sidebar', imageSizes: '(max-width: 767px) 100vw, (max-width: 1100px) 50vw, 620px' },
   'grand-touring': { cardLayout: 'row', filters: 'toolbar', imageSizes: '(max-width: 767px) 100vw, (max-width: 1100px) 60vw, 800px' },
   forecourt: { cardLayout: 'compact', filters: 'sidebar', imageSizes: '(max-width: 700px) 39vw, (max-width: 1023px) 40vw, 360px' },

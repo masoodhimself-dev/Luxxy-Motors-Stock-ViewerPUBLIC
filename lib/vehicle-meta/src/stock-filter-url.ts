@@ -1,4 +1,5 @@
 import {
+  normaliseStockYear,
   splitStockFacetValues,
   stockEngineGroup,
   stockValueKey,
@@ -57,6 +58,7 @@ export function createStockFilters(): StockFilters {
     engine: "",
     seats: "",
     mileage: "",
+    year: "",
     page: 1,
   };
 }
@@ -91,6 +93,7 @@ export function normaliseStockFilters(
   )
     result.minPrice = "";
   result.mileage = numericText(input.mileage, 5_000_000, true);
+  result.year = normaliseStockYear(input.year);
   result.search =
     typeof input.search === "string" ? input.search.slice(0, 200) : "";
   result.ulez = input.ulez === true;
@@ -117,6 +120,7 @@ export function parseStockFilters(params: URLSearchParams): StockFilters {
     "engine",
     "seats",
     "mileage",
+    "year",
   ] as const)
     input[key] = params.getAll(key).join(",");
   input.search = params.get(params.has("search") ? "search" : "q") ?? "";
@@ -142,6 +146,7 @@ export function serializeStockFilters(filters: StockFilters): URLSearchParams {
     "engine",
     "seats",
     "mileage",
+    "year",
   ] as const) {
     if (current[key]) params.set(key, current[key]!);
   }

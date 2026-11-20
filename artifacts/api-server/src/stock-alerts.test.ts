@@ -76,7 +76,7 @@ test('stock alerts require confirmation, isolate dealers, preserve an active sea
     };
   };
   const buyer = 'driver@example.test';
-  const criteria = { make: 'Toyota', maxPrice: '8000', transmission: 'Automatic' };
+  const criteria = { make: 'Toyota', maxPrice: '8000', transmission: 'Automatic', year: '2020' };
   const subscribe = (filters = criteria) => call('/stock-alerts', { email: buyer, filters });
   const lastToken = () => {
     const url = emails.at(-1)?.text.match(/https:\/\/[^\s]+\/stock-alerts\/confirm#[^\s]+/)?.[0];
@@ -103,6 +103,7 @@ test('stock alerts require confirmation, isolate dealers, preserve an active sea
     assert.equal(pending.items.length, 1);
     assert.equal(pending.items[0].confirmedAt, null);
     assert.match(pending.items[0].label, /£8,000/);
+    assert.match(pending.items[0].label, /Year: 2020/);
     assert.ok(!JSON.stringify(pending).includes(buyer));
     assert.equal((await readRequests('all', 'b')).items.length, 0);
     const first = lastToken();
@@ -127,6 +128,7 @@ test('stock alerts require confirmation, isolate dealers, preserve an active sea
     assert.equal((await call('/stock-alerts/confirm', { token: next })).status, 200);
     const [after] = await db.select().from(stockAlertsTable);
     assert.equal(after.criteria.maxPrice, '10000');
+    assert.equal(after.criteria.year, '2020');
     assert.equal(after.expiresAt!.getTime() - after.confirmedAt!.getTime(), 60 * 24 * 60 * 60_000);
 
     const stopLink = emails.at(-1)?.text.match(/https:\/\/[^\s]+\/stock-alerts\/stop#[^\s]+/)?.[0];

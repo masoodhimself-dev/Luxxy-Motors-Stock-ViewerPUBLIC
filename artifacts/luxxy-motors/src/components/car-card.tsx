@@ -27,12 +27,13 @@ import {
   vehicleRegistration,
 } from '@/lib/utils';
 import { SaveCarButton } from '@/components/saved-car-controls';
-import { ArrowRight, Camera, Check, ChevronLeft, ChevronRight, Scale } from '@/components/icons';
+import { ArrowRight, Camera, Check, ChevronLeft, ChevronRight, MessageSquare, Scale } from '@/components/icons';
 import { trackEvent } from '@/lib/analytics';
 import { MakeLogo } from '@/components/make-logo';
 import { getMakeLogoSrc } from '@/lib/make-logo';
 import './public-vehicle-make-logo.css';
 import { RecommendedCarSummary } from './recommended-car-summary';
+import { VehicleFactIcon } from './vehicle-fact-icon';
 
 
 
@@ -53,6 +54,7 @@ export function CarCard({
   compareAction,
   analyticsSource = 'showroom',
   imageSizes,
+  retailer,
 }: {
   car: Car;
   priority?: boolean;
@@ -69,6 +71,7 @@ export function CarCard({
   compareAction?: { selected: boolean; disabled: boolean; onToggle: () => void };
   analyticsSource?: 'showroom' | 'similar_cars' | 'saved_cars';
   imageSizes?: string;
+  retailer?: { name: string; location?: string; enquiryHref: string };
 }) {
   const displayBadges = [...new Set([vehicleAvailability(car.inventoryStatus), ...badges])];
   const isRow = layout === 'row';
@@ -157,6 +160,7 @@ export function CarCard({
     <article
       className={cn(
         'vehicle-card group flex relative',
+        retailer && 'autodeal-listing',
         savedDetails && 'vehicle-card-saved-details',
         stockDetails && 'stock-details-card',
         recommendationDetails && 'vehicle-card-recommended',
@@ -246,10 +250,11 @@ export function CarCard({
             </button></HoverHelp>
           </div>
         )}
-        {photoControls && <SaveCarButton
+        {photoControls && !retailer && <SaveCarButton
           car={car}
           className="absolute right-3 top-3"
         />}
+        {retailer && registrationYear && <span className="autodeal-listing-year" aria-label={`Year: ${registrationYear}`}>{registrationYear}</span>}
         {photoControls && photoCount > 0 && (
           <span className={cn("pointer-events-none absolute bottom-3 left-3 flex items-center gap-1.5 rounded-sm bg-black/65 px-2 py-1 text-xs text-white", catalogue && "stock-photo-count")}>
             <Camera className="h-3.5 w-3.5" />
@@ -265,15 +270,16 @@ export function CarCard({
       </div>
       <div className={cn('vehicle-card-details flex min-w-0 flex-1 flex-col p-4', isRow && 'md:p-6')}>
         {recommendationDetails ? <RecommendedCarSummary car={car} onOpen={recordVehicleOpen} stretchedLink={stretchedLink} includedItems={recommendationInclusions} /> : <>
-        <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className={cn("flex flex-wrap items-start justify-between gap-2", retailer && 'autodeal-listing-identity')}>
           <div
             className={cn(
               "min-w-0 w-full",
               !isRow && !isCompact && "vehicle-card-heading",
             )}
           >
-            <h3 className={cn("[overflow-wrap:anywhere] font-display text-lg font-semibold leading-snug tracking-tight text-primary", showMakeLogo && 'make-logo-card-heading')}>
-              {showMakeLogo && <MakeLogo make={car.make} size={24} />}
+            {retailer && car.bodyType && <p className="autodeal-listing-category">{car.bodyType}</p>}
+            <h3 className={cn("[overflow-wrap:anywhere] font-display text-lg font-semibold leading-snug tracking-tight text-primary", showMakeLogo && !retailer && 'make-logo-card-heading')}>
+              {showMakeLogo && !retailer && <MakeLogo make={car.make} size={24} />}
               <Link
                 href={detailHref}
                 onClick={recordVehicleOpen}
@@ -287,7 +293,7 @@ export function CarCard({
                 {variant}
               </p>
             )}
-            {registration && <p className="mt-1 text-xs text-muted-foreground">{summaryOnly ? customerRegistrationDetails(car) : <UKNumberPlate value={registration} size="sm" variant="front" showFlag={false} />}</p>}
+            {registration && <p className={cn("mt-1 text-xs text-muted-foreground", retailer && 'autodeal-listing-registration')}>{retailer ? registration : summaryOnly ? customerRegistrationDetails(car) : <UKNumberPlate value={registration} size="sm" variant="front" showFlag={false} />}</p>}
           </div>
         </div>
         <div className="vehicle-card-price mt-2 flex flex-wrap items-baseline gap-2">
@@ -309,18 +315,18 @@ export function CarCard({
               {insuranceDisclosure && <TermHelp text={insuranceDisclosure.explanation}>{insuranceDisclosure.cardLabel}</TermHelp>}
             </div>}
             <div className={cn("vehicle-specs mb-3 mt-2", savedDetails && "saved-car-specs")} aria-label={savedDetails ? 'Vehicle specifications' : undefined}>
-              {visibleSpecs.map((spec) => (
-                <VehicleTerm key={spec.label} label={spec.label} value={spec.value} className="inline-flex min-w-0 items-center gap-1.5 [overflow-wrap:anywhere]" ariaLabel={`${spec.label}: ${spec.value}`}>{savedDetails ? <span><span className="saved-spec-label">{spec.label}</span><span className="saved-spec-value">{spec.value}</span></span> : spec.value}</VehicleTerm>
+              {(retailer ? visibleSpecs.filter(({ label }) => ['Year', 'Mileage', 'Fuel', 'Gearbox'].includes(label)) : visibleSpecs).map((spec) => (
+                <VehicleTerm key={spec.label} label={spec.label} value={spec.value} className={cn("inline-flex min-w-0 items-center gap-1.5 [overflow-wrap:anywhere]", retailer && `autodeal-listing-fact--${spec.label.toLowerCase()}`)} ariaLabel={`${spec.label}: ${spec.value}`}>{savedDetails ? <span><span className="saved-spec-label">{spec.label}</span><span className="saved-spec-value">{spec.value}</span></span> : <>{retailer && <VehicleFactIcon label={spec.label} value={spec.value} className="autodeal-listing-fact-icon" />}{spec.value}</>}</VehicleTerm>
               ))}
             </div>
-            <VehicleSellingPoints car={car} compact omitMileage />
+            {!retailer && <VehicleSellingPoints car={car} compact omitMileage />}
             {savedFeatures.length > 0 && <div className="saved-car-equipment">
               <p className="saved-equipment-heading">Key features</p>
               <ul aria-label="Key features">
                 {savedFeatures.map(feature => <li key={feature}>{feature}</li>)}
               </ul>
             </div>}
-            {stockFeatures.length > 0 && <ul className="stock-card-equipment" aria-label="Key features">
+            {!retailer && stockFeatures.length > 0 && <ul className="stock-card-equipment" aria-label="Key features">
               {stockFeatures.map(feature => <li key={feature} title={feature}>{feature}</li>)}
             </ul>}
             {!stockDetails && !savedDetails && (!catalogue || !hasSellingPoints) && stockHighlights(car).length > 0 && <p className="stock-card-highlights mb-3 text-xs text-muted-foreground">{stockHighlights(car).join(' · ')}</p>}
@@ -333,7 +339,7 @@ export function CarCard({
                 <ArrowRight className="h-4 w-4" />
               </Link>
               {(stockDetails || compareAction) && <div className="vehicle-card-shortlist">
-                {stockDetails && !photoControls && <SaveCarButton car={car} variant="inline" />}
+                {stockDetails && (!photoControls || retailer) && <SaveCarButton car={car} variant="inline" />}
                 {compareAction && <button type="button" className="vehicle-card-compare"
                   aria-label={`Compare ${vehicleLabel}`} aria-pressed={compareAction.selected}
                   disabled={compareAction.disabled} onClick={compareAction.onToggle}>
@@ -347,6 +353,11 @@ export function CarCard({
 
         </>}
       </div>
+      {retailer && <div className="autodeal-listing-dealer">
+        <p>{retailer.name}</p>
+        {retailer.location && <p>{retailer.location}</p>}
+        <Link href={retailer.enquiryHref} className="autodeal-listing-enquire" aria-label={`Enquire about ${vehicleLabel}`}><MessageSquare size={16} aria-hidden="true" />Enquire</Link>
+      </div>}
     </article>
   );
 }

@@ -19,7 +19,7 @@ export interface GalleryProps {
   customerView?: boolean;
   hideInlineThumbnails?: boolean;
   /** Quiet showroom layouts keep the full photo tools in the shared viewer. */
-  inlinePresentation?: 'standard' | 'showroom' | 'showroom-rail';
+  inlinePresentation?: 'standard' | 'showroom' | 'showroom-rail' | 'autodeal';
   /** Select a starting photograph without changing the shared gallery order. */
   initialImageUrl?: string;
   customerActions?: { enquiryHref?: string; onEnquiry?: () => void };
@@ -35,6 +35,7 @@ export function Gallery({
   const reduceMotion = useReducedMotion();
   const showroom = inlinePresentation !== 'standard';
   const rail = inlinePresentation === 'showroom-rail';
+  const autoDeal = inlinePresentation === 'autodeal';
   const [open, setOpen] = useState(false);
   const [overview, setOverview] = useState(false);
   const [zoomScale, setZoomScale] = useState(1);
@@ -294,41 +295,50 @@ export function Gallery({
     </div>
     {rail ? photoArrows : viewAll}
   </div>;
+  const inlineFrame = (
+    <div className="vehicle-gallery-frame">
+      <div
+        className="vehicle-gallery-image-stage relative aspect-[4/3] overflow-hidden rounded-sm bg-muted touch-pan-y touch-pinch-zoom"
+        {...touchHandlers}
+      >
+        {!allImages.length && <p className="flex h-full items-center justify-center text-sm text-muted-foreground">Photographs to follow</p>}
+        {renderImage(
+          index,
+          "gallery-photo absolute inset-0 h-full w-full object-contain",
+          true,
+        )}
+        {allImages.length > 0 && loadedUrl !== activeUrl && <span className="gallery-photo-loading pointer-events-none absolute inset-0 motion-safe:animate-pulse bg-muted"><span className="sr-only" role="status">Loading photo…</span></span>}
+        {allImages.length > 0 && <DialogTrigger asChild>
+          <button
+            type="button"
+            data-gallery-open
+            aria-label="View gallery fullscreen"
+            aria-describedby={customerView && !open ? counterId : undefined}
+            onClick={(event) => { if (swiped.current) { event.preventDefault(); swiped.current = false; } }}
+            className="absolute inset-0 cursor-zoom-in focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+          >
+            <span className="gallery-enlarge-icon" aria-hidden="true"><Maximize2 className="h-5 w-5" /></span>
+          </button>
+        </DialogTrigger>}
+        {rail ? viewAll : !autoDeal && photoArrows}
+        {inlinePresentation === 'showroom' && inlineControls}
+      </div>
+    </div>
+  );
   return (
     <Dialog open={open} onOpenChange={value => {
       setOpen(value);
       if (!value) { setZoomed(false); setOverview(false); swiped.current = false; touchStart.current = null; pinch.current = null; pan.current = null; }
     }}>
       <div className={cn("vehicle-photo-gallery min-w-0", customerView && "is-customer-gallery", showroom && "showroom-inline-gallery")}>
-        <div className="vehicle-gallery-frame">
-        <div
-          className="vehicle-gallery-image-stage relative aspect-[4/3] overflow-hidden rounded-sm bg-muted touch-pan-y touch-pinch-zoom"
-          {...touchHandlers}
-        >
-          {!allImages.length && <p className="flex h-full items-center justify-center text-sm text-muted-foreground">Photographs to follow</p>}
-          {renderImage(
-            index,
-            "gallery-photo absolute inset-0 h-full w-full object-contain",
-            true,
-          )}
-          {allImages.length > 0 && loadedUrl !== activeUrl && <span className="gallery-photo-loading pointer-events-none absolute inset-0 motion-safe:animate-pulse bg-muted"><span className="sr-only" role="status">Loading photo…</span></span>}
-          {allImages.length > 0 && <DialogTrigger asChild>
-            <button
-              type="button"
-              data-gallery-open
-              aria-label="View gallery fullscreen"
-              aria-describedby={customerView && !open ? counterId : undefined}
-              onClick={(event) => { if (swiped.current) { event.preventDefault(); swiped.current = false; } }}
-              className="absolute inset-0 cursor-zoom-in focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-            >
-              <span className="gallery-enlarge-icon" aria-hidden="true"><Maximize2 className="h-5 w-5" /></span>
-            </button>
-          </DialogTrigger>}
-          {rail ? viewAll : photoArrows}
-          {inlinePresentation === 'showroom' && inlineControls}
-        </div>
-        </div>
-        {inlinePresentation !== 'showroom' && inlineControls}
+        {autoDeal ? <div className="vehicle-gallery-media">
+          {inlineFrame}
+          {photoArrows}
+          {inlineControls}
+        </div> : <>
+          {inlineFrame}
+          {inlinePresentation !== 'showroom' && inlineControls}
+        </>}
         {!showroom && imageCaption(allImages[index]) && <details className="vehicle-mobile-photo-details" key={activeUrl}><summary>Photo details</summary><p>{imageCaption(allImages[index])}</p></details>}
         {failedImages.size > 0 && <p className="mt-2 text-xs text-muted-foreground">{failedImages.size} {failedImages.size === 1 ? 'photo couldn’t' : 'photos couldn’t'} be loaded. <button type="button" onClick={retryPhotos} className="min-h-11 px-2 font-medium underline underline-offset-4">Retry photos</button></p>}
         {!showroom && !hideInlineThumbnails && allImages.length > 1 && (

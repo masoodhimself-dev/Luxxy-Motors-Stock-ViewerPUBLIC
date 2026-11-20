@@ -21,6 +21,7 @@ import './stock-redesign.css';
 import './home-redesign.css';
 import './stock-sidebar.css';
 import '@/components/website-templates/stock-templates.css';
+import '@/components/website-templates/auto-deal-stock.css';
 import { customerDefaultCopy, websiteText } from "@/lib/website-content";
 import { useSavedCars } from '@/lib/saved-cars-context';
 import { arrivalTime } from '@/lib/stock-presentation';
@@ -76,6 +77,7 @@ const defaultFilters: FilterState = {
   fuel: '',
   transmission: '',
   bodyType: '',
+  year: '',
   search: '',
   ulez: false,
   sort: '',
@@ -102,6 +104,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   const { settings: dealerConfig, publicEnquiriesEnabled } = useDealerSettings();
   const modernShowroom = isModernShowroom(dealerConfig.presentation);
   const stockTemplate = browseStock ? selectedWebsiteTemplate(dealerConfig.presentation) : null;
+  const autoDealStock = stockTemplate === 'autodeal';
   const stockViewKey = stockViewStorageKey(stockTemplate, publicDealershipOrigin(), privateWebsitePreviewDetails()?.dealerId);
   const recommendedCars = useMemo(() => {
     const order = new Map((dealerConfig.featuredVehicleIds ?? []).map((id, index) => [id, index]));
@@ -160,7 +163,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     return saved &&
       Object.keys(defaultFilters).every(
         (key) =>
-          (saved[key as keyof FilterState] === undefined && (key === 'bodyType' || benefitChoices.some(choice => choice.key === key))) ||
+          (saved[key as keyof FilterState] === undefined && (key === 'bodyType' || key === 'year' || benefitChoices.some(choice => choice.key === key))) ||
           typeof saved[key as keyof FilterState] === typeof defaultFilters[key as keyof FilterState],
       )
       ? { ...defaultFilters, ...Object.fromEntries(Object.entries(saved).filter(([key]) => key in defaultFilters)) }
@@ -385,15 +388,18 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     </ul>
   ) : dealerConfig.trustItems?.length ? <ul className="divide-y divide-border">{dealerConfig.trustItems.map(item => <li key={item} className="py-3 text-sm">{item}</li>)}</ul> : null;
 
-  const Homepage = modernShowroom ? ModernShowroomHomepage : selectedWebsiteTemplate(dealerConfig.presentation) === null ? GraphiteHomepage : DealershipHomepage;
+  const homeTemplate = selectedWebsiteTemplate(dealerConfig.presentation);
+  const Homepage = modernShowroom ? ModernShowroomHomepage : homeTemplate === null ? GraphiteHomepage : DealershipHomepage;
   if (!browseStock && location === '/') return <Homepage settings={dealerConfig} cars={publicCars} isLoading={isLoading} error={error} publicEnquiriesEnabled={publicEnquiriesEnabled} filters={filters} setFilters={setFilters} onSearch={next => {
-    const count = publicCars.filter(car => (!next.make || car.make === next.make) && (!next.model || car.model === next.model) && (!next.maxPrice || (car.price != null && car.price > 0 && car.price <= Number(next.maxPrice)))).length;
+    const queryKeys = homeTemplate === 'autodeal' ? ['make', 'model', 'maxPrice', 'bodyType', 'year'] as const : ['make', 'model', 'maxPrice'] as const;
+    const count = homeTemplate === 'autodeal' ? applyStockFilters(publicCars, { ...createStockFilters(), ...next }).items.length
+      : publicCars.filter(car => (!next.make || car.make === next.make) && (!next.model || car.model === next.model) && (!next.maxPrice || (car.price != null && car.price > 0 && car.price <= Number(next.maxPrice)))).length;
     setFilters(next);
     saveBrowseSession({ filters: next, showAll: true, scrollY: 0 });
-    trackEvent('showroom_filter_applied', { source: 'filter_panel', filter_count: [next.make, next.model, next.maxPrice].filter(Boolean).length, budget_used: Boolean(next.maxPrice), result_count: count });
+    trackEvent('showroom_filter_applied', { source: 'filter_panel', filter_count: queryKeys.filter(key => Boolean(next[key])).length, budget_used: Boolean(next.maxPrice), result_count: count });
     trackEvent('stock_results_opened', { source: 'filter_panel', result_count: count });
     const query = new URLSearchParams();
-    for (const key of ['make', 'model', 'maxPrice'] as const) if (next[key]) query.set(key, next[key]);
+    for (const key of queryKeys) if (next[key]) query.set(key, next[key]);
     setLocation('/stock' + (query.size ? '?' + query.toString() : ''));
   }} />;
 
@@ -534,9 +540,12 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
 
       {browseStock && <section className="stock-page-intro" aria-labelledby="vehicle-results-heading">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          {autoDealStock && <nav className="autodeal-stock-breadcrumb" aria-label="Breadcrumb"><Link href="/">Home</Link><span aria-hidden="true">/</span><span aria-current="page">Browse stock</span></nav>}
           <div className="stock-heading-row">
             <div className="stock-title-group">
-              <h1 id="vehicle-results-heading" tabIndex={-1}>{websiteText(dealerConfig, "stockTitle")}</h1>
+              <h1 id="vehicle-results-heading" tabIndex={-1}>{autoDealStock && websiteText(dealerConfig, 'stockTitle') === 'Browse Stock' ? 'Browse stock' : websiteText(dealerConfig, 'stockTitle')}</h1>
+              {autoDealStock && showCatalogue && <span className="autodeal-stock-mobile-count" aria-hidden="true">{filteredCars.length} {filteredCars.length === 1 ? 'car' : 'cars'}</span>}
+              {autoDealStock && showCatalogue && <p className="autodeal-stock-introduction">{customerDefaultCopy(websiteText(dealerConfig, "stockIntroduction"), `Browse used cars from ${dealerConfig.identity.name}.`, ['Find your next used car.'])}</p>}
             </div>
             <div className="stock-heading-actions">
             <Link className="stock-saved-link" href="/saved"><Heart size={17} aria-hidden="true" />Saved <span>({savedCount})</span></Link>
@@ -558,6 +567,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
         <div className={cn("container mx-auto px-4 sm:px-6 lg:px-8", showCatalogue && "stock-catalogue-layout")}>
           {showCatalogue && (multiStock ? <MultiStockFilters
             presentation={stockPresentation.filters}
+            skin={autoDealStock ? 'autodeal' : undefined}
             cars={publicCars}
             filters={stockSearch.filters}
             onChange={stockSearch.onChange}
@@ -652,11 +662,16 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                         car={car}
                         catalogue
                         stockDetails
-                        photoControls={stockPhotoControlsEnabled()}
+                        photoControls={autoDealStock || stockPhotoControlsEnabled()}
                         priority={index < 2}
                         layout={stockPresentation.cardLayout}
                         imageSizes={stockPresentation.imageSizes}
                         stretchedLink
+                        retailer={autoDealStock ? {
+                          name: dealerConfig.identity.name,
+                          location: [dealerConfig.address?.city, dealerConfig.address?.region].filter(Boolean).join(', '),
+                          enquiryHref: publicEnquiriesEnabled ? `/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}` : '/contact',
+                        } : undefined}
                         compareAction={publicCars.length >= 2 ? {
                           selected: comparison.selectedIds.includes(car.id),
                           disabled: comparison.selectedIds.length === MAX_COMPARISON_CARS && !comparison.selectedIds.includes(car.id),
@@ -703,7 +718,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                 </Button>
               </div>
             )}
-            {customerDefaultCopy(websiteText(dealerConfig, "stockIntroduction"), '', ['Find your next used car.']) && <p className="stock-introduction stock-end-information">{websiteText(dealerConfig, "stockIntroduction")}</p>}
+            {!autoDealStock && customerDefaultCopy(websiteText(dealerConfig, "stockIntroduction"), '', ['Find your next used car.']) && <p className="stock-introduction stock-end-information">{websiteText(dealerConfig, "stockIntroduction")}</p>}
             {!error && <CarComparisonTray cars={comparison.comparedCars}
               onRemove={comparison.toggle} onClear={comparison.clear}
               onCompare={() => { comparisonShare.reset(); comparison.setOpen(true); }} />}

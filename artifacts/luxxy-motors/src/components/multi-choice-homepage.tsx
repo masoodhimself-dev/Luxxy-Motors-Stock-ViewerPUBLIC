@@ -23,6 +23,7 @@ import { dealershipLocation } from '@/lib/dealership-location';
 import { warrantySummary } from '@/lib/dealership-customer-copy';
 import { stockBodyTypes } from '@/lib/body-types';
 import { stockBudgetOptions } from '@/lib/stock-budget-options';
+import { normaliseStockYear } from '@/features/stock-search/types';
 import { homepageFeaturedCars } from '@/lib/homepage-featured-cars';
 import { formatMileage, formatPhoneDisplay, formatPrice, getThumbnailUrl, vehicleDisplayTitle, vehicleRegistration } from '@/lib/utils';
 import { responsiveVehicleImage, retryOriginalImage } from '@/lib/responsive-vehicle-image';
@@ -39,6 +40,7 @@ import './multi-choice-homepage.css';
 import { selectedWebsiteTemplate } from '@/lib/website-template';
 import { CustomerTemplateHomeHero } from './website-templates/home-hero';
 import { GrandTouringHomepage } from './website-templates/grand-touring-home';
+import { AutoDealHomeHero } from './website-templates/auto-deal-home';
 
 type HomeSettings = DealerConfig & Partial<Pick<DealerSettings, 'testDriveBooking'>>;
 type Props = { settings: HomeSettings; cars: StockCar[]; isLoading: boolean; error: string | null; publicEnquiriesEnabled: boolean; filters: FilterState; setFilters: Dispatch<SetStateAction<FilterState>>; onSearch: (filters: FilterState) => void };
@@ -83,15 +85,27 @@ function PartExchangeStart({ id }: { id: string }) {
   </form>;
 }
 
-function StockSearch({ cars, isLoading, error, filters, setFilters, onSearch }: Pick<Props, 'cars' | 'isLoading' | 'error' | 'filters' | 'setFilters' | 'onSearch'>) {
+function StockSearch({ cars, isLoading, error, filters, setFilters, onSearch, autoDeal = false }: Pick<Props, 'cars' | 'isLoading' | 'error' | 'filters' | 'setFilters' | 'onSearch'> & { autoDeal?: boolean }) {
   const choices = (field: 'make' | 'model') => [...new Set(cars.filter(car => field !== 'model' || car.make === filters.make).map(car => car[field]).filter((value): value is string => Boolean(value)))].sort((a, b) => a.localeCompare(b));
   const makes = choices('make'), models = choices('model');
   const orphanModel = Boolean(filters.model && !filters.make), modelHelpId = useId();
   const savedLabel = isLoading || error ? 'saved choice' : 'not in current stock';
   const matches = cars.filter(car => (!filters.make || car.make === filters.make) && (!filters.model || car.model === filters.model) && (!filters.maxPrice || (car.price != null && car.price > 0 && car.price <= Number(filters.maxPrice)))).length;
-  const update = (field: 'make' | 'model' | 'maxPrice', value: string) => setFilters(current => ({ ...current, [field]: value, ...(field === 'make' ? { model: '' } : {}) }));
-  return <form className="mh-buy-form" aria-label="Search used cars" onSubmit={event => { event.preventDefault(); if (orphanModel) return; onSearch({ ...filters, make: filters.make, model: filters.model, maxPrice: filters.maxPrice, minPrice: '', fuel: '', transmission: '', bodyType: '', search: '', ulez: false, sort: '' }); }}>
+  const year = filters.year || '';
+  const years = autoDeal ? [...new Set(cars.map(car => normaliseStockYear(car.year)).filter(Boolean))].sort((a, b) => Number(b) - Number(a)) : [];
+  const update = (field: 'make' | 'model' | 'maxPrice' | 'bodyType' | 'year', value: string) => setFilters(current => ({ ...current, [field]: value, ...(field === 'make' ? { model: '' } : {}) }));
+  return <form className="mh-buy-form" aria-label="Search used cars" onSubmit={event => { event.preventDefault(); if (orphanModel) return; const includeDesktopFields = autoDeal && !window.matchMedia?.('(max-width: 767px)').matches; onSearch({ ...filters, make: filters.make, model: filters.model, maxPrice: filters.maxPrice, minPrice: '', fuel: '', transmission: '', bodyType: includeDesktopFields ? filters.bodyType || '' : '', year: includeDesktopFields ? year : '', search: '', ulez: false, sort: '' }); }}>
     <div className="mh-search-fields">
+      {autoDeal && <label className="ad-search-desktop">
+        <span>Body type</span>
+        <span className="mh-search-select">
+          <select value={filters.bodyType || ''} onChange={event => update('bodyType', event.target.value)} disabled={isLoading}>
+            <option value="">Any body</option>
+            {stockBodyTypes(cars).map(({ label }) => <option key={label}>{label}</option>)}
+          </select>
+          <ChevronDown size={16} aria-hidden="true" />
+        </span>
+      </label>}
       <label>
         <span>Make</span>
         <span className="mh-search-select">
@@ -107,15 +121,26 @@ function StockSearch({ cars, isLoading, error, filters, setFilters, onSearch }: 
         <span>Model</span>
         <span className="mh-search-select">
           <select value={filters.model} onChange={event => update('model', event.target.value)} disabled={isLoading || (!filters.make && !filters.model)} aria-describedby={orphanModel || !filters.make ? modelHelpId : undefined}>
-            <option value="">{!isLoading && !filters.make && !orphanModel ? 'Pick a make' : 'Any model'}</option>
+            <option value="">{!autoDeal && !isLoading && !filters.make && !orphanModel ? 'Pick a make' : 'Any model'}</option>
             {filters.model && !models.includes(filters.model) && <option value={filters.model}>{filters.model} ({orphanModel ? 'choose a make' : savedLabel})</option>}
             {models.map(value => <option key={value}>{value}</option>)}
           </select>
           <ChevronDown size={16} aria-hidden="true" />
         </span>
       </label>
+      {autoDeal && <label className="ad-search-desktop">
+        <span>Year</span>
+        <span className="mh-search-select">
+          <select value={year} onChange={event => update('year', event.target.value)} disabled={isLoading}>
+            <option value="">Any year</option>
+            {year && !years.includes(year) && <option value={year}>{year} ({savedLabel})</option>}
+            {years.map(value => <option key={value}>{value}</option>)}
+          </select>
+          <ChevronDown size={16} aria-hidden="true" />
+        </span>
+      </label>}
       <label className="mh-search-budget">
-        <span>Maximum price</span>
+        <span>{autoDeal ? 'Max price' : 'Maximum price'}</span>
         <span className="mh-search-select">
           <select value={filters.maxPrice} onChange={event => update('maxPrice', event.target.value)} disabled={isLoading}>
             <option value="">Any price</option>
@@ -124,7 +149,7 @@ function StockSearch({ cars, isLoading, error, filters, setFilters, onSearch }: 
           <ChevronDown size={16} aria-hidden="true" />
         </span>
       </label>
-      <button className="mh-button" type="submit" disabled={isLoading || orphanModel}><Search size={18} aria-hidden="true" />{isLoading ? 'Loading cars…' : error ? 'Browse stock' : `Search ${matches} ${matches === 1 ? 'car' : 'cars'}`}</button>
+      <button className="mh-button" type="submit" disabled={isLoading || orphanModel}><Search size={18} aria-hidden="true" />{isLoading ? 'Loading cars…' : error ? 'Browse stock' : autoDeal ? 'Find cars' : `Search ${matches} ${matches === 1 ? 'car' : 'cars'}`}</button>
     </div>
     {!filters.make && !orphanModel && <span id={modelHelpId} className="sr-only">Choose a make to select a model.</span>}
     {orphanModel && <p className="mh-small" id={modelHelpId} role="status">Choose a make or clear the saved model before searching.</p>}
@@ -157,13 +182,13 @@ function FeaturedCard({ car }: { car: StockCar }) {
   </article>;
 }
 
-function FindByMake({ makes }: { makes: string[] }) {
+function FindByMake({ makes, heading = 'Find by Make' }: { makes: string[]; heading?: string }) {
   const [expanded, setExpanded] = useState(false);
   const id = useId();
   const visible = expanded ? makes : makes.slice(0, 12);
   useEffect(() => { if (makes.length <= 12) setExpanded(false); }, [makes.length]);
   return <section className="mh-section mh-makes" aria-labelledby="mh-makes-heading">
-    <h2 id="mh-makes-heading">Find by Make</h2>
+    <h2 id="mh-makes-heading">{heading}</h2>
     <div id={id}>{visible.map(name => <Link key={name} href={`/stock?make=${encodeURIComponent(name)}`} aria-label={`Used ${name}`}>
       <MakeLogo make={name} size={24} className="mh-make-logo" /><span>{name}</span>
     </Link>)}</div>
@@ -299,10 +324,12 @@ export function DealershipHomepage({ settings, cars: suppliedCars, isLoading, er
     { question: 'Where can I see the car?', answer: location.isSample || !location.lines.length ? 'Contact us to confirm the showroom address and arrange your visit.' : `${settings.identity.name} is at ${location.lines.join(', ')}. Check our opening times and confirm your visit before travelling.`, href: sections.visit ? '#find-us' : '/contact', label: 'Plan your visit' },
   ];
   const template = selectedWebsiteTemplate(settings.presentation);
+  const autoDeal = template === 'autodeal';
+  const autoDealHeadline = customerDefaultCopy(headline, city ? `Used cars in ${city}` : 'Used cars for sale', ['Used cars for sale']);
   const searchCard = <div className="mh-search-card"><div role="tablist" aria-label="Buy or part exchange" className="mh-search-tabs" onKeyDown={event => { if (!sections.partExchange || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return; event.preventDefault(); const index = event.key === 'Home' ? 0 : event.key === 'End' ? 1 : tab === 'buy' ? 1 : 0; setTab(index ? 'px' : 'buy'); tabs.current[index]?.focus(); }}>
         <button type="button" ref={element => { tabs.current[0] = element; }} id={`${tabId}-buy-tab`} role="tab" aria-selected={tab === 'buy'} aria-controls={`${tabId}-buy`} tabIndex={tab === 'buy' ? 0 : -1} onClick={() => setTab('buy')}><Car size={17} aria-hidden="true" />Buy a car</button>
         {sections.partExchange && <button type="button" ref={element => { tabs.current[1] = element; }} id={`${tabId}-px-tab`} role="tab" aria-selected={tab === 'px'} aria-controls={`${tabId}-px`} tabIndex={tab === 'px' ? 0 : -1} onClick={() => setTab('px')}><ArrowLeftRight size={16} aria-hidden="true" />Part exchange</button>}
-      </div><div role="tabpanel" id={`${tabId}-buy`} aria-labelledby={`${tabId}-buy-tab`} hidden={tab !== 'buy'}><StockSearch cars={cars} isLoading={isLoading} error={error} filters={filters} setFilters={setFilters} onSearch={onSearch} /></div>{sections.partExchange && <div role="tabpanel" id={`${tabId}-px`} aria-labelledby={`${tabId}-px-tab`} hidden={tab !== 'px'}><PartExchangeStart id="hero" /></div>}</div>;
+      </div><div role="tabpanel" id={`${tabId}-buy`} aria-labelledby={`${tabId}-buy-tab`} hidden={tab !== 'buy'}><StockSearch cars={cars} isLoading={isLoading} error={error} filters={filters} setFilters={setFilters} onSearch={onSearch} autoDeal={autoDeal} /></div>{sections.partExchange && <div role="tabpanel" id={`${tabId}-px`} aria-labelledby={`${tabId}-px-tab`} hidden={tab !== 'px'}><PartExchangeStart id="hero" /></div>}</div>;
   if (template === 'grand-touring') return <GrandTouringHomepage
     settings={settings} cars={cars} featured={featured} headline={headline}
     location={heroLocation || 'Browse our current cars and arrange a visit.'} photo={photo}
@@ -317,12 +344,14 @@ export function DealershipHomepage({ settings, cars: suppliedCars, isLoading, er
     visit={sections.visit ? <MultiHomeVisit settings={settings}/> : null}
     contact={<div className="sr-home-contact-links">{phone && <a href={phone} onClick={() => recordContactIntent({ channel: 'call', source: 'homepage' })}><Phone size={22} aria-hidden="true"/><span>Call the showroom<strong>{formatPhoneDisplay(settings.contact.phone!)}</strong></span></a>}{settings.contact.email && <a href={`mailto:${settings.contact.email}`}><Mail size={22} aria-hidden="true"/><span>Email the team<strong>{settings.contact.email}</strong></span></a>}{whatsapp && <a href={whatsapp} target="_blank" rel="noopener noreferrer" onClick={() => recordContactIntent({ channel: 'whatsapp', source: 'homepage' })}><SiWhatsapp size={22} aria-hidden="true"/><span>Message us<strong>WhatsApp</strong></span></a>}{!phone && !settings.contact.email && !whatsapp && <Link href="/contact" className="sr-button">Contact the showroom</Link>}</div>}
   />;
-  return <div className="multi-home" data-testid="multi-choice-homepage" data-dealership-homepage>
-    {template ? <CustomerTemplateHomeHero template={template} settings={settings} cars={[...featured, ...cars.filter(car => !featured.some(item => item.id === car.id))]} search={searchCard} headline={headline} loading={isLoading} error={error} publicEnquiriesEnabled={publicEnquiriesEnabled}/> : <section className="mh-hero" aria-labelledby="home-heading"><div className="mh-container mh-hero-grid"><div className="mh-hero-introduction">{settings.hero.announcement?.trim() && <p className="mh-announcement">{settings.hero.announcement}</p>}<h1 id="home-heading" tabIndex={-1}>{headline}</h1>{heroLocation && <p className="mh-hero-location">{heroLocation}</p>}{settings.presentation?.showHeroDescription && settings.hero.subcopy && <p>{settings.hero.subcopy}</p>}{photo && (shoreDrivePhoto ? <ShoreDriveHeroPhoto src={photo} /> : <ShowroomPhoto src={photo} alt={settings.presentation?.heroImageAlt || `${settings.identity.name} cars`} priority fit={cutout ? 'contain' : 'cover'} position={settings.presentation?.heroImagePosition} className={`mh-hero-photo${cutout ? ' mh-hero-photo--cutout' : ''}`} />)}</div>
+  const heroCars = [...featured, ...cars.filter(car => !featured.some(item => item.id === car.id))];
+  return <div className={autoDeal ? "multi-home autodeal-home" : "multi-home"} data-testid="multi-choice-homepage" data-dealership-homepage>
+    {autoDeal ? <AutoDealHomeHero cars={heroCars} search={searchCard} headline={autoDealHeadline} announcement={settings.hero.announcement?.trim()} description={settings.presentation?.showHeroDescription ? settings.hero.subcopy : undefined} loading={isLoading} error={error} /> : template ? <CustomerTemplateHomeHero template={template} settings={settings} cars={heroCars} search={searchCard} headline={headline} loading={isLoading} error={error} publicEnquiriesEnabled={publicEnquiriesEnabled}/> : <section className="mh-hero" aria-labelledby="home-heading"><div className="mh-container mh-hero-grid"><div className="mh-hero-introduction">{settings.hero.announcement?.trim() && <p className="mh-announcement">{settings.hero.announcement}</p>}<h1 id="home-heading" tabIndex={-1}>{headline}</h1>{heroLocation && <p className="mh-hero-location">{heroLocation}</p>}{settings.presentation?.showHeroDescription && settings.hero.subcopy && <p>{settings.hero.subcopy}</p>}{photo && (shoreDrivePhoto ? <ShoreDriveHeroPhoto src={photo} /> : <ShowroomPhoto src={photo} alt={settings.presentation?.heroImageAlt || `${settings.identity.name} cars`} priority fit={cutout ? 'contain' : 'cover'} position={settings.presentation?.heroImagePosition} className={`mh-hero-photo${cutout ? ' mh-hero-photo--cutout' : ''}`} />)}</div>
       {searchCard}
     </div></section>}
+    {autoDeal && !error && makes.length > 0 && <div className="ad-home-makes"><div className="mh-container"><FindByMake makes={makes} heading="Browse by make" /></div></div>}
     <div className="mh-container" id={showReassurance ? undefined : "about"}>
-      {!error && makes.length > 0 && <FindByMake makes={makes} />}
+      {!autoDeal && !error && makes.length > 0 && <FindByMake makes={makes} />}
       {showReassurance && <section id="about" className="mh-section mh-reasons" aria-labelledby="home-reassurance-heading">
         <h2 id="home-reassurance-heading" tabIndex={-1}>Buying from {settings.identity.name}</h2>
         {reasons.length > 0 && <ul className="mh-reasons-grid" aria-label="Reasons to choose us">{reasons.map(({ title, text, Icon }) => <li key={title}>

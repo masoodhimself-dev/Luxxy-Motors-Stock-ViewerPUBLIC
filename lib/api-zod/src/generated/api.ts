@@ -31,10 +31,10 @@ export const getPlatformDealerWebsiteTemplateResponseRevisionMin = 0;
 
 export const GetPlatformDealerWebsiteTemplateResponse = zod.object({
   "dealerId": zod.string(),
-  "currentTemplate": zod.enum(['existing', 'classic', 'premium', 'focused', 'showroom', 'modern-showroom', 'grand-touring', 'forecourt', 'panorama']),
+  "currentTemplate": zod.enum(['existing', 'classic', 'premium', 'focused', 'showroom', 'modern-showroom', 'grand-touring', 'forecourt', 'autodeal', 'panorama']),
   "revision": zod.number().int().min(getPlatformDealerWebsiteTemplateResponseRevisionMin),
   "templates": zod.array(zod.object({
-  "id": zod.enum(['existing', 'classic', 'premium', 'focused', 'showroom', 'modern-showroom', 'grand-touring', 'forecourt', 'panorama']),
+  "id": zod.enum(['existing', 'classic', 'premium', 'focused', 'showroom', 'modern-showroom', 'grand-touring', 'forecourt', 'autodeal', 'panorama']),
   "name": zod.string(),
   "description": zod.string(),
   "legacy": zod.boolean()
@@ -56,7 +56,7 @@ export const UpdatePlatformDealerWebsiteTemplateHeader = zod.object({
 })
 
 export const UpdatePlatformDealerWebsiteTemplateBody = zod.object({
-  "template": zod.enum(['existing', 'classic', 'premium', 'focused', 'showroom', 'modern-showroom', 'grand-touring', 'forecourt', 'panorama']),
+  "template": zod.enum(['existing', 'classic', 'premium', 'focused', 'showroom', 'modern-showroom', 'grand-touring', 'forecourt', 'autodeal', 'panorama']),
   "reviewed": zod.literal(true)
 })
 
@@ -66,7 +66,7 @@ export const updatePlatformDealerWebsiteTemplateResponseRevisionMin = 0;
 
 export const UpdatePlatformDealerWebsiteTemplateResponse = zod.object({
   "dealerId": zod.string(),
-  "currentTemplate": zod.enum(['existing', 'classic', 'premium', 'focused', 'showroom', 'modern-showroom', 'grand-touring', 'forecourt', 'panorama']),
+  "currentTemplate": zod.enum(['existing', 'classic', 'premium', 'focused', 'showroom', 'modern-showroom', 'grand-touring', 'forecourt', 'autodeal', 'panorama']),
   "revision": zod.number().int().min(updatePlatformDealerWebsiteTemplateResponseRevisionMin)
 })
 
@@ -3872,7 +3872,7 @@ export const getDealerSettingsResponseWhyBuyMax = 8;
 
 export const GetDealerSettingsResponse = zod.object({
   "presentation": zod.object({
-  "websiteTemplate": zod.enum(['existing', 'classic', 'premium', 'focused', 'showroom', 'modern-showroom', 'grand-touring', 'forecourt', 'panorama']).optional().describe('Optional customer website layout. Omitted keeps the existing website. Choosing a layout is published with the normal settings draft.'),
+  "websiteTemplate": zod.enum(['existing', 'classic', 'premium', 'focused', 'showroom', 'modern-showroom', 'grand-touring', 'forecourt', 'autodeal', 'panorama']).optional().describe('Optional customer website layout. Omitted keeps the existing website. Choosing a layout is published with the normal settings draft.'),
   "pageColour": zod.string().regex(getDealerSettingsResponsePresentationPageColourRegExp).optional(),
   "panelColour": zod.string().regex(getDealerSettingsResponsePresentationPanelColourRegExp).optional(),
   "headingColour": zod.string().regex(getDealerSettingsResponsePresentationHeadingColourRegExp).optional(),
@@ -4397,7 +4397,7 @@ export const updateDealerSettingsBodyOneWhyBuyMax = 8;
 
 export const UpdateDealerSettingsBody = zod.object({
   "presentation": zod.object({
-  "websiteTemplate": zod.enum(['existing', 'classic', 'premium', 'focused', 'showroom', 'modern-showroom', 'grand-touring', 'forecourt', 'panorama']).optional().describe('Optional customer website layout. Omitted keeps the existing website. Choosing a layout is published with the normal settings draft.'),
+  "websiteTemplate": zod.enum(['existing', 'classic', 'premium', 'focused', 'showroom', 'modern-showroom', 'grand-touring', 'forecourt', 'autodeal', 'panorama']).optional().describe('Optional customer website layout. Omitted keeps the existing website. Choosing a layout is published with the normal settings draft.'),
   "pageColour": zod.string().regex(updateDealerSettingsBodyOnePresentationPageColourRegExp).optional(),
   "panelColour": zod.string().regex(updateDealerSettingsBodyOnePresentationPanelColourRegExp).optional(),
   "headingColour": zod.string().regex(updateDealerSettingsBodyOnePresentationHeadingColourRegExp).optional(),
@@ -4917,7 +4917,7 @@ export const updateDealerSettingsResponseWhyBuyMax = 8;
 
 export const UpdateDealerSettingsResponse = zod.object({
   "presentation": zod.object({
-  "websiteTemplate": zod.enum(['existing', 'classic', 'premium', 'focused', 'showroom', 'modern-showroom', 'grand-touring', 'forecourt', 'panorama']).optional().describe('Optional customer website layout. Omitted keeps the existing website. Choosing a layout is published with the normal settings draft.'),
+  "websiteTemplate": zod.enum(['existing', 'classic', 'premium', 'focused', 'showroom', 'modern-showroom', 'grand-touring', 'forecourt', 'autodeal', 'panorama']).optional().describe('Optional customer website layout. Omitted keeps the existing website. Choosing a layout is published with the normal settings draft.'),
   "pageColour": zod.string().regex(updateDealerSettingsResponsePresentationPageColourRegExp).optional(),
   "panelColour": zod.string().regex(updateDealerSettingsResponsePresentationPanelColourRegExp).optional(),
   "headingColour": zod.string().regex(updateDealerSettingsResponsePresentationHeadingColourRegExp).optional(),

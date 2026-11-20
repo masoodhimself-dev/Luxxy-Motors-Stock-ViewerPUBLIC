@@ -1,7 +1,7 @@
 import { sharedStaffPortalPage } from './shared-staff-portal';
 
 export function privateWebsitePreviewBase(pathname = typeof window === 'undefined' ? '' : window.location.pathname) {
-  return /^\/platform\/preview\/[a-z0-9][a-z0-9-]{1,62}(?:\/template\/(?:existing|classic|premium|focused|showroom|modern-showroom|grand-touring|forecourt|panorama)\/(?:0|[1-9]\d*))?(?=\/|$)/.exec(pathname)?.[0] ?? '';
+  return /^\/platform\/preview\/[a-z0-9][a-z0-9-]{1,62}(?:\/template\/(?:existing|classic|premium|focused|showroom|modern-showroom|grand-touring|forecourt|autodeal|panorama)\/(?:0|[1-9]\d*))?(?=\/|$)/.exec(pathname)?.[0] ?? '';
 }
 
 export function privateWebsitePreviewDetails(base = privateWebsitePreviewBase()) {

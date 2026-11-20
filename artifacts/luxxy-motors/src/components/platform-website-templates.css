@@ -45,3 +45,41 @@
   width: 80%;
   background: #b3bdc9;
 }
+
+.website-template-drawing--autodeal {
+  background: #f1f1f1;
+  color: #24272c;
+}
+
+.website-template-drawing--autodeal .website-template-drawing-content {
+  position: relative;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.website-template-drawing--autodeal .website-template-drawing-photo {
+  background: #d5d4d2;
+}
+
+.website-template-drawing--autodeal .website-template-drawing-photo svg {
+  width: 78%;
+}
+
+.website-template-drawing--autodeal .website-template-drawing-copy {
+  position: absolute;
+  inset: auto 8% 7px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+  padding: 5px;
+}
+
+.website-template-drawing--autodeal .website-template-drawing-copy b {
+  display: none;
+}
+
+.website-template-drawing--autodeal .website-template-drawing-copy em {
+  height: 8px;
+  flex: 1 0 26%;
+  background: #ff7101;
+}

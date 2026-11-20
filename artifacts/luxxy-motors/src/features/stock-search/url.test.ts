@@ -40,6 +40,7 @@ it("round-trips every supported filter with canonical names and stable parameter
     engine: "2.0,1.5",
     seats: "5,7",
     mileage: "100000",
+    year: "2020",
     search: "blue Toyota",
     ulez: true,
     sort: "year-asc" as const,
@@ -58,6 +59,7 @@ it("round-trips every supported filter with canonical names and stable parameter
     "engine",
     "seats",
     "mileage",
+    "year",
     "search",
     "ulez",
     "sort",
@@ -67,6 +69,16 @@ it("round-trips every supported filter with canonical names and stable parameter
   expect(serializeStockFilters(parseStockFilters(query)).toString()).toBe(
     query.toString(),
   );
+});
+
+it("rejects malformed and duplicate exact year values and clears the year with other filters", () => {
+  for (const query of ["year=20", "year=0099", "year=2020.5", "year=2020,2021", "year=2020&year=2021"]) {
+    const parsed = parseStockFilters(new URLSearchParams(query));
+    expect(serializeStockFilters(parsed).has("year")).toBe(false);
+  }
+  const selected = parseStockFilters(new URLSearchParams("year=2020&page=3"));
+  expect(updateStockFilters(selected, { year: "2018" })).toMatchObject({ year: "2018", page: 1 });
+  expect(updateStockFilters(selected, createStockFilters())).toEqual(createStockFilters());
 });
 
 it("accepts new reference aliases without changing existing shared-link contracts", () => {

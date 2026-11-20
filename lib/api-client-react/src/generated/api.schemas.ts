@@ -491,6 +491,7 @@ export const WebsiteTemplateId = {
   'modern-showroom': 'modern-showroom',
   'grand-touring': 'grand-touring',
   forecourt: 'forecourt',
+  autodeal: 'autodeal',
   panorama: 'panorama',
 } as const;
 
@@ -543,6 +544,7 @@ export const DealerPresentationWebsiteTemplate = {
   'modern-showroom': 'modern-showroom',
   'grand-touring': 'grand-touring',
   forecourt: 'forecourt',
+  autodeal: 'autodeal',
   panorama: 'panorama',
 } as const;
 

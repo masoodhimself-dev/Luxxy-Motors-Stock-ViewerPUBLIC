@@ -98,6 +98,20 @@ it('searches real stock with dependent make/model and cash budgets without navig
   expect(screen.queryByText(/monthly|APR|finance/i)).not.toBeInTheDocument();
 });
 
+it('uses available stock in the AutoDeal hero and forwards the desktop search criteria', () => {
+  const config = settings();
+  render(<Harness config={{ ...config, featuredVehicleIds: ['ford', 'toyota'], presentation: { ...config.presentation, websiteTemplate: 'autodeal' } }} />);
+  const hero = within(screen.getByTestId('autodeal-home-hero'));
+  expect(hero.getByRole('img', { name: 'Ford Focus' })).toHaveAttribute('src', 'https://photos.example.test/ford.jpg');
+  fireEvent.click(hero.getByRole('button', { name: 'Next featured car' }));
+  expect(hero.getByRole('img', { name: 'Toyota Yaris' })).toHaveAttribute('src', 'https://photos.example.test/toyota.jpg');
+  const search = within(hero.getByRole('form', { name: 'Search used cars' }));
+  fireEvent.change(search.getByRole('combobox', { name: 'Body type' }), { target: { value: 'Hatchback' } });
+  fireEvent.change(search.getByRole('combobox', { name: 'Year' }), { target: { value: '2020' } });
+  fireEvent.click(search.getByRole('button', { name: 'Find cars' }));
+  expect(events.search).toHaveBeenCalledWith(expect.objectContaining({ bodyType: 'Hatchback', year: '2020', search: '' }));
+});
+
 it('supports keyboard tabs and looks up a valid registration only after an explicit action', async () => {
   savePartExchangeDraft(partExchangeDraftKey(), { details: { registration: '', makeModel: '', mileage: '', condition: '', conditionNotes: '', keys: '', v5: '', serviceHistory: '', name: 'Alex Buyer', phone: '07700900123', email: '' }, vehicleId: '', delivery: 'website' });
   render(<Harness />);

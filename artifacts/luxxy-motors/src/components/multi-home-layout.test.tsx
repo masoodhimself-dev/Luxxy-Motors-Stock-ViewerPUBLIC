@@ -215,6 +215,10 @@ it.each(Object.keys(websiteTemplatePalettes) as (keyof typeof websiteTemplatePal
   expect(document.body).not.toHaveAttribute('data-customer-graphite');
   expect(shell?.style.getPropertyValue('--mh-primary')).toBe(websiteTemplatePalettes[template].ink);
   expect(shell?.style.getPropertyValue('--app-font-sans')).toContain(template === 'grand-touring' ? 'Manrope' : 'Inter');
+  if (template === 'autodeal') {
+    expect(shell?.style.getPropertyValue('--font-display')).toContain('Outfit');
+    expect(document.body.style.getPropertyValue('--ad-orange')).toBe('#ff7101');
+  }
   expect(document.body.style.getPropertyValue('--mh-accent')).toBe(websiteTemplatePalettes[template].action);
   expect(state.settings).toEqual(original);
   view.unmount();

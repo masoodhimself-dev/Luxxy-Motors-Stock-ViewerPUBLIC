@@ -165,7 +165,7 @@ vi.mock('@/lib/demo-status',()=>({useDemoStatus:()=>demoSiteMode}));
 vi.mock('@/lib/dealer-features', () => ({ useDealerFeatures: () => ({ enabled: () => true }) }));
 
 let overrideSettings: typeof dealerConfigFixture & {
-  presentation?: { websiteTemplate?: 'existing' | 'classic' | 'premium' | 'focused' | 'showroom' | 'grand-touring' | 'forecourt' | 'panorama'; showHeroDescription?: boolean; websiteCopy?: { stockIntroduction?: string; featuredHeading?: string }; heroImageUrl?: string; heroImageAlt?: string; heroImagePosition?: 'center' | 'left' | 'right' | 'top' | 'bottom'; showroomImageUrl?: string; showroomImageAlt?: string };
+  presentation?: { websiteTemplate?: 'existing' | 'classic' | 'premium' | 'focused' | 'showroom' | 'grand-touring' | 'forecourt' | 'autodeal' | 'panorama'; showHeroDescription?: boolean; websiteCopy?: { stockIntroduction?: string; featuredHeading?: string }; heroImageUrl?: string; heroImageAlt?: string; heroImagePosition?: 'center' | 'left' | 'right' | 'top' | 'bottom'; showroomImageUrl?: string; showroomImageAlt?: string };
 } = dealerConfigFixture;
 
 vi.mock('@/lib/dealer-settings-context', () => ({
@@ -255,6 +255,7 @@ describe('opt-in stock template compositions', () => {
     { template: 'showroom', layout: 'card', filters: 'sidebar' },
     { template: 'grand-touring', layout: 'card', filters: 'inline' },
     { template: 'forecourt', layout: 'compact', filters: 'sidebar' },
+    { template: 'autodeal', layout: 'row', filters: 'sidebar' },
     { template: 'panorama', layout: 'card', filters: 'toolbar' },
   ] as const;
   it.each(cases)('keeps search, ordering and explicit Grid/List choices with the $template default', ({ template, layout, filters }) => {

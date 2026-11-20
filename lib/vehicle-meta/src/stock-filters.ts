@@ -134,6 +134,7 @@ export function createStockMatcher(input: Partial<StockFilters>) {
   const selections = Object.fromEntries(
     stockFacetKeys.map(key => [key, splitStockFacetValues(filters[key])]),
   ) as Record<StockFacetKey, string[]>;
+  const year = Number(filters.year);
   const searchAndUlez = new WeakMap<StockFilterCar, boolean>();
   const matches = (car: StockFilterCar, except?: StockFacetKey) => {
     let eligible = searchAndUlez.get(car);
@@ -141,7 +142,7 @@ export function createStockMatcher(input: Partial<StockFilters>) {
       eligible = matchesSearch(car, filters.search) && (!filters.ulez || stockVehicleIsUlez(car));
       searchAndUlez.set(car, eligible);
     }
-    if (!eligible) return false;
+    if (!eligible || (year && car.year !== year)) return false;
     for (const key of stockFacetKeys)
       if (
         key !== except &&
@@ -181,6 +182,8 @@ export function normaliseStockAlertCriteria(input: Partial<StockFilters>) {
     filters[key] = splitStockFacetValues(filters[key]).map(stockValueKey).sort().join(',');
   }
   filters.search = stockValueKey(filters.search);
+  // Preserve the grouping of existing saved alerts with no year criterion.
+  if (!filters.year) delete filters.year;
   return filters;
 }
 
@@ -201,6 +204,7 @@ export function stockAlertCriteriaLabel(filters: StockFilters, includeKeyword = 
     filters.colour && `Colour: ${filters.colour.split(',').join(', ')}`,
     filters.engine && `Engine: ${filters.engine.split(',').map(value => `${value}L`).join(', ')}`,
     filters.seats && `Seats: ${filters.seats.split(',').join(', ')}`,
+    filters.year && `Year: ${filters.year}`,
     filters.minPrice && `From ${money.format(Number(filters.minPrice))}`,
     filters.maxPrice && `Up to ${money.format(Number(filters.maxPrice))}`,
     filters.mileage && `Up to ${number.format(Number(filters.mileage))} miles`,

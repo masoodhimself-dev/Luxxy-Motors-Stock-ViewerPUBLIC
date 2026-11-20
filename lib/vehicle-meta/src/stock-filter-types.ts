@@ -24,6 +24,8 @@ export interface StockFilters {
   engine?: string;
   seats?: string;
   mileage?: string;
+  /** An exact advertised vehicle year. */
+  year?: string;
   /** The number of twelve-car batches to reveal; not an offset into stock. */
   page?: number;
 }
@@ -67,6 +69,11 @@ export function splitStockFacetValues(
       seen.add(key);
       return true;
     });
+}
+
+export function normaliseStockYear(value: string | number | null | undefined): string {
+  const year = String(value ?? "").trim();
+  return /^\d{4}$/.test(year) && Number(year) >= 1886 && Number(year) <= 2200 ? year : "";
 }
 
 /** A display-size group, never a claim of the vehicle's exact cylinder capacity. */

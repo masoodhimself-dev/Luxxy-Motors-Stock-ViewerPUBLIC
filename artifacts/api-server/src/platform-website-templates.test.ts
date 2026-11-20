@@ -21,7 +21,7 @@ test('website template registry preserves old values and agrees with the public 
   const defaults = newDealerSettings('Fictional dealer');
   assert.equal(resolveWebsiteTemplateId(undefined), 'existing');
   assert.equal(resolveWebsiteTemplateId('unrecognised'), 'existing');
-  assert.deepEqual(WEBSITE_TEMPLATES.filter(template => !template.legacy).map(template => template.id), ['showroom', 'modern-showroom', 'grand-touring', 'forecourt', 'panorama']);
+  assert.deepEqual(WEBSITE_TEMPLATES.filter(template => !template.legacy).map(template => template.id), ['showroom', 'modern-showroom', 'grand-touring', 'forecourt', 'autodeal', 'panorama']);
   for (const { id } of WEBSITE_TEMPLATES) {
     assert.equal(isWebsiteTemplateId(id), true);
     assert.equal(resolveWebsiteTemplateId(id), id);
@@ -138,6 +138,9 @@ test('per-dealer template previews and publications are private, scoped and revi
       assert.equal(config.presentation?.websiteTemplate, 'modern-showroom');
       assert.equal(config.presentation?.pageColour, '#112233');
       assert.equal(typeof rawConfig === 'object' && rawConfig !== null && 'futurePrivateSetting' in rawConfig, false);
+      const autoDeal = await request('/platform/preview/template-alpha/template/autodeal/7/api/dealer-settings');
+      assert.equal(autoDeal.status, 200, await autoDeal.clone().text());
+      assert.equal(GetDealerSettingsResponse.parse(await autoDeal.json()).presentation?.websiteTemplate, 'autodeal');
       const html = await request(previewPath + '/stock');
       assert.equal(html.status, 200, await html.clone().text());
       assert.match(html.headers.get('x-robots-tag') ?? '', /noindex/);

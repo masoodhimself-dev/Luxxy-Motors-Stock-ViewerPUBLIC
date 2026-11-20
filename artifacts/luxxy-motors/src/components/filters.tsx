@@ -22,6 +22,7 @@ export interface FilterState {
   fuel: string;
   transmission: string;
   bodyType?: string;
+  year?: string;
   search: string;
   /** Optional for compatibility with saved searches created before benefit filters. */
   ulez?: boolean;

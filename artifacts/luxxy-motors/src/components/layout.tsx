@@ -32,6 +32,7 @@ import { websiteTemplateThemeVariables } from '@/lib/website-template-theme';
 import './website-templates/customer-templates.css';
 import { ShowroomHeader, ShowroomFooter } from './website-templates/showroom-shell';
 import './website-templates/grand-touring-system.css';
+import './website-templates/autodeal-system.css';
 import { GraphiteHeader, GraphiteFooter } from './graphite/graphite-shell';
 import './graphite/graphite-system.css';
 import './modern-showroom/modern-showroom-system.css';
@@ -419,7 +420,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </footer>
       )}
-      {isCustomerWebsite && !isCustomerTask ? graphiteWebsite ? <DealerFooter settings={dealerConfig} enquiriesEnabled={publicEnquiriesEnabled} testDriveHref={testDriveHref} /> : websiteTemplate === 'grand-touring' ? <ShowroomFooter settings={dealerConfig} enquiriesEnabled={publicEnquiriesEnabled} /> : <MultiHomeFooter settings={dealerConfig} enquiriesEnabled={publicEnquiriesEnabled} isHomepage={isHomePage} /> : !isStaff && !isCustomerTask && <CustomerFooter settings={footerSettings} testDriveHref={testDriveHref} enquiriesEnabled={publicEnquiriesEnabled} />}
+      {isCustomerWebsite && !isCustomerTask ? graphiteWebsite ? <DealerFooter settings={dealerConfig} enquiriesEnabled={publicEnquiriesEnabled} testDriveHref={testDriveHref} /> : websiteTemplate === 'autodeal' ? <CustomerFooter id="dealership-footer" settings={dealerConfig} testDriveHref={testDriveHref} enquiriesEnabled={publicEnquiriesEnabled} partExchangeHref={publicEnquiriesEnabled ? '/enquire?type=part_exchange' : '/contact'} /> : websiteTemplate === 'grand-touring' ? <ShowroomFooter settings={dealerConfig} enquiriesEnabled={publicEnquiriesEnabled} /> : <MultiHomeFooter settings={dealerConfig} enquiriesEnabled={publicEnquiriesEnabled} isHomepage={isHomePage} /> : !isStaff && !isCustomerTask && <CustomerFooter settings={footerSettings} testDriveHref={testDriveHref} enquiriesEnabled={publicEnquiriesEnabled} />}
       <div data-home-scroll-spacer aria-hidden="true" className="bg-primary" />
 
     </div>

@@ -38,3 +38,14 @@ it('keeps delivery help reachable without linking to disabled website enquiries'
   render(<CustomerFooter settings={{ ...dealerConfig, delivery: { ...dealerConfig.delivery!, enabled: true } }} enquiriesEnabled={false} testDriveHref="/enquire?type=viewing" />);
   expect(screen.getByRole('link', { name: 'Delivery options' })).toHaveAttribute('href', '/contact');
 });
+
+it('allows a distinct footer anchor and a direct-contact part-exchange destination', () => {
+  const { container } = render(<>
+    <section id="contact">Homepage contact details</section>
+    <CustomerFooter id="dealership-footer" settings={{ ...dealerConfig, partExchange: { ...dealerConfig.partExchange!, enabled: true } }}
+      testDriveHref="/enquire?type=viewing" partExchangeHref="/contact" />
+  </>);
+  expect(container.querySelectorAll('#contact')).toHaveLength(1);
+  expect(screen.getByRole('contentinfo')).toHaveAttribute('id', 'dealership-footer');
+  expect(screen.getByRole('link', { name: 'Part exchange' })).toHaveAttribute('href', '/contact');
+});

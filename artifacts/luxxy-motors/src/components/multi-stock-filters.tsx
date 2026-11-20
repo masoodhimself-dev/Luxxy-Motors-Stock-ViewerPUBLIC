@@ -40,6 +40,7 @@ type Props = {
   matchCount: number;
   onShowResults?: () => void;
   presentation?: 'sidebar' | 'toolbar';
+  skin?: 'autodeal';
 };
 const iconFiles = {
   make: "02-filter-make-car.svg",
@@ -508,6 +509,13 @@ function filterChips(
       removeLabel: "Remove mileage filter",
       patch: { mileage: "" },
     });
+  if (filters.year)
+    chips.push({
+      id: "year",
+      label: `Year: ${filters.year}`,
+      removeLabel: "Remove year filter",
+      patch: { year: "" },
+    });
   if (filters.ulez)
     chips.push({
       id: "ulez",
@@ -534,6 +542,7 @@ export function MultiStockFilters({
   matchCount,
   onShowResults,
   presentation = 'sidebar',
+  skin,
 }: Props) {
   const [open, setOpen] = useState(false),
     [query, setQuery] = useState(filters.search);
@@ -607,7 +616,7 @@ export function MultiStockFilters({
         aria-label="Filter cars"
       >
         <div className="multi-stock-sidebar-heading">
-          <h2>Search Filters</h2>
+          <h2>{skin === 'autodeal' ? 'Filter cars' : 'Search Filters'}</h2>
           {(activeCount > 0 || query) && (
             <button type="button" onClick={clear}>
               <FilterIcon name="clear" />
@@ -634,7 +643,7 @@ export function MultiStockFilters({
               type="search"
               value={query}
               maxLength={200}
-              placeholder="Make, model, reg or gearbox"
+                placeholder={skin === 'autodeal' ? 'Make, model or registration' : 'Make, model, reg or gearbox'}
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
@@ -700,7 +709,7 @@ export function MultiStockFilters({
             </SheetTrigger>
             <SheetContent
               side="left"
-              className="multi-stock-drawer"
+              className={skin === 'autodeal' ? "multi-stock-drawer autodeal-stock-drawer" : "multi-stock-drawer"}
               onCloseAutoFocus={(event) => {
                 if (afterShow.current) {
                   afterShow.current = false;

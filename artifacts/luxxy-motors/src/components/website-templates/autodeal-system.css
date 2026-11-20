@@ -1,0 +1,138 @@
+.website-template--autodeal {
+  --ct-width: 1290px;
+  --ad-gutter: 32px;
+  --ad-header-height: 78px;
+  background: white;
+}
+
+.website-template--autodeal .ad-container {
+  width: min(calc(100% - 2 * var(--ad-gutter)), var(--ct-width));
+  margin-inline: auto;
+}
+
+.website-template--autodeal.dealer-site-theme .multi-home-header {
+  height: var(--ad-header-height);
+  background: #fff;
+  border-bottom: 1px solid var(--ct-line);
+  box-shadow: none;
+}
+
+.website-template--autodeal .multi-home-header__inner {
+  max-width: 1640px;
+  padding-inline: var(--ad-gutter);
+}
+
+.website-template--autodeal .multi-home-header__brand {
+  width: clamp(162px, 14vw, 205px);
+}
+
+.website-template--autodeal .multi-home-header :is(.multi-home-header__desktop > a, .multi-home-header__disclosure, .multi-home-header__phone) {
+  font-family: var(--ct-font-heading);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: normal;
+}
+
+.website-template--autodeal .multi-home-header :is(a, button):hover {
+  background: #fff5ed;
+  color: var(--ct-accent);
+}
+
+.website-template--autodeal .multi-home-header__phone {
+  border: 1px solid var(--ad-orange);
+  border-radius: 10px;
+  padding-inline: 13px;
+}
+
+.website-template--autodeal .multi-home-header__phone svg {
+  width: 17px;
+  height: 17px;
+}
+
+.website-template--autodeal #main-content {
+  padding-top: var(--ad-header-height);
+}
+
+.website-template--autodeal :is([id], details) {
+  scroll-margin-top: calc(var(--ad-header-height) + 14px);
+}
+
+.website-template--autodeal [data-home-scroll-spacer] {
+  display: none;
+}
+
+.website-template--autodeal .enquiry-introduction .text-primary\/70 {
+  color: var(--ct-muted);
+}
+
+.website-template--autodeal #dealership-footer.dealership-footer {
+  --footer-divider: #ffffff25;
+  background: var(--customer-footer-background);
+  color: white;
+  border: 0;
+}
+
+.website-template--autodeal #dealership-footer > .container {
+  width: min(calc(100% - 2 * var(--ad-gutter)), var(--ct-width));
+  padding: 0;
+}
+
+.website-template--autodeal #dealership-footer .footer-directory-compact {
+  padding-block: 42px;
+}
+
+.website-template--autodeal #dealership-footer .footer-column h3 {
+  color: #fff;
+  font-family: var(--ct-font-heading);
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.website-template--autodeal #dealership-footer .footer-column address {
+  font-style: normal;
+}
+
+.website-template--autodeal #dealership-footer a:focus-visible {
+  outline: 2px solid var(--ad-orange);
+  outline-offset: 3px;
+}
+
+@media (max-width: 1099px) {
+  .website-template--autodeal {
+    --ad-gutter: 24px;
+    --ad-header-height: 68px;
+  }
+
+  .website-template--autodeal .multi-home-header__phone {
+    border-color: transparent;
+    padding-inline: 8px;
+  }
+
+  .website-template--autodeal #dealership-footer .footer-directory-compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 639px) {
+  .website-template--autodeal {
+    --ad-gutter: 18px;
+    --ad-header-height: 64px;
+  }
+
+  .website-template--autodeal .multi-home-header__phone svg {
+    width: 21px;
+    height: 21px;
+  }
+
+  .website-template--autodeal #dealership-footer .footer-directory-compact {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding-block: 32px;
+  }
+
+  .website-template--autodeal #dealership-footer .footer-hours {
+    padding-top: 0;
+  }
+}

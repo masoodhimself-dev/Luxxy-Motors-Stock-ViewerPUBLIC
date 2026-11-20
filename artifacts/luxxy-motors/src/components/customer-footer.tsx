@@ -8,7 +8,13 @@ import { dealershipLocation } from '@/lib/dealership-location';
 import { getUpcomingVisitDates } from '@/lib/upcoming-visit-dates';
 import './customer-footer.css';
 
-export function CustomerFooter({ settings, testDriveHref, enquiriesEnabled = false }: { settings: DealerConfig & { testDriveBooking?: { enabled: boolean } }; testDriveHref: string; enquiriesEnabled?: boolean }) {
+export function CustomerFooter({ settings, testDriveHref, enquiriesEnabled = false, id = 'contact', partExchangeHref = '/enquire?type=part_exchange' }: {
+  settings: DealerConfig & { testDriveBooking?: { enabled: boolean } };
+  testDriveHref: string;
+  enquiriesEnabled?: boolean;
+  id?: string;
+  partExchangeHref?: string;
+}) {
   const address = dealershipLocation(settings.address);
   const dates = getUpcomingVisitDates(settings.hours ?? []);
   const location = [settings.address?.city, settings.address?.region].filter(Boolean).join(' · ');
@@ -18,7 +24,7 @@ export function CustomerFooter({ settings, testDriveHref, enquiriesEnabled = fal
     { label: 'X / Twitter', href: settings.social.twitter, Icon: Twitter },
   ].filter(item => item.href);
 
-  return <footer id="contact" data-home-section className="dealership-footer mt-auto" aria-label={`${settings.identity.name} information`}>
+  return <footer id={id} data-home-section className="dealership-footer mt-auto" aria-label={`${settings.identity.name} information`}>
     <div className="container mx-auto px-4 sm:px-6 lg:px-8">
       <div className={`footer-directory footer-directory-compact${dates.length ? ' footer-directory-with-hours' : ''}`}>
         <div className="footer-brand">
@@ -32,7 +38,7 @@ export function CustomerFooter({ settings, testDriveHref, enquiriesEnabled = fal
           <Link href="/stock">Browse our cars</Link>
           <Link href="/saved">Saved cars</Link>
           {settings.testDriveBooking?.enabled && <Link href={testDriveHref}>{settings.bookViewing.ctaLabel}</Link>}
-          {settings.partExchange?.enabled && <Link href="/enquire?type=part_exchange">Part exchange</Link>}
+          {settings.partExchange?.enabled && <Link href={partExchangeHref}>Part exchange</Link>}
           {settings.warranty?.enabled && <Link href="/warranty">Warranty options</Link>}
           {settings.delivery?.enabled && <Link href={enquiriesEnabled ? "/enquire?type=general" : "/contact"}>Delivery options</Link>}
         </nav>

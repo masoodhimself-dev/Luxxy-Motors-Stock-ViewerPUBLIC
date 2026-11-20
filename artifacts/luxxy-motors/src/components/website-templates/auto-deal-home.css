@@ -1,0 +1,348 @@
+.multi-home.autodeal-home {
+  --ad-home-heading: 'Outfit', system-ui, sans-serif;
+  --mh-tint: #fff6ee;
+  --mh-border-strong: #e8e8e8;
+  --mh-shadow-sm: none;
+  font-family: var(--ct-font-ui, 'Inter', system-ui, sans-serif);
+}
+
+.autodeal-home :is(h1, h2, h3) {
+  font-family: var(--ad-home-heading);
+  font-weight: 600;
+  letter-spacing: -.015em;
+}
+
+.autodeal-home .ad-home-hero {
+  --ad-hero-gutter: clamp(70px, 15vw, 315px);
+  --ad-dock-gutter: var(--ad-hero-gutter);
+  color: #fff;
+  background: #24272c;
+}
+
+.ad-hero-showcase {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 48px;
+  min-height: clamp(540px, calc(50vw - 60px), 865px);
+  padding-block: clamp(50px, 5vw, 100px) clamp(15px, 2vw, 28px);
+}
+
+.ad-hero-showcase:not(.ad-hero-showcase--photo) {
+  min-height: 360px;
+}
+
+.ad-hero-copy,
+.ad-hero-dock {
+  position: relative;
+  width: min(1290px, calc(100% - var(--ad-hero-gutter) * 2));
+  margin-inline: auto;
+}
+
+.ad-hero-copy {
+  pointer-events: none;
+}
+
+.autodeal-home .ad-hero-copy h1 {
+  max-width: 19ch;
+  font-size: clamp(39px, 4vw, 68px);
+  line-height: 1.08;
+  color: inherit;
+}
+
+.autodeal-home .ad-hero-copy :is(.ad-hero-announcement, .ad-hero-description) {
+  max-width: 48ch;
+  color: inherit;
+  font-size: 15px;
+}
+
+.autodeal-home .ad-hero-announcement { margin-bottom: 8px; }
+.autodeal-home .ad-hero-description { margin-top: 10px; }
+.ad-hero-car-details { margin-top: 15px; }
+.ad-hero-car-details ul {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.ad-hero-car-details li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.ad-hero-car-details li strong { font-weight: 600; }
+.autodeal-home .ad-hero-copy .ad-hero-car-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 22px;
+  margin-top: 26px;
+  min-width: 128px;
+  min-height: 48px;
+  color: #24272c;
+  background: #fff;
+  border-radius: 14px;
+  font: 500 15px/1.2 var(--ad-home-heading);
+  pointer-events: auto;
+}
+
+.ad-hero-photo {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  display: block;
+  background: #646768;
+}
+
+.ad-hero-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.ad-hero-photo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgb(17 18 19 / 72%), rgb(18 19 20 / 16%) 66%, transparent),
+    linear-gradient(0deg, rgb(17 18 19 / 45%), transparent 33%);
+}
+
+.ad-hero-phone-title,
+.autodeal-home .ad-hero-phone-caption { display: none; }
+
+.ad-hero-arrows {
+  position: absolute;
+  inset-inline: clamp(10px, 2.6vw, 50px);
+  inset-block-start: 50%;
+  display: flex;
+  justify-content: space-between;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.ad-hero-arrows button {
+  display: grid;
+  place-items: center;
+  width: clamp(44px, 3.6vw, 68px);
+  aspect-ratio: 1;
+  border-radius: 14px;
+  background: rgb(255 255 255 / 19%);
+  color: #fff;
+  backdrop-filter: blur(3px);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.ad-hero-arrows button:hover { background: rgb(255 255 255 / 32%); }
+.ad-hero-dock { width: min(1290px, calc(100% - var(--ad-dock-gutter) * 2)); }
+.autodeal-home .ad-hero-dock .mh-search-card {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  background: transparent;
+  color: #24272c;
+}
+
+.autodeal-home .ad-hero-dock .mh-search-tabs {
+  width: fit-content;
+  gap: 0;
+  margin: 0;
+  border: 0;
+  overflow: hidden;
+  background: rgb(36 39 44 / 62%);
+  border-radius: 13px 13px 0 0;
+}
+
+.autodeal-home .ad-hero-dock .mh-search-tabs button {
+  min-width: 118px;
+  min-height: 44px;
+  border: 0;
+  margin: 0;
+  padding: 5px 15px;
+  color: #fff;
+  font-family: var(--ad-home-heading);
+  font-weight: 500;
+}
+
+.autodeal-home .ad-hero-dock .mh-search-tabs button[aria-selected='true'] {
+  background: rgb(255 255 255 / 21%);
+}
+
+.autodeal-home .ad-hero-dock .mh-search-tabs button:focus-visible { outline-offset: -3px; }
+.autodeal-home .ad-hero-dock .mh-search-fields,
+.autodeal-home .ad-hero-dock .mh-px-form {
+  padding: 18px clamp(12px, 2vw, 28px);
+  background: #fff;
+  border-radius: 0 16px 16px;
+}
+
+.autodeal-home .ad-hero-dock .mh-search-fields {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(114px, 1.1fr);
+  align-items: center;
+  gap: clamp(8px, 1.6vw, 28px);
+}
+
+.autodeal-home .ad-hero-dock .mh-search-fields label {
+  border-inline-end: 1px solid #e8e8e8;
+}
+
+.multi-home.autodeal-home .ad-hero-dock .mh-search-card .mh-buy-form label > span:first-child {
+  inset-inline-start: 0;
+  inset-block-start: 0;
+  font: 600 15px/1.2 var(--ad-home-heading);
+  color: #24272c;
+}
+
+.multi-home.autodeal-home .ad-hero-dock .mh-search-card .mh-search-select select {
+  min-height: 44px;
+  padding: 19px 21px 0 0;
+  font-size: 13px;
+  font-weight: 400;
+  border: 0;
+  border-radius: 0;
+  background: #fff;
+  color: #555351;
+}
+
+.multi-home.autodeal-home .ad-hero-dock .mh-search-card .mh-search-select select:disabled { color: #62605e; }
+.autodeal-home .ad-hero-dock .mh-search-select svg { inset-inline-end: 8px; bottom: 6px; width: 13px; }
+.autodeal-home .ad-hero-dock .mh-search-fields :is(.mh-search-budget, .mh-button) { grid-column: auto; }
+
+.multi-home.autodeal-home .ad-hero-dock .mh-search-card .mh-button,
+.autodeal-home .mh-px-strip .mh-button {
+  min-height: 48px;
+  margin: 0;
+  background: var(--ad-orange, #ff7101);
+  border-color: transparent;
+  color: #24272c;
+  border-radius: 14px;
+  font: 600 15px/1.2 var(--ad-home-heading);
+  white-space: nowrap;
+}
+
+.multi-home.autodeal-home .ad-hero-dock .mh-search-card .mh-button:enabled:hover,
+.autodeal-home .mh-px-strip .mh-button:hover { background: #f56b00; }
+.autodeal-home .ad-hero-dock .mh-search-more {
+  justify-content: flex-start;
+  padding-inline: 0;
+  margin: 0;
+  color: #fff;
+  font-weight: 400;
+}
+
+.autodeal-home .ad-hero-dock .mh-small {
+  position: relative;
+  padding: 6px 12px;
+  margin-top: 5px;
+  border-radius: 4px;
+  background: #fff;
+  color: #24272c;
+}
+
+.autodeal-home .ad-home-makes { background: #fff6ee; }
+.autodeal-home .mh-makes { text-align: start; padding-block: 24px; }
+.autodeal-home .mh-makes h2 { margin: 0 0 10px; }
+.autodeal-home .mh-car-price strong { color: var(--ct-accent, #ab4600); }
+
+@media (max-width: 1000px) {
+  .autodeal-home .ad-home-hero {
+    --ad-hero-gutter: 64px;
+    --ad-dock-gutter: 22px;
+  }
+}
+
+@media (max-width: 767px) {
+  .autodeal-home .ad-home-hero {
+    --ad-home-phone-gutter: 18px;
+    color: #24272c;
+    background: #fff;
+  }
+
+  .ad-hero-showcase,
+  .ad-hero-showcase:not(.ad-hero-showcase--photo) {
+    display: block;
+    min-height: 0;
+    padding: 18px var(--ad-home-phone-gutter) 10px;
+  }
+
+  .ad-hero-copy,
+  .ad-hero-dock { width: 100%; }
+  .autodeal-home .ad-hero-copy h1 { max-width: none; font-size: clamp(27px, 8.2vw, 34px); line-height: 1.13; }
+  .ad-hero-phone-title { display: inline; }
+  .ad-hero-desktop-title,
+  .ad-hero-car-details,
+  .ad-hero-arrows,
+  .autodeal-home .ad-hero-dock .ad-search-desktop,
+  .autodeal-home .ad-hero-dock .mh-search-tabs:has([aria-selected="true"]:first-child) { display: none; }
+  .ad-hero-photo {
+    position: relative;
+    z-index: auto;
+    aspect-ratio: 1.6;
+    margin-top: 13px;
+    background: #ededed;
+  }
+  .ad-hero-photo::after { display: none; }
+  .autodeal-home .ad-hero-phone-caption {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+    font: 500 16px/1.3 var(--ad-home-heading);
+  }
+  .ad-hero-phone-caption span:last-child { flex: 0 0 auto; text-align: right; }
+  .ad-hero-phone-caption small { display: block; margin-top: 2px; font: 400 11px/1.2 var(--ct-font-ui, sans-serif); }
+  .ad-hero-dock { margin-top: 24px; }
+  .autodeal-home .ad-hero-dock .mh-search-fields,
+  .autodeal-home .ad-hero-dock .mh-px-form {
+    padding: 0;
+    border-radius: 0;
+  }
+  .autodeal-home .ad-hero-dock .mh-search-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
+    align-items: end;
+  }
+  .autodeal-home .ad-hero-dock .mh-search-fields label { border: 0; }
+  .multi-home.autodeal-home .ad-hero-dock .mh-search-card .mh-buy-form label > span:first-child {
+    inset-inline-start: 12px;
+    inset-block-start: 9px;
+    font-weight: 500;
+    font-size: 16px;
+  }
+  .multi-home.autodeal-home .ad-hero-dock .mh-search-card .mh-search-select select {
+    min-height: 62px;
+    padding: 24px 24px 3px 12px;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    font-size: 12px;
+  }
+  .autodeal-home .ad-hero-dock .mh-search-select svg { inset-inline-end: 10px; bottom: 12px; }
+  .multi-home.autodeal-home .ad-hero-dock .mh-search-card .mh-button { border-radius: 8px; }
+  .autodeal-home .ad-hero-dock .mh-button svg,
+  .autodeal-home .ad-hero-dock .mh-search-more svg { display: none; }
+  .autodeal-home .ad-hero-dock .mh-search-more { color: #62605e; font-size: 12px; }
+  .autodeal-home .ad-home-makes .mh-container { padding-inline: 18px; }
+  .autodeal-home .mh-makes { padding: 18px 0; }
+  .autodeal-home .mh-makes h2 { font-size: 24px; }
+  .autodeal-home .mh-makes > div { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px 10px; margin-top: 6px; }
+  .autodeal-home .mh-makes a { padding-inline: 0; }
+  .autodeal-home .mh-makes .mh-make-logo { display: none; }
+}
+
+@media (max-width: 350px) {
+  .autodeal-home .mh-makes > div { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

@@ -110,6 +110,17 @@ const filter = (fields: Partial<StockFilters> = {}) => ({
 const ids = (input: Car[], fields: Partial<StockFilters> = {}) =>
   applyStockFilters(input, filter(fields)).items.map((item) => item.id);
 
+it("matches a selected year exactly without interpreting model names and registrations as years", () => {
+  const inventory = [
+    cars[0],
+    car("different-year", { year: 2019, variant: "2020 Limited edition" }),
+    car("unknown-year", { registration: "XX2020" }),
+  ];
+  expect(ids(inventory, { year: "2020" })).toEqual(["corolla"]);
+  expect(ids(inventory, { year: "2020", search: "Honda" })).toEqual([]);
+  expect(ids(inventory, { search: "2020" })).toEqual(["corolla", "different-year", "unknown-year"]);
+});
+
 it("preserves the recommended input order and unknown facts when no filter is selected, without mutation", () => {
   const source = [...cars];
   Object.freeze(source);

@@ -1,0 +1,487 @@
+/* Listing List 14 from AutoDeal. The catalogue keeps its shared stock state and controls. */
+.template-stock--autodeal.stock-sidebar-layout {
+  --autodeal-stock-orange: #ff7101;
+  --autodeal-stock-accent-text: #a74700;
+  --autodeal-stock-ink: #24272c;
+  --autodeal-stock-muted: #696665;
+  --autodeal-stock-line: #ededed;
+  --autodeal-stock-control: #d9d7d5;
+  --autodeal-stock-wash: #fff6ef;
+  --autodeal-stock-heading: var(--ct-font-heading, Outfit, sans-serif);
+  --autodeal-stock-body: var(--ct-font-ui, Inter, sans-serif);
+  font-family: var(--autodeal-stock-body);
+  background: #fff;
+  color: var(--autodeal-stock-ink);
+}
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-refined.stock-sidebar-layout .stock-page-intro {
+  border: 0;
+  background: #fff;
+  padding-block: 18px 0;
+}
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout :is(.stock-page-intro > .container, #stock > .container, .stock-loading) {
+  width: min(calc(100% - 36px), 1290px);
+  max-width: none;
+  margin-inline: auto;
+  padding-inline: 0;
+}
+
+.template-stock--autodeal .autodeal-stock-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--autodeal-stock-muted);
+  padding-block: 0 24px;
+}
+
+.template-stock--autodeal .autodeal-stock-breadcrumb a {
+  color: var(--autodeal-stock-accent-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.template-stock--autodeal .stock-title-group {
+  flex: 1 1 auto;
+  align-items: baseline;
+}
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-refined.stock-sidebar-layout .stock-page-intro h1 {
+  color: var(--autodeal-stock-ink);
+  font: 600 32px/1.12 var(--autodeal-stock-heading);
+  letter-spacing: -.02em;
+}
+
+.template-stock--autodeal .autodeal-stock-introduction {
+  width: 100%;
+  color: var(--autodeal-stock-muted);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 4px 0 0;
+}
+
+.template-stock--autodeal .autodeal-stock-mobile-count {
+  display: none;
+  color: var(--autodeal-stock-muted);
+  font-size: 12px;
+}
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-refined.stock-sidebar-layout #stock {
+  padding-block: 18px 60px;
+}
+
+.template-stock--autodeal :is(.multi-stock-filters, .multi-stock-controls),
+body [data-popup-surface].autodeal-stock-drawer[role='dialog'] {
+  --app-font-sans: var(--ct-font-body, Inter, sans-serif);
+  --ms-navy: #24272c;
+  --ms-gold: #a74700;
+  --ms-surface: #fff;
+  --ms-line: #ededed;
+  --ms-muted: #696665;
+  color-scheme: light;
+}
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout .stock-filter-sidebar.multi-stock-filters {
+  border: 1px solid var(--autodeal-stock-line);
+  border-radius: 18px;
+  padding: 16px;
+  background: #fff;
+}
+
+.template-stock--autodeal .multi-stock-sidebar-heading h2 {
+  font: 600 18px/1.2 var(--autodeal-stock-heading);
+}
+
+.template-stock--autodeal .multi-stock-sidebar-scroll {
+  padding: 2px 3px 3px;
+}
+
+.template-stock--autodeal .multi-stock-filters .multi-stock-section {
+  margin-bottom: 8px;
+  border: 1px solid var(--autodeal-stock-line);
+  border-radius: 9px;
+}
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout .multi-stock-filters .multi-stock-section__toggle {
+  min-height: 46px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  color: var(--autodeal-stock-ink);
+  font: 500 15px/1.2 var(--autodeal-stock-heading);
+}
+
+.template-stock--autodeal .multi-stock-filters .multi-stock-section__toggle:hover {
+  background: var(--autodeal-stock-wash);
+}
+
+.template-stock--autodeal .multi-stock-filters .multi-stock-section__chevron {
+  flex-basis: 16px;
+  width: 16px;
+}
+
+.template-stock--autodeal .multi-stock-filters .multi-stock-section__chevron .multi-stock-icon {
+  flex-basis: 16px;
+  width: 16px;
+}
+
+.template-stock--autodeal .multi-stock-section__toggle[aria-expanded='true'] {
+  color: var(--autodeal-stock-accent-text);
+}
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-refined.stock-sidebar-layout :is(.multi-stock-search, .multi-stock-sort, .multi-stock-mobile-trigger) {
+  min-height: 46px;
+  border: 1px solid var(--autodeal-stock-control);
+  border-radius: 9px;
+  background: #fff;
+}
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout .multi-stock-controls :is(.multi-stock-sort select, .multi-stock-mobile-trigger) {
+  color: var(--autodeal-stock-ink);
+  font-family: var(--autodeal-stock-heading);
+  font-weight: 500;
+}
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout .multi-stock-count {
+  font-weight: 400;
+  color: var(--autodeal-stock-muted);
+}
+
+.template-stock--autodeal .stock-options-trigger,
+.template-stock--autodeal .stock-saved-link {
+  font-family: var(--autodeal-stock-heading);
+}
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .template-stock-results {
+  gap: 22px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .autodeal-listing {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--autodeal-stock-line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .autodeal-listing .vehicle-card-photo {
+  position: relative;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  grid-column: auto;
+  grid-row: auto;
+  background: #f5f4f3;
+}
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .autodeal-listing [data-stock-link] {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  height: auto;
+  aspect-ratio: 4/3;
+  border-radius: 0;
+}
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .autodeal-listing [data-stock-link] img {
+  object-fit: contain;
+  border-radius: 0;
+  background: #f5f4f3;
+}
+
+.template-stock--autodeal .autodeal-listing-year {
+  display: none;
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  pointer-events: none;
+  padding: 4px 10px;
+  border-radius: 100px;
+  background: var(--autodeal-stock-orange);
+  color: var(--autodeal-stock-ink);
+  font-family: var(--autodeal-stock-heading);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .autodeal-listing .vehicle-card-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 14px;
+  gap: 5px;
+  border: 0;
+  margin: 0;
+  overflow: visible;
+}
+
+.template-stock--autodeal .autodeal-listing-identity { order: 0; }
+.template-stock--autodeal .autodeal-listing .stock-card-status { order: 1; }
+.template-stock--autodeal .autodeal-listing .vehicle-specs { order: 2; }
+.template-stock--autodeal .autodeal-listing .vehicle-card-price { order: 3; }
+.template-stock--autodeal .autodeal-listing .vehicle-card-actions { order: 4; }
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .autodeal-listing h3 {
+  color: var(--autodeal-stock-ink);
+  font: 600 22px/1.18 var(--autodeal-stock-heading);
+  letter-spacing: -.018em;
+}
+
+.template-stock--autodeal .autodeal-listing-category {
+  display: none;
+  color: var(--autodeal-stock-accent-text);
+  font-family: var(--autodeal-stock-heading);
+  font-weight: 500;
+  font-size: 14px;
+  margin-bottom: 3px;
+}
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .autodeal-listing .vehicle-card-variant {
+  color: var(--autodeal-stock-muted);
+  font-size: 13px;
+  line-height: 1.4;
+  min-height: 0;
+  margin-top: 4px;
+}
+
+.template-stock--autodeal .autodeal-listing-registration {
+  color: var(--autodeal-stock-muted);
+  font-size: 12px;
+}
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .autodeal-listing .vehicle-specs {
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--autodeal-stock-muted);
+  line-height: 1.45;
+  gap: 6px 14px;
+  margin: 4px 0;
+}
+
+.template-stock--autodeal .autodeal-listing-fact--fuel { order: 1; }
+.template-stock--autodeal .autodeal-listing-fact--gearbox { order: 2; }
+.template-stock--autodeal.stock-sidebar-layout .autodeal-listing .vehicle-specs .autodeal-listing-fact-icon {
+  display: none;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+}
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .autodeal-listing :is(.vehicle-card-price, .stock-card-status) {
+  margin: 3px 0;
+  padding: 0;
+}
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .autodeal-listing .luxxy-price {
+  font: 600 24px/1.16 var(--autodeal-stock-heading);
+  color: var(--autodeal-stock-ink);
+}
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .autodeal-listing .vehicle-card-actions {
+  flex-direction: row;
+  align-items: center;
+  margin: auto 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--autodeal-stock-line);
+  gap: 4px 9px;
+}
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .autodeal-listing .vehicle-card-view {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  flex: 0 0 auto;
+  min-width: 110px;
+  min-height: 44px;
+  border: 1px solid var(--autodeal-stock-orange);
+  border-radius: 9px;
+  padding: 9px 13px;
+  background: var(--autodeal-stock-orange);
+  color: var(--autodeal-stock-ink);
+  font: 500 15px/1.2 var(--autodeal-stock-heading);
+  text-decoration: none;
+}
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .autodeal-listing .vehicle-card-view:hover {
+  background: var(--autodeal-stock-wash);
+  color: var(--autodeal-stock-accent-text);
+}
+
+.template-stock--autodeal .autodeal-listing .vehicle-card-view svg { display: none; }
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .autodeal-listing .vehicle-card-shortlist {
+  gap: 0;
+}
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .autodeal-listing .vehicle-card-shortlist button {
+  padding-inline: 6px;
+  color: var(--autodeal-stock-ink);
+  font: 500 14px/1.25 var(--autodeal-stock-heading);
+}
+
+.template-stock--autodeal .autodeal-listing .vehicle-card-shortlist button > svg { display: none; }
+
+.template-stock--autodeal .autodeal-listing-dealer {
+  display: none;
+}
+
+.template-stock--autodeal .autodeal-listing-enquire {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 12px;
+  min-height: 44px;
+  border: 1px solid var(--autodeal-stock-control);
+  border-radius: 9px;
+  background: white;
+  color: var(--autodeal-stock-ink);
+  font: 500 14px/1.2 var(--autodeal-stock-heading);
+}
+
+.template-stock--autodeal .autodeal-listing-enquire:hover { background: var(--autodeal-stock-wash); }
+
+.template-stock--autodeal .autodeal-listing :is(a, button):focus-visible {
+  outline: 2px solid var(--autodeal-stock-accent-text);
+  outline-offset: 2px;
+}
+
+.template-stock--autodeal .autodeal-listing [data-stock-link]:focus-visible { outline-offset: -4px; }
+
+.template-stock--autodeal .autodeal-listing .stock-photo-badge {
+  background: var(--autodeal-stock-ink);
+}
+
+.template-stock--autodeal .autodeal-listing .stock-photo-count {
+  background: #24272ce8;
+  color: #fff;
+}
+
+.website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .stock-promise-ad {
+  grid-column: 1 / -1;
+}
+
+body [data-popup-surface].autodeal-stock-drawer .multi-stock-drawer-footer button:last-child {
+  background: #ff7101;
+  color: #24272c;
+}
+
+@media (max-width: 699px) {
+  .template-stock--autodeal .autodeal-stock-breadcrumb { display: none; }
+  .template-stock--autodeal .stock-heading-row { flex-wrap: wrap; }
+  .template-stock--autodeal .stock-title-group {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+  }
+  .template-stock--autodeal .autodeal-stock-mobile-count { display: inline; }
+  .template-stock--autodeal .autodeal-stock-introduction { display: none; }
+  .website-template.customer-site .template-stock--autodeal.stock-redesign.stock-refined.stock-sidebar-layout #stock { padding-top: 6px; }
+  .website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout .multi-stock-controls .multi-stock-count {
+    position: absolute;
+    clip-path: inset(50%);
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .template-stock--autodeal .stock-catalogue-controls.multi-stock-controls {
+    padding-bottom: 0;
+    margin-bottom: 14px;
+    border-bottom: 0;
+  }
+  .template-stock--autodeal .autodeal-listing .stock-photo-count {
+    display: none;
+  }
+}
+
+@media (min-width: 700px) {
+  .website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .template-stock-results > .autodeal-listing:not(.vehicle-card-grid) {
+    grid-template-columns: minmax(0, 31.25%) minmax(0, 1fr);
+  }
+  .website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .autodeal-listing:not(.vehicle-card-grid) .vehicle-card-photo {
+    min-height: clamp(220px, 21vw, 266px);
+    align-self: stretch;
+    border: 0;
+  }
+  .website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .autodeal-listing:not(.vehicle-card-grid) [data-stock-link] {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    min-height: 0;
+    aspect-ratio: initial;
+  }
+  .template-stock--autodeal .autodeal-listing:not(.vehicle-card-grid) .autodeal-listing-year { display: inline-block; }
+  .template-stock--autodeal .autodeal-listing:not(.vehicle-card-grid) .autodeal-listing-category { display: block; }
+  .template-stock--autodeal.stock-sidebar-layout .autodeal-listing:not(.vehicle-card-grid) .vehicle-specs .autodeal-listing-fact-icon { display: inline-block; }
+  .template-stock--autodeal.stock-sidebar-layout .autodeal-listing:not(.vehicle-card-grid) .vehicle-specs .autodeal-listing-fact--year { display: none; }
+  .website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .autodeal-listing:not(.vehicle-card-grid) .vehicle-card-details {
+    padding: 22px clamp(16px, 2vw, 28px);
+    gap: 5px;
+  }
+  .website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .autodeal-listing:not(.vehicle-card-grid) .luxxy-price {
+    color: var(--autodeal-stock-accent-text);
+  }
+  .website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .autodeal-listing:not(.vehicle-card-grid) .vehicle-card-actions {
+    border-top: 0;
+    justify-content: flex-start;
+    gap: 4px 12px;
+  }
+  .website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .autodeal-listing:not(.vehicle-card-grid) .vehicle-card-view {
+    min-width: 156px;
+    padding-inline: 21px;
+    gap: 9px;
+    color: var(--autodeal-stock-accent-text);
+    background: #fff;
+  }
+  .template-stock--autodeal .autodeal-listing:not(.vehicle-card-grid) .vehicle-card-view svg { display: inline; }
+  .template-stock--autodeal .autodeal-listing:not(.vehicle-card-grid) .vehicle-card-view:hover { background: var(--autodeal-stock-wash); }
+  .website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout[data-stock-view='cards'][data-stock-mode='override'] #vehicle-results .template-stock-results {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #stock > .stock-catalogue-layout {
+    grid-template-columns: minmax(220px, 23.25%) minmax(0, 1fr);
+    column-gap: clamp(18px, 2.1vw, 30px);
+  }
+  .template-stock--autodeal .multi-stock-toolbar-row { grid-template-columns: auto minmax(190px, 1fr) minmax(154px, 190px); }
+  .template-stock--autodeal .multi-stock-controls .multi-stock-count {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: max-content;
+    display: flex;
+    align-items: center;
+    margin-right: 8px;
+  }
+}
+
+@media (min-width: 1230px) {
+  .website-template.customer-site .template-stock--autodeal.stock-redesign.stock-sidebar-layout #vehicle-results .template-stock-results > .autodeal-listing:not(.vehicle-card-grid) {
+    grid-template-columns: minmax(0, 31.25%) minmax(0, 1fr) minmax(160px, 25%);
+  }
+  .template-stock--autodeal .autodeal-listing:not(.vehicle-card-grid) .autodeal-listing-dealer {
+    display: block;
+    align-self: start;
+    margin: 24px 0;
+    padding: 0 20px;
+    border-left: 1px solid var(--autodeal-stock-line);
+    font: 500 14px/1.35 var(--autodeal-stock-heading);
+    overflow-wrap: anywhere;
+    z-index: 20;
+  }
+  .template-stock--autodeal .autodeal-listing-dealer p + p {
+    color: var(--autodeal-stock-muted);
+    font: 400 12px/1.45 var(--autodeal-stock-body);
+  }
+}
