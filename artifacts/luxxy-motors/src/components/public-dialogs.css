@@ -39,11 +39,38 @@
   text-underline-offset: 3px;
 }
 .vehicle-whatsapp-dialog .vehicle-action-footer {
-  padding-top: 14px;
+  padding-top: 12px;
   border-top: 1px solid var(--dialog-border);
 }
 .vehicle-whatsapp-dialog .vehicle-action-footer > .vehicle-action-note { font-size: 12px; }
-.vehicle-whatsapp-dialog textarea { min-height: 124px; }
+.vehicle-whatsapp-dialog textarea { min-height: 168px; }
+.vehicle-whatsapp-hours { display: flex; align-items: center; gap: 7px; color: var(--dialog-muted); font-size: 13px; }
+.vehicle-whatsapp-hours svg { flex-shrink: 0; }
+.vehicle-action-dialog:is(.vehicle-call-dialog, .vehicle-whatsapp-dialog) h2 {
+  font-family: var(--font-display, inherit);
+  font-size: clamp(21px, 3vw, 25px);
+}
+.vehicle-action-dialog:is(.vehicle-call-dialog, .vehicle-whatsapp-dialog) .vehicle-dialog-vehicle {
+  padding: 10px;
+  gap: 12px;
+}
+.vehicle-action-dialog:is(.vehicle-call-dialog, .vehicle-whatsapp-dialog) .vehicle-dialog-vehicle > img {
+  width: 72px;
+  height: 54px;
+  border-radius: 5px;
+}
+.vehicle-action-dialog:is(.vehicle-call-dialog, .vehicle-whatsapp-dialog) .vehicle-dialog-vehicle-bottomline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+.vehicle-action-dialog:is(.vehicle-call-dialog, .vehicle-whatsapp-dialog) .vehicle-action-primary {
+  background: var(--dialog-action, var(--dialog-accent));
+  border-color: var(--dialog-action, var(--dialog-accent));
+  color: var(--dialog-action-foreground, var(--dialog-accent-foreground));
+}
+.vehicle-whatsapp-dialog .vehicle-action-primary > svg { color: inherit !important; }
 .vehicle-print-dialog .vehicle-print-actions { padding-right: 4px; }
 .vehicle-print-dialog .vehicle-print-preview { display: block; }
 @media (max-width: 639px) {

@@ -38,7 +38,7 @@ import {
   saveBrowseSession,
   restoreBrowsePosition,
 } from "@/lib/browse-session";
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useStock } from '@/lib/stock-context';
 import { CarCard } from '@/components/car-card';
@@ -138,6 +138,28 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   const comparisonShare = useShortlistShare();
   const [copyNotice, setCopyNotice] = useState('');
   const [stockOptionsOpen, setStockOptionsOpen] = useState(false);
+  const stockOptionsRoot = useRef<HTMLDivElement>(null);
+  const stockOptionsTrigger = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!stockOptionsOpen) return;
+    const dismiss = () => {
+      const focusWasInside = stockOptionsRoot.current?.contains(document.activeElement);
+      setStockOptionsOpen(false);
+      if (focusWasInside) stockOptionsTrigger.current?.focus({ preventScroll: true });
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !event.defaultPrevented) dismiss();
+    };
+    const outside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !stockOptionsRoot.current?.contains(event.target)) dismiss();
+    };
+    document.addEventListener('keydown', escape);
+    document.addEventListener('pointerdown', outside);
+    return () => {
+      document.removeEventListener('keydown', escape);
+      document.removeEventListener('pointerdown', outside);
+    };
+  }, [stockOptionsOpen]);
   const [legacyVisibleCount, setVisibleCount] = useState(() => readBrowseSession().visibleCount || 12);
   const multiStock = browseStock;
   const stockSearch = useStockSearch({ enabled: multiStock, cars: publicCars });
@@ -448,6 +470,25 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     </div>
   );
 
+  const stockViewOptions = <Collapsible ref={stockOptionsRoot} open={stockOptionsOpen} onOpenChange={setStockOptionsOpen}
+    onBlur={event => {
+      if (event.relatedTarget instanceof Node && !event.currentTarget.contains(event.relatedTarget)) setStockOptionsOpen(false);
+    }} className="stock-options" data-testid="stock-secondary-actions">
+    <CollapsibleTrigger ref={stockOptionsTrigger} className="stock-options-trigger" aria-label="View options"><SlidersHorizontal size={16} aria-hidden="true" />View options<ChevronDown size={15} aria-hidden="true" /></CollapsibleTrigger>
+    <CollapsibleContent className="stock-options-panel">
+      <div className="flex items-center justify-between gap-4"><span className="text-sm text-muted-foreground">Vehicle display</span>{stockViewControls}</div>
+      <button type="button" className="stock-option-action" onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(window.location.href);
+          setCopyNotice('Search link copied');
+        } catch {
+          setCopyNotice('Copy the address from your browser to share this search.');
+        }
+      }}><Link2 size={17} aria-hidden="true" />Copy search link</button>
+      {copyNotice && <p className="text-sm leading-5 text-muted-foreground" role="status">{copyNotice}</p>}
+    </CollapsibleContent>
+  </Collapsible>;
+
   const FullTemplateStock = modernShowroom ? ModernShowroomStockPage : stockTemplate === null ? GraphiteStockPage : GrandTouringStockPage;
   if (browseStock && (stockTemplate === null || stockTemplate === 'grand-touring')) return <FullTemplateStock
     title={websiteText(dealerConfig, 'stockTitle')}
@@ -480,14 +521,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
         requestAnimationFrame(() => { scrollToHomeTarget('stock'); focusHomeTarget('vehicle-results'); });
       }}
     />}
-    viewOptions={<Collapsible open={stockOptionsOpen} onOpenChange={setStockOptionsOpen} className="stock-options" data-testid="stock-secondary-actions">
-      <CollapsibleTrigger className="stock-options-trigger" aria-label="View options"><SlidersHorizontal size={16} aria-hidden="true" />View options<ChevronDown size={15} aria-hidden="true" /></CollapsibleTrigger>
-      <CollapsibleContent className="stock-options-panel">
-        <div className="flex items-center justify-between gap-4"><span className="text-sm text-muted-foreground">Vehicle display</span>{stockViewControls}</div>
-        <button type="button" className="stock-option-action" onClick={async () => { try { await navigator.clipboard.writeText(window.location.href); setCopyNotice('Search link copied'); } catch { setCopyNotice('Copy the address from your browser to share this search.'); } }}><Link2 size={17} aria-hidden="true" />Copy search link</button>
-        {copyNotice && <p className="text-sm leading-5 text-muted-foreground" role="status">{copyNotice}</p>}
-      </CollapsibleContent>
-    </Collapsible>}
+    viewOptions={stockViewOptions}
     compareActionFor={car => publicCars.length >= 2 ? {
       selected: comparison.selectedIds.includes(car.id),
       disabled: comparison.selectedIds.length === MAX_COMPARISON_CARS && !comparison.selectedIds.includes(car.id),
@@ -549,14 +583,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
             </div>
             <div className="stock-heading-actions">
             <Link className="stock-saved-link" href="/saved"><Heart size={17} aria-hidden="true" />Saved <span>({savedCount})</span></Link>
-            {showCatalogue && <Collapsible open={stockOptionsOpen} onOpenChange={setStockOptionsOpen} className="stock-options" data-testid="stock-secondary-actions">
-              <CollapsibleTrigger className="stock-options-trigger"><SlidersHorizontal size={16} aria-hidden="true" />View options<ChevronDown size={15} aria-hidden="true" /></CollapsibleTrigger>
-              <CollapsibleContent className="stock-options-panel">
-                <div className="flex items-center justify-between gap-4"><span className="text-sm text-muted-foreground">Vehicle display</span>{stockViewControls}</div>
-                <button type="button" className="stock-option-action" onClick={async () => {try {await navigator.clipboard.writeText(window.location.href); setCopyNotice('Search link copied');} catch {setCopyNotice('Copy the address from your browser to share this search.');}}}><Link2 size={17} aria-hidden="true" />Copy search link</button>
-                {copyNotice && <p className="text-sm leading-5 text-muted-foreground" role="status">{copyNotice}</p>}
-              </CollapsibleContent>
-            </Collapsible>}
+            {showCatalogue && stockViewOptions}
             </div>
           </div>
 

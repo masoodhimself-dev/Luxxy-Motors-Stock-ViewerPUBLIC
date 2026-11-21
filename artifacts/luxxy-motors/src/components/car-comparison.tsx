@@ -92,9 +92,11 @@ export function CarComparison({ cars, open, onOpenChange, onShare, shareStatus, 
         <table className="car-comparison-table">
           <caption className="sr-only">Comparison of {visibleCars.map(vehicleDisplayTitle).join(', ')}</caption>
           <thead><tr><th scope="col"><span className="sr-only">Vehicle detail</span></th>{visibleCars.map(car => <th scope="col" key={car.id}>
-            <ShowroomPhoto src={getThumbnailUrl(car)} alt="" className="car-comparison-photo" fit="cover" />
             <Link href={vehicleDetailPath(car) + (returnSource ? `?from=${returnSource}` : '')}
-              onClick={returnSource === 'stock' ? () => rememberStockPosition(car.id) : undefined}>{vehicleDisplayTitle(car)}</Link>
+              onClick={returnSource === 'stock' ? () => rememberStockPosition(car.id) : undefined}>
+              <div aria-hidden="true"><ShowroomPhoto src={getThumbnailUrl(car)} alt="" className="car-comparison-photo" fit="cover" /></div>
+              <span className="car-comparison-name">{vehicleDisplayTitle(car)}</span>
+            </Link>
             {car.variant && <span className="car-comparison-variant">{car.variant}</span>}
           </th>)}</tr></thead>
           <tbody>{facts.map(row)}

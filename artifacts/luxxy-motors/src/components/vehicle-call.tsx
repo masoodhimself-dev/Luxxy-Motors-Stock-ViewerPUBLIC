@@ -39,6 +39,8 @@ export function VehicleCall({
   const trigger = useRef<HTMLAnchorElement>(null);
   const dialogTitle = useRef<HTMLHeadingElement>(null);
   const phoneInput = useRef<HTMLInputElement>(null);
+  const requestButton = useRef<HTMLButtonElement>(null);
+  const callbackFormId = useId();
   const phoneErrorId = useId();
   const [open, setOpen] = useState(false);
   const [callbackForm, setCallbackForm] = useState(false);
@@ -76,24 +78,29 @@ export function VehicleCall({
     ? appointmentVisitNote
     : /^(sample|example|placeholder)\b|replace this|tell customers/i.test(configuredVisitInstructions) ? '' : configuredVisitInstructions;
 
-  const showroomInformation = (
-    <section className="vehicle-call-showroom" aria-label="Showroom information">
-            <div className="vehicle-call-hours" data-status={detailsReady ? hours.state : 'unknown'} role="status" aria-live="polite">
-              <span className="vehicle-call-status"><Clock3 size={16} aria-hidden="true" />{settingsLoading ? 'Checking opening hours…' : settingsError ? 'Hours unavailable' : hours.statusLabel}</span>
-              {detailsReady && hours.todayText && <strong>{hours.todayText}</strong>}
-              {detailsReady && hours.state === 'closed' && hours.next && <p>Opens {hours.next}</p>}
-              {detailsReady && hours.state === 'unknown' && <p>Today’s hours aren’t confirmed. Please check before travelling.</p>}
-              {detailsReady && hours.state === 'closed' && !hours.next && <p>Contact us to arrange your next visit.</p>}
-              {settingsError && <p>Please confirm our hours before travelling.</p>}
-              <small>Regular showroom hours</small>
-            </div>
-            <div className="vehicle-call-location">
-              <h3><MapPin size={16} aria-hidden="true" />Our showroom</h3>
-              {detailsReady && location.lines.length > 0 && !location.isSample ? <address>{location.lines.join(', ')}</address> : <p>{settingsLoading ? 'Loading showroom address…' : 'Contact us to confirm our showroom address.'}</p>}
-              {directions && <a href={directions} target="_blank" rel="noopener noreferrer">Get directions<ArrowUpRight size={15} aria-hidden="true" /></a>}
-            </div>
-          </section>
-  );
+  const garageHours = <div className="vehicle-call-hours" data-status={detailsReady ? hours.state : 'unknown'} role="status">
+    <strong className="vehicle-call-status"><Clock3 size={16} aria-hidden="true" />{settingsLoading ? 'Checking opening hours…' : settingsError ? 'Hours unavailable' : hours.statusLabel}</strong>
+    {detailsReady && hours.todayText && <span>{hours.todayText}</span>}
+    {detailsReady && hours.state === 'closed' && hours.next && <span>Opens {hours.next}</span>}
+    {detailsReady && hours.state === 'unknown' && <span>Today’s hours aren’t confirmed. Please check before travelling.</span>}
+    {detailsReady && hours.state === 'closed' && !hours.next && <span>Contact us to arrange your next visit.</span>}
+    {settingsError && <span>Please confirm our hours before travelling.</span>}
+  </div>;
+  const showroomLocation = <section className="vehicle-call-location" aria-label="Showroom information">
+    <h3><MapPin size={16} aria-hidden="true" />Our showroom</h3>
+    {detailsReady && location.lines.length > 0 && !location.isSample ? <address>{location.lines.join(', ')}</address>
+      : <p>{settingsLoading ? 'Loading showroom address…' : 'Contact us to confirm our showroom address.'}</p>}
+    {visitInstructions && !showCallback && <p className="vehicle-call-visit-note">{visitInstructions}</p>}
+    {directions && <a href={directions} target="_blank" rel="noopener noreferrer">Get directions<ArrowUpRight size={15} aria-hidden="true" /></a>}
+  </section>;
+
+  function changeCallback(next: boolean) {
+    setCallbackForm(next);
+    requestAnimationFrame(() => {
+      if (next) dialogTitle.current?.focus({ preventScroll: true });
+      else requestButton.current?.focus();
+    });
+  }
 
   async function copyNumber() {
     try {
@@ -175,18 +182,15 @@ export function VehicleCall({
 
           <div className="vehicle-call-content">
           <VehicleDialogVehicle car={car} showRegistrationPlate />
-          {visitInstructions && <p className="vehicle-call-visit-note">{visitInstructions}</p>}
 
-          {!showCallback && <div className="vehicle-call-contact" data-closed={detailsReady && hours.state === 'closed'}>
+          {!showCallback && <>{garageHours}<div className="vehicle-call-contact" data-closed={detailsReady && hours.state === 'closed'}>
             <div className="vehicle-call-contact-actions">
-              {detailsReady && hours.state === 'closed' && (features.enabled('publicEnquiries') || callback.isSuccess) && <button type="button" className="vehicle-call-request" onClick={() => setCallbackForm(true)}>{callback.isSuccess ? 'View callback request' : 'Request a callback'}</button>}
-              <a href={href} className="vehicle-call-dial"><Phone size={19} aria-hidden="true" /><span><small>Call the showroom</small><strong>{formatPhoneDisplay(settings.contact.phone)}</strong></span></a>
-              {!(detailsReady && hours.state === 'closed') && (features.enabled('publicEnquiries') || callback.isSuccess) && <button type="button" className="vehicle-call-request" onClick={() => setCallbackForm(true)}>{callback.isSuccess ? 'View callback request' : 'Request a callback'}</button>}
+              {detailsReady && hours.state === 'closed' && (features.enabled('publicEnquiries') || callback.isSuccess) && <button ref={requestButton} type="button" className="vehicle-call-request" onClick={() => changeCallback(true)}>{callback.isSuccess ? 'View callback request' : 'Request a callback'}</button>}
+              <a href={href} className="vehicle-call-dial" aria-label={`Call the showroom on ${formatPhoneDisplay(settings.contact.phone)}`}><Phone size={18} aria-hidden="true" /><strong>{formatPhoneDisplay(settings.contact.phone)}</strong></a>
+              {!(detailsReady && hours.state === 'closed') && (features.enabled('publicEnquiries') || callback.isSuccess) && <button ref={requestButton} type="button" className="vehicle-call-request" onClick={() => changeCallback(true)}>{callback.isSuccess ? 'View callback request' : 'Request a callback'}</button>}
             </div>
             <div className="vehicle-call-copy"><button type="button" onClick={() => void copyNumber()}><Copy size={14} aria-hidden="true" />Copy number</button>{copyStatus && <p role="status">{copyStatus}</p>}</div>
-          </div>}
-
-          {!showCallback && showroomInformation}
+          </div>{showroomLocation}</>}
 
           {showCallback && (callback.isSuccess ? (
             <div className="vehicle-call-result">
@@ -194,10 +198,9 @@ export function VehicleCall({
               <CheckCircle2 size={21} aria-hidden="true" />
               <div><p className="vehicle-action-feedback-title">We’ve received your callback request</p><p>{receivedCallbackTime && hours.state === 'closed' ? `We’ll aim to call you ${receivedCallbackTime}.` : 'We’ll aim to call you during opening hours.'}</p></div>
             </div>
-            <Button type="button" className="vehicle-action-primary" onClick={() => setOpen(false)}>Done</Button>
             </div>
           ) : (
-            <form className="vehicle-action-form vehicle-callback-form" aria-label="Request a callback" onSubmit={event => {
+            <form id={callbackFormId} className="vehicle-action-form vehicle-callback-form" aria-label="Request a callback" onSubmit={event => {
               event.preventDefault();
               if (callback.isPending || !features.enabled('publicEnquiries')) return;
               const normalizedPhone = customer.phone.trim().replace(/[\s().\-/]/g, '');
@@ -228,19 +231,17 @@ export function VehicleCall({
               {phoneError && <p id={phoneErrorId} role="alert" className="vehicle-action-feedback vehicle-action-feedback-error">{phoneError}</p>}
               {callback.isError && <p role="alert" className="vehicle-action-feedback vehicle-action-feedback-error"><CircleAlert size={18} aria-hidden="true" /><span>We couldn’t send your request. Please try again.</span></p>}
               <p className="vehicle-action-privacy">We’ll use these details to respond to your request. <PrivacyNoticeLink url={privacyUrl} /></p>
-              <Button type="submit" className="vehicle-action-primary" disabled={callback.isPending}>{callback.isPending ? 'Sending…' : 'Request a callback'}</Button>
             </form>
           ))}
 
-          {showCallback && <details className="vehicle-call-showroom-disclosure"><summary>Showroom details and opening hours</summary>{showroomInformation}</details>}
-
-          {showCallback && <div className="vehicle-phone-panel vehicle-phone-panel-secondary vehicle-call-telephone-footer">
-            <p className="vehicle-action-label">Our phone number</p>
-            <a href={href} className="vehicle-phone-number"><Phone size={18} aria-hidden="true" /><span>{formatPhoneDisplay(settings.contact.phone)}</span></a>
-          </div>}
-          {showCallback && !callback.isSuccess && <button type="button" className="vehicle-call-callback-link" disabled={callback.isPending} onClick={() => setCallbackForm(false)}>Back to contact details</button>}
-
+          {showCallback && visitInstructions && <p className="vehicle-call-visit-note">{visitInstructions}</p>}
           </div>
+          {showCallback && <footer className="vehicle-call-footer">
+            {callback.isSuccess ? <Button type="button" className="vehicle-action-primary" onClick={() => setOpen(false)}>Done</Button> : <>
+              <button type="button" className="vehicle-call-callback-link" aria-label="Back to contact details" disabled={callback.isPending} onClick={() => changeCallback(false)}>Back</button>
+              <Button type="submit" form={callbackFormId} className="vehicle-action-primary" disabled={callback.isPending}>{callback.isPending ? 'Sending…' : 'Request a callback'}</Button>
+            </>}
+          </footer>}
         </DialogContent>
       </Dialog>
     </>

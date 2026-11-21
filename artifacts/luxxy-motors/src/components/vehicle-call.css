@@ -1,76 +1,115 @@
-/* A compact contact sheet. The header and close control stay visible while the body scrolls. */
+/* The heading and callback action stay in view while the contact details scroll. */
 .vehicle-action-dialog.vehicle-call-dialog {
-  display:flex; flex-direction:column; width:calc(100% - 40px); max-width:620px;
-  max-height:min(90dvh,780px); padding:24px; gap:18px; overflow:hidden; border-radius:var(--mh-radius-panel,16px);
+  display: flex;
+  flex-direction: column;
+  width: calc(100% - 32px);
+  max-width: 560px;
+  max-height: min(90dvh, 760px);
+  padding: 22px;
+  gap: 14px;
+  overflow: hidden;
 }
-.vehicle-call-dialog .vehicle-action-heading { flex:0 0 auto; gap:6px; padding-right:28px; }
-.vehicle-call-dialog .vehicle-action-eyebrow { font-size:11px; letter-spacing:.025em; }
-.vehicle-call-dialog h2 { font-size:23px; font-weight:var(--mh-weight-heading,600); line-height:1.25; letter-spacing:-.035em; padding-right:0; }
-.vehicle-call-dialog .vehicle-action-heading > p[id] { font-size:13px; line-height:1.5; }
-.vehicle-call-content { min-width:0; min-height:0; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; display:grid; gap:16px; padding:2px; scrollbar-gutter:stable; }
-.vehicle-call-dialog .vehicle-dialog-vehicle { gap:12px; padding:12px; border:1px solid var(--dialog-border); border-radius:var(--mh-radius-panel,10px); }
-.vehicle-call-dialog .vehicle-dialog-vehicle > img { width:84px; height:68px; border-radius:6px; }
-.vehicle-call-dialog .vehicle-dialog-vehicle-title { font-size:15px; }
-.vehicle-call-dialog .vehicle-dialog-muted { font-size:13px; line-height:1.5; }
-.vehicle-call-dialog .vehicle-dialog-vehicle-price { font-size:17px; margin-top:2px; }
-.vehicle-call-dialog .vehicle-dialog-vehicle-bottomline { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; margin-top:5px; }
-.vehicle-call-dialog .vehicle-dialog-vehicle-bottomline .vehicle-dialog-vehicle-price { margin-top:0; }
-.vehicle-call-dialog .vehicle-call-visit-note { color:var(--dialog-ink); font-size:13px; line-height:1.55; }
-.vehicle-call-showroom { display:grid; grid-template-columns:1fr 1.15fr; gap:16px; padding:2px 0 16px; border-bottom:1px solid var(--dialog-border); }
-.vehicle-call-hours,.vehicle-call-location { min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:7px; font-size:13px; line-height:1.5; }
-.vehicle-call-hours strong { font-size:13px; font-weight:var(--mh-weight-label,600); }
-.vehicle-call-hours p,.vehicle-call-location p { color:var(--dialog-muted); }
-.vehicle-call-hours small { color:var(--dialog-muted); font-size:10px; }
-.vehicle-call-status { display:inline-flex; align-items:center; gap:6px; padding:5px 8px; background:var(--mh-tint,#eff3f6); border-radius:6px; color:var(--mh-muted,#526575); font-weight:var(--mh-weight-label,650); font-size:12px; }
-.vehicle-call-hours[data-status=open] .vehicle-call-status { color:var(--customer-positive, #215e44); background:var(--customer-positive-soft, #e9f5ee); }
-.vehicle-call-hours[data-status=closed] .vehicle-call-status { color:#815b25; background:#fff3df; }
-.vehicle-call-location h3 { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:var(--mh-weight-heading,650); min-height:28px; }
-.vehicle-call-location address { font-style:normal; color:var(--dialog-muted); overflow-wrap:anywhere; }
-.vehicle-call-location > a { display:inline-flex; align-items:center; gap:5px; min-height:36px; color:var(--dialog-accent); font-weight:var(--mh-weight-label,600); text-decoration:underline; text-underline-offset:3px; }
-.vehicle-call-contact { display:grid; gap:6px; }
-.vehicle-call-contact-actions { display:grid; grid-template-columns:1.2fr 1fr; gap:10px; }
-.vehicle-call-contact-actions > :is(a,button) { display:flex; align-items:center; justify-content:center; gap:9px; min-height:58px; padding:10px 12px; border:1px solid var(--dialog-accent); border-radius:var(--mh-radius-control,9px); font-size:13px; font-weight:var(--mh-weight-label,600); line-height:1.35; }
-.vehicle-call-contact-actions > a { background:var(--dialog-accent); color:var(--dialog-accent-foreground); }
-.vehicle-call-contact-actions > button { color:var(--dialog-accent); background:var(--dialog-panel); }
-.vehicle-call-contact-actions > a > span { display:grid; gap:2px; }
-.vehicle-call-dial small { font-size:10px; font-weight:400; }
-.vehicle-call-dial strong { font-size:20px; font-weight:var(--mh-weight-label,650); font-variant-numeric:tabular-nums; white-space:nowrap; }
-.vehicle-call-contact[data-closed=true] .vehicle-call-dial { background:var(--dialog-panel); color:var(--dialog-accent); }
-.vehicle-call-contact[data-closed=true] .vehicle-call-request { background:var(--dialog-accent); color:var(--dialog-accent-foreground); }
-.vehicle-call-contact-actions:has(> a:only-child) { grid-template-columns:1fr; }
-.vehicle-call-dialog .vehicle-call-copy { display:flex; flex-wrap:wrap; align-items:center; gap:3px 10px; }
-.vehicle-call-dialog .vehicle-call-copy button { display:inline-flex; align-items:center; gap:6px; min-height:40px; padding:6px 0; color:var(--dialog-muted); font-size:12px; }
-.vehicle-call-copy p { color:var(--dialog-muted); font-size:11px; line-height:1.5; }
-.vehicle-call-dialog .vehicle-callback-form { gap:12px; }
-.vehicle-call-dialog .vehicle-action-form-grid { gap:12px; }
-.vehicle-call-dialog .vehicle-action-field { font-size:13px; gap:5px; }
-.vehicle-call-dialog .vehicle-action-field input { min-height:46px; border-radius:var(--mh-radius-control,7px); }
-.vehicle-call-dialog .vehicle-call-optional-email summary { display:list-item; cursor:pointer; min-height:44px; padding:10px 0; font-size:12px; color:var(--dialog-muted); }
-.vehicle-call-dialog .vehicle-action-privacy { font-size:13px; line-height:1.5; }
-.vehicle-call-dialog .vehicle-call-result { display:grid; gap:14px; }
-.vehicle-call-dialog .vehicle-call-callback-link { min-height:44px; color:var(--dialog-accent); font-size:12px; text-decoration:underline; text-underline-offset:3px; }
-.vehicle-call-dialog .vehicle-call-telephone-footer { padding-top:8px; border-top:1px solid var(--dialog-border); gap:6px; }
-.vehicle-call-dialog .vehicle-call-telephone-footer .vehicle-phone-number { min-height:36px; font-size:15px; font-variant-numeric:tabular-nums; }
-@media(max-width:639px) {
- .vehicle-action-dialog.vehicle-call-dialog { top:auto; bottom:0; left:0; width:100%; max-width:none; max-height:calc(100dvh - max(12px,env(safe-area-inset-top))); translate:none; transform:none; border-radius:var(--mh-radius-panel,18px) var(--mh-radius-panel,18px) 0 0; padding:20px 18px max(18px,env(safe-area-inset-bottom)); gap:14px; }
- .vehicle-call-dialog h2 { font-size:21px; }
- .vehicle-call-content { gap:14px; }
- .vehicle-call-showroom { grid-template-columns:1fr; gap:12px; padding-bottom:12px; }
- .vehicle-call-hours { gap:5px; }
- .vehicle-call-location { padding-top:10px; border-top:1px solid var(--dialog-border); gap:4px; }
- .vehicle-call-location > a { min-height:44px; }
- .vehicle-call-dialog .vehicle-dialog-vehicle > img { width:74px; height:62px; }
- .vehicle-call-contact-actions { grid-template-columns:1fr; gap:8px; }
- .vehicle-call-contact-actions > :is(a,button) { min-height:48px; }
- .vehicle-call-dial > span { display:flex!important; flex-wrap:wrap; align-items:center; gap:10px!important; }
- .vehicle-call-dial small { font-size:12px; }
- .vehicle-call-dial strong { font-size:19px; }
- .vehicle-call-contact[data-closed=true] .vehicle-call-request { order:-1; }
- .vehicle-call-dialog .vehicle-call-copy button { min-height:44px; }
+.vehicle-call-dialog .vehicle-action-heading { flex-shrink: 0; gap: 4px; padding-right: 32px; }
+.vehicle-call-dialog .vehicle-action-heading > p[id] { font-size: 13px; line-height: 1.5; }
+.vehicle-call-content {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  gap: 12px;
+  padding: 3px;
+  scrollbar-width: thin;
 }
-@media(max-height:550px) and (min-width:640px) { .vehicle-action-dialog.vehicle-call-dialog { max-height:calc(100dvh - 24px); padding:18px 22px; gap:10px; } }
-.vehicle-action-dialog.vehicle-call-dialog > button:last-child { width:44px; height:44px; top:10px; right:10px; display:grid; place-items:center; }
-
-.vehicle-call-showroom-disclosure { border-top: 1px solid var(--dialog-border); }
-.vehicle-call-showroom-disclosure > summary { min-height: 44px; padding-block: 11px; cursor: pointer; color: var(--dialog-muted); font-size: 13px; }
-.vehicle-call-showroom-disclosure .vehicle-call-showroom { padding-top: 8px; border-bottom: 0; }
+.vehicle-call-location {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--dialog-border);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.vehicle-call-location h3,
+.vehicle-call-location > a,
+.vehicle-call-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.vehicle-call-location address,
+.vehicle-call-location p { font-style: normal; color: var(--dialog-muted); overflow-wrap: anywhere; }
+.vehicle-call-location > a { min-height: 44px; color: var(--dialog-accent); text-decoration: underline; text-underline-offset: 3px; }
+.vehicle-call-hours { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; color: var(--dialog-muted); font-size: 13px; }
+.vehicle-call-status {
+  background: var(--dialog-hours-background, var(--mh-tint, #eff3f6));
+  color: var(--dialog-hours-ink, var(--mh-muted, #526575));
+  font-weight: 600;
+}
+.vehicle-call-hours[data-status=open] .vehicle-call-status {
+  background: var(--dialog-hours-background, var(--customer-positive-soft, #e9f5ee));
+  color: var(--dialog-hours-ink, var(--customer-positive, #215e44));
+}
+.vehicle-call-hours[data-status=closed] .vehicle-call-status {
+  background: var(--dialog-hours-background, #fff3df);
+  color: var(--dialog-accent);
+}
+.vehicle-call-contact-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.vehicle-call-contact-actions > :is(a,button) {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;
+  min-height: 48px;
+  padding: 8px;
+  border: 1px solid var(--dialog-accent);
+  border-radius: var(--mh-radius-control, 8px);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.35;
+}
+.vehicle-call-contact-actions > a,
+.vehicle-call-contact[data-closed=true] .vehicle-call-request {
+  background: var(--dialog-action, var(--dialog-accent));
+  border-color: var(--dialog-action, var(--dialog-accent));
+  color: var(--dialog-action-foreground, var(--dialog-accent-foreground));
+}
+.vehicle-call-contact-actions > button,
+.vehicle-call-contact[data-closed=true] .vehicle-call-dial {
+  color: var(--dialog-accent);
+  background: var(--dialog-panel);
+}
+.vehicle-call-contact-actions:has(> a:only-child) { grid-template-columns: 1fr; }
+.vehicle-call-contact-actions > :is(button, a):hover { filter: brightness(.95); }
+.vehicle-call-dial svg { flex-shrink: 0; }
+.vehicle-call-dial strong { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vehicle-call-copy { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 12px; }
+.vehicle-call-copy button { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--dialog-muted); font-size: 13px; }
+.vehicle-call-copy p,
+.vehicle-call-visit-note { font-size: 13px; line-height: 1.5; color: var(--dialog-muted); }
+.vehicle-call-dialog .vehicle-callback-form { gap: 10px; }
+.vehicle-call-dialog .vehicle-action-form-grid { gap: 10px; }
+.vehicle-call-dialog .vehicle-action-field { gap: 4px; }
+.vehicle-call-dialog .vehicle-action-field input { min-height: 46px; }
+.vehicle-call-dialog .vehicle-call-optional-email summary { cursor: pointer; min-height: 44px; padding-block: 9px; font-size: 13px; color: var(--dialog-muted); }
+.vehicle-call-dialog .vehicle-action-privacy { font-size: 12px; line-height: 1.5; }
+.vehicle-call-footer { flex-shrink: 0; display: flex; align-items: center; gap: 14px; padding-top: 12px; border-top: 1px solid var(--dialog-border); }
+.vehicle-call-callback-link { min-height: 44px; padding-inline: 8px; color: var(--dialog-accent); text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 639px) {
+  .vehicle-action-dialog.vehicle-call-dialog {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-width: none;
+    max-height: calc(100dvh - max(12px,env(safe-area-inset-top)));
+    translate: none;
+    transform: none;
+    border-radius: var(--mh-radius-panel,16px) var(--mh-radius-panel,16px) 0 0;
+    padding: 18px 16px max(14px,env(safe-area-inset-bottom));
+  }
+}
+@media (max-width: 359px) {
+  .vehicle-call-contact-actions { grid-template-columns: minmax(0, 1fr); }
+}

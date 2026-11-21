@@ -115,7 +115,14 @@
   background: var(--dialog-subtle, #f3f5f5);
 }
 .mot-history-public .mot-mileage-heading h3 { font-size: 14px; }
+.mot-history-public .mot-mileage-reading { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 10px; }
+.mot-history-public .mot-mileage-selection { min-width: 0; margin-bottom: 0; }
 .mot-history-public .mot-mileage-selection strong { font-size: 23px; line-height: 1.2; }
+.mot-mileage-controls { display: flex; flex-shrink: 0; gap: 8px; }
+.mot-mileage-controls button { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--mot-rule); border-radius: 6px; color: var(--mot-ink); background: var(--dialog-panel, #fff); }
+.mot-mileage-controls button[aria-disabled=true] { opacity: .45; cursor: default; }
+.mot-mileage-controls button[aria-disabled=false]:hover { border-color: var(--mot-accent); color: var(--mot-accent); }
+.mot-mileage-controls button:focus-visible { outline: 2px solid var(--mot-ink); outline-offset: 2px; }
 .mot-history-public .mot-mileage-line,
 .mot-history-public .mot-mileage-dot:not([data-decreased=true]) { stroke: var(--mot-accent); }
 .mot-history-public .mot-mileage-axis { padding-block: 0; }

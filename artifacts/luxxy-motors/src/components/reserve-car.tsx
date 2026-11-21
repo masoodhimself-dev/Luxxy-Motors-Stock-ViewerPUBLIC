@@ -7,6 +7,7 @@ import { VehicleDialogVehicle, useVehicleDialogTheme } from '@/components/vehicl
 import { requestUuid } from '@/lib/request-uuid';
 import { privateWebsitePreviewBase } from '@/lib/private-website-preview';
 import type { Car } from '@/lib/stock-context';
+import './vehicle-reservation-dialog.css';
 
 const depositPence = 9900;
 const paymentError = 'We couldn’t open secure payment. Try again or contact the dealership for help.';
@@ -32,6 +33,8 @@ export function ReserveCar({ car }: { car: Car }) {
   });
   const dialogTheme = useVehicleDialogTheme();
   const refundNoteId = useId();
+  const formId = useId();
+  const title = useRef<HTMLHeadingElement>(null);
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
@@ -132,15 +135,20 @@ export function ReserveCar({ car }: { car: Car }) {
         </DialogTrigger>
         <p id={refundNoteId}>£99 deposit · Fully refundable</p>
       </div>}
-      <DialogContent className="vehicle-action-dialog vehicle-reservation-dialog" style={dialogTheme} closeDisabled={pending}>
-        <div className="vehicle-dialog-header">
-          <DialogTitle>{available ? 'Reserve this car for £99' : 'Online reservations unavailable'}</DialogTitle>
+      <DialogContent className="vehicle-action-dialog vehicle-reservation-dialog" style={dialogTheme} closeDisabled={pending}
+        onOpenAutoFocus={event => {
+          event.preventDefault();
+          title.current?.focus({ preventScroll: true });
+        }}>
+        <div className="vehicle-dialog-header vehicle-reservation-header">
+          <DialogTitle ref={title}>{available ? 'Reserve this car for £99' : 'Online reservations unavailable'}</DialogTitle>
           <DialogDescription>{!available ? 'Contact the dealership for help with this car.' : testMode
-            ? 'Test payment. Use the sample details below to try the fully refundable £99 reservation.'
-            : 'The £99 deposit is fully refundable. You’ll pay securely by card on Stripe.'}</DialogDescription>
+            ? <><strong>Fully refundable.</strong> Use the sample details below to try the test payment.</>
+            : <><strong>Fully refundable.</strong> Pay securely by card on Stripe.</>}</DialogDescription>
         </div>
-        <VehicleDialogVehicle car={car} showRegistrationPlate />
-        {available ? <form className="vehicle-dialog-form" onSubmit={checkout} aria-busy={pending}>
+        <div className="vehicle-reservation-body">
+          <VehicleDialogVehicle car={car} showRegistrationPlate />
+          {available && <form id={formId} className="vehicle-dialog-form" onSubmit={checkout} aria-busy={pending}>
           <label className="block"><span className="field-label">Your name</span><Input required name="customerName" minLength={2} maxLength={120} autoComplete={testMode ? "off" : "name"} disabled={pending} readOnly={testMode} defaultValue={testMode ? "Jamie Patel" : undefined} /></label>
           <label className="block"><span className="field-label">Email address</span><Input required name="email" type="email" maxLength={254} autoComplete={testMode ? "off" : "email"} disabled={pending} readOnly={testMode} defaultValue={testMode ? "jamie@example.test" : undefined} /></label>
           <label className="block"><span className="field-label">Phone number</span><Input required name="phone" type="tel" maxLength={30} autoComplete={testMode ? "off" : "tel"} disabled={pending} readOnly={testMode} defaultValue={testMode ? "07700 900123" : undefined} /></label>
@@ -152,9 +160,12 @@ export function ReserveCar({ car }: { car: Car }) {
             <input type="checkbox" checked={acceptedQuote === quote} required disabled={pending} onChange={event => setAcceptedQuote(event.target.checked ? quote : '')} />
             <span>I accept the reservation terms.</span>
           </label>
+          </form>}
+        </div>
+        {available && <div className="vehicle-reservation-footer" data-popup-footer>
           {error && <p role="alert" className="vehicle-dialog-error">{error}</p>}
-          <Button type="submit" className="vehicle-dialog-primary" disabled={pending || acceptedQuote !== quote}>{pending ? 'Opening payment…' : testMode ? 'Continue to test payment' : 'Continue to £99 payment'}</Button>
-        </form> : null}
+          <Button type="submit" form={formId} className="vehicle-dialog-primary" disabled={pending || acceptedQuote !== quote}>{pending ? 'Opening payment…' : testMode ? 'Continue to test payment' : 'Continue to £99 payment'}</Button>
+        </div>}
       </DialogContent>
     </Dialog>
   );

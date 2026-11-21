@@ -622,3 +622,24 @@ it('keeps the opted-in inline frame quiet while retaining categories, shortcuts 
   expect(screen.queryByLabelText('Photograph sections')).not.toBeInTheDocument();
   expect(container.querySelectorAll('.vehicle-gallery-controls')).toHaveLength(1);
 });
+
+it('names the photo grid for the active category and lets shoppers return to the full grid', async () => {
+  const photos = [
+    { url: 'https://example.com/front.jpg', caption: 'Front exterior' },
+    { url: 'https://example.com/inside.jpg', caption: 'Rear seats' },
+  ];
+  render(<Gallery customerView inlinePresentation="autodeal" images={photos} />);
+  fireEvent.click(screen.getByRole('button', { name: 'View gallery fullscreen' }));
+  const dialog = await screen.findByRole('dialog');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Inside' }));
+  expect(within(dialog).queryByRole('button', { name: 'All photos' })).not.toBeInTheDocument();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Inside photos' }));
+  const insideGrid = within(dialog).getByRole('region', { name: 'Inside: 1 photograph' });
+  expect(within(insideGrid).getByRole('button', { name: 'View photograph 1 of 1: Rear seats' })).toBeVisible();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  fireEvent.click(screen.getByRole('button', { name: 'View inside photo' }));
+  const reopened = await screen.findByRole('dialog');
+  fireEvent.click(within(reopened).getByRole('button', { name: 'All photographs' }));
+  expect(within(within(reopened).getByRole('region', { name: 'All 2 photographs' })).getAllByRole('button')).toHaveLength(2);
+});

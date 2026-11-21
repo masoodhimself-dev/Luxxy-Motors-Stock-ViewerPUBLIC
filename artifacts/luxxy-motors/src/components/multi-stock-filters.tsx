@@ -730,10 +730,10 @@ export function MultiStockFilters({
                 <FilterIcon name="close" />
               </span>
               <SheetHeader className="multi-stock-drawer-heading space-y-0">
-                <SheetTitle className="multi-stock-drawer-title">Filter cars</SheetTitle>
-                <SheetDescription className="sr-only">
-                  Results update as you choose.
-                </SheetDescription>
+                <div className="multi-stock-drawer-intro">
+                  <SheetTitle className="multi-stock-drawer-title">Filter cars</SheetTitle>
+                  <SheetDescription className="multi-stock-drawer-help">Results update as you choose.</SheetDescription>
+                </div>
                 <button type="button" onClick={clear} disabled={!activeCount && !query} aria-label="Clear filters" className="multi-stock-drawer-reset">Reset</button>
               </SheetHeader>
               <div className="multi-stock-drawer-scroll">

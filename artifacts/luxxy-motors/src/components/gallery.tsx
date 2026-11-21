@@ -210,6 +210,10 @@ export function Gallery({
   const groups = (["Exterior", "Interior", "Details", "Condition"] as const)
     .filter(group => availableImages.some(image => photoGroup(image) === group));
   const groupNames = { All: 'All', Exterior: 'Outside', Interior: 'Inside', Details: 'Features', Condition: 'Condition', Other: 'More photos' };
+  const photoCountLabel = `${allImages.length} ${allImages.length === 1 ? 'photo' : 'photos'}`;
+  const inlineOverviewLabel = selectedGroup === 'All'
+    ? allImages.length === 1 ? 'View photo' : `View all ${photoCountLabel}`
+    : `View ${groupNames[selectedGroup].toLowerCase()} ${allImages.length === 1 ? 'photo' : 'photos'}`;
   const shortcuts = getPhotoShortcuts(availableImages);
   const groupNavigation = () => groups.length > 0 && (
     <div className="vehicle-photo-sections" aria-label="Photograph sections">
@@ -291,7 +295,7 @@ export function Gallery({
     setOpen(true);
     if (customerView) showOverview();
   }}>
-    <LayoutGrid className="h-4 w-4" aria-hidden="true" />{allImages.length === 1 ? 'View photo' : `View all ${allImages.length} photos`}
+    <LayoutGrid className="h-4 w-4" aria-hidden="true" />{inlineOverviewLabel}
   </button>;
   const inlineControls = <div className="vehicle-gallery-controls">
     <div className="vehicle-gallery-caption">
@@ -443,15 +447,15 @@ export function Gallery({
       >
         <DialogTitle className="sr-only">Vehicle image gallery</DialogTitle>
         {customerView && <div className="vehicle-gallery-toolbar">
-          <div className="vehicle-gallery-toolbar-title"><span>{vehicleLabel === 'Vehicle' ? 'Vehicle photos' : vehicleLabel}</span><span className="vehicle-gallery-toolbar-count" aria-live="polite" aria-atomic="true">{overview ? `${allImages.length} ${allImages.length === 1 ? 'photo' : 'photos'}` : `${index + 1} / ${allImages.length}`}</span></div>
+          <div className="vehicle-gallery-toolbar-title"><span>{vehicleLabel === 'Vehicle' ? 'Vehicle photos' : vehicleLabel}</span><span className="vehicle-gallery-toolbar-count" aria-live="polite" aria-atomic="true">{overview ? photoCountLabel : `${index + 1} / ${allImages.length}`}</span></div>
           <div className="vehicle-gallery-toolbar-actions">
           {!overview && <button type="button" className="vehicle-gallery-overview-toggle" onClick={toggleZoom} aria-pressed={zoomed} aria-label={zoomed ? 'Zoom out' : 'Zoom in'}>
             {zoomed ? <ZoomOut aria-hidden="true" className="h-4 w-4" /> : <ZoomIn aria-hidden="true" className="h-4 w-4" />}<span>{zoomed ? 'Zoom out' : 'Zoom in'}</span>
           </button>}
           <button type="button" ref={overviewToggleRef} aria-pressed={overview} className="vehicle-gallery-overview-toggle"
             onClick={() => overview ? showViewer() : showOverview()}>
-            {overview ? <ChevronLeft className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
-            {overview ? 'Back to photo' : 'All photos'}
+            {overview ? <ChevronLeft className="h-4 w-4" aria-hidden="true" /> : <LayoutGrid className="h-4 w-4" aria-hidden="true" />}
+            {overview ? 'Back to photo' : selectedGroup === 'All' ? 'All photos' : `${groupNames[selectedGroup]} photos`}
           </button>
           </div>
         </div>}
@@ -464,7 +468,7 @@ export function Gallery({
             setOverview(false);
           }}>{shortcut.label}</button>)}
         </div>}
-        {overview ? <div className="vehicle-gallery-overview" role="region" aria-label={`All ${allImages.length} photographs`}>
+        {overview ? <div className="vehicle-gallery-overview" role="region" aria-label={`${selectedGroup === 'All' ? 'All' : groupNames[selectedGroup] + ':'} ${allImages.length} ${allImages.length === 1 ? 'photograph' : 'photographs'}`}>
           <div className="vehicle-gallery-overview-grid" aria-label="Choose a photo to view fullscreen">
             {allImages.map((image, i) => <button key={getSafeImageUrl(image)} type="button"
               className="vehicle-gallery-overview-photo" aria-label={`View photograph ${i + 1} of ${allImages.length}${imageCaption(image) ? `: ${imageCaption(image)}` : ''}`}

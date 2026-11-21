@@ -1,0 +1,89 @@
+body [role="dialog"][data-popup-surface].vehicle-reservation-dialog {
+  --reservation-action: var(--ct-accent, var(--dialog-accent, #182957));
+  --reservation-ink: var(--ct-ink, var(--dialog-ink, #192a36));
+  --reservation-muted: var(--ct-muted, var(--dialog-muted, #59656e));
+  --reservation-rule: var(--ct-line, var(--dialog-border, #dce3e8));
+  --reservation-panel: var(--ct-surface, var(--dialog-panel, #fff));
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: min(850px, calc(100dvh - 24px));
+  padding: 0;
+  overflow: hidden;
+  border-color: var(--reservation-rule);
+  background: var(--reservation-panel);
+  color: var(--reservation-ink);
+  font-family: var(--ct-font-ui, var(--app-font-sans, sans-serif));
+}
+
+.vehicle-reservation-dialog :is(.vehicle-reservation-header, .vehicle-reservation-body, .vehicle-reservation-footer) {
+  padding-inline: clamp(16px, 4vw, 26px);
+}
+
+.vehicle-reservation-dialog .vehicle-reservation-header {
+  flex: none;
+  gap: 5px;
+  padding-block: 17px 13px;
+  border-bottom: 1px solid var(--reservation-rule);
+}
+
+body [data-popup-surface].vehicle-reservation-dialog [data-popup-title] {
+  padding-right: 44px;
+  font-family: var(--ct-font-heading, var(--font-display, sans-serif));
+  font-size: clamp(20px, 3vw, 25px);
+  color: var(--reservation-ink);
+}
+
+.vehicle-reservation-dialog .vehicle-reservation-header p[id] {
+  color: var(--reservation-muted);
+  line-height: 1.45;
+}
+
+.vehicle-reservation-header strong { color: var(--reservation-ink); }
+
+.vehicle-reservation-dialog .vehicle-reservation-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  gap: 16px;
+  padding-block: 14px 10px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: 14px;
+  scrollbar-width: thin;
+}
+
+.vehicle-reservation-dialog .vehicle-dialog-vehicle {
+  padding: 10px 12px;
+  gap: 12px;
+  border-color: var(--reservation-rule);
+  background: var(--ct-paper, var(--dialog-subtle, #f5f7f9));
+}
+
+.vehicle-reservation-dialog .vehicle-dialog-vehicle > img { width: 76px; height: 57px; }
+.vehicle-reservation-dialog .vehicle-dialog-vehicle-title { color: var(--reservation-ink); }
+.vehicle-reservation-dialog .vehicle-dialog-muted { color: var(--reservation-muted); }
+.vehicle-reservation-dialog .vehicle-dialog-form { gap: 13px; }
+.vehicle-reservation-dialog .vehicle-dialog-form .field-label,
+.vehicle-reservation-dialog .vehicle-dialog-terms h3 { color: var(--reservation-ink); }
+.vehicle-reservation-dialog .vehicle-dialog-terms { border-color: var(--reservation-rule); }
+.vehicle-reservation-dialog .vehicle-dialog-consent input { accent-color: var(--reservation-action); }
+.vehicle-reservation-dialog .vehicle-reservation-footer {
+  flex: none;
+  display: grid;
+  gap: 7px;
+  padding-block: 11px max(11px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--reservation-rule);
+  background: var(--reservation-panel);
+}
+.vehicle-reservation-dialog .vehicle-dialog-primary {
+  border-color: var(--reservation-action);
+  background: var(--reservation-action);
+  color: #fff;
+}
+.vehicle-reservation-dialog :is(button, a, input):focus-visible { outline-color: var(--reservation-action); }
+
+@media (max-height: 460px) {
+  .vehicle-reservation-dialog .vehicle-reservation-header { padding-block: 10px; }
+  .vehicle-reservation-dialog .vehicle-reservation-footer { padding-block: 7px; }
+}

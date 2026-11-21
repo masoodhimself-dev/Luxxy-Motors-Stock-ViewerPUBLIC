@@ -352,7 +352,7 @@ it('offers printing inside the share menu', () => {
   renderVehicle('with-plate');
   fireEvent.click(screen.getByRole('button', { name: 'Share this vehicle' }));
   fireEvent.click(screen.getByText('More ways to share'));
-  const link = screen.getByRole('button', { name: 'Print or download details for BMW 3 Series' });
+  const link = screen.getByRole('button', { name: 'Car details PDF for BMW 3 Series' });
   expect(link).toHaveAttribute('type', 'button');
   expect(link.closest('[role="dialog"]')).not.toBeNull();
 });
@@ -476,7 +476,7 @@ it('keeps sharing visible and groups printing inside it', () => {
   expect(screen.getByRole('button', { name: 'Share this vehicle' })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Share this vehicle' }));
   fireEvent.click(screen.getByText('More ways to share'));
-  expect(screen.getByRole('button', { name: 'Print or download details for BMW 3 Series' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Car details PDF for BMW 3 Series' })).toBeInTheDocument();
 });
 
 it('discloses a supplied insurance category alongside the price without inferring it from prose', () => {
@@ -510,7 +510,8 @@ it('adds a service-record request to the message form without losing an existing
   // destination after that frame, rather than the form's earlier draft effect.
   await act(async () => { await new Promise<void>(resolve => requestAnimationFrame(() => resolve())); });
   expect(disclosure.open).toBe(true);
-  expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' });
+  expect(scrollIntoView).toHaveBeenLastCalledWith({ block: 'center', behavior: 'smooth' });
+  expect(scrollIntoView.mock.contexts.at(-1)).toBe(message);
   expect(message).toHaveFocus();
   expect(screen.getByRole('button', { name: 'Share this vehicle' }).closest('[data-testid="vehicle-secondary-actions"]')).toBeNull();
   expect(screen.queryByTestId('status-enquiry-success')).not.toBeInTheDocument();
@@ -974,6 +975,9 @@ it('puts the live £99 action below the price box and requires acceptance before
   const submit = dialog.getByRole('button', { name: 'Continue to £99 payment' });
   expect(submit).toBeDisabled();
   expect(dialog.getByText(terms)).toBeVisible();
+  expect(dialog.getByText('Fully refundable.').closest('.vehicle-reservation-header')).toBeVisible();
+  expect(dialog.getByText(terms).closest('.vehicle-reservation-body')).toBeVisible();
+  expect(submit.closest('.vehicle-reservation-footer')).toBeVisible();
   fireEvent.change(dialog.getByLabelText('Your name'), { target: { value: 'Jamie Patel' } });
   fireEvent.change(dialog.getByLabelText('Email address'), { target: { value: 'jamie@example.test' } });
   fireEvent.change(dialog.getByLabelText('Phone number'), { target: { value: '07700 900123' } });

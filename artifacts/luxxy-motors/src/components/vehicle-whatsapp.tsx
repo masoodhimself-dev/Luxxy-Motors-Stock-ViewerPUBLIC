@@ -80,30 +80,21 @@ function VehicleWhatsAppSheet({
         >
           <div className="vehicle-action-heading">
             <DialogTitle ref={dialogTitle} tabIndex={-1}>Message on WhatsApp</DialogTitle>
-            <DialogDescription>Add your question, then open WhatsApp.</DialogDescription>
+            <DialogDescription>To {settings.identity.name}</DialogDescription>
           </div>
 
           <div className="public-dialog-scroll">
-          <VehicleDialogVehicle car={car} />
-
-          <div className="vehicle-message-recipient">
-            <SiWhatsapp aria-hidden="true" />
-            <div><p className="vehicle-message-recipient-name">To {settings.identity.name}</p><p className="vehicle-action-note">{settings.contact.whatsapp}</p></div>
-          </div>
-
-          <div className="vehicle-action-status" data-status={hours.state}>
-            <Clock3 size={18} aria-hidden="true" />
-            <div>
-              <p className="vehicle-action-status-title">{hours.state === 'closed' ? 'We’re currently closed' : hours.state === 'open' ? 'We’re open' : 'When we’ll reply'}</p>
-              <p>{hours.state === 'closed'
-                ? `${hours.next ? 'We next open ' + hours.next + '. ' : ''}We’ll aim to reply after we reopen.`
-                : hours.state === 'open' ? 'We’ll reply as soon as we can.' : 'You can leave a message any time. We’ll reply during opening hours.'}</p>
-            </div>
-          </div>
+          <VehicleDialogVehicle car={car} showRegistrationPlate />
+          <p className="vehicle-whatsapp-hours">
+            <Clock3 size={16} aria-hidden="true" />
+            {hours.state === 'closed'
+              ? hours.next ? `We’ll reply after we reopen ${hours.next}.` : 'We’ll reply when we reopen.'
+              : 'We’ll reply during opening hours.'}
+          </p>
 
           <div className="vehicle-message-field">
-            <label className="vehicle-action-field">Your message<Textarea rows={5} maxLength={2000} value={message} onChange={event => setMessage(event.target.value)} /></label>
-            <div className="vehicle-message-hint"><p>Add a question or tell us when you’d like to visit.</p><span aria-hidden="true">{message.length}/2000</span></div>
+            <label className="vehicle-action-field">Your message<Textarea rows={6} maxLength={2000} value={message} onChange={event => setMessage(event.target.value)} /></label>
+            {message.length > 1800 && <p className="vehicle-action-note">{2000 - message.length} characters left</p>}
             {preparedMessage.current !== message && <button type="button" className="public-dialog-reset" onClick={() => setMessage(preparedMessage.current ?? '')}>Reset message</button>}
           </div>
           </div>

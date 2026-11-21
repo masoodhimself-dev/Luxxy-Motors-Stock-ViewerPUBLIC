@@ -28,8 +28,19 @@ export function checkedVehicleSheetCar(value: unknown, id: string): Car {
 }
 
 /** An isolated A4 document: its fonts and PDF export cannot reach invoices. */
-export function VehiclePrint({ car, dealer, features: _features, description: _description, triggerContent, triggerClassName }: { car: Car; dealer: DealerConfig; features: string[]; description?: string; triggerContent?: ReactNode; triggerClassName?: string }) {
-  const [open, setOpen] = useState(false);
+export function VehiclePrint({ car, dealer, triggerContent, triggerClassName, onBack }: {
+  car: Car;
+  dealer: DealerConfig;
+  features?: string[];
+  description?: string;
+  triggerContent?: ReactNode;
+  triggerClassName?: string;
+  onBack?: () => void;
+}) {
+  const [dialogOpen, setOpen] = useState(false);
+  const open = Boolean(onBack) || dialogOpen;
+  const leavePreview = useRef(onBack);
+  leavePreview.current = onBack;
   const [status, setStatus] = useState<'checking' | 'preparing' | 'ready' | 'error'>('checking');
   const [error, setError] = useState('');
   const [monochrome, setMonochrome] = useState(false);
@@ -100,7 +111,11 @@ export function VehiclePrint({ car, dealer, features: _features, description: _d
         const doc = element.contentDocument!;
         doc.open(); doc.write('<!doctype html><html><head><meta charset="utf-8"><title>Vehicle details</title><style>html,body{margin:0;padding:0;background:white}</style></head><body><main></main></body></html>'); doc.close();
         doc.addEventListener('keydown', event => {
-          if (event.key === 'Escape') { event.preventDefault(); setOpen(false); }
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            if (leavePreview.current) leavePreview.current();
+            else setOpen(false);
+          }
         }, { signal: controller.signal });
         const { origin, url } = vehicleSheetLocation(fresh.car);
         const content = vehicleContent(fresh.car);
@@ -137,20 +152,27 @@ export function VehiclePrint({ car, dealer, features: _features, description: _d
       if (!controller.signal.aborted) setError('The PDF could not be downloaded. Please try again or use Print A4 sheet.');
     } finally { if (downloadController.current === controller) { downloadController.current = null; setDownloading(false); } }
   }
-  return <>
-    <button id="print-vehicle-details" type="button" className={triggerClassName ?? 'text-link min-h-11 text-sm'} onClick={() => { setStatus('checking'); setError(''); setOpen(true); }} data-testid="button-print-vehicle" aria-label={`Print or download details for ${vehicleDisplayTitle(car)}`}>{triggerContent ?? <><Printer aria-hidden="true" className="h-4 w-4" />Print vehicle details</>}</button>
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="vehicle-print-dialog max-w-4xl p-4 sm:p-6">
-        <DialogHeader><DialogTitle>Vehicle details</DialogTitle><DialogDescription>One A4 page. Scan the QR code for the full description, equipment and photos.</DialogDescription></DialogHeader>
+  const preview = <>
+        <div className="public-dialog-scroll vehicle-print-preview min-w-0 bg-muted" aria-busy={status === 'checking' || status === 'preparing'}>
+          {(status === 'checking' || status === 'preparing') && <p role="status">{status === 'checking' ? 'Checking current price and availability…' : 'Preparing your sheet…'}</p>}
+          {error && <div><p role="alert" className="text-destructive">{error}</p>{status === 'error' && <Button type="button" variant="outline" className="mt-2 min-h-11" onClick={() => setRetry(value => value + 1)}>Try again</Button>}</div>}
+          <div ref={setContainer} className="relative w-full max-w-[794px] mx-auto" />
+        </div>
         <div className="vehicle-print-actions flex flex-wrap items-center gap-2">
           <Button type="button" className="min-h-11" disabled={!ready} onClick={() => { frame.current?.contentWindow?.focus(); frame.current?.contentWindow?.print(); }}><Printer className="h-4 w-4" aria-hidden="true" />Print A4 sheet</Button>
           <Button type="button" variant="outline" className="min-h-11" disabled={!ready} onClick={() => void download()}>{downloading ? 'Preparing PDF…' : 'Download PDF'}</Button>
           <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 px-2 text-sm"><input type="checkbox" checked={monochrome} disabled={downloading} onChange={event => setMonochrome(event.target.checked)} className="h-4 w-4 accent-current" />Ink-saving</label>
         </div>
-        {(status === 'checking' || status === 'preparing') && <p role="status">{status === 'checking' ? 'Checking current price and availability…' : 'Preparing your sheet…'}</p>}
-        {status === 'ready' && <p className="text-xs text-muted-foreground">Price and availability checked for this sheet.</p>}
-        {error && <div><p role="alert" className="text-destructive">{error}</p>{status === 'error' && <Button type="button" variant="outline" className="mt-2 min-h-11" onClick={() => setRetry(value => value + 1)}>Try again</Button>}</div>}
-        <div className="public-dialog-scroll vehicle-print-preview min-w-0 bg-muted" aria-busy={status === 'checking' || status === 'preparing'}><div ref={setContainer} className="relative w-full max-w-[794px] mx-auto" /></div>
+  </>;
+
+  if (onBack) return preview;
+
+  return <>
+    <button id="print-vehicle-details" type="button" className={triggerClassName ?? 'text-link min-h-11 text-sm'} onClick={() => { setStatus('checking'); setError(''); setOpen(true); }} data-testid="button-print-vehicle" aria-label={`Print or download details for ${vehicleDisplayTitle(car)}`}>{triggerContent ?? <><Printer aria-hidden="true" className="h-4 w-4" />Print vehicle details</>}</button>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="vehicle-print-dialog max-w-4xl p-4 sm:p-6">
+        <DialogHeader><DialogTitle>Vehicle details</DialogTitle><DialogDescription>One A4 page. Scan the QR code for the full description, equipment and photos.</DialogDescription></DialogHeader>
+        {preview}
       </DialogContent>
     </Dialog>
   </>;

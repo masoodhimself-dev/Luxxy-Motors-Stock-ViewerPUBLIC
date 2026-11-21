@@ -39,6 +39,8 @@ describe('vehicle equipment explanation panels', () => {
     expect(trigger).toHaveAttribute('type', 'button');
     expect(dialog).toHaveAccessibleName();
     expect(dialog).toHaveAccessibleDescription();
+    expect(dialog).toHaveAttribute('data-popup-surface', 'popover');
+    expect(document.querySelector('[data-popup-overlay]')).toBeNull();
     expect(dialog.textContent?.toLowerCase()).toContain(feature.toLowerCase());
     expect(within(dialog).getByRole('button', { name: 'Close' })).toBeVisible();
   });
@@ -104,7 +106,7 @@ describe('vehicle equipment explanation panels', () => {
     ['Bluetooth Interface for Hands-Free Telephone', 'bluetooth-calls'],
     ['Hard Disk Drive HDD Map Navigation System with TMC Traffic Message Channel', 'navigation'],
     ['ISOFIX Child Seat Fixing Points in Rear - Two Outer Seats', 'isofix'],
-  ])('keeps the large artwork decorative and gives “%s” its own equipment identity', (feature, icon) => {
+  ])('keeps the small icon decorative and gives “%s” its own equipment identity', (feature, icon) => {
     render(<VehicleFeaturePanel feature={feature} />);
     const { dialog } = openFeature(feature);
     const artwork = dialog.querySelector(`[data-feature-icon="${icon}"]`);
@@ -141,11 +143,11 @@ describe('vehicle equipment explanation panels', () => {
     await waitFor(() => expect(trigger).toHaveFocus());
   });
 
-  it('also offers an obvious acknowledgement action for touch users', async () => {
+  it('offers a single explicit close action without a separate acknowledgement step', () => {
     render(<VehicleFeaturePanel feature="Heated Front Seats" />);
     const { dialog } = openFeature('Heated Front Seats');
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Got it' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(within(dialog).getAllByRole('button')).toHaveLength(1);
+    expect(within(dialog).getByRole('button', { name: 'Close' })).toBeVisible();
   });
 
   it('keeps explanations independent when a customer opens different equipment items', async () => {

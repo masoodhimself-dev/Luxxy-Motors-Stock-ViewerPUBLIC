@@ -297,13 +297,15 @@ export default function CarDetail() {
     enquiryFocusFrame.current = requestAnimationFrame(() => {
       enquiryFocusFrame.current = null;
       const enquiry = document.getElementById('vehicle-enquiry');
-      enquiry?.scrollIntoView({block: 'start', behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'});
-      // A prepared question belongs in the editable message. Do not let this
-      // later scroll frame steal focus from the form's message handoff effect.
-      const focusTarget = requestedMessage
-        ? enquiry?.querySelector<HTMLTextAreaElement>('[data-testid="textarea-enquiry-message"]')
-        : document.getElementById('vehicle-enquiry-heading');
-      focusTarget?.focus({preventScroll: true});
+      const messageField = requestedMessage && enquiry?.querySelector<HTMLTextAreaElement>('[data-testid="textarea-enquiry-message"]');
+      const behavior = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth';
+      if (messageField) {
+        messageField.focus({preventScroll: true});
+        messageField.scrollIntoView({block: 'center', behavior});
+      } else {
+        enquiry?.scrollIntoView({block: 'start', behavior});
+        document.getElementById('vehicle-enquiry-heading')?.focus({preventScroll: true});
+      }
     });
   };
   const bookingAction = !settingsLoading && !settingsError && customerFeatures.enabled('testDriveBookings') && dealerConfig.testDriveBooking?.enabled !== false && (!car.inventoryStatus || car.inventoryStatus === 'available') ? (

@@ -296,6 +296,23 @@ describe('opt-in stock template compositions', () => {
     expect(window.localStorage.getItem('luxxy.stock-view.v1')).toBe('compact');
     write.mockRestore();
   });
+  it.each(['autodeal', 'grand-touring'] as const)('dismisses %s View options from the keyboard and outside', template => {
+    overrideSettings = { ...dealerConfigFixture, presentation: { websiteTemplate: template } };
+    renderHome();
+    const trigger = screen.getByRole('button', { name: 'View options' });
+    fireEvent.click(trigger);
+    const copy = screen.getByRole('button', { name: 'Copy search link' });
+    copy.focus();
+    fireEvent.keyDown(copy, { key: 'Escape' });
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(trigger).toHaveFocus();
+
+    fireEvent.click(trigger);
+    screen.getByRole('button', { name: 'List' }).focus();
+    fireEvent.pointerDown(document.body);
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(trigger).toHaveFocus();
+  });
   it.each(cases)('keeps the eighth-slot advert and true vehicle count in the $template default', ({ template, layout }) => {
     stockPhotoTenant('https://multichoicemotors.co.uk');
     overrideSettings = { ...dealerConfigFixture, presentation: { websiteTemplate: template } };

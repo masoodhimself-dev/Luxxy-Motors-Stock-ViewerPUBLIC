@@ -5,7 +5,7 @@ import type { Car } from '@/lib/stock-context';
 const mock = vi.hoisted(() => ({ image: vi.fn() }));
 vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({ settings: { identity: { name: 'Example Motors' } } }) }));
 vi.mock('./vehicle-dialog-vehicle', () => ({ useVehicleDialogTheme: () => ({}) }));
-vi.mock('./vehicle-print', () => ({ VehiclePrint: () => <button>Car details PDF</button> }));
+vi.mock('./vehicle-print', () => ({ VehiclePrint: () => <div data-testid="pdf-preview" /> }));
 vi.mock('@/lib/vehicle-share-image', () => ({ createVehicleShareImage: mock.image }));
 vi.mock('qrcode.react', () => ({ QRCodeCanvas: ({ value }: { value: string }) => <div data-testid="qr">{value}</div> }));
 const car = { id:'car-1', title:'Ford Focus', make:'Ford', model:'Focus', price:5000, priceType:'+ VAT', currency:'GBP', year:2018, mileage:20000, images:['https://photos.test/car.jpg'], sourceExtras:{publicVehicleCode:'7k2m9q4n'} } as unknown as Car;
@@ -35,6 +35,18 @@ it('copies the short link and offers manual selection if clipboard access fails'
 it('shows a QR for the same car without using a lookup', () => {
   render(<VehicleShare car={car}/>); open(); extras(); fireEvent.click(screen.getByRole('button',{name:/Show QR code/}));
   expect(screen.getByTestId('qr')).toHaveTextContent(`${location.origin}/s/7k2m9q4n`); expect(mock.image).not.toHaveBeenCalled();
+});
+it('keeps the PDF preview in the sharing dialog and returns focus to its option', async () => {
+  render(<VehicleShare car={car} />); open(); extras();
+  const dialog = screen.getByRole('dialog', {name: 'Share this car'});
+  const pdf = screen.getByRole('button', {name: /Car details PDF/});
+  fireEvent.click(pdf);
+  expect(screen.getByRole('dialog', {name: 'Vehicle details'})).toBe(dialog);
+  expect(screen.getByTestId('pdf-preview')).toBeVisible();
+  expect(screen.queryByRole('button', {name: 'Copy link'})).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', {name: 'Back to sharing'}));
+  await waitFor(() => expect(pdf).toHaveFocus());
+  expect(screen.getByRole('dialog', {name: 'Share this car'})).toBe(dialog);
 });
 it('invalidates a prepared image when the current price changes', async () => {
   mock.image.mockResolvedValue(new Blob(['photo'], {type:'image/png'}));

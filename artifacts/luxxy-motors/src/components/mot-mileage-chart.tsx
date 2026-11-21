@@ -1,6 +1,6 @@
 import { useId, useState } from 'react';
 import type { MotTest } from '@workspace/vehicle-meta';
-import { AlertTriangle } from './icons';
+import { AlertTriangle, ChevronLeft, ChevronRight } from './icons';
 import { buildMotMileageHistory, motDateLabel, motMileageLabel } from '@/lib/mot-mileage-history';
 
 function chartCeiling(value: number) {
@@ -10,12 +10,14 @@ function chartCeiling(value: number) {
   return Math.max(2, Math.ceil(value / step) * step);
 }
 
-export function MotMileageChart({ tests }: { tests: MotTest[] }) {
+export function MotMileageChart({ tests, readingControls = false }: { tests: MotTest[]; readingControls?: boolean }) {
   const history = buildMotMileageHistory(tests);
   const headingId = useId();
   const descriptionId = useId();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const selected = history.points.find(point => point.key === selectedKey) ?? history.points.at(-1);
+  const activeIndex = history.points.findIndex(point => point.key === selectedKey);
+  const selectedIndex = activeIndex < 0 ? history.points.length - 1 : activeIndex;
+  const selected = history.points[selectedIndex];
   if (!selected) return <section className="mot-mileage mot-mileage-empty" aria-labelledby={headingId}>
     <h3 id={headingId}>Mileage history</h3>
     <p>No dated mileage readings are available to plot.</p>
@@ -29,11 +31,23 @@ export function MotMileageChart({ tests }: { tests: MotTest[] }) {
   const number = (value: number) => Math.round(value).toLocaleString('en-GB');
   const axisNumber = (value: number) => value.toLocaleString('en-GB', { maximumFractionDigits: 1 });
   const axisDate = (timestamp: number) => new Date(timestamp).toLocaleDateString('en-GB', { month: 'short', year: 'numeric', timeZone: 'Europe/London' });
+  const previousReading = history.points[selectedIndex - 1];
+  const nextReading = history.points[selectedIndex + 1];
 
   return <figure className="mot-mileage" aria-labelledby={headingId}>
     <div className="mot-mileage-heading"><h3 id={headingId}>Mileage history</h3><span>{history.points.length} {history.points.length === 1 ? 'reading' : 'readings'}</span></div>
-    <div className="mot-mileage-selection" aria-live="polite" aria-atomic="true">
-      <strong>{number(selected.miles)} miles</strong><span>{motDateLabel(selected.test.completedDate)}{selected.test.mileageUnit === 'KM' ? ` · recorded as ${motMileageLabel(selected.test)}` : ''}</span>
+    <div className="mot-mileage-reading">
+      <div className="mot-mileage-selection" aria-live="polite" aria-atomic="true">
+        <strong>{number(selected.miles)} miles</strong><span>{motDateLabel(selected.test.completedDate)}{selected.test.mileageUnit === 'KM' ? ` · recorded as ${motMileageLabel(selected.test)}` : ''}</span>
+      </div>
+      {readingControls && history.points.length > 1 && <div className="mot-mileage-controls" role="group" aria-label="Browse mileage readings">
+        <button type="button" aria-label="Previous mileage reading" aria-disabled={!previousReading} onClick={() => { if (previousReading) setSelectedKey(previousReading.key); }}>
+          <ChevronLeft size={18} aria-hidden="true" />
+        </button>
+        <button type="button" aria-label="Next mileage reading" aria-disabled={!nextReading} onClick={() => { if (nextReading) setSelectedKey(nextReading.key); }}>
+          <ChevronRight size={18} aria-hidden="true" />
+        </button>
+      </div>}
     </div>
     <div className="mot-mileage-plot">
       <div className="mot-mileage-axis" aria-hidden="true"><span>{axisNumber(maximum)}</span><span>{axisNumber(maximum / 2)}</span><span>0</span></div>
@@ -42,7 +56,7 @@ export function MotMileageChart({ tests }: { tests: MotTest[] }) {
         {history.segments.filter(segment => segment.length > 1).map((segment, index) => <polyline key={index} className="mot-mileage-line" points={segment.map(point => `${x(point.timestamp)},${y(point.miles)}`).join(' ')} fill="none" vectorEffect="non-scaling-stroke" aria-hidden="true" />)}
         {history.points.map(point => <g key={point.key}>
           <circle className="mot-mileage-dot" cx={x(point.timestamp)} cy={y(point.miles)} r={point.key === selected.key ? 5 : 3.5} data-decreased={point.decreased} vectorEffect="non-scaling-stroke" aria-hidden="true" />
-          <circle className="mot-mileage-target" cx={x(point.timestamp)} cy={y(point.miles)} r={12} tabIndex={0} role="button"
+          <circle className="mot-mileage-target" cx={x(point.timestamp)} cy={y(point.miles)} r={12} tabIndex={readingControls ? -1 : 0} role="button"
             aria-label={`${motDateLabel(point.test.completedDate)}: ${motMileageLabel(point.test)}${point.decreased ? ', lower than the previous reading' : ''}`}
             aria-pressed={point.key === selected.key} onClick={() => setSelectedKey(point.key)} onFocus={() => setSelectedKey(point.key)}
             onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedKey(point.key); } }} />
@@ -51,7 +65,7 @@ export function MotMileageChart({ tests }: { tests: MotTest[] }) {
     </div>
     <div className="mot-mileage-dates" aria-hidden="true">{first.timestamp === last.timestamp ? <span>{axisDate(first.timestamp)}</span> : <><span>{axisDate(first.timestamp)}</span><span>{axisDate(last.timestamp)}</span></>}</div>
     <figcaption id={descriptionId}>
-      {history.points.length === 1 ? 'One recorded reading; a trend cannot be shown yet.' : 'Select a point to see its test reading.'}
+      {history.points.length === 1 ? 'One recorded reading; a trend cannot be shown yet.' : readingControls ? 'Use the arrows or select a point to view a reading.' : 'Select a point to see its test reading.'}
       {history.convertedKm && ' Kilometre readings are converted to miles on this chart.'}
       {history.excludedCount > 0 && ' Tests without a valid date, reading or unit are not plotted.'}
     </figcaption>

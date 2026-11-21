@@ -121,7 +121,7 @@ export const MultiHomeHeader = forwardRef<
                   Services <ChevronDown aria-hidden="true" />
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="multi-home-popover" align="start">
+              <PopoverContent className="multi-home-popover" align="start" aria-label="Services">
                 <nav aria-label="Services">
                   {canBook && (
                     <Link href={testDriveHref} onClick={close}>

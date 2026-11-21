@@ -62,6 +62,9 @@ export default function Viewing() {
   const [mode, setMode] = useState<'idle' | 'reschedule' | 'confirm-cancel'>('idle');
   const resultRef = useRef<HTMLParagraphElement>(null);
   const changeHeadingRef = useRef<HTMLHeadingElement>(null);
+  const cancelButton = useRef<HTMLButtonElement>(null);
+  const rescheduleButton = useRef<HTMLButtonElement>(null);
+  const returnToChange = useRef<'confirm-cancel' | 'reschedule' | null>(null);
   const query = useGetViewingBooking(token, { query: { queryKey: getGetViewingBookingQueryKey(token), retry: false, staleTime: 0, refetchOnWindowFocus: true, refetchInterval: 30_000 } });
   const reschedule = useRescheduleViewing();
   const cancel = useCancelViewing();
@@ -86,8 +89,18 @@ export default function Viewing() {
   }, [availabilityQuery.data, selectedSlot]);
   useEffect(() => {
     if (mode !== 'idle') changeHeadingRef.current?.focus();
-    else if (cancel.isSuccess || reschedule.isSuccess) resultRef.current?.focus();
+    else if (returnToChange.current) {
+      const opener = returnToChange.current === 'confirm-cancel' ? cancelButton : rescheduleButton;
+      returnToChange.current = null;
+      opener.current?.focus();
+    } else if (cancel.isSuccess || reschedule.isSuccess) resultRef.current?.focus();
   }, [mode, cancel.isSuccess, reschedule.isSuccess, booking?.status]);
+
+  function keepCurrentAppointment() {
+    if (mode === 'idle') return;
+    returnToChange.current = mode;
+    setMode('idle');
+  }
 
   const phoneHref = getPhoneHref(dealerConfig);
   const whatsAppHref = getWhatsAppHref(undefined, dealerConfig);
@@ -141,13 +154,13 @@ export default function Viewing() {
       {!isCancelled && mode === 'idle' && <div className="mt-6 flex flex-wrap gap-3">
         {!isPending && booking.calendarIcs && <Button asChild variant="outline" className="min-h-12 text-sm"><a href={`data:text/calendar;charset=utf8,${encodeURIComponent(booking.calendarIcs)}`} download="test-drive.ics" data-testid="link-viewing-calendar"><CalendarPlus className="mr-2 h-4 w-4" /> Add to calendar</a></Button>}
         {booking.canChange && <>
-          <Button variant="outline" disabled={!canReschedule} onClick={() => {
+          <Button ref={rescheduleButton} variant="outline" disabled={!canReschedule} onClick={() => {
             const currentDay = booking.appointmentAt ? londonDate(new Date(booking.appointmentAt)) : '';
             setSelectedDate(dates.includes(currentDay) ? currentDay : dates[0] ?? '');
             setSelectedSlot(null);
             reschedule.reset(); setMode('reschedule');
           }} className="min-h-12 text-sm" data-testid="button-viewing-reschedule">Reschedule</Button>
-          <Button variant="ghost" onClick={() => { cancel.reset(); setMode('confirm-cancel'); }} className="min-h-12 text-sm text-muted-foreground" data-testid="button-viewing-cancel">Cancel</Button>
+          <Button ref={cancelButton} variant="ghost" onClick={() => { cancel.reset(); setMode('confirm-cancel'); }} className="min-h-12 text-sm text-muted-foreground" data-testid="button-viewing-cancel">Cancel</Button>
         </>}
       </div>}
       {!isCancelled && booking.canChange && !settingsLoading && !canReschedule && <p className="mt-4 text-sm leading-6 text-muted-foreground" data-testid="status-reschedule-unavailable">Online rescheduling is currently unavailable. Your existing {isPending ? 'request' : 'booking'} is unchanged. {phoneHref ? <a className="underline underline-offset-4" href={phoneHref}>Call us to arrange another time.</a> : <Link href="/contact" className="underline underline-offset-4">Contact us to arrange another time.</Link>}</p>}
@@ -163,7 +176,7 @@ export default function Viewing() {
       {cancel.isError && <p role="alert" className="mt-5 text-sm text-destructive" data-testid="status-cancel-error">{apiMessage(cancel.error, 'We could not cancel your test drive. Please try again or call us.')}</p>}
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <Button variant="destructive" disabled={busy} onClick={() => cancel.mutate({ token, data: {} }, { onSuccess: updated => { queryClient.setQueryData(getGetViewingBookingQueryKey(token), updated); setMode('idle'); } })} className="min-h-12 sm:flex-1" data-testid="button-confirm-cancel">{cancel.isPending ? 'Cancelling…' : 'Yes, cancel it'}</Button>
-        <Button variant="outline" disabled={busy} onClick={() => setMode('idle')} className="min-h-12 sm:flex-1" data-testid="button-abort-cancel">No, keep it</Button>
+        <Button variant="outline" disabled={busy} onClick={keepCurrentAppointment} className="min-h-12 sm:flex-1" data-testid="button-abort-cancel">No, keep it</Button>
       </div>
     </div> : mode === 'reschedule' ? <div className="border-t border-border p-6 sm:p-10">
       <h2 ref={changeHeadingRef} tabIndex={-1} className="text-xl font-semibold outline-none">Choose a new time</h2>
@@ -186,7 +199,7 @@ export default function Viewing() {
             onError: () => { setSelectedSlot(null); void availabilityQuery.refetch(); },
           });
         }} className="min-h-12 sm:flex-1" data-testid="button-confirm-reschedule">{reschedule.isPending ? 'Updating test drive…' : bookingSettings.confirmationMode === 'approval' ? 'Request new time' : 'Confirm new time'}</Button>}
-        <Button variant="outline" disabled={busy} onClick={() => setMode('idle')} className="min-h-12 sm:flex-1" data-testid="button-cancel-reschedule">Keep current time</Button>
+        <Button variant="outline" disabled={busy} onClick={keepCurrentAppointment} className="min-h-12 sm:flex-1" data-testid="button-cancel-reschedule">Keep current time</Button>
       </div>
     </div> : reschedule.isSuccess ? <div className="border-t border-border p-6 sm:p-10"><p ref={resultRef} tabIndex={-1} role="status" className="flex items-start gap-3 text-sm leading-6 outline-none" data-testid="status-reschedule-success"><Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />{booking.status === 'pending' ? 'Your new time has been requested. Please wait for us to confirm it.' : 'Your test drive has been moved and your new time is confirmed.'}</p></div> : null}
 

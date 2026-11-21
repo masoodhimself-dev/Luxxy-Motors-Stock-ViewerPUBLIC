@@ -42,7 +42,7 @@ export function PublicMotHistory({ history }: { history: MotHistory }) {
       </div>}
     </dl> : <p className="mot-pass-empty">No dated MOT passes were returned. This does not confirm exemption or that an MOT is not due.</p>}
     {rows.length > 0 && <>
-      <MotMileageChart tests={rows.map(row => row.test)} />
+      <MotMileageChart tests={rows.map(row => row.test)} readingControls />
       <table className="mot-pass-table">
         <caption>Passed MOT tests</caption>
         <thead>

@@ -10,6 +10,7 @@ import { UKNumberPlate } from './uk-number-plate';
 import { responsiveVehicleImage, retryOriginalImage } from '@/lib/responsive-vehicle-image';
 import { isCustomerWebsiteRoute, multiCustomerThemeVariables } from '@/lib/multi-customer-theme';
 import { useLocation } from 'wouter';
+import { websiteTemplatePalettes, websiteTemplateThemeVariables } from '@/lib/website-template-theme';
 import './vehicle-dialog.css';
 
 const luminance = (hex: string) => [1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16) / 255)
@@ -23,7 +24,26 @@ export function useVehicleDialogTheme(): CSSProperties {
   const [location] = useLocation();
   const isCustomerWebsite = isCustomerWebsiteRoute(location);
   const isPortal = /^\/portal(?:\/|$)/.test(location);
+  const isApex = isCustomerWebsite && settings.presentation?.websiteTemplate === 'autodeal';
   return useMemo(() => {
+    if (isApex) {
+      const palette = websiteTemplatePalettes.autodeal;
+      return {
+        ...multiCustomerThemeVariables('showroom-navy'),
+        ...websiteTemplateThemeVariables('autodeal'),
+        '--dialog-ink': palette.ink,
+        '--dialog-accent': palette.action,
+        '--dialog-muted': palette.muted,
+        '--dialog-panel': palette.surface,
+        '--dialog-subtle': '#f6f5f4',
+        '--dialog-action': 'var(--ad-orange)',
+        '--dialog-action-foreground': palette.ink,
+        '--dialog-hours-background': 'transparent',
+        '--dialog-hours-ink': palette.ink,
+        '--mh-radius-panel': '16px',
+        '--mh-radius-control': '9px',
+      } as CSSProperties;
+    }
     if (isCustomerWebsite) return multiCustomerThemeVariables('showroom-navy') as CSSProperties;
     if (isPortal) return multiCustomerThemeVariables() as CSSProperties;
     const configuredAccent = settings.identity.brandColors?.accentHsl;
@@ -48,7 +68,7 @@ export function useVehicleDialogTheme(): CSSProperties {
       '--dialog-panel': panel,
       '--dialog-subtle': subtle,
     } as CSSProperties;
-  }, [settings.identity.brandColors?.accentHsl, settings.presentation?.headingColour, settings.presentation?.panelColour, settings.presentation?.pageColour, isCustomerWebsite, isPortal]);
+  }, [settings.identity.brandColors?.accentHsl, settings.presentation?.headingColour, settings.presentation?.panelColour, settings.presentation?.pageColour, isCustomerWebsite, isPortal, isApex]);
 }
 
 /** Only supplied vehicle facts are shown; missing or failed photography disappears. */

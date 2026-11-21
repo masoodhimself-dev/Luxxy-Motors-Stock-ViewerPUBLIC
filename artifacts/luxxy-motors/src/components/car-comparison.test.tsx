@@ -19,7 +19,9 @@ it('reads only cached MOTs for cars explicitly being compared and offers normal 
   view.rerender(<CarComparison cars={cars} open onOpenChange={vi.fn()} onShare={share} />);
   await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
   expect(fetch.mock.calls.map(call => call[0])).toEqual(['/api/vehicles/lexus/mot-history?cacheOnly=true', '/api/vehicles/ford/mot-history?cacheOnly=true']);
-  expect(screen.getByRole('link', { name: 'Lexus RX' })).toHaveAttribute('href', '/vehicle/lexus');
+  const vehicle = screen.getByRole('link', { name: 'Lexus RX' });
+  expect(vehicle).toHaveAttribute('href', '/vehicle/lexus');
+  expect(vehicle.querySelector('.car-comparison-photo')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Share these cars' }));
   expect(share).toHaveBeenCalledWith(['lexus', 'ford']);
 });

@@ -216,6 +216,7 @@ describe("Multi-Choice stock controls", () => {
     const trigger = screen.getByRole('button', { name: 'Filters' });
     fireEvent.click(trigger);
     const drawer = screen.getByRole('dialog', { name: 'Filter cars' });
+    expect(within(drawer).getByText('Results update as you choose.')).toBeVisible();
     expand('Make', drawer); fireEvent.click(within(drawer).getByRole('checkbox', { name: 'Ford' }));
     expect(state().make).toBe('Ford'); expect(patch).toHaveBeenCalled();
     setWidth(1440); fireEvent(window, new Event('resize'));

@@ -105,6 +105,7 @@ it('asks before cancelling, keeps the booking when declined and sends only expli
   expect(state.cancel).not.toHaveBeenCalled();
   fireEvent.click(screen.getByTestId('button-abort-cancel'));
   expect(screen.queryByTestId('button-confirm-cancel')).not.toBeInTheDocument();
+  expect(screen.getByTestId('button-viewing-cancel')).toHaveFocus();
   expect(screen.getByTestId('button-viewing-reschedule')).toBeEnabled();
   expect(state.cancel).not.toHaveBeenCalled();
   fireEvent.click(screen.getByTestId('button-viewing-cancel'));
@@ -165,6 +166,7 @@ it('keeps the original appointment and clears the rejected choice after a failed
   expect(state.setQueryData).not.toHaveBeenCalled();
   expect(state.booking).toBe(original);
   fireEvent.click(screen.getByTestId('button-cancel-reschedule'));
+  expect(screen.getByTestId('button-viewing-reschedule')).toHaveFocus();
   expect(screen.getByRole('status')).toHaveTextContent('Confirmed');
   expect(screen.getByText(/20 October 2026 at 15:00/)).toBeInTheDocument();
 });

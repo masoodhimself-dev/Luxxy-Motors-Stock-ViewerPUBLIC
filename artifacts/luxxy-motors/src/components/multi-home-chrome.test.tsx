@@ -183,6 +183,7 @@ it("offers enabled services in a disclosure and closes it after following a link
     />,
   );
   fireEvent.click(screen.getByRole("button", { name: "Services" }));
+  expect(screen.getByRole("dialog", { name: "Services" })).toBeVisible();
   expect(screen.getByRole("link", { name: "Warranty" })).toHaveAttribute(
     "href",
     "/warranty",

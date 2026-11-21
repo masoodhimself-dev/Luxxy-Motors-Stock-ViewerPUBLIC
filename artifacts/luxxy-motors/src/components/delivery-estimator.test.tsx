@@ -27,6 +27,26 @@ it('carries the postcode into an editable public enquiry after a failed estimate
   expect(screen.getByRole('link', { name: 'Call the showroom' })).toHaveAttribute('href', 'tel:02046286488');
 });
 
+it('keeps focus while calculating and announces the public estimate once', async () => {
+  let finish: (value: unknown) => void = () => {};
+  state.fetch.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  render(<DeliveryEstimator expanded customerEnquiries={false} />);
+  fireEvent.change(screen.getByLabelText('Delivery postcode'), { target: { value: 'SW1A 1AA' } });
+  const calculateButton = screen.getByRole('button', { name: 'Get estimate' });
+  calculateButton.focus();
+  fireEvent.click(calculateButton);
+  expect(calculateButton).toHaveFocus();
+  expect(calculateButton).not.toHaveAttribute('disabled');
+  expect(calculateButton).toHaveAttribute('aria-disabled', 'true');
+  expect(screen.getByRole('status')).toHaveTextContent('Checking the driving route.');
+  fireEvent.click(calculateButton);
+  expect(state.fetch).toHaveBeenCalledTimes(1);
+  await act(async () => finish(quote));
+  expect(calculateButton).toHaveFocus();
+  expect(calculateButton).not.toHaveAttribute('aria-disabled');
+  expect(screen.getByRole('status')).toHaveTextContent('Estimated delivery to SW1A 1AA is £85.10.');
+});
+
 it('hands a failed vehicle estimate to the existing enquiry callback only on request', async () => {
   const onEnquire = vi.fn();
   state.fetch.mockRejectedValue(new Error('Routing unavailable'));

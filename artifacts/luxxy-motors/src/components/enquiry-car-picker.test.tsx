@@ -12,6 +12,7 @@ it('searches actual stock and keeps the current form when choosing a different c
   const select = vi.fn();
   render(<EnquiryCarPicker open onOpenChange={vi.fn()} cars={[ford, toyota, { ...ford, id: 'sold', title: 'Sold car', inventoryStatus: 'sold' }]} currentId={ford.id} onSelect={select} />);
   expect(screen.queryByRole('button', { name: /Choose Sold car/ })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Choose Ford/ })).toHaveTextContent(/AB12\s?CDE/);
   fireEvent.change(screen.getByRole('searchbox', { name: 'Search available cars' }), { target: { value: 'Silver Toyota' } });
   expect(screen.queryByRole('button', { name: /Choose Ford/ })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: /Choose Toyota Yaris/ }));
@@ -38,4 +39,18 @@ it('allows cancelling a car change without changing the enquiry', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Close' }));
   expect(close).toHaveBeenCalledWith(false);
   expect(select).not.toHaveBeenCalled();
+});
+
+it('returns focus to the search after clearing a query or resetting empty results', () => {
+  render(<EnquiryCarPicker open onOpenChange={vi.fn()} cars={[ford, toyota]} onSelect={vi.fn()} />);
+  const search = screen.getByRole('searchbox', { name: 'Search available cars' });
+  fireEvent.change(search, { target: { value: 'missing' } });
+  expect(screen.getByText('No cars match that search.')).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Show all cars' }));
+  expect(search).toHaveValue('');
+  expect(search).toHaveFocus();
+  fireEvent.change(search, { target: { value: 'Toyota' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Clear car search' }));
+  expect(search).toHaveValue('');
+  expect(search).toHaveFocus();
 });

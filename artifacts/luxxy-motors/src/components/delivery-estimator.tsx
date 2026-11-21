@@ -76,6 +76,7 @@ export function DeliveryEstimator({
     ? deliveryVehicleTotal(vehiclePrice, currency, estimate.totalPence, priceType)
     : null;
   const priceQualification = deliveryPriceQualification(priceType);
+  const publicCalculator = customerEnquiries !== undefined;
   const customerFallback = onEnquire || customerEnquiries !== undefined;
   const quoteRequest = error && validPostcodeSyntax(postcode)
     ? `Could you confirm whether you can deliver to ${normalisePostcode(postcode)} and how much it would cost?`
@@ -108,6 +109,7 @@ export function DeliveryEstimator({
     setError("");
   }
   async function calculate() {
+    if (busy) return;
     request.current?.abort();
     if (!validPostcodeSyntax(postcode)) {
       setSavedQuote(null);
@@ -191,10 +193,16 @@ export function DeliveryEstimator({
               aria-describedby={error ? `${postcodeId}-error` : undefined}
             />
           </div>
-          <Button type="button" className="delivery-estimator-calculate" disabled={busy || !postcode.trim()} onClick={() => void calculate()}>
+          <Button type="button" className="delivery-estimator-calculate"
+            disabled={!postcode.trim() || (busy && !publicCalculator)}
+            aria-disabled={publicCalculator && busy ? true : undefined}
+            onClick={() => void calculate()}>
             {busy ? 'Getting estimate…' : 'Get estimate'}<ArrowRight aria-hidden="true" />
           </Button>
         </div>
+        {publicCalculator && <p className="sr-only" role="status">
+          {busy ? 'Checking the driving route.' : estimate ? `Estimated delivery to ${estimate.postcode} is ${pounds(estimate.totalPence)}.` : ''}
+        </p>}
         {error && (
           <p id={`${postcodeId}-error`} role="alert" className="delivery-estimator-error">
             {error}
@@ -210,8 +218,8 @@ export function DeliveryEstimator({
         )}
         {estimate && (
           <div
-            role="status"
-            aria-live="polite"
+            role={publicCalculator ? undefined : "status"}
+            aria-live={publicCalculator ? undefined : "polite"}
             className="delivery-estimator-result"
           >
             <div className="delivery-estimator-price">
