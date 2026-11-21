@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { request as httpRequest } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -21,6 +21,10 @@ test('draft website preview keeps real stock private, scoped to its dealer, and 
   delete process.env.DEMO_EMAIL_RECIPIENTS;
   const directory = await mkdtemp(join(tmpdir(), 'dealer-site-preview-'));
   await writeFile(join(directory, 'index.html'), '<html><head><title>Showroom</title></head><body><div id="root"></div></body></html>');
+  const fontPath = 'fonts/modern-showroom/outfit-latin.woff2';
+  const fontBytes = await readFile(join('../luxxy-motors/public', fontPath));
+  await mkdir(join(directory, 'fonts/modern-showroom'), { recursive: true });
+  await writeFile(join(directory, fontPath), fontBytes);
   for (const file of (await readdir('../../lib/db/drizzle')).filter(name => /^\d+.*\.sql$/.test(name)).sort()) {
     await engine.exec(await readFile(join('../../lib/db/drizzle', file), 'utf8'));
   }
@@ -65,6 +69,13 @@ test('draft website preview keeps real stock private, scoped to its dealer, and 
     });
   const base = '/platform/preview/draft-one';
   try {
+    const bundledFont = await read('/' + fontPath, { user: '' });
+    assert.equal(bundledFont.status, 200);
+    assert.equal(bundledFont.headers.get('content-type'), 'font/woff2');
+    assert.deepEqual(Buffer.from(await bundledFont.arrayBuffer()), fontBytes);
+    assert.equal((await read('/' + fontPath, { method: 'HEAD', user: '' })).status, 200);
+    assert.equal((await read('/' + fontPath, { host: 'unknown.example.test' })).status, 421);
+    assert.equal((await read('/' + fontPath, { method: 'POST' })).status, 421);
     assert.equal((await read('/', { host: 'draft-one.example.test' })).status, 421);
     assert.equal((await read('/api/stock', { host: 'draft-one.example.test' })).status, 421);
     assert.equal((await read(base, { user: '' })).status, 403);
