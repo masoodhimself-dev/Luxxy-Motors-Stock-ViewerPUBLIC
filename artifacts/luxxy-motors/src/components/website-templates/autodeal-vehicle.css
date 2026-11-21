@@ -52,6 +52,17 @@
   }
 }
 
+@media (min-width: 1100px) {
+  .website-template--autodeal .ad-vehicle-page .ad-container {
+    width: min(calc(100% - 2 * var(--ad-gutter)), 1440px);
+  }
+
+  .ad-vehicle {
+    grid-template-columns: minmax(0, 1fr) clamp(330px, 27vw, 390px);
+    column-gap: clamp(24px, 2.4vw, 36px);
+  }
+}
+
 .ad-vehicle .vehicle-detail-heading {
   display: block;
   margin: 0;
@@ -294,6 +305,12 @@
   border-color: transparent;
   box-shadow: none;
   color: var(--ct-ink);
+}
+
+@media (min-width: 1100px) {
+  .ad-vehicle__contact { padding-inline: 22px; }
+  .ad-vehicle__primary-actions :is(.vehicle-enquiry-action, .vehicle-booking-action) { padding-inline: 7px; }
+  .ad-vehicle .vehicle-action-tools { column-gap: 4px; }
 }
 
 .ad-vehicle :is(.vehicle-buying-options, .vehicle-buying-options > summary) {

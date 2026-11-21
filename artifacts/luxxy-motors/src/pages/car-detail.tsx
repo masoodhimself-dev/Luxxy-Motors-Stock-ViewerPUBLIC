@@ -585,7 +585,7 @@ export default function CarDetail() {
     dealer={settingsLoading || settingsError ? undefined : dealerConfig}
     includedItems={includedItems}
     compact={modernShowroom || autoDeal}
-    detailsOpenByDefault={!autoDeal}
+    registrationInSummary={autoDeal}
   />;
 
   const GraphiteFamilyVehicle = modernShowroom ? ModernShowroomVehicle : GraphiteVehicle;

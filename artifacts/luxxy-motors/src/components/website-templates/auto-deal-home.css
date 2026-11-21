@@ -61,7 +61,7 @@
 .autodeal-home .ad-hero-announcement { margin-bottom: 8px; }
 .autodeal-home .ad-hero-description { margin-top: 10px; }
 .ad-hero-car-details { margin-top: 15px; }
-.ad-hero-car-details ul {
+.ad-hero-showcase :is(.ad-hero-car-pricing, .ad-hero-cover) {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -71,7 +71,7 @@
   list-style: none;
 }
 
-.ad-hero-car-details li {
+.ad-hero-showcase :is(.ad-hero-car-pricing, .ad-hero-cover) li {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -79,6 +79,13 @@
 }
 
 .ad-hero-car-details li strong { font-weight: 600; }
+.ad-hero-showcase .ad-hero-cover {
+  gap: 3px 14px;
+  min-block-size: 23px;
+  margin-top: 8px;
+}
+.ad-hero-cover svg { flex-shrink: 0; }
+.ad-hero-cover:empty { visibility: hidden; }
 .autodeal-home .ad-hero-copy .ad-hero-car-button {
   display: inline-flex;
   align-items: center;
@@ -98,6 +105,7 @@
   position: absolute;
   z-index: -1;
   inset: 0;
+  overflow: clip;
   display: block;
   background: #646768;
 }
@@ -107,6 +115,18 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+.ad-hero-photo[data-direction='previous'] { --ad-hero-enter-from: -18px; }
+.ad-hero-photo[data-direction='next'] { --ad-hero-enter-from: 18px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .ad-hero-photo[data-direction] img { animation: ad-hero-enter 320ms ease-out; }
+}
+
+@keyframes ad-hero-enter {
+  from { opacity: .72; transform: translateX(var(--ad-hero-enter-from)); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 .ad-hero-photo::after {
@@ -120,7 +140,35 @@
 }
 
 .ad-hero-phone-title,
-.autodeal-home .ad-hero-phone-caption { display: none; }
+.ad-hero-phone-summary { display: none; }
+
+.ad-hero-controls {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.ad-hero-controls button { pointer-events: auto; }
+
+.ad-hero-rotation {
+  position: absolute;
+  z-index: 1;
+  inset-block-start: 18px;
+  inset-inline-end: clamp(16px, 2.6vw, 50px);
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  min-width: 76px;
+  min-height: 44px;
+  padding-inline: 12px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: rgb(36 39 44 / 86%);
+  color: #fff;
+  font: 500 14px/1.2 var(--ad-home-heading);
+  cursor: pointer;
+}
 
 .ad-hero-arrows {
   position: absolute;
@@ -138,14 +186,20 @@
   width: clamp(44px, 3.6vw, 68px);
   aspect-ratio: 1;
   border-radius: 14px;
-  background: rgb(255 255 255 / 19%);
+  background: rgb(36 39 44 / 78%);
   color: #fff;
   backdrop-filter: blur(3px);
   cursor: pointer;
   pointer-events: auto;
 }
 
-.ad-hero-arrows button:hover { background: rgb(255 255 255 / 32%); }
+.ad-hero-controls button:hover { background: #24272c; }
+.ad-hero-controls button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px #24272c;
+}
+.ad-hero-count { display: none; }
 .ad-hero-dock { width: min(1290px, calc(100% - var(--ad-dock-gutter) * 2)); }
 .autodeal-home .ad-hero-dock .mh-search-card {
   border: 0;
@@ -273,7 +327,8 @@
 
   .ad-hero-showcase,
   .ad-hero-showcase:not(.ad-hero-showcase--photo) {
-    display: block;
+    display: flex;
+    gap: 0;
     min-height: 0;
     padding: 18px var(--ad-home-phone-gutter) 10px;
   }
@@ -284,10 +339,10 @@
   .ad-hero-phone-title { display: inline; }
   .ad-hero-desktop-title,
   .ad-hero-car-details,
-  .ad-hero-arrows,
   .autodeal-home .ad-hero-dock .ad-search-desktop,
   .autodeal-home .ad-hero-dock .mh-search-tabs:has([aria-selected="true"]:first-child) { display: none; }
   .ad-hero-photo {
+    order: 1;
     position: relative;
     z-index: auto;
     aspect-ratio: 1.6;
@@ -295,17 +350,68 @@
     background: #ededed;
   }
   .ad-hero-photo::after { display: none; }
+  .ad-hero-phone-summary {
+    display: block;
+    order: 2;
+    margin-top: 10px;
+  }
   .autodeal-home .ad-hero-phone-caption {
     display: flex;
     align-items: start;
     justify-content: space-between;
     gap: 12px;
-    margin-top: 12px;
+    min-block-size: 2.6em;
     font: 500 16px/1.3 var(--ad-home-heading);
   }
   .ad-hero-phone-caption span:last-child { flex: 0 0 auto; text-align: right; }
   .ad-hero-phone-caption small { display: block; margin-top: 2px; font: 400 11px/1.2 var(--ct-font-ui, sans-serif); }
-  .ad-hero-dock { margin-top: 24px; }
+  .ad-hero-phone-caption span:first-child {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+  }
+  .ad-hero-phone-summary .ad-hero-cover {
+    align-content: start;
+    display: grid;
+    grid-template-columns: 1fr;
+    margin-top: 1px;
+    min-block-size: 41px;
+  }
+  .ad-hero-controls {
+    position: static;
+    order: 3;
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 9px;
+  }
+  .ad-hero-controls .ad-hero-arrows {
+    position: static;
+    transform: none;
+    align-items: center;
+    justify-content: start;
+    gap: 8px;
+  }
+  .ad-hero-controls button {
+    position: static;
+    min-height: 44px;
+    border: 1px solid #dfdddb;
+    border-radius: 8px;
+    background: #fff;
+    color: #24272c;
+  }
+  .ad-hero-controls button:hover { background: #fff6ee; }
+  .ad-hero-count {
+    display: inline-block;
+    min-width: 31px;
+    text-align: center;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+  .ad-hero-dock { order: 4; margin-top: 20px; }
   .autodeal-home .ad-hero-dock .mh-search-fields,
   .autodeal-home .ad-hero-dock .mh-px-form {
     padding: 0;

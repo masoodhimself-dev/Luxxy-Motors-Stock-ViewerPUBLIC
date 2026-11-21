@@ -24,14 +24,14 @@ function BenefitIcon({ text }: { text: string }) {
 }
 
 /** Context for the open message form, using this car and this dealer's saved promises. */
-export function VehicleEnquiryInformation({ car, motHistory, requestMotHistory, dealer, includedItems, compact = false, detailsOpenByDefault = true }: {
+export function VehicleEnquiryInformation({ car, motHistory, requestMotHistory, dealer, includedItems, compact = false, registrationInSummary = false }: {
   car: Car;
   motHistory: MotHistory | null;
   requestMotHistory: () => void;
   dealer?: DealerConfig;
   includedItems: readonly string[];
   compact?: boolean;
-  detailsOpenByDefault?: boolean;
+  registrationInSummary?: boolean;
 }) {
   const titleId = useId();
   const [failedPhoto, setFailedPhoto] = useState('');
@@ -65,11 +65,11 @@ export function VehicleEnquiryInformation({ car, motHistory, requestMotHistory, 
     const photo = getThumbnailUrl(car);
     const headlineLabels = ['Year', 'Mileage', 'Transmission'];
     const headlineFacts = headlineLabels.flatMap(label => facts.filter(fact => fact.label === label));
-    if (!detailsOpenByDefault && registration) headlineFacts.unshift({ label: 'Registration', value: formatRegistrationPlate(registration) });
+    if (registrationInSummary && registration) headlineFacts.unshift({ label: 'Registration', value: formatRegistrationPlate(registration) });
     const detailFacts = facts.filter(fact => !headlineLabels.includes(fact.label));
     const warranty = includes.find(item => /warranty/i.test(item));
     const otherInclusions = includes.filter(item => item !== warranty);
-    const registrationInDetails = detailsOpenByDefault && registration;
+    const registrationInDetails = !registrationInSummary && registration;
     const hasDetails = Boolean(detailFacts.length || registrationInDetails || mot);
     const hasBuyingOptions = Boolean(otherInclusions.length || uniqueReasons.length || dealer?.warranty?.enabled);
     return <aside className="gr-enquiry-car" data-testid="vehicle-enquiry-information" aria-labelledby={titleId}>
@@ -91,7 +91,7 @@ export function VehicleEnquiryInformation({ car, motHistory, requestMotHistory, 
         {headlineFacts.map(fact => <div key={fact.label}><dt className="sr-only">{fact.label}</dt><dd>{fact.value}</dd></div>)}
       </dl>}
       {warranty && <p className="gr-enquiry-car__warranty"><Shield aria-hidden="true" size={16} />{warranty}</p>}
-      {hasDetails && <details open={detailsOpenByDefault || undefined} className="gr-enquiry-car__details">
+      {hasDetails && <details open className="gr-enquiry-car__details">
         <summary>Car details <ChevronDown aria-hidden="true" size={16} /></summary>
         <dl className="gr-enquiry-car__facts">
           {registrationInDetails && <div><dt>Registration</dt><dd>{registrationInDetails}</dd></div>}
@@ -99,7 +99,7 @@ export function VehicleEnquiryInformation({ car, motHistory, requestMotHistory, 
           {detailFacts.map(fact => <div key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>)}
         </dl>
       </details>}
-      {hasBuyingOptions && <details open={detailsOpenByDefault || undefined} className="gr-enquiry-car__details">
+      {hasBuyingOptions && <details open className="gr-enquiry-car__details">
         <summary>Buying options <ChevronDown aria-hidden="true" size={16} /></summary>
         {otherInclusions.length > 0 && <ul className="gr-enquiry-car__benefits">
           {otherInclusions.map(item => <li key={item}><BenefitIcon text={item} /><span>{item}</span></li>)}
