@@ -42,7 +42,7 @@ export function ApexContact() {
   const registration = vehicle ? vehicleRegistration(vehicle) : null;
   const title = customerDefaultCopy(websiteText(settings, 'contactTitle'), `Contact ${settings.identity.name}`, ['Contact us']);
   const introduction = customerDefaultCopy(websiteText(settings, 'contactIntroduction'), '', ['Call, email or message us about a car.']);
-  const city = settings.address?.city?.trim();
+  const city = location.isSample ? undefined : settings.address?.city?.trim();
   const visitHeading = customerDefaultCopy(websiteText(settings, 'contactDirectionsHeading'), city ? `Visit us in ${city}` : 'Visit the showroom', ['How to find us']);
   const visitInstructions = settings.presentation?.visitInstructions?.trim();
   const parkingInstructions = settings.presentation?.parkingInstructions?.trim();
@@ -105,9 +105,8 @@ export function ApexContact() {
             <h2 id="find-us-heading"><MapPin size={23} aria-hidden="true" />{visitHeading}</h2>
             {ready ? <>
               <address ref={addressRef} data-testid="contact-address">
-                {location.lines.length ? <><strong>{location.lines[0]}</strong>{location.lines.length > 1 && <span>{location.lines.slice(1).join(', ')}</span>}</> : 'Contact us for the showroom address.'}
+                {!location.isSample && location.lines.length ? <><strong>{location.lines[0]}</strong>{location.lines.length > 1 && <span>{location.lines.slice(1).join(', ')}</span>}</> : 'Contact us for the showroom address.'}
               </address>
-              {location.isSample && <p className="apex-contact-note">Sample address for this template. Ask the dealership for the correct location before travelling.</p>}
               {location.directions && <div className="apex-contact-directions">
                 <a href={location.directions} target="_blank" rel="noopener noreferrer" data-testid="contact-directions">
                   Get directions <ArrowUpRight size={16} aria-hidden="true" />

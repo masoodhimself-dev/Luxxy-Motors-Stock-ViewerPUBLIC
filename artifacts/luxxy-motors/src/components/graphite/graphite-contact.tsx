@@ -31,10 +31,9 @@ export function GraphiteContact() {
       {isLoading && <p role="status" aria-busy="true">Loading contact and visiting details…</p>}
       {isError && <div role="alert"><p>We couldn’t load our latest visiting details. Please contact us before travelling.</p><button className="gr-button gr-button--secondary" onClick={() => window.location.reload()}>Try again</button></div>}
       <section className="gr-contact__location" data-testid="contact-location" aria-labelledby="find-us-heading">
-        <h2 id="find-us-heading"><MapPin size={24} aria-hidden="true" />Find us{settings.address.city ? ` in ${settings.address.city}` : ''}</h2>
-        {valid && <><address data-testid="contact-address">{address.lines.length ? address.lines.map((line, i) => <span key={i}>{line}</span>) : 'Contact us for our showroom address.'}</address>
+        <h2 id="find-us-heading"><MapPin size={24} aria-hidden="true" />Find us{!address.isSample && settings.address.city ? ` in ${settings.address.city}` : ''}</h2>
+        {valid && <><address data-testid="contact-address">{!address.isSample && address.lines.length ? address.lines.map((line, i) => <span key={i}>{line}</span>) : 'Contact us for our showroom address.'}</address>
           {isMultiChoiceWebsite() && <p>{appointmentVisitNote}</p>}
-          {address.isSample && <p className="gr-contact__help">Sample address for this template. Contact us for the correct location before travelling.</p>}
           {address.directions && <div className="gr-contact__directions"><a href={address.directions} target="_blank" rel="noopener noreferrer" data-testid="contact-directions" className="gr-button gr-button--secondary">Get directions</a><button type="button" onClick={() => void copy()}>{copyStatus === 'Address copied' ? <Check size={16} /> : <Copy size={16} />}Copy address</button></div>}
           {copyStatus && <p role="status">{copyStatus}</p>}
         </>}

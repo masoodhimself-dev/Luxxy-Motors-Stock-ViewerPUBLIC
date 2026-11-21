@@ -74,9 +74,8 @@ export default function Contact() {
           <div className="rounded-lg border border-border bg-card px-5 py-5 text-foreground sm:p-7">
             <h2 id="find-us-heading" tabIndex={-1} className="flex scroll-mt-28 items-center gap-2 font-display text-2xl font-semibold outline-none"><MapPin className="h-5 w-5 shrink-0" aria-hidden="true" />{websiteText(settings, "contactDirectionsHeading")}</h2>
             {!isLoading && !isError && <>
-              <address className="mt-2 max-w-sm not-italic text-base leading-7 text-muted-foreground" data-testid="contact-address">{location.lines.length ? location.lines.join(', ') : 'Contact us for our showroom address.'}</address>
+              <address className="mt-2 max-w-sm not-italic text-base leading-7 text-muted-foreground" data-testid="contact-address">{!location.isSample && location.lines.length ? location.lines.join(', ') : 'Contact us for our showroom address.'}</address>
               {appointmentOnly && <p className="mt-2 text-sm leading-6 text-muted-foreground">{appointmentVisitNote}</p>}
-              {location.isSample && <p className="mt-4 border-t border-border pt-4 text-xs leading-5 text-muted-foreground">Sample address for this template. Please contact us for the correct location before travelling.</p>}
               {location.directions ? <div className="mt-2 flex flex-wrap items-center gap-x-5">
                 <a href={location.directions} target="_blank" rel="noopener noreferrer" data-testid="contact-directions" className="text-link inline-flex min-h-11 items-center gap-2 text-sm">Get directions<ArrowRight className="h-4 w-4" aria-hidden="true" /></a>
                 <button type="button" onClick={copyAddress} className="inline-flex min-h-11 items-center gap-2 text-sm underline underline-offset-4">{copyStatus === 'Address copied' ? <Check className="h-4 w-4" aria-hidden="true" /> : <Copy className="h-4 w-4" aria-hidden="true" />}Copy address</button>

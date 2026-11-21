@@ -14,7 +14,6 @@
 
 .gt-design{--gt-heading:var(--sr-display);--gt-body:var(--sr-body);--gt-ink:#172033;--gt-muted:#596576;--gt-wine:#10183e;--gt-silver:#f5f6f7;--gt-line:#d5dce6;scrollbar-color:#a5afbe #f5f6f7}
 .gt-design :is(input,textarea){caret-color:var(--sr-navy)}
-.private-website-preview .gt-design>main{padding-top:0!important}
 .gt-design .sr-header-inner{min-height:84px;gap:28px}
 .gt-design .sr-header-brand :is(img,svg){width:270px;max-width:270px;height:54px}
 .gt-design .sr-header-nav{gap:32px}
