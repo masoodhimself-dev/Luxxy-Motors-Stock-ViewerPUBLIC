@@ -334,7 +334,7 @@ export default function CarDetail() {
       <dd>{autoDeal ? formatRegistrationPlate(registration) : <UKNumberPlate value={registration} variant="front" size="sm" testId={`plate-vehicle-${car.id}`} />}</dd>
     </dl>
   );
-  return <VehicleQuickChecks key={car.id} vehicleId={car.id} vehiclePrice={car.price} currency={car.currency} priceType={car.priceType} onEnquire={enquiriesEnabled ? openVehicleEnquiry : undefined}>
+  return <VehicleQuickChecks key={car.id} vehicleId={car.id} advertisedMileage={car.mileage} vehiclePrice={car.price} currency={car.currency} priceType={car.priceType} onEnquire={enquiriesEnabled ? openVehicleEnquiry : undefined}>
     {({ motAction, deliveryAction, motHistory, requestMotHistory, openMotHistory }) => {
   const motSummary = vehicleEnquiryMot(car, motHistory);
   const showQualityChecks = !privatePreview || Boolean(motSummary || sourceReport?.history?.checks?.length);

@@ -10,7 +10,7 @@ function chartCeiling(value: number) {
   return Math.max(2, Math.ceil(value / step) * step);
 }
 
-export function MotMileageChart({ tests, readingControls = false }: { tests: MotTest[]; readingControls?: boolean }) {
+export function MotMileageChart({ tests, readingControls = false, trend }: { tests: MotTest[]; readingControls?: boolean; trend?: string }) {
   const history = buildMotMileageHistory(tests);
   const headingId = useId();
   const descriptionId = useId();
@@ -69,6 +69,7 @@ export function MotMileageChart({ tests, readingControls = false }: { tests: Mot
       {history.convertedKm && ' Kilometre readings are converted to miles on this chart.'}
       {history.excludedCount > 0 && ' Tests without a valid date, reading or unit are not plotted.'}
     </figcaption>
+    {trend && <p className="mot-mileage-trend">{trend}</p>}
     {history.hasDecrease && <p className="mot-mileage-warning"><AlertTriangle size={16} /><span>A later test records lower mileage. Check the readings with the dealership.</span></p>}
   </figure>;
 }

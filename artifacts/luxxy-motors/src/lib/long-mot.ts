@@ -1,5 +1,5 @@
 import type { MotHistory } from "@workspace/vehicle-meta";
-function ukToday(now: Date) {
+export function ukToday(now: Date) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/London",
     year: "numeric",

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { it, expect, vi, beforeEach } from "vitest";
 const state = vi.hoisted(() => ({
   fetch: vi.fn(),
@@ -24,7 +24,7 @@ vi.mock("./postcode-field", () => ({
   ),
 }));
 import { VehicleQuickChecks } from "./vehicle-quick-checks";
-function Checks({ vehicleId, ...props }: { vehicleId: string; vehiclePrice?: number|null; currency?: string|null; priceType?: string|null; onEnquire?: (message:string)=>void }) {
+function Checks({ vehicleId, ...props }: { vehicleId: string; advertisedMileage?: number|null; vehiclePrice?: number|null; currency?: string|null; priceType?: string|null; onEnquire?: (message:string)=>void }) {
   return <VehicleQuickChecks vehicleId={vehicleId} {...props}>
     {({ motBadge, motAction, deliveryAction, requestMotHistory }) => <>
       <header>{motBadge}</header>
@@ -78,7 +78,7 @@ beforeEach(() => {
   );
 });
 it("requests only cached data on arrival and loads actual MOT history when tapped", async () => {
-  render(<Checks vehicleId="car-a" />);
+  render(<Checks vehicleId="car-a" advertisedMileage={46500} />);
   await screen.findByRole("button", { name: /Long MOT/ });
   expect(state.fetch).toHaveBeenCalledTimes(1);
   expect(state.fetch.mock.calls[0][0]).toBe(
@@ -87,7 +87,9 @@ it("requests only cached data on arrival and loads actual MOT history when tappe
   fireEvent.click(screen.getByRole("button", { name: "MOT history" }));
   await screen.findByText("Last passed MOT");
   expect(state.fetch.mock.calls[1][0]).toBe("/api/vehicles/car-a/mot-history");
-  expect(screen.getByRole("dialog")).toBeVisible();
+  const dialog = screen.getByRole("dialog");
+  expect(dialog).toBeVisible();
+  expect(within(dialog).getByText(/46,500/)).toBeVisible();
 });
 it("retains the delivery quote when closed and reopened and never books or charges", async () => {
   render(<Checks vehicleId="car-a" />);

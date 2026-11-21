@@ -30,8 +30,12 @@ function errorText(cause: unknown) {
         ? "MOT history is not connected yet. Please ask the dealership."
         : "MOT history is temporarily unavailable. Please try again later or use GOV.UK.";
 }
-export function MotHistoryResults({ history, staff = false }: { history: MotHistory; staff?: boolean }) {
-  if (!staff) return <PublicMotHistory history={history} />;
+export function MotHistoryResults({ history, staff = false, advertisedMileage }: {
+  history: MotHistory;
+  staff?: boolean;
+  advertisedMileage?: number | null;
+}) {
+  if (!staff) return <PublicMotHistory history={history} advertisedMileage={advertisedMileage} />;
   const firstDue = firstMotDue(history);
   const ordered = newestMotTests(history.tests);
   const latest = ordered.find(test => motTestTime(test.completedDate) !== null);
@@ -148,11 +152,13 @@ export function MotHistoryPanel({
   vehicleId,
   staff = false,
   autoLoad = false,
+  advertisedMileage,
   onHistory,
 }: {
   vehicleId: string;
   staff?: boolean;
   autoLoad?: boolean;
+  advertisedMileage?: number | null;
   onHistory?: (history: MotHistory) => void;
 }) {
   const { busy, reply, error, load } = useMotRequest(`${staff}:${vehicleId}`);
@@ -203,7 +209,7 @@ export function MotHistoryPanel({
         </a>
       )}
       {reply?.status === "available" && (
-        <MotHistoryResults history={reply.history} staff={staff} />
+        <MotHistoryResults history={reply.history} staff={staff} advertisedMileage={advertisedMileage} />
       )}
     </section>
   );

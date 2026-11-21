@@ -231,3 +231,54 @@ it('does not expose a failed-only history as a public mileage reading', () => {
   expect(screen.queryByRole('group', { name: 'Recorded MOT mileage by date' })).toBeNull();
   expect(screen.getByRole('link', { name: 'View full MOT history on GOV.UK' })).toBeVisible();
 });
+
+const risingPasses = [
+  { ...history.tests[0], result: 'PASSED' as const, completedDate: '2026-03-20', expiryDate: '2027-03-19', mileage: '53800', mileageUnit: 'MI' as const, defects: [] },
+  { ...history.tests[0], result: 'PASSED' as const, completedDate: '2024-01-06', mileage: '35000', mileageUnit: 'MI' as const, defects: [] },
+  { ...history.tests[0], result: 'PASSED' as const, completedDate: '2025-02-10', mileage: '45148', mileageUnit: 'MI' as const, defects: [] },
+];
+
+it('labels a reliable rising history and expands a rounded delta to its exact distance and interval', () => {
+  render(<MotHistoryResults history={{ ...history, tests: risingPasses }} advertisedMileage={53000} />);
+  expect(screen.getByText('Recorded mileage rose with each successive MOT pass.')).toBeVisible();
+  expect(screen.getByText('Latest MOT pass mileage')).toBeVisible();
+  expect(screen.getByText('Advertised mileage')).toBeVisible();
+  expect(screen.getByText('53,000 miles')).toBeVisible();
+  expect(screen.getByText(/advertised mileage is lower than the latest MOT reading/)).toBeVisible();
+  const delta = screen.getByRole('button', { name: '10,148 miles since previous pass' });
+  expect(delta).toHaveTextContent('+10.1k');
+  fireEvent.click(delta);
+  expect(delta).toHaveAttribute('aria-expanded', 'true');
+  expect(screen.getByText('10,148 miles over 13 months and 4 days')).toBeVisible();
+  fireEvent.click(delta);
+  expect(screen.queryByText(/10,148 miles over/)).toBeNull();
+});
+
+it.each([
+  ['a missing reading', [{ ...risingPasses[0], mileage: null }, ...risingPasses.slice(1)]],
+  ['mixed units', [{ ...risingPasses[0], mileage: '87500', mileageUnit: 'KM' as const }, ...risingPasses.slice(1)]],
+  ['an equal reading', [{ ...risingPasses[0], mileage: '45148' }, ...risingPasses.slice(1)]],
+  ['a lower reading', [{ ...risingPasses[0], mileage: '45000' }, ...risingPasses.slice(1)]],
+  ['an undated pass', [...risingPasses, { ...risingPasses[0], completedDate: '2025-02-30' }]],
+  ['a contradictory reading elsewhere in the record', [...risingPasses, { ...risingPasses[0], result: 'FAILED' as const, completedDate: '2025-12-08', mileage: '44000' }]],
+  ['only two tests', risingPasses.slice(0, 2)],
+] as const)('does not claim a consistent increase with %s', (_case, tests) => {
+  render(<MotHistoryResults history={{ ...history, tests: [...tests] }} />);
+  expect(screen.queryByText(/Recorded mileage rose with each/)).toBeNull();
+});
+
+it('shows the countdown against the UK calendar date without reviving an older pass', () => {
+  vi.useFakeTimers();
+  try {
+    vi.setSystemTime(new Date('2026-03-29T23:30:00Z'));
+    const tests = [{ ...risingPasses[0], expiryDate: '2026-04-29' }];
+    const combined = { ...history, checkedAt: '2026-03-28', tests };
+    const { rerender } = render(<MotHistoryResults history={combined} />);
+    expect(screen.getByText('Due in 30 days')).toBeVisible();
+    rerender(<MotHistoryResults history={{ ...combined, tests: [...tests, { ...history.tests[0], completedDate: '2026-03-28' }] }} />);
+    expect(screen.queryByText('MOT expiry')).toBeNull();
+    expect(screen.queryByText(/Due in/)).toBeNull();
+  } finally {
+    vi.useRealTimers();
+  }
+});

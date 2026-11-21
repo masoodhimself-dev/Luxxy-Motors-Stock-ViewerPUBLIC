@@ -31,6 +31,7 @@ type VehicleCheckActions = {
 
 export function VehicleQuickChecks({
   vehicleId,
+  advertisedMileage,
   vehiclePrice,
   currency,
   priceType,
@@ -38,6 +39,7 @@ export function VehicleQuickChecks({
   children,
 }: {
   vehicleId: string;
+  advertisedMileage?: number | null;
   vehiclePrice?: number | null;
   currency?: string | null;
   priceType?: string | null;
@@ -215,6 +217,7 @@ export function VehicleQuickChecks({
               <MotHistoryPanel
                 key={vehicleId}
                 vehicleId={vehicleId}
+                advertisedMileage={advertisedMileage}
                 autoLoad
                 onHistory={acceptHistory}
               />
