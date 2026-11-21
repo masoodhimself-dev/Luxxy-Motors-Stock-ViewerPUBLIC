@@ -4,6 +4,7 @@ import { vehicleDetailPath } from '@workspace/vehicle-meta';
 import type { Car } from '@/lib/stock-context';
 import { ArrowRight, ChevronLeft, ChevronRight } from '@/components/icons';
 import { ShowroomPhoto } from '@/components/showroom-photo';
+import { getVehicleBookingHref } from '@/lib/cta-helpers';
 import { getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
 import './regent-lane-home.css';
 
@@ -32,20 +33,19 @@ export function RegentLaneHero({ headline, place, description, photo, cars, sear
   }
   const activeIndex = Math.min(index, Math.max(0, photos.length - 1));
   const active = photos[activeIndex];
-  const words = headline.trim().split(/\s+/);
-  const accent = words.length > 2 ? words.pop() : '';
+  const defaultHeadline = headline === 'Find your next car';
   const wordmark = active?.car?.make || 'Motors';
 
   return <section className="regent-hero" aria-labelledby="home-heading">
     <div className="regent-hero-stage mh-container" data-has-photo={Boolean(active)}>
-      {active && <span className="regent-hero-watermark" aria-hidden="true">{wordmark}</span>}
       <div className="regent-hero-copy">
-        <h1 id="home-heading" tabIndex={-1}>{words.join(' ')}{accent && <> <em>{accent}</em></>}</h1>
+        <h1 id="home-heading" tabIndex={-1}>{defaultHeadline ? <>Find your next <em>car</em></> : headline}</h1>
         {place && <p className="regent-hero-place">{place}</p>}
         {description && <p className="regent-hero-description">{description}</p>}
         <Link className="regent-primary-link" href="/stock">Browse cars<ArrowRight size={17} aria-hidden="true" /></Link>
       </div>
       {active && <div className="regent-hero-media">
+        <span className="regent-hero-watermark" aria-hidden="true">{wordmark}</span>
         <div id={imageId} className="regent-hero-image" data-cutout={Boolean(active.cutout)}>
           <ShowroomPhoto key={active.src} src={active.src} alt={active.alt} priority={activeIndex === 0}
             fit={active.cutout ? 'contain' : 'cover'} position={active.position} />
@@ -70,17 +70,17 @@ export function RegentLaneHero({ headline, place, description, photo, cars, sear
   </section>;
 }
 
-export function RegentLaneVisitFeature({ car, canBook }: { car?: Car; canBook: boolean }) {
+export function RegentLaneVisitFeature({ car, canBook, city }: { car?: Car; canBook: boolean; city?: string }) {
   const photo = car ? getThumbnailUrl(car) : '';
   if (!car || !photo) return null;
-  return <section className="regent-visit-feature mh-container" aria-labelledby="regent-visit-heading">
+  return <section className="regent-visit-feature" aria-labelledby="regent-visit-heading">
     <Link className="regent-visit-photo" href={vehicleDetailPath(car)} aria-label={`View ${vehicleDisplayTitle(car)}`}>
-      <ShowroomPhoto src={photo} alt={vehicleDisplayTitle(car)} />
+      <ShowroomPhoto src={photo} alt={vehicleDisplayTitle(car)} position="bottom" />
     </Link>
     <div className="regent-visit-copy">
-      <h2 id="regent-visit-heading">{canBook ? 'See it in person' : 'Visit the showroom'}</h2>
-      <p>{canBook ? 'Choose a car and arrange a test drive with the showroom.' : 'Get directions and check when you can visit.'}</p>
-      <Link href={canBook ? '/enquire?type=viewing' : '/contact'} className="regent-primary-link">
+      <h2 id="regent-visit-heading">{city ? `Visit us in ${city}` : 'Visit the showroom'}</h2>
+      <p>{canBook ? `Book a test drive in this ${vehicleDisplayTitle(car)} or get in touch to arrange a viewing.` : 'Get directions and check when you can visit.'}</p>
+      <Link href={canBook ? getVehicleBookingHref(car) : '/contact'} className="regent-primary-link">
         {canBook ? 'Book a test drive' : 'Plan your visit'}<ArrowRight size={17} aria-hidden="true" />
       </Link>
     </div>

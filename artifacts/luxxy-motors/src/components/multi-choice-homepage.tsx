@@ -21,7 +21,7 @@ import { MultiHomeVisit } from './multi-home-visit';
 import { getEnquiryHref, getPhoneHref, getWhatsAppHref, recordContactIntent } from '@/lib/cta-helpers';
 import { dealershipLocation } from '@/lib/dealership-location';
 import { warrantySummary } from '@/lib/dealership-customer-copy';
-import { stockBodyTypes } from '@/lib/body-types';
+import { bodyTypeKey, stockBodyTypes } from '@/lib/body-types';
 import { stockBudgetOptions } from '@/lib/stock-budget-options';
 import { normaliseStockYear } from '@/features/stock-search/types';
 import { homepageFeaturedCars } from '@/lib/homepage-featured-cars';
@@ -86,7 +86,7 @@ function PartExchangeStart({ id }: { id: string }) {
   </form>;
 }
 
-function StockSearch({ cars, isLoading, error, filters, setFilters, onSearch, autoDeal = false }: Pick<Props, 'cars' | 'isLoading' | 'error' | 'filters' | 'setFilters' | 'onSearch'> & { autoDeal?: boolean }) {
+function StockSearch({ cars, isLoading, error, filters, setFilters, onSearch, autoDeal = false, partExchangeLink = false }: Pick<Props, 'cars' | 'isLoading' | 'error' | 'filters' | 'setFilters' | 'onSearch'> & { autoDeal?: boolean; partExchangeLink?: boolean }) {
   const choices = (field: 'make' | 'model') => [...new Set(cars.filter(car => field !== 'model' || car.make === filters.make).map(car => car[field]).filter((value): value is string => Boolean(value)))].sort((a, b) => a.localeCompare(b));
   const makes = choices('make'), models = choices('model');
   const orphanModel = Boolean(filters.model && !filters.make), modelHelpId = useId();
@@ -95,6 +95,7 @@ function StockSearch({ cars, isLoading, error, filters, setFilters, onSearch, au
   const year = filters.year || '';
   const years = autoDeal ? [...new Set(cars.map(car => normaliseStockYear(car.year)).filter(Boolean))].sort((a, b) => Number(b) - Number(a)) : [];
   const update = (field: 'make' | 'model' | 'maxPrice' | 'bodyType' | 'year', value: string) => setFilters(current => ({ ...current, [field]: value, ...(field === 'make' ? { model: '' } : {}) }));
+  const moreSearch = <Link href="/stock" className="mh-search-more">More search options<ArrowRight size={15} aria-hidden="true" /></Link>;
   return <form className="mh-buy-form" aria-label="Search used cars" onSubmit={event => { event.preventDefault(); if (orphanModel) return; const includeDesktopFields = autoDeal && !window.matchMedia?.('(max-width: 767px)').matches; onSearch({ ...filters, make: filters.make, model: filters.model, maxPrice: filters.maxPrice, minPrice: '', fuel: '', transmission: '', bodyType: includeDesktopFields ? filters.bodyType || '' : '', year: includeDesktopFields ? year : '', search: '', ulez: false, sort: '' }); }}>
     <div className="mh-search-fields">
       {autoDeal && <label className="ad-search-desktop">
@@ -155,11 +156,14 @@ function StockSearch({ cars, isLoading, error, filters, setFilters, onSearch, au
     {!filters.make && !orphanModel && <span id={modelHelpId} className="sr-only">Choose a make to select a model.</span>}
     {orphanModel && <p className="mh-small" id={modelHelpId} role="status">Choose a make or clear the saved model before searching.</p>}
     {error && <p className="mh-small" role="status">Stock couldn’t load. Open our stock page to try again.</p>}
-    <Link href="/stock" className="mh-search-more">More search options<ArrowRight size={15} aria-hidden="true" /></Link>
+    {partExchangeLink ? <div className="regent-search-links">
+      {moreSearch}
+      <a href="#part-exchange" className="mh-search-more">Part exchange<ArrowLeftRight size={15} aria-hidden="true" /></a>
+    </div> : moreSearch}
   </form>;
 }
 
-function FeaturedCard({ car }: { car: StockCar }) {
+function FeaturedCard({ car, showSellingPoints }: { car: StockCar; showSellingPoints: boolean }) {
   const photo = getThumbnailUrl(car), [failedSrc, setFailedSrc] = useState('');
   const href = vehicleDetailPath(car);
   const registration = vehicleRegistration(car);
@@ -176,24 +180,24 @@ function FeaturedCard({ car }: { car: StockCar }) {
         {photoCount > 0 && <span className="mh-car-photo-count"><Camera size={14} aria-hidden="true" />{photoCount} {photoCount === 1 ? 'photo' : 'photos'}</span>}
       </div>}
       <ul className="mh-car-specs" aria-label="Vehicle details">{[car.year, car.mileage != null ? formatMileage(car.mileage) : null, car.transmission, car.fuel].filter(Boolean).map((fact, index) => <li key={index}>{fact}</li>)}</ul>
-      <VehicleSellingPoints car={car} compact omitMileage />
+      {showSellingPoints && <VehicleSellingPoints car={car} compact omitMileage />}
       <div className="mh-car-price"><strong>{price}</strong>{priceNote && <span>{priceNote}</span>}{car.inventoryStatus === 'reserved' && <span>Reserved</span>}</div>
     </div>
     <Link className="mh-car-link" href={href} onClick={opened}>View car<ArrowRight size={17} /></Link>
   </article>;
 }
 
-function FindByMake({ makes, heading = 'Find by Make' }: { makes: string[]; heading?: string }) {
+function FindByMake({ makes, heading = 'Find by Make', initialCount = 12 }: { makes: string[]; heading?: string; initialCount?: number }) {
   const [expanded, setExpanded] = useState(false);
   const id = useId();
-  const visible = expanded ? makes : makes.slice(0, 12);
-  useEffect(() => { if (makes.length <= 12) setExpanded(false); }, [makes.length]);
+  const visible = expanded ? makes : makes.slice(0, initialCount);
+  useEffect(() => { if (makes.length <= initialCount) setExpanded(false); }, [makes.length, initialCount]);
   return <section className="mh-section mh-makes" aria-labelledby="mh-makes-heading">
     <h2 id="mh-makes-heading">{heading}</h2>
     <div id={id}>{visible.map(name => <Link key={name} href={`/stock?make=${encodeURIComponent(name)}`} aria-label={`Used ${name}`}>
       <MakeLogo make={name} size={24} className="mh-make-logo" /><span>{name}</span>
     </Link>)}</div>
-    {makes.length > 12 && <button type="button" className="mh-text-link mh-makes-toggle" aria-expanded={expanded} aria-controls={id} onClick={() => setExpanded(value => !value)}>{expanded ? 'Show fewer makes' : `Show all ${makes.length} makes`}<ChevronDown size={16} aria-hidden="true" /></button>}
+    {makes.length > initialCount && <button type="button" className="mh-text-link mh-makes-toggle" aria-expanded={expanded} aria-controls={id} onClick={() => setExpanded(value => !value)}>{expanded ? 'Show fewer makes' : `Show all ${makes.length} makes`}<ChevronDown size={16} aria-hidden="true" /></button>}
   </section>;
 }
 
@@ -224,7 +228,7 @@ function useRailLinkGuard() {
   };
 }
 
-function FeaturedStock({ cars, isLoading, error, enabled, heading, browseLinks }: { cars: StockCar[]; isLoading: boolean; error: string | null; enabled: boolean; heading: string; browseLinks?: ReactNode }) {
+function FeaturedStock({ cars, isLoading, error, enabled, heading, bodyType, categories, showSellingPoints }: { cars: StockCar[]; isLoading: boolean; error: string | null; enabled: boolean; heading: string; bodyType?: string; categories?: ReactNode; showSellingPoints: boolean }) {
   const rail = useRef<HTMLDivElement>(null), gesture = useRailLinkGuard(), railId = useId();
   const [position, setPosition] = useState({ first: 0, last: 0, previous: false, next: cars.length > 1 });
   const update = () => {
@@ -253,13 +257,14 @@ function FeaturedStock({ cars, isLoading, error, enabled, heading, browseLinks }
     else { element.scrollLeft = left; update(); }
   };
   if (!enabled) return null;
-  return <section className="mh-section mh-featured" aria-labelledby="mh-featured-heading"><div className="mh-section-title"><div><h2 id="mh-featured-heading">{heading}</h2><p>A closer look at our current stock.</p></div><Link href="/stock" className="mh-text-link">View all cars<ArrowRight size={18} /></Link></div>
-    {browseLinks}
-    {isLoading ? <p role="status" className="mh-empty">Loading featured cars…</p> : error ? <div role="status" className="mh-empty"><h3>Stock is temporarily unavailable</h3><p>Please try the stock page again, or contact us about a car.</p><Link href="/stock" className="mh-text-link">Browse stock</Link></div> : cars.length ? <><div id={railId} className="mh-stock-rail" role="group" ref={rail} {...gesture} tabIndex={0} aria-label="Featured cars; scroll for more" onScroll={update} onKeyDown={event => {
+  const stockHref = bodyType ? `/stock?bodyType=${encodeURIComponent(bodyType)}` : '/stock';
+  return <section className="mh-section mh-featured" aria-labelledby="mh-featured-heading"><div className="mh-section-title"><div><h2 id="mh-featured-heading">{heading}</h2><p>A closer look at our current stock.</p></div><Link href={stockHref} className="mh-text-link">{bodyType ? 'View matching cars' : 'View all cars'}<ArrowRight size={18} /></Link></div>
+    {categories}
+    {isLoading ? <p role="status" className="mh-empty">Loading featured cars…</p> : error ? <div role="status" className="mh-empty"><h3>Stock is temporarily unavailable</h3><p>Please try the stock page again, or contact us about a car.</p><Link href="/stock" className="mh-text-link">Browse stock</Link></div> : cars.length ? <><div key={bodyType} id={railId} className="mh-stock-rail" role="group" ref={rail} {...gesture} tabIndex={0} aria-label={bodyType ? `${bodyType} cars; scroll for more` : 'Featured cars; scroll for more'} onScroll={update} onKeyDown={event => {
       if (event.target !== event.currentTarget || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
       goTo(event.key === 'Home' ? 0 : event.key === 'End' ? cars.length - 1 : position.first + (event.key === 'ArrowLeft' ? -1 : 1));
-    }}>{cars.map(car => <FeaturedCard key={car.id} car={car} />)}</div>{cars.length > 1 && <div className="mh-carousel-controls"><button type="button" onClick={() => goTo(position.first - 1)} aria-label="Previous featured cars" aria-controls={railId} disabled={!position.previous}><ChevronLeft size={20} /></button><span aria-live="polite">{position.first + 1}{position.last > position.first ? `–${position.last + 1}` : ''} of {cars.length} cars</span><button type="button" onClick={() => goTo(position.first + 1)} aria-label="Next featured cars" aria-controls={railId} disabled={!position.next}><ChevronRight size={20} /></button></div>}</> : <div className="mh-empty"><h3>No featured cars to show right now</h3><p>Ask us what’s coming into stock.</p><Link href="/contact" className="mh-text-link">Contact the showroom</Link></div>}
+    }}>{cars.map(car => <FeaturedCard key={car.id} car={car} showSellingPoints={showSellingPoints} />)}</div>{cars.length > 1 && <div className="mh-carousel-controls"><button type="button" onClick={() => goTo(position.first - 1)} aria-label="Previous featured cars" aria-controls={railId} disabled={!position.previous}><ChevronLeft size={20} /></button><span aria-live="polite">{position.first + 1}{position.last > position.first ? `–${position.last + 1}` : ''} of {cars.length} cars</span><button type="button" onClick={() => goTo(position.first + 1)} aria-label="Next featured cars" aria-controls={railId} disabled={!position.next}><ChevronRight size={20} /></button></div>}</> : <div className="mh-empty"><h3>No featured cars to show right now</h3><p>Ask us what’s coming into stock.</p><Link href="/contact" className="mh-text-link">Contact the showroom</Link></div>}
   </section>;
 }
 
@@ -279,6 +284,7 @@ export function DealershipHomepage({ settings, cars: suppliedCars, isLoading, er
   }, [sections.delivery]);
   useEffect(() => { if (!sections.partExchange) setTab('buy'); }, [sections.partExchange]);
   const featured = homepageFeaturedCars(cars, settings.featuredVehicleIds);
+  const [exploreType, setExploreType] = useState('');
   const configuredPhoto = settings.presentation?.heroImageUrl;
   // Replace only the existing Multi-Choice forecourt artwork; later staff-selected photos stay authoritative.
   const cutout = multiChoice && Boolean(configuredPhoto?.includes('/api/website-assets/12f86896-51f9-4e38-be24-b8ab5d243c9c'));
@@ -350,11 +356,15 @@ export function DealershipHomepage({ settings, cars: suppliedCars, isLoading, er
   const heroCars = [...featured, ...cars.filter(car => !featured.some(item => item.id === car.id))];
   const featuredEnabled = settings.presentation?.featuredEnabled !== false;
   const featuredHeading = websiteText(settings, 'featuredHeading');
-  const featuredStock = <FeaturedStock cars={featured} isLoading={isLoading} error={error} enabled={featuredEnabled}
-    heading={regentLane ? customerDefaultCopy(featuredHeading, 'Explore our cars', ['Featured cars']) : featuredHeading}
-    browseLinks={regentLane && !error && types.length > 0 && <nav className="regent-explore-types" aria-label="Browse by body type">
-      {types.map(({ label }) => <Link key={label} href={`/stock?bodyType=${encodeURIComponent(label)}`}>{label}</Link>)}
-    </nav>} />;
+  const exploreTypes = regentLane ? stockBodyTypes(featured).slice(0, 4) : [];
+  const activeType = exploreTypes.find(type => type.label === exploreType)?.label ?? '';
+  const featuredStock = <FeaturedStock
+    cars={activeType ? featured.filter(car => bodyTypeKey(car.bodyType) === bodyTypeKey(activeType)) : featured}
+    isLoading={isLoading} error={error} enabled={featuredEnabled} bodyType={activeType} showSellingPoints={!regentLane}
+    categories={!isLoading && !error && exploreTypes.length > 1 && <div className="regent-explore-types" role="group" aria-label="Filter featured cars by body type">
+      {['', ...exploreTypes.map(type => type.label)].map(label => <button key={label} type="button" aria-pressed={activeType === label} onClick={() => setExploreType(label)}>{label || 'All cars'}</button>)}
+    </div>}
+    heading={regentLane ? customerDefaultCopy(featuredHeading, 'Explore our cars', ['Featured cars']) : featuredHeading} />;
   const reviewsSection = sections.reviews && <MultiHomeReviews reviews={reviews} reviewsUrl={reviewsUrl} heading={settings.presentation?.websiteCopy?.reviewsHeading?.trim() || 'What our customers say'} />;
   return <div className={`multi-home${autoDeal ? ' autodeal-home' : regentLane ? ' regent-lane-home' : ''}`} data-testid="multi-choice-homepage" data-dealership-homepage>
     {regentLane ? <RegentLaneHero
@@ -363,13 +373,13 @@ export function DealershipHomepage({ settings, cars: suppliedCars, isLoading, er
       description={settings.presentation?.showHeroDescription ? settings.hero.subcopy : undefined}
       photo={configuredPhoto && photo ? { src: photo, alt: cutout ? `Cars from ${settings.identity.name}` : settings.presentation?.heroImageAlt || settings.identity.name, cutout, position: settings.presentation?.heroImagePosition } : undefined}
       cars={heroCars}
-      search={<StockSearch cars={cars} isLoading={isLoading} error={error} filters={filters} setFilters={setFilters} onSearch={onSearch} />}
+      search={<StockSearch cars={cars} isLoading={isLoading} error={error} filters={filters} setFilters={setFilters} onSearch={onSearch} partExchangeLink={sections.partExchange} />}
     /> : autoDeal ? <AutoDealHomeHero cars={heroCars} settings={settings} search={searchCard} headline={autoDealHeadline} announcement={settings.hero.announcement?.trim()} description={settings.presentation?.showHeroDescription ? settings.hero.subcopy : undefined} loading={isLoading} error={error} /> : template ? <CustomerTemplateHomeHero template={template} settings={settings} cars={heroCars} search={searchCard} headline={headline} loading={isLoading} error={error} publicEnquiriesEnabled={publicEnquiriesEnabled}/> : <section className="mh-hero" aria-labelledby="home-heading"><div className="mh-container mh-hero-grid"><div className="mh-hero-introduction">{settings.hero.announcement?.trim() && <p className="mh-announcement">{settings.hero.announcement}</p>}<h1 id="home-heading" tabIndex={-1}>{headline}</h1>{heroLocation && <p className="mh-hero-location">{heroLocation}</p>}{settings.presentation?.showHeroDescription && settings.hero.subcopy && <p>{settings.hero.subcopy}</p>}{photo && (shoreDrivePhoto ? <ShoreDriveHeroPhoto src={photo} /> : <ShowroomPhoto src={photo} alt={settings.presentation?.heroImageAlt || `${settings.identity.name} cars`} priority fit={cutout ? 'contain' : 'cover'} position={settings.presentation?.heroImagePosition} className={`mh-hero-photo${cutout ? ' mh-hero-photo--cutout' : ''}`} />)}</div>
       {searchCard}
     </div></section>}
     {autoDeal && !error && makes.length > 0 && <div className="ad-home-makes"><div className="mh-container"><FindByMake makes={makes} heading="Browse by make" /></div></div>}
     {regentLane && <>
-      {!error && makes.length > 0 && <div className="regent-make-band"><div className="mh-container"><FindByMake makes={makes} heading="Browse by make" /></div></div>}
+      {!error && makes.length > 0 && <div className="regent-make-band"><div className="mh-container"><FindByMake makes={makes} heading="Browse by make" initialCount={6} /></div></div>}
       {featuredEnabled && <div className="regent-explore-band"><div className="mh-container">{featuredStock}</div></div>}
     </>}
     <div className="mh-container" id={showReassurance ? undefined : "about"}>
@@ -384,8 +394,8 @@ export function DealershipHomepage({ settings, cars: suppliedCars, isLoading, er
       {!regentLane && reviewsSection}
     </div>
     {regentLane && <>
-      <RegentLaneVisitFeature car={heroCars.find(car => Boolean(getThumbnailUrl(car)))} canBook={canBook} />
-      {reviewsSection && <div className="mh-container">{reviewsSection}</div>}
+      {sections.visit && <RegentLaneVisitFeature car={heroCars.find(car => car.inventoryStatus !== 'reserved' && Boolean(getThumbnailUrl(car)))} canBook={canBook && publicEnquiriesEnabled} city={city || undefined} />}
+      {(reviews.length > 0 || reviewsUrl) && reviewsSection && <div className="regent-review-band"><div className="mh-container">{reviewsSection}</div></div>}
     </>}
     {sections.partExchange && <section id="part-exchange" className="mh-px-strip"><div className="mh-container mh-px-strip-layout"><div><h2 id="part-exchange-heading" tabIndex={-1}>Part exchange</h2><p>Find your car by registration and ask us for a valuation.</p></div><PartExchangeStart id="strip" /></div></section>}
     <div className="mh-container">
