@@ -1,5 +1,5 @@
 import { customFetch } from "@workspace/api-client-react";
-import { isUKNumberPlate } from "@workspace/vehicle-meta";
+import { isUKNumberPlate, stockTaxStatuses } from "@workspace/vehicle-meta";
 
 export type PartExchangeMotDetailsResult = {
   registration: string;
@@ -10,6 +10,12 @@ export type PartExchangeMotDetailsResult = {
     year?: number;
     colour?: string | null;
     fuel?: string | null;
+    engineCapacity?: number;
+    co2Emissions?: number;
+    euroStatus?: string | null;
+    taxStatus?: (typeof stockTaxStatuses)[number];
+    taxDueDate?: string | null;
+    motExpiry?: string | null;
   };
   mileage?: string;
   estimate?: {
@@ -73,13 +79,6 @@ export function readPartExchangeMotDetails(
   const make = text(vehicle?.make),
     model = text(vehicle?.model);
   if (!make && !model) throw Error("No vehicle identity");
-  const mileage =
-    reply.status === "estimated" &&
-    finite(estimate?.mileage) &&
-    Number.isInteger(estimate.mileage) &&
-    estimate.mileage % 1000 === 0
-      ? estimate.mileage
-      : undefined;
   const checkedAt =
     typeof rawMot?.checkedAt === "string" &&
     Number.isFinite(Date.parse(rawMot.checkedAt))
@@ -87,6 +86,39 @@ export function readPartExchangeMotDetails(
       : null;
   const reading = record(rawMot?.lastReading),
     readingDay = day(reading?.date);
+  const mot: PartExchangeMotDetailsResult["mot"] =
+    rawMot && checkedAt
+      ? {
+          dueDate: day(rawMot.dueDate),
+          firstTest: rawMot.firstTest === true,
+          lastPassedDate: day(rawMot.lastPassedDate),
+          lastTestDate: day(rawMot.lastTestDate),
+          latestTestResult:
+            rawMot.latestTestResult === "PASSED" ||
+            rawMot.latestTestResult === "FAILED"
+              ? rawMot.latestTestResult
+              : null,
+          checkedAt,
+          lastReading:
+            readingDay &&
+            finite(reading?.mileage, 1_609_344) &&
+            (reading?.unit === "MI" || reading?.unit === "KM")
+              ? { date: readingDay, mileage: reading.mileage, unit: reading.unit }
+              : null,
+        }
+      : null;
+  const lastTestMileage = finite(estimate?.lastTestMileage) ? estimate.lastTestMileage : null;
+  const mileage =
+    reply.status === "estimated" &&
+    finite(estimate?.mileage) &&
+    Number.isInteger(estimate.mileage) &&
+    estimate.mileage % 1000 === 0 &&
+    estimate.mileage >= Math.max(partExchangeMinimumMileage(mot), lastTestMileage ?? 0)
+      ? estimate.mileage
+      : undefined;
+  const taxStatus = stockTaxStatuses.find((status) => status === vehicle?.taxStatus);
+  const taxDueDate = day(vehicle?.taxDueDate);
+  const motExpiry = day(vehicle?.motExpiry);
   return {
     registration: plate,
     vehicle: {
@@ -94,6 +126,12 @@ export function readPartExchangeMotDetails(
       ...(finite(vehicle?.year, 2100) && vehicle.year >= 1886 ? { year: vehicle.year } : {}),
       ...(vehicle?.colour ? { colour: text(vehicle.colour) } : {}),
       ...(vehicle?.fuel ? { fuel: text(vehicle.fuel) } : {}),
+      ...(finite(vehicle?.engineCapacity, 30_000) && Number.isInteger(vehicle.engineCapacity) && vehicle.engineCapacity > 0 ? { engineCapacity: vehicle.engineCapacity } : {}),
+      ...(finite(vehicle?.co2Emissions, 3_000) && Number.isInteger(vehicle.co2Emissions) ? { co2Emissions: vehicle.co2Emissions } : {}),
+      ...(vehicle?.euroStatus ? { euroStatus: text(vehicle.euroStatus) } : {}),
+      ...(taxStatus ? { taxStatus } : {}),
+      ...(taxDueDate ? { taxDueDate } : {}),
+      ...(motExpiry ? { motExpiry } : {}),
     },
     ...(mileage !== undefined
       ? {
@@ -101,40 +139,14 @@ export function readPartExchangeMotDetails(
           estimate: {
             mileage,
             lastTestDate: day(estimate?.lastTestDate),
-            lastTestMileage: finite(estimate?.lastTestMileage)
-              ? estimate.lastTestMileage
-              : null,
+            lastTestMileage,
             annualMiles: finite(estimate?.annualMiles, 100000)
               ? estimate.annualMiles
               : null,
           },
         }
       : {}),
-    mot:
-      rawMot && checkedAt
-        ? {
-            dueDate: day(rawMot.dueDate),
-            firstTest: rawMot.firstTest === true,
-            lastPassedDate: day(rawMot.lastPassedDate),
-            lastTestDate: day(rawMot.lastTestDate),
-            latestTestResult:
-              rawMot.latestTestResult === "PASSED" ||
-              rawMot.latestTestResult === "FAILED"
-                ? rawMot.latestTestResult
-                : null,
-            checkedAt,
-            lastReading:
-              readingDay &&
-              finite(reading?.mileage, 1_609_344) &&
-              (reading?.unit === "MI" || reading?.unit === "KM")
-                ? {
-                    date: readingDay,
-                    mileage: reading.mileage,
-                    unit: reading.unit,
-                  }
-                : null,
-          }
-        : null,
+    mot,
   };
 }
 

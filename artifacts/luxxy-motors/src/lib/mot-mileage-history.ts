@@ -36,6 +36,33 @@ export function newestMotTests(tests: MotTest[]): MotTest[] {
   return [...tests].sort((a, b) => (motTestTime(b.completedDate) ?? -Infinity) - (motTestTime(a.completedDate) ?? -Infinity));
 }
 
+/** Compare adjacent passes without bridging missing readings or changed units. */
+export function passedMotMileageRows(tests: MotTest[]) {
+  const passes = newestMotTests(tests).filter(test => test.result === 'PASSED' && motTestTime(test.completedDate) !== null);
+  let previous: { day: string; reading: number; unit: 'MI' | 'KM' } | null = null;
+  let high: { reading: number; unit: 'MI' | 'KM' } | null = null;
+  return passes.reverse().map(test => {
+    const reading = motMileageValue(test.mileage);
+    const unit = test.mileageUnit;
+    if (reading === null || (unit !== 'MI' && unit !== 'KM')) {
+      previous = null;
+      return { test, addedMiles: null, lowerReading: false };
+    }
+    const day = test.completedDate.slice(0, 10);
+    if (high?.unit !== unit) high = null;
+    const comparable = previous?.unit === unit && previous.day < day ? previous : null;
+    const lowerReading = Boolean(comparable && reading < comparable.reading);
+    // A rollback leaves the readings between the low point and the previous
+    // recorded high ambiguous. Show the recorded figures without an increment.
+    const addedMiles = comparable && !lowerReading && comparable.reading >= (high?.reading ?? 0)
+      ? Math.round((reading - comparable.reading) / (unit === 'KM' ? 1.609344 : 1))
+      : null;
+    high = { reading: Math.max(reading, high?.reading ?? 0), unit };
+    previous = { day, reading, unit };
+    return { test, addedMiles, lowerReading };
+  }).reverse();
+}
+
 export interface MotMileagePoint {
   key: string;
   timestamp: number;

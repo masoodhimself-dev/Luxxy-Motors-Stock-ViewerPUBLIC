@@ -2,7 +2,7 @@ import { VehicleCall } from '@/components/vehicle-call';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { responsiveVehicleImage, retryOriginalImage } from "@/lib/responsive-vehicle-image";
 import { orderVehiclePhotos, photoGroup, getPhotoShortcuts, type PhotoGroup } from "@/lib/vehicle-photography";
-import { useState, useMemo, useRef, useEffect, useId, type MouseEvent } from 'react';
+import { useState, useMemo, useRef, useEffect, useId, type CSSProperties, type MouseEvent } from 'react';
 import { Camera, ChevronLeft, ChevronRight, Maximize2, Mail, LayoutGrid, RotateCw, ZoomIn, ZoomOut } from '@/components/icons';
 import { getSafeImageUrl, cn } from '@/lib/utils';
 import { type Car, type CarImage } from '@/lib/stock-context';
@@ -65,6 +65,7 @@ export function Gallery({
   const allImages = useMemo(() => selectedGroup === 'All' ? availableImages : availableImages.filter(image => photoGroup(image) === selectedGroup), [availableImages, selectedGroup]);
   const index = Math.min(activeIndex, Math.max(0, allImages.length - 1));
   const [loadedUrl, setLoadedUrl] = useState('');
+  const [photoRatio, setPhotoRatio] = useState<number>();
   const activeUrl = getSafeImageUrl(allImages[index]);
   const selectPhoto = (target: number) => {
     setZoomed(false);
@@ -247,8 +248,12 @@ export function Gallery({
         loading={eager || initialThumbnail ? 'eager' : 'lazy'}
         referrerPolicy="no-referrer"
         onLoad={event => {
-          event.currentTarget.dataset.photoReady = '';
-          if (eager) setLoadedUrl(url);
+          const photo = event.currentTarget;
+          photo.dataset.photoReady = '';
+          if (eager) {
+            setLoadedUrl(url);
+            if (autoDeal && photo.naturalHeight > 0) setPhotoRatio(photo.naturalWidth / photo.naturalHeight);
+          }
         }}
         onError={(event) => {if (!retryOriginalImage(event.currentTarget)) {
           // The same photo may fail in the strip and overview. Remove it once,
@@ -331,7 +336,7 @@ export function Gallery({
       if (!value) { setZoomed(false); setOverview(false); swiped.current = false; touchStart.current = null; pinch.current = null; pan.current = null; }
     }}>
       <div className={cn("vehicle-photo-gallery min-w-0", customerView && "is-customer-gallery", showroom && "showroom-inline-gallery")}>
-        {autoDeal ? <div className="vehicle-gallery-media">
+        {autoDeal ? <div className="vehicle-gallery-media" style={{ '--gallery-photo-ratio': photoRatio } as CSSProperties}>
           {inlineFrame}
           {photoArrows}
           {inlineControls}

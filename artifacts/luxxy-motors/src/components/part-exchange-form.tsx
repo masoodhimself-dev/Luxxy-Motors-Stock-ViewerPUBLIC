@@ -25,9 +25,6 @@ import { applyPartExchangeMotDetails, exchangeMileageIsEstimated, normaliseExcha
 import { partExchangeDraftKey, readPartExchangeDraft, savePartExchangeDraft, discardPartExchangeDraft } from '@/lib/part-exchange-draft';
 import { clearHomepagePartExchangeLookup, readHomepagePartExchangeLookup, readHomepagePartExchangeRegistration } from '@/lib/homepage-part-exchange';
 import './part-exchange-form.css';
-import { selectedWebsiteTemplate } from '@/lib/website-template';
-import { Link } from 'wouter';
-import { GraphiteIcon } from './graphite/graphite-icon';
 
 const steps = ['Your car', 'Contact & review'];
 const emptyDetails: PartExchangeDetails = { registration: '', makeModel: '', mileage: '', condition: '', conditionNotes: '', keys: '', v5: '', serviceHistory: '', name: '', phone: '', email: '' };
@@ -38,7 +35,6 @@ const phoneValid = (value: string) => /^\+?\d{7,15}$/.test(value.replace(/[\s().
 
 export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockCars: Car[] }) {
   const { settings } = useDealerSettings();
-  const graphite = selectedWebsiteTemplate(settings.presentation) === null;
   const features = useDealerFeatures();
   const mutation = useCreateEnquiry();
   const submitting = useRef(false);
@@ -69,7 +65,8 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
   const mileageValid = details.mileage !== '' && Number.isInteger(Number(details.mileage)) && Number(details.mileage) >= minimumMileage && Number(details.mileage) <= 1000000;
   const carDetailsReady = hasCurrentCar && Boolean(details.makeModel.trim()) && mileageValid && !serverMileageError;
   const lookupMot = hasCurrentCar && gate?.mode === 'lookup' ? gate.result.mot : null;
-  const generatedMessage = targetReady ? buildPartExchangeMessage(details, selectedVehicle, settings.identity.name, { mileageEstimated: exchangeMileageIsEstimated(answers), mot: lookupMot }) : '';
+  const mileageEstimated = exchangeMileageIsEstimated(answers);
+  const generatedMessage = targetReady ? buildPartExchangeMessage(details, selectedVehicle, settings.identity.name, { mileageEstimated, mot: lookupMot }) : '';
   const message = messageDraft.edited ? messageDraft.text : generatedMessage;
   const messageNeedsRefresh = messageDraft.edited && messageDraft.source !== generatedMessage;
   const phoneHref = getPhoneHref(settings);
@@ -178,16 +175,41 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
   return <form onSubmit={submit} className="part-exchange-form space-y-6" data-testid="form-part-exchange">
     {draftRestored && <div className="part-exchange-draft-notice" role="status"><p>{hasCurrentCar ? 'Your unfinished part-exchange answers were restored.' : 'Your unfinished part-exchange enquiry was restored. Find your car again to check its details, or choose manual entry.'}</p><button type="button" className="text-link min-h-11" onClick={discardDraft}>Discard draft</button></div>}
     <fieldset disabled={mutation.isPending} className="min-w-0 space-y-6"><legend className="sr-only">Part-exchange enquiry</legend>
-      {graphite ? <ol className="gr-px-steps" aria-label="Part-exchange steps">{['Your car', 'A few details', 'About you'].map((label, index) => <li key={label} aria-current={index === (!hasCurrentCar ? 0 : step === 0 ? 1 : 2) ? 'step' : undefined}>{index + 1} {label}</li>)}</ol> : hasCurrentCar && <nav className="part-exchange-steps" aria-label="Part-exchange steps">{steps.map((label, index) => <button key={label} type="button" disabled={!canVisitStep(index)} aria-current={step === index ? 'step' : undefined} onClick={event => { if (index <= step || event.currentTarget.form?.reportValidity()) setStep(index); }}><span>{index + 1}</span>{label}</button>)}</nav>}
-      <div><h2 ref={heading} tabIndex={-1} id="enquiry-form-heading" className="font-display text-2xl font-semibold outline-none">{graphite ? !hasCurrentCar ? 'Let’s find your car.' : step === 0 ? 'A little more about your car.' : 'How can we reach you?' : !hasCurrentCar ? 'What’s your reg?' : steps[step]}</h2>{!hasCurrentCar && graphite && <p className="mt-6 text-base leading-6 text-muted-foreground">Enter the registration. We’ll find the details for you.</p>}{hasCurrentCar && <p className="mt-2 text-sm leading-6 text-muted-foreground">{['Check we’ve got the right car, then add the mileage from your dashboard.', 'Leave your number and we’ll give you a call.'][step]}</p>}</div>
-      {step === 0 && <div className="part-exchange-current-car space-y-5">
-        <div className="part-exchange-registration"><label className="block"><span className="field-label">Your registration</span><UKNumberPlate value={details.registration} editable onChange={value => update('registration', value)} testId="visual-uk-number-plate" inputTestId="input-part-exchange-registration" /></label></div>
-        <PartExchangeMotDetails registration={details.registration} mileage={details.mileage} mileageEstimated={exchangeMileageIsEstimated(answers)} lookupButtonRef={lookupButton} initialResult={hasCurrentCar && gate?.mode === 'lookup' ? gate.result : undefined} onDetails={foundCar} onManualEntry={manualEntry} />
+      <nav className="part-exchange-steps" aria-label="Part-exchange steps">{steps.map((label, index) => <button key={label} type="button" disabled={!canVisitStep(index)} aria-current={step === index ? 'step' : undefined} onClick={event => { if (index <= step || event.currentTarget.form?.reportValidity()) setStep(index); }}><span>{index + 1}</span>{label}</button>)}</nav>
+      <h2 ref={heading} tabIndex={-1} id="enquiry-form-heading" className="part-exchange-step-heading">
+        {step === 1 ? 'Where can we reach you?' : hasCurrentCar ? 'Check your car details' : 'Find your car'}
+      </h2>
+      {step === 0 && <div className="part-exchange-current-car">
+        <PartExchangeMotDetails
+          registration={details.registration}
+          registrationField={<label className="part-exchange-registration">
+            <span className="field-label">Your registration</span>
+            <UKNumberPlate value={details.registration} editable size="sm" onChange={value => update('registration', value)}
+              testId="visual-uk-number-plate" inputTestId="input-part-exchange-registration" />
+          </label>}
+          lookupButtonRef={lookupButton}
+          initialResult={hasCurrentCar && gate?.mode === 'lookup' ? gate.result : undefined}
+          onDetails={foundCar}
+          onManualEntry={manualEntry}
+        />
         {lookupNotice && <p role="alert" className="text-sm">{lookupNotice}</p>}
-        {hasCurrentCar && <div className="part-exchange-car-answers space-y-5">
-          {gate?.mode === 'manual' && <p className="text-sm text-muted-foreground">Enter your car’s details below. You can still ask for a valuation without an MOT lookup.</p>}
-          <label className="block"><span className="field-label">Make and model</span><Input required maxLength={100} readOnly={gate?.mode === 'lookup'} value={details.makeModel} onChange={event => { if (gate?.mode === 'manual') update('makeModel', event.target.value); }} placeholder="e.g. Ford Focus" data-testid="input-part-exchange-model" /></label>
-          <label className="block"><span className="field-label">Current mileage (miles)</span><Input required type="number" min={minimumMileage} aria-invalid={mileageTooLow || Boolean(serverMileageError) || undefined} aria-describedby={mileageTooLow || serverMileageError ? "px-mileage-error" : undefined} max={1000000} step={1} inputMode="numeric" value={details.mileage} onChange={event => update('mileage', event.target.value)} data-testid="input-part-exchange-mileage" /></label>
+        {hasCurrentCar && <div className="part-exchange-car-answers">
+          {gate?.mode === 'manual' && <label className="part-exchange-manual-model">
+            <span className="field-label">Make and model</span>
+            <Input required maxLength={100} value={details.makeModel} onChange={event => update('makeModel', event.target.value)} placeholder="e.g. Ford Focus" data-testid="input-part-exchange-model" />
+          </label>}
+          <div className="part-exchange-mileage">
+            <label className="part-exchange-mileage__field">
+              <span className="field-label">Current mileage (miles)</span>
+              <Input required type="number" min={minimumMileage} aria-invalid={mileageTooLow || Boolean(serverMileageError) || undefined}
+                aria-describedby={mileageTooLow || serverMileageError ? 'px-mileage-error px-mileage-help' : 'px-mileage-help'}
+                max={1000000} step={1} inputMode="numeric" value={details.mileage} onChange={event => update('mileage', event.target.value)} data-testid="input-part-exchange-mileage" />
+            </label>
+            <div id="px-mileage-help" className="part-exchange-mileage__help">
+              {mileageEstimated && <strong>Estimated from MOT readings</strong>}
+              <p>{mileageEstimated ? 'Check your dashboard and change the estimate if needed.' : 'Enter the reading shown on your dashboard.'}</p>
+            </div>
+          </div>
           {(mileageTooLow || serverMileageError) && <p id="px-mileage-error" className="part-exchange-mileage-error" role="alert">{serverMileageError || `Enter at least ${minimumMileage.toLocaleString('en-GB')} miles. The current mileage cannot be lower than the last MOT reading.`}</p>}
           <details className="part-exchange-optional"><summary>Tell us a bit more about your car (optional)</summary><div className="space-y-4">
             <label className="block"><span className="field-label">Overall condition</span><NativeSelect value={details.condition} onChange={event => update('condition', event.target.value)}><option value="">Choose the closest description</option><option>Excellent — very little wear</option><option>Good — normal wear for its age</option><option>Fair — marks or some work needed</option><option>Poor — significant work needed</option></NativeSelect></label>
@@ -198,10 +220,14 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
           </div></details>
         </div>}
       </div>}
-      {graphite && !hasCurrentCar && <div className="gr-px-next-car"><p>We’ll ask for the current mileage next.</p><h3>Have you picked your next car?</h3><p>{selectedVehicle ? `Your enquiry will include ${vehicleDisplayTitle(selectedVehicle)}. You can change it or choose later.` : 'You can choose one later. You don’t need to decide before telling us about your part exchange.'}</p><Link href="/stock">Browse our cars<GraphiteIcon name="arrow-right" /></Link></div>}
       {hasCurrentCar && step === 1 && <div className="space-y-5">
+        <fieldset className="part-exchange-contact"><legend className="sr-only">Your contact details</legend>
+          <label className="block"><span className="field-label">Your name</span><Input required minLength={2} maxLength={120} value={details.name} autoComplete="name" onChange={event => update('name', event.target.value)} data-testid="input-customer-name" /></label>
+          <label className="block"><span className="field-label">Contact number</span><Input name="partExchangePhone" required type="tel" inputMode="tel" maxLength={25} value={details.phone} autoComplete="tel" onChange={event => { event.target.setCustomValidity(''); update('phone', event.target.value); }} data-testid="input-customer-phone" /></label>
+          <label className="block"><span className="field-label">Email address (optional)</span><Input type="email" maxLength={254} value={details.email} autoComplete="email" onChange={event => update('email', event.target.value)} data-testid="input-customer-email" /></label>
+        </fieldset>
         <div className="part-exchange-review-vehicles">
-        <div className="part-exchange-review-car"><strong>{details.makeModel} ({details.registration.toUpperCase()})</strong><p>{exchangeMileageIsEstimated(answers) ? 'Estimated mileage' : 'Current mileage'}: {Number(details.mileage).toLocaleString('en-GB')} miles</p>{partExchangeMotSummary(lookupMot) && <p>{partExchangeMotSummary(lookupMot)}</p>}</div>
+        <div className="part-exchange-review-car"><h3>Your part exchange</h3><strong>{details.makeModel} ({details.registration.toUpperCase()})</strong><p>{mileageEstimated ? 'Estimated mileage' : 'Current mileage'}: {Number(details.mileage).toLocaleString('en-GB')} miles</p>{partExchangeMotSummary(lookupMot) && <p>{partExchangeMotSummary(lookupMot)}</p>}</div>
           <div className="space-y-2">
             {selectedVehicle && <p className="field-label">Car you’re interested in</p>}
         {selectedVehicle && <div className="part-exchange-selected-car" data-testid="card-part-exchange-target-vehicle">
@@ -221,13 +247,8 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
           </div>
         </div>
         <EnquiryCarPicker open={pickerOpen} onOpenChange={setPickerOpen} cars={currentCars} currentId={selectedVehicle?.id} onSelect={car => chooseTarget(car.id)} purpose="part-exchange" returnFocus={pickerTrigger} />
-        <fieldset className="part-exchange-contact"><legend className="sr-only">Your contact details</legend>
-          <label className="block"><span className="field-label">Your name</span><Input required minLength={2} maxLength={120} value={details.name} autoComplete="name" onChange={event => update('name', event.target.value)} data-testid="input-customer-name" /></label>
-          <label className="block"><span className="field-label">Contact number</span><Input name="partExchangePhone" required type="tel" inputMode="tel" maxLength={25} value={details.phone} autoComplete="tel" onChange={event => { event.target.setCustomValidity(''); update('phone', event.target.value); }} data-testid="input-customer-phone" /></label>
-          <label className="block"><span className="field-label">Email address (optional)</span><Input type="email" maxLength={254} value={details.email} autoComplete="email" onChange={event => update('email', event.target.value)} data-testid="input-customer-email" /></label>
-        </fieldset>
         <PrivacyNoticeLink url={settings.legal?.privacyUrl} />
-        <label className="block"><span className="field-label">Your message</span><Textarea required rows={7} maxLength={2000} value={message} onChange={event => { setMessageDraft({ text: event.target.value, source: generatedMessage, edited: true }); setReviewed(false); }} data-testid="part-exchange-message-preview" /></label>
+        <label className="block"><span className="field-label">Your message</span><Textarea required rows={5} maxLength={2000} value={message} onChange={event => { setMessageDraft({ text: event.target.value, source: generatedMessage, edited: true }); setReviewed(false); }} data-testid="part-exchange-message-preview" /></label>
         {messageNeedsRefresh && <div className="part-exchange-message-update" role="status"><p>Your car details or selected vehicle changed. Your edited message has been kept. Update it with the latest details, or confirm you want to keep your wording before sending.</p><button type="button" onClick={() => { setMessageDraft(emptyMessage); setReviewed(false); }}>Update message with latest details</button><button type="button" onClick={() => { setMessageDraft(current => ({ ...current, source: generatedMessage })); setReviewed(false); }}>Keep my wording</button></div>}
         {message.length > 2000 && <p role="alert">Shorten your message by {message.length - 2000} characters before sending.</p>}
         <label className="part-exchange-review-confirm"><input type="checkbox" required checked={reviewed} onChange={event => setReviewed(event.target.checked)} />I’ve checked the details and message and want to share them with {settings.identity.name}.</label>

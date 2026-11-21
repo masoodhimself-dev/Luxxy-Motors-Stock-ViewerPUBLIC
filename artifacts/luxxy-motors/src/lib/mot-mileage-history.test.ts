@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MotTest } from '@workspace/vehicle-meta';
-import { buildMotMileageHistory, motDateLabel, motMileageLabel, motTestTime, newestMotTests } from './mot-mileage-history';
+import { buildMotMileageHistory, motDateLabel, motMileageLabel, motTestTime, newestMotTests, passedMotMileageRows } from './mot-mileage-history';
 
 const test = (completedDate: string, mileage: string | null, mileageUnit: MotTest['mileageUnit'] = 'MI'): MotTest => ({ completedDate, mileage, mileageUnit, result: 'PASSED', expiryDate: null, defects: [] });
 
@@ -52,5 +52,39 @@ describe('recorded MOT mileage', () => {
     expect(simultaneous.hasDecrease).toBe(false);
     expect(simultaneous.segments).toHaveLength(2);
     expect(buildMotMileageHistory([test('2025-01-01', '50000'), test('2026-01-01', '80467', 'KM')]).hasDecrease).toBe(false);
+  });
+});
+
+describe('public miles added between passed tests', () => {
+  const additions = (tests: MotTest[]) => passedMotMileageRows(tests).map(({ addedMiles }) => addedMiles);
+
+  it('compares dated passes in order and excludes failures', () => {
+    expect(additions([
+      test('2024-01-01', '40000'),
+      { ...test('2026-02-01', '60000'), result: 'FAILED' },
+      test('2026-01-01', '48000'),
+      test('2025-01-01', '45000'),
+    ])).toEqual([3000, 5000, null]);
+  });
+
+  it('avoids claiming miles across a rollback, missing reading, changed units or same-day pass', () => {
+    expect(additions([
+      test('2020-01-01', '40000'),
+      test('2021-01-01', '35000'),
+      test('2022-01-01', '38000'),
+      test('2023-01-01', '43000'),
+      test('2024-01-01', '48000'),
+      test('2024-01-01T15:00:00Z', '48000'),
+      test('2025-01-01', '84000', 'KM'),
+      test('2026-01-01', null),
+      test('2026-09-01', '95000', 'KM'),
+    ])).toEqual([null, null, null, null, 5000, null, null, null, null]);
+  });
+
+  it('converts a comparable kilometre difference to miles', () => {
+    expect(additions([
+      test('2024-01-01', '80467.2', 'KM'),
+      test('2025-01-01', '88513.92', 'KM'),
+    ])).toEqual([5000, null]);
   });
 });

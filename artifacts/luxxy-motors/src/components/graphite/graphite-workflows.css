@@ -39,8 +39,8 @@
 .graphite-site .gr-contact-message-form .customer-enquiry-extras{font-size:13px}
 .graphite-site.customer-site .gr-enquire .enquiry-page-container{max-width:1440px;padding-inline:64px}
 .graphite-site .gr-enquire .enquiry-form-panel{border:0;border-radius:0;padding:0;background:transparent;box-shadow:none}
-.graphite-site .gr-part-exchange{padding-block:64px 0;background:var(--gr-silver)}
-.graphite-site .gr-part-exchange .enquiry-page-layout{margin:0;grid-template-columns:minmax(0,1fr) minmax(0,600px);gap:clamp(48px,10vw,172px);max-width:none}
+.graphite-site .gr-part-exchange{padding-block:64px;background:var(--gr-silver)}
+.graphite-site .gr-part-exchange .enquiry-page-layout{margin:0;grid-template-columns:minmax(16rem,24rem) minmax(0,1fr);gap:clamp(32px,5vw,72px);max-width:none}
 .graphite-site .gr-part-exchange .enquiry-back-link{display:none}
 .graphite-site .gr-part-exchange .enquiry-introduction{padding:0;gap:24px}
 .graphite-site .gr-part-exchange .friendly-banner h1{font-size:52px;line-height:58px;font-weight:600;letter-spacing:-.03em;color:var(--gr-ink)}
@@ -53,11 +53,7 @@
 .graphite-site .gr-part-exchange .registration-plate-editable{display:block;inline-size:100%;max-inline-size:none;aspect-ratio:auto;container-type:normal;overflow:visible;border:0;background:transparent;padding:0;box-shadow:none}
 .graphite-site .gr-part-exchange .registration-plate-editable .ukrp-lettering{display:block;padding:0;font-size:16px;line-height:24px}
 .graphite-site .gr-part-exchange .registration-plate-editable .registration-plate-input.ukrp-text{width:100%;height:50px;min-height:50px;border:1px solid var(--gr-control);padding:12px 16px;border-radius:6px;font:400 16px/24px Manrope,Arial,sans-serif;letter-spacing:0;background:#fff;color:var(--gr-ink);text-align:left;box-shadow:none}
-.graphite-site .gr-part-exchange .part-exchange-mot-details__actions{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
-.graphite-site .gr-part-exchange .part-exchange-mot-details__actions>button:first-child{width:100%;min-height:50px;font-size:16px;font-weight:600;background:var(--gr-ink);color:#fff;border:1px solid var(--gr-ink);border-radius:6px;box-shadow:none}
-.graphite-site .gr-part-exchange .part-exchange-mot-details__manual{justify-self:start;text-decoration:underline;text-underline-offset:4px;font-size:13px;padding:0;min-height:36px}
 .graphite-site .gr-part-exchange .part-exchange-current-car{margin-top:24px}
-.graphite-site .gr-part-exchange .part-exchange-current-car>*+*{margin-top:24px}
 .graphite-site .gr-part-exchange .part-exchange-form :is(input,select){min-height:50px}
 .graphite-site .gr-part-exchange .part-exchange-form input[type=checkbox]{min-height:0}
 .graphite-site .gr-part-exchange .part-exchange-form .part-exchange-car-answers input[readonly]{background:#f3f4f5;color:#25282d}

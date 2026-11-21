@@ -281,12 +281,12 @@ describe('Shared dealership style migration on real customer workflows', () => {
     }));
     const view = render(<Fixture><VehicleQuickChecks vehicleId={car.id}>{({ motAction }) => motAction}</VehicleQuickChecks></Fixture>);
     fireEvent.click(screen.getByRole('button', { name: 'MOT history' }));
-    const pass = await screen.findByText('Latest test: Passed');
+    const pass = await screen.findByText('Last passed MOT');
     const dialog = screen.getByRole('dialog');
     expect(view.container).not.toContainElement(dialog);
     expect(property(dialog, 'border-radius')).toBe('16px');
     expect(property(within(dialog).getByRole('heading', { name: 'MOT history' }), 'font-weight')).toBe('700');
-    expect(pass).toHaveAttribute('data-result', 'PASSED');
+    expect(pass.closest('dl')).toHaveTextContent('1 Oct 2026');
     expect(within(dialog).queryByText(/Tyre worn close/)).not.toBeInTheDocument();
     expect(within(dialog).getByRole('link', { name: 'View full MOT history on GOV.UK' })).toBeVisible();
     await waitFor(() => expect(state.fetch).toHaveBeenCalledTimes(2));

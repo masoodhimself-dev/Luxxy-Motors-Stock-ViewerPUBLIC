@@ -233,6 +233,24 @@
   background: #24272c;
 }
 
+@media (min-width: 821px) {
+  .ad-vehicle__gallery .vehicle-gallery-media {
+    --ad-gallery-ratio: 1.5;
+    /* object-fit: contain limits the visible width of a portrait to the stage height times its ratio. */
+    --ad-gallery-photo-width: min(100%, calc(100% * var(--gallery-photo-ratio, 1.5) / var(--ad-gallery-ratio)));
+  }
+
+  .ad-vehicle__gallery .vehicle-photo-gallery .vehicle-gallery-image-stage {
+    aspect-ratio: var(--ad-gallery-ratio);
+  }
+
+  .ad-vehicle__gallery .vehicle-photo-gallery .vehicle-gallery-inline-arrows {
+    inset-inline: 50% auto;
+    width: max(96px, calc(var(--ad-gallery-photo-width) - 24px));
+    transform: translate(-50%, -50%);
+  }
+}
+
 .ad-vehicle .vehicle-action-area {
   display: grid;
   gap: 12px;

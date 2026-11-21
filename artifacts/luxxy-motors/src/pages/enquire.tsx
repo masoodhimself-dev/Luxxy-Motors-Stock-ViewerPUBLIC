@@ -53,16 +53,14 @@ export default function Enquire() {
   const isPartExchange = type === 'part_exchange';
   const modernShowroom = isModernShowroom(dealerConfig.presentation);
   const graphite = selectedWebsiteTemplate(dealerConfig.presentation) === null;
-  const introCar = vehicle ?? stock?.cars.find(car => car.make === 'Audi' && car.model === 'A1') ?? stock?.cars[0];
-  const introPhoto = introCar ? getThumbnailUrl(introCar) : '';
   const copy = {
     title: isPartExchange
-      ? customerDefaultCopy(title, graphite ? 'Your car could be part of the deal.' : 'Trade in your car', ['Part-exchange your car', 'Get a part-exchange quote', 'Trade in your car'])
+      ? customerDefaultCopy(title, 'Part exchange your car', ['Part-exchange your car', 'Get a part-exchange quote', 'Trade in your car'])
       : customerDefaultCopy(title, isCarMessage ? 'Ask about this car' : 'Message the showroom', ['How can we help?']),
-    description: customerDefaultCopy(description, isPartExchange ? graphite ? 'Tell us about it. We’ll take a look and talk through the next steps with you.' : 'Tell us your registration and mileage. We’ll be in touch about a valuation.' : '', [
+    description: customerDefaultCopy(description, isPartExchange ? 'Start with your registration. Check your car’s details and we’ll call you to discuss a quote.' : '', [
       'Tell us what you’d like to know. We’ll get back to you.',
       'Tell us about your car and ask about your part-exchange options.',
-      ...(graphite ? ['Tell us your registration and mileage. We’ll be in touch about a valuation.'] : []),
+      'Tell us your registration and mileage. We’ll be in touch about a valuation.',
     ]),
   };
   const selectedVehicleName = vehicle ? vehicleName(vehicle) : 'your next car';
@@ -122,7 +120,7 @@ export default function Enquire() {
               <h1 className="heading-2 text-primary">{copy.title}</h1>
               {copy.description && <p className="mt-3 text-sm font-normal leading-relaxed text-primary/70 sm:mt-6 sm:text-[15px]">{copy.description}</p>}
             </div>
-            {graphite && isPartExchange && introPhoto && <img className="gr-px-photo" src={introPhoto} alt={introCar ? `${vehicleName(introCar)} from our stock` : ''} width={540} height={405} referrerPolicy="no-referrer" loading="lazy" />}
+            {isPartExchange && <p className="part-exchange-intro-note">You can get a quote before choosing your next car.</p>}
 
             {isPartExchange ? null : vehicle ? (
               <div className="mt-5 hidden flex-col gap-4 lg:flex" data-testid="enquiry-vehicle-summary">
@@ -220,7 +218,6 @@ export default function Enquire() {
           </section>
         </div>
       </div>
-      {graphite && isPartExchange && <section className="gr-px-next"><div className="gr-container"><h2>What happens next?</h2><div className="gr-px-next__columns"><div><h3>We find the vehicle details</h3><p>Check the car we’ve found and add its current mileage.</p></div><div><h3>You tell us a little more</h3><p>A few details about its condition help us prepare.</p></div><div><h3>We get back to you</h3><p>The team will contact you to discuss your part exchange.</p></div></div></div></section>}
       <EnquiryCarPicker open={carPickerOpen} onOpenChange={setCarPickerOpen} cars={stock?.cars ?? []} currentId={vehicle?.id} onSelect={selectCar} />
     </div>
   );

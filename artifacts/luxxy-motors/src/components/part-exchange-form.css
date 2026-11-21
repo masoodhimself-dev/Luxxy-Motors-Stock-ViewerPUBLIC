@@ -16,16 +16,50 @@
 }
 .part-exchange-form label { min-width: 0; }
 .part-exchange-form .field-label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 500; line-height: 1.5; }
-.part-exchange-registration { max-width: 320px; }
-.part-exchange-car-answers { max-width: 640px; }
+.part-exchange-registration { display: block; width: 152px; max-width: 100%; }
+.part-exchange-form .part-exchange-registration .registration-plate-editable {
+  inline-size: 100%;
+  min-height: 46px;
+  aspect-ratio: auto;
+  border-radius: 5px;
+}
+.part-exchange-form .part-exchange-registration .ukrp-lettering { --ukrp-text-size: 18cqw; }
+.part-exchange-step-heading {
+  font-family: var(--ct-font-heading, var(--font-display));
+  font-size: clamp(23px, 3vw, 30px);
+  font-weight: 600;
+  line-height: 1.15;
+}
 .part-exchange-steps { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
-.part-exchange-steps button { display: flex; min-height: 48px; align-items: center; gap: 8px; padding-block: 8px; border-bottom: 2px solid var(--mh-border, hsl(var(--border))); text-align: left; font-size: 13px; }
+.part-exchange-steps button { display: flex; min-height: 44px; align-items: center; gap: 8px; padding-block: 8px; border-bottom: 1px solid var(--mh-border, hsl(var(--border))); text-align: left; font-size: 14px; }
 .part-exchange-steps button span { color: var(--mh-muted, hsl(var(--muted-foreground))); }
-.part-exchange-steps button[aria-current="step"] { border-bottom-color: var(--mh-primary, hsl(var(--primary))); font-weight: 600; }
-.part-exchange-steps button:disabled { opacity: .5; cursor: default; }
+.part-exchange-steps button[aria-current="step"] { border-bottom: 2px solid var(--mh-primary, hsl(var(--primary))); font-weight: 600; }
+.part-exchange-steps button:disabled { opacity: .65; cursor: default; }
+.part-exchange-car-answers { display: grid; gap: 14px; margin-top: 18px; }
+.part-exchange-manual-model { display: block; max-width: 28rem; }
+.part-exchange-mileage {
+  display: grid;
+  grid-template-columns: minmax(0, 11rem) minmax(0, 1fr);
+  align-items: end;
+  gap: 16px;
+}
+.part-exchange-mileage__help {
+  align-self: end;
+  color: var(--mh-muted, hsl(var(--muted-foreground)));
+  font-size: 14px;
+  line-height: 1.45;
+}
+.part-exchange-mileage__help strong { color: var(--mh-primary, hsl(var(--foreground))); font-weight: 600; }
+.part-exchange-mileage__field input { min-height: 46px; }
 .part-exchange-optional { border-top: 1px solid var(--mh-border, hsl(var(--border))); }
 .part-exchange-optional summary { min-height: 48px; padding-block: 12px; cursor: pointer; font-size: 14px; }
-.part-exchange-optional > div { padding-top: 8px; }
+.part-exchange-optional > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding-top: 8px;
+}
+.part-exchange-optional > div > label:last-child { grid-column: 1 / -1; }
 .part-exchange-selected-car { display: flex; gap: 16px; align-items: center; padding-block: 16px; border-block: 1px solid var(--mh-border, hsl(var(--border))); }
 .part-exchange-selected-car img { width: 112px; aspect-ratio: 4 / 3; object-fit: contain; }
 .part-exchange-selected-car > div { min-width: 0; }
@@ -38,6 +72,7 @@
 }
 .part-exchange-review-car { display: grid; gap: 4px; padding-block: 16px; border-block: 1px solid var(--mh-border, hsl(var(--border))); font-size: 14px; overflow-wrap: anywhere; }
 .part-exchange-review-car p { color: var(--mh-muted, hsl(var(--muted-foreground))); }
+.part-exchange-review-car h3 { font-size: 13px; font-weight: 500; }
 .part-exchange-contact { display: grid; gap: 20px; grid-template-columns: repeat(2,minmax(0,1fr)); }
 .part-exchange-contact label:last-child { grid-column: 1 / -1; }
 .part-exchange-send-method legend { margin-bottom: 8px; font-size: 14px; font-weight: 500; }
@@ -60,10 +95,15 @@
   .part-exchange-contact { grid-template-columns: minmax(0,1fr); }
   .part-exchange-target-options button { width: 100%; }
   .part-exchange-steps { gap: 8px; }
-  .part-exchange-steps button { display: block; font-size: 12px; }
-  .part-exchange-steps button span { display: block; }
+  .part-exchange-mileage { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .part-exchange-mileage__field { max-width: 11rem; }
+  .part-exchange-optional > div { grid-template-columns: minmax(0, 1fr); }
   .part-exchange-actions { flex-direction: column; align-items: stretch; }
   .part-exchange-actions > button { width: 100%; }
+}
+
+@media (max-width: 359px) {
+  .part-exchange-registration { width: 132px; }
 }
 
 .dealer-site-theme .part-exchange-form .part-exchange-steps button[aria-current="step"],
@@ -84,10 +124,6 @@
 .friendly-part-exchange .friendly-banner { padding: 0; border: 0; }
 .friendly-part-exchange .friendly-banner h1 { font-size: clamp(26px, 2.8vw, 34px); line-height: 1.2; }
 
-.part-exchange-car-answers input[readonly] {
-  background: #f2f5f8;
-  color: #25364a;
-}
 .part-exchange-car-answers input[aria-invalid="true"] {
   border-color: #a53a2e;
 }
@@ -113,12 +149,14 @@
   font-size: 1rem;
 }
 .friendly-part-exchange .enquiry-form-panel {
-  padding: clamp(1rem, 3vw, 2rem);
+  padding: clamp(.875rem, 2.6vw, 1.875rem);
   border-radius: var(--customer-radius, 8px);
 }
-.friendly-part-exchange .part-exchange-mot-details__actions {
-  align-items: center;
-  gap: .5rem 1rem;
+.friendly-part-exchange .part-exchange-intro-note {
+  margin-top: 1rem;
+  color: var(--mh-muted, hsl(var(--muted-foreground)));
+  font-size: 14px;
+  line-height: 1.55;
 }
 .friendly-part-exchange .part-exchange-mot-details__actions button,
 .friendly-part-exchange .part-exchange-actions button {
@@ -129,7 +167,8 @@
 }
 @media (min-width: 64rem) {
   .friendly-part-exchange .part-exchange-page-layout {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 2.15fr);
+    grid-template-columns: minmax(15rem, 27rem) minmax(0, 1fr);
+    column-gap: clamp(2rem, 5vw, 4.5rem);
   }
   .friendly-part-exchange .enquiry-introduction {
     padding-top: 1.5rem;
@@ -148,8 +187,5 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: start;
     gap: 1.5rem;
-  }
-  .part-exchange-car-answers {
-    max-width: none;
   }
 }

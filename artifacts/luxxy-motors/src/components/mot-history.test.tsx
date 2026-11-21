@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { beforeEach, it, expect, vi } from "vitest";
 const state = vi.hoisted(() => ({ fetch: vi.fn() }));
 vi.mock("@workspace/api-client-react", () => ({
@@ -134,13 +134,12 @@ it("displays retryable provider failures rather than fabricated history", async 
   expect(screen.queryByText("Latest test: Passed")).toBeNull();
 });
 
-it("keeps public results compact without recalls or advisory details, while staff retain the full record", () => {
+it("shows only passed public rows and plot points while staff retain the full record", () => {
   const pass = { ...history.tests[0], result: 'PASSED' as const, completedDate: '2026-10-02T10:00:00Z', expiryDate: '2027-10-01', defects: [{text: 'Tyre worn close to limit', type: 'ADVISORY', dangerous: false}] };
   const combined = { ...history, tests: [history.tests[0], pass] };
   const view = render(<MotHistoryResults history={combined} />);
-  expect(screen.getByText('Latest test: Passed')).toBeVisible();
-  expect(screen.queryByText('Latest test: Failed')).toBeNull();
-  expect(screen.getByText('Failed')).toBeVisible();
+  expect(screen.getByText('Last passed MOT')).toBeVisible();
+  expect(screen.queryByText(/failed/i)).toBeNull();
   expect(screen.queryByText('Brake pipe leaking')).toBeNull();
   expect(screen.queryByText('Tyre worn close to limit')).toBeNull();
   expect(screen.queryByText('Advisory')).toBeNull();
@@ -148,7 +147,10 @@ it("keeps public results compact without recalls or advisory details, while staf
   expect(screen.queryByText(/Recorded expiry:/)).toBeNull();
   expect(screen.queryByText('1 note')).toBeNull();
   expect(document.querySelector('.mot-test-history details')).toBeNull();
-  expect(document.querySelectorAll('.mot-test-row-public')).toHaveLength(2);
+  const table = screen.getByRole('table', { name: 'Passed MOT tests' });
+  expect(within(table).getAllByRole('row')).toHaveLength(2);
+  expect(within(table).getByText('2 Oct 2026')).toBeVisible();
+  expect(screen.queryByRole('button', { name: /1 Oct 2026/ })).toBeNull();
   expect(screen.getByText('MOT expiry')).toBeVisible();
   expect(screen.getByRole('link', { name: 'View full MOT history on GOV.UK' })).toHaveAttribute('href', 'https://www.gov.uk/check-mot-history');
   view.unmount();
@@ -162,12 +164,12 @@ it("keeps public results compact without recalls or advisory details, while staf
 it("does not present an old pass as current after a newer failure", () => {
   const pass = { ...history.tests[0], completedDate: '2026-09-01', result: 'PASSED' as const, expiryDate: '2027-09-01', defects: [] };
   render(<MotHistoryResults history={{ ...history, recall: 'Unknown', tests: [pass, history.tests[0]] }} />);
-  expect(screen.getByText('Latest test: Failed')).toBeVisible();
+  expect(screen.getByText('Last passed MOT')).toBeVisible();
   expect(screen.queryByText('MOT expiry')).toBeNull();
-  expect(screen.getByText(/confirm the current MOT details/)).toBeVisible();
-  expect(screen.getByRole('heading', { name: 'MOT tests' })).toBeVisible();
+  expect(screen.getByRole('table', { name: 'Passed MOT tests' })).toBeVisible();
   expect(screen.queryByText('Brake pipe leaking')).toBeNull();
-  expect(screen.getByText('Failed')).toBeVisible();
+  expect(screen.queryByText(/failed/i)).toBeNull();
+  expect(screen.getByRole('link', { name: 'View full MOT history on GOV.UK' })).toBeVisible();
 });
 
 it('plots real chronological readings, shows decreases and lets a customer inspect a point', () => {
@@ -185,11 +187,15 @@ it('plots real chronological readings, shows decreases and lets a customer inspe
   expect(earlier).toHaveAttribute('aria-pressed', 'true');
   expect(document.querySelector('.mot-mileage-selection')).toHaveTextContent('30,000 miles');
   expect(document.querySelector('.mot-mileage-selection')).toHaveTextContent('1 Jan 2024');
-  expect(Array.from(document.querySelectorAll('.mot-test-date')).map(element => element.firstChild?.textContent)).toEqual(['1 Jan 2026', '1 Jan 2025', '1 Jan 2024']);
+  const table = screen.getByRole('table', { name: 'Passed MOT tests' });
+  expect(within(table).getAllByRole('rowheader').map(element => element.textContent)).toEqual(['1 Jan 2026', '1 Jan 2025', '1 Jan 2024']);
+  expect(within(table).getByText('Lower reading')).toBeVisible();
+  expect(within(table).getByText('+15k')).toBeVisible();
+  expect(within(table).getByText('15,000 miles since previous pass')).toBeInTheDocument();
 });
 
 it('shows a single mileage point without inventing a trend or extrapolating to today', () => {
-  render(<MotHistoryResults history={{ ...history, recall: 'Unknown' }} />);
+  render(<MotHistoryResults history={{ ...history, recall: 'Unknown', tests: [{ ...history.tests[0], result: 'PASSED' }] }} />);
   expect(document.querySelectorAll('.mot-mileage-dot')).toHaveLength(1);
   expect(document.querySelectorAll('.mot-mileage-line')).toHaveLength(0);
   expect(screen.getByText(/One recorded reading; a trend cannot be shown yet/)).toBeVisible();
@@ -197,13 +203,21 @@ it('shows a single mileage point without inventing a trend or extrapolating to t
 });
 
 it('shows an honest mileage empty state rather than an empty graph or zero mileage', () => {
-  render(<MotHistoryResults history={{ ...history, recall: 'Unknown', tests: [{ ...history.tests[0], mileage: null, mileageUnit: null }] }} />);
+  render(<MotHistoryResults history={{ ...history, recall: 'Unknown', tests: [{ ...history.tests[0], result: 'PASSED', mileage: null, mileageUnit: null }] }} />);
   expect(screen.getByText('No dated mileage readings are available to plot.')).toBeVisible();
   expect(screen.queryByRole('group', { name: 'Recorded MOT mileage by date' })).toBeNull();
   expect(screen.getByText('Mileage not recorded')).toBeVisible();
 });
 
 it('uses a readable chart scale close to the highest mileage reading', () => {
-  render(<MotHistoryResults history={{ ...history, recall: 'Unknown', tests: [{ ...history.tests[0], mileage: '134000', mileageUnit: 'MI' }] }} />);
+  render(<MotHistoryResults history={{ ...history, recall: 'Unknown', tests: [{ ...history.tests[0], result: 'PASSED', mileage: '134000', mileageUnit: 'MI' }] }} />);
   expect(Array.from(document.querySelectorAll('.mot-mileage-axis span')).map(element => element.textContent)).toEqual(['150,000', '75,000', '0']);
+});
+
+it('does not expose a failed-only history as a public mileage reading', () => {
+  render(<MotHistoryResults history={history} />);
+  expect(screen.getByText(/No dated MOT passes were returned/)).toBeVisible();
+  expect(screen.queryByText(/Failed|Brake pipe leaking/)).toBeNull();
+  expect(screen.queryByRole('group', { name: 'Recorded MOT mileage by date' })).toBeNull();
+  expect(screen.getByRole('link', { name: 'View full MOT history on GOV.UK' })).toBeVisible();
 });

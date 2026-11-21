@@ -172,16 +172,30 @@ export function motRouter(
             .json({ error: "We couldn’t find your vehicle through DVLA. Check the registration and try again." });
           return;
         }
-        const details = dvsa.status === "fulfilled" ? motVehicleDetails(dvsa.value) : null;
-        res.set("Cache-Control", "no-store");
-        res.json({ status: "unavailable", registration, vehicle: {
-          make: dvla.value.make ?? null,
-          model: details?.vehicle.model ?? null,
-          registrationDate: details?.vehicle.registrationDate ?? null,
-          year: dvla.value.yearOfManufacture,
-          colour: dvla.value.colour,
-          fuel: dvla.value.fuelType,
-        }, mot: details?.mot ?? null });
+        const history = dvsa.status === "fulfilled" ? dvsa.value : null;
+        const now = new Date();
+        const details = history && motVehicleDetails(history, now);
+        const estimate = history && estimateMotMileage(history, now);
+        res.json({
+          status: estimate ? "estimated" : "unavailable",
+          registration,
+          vehicle: {
+            make: dvla.value.make ?? null,
+            model: details?.vehicle.model ?? null,
+            registrationDate: details?.vehicle.registrationDate ?? null,
+            year: dvla.value.yearOfManufacture,
+            colour: dvla.value.colour,
+            fuel: dvla.value.fuelType,
+            engineCapacity: dvla.value.engineCapacity,
+            co2Emissions: dvla.value.co2Emissions,
+            euroStatus: dvla.value.euroStatus,
+            taxStatus: dvla.value.taxStatus,
+            taxDueDate: dvla.value.taxDueDate,
+            motExpiry: dvla.value.motExpiry,
+          },
+          mot: details?.mot ?? null,
+          ...(estimate ? { estimate } : {}),
+        });
         return;
       }
       const history = await service.lookup(registration);

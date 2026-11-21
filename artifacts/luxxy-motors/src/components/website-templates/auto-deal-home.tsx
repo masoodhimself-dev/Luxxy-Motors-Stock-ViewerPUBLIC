@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'wouter';
 import { customFetch } from '@workspace/api-client-react';
 import { vehicleDetailPath, type MotHistory } from '@workspace/vehicle-meta';
@@ -17,6 +17,7 @@ import { vehiclePageInclusions } from '@/lib/vehicle-page-summary';
 import './auto-deal-home.css';
 
 const rotationDelay = 8_000;
+const landscapeControlRatio = 4 / 3;
 
 type Props = {
   cars: Car[];
@@ -64,6 +65,7 @@ function warrantyLabel(car: Car, settings: Props['settings']): string | undefine
 
 export function AutoDealHomeHero({ cars, settings, headline, announcement, description, search, loading, error }: Props) {
   const [activeSlide, setActiveSlide] = useState<{ id: string; direction: 'previous' | 'next' }>();
+  const [photoShape, setPhotoShape] = useState<{ photo: string; ratio: number }>();
   const [failedImages, setFailedImages] = useState<string[]>([]);
   const [rotationPreference, setRotationPreference] = useState<boolean | null>(null);
   const [reducedMotion, setReducedMotion] = useState(() => typeof window !== 'undefined' && (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false));
@@ -81,6 +83,12 @@ export function AutoDealHomeHero({ cars, settings, headline, announcement, descr
   const car = available[index];
   const title = car ? vehicleDisplayTitle(car) : headline;
   const photo = car ? getThumbnailUrl(car) : '';
+  const photoRatio = photoShape?.photo === photo ? photoShape.ratio : landscapeControlRatio;
+  const photoScale = photoRatio < 1 ? 1 : 1.1;
+  const photoFrameStyle = {
+    '--ad-hero-photo-scale': photoScale,
+    '--ad-hero-control-width': `${100 * Math.min(photoRatio, landscapeControlRatio) * photoScale}cqh`,
+  } as CSSProperties;
   const price = car && car.price != null && car.price > 0 ? formatPrice(car.price, car.currency) : '';
   const basis = car && price ? deliveryPriceQualification(car.priceType) : null;
   const priceNote = basis ? basis.includes('excludes VAT') ? 'Excludes VAT' : 'Confirm the full price with us'
@@ -154,7 +162,7 @@ export function AutoDealHomeHero({ cars, settings, headline, announcement, descr
     }}
     onBlurCapture={event => { if (rotationControl.current?.contains(event.target)) setPauseFocused(false); }}
   >
-    <div className={`ad-hero-showcase${car ? ' ad-hero-showcase--photo' : ''}`}>
+    <div className={`ad-hero-showcase${car ? ' ad-hero-showcase--photo' : ''}`} style={photoFrameStyle}>
       {nextId && <div className="ad-hero-controls" role="group" aria-label="Featured car controls">
         <button type="button" ref={rotationControl} className="ad-hero-rotation"
           aria-label={rotationEnabled ? 'Pause featured cars' : 'Play featured cars'}
@@ -186,6 +194,9 @@ export function AutoDealHomeHero({ cars, settings, headline, announcement, descr
       {car && <Link href={vehicleDetailPath(car)} className="ad-hero-photo" data-direction={activeSlide?.direction} onClick={openVehicle} aria-label={`View ${title}`}>
         <img key={photo} src={photo} {...responsiveVehicleImage(photo, '(min-width: 768px) 100vw, calc(100vw - 36px)')}
           width={1200} height={900} alt={title} loading="eager" fetchPriority="high" decoding="async"
+          onLoad={({ currentTarget: image }) => {
+            if (image.naturalWidth && image.naturalHeight) setPhotoShape({ photo, ratio: image.naturalWidth / image.naturalHeight });
+          }}
           onError={event => { if (!retryOriginalImage(event.currentTarget)) setFailedImages(current => [...current, photo]); }} />
       </Link>}
       {car && <div className="ad-hero-phone-summary">

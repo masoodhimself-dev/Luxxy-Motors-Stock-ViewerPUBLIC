@@ -14,7 +14,7 @@ export type MotVehicleMetadata = {
 /** Validate the actual calendar day before Date.parse can roll an impossible
  * date into the next month. Zone-less DVSA timestamps have deterministic wall
  * clock ordering; their recorded date is retained, rather than inferred. */
-function recordedDate(value: unknown): { day: string; order: number } | null {
+export function recordedMotDate(value: unknown): { day: string; order: number } | null {
   if (typeof value !== "string") return null;
   const match =
     /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(Z|[+-]\d{2}:\d{2})?)?$/.exec(
@@ -52,7 +52,7 @@ export function motVehicleDetails(history: MotHistory, now = new Date()) {
   }).format(now);
   const tests = history.tests
     .flatMap((test) => {
-      const date = recordedDate(test.completedDate);
+      const date = recordedMotDate(test.completedDate);
       return date &&
         date.day <= today &&
         ["PASSED", "FAILED"].includes(test.result)
@@ -72,11 +72,11 @@ export function motVehicleDetails(history: MotHistory, now = new Date()) {
     passed = tests.find((record) => record.test.result === "PASSED");
   // A newer pass with missing/invalid expiry must not borrow an older pass's expiry.
   const expiry = passed
-    ? (recordedDate(passed.test.expiryDate)?.day ?? null)
+    ? (recordedMotDate(passed.test.expiryDate)?.day ?? null)
     : null;
   const firstDue =
     history.tests.length === 0
-      ? (recordedDate(history.firstMotDueDate)?.day ?? null)
+      ? (recordedMotDate(history.firstMotDueDate)?.day ?? null)
       : null;
   const dueDate = passed
     ? expiry && expiry >= passed.day
@@ -110,7 +110,7 @@ export function motVehicleDetails(history: MotHistory, now = new Date()) {
     vehicle: {
       make: history.make,
       model: history.model,
-      registrationDate: recordedDate(history.registrationDate)?.day ?? null,
+      registrationDate: recordedMotDate(history.registrationDate)?.day ?? null,
     },
     mot,
   };

@@ -74,11 +74,32 @@ test("refuses declining odometer readings, excessive rates and stale histories",
   ])
     assert.equal(estimateMotMileage(history(tests), now), null);
 });
-test("supports zero historical use and rounds to the nearest thousand", () => {
+test("supports zero historical use without rounding under the latest reading", () => {
   const tests = [record("2025-01-01", "60100"), record("2026-01-01", "60100")];
   const estimate = estimateMotMileage(history(tests), now)!;
-  assert.equal(estimate.mileage, 60000);
+  assert.equal(estimate.mileage, 61000);
   assert.equal(estimate.annualMiles, 0);
+});
+
+test("uses the most recent reliable interval and accepts a zero-mile unit change", () => {
+  const estimate = estimateMotMileage(history([
+    record("2024-01-01", "10000"),
+    record("2025-01-01", "58800"),
+    record("2026-01-01", "60000"),
+    record("2026-01-03", "96560", "KM"),
+  ]), now)!;
+  assert.equal(estimate.mileage, 61000);
+  assert.ok(estimate.annualMiles >= 1180 && estimate.annualMiles <= 1210);
+});
+
+test("rejects future and invalid MOT test dates and overly old latest readings", () => {
+  const older = record("2024-01-01", "50000");
+  const newer = record("2024-12-30", "60000");
+  for (const invalid of [record("2026-07-03", "65000"), record("2026-02-30", "64000")]) {
+    assert.equal(estimateMotMileage(history([older, newer, invalid]), now), null);
+  }
+  assert.equal(estimateMotMileage(history([older, newer]), now), null);
+  assert.equal(estimateMotMileage(history([older, newer]), new Date(NaN)), null);
 });
 
 test("does not estimate from older readings when the latest MOT mileage is unreadable", () => {

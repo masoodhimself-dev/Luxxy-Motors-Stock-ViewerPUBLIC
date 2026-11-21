@@ -311,6 +311,50 @@
 .autodeal-home .mh-makes h2 { margin: 0 0 10px; }
 .autodeal-home .mh-car-price strong { color: var(--ct-accent, #ab4600); }
 
+@media (min-width: 768px) {
+  .ad-hero-showcase--photo {
+    min-height: clamp(540px, 51vw, min(865px, max(540px, calc(100svh - 100px))));
+  }
+
+  .ad-hero-photo img { scale: var(--ad-hero-photo-scale, 1); }
+
+  .ad-hero-controls {
+    container-type: size;
+    /* Base the overlay on the visible photo while keeping landscape controls steady. */
+    --ad-photo-control-gutter: max(clamp(16px, 2vw, 28px), calc((100% - max(156px, var(--ad-hero-control-width))) / 2 + 20px));
+  }
+
+  .ad-hero-controls .ad-hero-rotation { inset-inline-end: var(--ad-photo-control-gutter); }
+  .ad-hero-controls .ad-hero-arrows { inset-inline: var(--ad-photo-control-gutter); }
+  .ad-hero-arrows button { width: clamp(44px, 3.3vw, 54px); border-radius: 10px; }
+
+  .autodeal-home .ad-hero-dock .mh-px-form {
+    width: fit-content;
+    max-width: 100%;
+    grid-template-columns: minmax(0, 152px) minmax(148px, max-content);
+    align-items: end;
+    gap: 10px 12px;
+    padding: 14px 18px 16px;
+  }
+
+  .autodeal-home .ad-hero-dock .mh-px-form label {
+    min-width: 0;
+    font: 500 15px/1.2 var(--ad-home-heading);
+  }
+
+  .autodeal-home .ad-hero-dock .mh-px-form .registration-plate-editable {
+    grid-template-columns: 24px minmax(0, 1fr);
+    height: 46px;
+  }
+
+  .autodeal-home .ad-hero-dock .mh-px-form .ukrp-country > svg { width: 18px; }
+  .autodeal-home .ad-hero-dock .mh-px-form .ukrp-country > span { font-size: 8px; }
+  .autodeal-home .ad-hero-dock .mh-px-form .ukrp-lettering { font-size: calc(16cqw * var(--ukrp-fit, 1)); }
+  .autodeal-home .ad-hero-dock .mh-px-form .registration-plate-input.ukrp-text { font-size: inherit; padding-inline: 4px; }
+  .multi-home.autodeal-home .ad-hero-dock .mh-search-card .mh-px-form > .mh-button { min-height: 46px; padding-inline: 16px; }
+  .autodeal-home .ad-hero-dock .mh-px-feedback { grid-column: 1 / -1; }
+}
+
 @media (max-width: 1000px) {
   .autodeal-home .ad-home-hero {
     --ad-hero-gutter: 64px;
@@ -349,6 +393,7 @@
     margin-top: 13px;
     background: #ededed;
   }
+  .ad-hero-photo img { position: absolute; inset: 0; }
   .ad-hero-photo::after { display: none; }
   .ad-hero-phone-summary {
     display: block;

@@ -1,5 +1,4 @@
 import { MotMileageEstimate } from './mot-mileage-estimate';
-import { OptionalJourneyPostcode } from '@/components/postcode-field';
 import { PrivacyNoticeLink } from '@/components/privacy-notice-link';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import '../pages/customer-workflows.css';
@@ -975,7 +974,6 @@ export function TestDriveBooking({
                     </label>
                   </div>
                   {settings.legal?.privacyUrl && <p className="text-xs text-muted-foreground"><PrivacyNoticeLink url={settings.legal.privacyUrl} /></p>}
-                  <OptionalJourneyPostcode />
                   {settings.partExchange?.enabled && <div className="border-t border-border pt-3">
                     {!details.hasPartExchange ? <button type="button" className="min-h-12 text-sm font-medium underline underline-offset-4" onClick={() => setDetails(old => ({ ...old, hasPartExchange: true }))}>Add a part exchange (optional)</button> : <div>
                     <p className="text-sm font-semibold">Your part exchange</p>

@@ -5,6 +5,7 @@ import type { MotHistory } from "@workspace/vehicle-meta";
 import { Button } from "./ui/button";
 import { AlertTriangle, ArrowUpRight, Check, ChevronDown, CircleAlert } from "./icons";
 import { MotMileageChart } from "./mot-mileage-chart";
+import { PublicMotHistory } from "./public-mot-history";
 import { motDateLabel, motMileageLabel, motTestTime, newestMotTests } from "@/lib/mot-mileage-history";
 import "./staff-mot-popup.css";
 import "./mot-history.css";
@@ -30,6 +31,7 @@ function errorText(cause: unknown) {
         : "MOT history is temporarily unavailable. Please try again later or use GOV.UK.";
 }
 export function MotHistoryResults({ history, staff = false }: { history: MotHistory; staff?: boolean }) {
+  if (!staff) return <PublicMotHistory history={history} />;
   const firstDue = firstMotDue(history);
   const ordered = newestMotTests(history.tests);
   const latest = ordered.find(test => motTestTime(test.completedDate) !== null);
@@ -50,7 +52,7 @@ export function MotHistoryResults({ history, staff = false }: { history: MotHist
         </span>}
       </header>
       {expiry && <p className="mot-record-expiry"><span>MOT expiry</span><strong>{date(expiry)}</strong></p>}
-      {staff && history.recall === "Yes" && (
+      {history.recall === "Yes" && (
         <p className="mot-record-warning"><AlertTriangle size={18} /><span>An outstanding safety recall is recorded. Ask the dealership for details.</span></p>
       )}
       {firstDue && (
@@ -66,7 +68,7 @@ export function MotHistoryResults({ history, staff = false }: { history: MotHist
       <MotMileageChart tests={history.tests} />
       {ordered.length > 0 && <section className="mot-test-history" aria-label="MOT tests">
       <div className="mot-test-history-heading"><h3>MOT tests</h3><span>Newest first</span></div>
-      {ordered.map((test, index) => staff ? (
+      {ordered.map((test, index) => (
         <details
           key={`${test.completedDate}-${index}`}
           open={index === 0}
@@ -95,18 +97,10 @@ export function MotHistoryResults({ history, staff = false }: { history: MotHist
           )}
           </div>
         </details>
-      ) : <div key={`${test.completedDate}-${index}`} className="mot-test-row mot-test-row-public" data-result={test.result}>
-        <div className="mot-test-summary">
-          <span className="mot-test-date">{date(test.completedDate)}</span>
-          <span className="mot-test-result">{test.result === 'PASSED' ? <Check size={15} /> : <CircleAlert size={15} />}{test.result === 'PASSED' ? 'Passed' : 'Failed'}</span>
-          <span className="mot-test-mileage">{motMileageLabel(test)}</span>
-        </div>
-      </div>)}
+      ))}
       </section>}
       <footer className="mot-record-footer">
-      <p>{staff
-        ? 'MOT records show the car at each test. Earlier issues may have been repaired. These are recorded test mileages, not the car’s current mileage. This is not a service, finance or insurance-history check.'
-        : 'Mileage shown is from each MOT test. For advisories and the full record, visit GOV.UK.'}</p>
+      <p>MOT records show the car at each test. Earlier issues may have been repaired. These are recorded test mileages, not the car’s current mileage. This is not a service, finance or insurance-history check.</p>
       <a
         href="https://www.gov.uk/check-mot-history"
         target="_blank"
@@ -179,7 +173,7 @@ export function MotHistoryPanel({
       {!autoLoad && <h2 className="section-heading mb-3">MOT history</h2>}
       {!autoLoad && (
         <p className="mb-3 text-sm text-muted-foreground">
-          {staff ? 'See recorded MOT results, mileage and advisory notices.' : 'Recorded mileage and MOT test results.'}
+          {staff ? 'See recorded MOT results, mileage and advisory notices.' : 'Mileage recorded at each passed MOT.'}
         </p>
       )}
       {!reply && (

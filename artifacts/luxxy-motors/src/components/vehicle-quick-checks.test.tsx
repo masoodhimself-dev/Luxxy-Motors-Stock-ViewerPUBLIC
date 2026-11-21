@@ -85,7 +85,7 @@ it("requests only cached data on arrival and loads actual MOT history when tappe
     "/api/vehicles/car-a/mot-history?cacheOnly=true",
   );
   fireEvent.click(screen.getByRole("button", { name: "MOT history" }));
-  await screen.findByText("Latest test: Passed");
+  await screen.findByText("Last passed MOT");
   expect(state.fetch.mock.calls[1][0]).toBe("/api/vehicles/car-a/mot-history");
   expect(screen.getByRole("dialog")).toBeVisible();
 });
@@ -139,7 +139,7 @@ it("returns focus to the actual MOT badge when its dialog closes", async () => {
   render(<Checks vehicleId="badge-car" />);
   const badge = await screen.findByRole("button", { name: /Long MOT/ });
   fireEvent.click(badge);
-  await screen.findByText("Latest test: Passed");
+  await screen.findByText("Last passed MOT");
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
   await waitFor(() => expect(badge).toHaveFocus());
 });

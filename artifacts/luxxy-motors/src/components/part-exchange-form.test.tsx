@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
-import { StrictMode, type Ref } from 'react';
+import { StrictMode, type ReactNode, type Ref } from 'react';
 import { dealerConfig } from '@/config/dealer';
 import type { Car } from '@/lib/stock-context';
 import { partExchangeDraftKey, savePartExchangeDraft, readPartExchangeDraft } from '@/lib/part-exchange-draft';
@@ -15,9 +15,9 @@ vi.mock('@workspace/api-client-react', () => ({ useCreateEnquiry: () => mutation
 vi.mock('@/lib/dealer-features', () => ({ useDealerFeatures: () => ({ enabled: () => state.allowed, isLoading: false, isError: false, refetch: vi.fn() }) }));
 vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({ settings: { ...dealerConfig, contact: { ...dealerConfig.contact, whatsapp: state.whatsapp } } }) }));
 vi.mock('@/lib/visitor', () => ({ getVisitorId: () => 'fictional-visitor' }));
-vi.mock('./part-exchange-mot-details', () => ({ PartExchangeMotDetails: ({ onDetails, onManualEntry, lookupButtonRef, initialResult }: { onDetails: (result: unknown) => void; onManualEntry: () => void; lookupButtonRef: Ref<HTMLButtonElement>; initialResult?: PartExchangeMotDetailsResult }) => {
+vi.mock('./part-exchange-mot-details', () => ({ PartExchangeMotDetails: ({ onDetails, onManualEntry, lookupButtonRef, initialResult, registrationField }: { onDetails: (result: unknown) => void; onManualEntry: () => void; lookupButtonRef: Ref<HTMLButtonElement>; initialResult?: PartExchangeMotDetailsResult; registrationField?: ReactNode }) => {
   state.latest = onDetails;
-  return <div><button ref={lookupButtonRef} type="button" onClick={() => { state.lookup(); if (state.result) onDetails(state.result); }}>Find my car</button><button type="button" onClick={onManualEntry}>Enter details manually</button>{initialResult?.mot?.dueDate && <p>Next MOT due: {initialResult.mot.dueDate}</p>}{initialResult?.mot?.lastReading && <p>Last recorded mileage: {initialResult.mot.lastReading.mileage}</p>}</div>;
+  return <div>{registrationField}<button ref={lookupButtonRef} type="button" onClick={() => { state.lookup(); if (state.result) onDetails(state.result); }}>Find my car</button><button type="button" onClick={onManualEntry}>Enter details manually</button>{initialResult && <h3 data-testid="part-exchange-found-model">Honda Civic</h3>}{initialResult?.mot?.dueDate && <p>Next MOT due: {initialResult.mot.dueDate}</p>}{initialResult?.mot?.lastReading && <p>Last recorded mileage: {initialResult.mot.lastReading.mileage}</p>}</div>;
 } }));
 const car = { id: 'stock-1', title: 'Ford Focus', make: 'Ford', model: 'Focus', price: 7490, year: 2019, images: [], inventoryStatus: 'available' } as unknown as Car;
 const toyota = { ...car, id: 'stock-2', title: 'Toyota Yaris', make: 'Toyota', model: 'Yaris' };
@@ -41,7 +41,7 @@ it('opens a fresh homepage lookup with vehicle, mileage and MOT already filled w
   prepareHomepagePartExchange('AB12CDE'); retainHomepagePartExchangeLookup(result());
   render(<PartExchangeForm stockCars={[car]} />);
   expect(screen.getByTestId('input-part-exchange-registration')).toHaveValue('AB12CDE');
-  expect(screen.getByTestId('input-part-exchange-model')).toHaveValue('Honda Civic');
+  expect(screen.getByTestId('part-exchange-found-model')).toHaveTextContent('Honda Civic');
   expect(screen.getByTestId('input-part-exchange-mileage')).toHaveValue(65000);
   expect(screen.getByText('Next MOT due: 2027-10-20')).toBeInTheDocument();
   expect(screen.getByTestId('button-part-exchange-continue')).not.toBeDisabled();
@@ -55,7 +55,7 @@ it('opens a fresh homepage lookup with vehicle, mileage and MOT already filled w
 it('retains the consumed homepage lookup through Strict Mode effect replay', () => {
   prepareHomepagePartExchange('AB12CDE'); retainHomepagePartExchangeLookup(result());
   render(<StrictMode><PartExchangeForm stockCars={[car]} /></StrictMode>);
-  expect(screen.getByTestId('input-part-exchange-model')).toHaveValue('Honda Civic');
+  expect(screen.getByTestId('part-exchange-found-model')).toHaveTextContent('Honda Civic');
   expect(screen.getByTestId('input-part-exchange-mileage')).toHaveValue(65000);
   expect(screen.getByText('Next MOT due: 2027-10-20')).toBeInTheDocument();
   expect(readHomepagePartExchangeLookup('AB12CDE')).toBeNull();
@@ -69,7 +69,7 @@ it('uses the fresh in-memory car instead of a stale stored plate when storage wr
     prepareHomepagePartExchange('AB12CDE'); retainHomepagePartExchangeLookup(result());
     render(<PartExchangeForm stockCars={[car]} />);
     expect(screen.getByTestId('input-part-exchange-registration')).toHaveValue('AB12CDE');
-    expect(screen.getByTestId('input-part-exchange-model')).toHaveValue('Honda Civic');
+    expect(screen.getByTestId('part-exchange-found-model')).toHaveTextContent('Honda Civic');
     expect(screen.getByTestId('input-part-exchange-mileage')).toHaveValue(65000);
     expect(screen.getByLabelText('Anything else about your car? (optional)')).toHaveValue('');
     next();
@@ -123,7 +123,7 @@ it('does not consume or apply a general homepage lookup inside a vehicle-specifi
   expect(readHomepagePartExchangeLookup('AB12CDE')?.vehicle.make).toBe('HONDA');
   view.unmount();
   render(<PartExchangeForm stockCars={[car]} />);
-  expect(screen.getByTestId('input-part-exchange-model')).toHaveValue('Honda Civic');
+  expect(screen.getByTestId('part-exchange-found-model')).toHaveTextContent('Honda Civic');
   expect(readHomepagePartExchangeLookup('AB12CDE')).toBeNull();
   expect(state.lookup).not.toHaveBeenCalled(); expect(mutation.mutate).not.toHaveBeenCalled();
 });
@@ -133,14 +133,15 @@ it('starts with only registration and explicit lookup/manual choices, with no au
   expect(screen.getByTestId('input-part-exchange-registration')).toHaveValue('');
   expect(screen.getByRole('button', { name: 'Find my car' })).toBeInTheDocument();
   for (const id of ['input-part-exchange-mileage', 'input-part-exchange-model', 'input-customer-name', 'button-part-exchange-continue']) expect(screen.queryByTestId(id)).not.toBeInTheDocument();
-  expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Contact & review/ })).toBeDisabled();
   expect(state.lookup).not.toHaveBeenCalled(); expect(mutation.mutate).not.toHaveBeenCalled();
 });
 
 it('reveals matching vehicle details and prepares the actual stock-car enquiry after an explicit lookup', () => {
   render(<PartExchangeForm vehicle={car} stockCars={[car]} />); find();
-  expect(screen.getByTestId('input-part-exchange-model')).toHaveValue('Honda Civic');
+  expect(screen.getByTestId('part-exchange-found-model')).toHaveTextContent('Honda Civic');
   expect(screen.getByTestId('input-part-exchange-mileage')).toHaveValue(65000);
+  expect(screen.getByText('Estimated from MOT readings')).toBeVisible();
   review();
   const message = screen.getByRole('textbox', { name: 'Your message' });
   expect((message as HTMLTextAreaElement).value).toContain('I have a Honda Civic (AB12 CDE)');
@@ -207,9 +208,9 @@ it('immediately hides a changed registration’s old details, rejects late resul
 
 it('keeps the lookup identity locked and retains edited mileage on repeat checks', () => {
   render(<PartExchangeForm vehicle={car} stockCars={[car]} />); find();
-  input('input-part-exchange-model', 'Honda Civic Sport'); input('input-part-exchange-mileage', '65001'); input('input-part-exchange-mileage', '65000');
+  expect(screen.queryByTestId('input-part-exchange-model')).not.toBeInTheDocument(); input('input-part-exchange-mileage', '65001'); input('input-part-exchange-mileage', '65000');
   fireEvent.click(screen.getByRole('button', { name: 'Find my car' }));
-  expect(screen.getByTestId('input-part-exchange-model')).toHaveValue('Honda Civic');
+  expect(screen.getByTestId('part-exchange-found-model')).toHaveTextContent('Honda Civic');
   review();
   expect(messageValue()).toContain('Current mileage: 65,000 miles');
   expect(messageValue()).not.toContain('Estimated mileage');
@@ -278,7 +279,7 @@ it('restores drafts safely behind a new lookup gate and replaces the manual iden
   expect(screen.queryByTestId('input-part-exchange-mileage')).not.toBeInTheDocument(); expect(state.lookup).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Find my car' }));
   expect(screen.getByTestId('input-part-exchange-mileage')).toHaveValue(64578);
-  expect(screen.getByTestId('input-part-exchange-model')).toHaveValue('Honda Civic');
+  expect(screen.getByTestId('part-exchange-found-model')).toHaveTextContent('Honda Civic');
   review(); expect(screen.getByTestId('input-customer-name')).toHaveValue('Earlier Buyer');
 });
 
@@ -311,7 +312,8 @@ it('keeps sending manual and uses the website when WhatsApp is unavailable', () 
 
 it('rejects mileage below the last MOT reading', () => {
   render(<PartExchangeForm vehicle={car} stockCars={[car]} />); find();
-  expect(screen.getByTestId('input-part-exchange-model')).toHaveAttribute('readonly');
+  expect(screen.getByTestId('part-exchange-found-model')).toBeVisible();
+  expect(screen.queryByTestId('input-part-exchange-model')).not.toBeInTheDocument();
   input('input-part-exchange-mileage', '1');
   expect(screen.getByRole('alert')).toHaveTextContent('cannot be lower than the last MOT reading');
   expect(screen.getByTestId('button-part-exchange-continue')).toBeDisabled();

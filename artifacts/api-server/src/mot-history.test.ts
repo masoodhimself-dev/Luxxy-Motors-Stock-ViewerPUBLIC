@@ -435,6 +435,98 @@ test("public vehicle checks are scoped to visible tenant stock; arbitrary regist
   }
 });
 
+test("public part exchange combines DVLA facts and the DVSA estimate from a single check", async () => {
+  const app = express();
+  const server = createServer(app);
+  const registration = "AB12CDE";
+  const origin = "https://dealer.example.test";
+  const today = Date.now();
+  const checkedAt = new Date(today).toISOString();
+  const day = (offset: number) => new Date(today + offset * 86400000).toISOString().slice(0, 10);
+  const latest = day(-180);
+  const expiry = day(185);
+  const taxDueDate = day(60);
+  let dvlaCalls = 0;
+  let dvsaCalls = 0;
+  let hasMotHistory = true;
+  app.use((_req, _res, next) => runWithTenant({
+    dealerId: "a", canonicalOrigin: origin, platform: "autotrader",
+    retailerId: "retailer-a", sourceUrl: origin, kind: "website",
+  }, next));
+  app.use("/api", motRouter(
+    {
+      lookup: async (plate: string) => {
+        assert.equal(plate, registration);
+        dvsaCalls++;
+        if (!hasMotHistory) throw new MotError("not_found", "No MOT history.", 404);
+        return normaliseMotHistory({
+          ...raw(plate),
+          registrationDate: "2012-05-01",
+          motTests: [
+            { ...raw().motTests[0], completedDate: latest, expiryDate: expiry, odometerValue: "60000" },
+            { ...raw().motTests[0], completedDate: day(-545), expiryDate: day(-181), odometerValue: "50000" },
+          ],
+        }, plate, checkedAt);
+      },
+    },
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    async plate => {
+      assert.equal(plate, registration);
+      dvlaCalls++;
+      return {
+        registration,
+        checkedAt,
+        make: "FORD",
+        yearOfManufacture: 2012,
+        colour: "GREY",
+        fuelType: "DIESEL",
+        engineCapacity: 1560,
+        co2Emissions: 109,
+        euroStatus: "EURO 5",
+        taxStatus: "Taxed",
+        taxDueDate,
+        motExpiry: expiry,
+        dateOfLastV5CIssued: day(-100),
+      };
+    },
+  ));
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const url = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/mot-mileage-estimate?registration=AB12%20CDE&identity=dvla`;
+  try {
+    const response = await fetch(url);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    const vehicle = {
+      make: "FORD", model: "FOCUS", registrationDate: "2012-05-01", year: 2012, colour: "GREY", fuel: "DIESEL",
+      engineCapacity: 1560, co2Emissions: 109, euroStatus: "EURO 5", taxStatus: "Taxed", taxDueDate, motExpiry: expiry,
+    };
+    assert.deepEqual(await response.json(), {
+      status: "estimated", registration, vehicle,
+      estimate: { mileage: 65000, lastTestDate: latest, lastTestMileage: 60000, annualMiles: 10007 },
+      mot: {
+        dueDate: expiry, firstTest: false, lastPassedDate: latest, lastTestDate: latest, latestTestResult: "PASSED", checkedAt,
+        lastReading: { date: latest, mileage: 60000, unit: "MI" },
+      },
+    });
+    assert.equal(dvlaCalls, 1);
+    assert.equal(dvsaCalls, 1);
+
+    hasMotHistory = false;
+    const incomplete = await fetch(url);
+    assert.equal(incomplete.status, 200);
+    assert.deepEqual(await incomplete.json(), {
+      status: "unavailable", registration, vehicle: { ...vehicle, model: null, registrationDate: null }, mot: null,
+    });
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>(resolve => server.close(() => resolve()));
+  }
+});
+
 test("newly registered DVSA records can omit tests and retain the official first due date", () => {
   const history = normaliseMotHistory(
     {

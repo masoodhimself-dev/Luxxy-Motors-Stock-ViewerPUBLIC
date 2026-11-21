@@ -207,7 +207,7 @@ export function VehicleQuickChecks({
             <DialogDescription>
               {shownPanel === "delivery"
                 ? "Enter your postcode to see the estimated delivery cost."
-                : "Recorded mileage and MOT test results."}
+                : "Mileage recorded at each passed MOT."}
             </DialogDescription>
           </DialogHeader>
           <div className="vehicle-check-body">

@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type Ref } from "react";
+import { useEffect, useRef, useState, type ReactNode, type Ref } from "react";
 import { isUKNumberPlate } from "@workspace/vehicle-meta";
 import { Button } from "./ui/button";
 import { dvsaVehicleName } from '@/lib/dvsa-vehicle-name';
 import { MakeLogo } from './make-logo';
+import { Search } from './icons';
 import { lookupPartExchangeCar, type PartExchangeMotDetailsResult } from '@/lib/part-exchange-lookup';
 export type { PartExchangeMotDetailsResult } from '@/lib/part-exchange-lookup';
 import "./part-exchange-mot-details.css";
@@ -12,6 +13,34 @@ const dateLabel = (value: string) =>
   new Date(`${value}T12:00:00Z`).toLocaleDateString("en-GB", {
     day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London",
   });
+
+const readable = (value: string) => value[0].toUpperCase() + value.slice(1).toLowerCase();
+
+function VehicleFacts({ details }: { details: PartExchangeMotDetailsResult }) {
+  const { vehicle } = details;
+  const facts = [
+    vehicle.registrationDate
+      ? ['First registered', dateLabel(vehicle.registrationDate)]
+      : ['Year of manufacture', vehicle.year],
+    ['Fuel', vehicle.fuel && readable(vehicle.fuel)],
+    ['Colour', vehicle.colour && readable(vehicle.colour)],
+    ['Engine', vehicle.engineCapacity ? `${vehicle.engineCapacity.toLocaleString('en-GB')} cc` : null],
+    ['CO₂ emissions', vehicle.co2Emissions != null ? `${vehicle.co2Emissions} g/km` : null],
+    ['Emissions standard', vehicle.euroStatus && readable(vehicle.euroStatus)],
+    ['Road tax', vehicle.taxStatus],
+    ['Tax due', vehicle.taxStatus === 'Taxed' && vehicle.taxDueDate ? dateLabel(vehicle.taxDueDate) : null],
+  ].filter(([, value]) => Boolean(value));
+  return <section className="part-exchange-vehicle-record" aria-label="Your vehicle">
+    <header className="part-exchange-vehicle-record__heading">
+      <MakeLogo make={vehicle.make} size={32} />
+      <h3 data-testid="part-exchange-found-model">{dvsaVehicleName(vehicle)}</h3>
+    </header>
+    {facts.length > 0 && <dl className="part-exchange-vehicle-record__details">
+      {facts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+    </dl>}
+    <MotFacts details={details} />
+  </section>;
+}
 
 function MotFacts({ details }: { details: PartExchangeMotDetailsResult }) {
   const mot = details.mot;
@@ -40,8 +69,8 @@ function MotFacts({ details }: { details: PartExchangeMotDetailsResult }) {
         }
       : null);
   return (
-    <div className="part-exchange-mot-details__facts" aria-label="DVSA MOT history">
-      {mot && <strong>DVSA MOT history</strong>}
+    <div className="part-exchange-mot-details__facts" aria-label="MOT history">
+      <strong>{mot ? 'DVSA MOT history' : 'MOT'}</strong>
       {mot?.latestTestResult === "FAILED" ? (
         <p>
           MOT record needs checking.
@@ -64,6 +93,8 @@ function MotFacts({ details }: { details: PartExchangeMotDetailsResult }) {
               : "Next MOT due"}
           : <time dateTime={due}>{dateLabel(due)}</time>.
         </p>
+      ) : details.vehicle.motExpiry ? (
+        <p>DVLA recorded expiry: <time dateTime={details.vehicle.motExpiry}>{dateLabel(details.vehicle.motExpiry)}</time>.</p>
       ) : (
         <p>MOT date unavailable. You can still continue.</p>
       )}
@@ -83,6 +114,7 @@ export function PartExchangeMotDetails({
   registration,
   onDetails,
   onManualEntry,
+  registrationField,
   mileage,
   mileageEstimated,
   lookupButtonRef,
@@ -91,6 +123,7 @@ export function PartExchangeMotDetails({
   registration: string;
   onDetails: (details: PartExchangeMotDetailsResult) => void;
   onManualEntry: () => void;
+  registrationField?: ReactNode;
   mileage?: string;
   mileageEstimated?: boolean;
   lookupButtonRef?: Ref<HTMLButtonElement>;
@@ -156,27 +189,29 @@ export function PartExchangeMotDetails({
   return (
     <div className="part-exchange-mot-details">
       <div className="part-exchange-mot-details__actions">
+        {registrationField}
         <Button
           ref={lookupButtonRef}
           type="button"
           disabled={!valid || busy}
           onClick={() => void find()}
         >
+          <Search size={17} aria-hidden="true" />
           {busy ? "Finding your car…" : "Find my car"}
         </Button>
-        <button
-          type="button"
-          className="part-exchange-mot-details__manual"
-          onClick={() => {
-            cancel();
-            setState(null);
-            current.current.onManualEntry();
-          }}
-        >
-          Enter details manually
-        </button>
       </div>
-      <div aria-live="polite" aria-atomic="true" role="status">
+      <button
+        type="button"
+        className="part-exchange-mot-details__manual"
+        onClick={() => {
+          cancel();
+          setState(null);
+          current.current.onManualEntry();
+        }}
+      >
+        Enter details manually
+      </button>
+      <div aria-live="polite" aria-atomic="true" role="status" className="part-exchange-mot-details__status">
         {busy && <p>Checking your car’s details…</p>}
         {visible?.status === "error" && (
           <p>
@@ -184,36 +219,15 @@ export function PartExchangeMotDetails({
             again, or enter them manually.
           </p>
         )}
-        {visible?.status === "ready" && (
-          <>
-            <p className="part-exchange-mot-details__vehicle">
-              <MakeLogo make={visible.details.vehicle.make} size={32} />
-              <span><strong>{dvsaVehicleName(visible.details.vehicle)}</strong>
-                {(visible.details.vehicle.year || visible.details.vehicle.registrationDate) && <span className="part-exchange-mot-details__year"> {visible.details.vehicle.year ?? visible.details.vehicle.registrationDate?.slice(0, 4)}</span>}
-              </span>
-            </p>
-            {(visible.details.vehicle.fuel || visible.details.vehicle.colour) && <p>
-              {[visible.details.vehicle.fuel, visible.details.vehicle.colour].filter(Boolean).join(" · ")} · DVLA
-            </p>}
-            <MotFacts details={visible.details} />
-            {visible.details.mileage !== undefined &&
-              mileageEstimated !== false &&
-              (mileage === undefined ||
-                mileage === visible.details.mileage) && (
-                <p>
-                  Estimated mileage:{" "}
-                  {Number(visible.details.mileage).toLocaleString("en-GB")}{" "}
-                  miles. Please check your odometer.
-                </p>
-              )}
-            {visible.details.mileage === undefined && (
-              <p>
-                Please enter your odometer reading.
-              </p>
-            )}
-          </>
-        )}
+        {visible?.status === "ready" && <p className="sr-only">Vehicle found. Check your car’s details below.</p>}
       </div>
+      {visible?.status === "ready" && <>
+        <VehicleFacts details={visible.details} />
+        {!registrationField && (visible.details.mileage === undefined
+          ? <p className="part-exchange-mot-details__status">Please enter your odometer reading.</p>
+          : mileageEstimated !== false && (mileage === undefined || mileage === visible.details.mileage) &&
+            <p className="part-exchange-mot-details__status">Estimated mileage: {Number(visible.details.mileage).toLocaleString("en-GB")} miles. Please check your odometer.</p>)}
+      </>}
     </div>
   );
 }

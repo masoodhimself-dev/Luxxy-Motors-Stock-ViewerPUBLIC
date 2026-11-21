@@ -25,6 +25,33 @@ it('allows vehicle identity with unavailable mileage and a genuine first MOT dat
   const result = readPartExchangeMotDetails(value, 'YS67LMK');
   expect(result.mileage).toBeUndefined(); expect(result.mot).toMatchObject({ firstTest: true, dueDate: '2027-09-01' });
 });
+it('keeps the supplied DVLA facts and omits unsupported fields', () => {
+  const value = reply();
+  const result = readPartExchangeMotDetails({ ...value, vehicle: {
+    ...value.vehicle, colour: 'GREY', fuel: 'DIESEL', year: 2017, engineCapacity: 1461,
+    taxStatus: 'Taxed', taxDueDate: '2027-01-01', co2Emissions: 102, euroStatus: 'EURO 6',
+    motExpiry: '2027-10-01', vin: 'never-a-public-field',
+  } }, 'YS67LMK');
+  expect(result.vehicle).toEqual({
+    ...value.vehicle, colour: 'GREY', fuel: 'DIESEL', year: 2017, engineCapacity: 1461,
+    taxStatus: 'Taxed', taxDueDate: '2027-01-01', co2Emissions: 102, euroStatus: 'EURO 6',
+    motExpiry: '2027-10-01',
+  });
+  expect(readPartExchangeMotDetails({ ...value, vehicle: {
+    ...value.vehicle, engineCapacity: 0, co2Emissions: -1, taxStatus: 'unknown',
+    taxDueDate: '2027-02-29', motExpiry: 'next summer',
+  } }, 'YS67LMK').vehicle).toEqual(value.vehicle);
+});
+it('does not prefill a rounded estimate below the converted MOT reading', () => {
+  const value = reply();
+  const result = readPartExchangeMotDetails({ ...value,
+    estimate: { ...value.estimate, mileage: 87000 },
+    mot: { ...value.mot, lastReading: { date: '2026-10-02', mileage: 140014, unit: 'KM' } },
+  }, 'YS67LMK');
+  expect(result.mileage).toBeUndefined();
+  expect(result.estimate).toBeUndefined();
+  expect(result.mot?.lastReading?.unit).toBe('KM');
+});
 it('propagates cancellation and provider failures rather than returning unverified data', async () => {
   api.fetch.mockRejectedValueOnce(new DOMException('Aborted', 'AbortError'));
   await expect(lookupPartExchangeCar('YS67LMK', new AbortController().signal)).rejects.toHaveProperty('name', 'AbortError');
