@@ -33,6 +33,7 @@ import './website-templates/customer-templates.css';
 import { ShowroomHeader, ShowroomFooter } from './website-templates/showroom-shell';
 import './website-templates/grand-touring-system.css';
 import './website-templates/autodeal-system.css';
+import './website-templates/regent-lane-system.css';
 import { GraphiteHeader, GraphiteFooter } from './graphite/graphite-shell';
 import './graphite/graphite-system.css';
 import './modern-showroom/modern-showroom-system.css';

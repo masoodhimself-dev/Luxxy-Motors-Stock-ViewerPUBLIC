@@ -2389,7 +2389,7 @@ components:
 
     WebsiteTemplateId:
       type: string
-      enum: [existing, classic, premium, focused, showroom, modern-showroom, grand-touring, forecourt, autodeal, panorama]
+      enum: [existing, classic, premium, focused, showroom, modern-showroom, grand-touring, forecourt, autodeal, panorama, regent-lane]
     WebsiteTemplateDefinition:
       type: object
       additionalProperties: false
@@ -2439,7 +2439,7 @@ components:
       properties:
         websiteTemplate:
           type: string
-          enum: [existing, classic, premium, focused, showroom, modern-showroom, grand-touring, forecourt, autodeal, panorama]
+          enum: [existing, classic, premium, focused, showroom, modern-showroom, grand-touring, forecourt, autodeal, panorama, regent-lane]
           description: Optional customer website layout. Omitted keeps the existing website. Choosing a layout is published with the normal settings draft.
         pageColour: { type: string, pattern: "^(#[0-9a-fA-F]{6})?$" }
         panelColour: { type: string, pattern: "^(#[0-9a-fA-F]{6})?$" }

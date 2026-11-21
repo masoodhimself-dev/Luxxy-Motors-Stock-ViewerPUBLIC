@@ -17,6 +17,26 @@ it('reads the Showroom gallery, price and reply action before the specifications
   expect(screen.getAllByText('50,000 miles')).toHaveLength(1);
 });
 
+it('puts Regent Lane buying controls beside one gallery and keeps the supplied facts and contact flow', () => {
+  const { container } = render(<CustomerTemplateVehicle template="regent-lane" car={{ id: 'regent-car' } as Car}
+    identity={<h1>Volvo V90</h1>} gallery={<div role="region" aria-label="Car photographs" />}
+    price={<p>£15,500</p>} registration={<p>SF21 JXG</p>} facts={<dl><dt>Mileage</dt><dd>92,000 miles</dd></dl>}
+    mot={<button>MOT history</button>} actions={<><a href="#vehicle-enquiry">Message</a><a href="/enquire?type=viewing">Book a test drive</a></>}
+    highlights={<p>Full service history</p>} reservation={<button>Reserve for £99</button>}
+    photoRequest={<a href="#vehicle-enquiry">Ask for more photos</a>}/>);
+  const purchase = within(screen.getByRole('complementary', { name: 'Buying this car' }));
+  expect(container.querySelector('[data-template-composition="regent-lane"]')).not.toBeNull();
+  expect(screen.getAllByRole('region', { name: 'Car photographs' })).toHaveLength(1);
+  expect(purchase.getByText('£15,500')).toBeInTheDocument();
+  expect(purchase.getByText('SF21 JXG')).toBeInTheDocument();
+  expect(purchase.getByRole('button', { name: 'MOT history' })).toBeInTheDocument();
+  expect(purchase.getByRole('button', { name: 'Reserve for £99' })).toBeInTheDocument();
+  expect(purchase.getByRole('link', { name: 'Message' })).toHaveAttribute('href', '#vehicle-enquiry');
+  expect(screen.getByRole('heading', { name: 'At a glance' })).toBeVisible();
+  expect(screen.getByText('92,000 miles')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Ask for more photos' })).toBeInTheDocument();
+});
+
 it('shows photograph two in the companion without dropping an external hero or changing the main gallery count', () => {
   const hero = 'https://example.com/hero.jpg', dash = 'https://example.com/dash.jpg', wheel = 'https://example.com/wheel.jpg';
   const { container } = show({ id: 'companion-test', images: [{ url: wheel, caption: 'Alloy wheel' }, { url: dash, caption: 'Dashboard' }], heroImage: hero } as Car);

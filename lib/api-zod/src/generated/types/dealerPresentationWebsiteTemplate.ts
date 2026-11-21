@@ -23,4 +23,5 @@ export const DealerPresentationWebsiteTemplate = {
   forecourt: 'forecourt',
   autodeal: 'autodeal',
   panorama: 'panorama',
+  'regent-lane': 'regent-lane',
 } as const;

@@ -14,6 +14,16 @@ describe('customer template presentation tokens', () => {
     expect(theme['--font-display']).toContain('Outfit');
     expect(websiteTemplateThemeVariables('grand-touring')).not.toHaveProperty('--ad-orange');
   });
+  it('uses the Regent Lane palette and Poppins for its shared pages and dialogs', () => {
+    const theme = websiteTemplateThemeVariables('regent-lane');
+    expect(theme['--ct-ink']).toBe('#100e34');
+    expect(theme['--ct-accent']).toBe('#a2001d');
+    expect(theme['--ct-paper']).toBe('#fffffe');
+    expect(theme['--ct-subtle']).toBe('#f8f8f8');
+    expect(theme['--ct-explorer']).toBe('#eaebf0');
+    expect(theme['--app-font-sans']).toMatch(/^'Poppins', 'DM Sans'/);
+    expect(theme['--font-display']).toBe(theme['--app-font-sans']);
+  });
   for (const [id, palette] of Object.entries(websiteTemplatePalettes)) {
     it(`${id} keeps labels and actions readable on its real surfaces`, () => {
       for (const surface of [palette.canvas, palette.surface]) {
@@ -29,7 +39,7 @@ describe('customer template presentation tokens', () => {
       expect(variables['--mh-accent']).toBe(palette.action);
       expect(variables['--ring']).toBe(variables['--primary']);
       expect(variables['--dealer-panel-primary-hsl']).toBe(variables['--primary']);
-      expect(variables['--app-font-sans']).toContain(id === 'grand-touring' ? 'Manrope' : 'Inter');
+      expect(variables['--app-font-sans']).toContain(id === 'grand-touring' ? 'Manrope' : id === 'regent-lane' ? 'Poppins' : 'Inter');
       expect(variables['--font-display']).toBe(variables['--ct-font-heading']);
       expect(variables['--ct-font-heading'].includes('Manrope')).toBe(id === 'grand-touring');
     });

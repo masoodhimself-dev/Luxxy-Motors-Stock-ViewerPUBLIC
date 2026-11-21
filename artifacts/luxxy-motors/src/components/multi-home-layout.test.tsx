@@ -214,7 +214,8 @@ it.each(Object.keys(websiteTemplatePalettes) as (keyof typeof websiteTemplatePal
   expect(shell).not.toHaveClass('graphite-site');
   expect(document.body).not.toHaveAttribute('data-customer-graphite');
   expect(shell?.style.getPropertyValue('--mh-primary')).toBe(websiteTemplatePalettes[template].ink);
-  expect(shell?.style.getPropertyValue('--app-font-sans')).toContain(template === 'grand-touring' ? 'Manrope' : 'Inter');
+  const font = template === 'grand-touring' ? 'Manrope' : template === 'regent-lane' ? 'Poppins' : 'Inter';
+  expect(shell?.style.getPropertyValue('--app-font-sans')).toContain(font);
   if (template === 'autodeal') {
     expect(shell?.style.getPropertyValue('--font-display')).toContain('Outfit');
     expect(document.body.style.getPropertyValue('--ad-orange')).toBe('#ff7101');

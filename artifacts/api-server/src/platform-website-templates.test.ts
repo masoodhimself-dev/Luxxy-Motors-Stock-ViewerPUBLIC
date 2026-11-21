@@ -21,7 +21,7 @@ test('website template registry preserves old values and agrees with the public 
   const defaults = newDealerSettings('Fictional dealer');
   assert.equal(resolveWebsiteTemplateId(undefined), 'existing');
   assert.equal(resolveWebsiteTemplateId('unrecognised'), 'existing');
-  assert.deepEqual(WEBSITE_TEMPLATES.filter(template => !template.legacy).map(template => template.id), ['showroom', 'modern-showroom', 'grand-touring', 'forecourt', 'autodeal', 'panorama']);
+  assert.deepEqual(WEBSITE_TEMPLATES.filter(template => !template.legacy).map(template => template.id), ['showroom', 'modern-showroom', 'grand-touring', 'forecourt', 'autodeal', 'panorama', 'regent-lane']);
   for (const { id } of WEBSITE_TEMPLATES) {
     assert.equal(isWebsiteTemplateId(id), true);
     assert.equal(resolveWebsiteTemplateId(id), id);
@@ -141,6 +141,9 @@ test('per-dealer template previews and publications are private, scoped and revi
       const autoDeal = await request('/platform/preview/template-alpha/template/autodeal/7/api/dealer-settings');
       assert.equal(autoDeal.status, 200, await autoDeal.clone().text());
       assert.equal(GetDealerSettingsResponse.parse(await autoDeal.json()).presentation?.websiteTemplate, 'autodeal');
+      const regentLane = await request('/platform/preview/template-alpha/template/regent-lane/7/api/dealer-settings');
+      assert.equal(regentLane.status, 200, await regentLane.clone().text());
+      assert.equal(GetDealerSettingsResponse.parse(await regentLane.json()).presentation?.websiteTemplate, 'regent-lane');
       const html = await request(previewPath + '/stock');
       assert.equal(html.status, 200, await html.clone().text());
       assert.match(html.headers.get('x-robots-tag') ?? '', /noindex/);
@@ -187,22 +190,22 @@ test('per-dealer template previews and publications are private, scoped and revi
       assert.deepEqual(await history(), []);
     });
     await context.test('Apply changes one dealer and one field while preserving private settings and history', async () => {
-      const response = await request(statePath, { method: 'PATCH', body: { template: 'modern-showroom', reviewed: true }, revision: '"7"' });
+      const response = await request(statePath, { method: 'PATCH', body: { template: 'regent-lane', reviewed: true }, revision: '"7"' });
       assert.equal(response.status, 200, await response.clone().text());
-      assert.deepEqual(UpdatePlatformDealerWebsiteTemplateResponse.parse(await response.json()), { dealerId: 'template-alpha', currentTemplate: 'modern-showroom', revision: 8 });
+      assert.deepEqual(UpdatePlatformDealerWebsiteTemplateResponse.parse(await response.json()), { dealerId: 'template-alpha', currentTemplate: 'regent-lane', revision: 8 });
       assert.equal(response.headers.get('x-settings-revision'), '8');
       const after = await stored();
-      assert.equal(after.config.presentation.websiteTemplate, 'modern-showroom');
+      assert.equal(after.config.presentation.websiteTemplate, 'regent-lane');
       delete after.config.presentation.websiteTemplate;
       assert.deepEqual(after.config, firstConfig);
       assert.deepEqual(await stored('template-bravo'), { config: secondConfig, revision: 2 });
       const versions = await history();
       assert.deepEqual(versions.map(row => [row.dealer_id, row.revision, row.action]), [['template-alpha', 7, 'initial'], ['template-alpha', 8, 'publish']]);
       assert.equal(versions[0]!.config.presentation.websiteTemplate, undefined);
-      assert.equal(versions[1]!.config.presentation.websiteTemplate, 'modern-showroom');
+      assert.equal(versions[1]!.config.presentation.websiteTemplate, 'regent-lane');
       assert.deepEqual(versions[1]!.config.futurePrivateSetting, firstConfig.futurePrivateSetting);
       const publicSettings = await request('/api/dealer-settings', { host: 'template-alpha.example.test' });
-      assert.equal(GetDealerSettingsResponse.parse(await publicSettings.json()).presentation?.websiteTemplate, 'modern-showroom');
+      assert.equal(GetDealerSettingsResponse.parse(await publicSettings.json()).presentation?.websiteTemplate, 'regent-lane');
       const oldPreview = await request(previewPath + '/stock');
       assert.equal(oldPreview.status, 409);
       assert.match(oldPreview.headers.get('content-type') ?? '', /text\/html/);

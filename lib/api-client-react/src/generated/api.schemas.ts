@@ -493,6 +493,7 @@ export const WebsiteTemplateId = {
   forecourt: 'forecourt',
   autodeal: 'autodeal',
   panorama: 'panorama',
+  'regent-lane': 'regent-lane',
 } as const;
 
 export interface WebsiteTemplateDefinition {
@@ -546,6 +547,7 @@ export const DealerPresentationWebsiteTemplate = {
   forecourt: 'forecourt',
   autodeal: 'autodeal',
   panorama: 'panorama',
+  'regent-lane': 'regent-lane',
 } as const;
 
 export type DealerPresentationHeroImagePosition = typeof DealerPresentationHeroImagePosition[keyof typeof DealerPresentationHeroImagePosition];

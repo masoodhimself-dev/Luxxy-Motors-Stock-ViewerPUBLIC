@@ -22,6 +22,7 @@ import './home-redesign.css';
 import './stock-sidebar.css';
 import '@/components/website-templates/stock-templates.css';
 import '@/components/website-templates/auto-deal-stock.css';
+import '@/components/website-templates/regent-lane-stock.css';
 import { customerDefaultCopy, websiteText } from "@/lib/website-content";
 import { useSavedCars } from '@/lib/saved-cars-context';
 import { arrivalTime } from '@/lib/stock-presentation';
@@ -105,6 +106,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   const modernShowroom = isModernShowroom(dealerConfig.presentation);
   const stockTemplate = browseStock ? selectedWebsiteTemplate(dealerConfig.presentation) : null;
   const autoDealStock = stockTemplate === 'autodeal';
+  const regentLaneStock = stockTemplate === 'regent-lane';
   const stockViewKey = stockViewStorageKey(stockTemplate, publicDealershipOrigin(), privateWebsitePreviewDetails()?.dealerId);
   const recommendedCars = useMemo(() => {
     const order = new Map((dealerConfig.featuredVehicleIds ?? []).map((id, index) => [id, index]));
@@ -130,6 +132,10 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   // own view choice while the dealership configuration is still loading.
   const stockView = selectedStockView ?? 'cards';
   const stockPresentation = stockTemplatePresentation(stockTemplate, selectedStockView);
+  const stockHeading = websiteText(dealerConfig, 'stockTitle');
+  const regentStockIntroduction = regentLaneStock
+    ? customerDefaultCopy(websiteText(dealerConfig, 'stockIntroduction'), '', ['Find your next used car.'])
+    : '';
 
   usePageMeta(showroomPageMeta(dealerConfig, { page: browseStock ? 'stock' : 'home' }));
 
@@ -577,9 +583,10 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
           {autoDealStock && <nav className="autodeal-stock-breadcrumb" aria-label="Breadcrumb"><Link href="/">Home</Link><span aria-hidden="true">/</span><span aria-current="page">Browse stock</span></nav>}
           <div className="stock-heading-row">
             <div className="stock-title-group">
-              <h1 id="vehicle-results-heading" tabIndex={-1}>{autoDealStock && websiteText(dealerConfig, 'stockTitle') === 'Browse Stock' ? 'Browse stock' : websiteText(dealerConfig, 'stockTitle')}</h1>
+              <h1 id="vehicle-results-heading" tabIndex={-1}>{(autoDealStock || regentLaneStock) && stockHeading === 'Browse Stock' ? 'Browse stock' : stockHeading}</h1>
               {autoDealStock && showCatalogue && <span className="autodeal-stock-mobile-count" aria-hidden="true">{filteredCars.length} {filteredCars.length === 1 ? 'car' : 'cars'}</span>}
               {autoDealStock && showCatalogue && <p className="autodeal-stock-introduction">{customerDefaultCopy(websiteText(dealerConfig, "stockIntroduction"), `Browse used cars from ${dealerConfig.identity.name}.`, ['Find your next used car.'])}</p>}
+              {regentStockIntroduction && <p className="regent-stock-introduction">{regentStockIntroduction}</p>}
             </div>
             <div className="stock-heading-actions">
             <Link className="stock-saved-link" href="/saved"><Heart size={17} aria-hidden="true" />Saved <span>({savedCount})</span></Link>
@@ -745,7 +752,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                 </Button>
               </div>
             )}
-            {!autoDealStock && customerDefaultCopy(websiteText(dealerConfig, "stockIntroduction"), '', ['Find your next used car.']) && <p className="stock-introduction stock-end-information">{websiteText(dealerConfig, "stockIntroduction")}</p>}
+            {!autoDealStock && !regentLaneStock && customerDefaultCopy(websiteText(dealerConfig, "stockIntroduction"), '', ['Find your next used car.']) && <p className="stock-introduction stock-end-information">{websiteText(dealerConfig, "stockIntroduction")}</p>}
             {!error && <CarComparisonTray cars={comparison.comparedCars}
               onRemove={comparison.toggle} onClear={comparison.clear}
               onCompare={() => { comparisonShare.reset(); comparison.setOpen(true); }} />}

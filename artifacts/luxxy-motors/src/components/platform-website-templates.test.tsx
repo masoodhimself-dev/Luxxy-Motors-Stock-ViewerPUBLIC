@@ -12,17 +12,17 @@ async function preview(name = 'Showroom') {
   fireEvent.click(screen.getByRole('checkbox', { name: 'I’ve checked this preview' }));
 }
 
-it('shows six designs without changing anything when Apex Motorworks is chosen or previewed', async () => {
+it.each([['Apex Motorworks', 'autodeal'], ['Regent Lane', 'regent-lane']])('shows seven designs without changing anything when %s is previewed', async (name, id) => {
   const fetcher = vi.fn().mockResolvedValue(Response.json(fixture())); vi.stubGlobal('fetch', fetcher); show();
   const group = await screen.findByRole('group', { name: 'Choose a website design' });
-  expect(within(group).getAllByRole('radio')).toHaveLength(6);
+  expect(within(group).getAllByRole('radio')).toHaveLength(7);
   expect(screen.getByRole('heading', { name: 'Website design' }).parentElement).toHaveTextContent('Harbour Motor Co');
   expect(screen.getByRole('checkbox')).toBeDisabled();
-  fireEvent.click(screen.getByRole('radio', { name: /^Apex Motorworks\b/ }));
+  fireEvent.click(screen.getByRole('radio', { name: new RegExp(`^${name}\\b`) }));
   const link = screen.getByRole('link', { name: /Open private preview/ });
-  expect(link).toHaveAttribute('href', '/platform/preview/dealer-one/template/autodeal/7');
+  expect(link).toHaveAttribute('href', `/platform/preview/dealer-one/template/${id}/7`);
   fireEvent.click(link);
-  expect(screen.getByRole('button', { name: 'Apply Apex Motorworks' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: `Apply ${name}` })).toBeDisabled();
   expect(fetcher).toHaveBeenCalledTimes(1);
   expect(fetcher.mock.calls.every(([, init]) => !init?.method || init.method === 'GET')).toBe(true);
 });

@@ -38,3 +38,10 @@ it('requests narrow phone images for the compact catalogue without shrinking ful
   }
   expect(stockTemplatePresentation(null, 'compact').imageSizes).toBeUndefined();
 });
+
+it('allows the Regent Lane toolbar and photo grid while retaining the shared List option', () => {
+  expect(stockTemplatePresentation('regent-lane', null)).toMatchObject({
+    cardLayout: 'card', filters: 'toolbar', imageSizes: expect.stringContaining('48vw'),
+  });
+  expect(stockTemplatePresentation('regent-lane', 'compact')).toMatchObject({ cardLayout: 'compact', filters: 'toolbar' });
+});

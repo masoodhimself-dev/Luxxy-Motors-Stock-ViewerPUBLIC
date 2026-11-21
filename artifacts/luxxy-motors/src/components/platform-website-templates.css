@@ -83,3 +83,42 @@
   flex: 1 0 26%;
   background: #ff7101;
 }
+
+.website-template-drawing--regent-lane {
+  background: #f8f8f8;
+  color: #100e34;
+}
+.website-template-drawing--regent-lane .website-template-drawing-nav {
+  justify-content: space-between;
+  background: #fffffe;
+}
+.website-template-drawing--regent-lane .website-template-drawing-nav i {
+  order: 1;
+  margin: 0;
+  background: #100e34;
+}
+.website-template-drawing--regent-lane .website-template-drawing-nav span { order: 2; }
+.website-template-drawing--regent-lane .website-template-drawing-nav span:first-of-type { order: 0; }
+.website-template-drawing--regent-lane .website-template-drawing-content {
+  grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+  align-items: stretch;
+}
+.website-template-drawing--regent-lane .website-template-drawing-photo {
+  grid-column: 2;
+  grid-row: 1;
+  background: #eaebf0;
+  border-radius: 6px;
+}
+.website-template-drawing--regent-lane .website-template-drawing-copy {
+  grid-column: 1;
+  grid-row: 1;
+  justify-content: center;
+  background: transparent;
+}
+.website-template-drawing--regent-lane .website-template-drawing-copy b { background: #100e34; }
+.website-template-drawing--regent-lane .website-template-drawing-copy em {
+  width: 60%;
+  margin-top: 3px;
+  border-radius: 8px;
+  background: #a2001d;
+}

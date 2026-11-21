@@ -20,4 +20,5 @@ export const WebsiteTemplateId = {
   forecourt: 'forecourt',
   autodeal: 'autodeal',
   panorama: 'panorama',
+  'regent-lane': 'regent-lane',
 } as const;

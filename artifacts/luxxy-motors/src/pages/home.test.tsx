@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { WebsiteTemplateId } from '@workspace/vehicle-meta';
 import Home from '@/pages/home';
 import { stockViewStorageKey } from '@/lib/stock-template-presentation';
 import { SavedCarsProvider } from '@/lib/saved-cars-context';
@@ -165,7 +166,7 @@ vi.mock('@/lib/demo-status',()=>({useDemoStatus:()=>demoSiteMode}));
 vi.mock('@/lib/dealer-features', () => ({ useDealerFeatures: () => ({ enabled: () => true }) }));
 
 let overrideSettings: typeof dealerConfigFixture & {
-  presentation?: { websiteTemplate?: 'existing' | 'classic' | 'premium' | 'focused' | 'showroom' | 'grand-touring' | 'forecourt' | 'autodeal' | 'panorama'; showHeroDescription?: boolean; websiteCopy?: { stockIntroduction?: string; featuredHeading?: string }; heroImageUrl?: string; heroImageAlt?: string; heroImagePosition?: 'center' | 'left' | 'right' | 'top' | 'bottom'; showroomImageUrl?: string; showroomImageAlt?: string };
+  presentation?: { websiteTemplate?: WebsiteTemplateId; showHeroDescription?: boolean; websiteCopy?: { stockIntroduction?: string; featuredHeading?: string }; heroImageUrl?: string; heroImageAlt?: string; heroImagePosition?: 'center' | 'left' | 'right' | 'top' | 'bottom'; showroomImageUrl?: string; showroomImageAlt?: string };
 } = dealerConfigFixture;
 
 vi.mock('@/lib/dealer-settings-context', () => ({
@@ -257,6 +258,7 @@ describe('opt-in stock template compositions', () => {
     { template: 'forecourt', layout: 'compact', filters: 'sidebar' },
     { template: 'autodeal', layout: 'row', filters: 'sidebar' },
     { template: 'panorama', layout: 'card', filters: 'toolbar' },
+    { template: 'regent-lane', layout: 'card', filters: 'toolbar' },
   ] as const;
   it.each(cases)('keeps search, ordering and explicit Grid/List choices with the $template default', ({ template, layout, filters }) => {
     stockPhotoTenant('https://harbourcars.example');

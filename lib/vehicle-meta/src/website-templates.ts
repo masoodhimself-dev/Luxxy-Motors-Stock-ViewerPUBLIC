@@ -10,6 +10,7 @@ export const WEBSITE_TEMPLATES = [
   { id: 'forecourt', name: 'Forecourt', description: 'A practical stock catalogue with clear prices, facts and next steps.', legacy: false },
   { id: 'autodeal', name: 'Apex Motorworks', description: 'Orange accents, a full-width featured car and a stock list with large photographs.', legacy: false },
   { id: 'panorama', name: 'Panorama', description: 'An open, photographic layout that gives each car room.', legacy: false },
+  { id: 'regent-lane', name: 'Regent Lane', description: 'A cream, ink and burgundy showroom with a centred wordmark and editorial photography.', legacy: false },
 ] as const;
 
 export type WebsiteTemplateId = typeof WEBSITE_TEMPLATES[number]['id'];

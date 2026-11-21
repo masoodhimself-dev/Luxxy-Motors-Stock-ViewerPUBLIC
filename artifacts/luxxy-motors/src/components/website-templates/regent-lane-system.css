@@ -1,0 +1,71 @@
+@font-face {
+  font-family: Poppins;
+  src: url('/fonts/regent-lane/poppins-latin-400.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: Poppins;
+  src: url('/fonts/regent-lane/poppins-latin-600.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: Poppins;
+  src: url('/fonts/regent-lane/poppins-latin-700.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+.dealer-site-theme.website-template--regent-lane .multi-home-header {
+  height: 82px;
+  box-shadow: none;
+  border-color: var(--ct-line);
+  background: var(--ct-subtle);
+}
+.website-template--regent-lane.multi-home-shell #main-content { padding-top: 82px; }
+
+.website-template--regent-lane .multi-home-header__inner {
+  position: relative;
+  max-width: 1290px;
+}
+.website-template--regent-lane .multi-home-header__brand { width: 178px; height: 38px; }
+.dealer-site-theme.website-template--regent-lane .multi-home-header .multi-home-header__desktop > a,
+.dealer-site-theme.website-template--regent-lane .multi-home-header .multi-home-header__disclosure {
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.website-template--regent-lane .multi-home-header__phone > svg { width: 20px; height: 20px; }
+.dealer-site-theme.website-template--regent-lane .multi-home-footer {
+  background: var(--ct-subtle);
+  color: var(--ct-ink);
+  border-top: 1px solid var(--ct-line);
+}
+.website-template--regent-lane .multi-home-footer__legal { border-color: var(--ct-line); }
+
+@media (min-width: 1100px) {
+  .website-template--regent-lane .multi-home-header__inner {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: clamp(10px, 1.4vw, 22px);
+  }
+  .website-template--regent-lane .multi-home-header__brand {
+    position: absolute;
+    inset-inline-start: 50%;
+    translate: -50% 0;
+    z-index: 1;
+  }
+  .website-template--regent-lane .multi-home-header__desktop {
+    justify-content: start;
+    gap: clamp(6px, 1.2vw, 20px);
+  }
+  .website-template--regent-lane .multi-home-header__desktop > a[href$="#about"] { margin-inline-start: auto; }
+  .website-template--regent-lane .multi-home-header__phone > span { display: none; }
+}
+@media (max-width: 1099px) {
+  .dealer-site-theme.website-template--regent-lane .multi-home-header { height: 68px; }
+  .website-template--regent-lane.multi-home-shell #main-content { padding-top: 68px; }
+  .website-template--regent-lane .multi-home-header__brand { flex-basis: 156px; width: 156px; }
+}

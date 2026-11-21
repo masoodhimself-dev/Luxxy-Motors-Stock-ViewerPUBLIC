@@ -11,6 +11,7 @@ const templates = {
   'grand-touring': { cardLayout: 'row', filters: 'toolbar', imageSizes: '(max-width: 767px) 100vw, (max-width: 1100px) 60vw, 800px' },
   forecourt: { cardLayout: 'compact', filters: 'sidebar', imageSizes: '(max-width: 700px) 39vw, (max-width: 1023px) 40vw, 360px' },
   panorama: { cardLayout: 'card', filters: 'toolbar', imageSizes: '(max-width: 767px) 100vw, (max-width: 1100px) 50vw, 720px' },
+  'regent-lane': { cardLayout: 'card', filters: 'toolbar', imageSizes: '(max-width: 699px) calc(100vw - 36px), (max-width: 1099px) 48vw, 414px' },
 } as const;
 
 /** Only presentation changes. Filtering, ordering and vehicle records stay shared. */

@@ -1,7 +1,7 @@
 import { resolveWebsiteTemplateId, type WebsiteTemplateId } from '@workspace/vehicle-meta';
 
-export type CustomerWebsiteTemplate = Extract<WebsiteTemplateId, 'showroom' | 'grand-touring' | 'forecourt' | 'autodeal' | 'panorama'>;
-const layouts = new Set<string>(['showroom', 'grand-touring', 'forecourt', 'autodeal', 'panorama']);
+export type CustomerWebsiteTemplate = Extract<WebsiteTemplateId, 'showroom' | 'grand-touring' | 'forecourt' | 'autodeal' | 'panorama' | 'regent-lane'>;
+const layouts = new Set<string>(['showroom', 'grand-touring', 'forecourt', 'autodeal', 'panorama', 'regent-lane']);
 
 export function isModernShowroom(presentation: { websiteTemplate?: unknown } | undefined): boolean {
   return presentation?.websiteTemplate === 'modern-showroom';
