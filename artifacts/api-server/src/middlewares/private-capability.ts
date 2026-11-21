@@ -25,6 +25,7 @@ export function isPrivateTestDriveDeclarationPath(path: string): boolean {
 /** Never record URL-borne customer access credentials in request logs. */
 export function privateRequestLogUrl(url: string | undefined) {
   return url?.split('?')[0]
+    .replace(/^\/showcase(?:\/.*)?$/i, '/showcase/[private]')
     .replace(/\/(?:api\/invoice-verification|verify-invoice)\/[^?]*/i, '/invoice-verification/[private]')
     .replace(/(\/api\/customer-sale\/|\/my-purchase\/)[^/]+/i, '$1[private]')
     .replace(/(\/api\/viewings\/|\/viewing\/)[^/]+/i, '$1[private]')

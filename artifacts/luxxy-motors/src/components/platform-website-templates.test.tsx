@@ -17,6 +17,7 @@ it.each([['Apex Motorworks', 'autodeal'], ['Regent Lane', 'regent-lane']])('show
   const group = await screen.findByRole('group', { name: 'Choose a website design' });
   expect(within(group).getAllByRole('radio')).toHaveLength(7);
   expect(screen.getByRole('heading', { name: 'Website design' }).parentElement).toHaveTextContent('Harbour Motor Co');
+  expect(screen.queryByRole('button', { name: 'Create demo links' })).not.toBeInTheDocument();
   expect(screen.getByRole('checkbox')).toBeDisabled();
   fireEvent.click(screen.getByRole('radio', { name: new RegExp(`^${name}\\b`) }));
   const link = screen.getByRole('link', { name: /Open private preview/ });
@@ -129,4 +130,61 @@ it('does not restore another dealership’s preview selection', async () => {
   await screen.findByRole('radio', { name: /Panorama/ });
   expect(screen.getByRole('radio', { name: /Panorama/ })).not.toBeChecked();
   expect(screen.getByRole('checkbox')).toBeDisabled();
+});
+
+it('creates one expiring share link for up to three designs in selection order', async () => {
+  const path = '/showcase/demoLinkToken';
+  const expiresAt = '2026-11-26T16:30:00.000Z';
+  const fetcher = vi.fn(async (_url, init) => Response.json(init?.method === 'POST' ? { path, expiresAt } : fixture()));
+  const clipboard = vi.fn().mockResolvedValue(undefined);
+  vi.stubGlobal('fetch', fetcher);
+  vi.stubGlobal('navigator', { ...window.navigator, clipboard: { writeText: clipboard } });
+  render(<PlatformWebsiteTemplates dealerId="dealer-one" dealerName="Harbour Motor Co" status="draft" isDemo />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Create demo links' }));
+  const dialog = within(screen.getByRole('dialog', { name: 'Create demo links' }));
+  expect(dialog.getByRole('combobox', { name: 'Link expires after' })).toHaveValue('7');
+  expect(dialog.getByRole('button', { name: 'Create share link' })).toBeDisabled();
+  for (const name of ['Regent Lane', 'Apex Motorworks', 'Modern Showroom']) {
+    fireEvent.click(dialog.getByRole('checkbox', { name }));
+  }
+  expect(dialog.getByText('3 of 3 selected')).toBeInTheDocument();
+  expect(dialog.getByRole('checkbox', { name: 'Forecourt' })).toBeDisabled();
+  fireEvent.change(dialog.getByRole('combobox', { name: 'Link expires after' }), { target: { value: '14' } });
+  fireEvent.click(dialog.getByRole('button', { name: 'Create share link' }));
+
+  const share = within(await screen.findByRole('dialog', { name: 'Link ready to share' }));
+  const post = fetcher.mock.calls.find(([, init]) => init?.method === 'POST');
+  expect(post?.[0]).toBe('/api/platform/dealers/dealer-one/demo-links');
+  expect(JSON.parse(String(post?.[1]?.body))).toEqual({ templates: ['regent-lane', 'autodeal', 'modern-showroom'], days: 14 });
+  const url = new URL(path, window.location.origin).href;
+  expect(share.getByRole('textbox', { name: 'Share link' })).toHaveValue(url);
+  expect(share.getByRole('link', { name: 'Open link' })).toHaveAttribute('href', url);
+  expect(share.getByText('26 Nov 2026, 16:30')).toHaveAttribute('dateTime', expiresAt);
+  fireEvent.click(share.getByRole('button', { name: 'Copy link' }));
+  expect(await share.findByRole('status')).toHaveTextContent('Link copied.');
+  expect(clipboard).toHaveBeenCalledWith(url);
+  expect(fetcher).toHaveBeenCalledTimes(2);
+});
+
+it('discards a late share link when switching dealerships', async () => {
+  let resolveLink!: (value: Response) => void;
+  const fetcher = vi.fn(async (url: string, init?: RequestInit) => init?.method === 'POST'
+    ? new Promise<Response>(resolve => { resolveLink = resolve; })
+    : Response.json(fixture(url.includes('dealer-two') ? 'dealer-two' : 'dealer-one')));
+  vi.stubGlobal('fetch', fetcher);
+  const view = render(<PlatformWebsiteTemplates dealerId="dealer-one" dealerName="Harbour Motor Co" status="draft" isDemo />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Create demo links' }));
+  const dialog = within(screen.getByRole('dialog', { name: 'Create demo links' }));
+  fireEvent.click(dialog.getByRole('checkbox', { name: 'Regent Lane' }));
+  fireEvent.click(dialog.getByRole('button', { name: 'Create share link' }));
+  await waitFor(() => expect(fetcher.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(true));
+
+  view.rerender(<PlatformWebsiteTemplates dealerId="dealer-two" dealerName="Vista Motors" status="draft" isDemo />);
+  const post = fetcher.mock.calls.find(([, init]) => init?.method === 'POST');
+  expect(post?.[1]?.signal?.aborted).toBe(true);
+  resolveLink(Response.json({ path: '/showcase/firstDealerToken', expiresAt: '2026-11-26T16:30:00.000Z' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  fireEvent.click(await screen.findByRole('button', { name: 'Create demo links' }));
+  expect(screen.getByRole('dialog', { name: 'Create demo links' })).toBeInTheDocument();
+  expect(screen.queryByRole('textbox', { name: 'Share link' })).not.toBeInTheDocument();
 });

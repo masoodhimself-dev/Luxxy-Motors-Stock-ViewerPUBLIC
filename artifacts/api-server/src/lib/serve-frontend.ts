@@ -38,7 +38,10 @@ export function serveFrontend(app: Express, directory: string, options: Frontend
         return;
       }
       if (res.locals.privateWebsitePreview === true) {
-        const seo = buildPublicPageSeo({ pathname: '/platform', canonicalOrigin: tenant?.canonicalOrigin, demo: true });
+        const showcaseName: string | undefined = res.locals.showcaseDealerName;
+        const seo = buildPublicPageSeo({ pathname: '/platform', canonicalOrigin: tenant?.canonicalOrigin, demo: true,
+          ...(showcaseName ? { settings: { identity: { name: showcaseName } } } : {}) });
+        if (showcaseName) seo.title = res.locals.previewWebsiteTemplate ? seo.siteName : `Website designs | ${seo.siteName}`;
         res.type('html').send(renderPublicPageSeo(html, seo));
         return;
       }

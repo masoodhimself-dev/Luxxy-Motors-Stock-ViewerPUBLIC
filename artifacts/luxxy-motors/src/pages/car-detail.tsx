@@ -1,7 +1,7 @@
 import { VehicleAnswers } from '@/components/vehicle-answers';
 import { VehicleQualityChecks } from '@/components/vehicle-quality-checks';
 import { isMultiChoiceWebsite } from '@/lib/multi-home-scope';
-import { privateWebsitePreviewBase } from '@/lib/private-website-preview';
+import { websitePreviewBase } from '@/lib/private-website-preview';
 import { vehicleEnquiryMot } from '@/lib/vehicle-enquiry-information';
 import { VehiclePhotoRequest } from '@/components/vehicle-photo-request';
 import {VehicleQuickChecks} from '@/components/vehicle-quick-checks';
@@ -277,7 +277,7 @@ export default function CarDetail() {
     { label: 'Body', value: car.bodyType || 'Ask us' },
   ].map(fact => ({ ...fact, value: suppliedVehicleDetail(fact.value) })).filter(fact => fact.value);
   const sparseSummary = keyFacts.length < 4;
-  const privatePreview = Boolean(privateWebsitePreviewBase());
+  const privatePreview = Boolean(websitePreviewBase());
   const dealerLocation = [dealerConfig.address?.city?.trim(), dealerConfig.address?.region?.trim()].filter(Boolean).join(', ');
 
   const damageDisclosure = vehicleInsuranceDisclosure(car, vehicleContent(car).description);

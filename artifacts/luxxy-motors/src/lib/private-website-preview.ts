@@ -1,3 +1,4 @@
+import { isWebsiteTemplateId } from '@workspace/vehicle-meta/website-templates';
 import { sharedStaffPortalPage } from './shared-staff-portal';
 
 export function privateWebsitePreviewBase(pathname = typeof window === 'undefined' ? '' : window.location.pathname) {
@@ -9,12 +10,29 @@ export function privateWebsitePreviewDetails(base = privateWebsitePreviewBase())
   return match ? { dealerId: match[1], template: match[2] ?? null, revision: match[3] ? Number(match[3]) : null } : null;
 }
 
+type SharedWebsiteShowcaseRoute =
+  | { kind: 'chooser'; base: string }
+  | { kind: 'design'; base: string; chooser: string };
+
+export function sharedWebsiteShowcaseRoute(pathname = typeof window === 'undefined' ? '' : window.location.pathname): SharedWebsiteShowcaseRoute | null {
+  const match = /^(\/showcase\/[A-Za-z0-9_-]{45,320})(?:\/design\/([a-z-]+)(?=\/|$)|\/?$)/.exec(pathname);
+  if (!match) return null;
+  const [, chooser, template] = match;
+  if (!template) return { kind: 'chooser', base: chooser };
+  return isWebsiteTemplateId(template) ? { kind: 'design', base: match[0], chooser } : null;
+}
+
+export function websitePreviewBase(pathname = typeof window === 'undefined' ? '' : window.location.pathname) {
+  const showcase = sharedWebsiteShowcaseRoute(pathname);
+  return showcase?.kind === 'design' ? showcase.base : privateWebsitePreviewBase(pathname);
+}
+
 export function previewPublicRequestPath(path: string) {
-  return (privateWebsitePreviewBase() || sharedStaffPortalPage()?.base || '') + path;
+  return (websitePreviewBase() || sharedStaffPortalPage()?.base || '') + path;
 }
 
 export function previewWebsiteAssetUrl(value: string, dealerOrigin: string | undefined) {
-  const base = privateWebsitePreviewBase() || sharedStaffPortalPage()?.base;
+  const base = websitePreviewBase() || sharedStaffPortalPage()?.base;
   if (!base) return value;
   try {
     const url = new URL(value, dealerOrigin || window.location.origin);

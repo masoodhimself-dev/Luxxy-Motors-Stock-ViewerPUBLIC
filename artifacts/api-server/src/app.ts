@@ -3,7 +3,7 @@ import { createCustomerEmailWebhook } from './routes/customer-email-webhook';
 import accountInvitationsRouter from './routes/account-invitations';
 import demoOnboardingRouter from './routes/demo-onboarding';
 import platformDealersRouter from "./routes/platform-dealers";
-import platformWebsitePreviewRouter from './routes/platform-website-preview';
+import platformWebsitePreviewRouter, { demoShowcaseRouter } from './routes/platform-website-preview';
 import demoStockCollectorCallback, { demoStockCollectorCallbackPath } from './routes/demo-stock-collector-callback';
 import { resolveTenant } from "./middlewares/tenant";
 import { serveFrontend } from "./lib/serve-frontend";
@@ -54,6 +54,9 @@ app.use(
   }),
 );
 protectPrivateCapabilityPages(app);
+// Shared storefront access is checked independently of Clerk and rejects writes
+// before CORS, body parsing or the usual tenant/site routes.
+app.use('/showcase', demoShowcaseRouter);
 app.use(sharedStaffInfo);
 // Tabs opened before practice mode was removed cannot submit live changes.
 app.use('/api', (req, res, next) => {
@@ -101,12 +104,16 @@ app.use(['/api/reservations/checkout', '/api/reservations/payment-status'], expr
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-app.use(clerkMiddleware(req => {
+const authenticateWithClerk = clerkMiddleware(req => {
   const shared = sharedStaffPortalForHost(req.get('host'));
   return shared
     ? { clerkClient: sharedStaffClerk(shared), publishableKey: shared.publishableKey, secretKey: shared.secretKey, authorizedParties: [shared.origin] }
     : { publishableKey: process.env.CLERK_PUBLISHABLE_KEY };
-}));
+});
+app.use((req, res, next) => {
+  if (res.locals.showcaseTemplates) next();
+  else authenticateWithClerk(req, res, next);
+});
 
 app.use(createSharedStaffPortal(router, accountInvitationsRouter));
 app.use("/api/demo-onboarding", demoOnboardingRouter);
@@ -129,6 +136,7 @@ if (process.env.FRONTEND_DIST_DIR) serveFrontend(app, process.env.FRONTEND_DIST_
 
 app.use((error: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if(isPrivateTestDriveDeclarationPath(req.path)) req.log.warn('Private test-drive declaration request failed');
+  else if(/^\/showcase(?:\/|$)/i.test(req.path)) req.log.warn('Shared website request failed');
   else if(/^\/api\/reservations\/(?:checkout|payment-status|stripe)(?:\/|$)/i.test(req.path)) req.log.warn('Reservation payment request failed');
   else if(req.path.startsWith('/api/demo-onboarding')) req.log.warn('Demo onboarding request failed');
   else if(privateDemoImportPath.test(req.path) || platformStockUploadPath.test(req.path) || req.path.toLowerCase().startsWith(`${demoStockCollectorCallbackPath}/`)) req.log.warn('Platform stock upload request failed');

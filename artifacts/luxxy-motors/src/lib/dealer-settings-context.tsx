@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { dealerConfig } from '@/config/dealer';
 import type { DealerConfig } from '@/config/dealer';
 import type { DealerSettings } from '@workspace/api-client-react';
-import { privateWebsitePreviewBase, previewWebsiteAssetUrl } from './private-website-preview';
+import { websitePreviewBase, previewWebsiteAssetUrl } from './private-website-preview';
 import { publicDealershipOrigin } from './public-dealership-url';
 
 const sharedFallback = {
@@ -25,14 +25,14 @@ export function useDealerSettings() {
   });
 
   const settings = useMemo(() => {
-    const saved = query.data ?? (privateWebsitePreviewBase() ? sharedFallback as DealerSettings : fallbackSettings);
+    const saved = query.data ?? (websitePreviewBase() ? sharedFallback as DealerSettings : fallbackSettings);
     const source = { ...saved,
       testDriveBooking: saved.testDriveBooking ? { ...saved.testDriveBooking, enabled: !!saved.testDriveBooking.enabled && features.enabled('testDriveBookings') } : undefined,
       partExchange: saved.partExchange ? { ...saved.partExchange, enabled: !!saved.partExchange.enabled && features.enabled('partExchange') } : undefined,
     };
     const wording = (text: string) => text.replace(/book a viewing/gi, 'Book a test drive').replace(/arrange a viewing/gi, 'book a test drive');
     const normalized = {...source, bookViewing: {...source.bookViewing, title: wording(source.bookViewing.title), description: wording(source.bookViewing.description), ctaLabel: /^(book|arrange) a (test drive|viewing)$/i.test(source.bookViewing.ctaLabel.trim()) ? 'Book a Test Drive' : wording(source.bookViewing.ctaLabel)}, hero: {...source.hero, subcopy: wording(source.hero.subcopy)}};
-    if (!privateWebsitePreviewBase()) return normalized;
+    if (!websitePreviewBase()) return normalized;
     const asset = (value: string) => previewWebsiteAssetUrl(value, publicDealershipOrigin());
     const presentation = { ...normalized.presentation };
     for (const key of ['footerLogoUrl', 'faviconUrl', 'heroImageUrl', 'visitImageUrl', 'showroomImageUrl', 'teamImageUrl', 'contactImageUrl', 'receptionImageUrl'] as const) {

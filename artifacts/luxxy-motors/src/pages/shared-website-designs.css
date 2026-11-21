@@ -1,0 +1,116 @@
+.shared-website-designs {
+  --designs-paper: #f6f7f5;
+  --designs-surface: #fff;
+  --designs-ink: #172638;
+  --designs-muted: #526071;
+  --designs-line: #ced7df;
+  --designs-accent: #284a65;
+  min-height: 100dvh;
+  padding: clamp(32px, 8vw, 100px) 20px 44px;
+  background: var(--designs-paper);
+  color: var(--designs-ink);
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.shared-website-designs-inner {
+  max-width: 680px;
+  margin-inline: auto;
+}
+
+.shared-website-designs h1 {
+  margin: 0 0 12px;
+  font-size: clamp(1.875rem, 4.5vw, 3rem);
+  font-weight: 650;
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
+}
+
+.shared-website-designs p {
+  margin: 0;
+  color: var(--designs-muted);
+  font-size: 1rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.shared-website-designs .shared-website-designs-dealer {
+  margin: 0 0 clamp(24px, 4vw, 38px);
+  padding-block-end: 14px;
+  border-block-end: 1px solid var(--designs-line);
+  color: var(--designs-ink);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.shared-website-designs-options {
+  list-style: none;
+  margin: clamp(22px, 5vw, 36px) 0 0;
+  padding: 0;
+  border: 1px solid var(--designs-line);
+  border-radius: 8px;
+  background: var(--designs-surface);
+}
+
+.shared-website-designs-options li + li {
+  border-block-start: 1px solid var(--designs-line);
+}
+
+.shared-website-designs-options a {
+  position: relative;
+  display: flex;
+  min-height: 76px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 15px clamp(16px, 3.5vw, 26px);
+  color: var(--designs-ink);
+  text-decoration: none;
+}
+
+.shared-website-designs-options li:first-child a { border-radius: 7px 7px 0 0; }
+.shared-website-designs-options li:last-child a { border-radius: 0 0 7px 7px; }
+.shared-website-designs-options li:only-child a { border-radius: 7px; }
+.shared-website-designs-options a:hover { background: var(--designs-paper); }
+.shared-website-designs-options a:focus-visible,
+.shared-website-designs-retry:focus-visible {
+  z-index: 1;
+  outline: 3px solid var(--designs-accent);
+  outline-offset: 2px;
+}
+
+.shared-website-designs-option-copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+
+.shared-website-designs-option-copy strong {
+  font-size: clamp(1.0625rem, 2vw, 1.1875rem);
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.shared-website-designs-option-copy span {
+  color: var(--designs-muted);
+  font-size: 0.91875rem;
+  line-height: 1.45;
+}
+
+.shared-website-designs-options svg {
+  flex: 0 0 auto;
+  color: var(--designs-accent);
+}
+
+.shared-website-designs-retry {
+  min-height: 44px;
+  margin-block-start: 18px;
+  padding: 8px 16px;
+  border: 1px solid var(--designs-accent);
+  border-radius: 5px;
+  background: var(--designs-surface);
+  color: var(--designs-accent);
+  font-weight: 650;
+  cursor: pointer;
+}

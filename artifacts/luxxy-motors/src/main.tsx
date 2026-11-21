@@ -5,14 +5,15 @@ import { setBaseUrl } from '@workspace/api-client-react';
 
 import App from './App';
 import { ErrorBoundary } from '@/components/error-boundary';
-import { privateWebsitePreviewBase } from '@/lib/private-website-preview';
+import { sharedWebsiteShowcaseRoute, websitePreviewBase } from '@/lib/private-website-preview';
 import { sharedStaffPortalPage } from '@/lib/shared-staff-portal';
 
 import './index.css';
 
-const previewBase = privateWebsitePreviewBase();
+const previewBase = websitePreviewBase();
+const showcase = sharedWebsiteShowcaseRoute();
 setBaseUrl(previewBase || sharedStaffPortalPage()?.base || null);
-if (!previewBase) {
+if (!previewBase && !showcase) {
   captureInvitationToken();
   captureStockAlertToken();
 }
@@ -24,6 +25,6 @@ createRoot(document.getElementById('root')!, {
   },
 }).render(
   <ErrorBoundary>
-    <App previewBase={previewBase} />
+    <App previewBase={previewBase} showcase={showcase} />
   </ErrorBoundary>,
 );

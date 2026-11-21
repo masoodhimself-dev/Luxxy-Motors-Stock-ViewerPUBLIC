@@ -5,6 +5,7 @@ import { ExternalLink, Monitor, RefreshCw, Smartphone } from '@/components/icons
 import { Button } from './ui/button';
 import { NativeSelect } from './ui/native-select';
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogCancel } from './ui/alert-dialog';
+import { PlatformDemoLinks } from './platform-demo-links';
 import './platform-website-templates.css';
 
 type TemplateState = { dealerId: string; currentTemplate: WebsiteTemplateId; revision: number; templates: typeof WEBSITE_TEMPLATES; previewPath: string };
@@ -16,8 +17,8 @@ function TemplateDrawing({ template }: { template: string }) {
   </div>;
 }
 
-export function PlatformWebsiteTemplates({ dealerId, dealerName, status, refreshVersion = 0 }: {
-  dealerId: string; dealerName: string; status: string; refreshVersion?: number;
+export function PlatformWebsiteTemplates({ dealerId, dealerName, status, isDemo = false, refreshVersion = 0 }: {
+  dealerId: string; dealerName: string; status: string; isDemo?: boolean; refreshVersion?: number;
 }) {
   const id = useId();
   const [saved, setSaved] = useState<TemplateState>();
@@ -84,7 +85,12 @@ export function PlatformWebsiteTemplates({ dealerId, dealerName, status, refresh
     } finally { if (version === request.current) setSaving(false); }
   }
   return <section className="platform-website-templates" aria-labelledby={`${id}-title`} aria-busy={loading || saving}>
-    <header className="platform-website-templates-heading"><div><h2 id={`${id}-title`}>Website design</h2><p>Choose a design for {dealerName}, then try it with their own cars and details.</p></div><div className="platform-website-templates-devices" aria-label="Works on desktop and phone"><Monitor size={20}/><Smartphone size={17}/></div></header>
+    <header className="platform-website-templates-heading" data-sharing={isDemo && Boolean(saved) || undefined}>
+      <div><h2 id={`${id}-title`}>Website design</h2><p>Choose a design for {dealerName}, then try it with their own cars and details.</p></div>
+      {isDemo && saved ? <PlatformDemoLinks key={dealerId} dealerId={dealerId} disabled={saving}
+        templates={saved.templates.filter(template => !template.legacy || template.id === saved.currentTemplate)} />
+        : <div className="platform-website-templates-devices" aria-label="Works on desktop and phone"><Monitor size={20}/><Smartphone size={17}/></div>}
+    </header>
     {loading && <p role="status">Loading website designs…</p>}
     {error && <div className="platform-website-template-error" role="alert"><p>{error}</p><Button variant="outline" disabled={loading || saving} onClick={() => void load()}><RefreshCw size={16}/> {conflict ? 'Reload saved design' : 'Try again'}</Button></div>}
     {notice && <p className="platform-website-template-notice" role="status">{notice}</p>}

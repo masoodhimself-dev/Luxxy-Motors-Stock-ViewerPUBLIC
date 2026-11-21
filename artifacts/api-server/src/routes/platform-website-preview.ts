@@ -1,7 +1,7 @@
 import { getAuth } from '@clerk/express';
 import { db, dealerDemosTable, dealerSettingsTable, dealershipsTable } from '@workspace/db';
 import { GetDealerSettingsResponse } from '@workspace/api-zod';
-import { isWebsiteTemplateId } from '@workspace/vehicle-meta/website-templates';
+import { isWebsiteTemplateId, websiteTemplateDefinition, type WebsiteTemplateId } from '@workspace/vehicle-meta/website-templates';
 import { and, eq, isNull } from 'drizzle-orm';
 import { Router, type Request, type Response } from 'express';
 import { isPlatformAdmin } from '../lib/platform-admin';
@@ -9,8 +9,10 @@ import { currentDealerId, multiTenantEnabled, normaliseTenantHost, runWithTenant
 import publicRoutes from './index';
 import { settingsSnapshot } from './dealer-settings';
 import { withWebsiteTemplate } from '../lib/website-template-settings';
+import { demoShowcaseTarget, readDemoShowcaseToken } from '../lib/demo-showcase';
 
 const router = Router({ mergeParams: true });
+const websiteRouter = Router();
 const websitePages = /^(?:\/|\/(?:stock|contact|warranty|saved|enquire)\/?|\/(?:vehicle|cars|s)\/[a-z0-9-]+\/?)$/i;
 const websiteReads = /^\/(?:stock|dealer-settings|features|vehicles\/(?:short\/)?[a-z0-9-]+|website-assets\/[a-f0-9-]{36})\/?$/i;
 const cachedMotRead = /^\/vehicles\/[a-f0-9-]{36}\/mot-history\/?$/i;
@@ -91,10 +93,10 @@ router.use(async (req, res, next) => {
   }, next);
 });
 
-router.use('/api', async (req, res, next) => {
+websiteRouter.use('/api', async (req, res, next) => {
   if (req.path === '/dealer-settings' && isWebsiteTemplateId(res.locals.previewWebsiteTemplate)) {
     const snapshot = await settingsSnapshot();
-    if (snapshot.revision !== res.locals.previewSettingsRevision) {
+    if (!res.locals.showcaseTemplates && snapshot.revision !== res.locals.previewSettingsRevision) {
       settingsChanged(req, res, currentDealerId(), snapshot.revision);
       return;
     }
@@ -121,7 +123,7 @@ router.use('/api', async (req, res, next) => {
     url.searchParams.set('cacheOnly', 'true');
     req.url = url.pathname + url.search;
   } else if (!websiteReads.test(req.path)) {
-    res.status(404).json({ error: 'This action is unavailable in the private preview.' });
+    res.status(404).json({ error: 'This action is unavailable on this website.' });
     return;
   }
   publicRoutes(req, res, error => {
@@ -130,9 +132,98 @@ router.use('/api', async (req, res, next) => {
   });
 });
 
-router.use((req, res, next) => {
+websiteRouter.use((req, res, next) => {
   if (websitePages.test(req.path) && req.accepts('html')) next();
-  else res.status(404).json({ error: 'This page is unavailable in the private preview.' });
+  else res.status(404).json({ error: 'This page is unavailable on this website.' });
+});
+
+router.use(websiteRouter);
+
+function unavailableShowcase(req: Request, res: Response, expired = false) {
+  const title = expired ? 'This link has expired' : 'This link is unavailable';
+  const message = 'Ask the person who shared it for a new link.';
+  res.status(expired ? 410 : 404);
+  if (req.method === 'GET' && req.accepts(['html', 'json']) === 'html' && !/(?:^|\/)api(?:\/|$)/.test(req.path)) {
+    res.type('html').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow"><title>${title}</title><style>body{margin:0;padding:32px;background:#f7f7f7;color:#202b39;font:16px/1.6 system-ui}main{max-width:36rem;margin:10vh auto}h1{font-size:clamp(1.5rem,4vw,2.2rem);line-height:1.2}</style></head><body><main><h1>${title}</h1><p>${message}</p></main></body></html>`);
+    return;
+  }
+  res.json({ error: `${title}. ${message}` });
+}
+
+/** Possession grants only the selected read-only storefronts of one demo tenant. */
+export const demoShowcaseRouter = Router();
+demoShowcaseRouter.use((req, res, next) => {
+  res.set({
+    'Cache-Control': 'private, no-store',
+    'X-Robots-Tag': 'noindex, nofollow, noarchive',
+    'Referrer-Policy': 'no-referrer',
+    'X-Frame-Options': 'DENY',
+  });
+  const host = normaliseTenantHost(req.get('host') ?? '');
+  if (!multiTenantEnabled() || !host || host !== normaliseTenantHost(process.env.PLATFORM_ADMIN_HOST ?? '') ||
+    (req.get('origin') && req.get('origin') !== `https://${host}`)) {
+    unavailableShowcase(req, res);
+    return;
+  }
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    res.status(405).set('Allow', 'GET, HEAD').json({ error: 'This website is read only.' });
+    return;
+  }
+  next();
+});
+
+const sharedWebsiteRouter = Router({ mergeParams: true });
+sharedWebsiteRouter.use(async (req, res, next) => {
+  const link = readDemoShowcaseToken(req.params.showcaseToken);
+  if (!link || link.expiresAt <= Date.now()) {
+    unavailableShowcase(req, res, Boolean(link));
+    return;
+  }
+  const demo = await demoShowcaseTarget(link.dealerId);
+  if (!demo || demo.expiresAt.getTime() <= Date.now()) {
+    unavailableShowcase(req, res, Boolean(demo));
+    return;
+  }
+  res.locals.showcaseTemplates = link.templates;
+  res.locals.showcaseDealerName = demo.name;
+  res.locals.previewDemo = true;
+  runWithTenant({
+    dealerId: demo.dealerId, canonicalOrigin: demo.canonicalOrigin,
+    platform: demo.platform, retailerId: demo.retailerId, sourceUrl: demo.sourceUrl,
+    kind: 'preview',
+  }, next);
+});
+sharedWebsiteRouter.get('/api/designs', (_req, res) => {
+  const ids: WebsiteTemplateId[] = res.locals.showcaseTemplates;
+  res.json({
+    dealerName: res.locals.showcaseDealerName,
+    templates: ids.map(id => {
+      const { name, description } = websiteTemplateDefinition(id);
+      return { id, name, description };
+    }),
+  });
+});
+sharedWebsiteRouter.get('/', (req, res, next) => {
+  if (!req.accepts('html')) { unavailableShowcase(req, res); return; }
+  res.locals.privateWebsitePreview = true;
+  next('router');
+});
+sharedWebsiteRouter.use('/design/:templateId', (req, res, next) => {
+  const candidate = req.params.templateId;
+  const ids: WebsiteTemplateId[] = res.locals.showcaseTemplates;
+  if (!isWebsiteTemplateId(candidate) || !ids.includes(candidate)) {
+    unavailableShowcase(req, res);
+    return;
+  }
+  res.locals.previewWebsiteTemplate = candidate;
+  res.locals.privateWebsitePreview = true;
+  next();
+}, websiteRouter);
+
+demoShowcaseRouter.use('/:showcaseToken', sharedWebsiteRouter);
+demoShowcaseRouter.use((req, res, next) => {
+  if (res.locals.privateWebsitePreview === true) next();
+  else unavailableShowcase(req, res);
 });
 
 export default router;

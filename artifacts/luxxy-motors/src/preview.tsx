@@ -14,13 +14,14 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toaster';
 import { StockProvider } from '@/lib/stock-context';
 import { SavedCarsProvider } from '@/lib/saved-cars-context';
-import { privateWebsitePreviewBase } from '@/lib/private-website-preview';
+import { sharedWebsiteShowcaseRoute, websitePreviewBase } from '@/lib/private-website-preview';
 import { SharedStaffPortal } from '@/components/portal/shared-staff-portal';
 import { exampleStaffDealerships } from '../preview/shared-staff-fixture';
 const SalesDemo = lazy(() => import("@/pages/sales-demo"));
 const JoinDealership = lazy(() => import('@/pages/join'));
 const Platform = lazy(() => import("@/pages/platform"));
 const PlatformWebsitePreview = lazy(() => import('@/pages/platform-website-preview'));
+const SharedWebsiteDesigns = lazy(() => import('@/pages/shared-website-designs'));
 const Portal = lazy(() => import("@/pages/portal"));
 import NotFound from '@/pages/not-found';
 import Home from '@/pages/home';
@@ -47,7 +48,8 @@ function PreviewLayout({ children }: { children: React.ReactNode }) {
   return location === '/__preview/staff-login' || location === '/join' || location === '/platform' || location === '/verify-invoice' || location.startsWith('/verify-invoice/') || location.startsWith('/test-drive-declaration/') || location.startsWith('/delivery-evidence/') || location.startsWith('/payment-request/') || location === '/reservation-test-checkout' ? <>{children}</> : <Layout>{children}</Layout>;
 }
 
-const previewBase = privateWebsitePreviewBase();
+const previewBase = websitePreviewBase();
+const showcase = sharedWebsiteShowcaseRoute();
 const staffExample = exampleStaffDealerships.find(dealer => window.location.pathname.startsWith(`/dealers/${dealer.dealerId}/portal`));
 const staffPreviewBase = staffExample ? `/dealers/${staffExample.dealerId}` : undefined;
 if (staffPreviewBase) {
@@ -57,14 +59,15 @@ if (staffPreviewBase) {
   document.head.append(marker);
   setBaseUrl(staffPreviewBase);
 } else if (previewBase) setBaseUrl(previewBase);
-else {
+else if (!showcase) {
   captureInvitationToken();
   captureStockAlertToken();
 }
 
 createRoot(document.getElementById('root')!).render(
   <ErrorBoundary>
-    {previewBase ? <Suspense fallback={<RouteLoading />}><PlatformWebsitePreview base={previewBase} /></Suspense> : <Router base={staffPreviewBase}>
+    {showcase?.kind === 'chooser' ? <Suspense fallback={<RouteLoading />}><SharedWebsiteDesigns base={showcase.base} /></Suspense>
+      : previewBase ? <Suspense fallback={<RouteLoading />}><PlatformWebsitePreview base={previewBase} showcaseChooser={showcase?.kind === 'design' ? showcase.chooser : undefined} /></Suspense> : <Router base={staffPreviewBase}>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <StockProvider>

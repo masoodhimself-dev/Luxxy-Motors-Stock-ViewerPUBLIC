@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { privateWebsitePreviewBase, privateWebsitePreviewDetails, previewPublicRequestPath, previewWebsiteAssetUrl } from './private-website-preview';
+import { privateWebsitePreviewBase, privateWebsitePreviewDetails, previewPublicRequestPath, previewWebsiteAssetUrl, sharedWebsiteShowcaseRoute, websitePreviewBase } from './private-website-preview';
 
 it.each(['grand-touring', 'modern-showroom', 'regent-lane'])('keeps the %s design and revision in every preview route and asset base', template => {
   const base = `/platform/preview/dealer-one/template/${template}/7`;
@@ -20,4 +20,24 @@ it('preserves ordinary private demos and does not interpret public query paramet
   expect(privateWebsitePreviewBase('/portal')).toBe('');
   expect(privateWebsitePreviewBase('/platform/preview/demo-one/template/autodeal/3/stock')).toBe('/platform/preview/demo-one/template/autodeal/3');
   expect(privateWebsitePreviewDetails('/stock')).toBeNull();
+});
+
+it('routes the shared link and scopes a chosen design without interpreting it as an admin preview', () => {
+  const chooser = `/showcase/${'aBc_12-'.repeat(10)}`;
+  const base = `${chooser}/design/regent-lane`;
+  expect(sharedWebsiteShowcaseRoute(chooser)).toEqual({ kind: 'chooser', base: chooser });
+  expect(sharedWebsiteShowcaseRoute(`${chooser}/`)).toEqual({ kind: 'chooser', base: chooser });
+  expect(sharedWebsiteShowcaseRoute(`${chooser}/design/unrecognised`)).toBeNull();
+  expect(sharedWebsiteShowcaseRoute(`${chooser}/stock`)).toBeNull();
+  expect(sharedWebsiteShowcaseRoute('/showcase/short')).toBeNull();
+  window.history.replaceState(null, '', `${base}/cars/lexus-nx?from=stock`);
+  try {
+    expect(sharedWebsiteShowcaseRoute()).toEqual({ kind: 'design', base, chooser });
+    expect(privateWebsitePreviewBase()).toBe('');
+    expect(websitePreviewBase()).toBe(base);
+    expect(previewPublicRequestPath('/api/stock')).toBe(`${base}/api/stock`);
+    expect(previewWebsiteAssetUrl('/api/demo-logo?variant=footer', 'https://dealer.test')).toBe(`${window.location.origin}${base}/api/demo-logo?variant=footer`);
+  } finally {
+    window.history.replaceState(null, '', '/');
+  }
 });

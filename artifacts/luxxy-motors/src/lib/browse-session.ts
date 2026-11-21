@@ -1,5 +1,5 @@
 import type { FilterState } from "@/components/filters";
-import { privateWebsitePreviewBase } from './private-website-preview';
+import { websitePreviewBase } from './private-website-preview';
 const KEY = "luxxy.browse.v1";
 type BrowseSession = {
   filters?: FilterState;
@@ -13,7 +13,7 @@ type BrowseSession = {
 };
 let restoreRequested = false;
 export function readBrowseSession(): BrowseSession {
-  if (privateWebsitePreviewBase()) return {};
+  if (websitePreviewBase()) return {};
   try {
     const value = JSON.parse(sessionStorage.getItem(KEY) || "{}");
     return value && typeof value === "object" ? value : {};
@@ -22,7 +22,7 @@ export function readBrowseSession(): BrowseSession {
   }
 }
 export function saveBrowseSession(value: BrowseSession) {
-  if (privateWebsitePreviewBase()) return;
+  if (websitePreviewBase()) return;
   try {
     sessionStorage.setItem(
       KEY,

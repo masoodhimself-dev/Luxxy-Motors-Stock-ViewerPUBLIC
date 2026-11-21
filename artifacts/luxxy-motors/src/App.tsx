@@ -22,11 +22,13 @@ import { Layout } from '@/components/layout';
 import { RouteScrollReset } from '@/components/route-scroll-reset';
 import { clearPortalPushSubscription } from '@/lib/portal-push';
 import { sharedStaffPortalPage } from '@/lib/shared-staff-portal';
+import { sharedWebsiteShowcaseRoute } from '@/lib/private-website-preview';
 import { SharedStaffPortal } from '@/components/portal/shared-staff-portal';
 import Home from '@/pages/home';
 const JoinDealership = lazy(() => import('@/pages/join'));
 const Platform = lazy(() => import('@/pages/platform'));
 const PlatformWebsitePreview = lazy(() => import('@/pages/platform-website-preview'));
+const SharedWebsiteDesigns = lazy(() => import('@/pages/shared-website-designs'));
 const CarDetail = lazy(() => import("@/pages/car-detail"));
 const Saved = lazy(() => import("@/pages/saved"));
 const StockAlertAction = lazy(() => import('@/pages/stock-alert-action'));
@@ -68,7 +70,7 @@ function stripBase(path: string): string {
     : path;
 }
 
-if (!clerkPubKey) {
+if (!clerkPubKey && !sharedWebsiteShowcaseRoute()) {
   throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY in .env file');
 }
 
@@ -215,7 +217,13 @@ function ClerkProviderWithRoutes({ previewBase }: { previewBase?: string }) {
   );
 }
 
-function App({ previewBase }: { previewBase?: string }) {
+function App({ previewBase, showcase }: { previewBase?: string; showcase?: ReturnType<typeof sharedWebsiteShowcaseRoute> }) {
+  if (showcase) return <Suspense fallback={<RouteLoading />}>
+    {showcase.kind === 'design'
+      ? <PlatformWebsitePreview base={showcase.base} showcaseChooser={showcase.chooser} />
+      : <SharedWebsiteDesigns base={showcase.base} />}
+  </Suspense>;
+
   return (
     <WouterRouter base={sharedStaffPortalPage()?.base || basePath}>
       <RouteScrollReset />

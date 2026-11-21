@@ -1,4 +1,4 @@
-import { privateWebsitePreviewBase } from './private-website-preview';
+import { websitePreviewBase } from './private-website-preview';
 
 export type AnalyticsData = Record<string, string | number | boolean>;
 export type CustomerJourneyStage = 'search' | 'vehicle' | 'enquiry' | 'appointment_request';
@@ -20,7 +20,7 @@ declare global {
  * Analytics is configured by the deployment owner and must never affect the journey.
  */
 export function trackEvent(name: string, data?: AnalyticsData): void {
-  if (typeof window === 'undefined' || privateWebsitePreviewBase()) return;
+  if (typeof window === 'undefined' || websitePreviewBase()) return;
 
   try {
     window.umami?.track(name, data);
@@ -36,7 +36,7 @@ export function trackEvent(name: string, data?: AnalyticsData): void {
 }
 
 export function trackJourneyStage(stage: CustomerJourneyStage): void {
-  if (typeof window === 'undefined' || privateWebsitePreviewBase()) return;
+  if (typeof window === 'undefined' || websitePreviewBase()) return;
   const privacy = navigator as Navigator & { globalPrivacyControl?: boolean };
   if (privacy.doNotTrack === '1' || privacy.globalPrivacyControl === true) return;
   if (journeyHost !== window.location.host) {

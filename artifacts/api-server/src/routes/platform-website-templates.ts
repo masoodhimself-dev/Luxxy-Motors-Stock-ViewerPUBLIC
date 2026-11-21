@@ -6,6 +6,7 @@ import { Router, type Request, type Response } from 'express';
 import { z } from 'zod/v4';
 import { expectedSettingsRevision, PostgresSettingsVersionStore, SettingsVersionError } from '../lib/settings-versions';
 import { publishedWebsiteTemplate, withWebsiteTemplate } from '../lib/website-template-settings';
+import { demoShowcaseSelection, demoShowcaseTarget, makeDemoShowcaseLink } from '../lib/demo-showcase';
 
 const router = Router();
 const selection = z.object({ template: z.custom<WebsiteTemplateId>(isWebsiteTemplateId), reviewed: z.literal(true) }).strict();
@@ -60,6 +61,30 @@ router.patch('/dealers/:id/website-template', async (req, res) => {
     res.set({ 'x-settings-revision': String(result.revision), ETag: `"${result.revision}"` });
     res.json({ dealerId: dealer.id, currentTemplate: publishedWebsiteTemplate(result.config), revision: result.revision });
   } catch (error) { failure(req, res, error); }
+});
+
+router.post('/dealers/:id/demo-links', async (req, res) => {
+  const parsed = demoShowcaseSelection.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Choose one to three different website designs and how long the link should last.' });
+    return;
+  }
+  try {
+    const demo = await demoShowcaseTarget(req.params.id);
+    if (!demo || demo.expiresAt.getTime() <= Date.now()) {
+      res.status(404).json({ error: 'Sharing is available for current dealership demos with website settings.' });
+      return;
+    }
+    const link = makeDemoShowcaseLink(demo.dealerId, parsed.data, demo.expiresAt);
+    if (!link) {
+      res.status(503).json({ error: 'Website link sharing is unavailable. Contact Platform Admin.' });
+      return;
+    }
+    res.status(201).json(link);
+  } catch {
+    req.log?.error('Could not create dealership website links');
+    res.status(500).json({ error: 'The website link could not be created. Try again.' });
+  }
 });
 
 export default router;

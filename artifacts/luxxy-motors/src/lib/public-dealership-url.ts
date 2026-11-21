@@ -1,6 +1,6 @@
 /** The shell supplies a tenant-verified canonical origin. Never copy query,
  * capability or authentication values into links intended for customers. */
-import { privateWebsitePreviewBase } from './private-website-preview';
+import { websitePreviewBase } from './private-website-preview';
 import { sharedStaffPortalPage } from './shared-staff-portal';
 
 const CANONICAL_SELECTOR = 'meta[name="luxxy-canonical-origin"][data-page-meta]';
@@ -31,7 +31,7 @@ export function publicDealershipOrigin(doc: Pick<Document, 'querySelector' | 'lo
   const configured = configuredOrigin(doc.querySelector<HTMLMetaElement>(CANONICAL_SELECTOR)?.content);
   const current = new URL(doc.location.origin);
   if (configured) {
-    if (privateWebsitePreviewBase(doc.location.pathname) || sharedStaffPortalPage(doc)) return configured.origin;
+    if (websitePreviewBase(doc.location.pathname) || sharedStaffPortalPage(doc)) return configured.origin;
     if (isPublicDealershipOrigin(current) && !isDemoOrigin(current)
       && (isDemoOrigin(configured) || !isPublicDealershipOrigin(configured))) return current.origin;
     return configured.origin;

@@ -17,14 +17,22 @@ const Contact = lazy(() => import('@/pages/contact'));
 const Warranty = lazy(() => import('@/pages/warranty'));
 const Saved = lazy(() => import('@/pages/saved'));
 
-function PreviewWebsite({ base }: { base: string }) {
+type PreviewWebsiteProps = { base: string; showcaseChooser?: string };
+
+function PreviewWebsite({ base, showcaseChooser }: PreviewWebsiteProps) {
   const [location, setLocation] = useLocation();
   const { isError } = useDealerSettings();
   const preview = privateWebsitePreviewDetails(base);
   const dealerId = preview?.dealerId ?? '';
   const adminPath = `/platform?dealer=${encodeURIComponent(dealerId)}${preview?.template ? `&tab=Website&previewTemplate=${encodeURIComponent(preview.template)}&previewRevision=${preview.revision}` : ''}`;
 
-  if (isError) return <main className="mx-auto max-w-xl px-6 py-16"><h1 className="text-3xl font-bold">This preview could not be opened</h1><p className="my-5 leading-relaxed">The website settings may have changed. Return to Platform Admin and open a fresh preview.</p><a className="inline-flex min-h-11 items-center gap-2 underline" href={adminPath}><ArrowLeft size={16} aria-hidden="true"/> Back to website designs</a></main>;
+  if (isError) return <main className="mx-auto max-w-xl px-6 py-16">
+    <h1 className="text-3xl font-bold">{showcaseChooser ? 'This website could not be opened' : 'This preview could not be opened'}</h1>
+    <p className="my-5 leading-relaxed">{showcaseChooser
+      ? 'The link may have expired. Ask the person who shared it for a new link if the problem continues.'
+      : 'The website settings may have changed. Return to Platform Admin and open a fresh preview.'}</p>
+    <a className="inline-flex min-h-11 items-center gap-2 underline" href={showcaseChooser || adminPath}><ArrowLeft size={16} aria-hidden="true"/> Back to website designs</a>
+  </main>;
 
   function keepWebsiteLinksInPreview(event: MouseEvent<HTMLDivElement>) {
     const target = event.target instanceof Element ? event.target.closest('a[href]') : null;
@@ -76,9 +84,9 @@ function PreviewWebsite({ base }: { base: string }) {
   );
 }
 
-export default function PlatformWebsitePreview({ base }: { base: string }) {
+export default function PlatformWebsitePreview({ base, showcaseChooser }: PreviewWebsiteProps) {
   const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: false } } }));
   return <Router base={base}><QueryClientProvider client={queryClient}><TooltipProvider>
-    <PreviewWebsite base={base} />
+    <PreviewWebsite base={base} showcaseChooser={showcaseChooser} />
   </TooltipProvider></QueryClientProvider></Router>;
 }

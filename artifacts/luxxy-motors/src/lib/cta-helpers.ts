@@ -1,4 +1,4 @@
-import { vehicleSharePath } from '@workspace/vehicle-meta';
+import { vehicleDetailPath, vehicleSharePath } from '@workspace/vehicle-meta';
 import { getRecordContactIntentUrl } from '@workspace/api-client-react';
 import { dealerConfig } from '@/config/dealer';
 import type { Car } from '@/lib/stock-context';
@@ -7,6 +7,7 @@ import { trackEvent } from '@/lib/analytics';
 import { formatPrice, vehicleRegistration, vehicleRegistrationLabel } from '@/lib/utils';
 import { customerWhatsAppNumber } from '@/lib/customer-whatsapp';
 import { publicDealershipOrigin } from '@/lib/public-dealership-url';
+import { sharedWebsiteShowcaseRoute, websitePreviewBase } from '@/lib/private-website-preview';
 
 type DealerContactDetails = {
   contact: {
@@ -51,6 +52,10 @@ function getVehicleLabel(car: Car) {
 /** A stable short link; the destination serves the car's own social preview metadata. */
 export function getVehicleShareUrl(car: Car) {
   const path = vehicleSharePath(car);
+  const showcase = sharedWebsiteShowcaseRoute();
+  if (showcase?.kind === 'design') {
+    return `${window.location.origin}${showcase.base}${path.startsWith('/s/') ? path : vehicleDetailPath(car)}`;
+  }
   return typeof window !== 'undefined' ? `${publicDealershipOrigin()}${path}` : path;
 }
 
@@ -100,7 +105,7 @@ export function recordContactIntent({
     vehicle_context: Boolean(car),
   });
 
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || websitePreviewBase()) return;
   const body = JSON.stringify({
     channel,
     vehicleId: car?.id ?? null,

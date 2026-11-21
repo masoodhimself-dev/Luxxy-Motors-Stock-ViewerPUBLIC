@@ -13,9 +13,11 @@ import { PostgresSettingsVersionStore } from './lib/settings-versions';
 import { serveFrontend } from './lib/serve-frontend';
 import { newDealerSettings } from './routes/dealer-settings';
 import platformRouter from './routes/platform-dealers';
-import previewRouter from './routes/platform-website-preview';
+import previewRouter, { demoShowcaseRouter } from './routes/platform-website-preview';
 import publicRouter from './routes/index';
 import { motService } from './lib/mot-storage';
+import { makeDemoShowcaseLink } from './lib/demo-showcase';
+import { privateRequestLogUrl } from './middlewares/private-capability';
 
 test('website template registry preserves old values and agrees with the public settings contract', () => {
   const defaults = newDealerSettings('Fictional dealer');
@@ -37,6 +39,7 @@ test('per-dealer template previews and publications are private, scoped and revi
   process.env.MULTI_TENANT_ENABLED = 'true';
   process.env.PLATFORM_ADMIN_HOST = 'admin.example.test';
   process.env.PLATFORM_ADMIN_USER_IDS = 'user_admin';
+  process.env.SESSION_SECRET = 'fictional template demo signing key for isolated tests only';
   const directory = await mkdtemp(join(tmpdir(), 'website-template-test-'));
   await writeFile(join(directory, 'index.html'), '<html><head><title>Website</title></head><body><div id="root"></div></body></html>');
   for (const file of (await readdir('../../lib/db/drizzle')).filter(name => /^\d+.*\.sql$/.test(name)).sort()) {
@@ -67,12 +70,14 @@ test('per-dealer template previews and publications are private, scoped and revi
     await db.insert(dealerDomainsTable).values({ dealerId: dealer.id, hostname: `${dealer.id}.example.test`, verified: true, verificationToken: 'test-fixture' });
   }
   const pixel = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+p1LkAAAAASUVORK5CYII=';
-  await db.insert(dealerDemosTable).values({ dealerId: 'template-demo', recipient: 'operator@example.test', expiresAt: new Date(Date.now() + 86_400_000), updatedBy: 'user_admin', logoData: `data:image/png;base64,${pixel}` });
-  const carIds = ['89a8d499-6ca1-4ea1-a865-d96929508008', 'c4b30998-0d10-4973-9b06-44901c350e03'];
-  for (let index = 0; index < 2; index++) await db.insert(vehiclesTable).values({ id: carIds[index], dealerId: dealers[index]!.id,
+  const demoExpiry = new Date(Date.now() + 3 * 86_400_000);
+  await db.insert(dealerDemosTable).values({ dealerId: 'template-demo', recipient: 'operator@example.test', expiresAt: demoExpiry, updatedBy: 'user_admin', logoData: `data:image/png;base64,${pixel}` });
+  const carIds = ['89a8d499-6ca1-4ea1-a865-d96929508008', 'c4b30998-0d10-4973-9b06-44901c350e03', 'ba17c184-ce9b-4104-b7d5-a9450b94d9bc'];
+  for (let index = 0; index < carIds.length; index++) await db.insert(vehiclesTable).values({ id: carIds[index], dealerId: dealers[index]!.id,
     source: 'autotrader', advertId: `template-car-${index}`, title: `Fictional vehicle ${index}`, sourcePrice: 10000, registration: index === 0 ? 'AB12CDE' : 'CD34EFG' });
 
   const app = express();
+  app.use('/showcase', demoShowcaseRouter);
   app.use(express.json());
   app.use('/api/platform', platformRouter);
   app.use('/platform/preview/:dealerId/template/:templateId/:templateRevision', previewRouter);
@@ -178,6 +183,98 @@ test('per-dealer template previews and publications are private, scoped and revi
       assert.equal(stale.status, 409);
       assert.equal((await stale.json() as { revision: number }).revision, 7);
       assert.equal((await request('/platform/preview/template-alpha/template/classic/7/api/dealer-settings')).status, 200);
+    });
+    await context.test('only an administrator can share up to three distinct designs on a current demo', async () => {
+      const path = '/api/platform/dealers/template-demo/demo-links';
+      const body = { templates: ['regent-lane'], days: 1 };
+      assert.equal((await request(path, { method: 'POST', body, user: '' })).status, 403);
+      assert.equal((await request(path, { method: 'POST', body, user: 'user_dealer_owner' })).status, 403);
+      assert.equal((await request(path, { method: 'POST', body, origin: 'https://untrusted.example.test' })).status, 403);
+      assert.equal((await request('/api/platform/dealers/template-alpha/demo-links', { method: 'POST', body })).status, 404);
+      for (const invalid of [
+        { templates: [], days: 1 }, { templates: ['showroom', 'panorama', 'forecourt', 'autodeal'], days: 1 },
+        { templates: ['regent-lane', 'regent-lane'], days: 1 }, { templates: ['unknown'], days: 1 },
+        { templates: ['regent-lane'], days: 30 }, { ...body, dealerId: 'template-alpha' },
+      ]) assert.equal((await request(path, { method: 'POST', body: invalid })).status, 400);
+      const response = await request(path, { method: 'POST', body });
+      assert.equal(response.status, 201);
+      const issued = await response.json() as { path: string; expiresAt: string };
+      assert.match(issued.path, /^\/showcase\/[A-Za-z0-9_-]+$/);
+      assert.ok(Date.parse(issued.expiresAt) <= Date.now() + 86_400_000);
+      assert.ok(Date.parse(issued.expiresAt) > Date.now() + 86_390_000);
+    });
+    await context.test('one link serves only its chosen designs and their shared demo stock without sign-in', async () => {
+      const designs = ['regent-lane', 'modern-showroom', 'autodeal'];
+      const response = await request('/api/platform/dealers/template-demo/demo-links', { method: 'POST', body: { templates: designs, days: 14 } });
+      assert.equal(response.status, 201, await response.clone().text());
+      const { path, expiresAt } = await response.json() as { path: string; expiresAt: string };
+      assert.equal(expiresAt, demoExpiry.toISOString());
+      const guest = { user: '' };
+      const beforeSettings = await stored('template-demo');
+      const beforeStock = (await engine.query('SELECT * FROM vehicles ORDER BY id')).rows;
+      const html = await request(path, guest);
+      assert.equal(html.status, 200);
+      assert.match(await html.text(), /Website designs \| Demo Test Motors/);
+      assert.match(html.headers.get('x-robots-tag') ?? '', /noindex/);
+      assert.equal(html.headers.get('referrer-policy'), 'no-referrer');
+      assert.equal(html.headers.get('x-frame-options'), 'DENY');
+      assert.match(html.headers.get('cache-control') ?? '', /no-store/);
+      const info = await request(path + '/api/designs', guest);
+      assert.equal(info.status, 200);
+      assert.deepEqual(await info.json(), { dealerName: 'Demo Test Motors', templates: designs.map(id => {
+        const template = WEBSITE_TEMPLATES.find(value => value.id === id)!;
+        return { id, name: template.name, description: template.description };
+      }) });
+      for (const id of designs) {
+        const designPath = `${path}/design/${id}`;
+        for (const page of ['/', '/stock', `/vehicle/${carIds[2]}`]) {
+          assert.equal((await request(designPath + page, guest)).status, 200);
+          assert.equal((await request(designPath + page, { ...guest, method: 'HEAD' })).status, 200);
+        }
+        const settings = await request(designPath + '/api/dealer-settings', guest);
+        assert.equal(settings.status, 200);
+        assert.equal(GetDealerSettingsResponse.parse(await settings.json()).presentation?.websiteTemplate, id);
+        const stock = await request(designPath + '/api/stock', guest);
+        assert.equal(stock.status, 200);
+        assert.deepEqual(GetStockResponse.parse(await stock.json()).cars.map(car => car.id), [carIds[2]]);
+      }
+      const selected = path + '/design/regent-lane';
+      assert.equal((await request(selected + '/api/demo-logo', guest)).headers.get('content-type'), 'image/png');
+      assert.equal((await request(selected + '/api/vehicles/' + carIds[0], guest)).status, 404);
+      assert.deepEqual(await (await request(selected + '/api/reservations/payment-readiness', guest)).json(), { enabled: false, mode: null, prepared: false });
+      assert.equal((await request(selected + '/api/vehicles/' + carIds[2] + '/mot-history?cacheOnly=false', guest)).status, 200);
+      for (const inaccessible of [path + '/design/showroom', path + '/api/dealer-settings', selected + '/api/platform/dealers', selected + '/portal', selected + '/api/enquiries']) {
+        assert.equal((await request(inaccessible, guest)).status, 404);
+      }
+      for (const method of ['POST', 'PATCH', 'PUT', 'OPTIONS']) {
+        assert.equal((await request(selected + '/api/reservations/checkout', { ...guest, method })).status, 405);
+      }
+      assert.equal((await request(path + '/api/designs', { ...guest, host: 'template-alpha.example.test' })).status, 404);
+      assert.equal((await request(path + '/api/designs', { ...guest, origin: 'https://untrusted.example.test' })).status, 404);
+      assert.equal((await request('/platform/preview/template-demo/template/regent-lane/0', guest)).status, 403);
+      const firstTokenCharacter = '/showcase/'.length;
+      const tampered = path.slice(0, firstTokenCharacter) + (path[firstTokenCharacter] === 'A' ? 'B' : 'A') + path.slice(firstTokenCharacter + 1);
+      assert.equal((await request(tampered, guest)).status, 404);
+      assert.equal(privateRequestLogUrl(selected + '/api/stock?q=private'), '/showcase/[private]');
+      assert.deepEqual(await stored('template-demo'), beforeSettings);
+      assert.deepEqual((await engine.query('SELECT * FROM vehicles ORDER BY id')).rows, beforeStock);
+      assert.deepEqual(await history(), []);
+
+      const expired = makeDemoShowcaseLink('template-demo', { templates: ['regent-lane'], days: 1 }, new Date(Date.now() - 1000))!;
+      const expiredResponse = await request(expired.path, guest);
+      assert.equal(expiredResponse.status, 410);
+      const expiredHtml = await expiredResponse.text();
+      assert.match(expiredHtml, /This link has expired/);
+      assert.ok(!expiredHtml.includes(expired.path));
+
+      await engine.query("UPDATE dealer_demos SET converted_at=now() WHERE dealer_id='template-demo'");
+      try {
+        assert.equal((await request(path, guest)).status, 404);
+        assert.equal((await request(selected + '/api/stock', guest)).status, 404);
+        assert.equal((await request('/api/platform/dealers/template-demo/demo-links', { method: 'POST', body: { templates: designs, days: 1 } })).status, 404);
+      } finally {
+        await engine.query("UPDATE dealer_demos SET converted_at=NULL WHERE dealer_id='template-demo'");
+      }
     });
     await context.test('Apply requires review, a supported selection and the settings revision', async () => {
       for (const body of [{ template: 'showroom' }, { template: 'showroom', reviewed: false }, { template: 'unknown', reviewed: true },
