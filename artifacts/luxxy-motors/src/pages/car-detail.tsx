@@ -74,6 +74,7 @@ import { usePageMeta } from '@/hooks/use-page-meta';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { vehiclePageMeta } from '@/lib/page-meta';
 import {
+  getEnquiryHref,
   getVehicleBookingHref,
   getPhoneHref,
   recordBookingIntent,
@@ -321,6 +322,9 @@ export default function CarDetail() {
       </a>
   ) : null;
   const enquiriesEnabled = customerFeatures.enabled('publicEnquiries');
+  const detailsEnquiryHref = autoDeal && isMultiChoiceWebsite()
+    ? `/contact?vehicleId=${encodeURIComponent(car.id)}#contact-message`
+    : getEnquiryHref('general', car);
   const enquiryAction = enquiriesEnabled && (
     <a key="enquiry" className={`vehicle-enquiry-action${isGraphite ? ' gr-button' : ''}`} href="#vehicle-enquiry" onClick={event => {
       if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -543,7 +547,7 @@ export default function CarDetail() {
                 </p>
               )}
               <Link
-                href={customerFeatures.enabled('publicEnquiries') ? `/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}` : '/contact'}
+                href={enquiriesEnabled ? detailsEnquiryHref : '/contact'}
                 className="text-link mt-3"
               >
                 Ask us about these details <ArrowRight className="h-4 w-4" />

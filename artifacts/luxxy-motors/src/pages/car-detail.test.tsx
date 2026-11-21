@@ -357,6 +357,39 @@ it('offers printing inside the share menu', () => {
   expect(link.closest('[role="dialog"]')).not.toBeNull();
 });
 
+describe('vehicle information contact link', () => {
+  const vehicleId = '5ee92fd4-dc71-4074-a30b-3b3f653eb285';
+  const selectedEnquiry = `/enquire?type=general&vehicleId=${vehicleId}`;
+
+  it.each([
+    { site: 'multichoicemotors.co.uk', template: 'autodeal', enabled: true, href: `/contact?vehicleId=${vehicleId}#contact-message` },
+    { site: 'multichoicemotors.co.uk', template: 'autodeal', enabled: false, href: '/contact' },
+    { site: 'multichoicemotors.co.uk', template: 'showroom', enabled: true, href: selectedEnquiry },
+    { site: 'another-dealer.example', template: 'autodeal', enabled: true, href: selectedEnquiry },
+  ] as const)('preserves the car context for $site with $template and enquiries=$enabled', ({site, template, enabled, href}) => {
+    const car = stockFixture.cars[1];
+    const previous = { id: car.id, specifications: car.specifications };
+    Object.assign(car, { id: vehicleId, specifications: { conditionNotes: 'Original condition report available.' } });
+    const canonical = document.createElement('meta');
+    canonical.name = 'luxxy-canonical-origin';
+    canonical.content = `https://${site}`;
+    canonical.setAttribute('data-page-meta', '');
+    document.head.append(canonical);
+    featureState.data.features.publicEnquiries = enabled;
+    try {
+      const view = renderVehicle(vehicleId, { ...dealerConfig, presentation: { ...dealerConfig.presentation, websiteTemplate: template } });
+      expect(screen.getByRole('link', { name: 'Ask us about these details' })).toHaveAttribute('href', href);
+      if (template === 'autodeal' && enabled) {
+        expect(screen.getByRole('link', { name: 'Ask about this car' })).toHaveAttribute('href', '#vehicle-enquiry');
+      }
+      view.unmount();
+    } finally {
+      canonical.remove();
+      Object.assign(car, previous);
+    }
+  });
+});
+
 it('places one decorative make mark beside the Multi-Choice vehicle title', () => {
   const meta = document.createElement('meta');
   meta.name = 'luxxy-canonical-origin';
