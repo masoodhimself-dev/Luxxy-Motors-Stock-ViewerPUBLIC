@@ -53,6 +53,21 @@ app.use(
     },
   }),
 );
+// Reject malformed escapes before authentication or route parameters decode the path.
+app.use((req, res, next) => {
+  if (req.path.includes("%")) {
+    try {
+      decodeURI(req.path);
+    } catch {
+      res.status(400).json({
+        status: "rejected",
+        errors: [{ code: "invalid_url", message: "Request URL contains invalid encoding", path: null, advertId: null }],
+      });
+      return;
+    }
+  }
+  next();
+});
 protectPrivateCapabilityPages(app);
 // Shared storefront access is checked independently of Clerk and rejects writes
 // before CORS, body parsing or the usual tenant/site routes.

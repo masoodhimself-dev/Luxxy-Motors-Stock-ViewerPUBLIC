@@ -125,8 +125,8 @@ test('sales queue filters the whole dealer before pagination and keeps handover 
   const db = new PGlite();
   t.after(() => db.close());
   await db.exec(await readFile('../../lib/db/drizzle/0016_sale_workspace.sql', 'utf8'));
-  await db.exec(`CREATE TABLE portal_users(dealer_id text NOT NULL, auth_user_id text NOT NULL, name text, email text, disabled_at timestamptz)`);
-  await db.exec(`INSERT INTO portal_users VALUES ('queue-a', 'alice', 'Alice', NULL, NULL),
+  await db.exec(`CREATE TABLE portal_users(dealer_id text NOT NULL, auth_user_id text NOT NULL, name text, email text, disabled_at timestamptz, legacy_portal_user_id uuid)`);
+  await db.exec(`INSERT INTO portal_users(dealer_id, auth_user_id, name, email, disabled_at) VALUES ('queue-a', 'alice', 'Alice', NULL, NULL),
     ('queue-a', 'disabled', 'Disabled', NULL, now()), ('queue-b', 'cross-tenant', 'Other dealer', NULL, NULL)`);
   const database = { query: db.query.bind(db), connect: async () => ({ query: db.query.bind(db), release() {} }) };
   const store = new PostgresSaleWorkspaceStore('queue-a', async () => context(), database);

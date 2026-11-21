@@ -9,8 +9,18 @@ export const pool = new Pool(databasePoolConfig(process.env));
 let lastIdleErrorAt: Date | null = null;
 let idleErrorCount = 0;
 let lastIdleErrorLogAt = 0;
-// pg discards this idle client itself. A listener is still essential: an
-// unhandled pool error otherwise terminates the whole API process.
+let lastActiveErrorLogAt = 0;
+// pg handles idle clients through the pool, but checked-out clients emit
+// their own errors if the connection closes between queries.
+function activeConnectionError() {
+  const now = Date.now();
+  if (now - lastActiveErrorLogAt < 30_000) return;
+  lastActiveErrorLogAt = now;
+  process.stderr.write('[database] A database connection closed while in use.\n');
+}
+pool.on('acquire', client => { client.on('error', activeConnectionError); });
+pool.on('release', (_error, client) => { client.removeListener('error', activeConnectionError); });
+
 pool.on('error', () => {
   lastIdleErrorAt = new Date();
   idleErrorCount++;

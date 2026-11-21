@@ -12,7 +12,7 @@ import { DealerPlanOptions, PlatformLaunchSetup, dealerPlans, type DealerPlan } 
 import { importCapacitySummary } from '../../../api-server/src/lib/platform-capacity';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { SignInButton, useAuth } from '@clerk/react';
-import { customFetch } from '@workspace/api-client-react';
+import { customFetch, HttpApiError } from '@workspace/api-client-react';
 import { Building2, LayoutDashboard, Plus, Search, ArrowLeft, ArrowRight, Globe2, Demo, StockImport, Users, Check, RefreshCw, Activity, ShieldCheck } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -149,10 +149,26 @@ export default function Platform() {
     tabsRef.current?.querySelector<HTMLButtonElement>(`#${tabId(availableWorkspaceTabs[index])}-tab`)?.focus();
   }
   async function load() {
-    setLoading(true); setNow(Date.now());
-    try { setData(await call('/overview')); setAllowed(true); setError(''); return true; }
-    catch { setAllowed(false); setError('Platform administrator access is required on the approved administration domain. Refresh to try again.'); return false; }
-    finally { setLoading(false); }
+    setLoading(true);
+    setNow(Date.now());
+    setError('');
+    try {
+      setData(await call('/overview'));
+      setAllowed(true);
+      return true;
+    } catch (cause) {
+      if (cause instanceof HttpApiError && [401, 403, 404].includes(cause.status)) {
+        setAllowed(false);
+        setError('Platform administrator access is required on the approved administration domain.');
+      } else {
+        setError(allowed
+          ? 'Could not refresh Platform Admin. The last loaded details are still shown.'
+          : 'Could not load your dealerships. Try again in a moment.');
+      }
+      return false;
+    } finally {
+      setLoading(false);
+    }
   }
   useEffect(() => { if (isSignedIn) void load(); else { setAllowed(false); setExpandedRun(null); setRunDetails({}); setData({ dealers: [], activity: [] }); setWorkspace(null); setIssuedKey(null); } }, [isSignedIn]);
   useEffect(() => {
@@ -312,6 +328,7 @@ export default function Platform() {
       {!isSignedIn ? <section className="platform-panel platform-login"><ShieldCheck size={36}/><h2>Manage your dealerships</h2><p>Sign in with your platform admin account.</p><SignInButton mode="modal" forceRedirectUrl={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/platform`} signUpForceRedirectUrl={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/platform`}><Button>Sign in as platform administrator</Button></SignInButton></section> : <>
         {error && <p role="alert" className="platform-alert">{error}</p>}{notice && <p role="status" className="platform-notice">{notice}</p>}
         {loading && !allowed && <p role="status">Loading your dealerships…</p>}
+        {error && !allowed && !loading && <Button variant="outline" onClick={() => void load()}>Try again</Button>}
         {allowed && view === 'overview' && <>
           <section className="platform-stats" aria-label="Dealership totals">{[
             { label: 'Live websites', count: liveWebsites.length, note: 'Active customer websites', tone: 'live' },

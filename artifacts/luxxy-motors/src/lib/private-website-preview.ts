@@ -27,6 +27,12 @@ export function websitePreviewBase(pathname = typeof window === 'undefined' ? ''
   return showcase?.kind === 'design' ? showcase.base : privateWebsitePreviewBase(pathname);
 }
 
+/** Native fragment links must stay inside the current dealership preview. */
+export function homeSectionHref(section: string, isHomepage = false) {
+  const homePath = isHomepage ? '' : websitePreviewBase() || '/';
+  return `${homePath}#${section}`;
+}
+
 export function previewPublicRequestPath(path: string) {
   return (websitePreviewBase() || sharedStaffPortalPage()?.base || '') + path;
 }

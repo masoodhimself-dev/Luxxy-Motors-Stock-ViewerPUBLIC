@@ -156,6 +156,7 @@ export function PartExchangeMotDetails({
     : null;
   const visible = state?.plate === plate ? state : retained,
     busy = visible?.status === "loading";
+  const verified = visible?.status === "ready" ? visible : retained;
   async function find() {
     if (!valid || request.current) return;
     const controller = new AbortController();
@@ -200,7 +201,7 @@ export function PartExchangeMotDetails({
           {busy ? "Finding your car…" : "Find my car"}
         </Button>
       </div>
-      <button
+      {!verified && <button
         type="button"
         className="part-exchange-mot-details__manual"
         onClick={() => {
@@ -210,23 +211,24 @@ export function PartExchangeMotDetails({
         }}
       >
         Enter details manually
-      </button>
+      </button>}
       <div aria-live="polite" aria-atomic="true" role="status" className="part-exchange-mot-details__status">
         {busy && <p>Checking your car’s details…</p>}
         {visible?.status === "error" && (
           <p>
-            We couldn’t find your car’s details. Check the registration and try
-            again, or enter them manually.
+            {verified
+              ? 'We couldn’t update your car’s details. You can use the last result below or try again.'
+              : 'We couldn’t find your car’s details. Check the registration and try again, or enter them manually.'}
           </p>
         )}
         {visible?.status === "ready" && <p className="sr-only">Vehicle found. Check your car’s details below.</p>}
       </div>
-      {visible?.status === "ready" && <>
-        <VehicleFacts details={visible.details} />
-        {!registrationField && (visible.details.mileage === undefined
+      {verified && <>
+        <VehicleFacts details={verified.details} />
+        {!registrationField && (verified.details.mileage === undefined
           ? <p className="part-exchange-mot-details__status">Please enter your odometer reading.</p>
-          : mileageEstimated !== false && (mileage === undefined || mileage === visible.details.mileage) &&
-            <p className="part-exchange-mot-details__status">Estimated mileage: {Number(visible.details.mileage).toLocaleString("en-GB")} miles. Please check your odometer.</p>)}
+          : mileageEstimated !== false && (mileage === undefined || mileage === verified.details.mileage) &&
+            <p className="part-exchange-mot-details__status">Estimated mileage: {Number(verified.details.mileage).toLocaleString("en-GB")} miles. Please check your odometer.</p>)}
       </>}
     </div>
   );

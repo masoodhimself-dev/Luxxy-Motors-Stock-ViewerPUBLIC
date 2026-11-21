@@ -148,7 +148,7 @@ export function getVehicleContactPageHref(vehicleId: string) {
 
 export type EnquiryType = 'viewing' | 'general' | 'part_exchange';
 
-export function getEnquiryHref(type: EnquiryType, car?: Car, message?: string) {
+export function getEnquiryHref(type: EnquiryType, car?: Pick<Car, 'id'>, message?: string) {
   const params = new URLSearchParams({ type });
   if (car?.id) params.set('vehicleId', car.id);
   if (type === 'general' && message?.trim()) params.set('searchRequest', message.trim().slice(0, 500));

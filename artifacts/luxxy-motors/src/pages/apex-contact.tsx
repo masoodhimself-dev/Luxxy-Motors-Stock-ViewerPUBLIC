@@ -75,7 +75,7 @@ export function ApexContact() {
           </div>
           <div className="apex-contact-intro-links">
             <div className="apex-contact-actions">
-              {canBook && <Link className="apex-contact-primary" href={getEnquiryHref('viewing', vehicle)}>
+              {canBook && <Link className="apex-contact-primary" href={getEnquiryHref('viewing', vehicle ?? (awaitingVehicle && vehicleId ? { id: vehicleId } : undefined))}>
                 Book a test drive <ArrowRight size={16} aria-hidden="true" />
               </Link>}
               {phone && <a className="apex-contact-call" href={phone} data-testid="contact-phone">

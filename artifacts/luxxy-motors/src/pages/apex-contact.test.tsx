@@ -115,12 +115,25 @@ it('waits for the advert before falling back to a general enquiry when it cannot
   const view = render(<Contact />);
   expect(screen.getByText('Finding the car from your advert…')).toBeVisible();
   expect(state.form).not.toHaveBeenCalled();
+  expect(screen.getByRole('link', { name: 'Book a test drive' })).toHaveAttribute('href', '/enquire?type=viewing&vehicleId=5030e5a6-a46d-4741-9d7f-378150326263');
 
   state.stockLoading = false;
   view.rerender(<Contact />);
   expect(screen.getByText(/couldn’t find that advert/i)).toBeVisible();
   expect(state.form).toHaveBeenCalledWith({ initialType: 'general', embedded: true, presentation: 'contact', vehicle: undefined });
   expect(screen.getByRole('link', { name: 'Book a test drive' })).toHaveAttribute('href', '/enquire?type=viewing');
+});
+
+it.each([
+  { template: 'regent-lane', enquiry: 'Send an enquiry', booking: 'Book a test drive' },
+  { template: 'modern-showroom', enquiry: 'Ask about this car', booking: 'Arrange a test drive' },
+] as const)('keeps the car in older contact links when switching to $template', ({ template, enquiry, booking }) => {
+  state.settings.presentation = { websiteTemplate: template };
+  window.history.replaceState({}, '', `/contact?vehicleId=${car.id}#contact-message`);
+  render(<Contact />);
+
+  expect(screen.getByRole('link', { name: enquiry })).toHaveAttribute('href', `/enquire?type=general&vehicleId=${car.id}`);
+  expect(screen.getByRole('link', { name: booking })).toHaveAttribute('href', `/enquire?type=viewing&vehicleId=${car.id}`);
 });
 
 it('keeps booking and enquiries independently gated and hides absent contact channels', () => {

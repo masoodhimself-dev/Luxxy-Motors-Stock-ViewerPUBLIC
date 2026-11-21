@@ -13,6 +13,7 @@ import { getFittedShoreDriveLogo } from '@/lib/shore-drive-wordmark';
 import { customerOpeningHours, appointmentVisitNote } from '@/lib/dealership-customer-copy';
 import { dealershipLocation } from '@/lib/dealership-location';
 import { multiChoiceHomeSections } from '@/lib/multi-choice-home-sections';
+import { homeSectionHref } from '@/lib/private-website-preview';
 
 type Settings = DealerConfig & { testDriveBooking?: { enabled: boolean } };
 type HeaderProps = { settings: Settings; savedCount: number; testDriveHref: string; isHomepage?: boolean; enquiriesEnabled?: boolean; onLogoClick?: () => void };
@@ -33,8 +34,8 @@ export const GraphiteHeader = forwardRef<HTMLElement, HeaderProps>(function Grap
   const sections = multiChoiceHomeSections(settings);
   const showAbout = hasAboutContent(settings);
   const whatsApp = getWhatsAppHref(undefined, settings);
-  const about = `${isHomepage ? '' : '/'}#about`;
-  const delivery = `${isHomepage ? '' : '/'}#delivery`;
+  const about = homeSectionHref('about', isHomepage);
+  const delivery = homeSectionHref('delivery', isHomepage);
   const logo = isMultiChoiceWebsite() ? '/brand/graphite/brand-wordmark.svg' : getFittedShoreDriveLogo(settings.identity.logoAsset, 'header') || settings.identity.logoAsset;
   const exchangeHref = enquiriesEnabled ? '/enquire?type=part_exchange' : '/contact';
   const close = () => { setOpen(false); setServicesOpen(false); };
@@ -109,7 +110,7 @@ export function GraphiteFooter({ settings, enquiriesEnabled, testDriveHref }: { 
           {settings.testDriveBooking?.enabled && <Link href={testDriveHref}>{settings.bookViewing.ctaLabel}</Link>}
           {sections.warranty && <Link href="/warranty">Warranty</Link>}
           {sections.delivery && <Link href={enquiriesEnabled ? '/enquire?type=general' : '/contact'}>Delivery options</Link>}
-          {showAbout && <a href="/#about">About us</a>}<Link href="/contact">Contact</Link><PrivacyNoticeLink url={settings.legal.privacyUrl} />
+          {showAbout && <a href={homeSectionHref('about')}>About us</a>}<Link href="/contact">Contact</Link><PrivacyNoticeLink url={settings.legal.privacyUrl} />
         </nav>
         {hours.length > 0 && <section className="gr-footer__hours"><h3>Opening hours</h3><dl>{hours.map((h, i) => <div key={i}><dt>{h.days}</dt><dd>{h.times}</dd></div>)}</dl></section>}
       </div>

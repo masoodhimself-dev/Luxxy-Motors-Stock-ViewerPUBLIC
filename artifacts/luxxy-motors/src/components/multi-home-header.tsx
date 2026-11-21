@@ -5,6 +5,7 @@ import { getPhoneHref } from "@/lib/cta-helpers";
 import { formatPhoneDisplay } from "@/lib/utils";
 import { multiChoiceHomeSections } from "@/lib/multi-choice-home-sections";
 import { isMultiChoiceWebsite } from "@/lib/multi-home-scope";
+import { homeSectionHref } from "@/lib/private-website-preview";
 import { getFittedShoreDriveLogo } from "@/lib/shore-drive-wordmark";
 import { DealerWordmark } from "./brand/wordmark";
 import { Menu, Phone, ChevronDown, Heart } from "lucide-react";
@@ -51,7 +52,7 @@ export const MultiHomeHeader = forwardRef<
     phoneHref = getPhoneHref(settings),
     phone = formatPhoneDisplay(settings.contact.phone ?? "");
   const canBook = Boolean(settings.testDriveBooking?.enabled);
-  const sectionHref = (id: string) => `${isHomepage ? "" : "/"}#${id}`;
+  const sectionHref = (id: string) => homeSectionHref(id, isHomepage);
   const partExchangeHref =
     !isHomepage && enquiriesEnabled
       ? "/enquire?type=part_exchange"

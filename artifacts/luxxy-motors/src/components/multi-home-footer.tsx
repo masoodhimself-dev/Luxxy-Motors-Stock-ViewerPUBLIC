@@ -4,6 +4,7 @@ import type { MultiHomeSettings } from "./multi-home-header";
 import { multiChoiceHomeSections } from "@/lib/multi-choice-home-sections";
 import { getEnquiryHref } from "@/lib/cta-helpers";
 import { isMultiChoiceWebsite } from "@/lib/multi-home-scope";
+import { homeSectionHref } from "@/lib/private-website-preview";
 import { getFittedShoreDriveLogo } from "@/lib/shore-drive-wordmark";
 import { hexColourToHsl, hslColourToHex, readableForegroundForHsl } from "@/lib/brand-colour";
 import { DealerWordmark } from "./brand/wordmark";
@@ -30,7 +31,7 @@ export function MultiHomeFooter({
   // Keep that contrast in a small logo panel within the shared light footer.
   const customFooterLogo = !multiChoice && Boolean(footerLogo);
   const logoPanelBackground = hslColourToHex(settings.identity.brandColors?.primaryHsl ?? "", "#192a36");
-  const sectionHref = (id: string) => `${isHomepage ? "" : "/"}#${id}`;
+  const sectionHref = (id: string) => homeSectionHref(id, isHomepage);
   const partExchangeHref =
     !isHomepage && enquiriesEnabled
       ? "/enquire?type=part_exchange"

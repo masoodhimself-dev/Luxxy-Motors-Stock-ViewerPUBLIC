@@ -102,7 +102,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     if (browseStock && stock && !isLoading && !error) trackJourneyStage('search');
   }, [browseStock, stock, isLoading, error]);
   const publicCars = useMemo(() => (stock?.cars ?? []).filter(car => !['sold', 'archived', 'hidden'].includes(String(car.inventoryStatus).toLowerCase())), [stock?.cars]);
-  const { settings: dealerConfig, publicEnquiriesEnabled } = useDealerSettings();
+  const { settings: dealerConfig, publicEnquiriesEnabled, isLoading: settingsLoading } = useDealerSettings();
   const modernShowroom = isModernShowroom(dealerConfig.presentation);
   const stockTemplate = browseStock ? selectedWebsiteTemplate(dealerConfig.presentation) : null;
   const autoDealStock = stockTemplate === 'autodeal';
@@ -337,6 +337,13 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
       });
     }
   }, [isLoading, browseStock]);
+  useEffect(() => {
+    if (browseStock || isLoading || settingsLoading) return;
+    const section = window.location.hash.slice(1);
+    if (!section || section === 'stock' || section === 'vehicle-results') return;
+    const frame = requestAnimationFrame(() => scrollToHomeTarget(section));
+    return () => cancelAnimationFrame(frame);
+  }, [browseStock, isLoading, settingsLoading]);
 
   const displayedCars = filteredCars.slice(0, visibleCount);
   const showStockPromise = browseStock && stockView === 'cards'

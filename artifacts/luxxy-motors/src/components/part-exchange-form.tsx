@@ -48,6 +48,8 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
   const pickerTrigger = useRef<HTMLButtonElement>(null);
   const [messageDraft, setMessageDraft] = useState<MessageDraft>(emptyMessage);
   const [serverMileageError, setServerMileageError] = useState('');
+  const [nameError, setNameError] = useState('');
+  const nameInput = useRef<HTMLInputElement>(null);
   const [reviewed, setReviewed] = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
   const lookupButton = useRef<HTMLButtonElement>(null), heading = useRef<HTMLHeadingElement>(null);
@@ -94,7 +96,7 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
     const manual = new URLSearchParams(window.location.search).get('manual') === 'true' && isUKNumberPlate(restoredPlate);
     setGate(seed?.result ? { registration: restoredPlate, mode: 'lookup', result: seed.result } : manual ? { registration: restoredPlate, mode: 'manual' } : null);
     setVehicleId(draft ? (draft.vehicleId || null) : vehicle?.id ?? null);
-    setMessageDraft(draft?.message ?? emptyMessage); setLookupNotice('');
+    setMessageDraft(draft?.message ?? emptyMessage); setLookupNotice(''); setNameError('');
     vehicleTouched.current = Boolean(draft); setDraftRestored(Boolean(draft) && !seed);
     setReviewed(false); setStep(0); setFurthestStep(0);
   }, [draftKey]);
@@ -112,12 +114,13 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
   const update = (key: keyof PartExchangeDetails, value: string) => {
     if (key === 'registration' && normaliseExchangeRegistration(value) !== registration) { homepageSeed.current = null; setGate(null); setStep(0); setFurthestStep(0); setLookupNotice(''); }
     if (key === "registration" || key === "mileage") setServerMileageError("");
+    if (key === 'name') setNameError('');
     setAnswers(current => updatePartExchangeAnswer(current, key, value)); setReviewed(false);
   };
   const discardDraft = () => {
     homepageSeed.current = null; clearHomepagePartExchangeLookup();
     discardPartExchangeDraft(draftKey); setAnswers({ details: { ...emptyDetails } }); setGate(null); vehicleTouched.current = false; setVehicleId(vehicle?.id ?? null); setMessageDraft(emptyMessage);
-    setDraftRestored(false); setReviewed(false); setStep(0); setFurthestStep(0); setLookupNotice(''); mutation.reset();
+    setDraftRestored(false); setReviewed(false); setStep(0); setFurthestStep(0); setLookupNotice(''); setNameError(''); mutation.reset();
   };
   const foundCar = (result: PartExchangeMotDetailsResult) => {
     if (activePlate.current !== result.registration) return;
@@ -150,21 +153,26 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
     if (step === 0) { setStep(1); setFurthestStep(1); return; }
     const phoneInput = event.currentTarget.elements.namedItem('partExchangePhone') as HTMLInputElement;
     if (!phoneValid(details.phone)) { phoneInput.setCustomValidity('Enter a valid phone number with 7–15 digits.'); phoneInput.reportValidity(); return; }
-    if (!ready || !reviewed || details.name.trim().length < 2) return;
-      const condition = details.condition ? details.condition.split(' — ')[0].toLowerCase() as NonNullable<EnquiryInput['partExchange']>['condition'] : null;
-      submitting.current = true;
-      mutation.mutate({ data: { type: 'part_exchange', vehicleId: selectedVehicle?.id ?? null, customerName: details.name.trim(), email: details.email.trim() || null, phone: details.phone.replace(/[\s().\-/]/g, ''), preferredContact: 'phone', message: message.trim(), appointmentAt: null, visitorId: getVisitorId(), partExchange: { registration: details.registration.trim().toUpperCase(), mileage: Number(details.mileage), condition } } }, {
-        onError: error => {
-          const detail = error instanceof HttpApiError ? (error.data as { error?: unknown } | null)?.error : undefined;
-          if (typeof detail === "string" && detail.includes("lower than the last MOT reading")) {
-            setServerMileageError(detail);
-            setReviewed(false);
-            setStep(0);
-          }
-        },
-        onSettled: () => { submitting.current = false; },
-      });
-
+    if (!ready || !reviewed) return;
+    const customerName = details.name.trim();
+    if (customerName.length < 2) {
+      setNameError('Enter your name using at least two characters.');
+      nameInput.current?.focus();
+      return;
+    }
+    const condition = details.condition ? details.condition.split(' — ')[0].toLowerCase() as NonNullable<EnquiryInput['partExchange']>['condition'] : null;
+    submitting.current = true;
+    mutation.mutate({ data: { type: 'part_exchange', vehicleId: selectedVehicle?.id ?? null, customerName, email: details.email.trim() || null, phone: details.phone.replace(/[\s().\-/]/g, ''), preferredContact: 'phone', message: message.trim(), appointmentAt: null, visitorId: getVisitorId(), partExchange: { registration: details.registration.trim().toUpperCase(), mileage: Number(details.mileage), condition } } }, {
+      onError: error => {
+        const detail = error instanceof HttpApiError ? (error.data as { error?: unknown } | null)?.error : undefined;
+        if (typeof detail === 'string' && detail.includes('lower than the last MOT reading')) {
+          setServerMileageError(detail);
+          setReviewed(false);
+          setStep(0);
+        }
+      },
+      onSettled: () => { submitting.current = false; },
+    });
   }
 
   if (mutation.isSuccess) {
@@ -222,7 +230,10 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
       </div>}
       {hasCurrentCar && step === 1 && <div className="space-y-5">
         <fieldset className="part-exchange-contact"><legend className="sr-only">Your contact details</legend>
-          <label className="block"><span className="field-label">Your name</span><Input required minLength={2} maxLength={120} value={details.name} autoComplete="name" onChange={event => update('name', event.target.value)} data-testid="input-customer-name" /></label>
+          <div>
+            <label className="block"><span className="field-label">Your name</span><Input ref={nameInput} required minLength={2} maxLength={120} value={details.name} autoComplete="name" aria-invalid={Boolean(nameError) || undefined} aria-describedby={nameError ? 'px-name-error' : undefined} onChange={event => update('name', event.target.value)} data-testid="input-customer-name" /></label>
+            {nameError && <span id="px-name-error" role="alert" className="mt-2 block text-sm text-destructive">{nameError}</span>}
+          </div>
           <label className="block"><span className="field-label">Contact number</span><Input name="partExchangePhone" required type="tel" inputMode="tel" maxLength={25} value={details.phone} autoComplete="tel" onChange={event => { event.target.setCustomValidity(''); update('phone', event.target.value); }} data-testid="input-customer-phone" /></label>
           <label className="block"><span className="field-label">Email address (optional)</span><Input type="email" maxLength={254} value={details.email} autoComplete="email" onChange={event => update('email', event.target.value)} data-testid="input-customer-email" /></label>
         </fieldset>

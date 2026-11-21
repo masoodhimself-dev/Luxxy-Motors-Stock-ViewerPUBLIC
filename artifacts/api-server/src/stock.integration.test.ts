@@ -262,6 +262,40 @@ test("rejects unauthenticated imports and serves an empty stock feed", async () 
   assert.equal((await request("/vehicles/not-a-uuid")).status, 400);
 });
 
+test("returns a client error for a malformed vehicle URL", async () => {
+  const response = await request("/vehicles/%E2%82");
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), {
+    status: "rejected",
+    errors: [{
+      code: "invalid_url",
+      message: "Request URL contains invalid encoding",
+      path: null,
+      advertId: null,
+    }],
+  });
+  assert.equal((await request("/stock")).status, 200);
+});
+
+test("a disconnected database connection in use does not stop stock requests", { timeout: 10_000 }, async () => {
+  const client = await pool.connect();
+  try {
+    assert.ok(client.listenerCount("error") > 0, "Checked-out clients must handle connection errors");
+    const { rows: [backend] } = await client.query<{ pid: number }>("select pg_backend_pid() as pid");
+    assert.ok(backend);
+    const disconnected = new Promise<void>(resolve => client.once("end", resolve));
+    const { rows: [termination] } = await pool.query<{ terminated: boolean }>(
+      "select pg_terminate_backend($1) as terminated", [backend.pid],
+    );
+    assert.equal(termination?.terminated, true);
+    await disconnected;
+    await assert.rejects(() => client.query("select 1"));
+  } finally {
+    client.release();
+  }
+  assert.equal((await request("/stock")).status, 200);
+});
+
 test("imports Grok snapshots through the existing stock reconciliation feed", async () => {
   const body = snapshot("grok-adapter", [car(1)], { source: "grok" });
   const first = await importGrokStock(body);

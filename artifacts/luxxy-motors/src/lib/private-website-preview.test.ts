@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { privateWebsitePreviewBase, privateWebsitePreviewDetails, previewPublicRequestPath, previewWebsiteAssetUrl, sharedWebsiteShowcaseRoute, websitePreviewBase } from './private-website-preview';
+import { homeSectionHref, privateWebsitePreviewBase, privateWebsitePreviewDetails, previewPublicRequestPath, previewWebsiteAssetUrl, sharedWebsiteShowcaseRoute, websitePreviewBase } from './private-website-preview';
 
 it.each(['grand-touring', 'modern-showroom', 'regent-lane'])('keeps the %s design and revision in every preview route and asset base', template => {
   const base = `/platform/preview/dealer-one/template/${template}/7`;
@@ -7,6 +7,8 @@ it.each(['grand-touring', 'modern-showroom', 'regent-lane'])('keeps the %s desig
   expect(privateWebsitePreviewBase()).toBe(base);
   expect(privateWebsitePreviewDetails()).toEqual({ dealerId: 'dealer-one', template, revision: 7 });
   expect(previewPublicRequestPath('/api/stock')).toBe(`${base}/api/stock`);
+  expect(homeSectionHref('delivery')).toBe(`${base}#delivery`);
+  expect(homeSectionHref('delivery', true)).toBe('#delivery');
   const asset = '/api/website-assets/12345678-1234-1234-1234-123456789012';
   expect(previewWebsiteAssetUrl(`https://dealer.test${asset}`, 'https://dealer.test')).toBe(`${window.location.origin}${base}${asset}`);
   expect(previewWebsiteAssetUrl('/api/demo-logo?variant=footer', 'https://dealer.test')).toBe(`${window.location.origin}${base}/api/demo-logo?variant=footer`);
@@ -36,6 +38,7 @@ it('routes the shared link and scopes a chosen design without interpreting it as
     expect(privateWebsitePreviewBase()).toBe('');
     expect(websitePreviewBase()).toBe(base);
     expect(previewPublicRequestPath('/api/stock')).toBe(`${base}/api/stock`);
+    expect(homeSectionHref('about')).toBe(`${base}#about`);
     expect(previewWebsiteAssetUrl('/api/demo-logo?variant=footer', 'https://dealer.test')).toBe(`${window.location.origin}${base}/api/demo-logo?variant=footer`);
   } finally {
     window.history.replaceState(null, '', '/');

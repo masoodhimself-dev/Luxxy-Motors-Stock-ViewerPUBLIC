@@ -51,7 +51,7 @@ export function Gallery({
   const thumbnailRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const overviewRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const overviewToggleRef = useRef<HTMLButtonElement | null>(null);
-  const overviewTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const galleryReturnFocusRef = useRef<HTMLButtonElement | null>(null);
   const failedUrls = useRef(new Set<string>());
   const [activeIndex, setActiveIndex] = useState(() => initialImageUrl ? Math.max(0, orderVehiclePhotos(images, heroImage).findIndex(image => getSafeImageUrl(image) === initialImageUrl)) : 0);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
@@ -108,6 +108,9 @@ export function Gallery({
     setLoadedUrl('');
     setActiveIndex(0);
     setSelectedGroup('All');
+    setOpen(false);
+    setOverview(false);
+    setZoomed(false);
   };
   useEffect(() => {
     if (selectedGroup !== 'All' && !allImages.length && availableImages.length) {
@@ -291,7 +294,7 @@ export function Gallery({
     </button>
   </div>;
   const viewAll = <button type="button" className="vehicle-gallery-view-all" onClick={event => {
-    overviewTriggerRef.current = event.currentTarget;
+    galleryReturnFocusRef.current = event.currentTarget;
     setOpen(true);
     if (customerView) showOverview();
   }}>
@@ -390,7 +393,8 @@ export function Gallery({
         {!showroom && groupNavigation()}
         {!showroom && shortcuts.length > 0 && <div className="vehicle-photo-shortcuts" aria-label="Photo shortcuts">
           <span>Show me</span>
-          {shortcuts.map(shortcut => <button key={shortcut.label} type="button" onClick={() => {
+          {shortcuts.map(shortcut => <button key={shortcut.label} type="button" onClick={event => {
+            galleryReturnFocusRef.current = event.currentTarget;
             setSelectedGroup('All');
             selectPhoto(shortcut.index);
             setOverview(false);
@@ -402,12 +406,12 @@ export function Gallery({
         className={cn('vehicle-lightbox', customerView && 'customer-vehicle-lightbox', showroom && 'showroom-inline-lightbox', overview && 'is-gallery-overview', zoomed && 'is-gallery-zoomed')}
         overlayClassName={customerView ? 'vehicle-gallery-backdrop' : undefined}
         onCloseAutoFocus={event => {
-          const overviewTrigger = overviewTriggerRef.current;
-          overviewTriggerRef.current = null;
+          const trigger = galleryReturnFocusRef.current;
+          galleryReturnFocusRef.current = null;
           if (!messageRequested.current) {
-            if (overviewTrigger?.isConnected) {
+            if (trigger?.isConnected) {
               event.preventDefault();
-              overviewTrigger.focus({ preventScroll: true });
+              trigger.focus({ preventScroll: true });
             }
             return;
           }

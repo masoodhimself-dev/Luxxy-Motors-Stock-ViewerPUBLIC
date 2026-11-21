@@ -180,8 +180,8 @@ body[data-dealer-portal=true] .inbox-desk .inbox-desk-search input {
   place-items: start center;
   color: var(--inbox-muted);
 }
-.inbox-desk-row-copy { display: grid; min-width: 0; gap: 3px; }
-.inbox-desk-row-top { display: flex; align-items: baseline; justify-content: space-between; gap: 7px; }
+.inbox-desk-row-copy { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 3px; }
+.inbox-desk-row-top { display: flex; min-width: 0; align-items: baseline; justify-content: space-between; gap: 7px; }
 .inbox-desk-row-top strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 690; }
 .inbox-desk-row-top time { flex: none; font-size: 11px; color: var(--inbox-muted); white-space: nowrap; }
 .inbox-desk-row-car,

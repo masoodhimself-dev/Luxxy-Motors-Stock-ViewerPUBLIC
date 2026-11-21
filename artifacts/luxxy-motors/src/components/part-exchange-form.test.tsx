@@ -185,6 +185,18 @@ it('opens manual entry only by explicit choice and accepts a zero-mileage brief 
   expect(Object.keys(data).sort()).toEqual(['type','vehicleId','customerName','email','phone','preferredContact','message','appointmentAt','visitorId','partExchange'].sort());
 });
 
+it('explains and focuses a name made up of whitespace before accepting the corrected name', () => {
+  render(<PartExchangeForm stockCars={[car]} />); manual(); review(); contacts();
+  input('input-customer-name', '   '); confirm(); next();
+  expect(screen.getByTestId('input-customer-name')).toHaveFocus();
+  expect(screen.getByTestId('input-customer-name')).toHaveAccessibleDescription('Enter your name using at least two characters.');
+  expect(mutation.mutate).not.toHaveBeenCalled();
+  input('input-customer-name', '  Alex Buyer  '); confirm(); next();
+  expect(screen.queryByText('Enter your name using at least two characters.')).not.toBeInTheDocument();
+  expect(mutation.mutate).toHaveBeenCalledTimes(1);
+  expect(mutation.mutate.mock.calls[0][0].data.customerName).toBe('Alex Buyer');
+});
+
 it('prevents a second final submission before the mutation reports its pending state and retries only explicitly', () => {
   render(<PartExchangeForm vehicle={car} stockCars={[car]} />); find(); review(); contacts(); confirm();
   const form = screen.getByTestId('form-part-exchange');

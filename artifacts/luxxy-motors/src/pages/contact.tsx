@@ -1,12 +1,12 @@
 import { websiteText } from "@/lib/website-content";
 import './customer-workflows.css';
 import { useState } from 'react';
-import { Link } from 'wouter';
+import { Link, useSearch } from 'wouter';
 import { ArrowLeft, ArrowRight, Check, Copy, Mail, MapPin, MessageCircle, Phone } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { usePageMeta } from '@/hooks/use-page-meta';
-import { getPhoneHref, getWhatsAppHref } from '@/lib/cta-helpers';
+import { getEnquiryHref, getPhoneHref, getWhatsAppHref } from '@/lib/cta-helpers';
 import { formatPhoneDisplay } from '@/lib/utils';
 import { dealershipLocation } from '@/lib/dealership-location';
 import { appointmentVisitNote, customerOpeningHours } from '@/lib/dealership-customer-copy';
@@ -17,6 +17,8 @@ import { ApexContact } from './apex-contact';
 
 export default function Contact() {
   const { settings, isLoading, isError, publicEnquiriesEnabled } = useDealerSettings();
+  const vehicleId = new URLSearchParams(useSearch()).get('vehicleId');
+  const vehicle = vehicleId ? { id: vehicleId } : undefined;
   const [copyStatus, setCopyStatus] = useState('');
   const location = dealershipLocation(settings.address);
   const phoneHref = getPhoneHref(settings);
@@ -44,7 +46,7 @@ export default function Contact() {
 
   const template = selectedWebsiteTemplate(settings.presentation);
   if (template === 'autodeal' && appointmentOnly) return <ApexContact />;
-  if (template === null) return <GraphiteContact />;
+  if (template === null) return <GraphiteContact vehicle={vehicle} />;
   return <div className="friendly-page friendly-contact luxxy-shell bg-background pb-14 sm:pb-20">
     <div className="container mx-auto px-4 pt-5 sm:px-6 sm:pt-8 lg:px-8">
       <Link href="/" className="inline-flex min-h-11 items-center gap-2 text-xs font-medium text-muted-foreground hover:text-primary"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back to showroom</Link>
@@ -55,12 +57,12 @@ export default function Contact() {
           <div className="contact-primary-actions mt-5 flex flex-wrap gap-3">
             {publicEnquiriesEnabled && (
               <Button asChild className="min-h-12">
-                <Link href="/enquire?type=general">Send an enquiry<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+                <Link id="contact-message" href={getEnquiryHref('general', vehicle)}>Send an enquiry<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
               </Button>
             )}
             {canBook && (
               <Button asChild variant={publicEnquiriesEnabled ? "outline" : "default"} className="min-h-12">
-                <Link href="/enquire?type=viewing">Book a test drive<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+                <Link href={getEnquiryHref('viewing', vehicle)}>Book a test drive<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
               </Button>
             )}
           </div>

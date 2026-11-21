@@ -126,6 +126,8 @@
 .portal-action-dialog > div:has(> button) { margin-top: 0; padding-top: 16px; border-color: var(--portal-border); }
 @media(max-width:1023px) {
   :is(.portal-premium-workspace,.portal-action-dialog) :is(input:not([type="checkbox"]):not([type="radio"]):not(.uk-number-plate-input),select,textarea) { font-size: 16px; }
+  /* Safari's native menu ignores min-height, so give touch controls an explicit hit area. */
+  :is(.portal-premium-workspace,.portal-action-dialog) select:not([multiple]) { height: 44px; box-sizing: border-box; font-size: 16px; }
 }
 @media(max-width:639px) {
   .premium-portal [data-site-header] > .container { height: 64px; gap: 12px; }

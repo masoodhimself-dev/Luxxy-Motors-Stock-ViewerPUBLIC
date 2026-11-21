@@ -59,6 +59,7 @@ it("does not look up a valid registration until Find my car is clicked", async (
   );
   expect(onDetails).toHaveBeenCalledOnce();
   expect(screen.getByText("Ford Focus")).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Enter details manually' })).not.toBeInTheDocument();
   expect(
     screen.getByText(/Last recorded mileage: 85,042 miles/),
   ).toHaveTextContent("1 Jun 2026");
@@ -66,6 +67,21 @@ it("does not look up a valid registration until Find my car is clicked", async (
   expect(screen.getByText(/Estimated mileage/)).toHaveTextContent(
     "88,000",
   );
+});
+it('keeps the previously checked MOT facts when a recheck fails', async () => {
+  const onDetails = vi.fn();
+  const onManualEntry = vi.fn();
+  const props = { registration: 'AB12CDE', onDetails, onManualEntry };
+  const { rerender } = render(<PartExchangeMotDetails {...props} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Find my car' }));
+  await flush();
+  rerender(<PartExchangeMotDetails {...props} initialResult={onDetails.mock.calls[0][0]} />);
+  state.fetch.mockRejectedValueOnce(new Error('Unavailable'));
+  fireEvent.click(screen.getByRole('button', { name: 'Find my car' }));
+  await flush();
+  expect(screen.getByText(/couldn’t update your car’s details/)).toBeVisible();
+  expect(screen.getByText(/Last recorded mileage: 85,042 miles/)).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Enter details manually' })).not.toBeInTheDocument();
 });
 it("identifies a car even when there is insufficient history to estimate mileage", async () => {
   state.fetch.mockResolvedValue(

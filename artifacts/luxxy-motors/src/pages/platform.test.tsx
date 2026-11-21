@@ -57,6 +57,32 @@ it('keeps the last workspace details on a refresh failure and prevents overlappi
   await waitFor(()=>expect(screen.queryByRole('alert')).not.toBeInTheDocument());
 });
 
+it('can retry a temporary overview failure, and keeps an open workspace on a later outage', async () => {
+  let unavailable = true;
+  vi.stubGlobal('fetch', vi.fn(async path => {
+    if (String(path).endsWith('/workspace')) return Response.json(workspace);
+    return unavailable
+      ? Response.json({ error: 'Temporary failure' }, { status: 503 })
+      : Response.json({ dealers: [dealer], activity: [] });
+  }));
+
+  render(<Platform />);
+  expect(await screen.findByRole('alert')).toHaveTextContent('Could not load your dealerships.');
+  unavailable = false;
+  fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+  fireEvent.click(await screen.findByRole('button', { name: /Example Dealer/ }));
+  fireEvent.click(await screen.findByRole('tab', { name: 'Stock connection' }));
+
+  unavailable = true;
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('The last loaded details are still shown.');
+  expect(screen.getByRole('tab', { name: 'Stock connection', selected: true })).toBeInTheDocument();
+
+  unavailable = false;
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+});
+
 it('does not reload or show the workspace after refreshed platform access is denied', async () => {
   let denied = false;
   const fetch = vi.fn(async path => String(path).endsWith('/workspace') ? Response.json(workspace) : denied ? Response.json({error:'Forbidden'},{status:403}) : Response.json({dealers:[dealer],activity:[]}));

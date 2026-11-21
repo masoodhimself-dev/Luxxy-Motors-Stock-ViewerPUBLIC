@@ -11,6 +11,7 @@ import { getPhoneHref, getWhatsAppHref } from '@/lib/cta-helpers';
 import { getFittedShoreDriveLogo } from '@/lib/shore-drive-wordmark';
 import { isMultiChoiceWebsite } from '@/lib/multi-home-scope';
 import { multiChoiceHomeSections } from '@/lib/multi-choice-home-sections';
+import { homeSectionHref } from '@/lib/private-website-preview';
 import { dealershipLocation } from '@/lib/dealership-location';
 import { customerOpeningHours } from '@/lib/dealership-customer-copy';
 
@@ -45,7 +46,7 @@ export const ShowroomHeader = forwardRef<HTMLElement, HeaderProps>(function Show
   const nav = <>
     <Link href="/stock" aria-current={location === '/stock' ? 'page' : undefined}>Used cars</Link>
     {sections.partExchange && <Link href={pxHref}>Part exchange</Link>}
-    {hasAbout && <Link href="/#about">About us</Link>}
+    {hasAbout && <a href={homeSectionHref('about', isHomepage)}>About us</a>}
     <Link href="/contact" aria-current={location === '/contact' ? 'page' : undefined}>Contact</Link>
   </>;
   return <header ref={ref} data-site-header className="sr-header">
@@ -62,7 +63,7 @@ export const ShowroomHeader = forwardRef<HTMLElement, HeaderProps>(function Show
           <SheetTrigger asChild><button type="button" className="sr-icon-button sr-header-menu" aria-label="Open navigation menu"><Menu size={25} aria-hidden="true" /></button></SheetTrigger>
           <SheetContent side="right" className={`sr-menu-panel${selectedWebsiteTemplate(settings.presentation) === 'grand-touring' ? ' gt-menu-panel' : ''}`}>
             <SheetHeader><SheetTitle>{settings.identity.name}</SheetTitle><SheetDescription>Find a car or arrange your visit.</SheetDescription></SheetHeader>
-            <nav aria-label="Mobile navigation" onClick={() => setOpen(false)}>{nav}{sections.warranty && <Link href="/warranty">Warranty</Link>}{sections.delivery && <Link href="/#delivery">Delivery</Link>}<Link href="/saved">Saved cars{savedCount ? ` (${savedCount})` : ''}</Link>{booking && <Link href={testDriveHref}>Book a visit</Link>}</nav>
+            <nav aria-label="Mobile navigation" onClick={() => setOpen(false)}>{nav}{sections.warranty && <Link href="/warranty">Warranty</Link>}{sections.delivery && <a href={homeSectionHref('delivery', isHomepage)}>Delivery</a>}<Link href="/saved">Saved cars{savedCount ? ` (${savedCount})` : ''}</Link>{booking && <Link href={testDriveHref}>Book a visit</Link>}</nav>
             {phoneHref && <a href={phoneHref} className="sr-menu-phone"><Phone size={21} aria-hidden="true" />{phone}</a>}
           </SheetContent>
         </Sheet>
@@ -81,8 +82,8 @@ export function ShowroomFooter({ settings, enquiriesEnabled = true }: { settings
   return <footer className="sr-footer" aria-label={`${settings.identity.name} information`}>
     <div className="sr-container sr-footer-main">
       <div className="sr-footer-brand"><Link href="/" aria-label={`${settings.identity.name} home`}><DealerWordmark {...settings.identity} logoAsset={footerLogo || settings.identity.logoAsset} /></Link><p>Find your next car. Arrange a visit.<br/>We’re here when you need us.</p>{phoneHref && <a href={phoneHref} className="sr-footer-phone">{formatPhoneDisplay(settings.contact.phone ?? '')}</a>}</div>
-      <nav aria-label="Dealership links"><h2>Find your way</h2><Link href="/stock">Used cars</Link>{sections.partExchange && <Link href={enquiriesEnabled ? '/enquire?type=part_exchange' : '/contact'}>Part exchange</Link>}{sections.warranty && <Link href="/warranty">Warranty</Link>}{sections.delivery && <Link href="/#delivery">Delivery</Link>}<Link href="/saved">Saved cars</Link><Link href="/contact">Contact us</Link>{enquiriesEnabled && <Link href="/enquire?type=general">Send an enquiry</Link>}</nav>
-      <div className="sr-footer-visit"><h2>Visit the showroom</h2>{!address.isSample && address.lines.length > 0 && <p><MapPin size={17} aria-hidden="true" /><span>{address.lines.join(', ')}</span></p>}{hours.length > 0 && <dl>{hours.map((hours, i) => <div key={i}><dt>{hours.days}</dt><dd>{hours.times}</dd></div>)}</dl>}{sections.visit && <Link href="/#find-us" className="sr-footer-directions">Plan your visit<ArrowUpRight size={16} aria-hidden="true" /></Link>}{settings.contact.email && <a href={`mailto:${settings.contact.email}`} className="sr-footer-email"><Mail size={16} aria-hidden="true" />Email the team</a>}{whatsapp && <a href={whatsapp} target="_blank" rel="noopener noreferrer">WhatsApp</a>}</div>
+      <nav aria-label="Dealership links"><h2>Find your way</h2><Link href="/stock">Used cars</Link>{sections.partExchange && <Link href={enquiriesEnabled ? '/enquire?type=part_exchange' : '/contact'}>Part exchange</Link>}{sections.warranty && <Link href="/warranty">Warranty</Link>}{sections.delivery && <a href={homeSectionHref('delivery')}>Delivery</a>}<Link href="/saved">Saved cars</Link><Link href="/contact">Contact us</Link>{enquiriesEnabled && <Link href="/enquire?type=general">Send an enquiry</Link>}</nav>
+      <div className="sr-footer-visit"><h2>Visit the showroom</h2>{!address.isSample && address.lines.length > 0 && <p><MapPin size={17} aria-hidden="true" /><span>{address.lines.join(', ')}</span></p>}{hours.length > 0 && <dl>{hours.map((hours, i) => <div key={i}><dt>{hours.days}</dt><dd>{hours.times}</dd></div>)}</dl>}{sections.visit && <a href={homeSectionHref('find-us')} className="sr-footer-directions">Plan your visit<ArrowUpRight size={16} aria-hidden="true" /></a>}{settings.contact.email && <a href={`mailto:${settings.contact.email}`} className="sr-footer-email"><Mail size={16} aria-hidden="true" />Email the team</a>}{whatsapp && <a href={whatsapp} target="_blank" rel="noopener noreferrer">WhatsApp</a>}</div>
     </div>
     <div className="sr-container sr-footer-bottom"><p>© {new Date().getFullYear()} {settings.identity.name}</p><div><PrivacyNoticeLink url={settings.legal.privacyUrl} />{settings.legal.termsUrl && <a href={settings.legal.termsUrl}>Terms & conditions</a>}{settings.legal.cookieUrl && <a href={settings.legal.cookieUrl}>Cookies</a>}</div></div>
   </footer>;

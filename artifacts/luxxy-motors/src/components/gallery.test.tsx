@@ -112,6 +112,17 @@ it('uses photographs to follow only when no photographs were supplied', () => {
   expect(screen.queryByRole('button', { name: /Try photos/ })).not.toBeInTheDocument();
 });
 
+it('returns to the inline gallery when all photos fail while fullscreen', async () => {
+  const { container } = render(<Gallery customerView images={['https://example.com/temporarily-down.jpg']} />);
+  fireEvent.click(screen.getByRole('button', { name: 'View gallery fullscreen' }));
+  const dialog = await screen.findByRole('dialog');
+  fireEvent.error(dialog.querySelector('img')!);
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  fireEvent.click(screen.getByRole('button', { name: 'Try photos again' }));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(container.querySelector('.gallery-photo')).toBeInTheDocument();
+});
+
 it('keeps Apex photo controls separate from the retry message when a photo fails', async () => {
   const images = ['one', 'two', 'three'].map(name => `https://example.com/apex-${name}.jpg`);
   const { container } = render(<Gallery customerView inlinePresentation="autodeal" images={images} />);
@@ -207,10 +218,14 @@ it('offers only supplied photo shortcuts and opens the matching photo across a s
   expect(screen.getByRole('button', { name: 'Parking camera' })).toBeVisible();
   expect(screen.queryByRole('button', { name: 'Service history' })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Outside' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Rear seats' }));
+  const shortcut = screen.getByRole('button', { name: 'Rear seats' });
+  shortcut.focus();
+  fireEvent.click(shortcut);
   const dialog = await screen.findByRole('dialog');
   expect(dialog.querySelector('.vehicle-lightbox-photo img')).toHaveAttribute('src', photos[1].url);
   expect(within(dialog).getByRole('button', { name: 'All photographs' })).toHaveAttribute('aria-pressed', 'true');
+  fireEvent.keyDown(dialog, { key: 'Escape' });
+  await waitFor(() => expect(shortcut).toHaveFocus());
 });
 
 it('keeps condition photos available in their own category without inventing missing sections', async () => {
