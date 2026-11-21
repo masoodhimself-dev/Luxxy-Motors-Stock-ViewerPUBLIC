@@ -76,6 +76,7 @@ import { vehiclePageMeta } from '@/lib/page-meta';
 import {
   getEnquiryHref,
   getVehicleBookingHref,
+  getVehicleContactPageHref,
   getPhoneHref,
   recordBookingIntent,
 } from '@/lib/cta-helpers';
@@ -323,7 +324,7 @@ export default function CarDetail() {
   ) : null;
   const enquiriesEnabled = customerFeatures.enabled('publicEnquiries');
   const detailsEnquiryHref = autoDeal && isMultiChoiceWebsite()
-    ? `/contact?vehicleId=${encodeURIComponent(car.id)}#contact-message`
+    ? `${getVehicleContactPageHref(car.id)}#contact-message`
     : getEnquiryHref('general', car);
   const enquiryAction = enquiriesEnabled && (
     <a key="enquiry" className={`vehicle-enquiry-action${isGraphite ? ' gr-button' : ''}`} href="#vehicle-enquiry" onClick={event => {

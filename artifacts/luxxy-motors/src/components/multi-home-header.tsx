@@ -28,6 +28,7 @@ export const MultiHomeHeader = forwardRef<
     settings: MultiHomeSettings;
     savedCount: number;
     testDriveHref: string;
+    contactHref?: string;
     isHomepage?: boolean;
     enquiriesEnabled?: boolean;
     onLogoClick?: () => void;
@@ -37,6 +38,7 @@ export const MultiHomeHeader = forwardRef<
     settings,
     savedCount,
     testDriveHref,
+    contactHref = "/contact",
     isHomepage = true,
     enquiriesEnabled = true,
     onLogoClick,
@@ -154,7 +156,7 @@ export const MultiHomeHeader = forwardRef<
             </a>
           )}
           <ContactLink
-            href={isHomepage ? "#contact" : "/contact"}
+            href={isHomepage ? "#contact" : contactHref}
             onClick={close}
           >
             Contact us
@@ -222,7 +224,7 @@ export const MultiHomeHeader = forwardRef<
                   </a>
                 )}
                 <ContactLink
-                  href={isHomepage ? "#contact" : "/contact"}
+                  href={isHomepage ? "#contact" : contactHref}
                   onClick={close}
                 >
                   Contact us

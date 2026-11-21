@@ -1,11 +1,18 @@
-vi.mock('@/lib/stock-context', () => ({ useStock: () => ({ stock: null, isLoading: false, error: null }) }));
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { dealerConfig } from '@/config/dealer';
 import { Layout } from './layout';
 import { hslColourToHex } from '@/lib/brand-colour';
+import type { Car } from '@/lib/stock-context';
 
-const state = vi.hoisted(() => ({ path: '/', settings: {} as typeof dealerConfig, enquiriesEnabled: true, navigate: vi.fn() }));
+const state = vi.hoisted(() => ({
+  path: '/',
+  settings: {} as typeof dealerConfig,
+  enquiriesEnabled: true,
+  navigate: vi.fn(),
+  vehicle: null as Pick<Car, 'id' | 'make' | 'model' | 'sourceExtras'> | null,
+}));
+vi.mock('@/lib/stock-context', () => ({ useStock: () => ({ stock: null, isLoading: false, error: null, vehicle: state.vehicle }) }));
 vi.mock('wouter', () => ({
   useLocation: () => [state.path, state.navigate], useRoute: () => [false, null],
   Link: ({ children, href, ...props }: any) => <a href={href} {...props}>{children}</a>,
@@ -17,6 +24,7 @@ vi.mock('@/components/customer-footer', () => ({ CustomerFooter: () => null }));
 beforeEach(() => {
   state.path = '/';
   state.enquiriesEnabled = true;
+  state.vehicle = null;
   state.navigate.mockReset();
   state.settings = { ...dealerConfig,
     identity: { ...dealerConfig.identity, name: 'Maxi Autos', logoText: 'Maxi Autos', logoAsset: '/header-logo.png' },
@@ -27,6 +35,43 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 const logo = () => screen.getByRole('img', { name: 'Maxi Autos', hidden: true });
+
+describe('vehicle context in Contact navigation', () => {
+  const multiChoice = 'https://multichoicemotors.co.uk';
+  const vehicleId = '245f82bf-10cb-4f6e-b5c2-1ee1fedae0ca';
+  const advert = '/cars/volvo-v90-c1f178d2';
+  const vehicle = { id: vehicleId, make: 'Volvo', model: 'V90', sourceExtras: { publicVehicleCode: 'c1f178d2' } };
+
+  it.each([
+    { label: 'the published Multi Choice Apex advert', origin: multiChoice, template: 'autodeal', path: advert, resolved: true, enabled: true, href: `/contact?vehicleId=${vehicleId}` },
+    { label: 'an advert while the vehicle is unavailable', origin: multiChoice, template: 'autodeal', path: advert, resolved: false, enabled: true, href: '/contact' },
+    { label: 'an advert with public enquiries switched off', origin: multiChoice, template: 'autodeal', path: advert, resolved: true, enabled: false, href: '/contact' },
+    { label: 'a Multi Choice advert using another template', origin: multiChoice, template: 'forecourt', path: advert, resolved: true, enabled: true, href: '/contact' },
+    { label: 'another dealer using Apex', origin: 'https://another-dealer.co.uk', template: 'autodeal', path: advert, resolved: true, enabled: true, href: '/contact' },
+    { label: 'stock with a previously resolved vehicle', origin: multiChoice, template: 'autodeal', path: '/stock', resolved: true, enabled: true, href: '/contact' },
+    { label: 'the showroom homepage', origin: multiChoice, template: 'autodeal', path: '/', resolved: false, enabled: true, href: '#contact' },
+  ] as const)('uses the expected desktop and mobile link on $label', ({ origin, template, path, resolved, enabled, href }) => {
+    const canonical = document.createElement('meta');
+    canonical.name = 'luxxy-canonical-origin';
+    canonical.content = origin;
+    canonical.setAttribute('data-page-meta', '');
+    document.head.append(canonical);
+    state.settings.presentation = { ...state.settings.presentation, websiteTemplate: template };
+    state.path = path;
+    state.vehicle = resolved ? vehicle : null;
+    state.enquiriesEnabled = enabled;
+    try {
+      render(<Layout><p>Page content</p></Layout>);
+      const desktop = screen.getByRole('navigation', { name: 'Primary navigation' });
+      expect(within(desktop).getByRole('link', { name: 'Contact us' })).toHaveAttribute('href', href);
+      fireEvent.click(screen.getByRole('button', { name: 'Open navigation menu' }));
+      const mobile = screen.getByRole('navigation', { name: 'Mobile navigation' });
+      expect(within(mobile).getByRole('link', { name: 'Contact us' })).toHaveAttribute('href', href);
+    } finally {
+      canonical.remove();
+    }
+  });
+});
 
 describe('approved graphite customer header', () => {
 

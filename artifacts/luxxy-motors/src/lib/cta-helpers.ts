@@ -137,6 +137,10 @@ export function recordBookingIntent({
     vehicle_context: vehicleContext,
   });
 }
+export function getVehicleContactPageHref(vehicleId: string) {
+  return `/contact?vehicleId=${encodeURIComponent(vehicleId)}`;
+}
+
 export type EnquiryType = 'viewing' | 'general' | 'part_exchange';
 
 export function getEnquiryHref(type: EnquiryType, car?: Car, message?: string) {

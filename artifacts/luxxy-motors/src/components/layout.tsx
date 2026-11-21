@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link, useLocation } from 'wouter';
 import { Menu, X, Phone, MessageCircle, ArrowRight, Heart, CalendarDays } from '@/components/icons';
 import { navigateToHomeTarget } from '@/lib/home-navigation';
-import { getEnquiryHref, getWhatsAppHref } from '@/lib/cta-helpers';
+import { getEnquiryHref, getVehicleContactPageHref, getWhatsAppHref } from '@/lib/cta-helpers';
 import { Button } from '@/components/ui/button';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { useStockHeader } from '@/hooks/use-stock-header';
@@ -61,6 +61,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isBrowsingPage = location === '/stock' || isVehiclePagePath(location);
   const { settings: dealerConfig, hasLoadedSettings, publicEnquiriesEnabled, isLoading: settingsLoading, isError: settingsError } = useDealerSettings();
   const websiteTemplate = isCustomerWebsite ? selectedWebsiteTemplate(dealerConfig.presentation) : null;
+  const vehicleContactHref = isMultiChoiceBrand && websiteTemplate === 'autodeal' &&
+    isVehiclePage && publicEnquiriesEnabled && vehicle?.id
+    ? getVehicleContactPageHref(vehicle.id) : undefined;
   const graphiteWebsite = isCustomerWebsite && websiteTemplate === null;
   const modernShowroom = graphiteWebsite && isModernShowroom(dealerConfig.presentation);
   const graphiteThemeClass = modernShowroom ? ' modern-showroom-site' : ' graphite-site';
@@ -242,7 +245,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div id={isHomePage ? 'top' : undefined} style={brandStyle} data-dealer-brand={isMultiChoiceBrand ? "multi-choice" : undefined} data-website-template={modernShowroom ? 'modern-showroom' : websiteTemplate ?? undefined} data-default-website-design={graphiteWebsite && !modernShowroom ? 'graphite' : undefined} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}${isCustomerWebsite ? ' dealer-site-theme showroom-navy-site' : ''}${graphiteWebsite ? graphiteThemeClass : ''}${isSharedPortal ? ' dealer-portal-theme' : ''}${isHomePage ? ' multi-home-shell' : ''}${websiteTemplate ? ` website-template website-template--${websiteTemplate}` : ''}${websiteTemplate === 'grand-touring' ? ` gt-design${isVehiclePage ? ' gt-vehicle-shell' : ''}` : ''}`}>
       <a href="#main-content" className="fixed left-4 top-3 z-[100] -translate-y-24 rounded-md bg-primary px-5 py-3 text-primary-foreground focus:translate-y-0">Skip to content</a>
-      {isCustomerWebsite && (graphiteWebsite ? <DealerHeader ref={headerRef} settings={dealerConfig} savedCount={savedCount} testDriveHref={testDriveHref} isHomepage={isHomePage} enquiriesEnabled={publicEnquiriesEnabled} onLogoClick={isHomePage ? undefined : handleLogoClick} /> : websiteTemplate === 'grand-touring' ? <ShowroomHeader ref={headerRef} settings={dealerConfig} savedCount={savedCount} testDriveHref={testDriveHref} isHomepage={isHomePage} enquiriesEnabled={publicEnquiriesEnabled} onLogoClick={isHomePage ? undefined : handleLogoClick} /> : <MultiHomeHeader ref={headerRef} settings={dealerConfig} savedCount={savedCount} testDriveHref={testDriveHref} isHomepage={isHomePage} enquiriesEnabled={publicEnquiriesEnabled} onLogoClick={isHomePage ? undefined : handleLogoClick} />)}
+      {isCustomerWebsite && (graphiteWebsite ? <DealerHeader ref={headerRef} settings={dealerConfig} savedCount={savedCount} testDriveHref={testDriveHref} isHomepage={isHomePage} enquiriesEnabled={publicEnquiriesEnabled} onLogoClick={isHomePage ? undefined : handleLogoClick} /> : websiteTemplate === 'grand-touring' ? <ShowroomHeader ref={headerRef} settings={dealerConfig} savedCount={savedCount} testDriveHref={testDriveHref} isHomepage={isHomePage} enquiriesEnabled={publicEnquiriesEnabled} onLogoClick={isHomePage ? undefined : handleLogoClick} /> : <MultiHomeHeader ref={headerRef} settings={dealerConfig} savedCount={savedCount} testDriveHref={testDriveHref} contactHref={vehicleContactHref} isHomepage={isHomePage} enquiriesEnabled={publicEnquiriesEnabled} onLogoClick={isHomePage ? undefined : handleLogoClick} />)}
       {!isStaff && !isCustomerWebsite && <header
         ref={headerRef}
         data-site-header
