@@ -137,6 +137,27 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
+it.each([
+  { template: 'regent-lane', device: 'desktop', hasTrack: true },
+  { template: 'regent-lane', device: 'phone', hasTrack: false },
+  { template: 'regent-lane', device: 'tablet', hasTrack: false },
+  { template: 'showroom', device: 'desktop', hasTrack: false },
+] as const)('limits the Regent Lane scroll track to desktop ($template, $device)', ({ template, device, hasTrack }) => {
+  const car = stockFixture.cars[1];
+  const previous = car.images;
+  Object.assign(car, { images: ['https://cdn.example.com/bmw-side.jpg', 'https://cdn.example.com/bmw-rear.jpg'] });
+  vi.stubGlobal('matchMedia', vi.fn((media: string) => ({
+    matches: device === 'phone' ? media.startsWith('(max-width') : device === 'desktop' && media.includes('(pointer: fine)'),
+    media, addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(),
+  })));
+  try {
+    renderVehicle('with-plate', { ...dealerConfig, presentation: { ...dealerConfig.presentation, websiteTemplate: template } });
+    const track = screen.queryByRole('group', { name: 'Vehicle photographs' });
+    expect(Boolean(track)).toBe(hasTrack);
+    expect(screen.getByRole('button', { name: 'View all 3 photos' })).toBeInTheDocument();
+  } finally { car.images = previous; }
+});
+
 describe('opt-in website template production flows', () => {
   it.each(['showroom', 'grand-touring', 'forecourt', 'panorama'] as const)('keeps enquiry, booking, stock facts and MOT controls in %s', async template => {
     Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: vi.fn() });

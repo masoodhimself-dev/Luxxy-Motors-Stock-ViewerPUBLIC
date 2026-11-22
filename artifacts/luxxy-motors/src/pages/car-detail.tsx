@@ -72,6 +72,7 @@ import { GraphiteIcon } from '@/components/graphite/graphite-icon';
 import { useDealerFeatures } from '@/lib/dealer-features';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useRegentDesktopGallery } from '@/components/website-templates/regent-gallery-track';
 import { vehiclePageMeta } from '@/lib/page-meta';
 import {
   getEnquiryHref,
@@ -139,6 +140,7 @@ export default function CarDetail() {
   const isGraphite = websiteTemplate === null;
   const modernShowroom = isModernShowroom(dealerConfig.presentation);
   const vehiclePhoneLayout = useIsMobile(761);
+  const regentPhotoLayout = useRegentDesktopGallery(websiteTemplate === 'regent-lane');
   const grandTouring = websiteTemplate === 'grand-touring';
   const autoDeal = websiteTemplate === 'autodeal';
   const quietVehicle = isGraphite || grandTouring || autoDeal;
@@ -361,7 +363,7 @@ export default function CarDetail() {
             {vehicleTrim && <p>{vehicleTrim}</p>}
           </header>;
   const templateGallery = <div className="vehicle-detail-gallery min-w-0">
-            <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} customerView hideInlineThumbnails inlinePresentation={autoDeal ? 'autodeal' : modernShowroom ? 'showroom-rail' : quietVehicle ? 'showroom' : 'standard'} customerActions={{
+            <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} customerView hideInlineThumbnails inlinePresentation={regentPhotoLayout ? 'regent-lane-desktop' : autoDeal ? 'autodeal' : modernShowroom ? 'showroom-rail' : quietVehicle ? 'showroom' : 'standard'} customerActions={{
               enquiryHref: customerFeatures.enabled('publicEnquiries') ? '#vehicle-enquiry' : undefined,
               onEnquiry: customerFeatures.enabled('publicEnquiries') ? () => openVehicleEnquiry() : undefined,
             }} />

@@ -658,3 +658,44 @@ it('names the photo grid for the active category and lets shoppers return to the
   fireEvent.click(within(reopened).getByRole('button', { name: 'All photographs' }));
   expect(within(within(reopened).getByRole('region', { name: 'All 2 photographs' })).getAllByRole('button')).toHaveLength(2);
 });
+
+it('keeps the lead and companion photos on one Regent Lane track and restores viewer focus', async () => {
+  const photos = Array.from({ length: 7 }, (_, i) => `https://example.com/regent-${i + 1}.jpg`);
+  const { container } = render(<Gallery customerView hideInlineThumbnails inlinePresentation="regent-lane-desktop" images={photos} />);
+  const track = screen.getByRole('group', { name: 'Vehicle photographs' });
+  const buttons = within(track).getAllByRole('button', { name: /^View companion photograph/ });
+  expect(track).toHaveAttribute('data-rows', '2');
+  expect(buttons).toHaveLength(6);
+  expect(buttons[0].querySelector('img')).toHaveClass('object-contain');
+  const stage = container.querySelector('.vehicle-gallery-image-stage') as HTMLElement;
+  expect(track).toContainElement(stage);
+  expect(within(stage).getByRole('button', { name: 'View gallery fullscreen' })).toBeVisible();
+  expect(within(stage).queryByRole('button', { name: 'Next photograph' })).not.toBeInTheDocument();
+  expect(track).not.toContainElement(screen.getByRole('button', { name: 'View all 7 photos' }));
+  expect(screen.getAllByRole('button', { name: 'View all 7 photos' })).toHaveLength(1);
+
+  buttons[0].focus();
+  fireEvent.keyDown(buttons[0], { key: 'ArrowRight' });
+  expect(buttons[2]).toHaveFocus();
+  fireEvent.click(buttons[2]);
+  const dialog = await screen.findByRole('dialog', { name: 'Vehicle image gallery' });
+  expect(within(dialog).getByText('4 / 7')).toBeInTheDocument();
+  expect(dialog.querySelector('.vehicle-lightbox-photo img')).toHaveAttribute('src', photos[3]);
+  fireEvent.keyDown(dialog, { key: 'Escape' });
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(buttons[2]).toHaveFocus();
+  expect(stage.querySelector('.gallery-photo')).toHaveAttribute('src', photos[0]);
+
+  fireEvent.click(screen.getByRole('button', { name: 'View all 7 photos' }));
+  const overview = await screen.findByRole('dialog');
+  expect(within(overview).getByRole('region', { name: 'All 7 photographs' })).toBeVisible();
+});
+
+it('uses the full Regent Lane gallery frame for one photo without empty companion slots', () => {
+  render(<Gallery customerView inlinePresentation="regent-lane-desktop" images={['https://example.com/only-regent.jpg']} />);
+  const track = screen.getByRole('group', { name: 'Vehicle photographs' });
+  expect(track).toHaveAttribute('data-count', '0');
+  expect(within(track).queryByRole('button', { name: /^View companion photograph/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Next photograph' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'View photo' })).toBeVisible();
+});

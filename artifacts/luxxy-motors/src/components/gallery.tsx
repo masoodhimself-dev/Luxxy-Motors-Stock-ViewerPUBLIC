@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/
 import { Link } from 'wouter';
 import './gallery-overview.css';
 import { shouldPrefetchVehiclePhotos } from '@/lib/photo-connection';
+import { RegentGalleryTrack } from './website-templates/regent-gallery-track';
 
 export interface GalleryProps {
   car?: Car;
@@ -19,7 +20,7 @@ export interface GalleryProps {
   customerView?: boolean;
   hideInlineThumbnails?: boolean;
   /** Quiet showroom layouts keep the full photo tools in the shared viewer. */
-  inlinePresentation?: 'standard' | 'showroom' | 'showroom-rail' | 'autodeal';
+  inlinePresentation?: 'standard' | 'showroom' | 'showroom-rail' | 'autodeal' | 'regent-lane-desktop';
   /** Select a starting photograph without changing the shared gallery order. */
   initialImageUrl?: string;
   customerActions?: { enquiryHref?: string; onEnquiry?: () => void };
@@ -33,7 +34,8 @@ export function Gallery({
   hideInlineThumbnails = false, inlinePresentation = 'standard', customerActions, initialImageUrl,
 }: GalleryProps) {
   const reduceMotion = useReducedMotion();
-  const showroom = inlinePresentation !== 'standard';
+  const regent = inlinePresentation === 'regent-lane-desktop';
+  const showroom = inlinePresentation !== 'standard' && !regent;
   const rail = inlinePresentation === 'showroom-rail';
   const autoDeal = inlinePresentation === 'autodeal';
   const [open, setOpen] = useState(false);
@@ -280,7 +282,7 @@ export function Gallery({
     'photo-glass-control grid shrink-0 place-items-center';
   if (!allImages.length)
     return (
-      <div className="flex aspect-[4/3] flex-col items-center justify-center gap-3 bg-muted text-muted-foreground">
+      <div className={cn('flex aspect-[4/3] flex-col items-center justify-center gap-3 bg-muted text-muted-foreground', regent && 'regent-gallery-empty')}>
         <Camera className="h-8 w-8" />
         {failedImages.size > 0 ? <><p className="text-sm" role="status">Photos couldn’t be loaded</p><button type="button" onClick={retryPhotos} className="inline-flex min-h-11 items-center gap-2 px-4 text-sm font-medium underline underline-offset-4"><RotateCw className="h-4 w-4" aria-hidden="true" />Try photos again</button></> : <p className="text-sm">Photographs to follow</p>}
       </div>
@@ -310,40 +312,73 @@ export function Gallery({
   const inlineFrame = (
     <div className="vehicle-gallery-frame">
       <div
-        className="vehicle-gallery-image-stage relative aspect-[4/3] overflow-hidden rounded-sm bg-muted touch-pan-y touch-pinch-zoom"
-        {...touchHandlers}
+        className={cn('vehicle-gallery-image-stage relative aspect-[4/3] overflow-hidden rounded-sm bg-muted', !regent && 'touch-pan-y touch-pinch-zoom')}
+        {...(!regent ? touchHandlers : {})}
       >
         {!allImages.length && <p className="flex h-full items-center justify-center text-sm text-muted-foreground">Photographs to follow</p>}
         {renderImage(
-          index,
+          regent ? 0 : index,
           "gallery-photo absolute inset-0 h-full w-full object-contain",
           true,
+          regent && allImages.length > 1 ? '(min-width: 1290px) 650px, 52vw' : undefined,
         )}
-        {allImages.length > 0 && loadedUrl !== activeUrl && <span className="gallery-photo-loading pointer-events-none absolute inset-0 motion-safe:animate-pulse bg-muted"><span className="sr-only" role="status">Loading photo…</span></span>}
+        {(regent || loadedUrl !== activeUrl) && <span className="gallery-photo-loading pointer-events-none absolute inset-0 motion-safe:animate-pulse bg-muted"><span className="sr-only" role="status">Loading photo…</span></span>}
         {allImages.length > 0 && <DialogTrigger asChild>
           <button
             type="button"
             data-gallery-open
             aria-label="View gallery fullscreen"
-            aria-describedby={customerView && !open ? counterId : undefined}
-            onClick={(event) => { if (swiped.current) { event.preventDefault(); swiped.current = false; } }}
+            aria-describedby={!regent && customerView && !open ? counterId : undefined}
+            onClick={event => {
+              if (swiped.current) { event.preventDefault(); swiped.current = false; }
+              else if (regent) { selectPhoto(0); setOverview(false); }
+            }}
             className="absolute inset-0 cursor-zoom-in focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
           >
             <span className="gallery-enlarge-icon" aria-hidden="true"><Maximize2 className="h-5 w-5" /></span>
           </button>
         </DialogTrigger>}
-        {rail ? viewAll : !autoDeal && photoArrows}
+        {rail ? viewAll : !autoDeal && !regent && photoArrows}
         {inlinePresentation === 'showroom' && inlineControls}
       </div>
     </div>
   );
+  const inlineShortcuts = !showroom && shortcuts.length > 0 && <div className="vehicle-photo-shortcuts" aria-label="Photo shortcuts">
+    <span>Show me</span>
+    {shortcuts.map(shortcut => <button key={shortcut.label} type="button" onClick={event => {
+      galleryReturnFocusRef.current = event.currentTarget;
+      setSelectedGroup('All');
+      selectPhoto(shortcut.index);
+      setOverview(false);
+      setOpen(true);
+    }}>{shortcut.label}</button>)}
+  </div>;
   return (
     <Dialog open={open} onOpenChange={value => {
       setOpen(value);
       if (!value) { setZoomed(false); setOverview(false); swiped.current = false; touchStart.current = null; pinch.current = null; pan.current = null; }
     }}>
-      <div className={cn("vehicle-photo-gallery min-w-0", customerView && "is-customer-gallery", showroom && "showroom-inline-gallery")}>
-        {autoDeal ? <div className="vehicle-gallery-media" style={{ '--gallery-photo-ratio': photoRatio } as CSSProperties}>
+      <div className={cn("vehicle-photo-gallery min-w-0", customerView && "is-customer-gallery", showroom && "showroom-inline-gallery", regent && 'regent-gallery')}>
+        {regent ? <>
+          <div className="regent-gallery-board">
+            <RegentGalleryTrack key={selectedGroup} lead={inlineFrame} activeIndex={index} reduceMotion={Boolean(reduceMotion)}
+              photos={allImages.slice(1).map((image, slot) => ({
+                key: getSafeImageUrl(image), index: slot + 1,
+                label: `View companion photograph ${slot + 2} of ${allImages.length}${imageCaption(image) ? `: ${imageCaption(image)}` : ''}`,
+              }))}
+              renderPhoto={photo => renderImage(photo, 'h-full w-full object-contain', false, '(min-width: 1290px) 280px, 24vw')}
+              onOpenPhoto={(photo, trigger) => {
+                galleryReturnFocusRef.current = trigger;
+                selectPhoto(photo);
+                setOverview(false);
+                setOpen(true);
+              }} />
+            {viewAll}
+          </div>
+          {(groups.length > 0 || inlineShortcuts) && <div className="regent-gallery-tools">
+            {groupNavigation()}{inlineShortcuts}
+          </div>}
+        </> : autoDeal ? <div className="vehicle-gallery-media" style={{ '--gallery-photo-ratio': photoRatio } as CSSProperties}>
           {inlineFrame}
           {photoArrows}
           {inlineControls}
@@ -390,17 +425,8 @@ export function Gallery({
             ); })}
           </div>
         )}
-        {!showroom && groupNavigation()}
-        {!showroom && shortcuts.length > 0 && <div className="vehicle-photo-shortcuts" aria-label="Photo shortcuts">
-          <span>Show me</span>
-          {shortcuts.map(shortcut => <button key={shortcut.label} type="button" onClick={event => {
-            galleryReturnFocusRef.current = event.currentTarget;
-            setSelectedGroup('All');
-            selectPhoto(shortcut.index);
-            setOverview(false);
-            setOpen(true);
-          }}>{shortcut.label}</button>)}
-        </div>}
+        {!showroom && !regent && groupNavigation()}
+        {!regent && inlineShortcuts}
       </div>
       <DialogContent
         className={cn('vehicle-lightbox', customerView && 'customer-vehicle-lightbox', showroom && 'showroom-inline-lightbox', overview && 'is-gallery-overview', zoomed && 'is-gallery-zoomed')}

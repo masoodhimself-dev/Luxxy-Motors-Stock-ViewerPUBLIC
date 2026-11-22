@@ -228,3 +228,148 @@
     gap: 5px 14px;
   }
 }
+
+@media (min-width: 1024px) {
+  .regent-vehicle-grid:has(.regent-gallery, .regent-gallery-empty) {
+    grid-template-areas: 'photo photo' 'facts purchase';
+  }
+
+  .regent-gallery { container-type: inline-size; }
+
+  .regent-gallery-board {
+    --regent-photo-gap: 6px;
+    position: relative;
+    height: clamp(320px, 35vw, 462px);
+    height: clamp(320px, min(37cqw, 57svh), 462px);
+    min-width: 0;
+    background: var(--ct-surface, #fff);
+  }
+
+  .website-template.customer-site .ct-vehicle-regent-lane .regent-gallery-board .vehicle-gallery-frame {
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    border-radius: 0;
+  }
+
+  .website-template.customer-site .ct-vehicle-regent-lane .regent-gallery-board .vehicle-gallery-image-stage {
+    height: 100%;
+    max-height: none;
+    aspect-ratio: auto;
+    border-radius: 0;
+  }
+
+  .regent-gallery-lead {
+    grid-column: 1;
+    grid-row: 1 / -1;
+    min-width: 0;
+    min-height: 0;
+    scroll-snap-align: start;
+  }
+
+  .regent-gallery-track {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 50%;
+    grid-auto-columns: max(164px, 23%);
+    gap: var(--regent-photo-gap);
+    width: 100%;
+    height: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+  }
+
+  .regent-gallery-track::-webkit-scrollbar { display: none; }
+  .regent-gallery-track:focus-visible { outline: 2px solid var(--gallery-ink); outline-offset: -3px; }
+  .regent-gallery-track[data-rows='1'] { grid-template-rows: minmax(0, 1fr); }
+  .regent-gallery-track[data-count='0'] { grid-template-columns: 100%; }
+  .regent-gallery-track:is([data-count='1'], [data-count='2']) {
+    grid-template-columns: calc((100% - var(--regent-photo-gap)) * 2 / 3);
+    grid-auto-columns: calc((100% - var(--regent-photo-gap)) / 3);
+  }
+  .regent-gallery-track:is([data-count='3'], [data-count='4']) {
+    grid-template-columns: calc((100% - var(--regent-photo-gap) * 2) / 2);
+    grid-auto-columns: calc((100% - var(--regent-photo-gap) * 2) / 4);
+  }
+  .regent-gallery-track[data-count='3'] > button:last-child { grid-column: 3; grid-row: 1 / -1; }
+  .regent-gallery-lead .gallery-photo[data-photo-ready] ~ .gallery-photo-loading { display: none; }
+
+  .regent-gallery-strip-photo {
+    display: block;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 4px;
+    background: var(--ct-explorer, #eaebf0);
+    cursor: zoom-in;
+    scroll-snap-align: start;
+  }
+
+  .regent-gallery-strip-photo img { display: block; }
+  .regent-gallery .regent-gallery-strip-photo:focus-visible { outline-offset: -4px; }
+
+  .regent-gallery-strip-arrows {
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-inline: 8px;
+    pointer-events: none;
+  }
+
+  .regent-gallery-strip-arrows > button {
+    display: grid;
+    width: 44px;
+    height: 44px;
+    place-items: center;
+    border-radius: 50%;
+    pointer-events: auto;
+    cursor: pointer;
+  }
+
+  .regent-gallery-strip-arrows > button:disabled { visibility: hidden; }
+  .regent-gallery-strip-arrows > button:hover .vehicle-gallery-arrow-face,
+  .regent-gallery-strip-arrows > button:focus-visible .vehicle-gallery-arrow-face { background: #fff; }
+
+  .website-template.customer-site .ct-vehicle.ct-vehicle-regent-lane .regent-gallery .vehicle-gallery-view-all {
+    position: absolute;
+    z-index: 3;
+    right: 12px;
+    bottom: 12px;
+    padding-inline: 14px;
+    border: 1px solid rgb(255 255 255 / .65);
+    border-radius: 6px;
+    background: rgb(255 255 255 / .95);
+    color: var(--gallery-ink);
+    cursor: pointer;
+  }
+
+  .website-template.customer-site .ct-vehicle.ct-vehicle-regent-lane .regent-gallery .vehicle-gallery-view-all:hover { background: #fff; }
+
+  .regent-gallery .gallery-enlarge-icon { display: none; }
+
+  .regent-gallery-tools {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0 20px;
+    min-height: 44px;
+    padding-inline: 14px;
+    border-top: 1px solid var(--ct-explorer, #eaebf0);
+    background: var(--ct-surface, #fff);
+  }
+
+  .regent-gallery-tools > :is(.vehicle-photo-sections, .vehicle-photo-shortcuts) {
+    max-width: 100%;
+    margin-top: 0;
+    border-bottom: 0;
+  }
+
+  .regent-gallery-empty { max-height: 330px; border-radius: 16px; }
+}
