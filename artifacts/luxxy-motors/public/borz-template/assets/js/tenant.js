@@ -83,7 +83,9 @@
     const logo = multiChoice ? multiChoiceWordmark : localAsset(identity.logoAsset);
     const footer = multiChoice ? multiChoiceWordmark : localAsset(settings.presentation?.footerLogoUrl);
     for (const image of all('[data-borz-logo]')) {
-      const source = image.closest('.f-logo') ? footer || logo : logo || footer;
+      const source = multiChoice && image.closest('.wa-card')
+        ? '/brand/multi-choice-motors/multi-choice-wordmark.svg'
+        : image.closest('.f-logo') ? footer || logo : logo || footer;
       if (!source) continue;
       const fallback = image.parentElement?.querySelector('[data-borz-logo-fallback]');
       image.addEventListener('load', () => {

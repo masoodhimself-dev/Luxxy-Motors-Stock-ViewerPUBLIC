@@ -439,6 +439,7 @@ body.menu-open { overflow: hidden; }
 .wa-card[hidden] { display: none; }
 .wa-card .who { display: flex; align-items: center; gap: 10px; padding-right: 24px; }
 .wa-card .who img { width: 28px; height: 28px; border-radius: 6px; }
+.wa-card .who img[src="/brand/multi-choice-motors/multi-choice-wordmark.svg"] { object-fit: contain; }
 .wa-card .who strong { display: block; font-size: .8rem; line-height: 1.2; color: var(--ink); }
 .wa-card .who span { font-size: .68rem; color: var(--muted); }
 .wa-card .msg { margin-top: 10px; }
