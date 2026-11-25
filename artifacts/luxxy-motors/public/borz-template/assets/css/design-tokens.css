@@ -1,0 +1,71 @@
+/* ==========================================================================
+   DESIGN TOKENS — recreated from borzmotors.co.uk (Carous dealer theme)
+   Change these to re-skin the whole site (e.g. swap --red for your brand colour).
+   ========================================================================== */
+:root {
+  /* Brand + neutrals */
+  --red: #b51f2a;            /* primary accent: buttons, rules, active states */
+  --red-rgb: 181, 31, 42;
+  --red-hover: #8f1822;
+  --black: #111214;          /* header, footer, dark sections */
+  --graphite: #292b30;       /* top bar, "why buy" / visit sections, avatars */
+  --silver: #b8bcc2;         /* icons + secondary text on dark */
+  --off: #f6f6f5;            /* page background / light sections */
+  --white: #ffffff;
+  --ink: #16171a;            /* headings on light */
+  --text: #3b3d43;           /* body copy */
+  --muted: #666a72;          /* captions, labels */
+  --line: #dfe1e4;           /* borders on light */
+  --line-dark: rgba(184, 188, 194, .18); /* borders on dark */
+  --wa: #25d366;             /* WhatsApp green */
+  --plate-yellow: #f2c500;   /* UK reg-plate input */
+  --plate-blue: #1b3f9e;
+
+  /* Typography */
+  --font-head: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;  /* uppercase, expanded (font-stretch 108–112%) */
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --stretch-head: 112%;
+  --stretch-ui: 108%;
+
+  /* Layout */
+  --zoom: 1.15;              /* the original scales the whole page with html{zoom:1.15} */
+  --shell: 1360px;           /* max content width */
+  --gutter: clamp(16px, 3.4vw, 40px);
+  --top: 38px;               /* top info bar height */
+  --bar: 92px;               /* main header bar height */
+  --sec-pad: clamp(52px, 6.4vw, 92px);
+  --radius-btn: 2px;
+  --radius-card: 4px;
+  --radius-media: 6px;
+
+  /* Motion */
+  --ease: cubic-bezier(.22, 1, .36, 1);
+
+  /* Shadows */
+  --shadow-card: 0 22px 46px -28px rgba(0,0,0,.45);
+  --shadow-media: 0 34px 76px -36px rgba(0,0,0,.55);
+  --shadow-panel: 0 36px 80px -34px rgba(0,0,0,.9);
+}
+/* Breakpoints used (max-width unless noted):
+   1439 (desktop nav -> burger), 1280 (hide top-bar hours), 1200/980/560 (stock grid 4/3/2/1),
+   1100, 1000, 900, 860, 820, 640, 560, 520, 480, 460 */
+@media (max-width: 1439px) {
+  :root { --top: 0px; --bar: 68px; }
+}
+
+/* The permitted reference supplies the same variable typefaces used here. */
+@font-face {
+  font-family: Archivo;
+  src: url('../fonts/archivo-latin.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  font-display: swap;
+}
+@font-face {
+  font-family: Inter;
+  src: url('../fonts/inter-latin.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}

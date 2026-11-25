@@ -3,6 +3,7 @@ import type { RequestHandler } from 'express';
 import { and, eq, isNull } from 'drizzle-orm';
 import { db, dealerDomainsTable, dealershipsTable, dealerImportKeysTable, dealerDemosTable } from '@workspace/db';
 import { isReservedDealerHost, multiTenantEnabled, normaliseTenantHost, runWithTenant, type TenantContext } from '../lib/tenant-context';
+import { borzDirectoryAccess } from '../lib/borz-frontend';
 import { demoProvisioning } from '../lib/demo-policy';
 export function importSecretDigest(secret: string): string { return createHash('sha256').update(secret).digest('hex'); }
 export function matchesImportSecret(secret: string, digest: string): boolean {
@@ -25,7 +26,7 @@ export const resolveTenant: RequestHandler = (req, res, next) => {
       /^\/fonts\/(?:[a-z0-9_-]+\/)*[a-z0-9_-]+\.woff2$/i.test(req.path);
     if (hostname === administratorHost && (req.path === '/platform' || req.path === '/join' ||
       /^\/(assets|brand|sign-in|sign-up)(?:\/|$)/.test(req.path) ||
-      publicFontAsset || ['/favicon.svg', '/showroom-car.jpg'].includes(req.path))) { next(); return; }
+      publicFontAsset || ((req.method === 'GET' || req.method === 'HEAD') && borzDirectoryAccess(req.path) === 'asset') || ['/favicon.svg', '/showroom-car.jpg'].includes(req.path))) { next(); return; }
     const importRoute = /^\/api\/stock\/imports\/([a-z0-9-]+)\/grok\/?$/.exec(req.path);
     let tenant: TenantContext;
     if (importRoute) {

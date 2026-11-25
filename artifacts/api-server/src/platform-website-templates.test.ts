@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { request as httpRequest } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -23,7 +23,7 @@ test('website template registry preserves old values and agrees with the public 
   const defaults = newDealerSettings('Fictional dealer');
   assert.equal(resolveWebsiteTemplateId(undefined), 'existing');
   assert.equal(resolveWebsiteTemplateId('unrecognised'), 'existing');
-  assert.deepEqual(WEBSITE_TEMPLATES.filter(template => !template.legacy).map(template => template.id), ['showroom', 'modern-showroom', 'grand-touring', 'forecourt', 'autodeal', 'panorama', 'regent-lane']);
+  assert.deepEqual(WEBSITE_TEMPLATES.filter(template => !template.legacy).map(template => template.id), ['showroom', 'modern-showroom', 'grand-touring', 'forecourt', 'autodeal', 'panorama', 'regent-lane', 'borz']);
   for (const { id } of WEBSITE_TEMPLATES) {
     assert.equal(isWebsiteTemplateId(id), true);
     assert.equal(resolveWebsiteTemplateId(id), id);
@@ -42,6 +42,12 @@ test('per-dealer template previews and publications are private, scoped and revi
   process.env.SESSION_SECRET = 'fictional template demo signing key for isolated tests only';
   const directory = await mkdtemp(join(tmpdir(), 'website-template-test-'));
   await writeFile(join(directory, 'index.html'), '<html><head><title>Website</title></head><body><div id="root"></div></body></html>');
+  await mkdir(join(directory, 'borz-template', 'assets', 'css'), { recursive: true });
+  const borzShell = '<html><head><title>Borz shell</title><link rel="stylesheet" href="assets/css/styles.css"></head><body><div data-borz-fixture></div><a href="used-cars.html?make=Lexus#results">Stock</a><a href="contact.html">Enquire</a></body></html>';
+  for (const name of ['index', 'used-cars', 'vehicle', 'finance', 'contact']) {
+    await writeFile(join(directory, 'borz-template', name + '.html'), borzShell);
+  }
+  await writeFile(join(directory, 'borz-template', 'assets', 'css', 'styles.css'), 'body{color:black}');
   for (const file of (await readdir('../../lib/db/drizzle')).filter(name => /^\d+.*\.sql$/.test(name)).sort()) {
     await engine.exec(await readFile(join('../../lib/db/drizzle', file), 'utf8'));
   }
@@ -69,6 +75,11 @@ test('per-dealer template previews and publications are private, scoped and revi
     await db.insert(dealerSettingsTable).values({ dealerId: dealer.id, revision: dealer.revision, config: dealer.config });
     await db.insert(dealerDomainsTable).values({ dealerId: dealer.id, hostname: `${dealer.id}.example.test`, verified: true, verificationToken: 'test-fixture' });
   }
+  const borzTenant = 'template-borz-opted-in';
+  await db.insert(dealershipsTable).values({ id: borzTenant, name: 'Borz Opted In Motors', status: 'active',
+    canonicalOrigin: `https://${borzTenant}.example.test`, stockPlatform: 'autotrader', retailerId: borzTenant, sourceUrl: 'https://www.autotrader.co.uk/fictional-dealer' });
+  await db.insert(dealerSettingsTable).values({ dealerId: borzTenant, revision: 0, config: { ...newDealerSettings('Borz Opted In Motors'), presentation: { websiteTemplate: 'borz' } } });
+  await db.insert(dealerDomainsTable).values({ dealerId: borzTenant, hostname: `${borzTenant}.example.test`, verified: true, verificationToken: 'test-fixture' });
   const pixel = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+p1LkAAAAASUVORK5CYII=';
   const demoExpiry = new Date(Date.now() + 3 * 86_400_000);
   await db.insert(dealerDemosTable).values({ dealerId: 'template-demo', recipient: 'operator@example.test', expiresAt: demoExpiry, updatedBy: 'user_admin', logoData: `data:image/png;base64,${pixel}` });
@@ -172,6 +183,36 @@ test('per-dealer template previews and publications are private, scoped and revi
       assert.deepEqual(await stored(), { config: firstConfig, revision: 7 });
       assert.deepEqual((await engine.query('SELECT * FROM vehicles ORDER BY id')).rows, beforeStock);
       assert.deepEqual(await history(), []);
+    });
+    await context.test('Borz document and stock routes use only the admitted dealer scope', async () => {
+      const base = '/platform/preview/template-alpha/template/borz/7';
+      const html = await request(base + '/stock');
+      assert.equal(html.status, 200, await html.clone().text());
+      assert.match(html.headers.get('x-robots-tag') ?? '', /noindex/);
+      const markup = await html.text();
+      assert.ok(markup.includes('data-borz-fixture'));
+      assert.ok(markup.includes(`"stockUrl":"${base}/api/stock"`));
+      assert.ok(markup.includes(`href="${base}/stock?make=Lexus#results"`));
+      assert.ok(markup.includes('href="/borz-template/assets/css/styles.css"'));
+      assert.ok(markup.includes('"readOnly":true'));
+      assert.equal((await request(base + '/finance')).status, 200);
+      assert.equal((await request(base + '/api/enquiries', { method: 'POST', body: {} })).status, 405);
+      assert.equal((await request(base + '/stock', { user: '' })).status, 403);
+      assert.deepEqual(GetStockResponse.parse(await (await request(base + '/api/stock')).json()).cars.map(car => car.id), [carIds[0]]);
+      assert.equal((await request(base + '/api/vehicles/' + carIds[1])).status, 404);
+      const publicBorz = await request('/stock', { host: `${borzTenant}.example.test` });
+      assert.equal(publicBorz.status, 200, await publicBorz.clone().text());
+      assert.ok((await publicBorz.text()).includes('"readOnly":false'));
+      assert.ok(!(await (await request('/stock', { host: 'template-alpha.example.test' })).text()).includes('data-borz-fixture'));
+      for (const file of ['/borz-template/index.html', '/%62orz-template/used-cars.html', '/borz-template/assets/js/admin.html']) {
+        assert.equal((await request(file, { host: 'template-alpha.example.test' })).status, 404);
+      }
+      assert.equal((await request('/borz-template/assets/css/styles.css')).status, 200);
+      const showcase = makeDemoShowcaseLink('template-demo', { templates: ['borz'], days: 1 }, demoExpiry)!;
+      const showcaseBorz = await request(showcase.path + '/design/borz/contact', { user: '' });
+      assert.equal(showcaseBorz.status, 200, await showcaseBorz.clone().text());
+      assert.ok((await showcaseBorz.text()).includes(`"stockUrl":"${showcase.path}/design/borz/api/stock"`));
+      assert.deepEqual(await stored(), { config: firstConfig, revision: 7 });
     });
     await context.test('ordinary previews keep their restrictions and bad candidates fail closed', async () => {
       assert.equal((await request('/platform/preview/template-alpha/api/stock')).status, 404);

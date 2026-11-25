@@ -9,6 +9,7 @@ import { currentDealerId, multiTenantEnabled, normaliseTenantHost, runWithTenant
 import publicRoutes from './index';
 import { settingsSnapshot } from './dealer-settings';
 import { withWebsiteTemplate } from '../lib/website-template-settings';
+import { borzPage } from '../lib/borz-frontend';
 import { demoShowcaseTarget, readDemoShowcaseToken } from '../lib/demo-showcase';
 
 const router = Router({ mergeParams: true });
@@ -19,7 +20,7 @@ const cachedMotRead = /^\/vehicles\/[a-f0-9-]{36}\/mot-history\/?$/i;
 
 function settingsChanged(req: Request, res: Response, dealerId: string, revision: number) {
   res.set('x-settings-revision', String(revision)).status(409);
-  if (websitePages.test(req.path) && req.accepts('html')) {
+  if ((websitePages.test(req.path) || (req.params.templateId === 'borz' && borzPage(req.path))) && req.accepts('html')) {
     // The ID was checked before this function is called. It is still encoded as
     // a query value; no dealership name or arbitrary request content is rendered.
     const back = `/platform?dealer=${encodeURIComponent(dealerId)}&amp;tab=Website`;
@@ -133,7 +134,11 @@ websiteRouter.use('/api', async (req, res, next) => {
 });
 
 websiteRouter.use((req, res, next) => {
-  if (websitePages.test(req.path) && req.accepts('html')) next();
+  if (req.accepts('html') && res.locals.previewWebsiteTemplate === 'borz' && borzPage(req.path)) {
+    res.locals.websitePreviewBase = req.baseUrl;
+    res.locals.websitePreviewPath = req.path;
+    next();
+  } else if (websitePages.test(req.path) && req.accepts('html')) next();
   else res.status(404).json({ error: 'This page is unavailable on this website.' });
 });
 

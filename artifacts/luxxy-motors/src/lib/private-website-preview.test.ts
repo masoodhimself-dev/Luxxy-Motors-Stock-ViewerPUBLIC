@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { homeSectionHref, privateWebsitePreviewBase, privateWebsitePreviewDetails, previewPublicRequestPath, previewWebsiteAssetUrl, sharedWebsiteShowcaseRoute, websitePreviewBase } from './private-website-preview';
 
-it.each(['grand-touring', 'modern-showroom', 'regent-lane'])('keeps the %s design and revision in every preview route and asset base', template => {
+it.each(['grand-touring', 'modern-showroom', 'regent-lane', 'borz'])('keeps the %s design and revision in every preview route and asset base', template => {
   const base = `/platform/preview/dealer-one/template/${template}/7`;
   window.history.replaceState(null, '', `${base}/cars/lexus-nx?fuel=Hybrid`);
   expect(privateWebsitePreviewBase()).toBe(base);

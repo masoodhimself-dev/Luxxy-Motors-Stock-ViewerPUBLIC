@@ -21,4 +21,5 @@ export const WebsiteTemplateId = {
   autodeal: 'autodeal',
   panorama: 'panorama',
   'regent-lane': 'regent-lane',
+  borz: 'borz',
 } as const;

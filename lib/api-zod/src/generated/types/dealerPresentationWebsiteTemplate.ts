@@ -24,4 +24,5 @@ export const DealerPresentationWebsiteTemplate = {
   autodeal: 'autodeal',
   panorama: 'panorama',
   'regent-lane': 'regent-lane',
+  borz: 'borz',
 } as const;

@@ -494,6 +494,7 @@ export const WebsiteTemplateId = {
   autodeal: 'autodeal',
   panorama: 'panorama',
   'regent-lane': 'regent-lane',
+  borz: 'borz',
 } as const;
 
 export interface WebsiteTemplateDefinition {
@@ -548,6 +549,7 @@ export const DealerPresentationWebsiteTemplate = {
   autodeal: 'autodeal',
   panorama: 'panorama',
   'regent-lane': 'regent-lane',
+  borz: 'borz',
 } as const;
 
 export type DealerPresentationHeroImagePosition = typeof DealerPresentationHeroImagePosition[keyof typeof DealerPresentationHeroImagePosition];

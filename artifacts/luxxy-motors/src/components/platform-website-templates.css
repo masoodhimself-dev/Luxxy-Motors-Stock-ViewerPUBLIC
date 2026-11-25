@@ -130,3 +130,28 @@
   border-radius: 8px;
   background: #a2001d;
 }
+
+.website-template-drawing--borz {
+  color: #f6f6f5;
+  background: #292b30;
+}
+
+.website-template-drawing--borz .website-template-drawing-nav {
+  background: #111214;
+}
+
+.website-template-drawing--borz :is(.website-template-drawing-nav i, .website-template-drawing-copy b) {
+  background: #f6f6f5;
+}
+
+.website-template-drawing--borz .website-template-drawing-photo {
+  background: #b8bcc2;
+}
+
+.website-template-drawing--borz .website-template-drawing-copy {
+  background: #292b30;
+}
+
+.website-template-drawing--borz .website-template-drawing-copy em {
+  background: #b51f2a;
+}

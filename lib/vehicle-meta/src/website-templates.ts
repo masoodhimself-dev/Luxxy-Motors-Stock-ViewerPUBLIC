@@ -11,6 +11,7 @@ export const WEBSITE_TEMPLATES = [
   { id: 'autodeal', name: 'Apex Motorworks', description: 'Orange accents, a full-width featured car and a stock list with large photographs.', legacy: false },
   { id: 'panorama', name: 'Panorama', description: 'An open, photographic layout that gives each car room.', legacy: false },
   { id: 'regent-lane', name: 'Regent Lane', description: 'A cream, ink and burgundy showroom with a centred wordmark and editorial photography.', legacy: false },
+  { id: 'borz', name: 'Borz', description: 'A charcoal and red showroom with the supplied Borz layouts, a photographic homepage and a full vehicle catalogue.', legacy: false },
 ] as const;
 
 export type WebsiteTemplateId = typeof WEBSITE_TEMPLATES[number]['id'];

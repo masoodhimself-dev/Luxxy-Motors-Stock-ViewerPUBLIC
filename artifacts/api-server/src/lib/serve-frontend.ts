@@ -1,8 +1,10 @@
 import { isVehiclePagePath, vehicleDetailPath } from '@workspace/vehicle-meta';
 import express, { type Express } from 'express';
 import path from 'node:path';
-import { existsSync,readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { currentTenant, currentDealerId, type TenantContext } from './tenant-context';
+import { borzDirectoryAccess, borzPage, renderBorzPage } from './borz-frontend';
+import { publishedWebsiteTemplate } from './website-template-settings';
 import { buildPublicPageSeo, renderPublicPageSeo, publicSeoOrigin, type PublicSeoVehicle } from './public-page-seo';
 
 /** Serve the production SPA on the API origin, with no external path router. */
@@ -23,7 +25,9 @@ export function serveFrontend(app: Express, directory: string, options: Frontend
   const root = path.resolve(directory);
   const index = path.join(root, 'index.html');
   if (!existsSync(index)) throw new Error(`Frontend build missing at ${index}. Run pnpm build first.`);
-  const html=readFileSync(index,'utf8');
+  const html = readFileSync(index, 'utf8');
+  const borzSources = new Map<string, string>();
+  const loadPageData = options.loadPageData ?? loadPublicPageData;
   const sendPage:express.RequestHandler=async(req,res,next)=>{
     try{
       const tenant = currentTenant();
@@ -37,7 +41,10 @@ export function serveFrontend(app: Express, directory: string, options: Frontend
         res.set({ 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow' }).type('html').send(markup);
         return;
       }
-      if (res.locals.privateWebsitePreview === true) {
+      const privatePreview = res.locals.privateWebsitePreview === true;
+      const previewBorz = privatePreview && res.locals.previewWebsiteTemplate === 'borz' &&
+        typeof res.locals.websitePreviewBase === 'string' && typeof res.locals.websitePreviewPath === 'string';
+      if (privatePreview && !previewBorz) {
         const showcaseName: string | undefined = res.locals.showcaseDealerName;
         const seo = buildPublicPageSeo({ pathname: '/platform', canonicalOrigin: tenant?.canonicalOrigin, demo: true,
           ...(showcaseName ? { settings: { identity: { name: showcaseName } } } : {}) });
@@ -45,26 +52,66 @@ export function serveFrontend(app: Express, directory: string, options: Frontend
         res.type('html').send(renderPublicPageSeo(html, seo));
         return;
       }
+      const pathname: string = previewBorz ? res.locals.websitePreviewPath : req.path;
+      const basePath: string = previewBorz ? res.locals.websitePreviewBase : '';
+      const borzFile = (previewBorz || tenant?.kind === 'website') ? borzPage(pathname) : undefined;
       // Privileged/capability routes never need vehicle data or discoverable metadata.
-      const publicRoute = ['/', '/index.html', '/stock', '/contact', '/warranty'].includes(req.path.replace(/\/$/, '') || '/') || isVehiclePagePath(req.path);
-      const data = publicRoute ? await (options.loadPageData ?? loadPublicPageData)(req.path, tenant) : {};
-      if (data.vehicle && isVehiclePagePath(req.path) && ['available', 'reserved'].includes(data.vehicle.inventoryStatus ?? '')) {
+      const publicRoute = ['/', '/index.html', '/stock', '/contact', '/warranty'].includes(pathname.replace(/\/$/, '') || '/') || isVehiclePagePath(pathname);
+      const data = publicRoute || borzFile ? await loadPageData(pathname, tenant) : {};
+      const renderBorz = Boolean(tenant && borzFile && (previewBorz || publishedWebsiteTemplate(data.settings) === 'borz'));
+      if (data.vehicle && isVehiclePagePath(pathname) && ['available', 'reserved'].includes(data.vehicle.inventoryStatus ?? '')) {
         const canonicalPath = vehicleDetailPath(data.vehicle);
-        if (req.path !== canonicalPath) {
-          // Relative redirect stays on this verified dealer host; query attribution survives.
+        if (pathname !== canonicalPath) {
+          // Relative redirects stay inside the verified tenant or admitted preview.
           const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
-          res.set('Cache-Control', 'no-store').redirect(301, canonicalPath + query);
+          res.set('Cache-Control', 'no-store').redirect(privatePreview ? 302 : 301, basePath + canonicalPath + query);
           return;
         }
       }
-      const seo = buildPublicPageSeo({ pathname: req.path, canonicalOrigin: tenant?.canonicalOrigin ?? process.env.PUBLIC_SITE_URL, settings: data.settings, vehicle: data.vehicle, demo: tenant?.demo });
-      // No shared HTML cache: price, availability and disclosures come from the current dealer snapshot.
-      res.set('Cache-Control','no-store');
+      const readOnly = privatePreview || tenant?.demo === true;
+      const canonicalOrigin = tenant?.canonicalOrigin ?? process.env.PUBLIC_SITE_URL;
+      const seo = buildPublicPageSeo({ pathname, canonicalOrigin, settings: data.settings, vehicle: data.vehicle, demo: readOnly });
+      // Extra Borz document routes use the same noindex posture as other
+      // secondary pages. The primary stock, home and VDP SEO remain unchanged.
+      if (renderBorz && !publicRoute) {
+        seo.status = 200;
+        seo.title = seo.siteName;
+        seo.description = '';
+      }
+      // Price and availability updates are dealer scoped, never shared HTML cache.
+      res.set('Cache-Control', readOnly ? 'private, no-store' : 'no-store');
       if (seo.robots.startsWith('noindex')) res.set('X-Robots-Tag', seo.robots);
+      if (renderBorz && borzFile && tenant) {
+        let source = borzSources.get(borzFile);
+        if (!source) {
+          const file = path.join(root, 'borz-template', borzFile);
+          if (!existsSync(file)) { res.status(503).type('text').send('This website design is temporarily unavailable.'); return; }
+          source = readFileSync(file, 'utf8');
+          borzSources.set(borzFile, source);
+        }
+        const vehicleId = data.vehicle?.id;
+        const markup = renderBorzPage(source, {
+          basePath, readOnly, tenantKey: tenant.dealerId,
+          canonicalOrigin: publicSeoOrigin(canonicalOrigin) ?? undefined,
+          settingsUrl: basePath + '/api/dealer-settings',
+          stockUrl: basePath + '/api/stock',
+          featuresUrl: basePath + '/api/features',
+          ...(vehicleId ? { vehicleId, vehicleUrl: basePath + '/api/vehicles/' + encodeURIComponent(vehicleId) } : {}),
+        });
+        res.status(seo.status).type('html').send(renderPublicPageSeo(markup, seo));
+        return;
+      }
       res.status(seo.status).type('html').send(renderPublicPageSeo(html, seo));
     }catch(error){next(error);}
   };
   app.get('/index.html',sendPage);
+  app.use((req, res, next) => {
+    if (borzDirectoryAccess(req.path) === 'blocked') {
+      res.status(404).set('Cache-Control', 'no-store').type('text').send('Asset not found.');
+      return;
+    }
+    next();
+  });
   app.use(express.static(root, {
     index: false,
     setHeaders(res, file) {

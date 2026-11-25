@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a8f98"/><stop offset="1" stop-color="#3a3d44"/></linearGradient>
+<radialGradient id="r" cx="50%" cy="40%" r="60%"><stop offset="0" stop-color="#ffffff" stop-opacity=".18"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient></defs>
+<rect width="1200" height="900" fill="url(#g)"/><rect width="1200" height="900" fill="url(#r)"/>
+<rect y="648" width="1200" height="252" fill="#000" opacity=".25"/>
+<g transform="translate(159.99999999999994 482.0) scale(2.2)"><path d="M0 95 L0 70 Q0 58 14 54 L70 44 L120 14 Q130 8 145 8 L250 8 Q268 8 280 18 L320 44 L382 52 Q400 56 400 72 L400 95 Z" fill="#0b0c0e"/><circle cx="85" cy="95" r="24" fill="#050506" stroke="#2c2e33" stroke-width="5"/><circle cx="315" cy="95" r="24" fill="#050506" stroke="#2c2e33" stroke-width="5"/><path d="M130 20 L250 20 Q262 20 270 28 L292 46 L105 46 Z" fill="#1d1f24"/><rect x="368" y="62" width="22" height="8" rx="3" fill="#b51f2a"/></g>
+<text x="1170" y="870" text-anchor="end" font-family="Arial, sans-serif" font-size="20" letter-spacing="4" fill="#ffffff" opacity=".55">PLACEHOLDER · CAR PHOTO 1</text>
+</svg>

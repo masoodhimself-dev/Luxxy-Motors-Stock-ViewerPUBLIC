@@ -1,8 +1,12 @@
-import { isWebsiteTemplateId } from '@workspace/vehicle-meta/website-templates';
+import { isWebsiteTemplateId, WEBSITE_TEMPLATES } from '@workspace/vehicle-meta/website-templates';
 import { sharedStaffPortalPage } from './shared-staff-portal';
 
+const privatePreviewPattern = new RegExp(
+  `^/platform/preview/[a-z0-9][a-z0-9-]{1,62}(?:/template/(?:${WEBSITE_TEMPLATES.map(({ id }) => id).join('|')})/(?:0|[1-9]\\d*))?(?=/|$)`,
+);
+
 export function privateWebsitePreviewBase(pathname = typeof window === 'undefined' ? '' : window.location.pathname) {
-  return /^\/platform\/preview\/[a-z0-9][a-z0-9-]{1,62}(?:\/template\/(?:existing|classic|premium|focused|showroom|modern-showroom|grand-touring|forecourt|autodeal|panorama|regent-lane)\/(?:0|[1-9]\d*))?(?=\/|$)/.exec(pathname)?.[0] ?? '';
+  return privatePreviewPattern.exec(pathname)?.[0] ?? '';
 }
 
 export function privateWebsitePreviewDetails(base = privateWebsitePreviewBase()) {

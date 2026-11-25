@@ -12,10 +12,10 @@ async function preview(name = 'Showroom') {
   fireEvent.click(screen.getByRole('checkbox', { name: 'I’ve checked this preview' }));
 }
 
-it.each([['Apex Motorworks', 'autodeal'], ['Regent Lane', 'regent-lane']])('shows seven designs without changing anything when %s is previewed', async (name, id) => {
+it.each([['Apex Motorworks', 'autodeal'], ['Regent Lane', 'regent-lane'], ['Borz', 'borz']])('shows eight designs without changing anything when %s is previewed', async (name, id) => {
   const fetcher = vi.fn().mockResolvedValue(Response.json(fixture())); vi.stubGlobal('fetch', fetcher); show();
   const group = await screen.findByRole('group', { name: 'Choose a website design' });
-  expect(within(group).getAllByRole('radio')).toHaveLength(7);
+  expect(within(group).getAllByRole('radio')).toHaveLength(8);
   expect(screen.getByRole('heading', { name: 'Website design' }).parentElement).toHaveTextContent('Harbour Motor Co');
   expect(screen.queryByRole('button', { name: 'Create demo links' })).not.toBeInTheDocument();
   expect(screen.getByRole('checkbox')).toBeDisabled();
