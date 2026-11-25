@@ -77,8 +77,11 @@
     }
     for (const area of all('[data-borz-location]')) area.hidden = !values.city;
     if (hrefs.whatsapp) for (const dock of all('[data-borz-whatsapp-dock]')) dock.hidden = false;
-    const logo = localAsset(identity.logoAsset);
-    const footer = localAsset(settings.presentation?.footerLogoUrl);
+    // Match the shared storefront's verified Multi Choice brand on Borz's dark surfaces.
+    const multiChoice = ['https://multichoicemotors.co.uk', 'https://www.multichoicemotors.co.uk'].includes(config.canonicalOrigin);
+    const multiChoiceWordmark = '/brand/multi-choice-motors/multi-choice-wordmark-white.svg';
+    const logo = multiChoice ? multiChoiceWordmark : localAsset(identity.logoAsset);
+    const footer = multiChoice ? multiChoiceWordmark : localAsset(settings.presentation?.footerLogoUrl);
     for (const image of all('[data-borz-logo]')) {
       const source = image.closest('.f-logo') ? footer || logo : logo || footer;
       if (!source) continue;
