@@ -82,10 +82,23 @@
     const multiChoiceWordmark = '/brand/multi-choice-motors/multi-choice-wordmark-white.svg';
     const logo = multiChoice ? multiChoiceWordmark : localAsset(identity.logoAsset);
     const footer = multiChoice ? multiChoiceWordmark : localAsset(settings.presentation?.footerLogoUrl);
+    // Fit Shore Drive's published logo assets without overriding later uploads.
+    const shoreDriveOrigins = ['https://shoredrive.uk', 'https://www.shoredrive.uk'];
+    const isPublishedShoreDriveLogo = (asset, id) => shoreDriveOrigins.includes(config.canonicalOrigin)
+      && ['', ...shoreDriveOrigins].some(origin => plain(asset) === `${origin}/api/website-assets/${id}`);
+    const shoreDriveHeader = isPublishedShoreDriveLogo(identity.logoAsset, 'd01af3ae-0a7c-4711-83ab-0dec2e0e7a84');
+    const shoreDriveFooter = isPublishedShoreDriveLogo(settings.presentation?.footerLogoUrl, 'f0c45054-168c-452c-a572-83327ac212a6');
     for (const image of all('[data-borz-logo]')) {
-      const source = multiChoice && image.closest('.wa-card')
+      const inChat = image.closest('.wa-card');
+      const inFooter = image.closest('.f-logo');
+      let source = multiChoice && inChat
         ? '/brand/multi-choice-motors/multi-choice-wordmark.svg'
-        : image.closest('.f-logo') ? footer || logo : logo || footer;
+        : inFooter ? footer || logo : logo || footer;
+      const useFittedShoreDrive = inFooter ? shoreDriveFooter || (!footer && shoreDriveHeader) : shoreDriveHeader;
+      if (useFittedShoreDrive) {
+        source = inChat ? '/brand/shore-drive/shore-drive-wordmark.svg' : '/brand/shore-drive/shore-drive-wordmark-white.svg';
+        image.dataset.borzWordmark = 'shore-drive';
+      }
       if (!source) continue;
       const fallback = image.parentElement?.querySelector('[data-borz-logo-fallback]');
       image.addEventListener('load', () => {

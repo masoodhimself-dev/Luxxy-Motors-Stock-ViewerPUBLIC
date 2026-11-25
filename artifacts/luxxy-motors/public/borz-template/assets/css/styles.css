@@ -891,6 +891,23 @@ html.js .rv.in { opacity: 1; transform: none; }
 
 [data-borz-logo][hidden], [data-borz-href][hidden], [data-borz-whatsapp-dock][hidden], [data-borz-status][hidden] { display: none !important; }
 [data-borz-logo-fallback] { color: white; font: 700 .95rem/1.15 var(--font-head); text-align: center; max-width: 14em; }
+body .header .bar .logo:has(> [data-borz-wordmark="shore-drive"]) {
+  height: auto;
+  min-height: 44px;
+  min-width: 0;
+  transform: none;
+}
+body .header .bar .logo > img[data-borz-wordmark="shore-drive"] {
+  width: clamp(174px, 12.6vw, 192px);
+  max-width: 100%;
+  height: auto;
+  filter: drop-shadow(0 1px 4px rgba(0,0,0,.7));
+}
+.f-logo img[data-borz-wordmark="shore-drive"] { width: 164px; max-width: 100%; }
+.wa-card .who img[data-borz-wordmark="shore-drive"] { width: 70px; height: auto; border-radius: 0; }
+@media (max-width: 1439px) {
+  body .header .bar .logo > img[data-borz-wordmark="shore-drive"] { width: clamp(112px, 35vw, 142px); }
+}
 [data-borz-status], .borz-form-status { padding-block: .75rem; line-height: 1.4; }
 .borz-form-status { margin: 0; }
 [data-borz-contact] :disabled { opacity: .6; cursor: default; }
