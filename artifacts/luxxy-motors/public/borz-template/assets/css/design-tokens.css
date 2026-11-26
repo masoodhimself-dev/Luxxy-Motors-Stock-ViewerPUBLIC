@@ -5,6 +5,7 @@
 :root {
   /* Brand + neutrals */
   --red: #b51f2a;            /* primary accent: buttons, rules, active states */
+  --red-on-dark: #f07b83;   /* accent text on graphite or black */
   --red-rgb: 181, 31, 42;
   --red-hover: #8f1822;
   --black: #111214;          /* header, footer, dark sections */

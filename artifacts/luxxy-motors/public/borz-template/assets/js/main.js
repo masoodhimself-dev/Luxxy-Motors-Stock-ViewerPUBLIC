@@ -13,10 +13,20 @@ window.BORZ_READY.then(function (data) {
     const amount = new Intl.NumberFormat('en-GB', { style: 'currency', currency: /^[A-Z]{3}$/.test(v.currency) ? v.currency : 'GBP', maximumFractionDigits: 0 }).format(v.price);
     return /\b(excl(?:uding)?\s+vat|plus vat|\+\s*vat|ex\s+vat)\b/i.test(v.priceType || '') ? amount + ' + VAT' : amount;
   };
-  const title = v => (v.make && v.model ? v.make + ' ' + v.model : v.title || [v.make, v.model].filter(Boolean).join(' ')) || 'Vehicle';
+  const title = v => {
+    const make = v.make?.trim();
+    const model = v.model?.trim();
+    if (make && model) {
+      const lowerMake = make.toLowerCase();
+      const lowerModel = model.toLowerCase();
+      return lowerModel === lowerMake || lowerModel.startsWith(lowerMake + ' ') ? model : make + ' ' + model;
+    }
+    return v.title || make || model || 'Vehicle';
+  };
   function vehicleHref(v) {
     if (!v.publicCode) return route('/vehicle/' + encodeURIComponent(v.id));
-    const slug = title(v).normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    const name = [v.make, v.model].filter(Boolean).join(' ') || v.title || 'car';
+    const slug = name.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
       .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 55).replace(/-+$/g, '') || 'car';
     return route('/cars/' + slug + '-' + v.publicCode);
   }
@@ -96,7 +106,16 @@ window.BORZ_READY.then(function (data) {
         <div class="price"><strong>${html(price(v))}</strong></div></div>
     </article>`;
   }
-  window.SITE = { STOCK, gbp, card, store, toggle, updateCounts, I, html, price, title, vehicleHref, route, monthlyPayment };
+  function keepTabInside(event, controls) {
+    if (event.key !== 'Tab') return;
+    const first = controls[0], last = controls.at(-1);
+    const active = document.activeElement;
+    if (!controls.includes(active) || active === (event.shiftKey ? first : last)) {
+      event.preventDefault();
+      (event.shiftKey ? last : first)?.focus();
+    }
+  }
+  window.SITE = { STOCK, gbp, card, store, toggle, updateCounts, I, html, price, title, vehicleHref, route, monthlyPayment, keepTabInside };
 
   document.addEventListener('click', e => {
     const s = e.target.closest('[data-save-id]'), c = e.target.closest('[data-cmp-id]');
@@ -111,12 +130,36 @@ window.BORZ_READY.then(function (data) {
 
   /* --- mobile drawer --- */
   const burger = $('[data-burger]'), drawer = $('[data-drawer]');
-  burger && burger.addEventListener('click', () => {
-    const open = !drawer.classList.contains('open');
-    drawer.classList.toggle('open', open); burger.classList.toggle('open', open);
-    document.body.classList.toggle('menu-open', open);
-  });
-
+  if (burger && drawer) {
+    drawer.id = 'borz-mobile-menu';
+    burger.setAttribute('aria-controls', drawer.id);
+    burger.setAttribute('aria-expanded', 'false');
+    drawer.inert = true;
+    const links = () => $$('a[href]', drawer).filter(link => !link.hidden && link.getClientRects().length);
+    const mobile = matchMedia('(max-width: 1439px)');
+    function toggleMenu(open) {
+      drawer.inert = !open;
+      drawer.classList.toggle('open', open);
+      burger.classList.toggle('open', open);
+      document.body.classList.toggle('menu-open', open);
+      burger.setAttribute('aria-expanded', String(open));
+      if (open) links()[0]?.focus({ preventScroll: true });
+      else if (mobile.matches) burger.focus({ preventScroll: true });
+    }
+    burger.addEventListener('click', () => toggleMenu(drawer.inert));
+    mobile.addEventListener('change', () => {
+      if (!mobile.matches && !drawer.inert) toggleMenu(false);
+    });
+    document.addEventListener('keydown', event => {
+      if (drawer.inert) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        toggleMenu(false);
+      } else {
+        keepTabInside(event, [burger, ...links()]);
+      }
+    });
+  }
 
   /* --- car-make logos: Simple Icons, same make→slug map as the original site; painted via CSS mask in currentColor --- */
   const MAKE_SLUG = {"alfa romeo":"alfaromeo",audi:"audi",bmw:"bmw",chevrolet:"chevrolet",citroen:"citroen",dacia:"dacia",fiat:"fiat",ford:"ford",honda:"honda",hyundai:"hyundai",jaguar:"jaguar",kia:"kia","land rover":"landrover",lexus:"lexus",mazda:"mazda",mercedes:"mercedes","mercedes-benz":"mercedes",mini:"mini",mitsubishi:"mitsubishi",nissan:"nissan",peugeot:"peugeot",porsche:"porsche",renault:"renault",seat:"seat",skoda:"skoda",suzuki:"suzuki",tesla:"tesla",toyota:"toyota",vauxhall:"vauxhall",volkswagen:"volkswagen",volvo:"volvo"};

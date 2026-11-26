@@ -60,21 +60,23 @@
     <div class="sec-head left" style="margin-bottom:0"><span class="kicker">How we buy</span><h2>Fast, fair &amp; <em>dealer-backed</em></h2><span class="rule left"></span>
     <p>We keep the process quick, clear and dealer-backed so you can move on your next vehicle without unnecessary delays.</p></div>
     <div class="val-steps-cards">
-      <div class="val-step-card"><span class="badge">01</span><div><h3>Find your vehicle</h3><p>Enter registration and mileage so we can match key vehicle details instantly.</p></div></div>
-      <div class="val-step-card"><span class="badge">02</span><div><h3>Complete your details</h3><p>Once matched, add your contact information and vehicle condition details in one form.</p></div></div>
+      <div class="val-step-card"><span class="badge">01</span><div><h3>Tell us about your car</h3><p>Enter your registration and current mileage.</p></div></div>
+      <div class="val-step-card"><span class="badge">02</span><div><h3>Leave your contact details</h3><p>Check the details you entered, then tell us how to reach you.</p></div></div>
       <div class="val-step-card"><span class="badge">03</span><div><h3>Receive a fair offer</h3><p>Our team reviews your request and contacts you with valuation guidance and next-step options.</p></div></div>
     </div>
     <div class="why-box"><h3>Why sell to <span data-borz-text="brand">Car dealership</span>?</h3><ul><li><i>✓</i>Professional, friendly and hassle-free process</li><li><i>✓</i>Dealer-backed valuation from an experienced local team</li><li><i>✓</i>Part exchange options available</li><li><i>✓</i>Appointment-led handover planning</li></ul></div>
   </div>
   <form class="val-form rv rv-d1" data-valuation method="post" data-borz-contact="part_exchange">
     <h2>Vehicle valuation request</h2><p class="intro">Three quick steps for a dealer-backed offer from <span data-borz-text="brand">Car dealership</span>.</p>
-    <div class="stepper"><span class="on" data-st="1"><i>1</i>Identify</span><hr><span data-st="2"><i>2</i>Valuation</span><hr><span data-st="3"><i>3</i>Your details</span></div>
-    <div data-pane="1"><h3>What car are you selling?</h3><p>Pop in your registration and current mileage. We’ll use these details to discuss a valuation with you.</p>
-      <div class="val-fields"><div><label>Registration</label><label class="plate"><span class="gb">UK</span><input name="registration" placeholder="AB12 CDE" maxlength="8" required></label></div>
-      <div><label>Current mileage</label><span class="miles"><input name="mileage" inputmode="numeric" placeholder="65,432" required><span>miles</span></span></div></div>
-      <button class="btn-soft" type="button" data-next>Find my car →</button></div>
-    <div data-pane="2" hidden><h3>Check your details</h3><p>Confirm your registration and mileage before adding your contact details. The team can discuss a valuation with you.</p><button class="btn-soft" type="button" data-next>Continue →</button></div>
-    <div data-pane="3" hidden><h3>Your details</h3><div class="cfields"><div><label for="borz-contact-name">Full name</label><input id="borz-contact-name" name="customerName" minlength="2" maxlength="120" autocomplete="name" required></div><div><label for="borz-contact-phone">Phone</label><input id="borz-contact-phone" name="phone" type="tel" autocomplete="tel" required></div><div class="full"><label for="borz-contact-email">Email</label><input id="borz-contact-email" name="email" type="email" autocomplete="email"></div></div><button class="btn-soft" type="submit" disabled>Send my request →</button></div>
+    <div class="stepper"><span class="on" data-st="1" aria-current="step"><i>1</i>Your car</span><hr><span data-st="2"><i>2</i>Review</span><hr><span data-st="3"><i>3</i>Contact</span></div>
+    <div data-pane="1"><h3 tabindex="-1">What car are you selling?</h3><p>Enter your registration and the mileage shown on your dashboard.</p>
+      <div class="val-fields"><div><label for="valuation-reg">Registration</label><div class="plate"><span class="gb" aria-hidden="true">UK</span><input id="valuation-reg" name="registration" placeholder="AB12 CDE" maxlength="9" autocapitalize="characters" spellcheck="false" required></div></div>
+      <div><label for="valuation-mileage">Current mileage</label><span class="miles"><input id="valuation-mileage" name="mileage" inputmode="numeric" placeholder="65,432" required><span aria-hidden="true">miles</span></span></div></div>
+      <button class="btn-soft" type="button" data-next>Review car details →</button></div>
+    <div data-pane="2" hidden><h3 tabindex="-1">Check your car details</h3>
+      <dl class="val-review"><div><dt>Registration</dt><dd data-valuation-reg></dd></div><div><dt>Current mileage</dt><dd data-valuation-mileage></dd></div></dl>
+      <div class="val-actions"><button class="btn-soft" type="button" data-next>Continue →</button><button class="val-back" type="button" data-back>Edit car details</button></div></div>
+    <div data-pane="3" hidden><h3 tabindex="-1">Your contact details</h3><div class="cfields"><div><label for="borz-contact-name">Full name</label><input id="borz-contact-name" name="customerName" minlength="2" maxlength="120" autocomplete="name" required></div><div><label for="borz-contact-phone">Phone</label><input id="borz-contact-phone" name="phone" type="tel" autocomplete="tel" required></div><div class="full"><label for="borz-contact-email">Email</label><input id="borz-contact-email" name="email" type="email" autocomplete="email"></div></div><button class="btn-soft" type="submit" disabled>Send my request →</button></div>
   </form>
 </div></section>
 <section class="sec" style="background:#fff;padding-top:0"><div class="shell">

@@ -1,6 +1,6 @@
 /* Vehicle detail using the selected dealership’s public vehicle endpoint. */
 window.BORZ_READY.then(function ({ vehicle, settings, publicFeatures }) {
-  const { STOCK, card, price, html, title, route, I, updateCounts, gbp, monthlyPayment } = window.SITE;
+  const { STOCK, card, price, html, title, route, I, updateCounts, gbp, monthlyPayment, keepTabInside } = window.SITE;
   const $ = (selector) => document.querySelector(selector);
   if (!vehicle) {
     const main = $('main') || $('[data-gallery]')?.closest('section');
@@ -119,15 +119,36 @@ window.BORZ_READY.then(function ({ vehicle, settings, publicFeatures }) {
   } else {
     let current = 0;
     thumbs.innerHTML = imgs.map((src, index) => `<button data-i="${index}" aria-label="Photo ${index + 1}"><img src="${html(src)}" alt="" loading="lazy"></button>`).join('');
+    thumbs.setAttribute('role', 'group');
+    thumbs.setAttribute('aria-label', 'Vehicle photo thumbnails');
+    const photoButtons = [...thumbs.children];
+    const close = $('[data-lb-close]');
+    const lightboxControls = imgs.length > 1 ? [close, lightboxPrevious, lightboxNext] : [close];
+    lightbox.id = 'borz-vehicle-photos';
+    lightbox.setAttribute('role', 'dialog');
+    lightbox.setAttribute('aria-modal', 'true');
+    lightbox.setAttribute('aria-label', 'Vehicle photos');
+    fullscreen.setAttribute('aria-controls', lightbox.id);
+    fullscreen.setAttribute('aria-haspopup', 'dialog');
+    close.setAttribute('aria-label', 'Close photo gallery');
+    lightboxPrevious.setAttribute('aria-label', 'Previous photo');
+    lightboxNext.setAttribute('aria-label', 'Next photo');
     function show(index) {
       current = (index + imgs.length) % imgs.length;
       main.src = imgs[current];
       main.alt = `${name}, photo ${current + 1}`;
       count.textContent = `${current + 1} / ${imgs.length}`;
-      [...thumbs.children].forEach((button, position) => {
+      photoButtons.forEach((button, position) => {
         button.classList.toggle('is-active', position === current);
         button.setAttribute('aria-pressed', String(position === current));
+        button.tabIndex = position === current ? 0 : -1;
       });
+      if (thumbs.clientWidth < thumbs.scrollWidth) {
+        const strip = thumbs.getBoundingClientRect();
+        const selected = photoButtons[current].getBoundingClientRect();
+        if (selected.left < strip.left) thumbs.scrollLeft += selected.left - strip.left;
+        if (selected.right > strip.right) thumbs.scrollLeft += selected.right - strip.right;
+      }
       if (lightbox.classList.contains('open')) {
         lightboxImage.src = imgs[current];
         lightboxImage.alt = main.alt;
@@ -137,15 +158,23 @@ window.BORZ_READY.then(function ({ vehicle, settings, publicFeatures }) {
       const button = event.target.closest('[data-i]');
       if (button) show(Number(button.dataset.i));
     });
+    thumbs.addEventListener('keydown', event => {
+      const positions = { ArrowLeft: current - 1, ArrowRight: current + 1, Home: 0, End: imgs.length - 1 };
+      if (!Object.hasOwn(positions, event.key)) return;
+      event.preventDefault();
+      show(positions[event.key]);
+      photoButtons[current].focus({ preventScroll: true });
+    });
     const closeLightbox = () => {
       lightbox.classList.remove('open');
-      fullscreen.focus();
+      document.body.classList.remove('borz-modal-open');
+      fullscreen.focus({ preventScroll: true });
     };
-    const close = $('[data-lb-close]');
     fullscreen.onclick = () => {
       lightbox.classList.add('open');
+      document.body.classList.add('borz-modal-open');
       show(current);
-      close.focus();
+      close.focus({ preventScroll: true });
     };
     close.onclick = closeLightbox;
     if (imgs.length > 1) {
@@ -163,10 +192,16 @@ window.BORZ_READY.then(function ({ vehicle, settings, publicFeatures }) {
       for (const element of [previous, next, lightboxPrevious, lightboxNext, thumbs]) element.remove();
     }
     document.addEventListener('keydown', event => {
-      if (!lightbox.classList.contains('open')) return;
-      if (event.key === 'ArrowLeft') show(current - 1);
-      if (event.key === 'ArrowRight') show(current + 1);
-      if (event.key === 'Escape') closeLightbox();
+      if (!lightbox.classList.contains('open') || event.defaultPrevented) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeLightbox();
+      } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        show(current + (event.key === 'ArrowLeft' ? -1 : 1));
+      } else {
+        keepTabInside(event, lightboxControls);
+      }
     });
     show(0);
   }

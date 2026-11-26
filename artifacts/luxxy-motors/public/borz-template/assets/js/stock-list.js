@@ -1,6 +1,6 @@
 /* Stock list: make chips, quick filters, sort, pagination, mobile filter drawer. */
 window.BORZ_READY.then(function ({ stockUnavailable }) {
-  const { STOCK, card, title, html, updateCounts } = window.SITE;
+  const { STOCK, card, title, html, updateCounts, keepTabInside } = window.SITE;
   const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const PER = 12, params = new URLSearchParams(location.search);
   const state = {
@@ -61,6 +61,46 @@ window.BORZ_READY.then(function ({ stockUnavailable }) {
     $$('[data-filter]').forEach(el => { const k = el.dataset.filter; if (el.value !== String(state[k] || '')) el.value = state[k] || ''; });
     updateCounts();
   }
+  const drawer = $('[data-fdrawer]');
+  const drawerOpener = $('[data-open-filters]');
+  const drawerClose = $('[data-close-filters]', drawer);
+  const scrim = $('[data-scrim]');
+  const drawerControls = $$('button, input, select', drawer);
+  const mobile = matchMedia('(max-width: 979px)');
+  drawer.id = 'borz-stock-filters';
+  drawer.inert = true;
+  drawer.setAttribute('role', 'dialog');
+  drawer.setAttribute('aria-modal', 'true');
+  drawer.setAttribute('aria-hidden', 'true');
+  drawerOpener.setAttribute('aria-controls', drawer.id);
+  drawerOpener.setAttribute('aria-expanded', 'false');
+  function toggleDrawer(open) {
+    if (drawer.inert === !open) return;
+    drawer.inert = !open;
+    drawer.classList.toggle('is-open', open);
+    scrim.classList.toggle('is-open', open);
+    document.body.classList.toggle('borz-modal-open', open);
+    drawerOpener.setAttribute('aria-expanded', String(open));
+    if (open) {
+      drawer.removeAttribute('aria-hidden');
+      drawerClose.focus({ preventScroll: true });
+    } else {
+      (mobile.matches ? drawerOpener : $('[data-sort]')).focus({ preventScroll: true });
+      drawer.setAttribute('aria-hidden', 'true');
+    }
+  }
+  mobile.addEventListener('change', () => {
+    if (!mobile.matches) toggleDrawer(false);
+  });
+  document.addEventListener('keydown', event => {
+    if (drawer.inert || event.defaultPrevented) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      toggleDrawer(false);
+    } else {
+      keepTabInside(event, drawerControls);
+    }
+  });
   document.addEventListener('click', e => {
     const c = e.target.closest('[data-make]'); if (c) { state.make = c.dataset.make; state.page = 1; render(); }
     const p = e.target.closest('[data-page]'); if (p) { state.page = +p.dataset.page; render(); scrollTo({ top: 0, behavior: 'smooth' }); }
@@ -70,6 +110,5 @@ window.BORZ_READY.then(function ({ stockUnavailable }) {
   });
   document.addEventListener('input', e => { const k = e.target.dataset.filter; if (k) { state[k] = e.target.value; state.page = 1; render(); } });
   $('[data-sort]').addEventListener('change', e => { state.sort = e.target.value; render(); });
-  function toggleDrawer(open) { $('[data-fdrawer]').classList.toggle('is-open', open); $('[data-scrim]').classList.toggle('is-open', open); }
   render();
 });

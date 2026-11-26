@@ -108,8 +108,11 @@
       }, { once: true });
       image.src = source;
     }
-    const title = document.title.replace(/\s*\| Car dealership$/, '');
-    document.title = title + ' | ' + values.brand;
+    const title = document.title.replace(/\s*\| Car dealership$/, '').trim();
+    const suffix = ' | ' + values.brand;
+    if (title !== values.brand && !title.endsWith(suffix)) {
+      document.title = title ? title + suffix : values.brand;
+    }
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const commonHours = dayHours.get('Monday');
     const uniform = commonHours && days.every(day => dayHours.get(day) === commonHours);
